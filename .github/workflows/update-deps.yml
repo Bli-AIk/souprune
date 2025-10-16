@@ -1,0 +1,50 @@
+name: Update Dependencies
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: Update dependencies
+      run: cargo update
+      
+    - name: Check if there are changes
+      id: changes
+      run: |
+        git diff --quiet Cargo.lock || echo "changed=true" >> $GITHUB_OUTPUT
+        
+    - name: Create Pull Request
+      if: steps.changes.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update dependencies"
+        title: "chore: update dependencies"
+        body: |
+          This PR updates the dependencies to their latest compatible versions.
+          
+          ## Changes
+          - Updated Cargo.lock with latest compatible dependency versions
+          
+          ## Testing
+          Please review the changes and ensure all tests pass before merging.
+        branch: chore/update-dependencies
+        delete-branch: true

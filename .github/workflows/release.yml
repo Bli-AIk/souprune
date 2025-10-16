@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Get tag name
+      id: tag_name
+      run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag_name.outputs.TAG }}
+        release_name: Release ${{ steps.tag_name.outputs.TAG }}
+        draft: false
+        prerelease: false
+        body: |
+          ## 更新内容 / What's Changed
+          
+          请查看提交历史了解详细更改。
+          See commit history for detailed changes.
+          
+          ## 下载 / Downloads
+          
+          - **Linux**: souprune-linux-x86_64
+          - **Windows**: souprune-windows-x86_64.exe  
+          - **macOS**: souprune-macos-universal
+
+  build-and-upload:
+    name: Build and Upload
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: souprune
+            asset_name: souprune-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: souprune.exe
+            asset_name: souprune-windows-x86_64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            arm_target: aarch64-apple-darwin
+            artifact_name: souprune
+            asset_name: souprune-macos-universal
+
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
+    
+    - name: Install Rust Targets (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        rustup target add x86_64-apple-darwin aarch64-apple-darwin
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.os != 'macos-latest' && matrix.target || '' }}
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build release (Linux/Windows)
+      if: matrix.os != 'macos-latest'
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Build and Combine (macOS Universal Binary)
+      if: matrix.os == 'macos-latest'
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+        cargo build --release --target ${{ matrix.arm_target }}
+        lipo -create \
+             target/${{ matrix.target }}/release/${{ matrix.artifact_name }} \
+             target/${{ matrix.arm_target }}/release/${{ matrix.artifact_name }} \
+             -output target/release/${{ matrix.asset_name }}
+        echo "FINAL_ARTIFACT_PATH=target/release/${{ matrix.asset_name }}" >> $GITHUB_ENV
+        echo "FINAL_ARTIFACT_NAME=${{ matrix.asset_name }}" >> $GITHUB_ENV
+      
+    - name: Strip binary (Linux and macOS)
+      if: matrix.os == 'ubuntu-latest' || (matrix.os == 'macos-latest' && env.FINAL_ARTIFACT_PATH == '')
+      run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+      
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
+        asset_name: ${{ env.FINAL_ARTIFACT_NAME || matrix.asset_name }}
+        asset_content_type: application/octet-stream
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Publish to crates.io
+      run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+      continue-on-error: true
