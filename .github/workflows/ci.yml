@@ -25,10 +25,7 @@ jobs:
             libasound2-dev \
             libudev-dev \
             libwayland-dev \
-            libwayland-cursor-dev \
-            libwayland-egl-dev \
             libxkbcommon-dev \
-            libxkbcommon-x11-dev \
             libxrandr-dev \
             libx11-dev \
             libxi-dev \
@@ -96,10 +93,7 @@ jobs:
             libasound2-dev \
             libudev-dev \
             libwayland-dev \
-            libwayland-cursor-dev \
-            libwayland-egl-dev \
             libxkbcommon-dev \
-            libxkbcommon-x11-dev \
             libxrandr-dev \
             libx11-dev \
             libxi-dev \
