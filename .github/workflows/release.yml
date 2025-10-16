@@ -13,10 +13,9 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       release_id: ${{ steps.create_release.outputs.id }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
     
     - name: Get tag name
       id: tag_name
@@ -24,12 +23,12 @@ jobs:
       
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.tag_name.outputs.TAG }}
-        release_name: Release ${{ steps.tag_name.outputs.TAG }}
+        name: Release ${{ steps.tag_name.outputs.TAG }}
         draft: false
         prerelease: false
         body: |
@@ -67,13 +66,27 @@ jobs:
             asset_name: souprune-macos-universal
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
     
     - name: Install dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        sudo apt-get install -y \
+          libasound2-dev \
+          libudev-dev \
+          libwayland-dev \
+          libwayland-cursor-dev \
+          libwayland-egl-dev \
+          libxkbcommon-dev \
+          libxkbcommon-x11-dev \
+          libxrandr-dev \
+          libx11-dev \
+          libxi-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libgl1-mesa-dev \
+          pkg-config
     
     - name: Install Rust Targets (macOS)
       if: matrix.os == 'macos-latest'
@@ -118,14 +131,12 @@ jobs:
       run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
       
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
-        asset_name: ${{ env.FINAL_ARTIFACT_NAME || matrix.asset_name }}
-        asset_content_type: application/octet-stream
+        tag_name: ${{ github.ref_name }}
+        files: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
 
   publish-crate:
     name: Publish to crates.io
@@ -133,12 +144,26 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        sudo apt-get install -y \
+          libasound2-dev \
+          libudev-dev \
+          libwayland-dev \
+          libwayland-cursor-dev \
+          libwayland-egl-dev \
+          libxkbcommon-dev \
+          libxkbcommon-x11-dev \
+          libxrandr-dev \
+          libx11-dev \
+          libxi-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libgl1-mesa-dev \
+          pkg-config
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
