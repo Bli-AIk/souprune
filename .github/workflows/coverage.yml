@@ -1,0 +1,87 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    name: Code Coverage
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libasound2-dev \
+          libudev-dev \
+          libwayland-dev \
+          libxkbcommon-dev \
+          libxrandr-dev \
+          libx11-dev \
+          libxi-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libgl1-mesa-dev \
+          pkg-config
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Install grcov
+      run: cargo install grcov
+      
+    - name: Build
+      run: cargo build
+      env:
+        RUSTFLAGS: '-Cinstrument-coverage'
+        LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
+        
+    - name: Run tests
+      run: cargo test
+      env:
+        RUSTFLAGS: '-Cinstrument-coverage'
+        LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
+        
+    - name: Generate coverage report
+      run: |
+        grcov . \
+          --binary-path ./target/debug/ \
+          --source-dir . \
+          --output-type lcov \
+          --branch \
+          --ignore-not-existing \
+          --ignore "/*" \
+          --ignore "target/*" \
+          --ignore "tests/*" \
+          --output-path coverage.lcov
+          
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        file: coverage.lcov
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false

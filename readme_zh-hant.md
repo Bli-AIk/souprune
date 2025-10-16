@@ -4,7 +4,9 @@
 <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> 
 <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/>
 
-<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /><br>
+<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" />
+<img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" />
+<br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
 <img src="https://img.shields.io/badge/Gamemaker language-black?style=for-the-badge&logo=gamemaker&logoColor=white" />
 <img src="https://img.shields.io/badge/Lua-2C2D72?style=for-the-badge&logo=lua&logoColor=white" />
