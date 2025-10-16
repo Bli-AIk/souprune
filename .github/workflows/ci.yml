@@ -8,62 +8,51 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  APP_NAME: my-bevy-game
 
 jobs:
   test:
     name: Test
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
     steps:
-    - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
+      - name: Install Bevy Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libudev-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            pkg-config
 
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-    - name: Check formatting
-      run: cargo fmt --all -- --check
-      if: matrix.rust == 'stable'
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-      if: matrix.rust == 'stable'
+      - name: Build
+        run: cargo build --verbose
 
-    - name: Build
-      run: cargo build --verbose
-
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Run tests
+        run: cargo test --verbose
 
   build:
     name: Build
@@ -75,82 +64,78 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: souprune
-            asset_name: souprune-linux-x86_64
+            artifact_name: ${{ env.APP_NAME }}
+            asset_name: ${{ env.APP_NAME }}-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: souprune.exe
-            asset_name: souprune-windows-x86_64.exe
+            artifact_name: ${{ env.APP_NAME }}.exe
+            asset_name: ${{ env.APP_NAME }}-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
             arm_target: aarch64-apple-darwin
-            artifact_name: souprune
-            asset_name: souprune-macos-universal
+            artifact_name: ${{ env.APP_NAME }}
+            asset_name: ${{ env.APP_NAME }}-macos-universal
 
     steps:
-    - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev
-    
-    - name: Install Rust Targets (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        rustup target add x86_64-apple-darwin aarch64-apple-darwin
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.os != 'macos-latest' && matrix.target || '' }}
+      - name: Install Bevy Dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libudev-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            pkg-config
 
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rust (with targets for macOS)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && matrix.arm_target || '' }}
 
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build release (Linux/Windows)
+        if: matrix.os != 'macos-latest'
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: ${{ matrix.os == 'ubuntu-latest' && '-C target-feature=+crt-static' || '' }}
 
-    - name: Build release (Linux/Windows)
-      if: matrix.os != 'macos-latest'
-      run: cargo build --release --target ${{ matrix.target }}
+      - name: Build and Combine (macOS Universal Binary)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.arm_target }}
+          lipo -create \
+               target/${{ matrix.target }}/release/${{ matrix.artifact_name }} \
+               target/${{ matrix.arm_target }}/release/${{ matrix.artifact_name }} \
+               -output target/release/${{ matrix.asset_name }}
+          echo "FINAL_ARTIFACT_PATH=target/release/${{ matrix.asset_name }}" >> $GITHUB_ENV
+          echo "FINAL_ARTIFACT_NAME=${{ matrix.asset_name }}" >> $GITHUB_ENV
 
-    - name: Build and Combine (macOS Universal Binary)
-      if: matrix.os == 'macos-latest'
-      run: |
-        cargo build --release --target ${{ matrix.target }}
-        cargo build --release --target ${{ matrix.arm_target }}
-        lipo -create \
-             target/${{ matrix.target }}/release/${{ matrix.artifact_name }} \
-             target/${{ matrix.arm_target }}/release/${{ matrix.artifact_name }} \
-             -output target/release/${{ matrix.asset_name }}
-        echo "FINAL_ARTIFACT_PATH=target/release/${{ matrix.asset_name }}" >> $GITHUB_ENV
-        echo "FINAL_ARTIFACT_NAME=${{ matrix.asset_name }}" >> $GITHUB_ENV
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.FINAL_ARTIFACT_NAME || matrix.asset_name }}
-        path: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FINAL_ARTIFACT_NAME || matrix.asset_name }}
+          path: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
 
   security:
     name: Security Audit
-    runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
     steps:
-    - uses: rustsec/audit-check@v1.4.1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
