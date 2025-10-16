@@ -1,16 +1,8 @@
 # SoupRune
 
-[![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE) 
-<img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> 
-<img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/>
-
-<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" />
-<img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" />
-<br>
-<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
-<img src="https://img.shields.io/badge/Gamemaker language-black?style=for-the-badge&logo=gamemaker&logoColor=white" />
-<img src="https://img.shields.io/badge/Lua-2C2D72?style=for-the-badge&logo=lua&logoColor=white" />
-<img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
+[![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/>
+<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
+<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> <img src="https://img.shields.io/badge/Gamemaker language-black?style=for-the-badge&logo=gamemaker&logoColor=white" /> <img src="https://img.shields.io/badge/Lua-2C2D72?style=for-the-badge&logo=lua&logoColor=white" /> <img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
 
 > **状态**：🚧 初始开发阶段（框架结构仍在快速演进中）
 
