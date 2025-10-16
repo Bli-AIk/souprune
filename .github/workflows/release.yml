@@ -85,15 +85,14 @@ jobs:
           libgl1-mesa-dev \
           pkg-config
     
-    - name: Install Rust Targets (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        rustup target add x86_64-apple-darwin aarch64-apple-darwin
-    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: ${{ matrix.os != 'macos-latest' && matrix.target || '' }}
+        targets: ${{ matrix.target }}
+
+    - name: Install additional targets for macOS
+      if: matrix.os == 'macos-latest'
+      run: rustup target add ${{ matrix.arm_target }}
         
     - name: Cache cargo registry
       uses: actions/cache@v4

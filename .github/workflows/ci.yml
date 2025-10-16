@@ -105,7 +105,11 @@ jobs:
       - name: Install Rust (with targets for macOS)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && matrix.arm_target || '' }}
+          targets: ${{ matrix.target }}
+
+      - name: Install additional targets for macOS
+        if: matrix.os == 'macos-latest'
+        run: rustup target add ${{ matrix.arm_target }}
 
       - name: Cache cargo
         uses: actions/cache@v4
