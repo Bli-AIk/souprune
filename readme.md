@@ -4,13 +4,15 @@
 <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> 
 <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/>
 
-<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /><br>
+<img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" />
+<img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" />
+<br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> 
 <img src="https://img.shields.io/badge/Gamemaker language-black?style=for-the-badge&logo=gamemaker&logoColor=white" /> 
 <img src="https://img.shields.io/badge/Lua-2C2D72?style=for-the-badge&logo=lua&logoColor=white" /> 
 <img src="https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
 
-> **Status**: 🚧 Early development stage (framework structure is still rapidly evolving)
+> **Status**: 🚧 Initial iteration (features and structure may change frequently)
 
 **SoupRune** is a game framework designed specifically for **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/) fangames**.
 
