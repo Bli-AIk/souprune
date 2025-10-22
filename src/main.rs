@@ -91,6 +91,13 @@ fn create_texture_atlas(
     texture_atlas_builder.padding(padding.unwrap_or_default());
 
     for handle in folder.handles.iter() {
+        if let Some(path) = handle.path() {
+            let path_str = path.to_string();
+            if !path_str.ends_with(".png") && !path_str.ends_with(".jpg") && !path_str.ends_with(".jpeg") {
+                continue;
+            }
+        }
+        
         let id = handle.id().typed_unchecked::<Image>();
         let Some(texture) = textures.get(id) else {
             warn!(
