@@ -10,14 +10,17 @@ use extra::markdown_asset_loader::*;
 
 fn main() {
     let resolution_scale = ResolutionScale::default();
-    
+
     App::new()
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        resolution: WindowResolution::new(320 * resolution_scale.get(), 240 * resolution_scale.get()),
+                        resolution: WindowResolution::new(
+                            320 * resolution_scale.get(),
+                            240 * resolution_scale.get(),
+                        ),
                         resizable: false,
                         ..default()
                     }),
