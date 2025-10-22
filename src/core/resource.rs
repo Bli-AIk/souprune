@@ -1,7 +1,24 @@
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
+#[derive(Resource)]
+pub(crate) struct ResolutionScale(pub(crate) u32);
 
+impl ResolutionScale {
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for ResolutionScale {
+    fn default() -> Self {
+        // (320, 240) * 2
+        Self(5)
+    }
+}
+
+#[derive(Resource, Default)]
+pub(crate) struct OverWorldCharacterSpriteFolder(pub(crate) Handle<LoadedFolder>);
 pub fn create_texture_atlas(
     folder: &LoadedFolder,
     padding: Option<UVec2>,

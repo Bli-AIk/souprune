@@ -1,20 +1,21 @@
 use crate::AppState;
+use crate::core::resource::{OverWorldCharacterSpriteFolder, ResolutionScale};
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
-
-#[derive(Resource, Default)]
-pub(crate) struct OverWorldCharacterSpriteFolder(pub(crate) Handle<LoadedFolder>);
 
 pub(crate) struct SetupPlugin;
 
 impl Plugin for SetupPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Setup), load_textures_system)
-            .add_systems(
-                Update,
-                check_textures_system.run_if(in_state(AppState::Setup)),
-            );
+        app.add_systems(
+            OnEnter(AppState::Setup),
+            (load_textures_system, setup_camera_system),
+        )
+        .add_systems(
+            Update,
+            check_textures_system.run_if(in_state(AppState::Setup)),
+        );
     }
 }
 
@@ -34,4 +35,8 @@ fn check_textures_system(
             next_state.set(AppState::Overworld);
         }
     }
+}
+
+fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
+    commands.spawn((Camera2d, Transform::from_scale(Vec3::splat(1.0 / resolution_scale.get() as f32))));
 }

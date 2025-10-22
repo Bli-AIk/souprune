@@ -1,6 +1,6 @@
 use crate::AppState;
+use crate::core::resource::OverWorldCharacterSpriteFolder;
 use crate::core::resource::{create_sprite_from_atlas, create_texture_atlas};
-use crate::core::setup::OverWorldCharacterSpriteFolder;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
@@ -24,8 +24,6 @@ fn setup_overworld_system(
     loaded_folders: Res<Assets<LoadedFolder>>,
     mut textures: ResMut<Assets<Image>>,
 ) {
-    commands.spawn(Camera2d);
-
     let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
 
     let (texture_atlas_nearest, nearest_sources, nearest_texture) = create_texture_atlas(
