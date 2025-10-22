@@ -20,12 +20,14 @@ impl AssetLoader for MarkdownAssetLoader {
     type Settings = ();
     type Error = std::io::Error;
 
-    fn load<>(
+    fn load(
         &self,
         _reader: &mut dyn Reader,
         _settings: &Self::Settings,
         load_context: &mut LoadContext<'_>,
-    ) -> impl ConditionalSendFuture<Output = std::result::Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>> {
+    ) -> impl ConditionalSendFuture<
+        Output = std::result::Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>,
+    > {
         info!(
             "Successfully 'loaded' (ignored) markdown file: {:?}",
             load_context.path()
