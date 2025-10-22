@@ -1,3 +1,6 @@
+mod markdown_asset_loader;
+
+use crate::markdown_asset_loader::MarkdownPlugin;
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
@@ -5,6 +8,7 @@ use bevy::prelude::*;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(MarkdownPlugin)
         .init_state::<AppState>()
         .add_systems(OnEnter(AppState::Setup), load_textures_system)
         .add_systems(
@@ -51,6 +55,8 @@ fn setup_system(
     loaded_folders: Res<Assets<LoadedFolder>>,
     mut textures: ResMut<Assets<Image>>,
 ) {
+    commands.spawn(Camera2d);
+
     let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
 
     let (texture_atlas_nearest, nearest_sources, nearest_texture) = create_texture_atlas(
@@ -109,16 +115,15 @@ fn create_texture_atlas(
 
 fn create_sprite_from_atlas(
     commands: &mut Commands,
-    translation: (f32, f32, f32),        // 精灵位置
-    atlas_texture: Handle<Image>,        // 图集纹理
-    atlas_sources: TextureAtlasSources,  // 图集源
-    atlas_handle: Handle<TextureAtlasLayout>, // 图集句柄
-    vendor_handle: &Handle<Image>,       // 精灵句柄
+    translation: (f32, f32, f32),
+    atlas_texture: Handle<Image>,
+    atlas_sources: TextureAtlasSources,
+    atlas_handle: Handle<TextureAtlasLayout>,
+    vendor_handle: &Handle<Image>,
 ) {
     commands.spawn((
         Transform {
             translation: Vec3::new(translation.0, translation.1, translation.2),
-            scale: Vec3::splat(3.0), // 放大显示
             ..default()
         },
         Sprite::from_atlas_image(
