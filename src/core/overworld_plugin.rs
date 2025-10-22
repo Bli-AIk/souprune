@@ -1,7 +1,7 @@
-use crate::core::resource_plugin::{
-    create_sprite_from_atlas, create_texture_atlas, OverWorldCharacterSpriteFolder,
-};
 use crate::AppState;
+use crate::core::resource_plugin::{
+    OverWorldCharacterSpriteFolder, create_sprite_from_atlas, create_texture_atlas,
+};
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
