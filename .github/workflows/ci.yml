@@ -10,6 +10,10 @@ env:
   CARGO_TERM_COLOR: always
   APP_NAME: souprune
 
+permissions:
+  checks: write
+  contents: read
+
 jobs:
   test:
     name: Test
