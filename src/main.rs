@@ -2,7 +2,7 @@ mod core;
 mod extra;
 
 use crate::core::overworld::*;
-use crate::core::resource::*;
+use crate::core::setup::*;
 use bevy::prelude::*;
 use extra::markdown_asset_loader::*;
 
@@ -11,7 +11,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(MarkdownPlugin)
         .init_state::<AppState>()
-        .add_plugins(ResourcePlugin)
+        .add_plugins(SetupPlugin)
         .add_plugins(OverworldPlugin)
         .run();
 }
