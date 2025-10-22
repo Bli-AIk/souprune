@@ -1,8 +1,8 @@
 mod core;
 mod extra;
 
-use crate::core::overworld_plugin::*;
-use crate::core::resource_plugin::*;
+use crate::core::overworld::*;
+use crate::core::resource::*;
 use bevy::prelude::*;
 use extra::markdown_asset_loader::*;
 

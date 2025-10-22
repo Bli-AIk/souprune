@@ -1,11 +1,13 @@
 use crate::AppState;
-use crate::core::resource_plugin::{
+use crate::core::resource::{
     OverWorldCharacterSpriteFolder, create_sprite_from_atlas, create_texture_atlas,
 };
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
+
+mod character;
 
 pub(crate) struct OverworldPlugin;
 

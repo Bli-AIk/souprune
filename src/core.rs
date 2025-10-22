@@ -1,2 +1,3 @@
-pub(crate) mod overworld_plugin;
-pub(crate) mod resource_plugin;
+mod core_components;
+pub(crate) mod overworld;
+pub(crate) mod resource;
