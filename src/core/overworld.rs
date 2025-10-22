@@ -1,6 +1,7 @@
 use crate::AppState;
-use crate::core::resource::OverWorldCharacterSpriteFolder;
-use crate::core::resource::{create_sprite_from_atlas, create_texture_atlas};
+use crate::core::core_bundles::CharacterBundle;
+use crate::core::core_components::Direction;
+use crate::core::resource::*;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
@@ -38,12 +39,16 @@ fn setup_overworld_system(
         .get_handle("textures/overworld/characters/frisk/walk/frisk-walk-down-1.png")
         .unwrap();
 
-    create_sprite_from_atlas(
-        &mut commands,
-        (0.0, 0.0, 0.0),
+    let sprite = Sprite::from_atlas_image(
         nearest_texture,
-        nearest_sources,
-        atlas_nearest_handle,
-        &frisk_handle,
+        nearest_sources
+            .handle(atlas_nearest_handle, &frisk_handle)
+            .unwrap(),
     );
+
+    commands.spawn(CharacterBundle::new(
+        Vec2::new(0.0, 0.0),
+        Direction::Down,
+        sprite,
+    ));
 }

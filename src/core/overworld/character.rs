@@ -1,3 +1,3 @@
+mod character_components;
 mod character_system;
 mod states;
-mod character_components;
