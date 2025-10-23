@@ -12,8 +12,6 @@
 |-----------------|-----------------------------|
 | English Version | [简体中文](./readme_zh-hant.md) |
 
----
-
 ## 🥣 Introduction
 
 Hey, don’t be scared by that **“Rust”** badge above — **SoupRune isn’t just a niche tool for hardcore programmers!**
@@ -32,8 +30,6 @@ But that doesn’t mean SoupRune is only a Deltarune framework — we also value
 
 SoupRune aims to become a true **“community-oriented fangame framework”** — open, flexible, modern, yet still retaining that familiar DR / UT style.
 
----
-
 ## 🧭 S.O.U.P Principles
 
 Yes, **Soup**Rune is a pun — and here’s what it stands for:
@@ -45,14 +41,10 @@ Yes, **Soup**Rune is a pun — and here’s what it stands for:
 |    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.            |
 |    **P**     | **Popular**       | Compatible with mainstream DR/UT community ecosystems and habits.       |
 
----
-
 ## ⚙️ Technical Foundation
 
 * Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
 * Design goals: **clear structure, modular expansion, and easy customization**.
-
----
 
 ## 🧩 Script Layer Support
 
@@ -70,8 +62,6 @@ Future plans include:
 * Providing a familiar development experience for [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / Gamemaker enthusiasts (e.g., similar event systems or script APIs);
 * Offering migration guides from  [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / [Undertale Engine](https://github.com/TML233/UndertaleEngine) projects.
 
----
-
 ## 💬 Open Source & License
 
 SoupRune uses the **LGPL-3.0** license.
@@ -84,7 +74,27 @@ This means:
 
 Additionally, you must still follow Toby Fox’s rules for fan games.
 
----
+## Citation Instructions
+
+This project utilizes the following projects as libraries, dependencies, or open-source references:
+
+| Project                                                                   | Version | License                                                                                                                                                                                                       | Functionality                                                                   |
+|---------------------------------------------------------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| [Bevy](https://crates.io/crates/bevy)                                     | 0.17.2  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Game engine core                                                                |
+| [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.18.0  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Manages game inputs, handles keyboard, mouse, and controller operation mappings |
+| [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Finite state machine implementation                                             |
+
+**Heartfelt thanks to every contributor to the project! 🎔**
+
+## Contributors
+
+The following individuals have contributed to the project.
+
+<a href = "https://github.com/Bli-AIk/souprune/Python/graphs/contributors">
+<img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
+</a>
+
+**Heartfelt thanks to each and every one of you! 🎔**
 
 ## 🤝 Join Us
 
