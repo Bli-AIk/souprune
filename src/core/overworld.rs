@@ -67,6 +67,9 @@ fn setup_overworld_system(
         StateMachine::default()
             .trans::<Idle, _>(is_walking, Walking)
             .trans::<Walking, _>(is_walking.not(), Idle)
+            .trans::<Running, _>(is_walking.not(), Idle)
+            .trans::<Walking, _>(is_running, Running)
+            .trans::<Running, _>(is_running.not(), Walking)
             .set_trans_logging(true),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
@@ -81,6 +84,15 @@ fn is_walking(query: Query<&ActionState<Action>, With<PlayerControlled>>) -> Res
         || action_state.pressed(&Action::Up)
         || action_state.pressed(&Action::Down)
     {
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
+fn is_running(query: Query<&ActionState<Action>, With<PlayerControlled>>) -> Result<(), ()> {
+    let action_state = query.single().map_err(|_| ())?;
+    if action_state.pressed(&Action::Cancel) {
         Ok(())
     } else {
         Err(())
