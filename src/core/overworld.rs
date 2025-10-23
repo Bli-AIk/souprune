@@ -1,19 +1,33 @@
 use crate::AppState;
 use crate::core::core_bundles::CharacterBundle;
 use crate::core::core_components::Direction;
+use crate::core::input::{Action, PlayerInputSettings};
+use crate::core::overworld::character::character_components::*;
 use crate::core::resource::*;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
-
+use character::character_system::*;
+use leafwing_input_manager::action_state::*;
+use leafwing_input_manager::prelude::*;
+use seldom_state::machine::*;
+use seldom_state::trigger::IntoTrigger;
 mod character;
 
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system);
+        app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system)
+            .add_systems(
+                Update,
+                (
+                    update_idle_system,
+                    update_walking_system,
+                    update_running_system,
+                ),
+            );
     }
 }
 
@@ -24,6 +38,7 @@ fn setup_overworld_system(
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     loaded_folders: Res<Assets<LoadedFolder>>,
     mut textures: ResMut<Assets<Image>>,
+    player_input: Res<PlayerInputSettings>,
 ) {
     let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
 
@@ -46,9 +61,28 @@ fn setup_overworld_system(
             .unwrap(),
     );
 
-    commands.spawn(CharacterBundle::new(
-        Vec2::new(0.0, 0.0),
-        Direction::Down,
-        sprite,
+    commands.spawn((
+        Idle,
+        PlayerControlled,
+        StateMachine::default()
+            .trans::<Idle, _>(is_walking, Walking)
+            .trans::<Walking, _>(is_walking.not(), Idle)
+            .set_trans_logging(true),
+        player_input.get_merged_map(),
+        ActionState::<Action>::default(),
+        CharacterBundle::new(Vec2::new(0.0, 0.0), Direction::Down, sprite.clone()),
     ));
+}
+
+fn is_walking(query: Query<&ActionState<Action>, With<PlayerControlled>>) -> Result<(), ()> {
+    let action_state = query.single().map_err(|_| ())?;
+    if action_state.pressed(&Action::Left)
+        || action_state.pressed(&Action::Right)
+        || action_state.pressed(&Action::Up)
+        || action_state.pressed(&Action::Down)
+    {
+        Ok(())
+    } else {
+        Err(())
+    }
 }

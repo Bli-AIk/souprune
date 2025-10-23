@@ -12,18 +12,24 @@ pub enum Action {
     Menu,
 }
 
-struct PlayerInputSettings {
+#[derive(Resource)]
+pub(crate) struct PlayerInputSettings {
     maps: Vec<InputMap<Action>>,
-    current_index: usize,
 }
 
 impl PlayerInputSettings {
-    fn active_map(&self) -> &InputMap<Action> {
-        &self.maps[self.current_index]
+    pub fn get_map(&self, index: usize) -> &InputMap<Action> {
+        self.maps.get(index).unwrap()
     }
-
-    fn switch_to(&mut self, index: usize) {
-        self.current_index = index.min(self.maps.len() - 1);
+    
+    pub fn get_merged_map(&self) -> InputMap<Action> {
+        let mut merged = InputMap::default();
+        
+        for map in &self.maps {
+            merged.merge(map);
+        }
+        
+        merged
     }
 }
 
@@ -73,7 +79,6 @@ impl Default for PlayerInputSettings {
                 map_key_alternate_1,
                 map_gamepad_default,
             ],
-            current_index: 0,
         }
     }
 }
