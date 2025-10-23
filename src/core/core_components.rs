@@ -40,6 +40,10 @@ pub(crate) enum Direction {
     Down,
     Left,
     Right,
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
 }
 impl Direction {
     pub fn as_vec2(&self) -> Vec2 {
@@ -48,6 +52,10 @@ impl Direction {
             Direction::Down => -Vec2::Y,
             Direction::Left => -Vec2::X,
             Direction::Right => Vec2::X,
+            Direction::UpLeft => Vec2::new(-1.0, 1.0).normalize(),
+            Direction::UpRight => Vec2::new(1.0, 1.0).normalize(),
+            Direction::DownLeft => Vec2::new(-1.0, -1.0).normalize(),
+            Direction::DownRight => Vec2::new(1.0, -1.0).normalize(),
         }
     }
 }

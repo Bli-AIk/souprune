@@ -16,19 +16,30 @@ pub(crate) fn update_walking_system(
 ) {
     for (mut pos, mut facing, speed, action_state) in query.iter_mut() {
         use crate::core::core_components::*;
-        for (action, direction) in [
-            (Action::Up, Direction::Up),
-            (Action::Down, Direction::Down),
-            (Action::Left, Direction::Left),
-            (Action::Right, Direction::Right),
-        ] {
-            if action_state.pressed(&action) {
-                facing.value = direction;
-                break;
-            }
+        
+        // 计算移动方向
+        let mut direction_vec = Vec2::ZERO;
+        if action_state.pressed(&Action::Up) { direction_vec.y += 1.0; }
+        if action_state.pressed(&Action::Down) { direction_vec.y -= 1.0; }
+        if action_state.pressed(&Action::Left) { direction_vec.x -= 1.0; }
+        if action_state.pressed(&Action::Right) { direction_vec.x += 1.0; }
+        
+        let new_direction = match (direction_vec.x as i32, direction_vec.y as i32) {
+            (0, 1) => Some(Direction::Up),
+            (0, -1) => Some(Direction::Down),
+            (-1, 0) => Some(Direction::Left),
+            (1, 0) => Some(Direction::Right),
+            (-1, 1) => Some(Direction::UpLeft),
+            (1, 1) => Some(Direction::UpRight),
+            (-1, -1) => Some(Direction::DownLeft),
+            (1, -1) => Some(Direction::DownRight),
+            _ => None,
+        };
+        
+        if let Some(direction) = new_direction {
+            facing.value = direction;
+            pos.value += facing.value.as_vec2() * speed.value * time.delta_secs();
         }
-
-        pos.value += facing.value.as_vec2() * speed.value * time.delta_secs();
     }
 }
 
