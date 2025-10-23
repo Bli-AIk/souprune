@@ -53,12 +53,6 @@ jobs:
     - name: Install grcov
       run: cargo install grcov
       
-    - name: Build
-      run: cargo build
-      env:
-        RUSTFLAGS: '-Cinstrument-coverage'
-        LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
-        
     - name: Run tests
       run: cargo test
       env:
