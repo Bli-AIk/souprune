@@ -12,8 +12,6 @@
 |-----------------|-----------------------------|
 | English Version | [简体中文](./readme_zh-hant.md) |
 
----
-
 ## 🥣 Introduction
 
 Hey, don’t be scared by that **“Rust”** badge above — **SoupRune isn’t just a niche tool for hardcore programmers!**
@@ -32,8 +30,6 @@ But that doesn’t mean SoupRune is only a Deltarune framework — we also value
 
 SoupRune aims to become a true **“community-oriented fangame framework”** — open, flexible, modern, yet still retaining that familiar DR / UT style.
 
----
-
 ## 🧭 S.O.U.P Principles
 
 Yes, **Soup**Rune is a pun — and here’s what it stands for:
@@ -45,14 +41,10 @@ Yes, **Soup**Rune is a pun — and here’s what it stands for:
 |    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.            |
 |    **P**     | **Popular**       | Compatible with mainstream DR/UT community ecosystems and habits.       |
 
----
-
 ## ⚙️ Technical Foundation
 
 * Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
 * Design goals: **clear structure, modular expansion, and easy customization**.
-
----
 
 ## 🧩 Script Layer Support
 
@@ -70,8 +62,6 @@ Future plans include:
 * Providing a familiar development experience for [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / Gamemaker enthusiasts (e.g., similar event systems or script APIs);
 * Offering migration guides from  [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / [Undertale Engine](https://github.com/TML233/UndertaleEngine) projects.
 
----
-
 ## 💬 Open Source & License
 
 SoupRune uses the **LGPL-3.0** license.
@@ -83,8 +73,6 @@ This means:
 * If you want to use a modified version in a fully closed-source environment, contact me for a commercial license.
 
 Additionally, you must still follow Toby Fox’s rules for fan games.
-
----
 
 ## Citation Instructions
 
@@ -98,8 +86,6 @@ This project utilizes the following projects as libraries, dependencies, or open
 
 **Heartfelt thanks to every contributor to the project! 🎔**
 
----
-
 ## Contributors
 
 The following individuals have contributed to the project.
@@ -109,8 +95,6 @@ The following individuals have contributed to the project.
 </a>
 
 **Heartfelt thanks to each and every one of you! 🎔**
-
----
 
 ## 🤝 Join Us
 
