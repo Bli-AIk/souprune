@@ -21,14 +21,14 @@ impl PlayerInputSettings {
     pub fn get_map(&self, index: usize) -> &InputMap<Action> {
         self.maps.get(index).unwrap()
     }
-    
+
     pub fn get_merged_map(&self) -> InputMap<Action> {
         let mut merged = InputMap::default();
-        
+
         for map in &self.maps {
             merged.merge(map);
         }
-        
+
         merged
     }
 }

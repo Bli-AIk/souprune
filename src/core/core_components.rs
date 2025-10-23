@@ -1,13 +1,23 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub(crate) struct Position(pub Vec2);
+pub(crate) struct Position {
+    pub value: Vec2,
+}
 
 #[derive(Component)]
-pub(crate) struct Rotation(pub f32);
+pub(crate) struct Rotation {
+    pub angle: f32,
+}
+#[derive(Component)]
+pub(crate) struct Speed {
+    pub value: f32,
+}
 
 #[derive(Component)]
-pub(crate) struct Facing(pub Direction);
+pub(crate) struct Facing {
+    pub value: Direction,
+}
 #[derive(Component)]
 pub(crate) struct Health {
     pub(crate) current: i32,
@@ -19,10 +29,14 @@ pub(crate) struct AnimationState {
 }
 // Current state duration
 #[derive(Component)]
-pub(crate) struct StateTimer(pub f32);
+pub(crate) struct StateTimer {
+    pub value: f32,
+}
 
+#[derive(Default)]
 pub(crate) enum Direction {
     Up,
+    #[default]
     Down,
     Left,
     Right,

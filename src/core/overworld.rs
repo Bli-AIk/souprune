@@ -1,5 +1,4 @@
 use crate::AppState;
-use crate::core::core_bundles::CharacterBundle;
 use crate::core::core_components::Direction;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::character_components::*;
@@ -8,7 +7,8 @@ use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
-use character::character_system::*;
+use character::CharacterBundle;
+use character::character_systems::*;
 use leafwing_input_manager::action_state::*;
 use leafwing_input_manager::prelude::*;
 use seldom_state::machine::*;

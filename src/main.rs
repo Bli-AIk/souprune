@@ -5,6 +5,7 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::resource::*;
 use crate::core::setup::*;
+use crate::core::*;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
@@ -25,7 +26,7 @@ fn main() {
         .init_resource::<ResolutionScale>()
         .init_resource::<PlayerInputSettings>()
         .init_state::<AppState>()
-        .add_plugins((SetupPlugin, OverworldPlugin))
+        .add_plugins((CorePlugin, SetupPlugin, OverworldPlugin))
         .run();
 }
 
