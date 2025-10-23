@@ -63,6 +63,12 @@ pub(crate) fn update_running_system(
     mut query: Query<(&mut Position, &mut Facing, &Speed, &ActionState<Action>), With<Running>>,
 ) {
     for (pos, facing, speed, action_state) in query.iter_mut() {
-        apply_walking_step(pos, facing, speed.value * 2.0, action_state, time.delta_secs());
+        apply_walking_step(
+            pos,
+            facing,
+            speed.value * 2.0,
+            action_state,
+            time.delta_secs(),
+        );
     }
 }
