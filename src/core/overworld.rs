@@ -51,7 +51,7 @@ fn setup_overworld_system(
     let atlas_nearest_handle = texture_atlases.add(texture_atlas_nearest);
 
     let frisk_handle: Handle<Image> = asset_server
-        .get_handle("textures/overworld/characters/frisk/walk/frisk-walk-down-1.png")
+        .get_handle("textures/overworld/characters/frisk/walk/down/1.png")
         .unwrap();
 
     let sprite = Sprite::from_atlas_image(
