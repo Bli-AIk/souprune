@@ -86,6 +86,32 @@ Additionally, you must still follow Toby Fox’s rules for fan games.
 
 ---
 
+## Citation Instructions
+
+This project utilizes the following projects as libraries, dependencies, or open-source references:
+
+| Project                                                                   | Version | License                                                                                                                                                                                                       | Functionality                                                                   |
+|---------------------------------------------------------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| [Bevy](https://crates.io/crates/bevy)                                     | 0.17.2  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Game engine core                                                                |
+| [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.18.0  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Manages game inputs, handles keyboard, mouse, and controller operation mappings |
+| [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Finite state machine implementation                                             |
+
+**Heartfelt thanks to every contributor to the project! 🎔**
+
+---
+
+## Contributors
+
+The following individuals have contributed to the project.
+
+<a href = "https://github.com/Bli-AIk/souprune/Python/graphs/contributors">
+<img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
+</a>
+
+**Heartfelt thanks to each and every one of you! 🎔**
+
+---
+
 ## 🤝 Join Us
 
 Whether you:
