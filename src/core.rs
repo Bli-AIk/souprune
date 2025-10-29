@@ -1,11 +1,11 @@
 mod core_components;
 pub(crate) mod input;
 pub(crate) mod overworld;
-pub(crate) mod sprite;
 pub(crate) mod setup;
+pub(crate) mod sprite;
 
-mod core_systems;
 mod animation;
+mod core_systems;
 
 use bevy::app::*;
 use core_systems::*;

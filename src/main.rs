@@ -3,7 +3,6 @@ mod extra;
 
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
-use crate::core::sprite::*;
 use crate::core::setup::*;
 use crate::core::*;
 use bevy::app::PluginGroupBuilder;

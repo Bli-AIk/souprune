@@ -33,14 +33,16 @@ impl Plugin for OverworldPlugin {
 
 fn setup_overworld_system(
     mut commands: Commands,
-    rpg_sprite_handles: Res<OverWorldCharacterSpriteFolder>,
-    asset_server: Res<AssetServer>,
+    sprite_registry: Res<ModuleSpriteRegistry>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     loaded_folders: Res<Assets<LoadedFolder>>,
     mut textures: ResMut<Assets<Image>>,
     player_input: Res<PlayerInputSettings>,
 ) {
-    let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
+    let overworld_handle = sprite_registry
+        .get_module("overworld")
+        .expect("Overworld module not registered");
+    let loaded_folder = loaded_folders.get(overworld_handle).unwrap();
 
     let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
         create_texture_atlas(

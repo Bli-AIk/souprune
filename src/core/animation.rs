@@ -1,5 +1,5 @@
-use std::time::Duration;
 use bevy::prelude::*;
+use std::time::Duration;
 
 #[derive(Component)]
 struct AnimationConfig {
@@ -25,7 +25,10 @@ impl AnimationConfig {
 }
 
 // Loop animation system
-fn execute_animations_system(time: Res<Time>, mut query: Query<(&mut AnimationConfig, &mut Sprite)>) {
+fn execute_animations_system(
+    time: Res<Time>,
+    mut query: Query<(&mut AnimationConfig, &mut Sprite)>,
+) {
     for (mut config, mut sprite) in &mut query {
         config.frame_timer.tick(time.delta());
 

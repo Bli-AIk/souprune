@@ -4,7 +4,25 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
 #[derive(Resource, Default)]
-pub(crate) struct OverWorldCharacterSpriteFolder(pub(crate) Handle<LoadedFolder>);
+pub(crate) struct ModuleSpriteRegistry {
+    pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,
+}
+
+impl ModuleSpriteRegistry {
+    pub fn new() -> Self {
+        Self {
+            modules: HashMap::new(),
+        }
+    }
+
+    pub fn register_module(&mut self, module_name: String, folder_handle: Handle<LoadedFolder>) {
+        self.modules.insert(module_name, folder_handle);
+    }
+
+    pub fn get_module(&self, module_name: &str) -> Option<&Handle<LoadedFolder>> {
+        self.modules.get(module_name)
+    }
+}
 pub fn create_texture_atlas(
     folder: &LoadedFolder,
     padding: Option<UVec2>,
