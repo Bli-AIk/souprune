@@ -3,14 +3,13 @@ use crate::core::components::Direction;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::sprite::*;
+use crate::extra::toml_asset_loader::TomlAsset;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
-use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use character::CharacterBundle;
 use character::systems::*;
 use leafwing_input_manager::action_state::*;
-use leafwing_input_manager::prelude::*;
 use seldom_state::machine::*;
 use seldom_state::trigger::IntoTrigger;
 mod character;
@@ -31,41 +30,26 @@ impl Plugin for OverworldPlugin {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn setup_overworld_system(
     mut commands: Commands,
     sprite_registry: Res<ModuleSpriteRegistry>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     loaded_folders: Res<Assets<LoadedFolder>>,
     mut textures: ResMut<Assets<Image>>,
+    toml_assets: Res<Assets<TomlAsset>>,
+    mut toml_registry: ResMut<TomlConfigRegistry>,
     player_input: Res<PlayerInputSettings>,
 ) {
-    let overworld_handle = sprite_registry
-        .get_module("overworld")
-        .expect("Overworld module not registered");
-    let loaded_folder = loaded_folders.get(overworld_handle).unwrap();
-
-    let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
-        create_texture_atlas(
-            loaded_folder,
-            None,
-            Some(ImageSampler::nearest()),
-            &mut textures,
-        );
-
-    let atlas_nearest_handle = texture_atlases.add(texture_atlas_nearest);
-
-    let frisk_index = *index_map
-        .get("textures/overworld/characters/frisk/walk/down/1.png")
-        .expect("Frisk sprite not found in atlas");
-
-    // TODO: 使用字符串 "chest_box" ，通过配置文件，创建一个精灵
-
-    let sprite = Sprite::from_atlas_image(
-        nearest_texture,
-        TextureAtlas {
-            layout: atlas_nearest_handle.clone(),
-            index: frisk_index,
-        },
+    let sprite = get_sprite_from_config(
+        &sprite_registry,
+        &mut texture_atlases,
+        &loaded_folders,
+        &mut textures,
+        &toml_assets,
+        &mut toml_registry,
+        "overworld",
+        "chest_box",
     );
 
     commands.spawn((

@@ -34,7 +34,7 @@ pub struct ModuleConfig {
     pub loaded_before: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AnimationConfig {
     pub name: String,
     pub path: String,
@@ -46,7 +46,7 @@ pub struct AnimationConfig {
     pub looping: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct SpriteConfig {
     pub name: String,
     pub path: String,
