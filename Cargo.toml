@@ -11,6 +11,7 @@ bevy = "0.17.2"
 leafwing-input-manager = "0.18.0"
 seldom_state = "0.15.0"
 toml = "0.9.8"
+serde = { version = "1.0", features = ["derive"] }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

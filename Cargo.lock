@@ -4167,6 +4167,7 @@ dependencies = [
  "bevy",
  "leafwing-input-manager",
  "seldom_state",
+ "serde",
  "toml",
 ]
 

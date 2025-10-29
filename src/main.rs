@@ -5,6 +5,7 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::setup::*;
 use crate::core::*;
+use crate::extra::toml_asset_loader::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
@@ -19,6 +20,7 @@ fn main() {
         .add_plugins((
             default_plugins,
             MarkdownPlugin,
+            TomlPlugin,
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
         ))

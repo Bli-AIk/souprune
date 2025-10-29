@@ -47,6 +47,10 @@ pub fn create_texture_atlas(
                 && !path_str.ends_with(".jpg")
                 && !path_str.ends_with(".jpeg")
             {
+                if (path_str.ends_with(".toml")) {
+                    println!("{}", path_str)
+                }
+
                 continue;
             }
             index_map.insert(path_str, added_count);
