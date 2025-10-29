@@ -21,20 +21,20 @@ path = "textures/overworld/characters/flowey/sink"
 # walk
 [[animations]]
 name = "frisk_idle_down"
-path = "textures/overworld/characters/frisk/walk/down/0"
+path = "textures/overworld/characters/frisk/walk/down/0.png"
 
 [[animations]]
 name = "frisk_idle_left"
-path = "textures/overworld/characters/frisk/walk/side/0"
+path = "textures/overworld/characters/frisk/walk/side/0.png"
 
 [[animations]]
 name = "frisk_idle_right"
-path = "textures/overworld/characters/frisk/walk/side/0"
+path = "textures/overworld/characters/frisk/walk/side/0.png"
 flip_x = true
 
 [[animations]]
 name = "frisk_idle_up"
-path = "textures/overworld/characters/frisk/walk/up/0"
+path = "textures/overworld/characters/frisk/walk/up/0.png"
 # walk
 [[animations]]
 name = "frisk_walk_down"

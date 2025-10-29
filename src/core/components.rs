@@ -19,15 +19,22 @@ pub(crate) struct Facing {
     pub value: Direction,
 }
 #[derive(Component)]
-pub(crate) struct Health {
-    pub(crate) current: i32,
-    pub(crate) max: i32,
+pub(crate) struct BasicAttributes {
+    pub(crate) hp_current: usize,
+    pub(crate) hp_max: usize,
+    pub(crate) atk: usize,
+    pub(crate) def: usize,
 }
 #[derive(Component)]
 pub(crate) struct AnimationState {
-    pub(crate) clip: String,
+    pub(crate) clip: &'static str,
 }
 
+impl AnimationState {
+    pub fn new(name: &'static str) -> Self {
+        Self { clip: name }
+    }
+}
 #[derive(Default)]
 pub(crate) enum Direction {
     Up,

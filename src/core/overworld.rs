@@ -1,12 +1,12 @@
 use crate::AppState;
-use crate::core::components::Direction;
+use crate::core::components::{AnimationState, Direction};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use character::CharacterBundle;
+use character::PlayerBundle;
 use character::systems::*;
 use leafwing_input_manager::action_state::*;
 use seldom_state::machine::*;
@@ -50,6 +50,7 @@ fn setup_overworld_system(
             .trans::<Running, _>(character::is_running.not(), Walking),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
-        CharacterBundle::new(Vec2::new(0.0, 0.0), Direction::Down, sprite.clone()),
+        //TODO AnimationState应该是 overworld, frisk_walk_down
+        PlayerBundle::new(Vec2::new(0.0, 0.0), Direction::Down, AnimationState::new("")),
     ));
 }

@@ -9,34 +9,35 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) mod components;
 pub(crate) mod systems;
 
+// CharacterBundle 应当为简化的 PlayerBundle，用于非玩家角色
 #[derive(Bundle)]
-pub struct CharacterBundle {
+pub struct PlayerBundle {
     position: Position,
     rotation: Rotation,
     facing: Facing,
     speed: Speed,
     sprite: Sprite,
-    health: Health,
+    health: BasicAttributes,
     anim: AnimationState,
     transform: Transform,
     global_transform: GlobalTransform,
 }
 
-impl CharacterBundle {
-    pub fn new(spawn_pos: Vec2, facing: Direction, sprite: Sprite) -> Self {
+impl PlayerBundle {
+    pub fn new(spawn_pos: Vec2, facing: Direction, anim: AnimationState) -> Self {
         Self {
             position: Position { value: spawn_pos },
             rotation: Rotation { angle: 0.0 },
             facing: Facing { value: facing },
             speed: Speed { value: 50.0 },
-            sprite,
-            health: Health {
-                current: 20,
-                max: 20,
+            sprite: Sprite::default(),
+            health: BasicAttributes {
+                hp_current: 20,
+                hp_max: 20,
+                atk: 10,
+                def: 10,
             },
-            anim: AnimationState {
-                clip: "idle_down".into(),
-            },
+            anim,
             transform: Transform::from_translation(spawn_pos.extend(0.0)),
             global_transform: GlobalTransform::default(),
         }
