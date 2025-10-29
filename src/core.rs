@@ -1,14 +1,14 @@
-mod core_components;
+mod components;
 pub(crate) mod input;
 pub(crate) mod overworld;
 pub(crate) mod setup;
 pub(crate) mod sprite;
 
 mod animation;
-mod core_systems;
+mod systems;
 
 use bevy::app::*;
-use core_systems::*;
+use systems::*;
 
 pub(crate) struct CorePlugin;
 

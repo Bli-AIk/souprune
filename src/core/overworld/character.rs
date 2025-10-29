@@ -1,9 +1,9 @@
-use crate::core::core_components::*;
+use crate::core::components::*;
 use bevy::math::Vec2;
 use bevy::prelude::{Bundle, GlobalTransform, Sprite, Transform};
 
-pub(crate) mod character_components;
-pub(crate) mod character_systems;
+pub(crate) mod components;
+pub(crate) mod systems;
 
 #[derive(Bundle)]
 pub struct CharacterBundle {

@@ -1,14 +1,14 @@
 use crate::AppState;
-use crate::core::core_components::Direction;
+use crate::core::components::Direction;
 use crate::core::input::{Action, PlayerInputSettings};
-use crate::core::overworld::character::character_components::*;
+use crate::core::overworld::character::components::*;
 use crate::core::sprite::*;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use character::CharacterBundle;
-use character::character_systems::*;
+use character::systems::*;
 use leafwing_input_manager::action_state::*;
 use leafwing_input_manager::prelude::*;
 use seldom_state::machine::*;
@@ -51,7 +51,6 @@ fn setup_overworld_system(
             Some(ImageSampler::nearest()),
             &mut textures,
         );
-    println!("index_map: {:#?}", &index_map);
 
     let atlas_nearest_handle = texture_atlases.add(texture_atlas_nearest);
 
@@ -59,7 +58,8 @@ fn setup_overworld_system(
         .get("textures/overworld/characters/frisk/walk/down/1.png")
         .expect("Frisk sprite not found in atlas");
 
-    println!("index: {:#?}", &frisk_index);
+    // TODO: 使用字符串 "chest_box" ，通过配置文件，创建一个精灵
+
     let sprite = Sprite::from_atlas_image(
         nearest_texture,
         TextureAtlas {
