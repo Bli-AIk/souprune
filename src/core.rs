@@ -1,7 +1,7 @@
 mod core_components;
 pub(crate) mod input;
 pub(crate) mod overworld;
-pub(crate) mod resource;
+pub(crate) mod sprite;
 pub(crate) mod setup;
 
 mod core_systems;

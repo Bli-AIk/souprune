@@ -1,21 +1,7 @@
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-#[derive(Resource)]
-pub(crate) struct ResolutionScale(pub(crate) u32);
-
-impl ResolutionScale {
-    pub(crate) fn get(&self) -> u32 {
-        self.0
-    }
-}
-
-impl Default for ResolutionScale {
-    fn default() -> Self {
-        // (320, 240) * 2
-        Self(5)
-    }
-}
 
 #[derive(Resource, Default)]
 pub(crate) struct OverWorldCharacterSpriteFolder(pub(crate) Handle<LoadedFolder>);
@@ -24,9 +10,17 @@ pub fn create_texture_atlas(
     padding: Option<UVec2>,
     sampling: Option<ImageSampler>,
     textures: &mut ResMut<Assets<Image>>,
-) -> (TextureAtlasLayout, TextureAtlasSources, Handle<Image>) {
+) -> (
+    TextureAtlasLayout,
+    TextureAtlasSources,
+    Handle<Image>,
+    HashMap<String, usize>,
+) {
     let mut texture_atlas_builder = TextureAtlasBuilder::default();
     texture_atlas_builder.padding(padding.unwrap_or_default());
+
+    let mut index_map = HashMap::new();
+    let mut added_count = 0;
 
     for handle in folder.handles.iter() {
         if let Some(path) = handle.path() {
@@ -37,6 +31,8 @@ pub fn create_texture_atlas(
             {
                 continue;
             }
+            index_map.insert(path_str, added_count);
+            added_count += 1;
         }
 
         let id = handle.id().typed_unchecked::<Image>();
@@ -58,7 +54,12 @@ pub fn create_texture_atlas(
     let image = textures.get_mut(&texture).unwrap();
     image.sampler = sampling.unwrap_or_default();
 
-    (texture_atlas_layout, texture_atlas_sources, texture)
+    (
+        texture_atlas_layout,
+        texture_atlas_sources,
+        texture,
+        index_map,
+    )
 }
 
 pub fn create_sprite_from_atlas(

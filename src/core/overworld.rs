@@ -2,7 +2,7 @@ use crate::AppState;
 use crate::core::core_components::Direction;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::character_components::*;
-use crate::core::resource::*;
+use crate::core::sprite::*;
 use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
@@ -42,12 +42,14 @@ fn setup_overworld_system(
 ) {
     let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
 
-    let (texture_atlas_nearest, nearest_sources, nearest_texture) = create_texture_atlas(
+    let (texture_atlas_nearest, nearest_sources, nearest_texture, index_map) = create_texture_atlas(
         loaded_folder,
         None,
         Some(ImageSampler::nearest()),
         &mut textures,
     );
+    println!("index_map: {:#?}", &index_map);
+
     let atlas_nearest_handle = texture_atlases.add(texture_atlas_nearest);
 
     let frisk_handle: Handle<Image> = asset_server

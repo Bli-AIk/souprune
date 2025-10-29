@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::core::resource::{OverWorldCharacterSpriteFolder, ResolutionScale};
+use crate::core::sprite::OverWorldCharacterSpriteFolder;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
@@ -42,4 +42,20 @@ fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionS
         Camera2d,
         Transform::from_scale(Vec3::splat(1.0 / resolution_scale.get() as f32)),
     ));
+}
+
+#[derive(Resource)]
+pub(crate) struct ResolutionScale(pub(crate) u32);
+
+impl ResolutionScale {
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for ResolutionScale {
+    fn default() -> Self {
+        // (320, 240) * 2
+        Self(5)
+    }
 }
