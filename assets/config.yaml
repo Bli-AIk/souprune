@@ -1,0 +1,24 @@
+textures:
+  overworld:
+    characters:
+      flowey:
+        idle:
+          path: "textures/overworld/characters/flowey/idle"
+        sink:
+          path: "textures/overworld/characters/flowey/sink"
+      
+      frisk:
+        run:
+          down:
+            path: "textures/overworld/characters/frisk/run/down"
+          side:
+            path: "textures/overworld/characters/frisk/run/side"
+          up:
+            path: "textures/overworld/characters/frisk/run/up"
+    
+    objects:
+      everywhere:
+        chestbox:
+          path: "textures/overworld/objects/everywhere/chestbox.png"
+        savepoint:
+          path: "textures/overworld/objects/everywhere/savepoint"

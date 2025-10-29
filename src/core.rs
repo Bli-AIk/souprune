@@ -5,6 +5,7 @@ pub(crate) mod resource;
 pub(crate) mod setup;
 
 mod core_systems;
+mod animation;
 
 use bevy::app::*;
 use core_systems::*;
