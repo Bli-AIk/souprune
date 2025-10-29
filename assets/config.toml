@@ -1,75 +1,98 @@
+# Here is the configuration file of the game resources, which defines the paths of various animations and sprites.
+# Each resource has a unique name and corresponding file path for easy reference in game code.
+# For animation resources, horizontal flipping (flip_x) and vertical flipping (flip_y) are turned off by default.
+# And looping is enabled by default.
+# These can be set as needed.
+
 # ---overworld---
 # --characters--
 # -flowey-
-[[textures]]
+[[animations]]
 name = "flowey_idle"
 path = "textures/overworld/characters/flowey/idle"
 
-[[textures]]
+[[animations]]
 name = "flowey_sink"
 path = "textures/overworld/characters/flowey/sink"
 
 # -frisk-
 # walk
-[[textures]]
+[[animations]]
+name = "frisk_idle_down"
+path = "textures/overworld/characters/frisk/walk/down/0"
+
+[[animations]]
+name = "frisk_idle_left"
+path = "textures/overworld/characters/frisk/walk/side/0"
+
+[[animations]]
+name = "frisk_idle_right"
+path = "textures/overworld/characters/frisk/walk/side/0"
+flip_x = true
+
+[[animations]]
+name = "frisk_idle_up"
+path = "textures/overworld/characters/frisk/walk/up/0"
+# walk
+[[animations]]
 name = "frisk_walk_down"
 path = "textures/overworld/characters/frisk/walk/down"
 
-[[textures]]
+[[animations]]
 name = "frisk_walk_left"
 path = "textures/overworld/characters/frisk/walk/side"
 
-[[textures]]
+[[animations]]
 name = "frisk_walk_right"
 path = "textures/overworld/characters/frisk/walk/side"
 flip_x = true
 
-[[textures]]
+[[animations]]
 name = "frisk_walk_up"
 path = "textures/overworld/characters/frisk/walk/up"
 
 # run
-[[textures]]
+[[animations]]
 name = "frisk_run_down"
 path = "textures/overworld/characters/frisk/run/down"
 
-[[textures]]
+[[animations]]
 name = "frisk_run_left"
 path = "textures/overworld/characters/frisk/run/side"
 
-[[textures]]
+[[animations]]
 name = "frisk_run_right"
 path = "textures/overworld/characters/frisk/run/side"
 flip_x = true
 
-[[textures]]
+[[animations]]
 name = "frisk_run_up"
 path = "textures/overworld/characters/frisk/run/up"
 
 # -toriel-
-[[textures]]
+[[animations]]
 name = "toriel_walk_down"
 path = "textures/overworld/characters/toriel/walk/down"
 
-[[textures]]
+[[animations]]
 name = "toriel_walk_left"
 path = "textures/overworld/characters/toriel/walk/left"
 
-[[textures]]
+[[animations]]
 name = "toriel_walk_right"
 path = "textures/overworld/characters/toriel/walk/right"
 flip_x = true
 
-[[textures]]
+[[animations]]
 name = "toriel_walk_up"
 path = "textures/overworld/characters/toriel/walk/up"
 
 # -objects-
 # everywhere
-[[textures]]
+[[sprites]]
 name = "chest_box"
 path = "textures/overworld/objects/everywhere/chestbox.png"
 
-[[textures]]
+[[animations]]
 name = "save_point"
 path = "textures/overworld/objects/everywhere/savepoint"

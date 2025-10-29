@@ -42,12 +42,13 @@ fn setup_overworld_system(
 ) {
     let loaded_folder = loaded_folders.get(&rpg_sprite_handles.0).unwrap();
 
-    let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) = create_texture_atlas(
-        loaded_folder,
-        None,
-        Some(ImageSampler::nearest()),
-        &mut textures,
-    );
+    let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
+        create_texture_atlas(
+            loaded_folder,
+            None,
+            Some(ImageSampler::nearest()),
+            &mut textures,
+        );
     println!("index_map: {:#?}", &index_map);
 
     let atlas_nearest_handle = texture_atlases.add(texture_atlas_nearest);
@@ -56,6 +57,7 @@ fn setup_overworld_system(
         .get("textures/overworld/characters/frisk/walk/down/1.png")
         .expect("Frisk sprite not found in atlas");
 
+    println!("index: {:#?}", &frisk_index);
     let sprite = Sprite::from_atlas_image(
         nearest_texture,
         TextureAtlas {
