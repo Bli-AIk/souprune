@@ -1,0 +1,75 @@
+# ---overworld---
+# --characters--
+# -flowey-
+[[textures]]
+name = "flowey_idle"
+path = "textures/overworld/characters/flowey/idle"
+
+[[textures]]
+name = "flowey_sink"
+path = "textures/overworld/characters/flowey/sink"
+
+# -frisk-
+# walk
+[[textures]]
+name = "frisk_walk_down"
+path = "textures/overworld/characters/frisk/walk/down"
+
+[[textures]]
+name = "frisk_walk_left"
+path = "textures/overworld/characters/frisk/walk/side"
+
+[[textures]]
+name = "frisk_walk_right"
+path = "textures/overworld/characters/frisk/walk/side"
+flip_x = true
+
+[[textures]]
+name = "frisk_walk_up"
+path = "textures/overworld/characters/frisk/walk/up"
+
+# run
+[[textures]]
+name = "frisk_run_down"
+path = "textures/overworld/characters/frisk/run/down"
+
+[[textures]]
+name = "frisk_run_left"
+path = "textures/overworld/characters/frisk/run/side"
+
+[[textures]]
+name = "frisk_run_right"
+path = "textures/overworld/characters/frisk/run/side"
+flip_x = true
+
+[[textures]]
+name = "frisk_run_up"
+path = "textures/overworld/characters/frisk/run/up"
+
+# -toriel-
+[[textures]]
+name = "toriel_walk_down"
+path = "textures/overworld/characters/toriel/walk/down"
+
+[[textures]]
+name = "toriel_walk_left"
+path = "textures/overworld/characters/toriel/walk/left"
+
+[[textures]]
+name = "toriel_walk_right"
+path = "textures/overworld/characters/toriel/walk/right"
+flip_x = true
+
+[[textures]]
+name = "toriel_walk_up"
+path = "textures/overworld/characters/toriel/walk/up"
+
+# -objects-
+# everywhere
+[[textures]]
+name = "chest_box"
+path = "textures/overworld/objects/everywhere/chestbox.png"
+
+[[textures]]
+name = "save_point"
+path = "textures/overworld/objects/everywhere/savepoint"
