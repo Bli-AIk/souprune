@@ -1,6 +1,10 @@
 use crate::core::components::*;
+use crate::core::input::Action;
+use crate::core::overworld::character::components::PlayerControlled;
 use bevy::math::Vec2;
-use bevy::prelude::{Bundle, GlobalTransform, Sprite, Transform};
+use bevy::prelude;
+use bevy::prelude::{Bundle, GlobalTransform, Query, Sprite, Transform, With};
+use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) mod components;
 pub(crate) mod systems;
@@ -38,5 +42,31 @@ impl CharacterBundle {
             transform: Transform::from_translation(spawn_pos.extend(0.0)),
             global_transform: GlobalTransform::default(),
         }
+    }
+}
+
+pub fn is_walking(
+    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+) -> prelude::Result<(), ()> {
+    let action_state = query.single().map_err(|_| ())?;
+    if action_state.pressed(&Action::Left)
+        || action_state.pressed(&Action::Right)
+        || action_state.pressed(&Action::Up)
+        || action_state.pressed(&Action::Down)
+    {
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
+pub fn is_running(
+    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+) -> prelude::Result<(), ()> {
+    let action_state = query.single().map_err(|_| ())?;
+    if action_state.pressed(&Action::Cancel) {
+        Ok(())
+    } else {
+        Err(())
     }
 }
