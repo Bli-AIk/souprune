@@ -1,8 +1,12 @@
-use crate::extra::toml_asset_loader::{AnimationConfig, SpriteConfig, TomlAsset};
+use crate::extra::toml::config::TomlConfigRegistry;
+use crate::extra::toml::{AnimationConfig, SpriteConfig, TomlAsset};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+
+mod load_context;
+pub mod params;
 
 #[derive(Resource, Default)]
 pub(crate) struct ModuleSpriteRegistry {
@@ -25,78 +29,6 @@ impl ModuleSpriteRegistry {
     }
 }
 
-/// 存储所有模块的 TOML 配置数据的资源
-#[derive(Resource, Default)]
-pub struct TomlConfigRegistry {
-    pub animations: HashMap<String, AnimationConfig>,
-    pub sprites: HashMap<String, SpriteConfig>,
-    pub modules: HashMap<String, Vec<String>>, // module_name -> loaded_before
-}
-
-impl TomlConfigRegistry {
-    pub fn new() -> Self {
-        Self {
-            animations: HashMap::new(),
-            sprites: HashMap::new(),
-            modules: HashMap::new(),
-        }
-    }
-
-    /// 注册一个模块的 TOML 配置
-    pub fn register_module_config(
-        &mut self,
-        module_name: &str,
-        config: &crate::extra::toml_asset_loader::TomlConfig,
-    ) {
-        // 添加动画配置
-        for anim in &config.animations {
-            self.animations.insert(anim.name.clone(), anim.clone());
-        }
-
-        // 添加精灵配置
-        for sprite in &config.sprites {
-            self.sprites.insert(sprite.name.clone(), sprite.clone());
-        }
-
-        // 添加模块配置
-        for module in &config.module {
-            self.modules
-                .insert(module_name.to_string(), module.loaded_before.clone());
-        }
-
-        info!(
-            "已注册模块 '{}' 的配置: {} 个动画, {} 个精灵",
-            module_name,
-            config.animations.len(),
-            config.sprites.len()
-        );
-    }
-
-    /// 根据名称获取动画配置
-    pub fn get_animation(&self, name: &str) -> Option<&AnimationConfig> {
-        self.animations.get(name)
-    }
-
-    /// 根据名称获取精灵配置
-    pub fn get_sprite(&self, name: &str) -> Option<&SpriteConfig> {
-        self.sprites.get(name)
-    }
-
-    /// 获取模块的依赖列表
-    pub fn get_module_dependencies(&self, module_name: &str) -> Option<&Vec<String>> {
-        self.modules.get(module_name)
-    }
-
-    /// 列出所有可用的动画名称
-    pub fn list_animations(&self) -> Vec<&String> {
-        self.animations.keys().collect()
-    }
-
-    /// 列出所有可用的精灵名称
-    pub fn list_sprites(&self) -> Vec<&String> {
-        self.sprites.keys().collect()
-    }
-}
 pub fn create_texture_atlas(
     folder: &LoadedFolder,
     padding: Option<UVec2>,
@@ -128,10 +60,13 @@ pub fn create_texture_atlas(
                     // 处理 TOML 配置文件，将数据存储到资源中
                     let toml_id = handle.id().typed_unchecked::<TomlAsset>();
                     if let Some(toml_asset) = toml_assets.get(toml_id) {
-                        info!("正在注册模块 '{}' 的 TOML 配置: {}", module_name, path_str);
+                        info!(
+                            "Registering TOML configuration for module '{}': {}",
+                            module_name, path_str
+                        );
                         toml_registry.register_module_config(module_name, &toml_asset.config);
                     } else {
-                        warn!("无法加载 TOML 文件: {}", path_str);
+                        warn!("Unable to load TOML file: {}", path_str);
                     }
                 }
 
@@ -222,7 +157,7 @@ pub fn get_sprite_from_config(
     let sprite_path = if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
         sprite_config.path.clone()
     } else {
-        panic!("Elf not found in configuration '{}'", config_item_name);
+        panic!("Sprite not found in configuration '{}'", config_item_name);
     };
 
     let sprite_index = *index_map.get(&sprite_path).unwrap_or_else(|| {

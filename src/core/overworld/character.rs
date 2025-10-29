@@ -18,7 +18,6 @@ pub struct CharacterBundle {
     sprite: Sprite,
     health: Health,
     anim: AnimationState,
-    state_timer: StateTimer,
     transform: Transform,
     global_transform: GlobalTransform,
 }
@@ -38,7 +37,6 @@ impl CharacterBundle {
             anim: AnimationState {
                 clip: "idle_down".into(),
             },
-            state_timer: StateTimer { value: 0.0 },
             transform: Transform::from_translation(spawn_pos.extend(0.0)),
             global_transform: GlobalTransform::default(),
         }

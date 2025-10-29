@@ -7,7 +7,7 @@ pub(crate) mod sprite;
 mod animation;
 mod systems;
 
-use crate::core::sprite::TomlConfigRegistry;
+use crate::extra::toml::config::TomlConfigRegistry;
 use bevy::app::*;
 use systems::*;
 

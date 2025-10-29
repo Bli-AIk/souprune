@@ -27,11 +27,6 @@ pub(crate) struct Health {
 pub(crate) struct AnimationState {
     pub(crate) clip: String,
 }
-// Current state duration
-#[derive(Component)]
-pub(crate) struct StateTimer {
-    pub value: f32,
-}
 
 #[derive(Default)]
 pub(crate) enum Direction {

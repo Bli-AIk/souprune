@@ -1,2 +1,2 @@
-pub mod markdown_asset_loader;
-pub mod toml_asset_loader;
+pub mod markdown;
+pub mod toml;

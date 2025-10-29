@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 use serde::Deserialize;
 
+pub(crate) mod config;
+
 pub struct TomlPlugin;
 
 impl Plugin for TomlPlugin {
