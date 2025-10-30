@@ -113,7 +113,10 @@ impl<'a> SpriteLoadContext<'a> {
             };
 
         // Check if path points to a single file
-        if config_path.ends_with(".png") || config_path.ends_with(".jpg") || config_path.ends_with(".jpeg") {
+        if config_path.ends_with(".png")
+            || config_path.ends_with(".jpg")
+            || config_path.ends_with(".jpeg")
+        {
             // Single file: Find matching files directly
             if let Some(&sprite_index) = index_map.get(&config_path) {
                 vec![Sprite::from_atlas_image(
@@ -124,7 +127,10 @@ impl<'a> SpriteLoadContext<'a> {
                     },
                 )]
             } else {
-                panic!("Single file '{}' not found for animation '{}'", config_path, config_item_name);
+                panic!(
+                    "Single file '{}' not found for animation '{}'",
+                    config_path, config_item_name
+                );
             }
         } else {
             // Directory: collect all matching files and sort them
@@ -132,14 +138,17 @@ impl<'a> SpriteLoadContext<'a> {
                 .iter()
                 .filter(|(path, _)| path.starts_with(&config_path))
                 .collect();
-            
+
             if matching_files.is_empty() {
-                panic!("No files found in directory '{}' for animation '{}'", config_path, config_item_name);
+                panic!(
+                    "No files found in directory '{}' for animation '{}'",
+                    config_path, config_item_name
+                );
             }
-            
+
             // Sort by filename to ensure correct frame order
             matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
-            
+
             matching_files
                 .into_iter()
                 .map(|(_, &sprite_index)| {
@@ -152,6 +161,29 @@ impl<'a> SpriteLoadContext<'a> {
                     )
                 })
                 .collect()
+        }
+    }
+
+    pub(crate) fn get_sprite_animations_with_config(
+        &mut self,
+        module_name: &str,
+        config_item_name: &str,
+    ) -> (Vec<Sprite>, bool) {
+        let sprites = self.get_sprite_animations(module_name, config_item_name);
+        let looping =
+            if let Some(animation_config) = self.toml_registry.get_animation(config_item_name) {
+                animation_config.looping
+            } else {
+                true
+            };
+        (sprites, looping)
+    }
+
+    pub(crate) fn get_animation_frame_duration(&self, config_item_name: &str) -> f32 {
+        if let Some(animation_config) = self.toml_registry.get_animation(config_item_name) {
+            animation_config.frame_duration
+        } else {
+            0.15
         }
     }
 }

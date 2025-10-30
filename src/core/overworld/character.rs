@@ -30,7 +30,7 @@ impl PlayerBundle {
             position: Position { value: spawn_pos },
             rotation: Rotation { angle: 0.0 },
             facing: Facing { value: facing },
-            speed: Speed { value: 50.0 },
+            speed: Speed { value: 100.0 },
             sprite: Sprite::default(),
             health: BasicAttributes {
                 hp_current: 20,

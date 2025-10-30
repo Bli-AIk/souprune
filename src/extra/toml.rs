@@ -36,6 +36,14 @@ pub struct ModuleConfig {
     pub loaded_before: Vec<String>,
 }
 
+fn default_loop() -> bool {
+    true
+}
+
+fn default_frame_duration() -> f32 {
+    0.15
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct AnimationConfig {
     pub name: String,
@@ -46,16 +54,14 @@ pub struct AnimationConfig {
     pub flip_y: bool,
     #[serde(default = "default_loop")]
     pub looping: bool,
+    #[serde(default = "default_frame_duration")]
+    pub frame_duration: f32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SpriteConfig {
     pub name: String,
     pub path: String,
-}
-
-fn default_loop() -> bool {
-    true
 }
 
 #[derive(Default)]

@@ -52,6 +52,7 @@ flip_x = true
 [[animations]]
 name = "frisk_walk_up"
 path = "textures/overworld/characters/frisk/walk/up"
+#frame_duration = 0.10
 
 # run
 [[animations]]

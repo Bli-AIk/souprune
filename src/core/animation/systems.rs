@@ -1,4 +1,6 @@
-use crate::core::animation::{SpriteAnimationClip, SpriteAnimationCurrentFrame};
+use crate::core::animation::{
+    SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
+};
 use bevy::prelude::*;
 use bevy::sprite::Sprite;
 
@@ -25,7 +27,7 @@ pub(crate) fn sync_sprite_animation_system(
         commands.entity(entity).remove::<SpriteAnimationClip>();
     }
 
-    // Add a component for an entity that has a SpriteAnimationClip but no SpriteAnimationCurrentFrame
+    // Add components for an entity that has a SpriteAnimationClip but no SpriteAnimationCurrentFrame
     for entity in query_with_clip.iter() {
         commands
             .entity(entity)
@@ -39,6 +41,24 @@ pub(crate) fn sync_sprite_animation_system(
             .remove::<SpriteAnimationCurrentFrame>();
     }
 }
+
+pub(crate) fn animate_sprite_system(
+    time: Res<Time>,
+    mut query: Query<(
+        &mut SpriteAnimationTimer,
+        &mut SpriteAnimationCurrentFrame,
+        &SpriteAnimationClip,
+    )>,
+) {
+    for (mut timer, mut current_frame, clip) in query.iter_mut() {
+        if timer.tick(time.delta().as_secs_f32()) && clip.len() > 1 {
+            current_frame.value = (current_frame.value + 1) % clip.len();
+            if !clip.is_looping() && current_frame.value == clip.len() - 1 {
+                current_frame.value = clip.len() - 1;
+            }
+        }
+    }
+}
 fn apply_sprite_animation(
     sprite: &mut Sprite,
     clip: &mut SpriteAnimationClip,
@@ -50,7 +70,6 @@ fn apply_sprite_animation(
 }
 
 pub(crate) fn update_sprite_animation_system(
-    time: Res<Time>,
     mut query: Query<(
         &mut Sprite,
         &mut SpriteAnimationClip,
@@ -65,8 +84,11 @@ pub(crate) fn update_sprite_animation_system(
 }
 
 pub(crate) fn setup_sprite_animation_clip_system(
+    mut commands: Commands,
+    mut sprite_params: crate::core::sprite::params::SpriteParams,
     mut query: Query<
         (
+            Entity,
             &mut Sprite,
             &mut SpriteAnimationClip,
             &SpriteAnimationCurrentFrame,
@@ -74,7 +96,15 @@ pub(crate) fn setup_sprite_animation_clip_system(
         Added<SpriteAnimationCurrentFrame>,
     >,
 ) {
-    for (mut sprite, mut clip, current_frame) in query.iter_mut() {
+    for (entity, mut sprite, mut clip, current_frame) in query.iter_mut() {
         apply_sprite_animation(&mut sprite, &mut clip, current_frame);
+
+        // Get frame duration from configuration
+        let frame_duration = sprite_params
+            .create_sprite_context()
+            .get_animation_frame_duration(clip.clip_name());
+        commands
+            .entity(entity)
+            .insert(SpriteAnimationTimer::new(frame_duration));
     }
 }
