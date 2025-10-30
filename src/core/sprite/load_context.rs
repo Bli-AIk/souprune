@@ -76,4 +76,54 @@ impl<'a> SpriteLoadContext<'a> {
             },
         )
     }
+
+    pub(crate) fn get_sprite_animations(
+        &mut self,
+        module_name: &str,
+        config_item_name: &str,
+    ) -> Vec<Sprite> {
+        let handle = self
+            .sprite_registry
+            .get_module(module_name)
+            .unwrap_or_else(|| panic!("{module_name} module not registered"));
+
+        let loaded_folder = self.loaded_folders.get(handle).unwrap();
+
+        let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
+            create_texture_atlas(
+                loaded_folder,
+                None,
+                Some(ImageSampler::nearest()),
+                self.textures,
+                self.toml_assets,
+                self.toml_registry,
+                module_name,
+            );
+
+        let atlas_nearest_handle = self.texture_atlases.add(texture_atlas_nearest);
+
+        let folder_path =
+            if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
+                sprite_config.path.clone()
+            } else {
+                panic!(
+                    "Sprite folder not found in configuration '{}'",
+                    config_item_name
+                );
+            };
+
+        index_map
+            .iter()
+            .filter(|(path, _)| path.starts_with(&folder_path))
+            .map(|(_, &sprite_index)| {
+                Sprite::from_atlas_image(
+                    nearest_texture.clone(),
+                    TextureAtlas {
+                        layout: atlas_nearest_handle.clone(),
+                        index: sprite_index,
+                    },
+                )
+            })
+            .collect()
+    }
 }

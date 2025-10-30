@@ -6,7 +6,7 @@ use bevy::prelude::Resource;
 /// A resource that stores TOML configuration data for all modules
 #[derive(Resource, Default)]
 pub struct TomlConfigRegistry {
-    pub animations: HashMap<String, AnimationConfig>,
+    pub sprite_animations: HashMap<String, AnimationConfig>,
     pub sprites: HashMap<String, SpriteConfig>,
     pub modules: HashMap<String, Vec<String>>,
 }
@@ -18,7 +18,8 @@ impl TomlConfigRegistry {
         config: &crate::extra::toml::TomlConfig,
     ) {
         for anim in &config.animations {
-            self.animations.insert(anim.name.clone(), anim.clone());
+            self.sprite_animations
+                .insert(anim.name.clone(), anim.clone());
         }
 
         for sprite in &config.sprites {
@@ -40,7 +41,7 @@ impl TomlConfigRegistry {
 
     /// Get animation configuration by name
     pub fn get_animation(&self, name: &str) -> Option<&AnimationConfig> {
-        self.animations.get(name)
+        self.sprite_animations.get(name)
     }
 
     /// Get sprite configuration by name
@@ -55,7 +56,7 @@ impl TomlConfigRegistry {
 
     /// List all available animation names
     pub fn list_animations(&self) -> Vec<&String> {
-        self.animations.keys().collect()
+        self.sprite_animations.keys().collect()
     }
 
     /// List all available sprite names

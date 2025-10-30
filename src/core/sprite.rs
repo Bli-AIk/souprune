@@ -5,7 +5,7 @@ use bevy::image::ImageSampler;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
-mod load_context;
+pub mod load_context;
 pub mod params;
 
 #[derive(Resource, Default)]

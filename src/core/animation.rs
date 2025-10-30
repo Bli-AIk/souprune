@@ -1,46 +1,40 @@
-use bevy::prelude::*;
-use std::time::Duration;
+mod systems;
+
+use crate::core::animation::systems::*;
+use crate::core::sprite::load_context::SpriteLoadContext;
+use bevy::app::{App, Plugin, Update};
+use bevy::prelude::Component;
+use bevy::sprite::Sprite;
+
+pub(crate) struct AnimationPlugin;
+
+impl Plugin for AnimationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, sync_sprite_animation_system)
+            .add_systems(Update, update_sprite_animation_system)
+            .add_systems(Update, setup_sprite_animation_clip_system);
+    }
+}
+
+#[derive(Component, Default)]
+pub(crate) struct SpriteAnimationCurrentFrame {
+    value: usize,
+}
 
 #[derive(Component)]
-struct AnimationConfig {
-    first_sprite_index: usize,
-    last_sprite_index: usize,
-    fps: u8,
-    frame_timer: Timer,
+pub(crate) struct SpriteAnimationClip {
+    sprites: Vec<Sprite>,
+    frame: usize,
 }
 
-impl AnimationConfig {
-    fn new(first: usize, last: usize, fps: u8) -> Self {
+impl SpriteAnimationClip {
+    pub fn new(sprite_context: &mut SpriteLoadContext, module_name: &str, clip_name: &str) -> Self {
         Self {
-            first_sprite_index: first,
-            last_sprite_index: last,
-            fps,
-            frame_timer: Self::timer_from_fps(fps),
+            sprites: sprite_context.get_sprite_animations(module_name, clip_name),
+            frame: 0,
         }
     }
-
-    fn timer_from_fps(fps: u8) -> Timer {
-        Timer::new(Duration::from_secs_f32(1.0 / (fps as f32)), TimerMode::Once)
-    }
-}
-
-// Loop animation system
-fn execute_animations_system(
-    time: Res<Time>,
-    mut query: Query<(&mut AnimationConfig, &mut Sprite)>,
-) {
-    for (mut config, mut sprite) in &mut query {
-        config.frame_timer.tick(time.delta());
-
-        if config.frame_timer.just_finished()
-            && let Some(atlas) = &mut sprite.texture_atlas
-        {
-            if atlas.index == config.last_sprite_index {
-                atlas.index = config.first_sprite_index;
-            } else {
-                atlas.index += 1;
-                config.frame_timer = AnimationConfig::timer_from_fps(config.fps);
-            }
-        }
+    pub fn get_current_sprite(&self) -> &Sprite {
+        &self.sprites[self.frame]
     }
 }

@@ -1,3 +1,4 @@
+use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::*;
 use crate::core::input::Action;
 use crate::core::overworld::character::components::PlayerControlled;
@@ -5,7 +6,6 @@ use bevy::math::Vec2;
 use bevy::prelude;
 use bevy::prelude::{Bundle, GlobalTransform, Query, Sprite, Transform, With};
 use leafwing_input_manager::action_state::ActionState;
-use crate::core::animation::SpriteAnimationClip;
 
 pub(crate) mod components;
 pub(crate) mod systems;
