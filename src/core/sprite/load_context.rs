@@ -112,9 +112,17 @@ impl<'a> SpriteLoadContext<'a> {
                 );
             };
 
-        index_map
+        // Collect matching files and sort by filename
+        let mut matching_files: Vec<_> = index_map
             .iter()
             .filter(|(path, _)| path.starts_with(&folder_path))
+            .collect();
+        
+        // Sort by filename to ensure correct frame order
+        matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
+        
+        matching_files
+            .into_iter()
             .map(|(_, &sprite_index)| {
                 Sprite::from_atlas_image(
                     nearest_texture.clone(),

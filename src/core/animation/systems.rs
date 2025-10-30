@@ -44,9 +44,9 @@ fn apply_sprite_animation(
     clip: &mut SpriteAnimationClip,
     current_frame: &SpriteAnimationCurrentFrame,
 ) {
-    *sprite = clip.get_current_sprite().clone();
     clip.frame = current_frame.value;
-    println!("{}", clip.frame);
+    *sprite = clip.get_current_sprite().clone();
+    println!("应用动画帧: {}", clip.frame);
 }
 
 pub(crate) fn update_sprite_animation_system(
