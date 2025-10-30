@@ -5,15 +5,15 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
-use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use character::PlayerBundle;
 use character::systems::*;
 use leafwing_input_manager::action_state::*;
 use seldom_state::machine::*;
 use seldom_state::trigger::IntoTrigger;
+use crate::core::overworld::player::PlayerPlugin;
 
 mod character;
+mod player;
 
 pub(crate) struct OverworldPlugin;
 
@@ -23,11 +23,11 @@ impl Plugin for OverworldPlugin {
             .add_systems(
                 Update,
                 (
-                    update_idle_system,
                     update_walking_system,
                     update_running_system,
                 ),
-            );
+            )
+        .add_plugins(PlayerPlugin);
     }
 }
 
@@ -44,15 +44,16 @@ fn setup_overworld_system(
         Transform::from_translation(Vec3::new(50.0, 0.0, 0.0)),
     ));
 
+    use player::*;
     commands.spawn((
         Idle,
         PlayerControlled,
         StateMachine::default()
-            .trans::<Idle, _>(character::is_walking, Walking)
-            .trans::<Walking, _>(character::is_walking.not(), Idle)
-            .trans::<Running, _>(character::is_walking.not(), Idle)
-            .trans::<Walking, _>(character::is_running, Running)
-            .trans::<Running, _>(character::is_running.not(), Walking),
+            .trans::<Idle, _>(is_player_walking, Walking)
+            .trans::<Walking, _>(is_player_walking.not(), Idle)
+            .trans::<Running, _>(is_player_walking.not(), Idle)
+            .trans::<Walking, _>(is_player_running, Running)
+            .trans::<Running, _>(is_player_running.not(), Walking),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
         PlayerBundle::new(

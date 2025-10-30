@@ -19,7 +19,7 @@ impl Plugin for AnimationPlugin {
 
 #[derive(Component, Default)]
 pub(crate) struct SpriteAnimationCurrentFrame {
-    value: usize,
+    pub(crate) value: usize,
 }
 
 #[derive(Component)]

@@ -1,5 +1,5 @@
 use crate::extra::toml::config::TomlConfigRegistry;
-use crate::extra::toml::{AnimationConfig, SpriteConfig, TomlAsset};
+use crate::extra::toml::{TomlAsset};
 use bevy::asset::LoadedFolder;
 use bevy::image::ImageSampler;
 use bevy::platform::collections::HashMap;

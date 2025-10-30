@@ -1,12 +1,8 @@
 use crate::core::basic_components::{Facing, Position, Speed};
 use crate::core::input::Action;
-use crate::core::overworld::character::components::{Idle, Running, Walking};
+use crate::core::overworld::character::components::{Running, Walking};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
-
-pub(crate) fn update_idle_system(_query: Query<(&mut Position, &mut Facing, &Speed), With<Idle>>) {
-    // TODO: 实现 Idle 状态逻辑
-}
 fn apply_walking_step(
     mut pos: Mut<Position>,
     mut facing: Mut<Facing>,
