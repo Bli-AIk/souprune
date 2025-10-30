@@ -49,6 +49,7 @@ fn get_default_plugins() -> PluginGroupBuilder {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
+#[allow(dead_code)]
 enum AppState {
     #[default]
     Setup,

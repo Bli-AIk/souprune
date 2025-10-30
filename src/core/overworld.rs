@@ -3,6 +3,7 @@ use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
+use crate::core::overworld::player::PlayerPlugin;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -10,7 +11,6 @@ use character::systems::*;
 use leafwing_input_manager::action_state::*;
 use seldom_state::machine::*;
 use seldom_state::trigger::IntoTrigger;
-use crate::core::overworld::player::PlayerPlugin;
 
 mod character;
 mod player;
@@ -20,14 +20,8 @@ pub(crate) struct OverworldPlugin;
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system)
-            .add_systems(
-                Update,
-                (
-                    update_walking_system,
-                    update_running_system,
-                ),
-            )
-        .add_plugins(PlayerPlugin);
+            .add_systems(Update, (update_walking_system, update_running_system))
+            .add_plugins(PlayerPlugin);
     }
 }
 

@@ -49,8 +49,10 @@ pub struct AnimationConfig {
     pub name: String,
     pub path: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub flip_x: bool,
     #[serde(default)]
+    #[allow(dead_code)]
     pub flip_y: bool,
     #[serde(default = "default_loop")]
     pub looping: bool,

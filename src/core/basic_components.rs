@@ -19,6 +19,7 @@ pub(crate) struct Facing {
     pub value: Direction,
 }
 #[derive(Component)]
+#[allow(dead_code)]
 pub(crate) struct BasicAttributes {
     pub(crate) hp_current: usize,
     pub(crate) hp_max: usize,

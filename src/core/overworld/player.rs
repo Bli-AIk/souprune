@@ -11,6 +11,55 @@ use bevy::prelude;
 use bevy::prelude::{Bundle, GlobalTransform, Query, Sprite, Transform, With};
 use leafwing_input_manager::action_state::ActionState;
 
+macro_rules! create_animation_system {
+    ($func_name:ident, $state:ty, $animation_prefix:expr) => {
+        pub(crate) fn $func_name(
+            mut sprite_params: SpriteParams,
+            mut query: Query<
+                (
+                    &Facing,
+                    &mut SpriteAnimationClip,
+                    &mut SpriteAnimationCurrentFrame,
+                ),
+                (With<PlayerControlled>, With<$state>),
+            >,
+        ) {
+            for (facing, mut clip, mut frame) in query.iter_mut() {
+                update_player_animation(
+                    &mut sprite_params,
+                    facing,
+                    &mut clip,
+                    &mut frame,
+                    $animation_prefix,
+                );
+            }
+        }
+    };
+}
+
+fn update_player_animation(
+    sprite_params: &mut SpriteParams,
+    facing: &Facing,
+    clip: &mut SpriteAnimationClip,
+    frame: &mut SpriteAnimationCurrentFrame,
+    animation_prefix: &str,
+) {
+    let clip_name = match facing.value {
+        Direction::Up => format!("{}_up", animation_prefix),
+        Direction::Down => format!("{}_down", animation_prefix),
+        Direction::Left => format!("{}_left", animation_prefix),
+        Direction::Right => format!("{}_right", animation_prefix),
+        Direction::UpLeft => format!("{}_up", animation_prefix),
+        Direction::UpRight => format!("{}_up", animation_prefix),
+        Direction::DownLeft => format!("{}_down", animation_prefix),
+        Direction::DownRight => format!("{}_down", animation_prefix),
+    };
+
+    if clip.clip_name() != clip_name {
+        *clip = change_sprite_animation(sprite_params, frame, "overworld", &clip_name);
+    }
+}
+
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
@@ -100,89 +149,10 @@ pub(crate) fn player_direction_control_system(
     }
 }
 
-pub(crate) fn player_idle_anim_control_system(
-    mut sprite_params: SpriteParams,
-    mut query: Query<
-        (
-            &Facing,
-            &mut SpriteAnimationClip,
-            &mut SpriteAnimationCurrentFrame,
-        ),
-        (With<PlayerControlled>, With<Idle>),
-    >,
-) {
-    for (facing, mut clip, mut frame) in query.iter_mut() {
-        let clip_name = match facing.value {
-            Direction::Up => "frisk_idle_up",
-            Direction::Down => "frisk_idle_down",
-            Direction::Left => "frisk_idle_left",
-            Direction::Right => "frisk_idle_right",
-            _ => {
-                continue;
-            }
-        };
-
-        if clip.clip_name() != clip_name {
-            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
-        }
-    }
-}
-
-pub(crate) fn player_walk_anim_control_system(
-    mut sprite_params: SpriteParams,
-    mut query: Query<
-        (
-            &Facing,
-            &mut SpriteAnimationClip,
-            &mut SpriteAnimationCurrentFrame,
-        ),
-        (With<PlayerControlled>, With<Walking>),
-    >,
-) {
-    for (facing, mut clip, mut frame) in query.iter_mut() {
-        let clip_name = match facing.value {
-            Direction::Up => "frisk_walk_up",
-            Direction::Down => "frisk_walk_down",
-            Direction::Left => "frisk_walk_left",
-            Direction::Right => "frisk_walk_right",
-            _ => {
-                continue;
-            }
-        };
-
-        if clip.clip_name() != clip_name {
-            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
-        }
-    }
-}
-
-pub(crate) fn player_run_anim_control_system(
-    mut sprite_params: SpriteParams,
-    mut query: Query<
-        (
-            &Facing,
-            &mut SpriteAnimationClip,
-            &mut SpriteAnimationCurrentFrame,
-        ),
-        (With<PlayerControlled>, With<Running>),
-    >,
-) {
-    for (facing, mut clip, mut frame) in query.iter_mut() {
-        let clip_name = match facing.value {
-            Direction::Up => "frisk_run_up",
-            Direction::Down => "frisk_run_down",
-            Direction::Left => "frisk_run_left",
-            Direction::Right => "frisk_run_right",
-            _ => {
-                continue;
-            }
-        };
-
-        if clip.clip_name() != clip_name {
-            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
-        }
-    }
-}
+// 使用宏生成三个动画控制系统
+create_animation_system!(player_idle_anim_control_system, Idle, "frisk_idle");
+create_animation_system!(player_walk_anim_control_system, Walking, "frisk_walk");
+create_animation_system!(player_run_anim_control_system, Running, "frisk_run");
 fn change_sprite_animation(
     sprite_params: &mut SpriteParams,
     current_frame: &mut SpriteAnimationCurrentFrame,
