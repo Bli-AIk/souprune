@@ -1,4 +1,4 @@
-use crate::core::components::{Facing, Position, Speed};
+use crate::core::basic_components::{Facing, Position, Speed};
 use crate::core::input::Action;
 use crate::core::overworld::character::components::{Idle, Running, Walking};
 use bevy::prelude::*;
@@ -14,7 +14,7 @@ fn apply_walking_step(
     action_state: &ActionState<Action>,
     delta_secs: f32,
 ) {
-    use crate::core::components::*;
+    use crate::core::basic_components::*;
 
     let mut direction_vec = Vec2::ZERO;
     if action_state.pressed(&Action::Up) {

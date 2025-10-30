@@ -1,10 +1,11 @@
-use crate::core::components::*;
+use crate::core::basic_components::*;
 use crate::core::input::Action;
 use crate::core::overworld::character::components::PlayerControlled;
 use bevy::math::Vec2;
 use bevy::prelude;
 use bevy::prelude::{Bundle, GlobalTransform, Query, Sprite, Transform, With};
 use leafwing_input_manager::action_state::ActionState;
+use crate::core::animation::SpriteAnimationClip;
 
 pub(crate) mod components;
 pub(crate) mod systems;
@@ -18,13 +19,13 @@ pub struct PlayerBundle {
     speed: Speed,
     sprite: Sprite,
     health: BasicAttributes,
-    anim: AnimationState,
+    anim: SpriteAnimationClip,
     transform: Transform,
     global_transform: GlobalTransform,
 }
 
 impl PlayerBundle {
-    pub fn new(spawn_pos: Vec2, facing: Direction, anim: AnimationState) -> Self {
+    pub fn new(spawn_pos: Vec2, facing: Direction, anim: SpriteAnimationClip) -> Self {
         Self {
             position: Position { value: spawn_pos },
             rotation: Rotation { angle: 0.0 },

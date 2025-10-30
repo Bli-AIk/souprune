@@ -25,16 +25,7 @@ pub(crate) struct BasicAttributes {
     pub(crate) atk: usize,
     pub(crate) def: usize,
 }
-#[derive(Component)]
-pub(crate) struct AnimationState {
-    pub(crate) clip: &'static str,
-}
 
-impl AnimationState {
-    pub fn new(name: &'static str) -> Self {
-        Self { clip: name }
-    }
-}
 #[derive(Default)]
 pub(crate) enum Direction {
     Up,

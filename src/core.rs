@@ -1,4 +1,4 @@
-mod components;
+mod basic_components;
 pub(crate) mod input;
 pub(crate) mod overworld;
 pub(crate) mod setup;
