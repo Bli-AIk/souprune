@@ -19,18 +19,12 @@ pub(crate) struct Facing {
     pub value: Direction,
 }
 #[derive(Component)]
-pub(crate) struct Health {
-    pub(crate) current: i32,
-    pub(crate) max: i32,
-}
-#[derive(Component)]
-pub(crate) struct AnimationState {
-    pub(crate) clip: String,
-}
-// Current state duration
-#[derive(Component)]
-pub(crate) struct StateTimer {
-    pub value: f32,
+#[allow(dead_code)]
+pub(crate) struct BasicAttributes {
+    pub(crate) hp_current: usize,
+    pub(crate) hp_max: usize,
+    pub(crate) atk: usize,
+    pub(crate) def: usize,
 }
 
 #[derive(Default)]

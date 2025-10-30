@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::core::resource::{OverWorldCharacterSpriteFolder, ResolutionScale};
+use crate::core::sprite::ModuleSpriteRegistry;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
@@ -18,20 +18,40 @@ impl Plugin for SetupPlugin {
         );
     }
 }
-
 fn load_textures_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(OverWorldCharacterSpriteFolder(
-        asset_server.load_folder("textures/overworld/characters"),
-    ));
+    let mut registry = ModuleSpriteRegistry::new();
+    let mut register = (&mut registry, &asset_server);
+
+    // Register for modules here!
+    register_module(&mut register, "overworld");
+    register_module(&mut register, "battle");
+
+    commands.insert_resource(registry);
+}
+
+fn register_module(
+    (registry, asset_server): &mut (&mut ModuleSpriteRegistry, &Res<AssetServer>),
+    module_name: &str,
+) {
+    registry.register_module(
+        module_name.to_string(),
+        asset_server.load_folder(format!("textures/{}", module_name)),
+    );
 }
 
 fn check_textures_system(
     mut next_state: ResMut<NextState<AppState>>,
-    rpg_sprite_folder: Res<OverWorldCharacterSpriteFolder>,
+    sprite_registry: Res<ModuleSpriteRegistry>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
 ) {
+    // TODO 配置于toml文件
+    // 目前会检查所有需要的Sprite是否加载完成，然后才切换状态
+    // 但是这样做不够灵活
+    // 我们应该在toml文件中配置某个AppState加载前，需要哪些模块的Sprite
     for event in events.read() {
-        if event.is_loaded_with_dependencies(&rpg_sprite_folder.0) {
+        if let Some(handle) = sprite_registry.get_module("overworld")
+            && event.is_loaded_with_dependencies(handle)
+        {
             next_state.set(AppState::Overworld);
         }
     }
@@ -42,4 +62,20 @@ fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionS
         Camera2d,
         Transform::from_scale(Vec3::splat(1.0 / resolution_scale.get() as f32)),
     ));
+}
+
+#[derive(Resource)]
+pub(crate) struct ResolutionScale(pub(crate) u32);
+
+impl ResolutionScale {
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for ResolutionScale {
+    fn default() -> Self {
+        // (320, 240) * 2
+        Self(5)
+    }
 }

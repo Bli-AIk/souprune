@@ -1,4 +1,4 @@
-use crate::core::core_components::*;
+use crate::core::basic_components::*;
 use bevy::prelude::*;
 
 pub(crate) fn update_transform_sync_system(

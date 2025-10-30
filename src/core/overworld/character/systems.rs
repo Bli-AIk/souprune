@@ -1,14 +1,8 @@
-use crate::core::core_components::{Facing, Position, Speed};
+use crate::core::basic_components::{Facing, Position, Speed};
 use crate::core::input::Action;
-use crate::core::overworld::character::character_components::{Idle, Running, Walking};
+use crate::core::overworld::character::components::{Running, Walking};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
-
-pub(crate) fn update_idle_system(
-    mut query: Query<(&mut Position, &mut Facing, &Speed), With<Idle>>,
-) {
-    // TODO: 实现 Idle 状态逻辑
-}
 fn apply_walking_step(
     mut pos: Mut<Position>,
     mut facing: Mut<Facing>,
@@ -16,7 +10,7 @@ fn apply_walking_step(
     action_state: &ActionState<Action>,
     delta_secs: f32,
 ) {
-    use crate::core::core_components::*;
+    use crate::core::basic_components::*;
 
     let mut direction_vec = Vec2::ZERO;
     if action_state.pressed(&Action::Up) {
