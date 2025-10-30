@@ -45,9 +45,9 @@ impl<'a> SpriteLoadContext<'a> {
                 self.toml_registry,
             );
 
-        let sprite_path =
+        let (sprite_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
-                sprite_config.path.clone()
+                (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
             } else {
                 panic!("Sprite not found in configuration '{}'", config_item_name);
             };
@@ -59,13 +59,19 @@ impl<'a> SpriteLoadContext<'a> {
             )
         });
 
-        Sprite::from_atlas_image(
+        let mut sprite = Sprite::from_atlas_image(
             texture,
             TextureAtlas {
                 layout: atlas_layout_handle,
                 index: sprite_index,
             },
-        )
+        );
+        
+        // Apply flip settings
+        sprite.flip_x = flip_x;
+        sprite.flip_y = flip_y;
+        
+        sprite
     }
 
     pub(crate) fn get_sprite_animations(
@@ -84,9 +90,9 @@ impl<'a> SpriteLoadContext<'a> {
                 self.toml_registry,
             );
 
-        let config_path =
+        let (config_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
-                sprite_config.path.clone()
+                (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
             } else {
                 panic!(
                     "Animation not found in configuration '{}'",
@@ -101,13 +107,19 @@ impl<'a> SpriteLoadContext<'a> {
         {
             // Single file: Find matching files directly
             if let Some(&sprite_index) = index_map.get(&config_path) {
-                vec![Sprite::from_atlas_image(
+                let mut sprite = Sprite::from_atlas_image(
                     texture,
                     TextureAtlas {
                         layout: atlas_layout_handle,
                         index: sprite_index,
                     },
-                )]
+                );
+                
+                // Apply flip settings
+                sprite.flip_x = flip_x;
+                sprite.flip_y = flip_y;
+                
+                vec![sprite]
             } else {
                 panic!(
                     "Single file '{}' not found for animation '{}'",
@@ -134,13 +146,19 @@ impl<'a> SpriteLoadContext<'a> {
             matching_files
                 .into_iter()
                 .map(|(_, &sprite_index)| {
-                    Sprite::from_atlas_image(
+                    let mut sprite = Sprite::from_atlas_image(
                         texture.clone(),
                         TextureAtlas {
                             layout: atlas_layout_handle.clone(),
                             index: sprite_index,
                         },
-                    )
+                    );
+                    
+                    // Apply flip settings to each frame
+                    sprite.flip_x = flip_x;
+                    sprite.flip_y = flip_y;
+                    
+                    sprite
                 })
                 .collect()
         }

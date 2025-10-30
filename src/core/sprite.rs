@@ -137,7 +137,6 @@ pub fn create_texture_atlas(
                 && !path_str.ends_with(".jpeg")
             {
                 if path_str.ends_with(".toml") {
-                    // 处理 TOML 配置文件，将数据存储到资源中
                     let toml_id = handle.id().typed_unchecked::<TomlAsset>();
                     if let Some(toml_asset) = toml_assets.get(toml_id) {
                         info!(
@@ -226,9 +225,9 @@ pub fn get_sprite_from_config(
         toml_registry,
     );
 
-    // Get image path according to configuration
-    let sprite_path = if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
-        sprite_config.path.clone()
+    // Get image path and flip settings according to configuration
+    let (sprite_path, flip_x, flip_y) = if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
+        (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
     } else {
         panic!("Sprite not found in configuration '{}'", config_item_name);
     };
@@ -240,11 +239,17 @@ pub fn get_sprite_from_config(
         )
     });
 
-    Sprite::from_atlas_image(
+    let mut sprite = Sprite::from_atlas_image(
         texture,
         TextureAtlas {
             layout: atlas_layout_handle,
             index: sprite_index,
         },
-    )
+    );
+    
+    // Apply flip settings
+    sprite.flip_x = flip_x;
+    sprite.flip_y = flip_y;
+    
+    sprite
 }

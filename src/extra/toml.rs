@@ -64,6 +64,10 @@ pub struct AnimationConfig {
 pub struct SpriteConfig {
     pub name: String,
     pub path: String,
+    #[serde(default)]
+    pub flip_x: bool,
+    #[serde(default)]
+    pub flip_y: bool,
 }
 
 #[derive(Default)]

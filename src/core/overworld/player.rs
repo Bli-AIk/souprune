@@ -159,7 +159,6 @@ pub(crate) fn player_direction_control_system(
     }
 }
 
-// 使用宏生成三个动画控制系统
 create_animation_system!(player_idle_anim_control_system, Idle, "frisk_idle");
 create_animation_system!(player_walk_anim_control_system, Walking, "frisk_walk");
 create_animation_system!(player_run_anim_control_system, Running, "frisk_run");
