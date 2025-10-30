@@ -122,7 +122,9 @@ pub(crate) fn player_idle_anim_control_system(
             }
         };
 
-        *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        if clip.clip_name() != clip_name {
+            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        }
     }
 }
 
@@ -148,7 +150,9 @@ pub(crate) fn player_walk_anim_control_system(
             }
         };
 
-        *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        if clip.clip_name() != clip_name {
+            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        }
     }
 }
 
@@ -174,7 +178,9 @@ pub(crate) fn player_run_anim_control_system(
             }
         };
 
-        *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        if clip.clip_name() != clip_name {
+            *clip = change_sprite_animation(&mut sprite_params, &mut frame, "overworld", clip_name);
+        }
     }
 }
 fn change_sprite_animation(
@@ -183,7 +189,6 @@ fn change_sprite_animation(
     module_name: &str,
     clip_name: &str,
 ) -> SpriteAnimationClip {
-    println!("change_sprite_animation");
     current_frame.value = 0;
     SpriteAnimationClip::new(
         &mut sprite_params.create_sprite_context(),
