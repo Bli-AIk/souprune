@@ -1,12 +1,12 @@
-use crate::core::sprite::{ModuleSpriteRegistry, create_texture_atlas};
+use crate::core::sprite::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;
 use bevy::asset::{Assets, LoadedFolder};
-use bevy::image::{Image, ImageSampler, TextureAtlas, TextureAtlasLayout};
+use bevy::image::{Image, TextureAtlas, TextureAtlasLayout};
 use bevy::prelude::Sprite;
 
 pub struct SpriteLoadContext<'a> {
-    sprite_registry: &'a ModuleSpriteRegistry,
+    sprite_registry: &'a mut ModuleSpriteRegistry,
     texture_atlases: &'a mut Assets<TextureAtlasLayout>,
     loaded_folders: &'a Assets<LoadedFolder>,
     textures: &'a mut Assets<Image>,
@@ -16,7 +16,7 @@ pub struct SpriteLoadContext<'a> {
 
 impl<'a> SpriteLoadContext<'a> {
     pub(crate) fn new(
-        sprite_registry: &'a ModuleSpriteRegistry,
+        sprite_registry: &'a mut ModuleSpriteRegistry,
         texture_atlases: &'a mut Assets<TextureAtlasLayout>,
         loaded_folders: &'a Assets<LoadedFolder>,
         textures: &'a mut Assets<Image>,
@@ -34,25 +34,15 @@ impl<'a> SpriteLoadContext<'a> {
     }
 
     pub(crate) fn get_sprite(&mut self, module_name: &str, config_item_name: &str) -> Sprite {
-        let handle = self
-            .sprite_registry
-            .get_module(module_name)
-            .unwrap_or_else(|| panic!("{module_name} module not registered"));
-
-        let loaded_folder = self.loaded_folders.get(handle).unwrap();
-
-        let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
-            create_texture_atlas(
-                loaded_folder,
-                None,
-                Some(ImageSampler::nearest()),
-                self.textures,
-                self.toml_assets,
-                self.toml_registry,
-                module_name,
-            );
-
-        let atlas_nearest_handle = self.texture_atlases.add(texture_atlas_nearest);
+        let (atlas_layout_handle, texture, index_map) = crate::core::sprite::get_or_create_texture_atlas(
+            module_name,
+            self.sprite_registry,
+            self.texture_atlases,
+            self.loaded_folders,
+            self.textures,
+            self.toml_assets,
+            self.toml_registry,
+        );
 
         let sprite_path =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
@@ -69,9 +59,9 @@ impl<'a> SpriteLoadContext<'a> {
         });
 
         Sprite::from_atlas_image(
-            nearest_texture,
+            texture,
             TextureAtlas {
-                layout: atlas_nearest_handle.clone(),
+                layout: atlas_layout_handle,
                 index: sprite_index,
             },
         )
@@ -82,25 +72,15 @@ impl<'a> SpriteLoadContext<'a> {
         module_name: &str,
         config_item_name: &str,
     ) -> Vec<Sprite> {
-        let handle = self
-            .sprite_registry
-            .get_module(module_name)
-            .unwrap_or_else(|| panic!("{module_name} module not registered"));
-
-        let loaded_folder = self.loaded_folders.get(handle).unwrap();
-
-        let (texture_atlas_nearest, _nearest_sources, nearest_texture, index_map) =
-            create_texture_atlas(
-                loaded_folder,
-                None,
-                Some(ImageSampler::nearest()),
-                self.textures,
-                self.toml_assets,
-                self.toml_registry,
-                module_name,
-            );
-
-        let atlas_nearest_handle = self.texture_atlases.add(texture_atlas_nearest);
+        let (atlas_layout_handle, texture, index_map) = crate::core::sprite::get_or_create_texture_atlas(
+            module_name,
+            self.sprite_registry,
+            self.texture_atlases,
+            self.loaded_folders,
+            self.textures,
+            self.toml_assets,
+            self.toml_registry,
+        );
 
         let config_path =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
@@ -120,9 +100,9 @@ impl<'a> SpriteLoadContext<'a> {
             // Single file: Find matching files directly
             if let Some(&sprite_index) = index_map.get(&config_path) {
                 vec![Sprite::from_atlas_image(
-                    nearest_texture,
+                    texture,
                     TextureAtlas {
-                        layout: atlas_nearest_handle,
+                        layout: atlas_layout_handle,
                         index: sprite_index,
                     },
                 )]
@@ -153,9 +133,9 @@ impl<'a> SpriteLoadContext<'a> {
                 .into_iter()
                 .map(|(_, &sprite_index)| {
                     Sprite::from_atlas_image(
-                        nearest_texture.clone(),
+                        texture.clone(),
                         TextureAtlas {
-                            layout: atlas_nearest_handle.clone(),
+                            layout: atlas_layout_handle.clone(),
                             index: sprite_index,
                         },
                     )

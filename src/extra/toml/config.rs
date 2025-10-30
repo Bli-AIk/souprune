@@ -9,6 +9,7 @@ pub struct TomlConfigRegistry {
     pub sprite_animations: HashMap<String, AnimationConfig>,
     pub sprites: HashMap<String, SpriteConfig>,
     pub modules: HashMap<String, Vec<String>>,
+    pub registered_modules: std::collections::HashSet<String>,
 }
 
 impl TomlConfigRegistry {
@@ -17,6 +18,11 @@ impl TomlConfigRegistry {
         module_name: &str,
         config: &crate::extra::toml::TomlConfig,
     ) {
+        // Check if this module has already been registered
+        if self.registered_modules.contains(module_name) {
+            return;
+        }
+
         for anim in &config.animations {
             self.sprite_animations
                 .insert(anim.name.clone(), anim.clone());
@@ -30,6 +36,9 @@ impl TomlConfigRegistry {
             self.modules
                 .insert(module_name.to_string(), module.loaded_before.clone());
         }
+
+        // Mark module as registered
+        self.registered_modules.insert(module_name.to_string());
 
         info!(
             "Configuration of registered module '{}': {} animations, {} sprites",

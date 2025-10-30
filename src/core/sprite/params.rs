@@ -9,7 +9,7 @@ use bevy::prelude::{Res, ResMut};
 
 #[derive(SystemParam)]
 pub struct SpriteParams<'w> {
-    sprite_registry: Res<'w, ModuleSpriteRegistry>,
+    sprite_registry: ResMut<'w, ModuleSpriteRegistry>,
     texture_atlases: ResMut<'w, Assets<TextureAtlasLayout>>,
     loaded_folders: Res<'w, Assets<LoadedFolder>>,
     textures: ResMut<'w, Assets<Image>>,
@@ -20,7 +20,7 @@ pub struct SpriteParams<'w> {
 impl<'w> SpriteParams<'w> {
     pub(crate) fn create_sprite_context(&mut self) -> SpriteLoadContext<'_> {
         SpriteLoadContext::new(
-            &self.sprite_registry,
+            &mut self.sprite_registry,
             &mut self.texture_atlases,
             &self.loaded_folders,
             &mut self.textures,
