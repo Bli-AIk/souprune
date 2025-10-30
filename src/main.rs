@@ -3,13 +3,13 @@ mod extra;
 
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
-use crate::core::resource::*;
 use crate::core::setup::*;
 use crate::core::*;
+use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
-use extra::markdown_asset_loader::*;
+use extra::markdown::*;
 use leafwing_input_manager::prelude::*;
 use seldom_state::prelude::*;
 
@@ -20,6 +20,7 @@ fn main() {
         .add_plugins((
             default_plugins,
             MarkdownPlugin,
+            TomlPlugin,
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
         ))
@@ -48,6 +49,7 @@ fn get_default_plugins() -> PluginGroupBuilder {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
+#[allow(dead_code)]
 enum AppState {
     #[default]
     Setup,
