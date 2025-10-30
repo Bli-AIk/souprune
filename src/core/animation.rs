@@ -58,7 +58,8 @@ pub(crate) struct SpriteAnimationClip {
 
 impl SpriteAnimationClip {
     pub fn new(sprite_context: &mut SpriteLoadContext, module_name: &str, clip_name: &str) -> Self {
-        let (sprites, looping) = sprite_context.get_sprite_animations_with_config(module_name, clip_name);
+        let (sprites, looping) =
+            sprite_context.get_sprite_animations_with_config(module_name, clip_name);
         Self {
             sprites,
             frame: 0,
@@ -67,19 +68,19 @@ impl SpriteAnimationClip {
             module_name: module_name.to_string(),
         }
     }
-    
+
     pub fn get_current_sprite(&self) -> &Sprite {
         &self.sprites[self.frame]
     }
-    
+
     pub fn len(&self) -> usize {
         self.sprites.len()
     }
-    
+
     pub fn is_looping(&self) -> bool {
         self.looping
     }
-    
+
     pub fn clip_name(&self) -> &str {
         &self.clip_name
     }
