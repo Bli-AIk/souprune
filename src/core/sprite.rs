@@ -226,11 +226,16 @@ pub fn get_sprite_from_config(
     );
 
     // Get image path and flip settings according to configuration
-    let (sprite_path, flip_x, flip_y) = if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
-        (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
-    } else {
-        panic!("Sprite not found in configuration '{}'", config_item_name);
-    };
+    let (sprite_path, flip_x, flip_y) =
+        if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
+            (
+                sprite_config.path.clone(),
+                sprite_config.flip_x,
+                sprite_config.flip_y,
+            )
+        } else {
+            panic!("Sprite not found in configuration '{}'", config_item_name);
+        };
 
     let sprite_index = *index_map.get(&sprite_path).unwrap_or_else(|| {
         panic!(
@@ -246,10 +251,10 @@ pub fn get_sprite_from_config(
             index: sprite_index,
         },
     );
-    
+
     // Apply flip settings
     sprite.flip_x = flip_x;
     sprite.flip_y = flip_y;
-    
+
     sprite
 }

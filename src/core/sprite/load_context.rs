@@ -47,7 +47,11 @@ impl<'a> SpriteLoadContext<'a> {
 
         let (sprite_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
-                (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
+                (
+                    sprite_config.path.clone(),
+                    sprite_config.flip_x,
+                    sprite_config.flip_y,
+                )
             } else {
                 panic!("Sprite not found in configuration '{}'", config_item_name);
             };
@@ -66,11 +70,11 @@ impl<'a> SpriteLoadContext<'a> {
                 index: sprite_index,
             },
         );
-        
+
         // Apply flip settings
         sprite.flip_x = flip_x;
         sprite.flip_y = flip_y;
-        
+
         sprite
     }
 
@@ -92,7 +96,11 @@ impl<'a> SpriteLoadContext<'a> {
 
         let (config_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
-                (sprite_config.path.clone(), sprite_config.flip_x, sprite_config.flip_y)
+                (
+                    sprite_config.path.clone(),
+                    sprite_config.flip_x,
+                    sprite_config.flip_y,
+                )
             } else {
                 panic!(
                     "Animation not found in configuration '{}'",
@@ -114,11 +122,11 @@ impl<'a> SpriteLoadContext<'a> {
                         index: sprite_index,
                     },
                 );
-                
+
                 // Apply flip settings
                 sprite.flip_x = flip_x;
                 sprite.flip_y = flip_y;
-                
+
                 vec![sprite]
             } else {
                 panic!(
@@ -153,11 +161,11 @@ impl<'a> SpriteLoadContext<'a> {
                             index: sprite_index,
                         },
                     );
-                    
+
                     // Apply flip settings to each frame
                     sprite.flip_x = flip_x;
                     sprite.flip_y = flip_y;
-                    
+
                     sprite
                 })
                 .collect()
