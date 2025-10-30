@@ -34,15 +34,16 @@ impl<'a> SpriteLoadContext<'a> {
     }
 
     pub(crate) fn get_sprite(&mut self, module_name: &str, config_item_name: &str) -> Sprite {
-        let (atlas_layout_handle, texture, index_map) = crate::core::sprite::get_or_create_texture_atlas(
-            module_name,
-            self.sprite_registry,
-            self.texture_atlases,
-            self.loaded_folders,
-            self.textures,
-            self.toml_assets,
-            self.toml_registry,
-        );
+        let (atlas_layout_handle, texture, index_map) =
+            crate::core::sprite::get_or_create_texture_atlas(
+                module_name,
+                self.sprite_registry,
+                self.texture_atlases,
+                self.loaded_folders,
+                self.textures,
+                self.toml_assets,
+                self.toml_registry,
+            );
 
         let sprite_path =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
@@ -72,15 +73,16 @@ impl<'a> SpriteLoadContext<'a> {
         module_name: &str,
         config_item_name: &str,
     ) -> Vec<Sprite> {
-        let (atlas_layout_handle, texture, index_map) = crate::core::sprite::get_or_create_texture_atlas(
-            module_name,
-            self.sprite_registry,
-            self.texture_atlases,
-            self.loaded_folders,
-            self.textures,
-            self.toml_assets,
-            self.toml_registry,
-        );
+        let (atlas_layout_handle, texture, index_map) =
+            crate::core::sprite::get_or_create_texture_atlas(
+                module_name,
+                self.sprite_registry,
+                self.texture_atlases,
+                self.loaded_folders,
+                self.textures,
+                self.toml_assets,
+                self.toml_registry,
+            );
 
         let config_path =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {

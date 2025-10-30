@@ -24,7 +24,7 @@ pub(crate) struct SpriteAnimationCurrentFrame {
 
 #[derive(Component)]
 pub(crate) struct SpriteAnimationTimer {
-    timer: f32,
+    pub(crate) timer: f32,
     frame_duration: f32,
 }
 
@@ -44,6 +44,10 @@ impl SpriteAnimationTimer {
         } else {
             false
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.timer = 0.0;
     }
 }
 

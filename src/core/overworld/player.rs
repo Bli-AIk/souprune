@@ -1,4 +1,6 @@
-use crate::core::animation::{SpriteAnimationClip, SpriteAnimationCurrentFrame};
+use crate::core::animation::{
+    SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
+};
 use crate::core::basic_components::{
     BasicAttributes, Direction, Facing, Position, Rotation, Speed,
 };
@@ -18,18 +20,22 @@ macro_rules! create_animation_system {
             mut query: Query<
                 (
                     &Facing,
+                    &mut Sprite,
                     &mut SpriteAnimationClip,
                     &mut SpriteAnimationCurrentFrame,
+                    &mut SpriteAnimationTimer,
                 ),
                 (With<PlayerControlled>, With<$state>),
             >,
         ) {
-            for (facing, mut clip, mut frame) in query.iter_mut() {
+            for (facing, mut sprite, mut clip, mut frame, mut timer) in query.iter_mut() {
                 update_player_animation(
                     &mut sprite_params,
                     facing,
+                    &mut sprite,
                     &mut clip,
                     &mut frame,
+                    &mut timer,
                     $animation_prefix,
                 );
             }
@@ -40,8 +46,10 @@ macro_rules! create_animation_system {
 fn update_player_animation(
     sprite_params: &mut SpriteParams,
     facing: &Facing,
+    sprite: &mut Sprite,
     clip: &mut SpriteAnimationClip,
     frame: &mut SpriteAnimationCurrentFrame,
+    timer: &mut SpriteAnimationTimer,
     animation_prefix: &str,
 ) {
     let clip_name = match facing.value {
@@ -56,7 +64,9 @@ fn update_player_animation(
     };
 
     if clip.clip_name() != clip_name {
-        *clip = change_sprite_animation(sprite_params, frame, "overworld", &clip_name);
+        *clip = change_sprite_animation(sprite_params, frame, timer, "overworld", &clip_name);
+        // 立即应用新的sprite，消除延迟
+        *sprite = clip.get_current_sprite().clone();
     }
 }
 
@@ -156,10 +166,14 @@ create_animation_system!(player_run_anim_control_system, Running, "frisk_run");
 fn change_sprite_animation(
     sprite_params: &mut SpriteParams,
     current_frame: &mut SpriteAnimationCurrentFrame,
+    timer: &mut SpriteAnimationTimer,
     module_name: &str,
     clip_name: &str,
 ) -> SpriteAnimationClip {
     current_frame.value = 0;
+
+    timer.reset();
+
     SpriteAnimationClip::new(
         &mut sprite_params.create_sprite_context(),
         module_name,

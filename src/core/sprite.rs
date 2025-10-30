@@ -12,7 +12,14 @@ pub mod params;
 pub(crate) struct ModuleSpriteRegistry {
     pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,
     // 缓存每个模块的TextureAtlas相关数据，避免重复创建
-    pub(crate) atlas_cache: HashMap<String, (Handle<TextureAtlasLayout>, Handle<Image>, HashMap<String, usize>)>,
+    pub(crate) atlas_cache: HashMap<
+        String,
+        (
+            Handle<TextureAtlasLayout>,
+            Handle<Image>,
+            HashMap<String, usize>,
+        ),
+    >,
 }
 
 impl ModuleSpriteRegistry {
@@ -31,12 +38,26 @@ impl ModuleSpriteRegistry {
         self.modules.get(module_name)
     }
 
-    pub fn get_cached_atlas(&self, module_name: &str) -> Option<&(Handle<TextureAtlasLayout>, Handle<Image>, HashMap<String, usize>)> {
+    pub fn get_cached_atlas(
+        &self,
+        module_name: &str,
+    ) -> Option<&(
+        Handle<TextureAtlasLayout>,
+        Handle<Image>,
+        HashMap<String, usize>,
+    )> {
         self.atlas_cache.get(module_name)
     }
 
-    pub fn cache_atlas(&mut self, module_name: String, atlas_layout: Handle<TextureAtlasLayout>, texture: Handle<Image>, index_map: HashMap<String, usize>) {
-        self.atlas_cache.insert(module_name, (atlas_layout, texture, index_map));
+    pub fn cache_atlas(
+        &mut self,
+        module_name: String,
+        atlas_layout: Handle<TextureAtlasLayout>,
+        texture: Handle<Image>,
+        index_map: HashMap<String, usize>,
+    ) {
+        self.atlas_cache
+            .insert(module_name, (atlas_layout, texture, index_map));
     }
 }
 
@@ -48,9 +69,14 @@ pub fn get_or_create_texture_atlas(
     textures: &mut Assets<Image>,
     toml_assets: &Assets<TomlAsset>,
     toml_registry: &mut TomlConfigRegistry,
-) -> (Handle<TextureAtlasLayout>, Handle<Image>, HashMap<String, usize>) {
+) -> (
+    Handle<TextureAtlasLayout>,
+    Handle<Image>,
+    HashMap<String, usize>,
+) {
     // Check cache
-    if let Some((atlas_layout, texture, index_map)) = sprite_registry.get_cached_atlas(module_name) {
+    if let Some((atlas_layout, texture, index_map)) = sprite_registry.get_cached_atlas(module_name)
+    {
         return (atlas_layout.clone(), texture.clone(), index_map.clone());
     }
 
@@ -60,16 +86,15 @@ pub fn get_or_create_texture_atlas(
 
     let loaded_folder = loaded_folders.get(handle).unwrap();
 
-    let (texture_atlas_layout, _texture_atlas_sources, texture, index_map) =
-        create_texture_atlas(
-            loaded_folder,
-            None,
-            Some(ImageSampler::nearest()),
-            textures,
-            toml_assets,
-            toml_registry,
-            module_name,
-        );
+    let (texture_atlas_layout, _texture_atlas_sources, texture, index_map) = create_texture_atlas(
+        loaded_folder,
+        None,
+        Some(ImageSampler::nearest()),
+        textures,
+        toml_assets,
+        toml_registry,
+        module_name,
+    );
 
     let atlas_layout_handle = texture_atlases.add(texture_atlas_layout);
 
