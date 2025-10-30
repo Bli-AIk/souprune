@@ -102,36 +102,56 @@ impl<'a> SpriteLoadContext<'a> {
 
         let atlas_nearest_handle = self.texture_atlases.add(texture_atlas_nearest);
 
-        let folder_path =
+        let config_path =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
                 sprite_config.path.clone()
             } else {
                 panic!(
-                    "Sprite folder not found in configuration '{}'",
+                    "Animation not found in configuration '{}'",
                     config_item_name
                 );
             };
 
-        // Collect matching files and sort by filename
-        let mut matching_files: Vec<_> = index_map
-            .iter()
-            .filter(|(path, _)| path.starts_with(&folder_path))
-            .collect();
-        
-        // Sort by filename to ensure correct frame order
-        matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
-        
-        matching_files
-            .into_iter()
-            .map(|(_, &sprite_index)| {
-                Sprite::from_atlas_image(
-                    nearest_texture.clone(),
+        // Check if path points to a single file
+        if config_path.ends_with(".png") || config_path.ends_with(".jpg") || config_path.ends_with(".jpeg") {
+            // Single file: Find matching files directly
+            if let Some(&sprite_index) = index_map.get(&config_path) {
+                vec![Sprite::from_atlas_image(
+                    nearest_texture,
                     TextureAtlas {
-                        layout: atlas_nearest_handle.clone(),
+                        layout: atlas_nearest_handle,
                         index: sprite_index,
                     },
-                )
-            })
-            .collect()
+                )]
+            } else {
+                panic!("Single file '{}' not found for animation '{}'", config_path, config_item_name);
+            }
+        } else {
+            // Directory: collect all matching files and sort them
+            let mut matching_files: Vec<_> = index_map
+                .iter()
+                .filter(|(path, _)| path.starts_with(&config_path))
+                .collect();
+            
+            if matching_files.is_empty() {
+                panic!("No files found in directory '{}' for animation '{}'", config_path, config_item_name);
+            }
+            
+            // Sort by filename to ensure correct frame order
+            matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
+            
+            matching_files
+                .into_iter()
+                .map(|(_, &sprite_index)| {
+                    Sprite::from_atlas_image(
+                        nearest_texture.clone(),
+                        TextureAtlas {
+                            layout: atlas_nearest_handle.clone(),
+                            index: sprite_index,
+                        },
+                    )
+                })
+                .collect()
+        }
     }
 }

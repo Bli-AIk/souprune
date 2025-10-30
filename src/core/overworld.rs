@@ -61,7 +61,7 @@ fn setup_overworld_system(
             SpriteAnimationClip::new(
                 &mut sprite_params.create_sprite_context(),
                 "overworld",
-                "frisk_run_down",
+                "frisk_idle_down",
             ),
         ),
     ));
