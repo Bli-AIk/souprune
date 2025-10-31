@@ -2,16 +2,26 @@
 name = "souprune"
 version = "0.1.0"
 edition = "2024"
+authors = ["Bli-AIk <haikun2333@gmail.com>"]
 license = "LGPL-3.0-or-later"
 repository = "https://github.com/Bli-AIk/souprune"
+homepage = "https://github.com/Bli-AIk/souprune"
 description = "A game framework designed specifically for Deltarune / Undertale fangames."
+documentation = "https://docs.rs/souprune"
+readme = "readme.md"
+keywords = ["game-framework", "deltarune", "undertale", "game-engine", "bevy"]
+categories = ["game-development", "game-engines"]
+exclude = [
+    "target/*",
+    ".github/*"
+]
 
 [dependencies]
 bevy = "0.17.2"
 leafwing-input-manager = "0.18.0"
 seldom_state = "0.15.0"
-toml = "0.9.8"
 serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.8"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
