@@ -66,7 +66,6 @@ fn apply_sprite_animation(
 ) {
     clip.frame = current_frame.value;
     *sprite = clip.get_current_sprite().clone();
-    println!("Debug - Apply animation frames: {}", clip.frame);
 }
 
 pub(crate) fn update_sprite_animation_system(
