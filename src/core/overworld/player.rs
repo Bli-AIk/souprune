@@ -159,9 +159,9 @@ pub(crate) fn player_direction_control_system(
     }
 }
 
-create_animation_system!(player_idle_anim_control_system, Idle, "frisk_idle");
-create_animation_system!(player_walk_anim_control_system, Walking, "frisk_walk");
-create_animation_system!(player_run_anim_control_system, Running, "frisk_run");
+create_animation_system!(player_idle_anim_control_system, StateIdle, "frisk_idle");
+create_animation_system!(player_walk_anim_control_system, StateWalking, "frisk_walk");
+create_animation_system!(player_run_anim_control_system, StateRunning, "frisk_run");
 fn change_sprite_animation(
     sprite_params: &mut SpriteParams,
     current_frame: &mut SpriteAnimationCurrentFrame,
