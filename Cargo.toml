@@ -18,6 +18,7 @@ exclude = [
 
 [dependencies]
 bevy = "0.17.2"
+bevy-inspector-egui = "0.35.0"
 leafwing-input-manager = "0.18.0"
 seldom_state = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }

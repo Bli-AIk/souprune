@@ -40,14 +40,14 @@ fn setup_overworld_system(
 
     use player::*;
     commands.spawn((
-        Idle,
+        StateIdle,
         PlayerControlled,
         StateMachine::default()
-            .trans::<Idle, _>(is_player_walking, Walking)
-            .trans::<Walking, _>(is_player_walking.not(), Idle)
-            .trans::<Running, _>(is_player_walking.not(), Idle)
-            .trans::<Walking, _>(is_player_running, Running)
-            .trans::<Running, _>(is_player_running.not(), Walking),
+            .trans::<StateIdle, _>(is_player_walking, StateWalking)
+            .trans::<StateWalking, _>(is_player_walking.not(), StateIdle)
+            .trans::<StateRunning, _>(is_player_walking.not(), StateIdle)
+            .trans::<StateWalking, _>(is_player_running, StateRunning)
+            .trans::<StateRunning, _>(is_player_running.not(), StateWalking),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
         PlayerBundle::new(

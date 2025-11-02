@@ -5,6 +5,7 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::setup::*;
 use crate::core::*;
+use crate::extra::inspector::InspectorPlugin;
 use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
@@ -23,6 +24,8 @@ fn main() {
             TomlPlugin,
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
+            #[cfg(debug_assertions)]
+            InspectorPlugin,
         ))
         .init_resource::<ResolutionScale>()
         .init_resource::<PlayerInputSettings>()
