@@ -39,16 +39,6 @@ fn setup_overworld_system(
     player_input: Res<PlayerInputSettings>,
     asset_server: Res<AssetServer>,
 ) {
-    // ---Test---
-    let sprite = sprite_params
-        .create_sprite_context()
-        .get_sprite("overworld", "chest_box");
-    commands.spawn((
-        sprite,
-        Transform::from_translation(Vec3::new(50.0, 0.0, 0.0)),
-    ));
-    // ---------
-
     setup_overworld_player(&mut commands, &mut sprite_params, &player_input);
     tilemap::setup_tilemap(&mut commands, &asset_server);
 }
