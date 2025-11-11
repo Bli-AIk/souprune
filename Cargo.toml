@@ -25,6 +25,10 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.8"
 bevy_ecs_tiled = { git = "https://github.com/adrien-bon/bevy_ecs_tiled.git", branch = "dev" }
 
+[dependencies.iyes_perf_ui]
+git = "https://github.com/Bli-AIk/iyes_perf_ui"
+branch = "bevy-0.17"
+
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1
