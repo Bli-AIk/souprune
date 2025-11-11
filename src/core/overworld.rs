@@ -14,13 +14,21 @@ use seldom_state::trigger::IntoTrigger;
 
 mod character;
 mod player;
+mod tilemap;
 
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system)
-            .add_systems(Update, (update_walking_system, update_running_system))
+            .add_systems(
+                Update,
+                (
+                    update_walking_system,
+                    update_running_system,
+                    tilemap::filter_prototype_layers_and_set_z_order,
+                ),
+            )
             .add_plugins(PlayerPlugin);
     }
 }
@@ -29,7 +37,9 @@ fn setup_overworld_system(
     mut commands: Commands,
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
+    asset_server: Res<AssetServer>,
 ) {
+    // ---Test---
     let sprite = sprite_params
         .create_sprite_context()
         .get_sprite("overworld", "chest_box");
@@ -37,7 +47,17 @@ fn setup_overworld_system(
         sprite,
         Transform::from_translation(Vec3::new(50.0, 0.0, 0.0)),
     ));
+    // ---------
 
+    setup_overworld_player(&mut commands, &mut sprite_params, &player_input);
+    tilemap::setup_tilemap(&mut commands, &asset_server);
+}
+
+fn setup_overworld_player(
+    commands: &mut Commands,
+    sprite_params: &mut SpriteParams,
+    player_input: &Res<PlayerInputSettings>,
+) {
     use player::*;
     commands.spawn((
         StateIdle,

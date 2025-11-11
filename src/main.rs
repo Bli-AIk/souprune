@@ -10,6 +10,7 @@ use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
+use bevy_ecs_tiled::prelude::*;
 use extra::markdown::*;
 use leafwing_input_manager::prelude::*;
 use seldom_state::prelude::*;
@@ -26,6 +27,7 @@ fn main() {
             StateMachinePlugin::default(),
             #[cfg(debug_assertions)]
             InspectorPlugin,
+            TiledPlugin::default(),
         ))
         .init_resource::<ResolutionScale>()
         .init_resource::<PlayerInputSettings>()
@@ -59,4 +61,14 @@ enum AppState {
     Menu,
     Overworld,
     Battle,
+}
+
+#[macro_export]
+macro_rules! debug_info {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            info!($($arg)*);
+        }
+    };
 }
