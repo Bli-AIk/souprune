@@ -1,0 +1,63 @@
+{
+    "activeFile": "ruins.tmx",
+    "automapping.whileDrawing": false,
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "全部文件 (*)",
+    "fileStates": {
+        ":/automap-tiles.tsx": {
+            "scaleInDock": 1
+        },
+        "Ruins.tsx": {
+            "scaleInDock": 1
+        },
+        "ruins.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
+            "scale": 1.5,
+            "selectedLayer": 5,
+            "viewCenter": {
+                "x": 570,
+                "y": 224.66666666666669
+            }
+        },
+        "ruins.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 2
+        },
+        "ruinsObjects.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "ruins_objects.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "rules/ruins_rules.tmx": {
+            "scale": 5.5,
+            "selectedLayer": 5,
+            "viewCenter": {
+                "x": 124.36363636363635,
+                "y": 84
+            }
+        }
+    },
+    "last.externalTilesetPath": "/home/aik/Projects/RustroverProjects/souprune/assets/levels",
+    "last.imagePath": "/home/aik/Projects/RustroverProjects/souprune/assets/levels/tiles/ruins",
+    "mapScene.enableWorlds": true,
+    "openFiles": [
+        "ruins.tmx",
+        "rules/ruins_rules.tmx",
+        "ruins_objects.tsx"
+    ],
+    "project": "ruins.tiled-project",
+    "recentFiles": [
+        "ruins_objects.tsx",
+        "rules/ruins_rules.tmx",
+        "ruins.tmx",
+        "ruinsObjects.tsx"
+    ]
+}

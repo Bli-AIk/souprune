@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="RuinsObjects" tilewidth="37" tileheight="32" tilecount="23" columns="0">
+<tileset version="1.10" tiledversion="1.11.2" name="RuinsObjects" tilewidth="37" tileheight="32" tilecount="24" columns="0">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="26">
   <image source="tiles/ruins/bigweb_0.png" width="34" height="32"/>
@@ -69,5 +69,8 @@
  </tile>
  <tile id="48">
   <image source="tiles/ruins/tornote_0.png" width="37" height="27"/>
+ </tile>
+ <tile id="49">
+  <image source="tiles/ruins/brand.png" width="20" height="20"/>
  </tile>
 </tileset>
