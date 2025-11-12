@@ -26,6 +26,7 @@ fn main() {
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
             #[cfg(debug_assertions)]
+            #[cfg(feature = "debug")]
             InspectorPlugin,
             TiledPlugin::default(),
         ))
@@ -66,7 +67,7 @@ enum AppState {
 #[macro_export]
 macro_rules! debug_info {
     ($($arg:tt)*) => {
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "debug")]
         {
             info!($($arg)*);
         }
