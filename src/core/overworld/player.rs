@@ -1,9 +1,7 @@
 use crate::core::animation::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
-use crate::core::basic_components::{
-    BasicAttributes, Direction, Facing, Position, Rotation, Speed,
-};
+use crate::core::basic_components::{BasicAttributes, Direction, Facing, Speed};
 use crate::core::input::Action;
 use crate::core::overworld::character::components::*;
 use crate::core::sprite::params::SpriteParams;
@@ -86,8 +84,6 @@ impl Plugin for PlayerPlugin {
 }
 #[derive(Bundle)]
 pub struct PlayerBundle {
-    position: Position,
-    rotation: Rotation,
     facing: Facing,
     speed: Speed,
     sprite: Sprite,
@@ -100,8 +96,6 @@ pub struct PlayerBundle {
 impl PlayerBundle {
     pub fn new(spawn_pos: Vec2, facing: Direction, anim: SpriteAnimationClip) -> Self {
         Self {
-            position: Position { value: spawn_pos },
-            rotation: Rotation { angle: 0.0 },
             facing: Facing { value: facing },
             speed: Speed { value: 100.0 },
             sprite: Sprite::default(),

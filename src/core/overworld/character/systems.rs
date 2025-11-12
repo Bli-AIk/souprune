@@ -1,10 +1,10 @@
-use crate::core::basic_components::{Facing, Position, Speed};
+use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::Action;
 use crate::core::overworld::character::components::{StateRunning, StateWalking};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 fn apply_walking_step(
-    mut pos: Mut<Position>,
+    transform: &mut Transform,
     mut facing: Mut<Facing>,
     speed: f32,
     action_state: &ActionState<Action>,
@@ -48,31 +48,38 @@ fn apply_walking_step(
 
     if let Some(direction) = new_direction {
         facing.value = direction;
-        pos.value += facing.value.as_vec2() * speed * delta_secs;
+        let movement = facing.value.as_vec2() * speed * delta_secs;
+        transform.translation += movement.extend(0.0);
     }
 }
 
 pub(crate) fn update_walking_system(
     time: Res<Time>,
     mut query: Query<
-        (&mut Position, &mut Facing, &Speed, &ActionState<Action>),
+        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
         With<StateWalking>,
     >,
 ) {
-    for (pos, facing, speed, action_state) in query.iter_mut() {
-        apply_walking_step(pos, facing, speed.value, action_state, time.delta_secs());
+    for (mut transform, facing, speed, action_state) in query.iter_mut() {
+        apply_walking_step(
+            &mut transform,
+            facing,
+            speed.value,
+            action_state,
+            time.delta_secs(),
+        );
     }
 }
 pub(crate) fn update_running_system(
     time: Res<Time>,
     mut query: Query<
-        (&mut Position, &mut Facing, &Speed, &ActionState<Action>),
+        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
         With<StateRunning>,
     >,
 ) {
-    for (pos, facing, speed, action_state) in query.iter_mut() {
+    for (mut transform, facing, speed, action_state) in query.iter_mut() {
         apply_walking_step(
-            pos,
+            &mut transform,
             facing,
             speed.value * 2.0,
             action_state,

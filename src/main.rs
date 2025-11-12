@@ -33,7 +33,7 @@ fn main() {
         .init_resource::<ResolutionScale>()
         .init_resource::<PlayerInputSettings>()
         .init_state::<AppState>()
-        .add_plugins((CorePlugin, SetupPlugin, OverworldPlugin))
+        .add_plugins((CorePlugin, SetupPlugin, OverworldPlugin, GlobalPlugin))
         .run();
 }
 

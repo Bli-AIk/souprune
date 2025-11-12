@@ -1,15 +1,4 @@
 use bevy::prelude::*;
-
-// TODO:去掉 Position 和 Rotation 组件，直接使用 Transform 组件
-#[derive(Component)]
-pub(crate) struct Position {
-    pub value: Vec2,
-}
-
-#[derive(Component)]
-pub(crate) struct Rotation {
-    pub angle: f32,
-}
 #[derive(Component)]
 pub(crate) struct Speed {
     pub value: f32,
