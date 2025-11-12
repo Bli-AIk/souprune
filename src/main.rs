@@ -5,7 +5,7 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::setup::*;
 use crate::core::*;
-use crate::extra::inspector::InspectorPlugin;
+use crate::extra::debug::InspectorPlugin;
 use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
