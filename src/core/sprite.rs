@@ -8,18 +8,19 @@ use bevy::prelude::*;
 pub mod load_context;
 pub mod params;
 
+// 类型别名来简化复杂类型
+type AtlasCacheData = (
+    Handle<TextureAtlasLayout>,
+    Handle<Image>,
+    HashMap<String, usize>,
+);
+type ModuleAtlasCache = HashMap<String, AtlasCacheData>;
+
 #[derive(Resource, Default)]
 pub(crate) struct ModuleSpriteRegistry {
     pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,
     // 缓存每个模块的TextureAtlas相关数据，避免重复创建
-    pub(crate) atlas_cache: HashMap<
-        String,
-        (
-            Handle<TextureAtlasLayout>,
-            Handle<Image>,
-            HashMap<String, usize>,
-        ),
-    >,
+    pub(crate) atlas_cache: ModuleAtlasCache,
 }
 
 impl ModuleSpriteRegistry {
@@ -38,14 +39,7 @@ impl ModuleSpriteRegistry {
         self.modules.get(module_name)
     }
 
-    pub fn get_cached_atlas(
-        &self,
-        module_name: &str,
-    ) -> Option<&(
-        Handle<TextureAtlasLayout>,
-        Handle<Image>,
-        HashMap<String, usize>,
-    )> {
+    pub fn get_cached_atlas(&self, module_name: &str) -> Option<&AtlasCacheData> {
         self.atlas_cache.get(module_name)
     }
 
