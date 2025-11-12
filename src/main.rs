@@ -5,11 +5,12 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::setup::*;
 use crate::core::*;
-use crate::extra::inspector::InspectorPlugin;
+use crate::extra::debug::InspectorPlugin;
 use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
+use bevy_ecs_tiled::prelude::*;
 use extra::markdown::*;
 use leafwing_input_manager::prelude::*;
 use seldom_state::prelude::*;
@@ -25,12 +26,14 @@ fn main() {
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
             #[cfg(debug_assertions)]
+            #[cfg(feature = "debug")]
             InspectorPlugin,
+            TiledPlugin::default(),
         ))
         .init_resource::<ResolutionScale>()
         .init_resource::<PlayerInputSettings>()
         .init_state::<AppState>()
-        .add_plugins((CorePlugin, SetupPlugin, OverworldPlugin))
+        .add_plugins((CorePlugin, SetupPlugin, OverworldPlugin, GlobalPlugin))
         .run();
 }
 
@@ -59,4 +62,14 @@ enum AppState {
     Menu,
     Overworld,
     Battle,
+}
+
+#[macro_export]
+macro_rules! debug_info {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "debug")]
+        {
+            info!($($arg)*);
+        }
+    };
 }

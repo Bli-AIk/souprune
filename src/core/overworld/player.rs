@@ -1,9 +1,7 @@
 use crate::core::animation::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
-use crate::core::basic_components::{
-    BasicAttributes, Direction, Facing, Position, Rotation, Speed,
-};
+use crate::core::basic_components::{BasicAttributes, Direction, Facing, Speed};
 use crate::core::input::Action;
 use crate::core::overworld::character::components::*;
 use crate::core::sprite::params::SpriteParams;
@@ -86,8 +84,6 @@ impl Plugin for PlayerPlugin {
 }
 #[derive(Bundle)]
 pub struct PlayerBundle {
-    position: Position,
-    rotation: Rotation,
     facing: Facing,
     speed: Speed,
     sprite: Sprite,
@@ -100,8 +96,6 @@ pub struct PlayerBundle {
 impl PlayerBundle {
     pub fn new(spawn_pos: Vec2, facing: Direction, anim: SpriteAnimationClip) -> Self {
         Self {
-            position: Position { value: spawn_pos },
-            rotation: Rotation { angle: 0.0 },
             facing: Facing { value: facing },
             speed: Speed { value: 100.0 },
             sprite: Sprite::default(),
@@ -122,11 +116,18 @@ pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
 ) -> prelude::Result<(), ()> {
     let action_state = query.single().map_err(|_| ())?;
-    if action_state.pressed(&Action::Left)
-        || action_state.pressed(&Action::Right)
-        || action_state.pressed(&Action::Up)
-        || action_state.pressed(&Action::Down)
-    {
+
+    // 检查各方向按键状态
+    let up_pressed = action_state.pressed(&Action::Up);
+    let down_pressed = action_state.pressed(&Action::Down);
+    let left_pressed = action_state.pressed(&Action::Left);
+    let right_pressed = action_state.pressed(&Action::Right);
+
+    // 检查是否有有效的移动输入（不能同时按下相反方向）
+    let has_vertical_input = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
+    let has_horizontal_input = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);
+
+    if has_vertical_input || has_horizontal_input {
         Ok(())
     } else {
         Err(())
@@ -147,13 +148,20 @@ pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
 ) {
     for (mut facing, action_state) in query.iter_mut() {
-        if action_state.pressed(&Action::Up) {
+        // 防止同时按下相反方向的按键
+        let up_pressed = action_state.pressed(&Action::Up);
+        let down_pressed = action_state.pressed(&Action::Down);
+        let left_pressed = action_state.pressed(&Action::Left);
+        let right_pressed = action_state.pressed(&Action::Right);
+
+        // 只有在不同时按下相反方向时才更新朝向
+        if up_pressed && !down_pressed {
             facing.value = Direction::Up;
-        } else if action_state.pressed(&Action::Down) {
+        } else if down_pressed && !up_pressed {
             facing.value = Direction::Down;
-        } else if action_state.pressed(&Action::Left) {
+        } else if left_pressed && !right_pressed {
             facing.value = Direction::Left;
-        } else if action_state.pressed(&Action::Right) {
+        } else if right_pressed && !left_pressed {
             facing.value = Direction::Right;
         }
     }

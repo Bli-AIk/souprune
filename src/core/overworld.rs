@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
+use crate::core::camera::Followable;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::overworld::player::PlayerPlugin;
@@ -14,30 +15,41 @@ use seldom_state::trigger::IntoTrigger;
 
 mod character;
 mod player;
+mod tilemap;
 
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system)
-            .add_systems(Update, (update_walking_system, update_running_system))
-            .add_plugins(PlayerPlugin);
+        app.add_systems(
+            OnEnter(AppState::Overworld),
+            (
+                create_overworld_entities_system,
+                tilemap::filter_prototype_layers_and_set_z_order_system,
+                bind_camera_target_system,
+            )
+                .chain(),
+        )
+        .add_systems(Update, (update_walking_system, update_running_system))
+        .add_plugins(PlayerPlugin);
     }
 }
 
-fn setup_overworld_system(
+fn create_overworld_entities_system(
     mut commands: Commands,
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
+    asset_server: Res<AssetServer>,
 ) {
-    let sprite = sprite_params
-        .create_sprite_context()
-        .get_sprite("overworld", "chest_box");
-    commands.spawn((
-        sprite,
-        Transform::from_translation(Vec3::new(50.0, 0.0, 0.0)),
-    ));
+    setup_overworld_player(&mut commands, &mut sprite_params, &player_input);
+    tilemap::setup_tilemap(&mut commands, &asset_server);
+}
 
+fn setup_overworld_player(
+    commands: &mut Commands,
+    sprite_params: &mut SpriteParams,
+    player_input: &Res<PlayerInputSettings>,
+) {
     use player::*;
     commands.spawn((
         StateIdle,
@@ -60,4 +72,14 @@ fn setup_overworld_system(
             ),
         ),
     ));
+}
+fn bind_camera_target_system(
+    mut camera: Query<&mut Followable, With<Camera2d>>,
+    player: Query<Entity, With<PlayerControlled>>,
+) {
+    if let Ok(player_entity) = player.single() {
+        for mut followable in camera.iter_mut() {
+            followable.target = Some(player_entity);
+        }
+    }
 }

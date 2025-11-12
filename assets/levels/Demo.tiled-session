@@ -1,0 +1,41 @@
+{
+    "activeFile": "Ruins.tmx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "": {
+            "scaleInDock": 1
+        },
+        "Demo.tmx": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 447.33333333333337,
+                "y": 304
+            }
+        },
+        "Demo.tmx#Ruins": {
+            "scaleInDock": 1
+        },
+        "Ruins.tmx": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 777.3333333333333,
+                "y": 340
+            }
+        },
+        "Ruins.tmx#Ruins": {
+            "scaleInDock": 1
+        }
+    },
+    "openFiles": [
+        "Ruins.tmx"
+    ],
+    "project": "Demo.tiled-project",
+    "recentFiles": [
+        "Ruins.tmx",
+        "Demo.tmx"
+    ]
+}

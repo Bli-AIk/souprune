@@ -1,14 +1,4 @@
 use bevy::prelude::*;
-
-#[derive(Component)]
-pub(crate) struct Position {
-    pub value: Vec2,
-}
-
-#[derive(Component)]
-pub(crate) struct Rotation {
-    pub angle: f32,
-}
 #[derive(Component)]
 pub(crate) struct Speed {
     pub value: f32,

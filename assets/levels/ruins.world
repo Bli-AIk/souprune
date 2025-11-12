@@ -1,0 +1,20 @@
+{
+    "maps": [
+        {
+            "fileName": "./ruins/ruins_2.tmx",
+            "height": 240,
+            "width": 320,
+            "x": 320,
+            "y": 240
+        },
+        {
+            "fileName": "./ruins/ruins_3.tmx",
+            "height": 240,
+            "width": 740,
+            "x": 320,
+            "y": 0
+        }
+    ],
+    "onlyShowAdjacentMaps": false,
+    "type": "world"
+}
