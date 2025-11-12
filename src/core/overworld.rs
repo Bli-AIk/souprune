@@ -1,10 +1,11 @@
-use crate::AppState;
 use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
+use crate::core::camera::Followable;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::overworld::player::PlayerPlugin;
 use crate::core::sprite::params::SpriteParams;
+use crate::AppState;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 use character::systems::*;
@@ -20,20 +21,21 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::Overworld), setup_overworld_system)
-            .add_systems(
-                Update,
-                (
-                    update_walking_system,
-                    update_running_system,
-                    tilemap::filter_prototype_layers_and_set_z_order,
-                ),
+        app.add_systems(
+            OnEnter(AppState::Overworld),
+            (
+                create_overworld_entities_system,
+                tilemap::filter_prototype_layers_and_set_z_order_system,
+                bind_camera_target_system,
             )
-            .add_plugins(PlayerPlugin);
+                .chain(),
+        )
+        .add_systems(Update, (update_walking_system, update_running_system))
+        .add_plugins(PlayerPlugin);
     }
 }
 
-fn setup_overworld_system(
+fn create_overworld_entities_system(
     mut commands: Commands,
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
@@ -70,4 +72,14 @@ fn setup_overworld_player(
             ),
         ),
     ));
+}
+fn bind_camera_target_system(
+    mut camera: Query<&mut Followable, With<Camera2d>>,
+    player: Query<Entity, With<PlayerControlled>>,
+) {
+    if let Ok(player_entity) = player.single() {
+        for mut followable in camera.iter_mut() {
+            followable.target = Some(player_entity);
+        }
+    }
 }

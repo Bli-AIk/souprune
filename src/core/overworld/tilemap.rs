@@ -11,7 +11,7 @@ pub(crate) fn setup_tilemap(commands: &mut Commands, asset_server: &Res<AssetSer
     ));
 }
 
-pub(crate) fn filter_prototype_layers_and_set_z_order(
+pub(crate) fn filter_prototype_layers_and_set_z_order_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
 ) {
