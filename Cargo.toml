@@ -23,6 +23,7 @@ seldom_state = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.9.8"
 bevy_ecs_tiled = { git = "https://github.com/adrien-bon/bevy_ecs_tiled.git", branch = "dev" }
+bevy_tween = "0.10.0"
 
 [dependencies.bevy-inspector-egui]
 version = "0.35.0"
