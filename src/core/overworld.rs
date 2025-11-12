@@ -1,11 +1,11 @@
+use crate::AppState;
 use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
-use crate::core::camera::Followable;
+use crate::core::camera::{Followable, update_followable_camera_system};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::character::components::*;
 use crate::core::overworld::player::PlayerPlugin;
 use crate::core::sprite::params::SpriteParams;
-use crate::AppState;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 use character::systems::*;
@@ -31,6 +31,7 @@ impl Plugin for OverworldPlugin {
                 .chain(),
         )
         .add_systems(Update, (update_walking_system, update_running_system))
+        .add_systems(Update, update_followable_camera_system)
         .add_plugins(PlayerPlugin);
     }
 }

@@ -62,7 +62,7 @@ fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionS
     commands.spawn((
         Camera2d,
         Transform::from_scale(Vec3::splat(1.0 / resolution_scale.get() as f32)),
-        Followable { target: None },
+        Followable::default(),
     ));
     // TODO: 摄像机跟随玩家
 }

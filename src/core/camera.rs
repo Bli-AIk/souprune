@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub(crate) struct Followable {
     pub(crate) target: Option<Entity>,
 }
+// TODO: 修复抖动问题——应当在角色移动系统之后运行
 pub(crate) fn update_followable_camera_system(
     mut camera: Query<(&Followable, &mut Transform, &Camera)>,
     target: Query<&Transform, Without<Camera>>,
