@@ -2,10 +2,10 @@
 resolver = "2"
 
 members = [
-    "souprune",
-    "bevy_rich_text_3d_animator",
-    "bevy_fact_rule_event",
-    "bevy_mortar_bond"
+    "crates/souprune",
+    "crates/bevy_rich_text_3d_animator",
+    "crates/bevy_fact_rule_event",
+    "crates/bevy_mortar_bond"
 ]
 
 # Enable a small amount of optimization in the dev profile.
