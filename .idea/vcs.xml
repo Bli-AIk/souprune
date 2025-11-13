@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/bevy_fact_rule_event" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/bevy_mortar_bond" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/bevy_rich_text_3d_animator" vcs="Git" />
   </component>
 </project>
