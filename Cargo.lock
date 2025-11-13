@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_fact_rule_event"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "bevy",
  "serde",
@@ -1127,7 +1127,7 @@ checksum = "7ef8e4b7e61dfe7719bb03c884dc270cd46a82efb40f93e9933b990c5c190c59"
 
 [[package]]
 name = "bevy_mortar_bond"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "bevy",
  "serde",
@@ -1355,7 +1355,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_rich_text_3d_animator"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "bevy",
  "serde",
@@ -4948,7 +4948,7 @@ dependencies = [
 
 [[package]]
 name = "souprune"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",

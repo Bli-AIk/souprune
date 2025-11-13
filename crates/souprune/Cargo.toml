@@ -1,6 +1,6 @@
 [package]
 name = "souprune"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 authors = ["Bli-AIk <haikun2333@gmail.com>"]
 license = "LGPL-3.0-or-later"
@@ -8,7 +8,7 @@ repository = "https://github.com/Bli-AIk/souprune"
 homepage = "https://github.com/Bli-AIk/souprune"
 description = "A game framework designed specifically for Deltarune / Undertale fangames."
 documentation = "https://docs.rs/souprune"
-readme = "../readme.md"
+readme = "../../readme.md"
 keywords = ["game-framework", "deltarune", "undertale", "game-engine", "bevy"]
 categories = ["game-development", "game-engines"]
 

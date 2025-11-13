@@ -39,7 +39,7 @@ jobs:
       - name: Create or Simulate Release
         id: create_release
         uses: softprops/action-gh-release@v2
-        if: github.event_name != 'pull_request' # 在 PR 时跳过实际创建 release
+        if: github.event_name != 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
