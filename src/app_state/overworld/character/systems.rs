@@ -14,20 +14,17 @@ fn apply_walking_step(
 
     let mut direction_vec = Vec2::ZERO;
 
-    // 防止同时按下相反方向的按键
     let up_pressed = action_state.pressed(&Action::Up);
     let down_pressed = action_state.pressed(&Action::Down);
     let left_pressed = action_state.pressed(&Action::Left);
     let right_pressed = action_state.pressed(&Action::Right);
 
-    // 垂直方向：如果同时按下上下，则忽略垂直移动
     if up_pressed && !down_pressed {
         direction_vec.y += 1.0;
     } else if down_pressed && !up_pressed {
         direction_vec.y -= 1.0;
     }
 
-    // 水平方向：如果同时按下左右，则忽略水平移动
     if left_pressed && !right_pressed {
         direction_vec.x -= 1.0;
     } else if right_pressed && !left_pressed {

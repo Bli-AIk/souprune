@@ -1,7 +1,7 @@
 //! # app_state.rs
 //!
 //! ## Module Overview
-//! app_state.rs's submodules are the definition modules for specific states.
+//! app_state module contains the specific modules for its states.
 //!
 //! ## Source File Overview
 //! This file defines the application's state enumeration.
@@ -11,7 +11,7 @@
 //! The entire game's state management is based on this enumeration, with the Setup state being the first to be entered.
 //!
 //! ## 模块概述
-//! app_state.rs 的子模块即为具体状态的定义模块。
+//! app_state 模块包含了其状态的具体模块。
 //!
 //! ## 源文件概述
 //! 此处定义了应用程序的状态枚举。
