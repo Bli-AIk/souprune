@@ -1,10 +1,10 @@
 use crate::app_state::AppState;
-use crate::core::animation::SpriteAnimationClip;
+use crate::app_state::overworld::character::components::*;
+use crate::app_state::overworld::player::PlayerPlugin;
+use crate::core::animation::component::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;
 use crate::core::input::{Action, PlayerInputSettings};
-use crate::core::overworld::character::components::*;
-use crate::core::overworld::player::PlayerPlugin;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;

@@ -35,7 +35,7 @@ impl<'a> SpriteLoadContext<'a> {
 
     pub(crate) fn get_sprite(&mut self, module_name: &str, config_item_name: &str) -> Sprite {
         let (atlas_layout_handle, texture, index_map) =
-            crate::core::sprite::get_or_create_texture_atlas(
+            crate::core::sprite::utils::get_or_create_texture_atlas(
                 module_name,
                 self.sprite_registry,
                 self.texture_atlases,
@@ -84,7 +84,7 @@ impl<'a> SpriteLoadContext<'a> {
         config_item_name: &str,
     ) -> Vec<Sprite> {
         let (atlas_layout_handle, texture, index_map) =
-            crate::core::sprite::get_or_create_texture_atlas(
+            crate::core::sprite::utils::get_or_create_texture_atlas(
                 module_name,
                 self.sprite_registry,
                 self.texture_atlases,

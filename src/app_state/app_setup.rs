@@ -5,17 +5,17 @@ use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
 
-pub(crate) struct SetupPlugin;
+pub(crate) struct AppSetupPlugin;
 
-impl Plugin for SetupPlugin {
+impl Plugin for AppSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            OnEnter(AppState::Setup),
+            OnEnter(AppState::AppSetup),
             (load_textures_system, setup_camera_system),
         )
         .add_systems(
             Update,
-            check_textures_system.run_if(in_state(AppState::Setup)),
+            check_textures_system.run_if(in_state(AppState::AppSetup)),
         );
     }
 }

@@ -1,7 +1,7 @@
 //! # app_state.rs
 //!
 //! ## Module Overview
-//! This file does not contain any submodules; it is a standalone file. Keep it simple.
+//! app_state.rs's submodules are the definition modules for specific states.
 //!
 //! ## Source File Overview
 //! This file defines the application's state enumeration.
@@ -11,8 +11,8 @@
 //! The entire game's state management is based on this enumeration, with the Setup state being the first to be entered.
 //!
 //! ## 模块概述
-//! app_state.rs 不包含任何子模块，它只是一个单独的文件，一切从简。
-//! 
+//! app_state.rs 的子模块即为具体状态的定义模块。
+//!
 //! ## 源文件概述
 //! 此处定义了应用程序的状态枚举。
 //!
@@ -22,10 +22,13 @@
 
 use bevy::prelude::States;
 
+pub(crate) mod app_setup;
+pub(crate) mod overworld;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 pub enum AppState {
     #[default]
-    Setup,
+    AppSetup,
     Menu,
     Overworld,
     Battle,

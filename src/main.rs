@@ -23,17 +23,17 @@ mod extra;
 
 use std::default::*;
 
+use crate::core::*;
+use app_state::{app_setup, overworld};
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 use bevy::window::*;
-
-use crate::core::*;
 
 /// Get the default Bevy plugins with custom window size and image plugin settings.
 ///
 /// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
 fn get_bevy_default_plugins() -> PluginGroupBuilder {
-    let resolution_scale = setup::ResolutionScale::default();
+    let resolution_scale = app_setup::ResolutionScale::default();
     DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
@@ -78,7 +78,7 @@ macro_rules! get_game_plugins {
     () => {
         (
             CorePlugin,
-            setup::SetupPlugin,
+            app_setup::AppSetupPlugin,
             overworld::OverworldPlugin,
             GlobalPlugin,
         )
@@ -86,7 +86,7 @@ macro_rules! get_game_plugins {
 }
 fn main() {
     App::new()
-        .init_resource::<setup::ResolutionScale>()
+        .init_resource::<app_setup::ResolutionScale>()
         .add_plugins((
             get_bevy_default_plugins(),
             get_file_importer_plugins!(),

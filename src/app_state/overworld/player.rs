@@ -1,9 +1,9 @@
-use crate::core::animation::{
+use crate::app_state::overworld::character::components::*;
+use crate::core::animation::component::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use crate::core::basic_components::{BasicAttributes, Direction, Facing, Speed};
 use crate::core::input::Action;
-use crate::core::overworld::character::components::*;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin, Update};
 use bevy::math::Vec2;

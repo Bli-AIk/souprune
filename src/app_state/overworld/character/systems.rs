@@ -1,6 +1,6 @@
+use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
 use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::Action;
-use crate::core::overworld::character::components::{StateRunning, StateWalking};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 fn apply_walking_step(

@@ -28,17 +28,14 @@
 //! 此处定义了 core 模块的主要插件 `CorePlugin` 和 `GlobalPlugin`，
 //! 它们分别在应用程序生命周期的早期和后期作为全局插件运行。
 
-
 // TODO: 重构 core，并将其所有具体的游戏逻辑移出 core 模块
 
-mod basic_components;
+pub(crate) mod basic_components;
 pub(crate) mod input;
-pub(crate) mod overworld;
-pub(crate) mod setup;
 pub(crate) mod sprite;
 
-mod animation;
-mod camera;
+pub(crate) mod animation;
+pub(crate) mod camera;
 
 use crate::extra;
 use bevy::app::*;
