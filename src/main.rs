@@ -5,7 +5,7 @@ use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::overworld::*;
 use crate::core::setup::*;
 use crate::core::*;
-use crate::extra::debug::InspectorPlugin;
+use crate::extra::debug::DebugPlugin;
 use crate::extra::toml::TomlPlugin;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
@@ -26,7 +26,7 @@ fn main() {
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
             #[cfg(feature = "debug")]
-            InspectorPlugin,
+            DebugPlugin,
             TiledPlugin::default(),
         ))
         .init_resource::<ResolutionScale>()
@@ -54,7 +54,6 @@ fn get_default_plugins() -> PluginGroupBuilder {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
-#[allow(dead_code)]
 enum AppState {
     #[default]
     Setup,

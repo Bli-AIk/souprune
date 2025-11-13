@@ -57,7 +57,7 @@ pub(crate) struct SpriteAnimationClip {
     frame: usize,
     looping: bool,
     clip_name: String,
-    #[allow(dead_code)]
+
     module_name: String,
 }
 

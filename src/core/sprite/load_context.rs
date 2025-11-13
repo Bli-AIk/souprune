@@ -32,7 +32,7 @@ impl<'a> SpriteLoadContext<'a> {
             toml_registry,
         }
     }
-    #[allow(dead_code)]
+
     pub(crate) fn get_sprite(&mut self, module_name: &str, config_item_name: &str) -> Sprite {
         let (atlas_layout_handle, texture, index_map) =
             crate::core::sprite::get_or_create_texture_atlas(

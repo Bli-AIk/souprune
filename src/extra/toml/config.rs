@@ -59,19 +59,19 @@ impl TomlConfigRegistry {
     }
 
     /// Get the dependency list of a module
-    #[allow(dead_code)]
+
     pub fn get_module_dependencies(&self, module_name: &str) -> Option<&Vec<String>> {
         self.modules.get(module_name)
     }
 
     /// List all available animation names
-    #[allow(dead_code)]
+
     pub fn list_animations(&self) -> Vec<&String> {
         self.sprite_animations.keys().collect()
     }
 
     /// List all available sprite names
-    #[allow(dead_code)]
+
     pub fn list_sprites(&self) -> Vec<&String> {
         self.sprites.keys().collect()
     }
