@@ -54,8 +54,7 @@ jobs:
       run: cargo install grcov
       
     - name: Run tests
-      run: cargo test
-      working-directory: crates/souprune
+      run: cargo test --package souprune
       env:
         RUSTFLAGS: '-Cinstrument-coverage'
         LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
@@ -72,7 +71,6 @@ jobs:
           --ignore "target/*" \
           --ignore "tests/*" \
           --output-path coverage.lcov
-      working-directory: crates/souprune
           
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
