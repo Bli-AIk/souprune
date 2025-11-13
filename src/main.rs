@@ -25,7 +25,6 @@ fn main() {
             TomlPlugin,
             InputManagerPlugin::<Action>::default(),
             StateMachinePlugin::default(),
-            #[cfg(debug_assertions)]
             #[cfg(feature = "debug")]
             InspectorPlugin,
             TiledPlugin::default(),
