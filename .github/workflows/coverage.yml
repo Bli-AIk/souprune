@@ -54,13 +54,14 @@ jobs:
       run: cargo install grcov
       
     - name: Run tests
-      run: cargo test --package souprune
+      run: cd crates/souprune && cargo test
       env:
         RUSTFLAGS: '-Cinstrument-coverage'
         LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
         
     - name: Generate coverage report
       run: |
+        cd crates/souprune
         grcov . \
           --binary-path ./target/debug/ \
           --source-dir . \
