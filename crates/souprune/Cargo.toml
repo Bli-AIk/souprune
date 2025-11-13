@@ -16,13 +16,14 @@ categories = ["game-development", "game-engines"]
 bevy = "0.17.2"
 leafwing-input-manager = "0.19.0"
 seldom_state = "0.15.0"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.9.8"
 bevy_ecs_tiled = { git = "https://github.com/adrien-bon/bevy_ecs_tiled.git", branch = "dev" }
 bevy_tween = "0.10.0"
 bevy_rich_text_3d_animator = { path = "../bevy_rich_text_3d_animator" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_mortar_bond = { path = "../bevy_mortar_bond" }
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.8"
 
 [dependencies.bevy-inspector-egui]
 version = "0.35.0"

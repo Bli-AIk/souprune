@@ -4959,6 +4959,7 @@ dependencies = [
  "bevy_tween",
  "iyes_perf_ui",
  "leafwing-input-manager",
+ "log",
  "seldom_state",
  "serde",
  "toml",

@@ -1,4 +1,4 @@
-use crate::debug_info;
+use crate::info;
 use bevy::prelude::Commands;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
@@ -21,10 +21,10 @@ pub(crate) fn filter_prototype_layers_and_set_z_order_system(
         let layer_name_str = layer_name.as_str();
 
         if layer_name_str.to_lowercase().contains("prototype") {
-            debug_info!("Hide prototype layer: {}", layer_name_str);
+            info!("Hide prototype layer: {}", layer_name_str);
             commands.entity(layer_entity).insert(Visibility::Hidden);
         } else {
-            debug_info!("Show layers: {}", layer_name_str);
+            info!("Show layers: {}", layer_name_str);
 
             let z_offset = match layer_name_str {
                 name if name.contains("floor") => -2.5,
@@ -37,10 +37,9 @@ pub(crate) fn filter_prototype_layers_and_set_z_order_system(
             commands
                 .entity(layer_entity)
                 .insert(Transform::from_xyz(0.0, 0.0, z_offset));
-            debug_info!(
+            info!(
                 "Set the Z-axis position of layer {}: {}",
-                layer_name_str,
-                z_offset
+                layer_name_str, z_offset
             );
         }
     }
