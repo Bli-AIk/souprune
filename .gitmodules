@@ -1,0 +1,9 @@
+[submodule "crates/bevy_mortar_bond"]
+	path = crates/bevy_mortar_bond
+	url = git@github.com:Bli-AIk/bevy_mortar_bond.git
+[submodule "crates/bevy_fact_rule_event"]
+	path = crates/bevy_fact_rule_event
+	url = git@github.com:Bli-AIk/bevy_fact_rule_event.git
+[submodule "crates/bevy_rich_text_3d_animator"]
+	path = crates/bevy_rich_text_3d_animator
+	url = git@github.com:Bli-AIk/bevy_rich_text_3d_animator.git
