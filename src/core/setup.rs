@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::app_states::AppState;
 use crate::core::camera::Followable;
 use crate::core::sprite::ModuleSpriteRegistry;
 use bevy::app::{App, Plugin, Update};

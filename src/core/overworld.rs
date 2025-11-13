@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::app_states::AppState;
 use crate::core::animation::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;

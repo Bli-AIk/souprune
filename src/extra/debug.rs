@@ -1,4 +1,5 @@
 mod inspector;
+mod utils;
 
 use bevy::app::{App, Plugin};
 
