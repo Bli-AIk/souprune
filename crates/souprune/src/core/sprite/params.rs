@@ -1,5 +1,5 @@
-use crate::core::sprite::ModuleSpriteRegistry;
 use crate::core::sprite::load_context::SpriteLoadContext;
+use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;
 use bevy::asset::{Assets, LoadedFolder};

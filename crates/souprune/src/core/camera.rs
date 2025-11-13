@@ -1,19 +1,15 @@
-use bevy::prelude::*;
+pub(crate) mod components;
+mod systems;
 
-#[derive(Component, Default)]
-pub(crate) struct Followable {
-    pub(crate) target: Option<Entity>,
-}
-pub(crate) fn update_followable_camera_system(
-    mut camera: Query<(&Followable, &mut Transform, &Camera)>,
-    target: Query<&Transform, Without<Camera>>,
-) {
-    for (followable, mut transform, _) in camera.iter_mut() {
-        if let Some(target_entity) = followable.target
-            && let Ok(target_transform) = target.get(target_entity)
-        {
-            transform.translation.x = target_transform.translation.x;
-            transform.translation.y = target_transform.translation.y;
-        }
+pub(crate) use components::*;
+
+use crate::core::camera::systems::*;
+use bevy::app::{App, Plugin, Update};
+
+pub(crate) struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, update_followable_camera_system);
     }
 }

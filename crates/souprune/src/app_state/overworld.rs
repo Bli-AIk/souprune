@@ -1,7 +1,7 @@
 use crate::app_state::AppState;
 use crate::app_state::overworld::character::components::*;
 use crate::app_state::overworld::player::PlayerPlugin;
-use crate::core::animation::component::SpriteAnimationClip;
+use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;
 use crate::core::input::{Action, PlayerInputSettings};

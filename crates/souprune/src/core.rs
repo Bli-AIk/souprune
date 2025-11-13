@@ -28,45 +28,49 @@
 //! 此处定义了 core 模块的主要插件 `CorePlugin` 和 `GlobalPlugin`，
 //! 它们分别在应用程序生命周期的早期和后期作为全局插件运行。
 
-// TODO: 重构 core，并将其所有具体的游戏逻辑移出 core 模块
-
+pub(crate) mod animation;
 pub(crate) mod basic_components;
+pub(crate) mod camera;
 pub(crate) mod input;
 pub(crate) mod sprite;
-
-pub(crate) mod animation;
-pub(crate) mod camera;
 
 use crate::extra;
 use bevy::app::*;
 
-/// CorePlugin 是一个在应用程序生命周期早期运行的全局插件。
-///
-/// 它应用于初始化全局资源和注册需要在大部分系统运行之前可用的插件。
-///
 /// CorePlugin is a global plugin that runs early in the app lifecycle.
 ///
 /// It should be used to initialize global resources and register plugins
 /// that need to be available before most systems run.
+///
+/// CorePlugin 是一个在应用程序生命周期早期运行的全局插件。
+///
+/// 它应用于初始化全局资源和注册需要在大部分系统运行之前可用的插件。
 pub(crate) struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<extra::toml::config::TomlConfigRegistry>()
-            .add_plugins(animation::AnimationPlugin);
+            .add_plugins((
+                animation::AnimationPlugin,
+                camera::CameraPlugin,
+                input::InputPlugin,
+                sprite::SpritePlugin,
+            ));
     }
 }
-/// GlobalPlugin 是一个在应用程序生命周期后期运行的全局插件。
-///
-/// 它应用于注册需要在大部分初始化完成后运行的系统。
-///
+
 /// GlobalPlugin is a global plugin that runs late in the app lifecycle.
 ///
 /// It should be used to register systems that need to run after most initialization has completed.
+///
+/// GlobalPlugin 是一个在应用程序生命周期后期运行的全局插件。
+///
+/// 它应用于注册需要在大部分初始化完成后运行的系统。
 pub(crate) struct GlobalPlugin;
 
 impl Plugin for GlobalPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, camera::update_followable_camera_system);
+    fn build(&self, _app: &mut App) {
+        // 现在所有系统都由各自的插件管理
+        // All systems are now managed by their respective plugins
     }
 }

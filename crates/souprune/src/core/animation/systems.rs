@@ -1,4 +1,4 @@
-use crate::core::animation::component::{
+use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use bevy::prelude::*;

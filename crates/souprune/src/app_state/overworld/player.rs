@@ -1,5 +1,5 @@
 use crate::app_state::overworld::character::components::*;
-use crate::core::animation::component::{
+use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use crate::core::basic_components::{BasicAttributes, Direction, Facing, Speed};
