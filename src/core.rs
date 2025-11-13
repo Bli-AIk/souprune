@@ -1,17 +1,33 @@
 //! # core.rs
-//! ## Overview
+//! ## Module Overview
 //! core is a module that contains the core functional components
 //! that run throughout the application, such as input handling,
 //! camera control, animation systems, etc.
 //!
+//! core is the **essential** core architecture for the game to run.
+//!
 //! It should not contain specific game logic, but rather provide
 //! the infrastructure and tools needed to support that logic.
 //!
+//! > Note: If optional functional components that run throughout the application
 //!
-//! ## 概述
+//! # Source File Overview
+//! Here, the main plugins of the core module, `CorePlugin` and `GlobalPlugin`,
+//! are defined, which run as global plugins early and late in the application lifecycle, respectively.
+//!
+//! ## 模块概述
 //! core 是一个模块。它包含了贯穿整个应用程序的核心功能组件，如输入处理、摄像机控制、动画系统等。
 //!
-//! core 中 不应当包含具体的游戏逻辑，而是提供支撑这些逻辑所需的基础设施和工具。
+//! core 是游戏运行* *必须的** 核心架构。
+//!
+//! core 不应当包含具体的游戏逻辑，而是提供支撑这些逻辑所需的基础设施和工具。
+//!
+//! > 注意：将来如果出现可选的贯穿应用的功能组件，应放入 `shared` 模块，而非 `core`。
+//!
+//! ## 源文件概述
+//! 此处定义了 core 模块的主要插件 `CorePlugin` 和 `GlobalPlugin`，
+//! 它们分别在应用程序生命周期的早期和后期作为全局插件运行。
+
 
 // TODO: 重构 core，并将其所有具体的游戏逻辑移出 core 模块
 
