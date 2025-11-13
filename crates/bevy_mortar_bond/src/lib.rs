@@ -4,7 +4,5 @@ use bevy::prelude::*;
 pub struct MortarBondPlugin;
 
 impl Plugin for MortarBondPlugin {
-    fn build(&self, app: &mut App) {
-
-    }
+    fn build(&self, app: &mut App) {}
 }

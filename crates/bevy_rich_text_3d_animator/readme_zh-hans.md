@@ -1,13 +1,13 @@
 # bevy_rich_text_3d_animator
 
-[![license](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br> <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
+[![license](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/bevy_rich_text_3d_animator.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/bevy_rich_text_3d_animator.svg"/> <br> <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
 
 > 当前状态：🚧 早期开发中（初始版本正在开发）
 
 **bevy_rich_text_3d_animator** — Bevy 引擎的网格文本动画系统。
 
-| 英语             | 简体中文                      |
-| --------------- | --------------------------- |
+| 英语                     | 简体中文 |
+|------------------------|------|
 | [English](./readme.md) | 简体中文 |
 
 ## 介绍

@@ -1,6 +1,6 @@
 # bevy_fact_rule_event
 
-[![license](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
+[![license](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
 
 > Current Status: 🚧 Early Development (Initial version in progress)
@@ -13,18 +13,18 @@
 
 ## Introduction
 
-`bevy_fact_rule_event` is a <待补充>.  
-It solves <待补充>, allowing users to <待补充>.
+`bevy_fact_rule_event` is a<TODO>.  
+It solves<TODO>, allowing users to<TODO>.
 
-With `bevy_fact_rule_event`, you only need to <待补充>.  
-In the future, it may also support <待补充>.
+With `bevy_fact_rule_event`, you only need to<TODO>.  
+In the future, it may also support<TODO>.
 
 ## Features
 
-* <待补充>
-* <待补充>
-* <待补充>
-* (Planned) <待补充>
+*<TODO>
+*<TODO>
+*<TODO>
+* (Planned)<TODO>
 
 ## How to Use
 
@@ -43,7 +43,7 @@ In the future, it may also support <待补充>.
 3. **Basic usage**:
 
    ```rust
-   // <待补充>
+   //<TODO>
    ```
 
 ## Dependencies

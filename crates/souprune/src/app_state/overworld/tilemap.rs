@@ -9,7 +9,7 @@ pub(crate) fn setup_tilemap(commands: &mut Commands, asset_server: &Res<AssetSer
         TilemapAnchor::Center,
         TiledMapLayerZOffset(10.0),
     ));
-    
+
     // TODO: Tilemap的资源加载（或许）应当在AppSetup阶段完成。
 }
 

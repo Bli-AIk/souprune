@@ -1,10 +1,10 @@
 # bevy_fact_rule_event
 
-[![license](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br> <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
+[![license](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-APACHE) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br> <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
 
 > 当前状态：🚧 早期开发中（初始版本正在开发）
 
-**bevy_fact_rule_event** — Bevy 引擎的 fact-rule-event系统。
+**bevy_fact_rule_event** — Bevy 引擎的事实-规则-事件系统。
 
 | 英语             | 简体中文                      |
 | --------------- | --------------------------- |
@@ -50,10 +50,10 @@
 
 本项目使用以下 crate：
 
-| Crate                                             | 版本    | 描述   |
-| ------------------------------------------------- | ----- | ---- |
-| [bevy](https://crates.io/crates/bevy) | 0.17.2 | 游戏引擎 |
-| [serde](https://crates.io/crates/serde) | 1.0 | 序列化框架 |
+| Crate                                   | 版本     | 描述    |
+|-----------------------------------------|--------|-------|
+| [bevy](https://crates.io/crates/bevy)   | 0.17.2 | 游戏引擎  |
+| [serde](https://crates.io/crates/serde) | 1.0    | 序列化框架 |
 
 ## 贡献指南
 
