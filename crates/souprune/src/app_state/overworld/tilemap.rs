@@ -52,21 +52,29 @@ pub(crate) fn initialize_tilemap_system(
 /// based on the Player's y-coordinate
 ///
 /// 根据 Player 的 y 坐标相对调整 objects 图层中实体的 z 轴位置
+type ObjectsQuery<'w, 's> = Query<
+    'w,
+    's,
+    &'static mut Transform,
+    (
+        With<TiledObject>,
+        Without<character::components::PlayerControlled>,
+    ),
+>;
+
+type PlayerQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Transform, &'static SpriteAnimationClip, &'static Sprite),
+    (
+        With<character::components::PlayerControlled>,
+        Without<TiledObject>,
+    ),
+>;
+
 pub(crate) fn update_objects_order_with_player_system(
-    mut objects: Query<
-        &mut Transform,
-        (
-            With<TiledObject>,
-            Without<character::components::PlayerControlled>,
-        ),
-    >,
-    player: Query<
-        (&Transform, &SpriteAnimationClip, &Sprite),
-        (
-            With<character::components::PlayerControlled>,
-            Without<TiledObject>,
-        ),
-    >,
+    mut objects: ObjectsQuery,
+    player: PlayerQuery,
 ) {
     let (player_transform, player_anim, current_sprite) = if let Ok(result) = player.single() {
         result
