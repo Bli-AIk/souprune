@@ -1,6 +1,7 @@
 use crate::app_state::AppState;
 use crate::app_state::overworld::character::components::*;
 use crate::app_state::overworld::player::PlayerPlugin;
+use crate::app_state::overworld::tilemap::TilemapPlugin;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;
@@ -21,20 +22,12 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(AppState::Overworld),
-            (create_overworld_entities_system, bind_camera_target_system).chain(),
-        )
-        .add_systems(
-            Update,
-            (
-                update_walking_system,
-                update_running_system,
-                tilemap::initialize_tilemap_system,
-                tilemap::update_objects_order_with_player_system,
-            ),
-        )
-        .add_plugins(PlayerPlugin);
+        app.add_plugins((TilemapPlugin, PlayerPlugin))
+            .add_systems(
+                OnEnter(AppState::Overworld),
+                (create_overworld_entities_system, bind_camera_target_system).chain(),
+            )
+            .add_systems(Update, (update_walking_system, update_running_system));
     }
 }
 
@@ -42,13 +35,11 @@ fn create_overworld_entities_system(
     mut commands: Commands,
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
-    asset_server: Res<AssetServer>,
 ) {
-    setup_overworld_player(&mut commands, &mut sprite_params, &player_input);
-    tilemap::setup_tilemap(&mut commands, &asset_server);
+    spawn_overworld_player(&mut commands, &mut sprite_params, &player_input);
 }
 
-fn setup_overworld_player(
+fn spawn_overworld_player(
     commands: &mut Commands,
     sprite_params: &mut SpriteParams,
     player_input: &Res<PlayerInputSettings>,

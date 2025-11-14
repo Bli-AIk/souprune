@@ -1,24 +1,40 @@
-use crate::app_state::overworld::character;
+use crate::app_state::AppState::Overworld;
+use crate::app_state::overworld::{character};
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::info;
 use bevy::prelude::Commands;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
-pub(crate) fn setup_tilemap(commands: &mut Commands, asset_server: &Res<AssetServer>) {
+pub(crate) struct TilemapPlugin;
+
+impl Plugin for TilemapPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(Overworld), setup_tilemap_system)
+            .add_systems(
+                Update,
+                (
+                    initialize_tilemap_system,
+                    update_objects_order_with_player_system,
+                ),
+            );
+    }
+}
+
+// TODO: 添加碰撞系统
+fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
         TilemapAnchor::Center,
         TiledMapLayerZOffset(10.0),
     ));
-
     // TODO: Tilemap的资源加载（或许）应当在AppSetup阶段完成。
 }
 
 /// Initialize Tilemap layers, filter and hide layers with "prototype" in their names,
 ///
 /// 初始化 Tilemap 图层，过滤并隐藏包含 "prototype" 的图层名称，并根据图层顺序设置其他图层的 z 轴位置
-pub(crate) fn initialize_tilemap_system(
+fn initialize_tilemap_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
 ) {
@@ -48,10 +64,6 @@ pub(crate) fn initialize_tilemap_system(
     }
 }
 
-/// Relatively adjust the z-axis position of the entities in the objects layer
-/// based on the Player's y-coordinate
-///
-/// 根据 Player 的 y 坐标相对调整 objects 图层中实体的 z 轴位置
 type ObjectsQuery<'w, 's> = Query<
     'w,
     's,
@@ -65,17 +77,22 @@ type ObjectsQuery<'w, 's> = Query<
 type PlayerQuery<'w, 's> = Query<
     'w,
     's,
-    (&'static Transform, &'static SpriteAnimationClip, &'static Sprite),
+    (
+        &'static Transform,
+        &'static SpriteAnimationClip,
+        &'static Sprite,
+    ),
     (
         With<character::components::PlayerControlled>,
         Without<TiledObject>,
     ),
 >;
 
-pub(crate) fn update_objects_order_with_player_system(
-    mut objects: ObjectsQuery,
-    player: PlayerQuery,
-) {
+/// Relatively adjust the z-axis position of the entities in the objects layer
+/// based on the Player's y-coordinate
+///
+/// 根据 Player 的 y 坐标相对调整 objects 图层中实体的 z 轴位置
+fn update_objects_order_with_player_system(mut objects: ObjectsQuery, player: PlayerQuery) {
     let (player_transform, player_anim, current_sprite) = if let Ok(result) = player.single() {
         result
     } else {
