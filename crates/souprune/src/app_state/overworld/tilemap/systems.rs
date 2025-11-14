@@ -39,7 +39,7 @@ pub fn initialize_tilemap_system(
         } else {
             info!("Show layers: {}", layer_name_str);
 
-            let z_offset = -1.0 - (layers.len() as f32 - 1.0 - index as f32) * 0.5;
+            let z_offset = -2.0 - (layers.len() as f32 - 1.0 - index as f32) * 0.5;
 
             commands
                 .entity(*layer_entity)
@@ -75,10 +75,10 @@ type PlayerQuery<'w, 's> = Query<
     ),
 >;
 
-/// Relatively adjust the z-axis position of the entities in the objects layer
+/// Relatively adjust the z-axis position of the entities in all object layers
 /// based on the bottom y-coordinate of the Player's image
 ///
-/// 根据 Player 的 图像底部 y 坐标相对调整 objects 图层中实体的 z 轴位置
+/// 根据 Player 的图像底部 y 坐标相对调整所有对象图层中实体的 z 轴位置
 pub fn update_objects_order_with_player_system(mut objects: ObjectsQuery, player: PlayerQuery) {
     let (player_transform, player_anim, current_sprite) = if let Ok(result) = player.single() {
         result
@@ -97,6 +97,8 @@ pub fn update_objects_order_with_player_system(mut objects: ObjectsQuery, player
         }
     };
 
+    // Update all objects with TiledObject component (from all object layers)
+    // This automatically handles objects from any object layer, regardless of layer name
     for mut transform in objects.iter_mut() {
         if transform.translation.y > player_y {
             transform.translation.z = -1.0;
