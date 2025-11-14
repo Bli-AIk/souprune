@@ -11,6 +11,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_fact_rule_event/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_rich_text_3d_animator/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune/examples" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.idea/dictionaries" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

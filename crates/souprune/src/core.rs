@@ -31,6 +31,7 @@
 pub(crate) mod animation;
 pub(crate) mod basic_components;
 pub(crate) mod camera;
+pub(crate) mod collision;
 pub(crate) mod input;
 pub(crate) mod sprite;
 
@@ -53,6 +54,7 @@ impl Plugin for CorePlugin {
             .add_plugins((
                 animation::AnimationPlugin,
                 camera::CameraPlugin,
+                collision::CollisionPlugin,
                 input::InputPlugin,
                 sprite::SpritePlugin,
             ));

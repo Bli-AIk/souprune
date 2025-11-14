@@ -84,6 +84,7 @@ pub mod debug_inspector {
                     "You are now running the game in Debug feature: ",
                     "Inspector: [F1]",
                     "Performance monitoring: [F2]",
+                    "Show colliders: [F3]",
                     "Toggle debug help: [F12]",
                 ];
 

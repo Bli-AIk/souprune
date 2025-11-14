@@ -1,9 +1,13 @@
-use bevy::prelude::{Added, Commands, Entity, Name, Query, Res, Sprite, Transform, Visibility, With, Without};
-use bevy_ecs_tiled::prelude::{TiledLayer, TiledMap, TiledMapLayerZOffset, TiledObject, TilemapAnchor};
-use bevy::log::info;
-use bevy::asset::AssetServer;
 use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
+use bevy::asset::AssetServer;
+use bevy::log::info;
+use bevy::prelude::{
+    Added, Commands, Entity, Name, Query, Res, Sprite, Transform, Visibility, With, Without,
+};
+use bevy_ecs_tiled::prelude::{
+    TiledLayer, TiledMap, TiledMapLayerZOffset, TiledObject, TilemapAnchor,
+};
 
 // TODO: 添加碰撞系统
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {

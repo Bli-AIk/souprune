@@ -2,6 +2,7 @@ use crate::app_state::AppState;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;
+use crate::core::collision::Rect2DCollider;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
@@ -10,7 +11,7 @@ use leafwing_input_manager::action_state::*;
 use seldom_state::machine::*;
 use seldom_state::trigger::*;
 
-mod character;
+pub(crate) mod character;
 mod player;
 mod tilemap;
 
@@ -57,6 +58,7 @@ fn spawn_overworld_player(
             .trans::<StateRunning, _>(is_player_running.not(), StateWalking),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
+        Rect2DCollider::with_size(Vec2::new(5.0, 5.0)),
         PlayerBundle::new(
             Vec2::new(0.0, 0.0),
             Direction::Down,
