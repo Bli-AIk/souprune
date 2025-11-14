@@ -30,7 +30,8 @@ impl Plugin for OverworldPlugin {
             (
                 update_walking_system,
                 update_running_system,
-                tilemap::filter_prototype_layers_and_set_z_order_system,
+                tilemap::initialize_tilemap_system,
+                tilemap::update_objects_order_with_player_system,
             ),
         )
         .add_plugins(PlayerPlugin);
