@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
+      with:
+        submodules: true
     
     - name: Install dependencies
       run: |
@@ -54,7 +56,7 @@ jobs:
       run: cargo install grcov
       
     - name: Run tests
-      run: cargo test
+      run: cargo test --package souprune
       env:
         RUSTFLAGS: '-Cinstrument-coverage'
         LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
