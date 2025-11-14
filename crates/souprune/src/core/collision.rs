@@ -19,20 +19,5 @@ use bevy::app::*;
 pub(crate) struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
-    fn build(&self, app: &mut App) {
-        use bevy::prelude::*;
-        app.add_plugins(bevy_smud::SmudPlugin)
-            .init_resource::<ColliderDebugSettings>()
-            .add_systems(
-                Update,
-                (
-                    systems::render_player_rect_colliders,
-                    systems::update_player_visualizer_positions,
-                ),
-            );
-
-        // Add debug toggle system only when debug feature is enabled
-        #[cfg(feature = "debug")]
-        app.add_systems(Update, systems::toggle_collider_visibility);
-    }
+    fn build(&self, app: &mut App) {}
 }

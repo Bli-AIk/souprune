@@ -14,7 +14,10 @@
 //! 该文件定义了 `DebugPlugin`，当“debug”功能激活时，它会设置各种调试功能，
 //! 例如检查器。
 
+#[cfg(feature = "debug")]
+mod collider;
 mod inspector;
+
 use bevy::app::{App, Plugin};
 
 pub struct DebugPlugin;
@@ -25,6 +28,9 @@ impl Plugin for DebugPlugin {
         {
             use inspector::debug_inspector;
             debug_inspector::setup_debug_features(_app);
+
+            // Setup collider debug features
+            collider::debug_collider::setup_collider_debug(_app);
         }
     }
 }
