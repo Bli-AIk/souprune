@@ -1,7 +1,4 @@
 use crate::app_state::AppState;
-use crate::app_state::overworld::character::components::*;
-use crate::app_state::overworld::player::PlayerPlugin;
-use crate::app_state::overworld::tilemap::TilemapPlugin;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::Direction;
 use crate::core::camera::Followable;
@@ -12,7 +9,7 @@ use bevy::prelude::*;
 use character::systems::*;
 use leafwing_input_manager::action_state::*;
 use seldom_state::machine::*;
-use seldom_state::trigger::IntoTrigger;
+use seldom_state::trigger::*;
 
 mod character;
 mod player;
@@ -22,7 +19,7 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((TilemapPlugin, PlayerPlugin))
+        app.add_plugins((tilemap::TilemapPlugin, player::PlayerPlugin))
             .add_systems(
                 OnEnter(AppState::Overworld),
                 (create_overworld_entities_system, bind_camera_target_system).chain(),
@@ -44,7 +41,9 @@ fn spawn_overworld_player(
     sprite_params: &mut SpriteParams,
     player_input: &Res<PlayerInputSettings>,
 ) {
-    use player::*;
+    use character::components::*;
+    use player::components::PlayerBundle;
+    use player::utils::{is_player_running, is_player_walking};
     commands.spawn((
         StateIdle,
         PlayerControlled,
@@ -69,7 +68,7 @@ fn spawn_overworld_player(
 }
 fn bind_camera_target_system(
     mut camera: Query<&mut Followable, With<Camera2d>>,
-    player: Query<Entity, With<PlayerControlled>>,
+    player: Query<Entity, With<character::components::PlayerControlled>>,
 ) {
     if let Ok(player_entity) = player.single() {
         for mut followable in camera.iter_mut() {
