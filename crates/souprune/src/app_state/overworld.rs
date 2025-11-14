@@ -23,14 +23,16 @@ impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(AppState::Overworld),
-            (
-                create_overworld_entities_system,
-                tilemap::filter_prototype_layers_and_set_z_order_system,
-                bind_camera_target_system,
-            )
-                .chain(),
+            (create_overworld_entities_system, bind_camera_target_system).chain(),
         )
-        .add_systems(Update, (update_walking_system, update_running_system))
+        .add_systems(
+            Update,
+            (
+                update_walking_system,
+                update_running_system,
+                tilemap::filter_prototype_layers_and_set_z_order_system,
+            ),
+        )
         .add_plugins(PlayerPlugin);
     }
 }
