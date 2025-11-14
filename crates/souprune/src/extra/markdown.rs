@@ -1,3 +1,17 @@
+//! # markdown.rs
+//!
+//! ## Module Overview
+//! This module provides functionalities for handling Markdown files as assets within Bevy.
+//!
+//! ## Source File Overview
+//! This file defines the `MarkdownPlugin`, `MarkdownAsset`, and `MarkdownAssetLoader` for registering and potentially processing Markdown files.
+//!
+//! ## 模块概述
+//! 该模块提供了在 Bevy 中将 Markdown 文件作为资产处理的功能。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `MarkdownPlugin`、`MarkdownAsset` 和 `MarkdownAssetLoader`，用于注册和可能处理 Markdown 文件。
+
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
 use bevy::prelude::*;

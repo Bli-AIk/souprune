@@ -1,3 +1,19 @@
+//! # debug.rs
+//!
+//! ## Module Overview
+//! This module provides debugging functionalities for the game, conditionally enabled by a feature flag.
+//!
+//! ## Source File Overview
+//! This file defines the `DebugPlugin`, which sets up various debug features, such as an inspector,
+//! when the "debug" feature is active.
+//!
+//! ## 模块概述
+//! 该模块为游戏提供了调试功能，通过功能标志有条件地启用。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `DebugPlugin`，当“debug”功能激活时，它会设置各种调试功能，
+//! 例如检查器。
+
 mod inspector;
 use bevy::app::{App, Plugin};
 
