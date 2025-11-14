@@ -58,7 +58,7 @@ fn spawn_overworld_player(
             .trans::<StateRunning, _>(is_player_running.not(), StateWalking),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
-        Rect2DCollider::with_size(Vec2::new(5.0, 5.0)),
+        Rect2DCollider::new(Vec2::new(5.0, 5.0), Vec2::new(0.0, -5.0)),
         PlayerBundle::new(
             Vec2::new(0.0, 0.0),
             Direction::Down,

@@ -23,11 +23,4 @@ impl Rect2DCollider {
     pub fn new(size: Vec2, offset: Vec2) -> Self {
         Self { size, offset }
     }
-
-    /// Create a new rectangular collider with the specified size and no offset.
-    ///
-    /// 创建具有指定尺寸且无偏移量的新矩形碰撞体。
-    pub fn with_size(size: Vec2) -> Self {
-        Self::new(size, Vec2::ZERO)
-    }
 }
