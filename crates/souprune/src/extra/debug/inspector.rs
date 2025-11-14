@@ -113,11 +113,14 @@ pub mod debug_inspector {
         keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
         if keyboard_input.just_pressed(KeyCode::F2) {
-            if let Ok(e) = q_perf_ui.single() {
+            let message = if let Ok(e) = q_perf_ui.single() {
                 commands.entity(e).despawn();
+                "OFF"
             } else {
                 commands.spawn(PerfUiAllEntries::default());
-            }
+                "ON"
+            };
+            info!("Performance monitoring: {}", message);
         }
     }
 

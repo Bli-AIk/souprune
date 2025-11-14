@@ -33,7 +33,11 @@ pub fn initialize_tilemap_system(
     for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
         let layer_name_str = layer_name.as_str();
 
-        if layer_name_str.to_lowercase().contains("prototype") {
+        let name_lower = layer_name_str.to_ascii_lowercase();
+        if ["prototype", "collision"]
+            .iter()
+            .any(|s| name_lower.contains(s))
+        {
             info!("Hide prototype layer: {}", layer_name_str);
             commands.entity(*layer_entity).insert(Visibility::Hidden);
         } else {
@@ -55,7 +59,7 @@ pub fn initialize_tilemap_system(
 type ObjectsQuery<'w, 's> = Query<
     'w,
     's,
-    &'static mut Transform,
+    (&'static mut Transform),
     (
         With<TiledObject>,
         Without<character::components::PlayerControlled>,
@@ -74,12 +78,26 @@ type PlayerQuery<'w, 's> = Query<
         Without<TiledObject>,
     ),
 >;
+type ObjectLayersQuery<'w, 's> = Query<
+    'w,
+    's,
+    &'static Transform,
+    (
+        With<TiledLayer>,
+        Without<TiledObject>,
+        Without<character::components::PlayerControlled>,
+    ),
+>;
 
 /// Relatively adjust the z-axis position of the entities in all object layers
 /// based on the bottom y-coordinate of the Player's image
 ///
 /// 根据 Player 的图像底部 y 坐标相对调整所有对象图层中实体的 z 轴位置
-pub fn update_objects_order_with_player_system(mut objects: ObjectsQuery, player: PlayerQuery) {
+pub fn update_objects_order_with_player_system(
+    mut objects: ObjectsQuery,
+    player: PlayerQuery,
+    object_layers: ObjectLayersQuery,
+) {
     let (player_transform, player_anim, current_sprite) = if let Ok(result) = player.single() {
         result
     } else {
@@ -97,13 +115,19 @@ pub fn update_objects_order_with_player_system(mut objects: ObjectsQuery, player
         }
     };
 
+    let object_layer_z = object_layers
+        .iter()
+        .map(|transform| transform.translation.z)
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or(-2.0);
+
     // Update all objects with TiledObject component (from all object layers)
     // This automatically handles objects from any object layer, regardless of layer name
     for mut transform in objects.iter_mut() {
         if transform.translation.y > player_y {
-            transform.translation.z = -1.0;
+            transform.translation.z = -1.0 - object_layer_z;
         } else {
-            transform.translation.z = 1.0;
+            transform.translation.z = 1.0 - object_layer_z;
         }
     }
 }

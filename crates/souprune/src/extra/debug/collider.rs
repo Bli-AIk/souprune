@@ -26,16 +26,16 @@ pub mod debug_collider {
         app.init_resource::<ColliderDebugSettings>().add_systems(
             Update,
             (
-                toggle_collider_visibility,
-                render_player_rect_colliders,
-                update_player_visualizer_positions,
+                toggle_collider_visibility_system,
+                render_player_rect_colliders_system,
+                update_player_visualizer_positions_system,
             ),
         );
     }
 
     /// System to toggle collider visibility with F3 key (debug only)
     /// F3键切换碰撞体可见性的系统（仅调试模式）
-    fn toggle_collider_visibility(
+    fn toggle_collider_visibility_system(
         keyboard: Res<ButtonInput<KeyCode>>,
         mut settings: ResMut<ColliderDebugSettings>,
     ) {
@@ -51,7 +51,7 @@ pub mod debug_collider {
     /// System to render rectangular colliders using bevy_smud SDF (player only, debug only).
     ///
     /// 使用bevy_smud SDF渲染矩形碰撞体的系统（仅玩家，仅调试模式）。
-    fn render_player_rect_colliders(
+    fn render_player_rect_colliders_system(
         mut commands: Commands,
         mut shaders: ResMut<Assets<Shader>>,
         settings: Res<ColliderDebugSettings>,
@@ -121,7 +121,7 @@ pub mod debug_collider {
 
     /// System to update visualizer positions when parent transforms change
     /// 当父变换改变时更新可视化器位置的系统
-    fn update_player_visualizer_positions(
+    fn update_player_visualizer_positions_system(
         mut visualizers: Query<(&mut Transform, &ColliderVisualizer), Without<Rect2DCollider>>,
         players: Query<
             (&Transform, &Rect2DCollider),
