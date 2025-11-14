@@ -1,3 +1,17 @@
+//! # player.rs
+//!
+//! ## Module Overview
+//! This module manages player-specific logic and systems within the overworld, including input-based movement, direction control, and animation states.
+//!
+//! ## Source File Overview
+//! This file defines the `PlayerPlugin`, which integrates systems for controlling player direction and various animation states (idle, walk, run).
+//!
+//! ## 模块概述
+//! 该模块管理着世界地图中玩家特有的逻辑和系统，包括基于输入的移动、方向控制和动画状态。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `PlayerPlugin`，它集成了用于控制玩家方向和各种动画状态（空闲、行走、奔跑）的系统。
+
 use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };

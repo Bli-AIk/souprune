@@ -1,3 +1,19 @@
+//! # toml.rs
+//!
+//! ## Module Overview
+//! This module provides functionalities for loading and parsing TOML configuration files as assets in Bevy.
+//!
+//! ## Source File Overview
+//! This file defines the `TomlPlugin`, `TomlAsset`, and `TomlAssetLoader` for handling TOML-based game configurations,
+//! including modules, animations, and sprites.
+//!
+//! ## 模块概述
+//! 该模块提供了在 Bevy 中加载和解析 TOML 配置文件作为资产的功能。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `TomlPlugin`、`TomlAsset` 和 `TomlAssetLoader`，用于处理基于 TOML 的游戏配置，
+//! 包括模块、动画和精灵。
+
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
 use bevy::prelude::*;
