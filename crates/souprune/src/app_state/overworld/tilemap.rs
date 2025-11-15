@@ -33,6 +33,7 @@ impl Plugin for TilemapPlugin {
                 (
                     systems::initialize_tilemap_system,
                     systems::generate_collision_tiles_system,
+                    systems::setup_camera_bounds_system,
                     systems::update_objects_order_with_player_system,
                 ),
             );

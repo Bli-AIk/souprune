@@ -1,11 +1,12 @@
 use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
+use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Commands, Component, Entity, Name, Query, Res, Sprite, Transform, Vec2, Visibility,
-    With, Without,
+    Added, Camera, Commands, Component, Entity, Name, Query, Res, Sprite, Transform, Vec2,
+    Visibility, With, Without, Window,
 };
 use bevy_ecs_tiled::prelude::{
     TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
@@ -309,6 +310,83 @@ pub fn update_objects_order_with_player_system(
             transform.translation.z = -1.0 - object_layer_z;
         } else {
             transform.translation.z = 1.0 - object_layer_z;
+        }
+    }
+}
+
+/// Setup camera bounds based on tilemap size after the tilemap is loaded
+/// 在tilemap加载后根据地图大小设置摄像机边界
+pub fn setup_camera_bounds_system(
+    mut followable_cameras: Query<&mut Followable, With<Camera>>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    tiled_maps_query: Query<&TiledMap>,
+    windows: Query<&Window>,
+    cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
+) {
+    // Only proceed if we have a tilemap loaded
+    // 只有在已加载tilemap时才继续
+    let Ok(tiled_map_handle) = tiled_maps_query.single() else {
+        return;
+    };
+
+    let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) else {
+        return;
+    };
+
+    // Calculate map bounds
+    // 计算地图边界
+    let tile_width = tiled_map_asset.map.tile_width as f32;
+    let tile_height = tiled_map_asset.map.tile_height as f32;
+    let map_width = tiled_map_asset.map.width as f32 * tile_width;
+    let map_height = tiled_map_asset.map.height as f32 * tile_height;
+    
+    // Get the viewport size from the window and camera
+    // 从窗口和摄像机获取视口大小
+    let viewport_width = if let Ok(window) = windows.single() {
+        // Get the actual game world viewport size (considering resolution scale)
+        // 获取实际游戏世界视口大小（考虑分辨率缩放）
+        if let Ok(camera_transform) = cameras.single() {
+            // Camera scale affects the viewport size
+            // 摄像机缩放影响视口大小
+            let scale = camera_transform.scale.x;
+            window.resolution.width() * scale
+        } else {
+            320.0 // fallback to default
+        }
+    } else {
+        320.0 // fallback to default
+    };
+    
+    let viewport_height = if let Ok(window) = windows.single() {
+        if let Ok(camera_transform) = cameras.single() {
+            let scale = camera_transform.scale.y;
+            window.resolution.height() * scale
+        } else {
+            240.0 // fallback to default
+        }
+    } else {
+        240.0 // fallback to default
+    };
+    
+    // Calculate bounds ensuring camera center stays within map minus half viewport
+    // 计算边界，确保摄像机中心保持在地图内减去半个视口的范围内
+    let half_viewport_width = viewport_width / 2.0;
+    let half_viewport_height = viewport_height / 2.0;
+    
+    let min_x = (-map_width / 2.0) + half_viewport_width;
+    let max_x = (map_width / 2.0) - half_viewport_width;
+    let min_y = (-map_height / 2.0) + half_viewport_height;
+    let max_y = (map_height / 2.0) - half_viewport_height;
+
+    // Apply bounds to all followable cameras that don't already have bounds enabled
+    // 为所有还未启用边界的可跟随摄像机应用边界
+    for mut followable in followable_cameras.iter_mut() {
+        if !followable.bounds_enabled {
+            followable.enable_bounds(min_x, max_x, min_y, max_y);
+            info!(
+                "Enabled camera bounds: X({:.1}, {:.1}), Y({:.1}, {:.1}) for viewport {}x{} on map {}x{}",
+                min_x, max_x, min_y, max_y, viewport_width, viewport_height, map_width, map_height
+            );
         }
     }
 }
