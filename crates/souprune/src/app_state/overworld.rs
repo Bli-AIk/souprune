@@ -13,7 +13,7 @@ use seldom_state::trigger::*;
 
 pub(crate) mod character;
 mod player;
-mod tilemap;
+pub(crate) mod tilemap;
 
 pub(crate) struct OverworldPlugin;
 

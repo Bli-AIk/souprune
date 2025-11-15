@@ -9,6 +9,7 @@ pub mod debug_collider {
     }
 
     use crate::app_state::overworld::character::components::PlayerControlled;
+    use crate::app_state::overworld::tilemap::TilemapCollider;
     use crate::core::collision::Rect2DCollider;
     use bevy::prelude::*;
     use bevy_smud::prelude::*;
@@ -27,8 +28,8 @@ pub mod debug_collider {
             Update,
             (
                 toggle_collider_visibility_system,
-                render_player_rect_colliders_system,
-                update_player_visualizer_positions_system,
+                render_rect_colliders_system,
+                update_collider_visualizer_positions_system,
             ),
         );
     }
@@ -48,17 +49,26 @@ pub mod debug_collider {
         }
     }
 
-    /// System to render rectangular colliders using bevy_smud SDF (player only, debug only).
+    /// System to render rectangular colliders using bevy_smud SDF (debug only).
     ///
-    /// 使用bevy_smud SDF渲染矩形碰撞体的系统（仅玩家，仅调试模式）。
-    fn render_player_rect_colliders_system(
+    /// 使用bevy_smud SDF渲染矩形碰撞体的系统（仅调试模式）。
+    fn render_rect_colliders_system(
         mut commands: Commands,
         mut shaders: ResMut<Assets<Shader>>,
         settings: Res<ColliderDebugSettings>,
-        player_query: Query<
+        player_colliders: Query<
             (Entity, &Transform, &Rect2DCollider),
             (
                 With<PlayerControlled>,
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
+        tilemap_colliders: Query<
+            (Entity, &Transform, &Rect2DCollider),
+            (
+                With<TilemapCollider>,
+                Without<PlayerControlled>,
                 Without<SmudShape>,
                 Without<ColliderVisualizer>,
             ),
@@ -75,65 +85,74 @@ pub mod debug_collider {
 
         // Remove existing visualizers for entities that no longer have colliders
         for (visualizer_entity, visualizer) in existing_visualizers.iter() {
-            if player_query.get(visualizer.parent).is_err() {
+            let parent_exists = player_colliders.get(visualizer.parent).is_ok()
+                || tilemap_colliders.get(visualizer.parent).is_ok();
+            if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
             }
         }
 
-        // Create visualizers for new player colliders
-        for (entity, transform, collider) in player_query.iter() {
-            // Check if this entity already has a visualizer
-            let has_visualizer = existing_visualizers
-                .iter()
-                .any(|(_, vis)| vis.parent == entity);
-            if has_visualizer {
-                continue;
-            }
+        // Helper closure to create collider visualizer
+        let mut create_visualizer =
+            |entity: Entity, transform: &Transform, collider: &Rect2DCollider, color: Color| {
+                // Check if this entity already has a visualizer
+                let has_visualizer = existing_visualizers
+                    .iter()
+                    .any(|(_, vis)| vis.parent == entity);
+                if has_visualizer {
+                    return;
+                }
 
-            // Create a thin border SDF using distance field outline
-            let border_sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
-                collider.size.x / 2.0,
-                collider.size.y / 2.0,
-                0.25
-            ));
+                // Create a thin border SDF using distance field outline
+                let border_sdf = shaders.add_sdf_expr(format!(
+                    "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
+                    collider.size.x / 2.0,
+                    collider.size.y / 2.0,
+                    0.25
+                ));
 
-            // Calculate frame size based on collider size
-            let frame_size = (collider.size.x.max(collider.size.y) / 2.0) + 2.0;
+                // Calculate frame size based on collider size
+                let frame_size = (collider.size.x.max(collider.size.y) / 2.0) + 2.0;
 
-            // Calculate final position including offset
-            let final_position = transform.translation + collider.offset.extend(0.1);
+                // Calculate final position including offset
+                let final_position = transform.translation + collider.offset.extend(0.1);
 
-            // Spawn the visual representation as a separate entity
-            commands.spawn((
-                ColliderVisualizer { parent: entity },
-                SmudShape {
-                    color: Color::srgb(0.0, 1.0, 0.0),
-                    sdf: border_sdf,
-                    frame: Frame::Quad(frame_size),
-                    fill: SIMPLE_FILL_HANDLE,
-                    ..default()
-                },
-                Transform::from_translation(final_position),
-            ));
+                // Spawn the visual representation as a separate entity
+                commands.spawn((
+                    ColliderVisualizer { parent: entity },
+                    SmudShape {
+                        color,
+                        sdf: border_sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill: SIMPLE_FILL_HANDLE,
+                        ..default()
+                    },
+                    Transform::from_translation(final_position),
+                ));
+            };
+
+        // Create visualizers for player colliders (green)
+        for (entity, transform, collider) in player_colliders.iter() {
+            create_visualizer(entity, transform, collider, Color::srgb(0.0, 1.0, 0.0));
+        }
+
+        // Create visualizers for tilemap colliders (red)
+        for (entity, transform, collider) in tilemap_colliders.iter() {
+            create_visualizer(entity, transform, collider, Color::srgb(1.0, 0.0, 0.0));
         }
     }
 
     /// System to update visualizer positions when parent transforms change
     /// 当父变换改变时更新可视化器位置的系统
-    fn update_player_visualizer_positions_system(
+    fn update_collider_visualizer_positions_system(
         mut visualizers: Query<(&mut Transform, &ColliderVisualizer), Without<Rect2DCollider>>,
-        players: Query<
+        colliders: Query<
             (&Transform, &Rect2DCollider),
-            (
-                With<PlayerControlled>,
-                With<Rect2DCollider>,
-                Without<ColliderVisualizer>,
-            ),
+            (With<Rect2DCollider>, Without<ColliderVisualizer>),
         >,
     ) {
         for (mut vis_transform, visualizer) in visualizers.iter_mut() {
-            if let Ok((parent_transform, collider)) = players.get(visualizer.parent) {
+            if let Ok((parent_transform, collider)) = colliders.get(visualizer.parent) {
                 let final_position = parent_transform.translation + collider.offset.extend(0.1);
                 vis_transform.translation = final_position;
             }

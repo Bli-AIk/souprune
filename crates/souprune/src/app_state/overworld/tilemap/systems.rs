@@ -1,15 +1,21 @@
 use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
-use bevy::asset::AssetServer;
+use crate::core::collision::Rect2DCollider;
+use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Commands, Entity, Name, Query, Res, Sprite, Transform, Visibility, With, Without,
+    Added, Commands, Component, Entity, Name, Query, Res, Sprite, Transform, Vec2, Visibility,
+    With, Without,
 };
 use bevy_ecs_tiled::prelude::{
-    TiledLayer, TiledMap, TiledMapLayerZOffset, TiledObject, TilemapAnchor,
+    TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
 };
 
-// TODO: 添加碰撞系统
+/// Marker component for tilemap collision entities
+/// 瓦片地图碰撞实体的标记组件
+#[derive(Component)]
+pub struct TilemapCollider;
+
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
@@ -20,8 +26,10 @@ pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServe
 }
 
 /// Initialize Tilemap layers, filter and hide layers with "prototype" in their names,
+/// and generate collision for "collision" layers.
 ///
-/// 初始化 Tilemap 图层，过滤并隐藏包含 "prototype" 的图层名称，并根据图层顺序设置其他图层的 z 轴位置
+/// 初始化 Tilemap 图层，过滤并隐藏包含 "prototype" 的图层名称，
+/// 并根据图层顺序设置其他图层的 z 轴位置，同时为 "collision" 图层生成碰撞
 pub fn initialize_tilemap_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
@@ -38,7 +46,14 @@ pub fn initialize_tilemap_system(
             .iter()
             .any(|s| name_lower.contains(s))
         {
-            info!("Hide prototype layer: {}", layer_name_str);
+            if name_lower.contains("collision") {
+                info!(
+                    "Hide collision layer: {} and generate collision tiles",
+                    layer_name_str
+                );
+            } else {
+                info!("Hide prototype layer: {}", layer_name_str);
+            }
             commands.entity(*layer_entity).insert(Visibility::Hidden);
         } else {
             info!("Show layers: {}", layer_name_str);
@@ -56,10 +71,151 @@ pub fn initialize_tilemap_system(
     }
 }
 
+type CollisionLayersQuery<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static Name, &'static TiledLayer),
+    (Added<TiledLayer>, With<Visibility>),
+>;
+/// Generate collision tiles for collision layers after the layer is initialized
+///
+/// 在图层初始化后为碰撞图层生成碰撞瓦片
+pub fn generate_collision_tiles_system(
+    mut commands: Commands,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    tiled_maps_query: Query<(Entity, &TiledMap)>,
+    collision_layers: CollisionLayersQuery,
+) {
+    for (layer_entity, layer_name, _tiled_layer) in collision_layers.iter() {
+        if !is_collision_layer(layer_name.as_str()) {
+            continue;
+        }
+
+        info!(
+            "Generating collision tiles for layer: {}",
+            layer_name.as_str()
+        );
+
+        if let Some((tiled_map_asset, matching_layer)) =
+            find_matching_layer(&tiled_maps_query, &tiled_map_assets, layer_name.as_str())
+        {
+            generate_tiles_for_layer(&mut commands, tiled_map_asset, &matching_layer);
+        }
+
+        commands.entity(layer_entity).insert(TilemapCollider);
+    }
+}
+
+/// Check if a layer name indicates it's a collision layer
+/// 检查图层名是否表示它是碰撞图层
+fn is_collision_layer(layer_name: &str) -> bool {
+    layer_name.to_ascii_lowercase().contains("collision")
+}
+
+/// Find the matching layer in the tiled map assets
+/// 在瓦片地图资源中查找匹配的图层
+fn find_matching_layer<'a>(
+    tiled_maps_query: &Query<(Entity, &TiledMap)>,
+    tiled_map_assets: &'a Res<Assets<TiledMapAsset>>,
+    layer_name: &str,
+) -> Option<(&'a TiledMapAsset, tiled::Layer<'a>)> {
+    for (_map_entity, tiled_map_handle) in tiled_maps_query.iter() {
+        let tiled_map_asset = tiled_map_assets.get(&tiled_map_handle.0)?;
+
+        for layer in tiled_map_asset.map.layers() {
+            if is_layer_match(&layer.name, layer_name) {
+                info!("Found matching layer: {} <-> {}", layer.name, layer_name);
+                return Some((tiled_map_asset, layer));
+            }
+        }
+    }
+    None
+}
+
+/// Check if two layer names match
+/// 检查两个图层名是否匹配
+fn is_layer_match(layer_name: &str, target_name: &str) -> bool {
+    layer_name == target_name
+        || layer_name.to_ascii_lowercase().contains("collision")
+        || target_name.contains(layer_name)
+}
+
+/// Generate collision tiles for a specific layer
+/// 为特定图层生成碰撞瓦片
+fn generate_tiles_for_layer(
+    commands: &mut Commands,
+    tiled_map_asset: &TiledMapAsset,
+    layer: &tiled::Layer,
+) {
+    let Some(tile_layer) = layer.as_tile_layer() else {
+        info!("Layer {} is not a tile layer", layer.name);
+        return;
+    };
+
+    info!("Processing tile layer: {}", layer.name);
+
+    let tile_size = tiled_map_asset.map.tile_width as f32;
+    let tile_height = tiled_map_asset.map.tile_height as f32;
+
+    // 计算地图居中的偏移量
+    // TilemapAnchor::Center 意味着地图以中心为轴点
+    let map_width = tiled_map_asset.map.width as f32 * tile_size;
+    let map_height = tiled_map_asset.map.height as f32 * tile_height;
+    let center_offset_x = -map_width / 2.0;
+    let center_offset_y = -map_height / 2.0;
+
+    info!(
+        "Map size: {}x{} tiles, {}x{} pixels",
+        tiled_map_asset.map.width, tiled_map_asset.map.height, map_width, map_height
+    );
+    info!("Center offset: ({}, {})", center_offset_x, center_offset_y);
+
+    let mut tile_count = 0;
+    let mut collision_count = 0;
+
+    tiled_map_asset.for_each_tile(
+        &tile_layer,
+        |layer_tile, _tile_data, tile_pos, _chunk_pos| {
+            tile_count += 1;
+
+            if layer_tile.get_tile().is_some() {
+                collision_count += 1;
+
+                // 计算瓦片在世界坐标中的位置（考虑居中偏移）
+                // bevy_ecs_tiled 使用左上角作为原点，但我们需要考虑瓦片的中心点
+                let world_x = center_offset_x + (tile_pos.x as f32 * tile_size) + (tile_size / 2.0);
+                let world_y =
+                    center_offset_y + (tile_pos.y as f32 * tile_height) + (tile_height / 2.0);
+
+                // 创建碰撞瓦片实体
+                commands.spawn((
+                    TilemapCollider,
+                    Rect2DCollider::new(Vec2::new(tile_size, tile_height), Vec2::ZERO),
+                    Transform::from_xyz(world_x, world_y, 0.0),
+                    Name::new(format!("CollisionTile({},{})", tile_pos.x, tile_pos.y)),
+                ));
+
+                if collision_count <= 5 {
+                    // 只记录前几个瓦片的详细信息
+                    info!(
+                        "Created collision tile at ({}, {}) -> world pos ({:.1}, {:.1})",
+                        tile_pos.x, tile_pos.y, world_x, world_y
+                    );
+                }
+            }
+        },
+    );
+
+    info!(
+        "Processed {} total tiles, created {} collision tiles for layer {}",
+        tile_count, collision_count, layer.name
+    );
+}
+
 type ObjectsQuery<'w, 's> = Query<
     'w,
     's,
-    (&'static mut Transform),
+    &'static mut Transform,
     (
         With<TiledObject>,
         Without<character::components::PlayerControlled>,
