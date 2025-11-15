@@ -15,39 +15,45 @@ use crate::app_state::overworld::tilemap::TilemapCollider;
 use crate::core::collision::components::Rect2DCollider;
 use bevy::prelude::*;
 
+type PlayerQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Transform, &'static Rect2DCollider),
+    (With<PlayerControlled>, Without<TilemapCollider>),
+>;
+type TilemapCollidersQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Transform, &'static Rect2DCollider),
+    (With<TilemapCollider>, Without<PlayerControlled>),
+>;
 /// SDF-based collision detection and response system for player vs tilemap colliders
 /// Uses SDF union operations to create seamless collision areas
 ///
 /// 基于SDF的玩家与瓦片地图碰撞检测和响应系统
 /// 使用SDF并集操作创建无缝碰撞区域
 pub fn player_tilemap_collision_system(
-    mut player_query: Query<
-        (&mut Transform, &Rect2DCollider),
-        (With<PlayerControlled>, Without<TilemapCollider>),
-    >,
-    tilemap_colliders: Query<
-        (&Transform, &Rect2DCollider),
-        (With<TilemapCollider>, Without<PlayerControlled>),
-    >,
+    mut player_query: PlayerQuery,
+    tilemap_colliders: TilemapCollidersQuery,
 ) {
     for (mut player_transform, player_collider) in player_query.iter_mut() {
         let player_pos = player_transform.translation.truncate() + player_collider.offset;
 
-        // 收集附近的所有瓦片进行SDF合并
-        let nearby_tiles = collect_nearby_tiles(&player_pos, &tilemap_colliders);
+        // Collect all nearby tiles for SDF merge
+        let nearby_tiles = collect_nearby_tiles(&player_pos, tilemap_colliders);
 
         if !nearby_tiles.is_empty() {
-            // 计算合并后的SDF距离
             let distance =
                 merged_sdf_collision_detection(player_pos, player_collider, &nearby_tiles);
 
             if distance < 0.0 {
-                // 玩家在合并的SDF内部，需要推出
                 let separation =
                     calculate_merged_sdf_separation(player_pos, player_collider, &nearby_tiles);
 
                 player_transform.translation.x += separation.x;
                 player_transform.translation.y += separation.y;
+
+                info!("{}", separation);
             }
         }
     }
@@ -57,14 +63,11 @@ pub fn player_tilemap_collision_system(
 /// 收集碰撞范围内的瓦片进行SDF合并
 fn collect_nearby_tiles(
     player_pos: &Vec2,
-    tilemap_colliders: &Query<
-        (&Transform, &Rect2DCollider),
-        (With<TilemapCollider>, Without<PlayerControlled>),
-    >,
+    tilemap_colliders: TilemapCollidersQuery,
 ) -> Vec<(Vec2, Vec2)> {
     // (position, half_size)
     let mut nearby_tiles = Vec::new();
-    let search_radius = 50.0; // 搜索半径，可以根据需要调整
+    let search_radius = 25.0;
 
     for (tile_transform, tile_collider) in tilemap_colliders.iter() {
         let tile_pos = tile_transform.translation.truncate() + tile_collider.offset;
@@ -119,7 +122,7 @@ fn calculate_merged_sdf_separation(
     let gradient = merged_sdf_gradient(player_pos, player_collider, tiles);
 
     // 分离距离 = -distance + 安全边距
-    let separation_distance = -current_distance + 0.2; // 稍微增加安全边距
+    let separation_distance = -current_distance + 0.2;
 
     gradient * separation_distance
 }
@@ -164,39 +167,4 @@ fn sdf_box(point: Vec2, half_size: Vec2) -> f32 {
     let inside_distance = d.x.max(d.y).min(0.0);
 
     outside_distance + inside_distance
-}
-
-/// Alternative implementation: Create a single merged collision polygon
-/// 替代实现：创建单个合并的碰撞多边形
-#[allow(dead_code)]
-pub fn create_merged_collision_polygon(
-    tiles: &[(Vec2, Vec2)], // (center, half_size)
-) -> Vec<Vec2> {
-    // 这里可以实现更复杂的多边形合并算法
-    // 例如使用Clipper库或简单的矩形并集
-
-    // 简单实现：找到包围所有瓦片的最小边界框
-    if tiles.is_empty() {
-        return Vec::new();
-    }
-
-    let mut min_x = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
-
-    for &(center, half_size) in tiles.iter() {
-        min_x = min_x.min(center.x - half_size.x);
-        max_x = max_x.max(center.x + half_size.x);
-        min_y = min_y.min(center.y - half_size.y);
-        max_y = max_y.max(center.y + half_size.y);
-    }
-
-    // 返回合并后的矩形顶点
-    vec![
-        Vec2::new(min_x, min_y),
-        Vec2::new(max_x, min_y),
-        Vec2::new(max_x, max_y),
-        Vec2::new(min_x, max_y),
-    ]
 }

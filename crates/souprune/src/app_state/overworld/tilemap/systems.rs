@@ -94,7 +94,7 @@ pub fn generate_collision_tiles_system(
         if let Some((tiled_map_asset, matching_layer)) =
             find_matching_layer(&tiled_maps_query, &tiled_map_assets, layer_name.as_str())
         {
-            generate_tiles_for_layer(&mut commands, &tiled_map_asset, &matching_layer);
+            generate_tiles_for_layer(&mut commands, tiled_map_asset, &matching_layer);
         }
 
         commands.entity(layer_entity).insert(TilemapCollider);
