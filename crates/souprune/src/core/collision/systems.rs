@@ -35,28 +35,44 @@ pub fn player_tilemap_collision_system(
     mut player_query: PlayerQuery,
     tilemap_colliders: TilemapCollidersQuery,
 ) {
+    const MAX_ITERATIONS: u8 = 4;
+
     for (mut player_transform, player_collider) in player_query.iter_mut() {
-        let player_pos = player_transform.translation.truncate() + player_collider.offset;
+        let initial_player_pos = player_transform.translation.truncate() + player_collider.offset;
 
         // Collect all nearby tiles for SDF merge
-        let nearby_tiles = collect_nearby_tiles(&player_pos, tilemap_colliders);
+        //
+        // 收集所有附近的瓦片以进行SDF合并
+        let nearby_tiles = collect_nearby_tiles(&initial_player_pos, tilemap_colliders);
 
-        if !nearby_tiles.is_empty() {
+        if nearby_tiles.is_empty() {
+            continue;
+        }
+
+        for _ in 0..MAX_ITERATIONS {
+            let player_pos = player_transform.translation.truncate() + player_collider.offset;
+
             let (distance, min_idx_opt) =
                 merged_sdf_distance_and_index(player_pos, player_collider, &nearby_tiles);
 
-            if distance < 0.0
-                && let Some(min_idx) = min_idx_opt
-            {
-                let separation = calculate_analytic_separation(
-                    player_pos,
-                    player_collider,
-                    &nearby_tiles,
-                    min_idx,
-                    distance,
-                );
-                player_transform.translation.x += separation.x;
-                player_transform.translation.y += separation.y;
+            if distance < 0.0 {
+                if let Some(min_idx) = min_idx_opt {
+                    let separation = calculate_analytic_separation(
+                        player_pos,
+                        player_collider,
+                        &nearby_tiles,
+                        min_idx,
+                        distance,
+                    );
+                    player_transform.translation.x += separation.x;
+                    player_transform.translation.y += separation.y;
+                } else {
+                    // Should not happen if distance is negative
+                    break;
+                }
+            } else {
+                // No collision, resolution is complete for this player
+                break;
             }
         }
     }
@@ -115,7 +131,7 @@ fn merged_sdf_distance_and_index(
 }
 
 /// Calculate separation analytically using closest point on the expanded box
-/// 
+///
 /// 使用扩展盒子上的最近点进行解析分离计算
 fn calculate_analytic_separation(
     player_pos: Vec2,
