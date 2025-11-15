@@ -4,7 +4,6 @@ use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
-use seldom_state::trigger::*;
 
 pub(crate) mod character;
 mod player;

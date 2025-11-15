@@ -6,7 +6,7 @@ use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
     Added, Camera, Commands, Component, Entity, Name, Query, Res, Sprite, Transform, Vec2,
-    Visibility, With, Without, Window,
+    Visibility, Window, With, Without,
 };
 use bevy_ecs_tiled::prelude::{
     TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
@@ -204,34 +204,33 @@ fn generate_object_colliders(commands: &mut Commands, tiled_map_asset: &TiledMap
 
             for object_data in object_layer.objects() {
                 // Check if this object has collision property set to true
-                if let Some(collision_value) = object_data.properties.get("collision") {
-                    if let tiled::PropertyValue::BoolValue(true) = collision_value {
-                        if let tiled::ObjectShape::Rect { width, height } = object_data.shape {
-                            // Calculate world position (same coordinate system as tilemap)
-                            // Tiled uses top-left origin, convert to center-based
-                            let world_x = center_offset_x + object_data.x + width / 2.0;
-                            let world_y = center_offset_y
-                                + (tiled_map_asset.map.height as f32 * tile_height
-                                    - object_data.y
-                                    - height / 2.0);
+                if let Some(collision_value) = object_data.properties.get("collision")
+                    && let tiled::PropertyValue::BoolValue(true) = collision_value
+                    && let tiled::ObjectShape::Rect { width, height } = object_data.shape
+                {
+                    // Calculate world position (same coordinate system as tilemap)
+                    // Tiled uses top-left origin, convert to center-based
+                    let world_x = center_offset_x + object_data.x + width / 2.0;
+                    let world_y = center_offset_y
+                        + (tiled_map_asset.map.height as f32 * tile_height
+                            - object_data.y
+                            - height / 2.0);
 
-                            let size = Vec2::new(width, height);
+                    let size = Vec2::new(width, height);
 
-                            info!(
-                                "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
-                                object_data.name, world_x, world_y, width, height
-                            );
+                    info!(
+                        "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
+                        object_data.name, world_x, world_y, width, height
+                    );
 
-                            commands.spawn((
-                                crate::app_state::overworld::tilemap::ObjectCollider,
-                                TilemapCollider,
-                                Rect2DCollider::new(size, Vec2::ZERO),
-                                Transform::from_xyz(world_x, world_y, 0.0),
-                                Visibility::Hidden,
-                                Name::new(format!("ObjectCollision_{}", object_data.name)),
-                            ));
-                        }
-                    }
+                    commands.spawn((
+                        crate::app_state::overworld::tilemap::ObjectCollider,
+                        TilemapCollider,
+                        Rect2DCollider::new(size, Vec2::ZERO),
+                        Transform::from_xyz(world_x, world_y, 0.0),
+                        Visibility::Hidden,
+                        Name::new(format!("ObjectCollision_{}", object_data.name)),
+                    ));
                 }
             }
         }
@@ -339,7 +338,7 @@ pub fn setup_camera_bounds_system(
     let tile_height = tiled_map_asset.map.tile_height as f32;
     let map_width = tiled_map_asset.map.width as f32 * tile_width;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
-    
+
     // Get the viewport size from the window and camera
     // 从窗口和摄像机获取视口大小
     let viewport_width = if let Ok(window) = windows.single() {
@@ -356,7 +355,7 @@ pub fn setup_camera_bounds_system(
     } else {
         320.0 // fallback to default
     };
-    
+
     let viewport_height = if let Ok(window) = windows.single() {
         if let Ok(camera_transform) = cameras.single() {
             let scale = camera_transform.scale.y;
@@ -367,12 +366,12 @@ pub fn setup_camera_bounds_system(
     } else {
         240.0 // fallback to default
     };
-    
+
     // Calculate bounds ensuring camera center stays within map minus half viewport
     // 计算边界，确保摄像机中心保持在地图内减去半个视口的范围内
     let half_viewport_width = viewport_width / 2.0;
     let half_viewport_height = viewport_height / 2.0;
-    
+
     let min_x = (-map_width / 2.0) + half_viewport_width;
     let max_x = (map_width / 2.0) - half_viewport_width;
     let min_y = (-map_height / 2.0) + half_viewport_height;

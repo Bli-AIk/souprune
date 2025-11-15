@@ -11,7 +11,7 @@
 use crate::app_state::overworld::tilemap::TilemapCollider;
 use crate::core::collision::Rect2DCollider;
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, TiledObject, tiled};
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
