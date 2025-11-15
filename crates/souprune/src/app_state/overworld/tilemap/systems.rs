@@ -85,6 +85,7 @@ pub fn generate_collision_tiles_system(
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     tiled_maps_query: Query<(Entity, &TiledMap)>,
     collision_layers: CollisionLayersQuery,
+    existing_object_colliders: Query<&crate::app_state::overworld::tilemap::ObjectCollider>,
 ) {
     for (layer_entity, layer_name, _tiled_layer) in collision_layers.iter() {
         if !is_collision_layer(layer_name.as_str()) {
@@ -95,6 +96,12 @@ pub fn generate_collision_tiles_system(
             find_matching_layer(&tiled_maps_query, &tiled_map_assets, layer_name.as_str())
         {
             generate_tiles_for_layer(&mut commands, tiled_map_asset, &matching_layer);
+
+            // Also process object collision while we have the map data
+            // 在处理瓦片碰撞的同时处理对象碰撞
+            if existing_object_colliders.is_empty() {
+                generate_object_colliders(&mut commands, tiled_map_asset);
+            }
         }
 
         commands.entity(layer_entity).insert(TilemapCollider);
@@ -173,6 +180,61 @@ fn generate_tiles_for_layer(
             }
         },
     );
+}
+
+/// Generate collision objects for objects with collision properties
+/// 为具有碰撞属性的对象生成碰撞体
+fn generate_object_colliders(commands: &mut Commands, tiled_map_asset: &TiledMapAsset) {
+    // Calculate map center offset (same as tile collision system)
+    let tile_size = tiled_map_asset.map.tile_width as f32;
+    let tile_height = tiled_map_asset.map.tile_height as f32;
+    let map_width = tiled_map_asset.map.width as f32 * tile_size;
+    let map_height = tiled_map_asset.map.height as f32 * tile_height;
+    let center_offset_x = -map_width / 2.0;
+    let center_offset_y = -map_height / 2.0;
+
+    for layer in tiled_map_asset.map.layers() {
+        if let Some(object_layer) = layer.as_object_layer() {
+            info!(
+                "Processing object layer '{}' with {} objects",
+                layer.name,
+                object_layer.objects().count()
+            );
+
+            for object_data in object_layer.objects() {
+                // Check if this object has collision property set to true
+                if let Some(collision_value) = object_data.properties.get("collision") {
+                    if let tiled::PropertyValue::BoolValue(true) = collision_value {
+                        if let tiled::ObjectShape::Rect { width, height } = object_data.shape {
+                            // Calculate world position (same coordinate system as tilemap)
+                            // Tiled uses top-left origin, convert to center-based
+                            let world_x = center_offset_x + object_data.x + width / 2.0;
+                            let world_y = center_offset_y
+                                + (tiled_map_asset.map.height as f32 * tile_height
+                                    - object_data.y
+                                    - height / 2.0);
+
+                            let size = Vec2::new(width, height);
+
+                            info!(
+                                "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
+                                object_data.name, world_x, world_y, width, height
+                            );
+
+                            commands.spawn((
+                                crate::app_state::overworld::tilemap::ObjectCollider,
+                                TilemapCollider,
+                                Rect2DCollider::new(size, Vec2::ZERO),
+                                Transform::from_xyz(world_x, world_y, 0.0),
+                                Visibility::Hidden,
+                                Name::new(format!("ObjectCollision_{}", object_data.name)),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 type ObjectsQuery<'w, 's> = Query<

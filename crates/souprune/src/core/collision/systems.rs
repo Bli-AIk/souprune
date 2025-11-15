@@ -9,7 +9,7 @@
 //! 在检测和分离阶段都使用SDF并集操作以保证一致性。
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::tilemap::TilemapCollider;
+use crate::app_state::overworld::tilemap::{ObjectCollider, TilemapCollider};
 use crate::core::collision::components::Rect2DCollider;
 use bevy::prelude::*;
 
@@ -23,7 +23,10 @@ type TilemapCollidersQuery<'w, 's> = Query<
     'w,
     's,
     (&'static Transform, &'static Rect2DCollider),
-    (With<TilemapCollider>, Without<PlayerControlled>),
+    (
+        Or<(With<TilemapCollider>, With<ObjectCollider>)>,
+        Without<PlayerControlled>,
+    ),
 >;
 
 /// True SDF-based collision detection and response system

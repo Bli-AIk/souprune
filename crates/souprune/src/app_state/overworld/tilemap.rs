@@ -17,8 +17,10 @@
 use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
+pub mod object_properties;
 mod systems;
 
+pub use object_properties::ObjectCollider;
 pub use systems::TilemapCollider;
 
 pub(crate) struct TilemapPlugin;

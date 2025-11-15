@@ -9,7 +9,7 @@ pub mod debug_collider {
     }
 
     use crate::app_state::overworld::character::components::PlayerControlled;
-    use crate::app_state::overworld::tilemap::TilemapCollider;
+    use crate::app_state::overworld::tilemap::{ObjectCollider, TilemapCollider};
     use crate::core::collision::Rect2DCollider;
     use bevy::prelude::*;
     use bevy_smud::prelude::*;
@@ -73,6 +73,15 @@ pub mod debug_collider {
                 Without<ColliderVisualizer>,
             ),
         >,
+        object_colliders: Query<
+            (Entity, &Transform, &Rect2DCollider),
+            (
+                With<ObjectCollider>,
+                Without<PlayerControlled>,
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         // If debug settings don't show colliders, remove all visualizers and return
@@ -86,7 +95,8 @@ pub mod debug_collider {
         // Remove existing visualizers for entities that no longer have colliders
         for (visualizer_entity, visualizer) in existing_visualizers.iter() {
             let parent_exists = player_colliders.get(visualizer.parent).is_ok()
-                || tilemap_colliders.get(visualizer.parent).is_ok();
+                || tilemap_colliders.get(visualizer.parent).is_ok()
+                || object_colliders.get(visualizer.parent).is_ok();
             if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
             }
@@ -108,7 +118,7 @@ pub mod debug_collider {
                     "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
                     collider.size.x / 2.0,
                     collider.size.y / 2.0,
-                    0.25
+                    0.125
                 ));
 
                 // Calculate frame size based on collider size
@@ -133,12 +143,17 @@ pub mod debug_collider {
 
         // Create visualizers for player colliders (green)
         for (entity, transform, collider) in player_colliders.iter() {
-            create_visualizer(entity, transform, collider, Color::srgb(0.0, 1.0, 0.0));
+            create_visualizer(entity, transform, collider, Color::hsl(120.0, 1.0, 0.5));
         }
 
-        // Create visualizers for tilemap colliders (red)
+        // Create visualizers for tilemap colliders (dark_green)
         for (entity, transform, collider) in tilemap_colliders.iter() {
-            create_visualizer(entity, transform, collider, Color::srgb(1.0, 0.0, 0.0));
+            create_visualizer(entity, transform, collider, Color::hsl(120.0, 0.75, 0.75));
+        }
+
+        // Create visualizers for object colliders (light_green)
+        for (entity, transform, collider) in object_colliders.iter() {
+            create_visualizer(entity, transform, collider, Color::hsl(120.0, 0.75, 0.75));
         }
     }
 
