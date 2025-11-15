@@ -32,7 +32,11 @@ impl Plugin for CharacterPlugin {
             (
                 systems::update_walking_system,
                 systems::update_running_system,
-            ),
+            )
+                .in_set(MovementSet),
         );
     }
 }
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct MovementSet;

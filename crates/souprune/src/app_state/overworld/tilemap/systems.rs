@@ -91,15 +91,10 @@ pub fn generate_collision_tiles_system(
             continue;
         }
 
-        info!(
-            "Generating collision tiles for layer: {}",
-            layer_name.as_str()
-        );
-
         if let Some((tiled_map_asset, matching_layer)) =
             find_matching_layer(&tiled_maps_query, &tiled_map_assets, layer_name.as_str())
         {
-            generate_tiles_for_layer(&mut commands, tiled_map_asset, &matching_layer);
+            generate_tiles_for_layer(&mut commands, &tiled_map_asset, &matching_layer);
         }
 
         commands.entity(layer_entity).insert(TilemapCollider);
@@ -124,7 +119,6 @@ fn find_matching_layer<'a>(
 
         for layer in tiled_map_asset.map.layers() {
             if is_layer_match(&layer.name, layer_name) {
-                info!("Found matching layer: {} <-> {}", layer.name, layer_name);
                 return Some((tiled_map_asset, layer));
             }
         }
@@ -148,41 +142,23 @@ fn generate_tiles_for_layer(
     layer: &tiled::Layer,
 ) {
     let Some(tile_layer) = layer.as_tile_layer() else {
-        info!("Layer {} is not a tile layer", layer.name);
         return;
     };
-
-    info!("Processing tile layer: {}", layer.name);
 
     let tile_size = tiled_map_asset.map.tile_width as f32;
     let tile_height = tiled_map_asset.map.tile_height as f32;
 
     // 计算地图居中的偏移量
-    // TilemapAnchor::Center 意味着地图以中心为轴点
     let map_width = tiled_map_asset.map.width as f32 * tile_size;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
     let center_offset_x = -map_width / 2.0;
     let center_offset_y = -map_height / 2.0;
 
-    info!(
-        "Map size: {}x{} tiles, {}x{} pixels",
-        tiled_map_asset.map.width, tiled_map_asset.map.height, map_width, map_height
-    );
-    info!("Center offset: ({}, {})", center_offset_x, center_offset_y);
-
-    let mut tile_count = 0;
-    let mut collision_count = 0;
-
     tiled_map_asset.for_each_tile(
         &tile_layer,
         |layer_tile, _tile_data, tile_pos, _chunk_pos| {
-            tile_count += 1;
-
             if layer_tile.get_tile().is_some() {
-                collision_count += 1;
-
                 // 计算瓦片在世界坐标中的位置（考虑居中偏移）
-                // bevy_ecs_tiled 使用左上角作为原点，但我们需要考虑瓦片的中心点
                 let world_x = center_offset_x + (tile_pos.x as f32 * tile_size) + (tile_size / 2.0);
                 let world_y =
                     center_offset_y + (tile_pos.y as f32 * tile_height) + (tile_height / 2.0);
@@ -194,21 +170,8 @@ fn generate_tiles_for_layer(
                     Transform::from_xyz(world_x, world_y, 0.0),
                     Name::new(format!("CollisionTile({},{})", tile_pos.x, tile_pos.y)),
                 ));
-
-                if collision_count <= 5 {
-                    // 只记录前几个瓦片的详细信息
-                    info!(
-                        "Created collision tile at ({}, {}) -> world pos ({:.1}, {:.1})",
-                        tile_pos.x, tile_pos.y, world_x, world_y
-                    );
-                }
             }
         },
-    );
-
-    info!(
-        "Processed {} total tiles, created {} collision tiles for layer {}",
-        tile_count, collision_count, layer.name
     );
 }
 

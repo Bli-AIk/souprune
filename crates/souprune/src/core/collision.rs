@@ -12,6 +12,7 @@ pub(crate) mod systems;
 pub use components::*;
 
 use bevy::app::*;
+use bevy::prelude::*;
 
 /// Collision plugin for managing collision detection components and systems.
 ///
@@ -19,5 +20,12 @@ use bevy::app::*;
 pub(crate) struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        use crate::app_state::overworld::character::MovementSet;
+
+        app.add_systems(
+            Update,
+            systems::player_tilemap_collision_system.after(MovementSet),
+        );
+    }
 }
