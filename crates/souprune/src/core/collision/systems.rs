@@ -105,55 +105,160 @@ fn merged_sdf_collision_detection(
     min_distance
 }
 
-/// Calculate separation using merged SDF gradient
-/// 使用合并SDF梯度计算分离
+/// Calculate separation handling both edge and corner collisions
+/// 计算分离向量，处理边缘和角落碰撞
 fn calculate_merged_sdf_separation(
     player_pos: Vec2,
     player_collider: &Rect2DCollider,
     tiles: &[(Vec2, Vec2)],
 ) -> Vec2 {
-    let current_distance = merged_sdf_collision_detection(player_pos, player_collider, tiles);
+    let player_half_size = player_collider.size * 0.5;
 
-    if current_distance >= 0.0 {
+    // 收集所有相交的瓦片
+    let mut overlapping_tiles = Vec::new();
+
+    for &(tile_pos, tile_half_size) in tiles.iter() {
+        let relative_pos = player_pos - tile_pos;
+        let expanded_half_size = tile_half_size + player_half_size;
+
+        // 检查是否与此瓦片相交
+        if relative_pos.abs().x < expanded_half_size.x
+            && relative_pos.abs().y < expanded_half_size.y
+        {
+            let x_penetration = expanded_half_size.x - relative_pos.abs().x;
+            let y_penetration = expanded_half_size.y - relative_pos.abs().y;
+
+            overlapping_tiles.push((
+                tile_pos,
+                tile_half_size,
+                relative_pos,
+                x_penetration,
+                y_penetration,
+            ));
+        }
+    }
+
+    if overlapping_tiles.is_empty() {
         return Vec2::ZERO;
     }
 
-    // 计算合并SDF的梯度
-    let gradient = merged_sdf_gradient(player_pos, player_collider, tiles);
+    // 优先处理 1 个或 2 个相交瓦片的常见情形，避免直线瓦片被误判为角落碰撞
+    let slop_axis = 0.1; // 单轴最小分离冗余
+    let slop_diag = 0.05; // 对角最小分离冗余
 
-    // 分离距离 = -distance + 安全边距
-    let separation_distance = -current_distance + 0.2;
+    if overlapping_tiles.len() == 1 {
+        // 单瓦片碰撞：使用最小分离轴
+        let (_, _, relative_pos, x_penetration, y_penetration) = overlapping_tiles[0];
+        return if x_penetration < y_penetration {
+            Vec2::new(
+                if relative_pos.x > 0.0 {
+                    x_penetration + slop_axis
+                } else {
+                    -(x_penetration + slop_axis)
+                },
+                0.0,
+            )
+        } else {
+            Vec2::new(
+                0.0,
+                if relative_pos.y > 0.0 {
+                    y_penetration + slop_axis
+                } else {
+                    -(y_penetration + slop_axis)
+                },
+            )
+        };
+    }
 
-    gradient * separation_distance
-}
+    if overlapping_tiles.len() == 2 {
+        // 两瓦片：判定是否为“两个对角线的瓦片”（分别在 x/y 轴主导阻挡）
+        let (_, _, rel_a, x_pen_a, y_pen_a) = overlapping_tiles[0];
+        let (_, _, rel_b, x_pen_b, y_pen_b) = overlapping_tiles[1];
 
-/// Calculate gradient of merged SDF
-/// 计算合并SDF的梯度
-fn merged_sdf_gradient(
-    player_pos: Vec2,
-    player_collider: &Rect2DCollider,
-    tiles: &[(Vec2, Vec2)],
-) -> Vec2 {
-    let epsilon = 0.01;
+        let a_x_dominant = x_pen_a < y_pen_a;
+        let b_x_dominant = x_pen_b < y_pen_b;
 
-    let center_dist = merged_sdf_collision_detection(player_pos, player_collider, tiles);
-    let x_dist = merged_sdf_collision_detection(
-        player_pos + Vec2::new(epsilon, 0.0),
-        player_collider,
-        tiles,
-    );
-    let y_dist = merged_sdf_collision_detection(
-        player_pos + Vec2::new(0.0, epsilon),
-        player_collider,
-        tiles,
-    );
+        return if a_x_dominant == b_x_dominant {
+            // 直线瓦片（同一主导轴）：按该轴的最小分离处理
+            if a_x_dominant {
+                // X 轴主导：选择更小的 x 穿透
+                let (pen, sign) = if x_pen_a <= x_pen_b {
+                    (x_pen_a, if rel_a.x > 0.0 { 1.0 } else { -1.0 })
+                } else {
+                    (x_pen_b, if rel_b.x > 0.0 { 1.0 } else { -1.0 })
+                };
+                Vec2::new(sign * (pen + slop_axis), 0.0)
+            } else {
+                // Y 轴主导：选择更小的 y 穿透
+                let (pen, sign) = if y_pen_a <= y_pen_b {
+                    (y_pen_a, if rel_a.y > 0.0 { 1.0 } else { -1.0 })
+                } else {
+                    (y_pen_b, if rel_b.y > 0.0 { 1.0 } else { -1.0 })
+                };
+                Vec2::new(0.0, sign * (pen + slop_axis))
+            }
+        } else {
+            // 对角线瓦片（不同主导轴）：合成对角分离，x 来自 x 主导瓦片，y 来自 y 主导瓦片
+            let sign_pen = |pos: f32, pen: f32| {
+                if pos > 0.0 {
+                    pen + slop_diag
+                } else {
+                    -(pen + slop_diag)
+                }
+            };
 
-    let gradient = Vec2::new(
-        (x_dist - center_dist) / epsilon,
-        (y_dist - center_dist) / epsilon,
-    );
+            let (dx, dy) = if a_x_dominant {
+                (sign_pen(rel_a.x, x_pen_a), sign_pen(rel_b.y, y_pen_b))
+            } else {
+                (sign_pen(rel_b.x, x_pen_b), sign_pen(rel_a.y, y_pen_a))
+            };
+            Vec2::new(dx, dy)
+        };
+    }
 
-    gradient.normalize_or_zero()
+    // 对于更多瓦片的复杂角落/凹形/凸形组合，可以考虑基于 SDF 的梯度方向或约束求解器
+    // 多瓦片（>=3）：综合考虑所有重叠瓦片，按主导轴分别求平均分离
+    // 保留原有逻辑并做轻微稳健性调整
+    let mut x_separation = 0.0;
+    let mut y_separation = 0.0;
+    let mut x_count = 0;
+    let mut y_count = 0;
+
+    for (_, _, relative_pos, x_pen, y_pen) in &overlapping_tiles {
+        // 如果这个瓦片主要在 x 轴上阻挡（或 y 相对更大）
+        if x_pen < &0.5 || y_pen > &(x_pen * 1.5) {
+            x_separation += if relative_pos.x > 0.0 {
+                *x_pen
+            } else {
+                -*x_pen
+            };
+            x_count += 1;
+        }
+
+        // 如果这个瓦片主要在 y 轴上阻挡（或 x 相对更大）
+        if y_pen < &0.5 || x_pen > &(y_pen * 1.5) {
+            y_separation += if relative_pos.y > 0.0 {
+                *y_pen
+            } else {
+                -*y_pen
+            };
+            y_count += 1;
+        }
+    }
+
+    // 计算平均分离，但保证至少有一定的分离量
+    let final_x = if x_count > 0 {
+        x_separation / x_count as f32 + slop_diag
+    } else {
+        0.0
+    };
+    let final_y = if y_count > 0 {
+        y_separation / y_count as f32 + slop_diag
+    } else {
+        0.0
+    };
+
+    Vec2::new(final_x, final_y)
 }
 
 /// SDF function for a box (rectangle)
