@@ -82,24 +82,8 @@ fn apply_walking_step(
     if let Some(direction) = new_direction {
         facing.value = direction;
 
-        // 分解移动为更小的步骤以防止穿墙
+        // SDF碰撞系统可以处理任意大小的移动，无需分解步骤
         let movement = facing.value.as_vec2() * speed * delta_secs;
-
-        // 对于高速移动，分解为多个小步骤
-        let movement_magnitude = movement.length();
-        let max_step_size = 4.0; // 每步最大4像素
-
-        if movement_magnitude <= max_step_size {
-            // 小步移动，直接应用
-            transform.translation += movement.extend(0.0);
-        } else {
-            // 大步移动，分解为多个小步
-            let steps = (movement_magnitude / max_step_size).ceil() as i32;
-            let step_movement = movement / steps as f32;
-
-            for _ in 0..steps {
-                transform.translation += step_movement.extend(0.0);
-            }
-        }
+        transform.translation += movement.extend(0.0);
     }
 }
