@@ -17,7 +17,7 @@ use bevy::prelude::*;
 
 /// SDF-based collision detection and response system for player vs tilemap colliders
 /// Uses SDF union operations to create seamless collision areas
-/// 
+///
 /// 基于SDF的玩家与瓦片地图碰撞检测和响应系统
 /// 使用SDF并集操作创建无缝碰撞区域
 pub fn player_tilemap_collision_system(
@@ -32,18 +32,20 @@ pub fn player_tilemap_collision_system(
 ) {
     for (mut player_transform, player_collider) in player_query.iter_mut() {
         let player_pos = player_transform.translation.truncate() + player_collider.offset;
-        
+
         // 收集附近的所有瓦片进行SDF合并
         let nearby_tiles = collect_nearby_tiles(&player_pos, &tilemap_colliders);
-        
+
         if !nearby_tiles.is_empty() {
             // 计算合并后的SDF距离
-            let distance = merged_sdf_collision_detection(player_pos, player_collider, &nearby_tiles);
-            
+            let distance =
+                merged_sdf_collision_detection(player_pos, player_collider, &nearby_tiles);
+
             if distance < 0.0 {
                 // 玩家在合并的SDF内部，需要推出
-                let separation = calculate_merged_sdf_separation(player_pos, player_collider, &nearby_tiles);
-                
+                let separation =
+                    calculate_merged_sdf_separation(player_pos, player_collider, &nearby_tiles);
+
                 player_transform.translation.x += separation.x;
                 player_transform.translation.y += separation.y;
             }
@@ -59,19 +61,20 @@ fn collect_nearby_tiles(
         (&Transform, &Rect2DCollider),
         (With<TilemapCollider>, Without<PlayerControlled>),
     >,
-) -> Vec<(Vec2, Vec2)> { // (position, half_size)
+) -> Vec<(Vec2, Vec2)> {
+    // (position, half_size)
     let mut nearby_tiles = Vec::new();
     let search_radius = 50.0; // 搜索半径，可以根据需要调整
-    
+
     for (tile_transform, tile_collider) in tilemap_colliders.iter() {
         let tile_pos = tile_transform.translation.truncate() + tile_collider.offset;
-        
+
         // 只收集附近的瓦片以提高性能
         if (tile_pos - *player_pos).length() < search_radius {
             nearby_tiles.push((tile_pos, tile_collider.size * 0.5));
         }
     }
-    
+
     nearby_tiles
 }
 
@@ -83,19 +86,19 @@ fn merged_sdf_collision_detection(
     tiles: &[(Vec2, Vec2)], // (position, half_size)
 ) -> f32 {
     let player_half_size = player_collider.size * 0.5;
-    
+
     // 对所有瓦片SDF进行并集操作（取最小值）
     let mut min_distance = f32::INFINITY;
-    
+
     for &(tile_pos, tile_half_size) in tiles.iter() {
         let relative_pos = player_pos - tile_pos;
         // 扩展瓦片尺寸以包含玩家半径
         let expanded_half_size = tile_half_size + player_half_size;
-        
+
         let distance = sdf_box(relative_pos, expanded_half_size);
         min_distance = min_distance.min(distance);
     }
-    
+
     min_distance
 }
 
@@ -107,17 +110,17 @@ fn calculate_merged_sdf_separation(
     tiles: &[(Vec2, Vec2)],
 ) -> Vec2 {
     let current_distance = merged_sdf_collision_detection(player_pos, player_collider, tiles);
-    
+
     if current_distance >= 0.0 {
         return Vec2::ZERO;
     }
-    
+
     // 计算合并SDF的梯度
     let gradient = merged_sdf_gradient(player_pos, player_collider, tiles);
-    
+
     // 分离距离 = -distance + 安全边距
     let separation_distance = -current_distance + 0.2; // 稍微增加安全边距
-    
+
     gradient * separation_distance
 }
 
@@ -129,29 +132,37 @@ fn merged_sdf_gradient(
     tiles: &[(Vec2, Vec2)],
 ) -> Vec2 {
     let epsilon = 0.01;
-    
+
     let center_dist = merged_sdf_collision_detection(player_pos, player_collider, tiles);
-    let x_dist = merged_sdf_collision_detection(player_pos + Vec2::new(epsilon, 0.0), player_collider, tiles);
-    let y_dist = merged_sdf_collision_detection(player_pos + Vec2::new(0.0, epsilon), player_collider, tiles);
-    
+    let x_dist = merged_sdf_collision_detection(
+        player_pos + Vec2::new(epsilon, 0.0),
+        player_collider,
+        tiles,
+    );
+    let y_dist = merged_sdf_collision_detection(
+        player_pos + Vec2::new(0.0, epsilon),
+        player_collider,
+        tiles,
+    );
+
     let gradient = Vec2::new(
         (x_dist - center_dist) / epsilon,
         (y_dist - center_dist) / epsilon,
     );
-    
+
     gradient.normalize_or_zero()
 }
 
 /// SDF function for a box (rectangle)
 /// Implementation of the box SDF from Inigo Quilez
-/// 
+///
 /// 盒子（矩形）的SDF函数
 /// 基于Inigo Quilez的盒子SDF实现
 fn sdf_box(point: Vec2, half_size: Vec2) -> f32 {
     let d = point.abs() - half_size;
     let outside_distance = d.max(Vec2::ZERO).length();
     let inside_distance = d.x.max(d.y).min(0.0);
-    
+
     outside_distance + inside_distance
 }
 
@@ -163,24 +174,24 @@ pub fn create_merged_collision_polygon(
 ) -> Vec<Vec2> {
     // 这里可以实现更复杂的多边形合并算法
     // 例如使用Clipper库或简单的矩形并集
-    
+
     // 简单实现：找到包围所有瓦片的最小边界框
     if tiles.is_empty() {
         return Vec::new();
     }
-    
+
     let mut min_x = f32::INFINITY;
     let mut max_x = f32::NEG_INFINITY;
     let mut min_y = f32::INFINITY;
     let mut max_y = f32::NEG_INFINITY;
-    
+
     for &(center, half_size) in tiles.iter() {
         min_x = min_x.min(center.x - half_size.x);
         max_x = max_x.max(center.x + half_size.x);
         min_y = min_y.min(center.y - half_size.y);
         max_y = max_y.max(center.y + half_size.y);
     }
-    
+
     // 返回合并后的矩形顶点
     vec![
         Vec2::new(min_x, min_y),
