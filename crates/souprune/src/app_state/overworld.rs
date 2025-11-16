@@ -19,6 +19,7 @@ impl Plugin for OverworldPlugin {
             tilemap::TilemapPlugin,
             player::PlayerPlugin,
             character::CharacterPlugin,
+            ui::UndertaleOverworldUIPlugin,
         ))
         .add_systems(
             OnEnter(AppState::Overworld),
