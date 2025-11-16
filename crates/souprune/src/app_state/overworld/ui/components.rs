@@ -41,6 +41,13 @@ impl UILayer {
     pub fn name(&self) -> &str {
         &self.0
     }
+
+    /// Get the total count of predefined UI layers
+    ///
+    /// 获取预定义 UI 层的总数
+    pub const fn total_count() -> usize {
+        3 // BACKPACK_MENU, BACKPACK_ITEM, BACKPACK_STATUS
+    }
 }
 
 impl fmt::Display for UILayer {
@@ -135,14 +142,50 @@ pub(crate) struct OverworldUIBox {
 }
 
 impl OverworldUIBox {
-    /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
+    /// Create a new `OverworldUIBox` component with the given dimensions and border width.
     ///
-    /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
+    /// 创建一个新的 `OverworldUIBox` 组件，指定尺寸和边框宽度。
     pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
         Self {
             width,
             height,
             border_width,
         }
+    }
+
+    /// Get the box width.
+    ///
+    /// 获取框的宽度。
+    pub(crate) fn width(&self) -> f32 {
+        self.width
+    }
+
+    /// Get the box height.
+    ///
+    /// 获取框的高度。
+    pub(crate) fn height(&self) -> f32 {
+        self.height
+    }
+
+    /// Get the border width.
+    ///
+    /// 获取边框宽度。
+    pub(crate) fn border_width(&self) -> f32 {
+        self.border_width
+    }
+
+    /// Set the box dimensions.
+    ///
+    /// 设置框的尺寸。
+    pub(crate) fn set_dimensions(&mut self, width: f32, height: f32) {
+        self.width = width;
+        self.height = height;
+    }
+
+    /// Set the border width.
+    ///
+    /// 设置边框宽度。
+    pub(crate) fn set_border_width(&mut self, border_width: f32) {
+        self.border_width = border_width;
     }
 }
