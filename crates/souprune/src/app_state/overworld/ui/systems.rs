@@ -1,5 +1,5 @@
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::ui::components::{OverworldUI, UILayer};
+use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, UILayer};
 use crate::core::input::Action;
 use bevy::prelude::*;
 use bevy_smud::prelude::SdfAssets;
@@ -54,9 +54,10 @@ pub(crate) fn draw_backpack_ui_system(
                 transform.translation
             );
 
+            // TODO: 把下面的代码逻辑改为基于 ECS 组件的数据驱动生成与更新
             let box_width: f32 = 100.0;
-            let box_height: f32 = 50.0;
-            let border_width: f32 = 2.0;
+            let box_height: f32 = 70.0;
+            let border_width: f32 = 4.0;
 
             let outer_sdf = shaders.add_sdf_expr(format!(
                 "smud::sd_box(p, vec2<f32>({}, {}))",
@@ -112,5 +113,14 @@ pub(crate) fn draw_backpack_ui_system(
                 ));
             });
         }
+    }
+}
+
+pub(crate) fn update_overworld_ui_box_system(
+    overworld_ui_box_query: Query<(&mut SmudShape, &OverworldUIBox), Changed<OverworldUIBox>>,
+) {
+    // TODO: 我们也许需要获取的是OverworldUIBox的两个子实体：外框和内框
+    for (mut smud_shape, overworld_ui_box) in overworld_ui_box_query.iter() {
+
     }
 }

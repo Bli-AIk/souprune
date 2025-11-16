@@ -32,7 +32,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
             (
                 spawn_backpack_ui_system,
                 destroy_backpack_ui_system,
-                draw_backpack_ui_system,
+                update_overworld_ui_box_system,
             ),
         );
     }

@@ -126,3 +126,23 @@ impl OverworldUI {
         self.index = idx.min(self.max_index);
     }
 }
+
+#[derive(Component, Debug)]
+pub(crate) struct OverworldUIBox {
+    width: f32,
+    height: f32,
+    border_width: f32,
+}
+
+impl OverworldUIBox {
+    /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
+    ///
+    /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
+    pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
+        Self {
+            width,
+            height,
+            border_width,
+        }
+    }
+}
