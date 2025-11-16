@@ -33,8 +33,8 @@ impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
 
-        app.add_systems(OnEnter(OverworldState::Menu), spawn_backpack_ui_system)
-            .add_systems(OnExit(OverworldState::Menu), destroy_backpack_ui_system)
+        app.add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
+            .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
             .add_systems(
                 Update,
                 (

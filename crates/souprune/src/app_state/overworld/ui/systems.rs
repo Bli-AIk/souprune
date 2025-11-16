@@ -20,9 +20,9 @@ pub(crate) fn menu_overworld_state_transitions_system(
         match current_state.get() {
             OverworldState::Normal => {
                 info!("Transitioning from Normal to Menu state");
-                next_state.set(OverworldState::Menu);
+                next_state.set(OverworldState::Backpack);
             }
-            OverworldState::Menu => {
+            OverworldState::Backpack => {
                 info!("Transitioning from Menu to Normal state");
                 next_state.set(OverworldState::Normal);
             }

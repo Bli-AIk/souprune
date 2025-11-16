@@ -17,7 +17,7 @@ mod ui;
 pub(crate) enum OverworldState {
     #[default]
     Normal,
-    Menu,
+    Backpack,
     Cutscene,
 }
 
