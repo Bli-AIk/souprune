@@ -67,6 +67,7 @@ macro_rules! get_third_plugins {
             leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>::default(),
             seldom_state::prelude::StateMachinePlugin::default(),
             bevy_ecs_tiled::prelude::TiledPlugin::default(),
+            bevy_smud::SmudPlugin,
         )
     };
 }

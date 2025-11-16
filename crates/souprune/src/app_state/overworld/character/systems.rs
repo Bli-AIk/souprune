@@ -3,6 +3,42 @@ use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::Action;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
+
+pub(crate) fn update_walking_system(
+    time: Res<Time>,
+    mut query: Query<
+        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
+        With<StateWalking>,
+    >,
+) {
+    for (mut transform, facing, speed, action_state) in query.iter_mut() {
+        apply_walking_step(
+            &mut transform,
+            facing,
+            speed.value,
+            action_state,
+            time.delta_secs(),
+        );
+    }
+}
+pub(crate) fn update_running_system(
+    time: Res<Time>,
+    mut query: Query<
+        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
+        With<StateRunning>,
+    >,
+) {
+    for (mut transform, facing, speed, action_state) in query.iter_mut() {
+        apply_walking_step(
+            &mut transform,
+            facing,
+            speed.value * 2.0,
+            action_state,
+            time.delta_secs(),
+        );
+    }
+}
+
 fn apply_walking_step(
     transform: &mut Transform,
     mut facing: Mut<Facing>,
@@ -45,42 +81,9 @@ fn apply_walking_step(
 
     if let Some(direction) = new_direction {
         facing.value = direction;
+
+        // SDF碰撞系统可以处理任意大小的移动，无需分解步骤
         let movement = facing.value.as_vec2() * speed * delta_secs;
         transform.translation += movement.extend(0.0);
-    }
-}
-
-pub(crate) fn update_walking_system(
-    time: Res<Time>,
-    mut query: Query<
-        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
-        With<StateWalking>,
-    >,
-) {
-    for (mut transform, facing, speed, action_state) in query.iter_mut() {
-        apply_walking_step(
-            &mut transform,
-            facing,
-            speed.value,
-            action_state,
-            time.delta_secs(),
-        );
-    }
-}
-pub(crate) fn update_running_system(
-    time: Res<Time>,
-    mut query: Query<
-        (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
-        With<StateRunning>,
-    >,
-) {
-    for (mut transform, facing, speed, action_state) in query.iter_mut() {
-        apply_walking_step(
-            &mut transform,
-            facing,
-            speed.value * 2.0,
-            action_state,
-            time.delta_secs(),
-        );
     }
 }

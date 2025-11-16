@@ -1354,6 +1354,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_rich_text3d"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4d2a20437b6f1c9ef6371b0ff07731d42b565ce4713c4244c84d36c3e65f497"
+dependencies = [
+ "bevy",
+ "cosmic-text",
+ "rustc-hash 2.1.1",
+ "sys-locale",
+ "thiserror 2.0.17",
+ "zeno",
+]
+
+[[package]]
 name = "bevy_rich_text_3d_animator"
 version = "0.0.0"
 dependencies = [
@@ -1397,6 +1411,20 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "wgpu-types",
+]
+
+[[package]]
+name = "bevy_smud"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27dc71abede9f6a9dcbe49f84ddf442aa7a0823356afbf55b159e7b6bf73570a"
+dependencies = [
+ "bevy",
+ "bitflags 2.9.4",
+ "bytemuck",
+ "copyless",
+ "fixedbitset",
+ "uuid",
 ]
 
 [[package]]
@@ -2032,6 +2060,12 @@ checksum = "e1aaf9b65849a68662ac6c0810c8893a765c960b907dd7cfab9c4a50bf764fbc"
 dependencies = [
  "const_soft_float",
 ]
+
+[[package]]
+name = "copyless"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2df960f5d869b2dd8532793fde43eb5427cceb126c929747a26823ab0eeb536"
 
 [[package]]
 name = "core-foundation"
@@ -4955,7 +4989,9 @@ dependencies = [
  "bevy_ecs_tiled",
  "bevy_fact_rule_event",
  "bevy_mortar_bond",
+ "bevy_rich_text3d",
  "bevy_rich_text_3d_animator",
+ "bevy_smud",
  "bevy_tween",
  "iyes_perf_ui",
  "leafwing-input-manager",

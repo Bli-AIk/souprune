@@ -59,10 +59,10 @@ pub mod debug_inspector {
         app.add_systems(
             Update,
             (
-                toggle_perf_ui.before(iyes_perf_ui::PerfUiSet::Setup),
-                toggle_debug_help_text,
-                fade_debug_help_text,
-                handle_fade_out_complete,
+                toggle_perf_ui_system.before(iyes_perf_ui::PerfUiSet::Setup),
+                toggle_debug_help_text_system,
+                fade_debug_help_text_system,
+                handle_fade_out_complete_system,
             ),
         );
     }
@@ -84,6 +84,7 @@ pub mod debug_inspector {
                     "You are now running the game in Debug feature: ",
                     "Inspector: [F1]",
                     "Performance monitoring: [F2]",
+                    "Show colliders: [F3]",
                     "Toggle debug help: [F12]",
                 ];
 
@@ -106,21 +107,24 @@ pub mod debug_inspector {
         fade_in_text(&mut commands, &text_entities);
     }
 
-    fn toggle_perf_ui(
+    fn toggle_perf_ui_system(
         mut commands: Commands,
         q_perf_ui: Query<Entity, With<PerfUiRoot>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
         if keyboard_input.just_pressed(KeyCode::F2) {
-            if let Ok(e) = q_perf_ui.single() {
+            let message = if let Ok(e) = q_perf_ui.single() {
                 commands.entity(e).despawn();
+                "OFF"
             } else {
                 commands.spawn(PerfUiAllEntries::default());
-            }
+                "ON"
+            };
+            info!("Performance monitoring: {}", message);
         }
     }
 
-    fn toggle_debug_help_text(
+    fn toggle_debug_help_text_system(
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut commands: Commands,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
@@ -135,14 +139,16 @@ pub mod debug_inspector {
                 debug_help.timer.reset();
                 debug_help.fade_out_started = false;
                 fade_in_text(&mut commands, &debug_help.text_entities);
+                info!("Debug help text: ON");
             } else {
                 debug_help.fade_out_started = true;
                 fade_out_text(&mut commands, &debug_help.text_entities);
+                info!("Debug help text: OFF");
             }
         }
     }
 
-    fn fade_debug_help_text(
+    fn fade_debug_help_text_system(
         time: Res<Time>,
         mut commands: Commands,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
@@ -188,7 +194,7 @@ pub mod debug_inspector {
         }
     }
 
-    fn handle_fade_out_complete(
+    fn handle_fade_out_complete_system(
         _time: Res<Time>,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
         q_text_colors: Query<&TextColor>,

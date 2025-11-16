@@ -1,46 +1,41 @@
-use crate::info;
-use bevy::prelude::Commands;
+//! # tilemap.rs
+//!
+//! ## Module Overview
+//! This module manages the tilemap and its objects within the overworld game state, including setup, initialization, and rendering order.
+//!
+//! ## Source File Overview
+//! This file defines the `TilemapPlugin`, which integrates systems for handling tiled maps, setting up the tilemap,
+//! and updating object rendering order relative to the player.
+//!
+//! ## 模块概述
+//! 该模块管理着世界地图游戏状态中的瓦片地图及其对象，包括设置、初始化和渲染顺序。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `TilemapPlugin`，它集成了用于处理瓦片地图、设置瓦片地图，
+//! 以及更新相对于玩家的对象渲染顺序的系统。
+
+use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::*;
 
-pub(crate) fn setup_tilemap(commands: &mut Commands, asset_server: &Res<AssetServer>) {
-    commands.spawn((
-        TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
-        TilemapAnchor::Center,
-        TiledMapLayerZOffset(10.0),
-    ));
+pub mod object_properties;
+mod systems;
 
-    // TODO: Tilemap的资源加载（或许）应当在AppSetup阶段完成。
-}
+pub use object_properties::ObjectCollider;
+pub use systems::TilemapCollider;
 
-pub(crate) fn filter_prototype_layers_and_set_z_order_system(
-    mut commands: Commands,
-    layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
-) {
-    for (layer_entity, layer_name) in layers_query.iter() {
-        let layer_name_str = layer_name.as_str();
+pub(crate) struct TilemapPlugin;
 
-        if layer_name_str.to_lowercase().contains("prototype") {
-            info!("Hide prototype layer: {}", layer_name_str);
-            commands.entity(layer_entity).insert(Visibility::Hidden);
-        } else {
-            info!("Show layers: {}", layer_name_str);
-
-            let z_offset = match layer_name_str {
-                name if name.contains("floor") => -2.5,
-                name if name.contains("wall") && !name.contains("on_wall") => -2.0,
-                name if name.contains("on_wall") => -1.5,
-                name if name.contains("objects") => -1.0,
-                _ => -3.0,
-            };
-
-            commands
-                .entity(layer_entity)
-                .insert(Transform::from_xyz(0.0, 0.0, z_offset));
-            info!(
-                "Set the Z-axis position of layer {}: {}",
-                layer_name_str, z_offset
+impl Plugin for TilemapPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(Overworld), systems::setup_tilemap_system)
+            .add_systems(
+                Update,
+                (
+                    systems::initialize_tilemap_system,
+                    systems::generate_collision_tiles_system,
+                    systems::setup_camera_bounds_system,
+                    systems::update_objects_order_with_player_system,
+                ),
             );
-        }
     }
 }
