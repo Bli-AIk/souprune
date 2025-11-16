@@ -8,17 +8,28 @@ use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
-    mut player_query: Query<(&ActionState<Action>, &PlayerControlled, &Transform)>,
+    mut player_query: Query<(&ActionState<Action>, &PlayerControlled)>,
+    mut camera_query: Query<(&Camera2d, &Transform)>,
     overworld_ui_query: Query<&OverworldUI>,
 ) {
     if !overworld_ui_query.is_empty() {
         return;
     }
 
-    for (action_state, _camera, camera_transform) in player_query.iter_mut() {
+    for (action_state, _player) in player_query.iter_mut() {
         if action_state.just_pressed(&Action::Menu) {
+            let (_camera, camera_transform) = match camera_query.iter().next() {
+                Some(camera_data) => camera_data,
+                None => {
+                    error!("No Camera2d found!");
+                    return;
+                }
+            };
+
+            // Dynamically get the total count of UILayer - 1
             // 动态获取 UILayer 的总数 - 1
             let max_index = UILayer::total_count().saturating_sub(1);
+
             let mut ui_transform = *camera_transform;
             ui_transform.translation += Vec3::new(-108.5, -1.0, 0.0);
 
@@ -59,7 +70,7 @@ pub(crate) fn draw_backpack_ui_system(
             info!("Adding OverworldUIBox component to UI entity");
 
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
-            let ui_box = OverworldUIBox::new(65.5, 67.5, 3.0);
+            let ui_box = OverworldUIBox::new(325.0, 340.0, 15.0);
             commands.entity(ui_entity).insert(ui_box);
         }
     }
