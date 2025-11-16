@@ -27,7 +27,14 @@ pub(crate) struct UndertaleOverworldUIPlugin;
 impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
-        app.add_systems(Update, (spawn_backpack_ui_system, draw_backpack_ui_system));
+        app.add_systems(
+            Update,
+            (
+                spawn_backpack_ui_system,
+                destroy_backpack_ui_system,
+                draw_backpack_ui_system,
+            ),
+        );
     }
 }
 

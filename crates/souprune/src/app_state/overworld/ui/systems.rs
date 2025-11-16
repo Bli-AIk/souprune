@@ -9,7 +9,12 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     mut query: Query<(&ActionState<Action>, &PlayerControlled, &Transform)>,
+    overworld_ui_query: Query<&OverworldUI>,
 ) {
+    if !overworld_ui_query.is_empty() {
+        return;
+    }
+
     for (action_state, _player, player_transform) in query.iter_mut() {
         if action_state.just_pressed(&Action::Menu) {
             //TODO: 把 硬编码的 2 改为 动态获取 UILayer 的总数 - 1
@@ -17,6 +22,21 @@ pub(crate) fn spawn_backpack_ui_system(
                 OverworldUI::new(UILayer::BACKPACK_MENU, 2),
                 *player_transform,
             ));
+        }
+    }
+}
+pub(crate) fn destroy_backpack_ui_system(
+    mut commands: Commands,
+    player_query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    ui_query: Query<(Entity, &OverworldUI)>,
+) {
+    for action_state in player_query.iter() {
+        if action_state.just_pressed(&Action::Menu) {
+            for (entity, overworld_ui) in ui_query.iter() {
+                if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
+                    commands.entity(entity).despawn();
+                }
+            }
         }
     }
 }
