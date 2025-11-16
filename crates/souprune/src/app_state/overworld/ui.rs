@@ -17,9 +17,10 @@
 //! 该文件定义了 `UndertaleOverworldUIPlugin` 与 `DeltaruneOverworldUIPlugin`。
 //! 目前，对于整个项目，你应当任选其一使用，而不是同时使用两者。
 
+use crate::app_state::overworld::OverworldState;
 use bevy::prelude::*;
 
-mod components;
+pub(crate) mod components;
 mod systems;
 
 #[cfg(feature = "debug")]
@@ -31,15 +32,12 @@ impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
 
-        app.add_systems(
-            Update,
-            (
-                spawn_backpack_ui_system,
-                destroy_backpack_ui_system,
-                draw_backpack_ui_system,
-                update_overworld_ui_box_system,
-            ),
-        );
+        app.add_systems(OnEnter(OverworldState::Menu), spawn_backpack_ui_system)
+            .add_systems(OnExit(OverworldState::Menu), destroy_backpack_ui_system)
+            .add_systems(
+                Update,
+                (draw_backpack_ui_system, update_overworld_ui_box_system),
+            );
 
         #[cfg(feature = "debug")]
         {

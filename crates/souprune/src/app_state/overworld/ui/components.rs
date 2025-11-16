@@ -50,6 +50,7 @@ impl UILayer {
     ///
     /// 获取预定义 UI 层的总数
     pub const fn total_count() -> usize {
+        //TODO: 真正计算总数
         3 // BACKPACK_MENU, BACKPACK_ITEM, BACKPACK_STATUS
     }
 }

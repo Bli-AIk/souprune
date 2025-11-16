@@ -1,58 +1,49 @@
-use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, UILayer};
-use crate::core::input::Action;
 use bevy::prelude::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
-use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
-    mut player_query: Query<(&ActionState<Action>, &PlayerControlled)>,
-    mut camera_query: Query<(&Camera2d, &Transform)>,
+    camera_query: Query<&Transform, With<Camera2d>>,
     overworld_ui_query: Query<&OverworldUI>,
 ) {
+    // Only create UI if it doesn't already exist and we're in menu state
     if !overworld_ui_query.is_empty() {
         return;
     }
 
-    for (action_state, _player) in player_query.iter_mut() {
-        if action_state.just_pressed(&Action::Menu) {
-            let (_camera, camera_transform) = match camera_query.iter().next() {
-                Some(camera_data) => camera_data,
-                None => {
-                    error!("No Camera2d found!");
-                    return;
-                }
-            };
-
-            // Dynamically get the total count of UILayer - 1
-            // 动态获取 UILayer 的总数 - 1
-            let max_index = UILayer::total_count().saturating_sub(1);
-
-            let mut ui_transform = *camera_transform;
-            ui_transform.translation += Vec3::new(-108.5, -1.0, 0.0);
-
-            commands.spawn((
-                OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
-                ui_transform,
-                Name::new("Overworld Backpack UI"),
-            ));
+    let camera_transform = match camera_query.single() {
+        Ok(transform) => transform,
+        Err(_) => {
+            warn!("No Camera2d found for UI spawning!");
+            return;
         }
-    }
+    };
+
+    // 动态获取 UILayer 的总数 - 1
+    let max_index = UILayer::total_count().saturating_sub(1);
+
+    let mut ui_transform = *camera_transform;
+    ui_transform.translation += Vec3::new(-108.5, -1.0, 0.0);
+
+    commands.spawn((
+        OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
+        ui_transform,
+        Name::new("Backpack Menu UI"),
+    ));
+
+    info!("Spawned backpack UI in Menu state");
 }
+
 pub(crate) fn destroy_backpack_ui_system(
     mut commands: Commands,
-    player_query: Query<&ActionState<Action>, With<PlayerControlled>>,
     ui_query: Query<(Entity, &OverworldUI)>,
 ) {
-    for action_state in player_query.iter() {
-        if action_state.just_pressed(&Action::Menu) {
-            for (entity, overworld_ui) in ui_query.iter() {
-                if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
-                    commands.entity(entity).despawn();
-                }
-            }
+    for (entity, overworld_ui) in ui_query.iter() {
+        if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
+            commands.entity(entity).despawn();
+            info!("Destroyed backpack UI when leaving Menu state");
         }
     }
 }
