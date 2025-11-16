@@ -8,7 +8,7 @@
 
 **SoupRune** is a game framework designed specifically for **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/) fangames**.
 
-| English         | Chinese                     |
+| English         | Simplified Chinese                     |
 |-----------------|-----------------------------|
 | English Version | [简体中文](./readme_zh-hant.md) |
 
