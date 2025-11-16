@@ -13,7 +13,11 @@ use bevy::prelude::Component;
 use std::borrow::Cow;
 use std::fmt;
 
+#[cfg(feature = "debug")]
+use bevy::reflect::Reflect;
+
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct UILayer(Cow<'static, str>);
 
 impl UILayer {
@@ -69,6 +73,7 @@ impl fmt::Display for UILayer {
 /// - 使用提供的 getter 来读取 `layer`、`index` 和 `max_index`。
 /// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
 #[derive(Component, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct OverworldUI {
     layer: UILayer,
     index: usize,
@@ -135,10 +140,11 @@ impl OverworldUI {
 }
 
 #[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct OverworldUIBox {
-    width: f32,
-    height: f32,
-    border_width: f32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
+    pub(crate) border_width: f32,
 }
 
 impl OverworldUIBox {

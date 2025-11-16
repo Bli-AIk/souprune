@@ -22,11 +22,15 @@ use bevy::prelude::*;
 mod components;
 mod systems;
 
+#[cfg(feature = "debug")]
+use components::{OverworldUI, OverworldUIBox, UILayer};
+
 pub(crate) struct UndertaleOverworldUIPlugin;
 
 impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
+
         app.add_systems(
             Update,
             (
@@ -36,6 +40,13 @@ impl Plugin for UndertaleOverworldUIPlugin {
                 update_overworld_ui_box_system,
             ),
         );
+
+        #[cfg(feature = "debug")]
+        {
+            app.register_type::<OverworldUI>()
+                .register_type::<OverworldUIBox>()
+                .register_type::<UILayer>();
+        }
     }
 }
 
