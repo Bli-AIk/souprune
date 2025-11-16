@@ -10,24 +10,44 @@
 //! 和受控的设置器来访问和修改。
 
 use bevy::prelude::Component;
+use std::borrow::Cow;
+use std::fmt;
 
-/// The different UI layers in the overworld.
-/// overworld 中的不同 UI 层级。
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum OverworldUILayer {
-    /// Main menu layer.
-    /// 主菜单层。
-    Menu,
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+pub struct UILayer(Cow<'static, str>);
 
-    /// Item selection or inventory layer.
-    /// 道具选择或物品栏界面层。
-    Item,
+impl UILayer {
+    pub const MENU: UILayer = UILayer::new_static("Menu");
+    pub const ITEM: UILayer = UILayer::new_static("Item");
+    pub const STATUS: UILayer = UILayer::new_static("Status");
 
-    /// Status or character status layer.
-    /// 状态界面或角色状态层。
-    Status,
+    /// Const constructor for static constants
+    ///
+    /// Const 构造函数，用于静态常量初始化
+    const fn new_static(name: &'static str) -> UILayer {
+        UILayer(Cow::Borrowed(name))
+    }
+
+    /// Dynamically construct a layer (flexible for mods or expansions)
+    ///
+    /// 动态构造层（灵活扩展）
+    pub fn new(name: impl Into<Cow<'static, str>>) -> UILayer {
+        UILayer(name.into())
+    }
+
+    /// Get the layer name
+    ///
+    /// 获取层名称
+    pub fn name(&self) -> &str {
+        &self.0
+    }
 }
 
+impl fmt::Display for UILayer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 /// Component that records the UI layer and the current selection index within that layer.
 ///
 /// Access pattern:
@@ -43,7 +63,7 @@ pub enum OverworldUILayer {
 /// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
 #[derive(Component, Eq, PartialEq, Debug)]
 pub(crate) struct OverworldUI {
-    layer: OverworldUILayer,
+    layer: UILayer,
     index: usize,
     max_index: usize,
 }
@@ -52,7 +72,7 @@ impl OverworldUI {
     /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
     ///
     /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
-    pub(crate) fn new(layer: OverworldUILayer, max_index: usize) -> Self {
+    pub(crate) fn new(layer: UILayer, max_index: usize) -> Self {
         Self {
             layer,
             index: 0,
@@ -63,8 +83,8 @@ impl OverworldUI {
     /// Get the current UI layer.
     ///
     /// 获取当前的 UI 层级。
-    pub(crate) fn layer(&self) -> OverworldUILayer {
-        self.layer
+    pub(crate) fn layer(&self) -> &UILayer {
+        &self.layer
     }
 
     /// Get the current selected index inside the active layer.
@@ -87,7 +107,7 @@ impl OverworldUI {
     ///
     /// 更改激活层并相应地更新 `max_index`。
     /// 若层发生变化，会将选中索引 `index` 重置为 0；若当前 `index` 大于新的 `max_index`，会被夹住。
-    pub(crate) fn set_layer(&mut self, layer: OverworldUILayer, max_index: usize) {
+    pub(crate) fn set_layer(&mut self, layer: UILayer, max_index: usize) {
         if self.layer != layer {
             self.layer = layer;
             self.index = 0;
