@@ -41,13 +41,13 @@ pub(crate) fn draw_backpack_ui_system(
             let final_position = transform.translation + Vec3::new(0.0, 0.0, 0.5);
 
             info!("Spawning SmudShape at position: {:?}", final_position);
-
+            // TODO: 我们需要一个黑色为底，白色边框的 sdf 图像。 
             commands.spawn((
                 SmudShape {
                     color: Color::hsl(210.0, 0.75, 0.5),
                     sdf: border_sdf,
                     frame: Frame::Quad(500.0),
-                    fill: SIMPLE_FILL_HANDLE,
+                    fill: SIMPLE_FILL_HANDLE,// TODO: 这个实现似乎会添加抗锯齿，导致矩形看上去是圆角的，我们需要一个没有抗锯齿的填充
                     ..default()
                 },
                 Transform::from_translation(final_position),
