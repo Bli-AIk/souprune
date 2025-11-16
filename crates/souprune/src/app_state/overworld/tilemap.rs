@@ -8,7 +8,7 @@
 //! and updating object rendering order relative to the player.
 //!
 //! ## 模块概述
-//! 该模块管理着世界地图游戏状态中的瓦片地图及其对象，包括设置、初始化和渲染顺序。
+//! 该模块管理着 Overworld 游戏状态中的瓦片地图及其对象，包括设置、初始化和渲染顺序。
 //!
 //! ## 源文件概述
 //! 该文件定义了 `TilemapPlugin`，它集成了用于处理瓦片地图、设置瓦片地图，

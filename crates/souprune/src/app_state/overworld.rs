@@ -1,13 +1,17 @@
 use crate::app_state::AppState;
+use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::core::basic_components::Facing;
 use crate::core::camera::Followable;
-use crate::core::input::PlayerInputSettings;
+use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
+use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) mod character;
 mod player;
 pub(crate) mod tilemap;
+mod ui;
 
 pub(crate) struct OverworldPlugin;
 
@@ -43,3 +47,5 @@ fn bind_camera_target_system(
         }
     }
 }
+
+pub(crate) fn open_overworld_ui_system(mut query: Query<(&ActionState<Action>)>) {}

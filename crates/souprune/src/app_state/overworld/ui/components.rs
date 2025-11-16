@@ -1,0 +1,108 @@
+//! Overworld UI components used by the overworld app state.
+//!
+//! Components and helpers to track which UI layer is active and the currently selected
+//! index within that layer. The fields are kept private and access is provided through
+//! read-only getters and controlled setters.
+//!
+//! 用于 overworld 应用状态的 UI 组件。
+//!
+//! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。字段为私有，通过只读访问器
+//! 和受控的设置器来访问和修改。
+
+use bevy::prelude::Component;
+
+/// The different UI layers in the overworld.
+/// overworld 中的不同 UI 层级。
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum OverworldUILayer {
+    /// Main menu layer.
+    /// 主菜单层。
+    Menu,
+
+    /// Item selection or inventory layer.
+    /// 道具选择或物品栏界面层。
+    Item,
+
+    /// Status or character status layer.
+    /// 状态界面或角色状态层。
+    Status,
+}
+
+/// Component that records the UI layer and the current selection index within that layer.
+///
+/// Access pattern:
+/// - Fields are private to enforce read-only access from outside code in the crate.
+/// - Use the provided getters to read `layer`, `index` and `max_index`.
+/// - Use `set_layer` and `set_index` to change state in a controlled way (clamps and resets index as needed).
+///
+/// 记录 UI 层以及该层内当前选中项索引的组件。
+///
+/// 访问约定：
+/// - 字段为私有以在 crate 范围内强制读取访问。
+/// - 使用提供的 getter 来读取 `layer`、`index` 和 `max_index`。
+/// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
+#[derive(Component, Eq, PartialEq, Debug)]
+pub(crate) struct OverworldUI {
+    layer: OverworldUILayer,
+    index: usize,
+    max_index: usize,
+}
+
+impl OverworldUI {
+    /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
+    ///
+    /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
+    pub(crate) fn new(layer: OverworldUILayer, max_index: usize) -> Self {
+        Self {
+            layer,
+            index: 0,
+            max_index,
+        }
+    }
+
+    /// Get the current UI layer.
+    ///
+    /// 获取当前的 UI 层级。
+    pub(crate) fn layer(&self) -> OverworldUILayer {
+        self.layer
+    }
+
+    /// Get the current selected index inside the active layer.
+    ///
+    /// 获取当前在激活层内所选的索引。
+    pub(crate) fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Get the maximum valid index for the active layer. Indexes are clamped to this value.
+    ///
+    /// 获取当前激活层的最大有效索引。索引会被限制在该值之内。
+    pub(crate) fn max_index(&self) -> usize {
+        self.max_index
+    }
+
+    /// Change the active layer and update `max_index` accordingly.
+    /// If the layer changes, the selection `index` is reset to 0. If the current `index`
+    /// is greater than the new `max_index`, it will be clamped down.
+    ///
+    /// 更改激活层并相应地更新 `max_index`。
+    /// 若层发生变化，会将选中索引 `index` 重置为 0；若当前 `index` 大于新的 `max_index`，会被夹住。
+    pub(crate) fn set_layer(&mut self, layer: OverworldUILayer, max_index: usize) {
+        if self.layer != layer {
+            self.layer = layer;
+            self.index = 0;
+        }
+        self.max_index = max_index;
+        if self.index > self.max_index {
+            self.index = self.max_index;
+        }
+    }
+
+    /// Set the selection index within the current layer. The provided index will be
+    /// clamped to the range [0, max_index].
+    ///
+    /// 设置当前层内的选择索引。提供的索引会被夹在 [0, max_index] 范围内。
+    pub(crate) fn set_index(&mut self, idx: usize) {
+        self.index = idx.min(self.max_index);
+    }
+}
