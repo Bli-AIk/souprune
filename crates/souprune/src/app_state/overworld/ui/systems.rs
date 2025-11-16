@@ -45,9 +45,9 @@ pub(crate) fn destroy_backpack_ui_system(
 pub(crate) fn draw_backpack_ui_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
-    overworld_ui_query: Query<(&OverworldUI, &Transform), Added<OverworldUI>>,
+    overworld_ui_query: Query<(Entity, &OverworldUI, &Transform), Added<OverworldUI>>,
 ) {
-    for (overworld_ui, transform) in overworld_ui_query.iter() {
+    for (ui_entity, overworld_ui, transform) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
             info!(
                 "Overworld UI spawned at position: {:?}",
@@ -80,29 +80,37 @@ pub(crate) fn draw_backpack_ui_system(
 
             let final_position = transform.translation + Vec3::new(0.0, 0.0, 5.0);
 
-            info!("Spawning SmudShape at position: {:?}", final_position);
+            info!(
+                "Spawning SmudShape children at position: {:?}",
+                final_position
+            );
 
-            commands.spawn((
-                SmudShape {
-                    color: Color::WHITE,
-                    sdf: outer_sdf,
-                    frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                    fill: solid_fill.clone(),
-                    ..default()
-                },
-                Transform::from_translation(final_position),
-            ));
+            // 使用 with_children 来创建子实体
+            commands.entity(ui_entity).with_children(|parent| {
+                // 外框 (白色边框)
+                parent.spawn((
+                    SmudShape {
+                        color: Color::WHITE,
+                        sdf: outer_sdf,
+                        frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
+                        fill: solid_fill.clone(),
+                        ..default()
+                    },
+                    Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+                ));
 
-            commands.spawn((
-                SmudShape {
-                    color: Color::BLACK,
-                    sdf: inner_sdf,
-                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                    fill: solid_fill,
-                    ..default()
-                },
-                Transform::from_translation(final_position + Vec3::new(0.0, 0.0, 0.1)),
-            ));
+                // 内框 (黑色背景)
+                parent.spawn((
+                    SmudShape {
+                        color: Color::BLACK,
+                        sdf: inner_sdf,
+                        frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                        fill: solid_fill,
+                        ..default()
+                    },
+                    Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
+                ));
+            });
         }
     }
 }
