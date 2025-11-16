@@ -9,7 +9,7 @@ pub mod debug_collider {
     }
 
     use crate::app_state::overworld::character::components::PlayerControlled;
-    use crate::app_state::overworld::tilemap::{ObjectCollider, TilemapCollider};
+    use crate::app_state::overworld::tilemap::*;
     use crate::core::collision::Rect2DCollider;
     use bevy::prelude::*;
     use bevy_smud::prelude::*;

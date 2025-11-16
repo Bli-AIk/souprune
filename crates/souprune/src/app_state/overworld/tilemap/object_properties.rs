@@ -8,7 +8,7 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
-use crate::app_state::overworld::tilemap::TilemapCollider;
+use crate::app_state::overworld::tilemap::systems::TilemapCollider;
 use crate::core::collision::Rect2DCollider;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};

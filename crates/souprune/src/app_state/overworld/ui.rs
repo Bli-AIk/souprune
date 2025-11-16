@@ -18,12 +18,17 @@
 //! 目前，对于整个项目，你应当任选其一使用，而不是同时使用两者。
 
 use bevy::prelude::*;
+
 mod components;
+mod systems;
 
 pub(crate) struct UndertaleOverworldUIPlugin;
 
 impl Plugin for UndertaleOverworldUIPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        use systems::*;
+        app.add_systems(Update, (spawn_backpack_ui_system, draw_backpack_ui_system));
+    }
 }
 
 pub(crate) struct DeltaruneOverworldUIPlugin;

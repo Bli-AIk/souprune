@@ -17,9 +17,9 @@ use std::fmt;
 pub struct UILayer(Cow<'static, str>);
 
 impl UILayer {
-    pub const MENU: UILayer = UILayer::new_static("Menu");
-    pub const ITEM: UILayer = UILayer::new_static("Item");
-    pub const STATUS: UILayer = UILayer::new_static("Status");
+    pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
+    pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
+    pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
 
     /// Const constructor for static constants
     ///

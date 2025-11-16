@@ -18,23 +18,23 @@ use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
 pub mod object_properties;
-mod systems;
+pub mod systems;
 
 pub use object_properties::ObjectCollider;
-pub use systems::TilemapCollider;
 
 pub(crate) struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(Overworld), systems::setup_tilemap_system)
+        use systems::*;
+        app.add_systems(OnEnter(Overworld), setup_tilemap_system)
             .add_systems(
                 Update,
                 (
-                    systems::initialize_tilemap_system,
-                    systems::generate_collision_tiles_system,
-                    systems::setup_camera_bounds_system,
-                    systems::update_objects_order_with_player_system,
+                    initialize_tilemap_system,
+                    generate_collision_tiles_system,
+                    setup_camera_bounds_system,
+                    update_objects_order_with_player_system,
                 ),
             );
     }

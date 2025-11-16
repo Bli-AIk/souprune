@@ -28,13 +28,14 @@ pub(crate) mod utils;
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        use systems::*;
         app.add_systems(
             Update,
             (
-                systems::player_direction_control_system,
-                systems::player_idle_anim_control_system,
-                systems::player_walk_anim_control_system,
-                systems::player_run_anim_control_system,
+                player_direction_control_system,
+                player_idle_anim_control_system,
+                player_walk_anim_control_system,
+                player_run_anim_control_system,
             ),
         );
     }
