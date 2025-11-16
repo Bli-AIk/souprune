@@ -23,6 +23,7 @@ use bevy::prelude::*;
 pub(crate) mod components;
 mod systems;
 
+use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{OverworldUI, OverworldUIBox, UILayer};
 
@@ -36,7 +37,11 @@ impl Plugin for UndertaleOverworldUIPlugin {
             .add_systems(OnExit(OverworldState::Menu), destroy_backpack_ui_system)
             .add_systems(
                 Update,
-                (draw_backpack_ui_system, update_overworld_ui_box_system),
+                (
+                    menu_overworld_state_transitions_system,
+                    draw_backpack_ui_system,
+                    update_overworld_ui_box_system,
+                ),
             );
 
         #[cfg(feature = "debug")]

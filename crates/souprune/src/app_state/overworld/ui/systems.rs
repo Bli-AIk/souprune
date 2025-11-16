@@ -2,6 +2,37 @@ use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, U
 use bevy::prelude::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
+use leafwing_input_manager::action_state::ActionState;
+use crate::app_state::overworld::{character, OverworldState};
+use crate::core::input::Action;
+
+/// Handle transitions between overworld sub-states
+///
+/// 处理 Menu 对 Overworld 子状态之间的转换
+pub(crate) fn menu_overworld_state_transitions_system(
+    mut next_state: ResMut<NextState<OverworldState>>,
+    current_state: Res<State<OverworldState>>,
+    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+) {
+    if let Ok(action_state) = query.single()
+        && action_state.just_pressed(&Action::Menu)
+    {
+        match current_state.get() {
+            OverworldState::Normal => {
+                info!("Transitioning from Normal to Menu state");
+                next_state.set(OverworldState::Menu);
+            }
+            OverworldState::Menu => {
+                info!("Transitioning from Menu to Normal state");
+                next_state.set(OverworldState::Normal);
+            }
+            OverworldState::Cutscene => {
+                info!("Menu key pressed during cutscene, ignoring");
+            }
+        }
+    }
+}
+
 
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
