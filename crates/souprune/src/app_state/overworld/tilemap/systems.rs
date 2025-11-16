@@ -17,6 +17,16 @@ use bevy_ecs_tiled::prelude::{
 #[derive(Component)]
 pub struct TilemapCollider;
 
+/// Root entity for organizing collision tiles
+/// 用于组织碰撞瓦片的根实体
+#[derive(Component)]
+pub struct CollisionTileGroup;
+
+/// Root entity for organizing object collisions
+/// 用于组织对象碰撞的根实体
+#[derive(Component)]
+pub struct ObjectCollisionGroup;
+
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
@@ -87,7 +97,37 @@ pub fn generate_collision_tiles_system(
     tiled_maps_query: Query<(Entity, &TiledMap)>,
     collision_layers: CollisionLayersQuery,
     existing_object_colliders: Query<&crate::app_state::overworld::tilemap::ObjectCollider>,
+    collision_tile_group: Query<Entity, With<CollisionTileGroup>>,
+    object_collision_group: Query<Entity, With<ObjectCollisionGroup>>,
 ) {
+    // Create collision tile group if it doesn't exist
+    let collision_tile_group_entity = if let Ok(entity) = collision_tile_group.single() {
+        entity
+    } else {
+        commands
+            .spawn((
+                CollisionTileGroup,
+                Name::new("Collision Tiles"),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id()
+    };
+
+    // Create object collision group if it doesn't exist
+    let object_collision_group_entity = if let Ok(entity) = object_collision_group.single() {
+        entity
+    } else {
+        commands
+            .spawn((
+                ObjectCollisionGroup,
+                Name::new("Object Collisions"),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id()
+    };
+
     for (layer_entity, layer_name, _tiled_layer) in collision_layers.iter() {
         if !is_collision_layer(layer_name.as_str()) {
             continue;
@@ -96,12 +136,21 @@ pub fn generate_collision_tiles_system(
         if let Some((tiled_map_asset, matching_layer)) =
             find_matching_layer(&tiled_maps_query, &tiled_map_assets, layer_name.as_str())
         {
-            generate_tiles_for_layer(&mut commands, tiled_map_asset, &matching_layer);
+            generate_tiles_for_layer(
+                &mut commands,
+                tiled_map_asset,
+                &matching_layer,
+                collision_tile_group_entity,
+            );
 
             // Also process object collision while we have the map data
             // 在处理瓦片碰撞的同时处理对象碰撞
             if existing_object_colliders.is_empty() {
-                generate_object_colliders(&mut commands, tiled_map_asset);
+                generate_object_colliders(
+                    &mut commands,
+                    tiled_map_asset,
+                    object_collision_group_entity,
+                );
             }
         }
 
@@ -148,6 +197,7 @@ fn generate_tiles_for_layer(
     commands: &mut Commands,
     tiled_map_asset: &TiledMapAsset,
     layer: &tiled::Layer,
+    parent_entity: Entity,
 ) {
     let Some(tile_layer) = layer.as_tile_layer() else {
         return;
@@ -171,13 +221,15 @@ fn generate_tiles_for_layer(
                 let world_y =
                     center_offset_y + (tile_pos.y as f32 * tile_height) + (tile_height / 2.0);
 
-                // 创建碰撞瓦片实体
-                commands.spawn((
-                    TilemapCollider,
-                    Rect2DCollider::new(Vec2::new(tile_size, tile_height), Vec2::ZERO),
-                    Transform::from_xyz(world_x, world_y, 0.0),
-                    Name::new(format!("CollisionTile({},{})", tile_pos.x, tile_pos.y)),
-                ));
+                // 作为子实体创建碰撞瓦片
+                commands.entity(parent_entity).with_children(|parent| {
+                    parent.spawn((
+                        TilemapCollider,
+                        Rect2DCollider::new(Vec2::new(tile_size, tile_height), Vec2::ZERO),
+                        Transform::from_xyz(world_x, world_y, 0.0),
+                        Name::new(format!("CollisionTile({},{})", tile_pos.x, tile_pos.y)),
+                    ));
+                });
             }
         },
     );
@@ -185,7 +237,11 @@ fn generate_tiles_for_layer(
 
 /// Generate collision objects for objects with collision properties
 /// 为具有碰撞属性的对象生成碰撞体
-fn generate_object_colliders(commands: &mut Commands, tiled_map_asset: &TiledMapAsset) {
+fn generate_object_colliders(
+    commands: &mut Commands,
+    tiled_map_asset: &TiledMapAsset,
+    parent_entity: Entity,
+) {
     // Calculate map center offset (same as tile collision system)
     let tile_size = tiled_map_asset.map.tile_width as f32;
     let tile_height = tiled_map_asset.map.tile_height as f32;
@@ -223,14 +279,17 @@ fn generate_object_colliders(commands: &mut Commands, tiled_map_asset: &TiledMap
                         object_data.name, world_x, world_y, width, height
                     );
 
-                    commands.spawn((
-                        crate::app_state::overworld::tilemap::ObjectCollider,
-                        TilemapCollider,
-                        Rect2DCollider::new(size, Vec2::ZERO),
-                        Transform::from_xyz(world_x, world_y, 0.0),
-                        Visibility::Hidden,
-                        Name::new(format!("ObjectCollision_{}", object_data.name)),
-                    ));
+                    // 作为子实体创建对象碰撞体
+                    commands.entity(parent_entity).with_children(|parent| {
+                        parent.spawn((
+                            crate::app_state::overworld::tilemap::ObjectCollider,
+                            TilemapCollider,
+                            Rect2DCollider::new(size, Vec2::ZERO),
+                            Transform::from_xyz(world_x, world_y, 0.0),
+                            Visibility::Hidden,
+                            Name::new(format!("ObjectCollision_{}", object_data.name)),
+                        ));
+                    });
                 }
             }
         }

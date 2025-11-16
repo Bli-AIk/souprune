@@ -19,6 +19,7 @@ use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin, Update};
+use bevy::prelude::*;
 use bevy::prelude::{Commands, Res, Sprite};
 
 pub mod components;
@@ -100,6 +101,7 @@ pub fn spawn_overworld_player(
     use seldom_state::machine::StateMachine;
     use seldom_state::prelude::IntoTrigger;
     commands.spawn((
+        Name::new("Overworld Player"),
         StateIdle,
         PlayerControlled,
         StateMachine::default()
