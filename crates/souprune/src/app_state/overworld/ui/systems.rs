@@ -25,9 +25,9 @@ pub(crate) fn spawn_backpack_ui_system(
 pub(crate) fn draw_backpack_ui_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
-    overworld_ui_query: Query<(Entity, &OverworldUI, &Transform), Added<OverworldUI>>,
+    overworld_ui_query: Query<(&OverworldUI, &Transform), Added<OverworldUI>>,
 ) {
-    for (entity, overworld_ui, transform) in overworld_ui_query.iter() {
+    for (overworld_ui, transform) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
             info!(
                 "Overworld UI spawned at position: {:?}",
@@ -53,13 +53,12 @@ pub(crate) fn draw_backpack_ui_system(
             // 创建实心填充着色器
             let solid_fill = shaders.add_fill_body(
                 r#"
-                // 对于距离小于等于0的区域（形状内部）返回完全不透明，外部返回透明
                 let a = select(0.0, 1.0, input.distance <= 0.0);
                 return vec4<f32>(input.color.rgb, a);
                 "#,
             );
 
-            let final_position = transform.translation + Vec3::new(0.0, 0.0, 0.5);
+            let final_position = transform.translation + Vec3::new(0.0, 0.0, 5.0);
 
             info!("Spawning SmudShape at position: {:?}", final_position);
 
