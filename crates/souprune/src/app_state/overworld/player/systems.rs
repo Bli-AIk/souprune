@@ -1,8 +1,8 @@
 use super::update_player_animation;
+use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::{
     PlayerControlled, StateIdle, StateRunning, StateWalking,
 };
-use crate::app_state::overworld::OverworldState;
 use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };

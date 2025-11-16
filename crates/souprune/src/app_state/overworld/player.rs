@@ -86,6 +86,21 @@ fn change_sprite_animation(
     )
 }
 
+use crate::app_state::overworld::character;
+
+pub(super) fn force_player_idle_on_state_change_system(
+    mut commands: Commands,
+    players: Query<Entity, With<character::components::PlayerControlled>>,
+) {
+    for entity in players.iter() {
+        commands
+            .entity(entity)
+            .remove::<character::components::StateWalking>()
+            .remove::<character::components::StateRunning>()
+            .insert(character::components::StateIdle);
+    }
+}
+
 pub fn spawn_overworld_player(
     commands: &mut Commands,
     sprite_params: &mut SpriteParams,

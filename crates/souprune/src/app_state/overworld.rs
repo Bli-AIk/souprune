@@ -34,19 +34,15 @@ impl Plugin for OverworldPlugin {
             ))
             .add_systems(
                 OnEnter(AppState::Overworld),
-                (
-                    create_overworld_entities_system,
-                    bind_camera_target_system,
-                )
-                    .chain(),
+                (create_overworld_entities_system, bind_camera_target_system).chain(),
             )
             .add_systems(
                 OnEnter(OverworldState::Backpack),
-                force_player_idle_on_state_change,
+                player::force_player_idle_on_state_change_system,
             )
             .add_systems(
                 OnEnter(OverworldState::Cutscene),
-                force_player_idle_on_state_change,
+                player::force_player_idle_on_state_change_system,
             );
     }
 }
@@ -67,18 +63,5 @@ fn bind_camera_target_system(
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
-    }
-}
-
-fn force_player_idle_on_state_change(
-    mut commands: Commands,
-    players: Query<Entity, With<character::components::PlayerControlled>>,
-) {
-    for entity in players.iter() {
-        // 移除所有状态组件，然后添加StateIdle来强制切换到idle状态
-        commands.entity(entity)
-            .remove::<character::components::StateWalking>()
-            .remove::<character::components::StateRunning>()
-            .insert(character::components::StateIdle);
     }
 }

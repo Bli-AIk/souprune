@@ -1,10 +1,10 @@
 use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, UILayer};
+use crate::app_state::overworld::{OverworldState, character};
+use crate::core::input::Action;
 use bevy::prelude::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use leafwing_input_manager::action_state::ActionState;
-use crate::app_state::overworld::{character, OverworldState};
-use crate::core::input::Action;
 
 /// Handle transitions between overworld sub-states
 ///
@@ -32,7 +32,6 @@ pub(crate) fn menu_overworld_state_transitions_system(
         }
     }
 }
-
 
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,

@@ -1,5 +1,5 @@
-use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
