@@ -2,18 +2,25 @@ use super::update_player_animation;
 use crate::app_state::overworld::character::components::{
     PlayerControlled, StateIdle, StateRunning, StateWalking,
 };
+use crate::app_state::overworld::OverworldState;
 use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
-use bevy::prelude::{Query, Sprite, With};
+use bevy::prelude::{Query, Res, Sprite, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
+    overworld_state: Res<State<OverworldState>>,
 ) {
+    // 只在Normal状态下允许方向控制
+    if *overworld_state != OverworldState::Normal {
+        return;
+    }
+
     for (mut facing, action_state) in query.iter_mut() {
         let up_pressed = action_state.pressed(&Action::Up);
         let down_pressed = action_state.pressed(&Action::Down);
