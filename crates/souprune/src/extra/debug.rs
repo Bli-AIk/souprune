@@ -16,6 +16,8 @@
 
 #[cfg(feature = "debug")]
 mod collider;
+#[cfg(feature = "debug")]
+mod image_overlay;
 mod inspector;
 
 use bevy::app::{App, Plugin};
@@ -31,6 +33,9 @@ impl Plugin for DebugPlugin {
 
             // Setup collider debug features
             collider::debug_collider::setup_collider_debug(_app);
+
+            // Setup image overlay debug features
+            image_overlay::debug_image_overlay::setup_image_overlay_debug(_app);
         }
     }
 }

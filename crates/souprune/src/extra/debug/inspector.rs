@@ -85,6 +85,7 @@ pub mod debug_inspector {
                     "Inspector: [F1]",
                     "Performance monitoring: [F2]",
                     "Show colliders: [F3]",
+                    "Debug image overlay: [F4]",
                     "Toggle debug help: [F12]",
                 ];
 
