@@ -9,8 +9,18 @@ pub(crate) fn update_followable_camera_system(
         if let Some(target_entity) = followable.target
             && let Ok(target_transform) = target.get(target_entity)
         {
-            transform.translation.x = target_transform.translation.x;
-            transform.translation.y = target_transform.translation.y;
+            let mut new_x = target_transform.translation.x;
+            let mut new_y = target_transform.translation.y;
+
+            // Apply bounds if enabled
+            // 如果启用了边界限制，应用边界限制
+            if followable.bounds_enabled {
+                new_x = new_x.clamp(followable.min_x, followable.max_x);
+                new_y = new_y.clamp(followable.min_y, followable.max_y);
+            }
+
+            transform.translation.x = new_x;
+            transform.translation.y = new_y;
         }
     }
 }

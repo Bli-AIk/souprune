@@ -1,3 +1,19 @@
+//! # app_setup.rs
+//!
+//! ## Module Overview
+//! This module handles the initial setup of the application, including loading assets, configuring the camera,
+//! and managing the transition to the main game states.
+//!
+//! ## Source File Overview
+//! This file defines the `AppSetupPlugin`, which orchestrates the loading of textures, camera initialization,
+//! and state transitions during the application's startup phase.
+//!
+//! ## 模块概述
+//! 该模块处理应用程序的初始设置，包括加载资产、配置摄像机，以及管理到主要游戏状态的过渡。
+//!
+//! ## 源文件概述
+//! 该文件定义了 `AppSetupPlugin`，它在应用程序启动阶段协调纹理加载、摄像机初始化和状态转换。
+
 use crate::app_state::AppState;
 use crate::core::camera::Followable;
 use crate::core::sprite::ModuleSpriteRegistry;

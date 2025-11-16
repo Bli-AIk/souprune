@@ -37,7 +37,7 @@ pub fn get_or_create_texture_atlas(
 
     let (texture_atlas_layout, _texture_atlas_sources, texture, index_map) = create_texture_atlas(
         loaded_folder,
-        None,
+        Some(UVec2::new(1, 1)),
         Some(ImageSampler::nearest()),
         textures,
         toml_assets,
