@@ -60,6 +60,7 @@ pub mod debug_image_overlay {
                         // Create the overlay with semi-transparent background
                         commands
                             .spawn((
+                                Name::new("Debug Image Overlay"),
                                 DebugImageOverlay,
                                 Node {
                                     position_type: PositionType::Absolute,

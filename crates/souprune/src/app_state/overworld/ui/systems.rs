@@ -47,6 +47,7 @@ pub(crate) fn spawn_backpack_ui_system(
 
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
+        Transform::from_translation(Vec3::ZERO), // 添加Transform组件
         Name::new("Backpack Menu UI"),
     ));
 
@@ -86,14 +87,28 @@ pub(crate) fn draw_backpack_ui_system(
                 }
             };
 
+
+            // TODO: 修复跑动时打开菜单位置偏移问题
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
-            let menu_box = OverworldUIBox::new(65.0, 68.0, 3.0);
-            let menu_transform = Transform::from_translation(
-                camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
-            );
-            commands
-                .entity(ui_entity)
-                .insert((menu_box, menu_transform));
+            commands.entity(ui_entity).with_children(|parent| {
+                parent.spawn((
+                    OverworldUIBox::new(65.0, 68.0, 3.0),
+                    Transform::from_translation(
+                        camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
+                    ),
+                    Name::new("Menu Box")
+                ));
+            });
+
+            commands.entity(ui_entity).with_children(|parent| {
+                parent.spawn((
+                    OverworldUIBox::new(65.0, 49.0, 3.0),
+                    Transform::from_translation(
+                        camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
+                    ),
+                    Name::new("Info Box")
+                ));
+            });
         }
     }
 }
@@ -107,10 +122,7 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         &'static Transform,
         Option<&'static Children>,
     ),
-    (
-        With<OverworldUI>,
-        Or<(Added<OverworldUIBox>, Changed<OverworldUIBox>)>,
-    ),
+    Or<(Added<OverworldUIBox>, Changed<OverworldUIBox>, Changed<Transform>)>,
 >;
 pub(crate) fn update_overworld_ui_box_system(
     mut shaders: ResMut<Assets<Shader>>,
@@ -163,6 +175,7 @@ pub(crate) fn update_overworld_ui_box_system(
                             ..default()
                         },
                         Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+                        Name::new("UI Box Border"),
                     ));
 
                     parent.spawn((
@@ -174,6 +187,7 @@ pub(crate) fn update_overworld_ui_box_system(
                             ..default()
                         },
                         Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
+                        Name::new("UI Box Background"),
                     ));
                 });
             }
