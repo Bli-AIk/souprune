@@ -30,7 +30,7 @@ pub(crate) fn draw_backpack_ui_system(
     for (entity, overworld_ui, transform) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
             info!(
-                "DRAW!!! Creating UI at position: {:?}",
+                "Overworld UI spawned at position: {:?}",
                 transform.translation
             );
 
@@ -38,25 +38,23 @@ pub(crate) fn draw_backpack_ui_system(
             let box_height: f32 = 50.0;
             let border_width: f32 = 2.0;
 
-            // 白色外框
             let outer_sdf = shaders.add_sdf_expr(format!(
                 "smud::sd_box(p, vec2<f32>({}, {}))",
                 (box_width + border_width * 2.0) / 2.0,
                 (box_height + border_width * 2.0) / 2.0
             ));
 
-            // 黑色内填充
             let inner_sdf = shaders.add_sdf_expr(format!(
                 "smud::sd_box(p, vec2<f32>({}, {}))",
                 box_width / 2.0,
                 box_height / 2.0
             ));
 
-            // 创建没有抗锯齿的填充着色器
-            let sharp_fill = shaders.add_fill_body(
+            // 创建实心填充着色器
+            let solid_fill = shaders.add_fill_body(
                 r#"
-                // 使用 sd_fill_alpha_nearest 避免抗锯齿 
-                let a = smud::sd_fill_alpha_nearest(input.distance);
+                // 对于距离小于等于0的区域（形状内部）返回完全不透明，外部返回透明
+                let a = select(0.0, 1.0, input.distance <= 0.0);
                 return vec4<f32>(input.color.rgb, a);
                 "#,
             );
@@ -65,31 +63,27 @@ pub(crate) fn draw_backpack_ui_system(
 
             info!("Spawning SmudShape at position: {:?}", final_position);
 
-            // 先生成白色外框
             commands.spawn((
                 SmudShape {
                     color: Color::WHITE,
                     sdf: outer_sdf,
                     frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                    fill: sharp_fill.clone(),
+                    fill: solid_fill.clone(),
                     ..default()
                 },
                 Transform::from_translation(final_position),
             ));
 
-            // 然后生成黑色内框，稍微向前一点
             commands.spawn((
                 SmudShape {
                     color: Color::BLACK,
                     sdf: inner_sdf,
                     frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                    fill: sharp_fill,
+                    fill: solid_fill,
                     ..default()
                 },
                 Transform::from_translation(final_position + Vec3::new(0.0, 0.0, 0.1)),
             ));
-
-            //TODO: 目前生成的两个矩形 都是 **边框**，没有填充。我们要求必须两者都是填充的。需要修改 SDF 表达式，生成一个填充的矩形。
         }
     }
 }
