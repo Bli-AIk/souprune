@@ -35,7 +35,6 @@ pub(crate) fn menu_overworld_state_transitions_system(
 
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
-    camera_query: Query<&Transform, With<Camera2d>>,
     overworld_ui_query: Query<&OverworldUI>,
 ) {
     // Only create UI if it doesn't already exist and we're in menu state
@@ -43,23 +42,11 @@ pub(crate) fn spawn_backpack_ui_system(
         return;
     }
 
-    let camera_transform = match camera_query.single() {
-        Ok(transform) => transform,
-        Err(_) => {
-            warn!("No Camera2d found for UI spawning!");
-            return;
-        }
-    };
-
     // 动态获取 UILayer 的总数 - 1
     let max_index = UILayer::total_count().saturating_sub(1);
 
-    let mut ui_transform = *camera_transform;
-    ui_transform.translation += Vec3::new(-108.5, -1.0, 0.0);
-
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
-        ui_transform,
         Name::new("Backpack Menu UI"),
     ));
 
@@ -85,14 +72,28 @@ type OverworldUIQuery<'w, 's> =
 pub(crate) fn draw_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: OverworldUIQuery,
+    camera_query: Query<&Transform, With<Camera2d>>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
             info!("Adding OverworldUIBox component to UI entity");
 
+            let camera_transform = match camera_query.single() {
+                Ok(transform) => transform,
+                Err(_) => {
+                    warn!("No Camera2d found for UI spawning!");
+                    return;
+                }
+            };
+
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
-            let ui_box = OverworldUIBox::new(325.0, 340.0, 15.0);
-            commands.entity(ui_entity).insert(ui_box);
+            let menu_box = OverworldUIBox::new(65.0, 68.0, 3.0);
+            let menu_transform = Transform::from_translation(
+                camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
+            );
+            commands
+                .entity(ui_entity)
+                .insert((menu_box, menu_transform));
         }
     }
 }
