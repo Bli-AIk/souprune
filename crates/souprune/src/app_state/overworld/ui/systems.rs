@@ -88,6 +88,8 @@ pub(crate) fn draw_backpack_ui_system(
                 },
                 Transform::from_translation(final_position + Vec3::new(0.0, 0.0, 0.1)),
             ));
+
+            //TODO: 目前生成的两个矩形 都是 **边框**，没有填充。我们要求必须两者都是填充的。需要修改 SDF 表达式，生成一个填充的矩形。
         }
     }
 }
