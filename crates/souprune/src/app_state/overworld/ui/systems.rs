@@ -14,15 +14,21 @@ pub(crate) fn menu_overworld_state_transitions_system(
     current_state: Res<State<OverworldState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
 ) {
-    if let Ok(action_state) = query.single()
-        && action_state.just_pressed(&Action::Menu)
-    {
+    if let Ok(action_state) = query.single() {
         match current_state.get() {
             OverworldState::Normal => {
+                if !action_state.just_pressed(&Action::Menu) {
+                    return;
+                }
                 info!("Transitioning from Normal to Menu state");
                 next_state.set(OverworldState::Backpack);
             }
             OverworldState::Backpack => {
+                if !(action_state.just_pressed(&Action::Menu)
+                    || action_state.just_pressed(&Action::Cancel))
+                {
+                    return;
+                }
                 info!("Transitioning from Menu to Normal state");
                 next_state.set(OverworldState::Normal);
             }
