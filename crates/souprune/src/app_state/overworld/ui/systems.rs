@@ -9,6 +9,12 @@ use bevy_smud::{Frame, SmudShape};
 use leafwing_input_manager::action_state::ActionState;
 use std::num::NonZero;
 
+/// Marker component for newly spawned text that needs glyph refresh
+///
+/// 新生成文本的标记组件，需要刷新字形
+#[derive(Component)]
+pub(crate) struct NeedsGlyphRefresh;
+
 /// Handle transitions between overworld sub-states
 ///
 /// 处理 Menu 对 Overworld 子状态之间的转换
@@ -148,11 +154,10 @@ fn spawn_ui_box_children(
     box_width: f32,
     box_height: f32,
     border_width: f32,
-     shaders: &mut ResMut<Assets<Shader>>,
+    shaders: &mut ResMut<Assets<Shader>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     info!("Spawning SmudShape children for UI box");
-
 
     let solid_fill = shaders.add_fill_body(
         r#"
@@ -210,6 +215,7 @@ fn spawn_ui_box_children(
                 Mesh2d::default(),
                 MeshMaterial2d(mat.clone()),
                 Transform::from_xyz(0., 0., 6.0),
+                NeedsGlyphRefresh,
             ));
         }
     });
@@ -308,5 +314,28 @@ pub(crate) fn update_overworld_ui_box_system(
                 );
             }
         }
+    }
+}
+
+/// After spawning, changing the Text3d string in PreUpdate seems to render the glyph correctly.
+///
+/// 在spawn后，在PreUpdate阶段修改Text3d字符串，似乎能以渲染字形
+pub(crate) fn refresh_text_glyphs_system(
+    mut commands: Commands,
+    mut text_query: Query<(Entity, &mut Text3d), Added<NeedsGlyphRefresh>>,
+) {
+    for (entity, mut text) in text_query.iter_mut() {
+        // Trigger glyph reload by modifying the text
+        // 通过修改文本来触发字形重新加载
+        if let Some(s) = text.get_single_mut() {
+            let current = s.clone();
+            s.clear();
+            *s = current;
+        }
+
+        // Remove the marker
+        // 移除标记
+        commands.entity(entity).remove::<NeedsGlyphRefresh>();
+        info!("Refreshed glyphs for text entity {:?}", entity);
     }
 }

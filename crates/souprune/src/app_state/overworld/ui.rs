@@ -34,6 +34,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
 
         app.add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
             .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
+            .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
                 (
