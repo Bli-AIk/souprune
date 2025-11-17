@@ -78,12 +78,12 @@ Additionally, you must still follow Toby Fox’s rules for fan games.
 
 This project uses the following open-source projects as libraries, dependencies, or references:
 
-### Original Works
+### Original Games
 
 | Project                                  | Description           |
 |-------------------------------------|--------------|
-| [Undertale](https://undertale.com/) | UNDERTALE Original Work |
-| [Deltarune](https://deltarune.com/) | DELTARUNE Original Work |
+| [Undertale](https://undertale.com/) | UNDERTALE Original Game |
+| [Deltarune](https://deltarune.com/) | DELTARUNE Original Game |
 
 ### Engine / Framework References
 
