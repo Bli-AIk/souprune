@@ -87,7 +87,6 @@ pub(crate) fn draw_backpack_ui_system(
                 }
             };
 
-
             // TODO: 修复跑动时打开菜单位置偏移问题
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
             commands.entity(ui_entity).with_children(|parent| {
@@ -96,7 +95,7 @@ pub(crate) fn draw_backpack_ui_system(
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
                     ),
-                    Name::new("Menu Box")
+                    Name::new("Menu Box"),
                 ));
             });
 
@@ -106,7 +105,7 @@ pub(crate) fn draw_backpack_ui_system(
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                     ),
-                    Name::new("Info Box")
+                    Name::new("Info Box"),
                 ));
             });
         }
@@ -122,7 +121,11 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         &'static Transform,
         Option<&'static Children>,
     ),
-    Or<(Added<OverworldUIBox>, Changed<OverworldUIBox>, Changed<Transform>)>,
+    Or<(
+        Added<OverworldUIBox>,
+        Changed<OverworldUIBox>,
+        Changed<Transform>,
+    )>,
 >;
 pub(crate) fn update_overworld_ui_box_system(
     mut shaders: ResMut<Assets<Shader>>,

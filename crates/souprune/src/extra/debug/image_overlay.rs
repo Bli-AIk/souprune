@@ -140,25 +140,20 @@ pub mod debug_image_overlay {
 
             if let Ok(entries) = fs::read_dir(debug_path) {
                 for entry in entries.flatten() {
-                    if let Ok(file_type) = entry.file_type() {
-                        if file_type.is_file() {
-                            if let Some(file_name) = entry.file_name().to_str() {
-                                // Check if file has an image extension
-                                if let Some(extension) = file_name.split('.').last() {
-                                    if extensions.contains(&extension.to_lowercase().as_str()) {
-                                        if let Ok(metadata) = entry.metadata() {
-                                            if let Ok(modified) = metadata.modified() {
-                                                let relative_path = format!("debug/{}", file_name);
+                    if let Ok(file_type) = entry.file_type()
+                        && file_type.is_file()
+                        && let Some(file_name) = entry.file_name().to_str()
+                    {
+                        // Check if file has an image extension
+                        if let Some(extension) = file_name.split('.').next_back()
+                            && extensions.contains(&extension.to_lowercase().as_str())
+                            && let Ok(metadata) = entry.metadata()
+                            && let Ok(modified) = metadata.modified()
+                        {
+                            let relative_path = format!("debug/{}", file_name);
 
-                                                if latest_file.is_none()
-                                                    || latest_file.as_ref().unwrap().1 < modified
-                                                {
-                                                    latest_file = Some((relative_path, modified));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                            if latest_file.is_none() || latest_file.as_ref().unwrap().1 < modified {
+                                latest_file = Some((relative_path, modified));
                             }
                         }
                     }

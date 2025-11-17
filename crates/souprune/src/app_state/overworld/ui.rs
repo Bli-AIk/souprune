@@ -23,7 +23,6 @@ use bevy::prelude::*;
 pub(crate) mod components;
 mod systems;
 
-use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{OverworldUI, OverworldUIBox, UILayer};
 
