@@ -146,6 +146,7 @@ pub(crate) struct OverworldUIBox {
     pub(crate) width: f32,
     pub(crate) height: f32,
     pub(crate) border_width: f32,
+    pub(crate) default_text: Option<String>,
 }
 
 impl OverworldUIBox {
@@ -157,6 +158,19 @@ impl OverworldUIBox {
             width,
             height,
             border_width,
+            default_text: None,
+        }
+    }
+
+    /// Create a new `OverworldUIBox` component with default text.
+    ///
+    /// 创建一个带有默认文本的新 `OverworldUIBox` 组件。
+    pub(crate) fn new_with_text(width: f32, height: f32, border_width: f32, text: String) -> Self {
+        Self {
+            width,
+            height,
+            border_width,
+            default_text: Some(text),
         }
     }
 

@@ -102,7 +102,7 @@ fn main() {
             extra::debug::DebugPlugin,
         ))
         .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec!["assets/fonts".to_owned()],
+            font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
             ..Default::default()
         })
         .init_resource::<input::PlayerInputSettings>()

@@ -2,10 +2,12 @@ use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, U
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::input::Action;
 use bevy::prelude::*;
+use bevy::sprite_render::AlphaMode2d;
 use bevy_rich_text3d::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use leafwing_input_manager::action_state::ActionState;
+use std::num::NonZero;
 
 /// Handle transitions between overworld sub-states
 ///
@@ -81,7 +83,6 @@ pub(crate) fn draw_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: OverworldUIQuery,
     camera_query: Query<&Transform, With<Camera2d>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
@@ -95,49 +96,22 @@ pub(crate) fn draw_backpack_ui_system(
                 }
             };
 
-            // TODO: 为 OverworldUIBox 默认添加文本框
-            let mat = standard_materials.add(StandardMaterial {
-                base_color_texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                alpha_mode: AlphaMode::Blend,
-                unlit: true,
-                ..Default::default()
-            });
-
             // TODO: 修复跑动时打开菜单位置偏移问题
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
             commands.entity(ui_entity).with_children(|parent| {
-                parent
-                    .spawn((
-                        OverworldUIBox::new(65.0, 68.0, 3.0),
-                        Transform::from_translation(
-                            camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
-                        ),
-                        Visibility::default(),
-                        Name::new("Menu Box"),
-                    ))
-                    .with_children(|parent| {
-                        parent.spawn((
-                            Name::new("Menu Box Text"),
-                            /*
-                            Text3d::new("ITEM\nSTAT"),
-                            Text3dStyling {
-                                font: "hud.ttf".into(),
-                                size: 32.,
-                                color: Srgba::new(1., 1., 0., 1.),
-                                ..Default::default()
-                            },
-                            Text3dBounds { width: 600. },
-                            Mesh3d::default(),
-                            MeshMaterial3d(mat.clone()),
-                            Transform::from_xyz(0., 0., 1.),
-                            */
-                        ));
-                    });
+                parent.spawn((
+                    OverworldUIBox::new_with_text(65.0, 68.0, 3.0, "ITEM\nSTAT".to_string()),
+                    Transform::from_translation(
+                        camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
+                    ),
+                    Visibility::default(),
+                    Name::new("Menu Box"),
+                ));
             });
 
             commands.entity(ui_entity).with_children(|parent| {
                 parent.spawn((
-                    OverworldUIBox::new(65.0, 49.0, 3.0),
+                    OverworldUIBox::new_with_text(65.0, 49.0, 3.0, "INFO".to_string()),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                     ),
@@ -164,9 +138,87 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         Changed<Transform>,
     )>,
 >;
+/// 为UI框创建SmudShape子实体
+fn spawn_ui_box_children(
+    commands: &mut Commands,
+    entity: Entity,
+    ui_box: &OverworldUIBox,
+    outer_sdf: Handle<Shader>,
+    inner_sdf: Handle<Shader>,
+    box_width: f32,
+    box_height: f32,
+    border_width: f32,
+     shaders: &mut ResMut<Assets<Shader>>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    info!("Spawning SmudShape children for UI box");
+
+
+    let solid_fill = shaders.add_fill_body(
+        r#"
+                        let a = select(0.0, 1.0, input.distance <= 0.0);
+                        return vec4<f32>(input.color.rgb, a);
+                        "#,
+    );
+
+    commands.entity(entity).with_children(|parent| {
+        parent.spawn((
+            SmudShape {
+                color: Color::WHITE,
+                sdf: outer_sdf,
+                frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
+                fill: solid_fill.clone(),
+                ..default()
+            },
+            Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+            Name::new("UI Box Border"),
+        ));
+
+        parent.spawn((
+            SmudShape {
+                color: Color::BLACK,
+                sdf: inner_sdf,
+                frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                fill: solid_fill,
+                ..default()
+            },
+            Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
+            Name::new("UI Box Background"),
+        ));
+
+        // If there's default text, create text box
+        //
+        // 如果有默认文本，创建文本框
+        if let Some(ref text) = ui_box.default_text {
+            info!("Spawning text for UI box: {}", text);
+
+            let mat = color_materials.add(ColorMaterial {
+                texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+                alpha_mode: AlphaMode2d::Blend,
+                ..Default::default()
+            });
+
+            parent.spawn((
+                Name::new("UI Box Text"),
+                Text3d::new(text.clone()),
+                Text3dStyling {
+                    font: "hud.ttf".into(),
+                    size: 20.,
+                    color: Srgba::new(1., 1., 0., 1.),
+                    ..Default::default()
+                },
+                Mesh2d::default(),
+                MeshMaterial2d(mat.clone()),
+                Transform::from_xyz(0., 0., 6.0),
+            ));
+        }
+    });
+}
+
 pub(crate) fn update_overworld_ui_box_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
     overworld_ui_box_query: OverworldUIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
 ) {
@@ -188,19 +240,19 @@ pub(crate) fn update_overworld_ui_box_system(
         ));
 
         match children_opt {
-            // 检查是否已经有SmudShape子实体
             // Check if there are already SmudShape children
+            // 检查是否已经有SmudShape子实体
             Some(children) => {
-                // 过滤出SmudShape子实体
                 // Filter out SmudShape children
+                // 过滤出SmudShape子实体
                 let smud_shape_children: Vec<_> = children
                     .iter()
                     .filter(|&child| smud_shape_query.get(child).is_ok())
                     .collect();
 
                 if smud_shape_children.len() >= 2 {
-                    // 更新现有的SmudShape
                     // Update existing SmudShapes
+                    // 更新现有的SmudShape
                     info!("Updating existing SmudShape children for UI box");
 
                     if let Ok(mut outer_shape) = smud_shape_query.get_mut(smud_shape_children[0]) {
@@ -213,87 +265,47 @@ pub(crate) fn update_overworld_ui_box_system(
                         inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
                     }
                 } else {
-                    // 有子实体但没有SmudShape，需要添加SmudShape
                     // Has children but no SmudShapes, need to add SmudShapes
+                    // 有子实体但没有SmudShape，需要添加SmudShape
                     info!(
                         "Adding SmudShape children to existing UI box at position: {:?}",
                         transform.translation
                     );
 
-                    let solid_fill = shaders.add_fill_body(
-                        r#"
-                        let a = select(0.0, 1.0, input.distance <= 0.0);
-                        return vec4<f32>(input.color.rgb, a);
-                        "#,
+                    spawn_ui_box_children(
+                        &mut commands,
+                        entity,
+                        ui_box,
+                        outer_sdf,
+                        inner_sdf,
+                        box_width,
+                        box_height,
+                        border_width,
+                        &mut shaders,
+                        &mut color_materials,
                     );
-
-                    commands.entity(entity).with_children(|parent| {
-                        parent.spawn((
-                            SmudShape {
-                                color: Color::WHITE,
-                                sdf: outer_sdf,
-                                frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                                fill: solid_fill.clone(),
-                                ..default()
-                            },
-                            Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-                            Name::new("UI Box Border"),
-                        ));
-
-                        parent.spawn((
-                            SmudShape {
-                                color: Color::BLACK,
-                                sdf: inner_sdf,
-                                frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                                fill: solid_fill,
-                                ..default()
-                            },
-                            Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
-                            Name::new("UI Box Background"),
-                        ));
-                    });
                 }
             }
-            // 没有子实体，首次创建SmudShape
             // No children, first time creating SmudShapes
+            // 没有子实体，首次创建SmudShape
             None => {
                 info!(
                     "Creating new SmudShape children for UI box at position: {:?}",
                     transform.translation
                 );
 
-                let solid_fill = shaders.add_fill_body(
-                    r#"
-                    let a = select(0.0, 1.0, input.distance <= 0.0);
-                    return vec4<f32>(input.color.rgb, a);
-                    "#,
+                spawn_ui_box_children(
+                    &mut commands,
+                    entity,
+                    ui_box,
+                    outer_sdf,
+                    inner_sdf,
+                    box_width,
+                    box_height,
+                    border_width,
+                    &mut shaders,
+                    &mut color_materials,
                 );
-
-                commands.entity(entity).with_children(|parent| {
-                    parent.spawn((
-                        SmudShape {
-                            color: Color::WHITE,
-                            sdf: outer_sdf,
-                            frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                            fill: solid_fill.clone(),
-                            ..default()
-                        },
-                        Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-                        Name::new("UI Box Border"),
-                    ));
-
-                    parent.spawn((
-                        SmudShape {
-                            color: Color::BLACK,
-                            sdf: inner_sdf,
-                            frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                            fill: solid_fill,
-                            ..default()
-                        },
-                        Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
-                        Name::new("UI Box Background"),
-                    ));
-                });
             }
         }
     }
