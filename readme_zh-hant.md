@@ -16,8 +16,7 @@
 
 嘿，别被上面那个 **「Rust」** 徽章吓到 —— **SoupRune 可不只是给某些专业程序员玩的冷门工具！**
 
-它支持 **Gamemaker**、*
-*[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**
+它支持 **Gamemaker**、**[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**
 、以及 **.NET (C#)** 生态，
 
 无论你是习惯码 GML、写 Lua、还是 Unity / Godot 开发者，也许都能在这里找到熟悉的感觉。
@@ -26,8 +25,7 @@
 
 Undertale 的 Fangame 框架兴许已经饱和，但 Deltarune 的社区正在蓬勃发展。
 
-SoupRune 就是趁此机会打造的 Fangame 框架，~~
-同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/souprune) 的精神续作~~。
+SoupRune 就是趁此机会打造的 Fangame 框架，~~同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
 
 但这也不意味着 SoupRune 只是一个 Deltarune 框架 —— 对于 Undertale Fangame 的支持，我们也同样看重！
 
