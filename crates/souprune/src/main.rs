@@ -68,6 +68,12 @@ macro_rules! get_third_plugins {
             seldom_state::prelude::StateMachinePlugin::default(),
             bevy_ecs_tiled::prelude::TiledPlugin::default(),
             bevy_smud::SmudPlugin,
+            bevy_rich_text3d::Text3dPlugin{
+                default_atlas_dimension: (1024, 1024),
+                load_system_fonts: false,
+                ..Default::default()
+            }
+
         )
     };
 }
@@ -95,6 +101,10 @@ fn main() {
             #[cfg(feature = "debug")]
             extra::debug::DebugPlugin,
         ))
+        .insert_resource(bevy_rich_text3d::LoadFonts {
+            font_directories: vec!["assets/fonts".to_owned()],
+            ..Default::default()
+        })
         .init_resource::<input::PlayerInputSettings>()
         .init_state::<app_state::AppState>()
         .add_plugins(get_game_plugins!())
