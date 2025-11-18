@@ -1,4 +1,3 @@
-use crate::app_state::app_setup::ResolutionScale;
 use crate::app_state::overworld::ui::components::{
     OverworldUI, OverworldUIBox, UIFont, UILayer, UITextConfig,
 };
@@ -120,9 +119,9 @@ pub(crate) fn draw_backpack_ui_system(
                             // TODO: 取消硬编码文本
                             content: "ITEM\nSTAT".to_string(),
                             font: UIFont::DeterminationSans,
-                            world_scale: Vec2::splat(13.),
+                            world_scale: Vec2::splat(13.25),
                             // TODO: 调整父子关系以让 z 使用 1 而不是 6
-                            transform: Transform::from_xyz(-9.5, 28.0, 6.0),
+                            transform: Transform::from_xyz(-9.5, 28.5, 6.0),
                             line_height: 1.4,
                             ..Default::default()
                         }],
@@ -144,7 +143,6 @@ pub(crate) fn draw_backpack_ui_system(
                         vec![
                             UITextConfig {
                                 name: "NameText".into(),
-                                // TODO: 取消硬编码文本
                                 content: player_data.name.clone(),
                                 font: UIFont::DeterminationSans,
                                 world_scale: Vec2::splat(13.),
@@ -156,7 +154,7 @@ pub(crate) fn draw_backpack_ui_system(
                                 // TODO: 取消硬编码文本
                                 content: {
                                     let hud_text = format!(
-                                        "LV {}\nhp {}/{}\ng  {}",
+                                        "LV  {}\nhp  {}/{}\ng   {}",
                                         player_data.lv,
                                         player_data.hp,
                                         player_data.hp_max,
@@ -167,7 +165,7 @@ pub(crate) fn draw_backpack_ui_system(
                                 font: UIFont::HUD,
                                 world_scale: Vec2::splat(8.),
                                 transform: Transform::from_xyz(-28.5, 5.75, 6.0),
-                                line_height: 1.12,
+                                line_height: 1.125,
                                 ..Default::default()
                             },
                         ],
@@ -397,9 +395,10 @@ pub(crate) fn refresh_text_glyphs_system(
 /// Show text once mesh is generated
 ///
 /// 网格生成后显示文本
-pub(crate) fn show_text_when_ready_system(
-    mut text_query: Query<(&Mesh2d, &mut Visibility), (With<Text3d>, Changed<Mesh2d>)>,
-) {
+type TextMeshQuery<'w, 's> =
+    Query<'w, 's, (&'static Mesh2d, &'static mut Visibility), (With<Text3d>, Changed<Mesh2d>)>;
+
+pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
     for (mesh, mut visibility) in text_query.iter_mut() {
         if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
             *visibility = Visibility::Inherited;
