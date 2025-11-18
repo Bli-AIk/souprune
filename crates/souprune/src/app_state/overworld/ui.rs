@@ -23,6 +23,8 @@ use bevy::prelude::*;
 pub(crate) mod components;
 mod systems;
 
+pub(crate) use components::{UIFont, UITextConfig};
+
 #[cfg(feature = "debug")]
 use components::{OverworldUI, OverworldUIBox, UILayer};
 

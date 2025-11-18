@@ -10,6 +10,8 @@
 //! 和受控的设置器来访问和修改。
 
 use bevy::prelude::Component;
+use bevy::prelude::{Name, Transform, Vec2};
+use bevy::color::Srgba;
 use std::borrow::Cow;
 use std::fmt;
 
@@ -140,13 +142,77 @@ impl OverworldUI {
     }
 }
 
+/// Font configuration for UI text
+///
+/// UI 文本的字体配置
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum UIFont {
+    DeterminationMono,
+    // Add more fonts as needed
+}
+
+impl UIFont {
+    /// Get font name and default size
+    ///
+    /// 获取字体名称和默认大小
+    pub(crate) fn font_name(&self) -> &'static str {
+        match self {
+            UIFont::DeterminationMono => "Determination Mono SimSun",
+        }
+    }
+
+    /// Get default rendering size (for texture atlas)
+    ///
+    /// 获取默认渲染大小（用于纹理图集）
+    pub(crate) fn default_size(&self) -> f32 {
+        match self {
+            UIFont::DeterminationMono => 128.,
+        }
+    }
+}
+
+/// Configuration for a single text element
+///
+/// 单个文本元素的配置
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UITextConfig {
+    pub(crate) name: Name,
+    pub(crate) content: String,
+    pub(crate) font: UIFont,
+    pub(crate) world_scale: Vec2,
+    pub(crate) color: Srgba,
+    pub(crate) transform: Transform,
+}
+
+impl UITextConfig {
+    pub(crate) fn new(
+        name: impl Into<Name>,
+        content: String,
+        font: UIFont,
+        world_scale: Vec2,
+        color: Srgba,
+        transform: Transform,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            content,
+            font,
+            world_scale,
+            color,
+            transform,
+        }
+    }
+}
+
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct OverworldUIBox {
     pub(crate) width: f32,
     pub(crate) height: f32,
     pub(crate) border_width: f32,
-    pub(crate) default_text: Option<String>,
+    pub(crate) texts: Vec<UITextConfig>,
 }
 
 impl OverworldUIBox {
@@ -158,19 +224,24 @@ impl OverworldUIBox {
             width,
             height,
             border_width,
-            default_text: None,
+            texts: Vec::new(),
         }
     }
 
-    /// Create a new `OverworldUIBox` component with default text.
+    /// Create a new `OverworldUIBox` component with text configurations.
     ///
-    /// 创建一个带有默认文本的新 `OverworldUIBox` 组件。
-    pub(crate) fn new_with_text(width: f32, height: f32, border_width: f32, text: String) -> Self {
+    /// 创建一个带有文本配置的新 `OverworldUIBox` 组件。
+    pub(crate) fn new_with_texts(
+        width: f32,
+        height: f32,
+        border_width: f32,
+        texts: Vec<UITextConfig>,
+    ) -> Self {
         Self {
             width,
             height,
             border_width,
-            default_text: Some(text),
+            texts,
         }
     }
 

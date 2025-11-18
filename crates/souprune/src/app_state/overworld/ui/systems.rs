@@ -1,4 +1,6 @@
-use crate::app_state::overworld::ui::components::{OverworldUI, OverworldUIBox, UILayer};
+use crate::app_state::overworld::ui::components::{
+    OverworldUI, OverworldUIBox, UIFont, UILayer, UITextConfig,
+};
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -103,9 +105,22 @@ pub(crate) fn draw_backpack_ui_system(
 
             // TODO: 修复跑动时打开菜单位置偏移问题
             // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
+
             commands.entity(ui_entity).with_children(|parent| {
                 parent.spawn((
-                    OverworldUIBox::new_with_text(65.0, 68.0, 3.0, "ITEM\nSTAT".to_string()),
+                    OverworldUIBox::new_with_texts(
+                        65.0,
+                        68.0,
+                        3.0,
+                        vec![UITextConfig::new(
+                            "Menu Box Text",
+                            "ITEM\nSTAT".to_string(),
+                            UIFont::DeterminationMono,
+                            Vec2::splat(20.),
+                            Srgba::WHITE,
+                            Transform::from_xyz(0., 0., 6.0),
+                        )],
+                    ),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
                     ),
@@ -116,7 +131,19 @@ pub(crate) fn draw_backpack_ui_system(
 
             commands.entity(ui_entity).with_children(|parent| {
                 parent.spawn((
-                    OverworldUIBox::new_with_text(65.0, 49.0, 3.0, "INFO".to_string()),
+                    OverworldUIBox::new_with_texts(
+                        65.0,
+                        49.0,
+                        3.0,
+                        vec![UITextConfig::new(
+                            "Info Box Text",
+                            "INFO".to_string(),
+                            UIFont::DeterminationMono,
+                            Vec2::splat(20.),
+                            Srgba::WHITE,
+                            Transform::from_xyz(0., 0., 6.0),
+                        )],
+                    ),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                     ),
@@ -191,11 +218,11 @@ fn spawn_ui_box_children(
             Name::new("UI Box Background"),
         ));
 
-        // If there's default text, create text box
+        // Spawn all configured texts
         //
-        // 如果有默认文本，创建文本框
-        if let Some(ref text) = ui_box.default_text {
-            info!("Spawning text for UI box: {}", text);
+        // 生成所有配置的文本
+        for text_config in &ui_box.texts {
+            info!("Spawning text for UI box: {}", text_config.content);
 
             let mat = color_materials.add(ColorMaterial {
                 texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
@@ -204,18 +231,18 @@ fn spawn_ui_box_children(
             });
 
             parent.spawn((
-                Name::new("UI Box Text"),
-                Text3d::new(text.clone()),
+                text_config.name.clone(),
+                Text3d::new(text_config.content.clone()),
                 Text3dStyling {
-                    font: "Determination Mono SimSun".into(),
-                    size: 128.,
-                    world_scale: Some(Vec2::splat(20.)),
-                    color: Srgba::new(1., 1., 1., 1.),
+                    font: text_config.font.font_name().into(),
+                    size: text_config.font.default_size(),
+                    world_scale: Some(text_config.world_scale),
+                    color: text_config.color,
                     ..Default::default()
                 },
                 Mesh2d::default(),
                 MeshMaterial2d(mat.clone()),
-                Transform::from_xyz(0., 0., 6.0),
+                text_config.transform,
                 Visibility::Hidden,
                 NeedsGlyphRefresh,
             ));
