@@ -107,7 +107,7 @@ pub fn generate_collision_tiles_system(
         commands
             .spawn((
                 CollisionTileGroup,
-                Name::new("Collision Tiles"),
+                Name::new("CollisionTiles"),
                 Transform::default(),
                 Visibility::default(),
             ))
@@ -121,7 +121,7 @@ pub fn generate_collision_tiles_system(
         commands
             .spawn((
                 ObjectCollisionGroup,
-                Name::new("Object Collisions"),
+                Name::new("ObjectCollisions"),
                 Transform::default(),
                 Visibility::default(),
             ))

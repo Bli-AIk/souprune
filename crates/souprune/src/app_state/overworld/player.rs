@@ -116,7 +116,7 @@ pub fn spawn_overworld_player(
     use seldom_state::machine::StateMachine;
     use seldom_state::prelude::IntoTrigger;
     commands.spawn((
-        Name::new("Overworld Player"),
+        Name::new("OverworldPlayer"),
         StateIdle,
         PlayerControlled,
         StateMachine::default()

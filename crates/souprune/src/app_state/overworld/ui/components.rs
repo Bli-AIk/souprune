@@ -151,6 +151,7 @@ impl OverworldUI {
 pub(crate) enum UIFont {
     DeterminationMono,
     DeterminationSans,
+    HUD,
     // Add more fonts as needed
 }
 
@@ -162,6 +163,7 @@ impl UIFont {
         match self {
             UIFont::DeterminationMono => "Determination Mono SimSun",
             UIFont::DeterminationSans => "Determination Sans SimSun",
+            UIFont::HUD => "Crypt of Tomorrow Fusion",
         }
     }
 
@@ -206,7 +208,7 @@ impl Default for UITextConfig {
             color: Srgba::WHITE,
             transform: Transform::default(),
             align: TextAlign::Left,
-            anchor: TextAnchor::TOP_RIGHT,
+            anchor: TextAnchor::BOTTOM_RIGHT,
             line_height: 1.0,
         }
     }

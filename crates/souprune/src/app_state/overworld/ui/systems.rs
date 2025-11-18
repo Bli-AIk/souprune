@@ -113,13 +113,13 @@ pub(crate) fn draw_backpack_ui_system(
                         68.0,
                         3.0,
                         vec![UITextConfig {
-                            name: "Menu Box Text".into(),
+                            name: "Text".into(),
+                            // TODO: 取消硬编码文本
                             content: "ITEM\nSTAT".to_string(),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.),
-                            color: Srgba::WHITE,
                             // TODO: 调整父子关系以让 z 使用 1 而不是 6
-                            transform: Transform::from_xyz(-9.5, -8.0, 6.0),
+                            transform: Transform::from_xyz(-9.5, 28.0, 6.0),
                             line_height: 1.4,
                             ..Default::default()
                         }],
@@ -128,7 +128,7 @@ pub(crate) fn draw_backpack_ui_system(
                         camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
                     ),
                     Visibility::default(),
-                    Name::new("Menu Box"),
+                    Name::new("MenuBox"),
                 ));
             });
 
@@ -140,16 +140,22 @@ pub(crate) fn draw_backpack_ui_system(
                         3.0,
                         vec![
                             UITextConfig {
-                                name: "Info Box Text".into(),
+                                name: "NameText".into(),
+                                // TODO: 取消硬编码文本
                                 content: "Name".to_string(),
                                 font: UIFont::DeterminationSans,
                                 world_scale: Vec2::splat(13.),
-                                color: Srgba::WHITE,
-                                transform: Transform::from_xyz(-28.5, 9.0, 6.0),
+                                transform: Transform::from_xyz(-28.5, 22.0, 6.0),
                                 ..Default::default()
                             },
                             UITextConfig {
-                                transform: Transform::from_xyz(0.0, 0.0, 6.0),
+                                name: "HUDText".into(),
+                                // TODO: 取消硬编码文本
+                                content: "LV 1\nhp 20/20\ng 0".to_string(),
+                                font: UIFont::HUD,
+                                world_scale: Vec2::splat(8.),
+                                transform: Transform::from_xyz(-28.5, 5.75, 6.0),
+                                line_height: 1.12,
                                 ..Default::default()
                             },
                         ],
@@ -158,7 +164,7 @@ pub(crate) fn draw_backpack_ui_system(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                     ),
                     Visibility::default(),
-                    Name::new("Info Box"),
+                    Name::new("InfoBox"),
                 ));
             });
         }
@@ -213,7 +219,7 @@ fn spawn_ui_box_children(
                 ..default()
             },
             Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-            Name::new("UI Box Border"),
+            Name::new("UIBoxBorder"),
         ));
 
         parent.spawn((
@@ -225,7 +231,7 @@ fn spawn_ui_box_children(
                 ..default()
             },
             Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
-            Name::new("UI Box Background"),
+            Name::new("UIBoxBackground"),
         ));
 
         // Spawn all configured texts

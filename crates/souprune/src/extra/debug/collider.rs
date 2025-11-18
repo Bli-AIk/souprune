@@ -47,7 +47,7 @@ pub mod debug_collider {
     fn setup_debug_visualizer_root(mut commands: Commands) {
         commands.spawn((
             DebugVisualizerRoot,
-            Name::new("Debug Visualizers"),
+            Name::new("DebugVisualizers"),
             Transform::default(),
             Visibility::default(),
         ));
