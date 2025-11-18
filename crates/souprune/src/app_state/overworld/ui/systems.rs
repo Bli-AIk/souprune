@@ -216,6 +216,7 @@ fn spawn_ui_box_children(
                 Mesh2d::default(),
                 MeshMaterial2d(mat.clone()),
                 Transform::from_xyz(0., 0., 6.0),
+                Visibility::Hidden,
                 NeedsGlyphRefresh,
             ));
         }
@@ -312,9 +313,9 @@ pub(crate) fn update_overworld_ui_box_system(
     }
 }
 
-/// After spawning, changing the Text3d string in PreUpdate seems to render the glyph correctly.
+/// After spawning, changing the Text3d string in PreUpdate phase to immediately render glyphs
 ///
-/// 在spawn后，在PreUpdate阶段修改Text3d字符串，似乎能以渲染字形
+/// 在spawn后，在PreUpdate阶段修改Text3d字符串，以立刻渲染字形
 pub(crate) fn refresh_text_glyphs_system(
     mut commands: Commands,
     mut text_query: Query<(Entity, &mut Text3d), Added<NeedsGlyphRefresh>>,
@@ -332,5 +333,19 @@ pub(crate) fn refresh_text_glyphs_system(
         // 移除标记
         commands.entity(entity).remove::<NeedsGlyphRefresh>();
         info!("Refreshed glyphs for text entity {:?}", entity);
+    }
+}
+
+/// Show text once mesh is generated
+///
+/// 网格生成后显示文本
+pub(crate) fn show_text_when_ready_system(
+    mut text_query: Query<(&Mesh2d, &mut Visibility), (With<Text3d>, Changed<Mesh2d>)>,
+) {
+    for (mesh, mut visibility) in text_query.iter_mut() {
+        if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
+            *visibility = Visibility::Inherited;
+            info!("Text mesh ready, showing text");
+        }
     }
 }

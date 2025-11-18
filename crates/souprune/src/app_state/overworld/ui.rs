@@ -41,6 +41,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                     menu_overworld_state_transitions_system,
                     draw_backpack_ui_system,
                     update_overworld_ui_box_system,
+                    show_text_when_ready_system,
                 ),
             );
 
