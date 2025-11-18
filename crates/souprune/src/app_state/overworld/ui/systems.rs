@@ -118,7 +118,8 @@ pub(crate) fn draw_backpack_ui_system(
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.),
                             color: Srgba::WHITE,
-                            transform: Transform::from_xyz(19.0, -8.0, 6.0),
+                            // TODO: 调整父子关系以让 z 使用 1 而不是 6
+                            transform: Transform::from_xyz(-9.5, -8.0, 6.0),
                             line_height: 1.4,
                             ..Default::default()
                         }],
@@ -137,15 +138,21 @@ pub(crate) fn draw_backpack_ui_system(
                         65.0,
                         49.0,
                         3.0,
-                        vec![UITextConfig {
-                            name: "Info Box Text".into(),
-                            content: "Name".to_string(),
-                            font: UIFont::DeterminationSans,
-                            world_scale: Vec2::splat(13.),
-                            color: Srgba::WHITE,
-                            transform: Transform::from_xyz(-21.5, 9.0, 6.0),
-                            ..Default::default()
-                        }],
+                        vec![
+                            UITextConfig {
+                                name: "Info Box Text".into(),
+                                content: "Name".to_string(),
+                                font: UIFont::DeterminationSans,
+                                world_scale: Vec2::splat(13.),
+                                color: Srgba::WHITE,
+                                transform: Transform::from_xyz(-28.5, 9.0, 6.0),
+                                ..Default::default()
+                            },
+                            UITextConfig {
+                                transform: Transform::from_xyz(0.0, 0.0, 6.0),
+                                ..Default::default()
+                            },
+                        ],
                     ),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),

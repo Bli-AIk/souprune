@@ -199,14 +199,14 @@ pub(crate) struct UITextConfig {
 impl Default for UITextConfig {
     fn default() -> Self {
         Self {
-            name: Name::new("text"),
+            name: Name::new("Text"),
             content: "Text".to_string(),
             font: UIFont::DeterminationMono,
             world_scale: Vec2::splat(13.),
             color: Srgba::WHITE,
             transform: Transform::default(),
             align: TextAlign::Left,
-            anchor: TextAnchor::TOP_LEFT,
+            anchor: TextAnchor::TOP_RIGHT,
             line_height: 1.0,
         }
     }
