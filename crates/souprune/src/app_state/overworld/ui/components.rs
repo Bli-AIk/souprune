@@ -9,14 +9,15 @@
 //! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。字段为私有，通过只读访问器
 //! 和受控的设置器来访问和修改。
 
+use bevy::color::Srgba;
 use bevy::prelude::Component;
 use bevy::prelude::{Name, Transform, Vec2};
-use bevy::color::Srgba;
 use std::borrow::Cow;
 use std::fmt;
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
+use bevy_rich_text3d::{TextAlign, TextAnchor};
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
@@ -149,6 +150,7 @@ impl OverworldUI {
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) enum UIFont {
     DeterminationMono,
+    DeterminationSans,
     // Add more fonts as needed
 }
 
@@ -159,6 +161,7 @@ impl UIFont {
     pub(crate) fn font_name(&self) -> &'static str {
         match self {
             UIFont::DeterminationMono => "Determination Mono SimSun",
+            UIFont::DeterminationSans => "Determination Sans SimSun",
         }
     }
 
@@ -166,9 +169,13 @@ impl UIFont {
     ///
     /// 获取默认渲染大小（用于纹理图集）
     pub(crate) fn default_size(&self) -> f32 {
-        match self {
-            UIFont::DeterminationMono => 128.,
-        }
+        // The rendering size affects clarity on high-resolution displays.
+        // If too small, it may appear blurry.
+        // Nowadays, most UI fonts use 128 as the default size
+        //
+        // 渲染大小影响高分辨率下的正常显示，若太小可能会导致模糊。
+        // 目前统一使用 128，未来可根据字体调整
+        128.
     }
 }
 
@@ -184,24 +191,23 @@ pub(crate) struct UITextConfig {
     pub(crate) world_scale: Vec2,
     pub(crate) color: Srgba,
     pub(crate) transform: Transform,
+    pub(crate) align: TextAlign,
+    pub(crate) anchor: TextAnchor,
+    pub(crate) line_height: f32,
 }
 
-impl UITextConfig {
-    pub(crate) fn new(
-        name: impl Into<Name>,
-        content: String,
-        font: UIFont,
-        world_scale: Vec2,
-        color: Srgba,
-        transform: Transform,
-    ) -> Self {
+impl Default for UITextConfig {
+    fn default() -> Self {
         Self {
-            name: name.into(),
-            content,
-            font,
-            world_scale,
-            color,
-            transform,
+            name: Name::new("text"),
+            content: "Text".to_string(),
+            font: UIFont::DeterminationMono,
+            world_scale: Vec2::splat(13.),
+            color: Srgba::WHITE,
+            transform: Transform::default(),
+            align: TextAlign::Left,
+            anchor: TextAnchor::TOP_LEFT,
+            line_height: 0.0,
         }
     }
 }

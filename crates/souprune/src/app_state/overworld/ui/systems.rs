@@ -112,14 +112,16 @@ pub(crate) fn draw_backpack_ui_system(
                         65.0,
                         68.0,
                         3.0,
-                        vec![UITextConfig::new(
-                            "Menu Box Text",
-                            "ITEM\nSTAT".to_string(),
-                            UIFont::DeterminationMono,
-                            Vec2::splat(20.),
-                            Srgba::WHITE,
-                            Transform::from_xyz(0., 0., 6.0),
-                        )],
+                        vec![UITextConfig {
+                            name: "Menu Box Text".into(),
+                            content: "ITEM\nSTAT".to_string(),
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.),
+                            color: Srgba::WHITE,
+                            transform: Transform::from_xyz(19.0, -0.5, 6.0),
+                            line_height: 5.0,
+                            ..Default::default()
+                        }],
                     ),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
@@ -135,14 +137,15 @@ pub(crate) fn draw_backpack_ui_system(
                         65.0,
                         49.0,
                         3.0,
-                        vec![UITextConfig::new(
-                            "Info Box Text",
-                            "INFO".to_string(),
-                            UIFont::DeterminationMono,
-                            Vec2::splat(20.),
-                            Srgba::WHITE,
-                            Transform::from_xyz(0., 0., 6.0),
-                        )],
+                        vec![UITextConfig {
+                            name: "Info Box Text".into(),
+                            content: "INFO".to_string(),
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.),
+                            color: Srgba::WHITE,
+                            transform: Transform::from_xyz(0., 0., 6.0),
+                            ..Default::default()
+                        }],
                     ),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
@@ -238,6 +241,9 @@ fn spawn_ui_box_children(
                     size: text_config.font.default_size(),
                     world_scale: Some(text_config.world_scale),
                     color: text_config.color,
+                    align: text_config.align,
+                    anchor: text_config.anchor,
+                    line_height: text_config.line_height,
                     ..Default::default()
                 },
                 Mesh2d::default(),
