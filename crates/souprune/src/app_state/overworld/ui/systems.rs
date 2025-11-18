@@ -7,7 +7,6 @@ use bevy_rich_text3d::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use leafwing_input_manager::action_state::ActionState;
-use std::num::NonZero;
 
 /// Marker component for newly spawned text that needs glyph refresh
 ///
@@ -151,13 +150,14 @@ fn spawn_ui_box_children(
     ui_box: &OverworldUIBox,
     outer_sdf: Handle<Shader>,
     inner_sdf: Handle<Shader>,
-    box_width: f32,
-    box_height: f32,
-    border_width: f32,
     shaders: &mut ResMut<Assets<Shader>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     info!("Spawning SmudShape children for UI box");
+
+    let box_width = ui_box.width();
+    let box_height = ui_box.height();
+    let border_width = ui_box.border_width();
 
     let solid_fill = shaders.add_fill_body(
         r#"
@@ -207,7 +207,7 @@ fn spawn_ui_box_children(
                 Name::new("UI Box Text"),
                 Text3d::new(text.clone()),
                 Text3dStyling {
-                    font: "hud.ttf".into(),
+                    font: "DTM-Mono.ttf".into(),
                     size: 20.,
                     color: Srgba::new(1., 1., 0., 1.),
                     ..Default::default()
@@ -284,9 +284,6 @@ pub(crate) fn update_overworld_ui_box_system(
                         ui_box,
                         outer_sdf,
                         inner_sdf,
-                        box_width,
-                        box_height,
-                        border_width,
                         &mut shaders,
                         &mut color_materials,
                     );
@@ -306,9 +303,6 @@ pub(crate) fn update_overworld_ui_box_system(
                     ui_box,
                     outer_sdf,
                     inner_sdf,
-                    box_width,
-                    box_height,
-                    border_width,
                     &mut shaders,
                     &mut color_materials,
                 );
