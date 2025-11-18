@@ -207,9 +207,9 @@ fn spawn_ui_box_children(
                 Name::new("UI Box Text"),
                 Text3d::new(text.clone()),
                 Text3dStyling {
-                    font: "DTM-Mono.ttf".into(),
+                    font: "Determination Mono SimSun".into(),
                     size: 20.,
-                    color: Srgba::new(1., 1., 0., 1.),
+                    color: Srgba::new(1., 1., 1., 1.),
                     ..Default::default()
                 },
                 Mesh2d::default(),
