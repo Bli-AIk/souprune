@@ -118,8 +118,8 @@ pub(crate) fn draw_backpack_ui_system(
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.),
                             color: Srgba::WHITE,
-                            transform: Transform::from_xyz(19.0, -0.5, 6.0),
-                            line_height: 5.0,
+                            transform: Transform::from_xyz(19.0, -8.0, 6.0),
+                            line_height: 1.4,
                             ..Default::default()
                         }],
                     ),
@@ -139,11 +139,11 @@ pub(crate) fn draw_backpack_ui_system(
                         3.0,
                         vec![UITextConfig {
                             name: "Info Box Text".into(),
-                            content: "INFO".to_string(),
+                            content: "Name".to_string(),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.),
                             color: Srgba::WHITE,
-                            transform: Transform::from_xyz(0., 0., 6.0),
+                            transform: Transform::from_xyz(-21.5, 9.0, 6.0),
                             ..Default::default()
                         }],
                     ),

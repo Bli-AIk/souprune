@@ -207,7 +207,7 @@ impl Default for UITextConfig {
             transform: Transform::default(),
             align: TextAlign::Left,
             anchor: TextAnchor::TOP_LEFT,
-            line_height: 0.0,
+            line_height: 1.0,
         }
     }
 }
