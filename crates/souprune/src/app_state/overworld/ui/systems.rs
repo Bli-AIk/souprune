@@ -1,7 +1,9 @@
+use crate::app_state::app_setup::ResolutionScale;
 use crate::app_state::overworld::ui::components::{
     OverworldUI, OverworldUIBox, UIFont, UILayer, UITextConfig,
 };
 use crate::app_state::overworld::{OverworldState, character};
+use crate::core::data::PlayerData;
 use crate::core::input::Action;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
@@ -90,6 +92,7 @@ pub(crate) fn draw_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: OverworldUIQuery,
     camera_query: Query<&Transform, With<Camera2d>>,
+    player_data: Res<PlayerData>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
@@ -142,7 +145,7 @@ pub(crate) fn draw_backpack_ui_system(
                             UITextConfig {
                                 name: "NameText".into(),
                                 // TODO: 取消硬编码文本
-                                content: "Name".to_string(),
+                                content: player_data.name.clone(),
                                 font: UIFont::DeterminationSans,
                                 world_scale: Vec2::splat(13.),
                                 transform: Transform::from_xyz(-28.5, 22.0, 6.0),
@@ -151,7 +154,16 @@ pub(crate) fn draw_backpack_ui_system(
                             UITextConfig {
                                 name: "HUDText".into(),
                                 // TODO: 取消硬编码文本
-                                content: "LV 1\nhp 20/20\ng 0".to_string(),
+                                content: {
+                                    let hud_text = format!(
+                                        "LV {}\nhp {}/{}\ng  {}",
+                                        player_data.lv,
+                                        player_data.hp,
+                                        player_data.hp_max,
+                                        player_data.gold
+                                    );
+                                    hud_text
+                                },
                                 font: UIFont::HUD,
                                 world_scale: Vec2::splat(8.),
                                 transform: Transform::from_xyz(-28.5, 5.75, 6.0),

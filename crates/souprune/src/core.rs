@@ -34,6 +34,7 @@ pub(crate) mod camera;
 pub(crate) mod collision;
 pub(crate) mod input;
 pub(crate) mod sprite;
+pub(crate) mod data;
 
 use crate::extra;
 use bevy::app::*;
@@ -55,6 +56,7 @@ impl Plugin for CorePlugin {
                 animation::AnimationPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
+                data::DataPlugin,
                 input::InputPlugin,
                 sprite::SpritePlugin,
             ));
