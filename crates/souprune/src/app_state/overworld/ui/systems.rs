@@ -208,7 +208,8 @@ fn spawn_ui_box_children(
                 Text3d::new(text.clone()),
                 Text3dStyling {
                     font: "Determination Mono SimSun".into(),
-                    size: 20.,
+                    size: 128.,
+                    world_scale: Some(Vec2::splat(20.)),
                     color: Srgba::new(1., 1., 1., 1.),
                     ..Default::default()
                 },
