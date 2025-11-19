@@ -32,6 +32,8 @@ impl Plugin for DataPlugin {
 /// Resource to store basic player data, such as health, attack, defense, etc.
 ///
 /// 保存玩家基本数据的资源，例如血量、攻击、防御等。
+
+// TODO: 改为角色 Data，以支持多个角色的数据存储。
 #[derive(Resource)]
 pub(crate) struct PlayerData {
     pub(crate) name: String,
