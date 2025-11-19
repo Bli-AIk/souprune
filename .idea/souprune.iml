@@ -2,17 +2,11 @@
 <module type="EMPTY_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/bevy_fact_rule_event/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/bevy_mortar_bond/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/bevy_rich_text_3d_animator/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/souprune/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/souprune/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_fact_rule_event/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_rich_text_3d_animator/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/souprune/examples" isTestSource="false" />
-      <excludeFolder url="file://$MODULE_DIR$/.idea/dictionaries" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -3,7 +3,7 @@ resolver = "2"
 
 members = [
     "crates/souprune",
-    "crates/bevy_rich_text_3d_animator",
+    "crates/bevy_ecs_typewriter",
     "crates/bevy_fact_rule_event",
     "crates/bevy_mortar_bond"
 ]

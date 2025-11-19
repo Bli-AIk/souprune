@@ -750,6 +750,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_ecs_typewriter"
+version = "0.0.0"
+dependencies = [
+ "bevy",
+ "serde",
+]
+
+[[package]]
 name = "bevy_egui"
 version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1365,14 +1373,6 @@ dependencies = [
  "sys-locale",
  "thiserror 2.0.17",
  "zeno",
-]
-
-[[package]]
-name = "bevy_rich_text_3d_animator"
-version = "0.0.0"
-dependencies = [
- "bevy",
- "serde",
 ]
 
 [[package]]
@@ -4987,10 +4987,10 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_ecs_tiled",
+ "bevy_ecs_typewriter",
  "bevy_fact_rule_event",
  "bevy_mortar_bond",
  "bevy_rich_text3d",
- "bevy_rich_text_3d_animator",
  "bevy_smud",
  "bevy_tween",
  "iyes_perf_ui",
