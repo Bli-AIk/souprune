@@ -8,6 +8,8 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/bevy_mortar_bond_macros/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/src/bevy_mortar_bond_macros/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

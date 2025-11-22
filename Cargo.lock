@@ -1162,8 +1162,19 @@ name = "bevy_mortar_bond"
 version = "0.0.0"
 dependencies = [
  "bevy",
+ "bevy_ecs_typewriter",
+ "bevy_mortar_bond_macros",
  "mortar_compiler",
  "serde_json",
+]
+
+[[package]]
+name = "bevy_mortar_bond_macros"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
