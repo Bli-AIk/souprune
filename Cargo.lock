@@ -1159,7 +1159,7 @@ checksum = "7ef8e4b7e61dfe7719bb03c884dc270cd46a82efb40f93e9933b990c5c190c59"
 
 [[package]]
 name = "bevy_mortar_bond"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_ecs_typewriter",
