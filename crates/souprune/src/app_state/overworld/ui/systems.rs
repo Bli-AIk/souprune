@@ -118,8 +118,7 @@ pub(crate) fn draw_backpack_ui_system(
                             content: "ITEM\nSTAT".to_string(),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.25),
-                            // TODO: 调整父子关系以让 z 使用 1 而不是 6
-                            transform: Transform::from_xyz(-9.5, 28.5, 6.0),
+                            transform: Transform::from_xyz(-9.5, 28.5, 1.0),
                             line_height: 1.4,
                             ..Default::default()
                         }],
@@ -145,7 +144,7 @@ pub(crate) fn draw_backpack_ui_system(
                                 content: player_data.name.clone(),
                                 font: UIFont::DeterminationSans,
                                 world_scale: Vec2::splat(13.),
-                                transform: Transform::from_xyz(-28.5, 22.0, 6.0),
+                                transform: Transform::from_xyz(-28.5, 22.0, 1.0),
                                 ..Default::default()
                             },
                             UITextConfig {
@@ -163,7 +162,7 @@ pub(crate) fn draw_backpack_ui_system(
                                 },
                                 font: UIFont::Hud,
                                 world_scale: Vec2::splat(8.),
-                                transform: Transform::from_xyz(-28.5, 5.75, 6.0),
+                                transform: Transform::from_xyz(-28.5, 5.75, 1.0),
                                 line_height: 1.125,
                                 ..Default::default()
                             },
@@ -219,11 +218,13 @@ fn spawn_ui_box_children(
                         "#,
     );
 
+    let mut background_entity = None;
+
     commands.entity(entity).with_children(|parent| {
         parent.spawn((
             SmudShape {
                 color: Color::WHITE,
-                sdf: outer_sdf,
+                sdf: outer_sdf.clone(),
                 frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
                 fill: solid_fill.clone(),
                 ..default()
@@ -232,51 +233,61 @@ fn spawn_ui_box_children(
             Name::new("UIBoxBorder"),
         ));
 
-        parent.spawn((
-            SmudShape {
-                color: Color::BLACK,
-                sdf: inner_sdf,
-                frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                fill: solid_fill,
-                ..default()
-            },
-            Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
-            Name::new("UIBoxBackground"),
-        ));
-
-        // Spawn all configured texts
-        //
-        // 生成所有配置的文本
-        for text_config in &ui_box.texts {
-            info!("Spawning text for UI box: {}", text_config.content);
-
-            let mat = color_materials.add(ColorMaterial {
-                texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                alpha_mode: AlphaMode2d::Blend,
-                ..Default::default()
-            });
-
-            parent.spawn((
-                text_config.name.clone(),
-                Text3d::new(text_config.content.clone()),
-                Text3dStyling {
-                    font: text_config.font.font_name().into(),
-                    size: text_config.font.default_size(),
-                    world_scale: Some(text_config.world_scale),
-                    color: text_config.color,
-                    align: text_config.align,
-                    anchor: text_config.anchor,
-                    line_height: text_config.line_height,
-                    ..Default::default()
+        let background = parent
+            .spawn((
+                SmudShape {
+                    color: Color::BLACK,
+                    sdf: inner_sdf.clone(),
+                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                    fill: solid_fill,
+                    ..default()
                 },
-                Mesh2d::default(),
-                MeshMaterial2d(mat.clone()),
-                text_config.transform,
-                Visibility::Hidden,
-                NeedsGlyphRefresh,
-            ));
-        }
+                Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
+                Name::new("UIBoxBackground"),
+            ))
+            .id();
+
+        background_entity = Some(background);
     });
+
+    let Some(background_entity) = background_entity else {
+        warn!("Failed to spawn UI box background for entity {:?}", entity);
+        return;
+    };
+
+    commands
+        .entity(background_entity)
+        .with_children(|background_parent| {
+            for text_config in &ui_box.texts {
+                info!("Spawning text for UI box: {}", text_config.content);
+
+                let mat = color_materials.add(ColorMaterial {
+                    texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+                    alpha_mode: AlphaMode2d::Blend,
+                    ..Default::default()
+                });
+
+                background_parent.spawn((
+                    text_config.name.clone(),
+                    Text3d::new(text_config.content.clone()),
+                    Text3dStyling {
+                        font: text_config.font.font_name().into(),
+                        size: text_config.font.default_size(),
+                        world_scale: Some(text_config.world_scale),
+                        color: text_config.color,
+                        align: text_config.align,
+                        anchor: text_config.anchor,
+                        line_height: text_config.line_height,
+                        ..Default::default()
+                    },
+                    Mesh2d::default(),
+                    MeshMaterial2d(mat.clone()),
+                    text_config.transform,
+                    Visibility::Hidden,
+                    NeedsGlyphRefresh,
+                ));
+            }
+        });
 }
 
 pub(crate) fn update_overworld_ui_box_system(
