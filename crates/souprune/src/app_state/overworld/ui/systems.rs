@@ -10,6 +10,7 @@ use bevy_rich_text3d::*;
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use leafwing_input_manager::action_state::ActionState;
+use std::collections::VecDeque;
 
 /// Marker component for newly spawned text that needs glyph refresh
 ///
@@ -218,46 +219,48 @@ fn spawn_ui_box_children(
                         "#,
     );
 
-    let mut background_entity = None;
+    let mut filler_entity: Option<Entity> = None;
 
     commands.entity(entity).with_children(|parent| {
-        parent.spawn((
-            SmudShape {
-                color: Color::WHITE,
-                sdf: outer_sdf.clone(),
-                frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                fill: solid_fill.clone(),
-                ..default()
-            },
-            Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-            Name::new("UIBoxBorder"),
-        ));
-
-        let background = parent
+        parent
             .spawn((
                 SmudShape {
-                    color: Color::BLACK,
-                    sdf: inner_sdf.clone(),
-                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                    fill: solid_fill,
+                    color: Color::WHITE,
+                    sdf: outer_sdf.clone(),
+                    frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
+                    fill: solid_fill.clone(),
                     ..default()
                 },
-                Transform::from_translation(Vec3::new(0.0, 0.0, 5.1)),
-                Name::new("UIBoxBackground"),
+                Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+                Name::new("UIBoxBorder"),
             ))
-            .id();
+            .with_children(|border_parent| {
+                let filler = border_parent
+                    .spawn((
+                        SmudShape {
+                            color: Color::BLACK,
+                            sdf: inner_sdf.clone(),
+                            frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                            fill: solid_fill.clone(),
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                        Name::new("UIBoxFiller"),
+                    ))
+                    .id();
 
-        background_entity = Some(background);
+                filler_entity = Some(filler);
+            });
     });
 
-    let Some(background_entity) = background_entity else {
-        warn!("Failed to spawn UI box background for entity {:?}", entity);
+    let Some(filler_entity) = filler_entity else {
+        warn!("Failed to spawn UI box filler for entity {:?}", entity);
         return;
     };
 
     commands
-        .entity(background_entity)
-        .with_children(|background_parent| {
+        .entity(filler_entity)
+        .with_children(|filler_parent| {
             for text_config in &ui_box.texts {
                 info!("Spawning text for UI box: {}", text_config.content);
 
@@ -267,7 +270,7 @@ fn spawn_ui_box_children(
                     ..Default::default()
                 });
 
-                background_parent.spawn((
+                filler_parent.spawn((
                     text_config.name.clone(),
                     Text3d::new(text_config.content.clone()),
                     Text3dStyling {
@@ -296,6 +299,7 @@ pub(crate) fn update_overworld_ui_box_system(
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     overworld_ui_box_query: OverworldUIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
+    children_query: Query<&Children>,
 ) {
     for (entity, ui_box, transform, children_opt) in overworld_ui_box_query.iter() {
         let box_width = ui_box.width();
@@ -315,33 +319,36 @@ pub(crate) fn update_overworld_ui_box_system(
         ));
 
         match children_opt {
-            // Check if there are already SmudShape children
-            // 检查是否已经有SmudShape子实体
             Some(children) => {
-                // Filter out SmudShape children
-                // 过滤出SmudShape子实体
-                let smud_shape_children: Vec<_> = children
-                    .iter()
-                    .filter(|&child| smud_shape_query.get(child).is_ok())
-                    .collect();
+                let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
+                let mut smud_shape_entities: Vec<Entity> = Vec::new();
 
-                if smud_shape_children.len() >= 2 {
-                    // Update existing SmudShapes
-                    // 更新现有的SmudShape
+                while let Some(child) = queue.pop_front() {
+                    if smud_shape_query.get(child).is_ok() {
+                        smud_shape_entities.push(child);
+                        if smud_shape_entities.len() >= 2 {
+                            break;
+                        }
+                    }
+
+                    if let Ok(grandchildren) = children_query.get(child) {
+                        queue.extend(grandchildren.to_vec());
+                    }
+                }
+
+                if smud_shape_entities.len() >= 2 {
                     info!("Updating existing SmudShape children for UI box");
 
-                    if let Ok(mut outer_shape) = smud_shape_query.get_mut(smud_shape_children[0]) {
+                    if let Ok(mut outer_shape) = smud_shape_query.get_mut(smud_shape_entities[0]) {
                         outer_shape.sdf = outer_sdf;
                         outer_shape.frame = Frame::Quad((box_width + border_width * 2.0) + 10.0);
                     }
 
-                    if let Ok(mut inner_shape) = smud_shape_query.get_mut(smud_shape_children[1]) {
+                    if let Ok(mut inner_shape) = smud_shape_query.get_mut(smud_shape_entities[1]) {
                         inner_shape.sdf = inner_sdf;
                         inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
                     }
                 } else {
-                    // Has children but no SmudShapes, need to add SmudShapes
-                    // 有子实体但没有SmudShape，需要添加SmudShape
                     info!(
                         "Adding SmudShape children to existing UI box at position: {:?}",
                         transform.translation
@@ -358,8 +365,6 @@ pub(crate) fn update_overworld_ui_box_system(
                     );
                 }
             }
-            // No children, first time creating SmudShapes
-            // 没有子实体，首次创建SmudShape
             None => {
                 info!(
                     "Creating new SmudShape children for UI box at position: {:?}",
