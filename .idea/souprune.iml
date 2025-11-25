@@ -12,6 +12,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/src/bevy_mortar_bond_macros/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -106,8 +106,8 @@ pub(crate) fn draw_backpack_ui_system(
             };
 
             // TODO: 修复跑动时打开菜单位置偏移问题
-            // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
 
+            // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
             commands.entity(ui_entity).with_children(|parent| {
                 parent.spawn((
                     OverworldUIBox::new_with_texts(
