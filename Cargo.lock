@@ -1161,7 +1161,6 @@ name = "bevy_mortar_bond"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy_ecs_typewriter",
  "bevy_mortar_bond_macros",
  "mortar_compiler",
  "serde_json",
