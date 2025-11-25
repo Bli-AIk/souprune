@@ -11,7 +11,7 @@
 
 use bevy::color::Srgba;
 use bevy::prelude::Component;
-use bevy::prelude::{Name, Transform, Vec2};
+use bevy::prelude::{Name, Transform, Vec2, Vec3};
 use std::borrow::Cow;
 use std::fmt;
 
@@ -151,7 +151,7 @@ impl OverworldUI {
 pub(crate) enum UIFont {
     DeterminationMono,
     DeterminationSans,
-    HUD,
+    Hud,
     // Add more fonts as needed
 }
 
@@ -163,7 +163,7 @@ impl UIFont {
         match self {
             UIFont::DeterminationMono => "Determination Mono SimSun",
             UIFont::DeterminationSans => "Determination Sans SimSun",
-            UIFont::HUD => "Crypt of Tomorrow Fusion",
+            UIFont::Hud => "Crypt of Tomorrow Fusion",
         }
     }
 
@@ -211,6 +211,21 @@ impl Default for UITextConfig {
             anchor: TextAnchor::BOTTOM_RIGHT,
             line_height: 1.0,
         }
+    }
+}
+
+/// Marks UI entities that should stick to the camera with a constant offset.
+///
+/// 标记需要根据摄像机位置保持固定偏移的 UI 实体
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchored {
+    pub(crate) offset: Vec3,
+}
+
+impl CameraAnchored {
+    pub(crate) fn new(offset: Vec3) -> Self {
+        Self { offset }
     }
 }
 

@@ -23,10 +23,8 @@ use bevy::prelude::*;
 pub(crate) mod components;
 mod systems;
 
-pub(crate) use components::{UIFont, UITextConfig};
-
 #[cfg(feature = "debug")]
-use components::{OverworldUI, OverworldUIBox, UILayer};
+use components::{CameraAnchored, OverworldUI, OverworldUIBox, UILayer};
 
 pub(crate) struct UndertaleOverworldUIPlugin;
 
@@ -44,6 +42,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                     draw_backpack_ui_system,
                     update_overworld_ui_box_system,
                     show_text_when_ready_system,
+                    update_camera_anchored_ui_system,
                 ),
             );
 
@@ -51,7 +50,8 @@ impl Plugin for UndertaleOverworldUIPlugin {
         {
             app.register_type::<OverworldUI>()
                 .register_type::<OverworldUIBox>()
-                .register_type::<UILayer>();
+                .register_type::<UILayer>()
+                .register_type::<CameraAnchored>();
         }
     }
 }

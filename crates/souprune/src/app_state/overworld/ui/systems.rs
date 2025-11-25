@@ -1,5 +1,5 @@
 use crate::app_state::overworld::ui::components::{
-    OverworldUI, OverworldUIBox, UIFont, UILayer, UITextConfig,
+    CameraAnchored, OverworldUI, OverworldUIBox, UIFont, UILayer, UITextConfig,
 };
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::data::PlayerData;
@@ -126,6 +126,7 @@ pub(crate) fn draw_backpack_ui_system(
                             ..Default::default()
                         }],
                     ),
+                    CameraAnchored::new(Vec3::new(-108.5, -1.0, 0.0)),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
                     ),
@@ -162,7 +163,7 @@ pub(crate) fn draw_backpack_ui_system(
                                     );
                                     hud_text
                                 },
-                                font: UIFont::HUD,
+                                font: UIFont::Hud,
                                 world_scale: Vec2::splat(8.),
                                 transform: Transform::from_xyz(-28.5, 5.75, 6.0),
                                 line_height: 1.125,
@@ -170,6 +171,7 @@ pub(crate) fn draw_backpack_ui_system(
                             },
                         ],
                     ),
+                    CameraAnchored::new(Vec3::new(-108.5, 66.5, 0.0)),
                     Transform::from_translation(
                         camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                     ),
@@ -403,6 +405,31 @@ pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
         if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
             *visibility = Visibility::Inherited;
             info!("Text mesh ready, showing text");
+        }
+    }
+}
+
+/// Keep camera-anchored UI in place even if the camera is still interpolating.
+///
+/// 在摄像机插值移动时保持 UI 的相对位置不漂移
+pub(crate) fn update_camera_anchored_ui_system(
+    overworld_state: Res<State<OverworldState>>,
+    camera_query: Query<&Transform, With<Camera2d>>,
+    mut anchored_ui_query: Query<(&CameraAnchored, &mut Transform), Without<Camera2d>>,
+) {
+    if overworld_state.get() != &OverworldState::Backpack {
+        return;
+    }
+
+    let Ok(camera_transform) = camera_query.single() else {
+        warn!("No Camera2d available for anchoring UI");
+        return;
+    };
+
+    for (anchor, mut transform) in anchored_ui_query.iter_mut() {
+        let new_translation = camera_transform.translation + anchor.offset;
+        if transform.translation != new_translation {
+            transform.translation = new_translation;
         }
     }
 }
