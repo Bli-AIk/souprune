@@ -20,10 +20,21 @@
 use crate::app_state::overworld::OverworldState;
 use bevy::prelude::*;
 
+mod camera;
 pub(crate) mod components;
-mod systems;
+mod cursor;
+mod lifecycle;
+mod state;
+mod text;
+mod ui_box;
 
+use camera::update_camera_anchored_ui_system;
 use components::UILayerNavigationConfig;
+use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
+use lifecycle::{destroy_backpack_ui_system, spawn_backpack_ui_system};
+use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
+use text::{refresh_text_glyphs_system, show_text_when_ready_system};
+use ui_box::{draw_backpack_ui_system, update_overworld_ui_box_system};
 
 #[cfg(feature = "debug")]
 use components::{
@@ -35,8 +46,6 @@ pub(crate) struct UndertaleOverworldUIPlugin;
 
 impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
-        use systems::*;
-
         app.init_resource::<UILayerNavigationConfig>()
             .add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
             .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
