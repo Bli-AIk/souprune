@@ -5,6 +5,7 @@ use super::components::{
 use super::text::NeedsGlyphRefresh;
 use crate::core::data::PlayerData;
 use crate::core::sprite::params::SpriteParams;
+use crate::extra::mortar::MortarStringTable;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_rich_text3d::{Text3d, Text3dStyling, TextAtlas};
@@ -24,6 +25,7 @@ pub(crate) fn draw_backpack_ui_system(
     camera_query: Query<&Transform, With<Camera2d>>,
     player_data: Res<PlayerData>,
     mut sprite_params: SpriteParams,
+    mortar_strings: Res<MortarStringTable>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
@@ -58,8 +60,11 @@ pub(crate) fn draw_backpack_ui_system(
                     3.0,
                     vec![UITextConfig {
                         name: "Text".into(),
-                        // TODO: 取消硬编码文本
-                        content: "ITEM\nSTAT".to_string(),
+                        content: format!(
+                            "{}\n{}",
+                            mortar_strings.get("ITEM").unwrap_or("ITEM"),
+                            mortar_strings.get("STAT").unwrap_or("STAT")
+                        ),
                         font: UIFont::DeterminationSans,
                         world_scale: Vec2::splat(13.25),
                         transform: Transform::from_xyz(-9.5, 28.5, 1.0),

@@ -1,0 +1,2 @@
+pub const ITEM: String = "ITEM"
+pub const STAT: String = "STAT"

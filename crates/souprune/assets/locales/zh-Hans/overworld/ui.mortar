@@ -1,0 +1,2 @@
+pub const ITEM: String = "物品"
+pub const STAT: String = "状态"

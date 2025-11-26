@@ -55,7 +55,11 @@ fn get_bevy_default_plugins() -> PluginGroupBuilder {
 /// 获取应用程序中使用的文件导入器插件。
 macro_rules! get_file_importer_plugins {
     () => {
-        (extra::markdown::MarkdownPlugin, extra::toml::TomlPlugin)
+        (
+            extra::markdown::MarkdownPlugin,
+            extra::toml::TomlPlugin,
+            extra::mortar::MortarExtraPlugin,
+        )
     };
 }
 

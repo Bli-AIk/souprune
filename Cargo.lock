@@ -5145,6 +5145,7 @@ dependencies = [
  "log",
  "seldom_state",
  "serde",
+ "serde_json",
  "toml",
 ]
 

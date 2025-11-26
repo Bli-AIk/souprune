@@ -20,4 +20,5 @@
 
 pub mod debug;
 pub mod markdown;
+pub mod mortar;
 pub mod toml;
