@@ -309,6 +309,29 @@ impl OverworldUIBox {
     }
 }
 
+/// Controls which [`UILayer`]s should render a given [`OverworldUIBox`].
+///
+/// 控制指定 [`OverworldUIBox`] 在哪些 [`UILayer`] 中可见。
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct OverworldUIBoxVisibility {
+    rule: UILayerVisibilityRule,
+}
+
+impl OverworldUIBoxVisibility {
+    pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
+        Self { rule }
+    }
+
+    pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
+        &self.rule
+    }
+
+    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+        self.rule.is_visible_for(layer)
+    }
+}
+
 /// Marker component attached to the cursor sprite entity spawned under a UI box.
 ///
 /// 标记生成在 UI 框下方的光标精灵实体。
@@ -338,29 +361,31 @@ pub(crate) struct UIBoxFiller;
 /// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) enum BoxCursorVisibility {
+pub(crate) enum UILayerVisibilityRule {
     Always,
     AlwaysHidden,
     OnlyIn(Vec<UILayer>),
     Except(Vec<UILayer>),
 }
 
-impl Default for BoxCursorVisibility {
+impl Default for UILayerVisibilityRule {
     fn default() -> Self {
-        BoxCursorVisibility::Always
+        UILayerVisibilityRule::Always
     }
 }
 
-impl BoxCursorVisibility {
+impl UILayerVisibilityRule {
     pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
         match self {
-            BoxCursorVisibility::Always => true,
-            BoxCursorVisibility::AlwaysHidden => false,
-            BoxCursorVisibility::OnlyIn(layers) => layers.iter().any(|l| l == layer),
-            BoxCursorVisibility::Except(layers) => layers.iter().all(|l| l != layer),
+            UILayerVisibilityRule::Always => true,
+            UILayerVisibilityRule::AlwaysHidden => false,
+            UILayerVisibilityRule::OnlyIn(layers) => layers.iter().any(|l| l == layer),
+            UILayerVisibilityRule::Except(layers) => layers.iter().all(|l| l != layer),
         }
     }
 }
+
+pub(crate) use UILayerVisibilityRule as BoxCursorVisibility;
 
 /// Helper that turns an index into a translation offset for the cursor sprite.
 ///

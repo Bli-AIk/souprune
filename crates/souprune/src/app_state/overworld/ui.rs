@@ -34,12 +34,15 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use lifecycle::{destroy_backpack_ui_system, spawn_backpack_ui_system};
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
-use ui_box::{draw_backpack_ui_system, update_overworld_ui_box_system};
+use ui_box::{
+    draw_backpack_ui_system, update_overworld_ui_box_system,
+    update_overworld_ui_box_visibility_system,
+};
 
 #[cfg(feature = "debug")]
 use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
-    UILayer,
+    OverworldUIBoxVisibility, UILayer,
 };
 
 pub(crate) struct UndertaleOverworldUIPlugin;
@@ -57,6 +60,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                     update_overworld_ui_navigation_system,
                     draw_backpack_ui_system,
                     update_overworld_ui_box_system,
+                    update_overworld_ui_box_visibility_system,
                     spawn_box_cursor_visual_system,
                     update_box_cursor_state_system,
                     show_text_when_ready_system,
@@ -70,6 +74,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                 .register_type::<OverworldUIBox>()
                 .register_type::<UILayer>()
                 .register_type::<CameraAnchored>()
+                .register_type::<OverworldUIBoxVisibility>()
                 .register_type::<BoxCursor>()
                 .register_type::<BoxCursorPosition>()
                 .register_type::<BoxCursorVisibility>();

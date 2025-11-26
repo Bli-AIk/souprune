@@ -1,11 +1,13 @@
 use super::components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
-    UIBoxFiller, UIFont, UILayer, UITextConfig,
+    OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule, UITextConfig,
 };
 use super::text::NeedsGlyphRefresh;
+use crate::app_state::overworld::OverworldState;
 use crate::core::data::PlayerData;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::mortar::MortarStringTable;
+use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_rich_text3d::{Text3d, Text3dStyling, TextAtlas};
@@ -72,6 +74,8 @@ pub(crate) fn draw_backpack_ui_system(
                         ..Default::default()
                     }],
                 ),
+                OverworldUIBoxVisibility::new(UILayerVisibilityRule::Always),
+                Visibility::default(),
                 BoxCursor::new(
                     cursor_sprite,
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]),
@@ -85,7 +89,6 @@ pub(crate) fn draw_backpack_ui_system(
                 Transform::from_translation(
                     camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
                 ),
-                Visibility::default(),
                 Name::new("MenuBox"),
             ));
         });
@@ -123,12 +126,76 @@ pub(crate) fn draw_backpack_ui_system(
                         },
                     ],
                 ),
+                OverworldUIBoxVisibility::new(UILayerVisibilityRule::Always),
+                Visibility::default(),
                 CameraAnchored::new(Vec3::new(-108.5, 66.5, 0.0)),
                 Transform::from_translation(
                     camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
                 ),
-                Visibility::default(),
                 Name::new("InfoBox"),
+            ));
+        });
+
+        commands.entity(ui_entity).with_children(|parent| {
+            parent.spawn((
+                OverworldUIBox::new_with_texts(
+                    105.0,
+                    68.0,
+                    3.0,
+                    vec![UITextConfig {
+                        name: "ItemLayerText".into(),
+                        content: "* TODO: Items go here".to_string(),
+                        font: UIFont::DeterminationSans,
+                        world_scale: Vec2::splat(10.5),
+                        transform: Transform::from_xyz(-48.5, 23.0, 1.0),
+                        line_height: 1.2,
+                        ..Default::default()
+                    }],
+                ),
+                OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
+                    UILayer::BACKPACK_ITEM.clone(),
+                ])),
+                Visibility::default(),
+                CameraAnchored::new(Vec3::new(-32.5, -1.0, 0.0)),
+                Transform::from_translation(
+                    camera_transform.translation + Vec3::new(-32.5, -1.0, 0.0),
+                ),
+                Name::new("ItemBox"),
+            ));
+        });
+
+        commands.entity(ui_entity).with_children(|parent| {
+            parent.spawn((
+                OverworldUIBox::new_with_texts(
+                    105.0,
+                    68.0,
+                    3.0,
+                    vec![UITextConfig {
+                        name: "StatusLayerText".into(),
+                        content: format!(
+                            "* LV: {}\n* ATK: {}\n* DEF: {}\n* HP: {}/{}",
+                            player_data.lv,
+                            player_data.attack,
+                            player_data.defense,
+                            player_data.hp,
+                            player_data.hp_max
+                        ),
+                        font: UIFont::DeterminationSans,
+                        world_scale: Vec2::splat(9.5),
+                        transform: Transform::from_xyz(-48.5, 23.0, 1.0),
+                        line_height: 1.25,
+                        ..Default::default()
+                    }],
+                ),
+                OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
+                    UILayer::BACKPACK_STATUS.clone(),
+                ])),
+                Visibility::default(),
+                CameraAnchored::new(Vec3::new(-32.5, 66.5, 0.0)),
+                Transform::from_translation(
+                    camera_transform.translation + Vec3::new(-32.5, 66.5, 0.0),
+                ),
+                Name::new("StatusBox"),
             ));
         });
     }
@@ -341,6 +408,53 @@ pub(crate) fn update_overworld_ui_box_system(
                     &mut color_materials,
                 );
             }
+        }
+    }
+}
+
+/// Toggle UI box visibility according to the active [`UILayer`].
+///
+/// 根据当前激活的 [`UILayer`] 切换 UI 框可见性。
+pub(crate) fn update_overworld_ui_box_visibility_system(
+    overworld_state: Res<State<OverworldState>>,
+    ui_query: Query<&OverworldUI>,
+    parent_query: Query<&ChildOf>,
+    mut box_query: Query<
+        (Entity, &OverworldUIBoxVisibility, &mut Visibility),
+        With<OverworldUIBox>,
+    >,
+) {
+    let in_backpack = overworld_state.get() == &OverworldState::Backpack;
+
+    for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
+        if !in_backpack {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        }
+
+        let Ok(parent) = parent_query.get(entity) else {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        };
+
+        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        };
+
+        let should_show = layer_visibility.is_visible_for(overworld_ui.layer());
+        if should_show {
+            if *visibility != Visibility::Inherited {
+                *visibility = Visibility::Inherited;
+            }
+        } else if *visibility != Visibility::Hidden {
+            *visibility = Visibility::Hidden;
         }
     }
 }

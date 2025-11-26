@@ -1,4 +1,4 @@
-use super::components::{OverworldUI, UILayerNavigationConfig};
+use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -10,6 +10,7 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) fn menu_overworld_state_transitions_system(
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
+    mut overworld_ui_query: Query<&mut OverworldUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
 ) {
     if let Ok(action_state) = query.single() {
@@ -22,13 +23,64 @@ pub(crate) fn menu_overworld_state_transitions_system(
                 next_state.set(OverworldState::Backpack);
             }
             OverworldState::Backpack => {
-                if !(action_state.just_pressed(&Action::Menu)
-                    || action_state.just_pressed(&Action::Cancel))
-                {
+                let Ok(mut overworld_ui) = overworld_ui_query.single_mut() else {
+                    warn!("Backpack menu open but no OverworldUI entity found");
                     return;
+                };
+
+                if overworld_ui.layer() == &UILayer::BACKPACK_MENU {
+                    if action_state.just_pressed(&Action::Menu)
+                        || action_state.just_pressed(&Action::Cancel)
+                    {
+                        info!("Leaving Backpack menu and returning to Normal state");
+                        next_state.set(OverworldState::Normal);
+                        return;
+                    }
+
+                    if action_state.just_pressed(&Action::Confirm) {
+                        match overworld_ui.index() {
+                            0 => {
+                                info!("Opening Backpack item layer");
+                                overworld_ui.set_layer(
+                                    UILayer::BACKPACK_ITEM.clone(),
+                                    backpack_layer_entry_count(&UILayer::BACKPACK_ITEM),
+                                );
+                            }
+                            1 => {
+                                info!("Opening Backpack status layer");
+                                overworld_ui.set_layer(
+                                    UILayer::BACKPACK_STATUS.clone(),
+                                    backpack_layer_entry_count(&UILayer::BACKPACK_STATUS),
+                                );
+                            }
+                            _ => {
+                                warn!(
+                                    "Unhandled Backpack menu index {} when confirming",
+                                    overworld_ui.index()
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    if action_state.just_pressed(&Action::Cancel) {
+                        info!(
+                            "Returning to Backpack menu layer from {}",
+                            overworld_ui.layer()
+                        );
+                        overworld_ui.set_layer(
+                            UILayer::BACKPACK_MENU.clone(),
+                            backpack_layer_entry_count(&UILayer::BACKPACK_MENU),
+                        );
+                        return;
+                    }
+
+                    if action_state.just_pressed(&Action::Confirm) {
+                        info!(
+                            "TODO: confirm action handling for Backpack layer {}",
+                            overworld_ui.layer()
+                        );
+                    }
                 }
-                info!("Transitioning from Menu to Normal state");
-                next_state.set(OverworldState::Normal);
             }
             OverworldState::Cutscene => {
                 info!("Menu key pressed during cutscene, ignoring");
@@ -78,5 +130,13 @@ pub(crate) fn update_overworld_ui_navigation_system(
             }
             overworld_ui.set_index(next_index as usize);
         }
+    }
+}
+
+fn backpack_layer_entry_count(layer: &UILayer) -> usize {
+    if layer == &UILayer::BACKPACK_MENU {
+        UILayer::total_count().saturating_sub(1)
+    } else {
+        1
     }
 }
