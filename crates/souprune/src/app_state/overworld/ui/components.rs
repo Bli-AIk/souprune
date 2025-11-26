@@ -9,10 +9,11 @@
 //! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。字段为私有，通过只读访问器
 //! 和受控的设置器来访问和修改。
 
+use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::Component;
-use bevy::prelude::{Name, Transform, Vec2, Vec3};
+use bevy::prelude::{Component, Entity, Name, Resource, Transform, Vec2, Vec3};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 
 #[cfg(feature = "debug")]
@@ -302,5 +303,172 @@ impl OverworldUIBox {
     /// 设置边框宽度。
     pub(crate) fn set_border_width(&mut self, border_width: f32) {
         self.border_width = border_width;
+    }
+}
+
+/// Marker component attached to the cursor sprite entity spawned under a UI box
+#[derive(Component)]
+pub(crate) struct BoxCursorSprite;
+
+/// Records which OverworldUIBox owns a cursor sprite entity
+#[derive(Component, Copy, Clone)]
+pub(crate) struct BoxCursorOwner(pub Entity);
+
+/// Marker indicating the cursor sprite has been spawned for this box
+#[derive(Component, Copy, Clone)]
+pub(crate) struct BoxCursorReady;
+
+/// Marker placed on the filler entity that contains UI text and cursor sprites
+#[derive(Component)]
+pub(crate) struct UIBoxFiller;
+
+/// Controls the visibility behavior of a [`BoxCursor`] relative to the active [`UILayer`]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum BoxCursorVisibility {
+    Always,
+    AlwaysHidden,
+    OnlyIn(Vec<UILayer>),
+    Except(Vec<UILayer>),
+}
+
+impl BoxCursorVisibility {
+    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+        match self {
+            BoxCursorVisibility::Always => true,
+            BoxCursorVisibility::AlwaysHidden => false,
+            BoxCursorVisibility::OnlyIn(layers) => layers.iter().any(|l| l == layer),
+            BoxCursorVisibility::Except(layers) => layers.iter().all(|l| l != layer),
+        }
+    }
+}
+
+/// Helper that turns an index into a translation offset for the cursor sprite
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum BoxCursorPosition {
+    Static(Vec3),
+    Linear { origin: Vec3, step: Vec3 },
+}
+
+impl BoxCursorPosition {
+    pub(crate) fn fixed(position: Vec3) -> Self {
+        Self::Static(position)
+    }
+
+    pub(crate) fn linear(origin: Vec3, step: Vec3) -> Self {
+        Self::Linear { origin, step }
+    }
+
+    pub(crate) fn position_for_index(&self, index: usize) -> Vec3 {
+        match self {
+            BoxCursorPosition::Static(position) => *position,
+            BoxCursorPosition::Linear { origin, step } => *origin + *step * index as f32,
+        }
+    }
+}
+
+/// Configurable cursor that can be attached to any [`OverworldUIBox`]
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct BoxCursor {
+    module_name: Cow<'static, str>,
+    sprite_name: Cow<'static, str>,
+    visibility: BoxCursorVisibility,
+    position: BoxCursorPosition,
+    hidden: bool,
+}
+
+impl BoxCursor {
+    pub(crate) fn new(
+        module_name: impl Into<Cow<'static, str>>,
+        sprite_name: impl Into<Cow<'static, str>>,
+        visibility: BoxCursorVisibility,
+        position: BoxCursorPosition,
+    ) -> Self {
+        Self {
+            module_name: module_name.into(),
+            sprite_name: sprite_name.into(),
+            visibility,
+            position,
+            hidden: false,
+        }
+    }
+
+    pub(crate) fn sprite_config(&self) -> (&str, &str) {
+        (self.module_name.as_ref(), self.sprite_name.as_ref())
+    }
+
+    pub(crate) fn visibility(&self) -> &BoxCursorVisibility {
+        &self.visibility
+    }
+
+    pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
+        self.position.position_for_index(index)
+    }
+
+    pub(crate) fn hide(&mut self) {
+        self.hidden = true;
+    }
+
+    pub(crate) fn show(&mut self) {
+        self.hidden = false;
+    }
+
+    pub(crate) fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+}
+
+/// Describes how directional inputs should modify the index of a [`UILayer`]
+#[derive(Debug, Clone)]
+pub(crate) struct UILayerNavigationRule {
+    adjustments: HashMap<Action, isize>,
+}
+
+impl UILayerNavigationRule {
+    pub(crate) fn new(pairs: impl IntoIterator<Item = (Action, isize)>) -> Self {
+        Self {
+            adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+        }
+    }
+
+    pub(crate) fn delta_for(&self, action: Action) -> Option<isize> {
+        self.adjustments.get(&action).copied()
+    }
+}
+
+/// Registry that stores the navigation rules for every [`UILayer`]
+#[derive(Resource, Debug)]
+pub(crate) struct UILayerNavigationConfig {
+    rules: HashMap<UILayer, UILayerNavigationRule>,
+}
+
+impl UILayerNavigationConfig {
+    pub(crate) fn get(&self, layer: &UILayer) -> Option<&UILayerNavigationRule> {
+        self.rules.get(layer)
+    }
+
+    pub(crate) fn set_rule(&mut self, layer: UILayer, rule: UILayerNavigationRule) {
+        self.rules.insert(layer, rule);
+    }
+}
+
+impl Default for UILayerNavigationRule {
+    fn default() -> Self {
+        Self::new([])
+    }
+}
+
+impl Default for UILayerNavigationConfig {
+    fn default() -> Self {
+        let mut config = Self {
+            rules: HashMap::new(),
+        };
+        config.set_rule(
+            UILayer::BACKPACK_MENU,
+            UILayerNavigationRule::new([(Action::Up, 1), (Action::Down, -1)]),
+        );
+        config
     }
 }

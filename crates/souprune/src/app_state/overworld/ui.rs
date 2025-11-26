@@ -23,8 +23,13 @@ use bevy::prelude::*;
 pub(crate) mod components;
 mod systems;
 
+use components::UILayerNavigationConfig;
+
 #[cfg(feature = "debug")]
-use components::{CameraAnchored, OverworldUI, OverworldUIBox, UILayer};
+use components::{
+    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
+    UILayer,
+};
 
 pub(crate) struct UndertaleOverworldUIPlugin;
 
@@ -32,15 +37,19 @@ impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
 
-        app.add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
+        app.init_resource::<UILayerNavigationConfig>()
+            .add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
             .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
                 (
                     menu_overworld_state_transitions_system,
+                    update_overworld_ui_navigation_system,
                     draw_backpack_ui_system,
                     update_overworld_ui_box_system,
+                    spawn_box_cursor_visual_system,
+                    update_box_cursor_state_system,
                     show_text_when_ready_system,
                     update_camera_anchored_ui_system,
                 ),
@@ -51,7 +60,10 @@ impl Plugin for UndertaleOverworldUIPlugin {
             app.register_type::<OverworldUI>()
                 .register_type::<OverworldUIBox>()
                 .register_type::<UILayer>()
-                .register_type::<CameraAnchored>();
+                .register_type::<CameraAnchored>()
+                .register_type::<BoxCursor>()
+                .register_type::<BoxCursorPosition>()
+                .register_type::<BoxCursorVisibility>();
         }
     }
 }

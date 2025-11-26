@@ -42,6 +42,7 @@ fn load_textures_system(mut commands: Commands, asset_server: Res<AssetServer>) 
     // Register for modules here!
     register_module(&mut register, "overworld");
     register_module(&mut register, "battle");
+    register_module(&mut register, "common");
 
     commands.insert_resource(registry);
 }
@@ -59,17 +60,25 @@ fn register_module(
 fn check_textures_system(
     mut next_state: ResMut<NextState<AppState>>,
     sprite_registry: Res<ModuleSpriteRegistry>,
+    asset_server: Res<AssetServer>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
 ) {
     // TODO 配置于toml文件
     // 目前会检查所有需要的Sprite是否加载完成，然后才切换状态
     // 但是这样做不够灵活
     // 我们应该在toml文件中配置某个AppState加载前，需要哪些模块的Sprite
-    for event in events.read() {
-        if let Some(handle) = sprite_registry.get_module("overworld")
-            && event.is_loaded_with_dependencies(handle)
-        {
+    for _ in events.read() {
+        let all_loaded = ["overworld", "common"].into_iter().all(|module| {
+            if let Some(handle) = sprite_registry.get_module(module) {
+                asset_server.is_loaded_with_dependencies(handle)
+            } else {
+                false
+            }
+        });
+
+        if all_loaded {
             next_state.set(AppState::Overworld);
+            break;
         }
     }
 }
