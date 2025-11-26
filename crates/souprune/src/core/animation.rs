@@ -1,18 +1,22 @@
 //! # animation.rs
 //!
-//! ## Module Overview
-//! This module provides the core animation functionalities for sprites within the game.
+//! # animation.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `AnimationPlugin`, which manages the lifecycle of sprite animations,
-//! including synchronization, frame updates, and clip setup.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块为游戏中的精灵提供了核心动画功能。
+//!
+//! This module powers the game's core sprite animation functionality.
+//!
+//! 该模块为游戏精灵提供核心动画能力。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `AnimationPlugin`，它管理精灵动画的生命周期，
-//! 包括同步、帧更新和动画剪辑设置。
+//!
+//! The file defines `AnimationPlugin`, which manages sprite animation sync, updates, and clip setup.
+//!
+//! 本文件定义了 `AnimationPlugin`，用于管理精灵动画的同步、更新与剪辑设置。
 
 pub(crate) mod components;
 mod systems;

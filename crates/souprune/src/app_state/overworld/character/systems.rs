@@ -82,7 +82,9 @@ fn apply_walking_step(
     if let Some(direction) = new_direction {
         facing.value = direction;
 
-        // SDF碰撞系统可以处理任意大小的移动，无需分解步骤
+        // The SDF collision system handles arbitrary movement magnitudes without splitting steps.
+        //
+        // SDF 碰撞系统可以处理任意大小的移动，无需分解步骤。
         let movement = facing.value.as_vec2() * speed * delta_secs;
         transform.translation += movement.extend(0.0);
     }

@@ -11,8 +11,9 @@ pub(crate) struct Followable {
 }
 
 impl Followable {
-    /// Create a new Followable with bounds disabled
-    /// 创建一个新的不限制边界的Followable
+    /// Create a new `Followable` with bounds disabled.
+    ///
+    /// 创建一个新的不限制边界的 Followable。
     pub fn new(target: Option<Entity>) -> Self {
         Self {
             target,
@@ -24,8 +25,9 @@ impl Followable {
         }
     }
 
-    /// Create a new Followable with bounds enabled
-    /// 创建一个新的限制边界的Followable
+    /// Create a new `Followable` with bounds enabled.
+    ///
+    /// 创建一个新的限制边界的 Followable。
     pub fn new_with_bounds(
         target: Option<Entity>,
         min_x: f32,
@@ -43,8 +45,9 @@ impl Followable {
         }
     }
 
-    /// Enable bounds restriction
-    /// 启用边界限制
+    /// Enable bounds restriction.
+    ///
+    /// 启用边界限制。
     pub fn enable_bounds(&mut self, min_x: f32, max_x: f32, min_y: f32, max_y: f32) {
         self.bounds_enabled = true;
         self.min_x = min_x;
@@ -53,8 +56,9 @@ impl Followable {
         self.max_y = max_y;
     }
 
-    /// Disable bounds restriction
-    /// 禁用边界限制
+    /// Disable bounds restriction.
+    ///
+    /// 禁用边界限制。
     pub fn disable_bounds(&mut self) {
         self.bounds_enabled = false;
     }

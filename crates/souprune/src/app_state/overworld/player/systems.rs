@@ -16,7 +16,9 @@ pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
 ) {
-    // 只在Normal状态下允许方向控制
+    // Allow direction control only in the Normal overworld state.
+    //
+    // 只在 Normal 状态下允许方向控制。
     if *overworld_state != OverworldState::Normal {
         return;
     }
@@ -27,7 +29,9 @@ pub(crate) fn player_direction_control_system(
         let left_pressed = action_state.pressed(&Action::Left);
         let right_pressed = action_state.pressed(&Action::Right);
 
-        // Only updates heading when opposite direction is pressed at different times
+        // Only update the facing direction when opposite inputs are not pressed simultaneously.
+        //
+        // 只有在相反方向没有同时按下时才更新朝向。
         if up_pressed && !down_pressed {
             facing.value = Direction::Up;
         } else if down_pressed && !up_pressed {

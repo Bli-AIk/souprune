@@ -1,18 +1,22 @@
 //! # data.rs
 //!
-//! ## Module Overview
-//! This module manages core functionalities related to game data,
-//! primarily including player save information and other data configurations.
+//! # data.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `DataPlugin`,
-//! which initializes and manages configurations related to game data.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块管理游戏数据相关的核心功能，主要包括玩家存档信息等数据配置。
+//!
+//! This module manages core game data such as player saves and configuration values.
+//!
+//! 该模块管理玩家存档及配置值等核心游戏数据。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `DataPlugin`，它初始化并管理游戏数据相关的配置。
+//!
+//! It defines `DataPlugin`, which initializes and manages those data-related configurations.
+//!
+//! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
 
 use bevy::app::{App, Plugin};
 use bevy::color::Srgba;

@@ -12,18 +12,21 @@ use bevy_ecs_tiled::prelude::{
     TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
 };
 
-/// Marker component for tilemap collision entities
-/// 瓦片地图碰撞实体的标记组件
+/// Marker component for tilemap collision entities.
+///
+/// 瓦片地图碰撞实体的标记组件。
 #[derive(Component)]
 pub struct TilemapCollider;
 
-/// Root entity for organizing collision tiles
-/// 用于组织碰撞瓦片的根实体
+/// Root entity for organizing collision tiles.
+///
+/// 用于组织碰撞瓦片的根实体。
 #[derive(Component)]
 pub struct CollisionTileGroup;
 
-/// Root entity for organizing object collisions
-/// 用于组织对象碰撞的根实体
+/// Root entity for organizing object collisions.
+///
+/// 用于组织对象碰撞的根实体。
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
 
@@ -143,8 +146,9 @@ pub fn generate_collision_tiles_system(
                 collision_tile_group_entity,
             );
 
-            // Also process object collision while we have the map data
-            // 在处理瓦片碰撞的同时处理对象碰撞
+            // Also process object collision while we have the map data.
+            //
+            // 在处理瓦片碰撞的同时处理对象碰撞。
             if existing_object_colliders.is_empty() {
                 generate_object_colliders(
                     &mut commands,
@@ -158,14 +162,16 @@ pub fn generate_collision_tiles_system(
     }
 }
 
-/// Check if a layer name indicates it's a collision layer
-/// 检查图层名是否表示它是碰撞图层
+/// Check if a layer name indicates it's a collision layer.
+///
+/// 检查图层名是否表示它是碰撞图层。
 fn is_collision_layer(layer_name: &str) -> bool {
     layer_name.to_ascii_lowercase().contains("collision")
 }
 
-/// Find the matching layer in the tiled map assets
-/// 在瓦片地图资源中查找匹配的图层
+/// Find the matching layer in the tiled map assets.
+///
+/// 在瓦片地图资源中查找匹配的图层。
 fn find_matching_layer<'a>(
     tiled_maps_query: &Query<(Entity, &TiledMap)>,
     tiled_map_assets: &'a Res<Assets<TiledMapAsset>>,
@@ -183,16 +189,18 @@ fn find_matching_layer<'a>(
     None
 }
 
-/// Check if two layer names match
-/// 检查两个图层名是否匹配
+/// Check if two layer names match.
+///
+/// 检查两个图层名是否匹配。
 fn is_layer_match(layer_name: &str, target_name: &str) -> bool {
     layer_name == target_name
         || layer_name.to_ascii_lowercase().contains("collision")
         || target_name.contains(layer_name)
 }
 
-/// Generate collision tiles for a specific layer
-/// 为特定图层生成碰撞瓦片
+/// Generate collision tiles for a specific layer.
+///
+/// 为特定图层生成碰撞瓦片。
 fn generate_tiles_for_layer(
     commands: &mut Commands,
     tiled_map_asset: &TiledMapAsset,
@@ -206,7 +214,9 @@ fn generate_tiles_for_layer(
     let tile_size = tiled_map_asset.map.tile_width as f32;
     let tile_height = tiled_map_asset.map.tile_height as f32;
 
-    // 计算地图居中的偏移量
+    // Compute the offset used to center the entire map.
+    //
+    // 计算地图居中的偏移量。
     let map_width = tiled_map_asset.map.width as f32 * tile_size;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
     let center_offset_x = -map_width / 2.0;
@@ -216,12 +226,16 @@ fn generate_tiles_for_layer(
         &tile_layer,
         |layer_tile, _tile_data, tile_pos, _chunk_pos| {
             if layer_tile.get_tile().is_some() {
-                // 计算瓦片在世界坐标中的位置（考虑居中偏移）
+                // Calculate each tile's world-space position, accounting for the centering offset.
+                //
+                // 计算瓦片在世界坐标中的位置（考虑居中偏移）。
                 let world_x = center_offset_x + (tile_pos.x as f32 * tile_size) + (tile_size / 2.0);
                 let world_y =
                     center_offset_y + (tile_pos.y as f32 * tile_height) + (tile_height / 2.0);
 
-                // 作为子实体创建碰撞瓦片
+                // Spawn the collision tile as a child entity.
+                //
+                // 作为子实体创建碰撞瓦片。
                 commands.entity(parent_entity).with_children(|parent| {
                     parent.spawn((
                         TilemapCollider,
@@ -235,8 +249,9 @@ fn generate_tiles_for_layer(
     );
 }
 
-/// Generate collision objects for objects with collision properties
-/// 为具有碰撞属性的对象生成碰撞体
+/// Generate collision objects for objects with collision properties.
+///
+/// 为具有碰撞属性的对象生成碰撞体。
 fn generate_object_colliders(
     commands: &mut Commands,
     tiled_map_asset: &TiledMapAsset,
@@ -279,7 +294,9 @@ fn generate_object_colliders(
                         object_data.name, world_x, world_y, width, height
                     );
 
-                    // 作为子实体创建对象碰撞体
+                    // Spawn object colliders as child entities.
+                    //
+                    // 作为子实体创建对象碰撞体。
                     commands.entity(parent_entity).with_children(|parent| {
                         parent.spawn((
                             crate::app_state::overworld::tilemap::ObjectCollider,
@@ -372,8 +389,9 @@ pub fn update_objects_order_with_player_system(
     }
 }
 
-/// Setup camera bounds based on tilemap size after the tilemap is loaded
-/// 在tilemap加载后根据地图大小设置摄像机边界
+/// Setup camera bounds based on tilemap size after the tilemap loads.
+///
+/// 在 tilemap 加载后根据地图大小设置摄像机边界。
 pub fn setup_camera_bounds_system(
     mut followable_cameras: Query<&mut Followable, With<Camera>>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
@@ -381,8 +399,9 @@ pub fn setup_camera_bounds_system(
     windows: Query<&Window>,
     cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
 ) {
-    // Only proceed if we have a tilemap loaded
-    // 只有在已加载tilemap时才继续
+    // Only proceed if a tilemap asset is loaded.
+    //
+    // 只有在已加载 tilemap 时才继续。
     let Ok(tiled_map_handle) = tiled_maps_query.single() else {
         return;
     };
@@ -391,21 +410,25 @@ pub fn setup_camera_bounds_system(
         return;
     };
 
-    // Calculate map bounds
-    // 计算地图边界
+    // Calculate the map bounds.
+    //
+    // 计算地图边界。
     let tile_width = tiled_map_asset.map.tile_width as f32;
     let tile_height = tiled_map_asset.map.tile_height as f32;
     let map_width = tiled_map_asset.map.width as f32 * tile_width;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
 
-    // Get the viewport size from the window and camera
-    // 从窗口和摄像机获取视口大小
+    // Get the viewport size from the window and camera.
+    //
+    // 从窗口和摄像机获取视口大小。
     let viewport_width = if let Ok(window) = windows.single() {
-        // Get the actual game world viewport size (considering resolution scale)
-        // 获取实际游戏世界视口大小（考虑分辨率缩放）
+        // Get the actual in-game viewport size considering resolution scaling.
+        //
+        // 获取实际游戏世界视口大小（考虑分辨率缩放）。
         if let Ok(camera_transform) = cameras.single() {
-            // Camera scale affects the viewport size
-            // 摄像机缩放影响视口大小
+            // Camera scale affects the viewport size.
+            //
+            // 摄像机缩放影响视口大小。
             let scale = camera_transform.scale.x;
             window.resolution.width() * scale
         } else {
@@ -426,8 +449,9 @@ pub fn setup_camera_bounds_system(
         240.0 // fallback to default
     };
 
-    // Calculate bounds ensuring camera center stays within map minus half viewport
-    // 计算边界，确保摄像机中心保持在地图内减去半个视口的范围内
+    // Calculate bounds so the camera center stays inside the map minus half the viewport.
+    //
+    // 计算边界，确保摄像机中心始终位于地图范围内减去半个视口的位置。
     let half_viewport_width = viewport_width / 2.0;
     let half_viewport_height = viewport_height / 2.0;
 
@@ -436,8 +460,9 @@ pub fn setup_camera_bounds_system(
     let min_y = (-map_height / 2.0) + half_viewport_height;
     let max_y = (map_height / 2.0) - half_viewport_height;
 
-    // Apply bounds to all followable cameras that don't already have bounds enabled
-    // 为所有还未启用边界的可跟随摄像机应用边界
+    // Apply bounds to every followable camera that does not already have them enabled.
+    //
+    // 为所有尚未启用边界的可跟随摄像机应用边界。
     for mut followable in followable_cameras.iter_mut() {
         if !followable.bounds_enabled {
             followable.enable_bounds(min_x, max_x, min_y, max_y);

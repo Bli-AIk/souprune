@@ -100,17 +100,24 @@ pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: Query<&OverworldUI>,
 ) {
-    // Only create UI if it doesn't already exist and we're in menu state
+    // Only create the UI if it does not exist yet and we are in the menu state.
+    //
+    // 仅在处于菜单状态且 UI 尚未存在时才创建 UI。
     if !overworld_ui_query.is_empty() {
         return;
     }
 
-    // 动态获取 UILayer 的总数 - 1
+    // Dynamically compute `UILayer` total count minus one.
+    //
+    // 动态获取 UILayer 的总数减一。
     let max_index = UILayer::total_count().saturating_sub(1);
 
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
-        Transform::from_translation(Vec3::ZERO), // 添加Transform组件
+        // Add a Transform so the UI entity can be positioned.
+        //
+        // 添加 Transform 组件以便控制 UI 实体的位置。
+        Transform::from_translation(Vec3::ZERO),
         Name::new("Backpack Menu UI"),
     ));
 
@@ -132,7 +139,9 @@ pub(crate) fn destroy_backpack_ui_system(
 type OverworldUIQuery<'w, 's> =
     Query<'w, 's, (Entity, &'static OverworldUI), (Added<OverworldUI>, Without<OverworldUIBox>)>;
 
-// UT 风格 - 只负责添加 OverworldUIBox 组件
+// UT style: only add the `OverworldUIBox` component.
+//
+// UT 风格：只负责添加 OverworldUIBox 组件。
 pub(crate) fn draw_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: OverworldUIQuery,
@@ -151,7 +160,9 @@ pub(crate) fn draw_backpack_ui_system(
                 }
             };
 
-            // 只负责添加 OverworldUIBox 组件，具体绘制交给 update_overworld_ui_box_system
+            // Only add the `OverworldUIBox` component; rendering happens in `update_overworld_ui_box_system`.
+            //
+            // 只负责添加 OverworldUIBox 组件，具体绘制交由 `update_overworld_ui_box_system`。
             commands.entity(ui_entity).with_children(|parent| {
                 parent.spawn((
                     OverworldUIBox::new_with_texts(
@@ -256,7 +267,9 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         Changed<Transform>,
     )>,
 >;
-/// 为UI框创建SmudShape子实体
+/// Create SmudShape child entities for each UI box.
+///
+/// 为 UI 框创建 SmudShape 子实体。
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
@@ -564,16 +577,18 @@ pub(crate) fn refresh_text_glyphs_system(
     mut text_query: Query<(Entity, &mut Text3d), Added<NeedsGlyphRefresh>>,
 ) {
     for (entity, mut text) in text_query.iter_mut() {
-        // Trigger glyph reload by modifying the text
-        // 通过修改文本来触发字形重新加载
+        // Trigger glyph reload by modifying the text.
+        //
+        // 通过修改文本来触发字形重新加载。
         if let Some(s) = text.get_single_mut() {
             let current = s.clone();
             s.clear();
             *s = current;
         }
 
-        // Remove the marker
-        // 移除标记
+        // Remove the marker.
+        //
+        // 移除标记。
         commands.entity(entity).remove::<NeedsGlyphRefresh>();
         info!("Refreshed glyphs for text entity {:?}", entity);
     }

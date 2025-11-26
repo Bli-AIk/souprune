@@ -9,7 +9,9 @@ pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
 ) -> prelude::Result<(), ()> {
-    // 只在Normal状态下允许玩家移动
+    // Allow player movement only when the overworld state is Normal.
+    //
+    // 只在 Normal 状态下允许玩家移动。
     if *overworld_state != OverworldState::Normal {
         return Err(());
     }
@@ -35,7 +37,9 @@ pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
 ) -> prelude::Result<(), ()> {
-    // 只在Normal状态下允许玩家跑步
+    // Allow player sprinting only when the overworld state is Normal.
+    //
+    // 只在 Normal 状态下允许玩家跑步。
     if *overworld_state != OverworldState::Normal {
         return Err(());
     }

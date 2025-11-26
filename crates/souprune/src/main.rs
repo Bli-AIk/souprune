@@ -1,21 +1,22 @@
 //! # main.rs
 //!
+//! # main.rs 文件
+//!
 //! ## Module Overview
-//! This file does not contain any submodules; it is a standalone file. Keep it simple.
-//!
-//! ## Source File Overview
-//! Welcome! This is the entry point of the program.
-//!
-//! Here, the entire Bevy application is initialized, along with related resources and states,
-//! and all plugins are managed.
 //!
 //! ## 模块概述
-//! main.rs 不包含任何子模块，它只是一个单独的文件，一切从简。
+//!
+//! This standalone file houses the entry point without any submodules.
+//!
+//! main.rs 是一个没有子模块的独立入口文件。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 欢迎！这是程序的入口点。
 //!
-//! 这里初始化了整个 Bevy 应用程序，以及相关资源和状态，并管理所有插件。
+//! It initializes the Bevy app, registers resources and states, and manages every plugin.
+//!
+//! 文件负责初始化 Bevy 应用、注册资源与状态，并管理所有插件。
 
 mod app_state;
 mod core;

@@ -1,18 +1,22 @@
 //! # app_setup.rs
 //!
-//! ## Module Overview
-//! This module handles the initial setup of the application, including loading assets, configuring the camera,
-//! and managing the transition to the main game states.
+//! # app_setup.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `AppSetupPlugin`, which orchestrates the loading of textures, camera initialization,
-//! and state transitions during the application's startup phase.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块处理应用程序的初始设置，包括加载资产、配置摄像机，以及管理到主要游戏状态的过渡。
+//!
+//! This module loads assets, configures the camera, and transitions into the main game states.
+//!
+//! 该模块负责加载资产、配置摄像机并切换到主要游戏状态。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `AppSetupPlugin`，它在应用程序启动阶段协调纹理加载、摄像机初始化和状态转换。
+//!
+//! It defines `AppSetupPlugin`, which orchestrates texture loading, camera setup, and startup transitions.
+//!
+//! 文件实现了 `AppSetupPlugin`，用于协调纹理加载、摄像机设置与启动阶段的状态转换。
 
 use crate::app_state::AppState;
 use crate::core::camera::Followable;
@@ -39,7 +43,9 @@ fn load_textures_system(mut commands: Commands, asset_server: Res<AssetServer>) 
     let mut registry = ModuleSpriteRegistry::new();
     let mut register = (&mut registry, &asset_server);
 
-    // Register for modules here!
+    // Register sprite modules here.
+    //
+    // 在此注册需要的精灵模块。
     register_module(&mut register, "overworld");
     register_module(&mut register, "battle");
     register_module(&mut register, "common");
@@ -105,7 +111,9 @@ impl ResolutionScale {
 
 impl Default for ResolutionScale {
     fn default() -> Self {
-        // (320, 240) * 2
+        // Equivalent to (320, 240) * 2 resolution.
+        //
+        // 等效于 (320, 240) * 2 的分辨率。
         Self(5)
     }
 }

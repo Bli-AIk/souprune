@@ -1,13 +1,14 @@
 //! Overworld UI components used by the overworld app state.
 //!
-//! Components and helpers to track which UI layer is active and the currently selected
-//! index within that layer. The fields are kept private and access is provided through
-//! read-only getters and controlled setters.
-//!
 //! 用于 overworld 应用状态的 UI 组件。
 //!
-//! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。字段为私有，通过只读访问器
-//! 和受控的设置器来访问和修改。
+//! Components and helpers keep track of the active UI layer plus the selected index inside it.
+//!
+//! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。
+//!
+//! Fields remain private and are accessed through read-only getters and guarded setters.
+//!
+//! 字段保持私有，只能通过只读 getter 和受控 setter 访问与修改。
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
@@ -55,7 +56,10 @@ impl UILayer {
     /// 获取预定义 UI 层的总数
     pub const fn total_count() -> usize {
         //TODO: 真正计算总数
-        3 // BACKPACK_MENU, BACKPACK_ITEM, BACKPACK_STATUS
+        // Count includes BACKPACK_MENU, BACKPACK_ITEM, and BACKPACK_STATUS.
+        //
+        // 计数包含 BACKPACK_MENU、BACKPACK_ITEM 和 BACKPACK_STATUS。
+        3
     }
 }
 
@@ -153,7 +157,9 @@ pub(crate) enum UIFont {
     DeterminationMono,
     DeterminationSans,
     Hud,
-    // Add more fonts as needed
+    // Add more fonts as needed.
+    //
+    // 按需继续添加更多字体。
 }
 
 impl UIFont {
@@ -172,12 +178,9 @@ impl UIFont {
     ///
     /// 获取默认渲染大小（用于纹理图集）
     pub(crate) fn default_size(&self) -> f32 {
-        // The rendering size affects clarity on high-resolution displays.
-        // If too small, it may appear blurry.
-        // Nowadays, most UI fonts use 128 as the default size
+        // Rendering size affects high-resolution clarity, so we default to 128 to avoid blurry glyphs.
         //
-        // 渲染大小影响高分辨率下的正常显示，若太小可能会导致模糊。
-        // 目前统一使用 128，未来可根据字体调整
+        // 渲染大小会影响高分辨率下的清晰度，因此默认使用 128 以避免模糊的字形。
         128.
     }
 }
@@ -306,23 +309,33 @@ impl OverworldUIBox {
     }
 }
 
-/// Marker component attached to the cursor sprite entity spawned under a UI box
+/// Marker component attached to the cursor sprite entity spawned under a UI box.
+///
+/// 标记生成在 UI 框下方的光标精灵实体。
 #[derive(Component)]
 pub(crate) struct BoxCursorSprite;
 
-/// Records which OverworldUIBox owns a cursor sprite entity
+/// Records which `OverworldUIBox` owns a cursor sprite entity.
+///
+/// 记录哪个 `OverworldUIBox` 拥有光标精灵实体。
 #[derive(Component, Copy, Clone)]
 pub(crate) struct BoxCursorOwner(pub Entity);
 
-/// Marker indicating the cursor sprite has been spawned for this box
+/// Marker indicating the cursor sprite has been spawned for this box.
+///
+/// 表示该 UI 框已经生成光标精灵的标记。
 #[derive(Component, Copy, Clone)]
 pub(crate) struct BoxCursorReady;
 
-/// Marker placed on the filler entity that contains UI text and cursor sprites
+/// Marker placed on the filler entity that contains UI text and cursor sprites.
+///
+/// 标记承载 UI 文本与光标精灵的填充实体。
 #[derive(Component)]
 pub(crate) struct UIBoxFiller;
 
-/// Controls the visibility behavior of a [`BoxCursor`] relative to the active [`UILayer`]
+/// Controls the visibility behavior of a [`BoxCursor`] relative to the active [`UILayer`].
+///
+/// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) enum BoxCursorVisibility {
@@ -343,7 +356,9 @@ impl BoxCursorVisibility {
     }
 }
 
-/// Helper that turns an index into a translation offset for the cursor sprite
+/// Helper that turns an index into a translation offset for the cursor sprite.
+///
+/// 将索引转换为光标精灵位移的辅助类型。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) enum BoxCursorPosition {
@@ -368,7 +383,9 @@ impl BoxCursorPosition {
     }
 }
 
-/// Configurable cursor that can be attached to any [`OverworldUIBox`]
+/// Configurable cursor that can be attached to any [`OverworldUIBox`].
+///
+/// 可附着在任意 [`OverworldUIBox`] 上的可配置光标。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct BoxCursor {
@@ -420,7 +437,9 @@ impl BoxCursor {
     }
 }
 
-/// Describes how directional inputs should modify the index of a [`UILayer`]
+/// Describes how directional inputs should modify the index of a [`UILayer`].
+///
+/// 描述方向输入应如何修改 [`UILayer`] 的索引。
 #[derive(Debug, Clone)]
 pub(crate) struct UILayerNavigationRule {
     adjustments: HashMap<Action, isize>,
@@ -438,7 +457,9 @@ impl UILayerNavigationRule {
     }
 }
 
-/// Registry that stores the navigation rules for every [`UILayer`]
+/// Registry that stores the navigation rules for every [`UILayer`].
+///
+/// 存储每个 [`UILayer`] 导航规则的注册表。
 #[derive(Resource, Debug)]
 pub(crate) struct UILayerNavigationConfig {
     rules: HashMap<UILayer, UILayerNavigationRule>,

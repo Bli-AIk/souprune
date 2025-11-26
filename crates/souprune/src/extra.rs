@@ -1,16 +1,22 @@
 //! # extra.rs
 //!
-//! ## Module Overview
-//! extra module contains some auxiliary functional components and tools,
+//! # extra.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the submodules of the extra module.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! extra 模块 包含了一些辅助功能组件和工具，如调试工具、特殊文件格式导入等。
+//!
+//! The `extra` module bundles helper features and tools such as debugging utilities and custom loaders.
+//!
+//! extra 模块包含了调试工具和自定义加载器等辅助功能组件。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 此处仅定义了 extra 模块的子模块。
+//!
+//! This file only defines the submodules that make up `extra`.
+//!
+//! 此处仅定义了 extra 模块包含的子模块。
 
 pub mod debug;
 pub mod markdown;

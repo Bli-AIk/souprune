@@ -1,16 +1,22 @@
 //! # camera.rs
 //!
-//! ## Module Overview
-//! This module provides core functionalities for camera control, especially for followable cameras.
+//! # camera.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `CameraPlugin`, which manages camera systems, including updating followable cameras.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块提供了核心的摄像机控制功能，特别是针对可跟随摄像机。
+//!
+//! This module provides camera control systems, especially for followable cameras.
+//!
+//! 该模块提供面向可跟随摄像机的控制系统。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `CameraPlugin`，它管理摄像机系统，包括更新可跟随摄像机。
+//!
+//! It defines `CameraPlugin`, which updates and manages the camera systems.
+//!
+//! 本文件定义了负责更新与管理摄像机系统的 `CameraPlugin`。
 
 pub(crate) mod components;
 mod systems;
