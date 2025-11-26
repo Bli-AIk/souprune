@@ -73,7 +73,7 @@ pub(crate) fn spawn_box_cursor_visual_system(
 pub(crate) fn update_box_cursor_state_system(
     overworld_state: Res<State<OverworldState>>,
     ui_query: Query<&OverworldUI>,
-    box_query: Query<&BoxCursor, With<OverworldUIBox>>,
+    mut box_query: Query<&mut BoxCursor, With<OverworldUIBox>>,
     parent_query: Query<&ChildOf>,
     mut sprite_query: Query<
         (&BoxCursorOwner, &mut Transform, &mut Visibility),
@@ -81,7 +81,7 @@ pub(crate) fn update_box_cursor_state_system(
     >,
 ) {
     for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
-        let Ok(cursor) = box_query.get(owner.0) else {
+        let Ok(mut cursor) = box_query.get_mut(owner.0) else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
@@ -107,9 +107,10 @@ pub(crate) fn update_box_cursor_state_system(
         should_show &= cursor.visibility().is_visible_for(overworld_ui.layer());
 
         if should_show {
-            let translation = cursor.desired_translation(overworld_ui.index());
-            if transform.translation != translation {
-                transform.translation = translation;
+            if let Some(translation) = cursor.translation_for_index(overworld_ui.index()) {
+                if transform.translation != translation {
+                    transform.translation = translation;
+                }
             }
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;

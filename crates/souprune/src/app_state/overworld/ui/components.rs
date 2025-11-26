@@ -345,6 +345,12 @@ pub(crate) enum BoxCursorVisibility {
     Except(Vec<UILayer>),
 }
 
+impl Default for BoxCursorVisibility {
+    fn default() -> Self {
+        BoxCursorVisibility::Always
+    }
+}
+
 impl BoxCursorVisibility {
     pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
         match self {
@@ -364,6 +370,12 @@ impl BoxCursorVisibility {
 pub(crate) enum BoxCursorPosition {
     Static(Vec3),
     Linear { origin: Vec3, step: Vec3 },
+}
+
+impl Default for BoxCursorPosition {
+    fn default() -> Self {
+        BoxCursorPosition::Static(Vec3::ZERO)
+    }
 }
 
 impl BoxCursorPosition {
@@ -389,11 +401,12 @@ impl BoxCursorPosition {
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct BoxCursor {
-    sprite: Sprite,
-    visibility: BoxCursorVisibility,
-    position: BoxCursorPosition,
-    transform: Transform,
+    pub(crate) sprite: Sprite,
+    pub(crate) visibility: BoxCursorVisibility,
+    pub(crate) position: BoxCursorPosition,
+    pub(crate) transform: Transform,
     hidden: bool,
+    last_index: Option<usize>,
 }
 
 impl BoxCursor {
@@ -409,6 +422,7 @@ impl BoxCursor {
             position,
             transform,
             hidden: false,
+            last_index: None,
         }
     }
 
@@ -426,6 +440,15 @@ impl BoxCursor {
 
     pub(crate) fn transform(&self) -> Transform {
         self.transform
+    }
+
+    pub(crate) fn translation_for_index(&mut self, index: usize) -> Option<Vec3> {
+        if self.last_index == Some(index) {
+            return None;
+        }
+
+        self.last_index = Some(index);
+        Some(self.desired_translation(index))
     }
 
     pub(crate) fn hide(&mut self) {
