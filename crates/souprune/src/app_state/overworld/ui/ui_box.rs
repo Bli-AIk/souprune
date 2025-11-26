@@ -4,6 +4,7 @@ use super::components::{
 };
 use super::text::NeedsGlyphRefresh;
 use crate::core::data::PlayerData;
+use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_rich_text3d::{Text3d, Text3dStyling, TextAtlas};
@@ -22,6 +23,7 @@ pub(crate) fn draw_backpack_ui_system(
     overworld_ui_query: OverworldUIQuery,
     camera_query: Query<&Transform, With<Camera2d>>,
     player_data: Res<PlayerData>,
+    mut sprite_params: SpriteParams,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
@@ -36,6 +38,13 @@ pub(crate) fn draw_backpack_ui_system(
                 warn!("No Camera2d found for UI spawning!");
                 return;
             }
+        };
+
+        let cursor_sprite = {
+            let mut sprite_context = sprite_params.create_sprite_context();
+            let mut sprite = sprite_context.get_sprite("common", "heart");
+            sprite.color = Color::srgb(1.0, 0.0, 0.0);
+            sprite
         };
 
         // Only add the `OverworldUIBox` component; rendering happens in `update_overworld_ui_box_system`.
@@ -59,8 +68,7 @@ pub(crate) fn draw_backpack_ui_system(
                     }],
                 ),
                 BoxCursor::new(
-                    "common",
-                    "heart",
+                    cursor_sprite,
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]),
                     BoxCursorPosition::linear(
                         Vec3::new(-34.0, 28.0, 2.0),
@@ -108,12 +116,6 @@ pub(crate) fn draw_backpack_ui_system(
                             ..Default::default()
                         },
                     ],
-                ),
-                BoxCursor::new(
-                    "common",
-                    "heart",
-                    BoxCursorVisibility::AlwaysHidden,
-                    BoxCursorPosition::fixed(Vec3::ZERO),
                 ),
                 CameraAnchored::new(Vec3::new(-108.5, 66.5, 0.0)),
                 Transform::from_translation(

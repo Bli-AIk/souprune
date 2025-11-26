@@ -12,7 +12,7 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{Component, Entity, Name, Resource, Transform, Vec2, Vec3};
+use bevy::prelude::{Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -389,8 +389,7 @@ impl BoxCursorPosition {
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct BoxCursor {
-    module_name: Cow<'static, str>,
-    sprite_name: Cow<'static, str>,
+    sprite: Sprite,
     visibility: BoxCursorVisibility,
     position: BoxCursorPosition,
     hidden: bool,
@@ -398,22 +397,20 @@ pub(crate) struct BoxCursor {
 
 impl BoxCursor {
     pub(crate) fn new(
-        module_name: impl Into<Cow<'static, str>>,
-        sprite_name: impl Into<Cow<'static, str>>,
+        sprite: Sprite,
         visibility: BoxCursorVisibility,
         position: BoxCursorPosition,
     ) -> Self {
         Self {
-            module_name: module_name.into(),
-            sprite_name: sprite_name.into(),
+            sprite,
             visibility,
             position,
             hidden: false,
         }
     }
 
-    pub(crate) fn sprite_config(&self) -> (&str, &str) {
-        (self.module_name.as_ref(), self.sprite_name.as_ref())
+    pub(crate) fn sprite(&self) -> Sprite {
+        self.sprite.clone()
     }
 
     pub(crate) fn visibility(&self) -> &BoxCursorVisibility {

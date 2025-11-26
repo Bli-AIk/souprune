@@ -3,7 +3,6 @@ use super::components::{
     UIBoxFiller,
 };
 use crate::app_state::overworld::OverworldState;
-use crate::core::sprite::params::SpriteParams;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use std::collections::VecDeque;
@@ -40,7 +39,6 @@ fn find_ui_box_filler_entity(
 /// 当 UI 填充实体就绪后，生成 Undertale 样式的光标贴图。
 pub(crate) fn spawn_box_cursor_visual_system(
     mut commands: Commands,
-    mut sprite_params: SpriteParams,
     query: Query<(Entity, &BoxCursor), (With<OverworldUIBox>, Without<BoxCursorReady>)>,
     children_query: Query<&Children>,
     filler_query: Query<(), With<UIBoxFiller>>,
@@ -51,17 +49,12 @@ pub(crate) fn spawn_box_cursor_visual_system(
             continue;
         };
 
-        let (module_name, sprite_name) = cursor.sprite_config();
-        let sprite = sprite_params
-            .create_sprite_context()
-            .get_sprite(module_name, sprite_name);
-
         commands.entity(filler_entity).with_children(|parent| {
             parent.spawn((
                 Name::new("BoxCursorSprite"),
                 BoxCursorSprite,
                 BoxCursorOwner(entity),
-                sprite,
+                cursor.sprite(),
                 Transform::from_translation(Vec3::ZERO),
                 Visibility::Hidden,
             ));
