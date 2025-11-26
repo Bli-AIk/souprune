@@ -12,7 +12,9 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3};
+use bevy::prelude::{
+    Bundle, Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3,
+};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -230,6 +232,25 @@ pub(crate) struct CameraAnchored {
 impl CameraAnchored {
     pub(crate) fn new(offset: Vec3) -> Self {
         Self { offset }
+    }
+}
+
+/// Convenience bundle to apply [`CameraAnchored`] with the correct transform in one go.
+///
+/// 方便的 Bundle，便于一次性添加 [`CameraAnchored`] 与正确的 Transform。
+#[derive(Bundle, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchoredBundle {
+    anchor: CameraAnchored,
+    transform: Transform,
+}
+
+impl CameraAnchoredBundle {
+    pub(crate) fn from_camera_transform(camera_transform: &Transform, offset: Vec3) -> Self {
+        Self {
+            anchor: CameraAnchored::new(offset),
+            transform: Transform::from_translation(camera_transform.translation + offset),
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 use super::components::{
-    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
-    OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule, UITextConfig,
+    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle, OverworldUI,
+    OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule,
+    UITextConfig,
 };
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
@@ -85,9 +86,9 @@ pub(crate) fn draw_backpack_ui_system(
                     ),
                     Transform::from_scale(Vec3::splat(1.0)),
                 ),
-                CameraAnchored::new(Vec3::new(-108.5, -1.0, 0.0)),
-                Transform::from_translation(
-                    camera_transform.translation + Vec3::new(-108.5, -1.0, 0.0),
+                CameraAnchoredBundle::from_camera_transform(
+                    camera_transform,
+                    Vec3::new(-108.5, -1.0, 0.0),
                 ),
                 Name::new("MenuBox"),
             ));
@@ -128,9 +129,9 @@ pub(crate) fn draw_backpack_ui_system(
                 ),
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::Always),
                 Visibility::default(),
-                CameraAnchored::new(Vec3::new(-108.5, 66.5, 0.0)),
-                Transform::from_translation(
-                    camera_transform.translation + Vec3::new(-108.5, 66.5, 0.0),
+                CameraAnchoredBundle::from_camera_transform(
+                    camera_transform,
+                    Vec3::new(-108.5, 66.5, 0.0),
                 ),
                 Name::new("InfoBox"),
             ));
@@ -156,9 +157,9 @@ pub(crate) fn draw_backpack_ui_system(
                     UILayer::BACKPACK_ITEM.clone(),
                 ])),
                 Visibility::default(),
-                CameraAnchored::new(Vec3::new(-32.5, -1.0, 0.0)),
-                Transform::from_translation(
-                    camera_transform.translation + Vec3::new(-32.5, -1.0, 0.0),
+                CameraAnchoredBundle::from_camera_transform(
+                    camera_transform,
+                    Vec3::new(-32.5, -1.0, 0.0),
                 ),
                 Name::new("ItemBox"),
             ));
@@ -191,9 +192,9 @@ pub(crate) fn draw_backpack_ui_system(
                     UILayer::BACKPACK_STATUS.clone(),
                 ])),
                 Visibility::default(),
-                CameraAnchored::new(Vec3::new(-32.5, 66.5, 0.0)),
-                Transform::from_translation(
-                    camera_transform.translation + Vec3::new(-32.5, 66.5, 0.0),
+                CameraAnchoredBundle::from_camera_transform(
+                    camera_transform,
+                    Vec3::new(-32.5, 66.5, 0.0),
                 ),
                 Name::new("StatusBox"),
             ));

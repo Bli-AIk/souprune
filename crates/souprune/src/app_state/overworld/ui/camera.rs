@@ -2,13 +2,44 @@ use super::components::CameraAnchored;
 use crate::app_state::overworld::OverworldState;
 use bevy::prelude::*;
 
-/// Keep camera-anchored UI in place even if the camera is still interpolating.
+/// Apply camera offsets whenever the Backpack camera actually moves.
 ///
-/// 在摄像机插值移动时保持 UI 的相对位置不漂移。
-pub(crate) fn update_camera_anchored_ui_system(
+/// 当背包摄像机移动时才同步锚点，避免逐帧改写 Transform。
+pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
+    overworld_state: Res<State<OverworldState>>,
+    camera_query: Query<&Transform, (With<Camera2d>, Changed<Transform>)>,
+    mut anchored_ui_query: Query<(&CameraAnchored, &mut Transform), Without<Camera2d>>,
+) {
+    if overworld_state.get() != &OverworldState::Backpack {
+        return;
+    }
+
+    let Ok(camera_transform) = camera_query.single() else {
+        // No camera moved this frame, so there is nothing to do.
+        return;
+    };
+
+    for (anchor, mut transform) in anchored_ui_query.iter_mut() {
+        let new_translation = camera_transform.translation + anchor.offset;
+        if transform.translation != new_translation {
+            transform.translation = new_translation;
+        }
+    }
+}
+
+/// Initialize (or re-sync) anchors only when the entity's offset changes or gets added.
+///
+/// 仅在新 UI 产生或偏移量改变时同步，避免无意义写入。
+pub(crate) fn update_camera_anchored_ui_on_change_system(
     overworld_state: Res<State<OverworldState>>,
     camera_query: Query<&Transform, With<Camera2d>>,
-    mut anchored_ui_query: Query<(&CameraAnchored, &mut Transform), Without<Camera2d>>,
+    mut anchored_ui_query: Query<
+        (&CameraAnchored, &mut Transform),
+        (
+            Without<Camera2d>,
+            Or<(Added<CameraAnchored>, Changed<CameraAnchored>)>,
+        ),
+    >,
 ) {
     if overworld_state.get() != &OverworldState::Backpack {
         return;

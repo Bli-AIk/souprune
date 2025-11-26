@@ -28,7 +28,9 @@ mod state;
 mod text;
 mod ui_box;
 
-use camera::update_camera_anchored_ui_system;
+use camera::{
+    update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
+};
 use components::UILayerNavigationConfig;
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use lifecycle::{destroy_backpack_ui_system, spawn_backpack_ui_system};
@@ -64,7 +66,8 @@ impl Plugin for UndertaleOverworldUIPlugin {
                     spawn_box_cursor_visual_system,
                     update_box_cursor_state_system,
                     show_text_when_ready_system,
-                    update_camera_anchored_ui_system,
+                    update_camera_anchored_ui_on_camera_move_system,
+                    update_camera_anchored_ui_on_change_system,
                 ),
             );
 
