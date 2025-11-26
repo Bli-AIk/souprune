@@ -392,8 +392,7 @@ pub(crate) struct BoxCursor {
     sprite: Sprite,
     visibility: BoxCursorVisibility,
     position: BoxCursorPosition,
-    rotation: Quat,
-    scale: Vec3,
+    transform: Transform,
     hidden: bool,
 }
 
@@ -402,15 +401,13 @@ impl BoxCursor {
         sprite: Sprite,
         visibility: BoxCursorVisibility,
         position: BoxCursorPosition,
-        rotation: Quat,
-        scale: Vec3,
+        transform: Transform,
     ) -> Self {
         Self {
             sprite,
             visibility,
             position,
-            rotation,
-            scale,
+            transform,
             hidden: false,
         }
     }
@@ -424,15 +421,11 @@ impl BoxCursor {
     }
 
     pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
-        self.position.position_for_index(index)
+        self.transform.translation + self.position.position_for_index(index)
     }
 
-    pub(crate) fn rotation(&self) -> Quat {
-        self.rotation
-    }
-
-    pub(crate) fn scale(&self) -> Vec3 {
-        self.scale
+    pub(crate) fn transform(&self) -> Transform {
+        self.transform
     }
 
     pub(crate) fn hide(&mut self) {

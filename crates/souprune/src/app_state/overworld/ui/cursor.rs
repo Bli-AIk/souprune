@@ -49,9 +49,8 @@ pub(crate) fn spawn_box_cursor_visual_system(
             continue;
         };
 
-        let mut cursor_transform = Transform::from_translation(Vec3::ZERO);
-        cursor_transform.rotation = cursor.rotation();
-        cursor_transform.scale = cursor.scale();
+        let mut cursor_transform = cursor.transform();
+        cursor_transform.translation = Vec3::ZERO;
 
         commands.entity(filler_entity).with_children(|parent| {
             parent.spawn((

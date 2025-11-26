@@ -79,9 +79,7 @@ pub(crate) fn draw_backpack_ui_system(
                         Vec3::new(-34.0, 28.0, 2.0),
                         Vec3::new(0.0, -20.0, 0.0),
                     ),
-                    Quat::from_rotation_z(0.0),//rotation
-                    Vec3::splat(0.5),//scale
-                    //TODO: 允许 default 语法，然后省略掉Quat
+                    Transform::from_scale(Vec3::splat(0.5)),
                 ),
                 CameraAnchored::new(Vec3::new(-108.5, -1.0, 0.0)),
                 Transform::from_translation(
