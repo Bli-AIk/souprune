@@ -485,7 +485,7 @@ impl Default for UILayerNavigationConfig {
         };
         config.set_rule(
             UILayer::BACKPACK_MENU,
-            UILayerNavigationRule::new([(Action::Up, 1), (Action::Down, -1)]),
+            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
         );
         config
     }
