@@ -44,7 +44,7 @@ pub(crate) fn draw_backpack_ui_system(
 
         let cursor_sprite = {
             let mut sprite_context = sprite_params.create_sprite_context();
-            let mut sprite = sprite_context.get_sprite("common", "heart");
+            let mut sprite = sprite_context.get_sprite("common", "heartsmall");
             sprite.color = Color::srgb(1.0, 0.0, 0.0);
             sprite
         };
@@ -67,8 +67,8 @@ pub(crate) fn draw_backpack_ui_system(
                         ),
                         font: UIFont::DeterminationSans,
                         world_scale: Vec2::splat(13.25),
-                        transform: Transform::from_xyz(-9.5, 28.5, 1.0),
-                        line_height: 1.4,
+                        transform: Transform::from_xyz(-9.5, 28.25, 1.0),
+                        line_height: 1.375,
                         ..Default::default()
                     }],
                 ),
@@ -76,10 +76,10 @@ pub(crate) fn draw_backpack_ui_system(
                     cursor_sprite,
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]),
                     BoxCursorPosition::linear(
-                        Vec3::new(-34.0, 28.0, 2.0),
-                        Vec3::new(0.0, -20.0, 0.0),
+                        Vec3::new(-19.0, 18.5, 2.0),
+                        Vec3::new(0.0, -18.0, 0.0),
                     ),
-                    Transform::from_scale(Vec3::splat(0.5)),
+                    Transform::from_scale(Vec3::splat(1.0)),
                 ),
                 CameraAnchored::new(Vec3::new(-108.5, -1.0, 0.0)),
                 Transform::from_translation(

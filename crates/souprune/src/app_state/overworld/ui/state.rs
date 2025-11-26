@@ -70,10 +70,10 @@ pub(crate) fn update_overworld_ui_navigation_system(
 
         if delta != 0 {
             let mut next_index = overworld_ui.index() as isize + delta;
-            let max_index = overworld_ui.max_index() as isize;
+            let max_index = overworld_ui.max_index() as isize - 1;
             if next_index < 0 {
                 next_index = max_index;
-            } else if next_index >= max_index {
+            } else if next_index > max_index {
                 next_index = 0;
             }
             overworld_ui.set_index(next_index as usize);

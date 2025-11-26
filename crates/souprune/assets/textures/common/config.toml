@@ -11,3 +11,7 @@ loaded_before = ["setup"]
 [[sprites]]
 name = "heart"
 path = "textures/common/ui/heart.png"
+
+[[sprites]]
+name = "heartsmall"
+path = "textures/common/ui/heartsmall.png"
