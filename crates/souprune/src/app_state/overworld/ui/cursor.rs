@@ -49,13 +49,17 @@ pub(crate) fn spawn_box_cursor_visual_system(
             continue;
         };
 
+        let mut cursor_transform = Transform::from_translation(Vec3::ZERO);
+        cursor_transform.rotation = cursor.rotation();
+        cursor_transform.scale = cursor.scale();
+
         commands.entity(filler_entity).with_children(|parent| {
             parent.spawn((
                 Name::new("BoxCursorSprite"),
                 BoxCursorSprite,
                 BoxCursorOwner(entity),
                 cursor.sprite(),
-                Transform::from_translation(Vec3::ZERO),
+                cursor_transform,
                 Visibility::Hidden,
             ));
         });

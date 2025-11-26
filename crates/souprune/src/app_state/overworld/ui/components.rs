@@ -12,7 +12,7 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3};
+use bevy::prelude::{Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -392,6 +392,8 @@ pub(crate) struct BoxCursor {
     sprite: Sprite,
     visibility: BoxCursorVisibility,
     position: BoxCursorPosition,
+    rotation: Quat,
+    scale: Vec3,
     hidden: bool,
 }
 
@@ -400,11 +402,15 @@ impl BoxCursor {
         sprite: Sprite,
         visibility: BoxCursorVisibility,
         position: BoxCursorPosition,
+        rotation: Quat,
+        scale: Vec3,
     ) -> Self {
         Self {
             sprite,
             visibility,
             position,
+            rotation,
+            scale,
             hidden: false,
         }
     }
@@ -419,6 +425,14 @@ impl BoxCursor {
 
     pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
         self.position.position_for_index(index)
+    }
+
+    pub(crate) fn rotation(&self) -> Quat {
+        self.rotation
+    }
+
+    pub(crate) fn scale(&self) -> Vec3 {
+        self.scale
     }
 
     pub(crate) fn hide(&mut self) {
