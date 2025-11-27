@@ -43,11 +43,14 @@ pub(crate) struct PlayerData {
     pub(crate) name: String,
     pub(crate) lv: usize,
     pub(crate) exp: usize,
+    pub(crate) next_exp: usize,
     pub(crate) hp: usize,
     pub(crate) hp_max: usize,
     pub(crate) attack: usize,
     pub(crate) defense: usize,
     pub(crate) gold: usize,
+    pub(crate) weapon: String, // TODO: 待引入物品系统后改为物品ID
+    pub(crate) armor: String,
 }
 
 impl Default for PlayerData {
@@ -56,11 +59,14 @@ impl Default for PlayerData {
             name: "Chara".to_string(),
             lv: 1,
             exp: 0,
+            next_exp: 10,
             hp: 20,
             hp_max: 20,
             attack: 10,
             defense: 10,
             gold: 42,
+            weapon: "Stick".to_string(),
+            armor: "Bandage".to_string(),
         }
     }
 }

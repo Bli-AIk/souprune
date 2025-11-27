@@ -65,8 +65,8 @@ pub(crate) fn draw_backpack_ui_system(
                         name: "Text".into(),
                         content: format!(
                             "{}\n{}",
-                            mortar_strings.get("ITEM").unwrap_or("ITEM"),
-                            mortar_strings.get("STAT").unwrap_or("STAT")
+                            mortar_strings.resolve("ITEM"),
+                            mortar_strings.resolve("STAT")
                         ),
                         font: UIFont::DeterminationSans,
                         world_scale: Vec2::splat(13.25),
@@ -165,6 +165,43 @@ pub(crate) fn draw_backpack_ui_system(
             ));
         });
 
+        let status_text = [
+            format!("\"{}\"", player_data.name),
+            "".to_string(),
+            format!("{}: {}", mortar_strings.resolve("LV"), player_data.lv),
+            format!(
+                "{}: {}/{}",
+                mortar_strings.resolve("HP"),
+                player_data.hp,
+                player_data.hp_max
+            ),
+            "".to_string(),
+            format!(
+                "{}: {}  {}: {}",
+                mortar_strings.resolve("AT"),
+                player_data.attack,
+                mortar_strings.resolve("EXP"),
+                player_data.exp
+            ),
+            format!(
+                "{}: {}  {}: {}",
+                mortar_strings.resolve("DF"),
+                player_data.defense,
+                mortar_strings.resolve("NEXT"),
+                player_data.next_exp
+            ),
+            "".to_string(),
+            format!(
+                "{}: {}",
+                mortar_strings.resolve("WEAPON"),
+                player_data.weapon
+            ),
+            format!("{}: {}", mortar_strings.resolve("ARMOR"), player_data.armor),
+            "".to_string(),
+            format!("{}: {}", mortar_strings.resolve("GOLD"), player_data.gold),
+        ]
+        .join("\n");
+
         commands.entity(ui_entity).with_children(|parent| {
             parent.spawn((
                 OverworldUIBox::new_with_texts(
@@ -173,18 +210,11 @@ pub(crate) fn draw_backpack_ui_system(
                     3.0,
                     vec![UITextConfig {
                         name: "StatusLayerText".into(),
-                        content: format!(
-                            "* LV: {}\n* ATK: {}\n* DEF: {}\n* HP: {}/{}",
-                            player_data.lv,
-                            player_data.attack,
-                            player_data.defense,
-                            player_data.hp,
-                            player_data.hp_max
-                        ),
+                        content: status_text,
                         font: UIFont::DeterminationSans,
-                        world_scale: Vec2::splat(9.5),
-                        transform: Transform::from_xyz(-48.5, 23.0, 1.0),
-                        line_height: 1.25,
+                        world_scale: Vec2::splat(12.0),
+                        transform: Transform::from_xyz(-72.25, 88.0, 1.0),
+                        line_height: 1.265,
                         ..Default::default()
                     }],
                 ),

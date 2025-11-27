@@ -1,2 +1,15 @@
 pub const ITEM: String = "ITEM"
 pub const STAT: String = "STAT"
+
+pub const LV: String = "LV"
+pub const HP: String = "HP"
+
+pub const ATK: String = "AT"
+pub const DEF: String = "DF"
+pub const EXP: String = "EXP"
+pub const NEXT: String = "NEXT"
+
+pub const WEAPON: String = "WEAPON"
+pub const ARMOR: String = "ARMOR"
+
+pub const GOLD: String = "GOLD"

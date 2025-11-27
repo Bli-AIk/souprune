@@ -41,6 +41,11 @@ impl MortarStringTable {
     pub fn get(&self, name: &str) -> Option<&str> {
         self.values.get(name).map(|value| value.as_str())
     }
+
+    /// Returns the localized string when available, or falls back to the key itself.
+    pub fn resolve<'a>(&'a self, name: &'a str) -> &'a str {
+        self.get(name).unwrap_or(name)
+    }
 }
 
 fn locale_path(locale: &str) -> String {
