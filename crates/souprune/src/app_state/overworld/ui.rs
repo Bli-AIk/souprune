@@ -31,7 +31,7 @@ mod ui_box;
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
 };
-use components::UILayerNavigationConfig;
+use components::{UILayerNavigationConfig, UILayoutMode};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use lifecycle::{destroy_backpack_ui_system, spawn_backpack_ui_system};
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
@@ -52,6 +52,7 @@ pub(crate) struct UndertaleOverworldUIPlugin;
 impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UILayerNavigationConfig>()
+            .init_resource::<UILayoutMode>()
             .add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
             .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
@@ -78,6 +79,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                 .register_type::<UILayer>()
                 .register_type::<CameraAnchored>()
                 .register_type::<OverworldUIBoxVisibility>()
+                .register_type::<UILayoutMode>()
                 .register_type::<BoxCursor>()
                 .register_type::<BoxCursorPosition>()
                 .register_type::<BoxCursorVisibility>();

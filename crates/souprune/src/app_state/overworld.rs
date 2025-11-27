@@ -8,7 +8,7 @@ use bevy::prelude::*;
 pub(crate) mod character;
 mod player;
 pub(crate) mod tilemap;
-mod ui;
+pub(crate) mod ui;
 
 /// Overworld substates
 ///

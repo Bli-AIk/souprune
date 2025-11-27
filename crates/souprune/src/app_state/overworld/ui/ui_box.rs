@@ -1,7 +1,7 @@
 use super::components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle, OverworldUI,
     OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule,
-    UITextConfig,
+    UILayoutMode, UITextConfig,
 };
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
@@ -29,6 +29,7 @@ pub(crate) fn draw_backpack_ui_system(
     player_data: Res<PlayerData>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<MortarStringTable>,
+    layout_mode: Res<UILayoutMode>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
@@ -197,27 +198,44 @@ pub(crate) fn draw_backpack_ui_system(
                 player_data.weapon
             ),
             format!("{}: {}", mortar_strings.resolve("ARMOR"), player_data.armor),
-            "".to_string(),
             format!("{}: {}", mortar_strings.resolve("GOLD"), player_data.gold),
         ]
         .join("\n");
 
-        commands.entity(ui_entity).with_children(|parent| {
+        let status_box = match *layout_mode {
+            UILayoutMode::Original => OverworldUIBox::new_with_texts(
+                167.0,
+                202.5,
+                3.0,
+                vec![UITextConfig {
+                    name: "StatusLayerText".into(),
+                    content: status_text.clone(),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, 88.25, 1.0),
+                    line_height: 1.125,
+                    ..Default::default()
+                }],
+            ),
+            UILayoutMode::Unified => OverworldUIBox::new_with_texts(
+                167.0,
+                202.5,
+                3.0,
+                vec![UITextConfig {
+                    name: "StatusLayerText".into(),
+                    content: status_text.clone(),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, 88.25, 1.0),
+                    line_height: 1.125,
+                    ..Default::default()
+                }],
+            ),
+        };
+
+        commands.entity(ui_entity).with_children(move |parent| {
             parent.spawn((
-                OverworldUIBox::new_with_texts(
-                    167.0,
-                    202.5,
-                    3.0,
-                    vec![UITextConfig {
-                        name: "StatusLayerText".into(),
-                        content: status_text,
-                        font: UIFont::DeterminationSans,
-                        world_scale: Vec2::splat(12.0),
-                        transform: Transform::from_xyz(-72.25, 88.0, 1.0),
-                        line_height: 1.265,
-                        ..Default::default()
-                    }],
-                ),
+                status_box,
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
                     UILayer::BACKPACK_STATUS.clone(),
                 ])),
