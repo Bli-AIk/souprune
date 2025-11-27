@@ -140,8 +140,8 @@ pub(crate) fn draw_backpack_ui_system(
         commands.entity(ui_entity).with_children(|parent| {
             parent.spawn((
                 OverworldUIBox::new_with_texts(
-                    105.0,
-                    68.0,
+                    167.0,
+                    202.5,
                     3.0,
                     vec![UITextConfig {
                         name: "ItemLayerText".into(),
@@ -159,7 +159,7 @@ pub(crate) fn draw_backpack_ui_system(
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(
                     camera_transform,
-                    Vec3::new(-32.5, -1.0, 0.0),
+                    Vec3::new(20.5, -10.5, 0.0),
                 ),
                 Name::new("ItemBox"),
             ));
@@ -168,8 +168,8 @@ pub(crate) fn draw_backpack_ui_system(
         commands.entity(ui_entity).with_children(|parent| {
             parent.spawn((
                 OverworldUIBox::new_with_texts(
-                    105.0,
-                    68.0,
+                    167.0,
+                    202.5,
                     3.0,
                     vec![UITextConfig {
                         name: "StatusLayerText".into(),
@@ -194,7 +194,7 @@ pub(crate) fn draw_backpack_ui_system(
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(
                     camera_transform,
-                    Vec3::new(-32.5, 66.5, 0.0),
+                    Vec3::new(20.5, -10.5, 0.0),
                 ),
                 Name::new("StatusBox"),
             ));
