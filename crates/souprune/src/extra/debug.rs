@@ -23,8 +23,6 @@ mod collider;
 #[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
-#[cfg(feature = "debug")]
-mod layout_mode;
 
 use bevy::app::{App, Plugin};
 
@@ -46,11 +44,6 @@ impl Plugin for DebugPlugin {
             //
             // 设置图像覆盖调试功能。
             image_overlay::debug_image_overlay::setup_image_overlay_debug(_app);
-
-            // Set up UI layout mode toggles.
-            //
-            // 设置 UI 布局模式切换。
-            layout_mode::debug_layout_mode::setup_layout_mode_debug(_app);
         }
     }
 }

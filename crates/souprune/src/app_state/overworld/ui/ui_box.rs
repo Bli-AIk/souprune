@@ -1,7 +1,7 @@
 use super::components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle, OverworldUI,
     OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule,
-    UILayoutMode, UITextConfig,
+    UITextConfig,
 };
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
@@ -29,7 +29,6 @@ pub(crate) fn draw_backpack_ui_system(
     player_data: Res<PlayerData>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<MortarStringTable>,
-    layout_mode: Res<UILayoutMode>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
@@ -166,81 +165,99 @@ pub(crate) fn draw_backpack_ui_system(
             ));
         });
 
-        let status_text = [
-            format!("{} {}", mortar_strings.resolve("LV"), player_data.lv),
+        let status_lv_hp = [
+            format!("{}  {}", mortar_strings.resolve("LV"), player_data.lv),
             format!(
-                "{} {}/{}",
+                "{}  {} / {}",
                 mortar_strings.resolve("HP"),
                 player_data.hp,
                 player_data.hp_max
             ),
-            "".to_string(),
+        ]
+        .join("\n");
+
+        let status_combat = [
             format!(
-                "{} {}  {} {}",
+                "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("AT"),
                 player_data.attack,
+                player_data.attack, //TODO: 换成装备攻击力
                 mortar_strings.resolve("EXP"),
                 player_data.exp
             ),
             format!(
-                "{} {}  {} {}",
+                "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("DF"),
                 player_data.defense,
+                player_data.defense, //TODO: 换成装备防御力
                 mortar_strings.resolve("NEXT"),
                 player_data.next_exp
             ),
-            "".to_string(),
-            format!(
-                "{} {}",
-                mortar_strings.resolve("WEAPON"),
-                player_data.weapon
-            ),
-            format!("{} {}", mortar_strings.resolve("ARMOR"), player_data.armor),
-            format!("{} {}", mortar_strings.resolve("GOLD"), player_data.gold),
         ]
         .join("\n");
 
-        let status_box = match *layout_mode {
-            UILayoutMode::Original => OverworldUIBox::new_with_texts(
-                167.0,
-                202.5,
-                3.0,
-                vec![
-                    UITextConfig {
-                        name: "StatusLayerName".into(),
-                        content: format!("\"{}\"", player_data.name),
-                        font: UIFont::DeterminationSans,
-                        world_scale: Vec2::splat(13.5),
-                        transform: Transform::from_xyz(-72.5, 88.25, 1.0),
-                        line_height: 1.15,
-                        ..Default::default()
-                    },
-                    UITextConfig {
-                        name: "StatusLayerInfo".into(),
-                        content: status_text.clone(),
-                        font: UIFont::DeterminationSans,
-                        world_scale: Vec2::splat(13.5),
-                        transform: Transform::from_xyz(-72.5, 57.75, 1.0),
-                        line_height: 1.15,
-                        ..Default::default()
-                    },
-                ],
+        let status_equipment = [
+            format!(
+                "{}: {}",
+                mortar_strings.resolve("WEAPON"),
+                player_data.weapon
             ),
-            UILayoutMode::Unified => OverworldUIBox::new_with_texts(
-                167.0,
-                202.5,
-                3.0,
-                vec![UITextConfig {
-                    name: "StatusLayerInfo".into(),
-                    content: status_text.clone(),
+            format!("{}: {}", mortar_strings.resolve("ARMOR"), player_data.armor),
+        ]
+        .join("\n");
+
+        let status_box = OverworldUIBox::new_with_texts(
+            167.0,
+            202.5,
+            3.0,
+            vec![
+                UITextConfig {
+                    name: "StatusLayerName".into(),
+                    content: format!("\"{}\"", player_data.name),
                     font: UIFont::DeterminationSans,
                     world_scale: Vec2::splat(13.5),
                     transform: Transform::from_xyz(-72.5, 88.25, 1.0),
-                    line_height: 1.125,
+                    line_height: 1.15,
                     ..Default::default()
-                }],
-            ),
-        };
+                },
+                UITextConfig {
+                    name: "StatusLayerLvHp".into(),
+                    content: status_lv_hp.clone(),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, 57.75, 1.0),
+                    line_height: 1.15,
+                    ..Default::default()
+                },
+                UITextConfig {
+                    name: "StatusLayerCombat".into(),
+                    content: status_combat.clone(),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, 10.0, 1.0),
+                    line_height: 1.15,
+                    ..Default::default()
+                },
+                UITextConfig {
+                    name: "StatusLayerEquipment".into(),
+                    content: status_equipment.clone(),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, -36.0, 1.0),
+                    line_height: 1.15,
+                    ..Default::default()
+                },
+                UITextConfig {
+                    name: "StatusLayerGold".into(),
+                    content: format!("{}: {}", mortar_strings.resolve("GOLD"), player_data.gold),
+                    font: UIFont::DeterminationSans,
+                    world_scale: Vec2::splat(13.5),
+                    transform: Transform::from_xyz(-72.5, -72.0, 1.0),
+                    line_height: 1.15,
+                    ..Default::default()
+                },
+            ],
+        );
 
         commands.entity(ui_entity).with_children(move |parent| {
             parent.spawn((

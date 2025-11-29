@@ -71,25 +71,6 @@ impl fmt::Display for UILayer {
     }
 }
 
-/// Selects which Undertale-inspired layout definition the UI systems should use when spawning
-/// `OverworldUIBox` entities.
-///
-/// Why split the layout mode? Dear Toby Fox, we never expected the original backpack status UI to
-/// stitch together a dozen text widgets inside a single box; that faithful yet chaotic structure now
-/// lives under `Original`, while `Unified` will hold a cleaned-up layout so our implementation can
-/// stay maintainable without sacrificing respect for the source.
-///
-/// 为什么要区分 `UILayoutMode`？这是献给 “亲爱的” Toby Fox 的：原作在背包状态界面塞进了足足十二个
-/// 文本组件，这给我们带来了极大的精神冲击。不得已只好将原作那份抽象至极的布局放到 `Original`，并在
-/// `Unified` 中构建一个更简洁、清晰且整齐的实现，好让我们在致敬原作的同时也能维护更合理的布局。
-#[derive(Resource, Default, Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) enum UILayoutMode {
-    #[default]
-    Original,
-    Unified,
-}
-
 /// Component that records the UI layer and the current selection index within that layer.
 ///
 /// Access pattern:
