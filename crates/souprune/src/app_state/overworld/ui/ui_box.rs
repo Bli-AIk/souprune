@@ -167,25 +167,23 @@ pub(crate) fn draw_backpack_ui_system(
         });
 
         let status_text = [
-            format!("\"{}\"", player_data.name),
-            "".to_string(),
-            format!("{}: {}", mortar_strings.resolve("LV"), player_data.lv),
+            format!("{} {}", mortar_strings.resolve("LV"), player_data.lv),
             format!(
-                "{}: {}/{}",
+                "{} {}/{}",
                 mortar_strings.resolve("HP"),
                 player_data.hp,
                 player_data.hp_max
             ),
             "".to_string(),
             format!(
-                "{}: {}  {}: {}",
+                "{} {}  {} {}",
                 mortar_strings.resolve("AT"),
                 player_data.attack,
                 mortar_strings.resolve("EXP"),
                 player_data.exp
             ),
             format!(
-                "{}: {}  {}: {}",
+                "{} {}  {} {}",
                 mortar_strings.resolve("DF"),
                 player_data.defense,
                 mortar_strings.resolve("NEXT"),
@@ -193,12 +191,12 @@ pub(crate) fn draw_backpack_ui_system(
             ),
             "".to_string(),
             format!(
-                "{}: {}",
+                "{} {}",
                 mortar_strings.resolve("WEAPON"),
                 player_data.weapon
             ),
-            format!("{}: {}", mortar_strings.resolve("ARMOR"), player_data.armor),
-            format!("{}: {}", mortar_strings.resolve("GOLD"), player_data.gold),
+            format!("{} {}", mortar_strings.resolve("ARMOR"), player_data.armor),
+            format!("{} {}", mortar_strings.resolve("GOLD"), player_data.gold),
         ]
         .join("\n");
 
@@ -207,22 +205,33 @@ pub(crate) fn draw_backpack_ui_system(
                 167.0,
                 202.5,
                 3.0,
-                vec![UITextConfig {
-                    name: "StatusLayerText".into(),
-                    content: status_text.clone(),
-                    font: UIFont::DeterminationSans,
-                    world_scale: Vec2::splat(13.5),
-                    transform: Transform::from_xyz(-72.5, 88.25, 1.0),
-                    line_height: 1.125,
-                    ..Default::default()
-                }],
+                vec![
+                    UITextConfig {
+                        name: "StatusLayerName".into(),
+                        content: format!("\"{}\"", player_data.name),
+                        font: UIFont::DeterminationSans,
+                        world_scale: Vec2::splat(13.5),
+                        transform: Transform::from_xyz(-72.5, 88.25, 1.0),
+                        line_height: 1.15,
+                        ..Default::default()
+                    },
+                    UITextConfig {
+                        name: "StatusLayerInfo".into(),
+                        content: status_text.clone(),
+                        font: UIFont::DeterminationSans,
+                        world_scale: Vec2::splat(13.5),
+                        transform: Transform::from_xyz(-72.5, 57.75, 1.0),
+                        line_height: 1.15,
+                        ..Default::default()
+                    },
+                ],
             ),
             UILayoutMode::Unified => OverworldUIBox::new_with_texts(
                 167.0,
                 202.5,
                 3.0,
                 vec![UITextConfig {
-                    name: "StatusLayerText".into(),
+                    name: "StatusLayerInfo".into(),
                     content: status_text.clone(),
                     font: UIFont::DeterminationSans,
                     world_scale: Vec2::splat(13.5),
