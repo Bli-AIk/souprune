@@ -19,10 +19,7 @@
 //! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
 
 use bevy::app::{App, Plugin};
-use bevy::color::Srgba;
-use bevy::math::Vec2;
-use bevy::prelude::{Name, Resource, Transform};
-use bevy_rich_text3d::{TextAlign, TextAnchor};
+use bevy::prelude::Resource;
 
 pub(crate) struct DataPlugin;
 

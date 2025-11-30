@@ -141,7 +141,7 @@ pub(crate) fn draw_backpack_ui_system(
             parent.spawn((
                 OverworldUIBox::new_with_texts(
                     167.0,
-                    202.5,
+                    175.0,
                     3.0,
                     vec![UITextConfig {
                         name: "ItemLayerText".into(),
@@ -159,7 +159,7 @@ pub(crate) fn draw_backpack_ui_system(
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(
                     camera_transform,
-                    Vec3::new(20.5, -10.5, 0.0),
+                    Vec3::new(20.5, 3.5, 0.0),
                 ),
                 Name::new("ItemBox"),
             ));
