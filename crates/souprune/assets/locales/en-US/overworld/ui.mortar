@@ -13,3 +13,7 @@ pub const WEAPON: String = "WEAPON"
 pub const ARMOR: String = "ARMOR"
 
 pub const GOLD: String = "GOLD"
+
+pub const USE: String = "USE"
+pub const INFO: String = "INFO"
+pub const DROP: String = "DROP"

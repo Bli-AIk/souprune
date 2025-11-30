@@ -143,15 +143,32 @@ pub(crate) fn draw_backpack_ui_system(
                     167.0,
                     175.0,
                     3.0,
-                    vec![UITextConfig {
-                        name: "ItemLayerText".into(),
-                        content: "* TODO: Items go here".to_string(),
-                        font: UIFont::DeterminationSans,
-                        world_scale: Vec2::splat(10.5),
-                        transform: Transform::from_xyz(-48.5, 23.0, 1.0),
-                        line_height: 1.2,
-                        ..Default::default()
-                    }],
+                    vec![
+                        UITextConfig {
+                            name: "ItemLayerList".into(),
+                            content: "Monster Candy\nMonster Candy".to_string(), //TODO: 物品系统实现时改为动态内容
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.25),
+                            transform: Transform::from_xyz(-64.25, 76.5, 1.0),
+                            line_height: 1.2,
+                            ..Default::default()
+                        },
+                        UITextConfig {
+                            name: "ItemLayerOptions".into(),
+                            content: format!(
+                                // TODO: 我们的调用函数应该指定作用域！现在没写从哪个Mortar文件调用，可能未来会有重名问题
+                                "{}         {}          {}",
+                                mortar_strings.resolve("USE"),
+                                mortar_strings.resolve("INFO"),
+                                mortar_strings.resolve("DROP"),
+                            ),
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.25),
+                            transform: Transform::from_xyz(-64.25, -63.5, 1.0),
+                            line_height: 1.2,
+                            ..Default::default()
+                        },
+                    ],
                 ),
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
                     UILayer::BACKPACK_ITEM.clone(),

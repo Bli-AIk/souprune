@@ -13,3 +13,7 @@ pub const WEAPON: String = "武器"
 pub const ARMOR: String = "防具"
 
 pub const GOLD: String = "金钱"
+
+pub const USE: String = "使用"
+pub const INFO: String = "说明"
+pub const DROP: String = "丢弃"
