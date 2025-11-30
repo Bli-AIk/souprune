@@ -11,10 +11,13 @@ members = [
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1
+debug = 1
+incremental = true
 
 # Enable a large amount of optimization in the dev profile for dependencies.
 [profile.dev.package."*"]
 opt-level = 3
+debug = 0
 
 [patch.crates-io]
 # Force every workspace crate to use the local mortar compiler implementation.
