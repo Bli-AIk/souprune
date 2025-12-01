@@ -10,15 +10,12 @@ pub mod debug_inspector {
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
     use bevy_inspector_egui::bevy_inspector;
     use bevy_inspector_egui::egui;
-    use bevy_inspector_egui::quick::WorldInspectorPlugin;
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
     use leafwing_input_manager::action_state::ActionState;
     use leafwing_input_manager::plugin::InputManagerSystem;
     use std::time::Duration;
-
-    const F1_DOUBLE_PRESS_THRESHOLD: f32 = 0.3;
 
     #[derive(Component)]
     struct StandaloneInspectorWindow;
@@ -31,8 +28,6 @@ pub mod debug_inspector {
 
     #[derive(Resource, Default)]
     pub(in crate::extra::debug) struct InspectorUiState {
-        overlay_enabled: bool,
-        last_f1_press: Option<f32>,
         inspector_window: Option<Entity>,
         inspector_camera: Option<Entity>,
         window_focused: bool,
@@ -67,10 +62,7 @@ pub mod debug_inspector {
     pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {
         app.init_resource::<InspectorUiState>();
 
-        app.add_plugins((
-            EguiPlugin::default(),
-            WorldInspectorPlugin::default().run_if(inspector_overlay_is_active),
-        ));
+        app.add_plugins(EguiPlugin::default());
 
         app.add_plugins((
             bevy::diagnostic::FrameTimeDiagnosticsPlugin::default(),
@@ -236,7 +228,6 @@ pub mod debug_inspector {
     }
 
     fn handle_inspector_hotkeys_system(
-        time: Res<Time>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut ui_state: ResMut<InspectorUiState>,
         mut commands: Commands,
@@ -246,32 +237,9 @@ pub mod debug_inspector {
         }
 
         if ui_state.inspector_window.is_some() {
-            ui_state.last_f1_press = None;
-            return;
-        }
-
-        let now = time.elapsed_secs();
-        if let Some(last_press) = ui_state.last_f1_press {
-            if now - last_press <= F1_DOUBLE_PRESS_THRESHOLD {
-                ui_state.last_f1_press = None;
-
-                if ui_state.overlay_enabled {
-                    ui_state.overlay_enabled = false;
-                    info!("Inspector overlay: OFF");
-                }
-
-                spawn_inspector_window(&mut commands, &mut ui_state);
-                return;
-            }
-        }
-
-        ui_state.last_f1_press = Some(now);
-        ui_state.overlay_enabled = !ui_state.overlay_enabled;
-
-        if ui_state.overlay_enabled {
-            info!("Inspector overlay: ON");
+            close_inspector_window(&mut commands, &mut ui_state);
         } else {
-            info!("Inspector overlay: OFF");
+            spawn_inspector_window(&mut commands, &mut ui_state);
         }
     }
 
@@ -308,7 +276,19 @@ pub mod debug_inspector {
 
         ui_state.inspector_window = Some(window_entity);
         ui_state.inspector_camera = Some(camera_entity);
+        ui_state.window_focused = false;
         info!("Standalone inspector window opened");
+    }
+
+    fn close_inspector_window(commands: &mut Commands, ui_state: &mut InspectorUiState) {
+        if let Some(camera_entity) = ui_state.inspector_camera.take() {
+            commands.entity(camera_entity).despawn();
+        }
+        if let Some(window_entity) = ui_state.inspector_window.take() {
+            commands.entity(window_entity).despawn();
+        }
+        ui_state.window_focused = false;
+        info!("Standalone inspector window closed");
     }
 
     fn inspector_window_closed_system(
@@ -327,8 +307,6 @@ pub mod debug_inspector {
                     commands.entity(camera_entity).despawn();
                 }
                 ui_state.window_focused = false;
-                ui_state.overlay_enabled = false;
-                ui_state.last_f1_press = None;
                 info!("Standalone inspector window closed");
                 break;
             }
@@ -393,12 +371,6 @@ pub mod debug_inspector {
                 action_state.enable();
             }
         }
-    }
-
-    fn inspector_overlay_is_active(ui_state: Option<Res<InspectorUiState>>) -> bool {
-        ui_state
-            .map(|state| state.overlay_enabled && state.inspector_window.is_none())
-            .unwrap_or(false)
     }
 
     fn handle_fade_out_complete_system(
