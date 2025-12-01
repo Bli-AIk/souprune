@@ -1,10 +1,12 @@
 #[cfg(feature = "debug")]
 pub mod debug_inspector {
+    use crate::app_state::overworld::character::components::PlayerControlled;
+    use crate::core::input::Action;
     use bevy::app::App;
     use bevy::camera::RenderTarget;
     use bevy::ecs::schedule::ScheduleLabel;
     use bevy::prelude::*;
-    use bevy::window::{Window, WindowClosed, WindowRef, WindowResolution};
+    use bevy::window::{Window, WindowClosed, WindowFocused, WindowRef, WindowResolution};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
     use bevy_inspector_egui::bevy_inspector;
     use bevy_inspector_egui::egui;
@@ -12,6 +14,8 @@ pub mod debug_inspector {
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
+    use leafwing_input_manager::action_state::ActionState;
+    use leafwing_input_manager::plugin::InputManagerSystem;
     use std::time::Duration;
 
     const F1_DOUBLE_PRESS_THRESHOLD: f32 = 0.3;
@@ -31,6 +35,7 @@ pub mod debug_inspector {
         last_f1_press: Option<f32>,
         inspector_window: Option<Entity>,
         inspector_camera: Option<Entity>,
+        window_focused: bool,
     }
 
     #[derive(Component)]
@@ -86,6 +91,7 @@ pub mod debug_inspector {
             (
                 handle_inspector_hotkeys_system,
                 inspector_window_closed_system,
+                inspector_window_focus_system,
                 toggle_perf_ui_system.before(iyes_perf_ui::PerfUiSet::Setup),
                 toggle_debug_help_text_system,
                 fade_debug_help_text_system,
@@ -93,6 +99,11 @@ pub mod debug_inspector {
             ),
         );
         app.add_systems(InspectorWindowContextPass, inspector_window_ui_system);
+        app.add_systems(
+            PreUpdate,
+            block_player_actions_when_inspector_focused_system
+                .after(InputManagerSystem::ManualControl),
+        );
     }
 
     fn setup_debug_help_text(mut commands: Commands) {
@@ -315,9 +326,27 @@ pub mod debug_inspector {
                 if let Some(camera_entity) = ui_state.inspector_camera.take() {
                     commands.entity(camera_entity).despawn();
                 }
+                ui_state.window_focused = false;
                 ui_state.overlay_enabled = false;
                 ui_state.last_f1_press = None;
                 info!("Standalone inspector window closed");
+                break;
+            }
+        }
+    }
+
+    fn inspector_window_focus_system(
+        mut focus_events: MessageReader<WindowFocused>,
+        mut ui_state: ResMut<InspectorUiState>,
+    ) {
+        let Some(window_entity) = ui_state.inspector_window else {
+            ui_state.window_focused = false;
+            return;
+        };
+
+        for event in focus_events.read() {
+            if event.window == window_entity {
+                ui_state.window_focused = event.focused;
                 break;
             }
         }
@@ -347,6 +376,23 @@ pub mod debug_inspector {
                 ui.allocate_space(ui.available_size());
             });
         });
+    }
+
+    fn block_player_actions_when_inspector_focused_system(
+        ui_state: Option<Res<InspectorUiState>>,
+        mut query: Query<&mut ActionState<Action>, With<PlayerControlled>>,
+    ) {
+        let should_disable = ui_state.map(|state| state.window_focused).unwrap_or(false);
+
+        for mut action_state in query.iter_mut() {
+            if should_disable {
+                if !action_state.disabled() {
+                    action_state.disable();
+                }
+            } else if action_state.disabled() {
+                action_state.enable();
+            }
+        }
     }
 
     fn inspector_overlay_is_active(ui_state: Option<Res<InspectorUiState>>) -> bool {
