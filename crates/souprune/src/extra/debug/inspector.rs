@@ -1,14 +1,37 @@
 #[cfg(feature = "debug")]
 pub mod debug_inspector {
     use bevy::app::App;
-    use bevy::input::common_conditions::input_toggle_active;
+    use bevy::camera::RenderTarget;
+    use bevy::ecs::schedule::ScheduleLabel;
     use bevy::prelude::*;
-    use bevy_inspector_egui::bevy_egui::EguiPlugin;
+    use bevy::window::{Window, WindowClosed, WindowRef, WindowResolution};
+    use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
+    use bevy_inspector_egui::bevy_inspector;
+    use bevy_inspector_egui::egui;
     use bevy_inspector_egui::quick::WorldInspectorPlugin;
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
     use std::time::Duration;
+
+    const F1_DOUBLE_PRESS_THRESHOLD: f32 = 0.3;
+
+    #[derive(Component)]
+    struct StandaloneInspectorWindow;
+
+    #[derive(Component)]
+    struct StandaloneInspectorCamera;
+
+    #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+    struct InspectorWindowContextPass;
+
+    #[derive(Resource, Default)]
+    pub(in crate::extra::debug) struct InspectorUiState {
+        overlay_enabled: bool,
+        last_f1_press: Option<f32>,
+        inspector_window: Option<Entity>,
+        inspector_camera: Option<Entity>,
+    }
 
     #[derive(Component)]
     pub(in crate::extra::debug) struct DebugHelpText {
@@ -37,9 +60,11 @@ pub mod debug_inspector {
     }
 
     pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {
+        app.init_resource::<InspectorUiState>();
+
         app.add_plugins((
             EguiPlugin::default(),
-            WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::F1)),
+            WorldInspectorPlugin::default().run_if(inspector_overlay_is_active),
         ));
 
         app.add_plugins((
@@ -59,12 +84,15 @@ pub mod debug_inspector {
         app.add_systems(
             Update,
             (
+                handle_inspector_hotkeys_system,
+                inspector_window_closed_system,
                 toggle_perf_ui_system.before(iyes_perf_ui::PerfUiSet::Setup),
                 toggle_debug_help_text_system,
                 fade_debug_help_text_system,
                 handle_fade_out_complete_system,
             ),
         );
+        app.add_systems(InspectorWindowContextPass, inspector_window_ui_system);
     }
 
     fn setup_debug_help_text(mut commands: Commands) {
@@ -194,6 +222,137 @@ pub mod debug_inspector {
                 )),
             );
         }
+    }
+
+    fn handle_inspector_hotkeys_system(
+        time: Res<Time>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
+        mut ui_state: ResMut<InspectorUiState>,
+        mut commands: Commands,
+    ) {
+        if !keyboard_input.just_pressed(KeyCode::F1) {
+            return;
+        }
+
+        if ui_state.inspector_window.is_some() {
+            ui_state.last_f1_press = None;
+            return;
+        }
+
+        let now = time.elapsed_secs();
+        if let Some(last_press) = ui_state.last_f1_press {
+            if now - last_press <= F1_DOUBLE_PRESS_THRESHOLD {
+                ui_state.last_f1_press = None;
+
+                if ui_state.overlay_enabled {
+                    ui_state.overlay_enabled = false;
+                    info!("Inspector overlay: OFF");
+                }
+
+                spawn_inspector_window(&mut commands, &mut ui_state);
+                return;
+            }
+        }
+
+        ui_state.last_f1_press = Some(now);
+        ui_state.overlay_enabled = !ui_state.overlay_enabled;
+
+        if ui_state.overlay_enabled {
+            info!("Inspector overlay: ON");
+        } else {
+            info!("Inspector overlay: OFF");
+        }
+    }
+
+    fn spawn_inspector_window(commands: &mut Commands, ui_state: &mut InspectorUiState) {
+        if ui_state.inspector_window.is_some() {
+            return;
+        }
+
+        let window_entity = commands
+            .spawn((
+                Window {
+                    title: "Souprune Inspector".into(),
+                    resolution: WindowResolution::new(960, 640),
+                    resizable: true,
+                    decorations: true,
+                    ..default()
+                },
+                StandaloneInspectorWindow,
+            ))
+            .id();
+
+        let camera_entity = commands
+            .spawn((
+                Camera3d::default(),
+                Transform::from_xyz(0.0, 0.0, 1.0),
+                Camera {
+                    target: RenderTarget::Window(WindowRef::Entity(window_entity)),
+                    ..default()
+                },
+                EguiMultipassSchedule::new(InspectorWindowContextPass),
+                StandaloneInspectorCamera,
+            ))
+            .id();
+
+        ui_state.inspector_window = Some(window_entity);
+        ui_state.inspector_camera = Some(camera_entity);
+        info!("Standalone inspector window opened");
+    }
+
+    fn inspector_window_closed_system(
+        mut commands: Commands,
+        mut window_events: MessageReader<WindowClosed>,
+        mut ui_state: ResMut<InspectorUiState>,
+    ) {
+        let Some(window_entity) = ui_state.inspector_window else {
+            return;
+        };
+
+        for event in window_events.read() {
+            if event.window == window_entity {
+                ui_state.inspector_window = None;
+                if let Some(camera_entity) = ui_state.inspector_camera.take() {
+                    commands.entity(camera_entity).despawn();
+                }
+                ui_state.overlay_enabled = false;
+                ui_state.last_f1_press = None;
+                info!("Standalone inspector window closed");
+                break;
+            }
+        }
+    }
+
+    fn inspector_window_ui_system(world: &mut World) {
+        let inspector_camera = world
+            .get_resource::<InspectorUiState>()
+            .and_then(|state| state.inspector_camera);
+        let Some(camera_entity) = inspector_camera else {
+            return;
+        };
+
+        let mut contexts =
+            world.query_filtered::<&mut EguiContext, With<StandaloneInspectorCamera>>();
+        let mut egui_context = match contexts.get_mut(world, camera_entity) {
+            Ok(ctx) => {
+                // Clone so we can drop the world borrow before running the UI, mirroring the quick plugin.
+                ctx.clone()
+            }
+            Err(_) => return,
+        };
+
+        egui::CentralPanel::default().show(egui_context.get_mut(), |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
+                bevy_inspector::ui_for_world(world, ui);
+                ui.allocate_space(ui.available_size());
+            });
+        });
+    }
+
+    fn inspector_overlay_is_active(ui_state: Option<Res<InspectorUiState>>) -> bool {
+        ui_state
+            .map(|state| state.overlay_enabled && state.inspector_window.is_none())
+            .unwrap_or(false)
     }
 
     fn handle_fade_out_complete_system(
