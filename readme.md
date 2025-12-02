@@ -13,7 +13,7 @@
 
 | English         | Simplified Chinese          |
 |-----------------|-----------------------------|
-| English Version | [简体中文](./readme_zh-hant.md) |
+| English Version | [简体中文](./readme_zh-hans.md) |
 
 ## 🥣 Introduction
 
