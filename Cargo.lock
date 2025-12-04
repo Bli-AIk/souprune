@@ -3227,7 +3227,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -3791,7 +3791,7 @@ dependencies = [
 
 [[package]]
 name = "mortar_compiler"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ariadne",
  "chrono",
@@ -4932,7 +4932,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5283,6 +5283,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
+ "windows-sys 0.52.0",
  "windows-sys 0.59.0",
 ]
 
