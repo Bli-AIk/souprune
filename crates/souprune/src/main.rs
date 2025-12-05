@@ -25,8 +25,11 @@ mod extra;
 use std::default::*;
 
 use crate::core::*;
+use crate::extra::multi_source::MultiSourceAssetReader;
 use app_state::{app_setup, overworld};
 use bevy::app::PluginGroupBuilder;
+use bevy::asset::io::file::FileAssetReader;
+use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
 use bevy::window::*;
 
@@ -98,6 +101,35 @@ macro_rules! get_game_plugins {
 }
 fn main() {
     App::new()
+        // TODO: Read mod config and load the correct project
+        .register_asset_source(
+            AssetSourceId::Default,
+            AssetSource::build().with_reader(|| {
+                let project_name = "test_mod";
+
+                let project_path = format!("projects/{}", project_name);
+
+                let mut readers = vec![
+                    // Priority 1: Distribution / Standalone (folder next to executable)
+                    FileAssetReader::new(&project_path),
+                ];
+
+                // Priority 2: Development (absolute path based on source location, strictly for debug builds)
+                #[cfg(feature = "debug")]
+                {
+                    readers.push(FileAssetReader::new(
+                        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../")
+                            .join(&project_path),
+                    ));
+                }
+
+                // Priority 3: Core Fallback (embedded assets)
+                readers.push(FileAssetReader::new("assets"));
+
+                Box::new(MultiSourceAssetReader::new(readers))
+            }),
+        )
         .init_resource::<app_setup::ResolutionScale>()
         .add_plugins((
             get_bevy_default_plugins(),
