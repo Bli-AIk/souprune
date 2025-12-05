@@ -90,6 +90,19 @@ jobs:
         with:
           submodules: true
 
+      - name: Remove local cargo config
+        run: rm .cargo/config.toml
+
+      - name: Checkout mortar
+        uses: actions/checkout@v5
+        with:
+          repository: Bli-AIk/mortar
+          path: temp-mortar
+
+      - name: Move mortar to sibling directory
+        shell: bash
+        run: mv temp-mortar ../mortar
+
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |

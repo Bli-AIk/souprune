@@ -24,6 +24,9 @@ jobs:
         with:
           submodules: true
 
+      - name: Remove local cargo config
+        run: rm .cargo/config.toml
+
       - name: Checkout mortar
         uses: actions/checkout@v5
         with:
@@ -47,9 +50,7 @@ jobs:
             libxinerama-dev \
             libxcursor-dev \
             libgl1-mesa-dev \
-            pkg-config \
-            mold \
-            clang
+            pkg-config
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
