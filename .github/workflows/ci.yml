@@ -47,7 +47,9 @@ jobs:
             libxinerama-dev \
             libxcursor-dev \
             libgl1-mesa-dev \
-            pkg-config
+            pkg-config \
+            mold \
+            clang
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
