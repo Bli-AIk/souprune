@@ -25,6 +25,9 @@ impl Plugin for ItemPlugin {
 #[derive(Asset, TypePath, Debug)]
 pub struct ItemAsset(pub Vec<Item>);
 
+#[derive(Debug, Clone, Deserialize, Reflect, PartialEq)]
+pub struct ItemId(pub String);
+
 #[derive(Debug, Clone, Deserialize, Reflect)]
 pub struct Item {
     pub id: String,

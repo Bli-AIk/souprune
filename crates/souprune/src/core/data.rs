@@ -18,6 +18,7 @@
 //!
 //! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
 
+use crate::core::item::ItemId;
 use bevy::app::{App, Plugin};
 use bevy::prelude::Resource;
 
@@ -48,6 +49,7 @@ pub(crate) struct PlayerData {
     pub(crate) gold: usize,
     pub(crate) weapon: String, // TODO: 待引入物品系统后改为物品ID
     pub(crate) armor: String,
+    pub(crate) inventory: Vec<ItemId>,
 }
 
 impl Default for PlayerData {
@@ -64,6 +66,10 @@ impl Default for PlayerData {
             gold: 42,
             weapon: "Stick".to_string(),
             armor: "Bandage".to_string(),
+            inventory: vec![
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+            ],
         }
     }
 }
