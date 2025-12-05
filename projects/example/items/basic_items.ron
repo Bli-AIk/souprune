@@ -1,0 +1,41 @@
+[
+    (
+        id: "monster_candy",
+        locate_name: "monster_candy",
+        description: "Has a distinct, non-licorice flavor.",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 10),
+                PlayAudio(clip_path: "sounds/heal.wav"),
+            ]
+        )
+    ),
+
+    // 物品 2：父级食物
+    (
+        id: "test_parent",
+        locate_name: "test_parent",
+        description: "Comes with everything you need.",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 4),
+                SpawnChildItem(item_id: "dry_noodles"),
+            ]
+        )
+    ),
+
+    // 物品 3：武器
+    (
+        id: "tough_glove",
+        locate_name: "tough_glove",
+        description: "A worn pink leather glove.",
+        item_type: Weapon(
+            damage: 5,
+            on_hit_effects: [
+                PlayAudio(clip_path: "sounds/punch_impact.wav")
+            ]
+        )
+    )
+]

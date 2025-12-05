@@ -105,7 +105,7 @@ fn main() {
         .register_asset_source(
             AssetSourceId::Default,
             AssetSource::build().with_reader(|| {
-                let project_name = "test_mod";
+                let project_name = "example";
 
                 let project_path = format!("projects/{}", project_name);
 

@@ -36,6 +36,7 @@ pub(crate) mod camera;
 pub(crate) mod collision;
 pub(crate) mod data;
 pub(crate) mod input;
+pub(crate) mod item;
 pub(crate) mod sprite;
 
 use crate::extra;
@@ -59,6 +60,7 @@ impl Plugin for CorePlugin {
                 collision::CollisionPlugin,
                 data::DataPlugin,
                 input::InputPlugin,
+                item::ItemPlugin,
                 sprite::SpritePlugin,
             ));
     }
