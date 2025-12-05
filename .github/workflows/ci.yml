@@ -20,7 +20,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -28,7 +28,7 @@ jobs:
         run: rm .cargo/config.toml
 
       - name: Checkout mortar
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: Bli-AIk/mortar
           path: temp-mortar
@@ -83,12 +83,12 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
       - name: Checkout mortar
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: Bli-AIk/mortar
           path: temp-mortar
