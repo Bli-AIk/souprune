@@ -1,16 +1,22 @@
 //! # sprite.rs
 //!
-//! ## Module Overview
-//! This module provides core functionalities for sprite management, including loading, parameters, and resources.
+//! # sprite.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `SpritePlugin`, which initializes and manages the `ModuleSpriteRegistry` and related sprite resources.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块提供了精灵管理的核心功能，包括加载、参数和资源。
+//!
+//! This module handles sprite management fundamentals such as loading, parameters, and resources.
+//!
+//! 该模块负责精灵加载、参数与资源等核心管理功能。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `SpritePlugin`，它初始化并管理 `ModuleSpriteRegistry` 和相关的精灵资源。
+//!
+//! It defines `SpritePlugin`, which initializes and manages `ModuleSpriteRegistry` along with related resources.
+//!
+//! 本文件定义了 `SpritePlugin`，用于初始化并管理 `ModuleSpriteRegistry` 及相关资源。
 
 pub(crate) mod load_context;
 pub(crate) mod params;

@@ -19,3 +19,7 @@
 *.iws
 *.sln.DotSettings.user
 *.user
+
+AGENTS.md
+GEMINI.md
+agent_*.md

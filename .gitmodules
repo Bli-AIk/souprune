@@ -4,6 +4,6 @@
 [submodule "crates/bevy_fact_rule_event"]
 	path = crates/bevy_fact_rule_event
 	url = git@github.com:Bli-AIk/bevy_fact_rule_event.git
-[submodule "crates/bevy_rich_text_3d_animator"]
-	path = crates/bevy_rich_text_3d_animator
-	url = git@github.com:Bli-AIk/bevy_rich_text_3d_animator.git
+[submodule "crates/bevy_ecs_typewriter"]
+	path = crates/bevy_ecs_typewriter
+	url = git@github.com:Bli-AIk/bevy_ecs_typewriter.git

@@ -8,14 +8,6 @@ pub(crate) struct Speed {
 pub(crate) struct Facing {
     pub value: Direction,
 }
-#[derive(Component)]
-
-pub(crate) struct BasicAttributes {
-    pub(crate) hp_current: usize,
-    pub(crate) hp_max: usize,
-    pub(crate) atk: usize,
-    pub(crate) def: usize,
-}
 
 #[derive(Default)]
 pub(crate) enum Direction {

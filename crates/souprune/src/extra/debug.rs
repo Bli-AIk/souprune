@@ -1,21 +1,27 @@
 //! # debug.rs
 //!
-//! ## Module Overview
-//! This module provides debugging functionalities for the game, conditionally enabled by a feature flag.
+//! # debug.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `DebugPlugin`, which sets up various debug features, such as an inspector,
-//! when the "debug" feature is active.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块为游戏提供了调试功能，通过功能标志有条件地启用。
+//!
+//! This module offers debugging functionality guarded by the `debug` feature flag.
+//!
+//! 该模块在启用 `debug` 功能标志时提供调试功能。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `DebugPlugin`，当“debug”功能激活时，它会设置各种调试功能，
-//! 例如检查器。
+//!
+//! It defines `DebugPlugin`, which wires up tools like the inspector whenever the `debug` feature is active.
+//!
+//! 本文件定义了 `DebugPlugin`，当 `debug` 功能启用时会初始化诸如检查器之类的工具。
 
 #[cfg(feature = "debug")]
 mod collider;
+#[cfg(feature = "debug")]
+mod image_overlay;
 mod inspector;
 
 use bevy::app::{App, Plugin};
@@ -29,8 +35,15 @@ impl Plugin for DebugPlugin {
             use inspector::debug_inspector;
             debug_inspector::setup_debug_features(_app);
 
-            // Setup collider debug features
+            // Set up collider debugging features.
+            //
+            // 设置碰撞体调试功能。
             collider::debug_collider::setup_collider_debug(_app);
+
+            // Set up image overlay debugging features.
+            //
+            // 设置图像覆盖调试功能。
+            image_overlay::debug_image_overlay::setup_image_overlay_debug(_app);
         }
     }
 }

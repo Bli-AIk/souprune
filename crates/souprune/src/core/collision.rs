@@ -1,9 +1,13 @@
 //! # collision.rs
 //!
+//! # collision.rs 文件
+//!
 //! ## Module Overview
-//! This module provides collision detection components and systems.
 //!
 //! ## 模块概述
+//!
+//! This module offers collision detection components and systems.
+//!
 //! 该模块提供碰撞检测组件和系统。
 
 pub(crate) mod components;
@@ -22,10 +26,7 @@ pub(crate) struct CollisionPlugin;
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
         use crate::app_state::overworld::character::MovementSet;
-
-        app.add_systems(
-            Update,
-            systems::player_tilemap_collision_system.after(MovementSet),
-        );
+        use systems::*;
+        app.add_systems(Update, player_tilemap_collision_system.after(MovementSet));
     }
 }

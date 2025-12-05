@@ -1,4 +1,5 @@
 use super::update_player_animation;
+use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::{
     PlayerControlled, StateIdle, StateRunning, StateWalking,
 };
@@ -8,19 +9,29 @@ use crate::core::animation::components::{
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
-use bevy::prelude::{Query, Sprite, With};
+use bevy::prelude::{Query, Res, Sprite, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
+    overworld_state: Res<State<OverworldState>>,
 ) {
+    // Allow direction control only in the Normal overworld state.
+    //
+    // 只在 Normal 状态下允许方向控制。
+    if *overworld_state != OverworldState::Normal {
+        return;
+    }
+
     for (mut facing, action_state) in query.iter_mut() {
         let up_pressed = action_state.pressed(&Action::Up);
         let down_pressed = action_state.pressed(&Action::Down);
         let left_pressed = action_state.pressed(&Action::Left);
         let right_pressed = action_state.pressed(&Action::Right);
 
-        // Only updates heading when opposite direction is pressed at different times
+        // Only update the facing direction when opposite inputs are not pressed simultaneously.
+        //
+        // 只有在相反方向没有同时按下时才更新朝向。
         if up_pressed && !down_pressed {
             facing.value = Direction::Up;
         } else if down_pressed && !up_pressed {
