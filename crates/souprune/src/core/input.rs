@@ -1,16 +1,22 @@
 //! # input.rs
 //!
-//! ## Module Overview
-//! This module provides core functionalities for handling player input, including defining actions and managing input resources.
+//! # input.rs 文件
 //!
-//! ## Source File Overview
-//! This file defines the `InputPlugin`, which initializes and manages `PlayerInputSettings` and related input configurations.
+//! ## Module Overview
 //!
 //! ## 模块概述
-//! 该模块提供了处理玩家输入的核心功能，包括定义动作和管理输入资源。
+//!
+//! This module defines player actions and input resources for the game.
+//!
+//! 该模块定义游戏的玩家动作与输入资源。
+//!
+//! ## Source File Overview
 //!
 //! ## 源文件概述
-//! 该文件定义了 `InputPlugin`，它初始化并管理 `PlayerInputSettings` 和相关的输入配置。
+//!
+//! It implements `InputPlugin`, which initializes and manages `PlayerInputSettings` plus related configuration.
+//!
+//! 本文件实现了 `InputPlugin`，用于初始化并管理 `PlayerInputSettings` 与相关配置。
 
 pub(crate) mod actions;
 pub(crate) mod resources;

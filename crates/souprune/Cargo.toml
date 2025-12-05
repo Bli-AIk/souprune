@@ -18,14 +18,15 @@ leafwing-input-manager = "0.19.0"
 seldom_state = "0.15.0"
 bevy_ecs_tiled = { git = "https://github.com/adrien-bon/bevy_ecs_tiled.git", branch = "dev" }
 bevy_tween = "0.10.0"
-bevy_rich_text_3d_animator = { path = "../bevy_rich_text_3d_animator" }
+bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_mortar_bond = { path = "../bevy_mortar_bond" }
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 toml = "0.9.8"
 bevy_smud = "0.12.0"
-bevy_rich_text3d = "0.5.1"
+bevy_rich_text3d = { version = "0.5.1", features = ["reflect"] }
 
 [dependencies.bevy-inspector-egui]
 version = "0.35.0"

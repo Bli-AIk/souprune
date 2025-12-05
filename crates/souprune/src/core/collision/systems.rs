@@ -9,7 +9,7 @@
 //! 在检测和分离阶段都使用SDF并集操作以保证一致性。
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::tilemap::{ObjectCollider, TilemapCollider};
+use crate::app_state::overworld::tilemap::{ObjectCollider, systems::TilemapCollider};
 use crate::core::collision::components::Rect2DCollider;
 use bevy::prelude::*;
 

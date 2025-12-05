@@ -1,24 +1,30 @@
 //! # app_state.rs
 //!
+//! # app_state.rs 文件
+//!
 //! ## Module Overview
-//! app_state module contains the specific modules for its states.
+//!
+//! ## 模块概述
+//!
+//! The `app_state` module contains the concrete modules for each application state.
+//!
+//! app_state 模块包含了每个应用程序状态的具体模块。
 //!
 //! ## Source File Overview
-//! This file defines the application's state enumeration.
+//!
+//! ## 源文件概述
+//!
+//! This file defines the application's state enumeration used throughout the game.
+//!
+//! 此处定义了贯穿整个游戏的应用程序状态枚举。
 //!
 //! It includes states for setup, menu, overworld, and battle.
 //!
-//! The entire game's state management is based on this enumeration, with the Setup state being the first to be entered.
-//!
-//! ## 模块概述
-//! app_state 模块包含了其状态的具体模块。
-//!
-//! ## 源文件概述
-//! 此处定义了应用程序的状态枚举。
-//!
 //! 包含初始化、菜单界面、Overworld 和战斗状态。
 //!
-//! 整个游戏的状态管理都基于此枚举进行。且 Setup 状态会最先被进入。
+//! The entire game's state management is based on this enumeration, with the Setup state entered first.
+//!
+//! 整个游戏的状态管理都基于此枚举，且 Setup 状态会最先被进入。
 
 use bevy::prelude::States;
 

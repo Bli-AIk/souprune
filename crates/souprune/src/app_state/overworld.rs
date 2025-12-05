@@ -8,20 +8,42 @@ use bevy::prelude::*;
 pub(crate) mod character;
 mod player;
 pub(crate) mod tilemap;
+pub(crate) mod ui;
+
+/// Overworld substates
+///
+/// Overworld 子状态
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
+pub(crate) enum OverworldState {
+    #[default]
+    Normal,
+    Backpack,
+    Cutscene,
+}
 
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            tilemap::TilemapPlugin,
-            player::PlayerPlugin,
-            character::CharacterPlugin,
-        ))
-        .add_systems(
-            OnEnter(AppState::Overworld),
-            (create_overworld_entities_system, bind_camera_target_system).chain(),
-        );
+        app.init_state::<OverworldState>()
+            .add_plugins((
+                tilemap::TilemapPlugin,
+                player::PlayerPlugin,
+                character::CharacterPlugin,
+                ui::UndertaleOverworldUIPlugin,
+            ))
+            .add_systems(
+                OnEnter(AppState::Overworld),
+                (create_overworld_entities_system, bind_camera_target_system).chain(),
+            )
+            .add_systems(
+                OnEnter(OverworldState::Backpack),
+                player::force_player_idle_on_state_change_system,
+            )
+            .add_systems(
+                OnEnter(OverworldState::Cutscene),
+                player::force_player_idle_on_state_change_system,
+            );
     }
 }
 

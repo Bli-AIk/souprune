@@ -1,0 +1,569 @@
+//! Overworld UI components used by the overworld app state.
+//!
+//! 用于 overworld 应用状态的 UI 组件。
+//!
+//! Components and helpers keep track of the active UI layer plus the selected index inside it.
+//!
+//! 这些组件用于跟踪当前激活的 UI 层以及该层内被选择的索引。
+//!
+//! Fields remain private and are accessed through read-only getters and guarded setters.
+//!
+//! 字段保持私有，只能通过只读 getter 和受控 setter 访问与修改。
+
+use crate::core::input::Action;
+use bevy::color::Srgba;
+use bevy::prelude::{
+    Bundle, Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3,
+};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::fmt;
+
+#[cfg(feature = "debug")]
+use bevy::reflect::Reflect;
+use bevy_rich_text3d::{TextAlign, TextAnchor};
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct UILayer(Cow<'static, str>);
+
+impl UILayer {
+    pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
+    pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
+    pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
+
+    /// Const constructor for static constants
+    ///
+    /// Const 构造函数，用于静态常量初始化
+    const fn new_static(name: &'static str) -> UILayer {
+        UILayer(Cow::Borrowed(name))
+    }
+
+    /// Dynamically construct a layer (flexible for mods or expansions)
+    ///
+    /// 动态构造层（灵活扩展）
+    pub fn new(name: impl Into<Cow<'static, str>>) -> UILayer {
+        UILayer(name.into())
+    }
+
+    /// Get the layer name
+    ///
+    /// 获取层名称
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+
+    /// Get the total count of predefined UI layers
+    ///
+    /// 获取预定义 UI 层的总数
+    pub const fn total_count() -> usize {
+        //TODO: 真正计算总数
+        // Count includes BACKPACK_MENU, BACKPACK_ITEM, and BACKPACK_STATUS.
+        //
+        // 计数包含 BACKPACK_MENU、BACKPACK_ITEM 和 BACKPACK_STATUS。
+        3
+    }
+}
+
+impl fmt::Display for UILayer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Component that records the UI layer and the current selection index within that layer.
+///
+/// Access pattern:
+/// - Fields are private to enforce read-only access from outside code in the crate.
+/// - Use the provided getters to read `layer`, `index` and `max_index`.
+/// - Use `set_layer` and `set_index` to change state in a controlled way (clamps and resets index as needed).
+///
+/// 记录 UI 层以及该层内当前选中项索引的组件。
+///
+/// 访问约定：
+/// - 字段为私有以在 crate 范围内强制读取访问。
+/// - 使用提供的 getter 来读取 `layer`、`index` 和 `max_index`。
+/// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
+#[derive(Component, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct OverworldUI {
+    layer: UILayer,
+    index: usize,
+    max_index: usize,
+}
+
+impl OverworldUI {
+    /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
+    ///
+    /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
+    pub(crate) fn new(layer: UILayer, max_index: usize) -> Self {
+        Self {
+            layer,
+            index: 0,
+            max_index,
+        }
+    }
+
+    /// Get the current UI layer.
+    ///
+    /// 获取当前的 UI 层级。
+    pub(crate) fn layer(&self) -> &UILayer {
+        &self.layer
+    }
+
+    /// Get the current selected index inside the active layer.
+    ///
+    /// 获取当前在激活层内所选的索引。
+    pub(crate) fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Get the maximum valid index for the active layer. Indexes are clamped to this value.
+    ///
+    /// 获取当前激活层的最大有效索引。索引会被限制在该值之内。
+    pub(crate) fn max_index(&self) -> usize {
+        self.max_index
+    }
+
+    /// Change the active layer and update `max_index` accordingly.
+    /// If the layer changes, the selection `index` is reset to 0. If the current `index`
+    /// is greater than the new `max_index`, it will be clamped down.
+    ///
+    /// 更改激活层并相应地更新 `max_index`。
+    /// 若层发生变化，会将选中索引 `index` 重置为 0；若当前 `index` 大于新的 `max_index`，会被夹住。
+    pub(crate) fn set_layer(&mut self, layer: UILayer, max_index: usize) {
+        if self.layer != layer {
+            self.layer = layer;
+            self.index = 0;
+        }
+        self.max_index = max_index;
+        if self.index > self.max_index {
+            self.index = self.max_index;
+        }
+    }
+
+    /// Set the selection index within the current layer. The provided index will be
+    /// clamped to the range [0, max_index].
+    ///
+    /// 设置当前层内的选择索引。提供的索引会被夹在 [0, max_index] 范围内。
+    pub(crate) fn set_index(&mut self, idx: usize) {
+        self.index = idx.min(self.max_index);
+    }
+}
+
+/// Font configuration for UI text
+///
+/// UI 文本的字体配置
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum UIFont {
+    DeterminationMono,
+    DeterminationSans,
+    Hud,
+    // Add more fonts as needed.
+    //
+    // 按需继续添加更多字体。
+}
+
+impl UIFont {
+    /// Get font name and default size
+    ///
+    /// 获取字体名称和默认大小
+    pub(crate) fn font_name(&self) -> &'static str {
+        match self {
+            UIFont::DeterminationMono => "Determination Mono SimSun",
+            UIFont::DeterminationSans => "Determination Sans SimSun",
+            UIFont::Hud => "Crypt of Tomorrow Fusion",
+        }
+    }
+
+    /// Get default rendering size (for texture atlas)
+    ///
+    /// 获取默认渲染大小（用于纹理图集）
+    pub(crate) fn default_size(&self) -> f32 {
+        // Rendering size affects high-resolution clarity, so we default to 128 to avoid blurry glyphs.
+        //
+        // 渲染大小会影响高分辨率下的清晰度，因此默认使用 128 以避免模糊的字形。
+        128.
+    }
+}
+
+/// Configuration for a single text element
+///
+/// 单个文本元素的配置
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UITextConfig {
+    pub(crate) name: Name,
+    pub(crate) content: String,
+    pub(crate) font: UIFont,
+    pub(crate) world_scale: Vec2,
+    pub(crate) color: Srgba,
+    pub(crate) transform: Transform,
+    pub(crate) align: TextAlign,
+    pub(crate) anchor: TextAnchor,
+    pub(crate) line_height: f32,
+}
+
+impl Default for UITextConfig {
+    fn default() -> Self {
+        Self {
+            name: Name::new("Text"),
+            content: "Text".to_string(),
+            font: UIFont::DeterminationMono,
+            world_scale: Vec2::splat(13.),
+            color: Srgba::WHITE,
+            transform: Transform::default(),
+            align: TextAlign::Left,
+            anchor: TextAnchor::BOTTOM_RIGHT,
+            line_height: 1.0,
+        }
+    }
+}
+
+/// Marks UI entities that should stick to the camera with a constant offset.
+///
+/// 标记需要根据摄像机位置保持固定偏移的 UI 实体
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchored {
+    pub(crate) offset: Vec3,
+}
+
+impl CameraAnchored {
+    pub(crate) fn new(offset: Vec3) -> Self {
+        Self { offset }
+    }
+}
+
+/// Convenience bundle to apply [`CameraAnchored`] with the correct transform in one go.
+///
+/// 方便的 Bundle，便于一次性添加 [`CameraAnchored`] 与正确的 Transform。
+#[derive(Bundle, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchoredBundle {
+    anchor: CameraAnchored,
+    transform: Transform,
+}
+
+impl CameraAnchoredBundle {
+    pub(crate) fn from_camera_transform(camera_transform: &Transform, offset: Vec3) -> Self {
+        Self {
+            anchor: CameraAnchored::new(offset),
+            transform: Transform::from_translation(camera_transform.translation + offset),
+        }
+    }
+}
+
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct OverworldUIBox {
+    pub(crate) width: f32,
+    pub(crate) height: f32,
+    pub(crate) border_width: f32,
+    pub(crate) texts: Vec<UITextConfig>,
+}
+
+impl OverworldUIBox {
+    /// Create a new `OverworldUIBox` component with the given dimensions and border width.
+    ///
+    /// 创建一个新的 `OverworldUIBox` 组件，指定尺寸和边框宽度。
+    pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
+        Self {
+            width,
+            height,
+            border_width,
+            texts: Vec::new(),
+        }
+    }
+
+    /// Create a new `OverworldUIBox` component with text configurations.
+    ///
+    /// 创建一个带有文本配置的新 `OverworldUIBox` 组件。
+    pub(crate) fn new_with_texts(
+        width: f32,
+        height: f32,
+        border_width: f32,
+        texts: Vec<UITextConfig>,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            border_width,
+            texts,
+        }
+    }
+
+    /// Get the box width.
+    ///
+    /// 获取框的宽度。
+    pub(crate) fn width(&self) -> f32 {
+        self.width
+    }
+
+    /// Get the box height.
+    ///
+    /// 获取框的高度。
+    pub(crate) fn height(&self) -> f32 {
+        self.height
+    }
+
+    /// Get the border width.
+    ///
+    /// 获取边框宽度。
+    pub(crate) fn border_width(&self) -> f32 {
+        self.border_width
+    }
+
+    /// Set the box dimensions.
+    ///
+    /// 设置框的尺寸。
+    pub(crate) fn set_dimensions(&mut self, width: f32, height: f32) {
+        self.width = width;
+        self.height = height;
+    }
+
+    /// Set the border width.
+    ///
+    /// 设置边框宽度。
+    pub(crate) fn set_border_width(&mut self, border_width: f32) {
+        self.border_width = border_width;
+    }
+}
+
+/// Controls which [`UILayer`]s should render a given [`OverworldUIBox`].
+///
+/// 控制指定 [`OverworldUIBox`] 在哪些 [`UILayer`] 中可见。
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct OverworldUIBoxVisibility {
+    rule: UILayerVisibilityRule,
+}
+
+impl OverworldUIBoxVisibility {
+    pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
+        Self { rule }
+    }
+
+    pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
+        &self.rule
+    }
+
+    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+        self.rule.is_visible_for(layer)
+    }
+}
+
+/// Marker component attached to the cursor sprite entity spawned under a UI box.
+///
+/// 标记生成在 UI 框下方的光标精灵实体。
+#[derive(Component)]
+pub(crate) struct BoxCursorSprite;
+
+/// Records which `OverworldUIBox` owns a cursor sprite entity.
+///
+/// 记录哪个 `OverworldUIBox` 拥有光标精灵实体。
+#[derive(Component, Copy, Clone)]
+pub(crate) struct BoxCursorOwner(pub Entity);
+
+/// Marker indicating the cursor sprite has been spawned for this box.
+///
+/// 表示该 UI 框已经生成光标精灵的标记。
+#[derive(Component, Copy, Clone)]
+pub(crate) struct BoxCursorReady;
+
+/// Marker placed on the filler entity that contains UI text and cursor sprites.
+///
+/// 标记承载 UI 文本与光标精灵的填充实体。
+#[derive(Component)]
+pub(crate) struct UIBoxFiller;
+
+/// Controls the visibility behavior of a [`BoxCursor`] relative to the active [`UILayer`].
+///
+/// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum UILayerVisibilityRule {
+    Always,
+    AlwaysHidden,
+    OnlyIn(Vec<UILayer>),
+    Except(Vec<UILayer>),
+}
+
+impl Default for UILayerVisibilityRule {
+    fn default() -> Self {
+        UILayerVisibilityRule::Always
+    }
+}
+
+impl UILayerVisibilityRule {
+    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+        match self {
+            UILayerVisibilityRule::Always => true,
+            UILayerVisibilityRule::AlwaysHidden => false,
+            UILayerVisibilityRule::OnlyIn(layers) => layers.iter().any(|l| l == layer),
+            UILayerVisibilityRule::Except(layers) => layers.iter().all(|l| l != layer),
+        }
+    }
+}
+
+pub(crate) use UILayerVisibilityRule as BoxCursorVisibility;
+
+/// Helper that turns an index into a translation offset for the cursor sprite.
+///
+/// 将索引转换为光标精灵位移的辅助类型。
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum BoxCursorPosition {
+    Static(Vec3),
+    Linear { origin: Vec3, step: Vec3 },
+}
+
+impl Default for BoxCursorPosition {
+    fn default() -> Self {
+        BoxCursorPosition::Static(Vec3::ZERO)
+    }
+}
+
+impl BoxCursorPosition {
+    pub(crate) fn fixed(position: Vec3) -> Self {
+        Self::Static(position)
+    }
+
+    pub(crate) fn linear(origin: Vec3, step: Vec3) -> Self {
+        Self::Linear { origin, step }
+    }
+
+    pub(crate) fn position_for_index(&self, index: usize) -> Vec3 {
+        match self {
+            BoxCursorPosition::Static(position) => *position,
+            BoxCursorPosition::Linear { origin, step } => *origin + *step * index as f32,
+        }
+    }
+}
+
+/// Configurable cursor that can be attached to any [`OverworldUIBox`].
+///
+/// 可附着在任意 [`OverworldUIBox`] 上的可配置光标。
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct BoxCursor {
+    pub(crate) sprite: Sprite,
+    pub(crate) visibility: BoxCursorVisibility,
+    pub(crate) position: BoxCursorPosition,
+    pub(crate) transform: Transform,
+    hidden: bool,
+    last_index: Option<usize>,
+}
+
+impl BoxCursor {
+    pub(crate) fn new(
+        sprite: Sprite,
+        visibility: BoxCursorVisibility,
+        position: BoxCursorPosition,
+        transform: Transform,
+    ) -> Self {
+        Self {
+            sprite,
+            visibility,
+            position,
+            transform,
+            hidden: false,
+            last_index: None,
+        }
+    }
+
+    pub(crate) fn sprite(&self) -> Sprite {
+        self.sprite.clone()
+    }
+
+    pub(crate) fn visibility(&self) -> &BoxCursorVisibility {
+        &self.visibility
+    }
+
+    pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
+        self.transform.translation + self.position.position_for_index(index)
+    }
+
+    pub(crate) fn transform(&self) -> Transform {
+        self.transform
+    }
+
+    pub(crate) fn translation_for_index(&mut self, index: usize) -> Option<Vec3> {
+        if self.last_index == Some(index) {
+            return None;
+        }
+
+        self.last_index = Some(index);
+        Some(self.desired_translation(index))
+    }
+
+    pub(crate) fn hide(&mut self) {
+        self.hidden = true;
+    }
+
+    pub(crate) fn show(&mut self) {
+        self.hidden = false;
+    }
+
+    pub(crate) fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+}
+
+/// Describes how directional inputs should modify the index of a [`UILayer`].
+///
+/// 描述方向输入应如何修改 [`UILayer`] 的索引。
+#[derive(Debug, Clone)]
+pub(crate) struct UILayerNavigationRule {
+    adjustments: HashMap<Action, isize>,
+}
+
+impl UILayerNavigationRule {
+    pub(crate) fn new(pairs: impl IntoIterator<Item = (Action, isize)>) -> Self {
+        Self {
+            adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+        }
+    }
+
+    pub(crate) fn delta_for(&self, action: Action) -> Option<isize> {
+        self.adjustments.get(&action).copied()
+    }
+}
+
+/// Registry that stores the navigation rules for every [`UILayer`].
+///
+/// 存储每个 [`UILayer`] 导航规则的注册表。
+#[derive(Resource, Debug)]
+pub(crate) struct UILayerNavigationConfig {
+    rules: HashMap<UILayer, UILayerNavigationRule>,
+}
+
+impl UILayerNavigationConfig {
+    pub(crate) fn get(&self, layer: &UILayer) -> Option<&UILayerNavigationRule> {
+        self.rules.get(layer)
+    }
+
+    pub(crate) fn set_rule(&mut self, layer: UILayer, rule: UILayerNavigationRule) {
+        self.rules.insert(layer, rule);
+    }
+}
+
+impl Default for UILayerNavigationRule {
+    fn default() -> Self {
+        Self::new([])
+    }
+}
+
+impl Default for UILayerNavigationConfig {
+    fn default() -> Self {
+        let mut config = Self {
+            rules: HashMap::new(),
+        };
+        config.set_rule(
+            UILayer::BACKPACK_MENU,
+            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
+        );
+        config
+    }
+}

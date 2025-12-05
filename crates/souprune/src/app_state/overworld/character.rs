@@ -27,13 +27,10 @@ pub(crate) mod systems;
 pub struct CharacterPlugin;
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut App) {
+        use systems::*;
         app.add_systems(
             Update,
-            (
-                systems::update_walking_system,
-                systems::update_running_system,
-            )
-                .in_set(MovementSet),
+            (update_walking_system, update_running_system).in_set(MovementSet),
         );
     }
 }
