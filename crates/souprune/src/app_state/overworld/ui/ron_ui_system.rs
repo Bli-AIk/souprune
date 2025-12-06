@@ -84,19 +84,18 @@ fn spawn_ui_node(
             let visibility_rule = node_def
                 .visibility_rule
                 .as_ref()
-                .map(|v| parse_visibility_rule(v))
+                .map(parse_visibility_rule)
                 .unwrap_or(UILayerVisibilityRule::Always);
 
             let texts = node_def
                 .texts
                 .iter()
                 .map(|text_def| {
-                    let content = if let Some(key) = &text_def.localization_key {
-                        mortar_strings.resolve(key).to_string()
-                    } else {
-                        text_def.content.clone().unwrap_or_else(|| "".to_string())
-                    };
-                    
+                    let content = resolve_text_content(
+                        text_def.content.as_deref().unwrap_or(""),
+                        mortar_strings,
+                    );
+
                     UITextConfig {
                         name: Name::new(text_def.id.clone()),
                         content,
@@ -143,11 +142,9 @@ fn spawn_ui_node(
                         origin: origin.clone().into(),
                         step: step.clone().into(),
                     },
-                    BoxCursorPositionDef::Custom { positions } => {
-                        BoxCursorPosition::Custom(
-                            positions.iter().map(|v| v.clone().into()).collect(),
-                        )
-                    }
+                    BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
+                        positions.iter().map(|v| v.clone().into()).collect(),
+                    ),
                 };
 
                 let cursor_visibility = BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]);
@@ -191,4 +188,49 @@ fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> UILayerVisibilityRul
         }
         _ => UILayerVisibilityRule::Always,
     }
+}
+
+fn resolve_text_content(
+    template: &str,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    let mut result = String::new();
+    let mut chars = template.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            if let Some(&next_ch) = chars.peek() {
+                if next_ch == '{' {
+                    chars.next();
+                    let mut key = String::new();
+                    let mut found_closing = false;
+
+                    while let Some(ch) = chars.next() {
+                        if ch == '}' {
+                            if let Some(&next_ch) = chars.peek() {
+                                if next_ch == '}' {
+                                    chars.next();
+                                    found_closing = true;
+                                    break;
+                                }
+                            }
+                        }
+                        key.push(ch);
+                    }
+
+                    if found_closing {
+                        let resolved = mortar_strings.resolve(&key);
+                        result.push_str(resolved);
+                    } else {
+                        result.push_str("{{");
+                        result.push_str(&key);
+                    }
+                    continue;
+                }
+            }
+        }
+        result.push(ch);
+    }
+
+    result
 }

@@ -236,8 +236,6 @@ pub struct TextDef {
     pub id: String,
     #[serde(default)]
     pub content: Option<String>,
-    #[serde(default)]
-    pub localization_key: Option<String>,
     pub font: UIFontDef,
     pub world_scale: SerializableVec2,
     pub color: SerializableColor,
@@ -257,8 +255,13 @@ pub struct CursorDef {
 #[derive(Debug, Deserialize, Clone)]
 pub enum BoxCursorPositionDef {
     Static(SerializableVec3),
-    Linear { origin: SerializableVec3, step: SerializableVec3 },
-    Custom { positions: Vec<SerializableVec3> },
+    Linear {
+        origin: SerializableVec3,
+        step: SerializableVec3,
+    },
+    Custom {
+        positions: Vec<SerializableVec3>,
+    },
 }
 
 #[derive(Debug, Deserialize, Clone)]

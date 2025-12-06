@@ -17,7 +17,7 @@
             texts: [
                 (
                     id: "MenuText",
-                    content: Some("ITEM\nSTAT"),
+                    content: Some("{{overworld/ui:ITEM}}\n{{overworld/ui:STAT}}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -60,7 +60,7 @@
                 ),
                 (
                     id: "HUDText",
-                    content: Some("LV  1\nhp  20/20\ng   0"),
+                    content: Some("LV  1\nHP  20/20\nG   0"),
                     font: Hud,
                     world_scale: (x: 8.0, y: 8.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -95,7 +95,7 @@
                 ),
                 (
                     id: "ItemLayerOptionUse",
-                    localization_key: Some("overworld/ui:USE"),
+                    content: Some("{{overworld/ui:USE}}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -104,7 +104,7 @@
                 ),
                 (
                     id: "ItemLayerOptionInfo",
-                    localization_key: Some("overworld/ui:INFO"),
+                    content: Some("{{overworld/ui:INFO}}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -113,7 +113,7 @@
                 ),
                 (
                     id: "ItemLayerOptionDrop",
-                    localization_key: Some("overworld/ui:DROP"),
+                    content: Some("{{overworld/ui:DROP}}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -164,7 +164,7 @@
                 ),
                 (
                     id: "StatusLayerLvHp",
-                    content: Some("LV   1\nHP  20 / 20"),
+                    content: Some("{{overworld/ui:LV}}   1\n{{overworld/ui:HP}}  20 / 20"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -173,7 +173,7 @@
                 ),
                 (
                     id: "StatusLayerCombat",
-                    content: Some("AT  10 (0)            EXP: 0\nDF  10 (0)            NEXT: 10"),
+                    content: Some("{{overworld/ui:ATK}}  10 (0)            {{overworld/ui:EXP}}: 0\n{{overworld/ui:DEF}}  10 (0)            {{overworld/ui:NEXT}}: 10"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -182,7 +182,7 @@
                 ),
                 (
                     id: "StatusLayerEquipment",
-                    content: Some("WEAPON: Stick\nARMOR: Bandage"),
+                    content: Some("{{overworld/ui:WEAPON}}: Stick\n{{overworld/ui:ARMOR}}: Bandage"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -191,7 +191,7 @@
                 ),
                 (
                     id: "StatusLayerGold",
-                    content: Some("GOLD: 0"),
+                    content: Some("{{overworld/ui:GOLD}}: 0"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
