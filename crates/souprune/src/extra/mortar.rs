@@ -55,7 +55,11 @@ fn load_locale_mortar_system(
     commands.insert_resource(LocalesFolderHandle(handle));
 }
 
+#[derive(Resource)]
+pub struct LocaleLoaded;
+
 fn read_locale_constants_system(
+    mut commands: Commands,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
     folder_handle: Option<Res<LocalesFolderHandle>>,
     loaded_folders: Res<Assets<LoadedFolder>>,
@@ -115,7 +119,7 @@ fn read_locale_constants_system(
 
                             if let Value::String(value) = &constant.value {
                                 let key = format!("{}:{}", namespace, constant.name);
-                                // debug!("Registered locale string: {} = {}", key, value);
+                                info!("Registered locale string: {} = {}", key, value);
                                 table.values.insert(key, value.clone());
                             }
                         }
@@ -126,6 +130,7 @@ fn read_locale_constants_system(
                 "MortarStringTable initialized. Total strings: {}",
                 table.values.len()
             );
+            commands.insert_resource(LocaleLoaded);
         }
     }
 }

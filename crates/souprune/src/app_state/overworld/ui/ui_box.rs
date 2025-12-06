@@ -6,6 +6,7 @@ use super::components::{
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use crate::core::data::PlayerData;
+use crate::core::item::ItemRegistry;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::mortar::MortarStringTable;
 use bevy::ecs::relationship::Relationship;
@@ -29,6 +30,7 @@ pub(crate) fn draw_backpack_ui_system(
     player_data: Res<PlayerData>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<MortarStringTable>,
+    item_registry: Res<ItemRegistry>,
 ) {
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
@@ -113,7 +115,7 @@ pub(crate) fn draw_backpack_ui_system(
                             name: "HUDText".into(),
                             // TODO: 取消硬编码文本
                             content: format!(
-                                "LV  {}\nhp  {}/{}\ng   {}",
+                                "LV  {}\nhp  {}/{}\ng    {}",
                                 player_data.lv,
                                 player_data.hp,
                                 player_data.hp_max,
@@ -146,7 +148,21 @@ pub(crate) fn draw_backpack_ui_system(
                     vec![
                         UITextConfig {
                             name: "ItemLayerList".into(),
-                            content: "Monster Candy\nMonster Candy".to_string(), //TODO: 物品系统实现时改为动态内容
+                            content: player_data
+                                .inventory
+                                .iter()
+                                .map(|item_id| {
+                                    if let Some(item) = item_registry.get(&item_id.0) {
+                                        let key =
+                                            format!("{}:{}", item.locate_file, item.locate_name);
+                                        mortar_strings.resolve(&key).to_string()
+                                    } else {
+                                        warn!("Item ID '{}' not found in registry!", item_id.0);
+                                        format!("UNDEFINED ({})", item_id.0)
+                                    }
+                                })
+                                .collect::<Vec<String>>()
+                                .join("\n"),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.25),
                             transform: Transform::from_xyz(-64.25, 76.5, 1.0),
@@ -156,11 +172,10 @@ pub(crate) fn draw_backpack_ui_system(
                         UITextConfig {
                             name: "ItemLayerOptions".into(),
                             content: format!(
-                                // TODO: 我们的调用函数应该指定作用域！现在没写从哪个Mortar文件调用，可能未来会有重名问题
-                                "{}         {}          {}",
+                                "{}         {}           {}",
                                 mortar_strings.resolve("overworld/ui:USE"),
                                 mortar_strings.resolve("overworld/ui:INFO"),
-                                mortar_strings.resolve("overworld/ui:DROP")
+                                mortar_strings.resolve("overworld/ui:DROP"),
                             ),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.25),
@@ -193,7 +208,11 @@ pub(crate) fn draw_backpack_ui_system(
         });
 
         let status_lv_hp = [
-            format!("{}  {}", mortar_strings.resolve("overworld/ui:LV"), player_data.lv),
+            format!(
+                "{}   {}",
+                mortar_strings.resolve("overworld/ui:LV"),
+                player_data.lv
+            ),
             format!(
                 "{}  {} / {}",
                 mortar_strings.resolve("overworld/ui:HP"),
@@ -208,7 +227,7 @@ pub(crate) fn draw_backpack_ui_system(
                 "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("overworld/ui:ATK"),
                 player_data.attack,
-                player_data.attack, // TODO: 换成装备攻击力
+                player_data.attack, //TODO: 换成装备攻击力
                 mortar_strings.resolve("overworld/ui:EXP"),
                 player_data.exp
             ),
@@ -216,7 +235,7 @@ pub(crate) fn draw_backpack_ui_system(
                 "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("overworld/ui:DEF"),
                 player_data.defense,
-                player_data.defense, // TODO: 换成装备防御力
+                player_data.defense, //TODO: 换成装备防御力
                 mortar_strings.resolve("overworld/ui:NEXT"),
                 player_data.next_exp
             ),
@@ -229,7 +248,11 @@ pub(crate) fn draw_backpack_ui_system(
                 mortar_strings.resolve("overworld/ui:WEAPON"),
                 player_data.weapon
             ),
-            format!("{}: {}", mortar_strings.resolve("overworld/ui:ARMOR"), player_data.armor),
+            format!(
+                "{}: {}",
+                mortar_strings.resolve("overworld/ui:ARMOR"),
+                player_data.armor
+            ),
         ]
         .join("\n");
 
@@ -276,7 +299,11 @@ pub(crate) fn draw_backpack_ui_system(
                 },
                 UITextConfig {
                     name: "StatusLayerGold".into(),
-                    content: format!("{}: {}", mortar_strings.resolve("overworld/ui:GOLD"), player_data.gold),
+                    content: format!(
+                        "{}: {}",
+                        mortar_strings.resolve("overworld/ui:GOLD"),
+                        player_data.gold
+                    ),
                     font: UIFont::DeterminationSans,
                     world_scale: Vec2::splat(13.5),
                     transform: Transform::from_xyz(-72.5, -72.0, 1.0),
@@ -316,7 +343,8 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         Added<OverworldUIBox>,
         Changed<OverworldUIBox>,
         Changed<Transform>,
-    )>>;
+    )>,
+>;
 
 /// Create SmudShape child entities for each UI box.
 ///
@@ -392,7 +420,7 @@ fn spawn_ui_box_children(
                     ..Default::default()
                 });
 
-                filler_parent.spawn(( 
+                filler_parent.spawn((
                     text_config.name.clone(),
                     Text3d::new(text_config.content.clone()),
                     Text3dStyling {
@@ -517,7 +545,7 @@ pub(crate) fn update_overworld_ui_box_visibility_system(
     overworld_state: Res<State<OverworldState>>,
     ui_query: Query<&OverworldUI>,
     parent_query: Query<&ChildOf>,
-    mut box_query: Query< 
+    mut box_query: Query<
         (Entity, &OverworldUIBoxVisibility, &mut Visibility),
         With<OverworldUIBox>,
     >,

@@ -1,4 +1,5 @@
 use super::components::{OverworldUI, UILayer};
+use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
 /// Spawn the root UI entity that drives the Undertale-style backpack menu.
@@ -7,7 +8,12 @@ use bevy::prelude::*;
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: Query<&OverworldUI>,
+    locale_loaded: Option<Res<LocaleLoaded>>,
 ) {
+    if locale_loaded.is_none() {
+        return;
+    }
+
     // Only create the UI if it does not exist yet and we are in the menu state.
     //
     // 仅在处于菜单状态且 UI 尚未存在时才创建 UI。
