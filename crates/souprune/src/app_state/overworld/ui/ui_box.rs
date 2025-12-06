@@ -1,12 +1,8 @@
-use super::components::{
-    BoxCursor, BoxCursorPlacement, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle,
-    OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer,
-    UILayerVisibilityRule, UITextConfig,
-};
+use super::components::{OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use crate::core::data::PlayerData;
-use crate::core::item::{ItemRegistry, ItemType};
+use crate::core::item::ItemRegistry;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::mortar::MortarStringTable;
 use bevy::ecs::relationship::Relationship;
@@ -23,15 +19,23 @@ type OverworldUIQuery<'w, 's> =
 /// Handle Undertale-style UI container creation whenever the backpack UI entity spawns.
 ///
 /// 当背包 UI 实体生成时，负责创建 Undertale 风格的 UI 容器。
+///
+/// NOTE: This system is now replaced by RON-driven UI system (ron_ui_system.rs).
+/// The old hardcoded UI logic below is commented out but kept for reference.
+///
+/// 注意：此系统现已被 RON 驱动的 UI 系统（ron_ui_system.rs）替代。
+/// 下方旧的硬编码 UI 逻辑已被注释但保留以供参考。
 pub(crate) fn draw_backpack_ui_system(
-    mut commands: Commands,
-    overworld_ui_query: OverworldUIQuery,
-    camera_query: Query<&Transform, With<Camera2d>>,
-    player_data: Res<PlayerData>,
-    mut sprite_params: SpriteParams,
-    mortar_strings: Res<MortarStringTable>,
-    item_registry: Res<ItemRegistry>,
+    _commands: Commands,
+    _overworld_ui_query: OverworldUIQuery,
+    _camera_query: Query<&Transform, With<Camera2d>>,
+    _player_data: Res<PlayerData>,
+    _sprite_params: SpriteParams,
+    _mortar_strings: Res<MortarStringTable>,
+    _item_registry: Res<ItemRegistry>,
 ) {
+    // Old hardcoded UI logic is commented out - now using RON-driven UI from projects/souprune/backpack.ui.ron
+    /*
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
             continue;
@@ -383,6 +387,7 @@ pub(crate) fn draw_backpack_ui_system(
             ));
         });
     }
+    */
 }
 
 type OverworldUIBoxQuery<'w, 's> = Query<

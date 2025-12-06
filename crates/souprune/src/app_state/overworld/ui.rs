@@ -20,20 +20,26 @@
 use crate::app_state::overworld::OverworldState;
 use bevy::prelude::*;
 
+mod asset_loader;
 mod camera;
 pub(crate) mod components;
 mod cursor;
+pub(crate) mod layout;
 mod lifecycle;
+mod ron_ui_system;
 mod state;
 mod text;
 mod ui_box;
 
+use asset_loader::UILayoutAssetLoader;
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
 };
 use components::UILayerNavigationConfig;
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
+use layout::UILayoutAsset;
 use lifecycle::{destroy_backpack_ui_system, spawn_backpack_ui_system};
+use ron_ui_system::{load_ui_layout_system, spawn_ron_ui_system};
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
 use ui_box::{
@@ -51,7 +57,10 @@ pub(crate) struct UndertaleOverworldUIPlugin;
 
 impl Plugin for UndertaleOverworldUIPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<UILayerNavigationConfig>()
+        app.init_asset::<UILayoutAsset>()
+            .init_asset_loader::<UILayoutAssetLoader>()
+            .init_resource::<UILayerNavigationConfig>()
+            .add_systems(Startup, load_ui_layout_system)
             .add_systems(OnEnter(OverworldState::Backpack), spawn_backpack_ui_system)
             .add_systems(OnExit(OverworldState::Backpack), destroy_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
@@ -60,6 +69,7 @@ impl Plugin for UndertaleOverworldUIPlugin {
                 (
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
+                    spawn_ron_ui_system,
                     draw_backpack_ui_system,
                     update_overworld_ui_box_system,
                     update_overworld_ui_box_visibility_system,
@@ -88,5 +98,5 @@ impl Plugin for UndertaleOverworldUIPlugin {
 pub(crate) struct DeltaruneOverworldUIPlugin;
 
 impl Plugin for DeltaruneOverworldUIPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, _app: &mut App) {}
 }
