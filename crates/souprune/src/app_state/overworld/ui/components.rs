@@ -13,7 +13,7 @@
 use crate::core::input::Action;
 use bevy::color::Srgba;
 use bevy::prelude::{
-    Bundle, Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3,
+    Bundle, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -382,18 +382,15 @@ pub(crate) struct UIBoxFiller;
 /// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
+#[derive(Default)]
 pub(crate) enum UILayerVisibilityRule {
+    #[default]
     Always,
     AlwaysHidden,
     OnlyIn(Vec<UILayer>),
     Except(Vec<UILayer>),
 }
 
-impl Default for UILayerVisibilityRule {
-    fn default() -> Self {
-        UILayerVisibilityRule::Always
-    }
-}
 
 impl UILayerVisibilityRule {
     pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
