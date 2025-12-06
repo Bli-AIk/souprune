@@ -126,6 +126,7 @@ fn main() {
 
                 // Priority 3: Core Fallback (embedded assets)
                 readers.push(FileAssetReader::new("assets"));
+                readers.push(FileAssetReader::new("crates/souprune/assets"));
 
                 Box::new(MultiSourceAssetReader::new(readers))
             }),
