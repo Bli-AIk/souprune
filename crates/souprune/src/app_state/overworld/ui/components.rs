@@ -65,6 +65,31 @@ impl fmt::Display for UILayer {
     }
 }
 
+/// Options available when selecting an item in the backpack.
+///
+/// 背包中选中物品时可用的选项。
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(usize)]
+pub enum BackpackItemOption {
+    Use = 0,
+    Info = 1,
+    Drop = 2,
+}
+
+impl BackpackItemOption {
+    /// All available item options in order.
+    ///
+    /// 按顺序排列的所有可用物品选项。
+    pub const ALL: &'static [Self] = &[Self::Use, Self::Info, Self::Drop];
+
+    /// Get the total count of item options.
+    ///
+    /// 获取物品选项的总数。
+    pub const fn count() -> usize {
+        Self::ALL.len()
+    }
+}
+
 /// Component that records the UI layer and the current selection index within that layer.
 ///
 /// Access pattern:
@@ -607,6 +632,10 @@ impl Default for UILayerNavigationConfig {
         config.set_rule(
             UILayer::BACKPACK_ITEM,
             UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
+        );
+        config.set_rule(
+            UILayer::BACKPACK_ITEM_CHOOSES,
+            UILayerNavigationRule::new([(Action::Left, -1), (Action::Right, 1)]),
         );
         config
     }

@@ -1,4 +1,4 @@
-use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
+use super::components::{BackpackItemOption, OverworldUI, UILayer, UILayerNavigationConfig};
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -95,7 +95,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
 
                             overworld_ui.set_layer(
                                 UILayer::BACKPACK_ITEM_CHOOSES,
-                                3, //TODO: 不使用硬编码
+                                BackpackItemOption::count(),
                             );
                         }
                     }
