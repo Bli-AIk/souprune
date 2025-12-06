@@ -115,7 +115,7 @@ pub(crate) fn draw_backpack_ui_system(
                             name: "HUDText".into(),
                             // TODO: 取消硬编码文本
                             content: format!(
-                                "LV  {}\nhp  {}/{}\ng    {}",
+                                "LV  {}\nhp  {}/{}\ng   {}",
                                 player_data.lv,
                                 player_data.hp,
                                 player_data.hp_max,
@@ -172,7 +172,7 @@ pub(crate) fn draw_backpack_ui_system(
                         UITextConfig {
                             name: "ItemLayerOptions".into(),
                             content: format!(
-                                "{}         {}           {}",
+                                "{}         {}          {}",
                                 mortar_strings.resolve("overworld/ui:USE"),
                                 mortar_strings.resolve("overworld/ui:INFO"),
                                 mortar_strings.resolve("overworld/ui:DROP"),
@@ -192,8 +192,8 @@ pub(crate) fn draw_backpack_ui_system(
                     cursor_sprite.clone(),
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_ITEM]),
                     BoxCursorPosition::linear(
-                        Vec3::new(-19.0, 18.5, 2.0),
-                        Vec3::new(0.0, -18.0, 0.0),
+                        Vec3::new(-72.0, 68.0, 2.0),
+                        Vec3::new(0.0, -16.0, 0.0),
                     ),
                     Transform::from_scale(Vec3::splat(1.0)),
                 ),

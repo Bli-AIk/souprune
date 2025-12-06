@@ -70,6 +70,10 @@ impl Default for PlayerData {
             inventory: vec![
                 ItemId("monster_candy".to_string()),
                 ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
                 ItemId("UNDEFITEM".to_string()),
             ],
             inventory_capacity: 8,

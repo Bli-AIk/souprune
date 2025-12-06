@@ -8,8 +8,7 @@ pub mod debug_inspector {
     use bevy::prelude::*;
     use bevy::window::{Window, WindowClosed, WindowFocused, WindowRef, WindowResolution};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
-    use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
-    use bevy_inspector_egui::egui;
+    use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_inspector, egui};
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
