@@ -70,6 +70,36 @@ pub(crate) fn menu_overworld_state_transitions_system(
                             }
                         }
                     }
+                    layer if layer == &UILayer::BACKPACK_ITEM => {
+                        if action_state.just_pressed(&Action::Cancel) {
+                            info!("Returning to Backpack menu layer from Item layer");
+                            overworld_ui.set_layer(
+                                UILayer::BACKPACK_MENU,
+                                UILayer::BACKPACK_MENU_OPTIONS.len(),
+                            );
+                            return;
+                        }
+
+                        if action_state.just_pressed(&Action::Confirm) {
+                            let item_index = overworld_ui.index();
+                            if item_index >= player_data.inventory.len() {
+                                warn!(
+                                    "Confirmed item index {} out of bounds (max {})",
+                                    item_index,
+                                    player_data.inventory.len()
+                                );
+                                return;
+                            }
+                            let item_id = &player_data.inventory[item_index];
+                            info!("TODO: Use item {:?} from backpack", item_id);
+
+                            overworld_ui.set_layer(
+                                UILayer::BACKPACK_ITEM_CHOOSES,
+                               3//TODO: 不使用硬编码 
+                            );
+
+                        }
+                    }
                     _ => {
                         if action_state.just_pressed(&Action::Cancel) {
                             info!(
