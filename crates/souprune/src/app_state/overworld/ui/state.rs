@@ -95,9 +95,8 @@ pub(crate) fn menu_overworld_state_transitions_system(
 
                             overworld_ui.set_layer(
                                 UILayer::BACKPACK_ITEM_CHOOSES,
-                               3//TODO: 不使用硬编码 
+                                3, //TODO: 不使用硬编码
                             );
-
                         }
                     }
                     _ => {

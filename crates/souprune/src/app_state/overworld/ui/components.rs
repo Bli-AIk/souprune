@@ -407,6 +407,7 @@ pub(crate) use UILayerVisibilityRule as BoxCursorVisibility;
 pub(crate) enum BoxCursorPosition {
     Static(Vec3),
     Linear { origin: Vec3, step: Vec3 },
+    Custom(Vec<Vec3>),
 }
 
 impl Default for BoxCursorPosition {
@@ -424,11 +425,56 @@ impl BoxCursorPosition {
         Self::Linear { origin, step }
     }
 
+    pub(crate) fn custom(positions: Vec<Vec3>) -> Self {
+        Self::Custom(positions)
+    }
+
     pub(crate) fn position_for_index(&self, index: usize) -> Vec3 {
         match self {
             BoxCursorPosition::Static(position) => *position,
             BoxCursorPosition::Linear { origin, step } => *origin + *step * index as f32,
+            BoxCursorPosition::Custom(positions) => {
+                if positions.is_empty() {
+                    Vec3::ZERO
+                } else {
+                    positions[index.min(positions.len() - 1)]
+                }
+            }
         }
+    }
+}
+
+/// Defines cursor placement rules, including a default strategy and layer-specific overrides.
+///
+/// 定义光标放置规则，包括默认策略和特定层的覆盖规则。
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct BoxCursorPlacement {
+    pub(crate) default: BoxCursorPosition,
+    pub(crate) overrides: HashMap<UILayer, BoxCursorPosition>,
+}
+
+impl BoxCursorPlacement {
+    pub(crate) fn new(default: BoxCursorPosition) -> Self {
+        Self {
+            default,
+            overrides: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn with_override(mut self, layer: UILayer, position: BoxCursorPosition) -> Self {
+        self.overrides.insert(layer, position);
+        self
+    }
+
+    pub(crate) fn get(&self, layer: &UILayer) -> &BoxCursorPosition {
+        self.overrides.get(layer).unwrap_or(&self.default)
+    }
+}
+
+impl From<BoxCursorPosition> for BoxCursorPlacement {
+    fn from(position: BoxCursorPosition) -> Self {
+        Self::new(position)
     }
 }
 
@@ -440,26 +486,28 @@ impl BoxCursorPosition {
 pub(crate) struct BoxCursor {
     pub(crate) sprite: Sprite,
     pub(crate) visibility: BoxCursorVisibility,
-    pub(crate) position: BoxCursorPosition,
+    pub(crate) placement: BoxCursorPlacement,
     pub(crate) transform: Transform,
     hidden: bool,
     last_index: Option<usize>,
+    last_layer: Option<UILayer>,
 }
 
 impl BoxCursor {
     pub(crate) fn new(
         sprite: Sprite,
         visibility: BoxCursorVisibility,
-        position: BoxCursorPosition,
+        placement: impl Into<BoxCursorPlacement>,
         transform: Transform,
     ) -> Self {
         Self {
             sprite,
             visibility,
-            position,
+            placement: placement.into(),
             transform,
             hidden: false,
             last_index: None,
+            last_layer: None,
         }
     }
 
@@ -471,21 +519,23 @@ impl BoxCursor {
         &self.visibility
     }
 
-    pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
-        self.transform.translation + self.position.position_for_index(index)
+    pub(crate) fn desired_translation(&self, layer: &UILayer, index: usize) -> Vec3 {
+        let position_rule = self.placement.get(layer);
+        self.transform.translation + position_rule.position_for_index(index)
     }
 
     pub(crate) fn transform(&self) -> Transform {
         self.transform
     }
 
-    pub(crate) fn translation_for_index(&mut self, index: usize) -> Option<Vec3> {
-        if self.last_index == Some(index) {
+    pub(crate) fn translation_for_index(&mut self, layer: &UILayer, index: usize) -> Option<Vec3> {
+        if self.last_index == Some(index) && self.last_layer.as_ref() == Some(layer) {
             return None;
         }
 
         self.last_index = Some(index);
-        Some(self.desired_translation(index))
+        self.last_layer = Some(layer.clone());
+        Some(self.desired_translation(layer, index))
     }
 
     pub(crate) fn hide(&mut self) {

@@ -107,7 +107,8 @@ pub(crate) fn update_box_cursor_state_system(
         should_show &= cursor.visibility().is_visible_for(overworld_ui.layer());
 
         if should_show {
-            if let Some(translation) = cursor.translation_for_index(overworld_ui.index())
+            if let Some(translation) =
+                cursor.translation_for_index(overworld_ui.layer(), overworld_ui.index())
                 && transform.translation != translation
             {
                 transform.translation = translation;

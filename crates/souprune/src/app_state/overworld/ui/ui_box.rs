@@ -1,7 +1,7 @@
 use super::components::{
-    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle, OverworldUI,
-    OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer, UILayerVisibilityRule,
-    UITextConfig,
+    BoxCursor, BoxCursorPlacement, BoxCursorPosition, BoxCursorVisibility, CameraAnchoredBundle,
+    OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UIFont, UILayer,
+    UILayerVisibilityRule, UITextConfig,
 };
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
@@ -91,10 +91,10 @@ pub(crate) fn draw_backpack_ui_system(
                 BoxCursor::new(
                     cursor_sprite.clone(),
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]),
-                    BoxCursorPosition::linear(
+                    BoxCursorPlacement::new(BoxCursorPosition::linear(
                         Vec3::new(-19.0, 18.5, 2.0),
                         Vec3::new(0.0, -18.0, 0.0),
-                    ),
+                    )),
                     Transform::from_scale(Vec3::splat(1.0)),
                 ),
                 CameraAnchoredBundle::from_camera_transform(
@@ -219,9 +219,17 @@ pub(crate) fn draw_backpack_ui_system(
                         UILayer::BACKPACK_ITEM,
                         UILayer::BACKPACK_ITEM_CHOOSES,
                     ]),
-                    BoxCursorPosition::linear(
+                    BoxCursorPlacement::new(BoxCursorPosition::linear(
                         Vec3::new(-72.0, 68.0, 2.0),
                         Vec3::new(0.0, -16.0, 0.0),
+                    ))
+                    .with_override(
+                        UILayer::BACKPACK_ITEM_CHOOSES,
+                        BoxCursorPosition::custom(vec![
+                            Vec3::new(-64.25, -63.5, 2.0),
+                            Vec3::new(-64.25 + 52.0, -63.5, 2.0),
+                            Vec3::new(-64.25 + 105.0, -63.5, 2.0),
+                        ]),
                     ),
                     Transform::from_scale(Vec3::splat(1.0)),
                 ),
