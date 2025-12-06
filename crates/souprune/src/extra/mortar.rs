@@ -1,9 +1,8 @@
+use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
 use bevy_mortar_bond::{MortarAsset, MortarPlugin};
 use serde_json::Value;
 use std::collections::HashMap;
-
-const UI_TEXT_TEMPLATE: &str = "locales/{locale}/overworld/ui.mortar";
 
 pub struct MortarExtraPlugin;
 
@@ -27,10 +26,7 @@ impl Default for CurrentLocale {
 }
 
 #[derive(Resource)]
-struct LocaleMortarHandle {
-    handle: Handle<MortarAsset>,
-    loaded: bool,
-}
+struct LocalesFolderHandle(Handle<LoadedFolder>);
 
 #[derive(Resource, Default)]
 pub struct MortarStringTable {
@@ -48,48 +44,88 @@ impl MortarStringTable {
     }
 }
 
-fn locale_path(locale: &str) -> String {
-    UI_TEXT_TEMPLATE.replace("{locale}", locale)
-}
-
 fn load_locale_mortar_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     locale: Res<CurrentLocale>,
 ) {
-    let handle: Handle<MortarAsset> = asset_server.load(locale_path(&locale.0));
-    commands.insert_resource(LocaleMortarHandle {
-        handle,
-        loaded: false,
-    });
+    let path = format!("locales/{}", locale.0);
+    info!("Loading locales from: {}", path);
+    let handle = asset_server.load_folder(path);
+    commands.insert_resource(LocalesFolderHandle(handle));
 }
 
 fn read_locale_constants_system(
-    handle_res: Option<ResMut<LocaleMortarHandle>>,
-    assets: Res<Assets<MortarAsset>>,
+    mut events: MessageReader<AssetEvent<LoadedFolder>>,
+    folder_handle: Option<Res<LocalesFolderHandle>>,
+    loaded_folders: Res<Assets<LoadedFolder>>,
+    mortar_assets: Res<Assets<MortarAsset>>,
     mut table: ResMut<MortarStringTable>,
+    asset_server: Res<AssetServer>,
+    locale: Res<CurrentLocale>,
 ) {
-    let Some(mut handle) = handle_res else {
+    let Some(folder_handle) = folder_handle else {
         return;
     };
 
-    if handle.loaded {
-        return;
-    }
+    for event in events.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = event
+            && *id == folder_handle.0.id()
+        {
+            info!("Locales folder loaded. Processing files...");
 
-    let Some(asset) = assets.get(&handle.handle) else {
-        return;
-    };
+            if let Some(folder) = loaded_folders.get(&folder_handle.0) {
+                for handle in &folder.handles {
+                    let id = handle.id();
 
-    for constant in &asset.data.constants {
-        if !constant.public {
-            continue;
+                    // Determine namespace from path relative to locale folder
+                    let namespace = if let Some(path) = asset_server.get_path(id) {
+                        let full_path = path.path().to_string_lossy();
+                        let prefix = format!("locales/{}/", locale.0);
+
+                        if let Some(remaining) = full_path.strip_prefix(&prefix) {
+                            std::path::Path::new(remaining)
+                                .with_extension("")
+                                .to_string_lossy()
+                                .to_string()
+                        } else {
+                            // Fallback to filename if prefix doesn't match (shouldn't happen if logic is correct)
+                            warn!("Path {} does not start with prefix {}", full_path, prefix);
+                            path.path()
+                                .file_stem()
+                                .map(|s| s.to_string_lossy().to_string())
+                                .unwrap_or_default()
+                        }
+                    } else {
+                        warn!("Could not determine path for asset {:?}", id);
+                        continue;
+                    };
+
+                    // Try to get as MortarAsset
+                    let typed_id = id.typed::<MortarAsset>();
+                    if let Some(asset) = mortar_assets.get(typed_id) {
+                        info!(
+                            "Processing locale file: {}.mortar -> namespace: {}",
+                            namespace, namespace
+                        );
+                        for constant in &asset.data.constants {
+                            if !constant.public {
+                                continue;
+                            }
+
+                            if let Value::String(value) = &constant.value {
+                                let key = format!("{}:{}", namespace, constant.name);
+                                // debug!("Registered locale string: {} = {}", key, value);
+                                table.values.insert(key, value.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            info!(
+                "MortarStringTable initialized. Total strings: {}",
+                table.values.len()
+            );
         }
-
-        if let Value::String(value) = &constant.value {
-            table.values.insert(constant.name.clone(), value.clone());
-        }
     }
-
-    handle.loaded = true;
 }

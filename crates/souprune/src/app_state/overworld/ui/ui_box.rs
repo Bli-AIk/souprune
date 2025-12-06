@@ -65,8 +65,8 @@ pub(crate) fn draw_backpack_ui_system(
                         name: "Text".into(),
                         content: format!(
                             "{}\n{}",
-                            mortar_strings.resolve("ITEM"),
-                            mortar_strings.resolve("STAT")
+                            mortar_strings.resolve("overworld/ui:ITEM"),
+                            mortar_strings.resolve("overworld/ui:STAT")
                         ),
                         font: UIFont::DeterminationSans,
                         world_scale: Vec2::splat(13.25),
@@ -158,9 +158,9 @@ pub(crate) fn draw_backpack_ui_system(
                             content: format!(
                                 // TODO: 我们的调用函数应该指定作用域！现在没写从哪个Mortar文件调用，可能未来会有重名问题
                                 "{}         {}          {}",
-                                mortar_strings.resolve("USE"),
-                                mortar_strings.resolve("INFO"),
-                                mortar_strings.resolve("DROP"),
+                                mortar_strings.resolve("overworld/ui:USE"),
+                                mortar_strings.resolve("overworld/ui:INFO"),
+                                mortar_strings.resolve("overworld/ui:DROP")
                             ),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.25),
@@ -193,10 +193,10 @@ pub(crate) fn draw_backpack_ui_system(
         });
 
         let status_lv_hp = [
-            format!("{}  {}", mortar_strings.resolve("LV"), player_data.lv),
+            format!("{}  {}", mortar_strings.resolve("overworld/ui:LV"), player_data.lv),
             format!(
                 "{}  {} / {}",
-                mortar_strings.resolve("HP"),
+                mortar_strings.resolve("overworld/ui:HP"),
                 player_data.hp,
                 player_data.hp_max
             ),
@@ -206,18 +206,18 @@ pub(crate) fn draw_backpack_ui_system(
         let status_combat = [
             format!(
                 "{}  {} ({})            {}: {}",
-                mortar_strings.resolve("AT"),
+                mortar_strings.resolve("overworld/ui:ATK"),
                 player_data.attack,
-                player_data.attack, //TODO: 换成装备攻击力
-                mortar_strings.resolve("EXP"),
+                player_data.attack, // TODO: 换成装备攻击力
+                mortar_strings.resolve("overworld/ui:EXP"),
                 player_data.exp
             ),
             format!(
                 "{}  {} ({})            {}: {}",
-                mortar_strings.resolve("DF"),
+                mortar_strings.resolve("overworld/ui:DEF"),
                 player_data.defense,
-                player_data.defense, //TODO: 换成装备防御力
-                mortar_strings.resolve("NEXT"),
+                player_data.defense, // TODO: 换成装备防御力
+                mortar_strings.resolve("overworld/ui:NEXT"),
                 player_data.next_exp
             ),
         ]
@@ -226,10 +226,10 @@ pub(crate) fn draw_backpack_ui_system(
         let status_equipment = [
             format!(
                 "{}: {}",
-                mortar_strings.resolve("WEAPON"),
+                mortar_strings.resolve("overworld/ui:WEAPON"),
                 player_data.weapon
             ),
-            format!("{}: {}", mortar_strings.resolve("ARMOR"), player_data.armor),
+            format!("{}: {}", mortar_strings.resolve("overworld/ui:ARMOR"), player_data.armor),
         ]
         .join("\n");
 
@@ -276,7 +276,7 @@ pub(crate) fn draw_backpack_ui_system(
                 },
                 UITextConfig {
                     name: "StatusLayerGold".into(),
-                    content: format!("{}: {}", mortar_strings.resolve("GOLD"), player_data.gold),
+                    content: format!("{}: {}", mortar_strings.resolve("overworld/ui:GOLD"), player_data.gold),
                     font: UIFont::DeterminationSans,
                     world_scale: Vec2::splat(13.5),
                     transform: Transform::from_xyz(-72.5, -72.0, 1.0),
@@ -316,8 +316,7 @@ type OverworldUIBoxQuery<'w, 's> = Query<
         Added<OverworldUIBox>,
         Changed<OverworldUIBox>,
         Changed<Transform>,
-    )>,
->;
+    )>>;
 
 /// Create SmudShape child entities for each UI box.
 ///
@@ -338,10 +337,7 @@ fn spawn_ui_box_children(
     let border_width = ui_box.border_width();
 
     let solid_fill = shaders.add_fill_body(
-        r#"
-                        let a = select(0.0, 1.0, input.distance <= 0.0);
-                        return vec4<f32>(input.color.rgb, a);
-                        "#,
+        "let a = select(0.0, 1.0, input.distance <= 0.0); return vec4<f32>(input.color.rgb, a);",
     );
 
     let mut filler_entity: Option<Entity> = None;
@@ -396,7 +392,7 @@ fn spawn_ui_box_children(
                     ..Default::default()
                 });
 
-                filler_parent.spawn((
+                filler_parent.spawn(( 
                     text_config.name.clone(),
                     Text3d::new(text_config.content.clone()),
                     Text3dStyling {
@@ -521,7 +517,7 @@ pub(crate) fn update_overworld_ui_box_visibility_system(
     overworld_state: Res<State<OverworldState>>,
     ui_query: Query<&OverworldUI>,
     parent_query: Query<&ChildOf>,
-    mut box_query: Query<
+    mut box_query: Query< 
         (Entity, &OverworldUIBoxVisibility, &mut Visibility),
         With<OverworldUIBox>,
     >,
