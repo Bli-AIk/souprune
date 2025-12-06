@@ -191,7 +191,6 @@ pub(crate) fn draw_backpack_ui_system(
                 BoxCursor::new(
                     cursor_sprite.clone(),
                     BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_ITEM]),
-                    //TODO: 物品系统实现时配置其索引
                     BoxCursorPosition::linear(
                         Vec3::new(-19.0, 18.5, 2.0),
                         Vec3::new(0.0, -18.0, 0.0),

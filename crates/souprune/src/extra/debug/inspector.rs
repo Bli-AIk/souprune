@@ -8,7 +8,7 @@ pub mod debug_inspector {
     use bevy::prelude::*;
     use bevy::window::{Window, WindowClosed, WindowFocused, WindowRef, WindowResolution};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
-    use bevy_inspector_egui::bevy_inspector;
+    use bevy_inspector_egui::{bevy_inspector, DefaultInspectorConfigPlugin};
     use bevy_inspector_egui::egui;
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
@@ -63,6 +63,7 @@ pub mod debug_inspector {
         app.init_resource::<InspectorUiState>();
 
         app.add_plugins(EguiPlugin::default());
+        app.add_plugins(DefaultInspectorConfigPlugin);
 
         app.add_plugins((
             bevy::diagnostic::FrameTimeDiagnosticsPlugin::default(),
