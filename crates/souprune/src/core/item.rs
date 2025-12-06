@@ -47,6 +47,9 @@ pub enum ItemType {
         damage: i32,
         on_hit_effects: Vec<ItemEffect>,
     },
+    Armor {
+        defense: i32,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize, Reflect)]

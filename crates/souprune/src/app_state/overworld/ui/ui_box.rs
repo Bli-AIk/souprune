@@ -6,7 +6,7 @@ use super::components::{
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use crate::core::data::PlayerData;
-use crate::core::item::ItemRegistry;
+use crate::core::item::{ItemRegistry, ItemType};
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::mortar::MortarStringTable;
 use bevy::ecs::relationship::Relationship;
@@ -222,20 +222,40 @@ pub(crate) fn draw_backpack_ui_system(
         ]
         .join("\n");
 
+        let mut weapon_name = player_data.weapon.clone();
+        let mut weapon_atk = 0;
+        if let Some(item) = item_registry.get(&player_data.weapon) {
+            let key = format!("{}:{}", item.locate_file, item.locate_name);
+            weapon_name = mortar_strings.resolve(&key).to_string();
+            if let ItemType::Weapon { damage, .. } = item.item_type {
+                weapon_atk = damage;
+            }
+        }
+
+        let mut armor_name = player_data.armor.clone();
+        let mut armor_def = 0;
+        if let Some(item) = item_registry.get(&player_data.armor) {
+            let key = format!("{}:{}", item.locate_file, item.locate_name);
+            armor_name = mortar_strings.resolve(&key).to_string();
+            if let ItemType::Armor { defense } = item.item_type {
+                armor_def = defense;
+            }
+        }
+
         let status_combat = [
             format!(
                 "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("overworld/ui:ATK"),
-                player_data.attack,
-                player_data.attack, //TODO: 换成装备攻击力
+                player_data.attack + weapon_atk as usize,
+                weapon_atk,
                 mortar_strings.resolve("overworld/ui:EXP"),
                 player_data.exp
             ),
             format!(
                 "{}  {} ({})            {}: {}",
                 mortar_strings.resolve("overworld/ui:DEF"),
-                player_data.defense,
-                player_data.defense, //TODO: 换成装备防御力
+                player_data.defense + armor_def as usize,
+                armor_def,
                 mortar_strings.resolve("overworld/ui:NEXT"),
                 player_data.next_exp
             ),
@@ -246,12 +266,12 @@ pub(crate) fn draw_backpack_ui_system(
             format!(
                 "{}: {}",
                 mortar_strings.resolve("overworld/ui:WEAPON"),
-                player_data.weapon
+                weapon_name
             ),
             format!(
                 "{}: {}",
                 mortar_strings.resolve("overworld/ui:ARMOR"),
-                player_data.armor
+                armor_name
             ),
         ]
         .join("\n");

@@ -32,10 +32,18 @@
         description: "A worn pink leather glove.",
         item_type: Weapon(
             damage: 5,
-            attack_animation: "punch_anim",
             on_hit_effects: [
                 PlayAudio(clip_path: "sounds/punch_impact.wav")
             ]
+        )
+    ),
+    (
+        id: "faded_ribbon",
+        locate_name: "FADED_RIBBON",
+        locate_file: "items",
+        description: "If you're cuter, monsters won't hit you as hard.",
+        item_type: Armor(
+            defense: 3,
         )
     )
 ]
