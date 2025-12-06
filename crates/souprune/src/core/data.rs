@@ -64,8 +64,8 @@ impl Default for PlayerData {
             attack: 0,
             defense: 0,
             gold: 42,
-            weapon: "tough_glove".to_string(),
-            armor: "faded_ribbon".to_string(),
+            weapon: "stick".to_string(),
+            armor: "bandage".to_string(),
             inventory: vec![
                 ItemId("monster_candy".to_string()),
                 ItemId("monster_candy".to_string()),

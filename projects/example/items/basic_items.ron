@@ -45,5 +45,24 @@
         item_type: Armor(
             defense: 3,
         )
+    ),
+    (
+        id: "stick",
+        locate_name: "STICK",
+        locate_file: "items",
+        description: "Its bark is worse than its bite.",
+        item_type: Weapon(
+            damage: 0,
+            on_hit_effects: []
+        )
+    ),
+    (
+        id: "bandage",
+        locate_name: "BANDAGE",
+        locate_file: "items",
+        description: "It has already been used several times.",
+        item_type: Armor(
+            defense: 0,
+        )
     )
 ]
