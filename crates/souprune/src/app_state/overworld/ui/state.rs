@@ -41,6 +41,9 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     if action_state.just_pressed(&Action::Confirm) {
                         match overworld_ui.index() {
                             0 => {
+                                if player_data.inventory.is_empty() {
+                                    return;
+                                }
                                 info!("Opening Backpack item layer");
                                 overworld_ui.set_layer(
                                     UILayer::BACKPACK_ITEM.clone(),

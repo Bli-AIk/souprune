@@ -12,7 +12,7 @@ use crate::extra::mortar::MortarStringTable;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
-use bevy_rich_text3d::{Text3d, Text3dStyling, TextAtlas};
+use bevy_rich_text3d::{ParseError, SegmentStyle, Text3d, Text3dStyling, TextAtlas};
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use std::collections::VecDeque;
@@ -58,6 +58,15 @@ pub(crate) fn draw_backpack_ui_system(
         //
         // 只负责添加 OverworldUIBox 组件，具体绘制交由 `update_overworld_ui_box_system`。
         commands.entity(ui_entity).with_children(|parent| {
+            let item_text = if player_data.inventory.is_empty() {
+                format!(
+                    "{{#808080:{}}}",
+                    mortar_strings.resolve("overworld/ui:ITEM")
+                )
+            } else {
+                mortar_strings.resolve("overworld/ui:ITEM").to_string()
+            };
+
             parent.spawn((
                 OverworldUIBox::new_with_texts(
                     65.0,
@@ -67,7 +76,7 @@ pub(crate) fn draw_backpack_ui_system(
                         name: "Text".into(),
                         content: format!(
                             "{}\n{}",
-                            mortar_strings.resolve("overworld/ui:ITEM"),
+                            item_text,
                             mortar_strings.resolve("overworld/ui:STAT")
                         ),
                         font: UIFont::DeterminationSans,
@@ -441,7 +450,25 @@ fn spawn_ui_box_children(
 
                 filler_parent.spawn((
                     text_config.name.clone(),
-                    Text3d::new(text_config.content.clone()),
+                    Text3d::parse(
+                        &text_config.content,
+                        |_| {
+                            Err(ParseError::Custom(
+                                "Dynamic values not supported".to_string(),
+                            ))
+                        },
+                        |style| {
+                            if let Ok(color) = Srgba::hex(style.trim_start_matches('#')) {
+                                Ok(SegmentStyle {
+                                    fill_color: Some(color),
+                                    ..Default::default()
+                                })
+                            } else {
+                                Err(ParseError::MissingStyle(style.to_string()))
+                            }
+                        },
+                    )
+                    .expect("Failed to parse text"),
                     Text3dStyling {
                         font: text_config.font.font_name().into(),
                         size: text_config.font.default_size(),
