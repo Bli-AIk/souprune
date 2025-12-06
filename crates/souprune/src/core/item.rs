@@ -32,6 +32,7 @@ pub struct ItemId(pub String);
 pub struct Item {
     pub id: String,
     pub locate_name: String,
+    pub locate_file: String,
     pub description: String,
     pub item_type: ItemType,
 }

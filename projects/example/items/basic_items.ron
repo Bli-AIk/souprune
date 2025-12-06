@@ -2,6 +2,7 @@
     (
         id: "monster_candy",
         locate_name: "MONSTER_CANDY",
+        locate_file: "items",
         description: "Has a distinct, non-licorice flavor.",
         item_type: Food(
             consumable: true,
@@ -11,11 +12,10 @@
             ]
         )
     ),
-
-    // 物品 2：父级食物
     (
         id: "test_parent",
         locate_name: "TEST_PARENT",
+        locate_file: "items",
         description: "Comes with everything you need.",
         item_type: Food(
             consumable: true,
@@ -25,14 +25,14 @@
             ]
         )
     ),
-
-    // 物品 3：武器
     (
         id: "tough_glove",
         locate_name: "TOUGH_GLOVE",
+        locate_file: "items",
         description: "A worn pink leather glove.",
         item_type: Weapon(
             damage: 5,
+            attack_animation: "punch_anim",
             on_hit_effects: [
                 PlayAudio(clip_path: "sounds/punch_impact.wav")
             ]

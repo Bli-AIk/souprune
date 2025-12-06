@@ -1,0 +1,3 @@
+pub const MONSTER_CANDY: String = "Monster Candy"
+pub const TEST_PARENT: String = "Test Parent"
+pub const TOUGH_GLOVE: String = "Tough Glove"
