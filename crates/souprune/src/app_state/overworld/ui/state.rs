@@ -12,6 +12,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
     current_state: Res<State<OverworldState>>,
     mut overworld_ui_query: Query<&mut OverworldUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    player_data: Res<crate::core::data::PlayerData>,
 ) {
     if let Ok(action_state) = query.single() {
         match current_state.get() {
@@ -43,7 +44,12 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 info!("Opening Backpack item layer");
                                 overworld_ui.set_layer(
                                     UILayer::BACKPACK_ITEM.clone(),
-                                    backpack_layer_entry_count(&UILayer::BACKPACK_ITEM),
+                                    if player_data.inventory.len() < player_data.inventory_capacity
+                                    {
+                                        player_data.inventory.len()
+                                    } else {
+                                        player_data.inventory_capacity
+                                    },
                                 );
                             }
                             1 => {

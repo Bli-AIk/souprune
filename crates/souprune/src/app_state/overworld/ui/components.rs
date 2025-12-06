@@ -563,6 +563,10 @@ impl Default for UILayerNavigationConfig {
             UILayer::BACKPACK_MENU,
             UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
         );
+        config.set_rule(
+            UILayer::BACKPACK_ITEM,
+            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
+        );
         config
     }
 }

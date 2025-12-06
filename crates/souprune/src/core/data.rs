@@ -50,6 +50,7 @@ pub(crate) struct PlayerData {
     pub(crate) weapon: String, // TODO: 待引入物品系统后改为物品ID
     pub(crate) armor: String,
     pub(crate) inventory: Vec<ItemId>,
+    pub(crate) inventory_capacity: usize,
 }
 
 impl Default for PlayerData {
@@ -71,6 +72,7 @@ impl Default for PlayerData {
                 ItemId("monster_candy".to_string()),
                 ItemId("UNDEFITEM".to_string()),
             ],
+            inventory_capacity: 8,
         }
     }
 }
