@@ -160,6 +160,8 @@ pub(crate) fn draw_backpack_ui_system(
                             content: player_data
                                 .inventory
                                 .iter()
+                                //TODO: 以后也许可以支持滚动菜单
+                                .take(8)
                                 .map(|item_id| {
                                     if let Some(item) = item_registry.get(&item_id.0) {
                                         let key =

@@ -67,7 +67,17 @@ impl Default for PlayerData {
             gold: 42,
             weapon: "stick".to_string(),
             armor: "bandage".to_string(),
-            inventory: vec![],
+            inventory: vec![
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("monster_candy".to_string()),
+                ItemId("UNDEFITEM".to_string()),
+            ],
             inventory_capacity: 8,
         }
     }
