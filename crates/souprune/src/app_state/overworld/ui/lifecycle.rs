@@ -37,18 +37,3 @@ pub(crate) fn spawn_backpack_ui_system(
 
     info!("Spawned backpack UI in Menu state");
 }
-
-/// Despawn backpack UI entities when leaving the menu state.
-///
-/// 离开菜单状态时销毁背包 UI 实体。
-pub(crate) fn destroy_backpack_ui_system(
-    mut commands: Commands,
-    ui_query: Query<(Entity, &OverworldUI)>,
-) {
-    for (entity, overworld_ui) in ui_query.iter() {
-        if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
-            commands.entity(entity).despawn();
-            info!("Destroyed backpack UI when leaving Menu state");
-        }
-    }
-}
