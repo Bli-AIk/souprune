@@ -101,7 +101,7 @@ macro_rules! get_game_plugins {
 }
 fn main() {
     App::new()
-        // TODO: Read mod config and load the correct project
+        // TODO: 读取 mod 配置并加载正确的项目
         .register_asset_source(
             AssetSourceId::Default,
             AssetSource::build().with_reader(|| {
