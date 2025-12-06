@@ -34,6 +34,8 @@ pub fn spawn_ron_ui_system(
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    player_data: Res<crate::core::data::PlayerData>,
+    item_registry: Res<crate::core::item::ItemRegistry>,
 ) {
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;
@@ -66,6 +68,8 @@ pub fn spawn_ron_ui_system(
                 camera_transform,
                 &mut sprite_params,
                 &mortar_strings,
+                &player_data,
+                &item_registry,
             );
         }
     }
@@ -78,6 +82,8 @@ fn spawn_ui_node(
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
 ) {
     commands.entity(parent_entity).with_children(|parent| {
         if let Some(ui_box_logic) = &node_def.ui_box_logic {
@@ -94,6 +100,8 @@ fn spawn_ui_node(
                     let content = resolve_text_content(
                         text_def.content.as_deref().unwrap_or(""),
                         mortar_strings,
+                        player_data,
+                        item_registry,
                     );
 
                     UITextConfig {
@@ -193,6 +201,8 @@ fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> UILayerVisibilityRul
 fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
 ) -> String {
     let mut result = String::new();
     let mut chars = template.chars().peekable();
@@ -226,6 +236,28 @@ fn resolve_text_content(
                         result.push_str(&key);
                     }
                     continue;
+                } else if next_ch == '@' {
+                    chars.next();
+                    let mut path = String::new();
+                    let mut found_closing = false;
+
+                    while let Some(ch) = chars.next() {
+                        if ch == '}' {
+                            found_closing = true;
+                            break;
+                        }
+                        path.push(ch);
+                    }
+
+                    if found_closing {
+                        let value =
+                            resolve_data_path(&path, player_data, item_registry, mortar_strings);
+                        result.push_str(&value);
+                    } else {
+                        result.push_str("{@");
+                        result.push_str(&path);
+                    }
+                    continue;
                 }
             }
         }
@@ -233,4 +265,82 @@ fn resolve_text_content(
     }
 
     result
+}
+
+fn resolve_data_path(
+    path: &str,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    use crate::core::item::ItemType;
+
+    match path {
+        "player.name" => player_data.name.clone(),
+        "player.lv" => player_data.lv.to_string(),
+        "player.hp" => player_data.hp.to_string(),
+        "player.hp_max" => player_data.hp_max.to_string(),
+        "player.gold" => player_data.gold.to_string(),
+        "player.exp" => player_data.exp.to_string(),
+        "player.next_exp" => player_data.next_exp.to_string(),
+        "player.attack" => player_data.attack.to_string(),
+        "player.defense" => player_data.defense.to_string(),
+        "player.weapon" => {
+            if let Some(item) = item_registry.get(&player_data.weapon) {
+                let key = format!("{}:{}", item.locate_file, item.locate_name);
+                mortar_strings.resolve(&key).to_string()
+            } else {
+                player_data.weapon.clone()
+            }
+        }
+        "player.weapon_atk" => {
+            if let Some(item) = item_registry.get(&player_data.weapon) {
+                if let ItemType::Weapon { damage, .. } = item.item_type {
+                    return damage.to_string();
+                }
+            }
+            "0".to_string()
+        }
+        "player.total_attack" => {
+            let weapon_atk = if let Some(item) = item_registry.get(&player_data.weapon) {
+                if let ItemType::Weapon { damage, .. } = item.item_type {
+                    damage as usize
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            (player_data.attack + weapon_atk).to_string()
+        }
+        "player.armor" => {
+            if let Some(item) = item_registry.get(&player_data.armor) {
+                let key = format!("{}:{}", item.locate_file, item.locate_name);
+                mortar_strings.resolve(&key).to_string()
+            } else {
+                player_data.armor.clone()
+            }
+        }
+        "player.armor_def" => {
+            if let Some(item) = item_registry.get(&player_data.armor) {
+                if let ItemType::Armor { defense } = item.item_type {
+                    return defense.to_string();
+                }
+            }
+            "0".to_string()
+        }
+        "player.total_defense" => {
+            let armor_def = if let Some(item) = item_registry.get(&player_data.armor) {
+                if let ItemType::Armor { defense } = item.item_type {
+                    defense as usize
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            (player_data.defense + armor_def).to_string()
+        }
+        _ => format!("<unknown:{}>", path),
+    }
 }

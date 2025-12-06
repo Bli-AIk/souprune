@@ -51,7 +51,7 @@
             texts: [
                 (
                     id: "NameText",
-                    content: Some("Frisk"),
+                    content: Some("{@player.name}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.0, y: 13.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -60,7 +60,7 @@
                 ),
                 (
                     id: "HUDText",
-                    content: Some("LV  1\nHP  20/20\nG   0"),
+                    content: Some("{{overworld/ui:LV}}  {@player.lv}\n{{overworld/ui:HP}}  {@player.hp}/{@player.hp_max}\ng   {@player.gold}"),
                     font: Hud,
                     world_scale: (x: 8.0, y: 8.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -155,7 +155,7 @@
             texts: [
                 (
                     id: "StatusLayerName",
-                    content: Some("\"Frisk\""),
+                    content: Some("\"{@player.name}\""),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -164,7 +164,7 @@
                 ),
                 (
                     id: "StatusLayerLvHp",
-                    content: Some("{{overworld/ui:LV}}   1\n{{overworld/ui:HP}}  20 / 20"),
+                    content: Some("{{overworld/ui:LV}}   {@player.lv}\n{{overworld/ui:HP}}  {@player.hp} / {@player.hp_max}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -173,7 +173,7 @@
                 ),
                 (
                     id: "StatusLayerCombat",
-                    content: Some("{{overworld/ui:ATK}}  10 (0)            {{overworld/ui:EXP}}: 0\n{{overworld/ui:DEF}}  10 (0)            {{overworld/ui:NEXT}}: 10"),
+                    content: Some("{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {@player.exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {@player.next_exp}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -182,7 +182,7 @@
                 ),
                 (
                     id: "StatusLayerEquipment",
-                    content: Some("{{overworld/ui:WEAPON}}: Stick\n{{overworld/ui:ARMOR}}: Bandage"),
+                    content: Some("{{overworld/ui:WEAPON}}: {@player.weapon}\n{{overworld/ui:ARMOR}}: {@player.armor}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -191,7 +191,7 @@
                 ),
                 (
                     id: "StatusLayerGold",
-                    content: Some("{{overworld/ui:GOLD}}: 0"),
+                    content: Some("{{overworld/ui:GOLD}}: {@player.gold}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.5, y: 13.5),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
