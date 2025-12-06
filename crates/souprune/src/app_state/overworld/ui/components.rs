@@ -28,8 +28,14 @@ pub struct UILayer(Cow<'static, str>);
 impl UILayer {
     pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
     pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
-    pub const BACKPACK_ITEM_OPTIONS: UILayer = UILayer::new_static("BackpackItemOptions");
+    pub const BACKPACK_ITEM_CHOOSES: UILayer = UILayer::new_static("BackpackItemOptions");
     pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
+
+    /// Defined options for the backpack menu, determining order and count.
+    ///
+    /// 背包菜单的定义选项，决定顺序和数量。
+    pub const BACKPACK_MENU_OPTIONS: &'static [UILayer] =
+        &[Self::BACKPACK_ITEM, Self::BACKPACK_STATUS];
 
     /// Const constructor for static constants
     ///
@@ -50,16 +56,6 @@ impl UILayer {
     /// 获取层名称
     pub fn name(&self) -> &str {
         &self.0
-    }
-
-    /// Get the total count of predefined UI layers
-    ///
-    /// 获取预定义 UI 层的总数
-    pub const fn total_count() -> usize {
-        // TODO: 真正计算总数
-        // 计数包含 BACKPACK_ITEM 和 BACKPACK_STATUS
-        // 将来还可能有电话菜单，以及DR的那些东西
-        2
     }
 }
 

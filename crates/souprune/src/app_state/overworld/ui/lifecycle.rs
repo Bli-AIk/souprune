@@ -24,7 +24,7 @@ pub(crate) fn spawn_backpack_ui_system(
     // Dynamically compute `UILayer` total count.
     //
     // 动态获取 UILayer 的总数。
-    let max_index = UILayer::total_count();
+    let max_index = UILayer::BACKPACK_MENU_OPTIONS.len();
 
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),

@@ -211,13 +211,13 @@ pub(crate) fn draw_backpack_ui_system(
                 ),
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
                     UILayer::BACKPACK_ITEM,
-                    UILayer::BACKPACK_ITEM_OPTIONS,
+                    UILayer::BACKPACK_ITEM_CHOOSES,
                 ])),
                 BoxCursor::new(
                     cursor_sprite.clone(),
                     BoxCursorVisibility::OnlyIn(vec![
                         UILayer::BACKPACK_ITEM,
-                        UILayer::BACKPACK_ITEM_OPTIONS,
+                        UILayer::BACKPACK_ITEM_CHOOSES,
                     ]),
                     BoxCursorPosition::linear(
                         Vec3::new(-72.0, 68.0, 2.0),
