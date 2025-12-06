@@ -148,7 +148,7 @@ pub(crate) fn update_overworld_ui_navigation_system(
 
 fn backpack_layer_entry_count(layer: &UILayer) -> usize {
     if layer == &UILayer::BACKPACK_MENU {
-        UILayer::total_count().saturating_sub(1)
+        UILayer::total_count()
     } else {
         1
     }

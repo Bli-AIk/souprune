@@ -12,9 +12,7 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{
-    Bundle, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3,
-};
+use bevy::prelude::{Bundle, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -59,9 +57,9 @@ impl UILayer {
     /// 获取预定义 UI 层的总数
     pub const fn total_count() -> usize {
         // TODO: 真正计算总数
-        // 计数包含 BACKPACK_MENU、BACKPACK_ITEM 和 BACKPACK_STATUS。
+        // 计数包含 BACKPACK_ITEM 和 BACKPACK_STATUS
         // 将来还可能有电话菜单，以及DR的那些东西
-        3
+        2
     }
 }
 
@@ -391,7 +389,6 @@ pub(crate) enum UILayerVisibilityRule {
     OnlyIn(Vec<UILayer>),
     Except(Vec<UILayer>),
 }
-
 
 impl UILayerVisibilityRule {
     pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
