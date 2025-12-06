@@ -29,65 +29,69 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     return;
                 };
 
-                if overworld_ui.layer() == &UILayer::BACKPACK_MENU {
-                    if action_state.just_pressed(&Action::Menu)
-                        || action_state.just_pressed(&Action::Cancel)
-                    {
-                        info!("Leaving Backpack menu and returning to Normal state");
-                        next_state.set(OverworldState::Normal);
-                        return;
-                    }
+                match overworld_ui.layer() {
+                    layer if layer == &UILayer::BACKPACK_MENU => {
+                        if action_state.just_pressed(&Action::Menu)
+                            || action_state.just_pressed(&Action::Cancel)
+                        {
+                            info!("Leaving Backpack menu and returning to Normal state");
+                            next_state.set(OverworldState::Normal);
+                            return;
+                        }
 
-                    if action_state.just_pressed(&Action::Confirm) {
-                        match overworld_ui.index() {
-                            0 => {
-                                if player_data.inventory.is_empty() {
-                                    return;
+                        if action_state.just_pressed(&Action::Confirm) {
+                            match overworld_ui.index() {
+                                0 => {
+                                    if player_data.inventory.is_empty() {
+                                        return;
+                                    }
+                                    info!("Opening Backpack item layer");
+                                    overworld_ui.set_layer(
+                                        UILayer::BACKPACK_ITEM,
+                                        if player_data.inventory.len()
+                                            < player_data.inventory_capacity
+                                        {
+                                            player_data.inventory.len()
+                                        } else {
+                                            player_data.inventory_capacity
+                                        },
+                                    );
                                 }
-                                info!("Opening Backpack item layer");
-                                overworld_ui.set_layer(
-                                    UILayer::BACKPACK_ITEM,
-                                    if player_data.inventory.len() < player_data.inventory_capacity
-                                    {
-                                        player_data.inventory.len()
-                                    } else {
-                                        player_data.inventory_capacity
-                                    },
-                                );
-                            }
-                            1 => {
-                                info!("Opening Backpack status layer");
-                                overworld_ui.set_layer(
-                                    UILayer::BACKPACK_STATUS,
-                                    backpack_layer_entry_count(&UILayer::BACKPACK_STATUS),
-                                );
-                            }
-                            _ => {
-                                warn!(
-                                    "Unhandled Backpack menu index {} when confirming",
-                                    overworld_ui.index()
-                                );
+                                1 => {
+                                    info!("Opening Backpack status layer");
+                                    overworld_ui.set_layer(
+                                        UILayer::BACKPACK_STATUS,
+                                        backpack_layer_entry_count(&UILayer::BACKPACK_STATUS),
+                                    );
+                                }
+                                _ => {
+                                    warn!(
+                                        "Unhandled Backpack menu index {} when confirming",
+                                        overworld_ui.index()
+                                    );
+                                }
                             }
                         }
                     }
-                } else {
-                    if action_state.just_pressed(&Action::Cancel) {
-                        info!(
-                            "Returning to Backpack menu layer from {}",
-                            overworld_ui.layer()
-                        );
-                        overworld_ui.set_layer(
-                            UILayer::BACKPACK_MENU,
-                            backpack_layer_entry_count(&UILayer::BACKPACK_MENU),
-                        );
-                        return;
-                    }
+                    _ => {
+                        if action_state.just_pressed(&Action::Cancel) {
+                            info!(
+                                "Returning to Backpack menu layer from {}",
+                                overworld_ui.layer()
+                            );
+                            overworld_ui.set_layer(
+                                UILayer::BACKPACK_MENU,
+                                backpack_layer_entry_count(&UILayer::BACKPACK_MENU),
+                            );
+                            return;
+                        }
 
-                    if action_state.just_pressed(&Action::Confirm) {
-                        info!(
-                            "TODO: confirm action handling for Backpack layer {}",
-                            overworld_ui.layer()
-                        );
+                        if action_state.just_pressed(&Action::Confirm) {
+                            info!(
+                                "TODO: confirm action handling for Backpack layer {}",
+                                overworld_ui.layer()
+                            );
+                        }
                     }
                 }
             }
