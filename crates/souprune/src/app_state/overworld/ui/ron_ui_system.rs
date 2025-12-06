@@ -131,7 +131,7 @@ fn spawn_ui_node(
                     ui_box_logic.border_width,
                     texts,
                 ),
-                OverworldUIBoxVisibility::new(visibility_rule),
+                OverworldUIBoxVisibility::new(visibility_rule.clone()),
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
                 Name::new(node_def.name.clone()),
@@ -155,12 +155,38 @@ fn spawn_ui_node(
                     ),
                 };
 
-                let cursor_visibility = BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]);
+                let cursor_visibility =
+                    if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
+                        BoxCursorVisibility::OnlyIn(layers.clone())
+                    } else {
+                        BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU])
+                    };
+
+                let mut placement = BoxCursorPlacement::new(cursor_position);
+
+                for (layer_name, position_def) in &cursor_def.overrides {
+                    let layer = UILayer::new(layer_name.clone());
+                    let position = match position_def {
+                        BoxCursorPositionDef::Static(vec) => {
+                            BoxCursorPosition::Static(vec.clone().into())
+                        }
+                        BoxCursorPositionDef::Linear { origin, step } => {
+                            BoxCursorPosition::Linear {
+                                origin: origin.clone().into(),
+                                step: step.clone().into(),
+                            }
+                        }
+                        BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
+                            positions.iter().map(|v| v.clone().into()).collect(),
+                        ),
+                    };
+                    placement = placement.with_override(layer, position);
+                }
 
                 box_entity.insert(BoxCursor::new(
                     sprite,
                     cursor_visibility,
-                    BoxCursorPlacement::new(cursor_position),
+                    placement,
                     Transform::from_scale(Vec3::splat(1.0)),
                 ));
             }
@@ -285,6 +311,21 @@ fn resolve_data_path(
         "player.next_exp" => player_data.next_exp.to_string(),
         "player.attack" => player_data.attack.to_string(),
         "player.defense" => player_data.defense.to_string(),
+        "player.inventory" => player_data
+            .inventory
+            .iter()
+            .take(8)
+            .map(|item_id| {
+                if let Some(item) = item_registry.get(&item_id.0) {
+                    let key = format!("{}:{}", item.locate_file, item.locate_name);
+                    mortar_strings.resolve(&key).to_string()
+                } else {
+                    warn!("Item ID '{}' not found in registry!", item_id.0);
+                    format!("UNDEFINED ({})", item_id.0)
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n"),
         "player.weapon" => {
             if let Some(item) = item_registry.get(&player_data.weapon) {
                 let key = format!("{}:{}", item.locate_file, item.locate_name);

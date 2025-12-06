@@ -86,7 +86,7 @@
             texts: [
                 (
                     id: "ItemLayerList",
-                    content: Some(""),
+                    content: Some("{@player.inventory}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
