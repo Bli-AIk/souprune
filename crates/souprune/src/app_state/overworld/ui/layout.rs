@@ -207,18 +207,41 @@ impl From<UIFontDef> for super::components::UIFont {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SerializableVec3 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl From<SerializableVec3> for Vec3 {
+    fn from(val: SerializableVec3) -> Self {
+        Vec3::new(val.x, val.y, val.z)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SerializableVec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl From<SerializableVec2> for Vec2 {
+    fn from(val: SerializableVec2) -> Self {
+        Vec2::new(val.x, val.y)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct TextDef {
     pub id: String,
-    pub default_content: String,
+    #[serde(default)]
+    pub content: Option<String>,
+    #[serde(default)]
+    pub localization_key: Option<String>,
     pub font: UIFontDef,
-    pub font_size: f32,
+    pub world_scale: SerializableVec2,
     pub color: SerializableColor,
-    #[serde(default)]
-    pub transform_x: Option<f32>,
-    #[serde(default)]
-    pub transform_y: Option<f32>,
-    #[serde(default)]
-    pub transform_z: Option<f32>,
+    pub transform: SerializableVec3,
     #[serde(default)]
     pub line_height: Option<f32>,
 }
@@ -233,43 +256,9 @@ pub struct CursorDef {
 
 #[derive(Debug, Deserialize, Clone)]
 pub enum BoxCursorPositionDef {
-    Static {
-        x: f32,
-        y: f32,
-        z: f32,
-    },
-    Linear {
-        origin_x: f32,
-        origin_y: f32,
-        origin_z: f32,
-        step_x: f32,
-        step_y: f32,
-        step_z: f32,
-    },
-    Custom {
-        positions: Vec<(f32, f32, f32)>,
-    },
-}
-
-impl BoxCursorPositionDef {
-    pub fn to_vec3(&self) -> Vec3 {
-        match self {
-            BoxCursorPositionDef::Static { x, y, z } => Vec3::new(*x, *y, *z),
-            BoxCursorPositionDef::Linear {
-                origin_x,
-                origin_y,
-                origin_z,
-                ..
-            } => Vec3::new(*origin_x, *origin_y, *origin_z),
-            BoxCursorPositionDef::Custom { positions } => {
-                if let Some((x, y, z)) = positions.first() {
-                    Vec3::new(*x, *y, *z)
-                } else {
-                    Vec3::ZERO
-                }
-            }
-        }
-    }
+    Static(SerializableVec3),
+    Linear { origin: SerializableVec3, step: SerializableVec3 },
+    Custom { positions: Vec<SerializableVec3> },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -277,10 +266,5 @@ pub struct UIBoxLogicDef {
     pub width: f32,
     pub height: f32,
     pub border_width: f32,
-    #[serde(default)]
-    pub offset_x: Option<f32>,
-    #[serde(default)]
-    pub offset_y: Option<f32>,
-    #[serde(default)]
-    pub offset_z: Option<f32>,
+    pub offset: SerializableVec3,
 }

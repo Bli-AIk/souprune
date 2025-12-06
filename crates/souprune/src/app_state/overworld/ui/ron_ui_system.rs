@@ -33,6 +33,7 @@ pub fn spawn_ron_ui_system(
     >,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
 ) {
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;
@@ -64,6 +65,7 @@ pub fn spawn_ron_ui_system(
                 root,
                 camera_transform,
                 &mut sprite_params,
+                &mortar_strings,
             );
         }
     }
@@ -75,6 +77,7 @@ fn spawn_ui_node(
     node_def: &UINodeDef,
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
 ) {
     commands.entity(parent_entity).with_children(|parent| {
         if let Some(ui_box_logic) = &node_def.ui_box_logic {
@@ -87,32 +90,32 @@ fn spawn_ui_node(
             let texts = node_def
                 .texts
                 .iter()
-                .map(|text_def| UITextConfig {
-                    name: Name::new(text_def.id.clone()),
-                    content: text_def.default_content.clone(),
-                    font: text_def.font.clone().into(),
-                    world_scale: Vec2::splat(text_def.font_size),
-                    color: bevy::color::Srgba::new(
-                        text_def.color.r,
-                        text_def.color.g,
-                        text_def.color.b,
-                        text_def.color.a,
-                    ),
-                    transform: Transform::from_xyz(
-                        text_def.transform_x.unwrap_or(-9.5),
-                        text_def.transform_y.unwrap_or(28.25),
-                        text_def.transform_z.unwrap_or(1.0),
-                    ),
-                    line_height: text_def.line_height.unwrap_or(1.0),
-                    ..Default::default()
+                .map(|text_def| {
+                    let content = if let Some(key) = &text_def.localization_key {
+                        mortar_strings.resolve(key).to_string()
+                    } else {
+                        text_def.content.clone().unwrap_or_else(|| "".to_string())
+                    };
+                    
+                    UITextConfig {
+                        name: Name::new(text_def.id.clone()),
+                        content,
+                        font: text_def.font.clone().into(),
+                        world_scale: text_def.world_scale.clone().into(),
+                        color: bevy::color::Srgba::new(
+                            text_def.color.r,
+                            text_def.color.g,
+                            text_def.color.b,
+                            text_def.color.a,
+                        ),
+                        transform: Transform::from_translation(text_def.transform.clone().into()),
+                        line_height: text_def.line_height.unwrap_or(1.0),
+                        ..Default::default()
+                    }
                 })
                 .collect::<Vec<_>>();
 
-            let offset = Vec3::new(
-                ui_box_logic.offset_x.unwrap_or(-108.5),
-                ui_box_logic.offset_y.unwrap_or(-1.0),
-                ui_box_logic.offset_z.unwrap_or(0.0),
-            );
+            let offset: Vec3 = ui_box_logic.offset.clone().into();
 
             let mut box_entity = parent.spawn((
                 OverworldUIBox::new_with_texts(
@@ -133,26 +136,18 @@ fn spawn_ui_node(
                 sprite.color = Color::srgb(1.0, 0.0, 0.0);
 
                 let cursor_position = match &cursor_def.default_position {
-                    BoxCursorPositionDef::Static { x, y, z } => {
-                        BoxCursorPosition::Static(Vec3::new(*x, *y, *z))
+                    BoxCursorPositionDef::Static(vec) => {
+                        BoxCursorPosition::Static(vec.clone().into())
                     }
-                    BoxCursorPositionDef::Linear {
-                        origin_x,
-                        origin_y,
-                        origin_z,
-                        step_x,
-                        step_y,
-                        step_z,
-                    } => BoxCursorPosition::Linear {
-                        origin: Vec3::new(*origin_x, *origin_y, *origin_z),
-                        step: Vec3::new(*step_x, *step_y, *step_z),
+                    BoxCursorPositionDef::Linear { origin, step } => BoxCursorPosition::Linear {
+                        origin: origin.clone().into(),
+                        step: step.clone().into(),
                     },
-                    BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                        positions
-                            .iter()
-                            .map(|(x, y, z)| Vec3::new(*x, *y, *z))
-                            .collect(),
-                    ),
+                    BoxCursorPositionDef::Custom { positions } => {
+                        BoxCursorPosition::Custom(
+                            positions.iter().map(|v| v.clone().into()).collect(),
+                        )
+                    }
                 };
 
                 let cursor_visibility = BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU]);
