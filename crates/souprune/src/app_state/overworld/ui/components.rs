@@ -30,6 +30,7 @@ pub struct UILayer(Cow<'static, str>);
 impl UILayer {
     pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
     pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
+    pub const BACKPACK_ITEM_OPTIONS: UILayer = UILayer::new_static("BackpackItemOptions");
     pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
 
     /// Const constructor for static constants

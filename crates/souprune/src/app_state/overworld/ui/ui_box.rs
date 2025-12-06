@@ -210,11 +210,15 @@ pub(crate) fn draw_backpack_ui_system(
                     ],
                 ),
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
-                    UILayer::BACKPACK_ITEM.clone(),
+                    UILayer::BACKPACK_ITEM,
+                    UILayer::BACKPACK_ITEM_OPTIONS,
                 ])),
                 BoxCursor::new(
                     cursor_sprite.clone(),
-                    BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_ITEM]),
+                    BoxCursorVisibility::OnlyIn(vec![
+                        UILayer::BACKPACK_ITEM,
+                        UILayer::BACKPACK_ITEM_OPTIONS,
+                    ]),
                     BoxCursorPosition::linear(
                         Vec3::new(-72.0, 68.0, 2.0),
                         Vec3::new(0.0, -16.0, 0.0),
@@ -360,7 +364,7 @@ pub(crate) fn draw_backpack_ui_system(
             parent.spawn((
                 status_box,
                 OverworldUIBoxVisibility::new(UILayerVisibilityRule::OnlyIn(vec![
-                    UILayer::BACKPACK_STATUS.clone(),
+                    UILayer::BACKPACK_STATUS,
                 ])),
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(

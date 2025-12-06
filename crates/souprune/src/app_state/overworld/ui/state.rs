@@ -46,7 +46,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 }
                                 info!("Opening Backpack item layer");
                                 overworld_ui.set_layer(
-                                    UILayer::BACKPACK_ITEM.clone(),
+                                    UILayer::BACKPACK_ITEM,
                                     if player_data.inventory.len() < player_data.inventory_capacity
                                     {
                                         player_data.inventory.len()
@@ -58,7 +58,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                             1 => {
                                 info!("Opening Backpack status layer");
                                 overworld_ui.set_layer(
-                                    UILayer::BACKPACK_STATUS.clone(),
+                                    UILayer::BACKPACK_STATUS,
                                     backpack_layer_entry_count(&UILayer::BACKPACK_STATUS),
                                 );
                             }
@@ -77,7 +77,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                             overworld_ui.layer()
                         );
                         overworld_ui.set_layer(
-                            UILayer::BACKPACK_MENU.clone(),
+                            UILayer::BACKPACK_MENU,
                             backpack_layer_entry_count(&UILayer::BACKPACK_MENU),
                         );
                         return;
