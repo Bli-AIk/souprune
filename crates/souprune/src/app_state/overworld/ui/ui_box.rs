@@ -181,16 +181,29 @@ pub(crate) fn draw_backpack_ui_system(
                             ..Default::default()
                         },
                         UITextConfig {
-                            name: "ItemLayerOptions".into(),
-                            content: format!(
-                                "{}         {}          {}",
-                                mortar_strings.resolve("overworld/ui:USE"),
-                                mortar_strings.resolve("overworld/ui:INFO"),
-                                mortar_strings.resolve("overworld/ui:DROP"),
-                            ),
+                            name: "ItemLayerOptionUse".into(),
+                            content: mortar_strings.resolve("overworld/ui:USE").to_string(),
                             font: UIFont::DeterminationSans,
                             world_scale: Vec2::splat(13.25),
                             transform: Transform::from_xyz(-64.25, -63.5, 1.0),
+                            line_height: 1.2,
+                            ..Default::default()
+                        },
+                        UITextConfig {
+                            name: "ItemLayerOptionInfo".into(),
+                            content: mortar_strings.resolve("overworld/ui:INFO").to_string(),
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.25),
+                            transform: Transform::from_xyz(-64.25 + 52.0, -63.5, 1.0),
+                            line_height: 1.2,
+                            ..Default::default()
+                        },
+                        UITextConfig {
+                            name: "ItemLayerOptionDrop".into(),
+                            content: mortar_strings.resolve("overworld/ui:DROP").to_string(),
+                            font: UIFont::DeterminationSans,
+                            world_scale: Vec2::splat(13.25),
+                            transform: Transform::from_xyz(-64.25 + 105.0, -63.5, 1.0),
                             line_height: 1.2,
                             ..Default::default()
                         },
