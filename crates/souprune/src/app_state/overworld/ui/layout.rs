@@ -92,7 +92,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum UiFlexDirection {
+    #[default]
     Row,
     Column,
     RowReverse,
@@ -110,11 +112,6 @@ impl From<UiFlexDirection> for FlexDirection {
     }
 }
 
-impl Default for UiFlexDirection {
-    fn default() -> Self {
-        UiFlexDirection::Row
-    }
-}
 
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct UILayoutAsset {

@@ -47,15 +47,14 @@ pub(crate) fn menu_overworld_state_transitions_system(
                 if let Some(transitions) = transition_config.get(&current_layer) {
                     if action_state.just_pressed(&Action::Confirm) {
                         for rule in &transitions.on_confirm {
-                            if let Some(condition) = &rule.condition {
-                                if !evaluate_transition_condition(
+                            if let Some(condition) = &rule.condition
+                                && !evaluate_transition_condition(
                                     condition,
                                     overworld_ui.index(),
                                     &player_data,
                                 ) {
                                     continue;
                                 }
-                            }
 
                             execute_transition_action(
                                 &rule.action,
@@ -68,8 +67,8 @@ pub(crate) fn menu_overworld_state_transitions_system(
                         }
                     }
 
-                    if action_state.just_pressed(&Action::Cancel) {
-                        if let Some(cancel_action) = &transitions.on_cancel {
+                    if action_state.just_pressed(&Action::Cancel)
+                        && let Some(cancel_action) = &transitions.on_cancel {
                             execute_transition_action(
                                 cancel_action,
                                 &mut overworld_ui,
@@ -77,9 +76,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 &player_data,
                                 &navigation_config,
                             );
-                            return;
                         }
-                    }
                 }
             }
             OverworldState::Cutscene => {
@@ -96,8 +93,8 @@ fn evaluate_transition_condition(
 ) -> bool {
     let condition = condition.trim();
 
-    if condition.starts_with("index == ") {
-        if let Some(num_str) = condition.strip_prefix("index == ") {
+    if condition.starts_with("index == ")
+        && let Some(num_str) = condition.strip_prefix("index == ") {
             let parts: Vec<&str> = num_str.split("&&").map(|s| s.trim()).collect();
             let index_part = parts[0];
             if let Ok(target_index) = index_part.parse::<usize>() {
@@ -112,7 +109,6 @@ fn evaluate_transition_condition(
                 return true;
             }
         }
-    }
 
     true
 }
