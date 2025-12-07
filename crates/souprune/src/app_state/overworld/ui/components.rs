@@ -622,21 +622,51 @@ impl Default for UILayerNavigationRule {
 
 impl Default for UILayerNavigationConfig {
     fn default() -> Self {
-        let mut config = Self {
+        Self {
             rules: HashMap::new(),
-        };
-        config.set_rule(
-            UILayer::BACKPACK_MENU,
-            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
-        );
-        config.set_rule(
-            UILayer::BACKPACK_ITEM,
-            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
-        );
-        config.set_rule(
-            UILayer::BACKPACK_ITEM_CHOOSES,
-            UILayerNavigationRule::new([(Action::Left, -1), (Action::Right, 1)]),
-        );
-        config
+        }
+    }
+}
+
+/// Stores state transition logic for UI layers, loaded from RON configuration.
+///
+/// 存储 UI 层的状态转换逻辑，从 RON 配置中加载。
+#[derive(Resource, Debug, Default)]
+pub(crate) struct UILayerTransitionConfig {
+    transitions: HashMap<UILayer, LayerTransitions>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LayerTransitions {
+    pub(crate) on_confirm: Vec<TransitionRule>,
+    pub(crate) on_cancel: Option<TransitionAction>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TransitionRule {
+    pub(crate) condition: Option<String>,
+    pub(crate) action: TransitionAction,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum TransitionAction {
+    GotoLayer(UILayer),
+    PopState,
+    PushState(String),
+}
+
+impl UILayerTransitionConfig {
+    pub(crate) fn new() -> Self {
+        Self {
+            transitions: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn set_transitions(&mut self, layer: UILayer, transitions: LayerTransitions) {
+        self.transitions.insert(layer, transitions);
+    }
+
+    pub(crate) fn get(&self, layer: &UILayer) -> Option<&LayerTransitions> {
+        self.transitions.get(layer)
     }
 }

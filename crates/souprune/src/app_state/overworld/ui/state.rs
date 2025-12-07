@@ -1,4 +1,7 @@
-use super::components::{BackpackItemOption, OverworldUI, UILayer, UILayerNavigationConfig};
+use super::components::{
+    BackpackItemOption, OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig,
+    UILayerTransitionConfig,
+};
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -13,6 +16,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
     mut overworld_ui_query: Query<&mut OverworldUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     player_data: Res<crate::core::data::PlayerData>,
+    transition_config: Res<UILayerTransitionConfig>,
 ) {
     if let Ok(action_state) = query.single() {
         match current_state.get() {
@@ -29,94 +33,48 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     return;
                 };
 
-                match overworld_ui.layer() {
-                    layer if layer == &UILayer::BACKPACK_MENU => {
-                        if action_state.just_pressed(&Action::Menu)
-                            || action_state.just_pressed(&Action::Cancel)
-                        {
-                            info!("Leaving Backpack menu and returning to Normal state");
-                            next_state.set(OverworldState::Normal);
-                            return;
-                        }
+                let current_layer = overworld_ui.layer().clone();
 
-                        if action_state.just_pressed(&Action::Confirm) {
-                            match UILayer::BACKPACK_MENU_OPTIONS.get(overworld_ui.index()) {
-                                Some(layer) if layer == &UILayer::BACKPACK_ITEM => {
-                                    if player_data.inventory.is_empty() {
-                                        return;
-                                    }
-                                    info!("Opening Backpack item layer");
-                                    overworld_ui.set_layer(
-                                        UILayer::BACKPACK_ITEM,
-                                        if player_data.inventory.len()
-                                            < player_data.inventory_capacity
-                                        {
-                                            player_data.inventory.len()
-                                        } else {
-                                            player_data.inventory_capacity
-                                        },
-                                    );
-                                }
-                                Some(layer) if layer == &UILayer::BACKPACK_STATUS => {
-                                    info!("Opening Backpack status layer");
-                                    overworld_ui.set_layer(UILayer::BACKPACK_STATUS, 1);
-                                }
-                                _ => {
-                                    warn!(
-                                        "Unhandled Backpack menu index {} when confirming",
-                                        overworld_ui.index()
-                                    );
+                if current_layer == UILayer::BACKPACK_MENU
+                    && action_state.just_pressed(&Action::Menu)
+                {
+                    info!("Leaving Backpack menu and returning to Normal state");
+                    next_state.set(OverworldState::Normal);
+                    return;
+                }
+
+                if let Some(transitions) = transition_config.get(&current_layer) {
+                    if action_state.just_pressed(&Action::Confirm) {
+                        for rule in &transitions.on_confirm {
+                            if let Some(condition) = &rule.condition {
+                                if !evaluate_transition_condition(
+                                    condition,
+                                    overworld_ui.index(),
+                                    &player_data,
+                                ) {
+                                    continue;
                                 }
                             }
-                        }
-                    }
-                    layer if layer == &UILayer::BACKPACK_ITEM => {
-                        if action_state.just_pressed(&Action::Cancel) {
-                            info!("Returning to Backpack menu layer from Item layer");
-                            overworld_ui.set_layer(
-                                UILayer::BACKPACK_MENU,
-                                UILayer::BACKPACK_MENU_OPTIONS.len(),
+
+                            execute_transition_action(
+                                &rule.action,
+                                &mut overworld_ui,
+                                &mut next_state,
+                                &player_data,
                             );
                             return;
                         }
-
-                        if action_state.just_pressed(&Action::Confirm) {
-                            let item_index = overworld_ui.index();
-                            if item_index >= player_data.inventory.len() {
-                                warn!(
-                                    "Confirmed item index {} out of bounds (max {})",
-                                    item_index,
-                                    player_data.inventory.len()
-                                );
-                                return;
-                            }
-                            let item_id = &player_data.inventory[item_index];
-                            info!("TODO: Use item {:?} from backpack", item_id);
-
-                            overworld_ui.set_layer(
-                                UILayer::BACKPACK_ITEM_CHOOSES,
-                                BackpackItemOption::count(),
-                            );
-                        }
                     }
-                    _ => {
-                        if action_state.just_pressed(&Action::Cancel) {
-                            info!(
-                                "Returning to Backpack menu layer from {}",
-                                overworld_ui.layer()
-                            );
-                            overworld_ui.set_layer(
-                                UILayer::BACKPACK_MENU,
-                                UILayer::BACKPACK_MENU_OPTIONS.len(),
+
+                    if action_state.just_pressed(&Action::Cancel) {
+                        if let Some(cancel_action) = &transitions.on_cancel {
+                            execute_transition_action(
+                                cancel_action,
+                                &mut overworld_ui,
+                                &mut next_state,
+                                &player_data,
                             );
                             return;
-                        }
-
-                        if action_state.just_pressed(&Action::Confirm) {
-                            info!(
-                                "TODO: confirm action handling for Backpack layer {}",
-                                overworld_ui.layer()
-                            );
                         }
                     }
                 }
@@ -125,6 +83,80 @@ pub(crate) fn menu_overworld_state_transitions_system(
                 info!("Menu key pressed during cutscene, ignoring");
             }
         }
+    }
+}
+
+fn evaluate_transition_condition(
+    condition: &str,
+    index: usize,
+    player_data: &crate::core::data::PlayerData,
+) -> bool {
+    let condition = condition.trim();
+
+    if condition.starts_with("index == ") {
+        if let Some(num_str) = condition.strip_prefix("index == ") {
+            let parts: Vec<&str> = num_str.split("&&").map(|s| s.trim()).collect();
+            let index_part = parts[0];
+            if let Ok(target_index) = index_part.parse::<usize>() {
+                if index != target_index {
+                    return false;
+                }
+                for part in parts.iter().skip(1) {
+                    if *part == "!player.inventory.is_empty" && player_data.inventory.is_empty() {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+    }
+
+    true
+}
+
+fn execute_transition_action(
+    action: &TransitionAction,
+    overworld_ui: &mut OverworldUI,
+    next_state: &mut ResMut<NextState<OverworldState>>,
+    player_data: &crate::core::data::PlayerData,
+) {
+    match action {
+        TransitionAction::GotoLayer(target_layer) => {
+            let max_index = calculate_max_index_for_layer(target_layer, player_data);
+            info!(
+                "Transitioning to layer {} with max_index {}",
+                target_layer, max_index
+            );
+            overworld_ui.set_layer(target_layer.clone(), max_index);
+        }
+        TransitionAction::PopState => {
+            info!("Popping state, returning to Normal");
+            next_state.set(OverworldState::Normal);
+        }
+        TransitionAction::PushState(state_name) => {
+            info!("TODO: Push state {}", state_name);
+        }
+    }
+}
+
+fn calculate_max_index_for_layer(
+    layer: &UILayer,
+    player_data: &crate::core::data::PlayerData,
+) -> usize {
+    if layer == &UILayer::BACKPACK_MENU {
+        UILayer::BACKPACK_MENU_OPTIONS.len()
+    } else if layer == &UILayer::BACKPACK_ITEM {
+        if player_data.inventory.len() < player_data.inventory_capacity {
+            player_data.inventory.len()
+        } else {
+            player_data.inventory_capacity
+        }
+    } else if layer == &UILayer::BACKPACK_ITEM_CHOOSES {
+        BackpackItemOption::count()
+    } else if layer == &UILayer::BACKPACK_STATUS {
+        1
+    } else {
+        1
     }
 }
 

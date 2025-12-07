@@ -35,13 +35,13 @@ use asset_loader::UILayoutAssetLoader;
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
 };
-use components::UILayerNavigationConfig;
+use components::{UILayerNavigationConfig, UILayerTransitionConfig};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use layout::UILayoutAsset;
 use lifecycle::spawn_backpack_ui_system;
 use ron_ui_system::{
-    hot_reload_ron_ui_system, load_ui_layout_system, rebuild_reloaded_ui_system,
-    spawn_ron_ui_system,
+    hot_reload_ron_ui_system, load_navigation_and_transitions_system, load_ui_layout_system,
+    rebuild_reloaded_ui_system, spawn_ron_ui_system,
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
@@ -63,12 +63,14 @@ impl Plugin for UndertaleOverworldUIPlugin {
         app.init_asset::<UILayoutAsset>()
             .init_asset_loader::<UILayoutAssetLoader>()
             .init_resource::<UILayerNavigationConfig>()
+            .init_resource::<UILayerTransitionConfig>()
             .add_systems(Startup, load_ui_layout_system)
             .add_systems(Update, spawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
                 (
+                    load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,

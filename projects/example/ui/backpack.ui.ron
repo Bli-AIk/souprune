@@ -258,4 +258,58 @@
             children: [],
         ),
     ],
+    navigation: Some({
+        "BackpackMenu": (
+            axis: Some(Vertical),
+            explicit: None,
+            looping: false,
+        ),
+        "BackpackItem": (
+            axis: Some(Vertical),
+            explicit: None,
+            looping: false,
+        ),
+        "BackpackItemOptions": (
+            axis: Some(Horizontal),
+            explicit: None,
+            looping: true,
+        ),
+        "BackpackStatus": (
+            axis: None,
+            explicit: None,
+            looping: false,
+        ),
+    }),
+    transitions: Some({
+        "BackpackMenu": (
+            on_confirm: Some([
+                (
+                    condition: Some("index == 0 && !player.inventory.is_empty"),
+                    action: GotoLayer("BackpackItem"),
+                ),
+                (
+                    condition: Some("index == 1"),
+                    action: GotoLayer("BackpackStatus"),
+                ),
+            ]),
+            on_cancel: Some(PopState),
+        ),
+        "BackpackItem": (
+            on_confirm: Some([
+                (
+                    condition: None,
+                    action: GotoLayer("BackpackItemOptions"),
+                ),
+            ]),
+            on_cancel: Some(GotoLayer("BackpackMenu")),
+        ),
+        "BackpackItemOptions": (
+            on_confirm: None,
+            on_cancel: Some(GotoLayer("BackpackItem")),
+        ),
+        "BackpackStatus": (
+            on_confirm: None,
+            on_cancel: Some(GotoLayer("BackpackMenu")),
+        ),
+    }),
 )

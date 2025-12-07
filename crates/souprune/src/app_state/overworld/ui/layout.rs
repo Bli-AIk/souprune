@@ -120,6 +120,10 @@ impl Default for UiFlexDirection {
 pub struct UILayoutAsset {
     pub version: u32,
     pub roots: Vec<UINodeDef>,
+    #[serde(default)]
+    pub navigation: Option<HashMap<String, NavigationRuleDef>>,
+    #[serde(default)]
+    pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -390,4 +394,42 @@ pub struct UIBoxLogicDef {
     pub height: f32,
     pub border_width: f32,
     pub offset: SerializableVec3,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NavigationRuleDef {
+    #[serde(default)]
+    pub axis: Option<NavigationAxis>,
+    #[serde(default)]
+    pub explicit: Option<HashMap<String, isize>>,
+    #[serde(default)]
+    pub looping: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum NavigationAxis {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LayerTransitionsDef {
+    #[serde(default)]
+    pub on_confirm: Option<Vec<TransitionRuleDef>>,
+    #[serde(default)]
+    pub on_cancel: Option<TransitionActionDef>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TransitionRuleDef {
+    #[serde(default)]
+    pub condition: Option<String>,
+    pub action: TransitionActionDef,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum TransitionActionDef {
+    GotoLayer(String),
+    PopState,
+    PushState(String),
 }

@@ -49,6 +49,127 @@ pub fn load_ui_layout_system(mut commands: Commands, asset_server: Res<AssetServ
     info!("Loading UI layout from RON file");
 }
 
+pub fn load_navigation_and_transitions_system(
+    ui_layout_handle: Option<Res<UILayoutHandle>>,
+    ui_layouts: Res<Assets<UILayoutAsset>>,
+    mut navigation_config: ResMut<UILayerNavigationConfig>,
+    mut transition_config: ResMut<UILayerTransitionConfig>,
+) {
+    let Some(ui_layout_handle) = ui_layout_handle else {
+        return;
+    };
+
+    let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
+        return;
+    };
+
+    if let Some(navigation) = &ui_layout.navigation {
+        for (layer_name, nav_rule_def) in navigation.iter() {
+            let mut adjustments = std::collections::HashMap::new();
+
+            if let Some(axis) = &nav_rule_def.axis {
+                match axis {
+                    super::layout::NavigationAxis::Vertical => {
+                        adjustments.insert(crate::core::input::Action::Up, -1);
+                        adjustments.insert(crate::core::input::Action::Down, 1);
+                    }
+                    super::layout::NavigationAxis::Horizontal => {
+                        adjustments.insert(crate::core::input::Action::Left, -1);
+                        adjustments.insert(crate::core::input::Action::Right, 1);
+                    }
+                }
+            }
+
+            if let Some(explicit) = &nav_rule_def.explicit {
+                for (action_str, delta) in explicit.iter() {
+                    if let Some(action) = parse_action(action_str) {
+                        adjustments.insert(action, *delta);
+                    }
+                }
+            }
+
+            let layer = UILayer::new(layer_name.clone());
+            let rule = UILayerNavigationRule::new(adjustments.into_iter());
+            navigation_config.set_rule(layer, rule);
+        }
+        info!(
+            "Loaded navigation config from RON with {} layers",
+            navigation.len()
+        );
+    }
+
+    if let Some(transitions) = &ui_layout.transitions {
+        for (layer_name, transitions_def) in transitions.iter() {
+            let on_confirm = transitions_def
+                .on_confirm
+                .as_ref()
+                .map(|rules| {
+                    rules
+                        .iter()
+                        .map(|rule_def| {
+                            use super::components::{TransitionAction, TransitionRule};
+                            TransitionRule {
+                                condition: rule_def.condition.clone(),
+                                action: match &rule_def.action {
+                                    super::layout::TransitionActionDef::GotoLayer(layer) => {
+                                        TransitionAction::GotoLayer(UILayer::new(layer.clone()))
+                                    }
+                                    super::layout::TransitionActionDef::PopState => {
+                                        TransitionAction::PopState
+                                    }
+                                    super::layout::TransitionActionDef::PushState(state) => {
+                                        TransitionAction::PushState(state.clone())
+                                    }
+                                },
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let on_cancel = transitions_def.on_cancel.as_ref().map(|action_def| {
+                use super::components::TransitionAction;
+                match action_def {
+                    super::layout::TransitionActionDef::GotoLayer(layer) => {
+                        TransitionAction::GotoLayer(UILayer::new(layer.clone()))
+                    }
+                    super::layout::TransitionActionDef::PopState => TransitionAction::PopState,
+                    super::layout::TransitionActionDef::PushState(state) => {
+                        TransitionAction::PushState(state.clone())
+                    }
+                }
+            });
+
+            let layer = UILayer::new(layer_name.clone());
+            transition_config.set_transitions(
+                layer,
+                super::components::LayerTransitions {
+                    on_confirm,
+                    on_cancel,
+                },
+            );
+        }
+        info!(
+            "Loaded transition config from RON with {} layers",
+            transitions.len()
+        );
+    }
+}
+
+fn parse_action(action_str: &str) -> Option<crate::core::input::Action> {
+    use crate::core::input::Action;
+    match action_str {
+        "Up" => Some(Action::Up),
+        "Down" => Some(Action::Down),
+        "Left" => Some(Action::Left),
+        "Right" => Some(Action::Right),
+        "Confirm" => Some(Action::Confirm),
+        "Cancel" => Some(Action::Cancel),
+        "Menu" => Some(Action::Menu),
+        _ => None,
+    }
+}
+
 pub fn spawn_ron_ui_system(
     mut commands: Commands,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
