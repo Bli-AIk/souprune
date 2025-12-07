@@ -411,6 +411,8 @@ pub struct NavigationRuleDef {
     pub min_index: Option<IndexBoundDef>,
     #[serde(default)]
     pub max_index: Option<IndexBoundDef>,
+    #[serde(default)]
+    pub sound_on_navigate: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -426,6 +428,10 @@ pub struct LayerTransitionsDef {
     pub on_confirm: Option<Vec<TransitionRuleDef>>,
     #[serde(default)]
     pub on_cancel: Option<TransitionActionDef>,
+    #[serde(default)]
+    pub sound_on_confirm: Option<String>,
+    #[serde(default)]
+    pub sound_on_cancel: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

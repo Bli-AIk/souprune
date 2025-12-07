@@ -596,6 +596,7 @@ pub(crate) struct UILayerNavigationRule {
     looping: bool,
     min_index: Option<IndexBound>,
     max_index: Option<IndexBound>,
+    sound_on_navigate: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -611,6 +612,7 @@ impl UILayerNavigationRule {
             looping: false,
             min_index: None,
             max_index: None,
+            sound_on_navigate: None,
         }
     }
 
@@ -619,12 +621,14 @@ impl UILayerNavigationRule {
         looping: bool,
         min_index: Option<IndexBound>,
         max_index: Option<IndexBound>,
+        sound_on_navigate: Option<String>,
     ) -> Self {
         Self {
             adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
             looping,
             min_index,
             max_index,
+            sound_on_navigate,
         }
     }
 
@@ -642,6 +646,10 @@ impl UILayerNavigationRule {
 
     pub(crate) fn max_index(&self) -> &Option<IndexBound> {
         &self.max_index
+    }
+
+    pub(crate) fn sound_on_navigate(&self) -> Option<&str> {
+        self.sound_on_navigate.as_deref()
     }
 }
 
@@ -681,6 +689,8 @@ pub(crate) struct UILayerTransitionConfig {
 pub(crate) struct LayerTransitions {
     pub(crate) on_confirm: Vec<TransitionRule>,
     pub(crate) on_cancel: Option<TransitionAction>,
+    pub(crate) sound_on_confirm: Option<String>,
+    pub(crate) sound_on_cancel: Option<String>,
 }
 
 #[derive(Debug, Clone)]

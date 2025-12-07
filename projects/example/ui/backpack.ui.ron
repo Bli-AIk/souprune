@@ -267,6 +267,7 @@
             looping: false,
             min_index: Some(0),
             max_index: Some(2),
+            sound_on_navigate: Some("choice.wav"),
         ),
         "BackpackItem": (
             mappings: {
@@ -276,6 +277,7 @@
             looping: false,
             min_index: Some(0),
             max_index: Some("min(inventory.len(), inventory_capacity)"),
+            sound_on_navigate: Some("choice.wav"),
         ),
         "BackpackItemOptions": (
             mappings: {
@@ -285,6 +287,7 @@
             looping: false,
             min_index: Some(0),
             max_index: Some(3),
+            sound_on_navigate: Some("choice.wav"),
         ),
         "BackpackStatus": (
             mappings: {},
@@ -306,6 +309,8 @@
                 ),
             ]),
             on_cancel: Some(PopState),
+            sound_on_confirm: Some("selected.wav"),
+            sound_on_cancel: None,
         ),
         "BackpackItem": (
             on_confirm: Some([
@@ -315,14 +320,20 @@
                 ),
             ]),
             on_cancel: Some(GotoLayer("BackpackMenu")),
+            sound_on_confirm: Some("selected.wav"),
+            sound_on_cancel: None,
         ),
         "BackpackItemOptions": (
             on_confirm: None,
             on_cancel: Some(GotoLayer("BackpackItem")),
+            sound_on_confirm: Some("selected.wav"),
+            sound_on_cancel: None,
         ),
         "BackpackStatus": (
             on_confirm: None,
             on_cancel: Some(GotoLayer("BackpackMenu")),
+            sound_on_confirm: Some("selected.wav"),
+            sound_on_cancel: None,
         ),
     }),
 )

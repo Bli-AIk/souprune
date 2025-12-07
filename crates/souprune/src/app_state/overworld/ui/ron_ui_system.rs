@@ -120,6 +120,7 @@ pub fn load_navigation_and_transitions_system(
                 nav_rule_def.looping,
                 min_index,
                 max_index,
+                nav_rule_def.sound_on_navigate.clone(),
             );
             navigation_config.set_rule(layer, rule);
         }
@@ -175,6 +176,8 @@ pub fn load_navigation_and_transitions_system(
                 LayerTransitions {
                     on_confirm,
                     on_cancel,
+                    sound_on_confirm: transitions_def.sound_on_confirm.clone(),
+                    sound_on_cancel: transitions_def.sound_on_cancel.clone(),
                 },
             );
         }

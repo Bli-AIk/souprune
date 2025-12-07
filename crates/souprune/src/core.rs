@@ -31,6 +31,7 @@
 //! 此处定义了 `CorePlugin` 与 `GlobalPlugin`，它们分别在应用生命周期的早期和后期运行。
 
 pub(crate) mod animation;
+pub(crate) mod audio;
 pub(crate) mod basic_components;
 pub(crate) mod camera;
 pub(crate) mod collision;
@@ -56,6 +57,7 @@ impl Plugin for CorePlugin {
         app.init_resource::<extra::toml::config::TomlConfigRegistry>()
             .add_plugins((
                 animation::AnimationPlugin,
+                audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
                 data::DataPlugin,

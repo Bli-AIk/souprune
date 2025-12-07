@@ -23,14 +23,18 @@ use super::components::{
     UILayerTransitionConfig,
 };
 use crate::app_state::overworld::{OverworldState, character};
+use crate::core::audio;
 use crate::core::input::Action;
 use bevy::prelude::*;
+use bevy_kira_audio::Audio;
 use leafwing_input_manager::action_state::ActionState;
 
 /// Handle transitions between overworld sub-states driven by menu actions.
 ///
 /// 处理菜单输入驱动的 Overworld 子状态间转换。
 pub(crate) fn menu_overworld_state_transitions_system(
+    audio: Res<Audio>,
+    asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
     mut overworld_ui_query: Query<&mut OverworldUI>,
@@ -77,6 +81,11 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 continue;
                             }
 
+                            // Play confirm sound if configured
+                            if let Some(sound_path) = &transitions.sound_on_confirm {
+                                audio::play_sound(&audio, &asset_server, sound_path);
+                            }
+
                             execute_transition_action(
                                 &rule.action,
                                 &mut overworld_ui,
@@ -91,6 +100,11 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     if action_state.just_pressed(&Action::Cancel)
                         && let Some(cancel_action) = &transitions.on_cancel
                     {
+                        // Play cancel sound if configured
+                        if let Some(sound_path) = &transitions.sound_on_cancel {
+                            audio::play_sound(&audio, &asset_server, sound_path);
+                        }
+
                         execute_transition_action(
                             cancel_action,
                             &mut overworld_ui,
@@ -193,6 +207,8 @@ fn calculate_max_index_for_layer(
 ///
 /// 在背包界面激活时更新 UI 焦点导航。
 pub(crate) fn update_overworld_ui_navigation_system(
+    audio: Res<Audio>,
+    asset_server: Res<AssetServer>,
     overworld_state: Res<State<OverworldState>>,
     navigation: Res<UILayerNavigationConfig>,
     mut ui_query: Query<&mut OverworldUI>,
@@ -250,7 +266,15 @@ pub(crate) fn update_overworld_ui_navigation_system(
                 next_index = next_index.clamp(min_index as isize, (max_index - 1) as isize);
             }
 
-            overworld_ui.set_index(next_index as usize);
+            // Only update and play sound if index actually changed
+            if overworld_ui.index() != next_index as usize {
+                // Play navigation sound if configured
+                if let Some(sound_path) = rule.sound_on_navigate() {
+                    audio::play_sound(&audio, &asset_server, sound_path);
+                }
+
+                overworld_ui.set_index(next_index as usize);
+            }
         }
     }
 }
