@@ -32,15 +32,28 @@ impl Plugin for AudioPlugin {
     }
 }
 
-/// Play a sound effect from the assets/audios directory.
+/// Play a sound effect from the assets/audios/sfx directory.
 ///
-/// 从 assets/audios 目录播放音效。
+/// 从 assets/audios/sfx 目录播放音效。
 ///
 /// # Example
 /// ```
 /// play_sound(&audio, &asset_server, "choice.wav");
 /// ```
 pub fn play_sound(audio: &Audio, asset_server: &AssetServer, sound_path: &str) {
-    let sound_handle = asset_server.load(format!("audios/{}", sound_path));
+    let sound_handle = asset_server.load(format!("audios/sfx/{}", sound_path));
     audio.play(sound_handle);
+}
+
+/// Play background music from the assets/audios/music directory with looping.
+///
+/// 从 assets/audios/music 目录播放循环的背景音乐。
+///
+/// # Example
+/// ```
+/// play_bgm(&audio, &asset_server, "mus_ruins.ogg");
+/// ```
+pub fn play_bgm(audio: &Audio, asset_server: &AssetServer, music_path: &str) {
+    let music_handle = asset_server.load(format!("audios/music/{}", music_path));
+    audio.play(music_handle).looped();
 }

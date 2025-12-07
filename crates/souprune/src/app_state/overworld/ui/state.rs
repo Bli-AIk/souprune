@@ -50,6 +50,12 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     return;
                 }
                 info!("Transitioning from Normal to Menu state");
+
+                // Play sound when opening the backpack menu
+
+                // TODO: 通过ron配置文件定义打开 UI 的行为
+                audio::play_sound(&audio, &asset_server, "choice.wav");
+
                 next_state.set(OverworldState::Backpack);
             }
             OverworldState::Backpack => {

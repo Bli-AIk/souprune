@@ -1,9 +1,11 @@
 use crate::app_state::AppState;
+use crate::core::audio;
 use crate::core::camera::Followable;
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
+use bevy_kira_audio::Audio;
 
 pub(crate) mod character;
 mod player;
@@ -34,7 +36,12 @@ impl Plugin for OverworldPlugin {
             ))
             .add_systems(
                 OnEnter(AppState::Overworld),
-                (create_overworld_entities_system, bind_camera_target_system).chain(),
+                (
+                    create_overworld_entities_system,
+                    bind_camera_target_system,
+                    start_overworld_bgm,
+                )
+                    .chain(),
             )
             .add_systems(
                 OnEnter(OverworldState::Backpack),
@@ -64,4 +71,14 @@ fn bind_camera_target_system(
             followable.target = Some(player_entity);
         }
     }
+}
+
+/// Start playing background music when entering the Overworld.
+///
+/// 进入 Overworld 时开始播放背景音乐。
+fn start_overworld_bgm(audio: Res<Audio>, asset_server: Res<AssetServer>) {
+    // TODO: Background music should be configurable via a resource or config file
+    // TODO: 背景音乐应该通过资源或配置文件来配置
+    // For now, we hardcode mus_ruins.ogg as the default BGM
+    audio::play_bgm(&audio, &asset_server, "mus_ruins.ogg");
 }
