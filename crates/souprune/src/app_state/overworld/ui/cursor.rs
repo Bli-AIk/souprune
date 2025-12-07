@@ -1,3 +1,23 @@
+//! # cursor.rs
+//!
+//! # cursor.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module manages the visual cursor that indicates the currently selected UI element.
+//!
+//! 本模块管理指示当前选中 UI 元素的可视光标。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It handles spawning cursor sprites and updating cursor positions based on navigation.
+//!
+//! 处理光标精灵的生成和基于导航的光标位置更新。
+
 use super::components::{
     BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, OverworldUI, OverworldUIBox,
     UIBoxFiller,

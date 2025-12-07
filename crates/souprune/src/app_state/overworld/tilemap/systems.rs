@@ -1,3 +1,23 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles loading Tiled map files and setting up layers.
+//!
+//! 本模块处理加载 Tiled 地图文件和设置图层。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It spawns collision objects and initializes camera bounds based on map dimensions.
+//!
+//! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
+
 use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;

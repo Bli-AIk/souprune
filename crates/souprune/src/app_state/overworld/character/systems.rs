@@ -1,3 +1,23 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module implements systems for character movement and animation updates.
+//!
+//! 本模块实现角色移动和动画更新的系统。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages state transitions based on input and game state.
+//!
+//! 根据输入和游戏状态管理状态转换。
+
 use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
 use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::Action;

@@ -1,3 +1,23 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module implements systems for processing player input and updating movement.
+//!
+//! 本模块实现处理玩家输入和更新移动的系统。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages character animation states based on player actions.
+//!
+//! 根据玩家操作管理角色动画状态。
+
 use super::update_player_animation;
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::{

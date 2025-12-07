@@ -1,3 +1,23 @@
+//! # state.rs
+//!
+//! # state.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles UI layer transitions and navigation between menu items.
+//!
+//! 本模块处理 UI 层级转换和菜单项之间的导航。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages state changes triggered by user input such as confirm and cancel actions.
+//!
+//! 管理由用户输入触发的状态变化，例如确认和取消操作。
+
 use super::components::{
     BackpackItemOption, OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig,
     UILayerTransitionConfig,

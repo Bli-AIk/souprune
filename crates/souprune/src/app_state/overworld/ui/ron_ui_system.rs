@@ -1,3 +1,23 @@
+//! # ron_ui_system.rs
+//!
+//! # ron_ui_system.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles loading UI layouts from RON files.
+//!
+//! 本模块处理从 RON 文件加载 UI 布局。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It spawns UI entities with proper components, navigation, and transitions configured.
+//!
+//! 生成配置了适当组件、导航和转换的 UI 实体。
+
 use super::components::*;
 use super::layout::*;
 use crate::core::sprite::params::SpriteParams;

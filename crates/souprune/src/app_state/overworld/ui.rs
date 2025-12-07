@@ -1,21 +1,22 @@
 //! # ui.rs
 //!
 //! ## Module Overview
-//! This module manages the Undertale-style and Deltarune-style UI components in the Overworld game state.
+//! This module manages the RON-driven UI system for the Overworld game state.
 //! The UI is implemented using SDF rendering provided by bevy_smud and mesh-based text rendering
 //! provided by bevy_rich_text3d.
 //!
 //! ## Source File Overview
-//! This file defines the `UndertaleOverworldUIPlugin` and `DeltaruneOverworldUIPlugin`.
-//! Currently, you should choose to use one of them for the entire project, rather than using both.
+//! This file defines the `OverworldUIPlugin` which loads UI layouts from RON files.
+//! Different UI styles (Undertale, Deltarune, etc.) can be achieved by simply modifying the RON files
+//! without changing the code.
 //!
 //! ## 模块概述
-//! 该模块管理着 Undertale 与 Deltarune 样式的 Overworld 游戏状态中的 UI 组件。此 UI 是基于 bevy_smud 提供的 SDF 渲染
-//! 与 bevy_rich_text3d 提供的 基于 Mesh 的文本渲染实现的。
+//! 该模块管理着 Overworld 游戏状态的 RON 驱动 UI 系统。此 UI 是基于 bevy_smud 提供的 SDF 渲染
+//! 与 bevy_rich_text3d 提供的基于 Mesh 的文本渲染实现的。
 //!
 //! ## 源文件概述
-//! 该文件定义了 `UndertaleOverworldUIPlugin` 与 `DeltaruneOverworldUIPlugin`。
-//! 目前，对于整个项目，你应当任选其一使用，而不是同时使用两者。
+//! 该文件定义了从 RON 文件加载 UI 布局的 `OverworldUIPlugin`。
+//! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
 use crate::overworld::ui::ron_ui_system::rebuild_reloaded_ui_system;
 use bevy::prelude::*;
@@ -54,9 +55,17 @@ use components::{
     OverworldUIBoxVisibility, UILayer,
 };
 
-pub(crate) struct UndertaleOverworldUIPlugin;
+/// RON-driven UI plugin for the Overworld.
+///
+/// This plugin loads UI layouts from RON files and renders them using SDF shapes and 3D text.
+/// Different UI styles can be achieved by modifying the RON files without code changes.
+///
+/// RON 驱动的 Overworld UI 插件。
+/// 该插件从 RON 文件加载 UI 布局，并使用 SDF 形状和 3D 文本进行渲染。
+/// 通过修改 RON 文件可以实现不同的 UI 风格，而无需更改代码。
+pub(crate) struct OverworldUIPlugin;
 
-impl Plugin for UndertaleOverworldUIPlugin {
+impl Plugin for OverworldUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<UILayoutAsset>()
             .init_asset_loader::<UILayoutAssetLoader>()

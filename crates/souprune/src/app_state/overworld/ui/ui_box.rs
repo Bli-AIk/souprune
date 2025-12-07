@@ -1,3 +1,23 @@
+//! # ui_box.rs
+//!
+//! # ui_box.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles the rendering of UI boxes using bevy_smud for SDF shapes.
+//!
+//! 本模块使用 bevy_smud 处理 UI 盒子的 SDF 形状渲染。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages box geometry, text content, and visibility based on the current UI layer.
+//!
+//! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
+
 use super::components::{OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;

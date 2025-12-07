@@ -1,3 +1,23 @@
+//! # text.rs
+//!
+//! # text.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles 3D text rendering using bevy_rich_text3d.
+//!
+//! 本模块使用 bevy_rich_text3d 处理 3D 文本渲染。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages glyph refreshing and visibility control for UI text elements.
+//!
+//! 管理 UI 文本元素的字形刷新和可见性控制。
+
 use bevy::prelude::*;
 use bevy_rich_text3d::Text3d;
 

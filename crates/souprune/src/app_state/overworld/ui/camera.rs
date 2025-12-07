@@ -1,3 +1,23 @@
+//! # camera.rs
+//!
+//! # camera.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles UI elements that need to stay anchored to the camera position.
+//!
+//! 本模块处理需要锚定到摄像机位置的 UI 元素。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It ensures UI elements remain fixed on screen while the world camera moves.
+//!
+//! 确保 UI 元素在世界摄像机移动时保持固定在屏幕上。
+
 use super::components::CameraAnchored;
 use crate::app_state::overworld::OverworldState;
 use bevy::prelude::*;

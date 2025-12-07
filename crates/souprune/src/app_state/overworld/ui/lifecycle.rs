@@ -1,8 +1,28 @@
+//! # lifecycle.rs
+//!
+//! # lifecycle.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles the spawning and lifecycle of UI entities.
+//!
+//! 本模块处理 UI 实体的生成和生命周期。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages the root UI entity that controls the menu system.
+//!
+//! 管理控制菜单系统的根 UI 实体。
+
 use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
-/// Spawn the root UI entity that drives the Undertale-style backpack menu.
+/// Spawn the root UI entity that drives the backpack menu.
 ///
 /// 生成 Undertale 风背包菜单的根 UI 实体。
 pub(crate) fn spawn_backpack_ui_system(

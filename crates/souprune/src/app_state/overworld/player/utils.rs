@@ -1,3 +1,23 @@
+//! # utils.rs
+//!
+//! # utils.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides utility functions for querying player state.
+//!
+//! 本模块提供用于查询玩家状态的实用函数。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It includes functions for checking if the player is walking or performing actions.
+//!
+//! 包括检查玩家是否在行走或执行操作的函数。
+
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;

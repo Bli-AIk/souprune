@@ -1,3 +1,23 @@
+//! # asset_loader.rs
+//!
+//! # asset_loader.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module defines the asset loader for UI layout RON files.
+//!
+//! 本模块定义了 UI 布局 RON 文件的资源加载器。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It reads `.ui.ron` files and deserializes them into `UILayoutAsset` structures.
+//!
+//! 读取 `.ui.ron` 文件并将其反序列化为 `UILayoutAsset` 结构。
+
 use super::layout::UILayoutAsset;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext};
