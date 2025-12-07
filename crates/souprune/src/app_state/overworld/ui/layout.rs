@@ -242,6 +242,14 @@ pub struct TextDef {
     pub transform: SerializableVec3,
     #[serde(default)]
     pub line_height: Option<f32>,
+    #[serde(default)]
+    pub conditional_style: Option<ConditionalStyleDef>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConditionalStyleDef {
+    pub condition: String,
+    pub color: SerializableColor,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -250,6 +258,10 @@ pub struct CursorDef {
     pub default_position: BoxCursorPositionDef,
     #[serde(default)]
     pub overrides: HashMap<String, BoxCursorPositionDef>,
+    #[serde(default)]
+    pub visibility_rule: Option<UIVisibilityRuleDef>,
+    #[serde(default)]
+    pub transform: Option<CursorTransformDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -262,6 +274,14 @@ pub enum BoxCursorPositionDef {
     Custom {
         positions: Vec<SerializableVec3>,
     },
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CursorTransformDef {
+    #[serde(default)]
+    pub scale: Option<SerializableVec3>,
+    #[serde(default)]
+    pub rotation: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

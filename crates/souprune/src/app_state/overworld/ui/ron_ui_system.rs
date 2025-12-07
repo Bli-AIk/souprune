@@ -307,24 +307,57 @@ fn spawn_ui_node(
                 .texts
                 .iter()
                 .map(|text_def| {
-                    let content = resolve_text_content(
+                    let mut content = resolve_text_content(
                         text_def.content.as_deref().unwrap_or(""),
                         mortar_strings,
                         player_data,
                         item_registry,
                     );
 
+                    let color = if let Some(conditional_style) = &text_def.conditional_style {
+                        let condition_met = evaluate_condition(
+                            &conditional_style.condition,
+                            player_data,
+                            item_registry,
+                        );
+                        if condition_met {
+                            let conditional_color = bevy::color::Srgba::new(
+                                conditional_style.color.r,
+                                conditional_style.color.g,
+                                conditional_style.color.b,
+                                conditional_style.color.a,
+                            );
+                            content = format!(
+                                "{{#{:02x}{:02x}{:02x}:{}}}",
+                                (conditional_color.red * 255.0) as u8,
+                                (conditional_color.green * 255.0) as u8,
+                                (conditional_color.blue * 255.0) as u8,
+                                content
+                            );
+                            conditional_color
+                        } else {
+                            bevy::color::Srgba::new(
+                                text_def.color.r,
+                                text_def.color.g,
+                                text_def.color.b,
+                                text_def.color.a,
+                            )
+                        }
+                    } else {
+                        bevy::color::Srgba::new(
+                            text_def.color.r,
+                            text_def.color.g,
+                            text_def.color.b,
+                            text_def.color.a,
+                        )
+                    };
+
                     UITextConfig {
                         name: Name::new(text_def.id.clone()),
                         content,
                         font: text_def.font.clone().into(),
                         world_scale: text_def.world_scale.clone().into(),
-                        color: bevy::color::Srgba::new(
-                            text_def.color.r,
-                            text_def.color.g,
-                            text_def.color.b,
-                            text_def.color.a,
-                        ),
+                        color,
                         transform: Transform::from_translation(text_def.transform.clone().into()),
                         line_height: text_def.line_height.unwrap_or(1.0),
                         ..Default::default()
@@ -366,12 +399,13 @@ fn spawn_ui_node(
                     ),
                 };
 
-                let cursor_visibility =
-                    if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
-                        BoxCursorVisibility::OnlyIn(layers.clone())
-                    } else {
-                        BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU])
-                    };
+                let cursor_visibility = if let Some(vis_rule) = &cursor_def.visibility_rule {
+                    parse_visibility_rule(vis_rule)
+                } else if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
+                    BoxCursorVisibility::OnlyIn(layers.clone())
+                } else {
+                    BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU])
+                };
 
                 let mut placement = BoxCursorPlacement::new(cursor_position);
 
@@ -394,11 +428,26 @@ fn spawn_ui_node(
                     placement = placement.with_override(layer, position);
                 }
 
+                let cursor_transform = if let Some(transform_def) = &cursor_def.transform {
+                    let mut transform = Transform::default();
+                    if let Some(scale) = &transform_def.scale {
+                        transform.scale = scale.clone().into();
+                    } else {
+                        transform.scale = Vec3::splat(1.0);
+                    }
+                    if let Some(rotation) = transform_def.rotation {
+                        transform.rotation = Quat::from_rotation_z(rotation.to_radians());
+                    }
+                    transform
+                } else {
+                    Transform::from_scale(Vec3::splat(1.0))
+                };
+
                 box_entity.insert(BoxCursor::new(
                     sprite,
                     cursor_visibility,
                     placement,
-                    Transform::from_scale(Vec3::splat(1.0)),
+                    cursor_transform,
                 ));
             }
         }
@@ -502,6 +551,34 @@ fn resolve_text_content(
     }
 
     result
+}
+
+fn evaluate_condition(
+    condition: &str,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> bool {
+    match condition {
+        "player.inventory.is_empty" => player_data.inventory.is_empty(),
+        "player.inventory.is_not_empty" => !player_data.inventory.is_empty(),
+        _ => {
+            if condition.starts_with("player.") {
+                let parts: Vec<&str> = condition.split('.').collect();
+                if parts.len() >= 3 {
+                    match (parts[1], parts[2]) {
+                        ("hp", "is_low") => player_data.hp < player_data.hp_max / 4,
+                        ("hp", "is_critical") => player_data.hp <= 1,
+                        ("gold", "is_zero") => player_data.gold == 0,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    }
 }
 
 fn resolve_data_path(

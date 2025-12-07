@@ -16,12 +16,25 @@
             )),
             texts: [
                 (
-                    id: "MenuText",
-                    content: Some("{{overworld/ui:ITEM}}\n{{overworld/ui:STAT}}"),
+                    id: "MenuTextItem",
+                    content: Some("{{overworld/ui:ITEM}}"),
                     font: DeterminationSans,
                     world_scale: (x: 13.25, y: 13.25),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (x: -9.5, y: 28.25, z: 1.0),
+                    line_height: Some(1.375),
+                    conditional_style: Some((
+                        condition: "player.inventory.is_empty",
+                        color: (r: 0.5, g: 0.5, b: 0.5, a: 1.0),
+                    )),
+                ),
+                (
+                    id: "MenuTextStat",
+                    content: Some("{{overworld/ui:STAT}}"),
+                    font: DeterminationSans,
+                    world_scale: (x: 13.25, y: 13.25),
+                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    transform: (x: -9.5, y: 10.25, z: 1.0),
                     line_height: Some(1.375),
                 ),
             ],
@@ -32,6 +45,14 @@
                     step: (x: 0.0, y: -18.0, z: 0.0),
                 ),
                 overrides: {},
+                visibility_rule: Some((
+                    rule_type: "OnlyIn",
+                    layers: Some(["BackpackMenu"]),
+                )),
+                transform: Some((
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                    rotation: Some(0.0),
+                )),
             )),
             children: [],
         ),
@@ -136,6 +157,14 @@
                         ],
                     ),
                 },
+                visibility_rule: Some((
+                    rule_type: "OnlyIn",
+                    layers: Some(["BackpackItem", "BackpackItemOptions"]),
+                )),
+                transform: Some((
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                    rotation: Some(0.0),
+                )),
             )),
             children: [],
         ),
