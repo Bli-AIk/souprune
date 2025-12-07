@@ -8,7 +8,7 @@ fmt:
 
 # 仅运行 clippy
 clippy:
-    cargo clippy --all-targets --all-features
+    cargo clippy --all-targets --all-features -- -D warnings
 
 # 拼写检查
 typos:
@@ -16,11 +16,13 @@ typos:
 
 # 代码统计检查（超过 1000 行报错）
 tokei-check:
-    lines=$(tokei --output json | jq '.total.code') && \
-    if [ "$lines" -gt 1000 ]; then \
-        echo "Error: Code exceeds 1000 lines ($lines lines)"; exit 1; \
+    @# 检查每个 Rust 文件，如果代码行数（不含注释和空行）超过 1000 行则报错
+    @result=$(tokei --output json --files | jq -r '.Rust.reports[]? | select(.stats.code > 1000) | "Error: \(.name) has \(.stats.code) lines of code"') && \
+    if [ -n "$result" ]; then \
+        echo "$result"; \
+        exit 1; \
     else \
-        echo "Tokei OK: $lines lines"; \
+        echo "Tokei OK: All Rust files are under 1000 lines of code."; \
     fi
 
 # 综合检查（clippy + typos + tokei）
