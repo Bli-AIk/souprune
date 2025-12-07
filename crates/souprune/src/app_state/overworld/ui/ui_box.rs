@@ -233,10 +233,7 @@ pub(crate) fn update_overworld_ui_box_system(
     overworld_ui_box_query: OverworldUIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
     children_query: Query<&Children>,
-    asset_server: Res<AssetServer>,
 ) {
-    let solid_fill: Handle<Shader> = asset_server.load("shaders/ui_solid_fill.wgsl");
-
     for (entity, ui_box, transform, children_opt) in overworld_ui_box_query.iter() {
         let box_width = ui_box.width();
         let box_height = ui_box.height();
