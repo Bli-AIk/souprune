@@ -77,7 +77,7 @@ pub mod debug_inspector {
             TextColorInterpolator,
         >());
 
-        app.add_systems(Startup, setup_debug_help_text);
+        app.add_systems(Startup, setup_debug_help_text_system);
         app.add_systems(
             Update,
             (
@@ -98,7 +98,7 @@ pub mod debug_inspector {
         );
     }
 
-    fn setup_debug_help_text(mut commands: Commands) {
+    fn setup_debug_help_text_system(mut commands: Commands) {
         let mut text_entities = Vec::new();
 
         let debug_entity = commands

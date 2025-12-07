@@ -35,7 +35,7 @@ pub mod debug_collider {
     /// 设置碰撞体调试系统。
     pub fn setup_collider_debug(app: &mut App) {
         app.init_resource::<ColliderDebugSettings>()
-            .add_systems(Startup, setup_debug_visualizer_root)
+            .add_systems(Startup, setup_debug_visualizer_root_system)
             .add_systems(
                 Update,
                 (
@@ -49,7 +49,7 @@ pub mod debug_collider {
     /// Set up the root entity for debug visualizers.
     ///
     /// 设置调试可视化器的根实体。
-    fn setup_debug_visualizer_root(mut commands: Commands) {
+    fn setup_debug_visualizer_root_system(mut commands: Commands) {
         commands.spawn((
             DebugVisualizerRoot,
             Name::new("DebugVisualizers"),
