@@ -54,11 +54,8 @@ pub fn spawn_ron_ui_system(
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
     overworld_ui_query: Query<
-        (Entity, &super::components::OverworldUI),
-        (
-            Added<super::components::OverworldUI>,
-            Without<super::components::OverworldUIBox>,
-        ),
+        (Entity, &OverworldUI),
+        (Added<OverworldUI>, Without<OverworldUIBox>),
     >,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
@@ -75,7 +72,7 @@ pub fn spawn_ron_ui_system(
     };
 
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
-        if *overworld_ui.layer() != super::components::UILayer::BACKPACK_MENU {
+        if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
             continue;
         }
 
@@ -165,13 +162,14 @@ fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     commands.queue(move |world: &mut World| {
         let mut stack = vec![root];
         while let Some(entity) = stack.pop() {
-            if let Ok(entity_ref) = world.get_entity(entity) {
-                if let Some(children) = entity_ref.get::<Children>() {
-                    for child in children.iter() {
-                        stack.push(child);
-                    }
+            if let Ok(entity_ref) = world.get_entity(entity)
+                && let Some(children) = entity_ref.get::<Children>()
+            {
+                for child in children.iter() {
+                    stack.push(child);
                 }
             }
+
             let _ = world.despawn(entity);
         }
     });
@@ -182,7 +180,7 @@ pub fn rebuild_reloaded_ui_system(
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     mut watcher: Option<ResMut<UILayoutWatcher>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
-    overworld_ui_query: Query<(Entity, &super::components::OverworldUI), Without<RonDrivenUI>>,
+    overworld_ui_query: Query<(Entity, &OverworldUI), Without<RonDrivenUI>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -206,9 +204,9 @@ pub fn rebuild_reloaded_ui_system(
         return;
     };
 
-    let has_target = overworld_ui_query.iter().any(|(_, overworld_ui)| {
-        *overworld_ui.layer() == super::components::UILayer::BACKPACK_MENU
-    });
+    let has_target = overworld_ui_query
+        .iter()
+        .any(|(_, overworld_ui)| *overworld_ui.layer() == UILayer::BACKPACK_MENU);
 
     if !has_target {
         info!("RON UI hot reload pending - BACKPACK_MENU layer not active, will retry rebuild");
@@ -237,7 +235,7 @@ pub fn rebuild_reloaded_ui_system(
 
     let mut rebuilt_count = 0;
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
-        if *overworld_ui.layer() != super::components::UILayer::BACKPACK_MENU {
+        if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
             continue;
         }
 
@@ -315,13 +313,10 @@ fn spawn_ui_node(
                     );
 
                     let color = if let Some(conditional_style) = &text_def.conditional_style {
-                        let condition_met = evaluate_condition(
-                            &conditional_style.condition,
-                            player_data,
-                            item_registry,
-                        );
+                        let condition_met =
+                            evaluate_condition(&conditional_style.condition, player_data);
                         if condition_met {
-                            let conditional_color = bevy::color::Srgba::new(
+                            let conditional_color = Srgba::new(
                                 conditional_style.color.r,
                                 conditional_style.color.g,
                                 conditional_style.color.b,
@@ -336,7 +331,7 @@ fn spawn_ui_node(
                             );
                             conditional_color
                         } else {
-                            bevy::color::Srgba::new(
+                            Srgba::new(
                                 text_def.color.r,
                                 text_def.color.g,
                                 text_def.color.b,
@@ -344,7 +339,7 @@ fn spawn_ui_node(
                             )
                         }
                     } else {
-                        bevy::color::Srgba::new(
+                        Srgba::new(
                             text_def.color.r,
                             text_def.color.g,
                             text_def.color.b,
@@ -358,7 +353,18 @@ fn spawn_ui_node(
                         font: text_def.font.clone().into(),
                         world_scale: text_def.world_scale.clone().into(),
                         color,
-                        transform: Transform::from_translation(text_def.transform.clone().into()),
+                        transform: {
+                            let mut t = Transform::from_translation(
+                                text_def.transform.translation.clone().into(),
+                            );
+                            if let Some(scale) = &text_def.transform.scale {
+                                t.scale = scale.clone().into();
+                            }
+                            if let Some(rot) = text_def.transform.rotation {
+                                t.rotation = Quat::from_rotation_z(rot.to_radians());
+                            }
+                            t
+                        },
                         line_height: text_def.line_height.unwrap_or(1.0),
                         ..Default::default()
                     }
@@ -386,17 +392,30 @@ fn spawn_ui_node(
                 let mut sprite = sprite_context.get_sprite("common", "heartsmall");
                 sprite.color = Color::srgb(1.0, 0.0, 0.0);
 
-                let cursor_position = match &cursor_def.default_position {
-                    BoxCursorPositionDef::Static(vec) => {
-                        BoxCursorPosition::Static(vec.clone().into())
+                let cursor_position = if let Some(default_pos) = &cursor_def.default_translation {
+                    match default_pos {
+                        BoxCursorPositionDef::Static(vec) => {
+                            BoxCursorPosition::Static(vec.clone().into())
+                        }
+                        BoxCursorPositionDef::Linear { origin, step } => {
+                            BoxCursorPosition::Linear {
+                                origin: origin.clone().into(),
+                                step: step.clone().into(),
+                            }
+                        }
+                        BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
+                            positions.iter().map(|v| v.clone().into()).collect(),
+                        ),
                     }
-                    BoxCursorPositionDef::Linear { origin, step } => BoxCursorPosition::Linear {
-                        origin: origin.clone().into(),
-                        step: step.clone().into(),
-                    },
-                    BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                        positions.iter().map(|v| v.clone().into()).collect(),
-                    ),
+                } else if let Some(transform) = &cursor_def.transform {
+                    if let Some(translation) = &transform.translation {
+                        BoxCursorPosition::Static(translation.clone().into())
+                    } else {
+                        // Fallback if no translation is defined in transform either
+                        BoxCursorPosition::Static(Vec3::ZERO)
+                    }
+                } else {
+                    BoxCursorPosition::Static(Vec3::ZERO)
                 };
 
                 let cursor_visibility = if let Some(vis_rule) = &cursor_def.visibility_rule {
@@ -494,57 +513,56 @@ fn resolve_text_content(
     let mut chars = template.chars().peekable();
 
     while let Some(ch) = chars.next() {
-        if ch == '{' {
-            if let Some(&next_ch) = chars.peek() {
-                if next_ch == '{' {
-                    chars.next();
-                    let mut key = String::new();
-                    let mut found_closing = false;
+        if ch == '{'
+            && let Some(&next_ch) = chars.peek()
+        {
+            if next_ch == '{' {
+                chars.next();
+                let mut key = String::new();
+                let mut found_closing = false;
 
-                    while let Some(ch) = chars.next() {
-                        if ch == '}' {
-                            if let Some(&next_ch) = chars.peek() {
-                                if next_ch == '}' {
-                                    chars.next();
-                                    found_closing = true;
-                                    break;
-                                }
-                            }
-                        }
-                        key.push(ch);
+                while let Some(ch) = chars.next() {
+                    if ch == '}'
+                        && let Some(&next_ch) = chars.peek()
+                        && next_ch == '}'
+                    {
+                        chars.next();
+                        found_closing = true;
+                        break;
                     }
-
-                    if found_closing {
-                        let resolved = mortar_strings.resolve(&key);
-                        result.push_str(resolved);
-                    } else {
-                        result.push_str("{{");
-                        result.push_str(&key);
-                    }
-                    continue;
-                } else if next_ch == '@' {
-                    chars.next();
-                    let mut path = String::new();
-                    let mut found_closing = false;
-
-                    while let Some(ch) = chars.next() {
-                        if ch == '}' {
-                            found_closing = true;
-                            break;
-                        }
-                        path.push(ch);
-                    }
-
-                    if found_closing {
-                        let value =
-                            resolve_data_path(&path, player_data, item_registry, mortar_strings);
-                        result.push_str(&value);
-                    } else {
-                        result.push_str("{@");
-                        result.push_str(&path);
-                    }
-                    continue;
+                    key.push(ch);
                 }
+
+                if found_closing {
+                    let resolved = mortar_strings.resolve(&key);
+                    result.push_str(resolved);
+                } else {
+                    result.push_str("{{");
+                    result.push_str(&key);
+                }
+                continue;
+            } else if next_ch == '@' {
+                chars.next();
+                let mut path = String::new();
+                let mut found_closing = false;
+
+                for ch in chars.by_ref() {
+                    if ch == '}' {
+                        found_closing = true;
+                        break;
+                    }
+                    path.push(ch);
+                }
+
+                if found_closing {
+                    let value =
+                        resolve_data_path(&path, player_data, item_registry, mortar_strings);
+                    result.push_str(&value);
+                } else {
+                    result.push_str("{@");
+                    result.push_str(&path);
+                }
+                continue;
             }
         }
         result.push(ch);
@@ -553,11 +571,7 @@ fn resolve_text_content(
     result
 }
 
-fn evaluate_condition(
-    condition: &str,
-    player_data: &crate::core::data::PlayerData,
-    item_registry: &crate::core::item::ItemRegistry,
-) -> bool {
+fn evaluate_condition(condition: &str, player_data: &crate::core::data::PlayerData) -> bool {
     match condition {
         "player.inventory.is_empty" => player_data.inventory.is_empty(),
         "player.inventory.is_not_empty" => !player_data.inventory.is_empty(),
@@ -623,10 +637,10 @@ fn resolve_data_path(
             }
         }
         "player.weapon_atk" => {
-            if let Some(item) = item_registry.get(&player_data.weapon) {
-                if let ItemType::Weapon { damage, .. } = item.item_type {
-                    return damage.to_string();
-                }
+            if let Some(item) = item_registry.get(&player_data.weapon)
+                && let ItemType::Weapon { damage, .. } = item.item_type
+            {
+                return damage.to_string();
             }
             "0".to_string()
         }
@@ -651,10 +665,10 @@ fn resolve_data_path(
             }
         }
         "player.armor_def" => {
-            if let Some(item) = item_registry.get(&player_data.armor) {
-                if let ItemType::Armor { defense } = item.item_type {
-                    return defense.to_string();
-                }
+            if let Some(item) = item_registry.get(&player_data.armor)
+                && let ItemType::Armor { defense } = item.item_type
+            {
+                return defense.to_string();
             }
             "0".to_string()
         }

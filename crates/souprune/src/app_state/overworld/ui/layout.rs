@@ -1,3 +1,91 @@
+//! # RON UI Layout Documentation / RON UI 布局文档
+//!
+//! This module defines the structure of the RON UI layout files used in SoupRune.
+//!
+//! 本模块定义了 SoupRune 中使用的 RON UI 布局文件的结构。
+//!
+//! ---
+//!
+//! ## File Structure / 文件结构
+//!
+//! ```ron
+//! (
+//!     version: 1,
+//!     roots: [
+//!         (
+//!             name: "MyNode",
+//!             // Node properties... / 节点属性...
+//!         )
+//!     ]
+//! )
+//! ```
+//!
+//! ---
+//!
+//! ## Node Properties / 节点属性
+//!
+//! ### Text Transform / 文本变换
+//!
+//! Texts use a `transform` field to define position, rotation, and scale.
+//!
+//! 文本使用 `transform` 字段定义位置、旋转和缩放。
+//!
+//! ```ron
+//! transform: (
+//!     translation: (x: 10.0, y: 20.0, z: 1.0), // Required / 必须
+//!     rotation: Some(45.0),                    // Optional (degrees) / 可选（角度）
+//!     scale: Some((x: 1.5, y: 1.5, z: 1.0)),   // Optional / 可选
+//! )
+//! ```
+//!
+//! ### Cursor Configuration / 光标配置
+//!
+//! Cursors can be positioned dynamically using `default_translation` or statically using `transform`.
+//!
+//! 光标可以使用 `default_translation` 进行动态定位，或使用 `transform` 进行静态定位。
+//!
+//! ```ron
+//! cursor: Some((
+//!     sprite_path: "common/heartsmall",
+//!
+//!     // Mode 1: Dynamic Logic / 模式 1：动态逻辑
+//!     // Used for menus where the cursor moves between options.
+//!     // 用于光标在选项之间移动的菜单。
+//!     default_translation: Some(Linear(
+//!         origin: (x: 0.0, y: 0.0, z: 0.0),
+//!         step: (x: 0.0, y: -20.0, z: 0.0),
+//!     )),
+//!
+//!     // Mode 2: Static Transform / 模式 2：静态变换
+//!     transform: Some((
+//!         // Used if default_translation is missing.
+//!         // 当 default_translation 缺失时使用。
+//!         translation: Some((x: 10.0, y: 10.0, z: 2.0)),
+//!
+//!         rotation: Some(0.0),
+//!         scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+//!     )),
+//! ))
+//! ```
+//!
+//! ### Conditional Styles / 条件样式
+//!
+//! Change text color based on game state.
+//!
+//! 根据游戏状态改变文本颜色。
+//!
+//! ```ron
+//! conditional_style: Some((
+//!     condition: "player.inventory.is_empty",
+//!     color: (r: 0.5, g: 0.5, b: 0.5, a: 1.0),
+//! ))
+//! ```
+//!
+//! ### Variable Substitution / 变量替换
+//!
+//! - `{{key}}`: Look up in Mortar string table. / 在 Mortar 字符串表中查找。
+//! - `{@path}`: Look up in PlayerData. / 在 PlayerData 中查找 (e.g., `{@player.hp}`).
+
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType, Val};
 use serde::Deserialize;
@@ -232,6 +320,15 @@ impl From<SerializableVec2> for Vec2 {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SerializableTransform {
+    pub translation: SerializableVec3,
+    #[serde(default)]
+    pub rotation: Option<f32>,
+    #[serde(default)]
+    pub scale: Option<SerializableVec3>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct TextDef {
     pub id: String,
     #[serde(default)]
@@ -239,7 +336,7 @@ pub struct TextDef {
     pub font: UIFontDef,
     pub world_scale: SerializableVec2,
     pub color: SerializableColor,
-    pub transform: SerializableVec3,
+    pub transform: SerializableTransform,
     #[serde(default)]
     pub line_height: Option<f32>,
     #[serde(default)]
@@ -255,7 +352,8 @@ pub struct ConditionalStyleDef {
 #[derive(Debug, Deserialize, Clone)]
 pub struct CursorDef {
     pub sprite_path: String,
-    pub default_position: BoxCursorPositionDef,
+    #[serde(default)]
+    pub default_translation: Option<BoxCursorPositionDef>,
     #[serde(default)]
     pub overrides: HashMap<String, BoxCursorPositionDef>,
     #[serde(default)]
@@ -278,6 +376,8 @@ pub enum BoxCursorPositionDef {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct CursorTransformDef {
+    #[serde(default)]
+    pub translation: Option<SerializableVec3>,
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
     #[serde(default)]
