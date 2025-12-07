@@ -80,5 +80,7 @@ fn start_overworld_bgm(audio: Res<Audio>, asset_server: Res<AssetServer>) {
     // TODO: Background music should be configurable via a resource or config file
     // TODO: 背景音乐应该通过资源或配置文件来配置
     // For now, we hardcode mus_ruins.ogg as the default BGM
+    //
+    // 目前，我们将 mus_ruins.ogg 硬编码为默认 BGM
     audio::play_bgm(&audio, &asset_server, "mus_ruins.ogg");
 }

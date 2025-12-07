@@ -39,6 +39,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
     while let Some(c) = chars.next() {
         if c == '{' && chars.peek() == Some(&'#') {
             // Push accumulated text
+            //
+            // 推送累积的文本
             if !buffer.is_empty() {
                 segments.push((
                     Text3dSegment::String(buffer.clone()),
@@ -48,6 +50,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
             }
 
             // Parse color tag: {#RRGGBB:content}
+            //
+            // 解析颜色标签：{#RRGGBB:content}
             chars.next(); // consume '#'
             let mut color_str = String::new();
             while let Some(&ch) = chars.peek() {
@@ -59,6 +63,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
             }
 
             // Parse content until '}'
+            //
+            // 解析内容直到 '}'
             let mut content = String::new();
             let mut depth = 1;
             for ch in chars.by_ref() {
@@ -77,6 +83,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
             }
 
             // Add colored segment
+            //
+            // 添加着色片段
             if let Ok(color) = Srgba::hex(&color_str) {
                 segments.push((
                     Text3dSegment::String(content),
@@ -87,6 +95,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
                 ));
             } else {
                 // Fallback: treat as plain text
+                //
+                // 回退：视为纯文本
                 segments.push((
                     Text3dSegment::String(format!("{{#{}:{}}}", color_str, content)),
                     SegmentStyle::default(),
@@ -98,6 +108,8 @@ fn parse_text_preserving_whitespace(text: &str) -> Text3d {
     }
 
     // Push remaining text
+    //
+    // 推送剩余文本
     if !buffer.is_empty() {
         segments.push((Text3dSegment::String(buffer), SegmentStyle::default()));
     }

@@ -81,6 +81,8 @@ impl<'a> SpriteLoadContext<'a> {
         );
 
         // Apply flip settings
+        //
+        // 应用翻转设置
         sprite.flip_x = flip_x;
         sprite.flip_y = flip_y;
 
@@ -118,11 +120,15 @@ impl<'a> SpriteLoadContext<'a> {
             };
 
         // Check if path points to a single file
+        //
+        // 检查路径是否指向单个文件
         if config_path.ends_with(".png")
             || config_path.ends_with(".jpg")
             || config_path.ends_with(".jpeg")
         {
             // Single file: Find matching files directly
+            //
+            // 单个文件：直接查找匹配文件
             if let Some(&sprite_index) = index_map.get(&config_path) {
                 let mut sprite = Sprite::from_atlas_image(
                     texture,
@@ -133,6 +139,8 @@ impl<'a> SpriteLoadContext<'a> {
                 );
 
                 // Apply flip settings
+                //
+                // 应用翻转设置
                 sprite.flip_x = flip_x;
                 sprite.flip_y = flip_y;
 
@@ -146,6 +154,8 @@ impl<'a> SpriteLoadContext<'a> {
             }
         } else {
             // Directory: collect all matching files and sort them
+            //
+            // 目录：收集所有匹配文件并进行排序
             let mut matching_files: Vec<_> = index_map
                 .iter()
                 .filter(|(path, _)| path.starts_with(&config_path))
@@ -160,6 +170,8 @@ impl<'a> SpriteLoadContext<'a> {
             }
 
             // Sort by filename to ensure correct frame order
+            //
+            // 按文件名排序以确保正确的帧顺序
             matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
 
             let sprites = matching_files
@@ -174,6 +186,8 @@ impl<'a> SpriteLoadContext<'a> {
                     );
 
                     // Apply flip settings to each frame
+                    //
+                    // 对每一帧应用翻转设置
                     sprite.flip_x = flip_x;
                     sprite.flip_y = flip_y;
 

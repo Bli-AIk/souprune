@@ -25,6 +25,8 @@ pub fn get_or_create_texture_atlas(
     HashMap<String, usize>,
 )> {
     // Check cache
+    //
+    // 检查缓存
     if let Some((atlas_layout, texture, index_map)) = sprite_registry.get_cached_atlas(module_name)
     {
         return Ok((atlas_layout.clone(), texture.clone(), index_map.clone()));
@@ -51,6 +53,8 @@ pub fn get_or_create_texture_atlas(
     let atlas_layout_handle = texture_atlases.add(texture_atlas_layout);
 
     // Cache results
+    //
+    // 缓存结果
     sprite_registry.cache_atlas(
         module_name.to_string(),
         atlas_layout_handle.clone(),
@@ -150,6 +154,10 @@ pub fn create_sprite_from_atlas(
     // This unwrap is on getting the handle from sources. If it fails, it panics.
     // However, this is more internal logic. If the atlas was built correctly, this should work.
     // For now, replacing with expect is a slight improvement, or better:
+    //
+    // 此 unwrap 是用于从源获取句柄。如果失败，则会恐慌。
+    // 但是，这是更内部的逻辑。如果图集构建正确，这应该可以工作。
+    // 暂时替换为 expect 是轻微的改进，或者更好：
     if let Some(texture_atlas_handle) = atlas_sources.handle(atlas_handle, vendor_handle) {
         commands.spawn((
             Transform {
@@ -186,6 +194,8 @@ pub fn get_sprite_from_config(
     )?;
 
     // Get image path and flip settings according to configuration
+    //
+    // 根据配置获取图像路径和翻转设置
     let (sprite_path, flip_x, flip_y) =
         if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
             (
@@ -217,6 +227,8 @@ pub fn get_sprite_from_config(
     );
 
     // Apply flip settings
+    //
+    // 应用翻转设置
     sprite.flip_x = flip_x;
     sprite.flip_y = flip_y;
 

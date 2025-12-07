@@ -81,9 +81,13 @@ impl AssetLoader for ItemAssetLoader {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
             // ron::de::from_bytes handles the decoding
+            //
+            // ron::de::from_bytes 处理解码
             let items: Vec<Item> = ron::de::from_bytes(&bytes)?;
 
             // Log for debugging
+            //
+            // 调试日志
             // info!("Loaded {} items from ron file", items.len());
 
             Ok(ItemAsset(items))

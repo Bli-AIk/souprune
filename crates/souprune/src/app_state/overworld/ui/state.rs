@@ -52,6 +52,8 @@ pub(crate) fn menu_overworld_state_transitions_system(
                 info!("Transitioning from Normal to Menu state");
 
                 // Play sound when opening the backpack menu
+                //
+                // 打开背包菜单时播放声音
 
                 // TODO: 通过ron配置文件定义打开 UI 的行为
                 audio::play_sound(&audio, &asset_server, "choice.wav");
@@ -88,6 +90,8 @@ pub(crate) fn menu_overworld_state_transitions_system(
                             }
 
                             // Play confirm sound if configured
+                            //
+                            // 如果已配置，播放确认声音
                             if let Some(sound_path) = &transitions.sound_on_confirm {
                                 audio::play_sound(&audio, &asset_server, sound_path);
                             }
@@ -107,6 +111,8 @@ pub(crate) fn menu_overworld_state_transitions_system(
                         && let Some(cancel_action) = &transitions.on_cancel
                     {
                         // Play cancel sound if configured
+                        //
+                        // 如果已配置，播放取消声音
                         if let Some(sound_path) = &transitions.sound_on_cancel {
                             audio::play_sound(&audio, &asset_server, sound_path);
                         }
@@ -205,6 +211,8 @@ fn calculate_max_index_for_layer(
         BackpackItemOption::count()
     } else {
         // Default for BACKPACK_STATUS and others
+        //
+        // BACKPACK_STATUS 和其他的默认值
         1
     }
 }
@@ -262,6 +270,8 @@ pub(crate) fn update_overworld_ui_navigation_system(
 
             if rule.looping() {
                 // With looping enabled, wrap around
+                //
+                // 启用循环时，进行环绕
                 if next_index < min_index as isize {
                     next_index = max_index as isize - 1;
                 } else if next_index >= max_index as isize {
@@ -269,12 +279,18 @@ pub(crate) fn update_overworld_ui_navigation_system(
                 }
             } else {
                 // Without looping, clamp to bounds
+                //
+                // 未启用循环时，限制在边界内
                 next_index = next_index.clamp(min_index as isize, (max_index - 1) as isize);
             }
 
             // Only update and play sound if index actually changed
+            //
+            // 仅当索引实际改变时更新并播放声音
             if overworld_ui.index() != next_index as usize {
                 // Play navigation sound if configured
+                //
+                // 如果已配置，播放导航声音
                 if let Some(sound_path) = rule.sound_on_navigate() {
                     audio::play_sound(&audio, &asset_server, sound_path);
                 }

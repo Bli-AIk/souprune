@@ -65,6 +65,9 @@ impl SpriteAnimationClip {
 
     /// Creates a fallback animation clip with a single default sprite.
     /// Used when the requested animation fails to load, preventing repeated load attempts.
+    ///
+    /// 创建带有单个默认精灵的回退动画片段。
+    /// 当请求的动画加载失败时使用，防止重复加载尝试。
     pub fn fallback(module_name: &str, clip_name: &str) -> Self {
         Self {
             sprites: vec![Sprite::default()],

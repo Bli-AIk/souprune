@@ -28,6 +28,8 @@ pub fn process_map_object_properties_system(
     existing_colliders: Query<&ObjectCollider>,
 ) {
     // Add debug logging
+    //
+    // 添加调试日志
     let map_count = tiled_maps_query.iter().count();
     let collider_count = existing_colliders.iter().count();
 
@@ -37,6 +39,8 @@ pub fn process_map_object_properties_system(
     );
 
     // Only run if we haven't created object colliders yet
+    //
+    // 仅在尚未创建对象碰撞体时运行
     if !existing_colliders.is_empty() {
         trace!("Object colliders already exist, skipping");
         return;
@@ -49,6 +53,8 @@ pub fn process_map_object_properties_system(
             info!("Found tiled map asset");
 
             // Calculate map center offset (same as tilemap collision system)
+            //
+            // 计算地图中心偏移（与瓦片地图碰撞系统相同）
             let tile_size = tiled_map_asset.map.tile_width as f32;
             let tile_height = tiled_map_asset.map.tile_height as f32;
             let map_width = tiled_map_asset.map.width as f32 * tile_size;
@@ -73,6 +79,8 @@ pub fn process_map_object_properties_system(
                         );
 
                         // Check if this object has collision property set to true
+                        //
+                        // 检查此对象是否将碰撞属性设置为 true
                         if let Some(collision_value) = object_data.properties.get("collision") {
                             info!("Found collision property: {:?}", collision_value);
 
@@ -87,6 +95,9 @@ pub fn process_map_object_properties_system(
                                 {
                                     // Calculate world position (same coordinate system as tilemap)
                                     // Tiled uses top-left origin, convert to center-based
+                                    //
+                                    // 计算世界位置（与瓦片地图坐标系相同）
+                                    // Tiled 使用左上角原点，转换为基于中心
                                     let world_x = center_offset_x + object_data.x + width / 2.0;
                                     let world_y = center_offset_y
                                         + (tiled_map_asset.map.height as f32 * tile_height

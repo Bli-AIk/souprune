@@ -74,6 +74,8 @@ pub fn load_navigation_and_transitions_system(
     mut loaded_marker: Local<bool>,
 ) {
     // Only load once
+    //
+    // 仅加载一次
     if *loaded_marker {
         return;
     }
@@ -373,6 +375,8 @@ pub fn hot_reload_ron_ui_system(
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     // Schedule recursive despawn to avoid borrowing the world inside the system.
+    //
+    // 调度递归 despawn 以避免在系统内借用 world。
     commands.queue(move |world: &mut World| {
         let mut stack = vec![root];
         while let Some(entity) = stack.pop() {
@@ -437,6 +441,8 @@ pub fn rebuild_reloaded_ui_system(
     };
 
     // Despawn old UI first (only now that we know we're rebuilding)
+    //
+    // 首先 despawn 旧 UI（仅当我们知道正在重建时）
     let despawn_count = ron_ui_query.iter().count();
     if despawn_count > 0 {
         info!(
@@ -638,6 +644,8 @@ fn spawn_ui_node(
                         BoxCursorPosition::Static(translation.clone().into())
                     } else {
                         // Fallback if no translation is defined in transform either
+                        //
+                        // 如果 transform 中也没有定义 translation，则回退
                         BoxCursorPosition::Static(Vec3::ZERO)
                     }
                 } else {

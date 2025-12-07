@@ -1,3 +1,23 @@
+//! # multi_source.rs
+//!
+//! # multi_source.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides a custom asset reader that supports multiple source directories.
+//!
+//! 该模块提供了一个支持多个源目录的自定义资产读取器。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It implements `MultiSourceAssetReader` to allow cascading lookups for assets.
+//!
+//! 它实现了 `MultiSourceAssetReader` 以允许对资产进行级联查找。
+
 use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetReader, AssetReaderError, PathStream, Reader};
 use bevy::prelude::*;

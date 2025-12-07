@@ -36,6 +36,8 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
 
     let Ok(camera_transform) = camera_query.single() else {
         // No camera moved this frame, so there is nothing to do.
+        //
+        // 本帧摄像机未移动，无需执行任何操作。
         return;
     };
 

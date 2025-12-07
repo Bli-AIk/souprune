@@ -124,6 +124,8 @@ pub fn generate_collision_tiles_system(
     object_collision_group: Query<Entity, With<ObjectCollisionGroup>>,
 ) {
     // Create collision tile group if it doesn't exist
+    //
+    // 如果不存在，创建碰撞瓦片组
     let collision_tile_group_entity = if let Ok(entity) = collision_tile_group.single() {
         entity
     } else {
@@ -138,6 +140,8 @@ pub fn generate_collision_tiles_system(
     };
 
     // Create object collision group if it doesn't exist
+    //
+    // 如果不存在，创建对象碰撞组
     let object_collision_group_entity = if let Ok(entity) = object_collision_group.single() {
         entity
     } else {
@@ -278,6 +282,8 @@ fn generate_object_colliders(
     parent_entity: Entity,
 ) {
     // Calculate map center offset (same as tile collision system)
+    //
+    // 计算地图中心偏移（与瓦片碰撞系统相同）
     let tile_size = tiled_map_asset.map.tile_width as f32;
     let tile_height = tiled_map_asset.map.tile_height as f32;
     let map_width = tiled_map_asset.map.width as f32 * tile_size;
@@ -295,12 +301,17 @@ fn generate_object_colliders(
 
             for object_data in object_layer.objects() {
                 // Check if this object has collision property set to true
+                //
+                // 检查此对象是否将碰撞属性设置为 true
                 if let Some(collision_value) = object_data.properties.get("collision")
                     && let tiled::PropertyValue::BoolValue(true) = collision_value
                     && let tiled::ObjectShape::Rect { width, height } = object_data.shape
                 {
                     // Calculate world position (same coordinate system as tilemap)
                     // Tiled uses top-left origin, convert to center-based
+                    //
+                    // 计算世界位置（与瓦片地图坐标系相同）
+                    // Tiled 使用左上角原点，转换为基于中心
                     let world_x = center_offset_x + object_data.x + width / 2.0;
                     let world_y = center_offset_y
                         + (tiled_map_asset.map.height as f32 * tile_height
@@ -400,6 +411,9 @@ pub fn update_objects_order_with_player_system(
 
     // Update all objects with TiledObject component (from all object layers)
     // This automatically handles objects from any object layer, regardless of layer name
+    //
+    // 更新具有 TiledObject 组件的所有对象（来自所有对象图层）
+    // 这会自动处理来自任何对象图层的对象，无论图层名称如何
     for mut transform in objects.iter_mut() {
         if transform.translation.y > player_y {
             transform.translation.z = -1.0 - object_layer_z;

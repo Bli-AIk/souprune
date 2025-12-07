@@ -1,3 +1,23 @@
+//! # resources.rs
+//!
+//! # resources.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module defines resources for sprite management.
+//!
+//! 该模块定义了用于精灵管理的资源。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It includes the `ModuleSpriteRegistry` which caches texture atlases and handles.
+//!
+//! 它包含了 `ModuleSpriteRegistry`，用于缓存纹理图集和句柄。
+
 use bevy::asset::LoadedFolder;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -9,6 +29,9 @@ pub type AtlasCacheData = (
 );
 pub type ModuleAtlasCache = HashMap<String, AtlasCacheData>;
 
+/// Registry for managing sprite modules and their loaded assets.
+///
+/// 用于管理精灵模块及其已加载资产的注册表。
 #[derive(Resource, Default)]
 pub(crate) struct ModuleSpriteRegistry {
     pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,

@@ -39,6 +39,8 @@ impl MortarStringTable {
     }
 
     /// Returns the localized string when available, or falls back to the key itself.
+    ///
+    /// 返回本地化字符串（如果可用），否则回退到键本身。
     pub fn resolve<'a>(&'a self, name: &'a str) -> &'a str {
         self.get(name).unwrap_or(name)
     }
@@ -84,6 +86,8 @@ fn read_locale_constants_system(
                     let id = handle.id();
 
                     // Determine namespace from path relative to locale folder
+                    //
+                    // 从相对于 locale 文件夹的路径确定命名空间
                     let namespace = if let Some(path) = asset_server.get_path(id) {
                         let full_path = path.path().to_string_lossy();
                         let prefix = format!("locales/{}/", locale.0);
@@ -95,6 +99,8 @@ fn read_locale_constants_system(
                                 .to_string()
                         } else {
                             // Fallback to filename if prefix doesn't match (shouldn't happen if logic is correct)
+                            //
+                            // 如果前缀不匹配，则回退到文件名（如果逻辑正确，不应发生这种情况）
                             warn!("Path {} does not start with prefix {}", full_path, prefix);
                             path.path()
                                 .file_stem()
@@ -107,6 +113,8 @@ fn read_locale_constants_system(
                     };
 
                     // Try to get as MortarAsset
+                    //
+                    // 尝试获取为 MortarAsset
                     let typed_id = id.typed::<MortarAsset>();
                     if let Some(asset) = mortar_assets.get(typed_id) {
                         info!(
