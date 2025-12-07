@@ -4,10 +4,86 @@ use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
-use bevy_rich_text3d::{ParseError, SegmentStyle, Text3d, Text3dStyling, TextAtlas};
+use bevy_rich_text3d::{SegmentStyle, Text3d, Text3dSegment, Text3dStyling, TextAtlas};
 use bevy_smud::prelude::SdfAssets;
 use bevy_smud::{Frame, SmudShape};
 use std::collections::VecDeque;
+
+/// Parse text with color tags while preserving whitespace.
+/// Supports `{#RRGGBB:text}` syntax for colored text.
+fn parse_text_preserving_whitespace(text: &str) -> Text3d {
+    let mut segments = Vec::new();
+    let mut buffer = String::new();
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '{' && chars.peek() == Some(&'#') {
+            // Push accumulated text
+            if !buffer.is_empty() {
+                segments.push((
+                    Text3dSegment::String(buffer.clone()),
+                    SegmentStyle::default(),
+                ));
+                buffer.clear();
+            }
+
+            // Parse color tag: {#RRGGBB:content}
+            chars.next(); // consume '#'
+            let mut color_str = String::new();
+            while let Some(&ch) = chars.peek() {
+                if ch == ':' {
+                    chars.next();
+                    break;
+                }
+                color_str.push(chars.next().unwrap());
+            }
+
+            // Parse content until '}'
+            let mut content = String::new();
+            let mut depth = 1;
+            for ch in chars.by_ref() {
+                if ch == '{' {
+                    depth += 1;
+                    content.push(ch);
+                } else if ch == '}' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                    content.push(ch);
+                } else {
+                    content.push(ch);
+                }
+            }
+
+            // Add colored segment
+            if let Ok(color) = Srgba::hex(&color_str) {
+                segments.push((
+                    Text3dSegment::String(content),
+                    SegmentStyle {
+                        fill_color: Some(color),
+                        ..Default::default()
+                    },
+                ));
+            } else {
+                // Fallback: treat as plain text
+                segments.push((
+                    Text3dSegment::String(format!("{{#{}:{}}}", color_str, content)),
+                    SegmentStyle::default(),
+                ));
+            }
+        } else {
+            buffer.push(c);
+        }
+    }
+
+    // Push remaining text
+    if !buffer.is_empty() {
+        segments.push((Text3dSegment::String(buffer), SegmentStyle::default()));
+    }
+
+    Text3d { segments }
+}
 
 type OverworldUIBoxQuery<'w, 's> = Query<
     'w,
@@ -98,27 +174,15 @@ fn spawn_ui_box_children(
                     ..Default::default()
                 });
 
+                // Manually parse color tags to preserve whitespace
+                // Text3d::parse() collapses consecutive spaces, so we build segments manually
+                // 手动解析颜色标签以保留空格
+                // Text3d::parse() 会合并连续空格，所以我们手动构建片段
+                let text3d = parse_text_preserving_whitespace(&text_config.content);
+
                 filler_parent.spawn((
                     text_config.name.clone(),
-                    Text3d::parse(
-                        &text_config.content,
-                        |_| {
-                            Err(ParseError::Custom(
-                                "Dynamic values not supported".to_string(),
-                            ))
-                        },
-                        |style| {
-                            if let Ok(color) = Srgba::hex(style.trim_start_matches('#')) {
-                                Ok(SegmentStyle {
-                                    fill_color: Some(color),
-                                    ..Default::default()
-                                })
-                            } else {
-                                Err(ParseError::MissingStyle(style.to_string()))
-                            }
-                        },
-                    )
-                    .expect("Failed to parse text"),
+                    text3d,
                     Text3dStyling {
                         font: text_config.font.font_name().into(),
                         size: text_config.font.default_size(),
