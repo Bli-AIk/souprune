@@ -26,6 +26,7 @@ mod cursor;
 pub(crate) mod layout;
 mod lifecycle;
 mod ron_ui_system;
+mod shaders;
 mod state;
 mod text;
 mod ui_box;

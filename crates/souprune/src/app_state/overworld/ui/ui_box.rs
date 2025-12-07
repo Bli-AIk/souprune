@@ -43,9 +43,8 @@ fn spawn_ui_box_children(
     let box_height = ui_box.height();
     let border_width = ui_box.border_width();
 
-    let solid_fill = shaders.add_fill_body(
-        "let a = select(0.0, 1.0, input.distance <= 0.0); return vec4<f32>(input.color.rgb, a);",
-    );
+    let shader_source = super::shaders::load_ui_solid_fill_body();
+    let solid_fill = shaders.add_fill_body(&shader_source);
 
     let mut filler_entity: Option<Entity> = None;
 
@@ -150,7 +149,10 @@ pub(crate) fn update_overworld_ui_box_system(
     overworld_ui_box_query: OverworldUIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
     children_query: Query<&Children>,
+    asset_server: Res<AssetServer>,
 ) {
+    let solid_fill: Handle<Shader> = asset_server.load("shaders/ui_solid_fill.wgsl");
+
     for (entity, ui_box, transform, children_opt) in overworld_ui_box_query.iter() {
         let box_width = ui_box.width();
         let box_height = ui_box.height();

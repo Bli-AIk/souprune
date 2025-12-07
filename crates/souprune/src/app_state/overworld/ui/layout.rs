@@ -144,7 +144,8 @@ pub struct UINodeDef {
     #[serde(default)]
     pub cursor: Option<CursorDef>,
     #[serde(default)]
-    pub ui_box_logic: Option<UIBoxLogicDef>,
+    #[serde(alias = "ui_box_logic")]
+    pub ui_shape_logic: Option<UIBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<UINodeDef>,

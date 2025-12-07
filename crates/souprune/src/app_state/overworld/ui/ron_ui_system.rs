@@ -488,7 +488,7 @@ fn spawn_ui_node(
     item_registry: &crate::core::item::ItemRegistry,
 ) {
     commands.entity(parent_entity).with_children(|parent| {
-        if let Some(ui_box_logic) = &node_def.ui_box_logic {
+        if let Some(ui_shape_logic) = &node_def.ui_shape_logic {
             let visibility_rule = node_def
                 .visibility_rule
                 .as_ref()
@@ -565,13 +565,13 @@ fn spawn_ui_node(
                 })
                 .collect::<Vec<_>>();
 
-            let offset: Vec3 = ui_box_logic.offset.clone().into();
+            let offset: Vec3 = ui_shape_logic.offset.clone().into();
 
             let mut box_entity = parent.spawn((
                 OverworldUIBox::new_with_texts(
-                    ui_box_logic.width,
-                    ui_box_logic.height,
-                    ui_box_logic.border_width,
+                    ui_shape_logic.width,
+                    ui_shape_logic.height,
+                    ui_shape_logic.border_width,
                     texts,
                 ),
                 OverworldUIBoxVisibility::new(visibility_rule.clone()),
