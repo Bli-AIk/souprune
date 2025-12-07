@@ -260,24 +260,37 @@
     ],
     navigation: Some({
         "BackpackMenu": (
-            axis: Some(Vertical),
-            explicit: None,
+            mappings: {
+                "Up": -1,
+                "Down": 1,
+            },
             looping: false,
+            min_index: Some(0),
+            max_index: Some(2),
         ),
         "BackpackItem": (
-            axis: Some(Vertical),
-            explicit: None,
+            mappings: {
+                "Up": -1,
+                "Down": 1,
+            },
             looping: false,
+            min_index: Some(0),
+            max_index: Some("min(inventory.len(), inventory_capacity)"),
         ),
         "BackpackItemOptions": (
-            axis: Some(Horizontal),
-            explicit: None,
+            mappings: {
+                "Left": -1,
+                "Right": 1,
+            },
             looping: true,
+            min_index: Some(0),
+            max_index: Some(3),
         ),
         "BackpackStatus": (
-            axis: None,
-            explicit: None,
+            mappings: {},
             looping: false,
+            min_index: Some(0),
+            max_index: Some(1),
         ),
     }),
     transitions: Some({

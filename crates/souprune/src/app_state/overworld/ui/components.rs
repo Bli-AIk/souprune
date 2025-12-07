@@ -582,17 +582,55 @@ impl BoxCursor {
 #[derive(Debug, Clone)]
 pub(crate) struct UILayerNavigationRule {
     adjustments: HashMap<Action, isize>,
+    looping: bool,
+    min_index: Option<IndexBound>,
+    max_index: Option<IndexBound>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum IndexBound {
+    Static(usize),
+    Dynamic(String),
 }
 
 impl UILayerNavigationRule {
     pub(crate) fn new(pairs: impl IntoIterator<Item = (Action, isize)>) -> Self {
         Self {
             adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+            looping: false,
+            min_index: None,
+            max_index: None,
+        }
+    }
+
+    pub(crate) fn new_with_bounds(
+        pairs: impl IntoIterator<Item = (Action, isize)>,
+        looping: bool,
+        min_index: Option<IndexBound>,
+        max_index: Option<IndexBound>,
+    ) -> Self {
+        Self {
+            adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+            looping,
+            min_index,
+            max_index,
         }
     }
 
     pub(crate) fn delta_for(&self, action: Action) -> Option<isize> {
         self.adjustments.get(&action).copied()
+    }
+
+    pub(crate) fn looping(&self) -> bool {
+        self.looping
+    }
+
+    pub(crate) fn min_index(&self) -> &Option<IndexBound> {
+        &self.min_index
+    }
+
+    pub(crate) fn max_index(&self) -> &Option<IndexBound> {
+        &self.max_index
     }
 }
 

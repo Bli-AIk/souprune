@@ -67,29 +67,43 @@ pub fn load_navigation_and_transitions_system(
         for (layer_name, nav_rule_def) in navigation.iter() {
             let mut adjustments = std::collections::HashMap::new();
 
-            if let Some(axis) = &nav_rule_def.axis {
-                match axis {
-                    super::layout::NavigationAxis::Vertical => {
-                        adjustments.insert(crate::core::input::Action::Up, -1);
-                        adjustments.insert(crate::core::input::Action::Down, 1);
-                    }
-                    super::layout::NavigationAxis::Horizontal => {
-                        adjustments.insert(crate::core::input::Action::Left, -1);
-                        adjustments.insert(crate::core::input::Action::Right, 1);
-                    }
+            for (action_str, delta) in &nav_rule_def.mappings {
+                if let Some(action) = parse_action(action_str) {
+                    adjustments.insert(action, *delta);
                 }
             }
 
-            if let Some(explicit) = &nav_rule_def.explicit {
-                for (action_str, delta) in explicit.iter() {
-                    if let Some(action) = parse_action(action_str) {
-                        adjustments.insert(action, *delta);
+            let min_index = nav_rule_def
+                .min_index
+                .as_ref()
+                .map(|bound_def| match bound_def {
+                    super::layout::IndexBoundDef::Static(value) => {
+                        super::components::IndexBound::Static(*value)
                     }
-                }
-            }
+                    super::layout::IndexBoundDef::Dynamic(expr) => {
+                        super::components::IndexBound::Dynamic(expr.clone())
+                    }
+                });
+
+            let max_index = nav_rule_def
+                .max_index
+                .as_ref()
+                .map(|bound_def| match bound_def {
+                    super::layout::IndexBoundDef::Static(value) => {
+                        super::components::IndexBound::Static(*value)
+                    }
+                    super::layout::IndexBoundDef::Dynamic(expr) => {
+                        super::components::IndexBound::Dynamic(expr.clone())
+                    }
+                });
 
             let layer = UILayer::new(layer_name.clone());
-            let rule = UILayerNavigationRule::new(adjustments.into_iter());
+            let rule = UILayerNavigationRule::new_with_bounds(
+                adjustments.into_iter(),
+                nav_rule_def.looping,
+                min_index,
+                max_index,
+            );
             navigation_config.set_rule(layer, rule);
         }
         info!(
@@ -168,6 +182,67 @@ fn parse_action(action_str: &str) -> Option<crate::core::input::Action> {
         "Menu" => Some(Action::Menu),
         _ => None,
     }
+}
+
+pub(crate) fn evaluate_index_bound(
+    bound: &super::components::IndexBound,
+    player_data: &crate::core::data::PlayerData,
+) -> usize {
+    match bound {
+        super::components::IndexBound::Static(value) => *value,
+        super::components::IndexBound::Dynamic(expr) => {
+            evaluate_index_expression(expr, player_data)
+        }
+    }
+}
+
+fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::PlayerData) -> usize {
+    let expr = expr.trim();
+
+    // 支持的表达式：
+    // "inventory.len()" - 背包物品数量
+    // "inventory_capacity" - 背包容量
+    // "min(inventory.len(), inventory_capacity)" - 两者较小值
+    // "max(inventory.len(), inventory_capacity)" - 两者较大值
+
+    if expr == "inventory.len()" {
+        return player_data.inventory.len();
+    }
+
+    if expr == "inventory_capacity" {
+        return player_data.inventory_capacity;
+    }
+
+    if expr.starts_with("min(") && expr.ends_with(")") {
+        let inner = &expr[4..expr.len() - 1];
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 2 {
+            let a = evaluate_index_expression(parts[0], player_data);
+            let b = evaluate_index_expression(parts[1], player_data);
+            return a.min(b);
+        }
+    }
+
+    if expr.starts_with("max(") && expr.ends_with(")") {
+        let inner = &expr[4..expr.len() - 1];
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 2 {
+            let a = evaluate_index_expression(parts[0], player_data);
+            let b = evaluate_index_expression(parts[1], player_data);
+            return a.max(b);
+        }
+    }
+
+    // 尝试解析为数字
+    if let Ok(value) = expr.parse::<usize>() {
+        return value;
+    }
+
+    warn!(
+        "Unable to evaluate index expression: {}, defaulting to 1",
+        expr
+    );
+    1
 }
 
 pub fn spawn_ron_ui_system(

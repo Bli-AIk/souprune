@@ -17,6 +17,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     player_data: Res<crate::core::data::PlayerData>,
     transition_config: Res<UILayerTransitionConfig>,
+    navigation_config: Res<UILayerNavigationConfig>,
 ) {
     if let Ok(action_state) = query.single() {
         match current_state.get() {
@@ -61,6 +62,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 &mut overworld_ui,
                                 &mut next_state,
                                 &player_data,
+                                &navigation_config,
                             );
                             return;
                         }
@@ -73,6 +75,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                 &mut overworld_ui,
                                 &mut next_state,
                                 &player_data,
+                                &navigation_config,
                             );
                             return;
                         }
@@ -119,10 +122,18 @@ fn execute_transition_action(
     overworld_ui: &mut OverworldUI,
     next_state: &mut ResMut<NextState<OverworldState>>,
     player_data: &crate::core::data::PlayerData,
+    navigation_config: &UILayerNavigationConfig,
 ) {
     match action {
         TransitionAction::GotoLayer(target_layer) => {
-            let max_index = calculate_max_index_for_layer(target_layer, player_data);
+            let max_index = navigation_config
+                .get(target_layer)
+                .and_then(|rule| {
+                    rule.max_index()
+                        .as_ref()
+                        .map(|bound| super::ron_ui_system::evaluate_index_bound(bound, player_data))
+                })
+                .unwrap_or_else(|| calculate_max_index_for_layer(target_layer, player_data));
             info!(
                 "Transitioning to layer {} with max_index {}",
                 target_layer, max_index
@@ -168,6 +179,7 @@ pub(crate) fn update_overworld_ui_navigation_system(
     navigation: Res<UILayerNavigationConfig>,
     mut ui_query: Query<&mut OverworldUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    player_data: Res<crate::core::data::PlayerData>,
 ) {
     if overworld_state.get() != &OverworldState::Backpack {
         return;
@@ -192,13 +204,34 @@ pub(crate) fn update_overworld_ui_navigation_system(
         }
 
         if delta != 0 {
+            let min_index = rule
+                .min_index()
+                .as_ref()
+                .map(|bound| super::ron_ui_system::evaluate_index_bound(bound, &player_data))
+                .unwrap_or(0);
+
+            let max_index = rule
+                .max_index()
+                .as_ref()
+                .map(|bound| super::ron_ui_system::evaluate_index_bound(bound, &player_data))
+                .unwrap_or_else(|| {
+                    calculate_max_index_for_layer(overworld_ui.layer(), &player_data)
+                });
+
             let mut next_index = overworld_ui.index() as isize + delta;
-            let max_index = overworld_ui.max_index() as isize - 1;
-            if next_index < 0 {
-                next_index = max_index;
-            } else if next_index > max_index {
-                next_index = 0;
+
+            if rule.looping() {
+                // With looping enabled, wrap around
+                if next_index < min_index as isize {
+                    next_index = max_index as isize - 1;
+                } else if next_index >= max_index as isize {
+                    next_index = min_index as isize;
+                }
+            } else {
+                // Without looping, clamp to bounds
+                next_index = next_index.clamp(min_index as isize, (max_index - 1) as isize);
             }
+
             overworld_ui.set_index(next_index as usize);
         }
     }

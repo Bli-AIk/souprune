@@ -1,4 +1,4 @@
-use super::components::{OverworldUI, UILayer};
+use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
@@ -9,6 +9,7 @@ pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: Query<&OverworldUI>,
     locale_loaded: Option<Res<LocaleLoaded>>,
+    navigation_config: Res<UILayerNavigationConfig>,
 ) {
     if locale_loaded.is_none() {
         return;
@@ -21,10 +22,18 @@ pub(crate) fn spawn_backpack_ui_system(
         return;
     }
 
-    // Dynamically compute `UILayer` total count.
+    // Get max_index from navigation config, or fallback to hardcoded value
     //
-    // 动态获取 UILayer 的总数。
-    let max_index = UILayer::BACKPACK_MENU_OPTIONS.len();
+    // 从导航配置中获取 max_index，或回退到硬编码值
+    let player_data = crate::core::data::PlayerData::default();
+    let max_index = navigation_config
+        .get(&UILayer::BACKPACK_MENU)
+        .and_then(|rule| {
+            rule.max_index()
+                .as_ref()
+                .map(|bound| super::ron_ui_system::evaluate_index_bound(bound, &player_data))
+        })
+        .unwrap_or_else(|| UILayer::BACKPACK_MENU_OPTIONS.len());
 
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
@@ -35,5 +44,8 @@ pub(crate) fn spawn_backpack_ui_system(
         Name::new("Backpack Menu UI"),
     ));
 
-    info!("Spawned backpack UI in Menu state");
+    info!(
+        "Spawned backpack UI in Menu state with max_index {}",
+        max_index
+    );
 }

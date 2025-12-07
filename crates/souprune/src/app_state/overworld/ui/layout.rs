@@ -399,17 +399,20 @@ pub struct UIBoxLogicDef {
 #[derive(Debug, Deserialize, Clone)]
 pub struct NavigationRuleDef {
     #[serde(default)]
-    pub axis: Option<NavigationAxis>,
-    #[serde(default)]
-    pub explicit: Option<HashMap<String, isize>>,
+    pub mappings: HashMap<String, isize>,
     #[serde(default)]
     pub looping: bool,
+    #[serde(default)]
+    pub min_index: Option<IndexBoundDef>,
+    #[serde(default)]
+    pub max_index: Option<IndexBoundDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub enum NavigationAxis {
-    Vertical,
-    Horizontal,
+#[serde(untagged)]
+pub enum IndexBoundDef {
+    Static(usize),
+    Dynamic(String),
 }
 
 #[derive(Debug, Deserialize, Clone)]
