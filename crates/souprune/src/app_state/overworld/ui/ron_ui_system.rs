@@ -606,7 +606,16 @@ fn spawn_ui_node(
 
             if let Some(cursor_def) = &node_def.cursor {
                 let mut sprite_context = sprite_params.create_sprite_context();
-                let mut sprite = sprite_context.get_sprite("common", "heartsmall");
+                let mut sprite = match sprite_context.get_sprite("common", "heartsmall") {
+                    Ok(s) => s,
+                    Err(e) => {
+                        warn!(
+                            "Failed to load cursor sprite 'common/heartsmall': {}. using default.",
+                            e
+                        );
+                        Sprite::default()
+                    }
+                };
                 sprite.color = Color::srgb(1.0, 0.0, 0.0);
 
                 let cursor_position = if let Some(default_pos) = &cursor_def.default_translation {

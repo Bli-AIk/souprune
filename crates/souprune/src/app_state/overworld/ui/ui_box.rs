@@ -270,7 +270,7 @@ pub(crate) fn update_overworld_ui_box_system(
                 }
 
                 if smud_shape_entities.len() >= 2 {
-                    info!("Updating existing SmudShape children for UI box");
+                    trace!("Updating existing SmudShape children for UI box");
 
                     if let Ok(mut outer_shape) = smud_shape_query.get_mut(smud_shape_entities[0]) {
                         outer_shape.sdf = outer_sdf.clone();

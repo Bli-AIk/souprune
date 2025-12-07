@@ -25,6 +25,7 @@ use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin, Update};
+use bevy::log::error;
 use bevy::prelude::*;
 use bevy::prelude::{Commands, Res, Sprite};
 
@@ -69,7 +70,9 @@ fn update_player_animation(
     };
 
     if clip.clip_name() != clip_name {
-        *clip = change_sprite_animation(sprite_params, frame, timer, "overworld", &clip_name);
+        let new_clip =
+            change_sprite_animation(sprite_params, frame, timer, "overworld", &clip_name);
+        *clip = new_clip;
         *sprite = clip.get_current_sprite().clone();
     }
 }
@@ -85,11 +88,20 @@ fn change_sprite_animation(
 
     timer.reset();
 
-    SpriteAnimationClip::new(
+    match SpriteAnimationClip::new(
         &mut sprite_params.create_sprite_context(),
         module_name,
         clip_name,
-    )
+    ) {
+        Ok(clip) => clip,
+        Err(e) => {
+            error!(
+                "Failed to change animation to {}: {}. Using fallback.",
+                clip_name, e
+            );
+            SpriteAnimationClip::fallback(module_name, clip_name)
+        }
+    }
 }
 
 use crate::app_state::overworld::character;
@@ -121,6 +133,22 @@ pub fn spawn_overworld_player(
     use leafwing_input_manager::action_state::ActionState;
     use seldom_state::machine::StateMachine;
     use seldom_state::prelude::IntoTrigger;
+
+    let initial_clip = match SpriteAnimationClip::new(
+        &mut sprite_params.create_sprite_context(),
+        "overworld",
+        "frisk_walk_down",
+    ) {
+        Ok(clip) => clip,
+        Err(e) => {
+            error!(
+                "Failed to load initial player animation 'frisk_walk_down': {}. Player spawn aborted.",
+                e
+            );
+            return;
+        }
+    };
+
     commands.spawn((
         Name::new("OverworldPlayer"),
         StateIdle,
@@ -134,14 +162,6 @@ pub fn spawn_overworld_player(
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
         Rect2DCollider::new(Vec2::new(20.0, 12.0), Vec2::new(0.0, -9.0)),
-        PlayerBundle::new(
-            Vec2::new(0.0, 0.0),
-            Direction::Down,
-            SpriteAnimationClip::new(
-                &mut sprite_params.create_sprite_context(),
-                "overworld",
-                "frisk_walk_down",
-            ),
-        ),
+        PlayerBundle::new(Vec2::new(0.0, 0.0), Direction::Down, initial_clip),
     ));
 }

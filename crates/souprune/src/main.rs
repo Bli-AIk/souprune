@@ -32,6 +32,57 @@ use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
 use bevy::window::*;
+use chrono::Local;
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Sets up the logging system with both stdout and file output.
+fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard> {
+    // Generate a timestamped filename for this run
+    let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
+    let filename = format!("souprune_{}.log", timestamp);
+    let log_dir = std::path::Path::new("logs");
+
+    // Ensure the logs directory exists
+    std::fs::create_dir_all(log_dir)?;
+
+    let file_path = log_dir.join(filename);
+    let file = std::fs::File::create(file_path)?;
+
+    // Create a non-blocking writer for the file
+    let (non_blocking, guard) = tracing_appender::non_blocking(file);
+
+    // Filter configuration
+    // Default to INFO, but silence noisy libraries
+    let filter = EnvFilter::builder()
+        .with_default_directive(tracing::Level::INFO.into())
+        .from_env_lossy()
+        .add_directive("souprune=info".parse()?)
+        .add_directive("wgpu=error".parse()?)
+        .add_directive("naga=warn".parse()?)
+        .add_directive("bevy=info".parse()?)
+        .add_directive("bevy_render=warn".parse()?)
+        .add_directive("bevy_app=warn".parse()?)
+        .add_directive("bevy_ecs=warn".parse()?);
+
+    // File layer: writes to the log file
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .with_writer(non_blocking)
+        .with_filter(filter.clone());
+
+    // Stdout layer: writes to the console (standard Bevy behavior)
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .pretty()
+        .with_filter(filter);
+
+    // Initialize the registry with both layers
+    tracing_subscriber::registry()
+        .with(stdout_layer)
+        .with(file_layer)
+        .init();
+
+    Ok(guard)
+}
 
 /// Get the default Bevy plugins with custom window size and image plugin settings.
 ///
@@ -51,6 +102,8 @@ fn get_bevy_default_plugins() -> PluginGroupBuilder {
             }),
             ..default()
         })
+        // Disable the default LogPlugin because we initialize our own tracing subscriber
+        .disable::<bevy::log::LogPlugin>()
 }
 
 /// Get the file importer plugins used in the application.
@@ -100,6 +153,9 @@ macro_rules! get_game_plugins {
     };
 }
 fn main() {
+    // Initialize logging and keep the guard alive
+    let _log_guard = setup_logging().expect("Failed to initialize logging");
+
     App::new()
         // TODO: 读取 mod 配置并加载正确的项目
         .register_asset_source(

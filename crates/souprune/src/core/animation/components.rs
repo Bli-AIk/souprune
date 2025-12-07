@@ -1,4 +1,5 @@
 use crate::core::sprite::load_context::SpriteLoadContext;
+use anyhow::Result;
 use bevy::prelude::{Component, Sprite};
 
 #[derive(Component, Default)]
@@ -46,13 +47,29 @@ pub(crate) struct SpriteAnimationClip {
 }
 
 impl SpriteAnimationClip {
-    pub fn new(sprite_context: &mut SpriteLoadContext, module_name: &str, clip_name: &str) -> Self {
+    pub fn new(
+        sprite_context: &mut SpriteLoadContext,
+        module_name: &str,
+        clip_name: &str,
+    ) -> Result<Self> {
         let (sprites, looping) =
-            sprite_context.get_sprite_animations_with_config(module_name, clip_name);
-        Self {
+            sprite_context.get_sprite_animations_with_config(module_name, clip_name)?;
+        Ok(Self {
             sprites,
             frame: 0,
             looping,
+            clip_name: clip_name.to_string(),
+            module_name: module_name.to_string(),
+        })
+    }
+
+    /// Creates a fallback animation clip with a single default sprite.
+    /// Used when the requested animation fails to load, preventing repeated load attempts.
+    pub fn fallback(module_name: &str, clip_name: &str) -> Self {
+        Self {
+            sprites: vec![Sprite::default()],
+            frame: 0,
+            looping: false,
             clip_name: clip_name.to_string(),
             module_name: module_name.to_string(),
         }

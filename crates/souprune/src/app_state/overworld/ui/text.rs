@@ -42,7 +42,7 @@ pub(crate) fn refresh_text_glyphs_system(
         }
 
         commands.entity(entity).remove::<NeedsGlyphRefresh>();
-        info!("Refreshed glyphs for text entity {:?}", entity);
+        debug!("Refreshed glyphs for text entity {:?}", entity);
     }
 }
 

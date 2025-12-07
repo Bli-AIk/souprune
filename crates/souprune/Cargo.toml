@@ -51,6 +51,11 @@ toml = "0.9.8"
 bevy_smud = "0.12.0"
 bevy_rich_text3d = { version = "0.5.1", features = ["reflect"] }
 bevy_kira_audio = { version = "0.24", features = ["wav", "ogg", "flac", "mp3"] }
+anyhow = "1.0.100"
+tracing-appender = "0.2.4"
+tracing-subscriber = "0.3.22"
+tracing = "0.1.43"
+chrono = "0.4.42"
 
 [dependencies.bevy-inspector-egui]
 version = "0.35.0"

@@ -31,19 +31,19 @@ pub fn process_map_object_properties_system(
     let map_count = tiled_maps_query.iter().count();
     let collider_count = existing_colliders.iter().count();
 
-    info!(
+    trace!(
         "Object properties system running: {} maps, {} existing colliders",
         map_count, collider_count
     );
 
     // Only run if we haven't created object colliders yet
     if !existing_colliders.is_empty() {
-        info!("Object colliders already exist, skipping");
+        trace!("Object colliders already exist, skipping");
         return;
     }
 
     for tiled_map_handle in tiled_maps_query.iter() {
-        info!("Processing tiled map handle");
+        debug!("Processing tiled map handle");
 
         if let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) {
             info!("Found tiled map asset");
