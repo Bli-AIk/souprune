@@ -168,9 +168,9 @@
                 overrides: {
                     "BackpackItemOptions": Custom(
                         positions: [
-                            (x: -64.25, y: -63.5, z: 2.0),
-                            (x: -12.25, y: -63.5, z: 2.0),
-                            (x: 40.75, y: -63.5, z: 2.0),
+                            (x: -72.0, y: -72.0, z: 2.0),
+                            (x: -24.0, y: -72.0, z: 2.0),
+                            (x: 33.0, y: -72.0, z: 2.0),
                         ],
                     ),
                 },
@@ -282,7 +282,7 @@
                 "Left": -1,
                 "Right": 1,
             },
-            looping: true,
+            looping: false,
             min_index: Some(0),
             max_index: Some(3),
         ),
