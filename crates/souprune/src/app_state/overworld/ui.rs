@@ -43,10 +43,7 @@ use ron_ui_system::{
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
-use ui_box::{
-    draw_backpack_ui_system, update_overworld_ui_box_system,
-    update_overworld_ui_box_visibility_system,
-};
+use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
 
 use crate::app_state::overworld::ui::ron_ui_system::{
     hot_reload_ron_ui_system, rebuild_reloaded_ui_system,
@@ -75,7 +72,6 @@ impl Plugin for UndertaleOverworldUIPlugin {
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
-                    draw_backpack_ui_system,
                     update_overworld_ui_box_system,
                     update_overworld_ui_box_visibility_system,
                     spawn_box_cursor_visual_system,
