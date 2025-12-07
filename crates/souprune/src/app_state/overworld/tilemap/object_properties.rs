@@ -20,6 +20,7 @@ pub struct ObjectCollider;
 
 /// System to directly create collision entities for objects with collision properties
 /// 直接为具有碰撞属性的对象创建碰撞实体的系统
+#[allow(dead_code)]
 pub fn process_map_object_properties_system(
     mut commands: Commands,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,

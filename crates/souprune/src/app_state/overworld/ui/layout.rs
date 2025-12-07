@@ -113,6 +113,7 @@ impl From<UiFlexDirection> for FlexDirection {
 
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct UILayoutAsset {
+    #[allow(dead_code)]
     pub version: u32,
     pub roots: Vec<UINodeDef>,
     #[serde(default)]
@@ -125,14 +126,18 @@ pub struct UILayoutAsset {
 pub struct UINodeDef {
     pub name: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub style: StyleDef,
     #[serde(default)]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub background_color: Option<SerializableColor>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub border_color: Option<SerializableColor>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub image: Option<ImageDef>,
     #[serde(default)]
     pub texts: Vec<TextDef>,
@@ -141,9 +146,11 @@ pub struct UINodeDef {
     #[serde(default)]
     pub ui_box_logic: Option<UIBoxLogicDef>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub children: Vec<UINodeDef>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct StyleDef {
     #[serde(default)]
@@ -269,6 +276,7 @@ pub struct UIVisibilityRuleDef {
     pub layers: Option<Vec<String>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 pub struct ImageDef {
     pub path: String,
@@ -350,6 +358,7 @@ pub struct ConditionalStyleDef {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct CursorDef {
+    #[allow(dead_code)]
     pub sprite_path: String,
     #[serde(default)]
     pub default_translation: Option<BoxCursorPositionDef>,

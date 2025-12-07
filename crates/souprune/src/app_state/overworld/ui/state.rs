@@ -163,9 +163,8 @@ fn calculate_max_index_for_layer(
         }
     } else if layer == &UILayer::BACKPACK_ITEM_CHOOSES {
         BackpackItemOption::count()
-    } else if layer == &UILayer::BACKPACK_STATUS {
-        1
     } else {
+        // Default for BACKPACK_STATUS and others
         1
     }
 }

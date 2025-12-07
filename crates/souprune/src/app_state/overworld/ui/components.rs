@@ -54,6 +54,7 @@ impl UILayer {
     /// Get the layer name
     ///
     /// 获取层名称
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         &self.0
     }
@@ -140,6 +141,7 @@ impl OverworldUI {
     /// Get the maximum valid index for the active layer. Indexes are clamped to this value.
     ///
     /// 获取当前激活层的最大有效索引。索引会被限制在该值之内。
+    #[allow(dead_code)]
     pub(crate) fn max_index(&self) -> usize {
         self.max_index
     }
@@ -287,6 +289,7 @@ impl OverworldUIBox {
     /// Create a new `OverworldUIBox` component with the given dimensions and border width.
     ///
     /// 创建一个新的 `OverworldUIBox` 组件，指定尺寸和边框宽度。
+    #[allow(dead_code)]
     pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
         Self {
             width,
@@ -337,6 +340,7 @@ impl OverworldUIBox {
     /// Set the box dimensions.
     ///
     /// 设置框的尺寸。
+    #[allow(dead_code)]
     pub(crate) fn set_dimensions(&mut self, width: f32, height: f32) {
         self.width = width;
         self.height = height;
@@ -345,6 +349,7 @@ impl OverworldUIBox {
     /// Set the border width.
     ///
     /// 设置边框宽度。
+    #[allow(dead_code)]
     pub(crate) fn set_border_width(&mut self, border_width: f32) {
         self.border_width = border_width;
     }
@@ -364,6 +369,7 @@ impl OverworldUIBoxVisibility {
         Self { rule }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
         &self.rule
     }
@@ -442,14 +448,17 @@ impl Default for BoxCursorPosition {
 }
 
 impl BoxCursorPosition {
+    #[allow(dead_code)]
     pub(crate) fn fixed(position: Vec3) -> Self {
         Self::Static(position)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn linear(origin: Vec3, step: Vec3) -> Self {
         Self::Linear { origin, step }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn custom(positions: Vec<Vec3>) -> Self {
         Self::Custom(positions)
     }
@@ -563,10 +572,12 @@ impl BoxCursor {
         Some(self.desired_translation(layer, index))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn hide(&mut self) {
         self.hidden = true;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn show(&mut self) {
         self.hidden = false;
     }
@@ -686,6 +697,7 @@ pub(crate) enum TransitionAction {
 }
 
 impl UILayerTransitionConfig {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self {
             transitions: HashMap::new(),

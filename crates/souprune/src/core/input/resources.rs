@@ -8,6 +8,7 @@ pub(crate) struct PlayerInputSettings {
 }
 
 impl PlayerInputSettings {
+    #[allow(dead_code)]
     pub fn get_map(&self, index: usize) -> &InputMap<Action> {
         self.maps.get(index).unwrap()
     }

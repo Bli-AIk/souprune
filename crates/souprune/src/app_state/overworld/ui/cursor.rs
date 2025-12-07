@@ -37,6 +37,7 @@ fn find_ui_box_filler_entity(
 /// Spawn the sprite used to represent the Undertale box cursor once the UI filler exists.
 ///
 /// 当 UI 填充实体就绪后，生成 Undertale 样式的光标贴图。
+#[allow(clippy::type_complexity)]
 pub(crate) fn spawn_box_cursor_visual_system(
     mut commands: Commands,
     query: Query<(Entity, &BoxCursor), (With<OverworldUIBox>, Without<BoxCursorReady>)>,

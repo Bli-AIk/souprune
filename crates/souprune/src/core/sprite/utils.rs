@@ -131,6 +131,8 @@ pub fn create_texture_atlas(
     )
 }
 
+#[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub fn create_sprite_from_atlas(
     commands: &mut Commands,
     translation: (f32, f32, f32),
@@ -151,6 +153,8 @@ pub fn create_sprite_from_atlas(
     ));
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub fn get_sprite_from_config(
     sprite_registry: &mut ModuleSpriteRegistry,
     texture_atlases: &mut Assets<TextureAtlasLayout>,

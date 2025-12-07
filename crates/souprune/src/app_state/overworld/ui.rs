@@ -107,9 +107,3 @@ impl Plugin for UndertaleOverworldUIPlugin {
         }
     }
 }
-
-pub(crate) struct DeltaruneOverworldUIPlugin;
-
-impl Plugin for DeltaruneOverworldUIPlugin {
-    fn build(&self, _app: &mut App) {}
-}

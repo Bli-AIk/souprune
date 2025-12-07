@@ -13,16 +13,8 @@ pub struct UILayoutHandle {
     pub last_modified: Option<SystemTime>,
 }
 
-#[derive(Resource, Default)]
-struct NavigationConfigLoaded {
-    loaded: bool,
-}
-
 #[derive(Component)]
 pub struct RonDrivenUI;
-
-#[derive(Component)]
-pub struct UITextId(pub String);
 
 #[derive(Resource, Default)]
 pub struct UILayoutWatcher {
@@ -90,24 +82,16 @@ pub fn load_navigation_and_transitions_system(
                 .min_index
                 .as_ref()
                 .map(|bound_def| match bound_def {
-                    super::layout::IndexBoundDef::Static(value) => {
-                        super::components::IndexBound::Static(*value)
-                    }
-                    super::layout::IndexBoundDef::Dynamic(expr) => {
-                        super::components::IndexBound::Dynamic(expr.clone())
-                    }
+                    IndexBoundDef::Static(value) => IndexBound::Static(*value),
+                    IndexBoundDef::Dynamic(expr) => IndexBound::Dynamic(expr.clone()),
                 });
 
             let max_index = nav_rule_def
                 .max_index
                 .as_ref()
                 .map(|bound_def| match bound_def {
-                    super::layout::IndexBoundDef::Static(value) => {
-                        super::components::IndexBound::Static(*value)
-                    }
-                    super::layout::IndexBoundDef::Dynamic(expr) => {
-                        super::components::IndexBound::Dynamic(expr.clone())
-                    }
+                    IndexBoundDef::Static(value) => IndexBound::Static(*value),
+                    IndexBoundDef::Dynamic(expr) => IndexBound::Dynamic(expr.clone()),
                 });
 
             let layer = UILayer::new(layer_name.clone());
@@ -138,13 +122,11 @@ pub fn load_navigation_and_transitions_system(
                             TransitionRule {
                                 condition: rule_def.condition.clone(),
                                 action: match &rule_def.action {
-                                    super::layout::TransitionActionDef::GotoLayer(layer) => {
+                                    TransitionActionDef::GotoLayer(layer) => {
                                         TransitionAction::GotoLayer(UILayer::new(layer.clone()))
                                     }
-                                    super::layout::TransitionActionDef::PopState => {
-                                        TransitionAction::PopState
-                                    }
-                                    super::layout::TransitionActionDef::PushState(state) => {
+                                    TransitionActionDef::PopState => TransitionAction::PopState,
+                                    TransitionActionDef::PushState(state) => {
                                         TransitionAction::PushState(state.clone())
                                     }
                                 },
@@ -157,11 +139,11 @@ pub fn load_navigation_and_transitions_system(
             let on_cancel = transitions_def.on_cancel.as_ref().map(|action_def| {
                 use super::components::TransitionAction;
                 match action_def {
-                    super::layout::TransitionActionDef::GotoLayer(layer) => {
+                    TransitionActionDef::GotoLayer(layer) => {
                         TransitionAction::GotoLayer(UILayer::new(layer.clone()))
                     }
-                    super::layout::TransitionActionDef::PopState => TransitionAction::PopState,
-                    super::layout::TransitionActionDef::PushState(state) => {
+                    TransitionActionDef::PopState => TransitionAction::PopState,
+                    TransitionActionDef::PushState(state) => {
                         TransitionAction::PushState(state.clone())
                     }
                 }
@@ -170,7 +152,7 @@ pub fn load_navigation_and_transitions_system(
             let layer = UILayer::new(layer_name.clone());
             transition_config.set_transitions(
                 layer,
-                super::components::LayerTransitions {
+                LayerTransitions {
                     on_confirm,
                     on_cancel,
                 },
@@ -198,14 +180,12 @@ fn parse_action(action_str: &str) -> Option<crate::core::input::Action> {
 }
 
 pub(crate) fn evaluate_index_bound(
-    bound: &super::components::IndexBound,
+    bound: &IndexBound,
     player_data: &crate::core::data::PlayerData,
 ) -> usize {
     match bound {
-        super::components::IndexBound::Static(value) => *value,
-        super::components::IndexBound::Dynamic(expr) => {
-            evaluate_index_expression(expr, player_data)
-        }
+        IndexBound::Static(value) => *value,
+        IndexBound::Dynamic(expr) => evaluate_index_expression(expr, player_data),
     }
 }
 
@@ -258,6 +238,8 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
     1
 }
 
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_ui_system(
     mut commands: Commands,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
@@ -363,7 +345,7 @@ pub fn hot_reload_ron_ui_system(
 
     watcher.pending_reload = true;
 
-    info!("⏳ Marked for reload, will rebuild UI when asset is ready");
+    info!("Marked for reload, will rebuild UI when asset is ready");
 }
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
@@ -384,6 +366,7 @@ fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn rebuild_reloaded_ui_system(
     mut commands: Commands,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
@@ -463,11 +446,12 @@ pub fn rebuild_reloaded_ui_system(
 
     watcher.pending_reload = rebuilt_count == 0;
     info!(
-        "✅ RON UI hot reload complete! Rebuilt {} UI entities",
+        "RON UI hot reload complete! Rebuilt {} UI entities",
         rebuilt_count
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_ron_ui_for_entity(
     commands: &mut Commands,
     ui_entity: Entity,
@@ -492,6 +476,7 @@ fn spawn_ron_ui_for_entity(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_ui_node(
     commands: &mut Commands,
     parent_entity: Entity,

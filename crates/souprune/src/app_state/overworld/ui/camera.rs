@@ -30,6 +30,7 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
 /// Initialize (or re-sync) anchors only when the entity's offset changes or gets added.
 ///
 /// 仅在新 UI 产生或偏移量改变时同步，避免无意义写入。
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_camera_anchored_ui_on_change_system(
     overworld_state: Res<State<OverworldState>>,
     camera_query: Query<&Transform, With<Camera2d>>,

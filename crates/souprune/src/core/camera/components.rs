@@ -14,6 +14,7 @@ impl Followable {
     /// Create a new `Followable` with bounds disabled.
     ///
     /// 创建一个新的不限制边界的 Followable。
+    #[allow(dead_code)]
     pub fn new(target: Option<Entity>) -> Self {
         Self {
             target,
@@ -28,6 +29,7 @@ impl Followable {
     /// Create a new `Followable` with bounds enabled.
     ///
     /// 创建一个新的限制边界的 Followable。
+    #[allow(dead_code)]
     pub fn new_with_bounds(
         target: Option<Entity>,
         min_x: f32,
@@ -59,6 +61,7 @@ impl Followable {
     /// Disable bounds restriction.
     ///
     /// 禁用边界限制。
+    #[allow(dead_code)]
     pub fn disable_bounds(&mut self) {
         self.bounds_enabled = false;
     }

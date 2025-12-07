@@ -77,6 +77,8 @@ pub mod debug_collider {
     /// System to render rectangular colliders using bevy_smud SDF (debug only).
     ///
     /// 使用bevy_smud SDF渲染矩形碰撞体的系统（仅调试模式）。
+    #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     fn render_rect_colliders_system(
         mut commands: Commands,
         mut shaders: ResMut<Assets<Shader>>,
@@ -236,6 +238,7 @@ pub mod debug_collider {
     /// Update visualizer positions when parent transforms change.
     ///
     /// 当父变换改变时更新可视化器位置的系统。
+    #[allow(clippy::type_complexity)]
     fn update_collider_visualizer_positions_system(
         mut visualizers: Query<(&mut Transform, &ColliderVisualizer), Without<Rect2DCollider>>,
         colliders: Query<
