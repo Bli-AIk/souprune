@@ -91,8 +91,7 @@ use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType, Val};
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UiFlexDirection {
     #[default]
     Row,
@@ -111,7 +110,6 @@ impl From<UiFlexDirection> for FlexDirection {
         }
     }
 }
-
 
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct UILayoutAsset {

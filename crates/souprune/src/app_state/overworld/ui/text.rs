@@ -36,7 +36,6 @@ pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
     for (mesh, mut visibility) in text_query.iter_mut() {
         if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
             *visibility = Visibility::Inherited;
-            info!("Text mesh ready, showing text");
         }
     }
 }

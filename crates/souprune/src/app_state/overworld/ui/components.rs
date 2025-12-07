@@ -637,8 +637,7 @@ impl UILayerNavigationRule {
 /// Registry that stores the navigation rules for every [`UILayer`].
 ///
 /// 存储每个 [`UILayer`] 导航规则的注册表。
-#[derive(Resource, Debug)]
-#[derive(Default)]
+#[derive(Resource, Debug, Default)]
 pub(crate) struct UILayerNavigationConfig {
     rules: HashMap<UILayer, UILayerNavigationRule>,
 }
@@ -658,7 +657,6 @@ impl Default for UILayerNavigationRule {
         Self::new([])
     }
 }
-
 
 /// Stores state transition logic for UI layers, loaded from RON configuration.
 ///

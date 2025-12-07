@@ -13,6 +13,11 @@ pub struct UILayoutHandle {
     pub last_modified: Option<SystemTime>,
 }
 
+#[derive(Resource, Default)]
+struct NavigationConfigLoaded {
+    loaded: bool,
+}
+
 #[derive(Component)]
 pub struct RonDrivenUI;
 
@@ -54,7 +59,13 @@ pub fn load_navigation_and_transitions_system(
     ui_layouts: Res<Assets<UILayoutAsset>>,
     mut navigation_config: ResMut<UILayerNavigationConfig>,
     mut transition_config: ResMut<UILayerTransitionConfig>,
+    mut loaded_marker: Local<bool>,
 ) {
+    // Only load once
+    if *loaded_marker {
+        return;
+    }
+
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;
     };
@@ -62,6 +73,8 @@ pub fn load_navigation_and_transitions_system(
     let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
         return;
     };
+
+    *loaded_marker = true;
 
     if let Some(navigation) = &ui_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {

@@ -52,9 +52,10 @@ pub(crate) fn menu_overworld_state_transitions_system(
                                     condition,
                                     overworld_ui.index(),
                                     &player_data,
-                                ) {
-                                    continue;
-                                }
+                                )
+                            {
+                                continue;
+                            }
 
                             execute_transition_action(
                                 &rule.action,
@@ -68,15 +69,16 @@ pub(crate) fn menu_overworld_state_transitions_system(
                     }
 
                     if action_state.just_pressed(&Action::Cancel)
-                        && let Some(cancel_action) = &transitions.on_cancel {
-                            execute_transition_action(
-                                cancel_action,
-                                &mut overworld_ui,
-                                &mut next_state,
-                                &player_data,
-                                &navigation_config,
-                            );
-                        }
+                        && let Some(cancel_action) = &transitions.on_cancel
+                    {
+                        execute_transition_action(
+                            cancel_action,
+                            &mut overworld_ui,
+                            &mut next_state,
+                            &player_data,
+                            &navigation_config,
+                        );
+                    }
                 }
             }
             OverworldState::Cutscene => {
@@ -94,21 +96,22 @@ fn evaluate_transition_condition(
     let condition = condition.trim();
 
     if condition.starts_with("index == ")
-        && let Some(num_str) = condition.strip_prefix("index == ") {
-            let parts: Vec<&str> = num_str.split("&&").map(|s| s.trim()).collect();
-            let index_part = parts[0];
-            if let Ok(target_index) = index_part.parse::<usize>() {
-                if index != target_index {
+        && let Some(num_str) = condition.strip_prefix("index == ")
+    {
+        let parts: Vec<&str> = num_str.split("&&").map(|s| s.trim()).collect();
+        let index_part = parts[0];
+        if let Ok(target_index) = index_part.parse::<usize>() {
+            if index != target_index {
+                return false;
+            }
+            for part in parts.iter().skip(1) {
+                if *part == "!player.inventory.is_empty" && player_data.inventory.is_empty() {
                     return false;
                 }
-                for part in parts.iter().skip(1) {
-                    if *part == "!player.inventory.is_empty" && player_data.inventory.is_empty() {
-                        return false;
-                    }
-                }
-                return true;
             }
+            return true;
         }
+    }
 
     true
 }
