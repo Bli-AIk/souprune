@@ -17,6 +17,7 @@
 //! 该文件定义了 `UndertaleOverworldUIPlugin` 与 `DeltaruneOverworldUIPlugin`。
 //! 目前，对于整个项目，你应当任选其一使用，而不是同时使用两者。
 
+use crate::overworld::ui::ron_ui_system::rebuild_reloaded_ui_system;
 use bevy::prelude::*;
 
 mod asset_loader;
@@ -46,9 +47,7 @@ use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigat
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
 use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
 
-use crate::app_state::overworld::ui::ron_ui_system::{
-    hot_reload_ron_ui_system, rebuild_reloaded_ui_system,
-};
+use crate::app_state::overworld::ui::ron_ui_system::hot_reload_ron_ui_system;
 #[cfg(feature = "debug")]
 use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
