@@ -36,6 +36,7 @@ pub type ModuleAtlasCache = HashMap<String, AtlasCacheData>;
 pub(crate) struct ModuleSpriteRegistry {
     pub(crate) modules: HashMap<String, Handle<LoadedFolder>>,
     pub(crate) atlas_cache: ModuleAtlasCache,
+    pub(crate) missing_texture: Option<Handle<Image>>,
 }
 
 impl ModuleSpriteRegistry {
@@ -43,6 +44,7 @@ impl ModuleSpriteRegistry {
         Self {
             modules: HashMap::new(),
             atlas_cache: HashMap::new(),
+            missing_texture: None,
         }
     }
 

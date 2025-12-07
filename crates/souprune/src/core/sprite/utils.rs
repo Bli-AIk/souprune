@@ -2,7 +2,7 @@ use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;
 use anyhow::{Result, anyhow};
-use bevy::asset::{Assets, Handle, LoadedFolder};
+use bevy::asset::{Assets, Handle, LoadedFolder, RenderAssetUsages};
 use bevy::image::{
     Image, ImageSampler, TextureAtlas, TextureAtlasBuilder, TextureAtlasLayout, TextureAtlasSources,
 };
@@ -10,6 +10,7 @@ use bevy::log::{info, warn};
 use bevy::math::{UVec2, Vec3};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Sprite, Transform, default};
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 pub fn get_or_create_texture_atlas(
     module_name: &str,
@@ -233,4 +234,46 @@ pub fn get_sprite_from_config(
     sprite.flip_y = flip_y;
 
     Ok(sprite)
+}
+
+pub fn get_or_create_missing_texture(
+    sprite_registry: &mut ModuleSpriteRegistry,
+    textures: &mut Assets<Image>,
+) -> Handle<Image> {
+    if let Some(handle) = &sprite_registry.missing_texture {
+        return handle.clone();
+    }
+
+    let size = Extent3d {
+        width: 16,
+        height: 16,
+        depth_or_array_layers: 1,
+    };
+
+    let mut data = Vec::with_capacity((size.width * size.height * 4) as usize);
+
+    for y in 0..size.height {
+        for x in 0..size.width {
+            let is_purple = ((x / 8) + (y / 8)) % 2 == 0;
+            if is_purple {
+                data.extend_from_slice(&[255, 0, 255, 255]); // Purple
+            } else {
+                data.extend_from_slice(&[0, 0, 0, 255]); // Black
+            }
+        }
+    }
+
+    let mut image = Image::new(
+        size,
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+    image.sampler = ImageSampler::nearest();
+
+    let handle = textures.add(image);
+    sprite_registry.missing_texture = Some(handle.clone());
+
+    handle
 }

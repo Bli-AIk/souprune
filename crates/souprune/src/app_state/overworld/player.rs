@@ -99,7 +99,11 @@ fn change_sprite_animation(
                 "Failed to change animation to {}: {}. Using fallback.",
                 clip_name, e
             );
-            SpriteAnimationClip::fallback(module_name, clip_name)
+            SpriteAnimationClip::fallback(
+                &mut sprite_params.create_sprite_context(),
+                module_name,
+                clip_name,
+            )
         }
     }
 }

@@ -68,9 +68,13 @@ impl SpriteAnimationClip {
     ///
     /// 创建带有单个默认精灵的回退动画片段。
     /// 当请求的动画加载失败时使用，防止重复加载尝试。
-    pub fn fallback(module_name: &str, clip_name: &str) -> Self {
+    pub fn fallback(
+        sprite_context: &mut SpriteLoadContext,
+        module_name: &str,
+        clip_name: &str,
+    ) -> Self {
         Self {
-            sprites: vec![Sprite::default()],
+            sprites: vec![sprite_context.get_missing_sprite()],
             frame: 0,
             looping: false,
             clip_name: clip_name.to_string(),

@@ -619,7 +619,7 @@ fn spawn_ui_node(
                             "Failed to load cursor sprite 'common/heartsmall': {}. using default.",
                             e
                         );
-                        Sprite::default()
+                        sprite_context.get_missing_sprite()
                     }
                 };
                 sprite.color = Color::srgb(1.0, 0.0, 0.0);

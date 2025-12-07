@@ -221,4 +221,15 @@ impl<'a> SpriteLoadContext<'a> {
             0.15
         }
     }
+
+    pub(crate) fn get_missing_sprite(&mut self) -> Sprite {
+        let texture = crate::core::sprite::utils::get_or_create_missing_texture(
+            self.sprite_registry,
+            self.textures,
+        );
+        Sprite {
+            image: texture,
+            ..Default::default()
+        }
+    }
 }
