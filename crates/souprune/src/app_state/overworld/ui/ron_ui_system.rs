@@ -24,11 +24,9 @@ use crate::app_state::overworld::OverworldState;
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use std::collections::HashMap;
 use std::time::SystemTime;
-
-const UI_LAYOUT_ASSET_PATH: &str = "ui/backpack.ui.ron";
-const UI_LAYOUT_FS_PATH: &str = "projects/example/ui/backpack.ui.ron";
 
 #[derive(Resource)]
 pub struct UILayoutHandle {
@@ -48,204 +46,133 @@ pub struct UILayoutWatcher {
 #[derive(Resource, Default)]
 
 pub struct UIGlobalTriggerConfig {
-
     pub triggers: HashMap<Action, Vec<GlobalTriggerRule>>,
-
 }
-
-
 
 #[derive(Clone)]
 
 pub struct GlobalTriggerRule {
-
     pub target_state: OverworldState,
 
     pub sound: Option<String>,
 
     pub allowed_states: Vec<OverworldState>,
-
 }
 
-
-
 impl UILayoutWatcher {
-
     fn new() -> Self {
-
         Self {
-
             timer: Timer::from_seconds(1.0, TimerMode::Repeating),
 
             pending_reload: false,
-
         }
-
     }
-
 }
 
+pub fn update_ui_from_map_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    tiled_maps_query: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    mut ui_layout_handle: Option<ResMut<UILayoutHandle>>,
+    mut watcher: Option<ResMut<UILayoutWatcher>>,
+    mut current_ui_path: Local<Option<String>>,
+) {
+    for tiled_map in tiled_maps_query.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
+            if let Some(property_value) = map_asset.map.properties.get("backpack_ui") {
+                if let tiled::PropertyValue::StringValue(path) = property_value {
+                    if current_ui_path.as_deref() != Some(path) {
+                        info!("Switching backpack UI to: {}", path);
+                        *current_ui_path = Some(path.clone());
 
+                        let handle = asset_server.load(path.clone());
 
-pub fn load_ui_layout_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+                        commands.insert_resource(UILayoutHandle {
+                            handle,
+                            last_modified: None,
+                        });
 
-    let handle: Handle<UILayoutAsset> = asset_server.load(UI_LAYOUT_ASSET_PATH);
-
-
-
-    let last_modified = std::fs::metadata(UI_LAYOUT_FS_PATH)
-
-        .ok()
-
-        .and_then(|meta| meta.modified().ok());
-
-
-
-    commands.insert_resource(UILayoutHandle {
-
-        handle,
-
-        last_modified,
-
-    });
-
-    commands.insert_resource(UILayoutWatcher::new());
-
-    info!("Loading UI layout from RON file");
-
+                        if let Some(ref mut w) = watcher {
+                            w.pending_reload = true;
+                        } else {
+                            let mut w = UILayoutWatcher::new();
+                            w.pending_reload = true;
+                            commands.insert_resource(w);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
-
-
 
 pub fn load_navigation_and_transitions_system(
-
     ui_layout_handle: Option<Res<UILayoutHandle>>,
-
     ui_layouts: Res<Assets<UILayoutAsset>>,
-
     mut navigation_config: ResMut<UILayerNavigationConfig>,
-
     mut transition_config: ResMut<UILayerTransitionConfig>,
-
     mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
-
-    mut loaded_marker: Local<bool>,
-
+    mut last_processed_handle: Local<Option<AssetId<UILayoutAsset>>>,
 ) {
-
-    // Only load once
-
-    //
-
-    // 仅加载一次
-
-    if *loaded_marker {
-
+    let Some(ui_layout_handle) = ui_layout_handle else {
         return;
+    };
 
+    if last_processed_handle.as_ref() == Some(&ui_layout_handle.handle.id()) {
+        return;
     }
 
-
-
-    let Some(ui_layout_handle) = ui_layout_handle else {
-
-        return;
-
-    };
-
-
-
     let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
-
         return;
-
     };
 
-
-
-    *loaded_marker = true;
-
-
+    *last_processed_handle = Some(ui_layout_handle.handle.id());
 
     if let Some(global_triggers) = &ui_layout.global_triggers {
-
         for (action_str, rules_def) in global_triggers {
-
             if let Some(action) = parse_action(action_str) {
-
                 let mut rules = Vec::new();
 
                 for rule_def in rules_def {
-
                     if let Some(target_state) = parse_overworld_state(&rule_def.target_state) {
-
                         let allowed_states = rule_def
-
                             .allowed_states
-
                             .as_ref()
-
                             .map(|states| {
-
                                 states
-
                                     .iter()
-
                                     .filter_map(|s| parse_overworld_state(s))
-
                                     .collect()
-
                             })
-
                             .unwrap_or_default();
 
-
-
                         rules.push(GlobalTriggerRule {
-
                             target_state,
 
                             sound: rule_def.sound.clone(),
 
                             allowed_states,
-
                         });
-
                     } else {
-
                         warn!(
-
                             "Unknown target state '{}' in global triggers",
-
                             rule_def.target_state
-
                         );
-
                     }
-
                 }
 
                 global_trigger_config.triggers.insert(action, rules);
-
             } else {
-
                 warn!("Unknown action '{}' in global triggers", action_str);
-
             }
-
         }
 
         info!(
-
             "Loaded global trigger config from RON with {} triggers",
-
             global_triggers.len()
-
         );
-
     }
-
-
 
     if let Some(navigation) = &ui_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {
@@ -481,61 +408,13 @@ pub fn spawn_ron_ui_system(
 }
 
 pub fn hot_reload_ron_ui_system(
-    time: Res<Time>,
-    mut ui_layout_handle: Option<ResMut<UILayoutHandle>>,
-    mut watcher: Option<ResMut<UILayoutWatcher>>,
-    mut ui_layouts: ResMut<Assets<UILayoutAsset>>,
+    _time: Res<Time>,
+    _ui_layout_handle: Option<ResMut<UILayoutHandle>>,
+    _watcher: Option<ResMut<UILayoutWatcher>>,
+    _ui_layouts: ResMut<Assets<UILayoutAsset>>,
 ) {
-    let Some(ref mut watcher) = watcher else {
-        return;
-    };
-
-    if !watcher.timer.tick(time.delta()).just_finished() {
-        return;
-    }
-
-    let Some(ref mut handle) = ui_layout_handle else {
-        return;
-    };
-
-    let modified = std::fs::metadata(UI_LAYOUT_FS_PATH)
-        .ok()
-        .and_then(|meta| meta.modified().ok());
-
-    if modified.is_none() {
-        return;
-    }
-
-    if handle.last_modified == modified {
-        return;
-    }
-
-    let bytes = match std::fs::read(UI_LAYOUT_FS_PATH) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            warn!("Failed to read UI layout file: {err}");
-            return;
-        }
-    };
-
-    let parsed = match ron::de::from_bytes::<UILayoutAsset>(&bytes) {
-        Ok(layout) => layout,
-        Err(err) => {
-            warn!("Failed to parse UI layout: {err}");
-            return;
-        }
-    };
-
-    if let Err(err) = ui_layouts.insert(handle.handle.id(), parsed) {
-        warn!("Failed to update UI layout asset: {err}");
-        return;
-    }
-
-    handle.last_modified = modified;
-
-    watcher.pending_reload = true;
-
-    info!("Marked for reload, will rebuild UI when asset is ready");
+    // Hot reload temporarily disabled for dynamic paths
+    return;
 }
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {

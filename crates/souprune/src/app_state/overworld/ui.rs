@@ -42,7 +42,7 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use layout::UILayoutAsset;
 use lifecycle::spawn_backpack_ui_system;
 use ron_ui_system::{
-    load_navigation_and_transitions_system, load_ui_layout_system, spawn_ron_ui_system,
+    load_navigation_and_transitions_system, spawn_ron_ui_system, update_ui_from_map_system,
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
@@ -72,12 +72,13 @@ impl Plugin for OverworldUIPlugin {
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
-            .add_systems(Startup, load_ui_layout_system)
             .add_systems(Update, spawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
                 (
+                    update_ui_from_map_system,
+                    rebuild_reloaded_ui_system,
                     load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
@@ -94,10 +95,7 @@ impl Plugin for OverworldUIPlugin {
 
         #[cfg(feature = "debug")]
         {
-            app.add_systems(
-                Update,
-                (hot_reload_ron_ui_system, rebuild_reloaded_ui_system),
-            );
+            app.add_systems(Update, (hot_reload_ron_ui_system));
         }
 
         #[cfg(feature = "debug")]
