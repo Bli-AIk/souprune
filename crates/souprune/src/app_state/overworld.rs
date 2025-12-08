@@ -58,8 +58,14 @@ fn create_overworld_entities_system(
     mut commands: Commands,
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
+    asset_server: Res<AssetServer>,
 ) {
-    player::spawn_overworld_player(&mut commands, &mut sprite_params, &player_input);
+    player::spawn_overworld_player(
+        &mut commands,
+        &mut sprite_params,
+        &player_input,
+        &asset_server,
+    );
 }
 
 fn bind_camera_target_system(
