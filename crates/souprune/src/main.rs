@@ -19,6 +19,7 @@
 //! 文件负责初始化 Bevy 应用、注册资源与状态，并管理所有插件。
 
 mod app_state;
+mod config;
 mod core;
 mod extra;
 
@@ -104,15 +105,14 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
 /// Get the default Bevy plugins with custom window size and image plugin settings.
 ///
 /// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
-fn get_bevy_default_plugins() -> PluginGroupBuilder {
-    let resolution_scale = app_setup::ResolutionScale::default();
+fn get_bevy_default_plugins(resolution_scale: u32) -> PluginGroupBuilder {
     DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(
-                    320 * resolution_scale.get(),
-                    240 * resolution_scale.get(),
+                    (320 * resolution_scale),
+                    (240 * resolution_scale),
                 ),
                 resizable: false,
                 ..default()
@@ -177,13 +177,16 @@ fn main() {
     // 初始化日志记录并保持 guard 存活
     let _log_guard = setup_logging().expect("Failed to initialize logging");
 
+    let config = config::load_config();
+    let resolution_scale = config.window.resolution_scale;
+    let project_name = config.project.mod_name.clone();
+    let language = config.project.language.clone();
+
     App::new()
         // TODO: 读取 mod 配置并加载正确的项目
         .register_asset_source(
             AssetSourceId::Default,
-            AssetSource::build().with_reader(|| {
-                let project_name = "example_mod";
-
+            AssetSource::build().with_reader(move || {
                 let project_path = format!("projects/{}", project_name);
 
                 let mut readers = vec![
@@ -214,9 +217,10 @@ fn main() {
                 Box::new(MultiSourceAssetReader::new(readers))
             }),
         )
-        .init_resource::<app_setup::ResolutionScale>()
+        .insert_resource(app_setup::ResolutionScale(resolution_scale as u32))
+        .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
-            get_bevy_default_plugins(),
+            get_bevy_default_plugins(resolution_scale),
             get_file_importer_plugins!(),
             get_third_plugins!(),
             #[cfg(feature = "debug")]
