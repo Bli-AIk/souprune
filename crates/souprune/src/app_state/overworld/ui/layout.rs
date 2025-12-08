@@ -120,6 +120,17 @@ pub struct UILayoutAsset {
     pub navigation: Option<HashMap<String, NavigationRuleDef>>,
     #[serde(default)]
     pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
+    #[serde(default)]
+    pub global_triggers: Option<HashMap<String, GlobalTriggerRuleDef>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GlobalTriggerRuleDef {
+    pub target_state: String,
+    #[serde(default)]
+    pub sound: Option<String>,
+    #[serde(default)]
+    pub allowed_states: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

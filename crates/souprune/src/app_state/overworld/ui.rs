@@ -71,6 +71,7 @@ impl Plugin for OverworldUIPlugin {
             .init_asset_loader::<UILayoutAssetLoader>()
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
+            .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
             .add_systems(Startup, load_ui_layout_system)
             .add_systems(Update, spawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)

@@ -258,6 +258,13 @@
             children: [],
         ),
     ],
+    global_triggers: Some({
+        "Menu": (
+            target_state: "Backpack",
+            sound: Some("choice.wav"),
+            allowed_states: Some(["Normal"]),
+        ),
+    }),
     navigation: Some({
         "BackpackMenu": (
             mappings: {

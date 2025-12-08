@@ -20,8 +20,11 @@
 
 use super::components::*;
 use super::layout::*;
+use crate::app_state::overworld::OverworldState;
+use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
+use std::collections::HashMap;
 use std::time::SystemTime;
 
 const UI_LAYOUT_ASSET_PATH: &str = "ui/backpack.ui.ron";
@@ -40,6 +43,18 @@ pub struct RonDrivenUI;
 pub struct UILayoutWatcher {
     timer: Timer,
     pending_reload: bool,
+}
+
+#[derive(Resource, Default)]
+pub struct UIGlobalTriggerConfig {
+    pub triggers: HashMap<Action, GlobalTriggerRule>,
+}
+
+#[derive(Clone)]
+pub struct GlobalTriggerRule {
+    pub target_state: OverworldState,
+    pub sound: Option<String>,
+    pub allowed_states: Vec<OverworldState>,
 }
 
 impl UILayoutWatcher {
@@ -71,6 +86,7 @@ pub fn load_navigation_and_transitions_system(
     ui_layouts: Res<Assets<UILayoutAsset>>,
     mut navigation_config: ResMut<UILayerNavigationConfig>,
     mut transition_config: ResMut<UILayerTransitionConfig>,
+    mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
     mut loaded_marker: Local<bool>,
 ) {
     // Only load once
@@ -89,6 +105,45 @@ pub fn load_navigation_and_transitions_system(
     };
 
     *loaded_marker = true;
+
+    if let Some(global_triggers) = &ui_layout.global_triggers {
+        for (action_str, rule_def) in global_triggers {
+            if let Some(action) = parse_action(action_str) {
+                if let Some(target_state) = parse_overworld_state(&rule_def.target_state) {
+                    let allowed_states = rule_def
+                        .allowed_states
+                        .as_ref()
+                        .map(|states| {
+                            states
+                                .iter()
+                                .filter_map(|s| parse_overworld_state(s))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    global_trigger_config.triggers.insert(
+                        action,
+                        GlobalTriggerRule {
+                            target_state,
+                            sound: rule_def.sound.clone(),
+                            allowed_states,
+                        },
+                    );
+                } else {
+                    warn!(
+                        "Unknown target state '{}' in global triggers",
+                        rule_def.target_state
+                    );
+                }
+            } else {
+                warn!("Unknown action '{}' in global triggers", action_str);
+            }
+        }
+        info!(
+            "Loaded global trigger config from RON with {} triggers",
+            global_triggers.len()
+        );
+    }
 
     if let Some(navigation) = &ui_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {
@@ -190,8 +245,7 @@ pub fn load_navigation_and_transitions_system(
     }
 }
 
-fn parse_action(action_str: &str) -> Option<crate::core::input::Action> {
-    use crate::core::input::Action;
+fn parse_action(action_str: &str) -> Option<Action> {
     match action_str {
         "Up" => Some(Action::Up),
         "Down" => Some(Action::Down),
@@ -200,6 +254,15 @@ fn parse_action(action_str: &str) -> Option<crate::core::input::Action> {
         "Confirm" => Some(Action::Confirm),
         "Cancel" => Some(Action::Cancel),
         "Menu" => Some(Action::Menu),
+        _ => None,
+    }
+}
+
+fn parse_overworld_state(state_str: &str) -> Option<OverworldState> {
+    match state_str {
+        "Normal" => Some(OverworldState::Normal),
+        "Backpack" => Some(OverworldState::Backpack),
+        "Cutscene" => Some(OverworldState::Cutscene),
         _ => None,
     }
 }

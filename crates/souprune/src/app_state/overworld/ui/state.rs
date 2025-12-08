@@ -22,6 +22,7 @@ use super::components::{
     BackpackItemOption, OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig,
     UILayerTransitionConfig,
 };
+use super::ron_ui_system::UIGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
 use crate::core::input::Action;
@@ -42,23 +43,35 @@ pub(crate) fn menu_overworld_state_transitions_system(
     player_data: Res<crate::core::data::PlayerData>,
     transition_config: Res<UILayerTransitionConfig>,
     navigation_config: Res<UILayerNavigationConfig>,
+    global_trigger_config: Res<UIGlobalTriggerConfig>,
 ) {
     if let Ok(action_state) = query.single() {
+        // Check global triggers first
+        //
+        // 首先检查全局触发器
+        for (action, rule) in &global_trigger_config.triggers {
+            if action_state.just_pressed(action)
+                && rule.allowed_states.contains(current_state.get())
+            {
+                info!(
+                    "Global trigger activated: {:?} -> {:?} via {:?}",
+                    current_state.get(),
+                    rule.target_state,
+                    action
+                );
+
+                if let Some(sound_path) = &rule.sound {
+                    audio::play_sound(&audio, &asset_server, sound_path);
+                }
+
+                next_state.set(rule.target_state);
+                return;
+            }
+        }
+
         match current_state.get() {
             OverworldState::Normal => {
-                if !action_state.just_pressed(&Action::Menu) {
-                    return;
-                }
-                info!("Transitioning from Normal to Menu state");
-
-                // Play sound when opening the backpack menu
-                //
-                // 打开背包菜单时播放声音
-
-                // TODO: 通过ron配置文件定义打开 UI 的行为
-                audio::play_sound(&audio, &asset_server, "choice.wav");
-
-                next_state.set(OverworldState::Backpack);
+                // Logic moved to global triggers
             }
             OverworldState::Backpack => {
                 let Ok(mut overworld_ui) = overworld_ui_query.single_mut() else {
