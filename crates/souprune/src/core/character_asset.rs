@@ -117,7 +117,7 @@ impl AssetLoader for AnimationConfigAssetLoader {
         reader: &mut dyn Reader,
         _settings: &Self::Settings,
         _load_context: &mut LoadContext<'_>,
-    ) -> impl ConditionalSendFuture<Output=Result<Self::Asset, Self::Error>> {
+    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;

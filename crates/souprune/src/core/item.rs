@@ -95,7 +95,7 @@ impl AssetLoader for ItemAssetLoader {
     }
 
     fn extensions(&self) -> &[&str] {
-        &["ron"]
+        &["item.ron"]
     }
 }
 
