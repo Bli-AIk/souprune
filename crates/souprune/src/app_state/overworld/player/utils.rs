@@ -20,6 +20,7 @@
 
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::input::Action;
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
@@ -56,6 +57,7 @@ pub fn is_player_walking(
 pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
+    player_behavior: Res<PlayerBehavior>,
 ) -> prelude::Result<(), ()> {
     // Allow player sprinting only when the overworld state is Normal.
     //
@@ -64,8 +66,12 @@ pub fn is_player_running(
         return Err(());
     }
 
+    let Some(run_action) = player_behavior.run_action else {
+        return Err(());
+    };
+
     let action_state = query.single().map_err(|_| ())?;
-    if action_state.pressed(&Action::Cancel) {
+    if action_state.pressed(&run_action) {
         Ok(())
     } else {
         Err(())

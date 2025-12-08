@@ -16,7 +16,9 @@ use std::collections::HashMap;
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterAsset {
     pub name: String,
+    #[serde(with = "vec2_xy")]
     pub collider_size: Vec2,
+    #[serde(with = "vec2_xy")]
     pub collider_offset: Vec2,
     pub base_speed: f32,
     pub animation_config: String,
@@ -137,4 +139,34 @@ impl AssetLoader for AnimationConfigAssetLoader {
 #[derive(Component)]
 pub struct CharacterAnimator {
     pub config: Handle<AnimationConfigAsset>,
+}
+
+mod vec2_xy {
+    use bevy::math::Vec2;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    #[derive(Deserialize)]
+    struct Vec2Config {
+        x: f32,
+        y: f32,
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec2, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let helper = Vec2Config::deserialize(deserializer)?;
+        Ok(Vec2::new(helper.x, helper.y))
+    }
+
+    pub fn serialize<S>(value: &Vec2, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("Vec2", 2)?;
+        state.serialize_field("x", &value.x)?;
+        state.serialize_field("y", &value.y)?;
+        state.end()
+    }
 }

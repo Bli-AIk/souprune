@@ -1,4 +1,5 @@
 use crate::app_state::AppState;
+use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::audio;
 use crate::core::camera::Followable;
 use crate::core::input::PlayerInputSettings;
@@ -59,12 +60,14 @@ fn create_overworld_entities_system(
     mut sprite_params: SpriteParams,
     player_input: Res<PlayerInputSettings>,
     asset_server: Res<AssetServer>,
+    player_behavior: Res<PlayerBehavior>,
 ) {
     player::spawn_overworld_player(
         &mut commands,
         &mut sprite_params,
         &player_input,
         &asset_server,
+        &player_behavior,
     );
 }
 

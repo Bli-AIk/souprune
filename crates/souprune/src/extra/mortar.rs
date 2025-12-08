@@ -21,7 +21,8 @@ pub struct CurrentLocale(pub String);
 
 impl Default for CurrentLocale {
     fn default() -> Self {
-        Self("en-US".to_string())
+        let config = crate::config::load_config();
+        Self(config.project.language.clone())
     }
 }
 
