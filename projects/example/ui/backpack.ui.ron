@@ -259,11 +259,18 @@
         ),
     ],
     global_triggers: Some({
-        "Menu": (
-            target_state: "Backpack",
-            sound: Some("choice.wav"),
-            allowed_states: Some(["Normal"]),
-        ),
+        "Menu": [
+            (
+                target_state: "Backpack",
+                sound: Some("choice.wav"),
+                allowed_states: Some(["Normal"]),
+            ),
+            (
+                target_state: "Normal",
+                sound: None,
+                allowed_states: Some(["Backpack"]),
+            ),
+        ],
     }),
     navigation: Some({
         "BackpackMenu": (

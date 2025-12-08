@@ -83,8 +83,25 @@
 //!
 //! ### Variable Substitution / 变量替换
 //!
-//! - `{{key}}`: Look up in Mortar string table. / 在 Mortar 字符串表中查找。
-//! - `{@path}`: Look up in PlayerData. / 在 PlayerData 中查找 (e.g., `{@player.hp}`).
+//! {@path}: Look up in PlayerData. / 在 PlayerData 中查找 (e.g., `{@player.hp}`).
+//! 
+//! ### Global Triggers / 全局触发器
+//! 
+//! Define global actions that trigger state changes.
+//! 
+//! 定义触发状态更改的全局操作。
+//! 
+//! ```ron
+//! global_triggers: Some({
+//!     "Menu": [
+//!         (
+//!             target_state: "Backpack",
+//!             sound: Some("choice.wav"),
+//!             allowed_states: Some(["Normal"]),
+//!         ),
+//!     ],
+//! }),
+//! ```
 
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType, Val};
@@ -121,7 +138,7 @@ pub struct UILayoutAsset {
     #[serde(default)]
     pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
     #[serde(default)]
-    pub global_triggers: Option<HashMap<String, GlobalTriggerRuleDef>>,
+    pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

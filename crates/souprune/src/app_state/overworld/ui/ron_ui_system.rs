@@ -46,104 +46,206 @@ pub struct UILayoutWatcher {
 }
 
 #[derive(Resource, Default)]
+
 pub struct UIGlobalTriggerConfig {
-    pub triggers: HashMap<Action, GlobalTriggerRule>,
+
+    pub triggers: HashMap<Action, Vec<GlobalTriggerRule>>,
+
 }
+
+
 
 #[derive(Clone)]
+
 pub struct GlobalTriggerRule {
+
     pub target_state: OverworldState,
+
     pub sound: Option<String>,
+
     pub allowed_states: Vec<OverworldState>,
+
 }
+
+
 
 impl UILayoutWatcher {
+
     fn new() -> Self {
+
         Self {
+
             timer: Timer::from_seconds(1.0, TimerMode::Repeating),
+
             pending_reload: false,
+
         }
+
     }
+
 }
+
+
 
 pub fn load_ui_layout_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+
     let handle: Handle<UILayoutAsset> = asset_server.load(UI_LAYOUT_ASSET_PATH);
 
+
+
     let last_modified = std::fs::metadata(UI_LAYOUT_FS_PATH)
+
         .ok()
+
         .and_then(|meta| meta.modified().ok());
 
+
+
     commands.insert_resource(UILayoutHandle {
+
         handle,
+
         last_modified,
+
     });
+
     commands.insert_resource(UILayoutWatcher::new());
+
     info!("Loading UI layout from RON file");
+
 }
 
+
+
 pub fn load_navigation_and_transitions_system(
+
     ui_layout_handle: Option<Res<UILayoutHandle>>,
+
     ui_layouts: Res<Assets<UILayoutAsset>>,
+
     mut navigation_config: ResMut<UILayerNavigationConfig>,
+
     mut transition_config: ResMut<UILayerTransitionConfig>,
+
     mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
+
     mut loaded_marker: Local<bool>,
+
 ) {
+
     // Only load once
+
     //
+
     // 仅加载一次
+
     if *loaded_marker {
+
         return;
+
     }
 
+
+
     let Some(ui_layout_handle) = ui_layout_handle else {
+
         return;
+
     };
 
+
+
     let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
+
         return;
+
     };
+
+
 
     *loaded_marker = true;
 
-    if let Some(global_triggers) = &ui_layout.global_triggers {
-        for (action_str, rule_def) in global_triggers {
-            if let Some(action) = parse_action(action_str) {
-                if let Some(target_state) = parse_overworld_state(&rule_def.target_state) {
-                    let allowed_states = rule_def
-                        .allowed_states
-                        .as_ref()
-                        .map(|states| {
-                            states
-                                .iter()
-                                .filter_map(|s| parse_overworld_state(s))
-                                .collect()
-                        })
-                        .unwrap_or_default();
 
-                    global_trigger_config.triggers.insert(
-                        action,
-                        GlobalTriggerRule {
+
+    if let Some(global_triggers) = &ui_layout.global_triggers {
+
+        for (action_str, rules_def) in global_triggers {
+
+            if let Some(action) = parse_action(action_str) {
+
+                let mut rules = Vec::new();
+
+                for rule_def in rules_def {
+
+                    if let Some(target_state) = parse_overworld_state(&rule_def.target_state) {
+
+                        let allowed_states = rule_def
+
+                            .allowed_states
+
+                            .as_ref()
+
+                            .map(|states| {
+
+                                states
+
+                                    .iter()
+
+                                    .filter_map(|s| parse_overworld_state(s))
+
+                                    .collect()
+
+                            })
+
+                            .unwrap_or_default();
+
+
+
+                        rules.push(GlobalTriggerRule {
+
                             target_state,
+
                             sound: rule_def.sound.clone(),
+
                             allowed_states,
-                        },
-                    );
-                } else {
-                    warn!(
-                        "Unknown target state '{}' in global triggers",
-                        rule_def.target_state
-                    );
+
+                        });
+
+                    } else {
+
+                        warn!(
+
+                            "Unknown target state '{}' in global triggers",
+
+                            rule_def.target_state
+
+                        );
+
+                    }
+
                 }
+
+                global_trigger_config.triggers.insert(action, rules);
+
             } else {
+
                 warn!("Unknown action '{}' in global triggers", action_str);
+
             }
+
         }
+
         info!(
+
             "Loaded global trigger config from RON with {} triggers",
+
             global_triggers.len()
+
         );
+
     }
+
+
 
     if let Some(navigation) = &ui_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {
