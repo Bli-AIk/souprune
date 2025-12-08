@@ -146,10 +146,14 @@ pub fn spawn_overworld_player(
         Ok(clip) => clip,
         Err(e) => {
             error!(
-                "Failed to load initial player animation 'frisk_walk_down': {}. Player spawn aborted.",
+                "Failed to load initial player animation 'frisk_walk_down': {}. Using fallback.",
                 e
             );
-            return;
+            SpriteAnimationClip::fallback(
+                &mut sprite_params.create_sprite_context(),
+                "overworld",
+                "frisk_walk_down",
+            )
         }
     };
 
