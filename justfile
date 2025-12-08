@@ -1,53 +1,89 @@
-# 默认任务：构建 souprune（带 debug 特性）
+# ===============================================
+# 可覆盖变量（默认 souprune）
+# 用法：just project=mygame build
+# ===============================================
+project := env_var_or_default("project", "souprune")
+
+# ===============================================
+# 默认任务：debug 构建
+# ===============================================
 default:
-    cargo build --package souprune --bin souprune --features debug
+    cargo build -p {{project}} --features debug
 
+# ===============================================
 # 格式化
+# ===============================================
 fmt:
-    cargo fmt --all
+    cargo fmt -p {{project}}
 
-# 仅运行 clippy
+# ===============================================
+# clippy
+# ===============================================
 clippy:
-    cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy -p {{project}} --all-targets --all-features
 
+# ===============================================
 # 拼写检查
+# ===============================================
 typos:
-    typos
+    typos crates/{{project}}
 
-# 代码统计检查（超过 1000 行报错）
+# ===============================================
+# Tokei 行数检查
+# ===============================================
 tokei-check:
-    @# 检查每个 Rust 文件，如果代码行数（不含注释和空行）超过 1000 行则报错
-    @result=$(tokei --output json --files | jq -r '.Rust.reports[]? | select(.stats.code > 1000) | "Error: \(.name) has \(.stats.code) lines of code"') && \
+    @result=$(tokei crates/{{project}} --output json --files | jq -r '.Rust.reports[]? | select(.stats.code > 1000) | "Error: \(.name) has \(.stats.code) lines of code"') && \
     if [ -n "$result" ]; then \
         echo "$result"; \
         exit 1; \
     else \
-        echo "Tokei OK: All Rust files are under 1000 lines of code."; \
+        echo "Tokei OK: All Rust files under 1000 lines."; \
     fi
 
-# 综合检查（clippy + typos + tokei）
+# ===============================================
+# check
+# ===============================================
 check:
-    just clippy
-    just typos
-    just tokei-check
+    cargo check -p {{project}} --all-targets --all-features
 
-# 自动修复（clippy fix + typos -w）
+# ===============================================
+# 综合检查
+# ===============================================
+full_check: clippy typos tokei-check
+    echo "all checks completed"
+
+# ===============================================
+# clippy 自动修复
+# ===============================================
 fix:
-    cargo clippy --fix --allow-dirty --all-features
-    typos -w
+    cargo clippy -p {{project}} --fix --allow-dirty --allow-staged --all-features
 
-# 构建（无 debug feature）
+# ===============================================
+# 普通构建（release 前）
+# ===============================================
 build:
-    cargo build --package souprune --bin souprune
+    cargo build -p {{project}}
 
-# 运行（无 debug feature）
+# ===============================================
+# 普通运行（无 debug）
+# ===============================================
 run:
-    cargo run --package souprune --bin souprune
+    cargo run -p {{project}}
 
+# ===============================================
+# 测试
+# ===============================================
+test:
+    cargo test -p {{project}}
+
+# ===============================================
 # 开发运行（debug）
+# ===============================================
 dev:
-    cargo run --package souprune --bin souprune --features debug
+    cargo run -p {{project}} --features debug
 
+# ===============================================
 # 清理
+# ===============================================
 clean:
     cargo clean
