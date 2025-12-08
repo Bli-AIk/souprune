@@ -84,13 +84,13 @@
 //! ### Variable Substitution / 变量替换
 //!
 //! {@path}: Look up in PlayerData. / 在 PlayerData 中查找 (e.g., `{@player.hp}`).
-//! 
+//!
 //! ### Global Triggers / 全局触发器
-//! 
+//!
 //! Define global actions that trigger state changes.
-//! 
+//!
 //! 定义触发状态更改的全局操作。
-//! 
+//!
 //! ```ron
 //! global_triggers: Some({
 //!     "Menu": [
