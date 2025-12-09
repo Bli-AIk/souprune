@@ -331,15 +331,38 @@ impl From<UIFontDef> for super::components::UIFont {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct SerializableVec3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+#[serde(untagged)]
+pub enum FloatOrExpr {
+    Static(f32),
+    Dynamic(String),
 }
 
-impl From<SerializableVec3> for Vec3 {
-    fn from(val: SerializableVec3) -> Self {
-        Vec3::new(val.x, val.y, val.z)
+impl FloatOrExpr {
+    pub fn as_float(&self) -> f32 {
+        match self {
+            FloatOrExpr::Static(v) => *v,
+            FloatOrExpr::Dynamic(_) => 0.0,
+        }
+    }
+
+    pub fn as_expr(&self) -> Option<&String> {
+        match self {
+            FloatOrExpr::Dynamic(s) => Some(s),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SerializableVec3 {
+    pub x: FloatOrExpr,
+    pub y: FloatOrExpr,
+    pub z: FloatOrExpr,
+}
+
+impl SerializableVec3 {
+    pub fn to_static_vec3(&self) -> Vec3 {
+        Vec3::new(self.x.as_float(), self.y.as_float(), self.z.as_float())
     }
 }
 

@@ -68,7 +68,11 @@
                 width: 65.0,
                 height: 49.0,
                 border_width: 3.0,
-                offset: (x: -108.5, y: 66.5, z: 0.0),
+                    offset: (
+                        x: -108.5,
+                        y: "if(player.y > camera.y, -68.5, 66.5)",
+                        z: 0.0
+                ),
             )),
             visibility_rule: Some((
                 rule_type: "Always",

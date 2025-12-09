@@ -36,6 +36,7 @@ mod ui_box;
 use asset_loader::UILayoutAssetLoader;
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
+    update_dynamic_camera_anchors_system,
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
@@ -90,6 +91,7 @@ impl Plugin for OverworldUIPlugin {
                     show_text_when_ready_system,
                     update_camera_anchored_ui_on_camera_move_system,
                     update_camera_anchored_ui_on_change_system,
+                    update_dynamic_camera_anchors_system,
                     update_dynamic_text_system,
                 ),
             );

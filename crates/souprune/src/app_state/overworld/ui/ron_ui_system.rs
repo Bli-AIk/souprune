@@ -614,10 +614,10 @@ fn spawn_ui_node(
                         color,
                         transform: {
                             let mut t = Transform::from_translation(
-                                text_def.transform.translation.clone().into(),
+                                text_def.transform.translation.to_static_vec3(),
                             );
                             if let Some(scale) = &text_def.transform.scale {
-                                t.scale = scale.clone().into();
+                                t.scale = scale.to_static_vec3();
                             }
                             if let Some(rot) = text_def.transform.rotation {
                                 t.rotation = Quat::from_rotation_z(rot.to_radians());
@@ -630,7 +630,19 @@ fn spawn_ui_node(
                 })
                 .collect::<Vec<_>>();
 
-            let offset: Vec3 = ui_shape_logic.offset.clone().into();
+            let offset = ui_shape_logic.offset.to_static_vec3();
+            let dynamic_anchor = if ui_shape_logic.offset.x.as_expr().is_some()
+                || ui_shape_logic.offset.y.as_expr().is_some()
+                || ui_shape_logic.offset.z.as_expr().is_some()
+            {
+                Some(CameraAnchoredDynamic {
+                    x_expression: ui_shape_logic.offset.x.as_expr().cloned(),
+                    y_expression: ui_shape_logic.offset.y.as_expr().cloned(),
+                    z_expression: ui_shape_logic.offset.z.as_expr().cloned(),
+                })
+            } else {
+                None
+            };
 
             let mut box_entity = parent.spawn((
                 OverworldUIBox::new_with_texts(
@@ -645,6 +657,10 @@ fn spawn_ui_node(
                 Name::new(node_def.name.clone()),
                 RonDrivenUI,
             ));
+
+            if let Some(dynamic) = dynamic_anchor {
+                box_entity.insert(dynamic);
+            }
 
             if let Some(cursor_def) = &node_def.cursor {
                 let mut sprite_context = sprite_params.create_sprite_context();
@@ -663,21 +679,21 @@ fn spawn_ui_node(
                 let cursor_position = if let Some(default_pos) = &cursor_def.default_translation {
                     match default_pos {
                         BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(vec.clone().into())
+                            BoxCursorPosition::Static(vec.to_static_vec3())
                         }
                         BoxCursorPositionDef::Linear { origin, step } => {
                             BoxCursorPosition::Linear {
-                                origin: origin.clone().into(),
-                                step: step.clone().into(),
+                                origin: origin.to_static_vec3(),
+                                step: step.to_static_vec3(),
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| v.clone().into()).collect(),
+                            positions.iter().map(|v| v.to_static_vec3()).collect(),
                         ),
                     }
                 } else if let Some(transform) = &cursor_def.transform {
                     if let Some(translation) = &transform.translation {
-                        BoxCursorPosition::Static(translation.clone().into())
+                        BoxCursorPosition::Static(translation.to_static_vec3())
                     } else {
                         // Fallback if no translation is defined in transform either
                         //
@@ -702,16 +718,16 @@ fn spawn_ui_node(
                     let layer = UILayer::new(layer_name.clone());
                     let position = match position_def {
                         BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(vec.clone().into())
+                            BoxCursorPosition::Static(vec.to_static_vec3())
                         }
                         BoxCursorPositionDef::Linear { origin, step } => {
                             BoxCursorPosition::Linear {
-                                origin: origin.clone().into(),
-                                step: step.clone().into(),
+                                origin: origin.to_static_vec3(),
+                                step: step.to_static_vec3(),
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| v.clone().into()).collect(),
+                            positions.iter().map(|v| v.to_static_vec3()).collect(),
                         ),
                     };
                     placement = placement.with_override(layer, position);
@@ -720,7 +736,7 @@ fn spawn_ui_node(
                 let cursor_transform = if let Some(transform_def) = &cursor_def.transform {
                     let mut transform = Transform::default();
                     if let Some(scale) = &transform_def.scale {
-                        transform.scale = scale.clone().into();
+                        transform.scale = scale.to_static_vec3();
                     } else {
                         transform.scale = Vec3::splat(1.0);
                     }

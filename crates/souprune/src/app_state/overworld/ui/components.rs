@@ -266,6 +266,17 @@ impl CameraAnchored {
     }
 }
 
+/// Marks UI entities that should stick to the camera with a dynamic offset evaluated from expressions.
+///
+/// 标记需要根据从表达式评估的动态偏移量粘附在相机上的 UI 实体。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchoredDynamic {
+    pub(crate) x_expression: Option<String>,
+    pub(crate) y_expression: Option<String>,
+    pub(crate) z_expression: Option<String>,
+}
+
 /// Convenience bundle to apply [`CameraAnchored`] with the correct transform in one go.
 ///
 /// 方便的 Bundle，便于一次性添加 [`CameraAnchored`] 与正确的 Transform。
