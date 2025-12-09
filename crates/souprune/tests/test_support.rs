@@ -8,6 +8,7 @@ use ron::de::from_str;
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 static WORKSPACE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -55,4 +56,31 @@ pub fn ensure_project_asset(relative: &str) {
     if !path.exists() {
         panic!("Asset {} missing", path.display());
     }
+}
+
+/// Recursively list project files under `relative_dir` whose file names end with `suffix`.
+///
+/// 递归列出 `relative_dir` 下以 `suffix` 结尾的项目文件。
+pub fn list_project_files_with_suffix(relative_dir: &str, suffix: &str) -> Vec<String> {
+    let mut files = Vec::new();
+    let base = PROJECT_ROOT.join(relative_dir);
+    if base.exists() {
+        for entry in WalkDir::new(&base)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+        {
+            let path = entry.path();
+            if path.to_string_lossy().ends_with(suffix) {
+                let relative = path
+                    .strip_prefix(PROJECT_ROOT.as_path())
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                files.push(relative);
+            }
+        }
+    }
+    files.sort();
+    files
 }

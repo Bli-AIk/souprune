@@ -5,8 +5,9 @@ pub mod extra;
 
 pub use crate::app_state::overworld::player::config::PlayerBehavior;
 pub use crate::app_state::overworld::ui::layout::{
-    FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef, SerializableVec3,
-    TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset, UINodeDef,
+    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
+    UINodeDef,
 };
 pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
