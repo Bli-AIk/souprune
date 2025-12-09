@@ -74,34 +74,31 @@ pub fn update_ui_from_map_system(
     asset_server: Res<AssetServer>,
     tiled_maps_query: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    mut ui_layout_handle: Option<ResMut<UILayoutHandle>>,
     mut watcher: Option<ResMut<UILayoutWatcher>>,
     mut current_ui_path: Local<Option<String>>,
 ) {
     for tiled_map in tiled_maps_query.iter() {
-        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
-            if let Some(property_value) = map_asset.map.properties.get("backpack_ui") {
-                if let tiled::PropertyValue::StringValue(path) = property_value {
-                    if current_ui_path.as_deref() != Some(path) {
-                        info!("Switching backpack UI to: {}", path);
-                        *current_ui_path = Some(path.clone());
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(property_value) = map_asset.map.properties.get("backpack_ui")
+            && let tiled::PropertyValue::StringValue(path) = property_value
+            && current_ui_path.as_deref() != Some(path)
+        {
+            info!("Switching backpack UI to: {}", path);
+            *current_ui_path = Some(path.clone());
 
-                        let handle = asset_server.load(path.clone());
+            let handle = asset_server.load(path.clone());
 
-                        commands.insert_resource(UILayoutHandle {
-                            handle,
-                            last_modified: None,
-                        });
+            commands.insert_resource(UILayoutHandle {
+                handle,
+                last_modified: None,
+            });
 
-                        if let Some(ref mut w) = watcher {
-                            w.pending_reload = true;
-                        } else {
-                            let mut w = UILayoutWatcher::new();
-                            w.pending_reload = true;
-                            commands.insert_resource(w);
-                        }
-                    }
-                }
+            if let Some(ref mut w) = watcher {
+                w.pending_reload = true;
+            } else {
+                let mut w = UILayoutWatcher::new();
+                w.pending_reload = true;
+                commands.insert_resource(w);
             }
         }
     }
@@ -176,7 +173,7 @@ pub fn load_navigation_and_transitions_system(
 
     if let Some(navigation) = &ui_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {
-            let mut adjustments = std::collections::HashMap::new();
+            let mut adjustments = HashMap::new();
 
             for (action_str, delta) in &nav_rule_def.mappings {
                 if let Some(action) = parse_action(action_str) {
@@ -407,16 +404,6 @@ pub fn spawn_ron_ui_system(
     }
 }
 
-pub fn hot_reload_ron_ui_system(
-    _time: Res<Time>,
-    _ui_layout_handle: Option<ResMut<UILayoutHandle>>,
-    _watcher: Option<ResMut<UILayoutWatcher>>,
-    _ui_layouts: ResMut<Assets<UILayoutAsset>>,
-) {
-    // Hot reload temporarily disabled for dynamic paths
-    return;
-}
-
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     // Schedule recursive despawn to avoid borrowing the world inside the system.
     //
@@ -550,7 +537,7 @@ fn spawn_ron_ui_for_entity(
 }
 
 use crate::app_state::overworld::ui::ui_box::parse_text_preserving_whitespace;
-use bevy_rich_text3d::{Text3d, Text3dStyling};
+use bevy_rich_text3d::Text3d;
 
 #[allow(clippy::too_many_arguments)]
 fn spawn_ui_node(
@@ -972,7 +959,7 @@ pub(crate) fn resolve_data_path(
 }
 
 pub(crate) fn update_dynamic_text_system(
-    mut text_query: Query<(&UITextTemplate, &mut Text3d, &mut Text3dStyling)>,
+    mut text_query: Query<(&UITextTemplate, &mut Text3d)>,
     player_data: Res<crate::core::data::PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -981,7 +968,7 @@ pub(crate) fn update_dynamic_text_system(
         return;
     }
 
-    for (template, mut text3d, mut styling) in text_query.iter_mut() {
+    for (template, mut text3d) in text_query.iter_mut() {
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
 

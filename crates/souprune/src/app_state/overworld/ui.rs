@@ -49,7 +49,6 @@ use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigat
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
 use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
 
-use crate::app_state::overworld::ui::ron_ui_system::hot_reload_ron_ui_system;
 #[cfg(feature = "debug")]
 use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
@@ -94,11 +93,6 @@ impl Plugin for OverworldUIPlugin {
                     update_dynamic_text_system,
                 ),
             );
-
-        #[cfg(feature = "debug")]
-        {
-            app.add_systems(Update, (hot_reload_ron_ui_system));
-        }
 
         #[cfg(feature = "debug")]
         {
