@@ -217,6 +217,7 @@ impl UIFont {
 pub(crate) struct UITextConfig {
     pub(crate) name: Name,
     pub(crate) content: String,
+    pub(crate) template: Option<String>,
     pub(crate) font: UIFont,
     pub(crate) world_scale: Vec2,
     pub(crate) color: Srgba,
@@ -231,6 +232,7 @@ impl Default for UITextConfig {
         Self {
             name: Name::new("Text"),
             content: "Text".to_string(),
+            template: None,
             font: UIFont::DeterminationMono,
             world_scale: Vec2::splat(13.),
             color: Srgba::WHITE,
@@ -241,6 +243,13 @@ impl Default for UITextConfig {
         }
     }
 }
+
+/// Stores the original template string for dynamic text updates.
+///
+/// 存储原始模板字符串以用于动态文本更新。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UITextTemplate(pub(crate) String);
 
 /// Marks UI entities that should stick to the camera with a constant offset.
 ///

@@ -18,7 +18,9 @@
 //!
 //! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
 
-use super::components::{OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller};
+use super::components::{
+    OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UITextTemplate,
+};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -31,7 +33,7 @@ use std::collections::VecDeque;
 
 /// Parse text with color tags while preserving whitespace.
 /// Supports `{#RRGGBB:text}` syntax for colored text.
-fn parse_text_preserving_whitespace(text: &str) -> Text3d {
+pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
     let mut segments = Vec::new();
     let mut buffer = String::new();
     let mut chars = text.chars().peekable();
@@ -212,7 +214,7 @@ fn spawn_ui_box_children(
                 // Text3d::parse() 会合并连续空格，所以我们手动构建片段
                 let text3d = parse_text_preserving_whitespace(&text_config.content);
 
-                filler_parent.spawn((
+                let mut cmd = filler_parent.spawn((
                     text_config.name.clone(),
                     text3d,
                     Text3dStyling {
@@ -231,6 +233,10 @@ fn spawn_ui_box_children(
                     Visibility::Hidden,
                     NeedsGlyphRefresh,
                 ));
+
+                if let Some(template) = &text_config.template {
+                    cmd.insert(UITextTemplate(template.clone()));
+                }
             }
         });
 }

@@ -90,10 +90,7 @@ fn get_bevy_default_plugins(resolution_scale: u32) -> PluginGroupBuilder {
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: WindowResolution::new(
-                    320 * resolution_scale,
-                    240 * resolution_scale,
-                ),
+                resolution: WindowResolution::new(320 * resolution_scale, 240 * resolution_scale),
                 resizable: false,
                 ..default()
             }),
@@ -124,22 +121,23 @@ fn get_file_importer_plugins() -> (
 ///
 /// 获取应用程序中使用的第三方插件。
 fn get_third_plugins() -> (
-    leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>,
+    leafwing_input_manager::prelude::InputManagerPlugin<crate::core::input::Action>,
     seldom_state::prelude::StateMachinePlugin,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
 ) {
     (
-        leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>::default(),
+        leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>::default(
+        ),
         seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
         bevy_smud::SmudPlugin,
-        bevy_rich_text3d::Text3dPlugin{
+        bevy_rich_text3d::Text3dPlugin {
             default_atlas_dimension: (1024, 1024),
             load_system_fonts: false,
             ..Default::default()
-        }
+        },
     )
 }
 
