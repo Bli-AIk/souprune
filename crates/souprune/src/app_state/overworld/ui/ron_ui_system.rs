@@ -912,15 +912,15 @@ pub(crate) fn resolve_data_path(
             .collect::<Vec<String>>()
             .join("\n"),
         "player.weapon" => {
-            if let Some(item) = item_registry.get(&player_data.weapon) {
+            if let Some(item) = item_registry.get(&player_data.weapon.0) {
                 let key = format!("{}:{}", item.locate_file, item.locate_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
-                player_data.weapon.clone()
+                player_data.weapon.0.clone()
             }
         }
         "player.weapon_atk" => {
-            if let Some(item) = item_registry.get(&player_data.weapon)
+            if let Some(item) = item_registry.get(&player_data.weapon.0)
                 && let ItemType::Weapon { damage, .. } = item.item_type
             {
                 return damage.to_string();
@@ -928,7 +928,7 @@ pub(crate) fn resolve_data_path(
             "0".to_string()
         }
         "player.total_attack" => {
-            let weapon_atk = if let Some(item) = item_registry.get(&player_data.weapon) {
+            let weapon_atk = if let Some(item) = item_registry.get(&player_data.weapon.0) {
                 if let ItemType::Weapon { damage, .. } = item.item_type {
                     damage as usize
                 } else {
@@ -940,15 +940,15 @@ pub(crate) fn resolve_data_path(
             (player_data.attack + weapon_atk).to_string()
         }
         "player.armor" => {
-            if let Some(item) = item_registry.get(&player_data.armor) {
+            if let Some(item) = item_registry.get(&player_data.armor.0) {
                 let key = format!("{}:{}", item.locate_file, item.locate_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
-                player_data.armor.clone()
+                player_data.armor.0.clone()
             }
         }
         "player.armor_def" => {
-            if let Some(item) = item_registry.get(&player_data.armor)
+            if let Some(item) = item_registry.get(&player_data.armor.0)
                 && let ItemType::Armor { defense } = item.item_type
             {
                 return defense.to_string();
@@ -956,7 +956,7 @@ pub(crate) fn resolve_data_path(
             "0".to_string()
         }
         "player.total_defense" => {
-            let armor_def = if let Some(item) = item_registry.get(&player_data.armor) {
+            let armor_def = if let Some(item) = item_registry.get(&player_data.armor.0) {
                 if let ItemType::Armor { defense } = item.item_type {
                     defense as usize
                 } else {

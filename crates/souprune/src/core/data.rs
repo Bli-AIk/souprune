@@ -47,8 +47,8 @@ pub(crate) struct PlayerData {
     pub(crate) attack: usize,
     pub(crate) defense: usize,
     pub(crate) gold: usize,
-    pub(crate) weapon: String, // TODO: 待引入物品系统后改为物品ID
-    pub(crate) armor: String,
+    pub(crate) weapon: ItemId,
+    pub(crate) armor: ItemId,
     pub(crate) inventory: Vec<ItemId>,
     pub(crate) inventory_capacity: usize,
 }
@@ -65,8 +65,8 @@ impl Default for PlayerData {
             attack: 0,
             defense: 0,
             gold: 42,
-            weapon: "stick".to_string(),
-            armor: "bandage".to_string(),
+            weapon: ItemId("stick".to_string()),
+            armor: ItemId("bandage".to_string()),
             inventory: vec![
                 ItemId("monster_candy".to_string()),
                 ItemId("monster_candy".to_string()),
