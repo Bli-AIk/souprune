@@ -26,6 +26,18 @@
         )
     ),
     (
+        id: "dry_noodles",
+        locate_name: "DRY_NOODLES",
+        locate_file: "items",
+        description: "You don't have the water to boil them.",
+        item_type: Food(
+            consumable: true,
+            effects: [
+                Heal(amount: 2),
+            ]
+        )
+    ),
+    (
         id: "tough_glove",
         locate_name: "TOUGH_GLOVE",
         locate_file: "items",

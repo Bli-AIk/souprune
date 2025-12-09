@@ -5388,6 +5388,7 @@ dependencies = [
  "iyes_perf_ui",
  "leafwing-input-manager",
  "log",
+ "once_cell",
  "proptest",
  "ron",
  "seldom_state",

@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy_kira_audio::Audio;
 
 pub(crate) mod character;
-mod player;
+pub(crate) mod player;
 pub(crate) mod tilemap;
 pub(crate) mod ui;
 

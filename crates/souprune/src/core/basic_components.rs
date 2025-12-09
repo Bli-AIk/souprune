@@ -10,8 +10,8 @@ pub(crate) struct Facing {
     pub value: Direction,
 }
 
-#[derive(Default, Clone, Copy, Serialize, Deserialize, Debug)]
-pub(crate) enum Direction {
+#[derive(Default, Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum Direction {
     Up,
     #[default]
     Down,
