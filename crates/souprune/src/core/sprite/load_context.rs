@@ -1,6 +1,7 @@
 use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;
+use anyhow::{Result, anyhow};
 use bevy::asset::{Assets, LoadedFolder};
 use bevy::image::{Image, TextureAtlas, TextureAtlasLayout};
 use bevy::prelude::Sprite;
@@ -33,7 +34,11 @@ impl<'a> SpriteLoadContext<'a> {
         }
     }
 
-    pub(crate) fn get_sprite(&mut self, module_name: &str, config_item_name: &str) -> Sprite {
+    pub(crate) fn get_sprite(
+        &mut self,
+        module_name: &str,
+        config_item_name: &str,
+    ) -> Result<Sprite> {
         let (atlas_layout_handle, texture, index_map) =
             crate::core::sprite::utils::get_or_create_texture_atlas(
                 module_name,
@@ -43,7 +48,7 @@ impl<'a> SpriteLoadContext<'a> {
                 self.textures,
                 self.toml_assets,
                 self.toml_registry,
-            );
+            )?;
 
         let (sprite_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
@@ -53,15 +58,19 @@ impl<'a> SpriteLoadContext<'a> {
                     sprite_config.flip_y,
                 )
             } else {
-                panic!("Sprite not found in configuration '{}'", config_item_name);
+                return Err(anyhow!(
+                    "Sprite not found in configuration '{}'",
+                    config_item_name
+                ));
             };
 
-        let sprite_index = *index_map.get(&sprite_path).unwrap_or_else(|| {
-            panic!(
+        let sprite_index = *index_map.get(&sprite_path).ok_or_else(|| {
+            anyhow!(
                 "The path '{}' of sprite '{}' was not found in the gallery",
-                config_item_name, sprite_path
+                config_item_name,
+                sprite_path
             )
-        });
+        })?;
 
         let mut sprite = Sprite::from_atlas_image(
             texture,
@@ -72,17 +81,19 @@ impl<'a> SpriteLoadContext<'a> {
         );
 
         // Apply flip settings
+        //
+        // 应用翻转设置
         sprite.flip_x = flip_x;
         sprite.flip_y = flip_y;
 
-        sprite
+        Ok(sprite)
     }
 
     pub(crate) fn get_sprite_animations(
         &mut self,
         module_name: &str,
         config_item_name: &str,
-    ) -> Vec<Sprite> {
+    ) -> Result<Vec<Sprite>> {
         let (atlas_layout_handle, texture, index_map) =
             crate::core::sprite::utils::get_or_create_texture_atlas(
                 module_name,
@@ -92,7 +103,7 @@ impl<'a> SpriteLoadContext<'a> {
                 self.textures,
                 self.toml_assets,
                 self.toml_registry,
-            );
+            )?;
 
         let (config_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
@@ -102,18 +113,22 @@ impl<'a> SpriteLoadContext<'a> {
                     sprite_config.flip_y,
                 )
             } else {
-                panic!(
+                return Err(anyhow!(
                     "Animation not found in configuration '{}'",
                     config_item_name
-                );
+                ));
             };
 
         // Check if path points to a single file
+        //
+        // 检查路径是否指向单个文件
         if config_path.ends_with(".png")
             || config_path.ends_with(".jpg")
             || config_path.ends_with(".jpeg")
         {
             // Single file: Find matching files directly
+            //
+            // 单个文件：直接查找匹配文件
             if let Some(&sprite_index) = index_map.get(&config_path) {
                 let mut sprite = Sprite::from_atlas_image(
                     texture,
@@ -124,34 +139,42 @@ impl<'a> SpriteLoadContext<'a> {
                 );
 
                 // Apply flip settings
+                //
+                // 应用翻转设置
                 sprite.flip_x = flip_x;
                 sprite.flip_y = flip_y;
 
-                vec![sprite]
+                Ok(vec![sprite])
             } else {
-                panic!(
+                Err(anyhow!(
                     "Single file '{}' not found for animation '{}'",
-                    config_path, config_item_name
-                );
+                    config_path,
+                    config_item_name
+                ))
             }
         } else {
             // Directory: collect all matching files and sort them
+            //
+            // 目录：收集所有匹配文件并进行排序
             let mut matching_files: Vec<_> = index_map
                 .iter()
                 .filter(|(path, _)| path.starts_with(&config_path))
                 .collect();
 
             if matching_files.is_empty() {
-                panic!(
+                return Err(anyhow!(
                     "No files found in directory '{}' for animation '{}'",
-                    config_path, config_item_name
-                );
+                    config_path,
+                    config_item_name
+                ));
             }
 
             // Sort by filename to ensure correct frame order
+            //
+            // 按文件名排序以确保正确的帧顺序
             matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
 
-            matching_files
+            let sprites = matching_files
                 .into_iter()
                 .map(|(_, &sprite_index)| {
                     let mut sprite = Sprite::from_atlas_image(
@@ -163,12 +186,16 @@ impl<'a> SpriteLoadContext<'a> {
                     );
 
                     // Apply flip settings to each frame
+                    //
+                    // 对每一帧应用翻转设置
                     sprite.flip_x = flip_x;
                     sprite.flip_y = flip_y;
 
                     sprite
                 })
-                .collect()
+                .collect();
+
+            Ok(sprites)
         }
     }
 
@@ -176,15 +203,15 @@ impl<'a> SpriteLoadContext<'a> {
         &mut self,
         module_name: &str,
         config_item_name: &str,
-    ) -> (Vec<Sprite>, bool) {
-        let sprites = self.get_sprite_animations(module_name, config_item_name);
+    ) -> Result<(Vec<Sprite>, bool)> {
+        let sprites = self.get_sprite_animations(module_name, config_item_name)?;
         let looping =
             if let Some(animation_config) = self.toml_registry.get_animation(config_item_name) {
                 animation_config.looping
             } else {
                 true
             };
-        (sprites, looping)
+        Ok((sprites, looping))
     }
 
     pub(crate) fn get_animation_frame_duration(&self, config_item_name: &str) -> f32 {
@@ -192,6 +219,17 @@ impl<'a> SpriteLoadContext<'a> {
             animation_config.frame_duration
         } else {
             0.15
+        }
+    }
+
+    pub(crate) fn get_missing_sprite(&mut self) -> Sprite {
+        let texture = crate::core::sprite::utils::get_or_create_missing_texture(
+            self.sprite_registry,
+            self.textures,
+        );
+        Sprite {
+            image: texture,
+            ..Default::default()
         }
     }
 }

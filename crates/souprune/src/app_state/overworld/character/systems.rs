@@ -1,4 +1,25 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module implements systems for character movement and animation updates.
+//!
+//! 本模块实现角色移动和动画更新的系统。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages state transitions based on input and game state.
+//!
+//! 根据输入和游戏状态管理状态转换。
+
 use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
+use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -23,6 +44,7 @@ pub(crate) fn update_walking_system(
 }
 pub(crate) fn update_running_system(
     time: Res<Time>,
+    behavior: Res<PlayerBehavior>,
     mut query: Query<
         (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
         With<StateRunning>,
@@ -32,7 +54,7 @@ pub(crate) fn update_running_system(
         apply_walking_step(
             &mut transform,
             facing,
-            speed.value * 2.0,
+            speed.value * behavior.run_speed_multiplier,
             action_state,
             time.delta_secs(),
         );

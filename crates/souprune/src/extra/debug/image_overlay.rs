@@ -149,7 +149,7 @@ pub mod debug_image_overlay {
         // Check multiple potential debug folder locations.
         //
         // 检查多个可能的 debug 文件夹位置。
-        let possible_paths = ["assets/debug", "crates/souprune/assets/debug"];
+        let possible_paths = ["crates/souprune/assets/debug", "assets/debug"];
         let extensions = ["png", "jpg", "jpeg", "gif", "bmp", "tiff"];
 
         let mut latest_file: Option<(String, SystemTime)> = None;

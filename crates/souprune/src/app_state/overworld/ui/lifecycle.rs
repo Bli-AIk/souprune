@@ -1,13 +1,40 @@
-use super::components::{OverworldUI, UILayer};
+//! # lifecycle.rs
+//!
+//! # lifecycle.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles the spawning and lifecycle of UI entities.
+//!
+//! 本模块处理 UI 实体的生成和生命周期。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages the root UI entity that controls the menu system.
+//!
+//! 管理控制菜单系统的根 UI 实体。
+
+use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
+use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
-/// Spawn the root UI entity that drives the Undertale-style backpack menu.
+/// Spawn the root UI entity that drives the backpack menu.
 ///
 /// 生成 Undertale 风背包菜单的根 UI 实体。
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     overworld_ui_query: Query<&OverworldUI>,
+    locale_loaded: Option<Res<LocaleLoaded>>,
+    navigation_config: Res<UILayerNavigationConfig>,
 ) {
+    if locale_loaded.is_none() {
+        return;
+    }
+
     // Only create the UI if it does not exist yet and we are in the menu state.
     //
     // 仅在处于菜单状态且 UI 尚未存在时才创建 UI。
@@ -15,10 +42,18 @@ pub(crate) fn spawn_backpack_ui_system(
         return;
     }
 
-    // Dynamically compute `UILayer` total count minus one.
+    // Get max_index from navigation config, or fallback to hardcoded value
     //
-    // 动态获取 UILayer 的总数减一。
-    let max_index = UILayer::total_count().saturating_sub(1);
+    // 从导航配置中获取 max_index，或回退到硬编码值
+    let player_data = crate::core::data::PlayerData::default();
+    let max_index = navigation_config
+        .get(&UILayer::BACKPACK_MENU)
+        .and_then(|rule| {
+            rule.max_index()
+                .as_ref()
+                .map(|bound| super::ron_ui_system::evaluate_index_bound(bound, &player_data))
+        })
+        .unwrap_or_else(|| UILayer::BACKPACK_MENU_OPTIONS.len());
 
     commands.spawn((
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
@@ -29,20 +64,35 @@ pub(crate) fn spawn_backpack_ui_system(
         Name::new("Backpack Menu UI"),
     ));
 
-    info!("Spawned backpack UI in Menu state");
+    info!(
+        "Spawned backpack UI in Menu state with max_index {}",
+        max_index
+    );
 }
 
-/// Despawn backpack UI entities when leaving the menu state.
+/// Despawn the root UI entity.
 ///
-/// 离开菜单状态时销毁背包 UI 实体。
-pub(crate) fn destroy_backpack_ui_system(
+/// 销毁根 UI 实体。
+pub(crate) fn despawn_backpack_ui_system(
     mut commands: Commands,
-    ui_query: Query<(Entity, &OverworldUI)>,
+    overworld_ui_query: Query<Entity, With<OverworldUI>>,
 ) {
-    for (entity, overworld_ui) in ui_query.iter() {
-        if *overworld_ui.layer() == UILayer::BACKPACK_MENU {
-            commands.entity(entity).despawn();
-            info!("Destroyed backpack UI when leaving Menu state");
-        }
+    for entity in &overworld_ui_query {
+        let root = entity;
+        commands.queue(move |world: &mut World| {
+            let mut stack = vec![root];
+            while let Some(entity) = stack.pop() {
+                if let Ok(entity_ref) = world.get_entity(entity)
+                    && let Some(children) = entity_ref.get::<Children>()
+                {
+                    for child in children.iter() {
+                        stack.push(child);
+                    }
+                }
+
+                let _ = world.despawn(entity);
+            }
+        });
+        info!("Despawned backpack UI");
     }
 }

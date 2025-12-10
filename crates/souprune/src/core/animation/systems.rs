@@ -23,11 +23,15 @@ pub(crate) fn sync_sprite_animation_system(
     >,
 ) {
     // If the entity has no Sprite but a SpriteAnimationClip, remove the SpriteAnimationClip
+    //
+    // 如果实体没有 Sprite 但有 SpriteAnimationClip，则移除 SpriteAnimationClip
     for entity in query_without_sprite.iter() {
         commands.entity(entity).remove::<SpriteAnimationClip>();
     }
 
     // Add components for an entity that has a SpriteAnimationClip but no SpriteAnimationCurrentFrame
+    //
+    // 为有 SpriteAnimationClip 但没有 SpriteAnimationCurrentFrame 的实体添加组件
     for entity in query_with_clip.iter() {
         commands
             .entity(entity)
@@ -35,6 +39,8 @@ pub(crate) fn sync_sprite_animation_system(
     }
 
     // Remove component for entity without SpriteAnimationClip but with SpriteAnimationCurrentFrame
+    //
+    // 为没有 SpriteAnimationClip 但有 SpriteAnimationCurrentFrame 的实体移除组件
     for entity in query_without_clip.iter() {
         commands
             .entity(entity)
@@ -99,6 +105,8 @@ pub(crate) fn setup_sprite_animation_clip_system(
         apply_sprite_animation(&mut sprite, &mut clip, current_frame);
 
         // Get frame duration from configuration
+        //
+        // 从配置获取帧持续时间
         let frame_duration = sprite_params
             .create_sprite_context()
             .get_animation_frame_duration(clip.clip_name());

@@ -31,15 +31,19 @@
 //! 此处定义了 `CorePlugin` 与 `GlobalPlugin`，它们分别在应用生命周期的早期和后期运行。
 
 pub(crate) mod animation;
+pub(crate) mod audio;
 pub(crate) mod basic_components;
 pub(crate) mod camera;
+pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub(crate) mod data;
 pub(crate) mod input;
+pub(crate) mod item;
 pub(crate) mod sprite;
 
 use crate::extra;
 use bevy::app::*;
+use bevy::asset::AssetApp;
 
 /// CorePlugin is a global plugin that runs early in the app lifecycle.
 ///
@@ -53,12 +57,18 @@ pub(crate) struct CorePlugin;
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<extra::toml::config::TomlConfigRegistry>()
+            .init_asset::<character_asset::CharacterAsset>()
+            .init_asset::<character_asset::AnimationConfigAsset>()
+            .init_asset_loader::<character_asset::CharacterAssetLoader>()
+            .init_asset_loader::<character_asset::AnimationConfigAssetLoader>()
             .add_plugins((
                 animation::AnimationPlugin,
+                audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
                 data::DataPlugin,
                 input::InputPlugin,
+                item::ItemPlugin,
                 sprite::SpritePlugin,
             ));
     }

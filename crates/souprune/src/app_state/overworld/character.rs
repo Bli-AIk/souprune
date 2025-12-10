@@ -21,6 +21,7 @@
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
+pub(crate) mod animation;
 pub(crate) mod components;
 pub(crate) mod systems;
 
@@ -30,7 +31,12 @@ impl Plugin for CharacterPlugin {
         use systems::*;
         app.add_systems(
             Update,
-            (update_walking_system, update_running_system).in_set(MovementSet),
+            (
+                update_walking_system,
+                update_running_system,
+                animation::character_animation_system,
+            )
+                .in_set(MovementSet),
         );
     }
 }

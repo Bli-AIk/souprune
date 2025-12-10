@@ -1,5 +1,26 @@
+//! # utils.rs
+//!
+//! # utils.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides utility functions for querying player state.
+//!
+//! 本模块提供用于查询玩家状态的实用函数。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It includes functions for checking if the player is walking or performing actions.
+//!
+//! 包括检查玩家是否在行走或执行操作的函数。
+
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::input::Action;
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
@@ -36,6 +57,7 @@ pub fn is_player_walking(
 pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
+    player_behavior: Res<PlayerBehavior>,
 ) -> prelude::Result<(), ()> {
     // Allow player sprinting only when the overworld state is Normal.
     //
@@ -44,8 +66,12 @@ pub fn is_player_running(
         return Err(());
     }
 
+    let Some(run_action) = player_behavior.run_action else {
+        return Err(());
+    };
+
     let action_state = query.single().map_err(|_| ())?;
-    if action_state.pressed(&Action::Cancel) {
+    if action_state.pressed(&run_action) {
         Ok(())
     } else {
         Err(())

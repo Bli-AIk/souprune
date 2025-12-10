@@ -12,9 +12,7 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{
-    Bundle, Component, Entity, Name, Quat, Resource, Sprite, Transform, Vec2, Vec3,
-};
+use bevy::prelude::{Bundle, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -30,7 +28,14 @@ pub struct UILayer(Cow<'static, str>);
 impl UILayer {
     pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
     pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
+    pub const BACKPACK_ITEM_CHOOSES: UILayer = UILayer::new_static("BackpackItemOptions");
     pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
+
+    /// Defined options for the backpack menu, determining order and count.
+    ///
+    /// 背包菜单的定义选项，决定顺序和数量。
+    pub const BACKPACK_MENU_OPTIONS: &'static [UILayer] =
+        &[Self::BACKPACK_ITEM, Self::BACKPACK_STATUS];
 
     /// Const constructor for static constants
     ///
@@ -49,25 +54,40 @@ impl UILayer {
     /// Get the layer name
     ///
     /// 获取层名称
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         &self.0
-    }
-
-    /// Get the total count of predefined UI layers
-    ///
-    /// 获取预定义 UI 层的总数
-    pub const fn total_count() -> usize {
-        //TODO: 真正计算总数
-        // Count includes BACKPACK_MENU, BACKPACK_ITEM, and BACKPACK_STATUS.
-        //
-        // 计数包含 BACKPACK_MENU、BACKPACK_ITEM 和 BACKPACK_STATUS。
-        3
     }
 }
 
 impl fmt::Display for UILayer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// Options available when selecting an item in the backpack.
+///
+/// 背包中选中物品时可用的选项。
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(usize)]
+pub enum BackpackItemOption {
+    Use = 0,
+    Info = 1,
+    Drop = 2,
+}
+
+impl BackpackItemOption {
+    /// All available item options in order.
+    ///
+    /// 按顺序排列的所有可用物品选项。
+    pub const ALL: &'static [Self] = &[Self::Use, Self::Info, Self::Drop];
+
+    /// Get the total count of item options.
+    ///
+    /// 获取物品选项的总数。
+    pub const fn count() -> usize {
+        Self::ALL.len()
     }
 }
 
@@ -121,6 +141,7 @@ impl OverworldUI {
     /// Get the maximum valid index for the active layer. Indexes are clamped to this value.
     ///
     /// 获取当前激活层的最大有效索引。索引会被限制在该值之内。
+    #[allow(dead_code)]
     pub(crate) fn max_index(&self) -> usize {
         self.max_index
     }
@@ -196,6 +217,7 @@ impl UIFont {
 pub(crate) struct UITextConfig {
     pub(crate) name: Name,
     pub(crate) content: String,
+    pub(crate) template: Option<String>,
     pub(crate) font: UIFont,
     pub(crate) world_scale: Vec2,
     pub(crate) color: Srgba,
@@ -210,6 +232,7 @@ impl Default for UITextConfig {
         Self {
             name: Name::new("Text"),
             content: "Text".to_string(),
+            template: None,
             font: UIFont::DeterminationMono,
             world_scale: Vec2::splat(13.),
             color: Srgba::WHITE,
@@ -220,6 +243,13 @@ impl Default for UITextConfig {
         }
     }
 }
+
+/// Stores the original template string for dynamic text updates.
+///
+/// 存储原始模板字符串以用于动态文本更新。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UITextTemplate(pub(crate) String);
 
 /// Marks UI entities that should stick to the camera with a constant offset.
 ///
@@ -234,6 +264,17 @@ impl CameraAnchored {
     pub(crate) fn new(offset: Vec3) -> Self {
         Self { offset }
     }
+}
+
+/// Marks UI entities that should stick to the camera with a dynamic offset evaluated from expressions.
+///
+/// 标记需要根据从表达式评估的动态偏移量粘附在相机上的 UI 实体。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct CameraAnchoredDynamic {
+    pub(crate) x_expression: Option<String>,
+    pub(crate) y_expression: Option<String>,
+    pub(crate) z_expression: Option<String>,
 }
 
 /// Convenience bundle to apply [`CameraAnchored`] with the correct transform in one go.
@@ -268,6 +309,7 @@ impl OverworldUIBox {
     /// Create a new `OverworldUIBox` component with the given dimensions and border width.
     ///
     /// 创建一个新的 `OverworldUIBox` 组件，指定尺寸和边框宽度。
+    #[allow(dead_code)]
     pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
         Self {
             width,
@@ -318,6 +360,7 @@ impl OverworldUIBox {
     /// Set the box dimensions.
     ///
     /// 设置框的尺寸。
+    #[allow(dead_code)]
     pub(crate) fn set_dimensions(&mut self, width: f32, height: f32) {
         self.width = width;
         self.height = height;
@@ -326,6 +369,7 @@ impl OverworldUIBox {
     /// Set the border width.
     ///
     /// 设置边框宽度。
+    #[allow(dead_code)]
     pub(crate) fn set_border_width(&mut self, border_width: f32) {
         self.border_width = border_width;
     }
@@ -345,6 +389,7 @@ impl OverworldUIBoxVisibility {
         Self { rule }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
         &self.rule
     }
@@ -383,17 +428,13 @@ pub(crate) struct UIBoxFiller;
 /// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
+#[derive(Default)]
 pub(crate) enum UILayerVisibilityRule {
+    #[default]
     Always,
     AlwaysHidden,
     OnlyIn(Vec<UILayer>),
     Except(Vec<UILayer>),
-}
-
-impl Default for UILayerVisibilityRule {
-    fn default() -> Self {
-        UILayerVisibilityRule::Always
-    }
 }
 
 impl UILayerVisibilityRule {
@@ -417,6 +458,7 @@ pub(crate) use UILayerVisibilityRule as BoxCursorVisibility;
 pub(crate) enum BoxCursorPosition {
     Static(Vec3),
     Linear { origin: Vec3, step: Vec3 },
+    Custom(Vec<Vec3>),
 }
 
 impl Default for BoxCursorPosition {
@@ -426,19 +468,67 @@ impl Default for BoxCursorPosition {
 }
 
 impl BoxCursorPosition {
+    #[allow(dead_code)]
     pub(crate) fn fixed(position: Vec3) -> Self {
         Self::Static(position)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn linear(origin: Vec3, step: Vec3) -> Self {
         Self::Linear { origin, step }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn custom(positions: Vec<Vec3>) -> Self {
+        Self::Custom(positions)
     }
 
     pub(crate) fn position_for_index(&self, index: usize) -> Vec3 {
         match self {
             BoxCursorPosition::Static(position) => *position,
             BoxCursorPosition::Linear { origin, step } => *origin + *step * index as f32,
+            BoxCursorPosition::Custom(positions) => {
+                if positions.is_empty() {
+                    Vec3::ZERO
+                } else {
+                    positions[index.min(positions.len() - 1)]
+                }
+            }
         }
+    }
+}
+
+/// Defines cursor placement rules, including a default strategy and layer-specific overrides.
+///
+/// 定义光标放置规则，包括默认策略和特定层的覆盖规则。
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct BoxCursorPlacement {
+    pub(crate) default: BoxCursorPosition,
+    pub(crate) overrides: HashMap<UILayer, BoxCursorPosition>,
+}
+
+impl BoxCursorPlacement {
+    pub(crate) fn new(default: BoxCursorPosition) -> Self {
+        Self {
+            default,
+            overrides: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn with_override(mut self, layer: UILayer, position: BoxCursorPosition) -> Self {
+        self.overrides.insert(layer, position);
+        self
+    }
+
+    pub(crate) fn get(&self, layer: &UILayer) -> &BoxCursorPosition {
+        self.overrides.get(layer).unwrap_or(&self.default)
+    }
+}
+
+impl From<BoxCursorPosition> for BoxCursorPlacement {
+    fn from(position: BoxCursorPosition) -> Self {
+        Self::new(position)
     }
 }
 
@@ -450,26 +540,28 @@ impl BoxCursorPosition {
 pub(crate) struct BoxCursor {
     pub(crate) sprite: Sprite,
     pub(crate) visibility: BoxCursorVisibility,
-    pub(crate) position: BoxCursorPosition,
+    pub(crate) placement: BoxCursorPlacement,
     pub(crate) transform: Transform,
     hidden: bool,
     last_index: Option<usize>,
+    last_layer: Option<UILayer>,
 }
 
 impl BoxCursor {
     pub(crate) fn new(
         sprite: Sprite,
         visibility: BoxCursorVisibility,
-        position: BoxCursorPosition,
+        placement: impl Into<BoxCursorPlacement>,
         transform: Transform,
     ) -> Self {
         Self {
             sprite,
             visibility,
-            position,
+            placement: placement.into(),
             transform,
             hidden: false,
             last_index: None,
+            last_layer: None,
         }
     }
 
@@ -481,27 +573,31 @@ impl BoxCursor {
         &self.visibility
     }
 
-    pub(crate) fn desired_translation(&self, index: usize) -> Vec3 {
-        self.transform.translation + self.position.position_for_index(index)
+    pub(crate) fn desired_translation(&self, layer: &UILayer, index: usize) -> Vec3 {
+        let position_rule = self.placement.get(layer);
+        self.transform.translation + position_rule.position_for_index(index)
     }
 
     pub(crate) fn transform(&self) -> Transform {
         self.transform
     }
 
-    pub(crate) fn translation_for_index(&mut self, index: usize) -> Option<Vec3> {
-        if self.last_index == Some(index) {
+    pub(crate) fn translation_for_index(&mut self, layer: &UILayer, index: usize) -> Option<Vec3> {
+        if self.last_index == Some(index) && self.last_layer.as_ref() == Some(layer) {
             return None;
         }
 
         self.last_index = Some(index);
-        Some(self.desired_translation(index))
+        self.last_layer = Some(layer.clone());
+        Some(self.desired_translation(layer, index))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn hide(&mut self) {
         self.hidden = true;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn show(&mut self) {
         self.hidden = false;
     }
@@ -517,24 +613,70 @@ impl BoxCursor {
 #[derive(Debug, Clone)]
 pub(crate) struct UILayerNavigationRule {
     adjustments: HashMap<Action, isize>,
+    looping: bool,
+    min_index: Option<IndexBound>,
+    max_index: Option<IndexBound>,
+    sound_on_navigate: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum IndexBound {
+    Static(usize),
+    Dynamic(String),
 }
 
 impl UILayerNavigationRule {
     pub(crate) fn new(pairs: impl IntoIterator<Item = (Action, isize)>) -> Self {
         Self {
             adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+            looping: false,
+            min_index: None,
+            max_index: None,
+            sound_on_navigate: None,
+        }
+    }
+
+    pub(crate) fn new_with_bounds(
+        pairs: impl IntoIterator<Item = (Action, isize)>,
+        looping: bool,
+        min_index: Option<IndexBound>,
+        max_index: Option<IndexBound>,
+        sound_on_navigate: Option<String>,
+    ) -> Self {
+        Self {
+            adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
+            looping,
+            min_index,
+            max_index,
+            sound_on_navigate,
         }
     }
 
     pub(crate) fn delta_for(&self, action: Action) -> Option<isize> {
         self.adjustments.get(&action).copied()
     }
+
+    pub(crate) fn looping(&self) -> bool {
+        self.looping
+    }
+
+    pub(crate) fn min_index(&self) -> &Option<IndexBound> {
+        &self.min_index
+    }
+
+    pub(crate) fn max_index(&self) -> &Option<IndexBound> {
+        &self.max_index
+    }
+
+    pub(crate) fn sound_on_navigate(&self) -> Option<&str> {
+        self.sound_on_navigate.as_deref()
+    }
 }
 
 /// Registry that stores the navigation rules for every [`UILayer`].
 ///
 /// 存储每个 [`UILayer`] 导航规则的注册表。
-#[derive(Resource, Debug)]
+#[derive(Resource, Debug, Default)]
 pub(crate) struct UILayerNavigationConfig {
     rules: HashMap<UILayer, UILayerNavigationRule>,
 }
@@ -555,15 +697,48 @@ impl Default for UILayerNavigationRule {
     }
 }
 
-impl Default for UILayerNavigationConfig {
-    fn default() -> Self {
-        let mut config = Self {
-            rules: HashMap::new(),
-        };
-        config.set_rule(
-            UILayer::BACKPACK_MENU,
-            UILayerNavigationRule::new([(Action::Up, -1), (Action::Down, 1)]),
-        );
-        config
+/// Stores state transition logic for UI layers, loaded from RON configuration.
+///
+/// 存储 UI 层的状态转换逻辑，从 RON 配置中加载。
+#[derive(Resource, Debug, Default)]
+pub(crate) struct UILayerTransitionConfig {
+    transitions: HashMap<UILayer, LayerTransitions>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LayerTransitions {
+    pub(crate) on_confirm: Vec<TransitionRule>,
+    pub(crate) on_cancel: Option<TransitionAction>,
+    pub(crate) sound_on_confirm: Option<String>,
+    pub(crate) sound_on_cancel: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TransitionRule {
+    pub(crate) condition: Option<String>,
+    pub(crate) action: TransitionAction,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum TransitionAction {
+    GotoLayer(UILayer),
+    PopState,
+    PushState(String),
+}
+
+impl UILayerTransitionConfig {
+    #[allow(dead_code)]
+    pub(crate) fn new() -> Self {
+        Self {
+            transitions: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn set_transitions(&mut self, layer: UILayer, transitions: LayerTransitions) {
+        self.transitions.insert(layer, transitions);
+    }
+
+    pub(crate) fn get(&self, layer: &UILayer) -> Option<&LayerTransitions> {
+        self.transitions.get(layer)
     }
 }
