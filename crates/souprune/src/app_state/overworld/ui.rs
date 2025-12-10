@@ -18,6 +18,7 @@
 //! 该文件定义了从 RON 文件加载 UI 布局的 `OverworldUIPlugin`。
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
+use crate::app_state::overworld::OverworldState;
 use crate::overworld::ui::ron_ui_system::rebuild_reloaded_ui_system;
 use bevy::prelude::*;
 
@@ -41,7 +42,7 @@ use camera::{
 use components::{UILayerNavigationConfig, UILayerTransitionConfig};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use layout::UILayoutAsset;
-use lifecycle::spawn_backpack_ui_system;
+use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 use ron_ui_system::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, update_dynamic_text_system,
     update_ui_from_map_system,
@@ -73,7 +74,11 @@ impl Plugin for OverworldUIPlugin {
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
-            .add_systems(Update, spawn_backpack_ui_system)
+            .add_systems(
+                Update,
+                spawn_backpack_ui_system.run_if(in_state(OverworldState::Backpack)),
+            )
+            .add_systems(OnExit(OverworldState::Backpack), despawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,

@@ -69,3 +69,30 @@ pub(crate) fn spawn_backpack_ui_system(
         max_index
     );
 }
+
+/// Despawn the root UI entity.
+///
+/// 销毁根 UI 实体。
+pub(crate) fn despawn_backpack_ui_system(
+    mut commands: Commands,
+    overworld_ui_query: Query<Entity, With<OverworldUI>>,
+) {
+    for entity in &overworld_ui_query {
+        let root = entity;
+        commands.queue(move |world: &mut World| {
+            let mut stack = vec![root];
+            while let Some(entity) = stack.pop() {
+                if let Ok(entity_ref) = world.get_entity(entity)
+                    && let Some(children) = entity_ref.get::<Children>()
+                {
+                    for child in children.iter() {
+                        stack.push(child);
+                    }
+                }
+
+                let _ = world.despawn(entity);
+            }
+        });
+        info!("Despawned backpack UI");
+    }
+}
