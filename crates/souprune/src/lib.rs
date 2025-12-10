@@ -187,33 +187,8 @@ pub fn run() {
         .register_asset_source(
             AssetSourceId::Default,
             AssetSource::build().with_reader(move || {
-                let project_path = format!("projects/{}", project_name);
-
-                let mut readers = vec![
-                    // Priority 1: Distribution / Standalone (folder next to executable)
-                    //
-                    // 优先级 1：分发/独立（可执行文件旁边的文件夹）
-                    FileAssetReader::new(&project_path),
-                ];
-
-                // Priority 2: Development (absolute path based on source location, strictly for debug builds)
-                //
-                // 优先级 2：开发（基于源位置的绝对路径，严格用于调试构建）
-                #[cfg(feature = "debug")]
-                {
-                    readers.push(FileAssetReader::new(
-                        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .join("../../")
-                            .join(&project_path),
-                    ));
-                }
-
-                // Priority 3: Core Fallback (embedded assets)
-                //
-                // 优先级 3：核心回退（嵌入式资产）
-                readers.push(FileAssetReader::new("assets"));
-                readers.push(FileAssetReader::new("crates/souprune/assets"));
-
+                let roots = config::get_asset_roots(&project_name);
+                let readers = roots.into_iter().map(FileAssetReader::new).collect();
                 Box::new(MultiSourceAssetReader::new(readers))
             }),
         )

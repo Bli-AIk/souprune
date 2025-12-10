@@ -7,7 +7,6 @@ use bevy::math::Vec2;
 use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
-use std::path::{Path, PathBuf};
 
 const PLAYER_BEHAVIOR_PATH: &str = "player/player_behavior.ron";
 
@@ -104,30 +103,9 @@ where
 }
 
 fn read_prioritized_file(relative_path: &str) -> Result<String> {
-    let app_config = config::load_config();
-    let project_dir = Path::new("projects").join(&app_config.project.mod_name);
-
-    let mut candidates = Vec::new();
-    candidates.push(project_dir.join(relative_path));
-
-    #[cfg(feature = "debug")]
-    {
-        candidates.push(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../")
-                .join(&project_dir)
-                .join(relative_path),
-        );
-    }
-
-    candidates.push(PathBuf::from("assets").join(relative_path));
-    candidates.push(PathBuf::from("crates/souprune/assets").join(relative_path));
-
-    for candidate in candidates {
-        if candidate.exists() {
-            return fs::read_to_string(&candidate)
-                .with_context(|| format!("Failed to read file {}", candidate.display()));
-        }
+    if let Some(path) = config::resolve_path(relative_path) {
+        return fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read file {}", path.display()));
     }
 
     Err(anyhow!(

@@ -25,7 +25,7 @@ use crate::core::collision::Rect2DCollider;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Camera, Commands, Component, Entity, Name, Query, Res, Sprite, Transform, Vec2,
+    Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
     Visibility, Window, With, Without,
 };
 use bevy_ecs_tiled::prelude::{
@@ -504,6 +504,31 @@ pub fn setup_camera_bounds_system(
                 "Enabled camera bounds: X({:.1}, {:.1}), Y({:.1}, {:.1}) for viewport {}x{} on map {}x{}",
                 min_x, max_x, min_y, max_y, viewport_width, viewport_height, map_width, map_height
             );
+        }
+    }
+}
+
+/// Update background music based on map properties.
+///
+/// 根据地图属性更新背景音乐。
+pub fn update_map_bgm_system(
+    mut current_bgm: ResMut<super::CurrentMapBgm>,
+    tiled_maps: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+) {
+    for tiled_map in tiled_maps.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
+            if let Some(bgm_prop) = map_asset.map.properties.get("bgm") {
+                if let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop {
+                    if current_bgm.0.as_deref() != Some(bgm_path) {
+                        info!("Switching BGM to: {}", bgm_path);
+                        crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+                        current_bgm.0 = Some(bgm_path.clone());
+                    }
+                }
+            }
         }
     }
 }

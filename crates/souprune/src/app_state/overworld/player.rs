@@ -31,6 +31,11 @@ pub(crate) mod config;
 mod systems;
 pub(crate) mod utils;
 
+#[derive(Clone)]
+pub struct SpawnPlayerRequest;
+
+impl Message for SpawnPlayerRequest {}
+
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
@@ -39,11 +44,36 @@ impl Plugin for PlayerPlugin {
             config::PlayerBehavior::load().expect("Failed to load player behavior configuration");
 
         app.insert_resource(behavior)
-            .add_systems(Update, player_direction_control_system);
+            .add_message::<SpawnPlayerRequest>()
+            .add_systems(
+                Update,
+                (player_direction_control_system, spawn_player_on_event),
+            );
     }
 }
 
 use crate::app_state::overworld::character;
+
+fn spawn_player_on_event(
+    mut events: MessageReader<SpawnPlayerRequest>,
+    mut commands: Commands,
+    mut sprite_params: SpriteParams,
+    player_input: Res<PlayerInputSettings>,
+    asset_server: Res<AssetServer>,
+    player_behavior: Res<PlayerBehavior>,
+) {
+    if !events.read().next().is_some() {
+        return;
+    }
+
+    spawn_overworld_player(
+        &mut commands,
+        &mut sprite_params,
+        &player_input,
+        &asset_server,
+        &player_behavior,
+    );
+}
 
 pub(super) fn force_player_idle_on_state_change_system(
     mut commands: Commands,

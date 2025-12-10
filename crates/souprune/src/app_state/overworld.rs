@@ -1,12 +1,7 @@
 use crate::app_state::AppState;
-use crate::app_state::overworld::player::config::PlayerBehavior;
-use crate::core::audio;
 use crate::core::camera::Followable;
-use crate::core::input::PlayerInputSettings;
-use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
-use bevy_kira_audio::Audio;
 
 pub(crate) mod character;
 pub(crate) mod player;
@@ -37,13 +32,9 @@ impl Plugin for OverworldPlugin {
             ))
             .add_systems(
                 OnEnter(AppState::Overworld),
-                (
-                    create_overworld_entities_system,
-                    bind_camera_target_system,
-                    start_overworld_bgm,
-                )
-                    .chain(),
+                create_overworld_entities_system,
             )
+            .add_systems(Update, bind_camera_target_system)
             .add_systems(
                 OnEnter(OverworldState::Backpack),
                 player::force_player_idle_on_state_change_system,
@@ -55,41 +46,17 @@ impl Plugin for OverworldPlugin {
     }
 }
 
-fn create_overworld_entities_system(
-    mut commands: Commands,
-    mut sprite_params: SpriteParams,
-    player_input: Res<PlayerInputSettings>,
-    asset_server: Res<AssetServer>,
-    player_behavior: Res<PlayerBehavior>,
-) {
-    player::spawn_overworld_player(
-        &mut commands,
-        &mut sprite_params,
-        &player_input,
-        &asset_server,
-        &player_behavior,
-    );
+fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::SpawnPlayerRequest>) {
+    spawn_events.write(player::SpawnPlayerRequest);
 }
 
 fn bind_camera_target_system(
     mut camera: Query<&mut Followable, With<Camera2d>>,
-    player: Query<Entity, With<character::components::PlayerControlled>>,
+    player: Query<Entity, Added<character::components::PlayerControlled>>,
 ) {
-    if let Ok(player_entity) = player.single() {
+    for player_entity in player.iter() {
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
     }
-}
-
-/// Start playing background music when entering the Overworld.
-///
-/// 进入 Overworld 时开始播放背景音乐。
-fn start_overworld_bgm(audio: Res<Audio>, asset_server: Res<AssetServer>) {
-    // TODO: Background music should be configurable via a resource or config file
-    // TODO: 背景音乐应该通过资源或配置文件来配置
-    // For now, we hardcode mus_ruins.ogg as the default BGM
-    //
-    // 目前，我们将 mus_ruins.ogg 硬编码为默认 BGM
-    audio::play_bgm(&audio, &asset_server, "mus_ruins.ogg");
 }

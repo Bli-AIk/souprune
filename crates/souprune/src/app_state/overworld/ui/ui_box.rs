@@ -61,7 +61,9 @@ pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
                     chars.next();
                     break;
                 }
-                color_str.push(chars.next().unwrap());
+                if let Some(c) = chars.next() {
+                    color_str.push(c);
+                }
             }
 
             // Parse content until '}'

@@ -104,7 +104,9 @@ fn collect_nearby_tiles(
     nearby_tiles.sort_by(|a, b| {
         let dist_a = (a.0 - *player_pos).length_squared();
         let dist_b = (b.0 - *player_pos).length_squared();
-        dist_a.partial_cmp(&dist_b).unwrap()
+        dist_a
+            .partial_cmp(&dist_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     nearby_tiles

@@ -2,6 +2,7 @@
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="37" height="12" tilewidth="20" tileheight="20" infinite="0" nextlayerid="9" nextobjectid="17">
  <properties>
   <property name="backpack_ui" value="ui/undertale_backpack.ui.ron"/>
+  <property name="bgm" value="mus_ruins.ogg"/>
  </properties>
  <tileset firstgid="1" source="ruins.tsx"/>
  <tileset firstgid="241" source="ruins_objects.tsx"/>
