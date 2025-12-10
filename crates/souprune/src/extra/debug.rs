@@ -23,6 +23,8 @@ mod collider;
 #[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
+#[cfg(feature = "debug")]
+mod player_hp;
 
 use bevy::app::{App, Plugin};
 
@@ -44,6 +46,11 @@ impl Plugin for DebugPlugin {
             //
             // 设置图像覆盖调试功能。
             image_overlay::debug_image_overlay::setup_image_overlay_debug(_app);
+
+            // Set up player HP debugging features.
+            //
+            // 设置玩家 HP 调试功能。
+            player_hp::debug_player_hp::setup_player_hp_debug(_app);
         }
     }
 }

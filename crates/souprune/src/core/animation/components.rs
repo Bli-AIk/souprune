@@ -1,4 +1,5 @@
 use crate::core::sprite::load_context::SpriteLoadContext;
+use anyhow::Result;
 use bevy::prelude::{Component, Sprite};
 
 #[derive(Component, Default)]
@@ -41,18 +42,41 @@ pub(crate) struct SpriteAnimationClip {
     pub(crate) frame: usize,
     looping: bool,
     clip_name: String,
-
+    #[allow(dead_code)]
     module_name: String,
 }
 
 impl SpriteAnimationClip {
-    pub fn new(sprite_context: &mut SpriteLoadContext, module_name: &str, clip_name: &str) -> Self {
+    pub fn new(
+        sprite_context: &mut SpriteLoadContext,
+        module_name: &str,
+        clip_name: &str,
+    ) -> Result<Self> {
         let (sprites, looping) =
-            sprite_context.get_sprite_animations_with_config(module_name, clip_name);
-        Self {
+            sprite_context.get_sprite_animations_with_config(module_name, clip_name)?;
+        Ok(Self {
             sprites,
             frame: 0,
             looping,
+            clip_name: clip_name.to_string(),
+            module_name: module_name.to_string(),
+        })
+    }
+
+    /// Creates a fallback animation clip with a single default sprite.
+    /// Used when the requested animation fails to load, preventing repeated load attempts.
+    ///
+    /// 创建带有单个默认精灵的回退动画片段。
+    /// 当请求的动画加载失败时使用，防止重复加载尝试。
+    pub fn fallback(
+        sprite_context: &mut SpriteLoadContext,
+        module_name: &str,
+        clip_name: &str,
+    ) -> Self {
+        Self {
+            sprites: vec![sprite_context.get_missing_sprite()],
+            frame: 0,
+            looping: false,
             clip_name: clip_name.to_string(),
             module_name: module_name.to_string(),
         }

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 #[derive(Component)]
 pub(crate) struct Speed {
     pub value: f32,
@@ -9,8 +10,8 @@ pub(crate) struct Facing {
     pub value: Direction,
 }
 
-#[derive(Default)]
-pub(crate) enum Direction {
+#[derive(Default, Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum Direction {
     Up,
     #[default]
     Down,

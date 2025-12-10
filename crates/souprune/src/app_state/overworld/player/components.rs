@@ -1,3 +1,23 @@
+//! # components.rs
+//!
+//! # components.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module defines player entity components and bundles.
+//!
+//! 本模块定义玩家实体组件和组件包。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It provides bundles for spawning player entities with all necessary components.
+//!
+//! 提供用于生成具有所有必要组件的玩家实体的组件包。
+
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::{Direction, Facing, Speed};
 use bevy::math::Vec2;

@@ -20,6 +20,7 @@ pub struct ObjectCollider;
 
 /// System to directly create collision entities for objects with collision properties
 /// 直接为具有碰撞属性的对象创建碰撞实体的系统
+#[allow(dead_code)]
 pub fn process_map_object_properties_system(
     mut commands: Commands,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
@@ -27,27 +28,33 @@ pub fn process_map_object_properties_system(
     existing_colliders: Query<&ObjectCollider>,
 ) {
     // Add debug logging
+    //
+    // 添加调试日志
     let map_count = tiled_maps_query.iter().count();
     let collider_count = existing_colliders.iter().count();
 
-    info!(
+    trace!(
         "Object properties system running: {} maps, {} existing colliders",
         map_count, collider_count
     );
 
     // Only run if we haven't created object colliders yet
+    //
+    // 仅在尚未创建对象碰撞体时运行
     if !existing_colliders.is_empty() {
-        info!("Object colliders already exist, skipping");
+        trace!("Object colliders already exist, skipping");
         return;
     }
 
     for tiled_map_handle in tiled_maps_query.iter() {
-        info!("Processing tiled map handle");
+        debug!("Processing tiled map handle");
 
         if let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) {
             info!("Found tiled map asset");
 
             // Calculate map center offset (same as tilemap collision system)
+            //
+            // 计算地图中心偏移（与瓦片地图碰撞系统相同）
             let tile_size = tiled_map_asset.map.tile_width as f32;
             let tile_height = tiled_map_asset.map.tile_height as f32;
             let map_width = tiled_map_asset.map.width as f32 * tile_size;
@@ -72,6 +79,8 @@ pub fn process_map_object_properties_system(
                         );
 
                         // Check if this object has collision property set to true
+                        //
+                        // 检查此对象是否将碰撞属性设置为 true
                         if let Some(collision_value) = object_data.properties.get("collision") {
                             info!("Found collision property: {:?}", collision_value);
 
@@ -86,6 +95,9 @@ pub fn process_map_object_properties_system(
                                 {
                                     // Calculate world position (same coordinate system as tilemap)
                                     // Tiled uses top-left origin, convert to center-based
+                                    //
+                                    // 计算世界位置（与瓦片地图坐标系相同）
+                                    // Tiled 使用左上角原点，转换为基于中心
                                     let world_x = center_offset_x + object_data.x + width / 2.0;
                                     let world_y = center_offset_y
                                         + (tiled_map_asset.map.height as f32 * tile_height

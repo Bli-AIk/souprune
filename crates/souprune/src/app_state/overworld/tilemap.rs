@@ -26,12 +26,16 @@ pub mod systems;
 
 pub use object_properties::ObjectCollider;
 
+#[derive(Resource, Default)]
+pub struct CurrentMapBgm(pub Option<String>);
+
 pub(crate) struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
-        app.add_systems(OnEnter(Overworld), setup_tilemap_system)
+        app.init_resource::<CurrentMapBgm>()
+            .add_systems(OnEnter(Overworld), setup_tilemap_system)
             .add_systems(
                 Update,
                 (
@@ -39,6 +43,7 @@ impl Plugin for TilemapPlugin {
                     generate_collision_tiles_system,
                     setup_camera_bounds_system,
                     update_objects_order_with_player_system,
+                    update_map_bgm_system,
                 ),
             );
     }

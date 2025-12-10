@@ -1,7 +1,8 @@
 use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;
-use bevy::asset::{Assets, Handle, LoadedFolder};
+use anyhow::{Result, anyhow};
+use bevy::asset::{Assets, Handle, LoadedFolder, RenderAssetUsages};
 use bevy::image::{
     Image, ImageSampler, TextureAtlas, TextureAtlasBuilder, TextureAtlasLayout, TextureAtlasSources,
 };
@@ -9,6 +10,7 @@ use bevy::log::{info, warn};
 use bevy::math::{UVec2, Vec3};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Sprite, Transform, default};
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 pub fn get_or_create_texture_atlas(
     module_name: &str,
@@ -18,22 +20,26 @@ pub fn get_or_create_texture_atlas(
     textures: &mut Assets<Image>,
     toml_assets: &Assets<TomlAsset>,
     toml_registry: &mut TomlConfigRegistry,
-) -> (
+) -> Result<(
     Handle<TextureAtlasLayout>,
     Handle<Image>,
     HashMap<String, usize>,
-) {
+)> {
     // Check cache
+    //
+    // 检查缓存
     if let Some((atlas_layout, texture, index_map)) = sprite_registry.get_cached_atlas(module_name)
     {
-        return (atlas_layout.clone(), texture.clone(), index_map.clone());
+        return Ok((atlas_layout.clone(), texture.clone(), index_map.clone()));
     }
 
     let handle = sprite_registry
         .get_module(module_name)
-        .unwrap_or_else(|| panic!("{module_name} module not registered"));
+        .ok_or_else(|| anyhow!("{module_name} module not registered"))?;
 
-    let loaded_folder = loaded_folders.get(handle).unwrap();
+    let loaded_folder = loaded_folders
+        .get(handle)
+        .ok_or_else(|| anyhow!("Failed to get loaded folder for module {module_name}"))?;
 
     let (texture_atlas_layout, _texture_atlas_sources, texture, index_map) = create_texture_atlas(
         loaded_folder,
@@ -43,11 +49,13 @@ pub fn get_or_create_texture_atlas(
         toml_assets,
         toml_registry,
         module_name,
-    );
+    )?;
 
     let atlas_layout_handle = texture_atlases.add(texture_atlas_layout);
 
     // Cache results
+    //
+    // 缓存结果
     sprite_registry.cache_atlas(
         module_name.to_string(),
         atlas_layout_handle.clone(),
@@ -55,7 +63,7 @@ pub fn get_or_create_texture_atlas(
         index_map.clone(),
     );
 
-    (atlas_layout_handle, texture, index_map)
+    Ok((atlas_layout_handle, texture, index_map))
 }
 
 pub fn create_texture_atlas(
@@ -66,12 +74,12 @@ pub fn create_texture_atlas(
     toml_assets: &Assets<TomlAsset>,
     toml_registry: &mut TomlConfigRegistry,
     module_name: &str,
-) -> (
+) -> Result<(
     TextureAtlasLayout,
     TextureAtlasSources,
     Handle<Image>,
     HashMap<String, usize>,
-) {
+)> {
     let mut texture_atlas_builder = TextureAtlasBuilder::default();
     texture_atlas_builder.padding(padding.unwrap_or_default());
 
@@ -108,7 +116,7 @@ pub fn create_texture_atlas(
         let Some(texture) = textures.get(id) else {
             warn!(
                 "{} did not resolve to an `Image` asset.",
-                handle.path().unwrap()
+                handle.path().map(|p| p.to_string()).unwrap_or_default()
             );
             continue;
         };
@@ -116,21 +124,26 @@ pub fn create_texture_atlas(
         texture_atlas_builder.add_texture(Some(id), texture);
     }
 
-    let (texture_atlas_layout, texture_atlas_sources, texture) =
-        texture_atlas_builder.build().unwrap();
+    let (texture_atlas_layout, texture_atlas_sources, texture) = texture_atlas_builder
+        .build()
+        .map_err(|e| anyhow!("Failed to build texture atlas: {e}"))?;
     let texture = textures.add(texture);
 
-    let image = textures.get_mut(&texture).unwrap();
+    let image = textures
+        .get_mut(&texture)
+        .ok_or_else(|| anyhow!("Failed to access built texture"))?;
     image.sampler = sampling.unwrap_or_default();
 
-    (
+    Ok((
         texture_atlas_layout,
         texture_atlas_sources,
         texture,
         index_map,
-    )
+    ))
 }
 
+#[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub fn create_sprite_from_atlas(
     commands: &mut Commands,
     translation: (f32, f32, f32),
@@ -139,18 +152,28 @@ pub fn create_sprite_from_atlas(
     atlas_handle: Handle<TextureAtlasLayout>,
     vendor_handle: &Handle<Image>,
 ) {
-    commands.spawn((
-        Transform {
-            translation: Vec3::new(translation.0, translation.1, translation.2),
-            ..default()
-        },
-        Sprite::from_atlas_image(
-            atlas_texture,
-            atlas_sources.handle(atlas_handle, vendor_handle).unwrap(),
-        ),
-    ));
+    // This unwrap is on getting the handle from sources. If it fails, it panics.
+    // However, this is more internal logic. If the atlas was built correctly, this should work.
+    // For now, replacing with expect is a slight improvement, or better:
+    //
+    // 此 unwrap 是用于从源获取句柄。如果失败，则会恐慌。
+    // 但是，这是更内部的逻辑。如果图集构建正确，这应该可以工作。
+    // 暂时替换为 expect 是轻微的改进，或者更好：
+    if let Some(texture_atlas_handle) = atlas_sources.handle(atlas_handle, vendor_handle) {
+        commands.spawn((
+            Transform {
+                translation: Vec3::new(translation.0, translation.1, translation.2),
+                ..default()
+            },
+            Sprite::from_atlas_image(atlas_texture, texture_atlas_handle),
+        ));
+    } else {
+        warn!("Failed to get texture atlas handle for sprite spawning");
+    }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub fn get_sprite_from_config(
     sprite_registry: &mut ModuleSpriteRegistry,
     texture_atlases: &mut Assets<TextureAtlasLayout>,
@@ -160,7 +183,7 @@ pub fn get_sprite_from_config(
     toml_registry: &mut TomlConfigRegistry,
     module_name: &str,
     config_item_name: &str,
-) -> Sprite {
+) -> Result<Sprite> {
     let (atlas_layout_handle, texture, index_map) = get_or_create_texture_atlas(
         module_name,
         sprite_registry,
@@ -169,9 +192,11 @@ pub fn get_sprite_from_config(
         textures,
         toml_assets,
         toml_registry,
-    );
+    )?;
 
     // Get image path and flip settings according to configuration
+    //
+    // 根据配置获取图像路径和翻转设置
     let (sprite_path, flip_x, flip_y) =
         if let Some(sprite_config) = toml_registry.get_sprite(config_item_name) {
             (
@@ -180,15 +205,19 @@ pub fn get_sprite_from_config(
                 sprite_config.flip_y,
             )
         } else {
-            panic!("Sprite not found in configuration '{}'", config_item_name);
+            return Err(anyhow!(
+                "Sprite not found in configuration '{}'",
+                config_item_name
+            ));
         };
 
-    let sprite_index = *index_map.get(&sprite_path).unwrap_or_else(|| {
-        panic!(
+    let sprite_index = *index_map.get(&sprite_path).ok_or_else(|| {
+        anyhow!(
             "The path '{}' of sprite '{}' was not found in the gallery",
-            config_item_name, sprite_path
+            config_item_name,
+            sprite_path
         )
-    });
+    })?;
 
     let mut sprite = Sprite::from_atlas_image(
         texture,
@@ -199,8 +228,52 @@ pub fn get_sprite_from_config(
     );
 
     // Apply flip settings
+    //
+    // 应用翻转设置
     sprite.flip_x = flip_x;
     sprite.flip_y = flip_y;
 
-    sprite
+    Ok(sprite)
+}
+
+pub fn get_or_create_missing_texture(
+    sprite_registry: &mut ModuleSpriteRegistry,
+    textures: &mut Assets<Image>,
+) -> Handle<Image> {
+    if let Some(handle) = &sprite_registry.missing_texture {
+        return handle.clone();
+    }
+
+    let size = Extent3d {
+        width: 16,
+        height: 16,
+        depth_or_array_layers: 1,
+    };
+
+    let mut data = Vec::with_capacity((size.width * size.height * 4) as usize);
+
+    for y in 0..size.height {
+        for x in 0..size.width {
+            let is_purple = ((x / 8) + (y / 8)) % 2 == 0;
+            if is_purple {
+                data.extend_from_slice(&[255, 0, 255, 255]); // Purple
+            } else {
+                data.extend_from_slice(&[0, 0, 0, 255]); // Black
+            }
+        }
+    }
+
+    let mut image = Image::new(
+        size,
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+    image.sampler = ImageSampler::nearest();
+
+    let handle = textures.add(image);
+    sprite_registry.missing_texture = Some(handle.clone());
+
+    handle
 }

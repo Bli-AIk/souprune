@@ -126,6 +126,7 @@ SoupRune 采用 **LGPL-3.0** 许可协议。
 | [iyes_perf_ui](https://crates.io/crates/iyes_perf_ui)                     | dev（我基于 GitHub PR [#35](https://github.com/IyesGames/iyes_perf_ui/pull/35) 创建的 [分支](https://github.com/Bli-AIk/iyes_perf_ui) ) | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选性能监控 UI，显示 FPS、系统计时和性能分析信息    |
 | [bevy_smud](https://crates.io/crates/bevy_smud)                           | 0.12.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的 2d sdf 形状渲染器插件                 |
 | [bevy_rich_text3d](https://crates.io/crates/bevy_rich_text3d)             | 0.5.1                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于网格的栅格富文本实现                          |
+| [bevy_kira_audio](https://crates.io/crates/bevy_kira_audio)               | 0.24.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 使用 Kira 的音频播放插件，支持 WAV、OGG、FLAC、MP3 格式 |
 
 ### Rust crates
 
@@ -133,6 +134,7 @@ SoupRune 采用 **LGPL-3.0** 许可协议。
 |-----------------------------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
 | [serde](https://crates.io/crates/serde) | 1.0   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 序列化/反序列化框架，支持 `derive` 宏以方便地对结构体进行（反）序列化 |
 | [toml](https://crates.io/crates/toml)   | 0.9.8 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML 解析                                  |
+| [ron](https://crates.io/crates/ron)     | 0.10  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation 解析                 |
 
 ### 资源引用
 

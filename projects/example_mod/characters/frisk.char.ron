@@ -1,0 +1,8 @@
+(
+    name: "Frisk",
+    collider_size: (x: 20.0, y: 12.0),
+    collider_offset: (x: 0.0, y: -9.0),
+    base_speed: 100.0,
+    animation_config: "characters/frisk/animations.anim.ron",
+    interaction_script: None,
+)

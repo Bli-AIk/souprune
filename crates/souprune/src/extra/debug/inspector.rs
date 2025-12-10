@@ -8,8 +8,7 @@ pub mod debug_inspector {
     use bevy::prelude::*;
     use bevy::window::{Window, WindowClosed, WindowFocused, WindowRef, WindowResolution};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
-    use bevy_inspector_egui::bevy_inspector;
-    use bevy_inspector_egui::egui;
+    use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_inspector, egui};
     use bevy_tween::interpolate::Interpolator;
     use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
@@ -63,6 +62,7 @@ pub mod debug_inspector {
         app.init_resource::<InspectorUiState>();
 
         app.add_plugins(EguiPlugin::default());
+        app.add_plugins(DefaultInspectorConfigPlugin);
 
         app.add_plugins((
             bevy::diagnostic::FrameTimeDiagnosticsPlugin::default(),
@@ -77,7 +77,7 @@ pub mod debug_inspector {
             TextColorInterpolator,
         >());
 
-        app.add_systems(Startup, setup_debug_help_text);
+        app.add_systems(Startup, setup_debug_help_text_system);
         app.add_systems(
             Update,
             (
@@ -98,7 +98,7 @@ pub mod debug_inspector {
         );
     }
 
-    fn setup_debug_help_text(mut commands: Commands) {
+    fn setup_debug_help_text_system(mut commands: Commands) {
         let mut text_entities = Vec::new();
 
         let debug_entity = commands
@@ -117,7 +117,7 @@ pub mod debug_inspector {
                     "Performance monitoring: [F2]",
                     "Show colliders: [F3]",
                     "Debug image overlay: [F4]",
-                    "Cycle UI layout: [F5]",
+                    "Cycle Player HP (1/Half/Full): [F5]",
                     "Toggle debug help: [F12]",
                 ];
 

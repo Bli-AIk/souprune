@@ -1,15 +1,28 @@
-use super::update_player_animation;
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module implements systems for processing player input and updating movement.
+//!
+//! 本模块实现处理玩家输入和更新移动的系统。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It manages character animation states based on player actions.
+//!
+//! 根据玩家操作管理角色动画状态。
+
 use crate::app_state::overworld::OverworldState;
-use crate::app_state::overworld::character::components::{
-    PlayerControlled, StateIdle, StateRunning, StateWalking,
-};
-use crate::core::animation::components::{
-    SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
-};
+use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::Action;
-use crate::core::sprite::params::SpriteParams;
-use bevy::prelude::{Query, Res, Sprite, State, With};
+use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn player_direction_control_system(
@@ -43,37 +56,3 @@ pub(crate) fn player_direction_control_system(
         }
     }
 }
-
-macro_rules! create_animation_system {
-    ($func_name:ident, $state:ty, $animation_prefix:expr) => {
-        pub(crate) fn $func_name(
-            mut sprite_params: SpriteParams,
-            mut query: Query<
-                (
-                    &Facing,
-                    &mut Sprite,
-                    &mut SpriteAnimationClip,
-                    &mut SpriteAnimationCurrentFrame,
-                    &mut SpriteAnimationTimer,
-                ),
-                (With<PlayerControlled>, With<$state>),
-            >,
-        ) {
-            for (facing, mut sprite, mut clip, mut frame, mut timer) in query.iter_mut() {
-                update_player_animation(
-                    &mut sprite_params,
-                    facing,
-                    &mut sprite,
-                    &mut clip,
-                    &mut frame,
-                    &mut timer,
-                    $animation_prefix,
-                );
-            }
-        }
-    };
-}
-
-create_animation_system!(player_idle_anim_control_system, StateIdle, "frisk_idle");
-create_animation_system!(player_walk_anim_control_system, StateWalking, "frisk_walk");
-create_animation_system!(player_run_anim_control_system, StateRunning, "frisk_run");

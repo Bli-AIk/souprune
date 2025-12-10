@@ -1,0 +1,6 @@
+[project]
+mod_name = "example_mod"
+language = "en-US"
+
+[window]
+resolution_scale = 5

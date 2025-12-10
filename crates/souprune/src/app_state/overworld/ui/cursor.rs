@@ -1,3 +1,23 @@
+//! # cursor.rs
+//!
+//! # cursor.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module manages the visual cursor that indicates the currently selected UI element.
+//!
+//! 本模块管理指示当前选中 UI 元素的可视光标。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It handles spawning cursor sprites and updating cursor positions based on navigation.
+//!
+//! 处理光标精灵的生成和基于导航的光标位置更新。
+
 use super::components::{
     BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, OverworldUI, OverworldUIBox,
     UIBoxFiller,
@@ -37,6 +57,7 @@ fn find_ui_box_filler_entity(
 /// Spawn the sprite used to represent the Undertale box cursor once the UI filler exists.
 ///
 /// 当 UI 填充实体就绪后，生成 Undertale 样式的光标贴图。
+#[allow(clippy::type_complexity)]
 pub(crate) fn spawn_box_cursor_visual_system(
     mut commands: Commands,
     query: Query<(Entity, &BoxCursor), (With<OverworldUIBox>, Without<BoxCursorReady>)>,
@@ -107,10 +128,11 @@ pub(crate) fn update_box_cursor_state_system(
         should_show &= cursor.visibility().is_visible_for(overworld_ui.layer());
 
         if should_show {
-            if let Some(translation) = cursor.translation_for_index(overworld_ui.index()) {
-                if transform.translation != translation {
-                    transform.translation = translation;
-                }
+            if let Some(translation) =
+                cursor.translation_for_index(overworld_ui.layer(), overworld_ui.index())
+                && transform.translation != translation
+            {
+                transform.translation = translation;
             }
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;

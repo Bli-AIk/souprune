@@ -1,3 +1,23 @@
+//! # params.rs
+//!
+//! # params.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides the `SpriteParams` system parameter.
+//!
+//! 该模块提供 `SpriteParams` 系统参数。
+//!
+//! ## Source File Overview
+//!
+//! ## 源文件概述
+//!
+//! It simplifies accessing sprite-related resources in Bevy systems.
+//!
+//! 它简化了在 Bevy 系统中访问精灵相关资源的过程。
+
 use crate::core::sprite::load_context::SpriteLoadContext;
 use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
