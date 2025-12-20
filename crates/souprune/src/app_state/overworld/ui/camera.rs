@@ -125,7 +125,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
                         let f: f64 = f;
                         let new_y = f as f32;
                         if anchor.offset.y != new_y {
-                            info!(
+                            trace!(
                                 "Updating dynamic anchor Y: expr='{}', result={}, old_y={}, new_y={}, player_y={}, camera_y={}",
                                 expr,
                                 f,

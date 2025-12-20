@@ -22,7 +22,7 @@ use crate::core::*;
 use crate::extra::multi_source::MultiSourceAssetReader;
 use app_state::{app_setup, overworld};
 use bevy::app::PluginGroupBuilder;
-use bevy::asset::io::file::FileAssetReader;
+use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
@@ -186,11 +186,47 @@ pub fn run() {
         // TODO: 读取 mod 配置并加载正确的项目
         .register_asset_source(
             AssetSourceId::Default,
-            AssetSource::build().with_reader(move || {
-                let roots = config::get_asset_roots(&project_name);
-                let readers = roots.into_iter().map(FileAssetReader::new).collect();
-                Box::new(MultiSourceAssetReader::new(readers))
-            }),
+            AssetSource::build()
+                .with_reader(move || {
+                    let roots = config::get_asset_roots(&project_name);
+                    let readers = roots.into_iter().map(FileAssetReader::new).collect();
+                    Box::new(MultiSourceAssetReader::new(readers))
+                })
+                .with_watcher(|sender| {
+                    // Watch the primary project directory for hot reloading
+                    //
+                    // 监听主项目目录以实现热重载
+                    let config = config::load_config();
+                    let roots = config::get_asset_roots(&config.project.mod_name);
+
+                    // Find the first root that actually exists on disk
+                    //
+                    // 找到磁盘上实际存在的第一个根目录
+                    for root in &roots {
+                        if root.exists() {
+                            info!("[Hot Reload] Setting up file watcher for: {:?}", root);
+                            match FileWatcher::new(
+                                root.clone(),
+                                sender.clone(),
+                                std::time::Duration::from_millis(300),
+                            ) {
+                                Ok(watcher) => {
+                                    return Some(
+                                        Box::new(watcher) as Box<dyn bevy::asset::io::AssetWatcher>
+                                    );
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
+                                        root, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    error!("[Hot Reload] No valid asset root found for file watching");
+                    None
+                }),
         )
         .insert_resource(app_setup::ResolutionScale(resolution_scale as u32))
         .insert_resource(extra::mortar::CurrentLocale(language))

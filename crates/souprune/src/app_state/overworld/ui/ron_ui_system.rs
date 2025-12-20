@@ -23,6 +23,8 @@ use super::layout::*;
 use crate::app_state::overworld::OverworldState;
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
+use bevy::asset::AssetEvent;
+use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use std::collections::HashMap;
@@ -104,6 +106,35 @@ pub fn update_ui_from_map_system(
     }
 }
 
+/// System to watch for asset changes and trigger hot reload.
+///
+/// 监听资产变更并触发热重载的系统。
+pub fn watch_ui_layout_changes_system(
+    mut events: MessageReader<AssetEvent<UILayoutAsset>>,
+    ui_layout_handle: Option<Res<UILayoutHandle>>,
+    mut watcher: Option<ResMut<UILayoutWatcher>>,
+    mut commands: Commands,
+) {
+    let Some(ui_layout_handle) = ui_layout_handle else {
+        return;
+    };
+
+    for event in events.read() {
+        if let AssetEvent::Modified { id } = event {
+            if *id == ui_layout_handle.handle.id() {
+                info!("[Hot Reload] RON UI asset modified, triggering reload...");
+                if let Some(ref mut w) = watcher {
+                    w.pending_reload = true;
+                } else {
+                    let mut w = UILayoutWatcher::new();
+                    w.pending_reload = true;
+                    commands.insert_resource(w);
+                }
+            }
+        }
+    }
+}
+
 pub fn load_navigation_and_transitions_system(
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
@@ -111,10 +142,23 @@ pub fn load_navigation_and_transitions_system(
     mut transition_config: ResMut<UILayerTransitionConfig>,
     mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
     mut last_processed_handle: Local<Option<AssetId<UILayoutAsset>>>,
+    mut events: MessageReader<AssetEvent<UILayoutAsset>>,
 ) {
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;
     };
+
+    // Check if asset was modified - reset last_processed_handle to force reload
+    //
+    // 检查资产是否被修改 - 重置 last_processed_handle 以强制重新加载
+    for event in events.read() {
+        if let AssetEvent::Modified { id } = event {
+            if *id == ui_layout_handle.handle.id() {
+                info!("[Hot Reload] Reloading navigation and transitions config...");
+                *last_processed_handle = None;
+            }
+        }
+    }
 
     if last_processed_handle.as_ref() == Some(&ui_layout_handle.handle.id()) {
         return;
