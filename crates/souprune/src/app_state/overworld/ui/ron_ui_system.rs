@@ -503,7 +503,7 @@ pub fn rebuild_reloaded_ui_system(
         .any(|(_, overworld_ui)| *overworld_ui.layer() == UILayer::BACKPACK_MENU);
 
     if !has_target {
-        info!("RON UI hot reload pending - BACKPACK_MENU layer not active, will retry rebuild");
+        debug!("RON UI hot reload pending - BACKPACK_MENU layer not active, will retry rebuild");
         return;
     }
 
