@@ -51,6 +51,7 @@ use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigat
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
 use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
 
+use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, OverworldUI, OverworldUIBox,
@@ -76,7 +77,8 @@ impl Plugin for OverworldUIPlugin {
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
             .add_systems(
                 Update,
-                spawn_backpack_ui_system.run_if(in_state(OverworldState::Backpack)),
+                spawn_backpack_ui_system
+                    .run_if(in_state(OverworldState::Backpack).and(in_state(AppState::Overworld))),
             )
             .add_systems(OnExit(OverworldState::Backpack), despawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)

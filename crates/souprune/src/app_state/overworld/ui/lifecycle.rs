@@ -19,6 +19,7 @@
 //! 管理控制菜单系统的根 UI 实体。
 
 use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
+use crate::app_state::overworld::OverworldEntity;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 
@@ -56,6 +57,7 @@ pub(crate) fn spawn_backpack_ui_system(
         .unwrap_or_else(|| UILayer::BACKPACK_MENU_OPTIONS.len());
 
     commands.spawn((
+        OverworldEntity(),
         OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
         // Add a Transform so the UI entity can be positioned.
         //

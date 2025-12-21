@@ -20,7 +20,7 @@
 
 use super::components::*;
 use super::layout::*;
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::{OverworldEntity, OverworldState};
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
 use bevy::asset::AssetEvent;
@@ -120,16 +120,16 @@ pub fn watch_ui_layout_changes_system(
     };
 
     for event in events.read() {
-        if let AssetEvent::Modified { id } = event {
-            if *id == ui_layout_handle.handle.id() {
-                info!("[Hot Reload] RON UI asset modified, triggering reload...");
-                if let Some(ref mut w) = watcher {
-                    w.pending_reload = true;
-                } else {
-                    let mut w = UILayoutWatcher::new();
-                    w.pending_reload = true;
-                    commands.insert_resource(w);
-                }
+        if let AssetEvent::Modified { id } = event
+            && *id == ui_layout_handle.handle.id()
+        {
+            info!("[Hot Reload] RON UI asset modified, triggering reload...");
+            if let Some(ref mut w) = watcher {
+                w.pending_reload = true;
+            } else {
+                let mut w = UILayoutWatcher::new();
+                w.pending_reload = true;
+                commands.insert_resource(w);
             }
         }
     }
@@ -152,11 +152,11 @@ pub fn load_navigation_and_transitions_system(
     //
     // 检查资产是否被修改 - 重置 last_processed_handle 以强制重新加载
     for event in events.read() {
-        if let AssetEvent::Modified { id } = event {
-            if *id == ui_layout_handle.handle.id() {
-                info!("[Hot Reload] Reloading navigation and transitions config...");
-                *last_processed_handle = None;
-            }
+        if let AssetEvent::Modified { id } = event
+            && *id == ui_layout_handle.handle.id()
+        {
+            info!("[Hot Reload] Reloading navigation and transitions config...");
+            *last_processed_handle = None;
         }
     }
 
