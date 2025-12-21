@@ -45,12 +45,12 @@
 目标：构建完整的弹幕战斗体验，从基础状态切换到复杂的流程控制。
 
 ### v0.4.0: 基础架构 (State Management)
-- [ ] 在 `crates/souprune/src/app_state/battle.rs` 创建空的 `BattlePlugin`
-- [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
-- [ ] 在 `AppState` 枚举中添加 `Battle` 变体
-- [ ] 在 `get_game_plugins` 中注册 `BattlePlugin`
-- [ ] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
+- [x] 在 `crates/souprune/src/app_state/battle.rs` 创建空的 `BattlePlugin`
+- [x] 在 `AppState` 枚举中添加 `Battle` 变体
+- [x] 在 `get_game_plugins` 中注册 `BattlePlugin`
 - [ ] 定义 `OverworldEntity` 组件与 `cleanup_overworld_entities` 系统
+- [ ] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
+- [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)
 - [ ] 实现 `restore_overworld_state` (OnEnter Overworld)

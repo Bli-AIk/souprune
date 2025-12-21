@@ -24,6 +24,12 @@ pub(crate) mod player;
 pub(crate) mod tilemap;
 pub(crate) mod ui;
 
+/// Marker component for overworld entities
+///
+/// 标记 Overworld 实体的组件
+#[derive(Component)]
+pub(crate) struct OverworldEntity();
+
 /// Overworld substates
 ///
 /// Overworld 子状态

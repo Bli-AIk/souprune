@@ -30,6 +30,7 @@ use bevy::prelude::States;
 
 pub(crate) mod app_setup;
 pub(crate) mod overworld;
+pub(crate) mod battle;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 #[allow(dead_code)]

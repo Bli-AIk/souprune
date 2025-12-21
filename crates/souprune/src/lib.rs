@@ -32,7 +32,7 @@ use std::default::Default;
 
 use crate::core::*;
 use crate::extra::multi_source::MultiSourceAssetReader;
-use app_state::{app_setup, overworld};
+use app_state::{app_setup, battle, overworld};
 use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
@@ -146,14 +146,14 @@ fn get_file_importer_plugins() -> (
 ///
 /// 获取应用程序中使用的第三方插件。
 fn get_third_plugins() -> (
-    leafwing_input_manager::prelude::InputManagerPlugin<crate::core::input::Action>,
+    leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     seldom_state::prelude::StateMachinePlugin,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
 ) {
     (
-        leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>::default(
+        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(
         ),
         seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
@@ -173,12 +173,14 @@ fn get_game_plugins() -> (
     CorePlugin,
     app_setup::AppSetupPlugin,
     overworld::OverworldPlugin,
+    battle::BattlePlugin,
     GlobalPlugin,
 ) {
     (
         CorePlugin,
         app_setup::AppSetupPlugin,
         overworld::OverworldPlugin,
+        battle::BattlePlugin,
         GlobalPlugin,
     )
 }
@@ -240,7 +242,7 @@ pub fn run() {
                     None
                 }),
         )
-        .insert_resource(app_setup::ResolutionScale(resolution_scale as u32))
+        .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
             get_bevy_default_plugins(resolution_scale),
