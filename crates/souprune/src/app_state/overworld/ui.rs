@@ -18,7 +18,7 @@
 //! 该文件定义了从 RON 文件加载 UI 布局的 `OverworldUIPlugin`。
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::{OverworldState, OverworldUpdate};
 use crate::overworld::ui::ron_ui_system::rebuild_reloaded_ui_system;
 use bevy::prelude::*;
 
@@ -99,7 +99,8 @@ impl Plugin for OverworldUIPlugin {
                     update_camera_anchored_ui_on_change_system,
                     update_dynamic_camera_anchors_system,
                     update_dynamic_text_system,
-                ),
+                )
+                    .in_set(OverworldUpdate),
             );
 
         #[cfg(feature = "debug")]

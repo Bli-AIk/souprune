@@ -41,34 +41,41 @@ pub(crate) enum OverworldState {
     Cutscene,
 }
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OverworldUpdate;
+
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<OverworldState>()
-            .add_plugins((
-                tilemap::TilemapPlugin,
-                player::PlayerPlugin,
-                character::CharacterPlugin,
-                ui::OverworldUIPlugin,
-            ))
-            .add_systems(
-                OnEnter(AppState::Overworld),
-                create_overworld_entities_system,
-            )
-            .add_systems(
-                OnExit(AppState::Overworld),
-                cleanup_overworld_entities_system,
-            )
-            .add_systems(Update, bind_camera_target_system)
-            .add_systems(
-                OnEnter(OverworldState::Backpack),
-                player::force_player_idle_on_state_change_system,
-            )
-            .add_systems(
-                OnEnter(OverworldState::Cutscene),
-                player::force_player_idle_on_state_change_system,
-            );
+        app.configure_sets(
+            Update,
+            OverworldUpdate.run_if(in_state(AppState::Overworld)),
+        )
+        .init_state::<OverworldState>()
+        .add_plugins((
+            tilemap::TilemapPlugin,
+            player::PlayerPlugin,
+            character::CharacterPlugin,
+            ui::OverworldUIPlugin,
+        ))
+        .add_systems(
+            OnEnter(AppState::Overworld),
+            create_overworld_entities_system,
+        )
+        .add_systems(
+            OnExit(AppState::Overworld),
+            cleanup_overworld_entities_system,
+        )
+        .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
+        .add_systems(
+            OnEnter(OverworldState::Backpack),
+            player::force_player_idle_on_state_change_system,
+        )
+        .add_systems(
+            OnEnter(OverworldState::Cutscene),
+            player::force_player_idle_on_state_change_system,
+        );
     }
 }
 

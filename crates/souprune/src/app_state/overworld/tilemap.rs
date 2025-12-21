@@ -24,6 +24,7 @@ use bevy::prelude::*;
 pub mod object_properties;
 pub mod systems;
 
+use crate::app_state::overworld::OverworldUpdate;
 pub use object_properties::ObjectCollider;
 
 #[derive(Resource, Default)]
@@ -44,7 +45,8 @@ impl Plugin for TilemapPlugin {
                     setup_camera_bounds_system,
                     update_objects_order_with_player_system,
                     update_map_bgm_system,
-                ),
+                )
+                    .in_set(OverworldUpdate),
             );
     }
 }
