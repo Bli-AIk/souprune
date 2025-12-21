@@ -49,6 +49,7 @@
 - [x] 在 `AppState` 枚举中添加 `Battle` 变体
 - [x] 在 `get_game_plugins` 中注册 `BattlePlugin`
 - [x] 定义 `OverworldEntity` 组件与 `cleanup_overworld_entities` 系统
+- [x] 添加 F6 进入战斗状态的调试按键
 - [ ] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
 - [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
 - [ ] 定义 `OverworldSession` 资源

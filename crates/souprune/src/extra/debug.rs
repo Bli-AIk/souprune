@@ -19,6 +19,8 @@
 //! 本文件定义了 `DebugPlugin`，当 `debug` 功能启用时会初始化诸如检查器之类的工具。
 
 #[cfg(feature = "debug")]
+mod battle_test;
+#[cfg(feature = "debug")]
 mod collider;
 #[cfg(feature = "debug")]
 mod image_overlay;
@@ -51,6 +53,11 @@ impl Plugin for DebugPlugin {
             //
             // 设置玩家 HP 调试功能。
             player_hp::debug_player_hp::setup_player_hp_debug(_app);
+
+            // Set up battle test debugging features.
+            //
+            // 设置战斗测试调试功能。
+            battle_test::debug_battle_test::setup_battle_test_debug(_app);
         }
     }
 }
