@@ -56,7 +56,6 @@
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)
 - [ ] 实现 `restore_overworld_state` (OnEnter Overworld)
-- [ ] 实现 Debug 按键测试状态切换
 
 ### v0.4.1: 战斗流程数据化 (Battle Sequence)
 - [ ] 定义 `BattleSetup`, `Chapter` 枚举, `BattleSequence` 结构体

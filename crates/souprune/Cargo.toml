@@ -72,6 +72,10 @@ git = "https://github.com/Bli-AIk/iyes_perf_ui"
 branch = "bevy-0.17"
 optional = true
 
+[dependencies.bevy_brp_extras]
+version = "0.17.2"
+optional = true
+
 [features]
 default = []
-debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui"]
+debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui", "dep:bevy_brp_extras"]
