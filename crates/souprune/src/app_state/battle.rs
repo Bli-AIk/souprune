@@ -23,10 +23,30 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
+use crate::app_state::AppState;
+use crate::app_state::overworld::OverworldEntity;
 use bevy::app::{App, Plugin};
+use bevy::prelude::{Commands, Component, Entity, OnExit, Query, With};
+
+/// Marker component for overworld entities
+///
+/// 标记 Battle 实体的组件
+#[derive(Component)]
+pub(crate) struct BattleEntity();
 
 pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnExit(AppState::Battle), cleanup_battle_entities_system);
+    }
+}
+
+fn cleanup_battle_entities_system(
+    mut commands: Commands,
+    query: Query<Entity, With<BattleEntity>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }

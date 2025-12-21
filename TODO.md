@@ -53,7 +53,8 @@
 - [x] 限制 `OverworldPlugin` 仅在 `AppState::Overworld` 激活
 - [x] 添加 `bevy_brp_extras` 依赖
 - [x] 修复 ron UI 多次创建的问题
-- [ ] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
+- [x] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
+- [ ] 把 `cleanup_entities` 系统改为泛型
 - [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)
