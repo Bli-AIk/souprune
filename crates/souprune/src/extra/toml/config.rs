@@ -1,3 +1,15 @@
+//! # config.rs
+//!
+//! # config.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines `TomlConfigRegistry`, a resource that aggregates and manages TOML-based configurations for sprites, animations, and module dependencies from all loaded assets.
+//!
+//! 定义 `TomlConfigRegistry`，该资源聚合和管理来自所有加载资产的基于 TOML 的配置，包括精灵、动画和模块依赖关系。
+
 use crate::extra::toml::{AnimationConfig, SpriteConfig};
 use bevy::log::info;
 use bevy::platform::collections::HashMap;

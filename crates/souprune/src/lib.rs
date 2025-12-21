@@ -1,3 +1,15 @@
+//! # lib.rs
+//!
+//! # lib.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This is the main library entry point for the Souprune framework. It orchestrates the application startup, including logging initialization, plugin registration (Bevy defaults, third-party, and game-specific), and configuring the asset system for multi-source loading.
+//!
+//! 这是 Souprune 框架的主要库入口点。它负责协调应用程序的启动，包括日志初始化、插件注册（Bevy 默认插件、第三方插件和游戏特定插件），以及配置用于多源加载的资产系统。
+
 pub mod app_state;
 pub mod config;
 pub mod core;

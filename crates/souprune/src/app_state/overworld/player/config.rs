@@ -1,3 +1,15 @@
+//! # config.rs
+//!
+//! # config.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines the `PlayerBehavior` resource and configuration, which dictates how the player behaves in the overworld, including movement, animation, and interaction settings.
+//!
+//! 定义 `PlayerBehavior` 资源和配置，规定玩家在 Overworld 中的行为，包括移动、动画和交互设置。
+
 use crate::config;
 use crate::core::basic_components::Direction;
 use crate::core::character_asset::{AnimationConfigAsset, CharacterAsset};

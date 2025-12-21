@@ -1,3 +1,19 @@
+//! # overworld.rs
+//!
+//! # overworld.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! The `overworld` module manages the game's overworld state, including player movement, tilemaps, characters, and UI interactions.
+//!
+//! `overworld` 模块管理游戏的大地图（Overworld）状态，包括玩家移动、瓦片地图、角色和用户界面交互。
+//!
+//! It orchestrates sub-plugins and handles camera binding to the player.
+//!
+//! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
+
 use crate::app_state::AppState;
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};

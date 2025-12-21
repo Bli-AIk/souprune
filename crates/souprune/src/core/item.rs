@@ -1,3 +1,15 @@
+//! # item.rs
+//!
+//! # item.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! The `item` module implements the game's item system. It defines data structures for items, equipment, and effects, provides an asset loader for parsing `.item.ron` files, and maintains a central `ItemRegistry` resource for querying items by ID.
+//!
+//! `item` 模块实现了游戏的物品系统。它定义了物品、装备和效果的数据结构，提供了用于解析 `.item.ron` 文件的资产加载器，并维护了一个核心的 `ItemRegistry` 资源，以便通过 ID 查询物品。
+
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, LoadContext, LoadedFolder};
 use bevy::prelude::*;

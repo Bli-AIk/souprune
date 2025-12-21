@@ -1,3 +1,15 @@
+//! # collider.rs
+//!
+//! # collider.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Implements debug visualization for 2D colliders (Rect2DCollider), rendering them as colored outlines (Green for Player, Dark/Light Green for others) when F3 is pressed.
+//!
+//! 实现 2D 碰撞体 (Rect2DCollider) 的调试可视化，按下 F3 时将其渲染为彩色轮廓（玩家为绿色，其他为深/浅绿色）。
+
 #[cfg(feature = "debug")]
 pub mod debug_collider {
 

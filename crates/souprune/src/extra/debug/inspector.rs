@@ -1,3 +1,15 @@
+//! # inspector.rs
+//!
+//! # inspector.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Sets up the integrated `bevy-inspector-egui` for debugging, including a standalone inspector window, performance UI, and debug help text overlay.
+//!
+//! 设置集成的 `bevy-inspector-egui` 以进行调试，包括独立的检查器窗口、性能 UI 和调试帮助文本覆盖层。
+
 #[cfg(feature = "debug")]
 pub mod debug_inspector {
     use crate::app_state::overworld::character::components::PlayerControlled;

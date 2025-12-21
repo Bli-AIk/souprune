@@ -1,3 +1,15 @@
+//! # components.rs
+//!
+//! # components.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines collision-related components, primarily the `Rect2DCollider` for 2D AABB collision detection.
+//!
+//! 定义碰撞相关组件，主要是用于 2D AABB 碰撞检测的 `Rect2DCollider`。
+
 use bevy::prelude::*;
 
 /// 2D rectangular collider component with size and offset.
