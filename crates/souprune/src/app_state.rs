@@ -26,7 +26,7 @@
 //!
 //! 整个游戏的状态管理都基于此枚举，且 Setup 状态会最先被进入。
 
-use bevy::prelude::States;
+use bevy::prelude::{Commands, Component, Entity, Query, States, With};
 
 pub(crate) mod app_setup;
 pub(crate) mod battle;
@@ -43,3 +43,12 @@ pub enum AppState {
 }
 
 // TODO: 状态管理、状态转换
+
+pub fn cleanup_entities_system<T: Component>(
+    mut commands: Commands,
+    query: Query<Entity, With<T>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}

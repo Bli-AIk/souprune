@@ -14,7 +14,7 @@
 //!
 //! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -65,7 +65,7 @@ impl Plugin for OverworldPlugin {
         )
         .add_systems(
             OnExit(AppState::Overworld),
-            cleanup_overworld_entities_system,
+            cleanup_entities_system::<OverworldEntity>,
         )
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
         .add_systems(
@@ -91,14 +91,5 @@ fn bind_camera_target_system(
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
-    }
-}
-
-fn cleanup_overworld_entities_system(
-    mut commands: Commands,
-    query: Query<Entity, With<OverworldEntity>>,
-) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
     }
 }
