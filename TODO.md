@@ -55,6 +55,7 @@
 - [x] 修复 ron UI 多次创建的问题
 - [x] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
 - [x] 把 `cleanup_entities` 系统改为泛型
+- [x] 为 `inspector.rs` 中的物体添加 "Debug:" 前缀
 - [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)

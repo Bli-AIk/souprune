@@ -263,6 +263,7 @@ pub mod debug_inspector {
 
         let window_entity = commands
             .spawn((
+                Name::new("Debug: Inspector Window"),
                 Window {
                     title: "Souprune Inspector".into(),
                     resolution: WindowResolution::new(960, 640),
@@ -276,8 +277,8 @@ pub mod debug_inspector {
 
         let camera_entity = commands
             .spawn((
-                Camera3d::default(),
-                Transform::from_xyz(0.0, 0.0, 1.0),
+                Name::new("Debug: Inspector Camera"),
+                Camera2d,
                 Camera {
                     target: RenderTarget::Window(WindowRef::Entity(window_entity)),
                     ..default()
