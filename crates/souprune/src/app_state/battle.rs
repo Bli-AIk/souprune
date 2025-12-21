@@ -28,8 +28,5 @@ use bevy::app::{App, Plugin};
 pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
-    fn build(&self, app: &mut App) {
-
-    }
+    fn build(&self, app: &mut App) {}
 }
-

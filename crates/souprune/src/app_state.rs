@@ -29,8 +29,8 @@
 use bevy::prelude::States;
 
 pub(crate) mod app_setup;
-pub(crate) mod overworld;
 pub(crate) mod battle;
+pub(crate) mod overworld;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 #[allow(dead_code)]

@@ -18,15 +18,15 @@
 //!
 //! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
 
-use crate::app_state::overworld::character;
+use crate::app_state::overworld::{OverworldEntity, character};
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
-    Visibility, Window, With, Without,
+    Added, Camera, Commands, Component, Entity, Name, Over, Query, Res, ResMut, Sprite, Transform,
+    Vec2, Visibility, Window, With, Without,
 };
 use bevy_ecs_tiled::prelude::{
     TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
@@ -52,6 +52,7 @@ pub struct ObjectCollisionGroup;
 
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
+        OverworldEntity(),
         TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
         TilemapAnchor::Center,
         TiledMapLayerZOffset(10.0),
@@ -131,6 +132,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
+                OverworldEntity(),
                 CollisionTileGroup,
                 Name::new("CollisionTiles"),
                 Transform::default(),
@@ -147,6 +149,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
+                OverworldEntity(),
                 ObjectCollisionGroup,
                 Name::new("ObjectCollisions"),
                 Transform::default(),

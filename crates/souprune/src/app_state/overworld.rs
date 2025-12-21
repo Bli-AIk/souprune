@@ -56,6 +56,10 @@ impl Plugin for OverworldPlugin {
                 OnEnter(AppState::Overworld),
                 create_overworld_entities_system,
             )
+            .add_systems(
+                OnExit(AppState::Overworld),
+                cleanup_overworld_entities_system,
+            )
             .add_systems(Update, bind_camera_target_system)
             .add_systems(
                 OnEnter(OverworldState::Backpack),
@@ -80,5 +84,14 @@ fn bind_camera_target_system(
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
+    }
+}
+
+fn cleanup_overworld_entities_system(
+    mut commands: Commands,
+    query: Query<Entity, With<OverworldEntity>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
     }
 }

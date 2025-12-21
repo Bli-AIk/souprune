@@ -62,7 +62,7 @@ fn spawn_player_on_event(
     asset_server: Res<AssetServer>,
     player_behavior: Res<PlayerBehavior>,
 ) {
-    if !events.read().next().is_some() {
+    if events.read().next().is_none() {
         return;
     }
 

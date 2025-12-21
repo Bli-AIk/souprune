@@ -153,8 +153,7 @@ fn get_third_plugins() -> (
     bevy_rich_text3d::Text3dPlugin,
 ) {
     (
-        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(
-        ),
+        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
         seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
         bevy_smud::SmudPlugin,
