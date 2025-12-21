@@ -23,6 +23,8 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
+mod chapter;
+
 use crate::app_state::{AppState, cleanup_entities_system};
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Component, OnExit};

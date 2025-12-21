@@ -45,6 +45,9 @@
 目标：构建完整的弹幕战斗体验，从基础状态切换到复杂的流程控制。
 
 ### v0.4.0: 基础架构 (State Management)
+
+#### 基础部分
+
 - [x] 在 `crates/souprune/src/app_state/battle.rs` 创建空的 `BattlePlugin`
 - [x] 在 `AppState` 枚举中添加 `Battle` 变体
 - [x] 在 `get_game_plugins` 中注册 `BattlePlugin`
@@ -56,22 +59,26 @@
 - [x] 定义 `BattleEntity` 组件与 `cleanup_battle_entities` 系统
 - [x] 把 `cleanup_entities` 系统改为泛型
 - [x] 为 `inspector.rs` 中的物体添加 "Debug:" 前缀
-- [ ] 在 `BattlePlugin` 中注册 `OnEnter(AppState::Battle)` 日志系统
-- [ ] 定义 `OverworldSession` 资源
-- [ ] 实现 `save_overworld_state` (OnExit Overworld)
-- [ ] 实现 `restore_overworld_state` (OnEnter Overworld)
 
-### v0.4.1: 战斗流程数据化 (Battle Sequence)
-- [ ] 定义 `BattleSetup`, `Chapter` 枚举, `BattleSequence` 结构体
+#### 战斗流程数据化 (Battle Sequence)
+- [ ] 定义 `Chapter` 枚举
+- [ ] 定义 `BattleSequencer` 作为 序列器
+- [ ] 定义 `BattleSetup`
 - [ ] 实现 `.battle.ron` 的 `AssetLoader`
 - [ ] 定义 `BattleContext` 运行时资源
 - [ ] 实现 Chapter 执行器：根据当前 Chapter 类型切换子状态
 
-### v0.4.2: 弹幕系统 (Danmaku Core)
+### v0.4.1: 弹幕系统 (Danmaku Core)
 - [ ] 定义 `BulletBehavior` 枚举 (Functional, Tween, Composite)
 - [ ] 实现 `BulletSpawner` 系统
 - [ ] 实现基于 `Functional` 的运动逻辑系统
 - [ ] 实现基于 `Tween` 的运动逻辑系统
+
+### v0.4.2 OverworldSession 部分
+
+- [ ] 定义 `OverworldSession` 资源
+- [ ] 实现 `save_overworld_state` (OnExit Overworld)
+- [ ] 实现 `restore_overworld_state` (OnEnter Overworld)
 
 ---
 
