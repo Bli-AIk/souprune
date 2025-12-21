@@ -151,6 +151,7 @@ fn get_third_plugins() -> (
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
+    bevy_brp_extras::BrpExtrasPlugin,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
@@ -162,6 +163,7 @@ fn get_third_plugins() -> (
             load_system_fonts: false,
             ..Default::default()
         },
+        bevy_brp_extras::BrpExtrasPlugin,
     )
 }
 

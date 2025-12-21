@@ -411,6 +411,7 @@ pub fn spawn_ron_ui_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     player_data: Res<crate::core::data::PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
+    mut watcher: Option<ResMut<UILayoutWatcher>>,
 ) {
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;
@@ -420,6 +421,7 @@ pub fn spawn_ron_ui_system(
         return;
     };
 
+    let mut spawned_any = false;
     for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
         if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
             continue;
@@ -445,6 +447,18 @@ pub fn spawn_ron_ui_system(
             &player_data,
             &item_registry,
         );
+        spawned_any = true;
+    }
+
+    // Clear pending_reload flag to prevent rebuild_reloaded_ui_system from running
+    // on initial spawn, which would cause duplicate UI elements
+    //
+    // 清除 pending_reload 标志以防止 rebuild_reloaded_ui_system 在初次生成时运行，
+    // 这会导致重复的 UI 元素
+    if spawned_any {
+        if let Some(ref mut w) = watcher {
+            w.pending_reload = false;
+        }
     }
 }
 
