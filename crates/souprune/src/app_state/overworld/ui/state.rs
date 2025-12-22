@@ -19,8 +19,7 @@
 //! 管理由用户输入触发的状态变化，例如确认和取消操作。
 
 use super::components::{
-    BackpackItemOption, OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig,
-    UILayerTransitionConfig,
+    OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig, UILayerTransitionConfig,
 };
 use super::ron_ui_system::UIGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};

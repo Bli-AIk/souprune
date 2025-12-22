@@ -20,7 +20,7 @@
 
 use super::components::*;
 use super::layout::*;
-use crate::app_state::overworld::{OverworldEntity, OverworldState};
+use crate::app_state::overworld::OverworldState;
 use crate::core::input::Action;
 use crate::core::sprite::params::SpriteParams;
 use bevy::asset::AssetEvent;
@@ -455,10 +455,8 @@ pub fn spawn_ron_ui_system(
     //
     // 清除 pending_reload 标志以防止 rebuild_reloaded_ui_system 在初次生成时运行，
     // 这会导致重复的 UI 元素
-    if spawned_any {
-        if let Some(ref mut w) = watcher {
-            w.pending_reload = false;
-        }
+    if spawned_any && let Some(ref mut w) = watcher {
+        w.pending_reload = false;
     }
 }
 

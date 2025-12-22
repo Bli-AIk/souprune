@@ -148,21 +148,19 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         }
 
         // Similar logic for X and Z if needed, but for now focusing on Y as per user report.
-        if let Some(expr) = &dynamic.x_expression {
-            if let Ok(val) = evalexpr::eval_with_context(expr, &context) {
-                if let Ok(f) = val.as_float() {
-                    let f: f64 = f;
-                    anchor.offset.x = f as f32;
-                }
-            }
+        if let Some(expr) = &dynamic.x_expression
+            && let Ok(val) = evalexpr::eval_with_context(expr, &context)
+            && let Ok(f) = val.as_float()
+        {
+            let f: f64 = f;
+            anchor.offset.x = f as f32;
         }
-        if let Some(expr) = &dynamic.z_expression {
-            if let Ok(val) = evalexpr::eval_with_context(expr, &context) {
-                if let Ok(f) = val.as_float() {
-                    let f: f64 = f;
-                    anchor.offset.z = f as f32;
-                }
-            }
+        if let Some(expr) = &dynamic.z_expression
+            && let Ok(val) = evalexpr::eval_with_context(expr, &context)
+            && let Ok(f) = val.as_float()
+        {
+            let f: f64 = f;
+            anchor.offset.z = f as f32;
         }
 
         let new_translation = camera_transform.translation + anchor.offset;

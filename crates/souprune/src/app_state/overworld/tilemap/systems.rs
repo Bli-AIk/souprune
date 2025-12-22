@@ -25,8 +25,8 @@ use crate::core::collision::Rect2DCollider;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Camera, Commands, Component, Entity, Name, Over, Query, Res, ResMut, Sprite, Transform,
-    Vec2, Visibility, Window, With, Without,
+    Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
+    Visibility, Window, With, Without,
 };
 use bevy_ecs_tiled::prelude::{
     TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
@@ -522,16 +522,14 @@ pub fn update_map_bgm_system(
     asset_server: Res<AssetServer>,
 ) {
     for tiled_map in tiled_maps.iter() {
-        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
-            if let Some(bgm_prop) = map_asset.map.properties.get("bgm") {
-                if let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop {
-                    if current_bgm.0.as_deref() != Some(bgm_path) {
-                        info!("Switching BGM to: {}", bgm_path);
-                        crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
-                        current_bgm.0 = Some(bgm_path.clone());
-                    }
-                }
-            }
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
+            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && current_bgm.0.as_deref() != Some(bgm_path)
+        {
+            info!("Switching BGM to: {}", bgm_path);
+            crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+            current_bgm.0 = Some(bgm_path.clone());
         }
     }
 }
