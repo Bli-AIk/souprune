@@ -5554,6 +5554,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "souprune_api"
+version = "0.0.0"
+
+[[package]]
+name = "souprune_sdk"
+version = "0.0.0"
+dependencies = [
+ "souprune_api",
+]
+
+[[package]]
 name = "spade"
 version = "2.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

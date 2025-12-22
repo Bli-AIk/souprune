@@ -49,6 +49,19 @@ SoupRune 的目标是成为真正意义上的 **「面向社区的 Fangame 框�
 * 核心使用 **Bevy 引擎** 与 **Rust 语言** 实现，保证性能与可扩展性；
 * 设计目标是：**结构清晰、可模块化扩展、易于定制**；
 
+## 🏗️ 项目架构
+
+SoupRune 采用多 Crate 的工作空间架构：
+
+| Crate | 描述 |
+| :--- | :--- |
+| [`souprune`](./crates/souprune) | **核心框架**：框架本体，游戏的主入口和核心逻辑实现。 |
+| [`souprune_api`](./crates/souprune_api) | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。 |
+| [`souprune_sdk`](./crates/souprune_sdk) | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。 |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond) | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。 |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter) | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。 |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。 |
+
 ## 🧩 脚本层支持
 
 SoupRune 将提供多语言脚本支持，让不同背景的开发者都能快速上手：

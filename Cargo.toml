@@ -6,6 +6,10 @@ members = [
     "crates/bevy_ecs_typewriter",
     "crates/bevy_fact_rule_event",
     "crates/bevy_mortar_bond"
+,
+    "crates/souprune_api"
+,
+    "crates/souprune_sdk"
 ]
 
 # Enable a small amount of optimization in the dev profile.
