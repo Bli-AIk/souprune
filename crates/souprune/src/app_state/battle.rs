@@ -24,7 +24,9 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 mod chapter;
+mod sequencer;
 
+use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
 use bevy::app::{App, Plugin};
 use bevy::prelude::{Component, OnExit};
@@ -39,7 +41,7 @@ pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_plugins(SequencerPlugin).add_systems(
             OnExit(AppState::Battle),
             cleanup_entities_system::<BattleEntity>,
         );

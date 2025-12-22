@@ -61,8 +61,10 @@
 - [x] 为 `inspector.rs` 中的物体添加 "Debug:" 前缀
 
 #### 战斗流程数据化 (Battle Sequence)
-- [ ] 定义 `Chapter` 枚举
-- [ ] 定义 `BattleSequencer` 作为 序列器
+- [x] 定义 `Chapter` 枚举
+- [x] 定义 `BattleSequencer` 作为 序列器
+- [x] 实现调度器系统
+- [ ] 实现执行器系统
 - [ ] 定义 `BattleSetup`
 - [ ] 实现 `.battle.ron` 的 `AssetLoader`
 - [ ] 定义 `BattleContext` 运行时资源

@@ -16,7 +16,7 @@
 //! 例如，玩家选择、弹幕生成、对话、以及 Chapter 的嵌套等。
 //! Chapter 本身不包含 弹幕 或 UI 的定义与具体实现。
 
-enum Chapter {
+pub(crate) enum Chapter {
     /// UI Interaction Chapter.
     ///
     /// The Chapter allows players to interact with the UI.
