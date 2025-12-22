@@ -27,9 +27,9 @@ mod chapter;
 mod sequencer;
 
 use crate::app_state::battle::sequencer::SequencerPlugin;
-use crate::app_state::{cleanup_entities_system, AppState};
+use crate::app_state::{AppState, cleanup_entities_system};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{in_state, Component, IntoScheduleConfigs, OnExit, SystemSet};
+use bevy::prelude::{Component, IntoScheduleConfigs, OnExit, SystemSet, in_state};
 
 /// Marker component for overworld entities
 ///
