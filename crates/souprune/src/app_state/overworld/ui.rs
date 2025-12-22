@@ -19,10 +19,10 @@
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
 use crate::app_state::overworld::{OverworldState, OverworldUpdate};
+use crate::core::ron_loader::RonAssetLoader;
 use crate::overworld::ui::ron_ui_system::rebuild_reloaded_ui_system;
 use bevy::prelude::*;
 
-mod asset_loader;
 mod camera;
 pub(crate) mod components;
 mod cursor;
@@ -34,7 +34,6 @@ mod state;
 mod text;
 mod ui_box;
 
-use asset_loader::UILayoutAssetLoader;
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
     update_dynamic_camera_anchors_system,
@@ -71,7 +70,7 @@ pub(crate) struct OverworldUIPlugin;
 impl Plugin for OverworldUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<UILayoutAsset>()
-            .init_asset_loader::<UILayoutAssetLoader>()
+            .register_asset_loader(RonAssetLoader::<UILayoutAsset>::new(&["ui.ron"]))
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()

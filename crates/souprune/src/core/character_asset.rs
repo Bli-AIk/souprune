@@ -2,11 +2,9 @@
 //!
 //! 数据驱动角色配置的资产定义。
 
-use bevy::asset::io::Reader;
-use bevy::asset::{Asset, AssetLoader, LoadContext};
+use bevy::asset::Asset;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
-use bevy::tasks::ConditionalSendFuture;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -73,65 +71,9 @@ impl StateAnimationMapping {
     }
 }
 
-/// Asset loader for `.char.ron` files.
-///
-/// `.char.ron` 文件的资产加载器。
-#[derive(Default)]
-pub struct CharacterAssetLoader;
-
-impl AssetLoader for CharacterAssetLoader {
-    type Asset = CharacterAsset;
-    type Settings = ();
-    type Error = anyhow::Error;
-
-    fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut LoadContext<'_>,
-    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            let asset = ron::de::from_bytes::<CharacterAsset>(&bytes)?;
-            Ok(asset)
-        })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["char.ron"]
-    }
-}
-
-/// Asset loader for `.anim.ron` files.
-///
-/// `.anim.ron` 文件的资产加载器。
-#[derive(Default)]
-pub struct AnimationConfigAssetLoader;
-
-impl AssetLoader for AnimationConfigAssetLoader {
-    type Asset = AnimationConfigAsset;
-    type Settings = ();
-    type Error = anyhow::Error;
-
-    fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut LoadContext<'_>,
-    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            let asset = ron::de::from_bytes::<AnimationConfigAsset>(&bytes)?;
-            Ok(asset)
-        })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["anim.ron"]
-    }
-}
+// Loaders are now handled by generic RonAssetLoader in core.rs
+//
+// 加载器现在由 core.rs 中的泛型 RonAssetLoader 处理
 
 /// Component that holds the animation configuration handle.
 ///

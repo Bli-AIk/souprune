@@ -10,11 +10,9 @@
 //!
 //! `item` 模块实现了游戏的物品系统。它定义了物品、装备和效果的数据结构，提供了用于解析 `.item.ron` 文件的资产加载器，并维护了一个核心的 `ItemRegistry` 资源，以便通过 ID 查询物品。
 
-use bevy::asset::io::Reader;
-use bevy::asset::{AssetLoader, LoadContext, LoadedFolder};
+use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
-use bevy::tasks::ConditionalSendFuture;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -23,7 +21,9 @@ pub struct ItemPlugin;
 impl Plugin for ItemPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<ItemAsset>()
-            .init_asset_loader::<ItemAssetLoader>()
+            .register_asset_loader(crate::core::ron_loader::RonAssetLoader::<ItemAsset>::new(
+                &["item.ron"],
+            ))
             .init_resource::<ItemRegistry>()
             .add_systems(Startup, load_items_system)
             .add_systems(Update, sync_items_system);
@@ -34,7 +34,8 @@ impl Plugin for ItemPlugin {
 //
 // --- 数据结构 ---
 
-#[derive(Asset, TypePath, Debug)]
+#[derive(Asset, TypePath, Debug, Deserialize)]
+#[serde(transparent)]
 pub struct ItemAsset(pub Vec<Item>);
 
 #[derive(Debug, Clone, Deserialize, Reflect, PartialEq)]
@@ -75,41 +76,9 @@ pub enum ItemEffect {
 //
 // --- 资产加载器 ---
 
-#[derive(Default)]
-pub struct ItemAssetLoader;
-
-impl AssetLoader for ItemAssetLoader {
-    type Asset = ItemAsset;
-    type Settings = ();
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut LoadContext,
-    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            // ron::de::from_bytes handles the decoding
-            //
-            // ron::de::from_bytes 处理解码
-            let items: Vec<Item> = ron::de::from_bytes(&bytes)?;
-
-            // Log for debugging
-            //
-            // 调试日志
-            // info!("Loaded {} items from ron file", items.len());
-
-            Ok(ItemAsset(items))
-        })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["item.ron"]
-    }
-}
+// Asset loading is now handled by generic RonAssetLoader
+//
+// 资产加载现在由泛型 RonAssetLoader 处理
 
 // --- Registry & Loading Logic ---
 //

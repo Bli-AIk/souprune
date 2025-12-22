@@ -39,6 +39,7 @@ pub(crate) mod collision;
 pub(crate) mod data;
 pub(crate) mod input;
 pub(crate) mod item;
+pub(crate) mod ron_loader;
 pub(crate) mod sprite;
 
 use crate::extra;
@@ -59,8 +60,12 @@ impl Plugin for CorePlugin {
         app.init_resource::<extra::toml::config::TomlConfigRegistry>()
             .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
-            .init_asset_loader::<character_asset::CharacterAssetLoader>()
-            .init_asset_loader::<character_asset::AnimationConfigAssetLoader>()
+            .register_asset_loader(
+                ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&["char.ron"]),
+            )
+            .register_asset_loader(ron_loader::RonAssetLoader::<
+                character_asset::AnimationConfigAsset,
+            >::new(&["anim.ron"]))
             .add_plugins((
                 animation::AnimationPlugin,
                 audio::AudioPlugin,
