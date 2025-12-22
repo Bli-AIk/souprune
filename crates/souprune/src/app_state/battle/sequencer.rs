@@ -17,11 +17,12 @@ pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, advance_battle_flow_system);
+        app.add_systems(Update, advance_battle_flow_system.in_set(BattleUpdate));
     }
 }
 
 use super::chapter::Chapter;
+use crate::app_state::battle::BattleUpdate;
 use bevy::prelude::*;
 
 /// [Resource] includes the queue of Chapters that have not yet occurred

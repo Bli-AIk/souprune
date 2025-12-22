@@ -27,9 +27,9 @@ mod chapter;
 mod sequencer;
 
 use crate::app_state::battle::sequencer::SequencerPlugin;
-use crate::app_state::{AppState, cleanup_entities_system};
-use bevy::app::{App, Plugin};
-use bevy::prelude::{Component, OnExit};
+use crate::app_state::{cleanup_entities_system, AppState};
+use bevy::app::{App, Plugin, Update};
+use bevy::prelude::{in_state, Component, IntoScheduleConfigs, OnExit, SystemSet};
 
 /// Marker component for overworld entities
 ///
@@ -37,13 +37,18 @@ use bevy::prelude::{Component, OnExit};
 #[derive(Component)]
 pub(crate) struct BattleEntity();
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BattleUpdate;
+
 pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(SequencerPlugin).add_systems(
-            OnExit(AppState::Battle),
-            cleanup_entities_system::<BattleEntity>,
-        );
+        app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+            .add_plugins(SequencerPlugin)
+            .add_systems(
+                OnExit(AppState::Battle),
+                cleanup_entities_system::<BattleEntity>,
+            );
     }
 }
