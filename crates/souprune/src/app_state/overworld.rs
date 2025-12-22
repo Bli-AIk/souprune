@@ -65,7 +65,10 @@ impl Plugin for OverworldPlugin {
         )
         .add_systems(
             OnExit(AppState::Overworld),
-            cleanup_entities_system::<OverworldEntity>,
+            (
+                cleanup_entities_system::<OverworldEntity>,
+                stop_bgm_on_exit_system,
+            ),
         )
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
         .add_systems(
@@ -81,6 +84,20 @@ impl Plugin for OverworldPlugin {
 
 fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::SpawnPlayerRequest>) {
     spawn_events.write(player::SpawnPlayerRequest);
+}
+
+fn stop_bgm_on_exit_system(
+    mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
+    mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
+    mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
+) {
+    if let Some(handle) = &bgm_handle.0 {
+        if let Some(instance) = audio_instances.get_mut(handle) {
+            instance.stop(bevy_kira_audio::AudioTween::default());
+        }
+    }
+    bgm_handle.0 = None;
+    current_map_bgm.0 = None;
 }
 
 fn bind_camera_target_system(

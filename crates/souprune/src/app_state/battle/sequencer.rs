@@ -17,7 +17,8 @@ pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, advance_battle_flow_system.in_set(BattleUpdate));
+        app.init_resource::<BattleQueue>()
+            .add_systems(Update, advance_battle_flow_system.in_set(BattleUpdate));
     }
 }
 
@@ -50,16 +51,10 @@ fn advance_battle_flow_system(
     mut queue: ResMut<BattleQueue>,
     active_query: Query<Entity, With<ActiveChapter>>,
 ) {
-    // If there is already an active chapter, do nothing
-    //
-    // 如果已经有一个激活的章节，那就啥也不做
     if !active_query.is_empty() {
         return;
     }
 
-    // If there are no chapters left in the queue, do nothing
-    //
-    // 如果队列中没有剩余章节，依旧啥也不做
     if queue.chapters.is_empty() {
         return;
     }

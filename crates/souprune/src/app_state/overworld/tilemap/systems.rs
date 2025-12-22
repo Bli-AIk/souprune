@@ -516,9 +516,11 @@ pub fn setup_camera_bounds_system(
 /// 根据地图属性更新背景音乐。
 pub fn update_map_bgm_system(
     mut current_bgm: ResMut<super::CurrentMapBgm>,
+    mut bgm_handle: ResMut<super::CurrentBgmHandle>,
     tiled_maps: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     audio: Res<bevy_kira_audio::Audio>,
+    mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
     asset_server: Res<AssetServer>,
 ) {
     for tiled_map in tiled_maps.iter() {
@@ -527,9 +529,16 @@ pub fn update_map_bgm_system(
             && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
             && current_bgm.0.as_deref() != Some(bgm_path)
         {
+            if let Some(handle) = &bgm_handle.0 {
+                if let Some(instance) = audio_instances.get_mut(handle) {
+                    instance.stop(bevy_kira_audio::AudioTween::default());
+                }
+            }
+
             info!("Switching BGM to: {}", bgm_path);
-            crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+            let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
             current_bgm.0 = Some(bgm_path.clone());
+            bgm_handle.0 = Some(handle);
         }
     }
 }

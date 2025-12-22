@@ -27,8 +27,13 @@ pub mod systems;
 use crate::app_state::overworld::OverworldUpdate;
 pub use object_properties::ObjectCollider;
 
+use bevy_kira_audio::AudioInstance;
+
 #[derive(Resource, Default)]
 pub struct CurrentMapBgm(pub Option<String>);
+
+#[derive(Resource, Default)]
+pub struct CurrentBgmHandle(pub Option<Handle<AudioInstance>>);
 
 pub(crate) struct TilemapPlugin;
 
@@ -36,6 +41,7 @@ impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
         app.init_resource::<CurrentMapBgm>()
+            .init_resource::<CurrentBgmHandle>()
             .add_systems(OnEnter(Overworld), setup_tilemap_system)
             .add_systems(
                 Update,
