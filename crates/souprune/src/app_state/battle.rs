@@ -23,13 +23,15 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
+mod asset_loader;
 mod chapter;
 mod sequencer;
 
+use self::asset_loader::{BattleFlowAsset, BattleFlowAssetLoader};
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{Component, IntoScheduleConfigs, OnExit, SystemSet, in_state};
+use bevy::prelude::*;
 
 /// Marker component for overworld entities
 ///
@@ -45,6 +47,8 @@ pub(crate) struct BattlePlugin;
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+            .init_asset::<BattleFlowAsset>()
+            .register_asset_loader(BattleFlowAssetLoader)
             .add_plugins(SequencerPlugin)
             .add_systems(
                 OnExit(AppState::Battle),

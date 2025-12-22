@@ -65,7 +65,7 @@
 - [x] 定义 `BattleSequencer` 作为 序列器
 - [x] 实现调度器系统
 - [x] 定义 `PlayerAction`
-- [ ] 实现战斗内的玩家 ron 配置系统
+- [x] 实现 Chapter ron 文件雏形
 - [ ] 实现执行器系统
 - [ ] 定义 `BattleSetup`
 - [ ] 实现 `.battle.ron` 的 `AssetLoader`

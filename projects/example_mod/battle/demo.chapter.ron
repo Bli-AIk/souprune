@@ -1,0 +1,15 @@
+[
+    SetPlayer(Teleport((x: 0.0, y: -150.0))),
+    SetPlayer(SetActive(true)),
+    SetPlayer(SetMode(["soul_red"])),
+    Wait(1.0),
+    UIInteraction(ui_layout: "ui/battle/main_menu.ui.ron"),
+    BulletPattern(
+        pattern_id: ["flowey_pellets_circle"]
+    ),
+    Wait(2.0),
+    Nested([
+        Wait(0.5),
+        SetPlayer(Despawn),
+    ]),
+]

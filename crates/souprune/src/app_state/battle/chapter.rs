@@ -16,9 +16,11 @@
 //! 例如，玩家选择、弹幕生成、对话、以及 Chapter 的嵌套等。
 //! Chapter 本身不包含 弹幕 或 UI 的定义与具体实现。
 
-use bevy::prelude::Vec2;
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
-pub(crate) enum Chapter {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum Chapter {
     /// UI Interaction Chapter.
     ///
     /// The Chapter allows players to interact with the UI.
@@ -66,7 +68,8 @@ pub(crate) enum Chapter {
 /// Player Action Enum.
 ///
 /// 操作玩家的一系列枚举项。
-pub(crate) enum PlayerAction {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum PlayerAction {
     /// Set Mode for the player.
     /// Mode refers to different behavioral states defined in the Character Asset,
     /// such as "movable", "jumpable", "shootable", etc.
