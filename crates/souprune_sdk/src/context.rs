@@ -24,6 +24,10 @@ impl<'a> Context<'a> {
     ///
     /// 仅限 SDK 内部使用：构建一个安全上下文
     /// Mod 作者不需要调用这个
+    ///
+    /// # Safety
+    ///
+    /// `handle` and `api` must be valid pointers provided by the host.
     pub unsafe fn new(handle: *mut ContextHandle, api: &'a HostApi) -> Self {
         Self { handle, api }
     }

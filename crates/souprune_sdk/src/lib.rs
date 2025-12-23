@@ -21,10 +21,17 @@ pub use souprune_api::{Action, ContextHandle, HostApi, SoulModeVTable};
 /// 这个宏用于把用户的 Struct 注册为 Mod
 #[macro_export]
 macro_rules! declare_soul_mode {
-    ($mod_type:ty, $constructor:expr) => {
+    ($id:literal, $mod_type:ty, $constructor:expr) => {
         // Static variable to store the API table
         // 静态变量存储 API 表
         static mut HOST_API: Option<$crate::HostApi> = None;
+
+        /// Export the ID of this Soul Mode
+        /// 导出此 Soul Mode 的 ID
+        #[unsafe(no_mangle)]
+        pub extern "C" fn get_soul_mode_id() -> *const u8 {
+            concat!($id, "\0").as_ptr()
+        }
 
         // Wrapped state, used to hold the user's Mod instance in the C closure.
         // Note: This is simplified; in reality, we might need Box::into_raw to pass it as a pointer to C.
@@ -61,7 +68,7 @@ macro_rules! declare_soul_mode {
         // 让我们先实现 无状态逻辑 版本。
 
         #[unsafe(no_mangle)]
-        pub extern "C" fn create_soul_mode(api: *const $crate::HostApi) -> $crate::SoulModeVTable {
+        pub unsafe extern "C" fn create_soul_mode(api: *const $crate::HostApi) -> $crate::SoulModeVTable {
             unsafe {
                 HOST_API = Some(api.read());
             }

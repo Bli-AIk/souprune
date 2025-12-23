@@ -61,4 +61,4 @@ pub struct SoulModeVTable {
 ///
 /// 握手协议：这是 DLL 导出的唯一函数的类型签名
 /// 引擎会查找名为 "create_soul_mode" 的符号，并强制转为此类型调用
-pub type CreateSoulModeFn = extern "C" fn(api: *const HostApi) -> SoulModeVTable;
+pub type CreateSoulModeFn = unsafe extern "C" fn(api: *const HostApi) -> SoulModeVTable;

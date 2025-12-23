@@ -38,4 +38,4 @@ impl SoulMode for MyTestSoul {
 }
 
 // 注册 Mod
-declare_soul_mode!(MyTestSoul, || MyTestSoul { counter: 0 });
+declare_soul_mode!("test_soul", MyTestSoul, || MyTestSoul { counter: 0 });

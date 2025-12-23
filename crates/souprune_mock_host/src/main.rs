@@ -8,7 +8,7 @@
 
 use libloading::{Library, Symbol};
 use souprune_api::{Action, ContextHandle, CreateSoulModeFn, HostApi};
-use std::ffi::c_float;
+use std::ffi::{c_float, CStr};
 
 // === 1. 模拟宿主侧的实现 ===
 
@@ -57,14 +57,30 @@ fn main() {
         println!("Loading mod from: {}", lib_path);
         let lib = Library::new(lib_path).expect("Failed to load DLL");
 
-        // B. 查找入口函数
+        // B. 验证 Mod ID
+        let get_id_func: Symbol<extern "C" fn() -> *const i8> =
+            lib.get(b"get_soul_mode_id").expect("Function get_soul_mode_id not found");
+
+        let id_ptr = get_id_func();
+        let id_cstr = CStr::from_ptr(id_ptr);
+        let id_str = id_cstr.to_str().expect("Invalid UTF-8 ID");
+        println!("[HOST] Found Mod ID: '{}'", id_str);
+
+        if id_str != "test_soul" {
+            println!("[HOST] ERROR: Expected mod ID 'test_soul', but got '{}'. Aborting.", id_str);
+            return;
+        }
+
+        println!("[HOST] ID Verified. Initializing...");
+
+        // C. 查找入口函数
         let func: Symbol<CreateSoulModeFn> =
             lib.get(b"create_soul_mode").expect("Symbol not found");
 
-        // C. 握手：传入 HostApi，获取 ModVTable
+        // D. 握手：传入 HostApi，获取 ModVTable
         let vtable = func(&api);
 
-        // D. 模拟游戏循环
+        // E. 模拟游戏循环
         let mut dummy_context_handle = std::mem::zeroed(); // 模拟一个句柄
 
         println!("--- Start Simulation ---");
