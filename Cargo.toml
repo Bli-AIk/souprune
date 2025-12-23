@@ -12,6 +12,8 @@ members = [
     "crates/souprune_sdk"
 ,
     "crates/souprune_mod_test"
+,
+    "crates/souprune_mock_host"
 ]
 
 # Enable a small amount of optimization in the dev profile.
