@@ -67,7 +67,7 @@
 - [x] 定义 `PlayerAction`
 - [x] 实现 Chapter ron 文件雏形
 - [x] 创建 `souprune_api` crate (定义 HostApi/VTable 协议)
-- [ ] 实现 Mod SDK (Context 封装与 Safe Rust 接口)
+- [x] 实现 Mod SDK (Context 封装与 Safe Rust 接口)
 - [ ] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
 - [ ] 实现 Native Mod Loader (DLL 加载与符号解析)
 - [ ] 实现执行器系统

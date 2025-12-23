@@ -12,6 +12,8 @@ pub struct ContextHandle {
     _private: [u8; 0],
 }
 
+/// Corresponds to the Action enum in souprune core, but fixed in the API layer to ensure ABI compatibility.
+///
 /// 对应 souprune 核心的 Action 枚举，但在 API 层固定下来以保证 ABI 兼容
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,11 +31,11 @@ pub enum Action {
 pub struct HostApi {
     pub log: extern "C" fn(level: u32, msg: *const u8, len: usize),
 
-    // === 传感器 (Sensors) ===
+    // === Sensors (传感器) ===
     pub input_is_action_pressed:
         extern "C" fn(context: *const ContextHandle, action: Action) -> bool,
 
-    // === 执行器 (Actuators) ===
+    // === Actuators (执行器) ===
     pub kinematics_set_velocity: extern "C" fn(context: *mut ContextHandle, x: c_float, y: c_float),
 }
 
@@ -46,6 +48,9 @@ pub struct SoulModeVTable {
     pub on_exit: Option<extern "C" fn(context: *mut ContextHandle)>,
 }
 
+/// Handshake protocol: This is the type signature of the only function exported by the DLL.
+/// The engine will look for a symbol named "create_soul_mode" and force cast it to this type for calling.
+///
 /// 握手协议：这是 DLL 导出的唯一函数的类型签名
 /// 引擎会查找名为 "create_soul_mode" 的符号，并强制转为此类型调用
 pub type CreateSoulModeFn = extern "C" fn(api: *const HostApi) -> SoulModeVTable;
