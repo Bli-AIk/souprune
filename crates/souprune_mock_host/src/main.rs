@@ -1,6 +1,6 @@
-use souprune_api::{ContextHandle, HostApi, CreateSoulModeFn};
-use std::ffi::{CStr, c_char, c_float};
 use libloading::{Library, Symbol};
+use souprune_api::{ContextHandle, CreateSoulModeFn, HostApi};
+use std::ffi::{CStr, c_char, c_float};
 
 // === 1. 模拟宿主侧的实现 ===
 
@@ -42,20 +42,21 @@ fn main() {
 
     unsafe {
         // A. 加载 DLL (注意：路径取决于你的操作系统和编译模式)
-        // Windows: target/debug/test_mod.dll
-        // Linux:   target/debug/libtest_mod.so
-        // macOS:   target/debug/libtest_mod.dylib
+        // Windows: target/debug/souprune_mod_test.dll
+        // Linux:   target/debug/libsouprune_mod_test.so
+        // macOS:   target/debug/libsouprune_mod_test.dylib
         let lib_path = if cfg!(target_os = "windows") {
-            "../target/debug/test_mod.dll"
+            "target/debug/souprune_mod_test.dll"
         } else {
-            "../target/debug/libtest_mod.so"
+            "target/debug/libsouprune_mod_test.so"
         };
 
         println!("Loading mod from: {}", lib_path);
         let lib = Library::new(lib_path).expect("Failed to load DLL");
 
         // B. 查找入口函数
-        let func: Symbol<CreateSoulModeFn> = lib.get(b"create_soul_mode").expect("Symbol not found");
+        let func: Symbol<CreateSoulModeFn> =
+            lib.get(b"create_soul_mode").expect("Symbol not found");
 
         // C. 握手：传入 HostApi，获取 ModVTable
         let vtable = func(&api);
