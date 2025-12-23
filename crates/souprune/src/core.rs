@@ -39,10 +39,9 @@ pub(crate) mod collision;
 pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
+pub mod mod_system;
 pub mod ron_loader;
 pub mod sprite;
-pub mod mod_system;
-
 
 use crate::extra;
 use bevy::app::*;

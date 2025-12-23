@@ -19,20 +19,25 @@ impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BattleQueue>()
             .add_systems(OnEnter(AppState::Battle), load_default_chapter_system)
-            .add_systems(Update, (
-                advance_battle_flow_system,
-                process_player_action_system,
-                process_player_spawn_requests,
-                process_wait_chapter_system,
-                sync_battle_flow_system,
-            ).chain().in_set(BattleUpdate));
+            .add_systems(
+                Update,
+                (
+                    advance_battle_flow_system,
+                    process_player_action_system,
+                    process_player_spawn_requests,
+                    process_wait_chapter_system,
+                    sync_battle_flow_system,
+                )
+                    .chain()
+                    .in_set(BattleUpdate),
+            );
     }
 }
 
 use super::chapter::{Chapter, PlayerAction};
 use crate::app_state::AppState;
-use crate::app_state::battle::{BattleUpdate, BattleFlowAsset};
 use crate::app_state::battle::config::BattlePlayerConfig;
+use crate::app_state::battle::{BattleFlowAsset, BattleUpdate};
 use crate::core::mod_system::{SoulParams, SoulState, SoulVelocity};
 use bevy::prelude::*;
 
@@ -53,10 +58,7 @@ struct WaitTimer(Timer);
 #[derive(Resource)]
 struct CurrentBattleFlow(Handle<BattleFlowAsset>);
 
-fn load_default_chapter_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     let handle = asset_server.load::<BattleFlowAsset>("battle/demo.chapter.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
     info!("Loading default battle flow: battle/demo.chapter.ron");
@@ -71,7 +73,10 @@ fn sync_battle_flow_system(
     if let Some(handle) = flow_handle {
         if let Some(asset) = assets.get(&handle.0) {
             if queue.chapters.is_empty() {
-                info!("Battle flow loaded. Pushing {} chapters to queue.", asset.0.len());
+                info!(
+                    "Battle flow loaded. Pushing {} chapters to queue.",
+                    asset.0.len()
+                );
                 queue.chapters.extend(asset.0.clone());
                 commands.remove_resource::<CurrentBattleFlow>();
             }
@@ -96,11 +101,13 @@ fn advance_battle_flow_system(
 
     info!("Starting Chapter: {:?}", next_chapter);
     let entity = commands.spawn(ActiveChapter(next_chapter.clone())).id();
-    
+
     // Add specific components based on chapter type
     match next_chapter {
         Chapter::Wait(secs) => {
-            commands.entity(entity).insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
+            commands
+                .entity(entity)
+                .insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
         }
         _ => {}
     }
@@ -124,13 +131,22 @@ fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
     asset_server: Res<AssetServer>,
-    mut player_query: Query<&mut Transform, (With<SoulParams>, With<crate::app_state::battle::BattleEntity>)>,
+    mut player_query: Query<
+        &mut Transform,
+        (
+            With<SoulParams>,
+            With<crate::app_state::battle::BattleEntity>,
+        ),
+    >,
 ) {
     for (entity, active_chapter) in query.iter() {
         match &active_chapter.0 {
             Chapter::SetPlayer(action) => {
                 match action {
-                    PlayerAction::Spawn { config_path, position } => {
+                    PlayerAction::Spawn {
+                        config_path,
+                        position,
+                    } => {
                         let handle = asset_server.load::<BattlePlayerConfig>(config_path);
                         commands.spawn((
                             PlayerSpawnRequest {
@@ -183,7 +199,7 @@ fn process_player_spawn_requests(
     for (entity, req) in query.iter() {
         if let Some(config) = configs.get(&req.config_handle) {
             info!("Config loaded. Spawning player...");
-            
+
             commands.spawn((
                 Sprite {
                     image: asset_server.load(&config.sprite_path),
@@ -198,7 +214,7 @@ fn process_player_spawn_requests(
                 SoulVelocity::default(),
                 crate::app_state::battle::BattleEntity(),
             ));
-            
+
             commands.entity(entity).despawn();
         }
     }

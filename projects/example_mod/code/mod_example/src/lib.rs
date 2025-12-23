@@ -1,4 +1,4 @@
-use souprune_sdk::{declare_soul_mode, Action, Context, SoulMode};
+use souprune_sdk::{declare_souls, Action, Context, SoulMode};
 
 struct RedSoul {
     speed: f32,
@@ -66,4 +66,30 @@ impl SoulMode for RedSoul {
     }
 }
 
-declare_soul_mode!("soul_red", RedSoul, || RedSoul::new());
+// === Blue Soul (Gravity Mode) ===
+struct BlueSoul;
+
+impl SoulMode for BlueSoul {
+    fn on_enter(&mut self, context: &mut Context) {
+        context.log("Blue Soul Mode (Gravity) Activated!");
+    }
+
+    fn on_update(&mut self, context: &mut Context, _dt: f32) {
+        // Simple gravity simulation for demo
+        context.kinematics().set_velocity(0.0, -200.0);
+        
+        if context.input().pressed(Action::Confirm) {
+            context.log("Blue Soul Jump!");
+            context.kinematics().set_velocity(0.0, 300.0);
+        }
+    }
+
+    fn on_exit(&mut self, context: &mut Context) {
+        context.log("Blue Soul Mode Deactivated.");
+    }
+}
+
+declare_souls!(
+    ("soul_red", RedSoul, || RedSoul::new()),
+    ("soul_blue", BlueSoul, || BlueSoul)
+);

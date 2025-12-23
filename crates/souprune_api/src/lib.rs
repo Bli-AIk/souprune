@@ -56,9 +56,17 @@ pub struct SoulModeVTable {
     pub on_exit: Option<extern "C" fn(context: *mut ContextHandle)>,
 }
 
-/// Handshake protocol: This is the type signature of the only function exported by the DLL.
-/// The engine will look for a symbol named "create_soul_mode" and force cast it to this type for calling.
+/// Function type to get the number of exported soul modes in the DLL.
+pub type GetSoulModeCountFn = extern "C" fn() -> u32;
+
+/// Function type to get the ID of a soul mode by index.
+/// Returns null if index is out of bounds.
+pub type GetSoulModeIdFn = extern "C" fn(index: u32) -> *const u8;
+
+/// Handshake protocol: This is the type signature of the function exported by the DLL to create a soul mode instance.
+/// The engine will look for a symbol named "create_soul_mode".
 ///
-/// 握手协议：这是 DLL 导出的唯一函数的类型签名
-/// 引擎会查找名为 "create_soul_mode" 的符号，并强制转为此类型调用
-pub type CreateSoulModeFn = unsafe extern "C" fn(api: *const HostApi) -> SoulModeVTable;
+/// 握手协议：这是 DLL 导出的用于创建 soul mode 实例的函数类型签名
+/// 引擎会查找名为 "create_soul_mode" 的符号
+pub type CreateSoulModeFn =
+    unsafe extern "C" fn(id: *const u8, api: *const HostApi) -> SoulModeVTable;

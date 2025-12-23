@@ -4,7 +4,7 @@
 //! 使用 SDK 的模组参考实现。
 //! 作为示例和测试用例，用于验证模组编译和加载流程是否正常工作。
 
-use souprune_sdk::{Context, SoulMode, declare_soul_mode};
+use souprune_sdk::{Context, SoulMode, declare_souls};
 
 struct MyTestSoul {
     counter: u32,
@@ -37,5 +37,26 @@ impl SoulMode for MyTestSoul {
     }
 }
 
+struct MySecondSoul;
+
+impl SoulMode for MySecondSoul {
+    fn on_enter(&mut self, context: &mut Context) {
+        context.log("SecondSoul: Hello from the second soul!");
+    }
+
+    fn on_update(&mut self, context: &mut Context, _delta_time: f32) {
+        if context.input().pressed(souprune_sdk::Action::Confirm) {
+            context.log("SecondSoul: Confirm pressed!");
+        }
+    }
+
+    fn on_exit(&mut self, context: &mut Context) {
+        context.log("SecondSoul: Goodbye!");
+    }
+}
+
 // 注册 Mod
-declare_soul_mode!("test_soul", MyTestSoul, || MyTestSoul { counter: 0 });
+declare_souls!(
+    ("test_soul", MyTestSoul, || MyTestSoul { counter: 0 }),
+    ("second_soul", MySecondSoul, || MySecondSoul)
+);

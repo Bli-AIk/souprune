@@ -84,10 +84,7 @@ pub enum PlayerAction {
     /// Spawn a new player entity based on a config file.
     ///
     /// 根据配置文件生成一个新的玩家实体。
-    Spawn {
-        config_path: String,
-        position: Vec2,
-    },
+    Spawn { config_path: String, position: Vec2 },
 
     /// Teleport the player to a specified position.
     ///

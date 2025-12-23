@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "mod_soul_red"
+name = "mod_example"
 version = "0.1.0"
 dependencies = [
  "souprune_sdk",
