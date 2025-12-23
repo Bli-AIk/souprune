@@ -8,7 +8,7 @@
 
 use libloading::{Library, Symbol};
 use souprune_api::{Action, ContextHandle, CreateSoulModeFn, HostApi};
-use std::ffi::{c_float, CStr};
+use std::ffi::{CStr, c_float};
 
 // === 1. 模拟宿主侧的实现 ===
 
@@ -58,8 +58,9 @@ fn main() {
         let lib = Library::new(lib_path).expect("Failed to load DLL");
 
         // B. 验证 Mod ID
-        let get_id_func: Symbol<extern "C" fn() -> *const i8> =
-            lib.get(b"get_soul_mode_id").expect("Function get_soul_mode_id not found");
+        let get_id_func: Symbol<extern "C" fn() -> *const i8> = lib
+            .get(b"get_soul_mode_id")
+            .expect("Function get_soul_mode_id not found");
 
         let id_ptr = get_id_func();
         let id_cstr = CStr::from_ptr(id_ptr);
@@ -67,7 +68,10 @@ fn main() {
         println!("[HOST] Found Mod ID: '{}'", id_str);
 
         if id_str != "test_soul" {
-            println!("[HOST] ERROR: Expected mod ID 'test_soul', but got '{}'. Aborting.", id_str);
+            println!(
+                "[HOST] ERROR: Expected mod ID 'test_soul', but got '{}'. Aborting.",
+                id_str
+            );
             return;
         }
 

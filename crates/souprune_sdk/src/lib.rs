@@ -68,7 +68,9 @@ macro_rules! declare_soul_mode {
         // 让我们先实现 无状态逻辑 版本。
 
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn create_soul_mode(api: *const $crate::HostApi) -> $crate::SoulModeVTable {
+        pub unsafe extern "C" fn create_soul_mode(
+            api: *const $crate::HostApi,
+        ) -> $crate::SoulModeVTable {
             unsafe {
                 HOST_API = Some(api.read());
             }
