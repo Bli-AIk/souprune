@@ -1,3 +1,10 @@
+//! Provides a safe wrapper around the raw `ContextHandle` and `HostApi`.
+//! It allows mod developers to interact with the game world (e.g., getting input, setting velocity)
+//! using idiomatic Rust methods.
+//!
+//! 提供对原始 `ContextHandle` 和 `HostApi` 的安全封装。
+//! 允许模组开发者使用惯用的 Rust 方法与游戏世界交互（例如获取输入、设置速度）。
+
 use souprune_api::{ContextHandle, HostApi};
 use std::ffi::CString;
 

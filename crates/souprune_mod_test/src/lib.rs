@@ -1,3 +1,9 @@
+//! A reference implementation of a Mod using the SDK.
+//! It serves as an example and a test case to verify that the mod compilation and loading pipeline works correctly.
+//!
+//! 使用 SDK 的模组参考实现。
+//! 作为示例和测试用例，用于验证模组编译和加载流程是否正常工作。
+
 use souprune_sdk::{Context, SoulMode, declare_soul_mode};
 
 struct MyTestSoul {
@@ -9,8 +15,11 @@ impl SoulMode for MyTestSoul {
         context.log("TestMod: I have entered the stage!");
     }
 
-    fn on_update(&mut self, context: &mut Context, dt: f32) {
-        context.log(&format!("Update: dt={}, counter={}", dt, self.counter));
+    fn on_update(&mut self, context: &mut Context, delta_time: f32) {
+        context.log(&format!(
+            "Update: delta_time={}, counter={}",
+            delta_time, self.counter
+        ));
         self.counter += 1;
 
         // 测试输入

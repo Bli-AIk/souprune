@@ -1,3 +1,9 @@
+//! Defines the `SoulMode` trait that mod developers implement to create game logic.
+//! It abstracts away the low-level C ABI callbacks into standard Rust lifecycle methods like `on_update`.
+//!
+//! 定义模组开发者需要实现的 `SoulMode` trait 以创建游戏逻辑。
+//! 它将底层的 C ABI 回调抽象为标准的 Rust 生命周期方法，如 `on_update`。
+
 use crate::context::Context;
 
 /// All Soul Modes must implement this trait.

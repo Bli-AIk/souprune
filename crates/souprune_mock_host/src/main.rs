@@ -1,3 +1,11 @@
+//! A standalone test host application that simulates the game engine.
+//! It demonstrates how to load a mod DLL dynamically and invoke its functions,
+//! useful for testing ABI compatibility without running the full game.
+//!
+//! 一个独立的测试宿主应用程序，模拟游戏引擎。
+//! 演示如何动态加载模组 DLL 并调用其函数，
+//! 用于在不运行完整游戏的情况下测试 ABI 兼容性。
+
 use libloading::{Library, Symbol};
 use souprune_api::{Action, ContextHandle, CreateSoulModeFn, HostApi};
 use std::ffi::c_float;

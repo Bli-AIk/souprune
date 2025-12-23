@@ -1,3 +1,11 @@
+//! Defines the fundamental C ABI for the modding system.
+//! It contains raw C-compatible structs, enums, and function pointer definitions
+//! that act as the contract between the Host (Game Engine) and the Guest (Mod).
+//!
+//! 定义了模组系统的基础 C ABI。
+//! 包含原始的 C 兼容结构体、枚举和函数指针定义，
+//! 作为宿主（游戏引擎）和客体（模组）之间的契约。
+
 use core::ffi::c_float;
 
 /// A non-opaque context handle.

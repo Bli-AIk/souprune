@@ -1,3 +1,10 @@
+//! The main entry point for the Rust Modding SDK.
+//! It re-exports necessary types and provides the `declare_soul_mode!` macro
+//! to simplify mod registration.
+//!
+//! Rust 模组开发 SDK 的主要入口点。
+//! 重新导出必要的类型，并提供 `declare_soul_mode!` 宏以简化模组注册流程。
+
 pub mod context;
 pub mod traits;
 
