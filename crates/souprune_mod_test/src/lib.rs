@@ -1,23 +1,25 @@
 use souprune_sdk::{Context, SoulMode, declare_soul_mode};
 
-struct MyTestSoul;
+struct MyTestSoul {
+    counter: u32,
+}
 
 impl SoulMode for MyTestSoul {
     fn on_enter(&mut self, context: &mut Context) {
         context.log("TestMod: I have entered the stage!");
     }
 
-    fn on_update(&mut self, context: &mut Context, _dt: f32) {
-        // 测试传感器
-        let val = context.input().axis("Horizontal");
+    fn on_update(&mut self, context: &mut Context, dt: f32) {
+        context.log(&format!("Update: dt={}, counter={}", dt, self.counter));
+        self.counter += 1;
 
-        // 测试逻辑
-        if val != 0.0 {
-            let msg = format!("TestMod: Moving with speed {}", val * 10.0);
-            context.log(&msg);
-
-            // 测试执行器
-            context.physics().set_velocity(val * 10.0, 0.0);
+        // 测试输入
+        if context.input().pressed(souprune_sdk::Action::Right) {
+            context.log("Right action pressed!");
+            // 测试运动学
+            context.kinematics().set_velocity(100.0, 0.0);
+        } else {
+            context.kinematics().set_velocity(0.0, 0.0);
         }
     }
 
@@ -27,4 +29,4 @@ impl SoulMode for MyTestSoul {
 }
 
 // 注册 Mod
-declare_soul_mode!(MyTestSoul, || MyTestSoul);
+declare_soul_mode!(MyTestSoul, || MyTestSoul { counter: 0 });

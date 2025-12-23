@@ -5,7 +5,7 @@ pub mod traits;
 pub use context::Context;
 pub use traits::SoulMode;
 // 也要把 soup_api 的 HostApi 导出来给宏用
-pub use souprune_api::{ContextHandle, HostApi, SoulModeVTable};
+pub use souprune_api::{Action, ContextHandle, HostApi, SoulModeVTable};
 
 /// 这个宏用于把用户的 Struct 注册为 Mod
 #[macro_export]

@@ -1,6 +1,6 @@
 use libloading::{Library, Symbol};
-use souprune_api::{ContextHandle, CreateSoulModeFn, HostApi};
-use std::ffi::{CStr, c_char, c_float};
+use souprune_api::{Action, ContextHandle, CreateSoulModeFn, HostApi};
+use std::ffi::c_float;
 
 // === 1. 模拟宿主侧的实现 ===
 
@@ -14,20 +14,15 @@ extern "C" fn host_log(_level: u32, msg: *const u8, len: usize) {
 }
 
 // 模拟的输入函数 (假装玩家一直按着右键)
-extern "C" fn host_input_get_axis(_ctx: *const ContextHandle, name: *const u8) -> c_float {
-    unsafe {
-        let c_str = CStr::from_ptr(name as *const c_char);
-        let s = c_str.to_string_lossy();
-        if s == "Horizontal" {
-            return 1.0; // 模拟按键按下
-        }
-        0.0
-    }
+extern "C" fn host_input_is_action_pressed(_ctx: *const ContextHandle, action: Action) -> bool {
+    println!("[HOST] Checking input for action: {:?}", action);
+    // 模拟：只有 Right 键被按下
+    action == Action::Right
 }
 
-// 模拟的物理函数
-extern "C" fn host_physics_set_vel(_ctx: *mut ContextHandle, x: c_float, y: c_float) {
-    println!("[HOST] Physics command: Set Velocity to ({}, {})", x, y);
+// 模拟的运动学函数
+extern "C" fn host_kinematics_set_vel(_ctx: *mut ContextHandle, x: c_float, y: c_float) {
+    println!("[HOST] Kinematics command: Set Velocity to ({}, {})", x, y);
 }
 
 // === 2. 主流程 ===
@@ -36,8 +31,8 @@ fn main() {
     // 构建 API 表 (VTable)
     let api = HostApi {
         log: host_log,
-        input_get_axis: host_input_get_axis,
-        physics_set_velocity: host_physics_set_vel,
+        input_is_action_pressed: host_input_is_action_pressed,
+        kinematics_set_velocity: host_kinematics_set_vel,
     };
 
     unsafe {

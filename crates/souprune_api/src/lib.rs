@@ -12,16 +12,29 @@ pub struct ContextHandle {
     _private: [u8; 0],
 }
 
+/// 对应 souprune 核心的 Action 枚举，但在 API 层固定下来以保证 ABI 兼容
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
+    Confirm = 4,
+    Cancel = 5,
+    Menu = 6,
+}
+
 #[repr(C)]
 pub struct HostApi {
     pub log: extern "C" fn(level: u32, msg: *const u8, len: usize),
 
     // === 传感器 (Sensors) ===
-    pub input_get_axis:
-        extern "C" fn(context: *const ContextHandle, name_ptr: *const u8) -> c_float,
+    pub input_is_action_pressed:
+        extern "C" fn(context: *const ContextHandle, action: Action) -> bool,
 
     // === 执行器 (Actuators) ===
-    pub physics_set_velocity: extern "C" fn(context: *mut ContextHandle, x: c_float, y: c_float),
+    pub kinematics_set_velocity: extern "C" fn(context: *mut ContextHandle, x: c_float, y: c_float),
 }
 
 #[repr(C)]
