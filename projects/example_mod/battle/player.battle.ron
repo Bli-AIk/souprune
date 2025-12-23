@@ -1,0 +1,8 @@
+(
+    sprite_path: "textures/common/ui/heart.png",
+    color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
+    collider_size: (16.0, 16.0),
+    default_mode_id: "soul_red",
+    speed: 150.0,
+    focus_speed_ratio: 0.5,
+)

@@ -1,7 +1,7 @@
 [
-    SetPlayer(Teleport((x: 0.0, y: -150.0))),
-    SetPlayer(SetActive(true)),
-    SetPlayer(SetMode(["soul_red"])),
+    SetPlayer(Spawn(config_path: "battle/player.battle.ron", position: (0.0, -150.0))),
+    Wait(5.0),
+    SetPlayer(Teleport((100.0, 100.0))),
     Wait(1.0),
     UIInteraction(ui_layout: "ui/battle/main_menu.ui.ron"),
     BulletPattern(

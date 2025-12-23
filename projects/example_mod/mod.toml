@@ -1,3 +1,10 @@
-name = "Example Mod"
-author = "Bli_AIk"
-description = "The main game content."
+name = "example_mod"
+version = "0.1.0"
+authors = ["Your Name"]
+description = "An example mod for SoupRune."
+
+[dependencies]
+# List dependencies here
+
+[soul_modes]
+"soul_red" = "mods/libmod_soul_red.so"

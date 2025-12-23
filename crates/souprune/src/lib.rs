@@ -174,6 +174,7 @@ fn get_game_plugins() -> (
     overworld::OverworldPlugin,
     battle::BattlePlugin,
     GlobalPlugin,
+    core::mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
@@ -181,6 +182,7 @@ fn get_game_plugins() -> (
         overworld::OverworldPlugin,
         battle::BattlePlugin,
         GlobalPlugin,
+        core::mod_system::ModPlugin,
     )
 }
 

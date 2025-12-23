@@ -15,6 +15,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune_sdk/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune_mock_host/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune_mod_test/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/mod_soul_red/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />

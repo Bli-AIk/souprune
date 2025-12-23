@@ -23,10 +23,12 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
-mod chapter;
+pub mod chapter;
+pub mod config;
 mod sequencer;
 
 use crate::app_state::battle::chapter::Chapter;
+use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::ron_loader::RonAssetLoader;
@@ -50,6 +52,8 @@ impl Plugin for BattlePlugin {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
             .init_asset::<BattleFlowAsset>()
             .register_asset_loader(RonAssetLoader::<BattleFlowAsset>::new(&["chapter.ron"]))
+            .init_asset::<BattlePlayerConfig>()
+            .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&["battle.ron"]))
             .add_plugins(SequencerPlugin)
             .add_systems(
                 OnExit(AppState::Battle),
