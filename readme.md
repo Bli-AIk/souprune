@@ -58,14 +58,15 @@ Yes, **Soup**Rune is a pun — and here’s what it stands for:
 
 SoupRune adopts a multi-crate workspace architecture:
 
-| Crate | Description |
-| :--- | :--- |
-| [`souprune`](./crates/souprune) | **Core Framework**: The main framework body, application entry point, and core logic. |
-| [`souprune_api`](./crates/souprune_api) | **Protocol Layer**: Defines interface standards for Project (Mod) interaction with the core. |
-| [`souprune_sdk`](./crates/souprune_sdk) | **Development Kit**: A wrapper for the API, provided for external Project (Mod) scripts. |
-| [`bevy_mortar_bond`](./crates/bevy_mortar_bond) | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic. |
-| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter) | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language. |
-| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model. |
+| Crate                                                   | Description                                                                                  |
+|:--------------------------------------------------------|:---------------------------------------------------------------------------------------------|
+| [`souprune`](./crates/souprune)                         | **Core Framework**: The main framework body, application entry point, and core logic.        |
+| [`souprune_api`](./crates/souprune_api)                 | **Protocol Layer**: Defines interface standards for Project (Mod) interaction with the core. |
+| [`souprune_sdk`](./crates/souprune_sdk)                 | **Development Kit**: A wrapper for the API, provided for external Project (Mod) scripts.     |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**： Sample test library for scripting systems.                                   |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.           |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.    |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                       |
 
 ## 🧩 Script Layer Support
 

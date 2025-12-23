@@ -10,6 +10,8 @@ members = [
     "crates/souprune_api"
 ,
     "crates/souprune_sdk"
+,
+    "crates/souprune_mod_test"
 ]
 
 # Enable a small amount of optimization in the dev profile.

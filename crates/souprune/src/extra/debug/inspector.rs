@@ -355,9 +355,9 @@ pub mod debug_inspector {
         let mut contexts =
             world.query_filtered::<&mut EguiContext, With<StandaloneInspectorCamera>>();
         let mut egui_context = match contexts.get_mut(world, camera_entity) {
-            Ok(ctx) => {
+            Ok(context) => {
                 // Clone so we can drop the world borrow before running the UI, mirroring the quick plugin.
-                ctx.clone()
+                context.clone()
             }
             Err(_) => return,
         };

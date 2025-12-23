@@ -5558,6 +5558,13 @@ name = "souprune_api"
 version = "0.0.0"
 
 [[package]]
+name = "souprune_mod_test"
+version = "0.0.0"
+dependencies = [
+ "souprune_sdk",
+]
+
+[[package]]
 name = "souprune_sdk"
 version = "0.0.0"
 dependencies = [

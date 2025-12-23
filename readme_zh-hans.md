@@ -2,8 +2,8 @@
 
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
-<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> <img src="https://img.shields.io/badge/GameMaker Language-即将支持-9CA3AF?style=for-the-badge&logo=gamemaker&logoColor=white" /> 
-<img src="https://img.shields.io/badge/Lua-即将支持-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" /> 
+<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> <img src="https://img.shields.io/badge/GameMaker Language-即将支持-9CA3AF?style=for-the-badge&logo=gamemaker&logoColor=white" />
+<img src="https://img.shields.io/badge/Lua-即将支持-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
 <img src="https://img.shields.io/badge/.NET-即将支持-9CA3AF?style=for-the-badge&logo=dotnet&logoColor=white" />
 
 > **状态**：🚧 初始开发阶段（框架结构仍在快速演进中）
@@ -18,7 +18,8 @@
 
 嘿，别被上面那个 **「Rust」** 徽章吓到 —— **SoupRune 可不只是给某些专业程序员玩的冷门工具！**
 
-它支持 **Gamemaker**、**[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**
+它支持 **Gamemaker**、*
+*[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**
 、以及 **.NET (C#)** 生态，
 
 无论你是习惯码 GML、写 Lua、还是 Unity / Godot 开发者，也许都能在这里找到熟悉的感觉。
@@ -27,7 +28,8 @@
 
 Undertale 的 Fangame 框架兴许已经饱和，但 Deltarune 的社区正在蓬勃发展。
 
-SoupRune 就是趁此机会打造的 Fangame 框架，~~同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
+SoupRune 就是趁此机会打造的 Fangame 框架，~~
+同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
 
 但这也不意味着 SoupRune 只是一个 Deltarune 框架 —— 对于 Undertale Fangame 的支持，我们也同样看重！
 
@@ -53,14 +55,15 @@ SoupRune 的目标是成为真正意义上的 **「面向社区的 Fangame 框�
 
 SoupRune 采用多 Crate 的工作空间架构：
 
-| Crate | 描述 |
-| :--- | :--- |
-| [`souprune`](./crates/souprune) | **核心框架**：框架本体，游戏的主入口和核心逻辑实现。 |
-| [`souprune_api`](./crates/souprune_api) | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。 |
-| [`souprune_sdk`](./crates/souprune_sdk) | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。 |
-| [`bevy_mortar_bond`](./crates/bevy_mortar_bond) | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。 |
-| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter) | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。 |
-| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。 |
+| Crate                                                   | 描述                                            |
+|:--------------------------------------------------------|:----------------------------------------------|
+| [`souprune`](./crates/souprune)                         | **核心框架**：框架本体，游戏的主入口和核心逻辑实现。                  |
+| [`souprune_api`](./crates/souprune_api)                 | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。       |
+| [`souprune_sdk`](./crates/souprune_sdk)                 | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。 |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **样例 Mod**： 脚本系统的示例测试库。                       |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。      |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。             |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。               |
 
 ## 🧩 脚本层支持
 
@@ -126,21 +129,21 @@ SoupRune 采用 **LGPL-3.0** 许可协议。
 
 ### bevy 插件生态
 
-| 项目                                                                        | 版本                                                                                                                             | 许可证                                                                                                                                                                                                           | 功能                                    |
-|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|
-| [bevy_ecs_typewriter](https://github.com/Bli-AIk/bevy_ecs_typewriter)     | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于 ECS 的打字机实现                         |
-| [bevy_fact_rule_event](https://github.com/Bli-AIk/bevy_fact_rule_event)   | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于 fact-rule-event 的事件系统实现            |
-| [bevy_mortar_bond](https://github.com/Bli-AIk/bevy_mortar_bond)           | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 与 Mortar 语言的桥接库                  |
-| [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.19.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 管理游戏输入，处理键盘、鼠标和控制器的操作映射               |
-| [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 有限状态机实现                               |
-| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | dev（GitHub 分支）                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 集成 Bevy ECS 和 Tiled 地图编辑器，用于基于瓦片的游戏关卡 |
-| [bevy_tween](https://crates.io/crates/bevy_tween)                         | 0.10.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的补间动画库，用于平滑动画和过渡                 |
-| [bevy-inspector-egui](https://crates.io/crates/bevy-inspector-egui)       | 0.35.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选编辑器/调试工具，用于实时检查 ECS 世界        |
-| [iyes_perf_ui](https://crates.io/crates/iyes_perf_ui)                     | dev（我基于 GitHub PR [#35](https://github.com/IyesGames/iyes_perf_ui/pull/35) 创建的 [分支](https://github.com/Bli-AIk/iyes_perf_ui) ) | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选性能监控 UI，显示 FPS、系统计时和性能分析信息    |
-| [bevy_smud](https://crates.io/crates/bevy_smud)                           | 0.12.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的 2d sdf 形状渲染器插件                 |
-| [bevy_rich_text3d](https://crates.io/crates/bevy_rich_text3d)             | 0.5.1                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于网格的栅格富文本实现                          |
-| [bevy_kira_audio](https://crates.io/crates/bevy_kira_audio)               | 0.24.0 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 使用 Kira 的音频播放插件，支持 WAV、OGG、FLAC、MP3 格式 |
-| [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras)               | 0.17.2 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 远程协议 (BRP) 的扩展功能 |
+| 项目                                                                        | 版本                                                                                                                             | 许可证                                                                                                                                                                                                           | 功能                                     |
+|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| [bevy_ecs_typewriter](https://github.com/Bli-AIk/bevy_ecs_typewriter)     | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于 ECS 的打字机实现                          |
+| [bevy_fact_rule_event](https://github.com/Bli-AIk/bevy_fact_rule_event)   | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于 fact-rule-event 的事件系统实现             |
+| [bevy_mortar_bond](https://github.com/Bli-AIk/bevy_mortar_bond)           | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 与 Mortar 语言的桥接库                   |
+| [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.19.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 管理游戏输入，处理键盘、鼠标和控制器的操作映射                |
+| [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 有限状态机实现                                |
+| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | dev（GitHub 分支）                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 集成 Bevy ECS 和 Tiled 地图编辑器，用于基于瓦片的游戏关卡  |
+| [bevy_tween](https://crates.io/crates/bevy_tween)                         | 0.10.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的补间动画库，用于平滑动画和过渡                  |
+| [bevy-inspector-egui](https://crates.io/crates/bevy-inspector-egui)       | 0.35.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选编辑器/调试工具，用于实时检查 ECS 世界         |
+| [iyes_perf_ui](https://crates.io/crates/iyes_perf_ui)                     | dev（我基于 GitHub PR [#35](https://github.com/IyesGames/iyes_perf_ui/pull/35) 创建的 [分支](https://github.com/Bli-AIk/iyes_perf_ui) ) | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选性能监控 UI，显示 FPS、系统计时和性能分析信息     |
+| [bevy_smud](https://crates.io/crates/bevy_smud)                           | 0.12.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的 2d sdf 形状渲染器插件                  |
+| [bevy_rich_text3d](https://crates.io/crates/bevy_rich_text3d)             | 0.5.1                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 基于网格的栅格富文本实现                           |
+| [bevy_kira_audio](https://crates.io/crates/bevy_kira_audio)               | 0.24.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 使用 Kira 的音频播放插件，支持 WAV、OGG、FLAC、MP3 格式 |
+| [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras)               | 0.17.2                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 远程协议 (BRP) 的扩展功能                  |
 
 ### Rust crates
 

@@ -18,11 +18,11 @@ impl<'a> Context<'a> {
     // === 下面是暴露给 Mod 的功能模块 ===
 
     pub fn physics(&mut self) -> PhysicsHelper<'_, 'a> {
-        PhysicsHelper { ctx: self }
+        PhysicsHelper { context: self }
     }
 
     pub fn input(&mut self) -> InputHelper<'_, 'a> {
-        InputHelper { ctx: self }
+        InputHelper { context: self }
     }
 
     pub fn log(&self, msg: &str) {
@@ -36,24 +36,24 @@ impl<'a> Context<'a> {
 
 // 物理模块封装
 pub struct PhysicsHelper<'b, 'a> {
-    ctx: &'b mut Context<'a>,
+    context: &'b mut Context<'a>,
 }
 
 impl<'b, 'a> PhysicsHelper<'b, 'a> {
     pub fn set_velocity(&self, x: f32, y: f32) {
         // 在这里把 Safe Rust 转换成 FFI 调用
-        (self.ctx.api.physics_set_velocity)(self.ctx.handle, x, y);
+        (self.context.api.physics_set_velocity)(self.context.handle, x, y);
     }
 }
 
 // 输入模块封装
 pub struct InputHelper<'b, 'a> {
-    ctx: &'b mut Context<'a>,
+    context: &'b mut Context<'a>,
 }
 
 impl<'b, 'a> InputHelper<'b, 'a> {
     pub fn axis(&self, name: &str) -> f32 {
         let c_name = CString::new(name).unwrap_or_default();
-        (self.ctx.api.input_get_axis)(self.ctx.handle, c_name.as_ptr() as *const u8)
+        (self.context.api.input_get_axis)(self.context.handle, c_name.as_ptr() as *const u8)
     }
 }
