@@ -1,5 +1,5 @@
 (
-    character_asset: "characters/frisk.char.ron",
+    character_asset: "characters/frisk.character.ron",
     spawn_position: (x: 0.0, y: 0.0),
     initial_facing: Down,
     initial_state: "Walk",

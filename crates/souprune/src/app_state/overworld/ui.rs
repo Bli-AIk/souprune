@@ -70,7 +70,7 @@ pub(crate) struct OverworldUIPlugin;
 impl Plugin for OverworldUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<UILayoutAsset>()
-            .register_asset_loader(RonAssetLoader::<UILayoutAsset>::new(&["ui.ron"]))
+            .register_asset_loader(RonAssetLoader::<UILayoutAsset>::new(&["ui_layout.ron"]))
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()

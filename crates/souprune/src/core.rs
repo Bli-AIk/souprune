@@ -62,11 +62,13 @@ impl Plugin for CorePlugin {
             .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
             .register_asset_loader(
-                ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&["char.ron"]),
+                ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&[
+                    "character.ron",
+                ]),
             )
             .register_asset_loader(ron_loader::RonAssetLoader::<
                 character_asset::AnimationConfigAsset,
-            >::new(&["anim.ron"]))
+            >::new(&["animation.ron"]))
             .add_plugins((
                 animation::AnimationPlugin,
                 audio::AudioPlugin,
