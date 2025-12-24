@@ -20,7 +20,7 @@ use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
 
-const PLAYER_BEHAVIOR_PATH: &str = "player/player_behavior.ron";
+const PLAYER_BEHAVIOR_PATH: &str = "overworld/players/player_behavior.ron";
 
 /// Runtime configuration describing how the overworld player should behave.
 ///

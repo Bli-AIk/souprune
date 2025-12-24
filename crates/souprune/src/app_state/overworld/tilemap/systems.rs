@@ -53,7 +53,7 @@ pub struct ObjectCollisionGroup;
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         OverworldEntity(),
-        TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
+        TiledMap(asset_server.load("overworld/levels/ruins/ruins_3.tmx")),
         TilemapAnchor::Center,
         TiledMapLayerZOffset(10.0),
     ));

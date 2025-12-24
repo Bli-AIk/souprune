@@ -22,7 +22,7 @@
 pub fn load_ui_solid_fill_body() -> String {
     let config = crate::config::load_config();
     let shader_path = format!(
-        "projects/{}/shaders/ui_solid_fill.wgsl",
+        "projects/{}/shared/shaders/ui_solid_fill.wgsl",
         config.project.mod_name
     );
 

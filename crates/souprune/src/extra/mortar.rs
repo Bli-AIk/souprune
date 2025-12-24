@@ -64,7 +64,7 @@ fn load_locale_mortar_system(
     asset_server: Res<AssetServer>,
     locale: Res<CurrentLocale>,
 ) {
-    let path = format!("locales/{}", locale.0);
+    let path = format!("shared/locales/{}", locale.0);
     info!("Loading locales from: {}", path);
     let handle = asset_server.load_folder(path);
     commands.insert_resource(LocalesFolderHandle(handle));
@@ -103,7 +103,7 @@ fn read_locale_constants_system(
                     // 从相对于 locale 文件夹的路径确定命名空间
                     let namespace = if let Some(path) = asset_server.get_path(id) {
                         let full_path = path.path().to_string_lossy();
-                        let prefix = format!("locales/{}/", locale.0);
+                        let prefix = format!("shared/locales/{}/", locale.0);
 
                         if let Some(remaining) = full_path.strip_prefix(&prefix) {
                             std::path::Path::new(remaining)

@@ -61,9 +61,9 @@ struct WaitTimer(Timer);
 struct CurrentBattleFlow(Handle<BattleFlowAsset>);
 
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let handle = asset_server.load::<BattleFlowAsset>("battle/demo.chapter.ron");
+    let handle = asset_server.load::<BattleFlowAsset>("battle/chapters/demo.chapter.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: battle/demo.chapter.ron");
+    info!("Loading default battle flow: battle/chapters/demo.chapter.ron");
 }
 
 fn sync_battle_flow_system(

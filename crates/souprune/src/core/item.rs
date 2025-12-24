@@ -97,16 +97,16 @@ impl ItemRegistry {
 struct ItemFolderHandle(Handle<LoadedFolder>);
 
 fn load_items_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Start loading the "items" folder.
+    // Start loading the "shared/items" folder.
     // The MultiSourceAssetReader configured in main.rs will route this to
-    // projects/<active_project>/items/ automatically.
+    // projects/<active_project>/shared/items/ automatically.
     //
-    // 开始加载 "items" 文件夹。
+    // 开始加载 "shared/items" 文件夹。
     // main.rs 中配置的 MultiSourceAssetReader 会自动将其路由到
-    // projects/<active_project>/items/ 目录。
+    // projects/<active_project>/shared/items/ 目录。
 
     info!("Starting to load items from folder 'items'...");
-    let handle = asset_server.load_folder("items");
+    let handle = asset_server.load_folder("shared/items");
     commands.insert_resource(ItemFolderHandle(handle));
 }
 
