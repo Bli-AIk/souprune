@@ -16,12 +16,12 @@
 
         // Fight Button
         (
-            name: "ButtonFight",
+            name: "BtnFight",
             sprite: Some((
                 path: "textures/battle/ui/fight/false.png",
                 is_animation: false,
                 transform: Some((
-                    translation: (x: -40.0, y: -200.0, z: 1.0),
+                    translation: (x: -180.0, y: -200.0, z: 1.0),
                     scale: Some((x: 1.0, y: 1.0, z: 1.0)),
                 )),
             )),
@@ -29,12 +29,12 @@
 
         // Act Button
         (
-            name: "ButtonAct",
+            name: "BtnAct",
             sprite: Some((
                 path: "textures/battle/ui/act/false.png",
                 is_animation: false,
                 transform: Some((
-                    translation: (x: -20.0, y: -200.0, z: 1.0),
+                    translation: (x: -60.0, y: -200.0, z: 1.0),
                     scale: Some((x: 1.0, y: 1.0, z: 1.0)),
                 )),
             )),
@@ -42,12 +42,12 @@
 
         // Item Button
         (
-            name: "ButtonItem",
+            name: "BtnItem",
             sprite: Some((
                 path: "textures/battle/ui/item/false.png",
                 is_animation: false,
                 transform: Some((
-                    translation: (x: 20.0, y: -200.0, z: 1.0),
+                    translation: (x: 60.0, y: -200.0, z: 1.0),
                     scale: Some((x: 1.0, y: 1.0, z: 1.0)),
                 )),
             )),
@@ -55,12 +55,12 @@
 
         // Mercy Button
         (
-            name: "ButtonMercy",
+            name: "BtnMercy",
             sprite: Some((
                 path: "textures/battle/ui/mercy/false.png",
                 is_animation: false,
                 transform: Some((
-                    translation: (x: 40.0, y: -200.0, z: 1.0),
+                    translation: (x: 180.0, y: -200.0, z: 1.0),
                     scale: Some((x: 1.0, y: 1.0, z: 1.0)),
                 )),
             )),

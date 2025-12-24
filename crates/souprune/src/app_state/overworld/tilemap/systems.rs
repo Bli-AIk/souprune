@@ -51,6 +51,7 @@ pub struct CollisionTileGroup;
 pub struct ObjectCollisionGroup;
 
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // TODO: Remove hardcoded map path - should load from config or save data
     commands.spawn((
         OverworldEntity(),
         TiledMap(asset_server.load("overworld/levels/ruins/ruins_3.tmx")),

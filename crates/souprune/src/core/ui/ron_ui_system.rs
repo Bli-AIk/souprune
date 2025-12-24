@@ -626,6 +626,11 @@ fn spawn_ui_node(
                 }
             }
 
+            info!(
+                "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
+                node_def.name, transform.translation, transform.scale
+            );
+
             if sprite_def.is_animation {
                 let config_handle = asset_server
                     .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
@@ -645,31 +650,49 @@ fn spawn_ui_node(
                     Name::new(node_def.name.clone()),
                     RonDrivenUI,
                 ));
+                info!("[UI Sprite] Spawned animated sprite '{}'", node_def.name);
             } else {
                 let texture_handle = asset_server.load(&sprite_def.path);
 
-                parent.spawn((
-                    Sprite {
-                        image: texture_handle,
-                        flip_x: sprite_def.flip_x,
-                        flip_y: sprite_def.flip_y,
-                        color: sprite_def
-                            .color
-                            .clone()
-                            .map(Color::from)
-                            .unwrap_or(Color::WHITE),
-                        ..Default::default()
-                    },
-                    transform,
-                    Visibility::default(),
-                    Name::new(node_def.name.clone()),
-                    RonDrivenUI,
-                ));
+                let entity_id = parent
+                    .spawn((
+                        Sprite {
+                            image: texture_handle.clone(),
+                            flip_x: sprite_def.flip_x,
+                            flip_y: sprite_def.flip_y,
+                            color: sprite_def
+                                .color
+                                .clone()
+                                .map(Color::from)
+                                .unwrap_or(Color::WHITE),
+                            ..Default::default()
+                        },
+                        transform,
+                        GlobalTransform::default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                        ViewVisibility::default(),
+                        Name::new(node_def.name.clone()),
+                        RonDrivenUI,
+                    ))
+                    .id();
+                info!(
+                    "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
+                    node_def.name, entity_id, sprite_def.path
+                );
             }
             return;
         }
 
         if let Some(ui_shape_logic) = &node_def.ui_shape_logic {
+            info!(
+                "[UI Box] Creating UIBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
+                node_def.name,
+                ui_shape_logic.width,
+                ui_shape_logic.height,
+                ui_shape_logic.border_width,
+                ui_shape_logic.offset
+            );
             let visibility_rule = node_def
                 .visibility_rule
                 .as_ref()
@@ -776,11 +799,21 @@ fn spawn_ui_node(
                 RonDrivenUI,
             ));
 
+            info!(
+                "[UI Box] Spawned UIBox '{}' at camera offset: {:?}",
+                node_def.name, offset
+            );
+
             if let Some(dynamic) = dynamic_anchor {
                 box_entity.insert(dynamic);
+                info!("[UI Box] Added dynamic anchor to '{}'", node_def.name);
             }
 
             if let Some(sprite_def) = &node_def.sprite {
+                info!(
+                    "[UI Box] Adding child sprite to UIBox '{}': {:?}",
+                    node_def.name, sprite_def.path
+                );
                 spawn_ui_sprite(
                     &mut box_entity,
                     asset_server,

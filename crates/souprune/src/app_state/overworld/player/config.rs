@@ -20,6 +20,7 @@ use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
 
+// TODO: Remove hardcoded path - should be configurable or discovered dynamically
 const PLAYER_BEHAVIOR_PATH: &str = "overworld/players/player_behavior.ron";
 
 /// Runtime configuration describing how the overworld player should behave.

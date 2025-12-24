@@ -61,6 +61,7 @@ struct WaitTimer(Timer);
 struct CurrentBattleFlow(Handle<BattleFlowAsset>);
 
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // TODO: Remove hardcoded chapter path - should be configurable or load from save data
     let handle = asset_server.load::<BattleFlowAsset>("battle/chapters/demo.chapter.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
     info!("Loading default battle flow: battle/chapters/demo.chapter.ron");
@@ -181,6 +182,11 @@ fn process_ui_action_system(
                             crate::core::ui::components::UILayer::BACKPACK_MENU,
                             0,
                         ),
+                        Transform::default(),
+                        GlobalTransform::default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                        ViewVisibility::default(),
                         crate::app_state::battle::BattleEntity(),
                         Name::new("BattleUI Root"),
                     ));
@@ -208,6 +214,11 @@ fn process_ui_action_system(
                     crate::core::ui::components::UILayer::BACKPACK_MENU,
                     0,
                 ),
+                Transform::default(),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 crate::app_state::battle::BattleEntity(),
                 Name::new("BattleUI Root"),
             ));
