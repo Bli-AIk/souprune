@@ -396,6 +396,9 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
     1
 }
 
+#[derive(Component)]
+pub(super) struct UIGenerated;
+
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_ui_system(
@@ -404,10 +407,7 @@ pub fn spawn_ron_ui_system(
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_ui_query: Query<
-        (Entity, &OverworldUI),
-        (Added<OverworldUI>, Without<OverworldUIBox>),
-    >,
+    overworld_ui_query: Query<(Entity, &RonUI), (Without<UIGenerated>, Without<UIBox>)>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -424,12 +424,8 @@ pub fn spawn_ron_ui_system(
     };
 
     let mut spawned_any = false;
-    for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
-        if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
-            continue;
-        }
-
-        info!("Spawning UI from RON layout for backpack menu");
+    for (ui_entity, _ron_ui) in overworld_ui_query.iter() {
+        info!("Spawning UI from RON layout");
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
@@ -451,6 +447,7 @@ pub fn spawn_ron_ui_system(
             &player_data,
             &item_registry,
         );
+        commands.entity(ui_entity).insert(UIGenerated);
         spawned_any = true;
     }
 
@@ -492,7 +489,7 @@ pub fn rebuild_reloaded_ui_system(
     mut watcher: Option<ResMut<UILayoutWatcher>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_ui_query: Query<(Entity, &OverworldUI), Without<RonDrivenUI>>,
+    overworld_ui_query: Query<(Entity, &RonUI), Without<RonDrivenUI>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -516,12 +513,10 @@ pub fn rebuild_reloaded_ui_system(
         return;
     };
 
-    let has_target = overworld_ui_query
-        .iter()
-        .any(|(_, overworld_ui)| *overworld_ui.layer() == UILayer::BACKPACK_MENU);
+    let has_target = overworld_ui_query.iter().any(|_| true);
 
     if !has_target {
-        debug!("RON UI hot reload pending - BACKPACK_MENU layer not active, will retry rebuild");
+        debug!("RON UI hot reload pending - no UI entity active, will retry rebuild");
         return;
     }
 
@@ -548,11 +543,7 @@ pub fn rebuild_reloaded_ui_system(
     }
 
     let mut rebuilt_count = 0;
-    for (ui_entity, overworld_ui) in overworld_ui_query.iter() {
-        if *overworld_ui.layer() != UILayer::BACKPACK_MENU {
-            continue;
-        }
-
+    for (ui_entity, _ron_ui) in overworld_ui_query.iter() {
         spawn_ron_ui_for_entity(
             &mut commands,
             &asset_server,
@@ -604,7 +595,7 @@ fn spawn_ron_ui_for_entity(
     }
 }
 
-use crate::app_state::overworld::ui::ui_box::parse_text_preserving_whitespace;
+use crate::core::ui::ui_box::parse_text_preserving_whitespace;
 use bevy_rich_text3d::Text3d;
 
 #[allow(clippy::too_many_arguments)]
@@ -715,13 +706,13 @@ fn spawn_ui_node(
             };
 
             let mut box_entity = parent.spawn((
-                OverworldUIBox::new_with_texts(
+                UIBox::new_with_texts(
                     ui_shape_logic.width,
                     ui_shape_logic.height,
                     ui_shape_logic.border_width,
                     texts,
                 ),
-                OverworldUIBoxVisibility::new(visibility_rule.clone()),
+                UIBoxVisibility::new(visibility_rule.clone()),
                 Visibility::default(),
                 CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
                 Name::new(node_def.name.clone()),

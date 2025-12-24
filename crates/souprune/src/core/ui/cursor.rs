@@ -19,8 +19,7 @@
 //! 处理光标精灵的生成和基于导航的光标位置更新。
 
 use super::components::{
-    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, OverworldUI, OverworldUIBox,
-    UIBoxFiller,
+    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, RonUI, UIBox, UIBoxFiller,
 };
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -60,7 +59,7 @@ fn find_ui_box_filler_entity(
 #[allow(clippy::type_complexity)]
 pub(crate) fn spawn_box_cursor_visual_system(
     mut commands: Commands,
-    query: Query<(Entity, &BoxCursor), (With<OverworldUIBox>, Without<BoxCursorReady>)>,
+    query: Query<(Entity, &BoxCursor), (With<UIBox>, Without<BoxCursorReady>)>,
     children_query: Query<&Children>,
     filler_query: Query<(), With<UIBoxFiller>>,
 ) {
@@ -93,8 +92,8 @@ pub(crate) fn spawn_box_cursor_visual_system(
 /// 根据焦点位置更新光标的可见性与位移。
 pub(crate) fn update_box_cursor_state_system(
     overworld_state: Res<State<OverworldState>>,
-    ui_query: Query<&OverworldUI>,
-    mut box_query: Query<&mut BoxCursor, With<OverworldUIBox>>,
+    ui_query: Query<&RonUI>,
+    mut box_query: Query<&mut BoxCursor, With<UIBox>>,
     parent_query: Query<&ChildOf>,
     mut sprite_query: Query<
         (&BoxCursorOwner, &mut Transform, &mut Visibility),

@@ -16,17 +16,17 @@ pub mod core;
 pub mod extra;
 
 pub use crate::app_state::overworld::player::config::PlayerBehavior;
-pub use crate::app_state::overworld::ui::layout::{
-    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
-    UINodeDef,
-};
 pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
 pub use crate::core::input::actions::Action;
 pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::ui::layout::{
+    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
+    UINodeDef,
+};
 
 use std::default::Default;
 
@@ -260,6 +260,12 @@ pub fn run() {
         })
         .init_resource::<input::PlayerInputSettings>()
         .init_state::<app_state::AppState>()
+        .configure_sets(
+            Update,
+            core::ui::UIUpdate.run_if(
+                in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
+            ),
+        )
         .add_plugins(get_game_plugins())
         .run();
 }

@@ -173,18 +173,16 @@ fn process_ui_action_system(
             match action {
                 super::chapter::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
-                    commands.insert_resource(
-                        crate::app_state::overworld::ui::UILayoutHandle {
-                            handle,
-                            last_modified: None,
-                        },
-                    );
+                    commands.insert_resource(crate::core::ui::UILayoutHandle {
+                        handle,
+                        last_modified: None,
+                    });
 
                     // Spawn a root Battle UI entity
-                    // Reuse OverworldUI component structure
+                    // Reuse RonUI component structure
                     commands.spawn((
-                        crate::app_state::overworld::ui::components::OverworldUI::new(
-                            crate::app_state::overworld::ui::components::UILayer::BACKPACK_MENU,
+                        crate::core::ui::components::RonUI::new(
+                            crate::core::ui::components::UILayer::BACKPACK_MENU,
                             0,
                         ),
                         crate::app_state::battle::BattleEntity(),
@@ -193,8 +191,7 @@ fn process_ui_action_system(
 
                     // Signal watcher to reload
                     // Using public export from ui module
-                    let _ =
-                        crate::app_state::overworld::ui::UILayoutWatcher::default();
+                    let _ = crate::core::ui::UILayoutWatcher::default();
                 }
                 _ => {
                     warn!("UI action {:?} not fully implemented yet", action);
@@ -205,24 +202,22 @@ fn process_ui_action_system(
         // Handle legacy UIInteraction by treating it as LoadLayout
         // (For compatibility with demo.chapter.ron)
         else if let Chapter::UIInteraction { ui_layout } = &active_chapter.0 {
-             let handle = asset_server.load(ui_layout);
-             commands.insert_resource(
-                crate::app_state::overworld::ui::UILayoutHandle {
-                    handle,
-                    last_modified: None,
-                },
-             );
-             commands.spawn((
-                crate::app_state::overworld::ui::components::OverworldUI::new(
-                    crate::app_state::overworld::ui::components::UILayer::BACKPACK_MENU,
+            let handle = asset_server.load(ui_layout);
+            commands.insert_resource(crate::core::ui::UILayoutHandle {
+                handle,
+                last_modified: None,
+            });
+            commands.spawn((
+                crate::core::ui::components::RonUI::new(
+                    crate::core::ui::components::UILayer::BACKPACK_MENU,
                     0,
                 ),
                 crate::app_state::battle::BattleEntity(),
                 Name::new("BattleUI Root"),
-             ));
-             // Don't despawn yet? If we want to block?
-             // For now, let's treat it as non-blocking to keep it simple, or implement blocking later.
-             commands.entity(entity).despawn();
+            ));
+            // Don't despawn yet? If we want to block?
+            // For now, let's treat it as non-blocking to keep it simple, or implement blocking later.
+            commands.entity(entity).despawn();
         }
     }
 }

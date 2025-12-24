@@ -112,16 +112,16 @@ pub(crate) struct UIAnimationState {
 
 #[derive(Component, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct OverworldUI {
+pub(crate) struct RonUI {
     layer: UILayer,
     index: usize,
     max_index: usize,
 }
 
-impl OverworldUI {
-    /// Create a new `OverworldUI` component for `layer` with the given `max_index`.
+impl RonUI {
+    /// Create a new `RonUI` component for `layer` with the given `max_index`.
     ///
-    /// 为指定的 `layer` 创建一个新的 `OverworldUI` 组件，并设置 `max_index`。
+    /// 为指定的 `layer` 创建一个新的 `RonUI` 组件，并设置 `max_index`。
     pub(crate) fn new(layer: UILayer, max_index: usize) -> Self {
         Self {
             layer,
@@ -304,17 +304,17 @@ impl CameraAnchoredBundle {
 
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct OverworldUIBox {
+pub(crate) struct UIBox {
     pub(crate) width: f32,
     pub(crate) height: f32,
     pub(crate) border_width: f32,
     pub(crate) texts: Vec<UITextConfig>,
 }
 
-impl OverworldUIBox {
-    /// Create a new `OverworldUIBox` component with the given dimensions and border width.
+impl UIBox {
+    /// Create a new `UIBox` component with the given dimensions and border width.
     ///
-    /// 创建一个新的 `OverworldUIBox` 组件，指定尺寸和边框宽度。
+    /// 创建一个新的 `UIBox` 组件，指定尺寸和边框宽度。
     #[allow(dead_code)]
     pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
         Self {
@@ -325,9 +325,9 @@ impl OverworldUIBox {
         }
     }
 
-    /// Create a new `OverworldUIBox` component with text configurations.
+    /// Create a new `UIBox` component with text configurations.
     ///
-    /// 创建一个带有文本配置的新 `OverworldUIBox` 组件。
+    /// 创建一个带有文本配置的新 `UIBox` 组件。
     pub(crate) fn new_with_texts(
         width: f32,
         height: f32,
@@ -381,16 +381,16 @@ impl OverworldUIBox {
     }
 }
 
-/// Controls which [`UILayer`]s should render a given [`OverworldUIBox`].
+/// Controls which [`UILayer`]s should render a given [`UIBox`].
 ///
-/// 控制指定 [`OverworldUIBox`] 在哪些 [`UILayer`] 中可见。
+/// 控制指定 [`UIBox`] 在哪些 [`UILayer`] 中可见。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct OverworldUIBoxVisibility {
+pub(crate) struct UIBoxVisibility {
     rule: UILayerVisibilityRule,
 }
 
-impl OverworldUIBoxVisibility {
+impl UIBoxVisibility {
     pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
         Self { rule }
     }
@@ -411,9 +411,9 @@ impl OverworldUIBoxVisibility {
 #[derive(Component)]
 pub(crate) struct BoxCursorSprite;
 
-/// Records which `OverworldUIBox` owns a cursor sprite entity.
+/// Records which `UIBox` owns a cursor sprite entity.
 ///
-/// 记录哪个 `OverworldUIBox` 拥有光标精灵实体。
+/// 记录哪个 `UIBox` 拥有光标精灵实体。
 #[derive(Component, Copy, Clone)]
 pub(crate) struct BoxCursorOwner(pub Entity);
 
@@ -538,9 +538,9 @@ impl From<BoxCursorPosition> for BoxCursorPlacement {
     }
 }
 
-/// Configurable cursor that can be attached to any [`OverworldUIBox`].
+/// Configurable cursor that can be attached to any [`UIBox`].
 ///
-/// 可附着在任意 [`OverworldUIBox`] 上的可配置光标。
+/// 可附着在任意 [`UIBox`] 上的可配置光标。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct BoxCursor {

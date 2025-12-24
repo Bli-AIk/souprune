@@ -42,6 +42,7 @@ pub mod item;
 pub mod mod_system;
 pub mod ron_loader;
 pub mod sprite;
+pub(crate) mod ui;
 
 use crate::extra;
 use bevy::app::*;

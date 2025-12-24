@@ -19,7 +19,7 @@
 //! 管理由用户输入触发的状态变化，例如确认和取消操作。
 
 use super::components::{
-    OverworldUI, TransitionAction, UILayer, UILayerNavigationConfig, UILayerTransitionConfig,
+    RonUI, TransitionAction, UILayer, UILayerNavigationConfig, UILayerTransitionConfig,
 };
 use super::ron_ui_system::UIGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
@@ -37,7 +37,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
-    mut overworld_ui_query: Query<&mut OverworldUI>,
+    mut overworld_ui_query: Query<&mut RonUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     player_data: Res<crate::core::data::PlayerData>,
     transition_config: Res<UILayerTransitionConfig>,
@@ -50,7 +50,17 @@ pub(crate) fn menu_overworld_state_transitions_system(
         // 首先检查全局触发器
         for (action, rules) in &global_trigger_config.triggers {
             if action_state.just_pressed(action) {
+                debug!(
+                    "Action pressed: {:?}, current state: {:?}, rules count: {}",
+                    action,
+                    current_state.get(),
+                    rules.len()
+                );
                 for rule in rules {
+                    debug!(
+                        "Checking rule: target={:?}, allowed={:?}",
+                        rule.target_state, rule.allowed_states
+                    );
                     if rule.allowed_states.contains(current_state.get()) {
                         info!(
                             "Global trigger activated: {:?} -> {:?} via {:?}",
@@ -76,7 +86,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
             }
             OverworldState::Backpack => {
                 let Ok(mut overworld_ui) = overworld_ui_query.single_mut() else {
-                    warn!("Backpack menu open but no OverworldUI entity found");
+                    warn!("Backpack menu open but no RonUI entity found");
                     return;
                 };
 
@@ -170,7 +180,7 @@ fn evaluate_transition_condition(
 
 fn execute_transition_action(
     action: &TransitionAction,
-    overworld_ui: &mut OverworldUI,
+    overworld_ui: &mut RonUI,
     next_state: &mut ResMut<NextState<OverworldState>>,
     player_data: &crate::core::data::PlayerData,
     navigation_config: &UILayerNavigationConfig,
@@ -220,7 +230,7 @@ pub(crate) fn update_overworld_ui_navigation_system(
     asset_server: Res<AssetServer>,
     overworld_state: Res<State<OverworldState>>,
     navigation: Res<UILayerNavigationConfig>,
-    mut ui_query: Query<&mut OverworldUI>,
+    mut ui_query: Query<&mut RonUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     player_data: Res<crate::core::data::PlayerData>,
 ) {

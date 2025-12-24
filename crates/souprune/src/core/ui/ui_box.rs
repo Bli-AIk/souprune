@@ -18,9 +18,7 @@
 //!
 //! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
 
-use super::components::{
-    OverworldUI, OverworldUIBox, OverworldUIBoxVisibility, UIBoxFiller, UITextTemplate,
-};
+use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -121,20 +119,16 @@ pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
     Text3d { segments }
 }
 
-type OverworldUIBoxQuery<'w, 's> = Query<
+type UIBoxQuery<'w, 's> = Query<
     'w,
     's,
     (
         Entity,
-        &'static OverworldUIBox,
+        &'static UIBox,
         &'static Transform,
         Option<&'static Children>,
     ),
-    Or<(
-        Added<OverworldUIBox>,
-        Changed<OverworldUIBox>,
-        Changed<Transform>,
-    )>,
+    Or<(Added<UIBox>, Changed<UIBox>, Changed<Transform>)>,
 >;
 
 /// Create SmudShape child entities for each UI box.
@@ -143,7 +137,7 @@ type OverworldUIBoxQuery<'w, 's> = Query<
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
-    ui_box: &OverworldUIBox,
+    ui_box: &UIBox,
     outer_sdf: Handle<Shader>,
     inner_sdf: Handle<Shader>,
     shaders: &mut ResMut<Assets<Shader>>,
@@ -250,7 +244,7 @@ pub(crate) fn update_overworld_ui_box_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
-    overworld_ui_box_query: OverworldUIBoxQuery,
+    overworld_ui_box_query: UIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
     children_query: Query<&Children>,
 ) {
@@ -343,12 +337,9 @@ pub(crate) fn update_overworld_ui_box_system(
 /// 根据当前激活的 [`UILayer`] 切换 UI 框可见性。
 pub(crate) fn update_overworld_ui_box_visibility_system(
     overworld_state: Res<State<OverworldState>>,
-    ui_query: Query<&OverworldUI>,
+    ui_query: Query<&RonUI>,
     parent_query: Query<&ChildOf>,
-    mut box_query: Query<
-        (Entity, &OverworldUIBoxVisibility, &mut Visibility),
-        With<OverworldUIBox>,
-    >,
+    mut box_query: Query<(Entity, &UIBoxVisibility, &mut Visibility), With<UIBox>>,
 ) {
     let in_backpack = overworld_state.get() == &OverworldState::Backpack;
 

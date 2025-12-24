@@ -53,6 +53,9 @@ pub(crate) struct BattlePlugin;
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+            // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
+            //
+            // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
             .init_asset::<BattleFlowAsset>()
             .register_asset_loader(RonAssetLoader::<BattleFlowAsset>::new(&["chapter.ron"]))
             .init_asset::<BattlePlayerConfig>()
@@ -70,19 +73,19 @@ impl Plugin for BattlePlugin {
 
 fn setup_battle_camera(
     mut commands: Commands,
-    mut q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>,
+    q_cameras: Query<Entity, (With<Camera2d>, Without<BattleCamera>)>,
 ) {
-    // Disable existing cameras
-    for mut camera in q_cameras.iter_mut() {
-        camera.is_active = false;
+    // Despawn existing cameras
+    for camera_entity in q_cameras.iter() {
+        commands.entity(camera_entity).despawn();
     }
 
     // Spawn Battle Camera
     commands.spawn((
         Camera2d,
         Camera {
-            // Set order to ensure it renders on top if needed, though we disabled others.
-            order: 100, 
+            // Set order to ensure it renders on top if needed.
+            order: 100,
             ..default()
         },
         BattleCamera,
@@ -91,10 +94,12 @@ fn setup_battle_camera(
     ));
 }
 
-fn restore_cameras(mut q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>) {
-    for mut camera in q_cameras.iter_mut() {
-        camera.is_active = true;
-    }
+fn restore_cameras(_q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>) {
+    // No longer needed as we despawn battle camera
+    // The overworld camera is recreated when entering overworld state
+    //
+    // 不再需要，因为我们销毁了 battle 相机
+    // 当进入 overworld 状态时会重新创建 overworld 相机
 }
 
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]

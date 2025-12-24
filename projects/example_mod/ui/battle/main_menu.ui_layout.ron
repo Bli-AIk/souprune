@@ -1,0 +1,69 @@
+(
+    version: 1,
+    roots: [
+        // Battle Box (Dialog/Bullet Box)
+        (
+            name: "BattleBox",
+            ui_shape_logic: Some((
+                width: 570.0,
+                height: 130.0,
+                border_width: 5.0,
+                offset: (x: 0.0, y: -20.0, z: 0.0),
+            )),
+            // Optional: Add HP bar or text here later
+            children: [],
+        ),
+
+        // Fight Button
+        (
+            name: "BtnFight",
+            sprite: Some((
+                path: "textures/battle/ui/fight/false.png",
+                is_animation: false,
+                transform: Some((
+                    translation: (x: -238.0, y: -200.0, z: 1.0),
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                )),
+            )),
+        ),
+
+        // Act Button
+        (
+            name: "BtnAct",
+            sprite: Some((
+                path: "textures/battle/ui/act/false.png",
+                is_animation: false,
+                transform: Some((
+                    translation: (x: -80.0, y: -200.0, z: 1.0),
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                )),
+            )),
+        ),
+
+        // Item Button
+        (
+            name: "BtnItem",
+            sprite: Some((
+                path: "textures/battle/ui/item/false.png",
+                is_animation: false,
+                transform: Some((
+                    translation: (x: 80.0, y: -200.0, z: 1.0),
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                )),
+            )),
+        ),
+
+        // Mercy Button
+        (
+            name: "BtnMercy",
+            sprite: Some((
+                path: "textures/battle/ui/mercy/false.png",
+                is_animation: false,
+                transform: Some((
+                    translation: (x: 238.0, y: -200.0, z: 1.0),
+                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
+                )),
+            )),
+        ),
+    ]
+)

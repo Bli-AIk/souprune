@@ -18,7 +18,7 @@
 //!
 //! 管理控制菜单系统的根 UI 实体。
 
-use super::components::{OverworldUI, UILayer, UILayerNavigationConfig};
+use super::components::{RonUI, UILayer, UILayerNavigationConfig};
 use crate::app_state::overworld::OverworldEntity;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
@@ -28,7 +28,7 @@ use bevy::prelude::*;
 /// 生成 Undertale 风背包菜单的根 UI 实体。
 pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
-    overworld_ui_query: Query<&OverworldUI>,
+    overworld_ui_query: Query<&RonUI>,
     locale_loaded: Option<Res<LocaleLoaded>>,
     navigation_config: Res<UILayerNavigationConfig>,
 ) {
@@ -58,7 +58,7 @@ pub(crate) fn spawn_backpack_ui_system(
 
     commands.spawn((
         OverworldEntity(),
-        OverworldUI::new(UILayer::BACKPACK_MENU, max_index),
+        RonUI::new(UILayer::BACKPACK_MENU, max_index),
         // Add a Transform so the UI entity can be positioned.
         //
         // 添加 Transform 组件以便控制 UI 实体的位置。
@@ -77,7 +77,7 @@ pub(crate) fn spawn_backpack_ui_system(
 /// 销毁根 UI 实体。
 pub(crate) fn despawn_backpack_ui_system(
     mut commands: Commands,
-    overworld_ui_query: Query<Entity, With<OverworldUI>>,
+    overworld_ui_query: Query<Entity, With<RonUI>>,
 ) {
     for entity in &overworld_ui_query {
         let root = entity;
