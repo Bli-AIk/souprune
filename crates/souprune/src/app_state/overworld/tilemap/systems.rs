@@ -529,10 +529,10 @@ pub fn update_map_bgm_system(
             && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
             && current_bgm.0.as_deref() != Some(bgm_path)
         {
-            if let Some(handle) = &bgm_handle.0 {
-                if let Some(instance) = audio_instances.get_mut(handle) {
-                    instance.stop(bevy_kira_audio::AudioTween::default());
-                }
+            if let Some(handle) = &bgm_handle.0
+                && let Some(instance) = audio_instances.get_mut(handle)
+            {
+                instance.stop(bevy_kira_audio::AudioTween::default());
             }
 
             info!("Switching BGM to: {}", bgm_path);

@@ -72,17 +72,16 @@ fn sync_battle_flow_system(
     mut queue: ResMut<BattleQueue>,
     assets: Res<Assets<BattleFlowAsset>>,
 ) {
-    if let Some(handle) = flow_handle {
-        if let Some(asset) = assets.get(&handle.0) {
-            if queue.chapters.is_empty() {
-                info!(
-                    "Battle flow loaded. Pushing {} chapters to queue.",
-                    asset.0.len()
-                );
-                queue.chapters.extend(asset.0.clone());
-                commands.remove_resource::<CurrentBattleFlow>();
-            }
-        }
+    if let Some(handle) = flow_handle
+        && let Some(asset) = assets.get(&handle.0)
+        && queue.chapters.is_empty()
+    {
+        info!(
+            "Battle flow loaded. Pushing {} chapters to queue.",
+            asset.0.len()
+        );
+        queue.chapters.extend(asset.0.clone());
+        commands.remove_resource::<CurrentBattleFlow>();
     }
 }
 
@@ -105,13 +104,10 @@ fn advance_battle_flow_system(
     let entity = commands.spawn(ActiveChapter(next_chapter.clone())).id();
 
     // Add specific components based on chapter type
-    match next_chapter {
-        Chapter::Wait(secs) => {
-            commands
-                .entity(entity)
-                .insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
-        }
-        _ => {}
+    if let Chapter::Wait(secs) = next_chapter {
+        commands
+            .entity(entity)
+            .insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
     }
 }
 
@@ -235,39 +231,36 @@ fn process_player_action_system(
     >,
 ) {
     for (entity, active_chapter) in query.iter() {
-        match &active_chapter.0 {
-            Chapter::SetPlayer(action) => {
-                match action {
-                    PlayerAction::Spawn {
-                        config_path,
-                        position,
-                    } => {
-                        let handle = asset_server.load::<BattlePlayerConfig>(config_path);
-                        commands.spawn((
-                            PlayerSpawnRequest {
-                                config_handle: handle,
-                                position: *position,
-                            },
-                            crate::app_state::battle::BattleEntity(),
-                        ));
-                    }
-                    PlayerAction::Teleport(pos) => {
-                        for mut transform in player_query.iter_mut() {
-                            transform.translation = pos.extend(0.0);
-                            info!("Player teleported to {}", pos);
-                        }
-                    }
-                    PlayerAction::Despawn => {
-                        // For simplicity, just despawn all battle entities with SoulParams
-                        // In reality, should be more specific
-                        // Handled here via a hacky way for now
-                    }
-                    _ => {}
+        if let Chapter::SetPlayer(action) = &active_chapter.0 {
+            match action {
+                PlayerAction::Spawn {
+                    config_path,
+                    position,
+                } => {
+                    let handle = asset_server.load::<BattlePlayerConfig>(config_path);
+                    commands.spawn((
+                        PlayerSpawnRequest {
+                            config_handle: handle,
+                            position: *position,
+                        },
+                        crate::app_state::battle::BattleEntity(),
+                    ));
                 }
-                // Most SetPlayer actions are instantaneous
-                commands.entity(entity).despawn();
+                PlayerAction::Teleport(pos) => {
+                    for mut transform in player_query.iter_mut() {
+                        transform.translation = pos.extend(0.0);
+                        info!("Player teleported to {}", pos);
+                    }
+                }
+                PlayerAction::Despawn => {
+                    // For simplicity, just despawn all battle entities with SoulParams
+                    // In reality, should be more specific
+                    // Handled here via a hacky way for now
+                }
+                _ => {}
             }
-            _ => {}
+            // Most SetPlayer actions are instantaneous
+            commands.entity(entity).despawn();
         }
     }
 }

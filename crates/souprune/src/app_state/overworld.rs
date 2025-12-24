@@ -94,10 +94,10 @@ fn stop_bgm_on_exit_system(
     mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
     mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
 ) {
-    if let Some(handle) = &bgm_handle.0 {
-        if let Some(instance) = audio_instances.get_mut(handle) {
-            instance.stop(bevy_kira_audio::AudioTween::default());
-        }
+    if let Some(handle) = &bgm_handle.0
+        && let Some(instance) = audio_instances.get_mut(handle)
+    {
+        instance.stop(bevy_kira_audio::AudioTween::default());
     }
     bgm_handle.0 = None;
     current_map_bgm.0 = None;
