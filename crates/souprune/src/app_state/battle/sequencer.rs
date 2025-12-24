@@ -308,6 +308,7 @@ fn process_player_spawn_requests(
                 SoulState::default(),
                 SoulVelocity::default(),
                 crate::app_state::battle::BattleEntity(),
+                Name::new("BattlePlayer"),
             ));
 
             commands.entity(entity).despawn();

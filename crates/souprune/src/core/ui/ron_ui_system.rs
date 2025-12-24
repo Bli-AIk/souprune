@@ -612,6 +612,63 @@ fn spawn_ui_node(
     item_registry: &crate::core::item::ItemRegistry,
 ) {
     commands.entity(parent_entity).with_children(|parent| {
+        // Handle nodes with only sprite (no UIBox)
+        if node_def.ui_shape_logic.is_none() && node_def.sprite.is_some() {
+            let sprite_def = node_def.sprite.as_ref().unwrap();
+            let mut transform = Transform::default();
+            if let Some(t_def) = &sprite_def.transform {
+                transform.translation = t_def.translation.to_static_vec3();
+                if let Some(scale) = &t_def.scale {
+                    transform.scale = scale.to_static_vec3();
+                }
+                if let Some(rot) = t_def.rotation {
+                    transform.rotation = Quat::from_rotation_z(rot.to_radians());
+                }
+            }
+
+            if sprite_def.is_animation {
+                let config_handle = asset_server
+                    .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
+
+                parent.spawn((
+                    crate::core::character_asset::CharacterAnimator {
+                        config: config_handle,
+                    },
+                    UIAnimationState {
+                        state_name: sprite_def
+                            .initial_state
+                            .clone()
+                            .unwrap_or("Idle".to_string()),
+                    },
+                    transform,
+                    Visibility::default(),
+                    Name::new(node_def.name.clone()),
+                    RonDrivenUI,
+                ));
+            } else {
+                let texture_handle = asset_server.load(&sprite_def.path);
+
+                parent.spawn((
+                    Sprite {
+                        image: texture_handle,
+                        flip_x: sprite_def.flip_x,
+                        flip_y: sprite_def.flip_y,
+                        color: sprite_def
+                            .color
+                            .clone()
+                            .map(Color::from)
+                            .unwrap_or(Color::WHITE),
+                        ..Default::default()
+                    },
+                    transform,
+                    Visibility::default(),
+                    Name::new(node_def.name.clone()),
+                    RonDrivenUI,
+                ));
+            }
+            return;
+        }
+
         if let Some(ui_shape_logic) = &node_def.ui_shape_logic {
             let visibility_rule = node_def
                 .visibility_rule
@@ -1195,6 +1252,7 @@ fn spawn_ui_sprite(
                     ..Default::default()
                 },
                 transform,
+                Visibility::default(),
                 Name::new(format!("{}_sprite", node_name)),
             ));
         });
