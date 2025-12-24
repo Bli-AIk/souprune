@@ -63,6 +63,39 @@ pub enum Chapter {
     /// 请注意，Battle 中，默认不会生成一个玩家实体。
     /// 如果需要玩家实体参与战斗章节，必须通过此章节进行生成。
     SetPlayer(PlayerAction),
+
+    /// Set UI State Chapter.
+    ///
+    /// 设置 UI 状态的章节。
+    SetUI(UIAction),
+    /// Set Camera State Chapter.
+    ///
+    /// 设置 摄像机 状态的章节。
+    SetCamera(CameraAction),
+}
+
+/// Camera Action Enum.
+///
+/// 摄像机操作枚举。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum CameraAction {
+    SetPosition(Vec2),
+    SetZoom(f32),
+    Shake { duration: f32, intensity: f32 },
+    FollowPlayer(bool),
+}
+
+/// UI Action Enum.
+///
+/// UI 操作枚举。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum UIAction {
+    LoadLayout(String),
+    Show(String),
+    Hide(String),
+    SetText { id: String, content: String },
+    SetVariable { name: String, value: String },
+    PlayAnimation { id: String, clip: String },
 }
 
 /// Player Action Enum.

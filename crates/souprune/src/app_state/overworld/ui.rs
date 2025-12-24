@@ -43,9 +43,10 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use layout::UILayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 use ron_ui_system::{
-    load_navigation_and_transitions_system, spawn_ron_ui_system, update_dynamic_text_system,
-    update_ui_from_map_system, watch_ui_layout_changes_system,
+    load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
+    update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
+pub use ron_ui_system::{UILayoutHandle, UILayoutWatcher};
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
 use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
@@ -91,6 +92,7 @@ impl Plugin for OverworldUIPlugin {
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
+                    ui_animation_init_system,
                     update_overworld_ui_box_system,
                     update_overworld_ui_box_visibility_system,
                     spawn_box_cursor_visual_system,

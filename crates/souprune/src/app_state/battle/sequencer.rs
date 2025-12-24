@@ -24,6 +24,8 @@ impl Plugin for SequencerPlugin {
                 (
                     advance_battle_flow_system,
                     process_player_action_system,
+                    process_camera_action_system,
+                    process_ui_action_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
                     sync_battle_flow_system,
@@ -123,6 +125,104 @@ fn process_wait_chapter_system(
         if timer.0.is_finished() {
             commands.entity(entity).despawn();
             info!("Wait Chapter finished.");
+        }
+    }
+}
+
+fn process_camera_action_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
+    mut camera_query: Query<
+        (&mut Transform, &mut Projection),
+        With<crate::app_state::battle::BattleCamera>,
+    >,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::SetCamera(action) = &active_chapter.0 {
+            // Using iter_mut instead of get_single_mut to be safe and compatible
+            for (mut transform, mut proj) in camera_query.iter_mut() {
+                match action {
+                    super::chapter::CameraAction::SetPosition(pos) => {
+                        transform.translation = pos.extend(transform.translation.z);
+                    }
+                    super::chapter::CameraAction::SetZoom(zoom) => {
+                        if let Projection::Orthographic(ortho) = &mut *proj {
+                            ortho.scale = *zoom;
+                        } else {
+                            warn!("BattleCamera does not have OrthographicProjection!");
+                        }
+                    }
+                    // Shake and FollowPlayer need more components/systems
+                    _ => {
+                        warn!("Camera action {:?} not implemented yet", action);
+                    }
+                }
+            }
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn process_ui_action_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
+    asset_server: Res<AssetServer>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::SetUI(action) = &active_chapter.0 {
+            match action {
+                super::chapter::UIAction::LoadLayout(path) => {
+                    let handle = asset_server.load(path);
+                    commands.insert_resource(
+                        crate::app_state::overworld::ui::UILayoutHandle {
+                            handle,
+                            last_modified: None,
+                        },
+                    );
+
+                    // Spawn a root Battle UI entity
+                    // Reuse OverworldUI component structure
+                    commands.spawn((
+                        crate::app_state::overworld::ui::components::OverworldUI::new(
+                            crate::app_state::overworld::ui::components::UILayer::BACKPACK_MENU,
+                            0,
+                        ),
+                        crate::app_state::battle::BattleEntity(),
+                        Name::new("BattleUI Root"),
+                    ));
+
+                    // Signal watcher to reload
+                    // Using public export from ui module
+                    let _ =
+                        crate::app_state::overworld::ui::UILayoutWatcher::default();
+                }
+                _ => {
+                    warn!("UI action {:?} not fully implemented yet", action);
+                }
+            }
+            commands.entity(entity).despawn();
+        }
+        // Handle legacy UIInteraction by treating it as LoadLayout
+        // (For compatibility with demo.chapter.ron)
+        else if let Chapter::UIInteraction { ui_layout } = &active_chapter.0 {
+             let handle = asset_server.load(ui_layout);
+             commands.insert_resource(
+                crate::app_state::overworld::ui::UILayoutHandle {
+                    handle,
+                    last_modified: None,
+                },
+             );
+             commands.spawn((
+                crate::app_state::overworld::ui::components::OverworldUI::new(
+                    crate::app_state::overworld::ui::components::UILayer::BACKPACK_MENU,
+                    0,
+                ),
+                crate::app_state::battle::BattleEntity(),
+                Name::new("BattleUI Root"),
+             ));
+             // Don't despawn yet? If we want to block?
+             // For now, let's treat it as non-blocking to keep it simple, or implement blocking later.
+             commands.entity(entity).despawn();
         }
     }
 }

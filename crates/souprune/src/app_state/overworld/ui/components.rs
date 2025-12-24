@@ -104,6 +104,12 @@ impl BackpackItemOption {
 /// - 字段为私有以在 crate 范围内强制读取访问。
 /// - 使用提供的 getter 来读取 `layer`、`index` 和 `max_index`。
 /// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UIAnimationState {
+    pub(crate) state_name: String,
+}
+
 #[derive(Component, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct OverworldUI {

@@ -168,6 +168,8 @@ pub struct UINodeDef {
     #[allow(dead_code)]
     pub image: Option<ImageDef>,
     #[serde(default)]
+    pub sprite: Option<SpriteDef>,
+    #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
     pub cursor: Option<CursorDef>,
@@ -311,6 +313,31 @@ pub struct ImageDef {
     pub path: String,
     #[serde(default)]
     pub color: Option<SerializableColor>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SpriteDef {
+    /// Path to texture or animation config file.
+    ///
+    /// 纹理路径或动画配置文件的路径。
+    pub path: String,
+    /// If true, the path is treated as an animation config (.animation.ron).
+    /// If false, it's treated as a static image.
+    ///
+    /// 如果为 true，则将路径视为动画配置 (.animation.ron)。
+    /// 如果为 false，则将其视为静态图像。
+    #[serde(default)]
+    pub is_animation: bool,
+    #[serde(default)]
+    pub initial_state: Option<String>,
+    #[serde(default)]
+    pub color: Option<SerializableColor>,
+    #[serde(default)]
+    pub flip_x: bool,
+    #[serde(default)]
+    pub flip_y: bool,
+    #[serde(default)]
+    pub transform: Option<SerializableTransform>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

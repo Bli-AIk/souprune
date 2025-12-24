@@ -400,8 +400,10 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_ui_system(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
+    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     overworld_ui_query: Query<
         (Entity, &OverworldUI),
         (Added<OverworldUI>, Without<OverworldUIBox>),
@@ -439,10 +441,12 @@ pub fn spawn_ron_ui_system(
 
         spawn_ron_ui_for_entity(
             &mut commands,
+            &asset_server,
             ui_entity,
             ui_layout,
             camera_transform,
             &mut sprite_params,
+            &animation_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
@@ -483,9 +487,11 @@ fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
 #[allow(clippy::too_many_arguments)]
 pub fn rebuild_reloaded_ui_system(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     mut watcher: Option<ResMut<UILayoutWatcher>>,
     ui_layouts: Res<Assets<UILayoutAsset>>,
+    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     overworld_ui_query: Query<(Entity, &OverworldUI), Without<RonDrivenUI>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
@@ -549,10 +555,12 @@ pub fn rebuild_reloaded_ui_system(
 
         spawn_ron_ui_for_entity(
             &mut commands,
+            &asset_server,
             ui_entity,
             ui_layout,
             camera_transform,
             &mut sprite_params,
+            &animation_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
@@ -570,10 +578,12 @@ pub fn rebuild_reloaded_ui_system(
 #[allow(clippy::too_many_arguments)]
 fn spawn_ron_ui_for_entity(
     commands: &mut Commands,
+    asset_server: &AssetServer,
     ui_entity: Entity,
     ui_layout: &UILayoutAsset,
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
+    animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
@@ -581,10 +591,12 @@ fn spawn_ron_ui_for_entity(
     for root in &ui_layout.roots {
         spawn_ui_node(
             commands,
+            asset_server,
             ui_entity,
             root,
             camera_transform,
             sprite_params,
+            animation_assets,
             mortar_strings,
             player_data,
             item_registry,
@@ -598,10 +610,12 @@ use bevy_rich_text3d::Text3d;
 #[allow(clippy::too_many_arguments)]
 fn spawn_ui_node(
     commands: &mut Commands,
+    asset_server: &AssetServer,
     parent_entity: Entity,
     node_def: &UINodeDef,
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
+    animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
@@ -716,6 +730,17 @@ fn spawn_ui_node(
 
             if let Some(dynamic) = dynamic_anchor {
                 box_entity.insert(dynamic);
+            }
+
+            if let Some(sprite_def) = &node_def.sprite {
+                spawn_ui_sprite(
+                    &mut box_entity,
+                    asset_server,
+                    sprite_def,
+                    sprite_params,
+                    node_def.name.as_str(),
+                    animation_assets,
+                );
             }
 
             if let Some(cursor_def) = &node_def.cursor {
@@ -1058,5 +1083,129 @@ pub(crate) fn update_dynamic_text_system(
         // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
         // To support that, we would need to store the `conditional_style` in a component too.
         // For HP update, it is usually just text change, so this might be enough for the bug report.
+    }
+}
+
+pub(crate) fn ui_animation_init_system(
+    mut commands: Commands,
+    mut query: Query<
+        (
+            Entity,
+            &crate::core::character_asset::CharacterAnimator,
+            &UIAnimationState,
+        ),
+        Without<Sprite>,
+    >,
+    anim_configs: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    mut sprite_params: SpriteParams,
+) {
+    for (entity, animator, anim_state) in query.iter_mut() {
+        let Some(config) = anim_configs.get(&animator.config) else {
+            continue;
+        };
+
+        let clip_name = if let Some(mapping) = config.states.get(&anim_state.state_name) {
+            mapping.get_clip_name(&crate::core::basic_components::Direction::Down)
+        } else {
+            warn!(
+                "State {} not found in animation config for UI entity {:?}",
+                anim_state.state_name, entity
+            );
+            continue;
+        };
+
+        let clip = match crate::core::animation::components::SpriteAnimationClip::new(
+            &mut sprite_params.create_sprite_context(),
+            &config.sprite_source,
+            clip_name,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                error!(
+                    "Failed to load initial UI animation clip {}: {}. Using fallback.",
+                    clip_name, e
+                );
+                crate::core::animation::components::SpriteAnimationClip::fallback(
+                    &mut sprite_params.create_sprite_context(),
+                    &config.sprite_source,
+                    clip_name,
+                )
+            }
+        };
+
+        let sprite = clip.get_current_sprite().clone();
+        let frame_duration = sprite_params
+            .create_sprite_context()
+            .get_animation_frame_duration(clip.clip_name());
+
+        commands.entity(entity).insert((
+            sprite,
+            clip,
+            crate::core::animation::components::SpriteAnimationCurrentFrame::default(),
+            crate::core::animation::components::SpriteAnimationTimer::new(frame_duration),
+        ));
+    }
+}
+
+fn spawn_ui_sprite(
+    parent: &mut EntityCommands,
+    asset_server: &AssetServer,
+    sprite_def: &SpriteDef,
+    _sprite_params: &mut SpriteParams,
+    node_name: &str,
+    _animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+) {
+    let mut transform = Transform::default();
+    if let Some(t_def) = &sprite_def.transform {
+        transform.translation = t_def.translation.to_static_vec3();
+        if let Some(scale) = &t_def.scale {
+            transform.scale = scale.to_static_vec3();
+        }
+        if let Some(rot) = t_def.rotation {
+            transform.rotation = Quat::from_rotation_z(rot.to_radians());
+        }
+    }
+
+    if sprite_def.is_animation {
+        let config_handle = asset_server
+            .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
+
+        parent.with_children(|p| {
+            p.spawn((
+                crate::core::character_asset::CharacterAnimator {
+                    config: config_handle,
+                },
+                UIAnimationState {
+                    state_name: sprite_def
+                        .initial_state
+                        .clone()
+                        .unwrap_or("Idle".to_string()),
+                },
+                transform,
+                Visibility::default(),
+                Name::new(format!("{}_sprite", node_name)),
+            ));
+        });
+    } else {
+        // Static sprite
+        let texture_handle = asset_server.load(&sprite_def.path);
+
+        parent.with_children(|p| {
+            p.spawn((
+                Sprite {
+                    image: texture_handle,
+                    flip_x: sprite_def.flip_x,
+                    flip_y: sprite_def.flip_y,
+                    color: sprite_def
+                        .color
+                        .clone()
+                        .map(Color::from)
+                        .unwrap_or(Color::WHITE),
+                    ..Default::default()
+                },
+                transform,
+                Name::new(format!("{}_sprite", node_name)),
+            ));
+        });
     }
 }

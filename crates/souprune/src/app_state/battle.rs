@@ -45,6 +45,9 @@ pub(crate) struct BattleEntity();
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
 
+#[derive(Component)]
+pub struct BattleCamera;
+
 pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
@@ -57,10 +60,40 @@ impl Plugin for BattlePlugin {
                 "battle_player.ron",
             ]))
             .add_plugins(SequencerPlugin)
+            .add_systems(OnEnter(AppState::Battle), setup_battle_camera)
             .add_systems(
                 OnExit(AppState::Battle),
-                cleanup_entities_system::<BattleEntity>,
+                (cleanup_entities_system::<BattleEntity>, restore_cameras),
             );
+    }
+}
+
+fn setup_battle_camera(
+    mut commands: Commands,
+    mut q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>,
+) {
+    // Disable existing cameras
+    for mut camera in q_cameras.iter_mut() {
+        camera.is_active = false;
+    }
+
+    // Spawn Battle Camera
+    commands.spawn((
+        Camera2d,
+        Camera {
+            // Set order to ensure it renders on top if needed, though we disabled others.
+            order: 100, 
+            ..default()
+        },
+        BattleCamera,
+        BattleEntity(),
+        Name::new("BattleCamera"),
+    ));
+}
+
+fn restore_cameras(mut q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>) {
+    for mut camera in q_cameras.iter_mut() {
+        camera.is_active = true;
     }
 }
 
