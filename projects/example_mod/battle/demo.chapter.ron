@@ -1,5 +1,5 @@
 [
-    SetPlayer(Spawn(config_path: "battle/player.battle.ron", position: (-25.0, 0.0))),
+    SetPlayer(Spawn(config_path: "battle/player.battle_player.ron", position: (-25.0, 0.0))),
     Wait(5.0),
     SetPlayer(Teleport((100.0, 100.0))),
     Wait(1.0),

@@ -53,7 +53,7 @@ impl Plugin for BattlePlugin {
             .init_asset::<BattleFlowAsset>()
             .register_asset_loader(RonAssetLoader::<BattleFlowAsset>::new(&["chapter.ron"]))
             .init_asset::<BattlePlayerConfig>()
-            .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&["battle.ron"]))
+            .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&["battle_player.ron"]))
             .add_plugins(SequencerPlugin)
             .add_systems(
                 OnExit(AppState::Battle),
