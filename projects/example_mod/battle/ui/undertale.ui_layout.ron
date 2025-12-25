@@ -10,6 +10,8 @@
                 height: 130.0,
                 border_width: 5.0,
                 offset: (x: 0.0, y: -80.0, z: 0.0),
+                // Use classic UIBox structure (Border + Filler)
+                structure_file: Some("shared/ui_structures/ui_box.smud.ron"),
             )),
             // Optional: Add HP bar or text here later
             children: [],
@@ -153,7 +155,7 @@
                         height: 20.0,
                         offset: (x: 0.0, y: -170.0, z: 1.0),
                         fill_shader: Some("shared/shaders/hp_bar.wgsl"),
-                        structure: Some(Single),
+                        // No structure_file = single layer SmudShape (default)
                         // fill_color is used as data bus for HP bar shader:
                         // r = current HP%, g = delayed HP%, b = width, a = height
                         fill_color: Some((r: 0.5, g: 0.5, b: 100.0, a: 20.0)),

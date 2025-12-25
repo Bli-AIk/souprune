@@ -1,0 +1,18 @@
+// UI Box Structure Definition
+// This file defines the classic Undertale-style UI box with border and filler.
+// UI 盒子结构定义
+// 此文件定义经典 Undertale 风格的带边框和填充的 UI 盒子。
+//
+// When structure_file contains "ui_box", the engine will create:
+// 1. UIBoxBorder - White outer rectangle
+// 2. UIBoxFiller - Black inner rectangle (child of border)
+//
+// 当 structure_file 包含 "ui_box" 时，引擎将创建：
+// 1. UIBoxBorder - 白色外部矩形
+// 2. UIBoxFiller - 黑色内部矩形（边框的子节点）
+//
+// This is a marker file - the actual structure is built by the engine
+// based on the filename containing "ui_box".
+// 这是一个标记文件 - 实际结构由引擎根据文件名包含 "ui_box" 来构建。
+
+// TODO: 重构以去除硬编码的 "ui_box" 检测逻辑。

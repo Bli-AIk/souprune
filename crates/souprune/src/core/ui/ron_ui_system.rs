@@ -811,23 +811,6 @@ fn spawn_ui_node(
                 None
             };
 
-            // Convert RON structure definition to component type
-            // 将 RON 结构定义转换为组件类型
-            let structure = match &ui_shape_logic.structure {
-                Some(super::layout::UIShapeStructure::Single) => {
-                    super::components::UIShapeStructure::Single
-                }
-                Some(super::layout::UIShapeStructure::Classic) => {
-                    super::components::UIShapeStructure::Classic
-                }
-                Some(super::layout::UIShapeStructure::FromFile(_path)) => {
-                    // TODO: Load structure from file
-                    warn!("FromFile structure not yet implemented, using Classic");
-                    super::components::UIShapeStructure::Classic
-                }
-                None => super::components::UIShapeStructure::Classic,
-            };
-
             // Convert fill color from RON definition
             // 从 RON 定义转换填充颜色
             let fill_color = ui_shape_logic
@@ -843,7 +826,7 @@ fn spawn_ui_node(
                     ui_shape_logic.border_width,
                     texts,
                     ui_shape_logic.fill_shader.clone(),
-                    structure,
+                    ui_shape_logic.structure_file.clone(),
                     fill_color,
                 ),
                 UIBoxVisibility::new(visibility_rule.clone()),
@@ -861,8 +844,8 @@ fn spawn_ui_node(
             }
 
             info!(
-                "[UI Box] Spawned UIBox '{}' at camera offset: {:?} with structure: {:?}",
-                node_def.name, offset, ui_shape_logic.structure
+                "[UI Box] Spawned UIBox '{}' at camera offset: {:?} with structure_file: {:?}",
+                node_def.name, offset, ui_shape_logic.structure_file
             );
 
             if let Some(dynamic) = dynamic_anchor {

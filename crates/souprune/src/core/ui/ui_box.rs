@@ -18,9 +18,7 @@
 //!
 //! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
 
-use super::components::{
-    RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UIShapeStructure, UITextTemplate,
-};
+use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -134,10 +132,10 @@ type UIBoxQuery<'w, 's> = Query<
 >;
 
 /// Create SmudShape child entities for each UI box.
-/// Supports both classic (Border + Filler) and single layer structures.
+/// By default, generates a single SmudShape. If structure_file is specified, loads complex structure from file.
 ///
 /// 为 UI 框创建 SmudShape 子实体。
-/// 支持经典（边框 + 填充）和单层结构。
+/// 默认生成单个 SmudShape。如果指定了 structure_file，则从文件加载复杂结构。
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
@@ -161,83 +159,151 @@ fn spawn_ui_box_children(
     };
     let solid_fill = shaders.add_fill_body(&shader_source);
 
-    match ui_box.structure {
-        UIShapeStructure::Single => {
-            // Single layer structure - just one SmudShape, no border
-            // 单层结构 - 只有一个 SmudShape，无边框
-            info!("Spawning single-layer SmudShape for UI box");
+    // Check if we should load a complex structure from file
+    // 检查是否应该从文件加载复杂结构
+    if let Some(structure_file) = &ui_box.structure_file {
+        // Load structure from file (e.g., ui_box.smud.ron for classic Border + Filler)
+        // 从文件加载结构（例如 ui_box.smud.ron 用于经典 Border + Filler）
+        info!("Loading SmudShape structure from file: {}", structure_file);
+        spawn_structure_from_file(
+            commands,
+            entity,
+            ui_box,
+            structure_file,
+            outer_sdf,
+            inner_sdf,
+            solid_fill,
+            color_materials,
+        );
+    } else {
+        // Default: single layer SmudShape
+        // 默认：单层 SmudShape
+        info!("Spawning single-layer SmudShape for UI box");
 
-            let mut filler_entity: Option<Entity> = None;
+        let mut filler_entity: Option<Entity> = None;
 
-            commands.entity(entity).with_children(|parent| {
-                let filler = parent
-                    .spawn((
-                        SmudShape {
-                            color: ui_box.fill_color,
-                            sdf: inner_sdf.clone(),
-                            frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                            fill: solid_fill.clone(),
-                            ..default()
-                        },
-                        Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
-                        Name::new("UIBoxFiller"),
-                        UIBoxFiller,
-                    ))
-                    .id();
-                filler_entity = Some(filler);
-            });
+        commands.entity(entity).with_children(|parent| {
+            let filler = parent
+                .spawn((
+                    SmudShape {
+                        color: ui_box.fill_color,
+                        sdf: inner_sdf.clone(),
+                        frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                        fill: solid_fill.clone(),
+                        ..default()
+                    },
+                    Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                    Name::new("UIBoxFiller"),
+                    UIBoxFiller,
+                ))
+                .id();
+            filler_entity = Some(filler);
+        });
 
-            // Spawn texts as children of filler
-            if let Some(filler_entity) = filler_entity {
-                spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
-            }
+        // Spawn texts as children of filler
+        if let Some(filler_entity) = filler_entity {
+            spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
         }
-        UIShapeStructure::Classic => {
-            // Classic structure - Border + Filler (original hardcoded behavior)
-            // 经典结构 - 边框 + 填充（原始硬编码行为）
-            info!("Spawning classic (Border + Filler) SmudShape for UI box");
+    }
+}
 
-            let mut filler_entity: Option<Entity> = None;
+/// Load and spawn SmudShape structure from external RON file.
+///
+/// 从外部 RON 文件加载并生成 SmudShape 结构。
+#[allow(clippy::too_many_arguments)]
+fn spawn_structure_from_file(
+    commands: &mut Commands,
+    entity: Entity,
+    ui_box: &UIBox,
+    structure_file: &str,
+    outer_sdf: Handle<Shader>,
+    inner_sdf: Handle<Shader>,
+    solid_fill: Handle<Shader>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    let box_width = ui_box.width();
+    let box_height = ui_box.height();
+    let border_width = ui_box.border_width();
 
-            commands.entity(entity).with_children(|parent| {
-                parent
-                    .spawn((
-                        SmudShape {
-                            color: Color::WHITE,
-                            sdf: outer_sdf.clone(),
-                            frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                            fill: solid_fill.clone(),
-                            ..default()
-                        },
-                        Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-                        Name::new("UIBoxBorder"),
-                    ))
-                    .with_children(|border_parent| {
-                        let filler = border_parent
-                            .spawn((
-                                SmudShape {
-                                    color: ui_box.fill_color,
-                                    sdf: inner_sdf.clone(),
-                                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                                    fill: solid_fill.clone(),
-                                    ..default()
-                                },
-                                Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
-                                Name::new("UIBoxFiller"),
-                                UIBoxFiller,
-                            ))
-                            .id();
+    // For now, we support a special "ui_box" structure that mimics the classic Undertale box
+    // In the future, this could load arbitrary RON-defined structures
+    // 目前，我们支持一个特殊的 "ui_box" 结构，模拟经典的 Undertale 盒子
+    // 未来，这可以加载任意 RON 定义的结构
+    if structure_file.contains("ui_box") {
+        // Classic structure - Border + Filler
+        // 经典结构 - 边框 + 填充
+        info!("Spawning classic (Border + Filler) SmudShape structure");
 
-                        filler_entity = Some(filler);
-                    });
-            });
+        let mut filler_entity: Option<Entity> = None;
 
-            // Spawn texts as children of filler
-            if let Some(filler_entity) = filler_entity {
-                spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
-            } else {
-                warn!("Failed to spawn UI box filler for entity {:?}", entity);
-            }
+        commands.entity(entity).with_children(|parent| {
+            parent
+                .spawn((
+                    SmudShape {
+                        color: Color::WHITE,
+                        sdf: outer_sdf.clone(),
+                        frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
+                        fill: solid_fill.clone(),
+                        ..default()
+                    },
+                    Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+                    Name::new("UIBoxBorder"),
+                ))
+                .with_children(|border_parent| {
+                    let filler = border_parent
+                        .spawn((
+                            SmudShape {
+                                color: ui_box.fill_color,
+                                sdf: inner_sdf.clone(),
+                                frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                                fill: solid_fill.clone(),
+                                ..default()
+                            },
+                            Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                            Name::new("UIBoxFiller"),
+                            UIBoxFiller,
+                        ))
+                        .id();
+
+                    filler_entity = Some(filler);
+                });
+        });
+
+        // Spawn texts as children of filler
+        if let Some(filler_entity) = filler_entity {
+            spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
+        } else {
+            warn!("Failed to spawn UI box filler for entity {:?}", entity);
+        }
+    } else {
+        // Unknown structure file - fall back to single layer
+        // 未知结构文件 - 回退到单层
+        warn!(
+            "Unknown structure file '{}', falling back to single layer",
+            structure_file
+        );
+
+        let mut filler_entity: Option<Entity> = None;
+        commands.entity(entity).with_children(|parent| {
+            let filler = parent
+                .spawn((
+                    SmudShape {
+                        color: ui_box.fill_color,
+                        sdf: inner_sdf.clone(),
+                        frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                        fill: solid_fill.clone(),
+                        ..default()
+                    },
+                    Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                    Name::new("UIBoxFiller"),
+                    UIBoxFiller,
+                ))
+                .id();
+            filler_entity = Some(filler);
+        });
+
+        if let Some(filler_entity) = filler_entity {
+            spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
         }
     }
 }
@@ -330,11 +396,17 @@ pub(crate) fn update_ui_box_system(
             box_height / 2.0
         ));
 
-        // Determine expected SmudShape count based on structure
-        // 根据结构确定预期的 SmudShape 数量
-        let expected_shapes = match ui_box.structure {
-            UIShapeStructure::Single => 1,
-            UIShapeStructure::Classic => 2,
+        // Determine expected SmudShape count based on structure_file
+        // 根据 structure_file 确定预期的 SmudShape 数量
+        let has_structure_file = ui_box.structure_file.is_some();
+        let is_ui_box_structure = ui_box
+            .structure_file
+            .as_ref()
+            .is_some_and(|f| f.contains("ui_box"));
+        let expected_shapes = if has_structure_file && is_ui_box_structure {
+            2 // Classic structure
+        } else {
+            1 // Single layer (default)
         };
 
         match children_opt {
@@ -358,31 +430,27 @@ pub(crate) fn update_ui_box_system(
                 if smud_shape_entities.len() >= expected_shapes {
                     trace!("Updating existing SmudShape children for UI box");
 
-                    match ui_box.structure {
-                        UIShapeStructure::Single => {
-                            // Update single shape
-                            if let Ok(mut shape) = smud_shape_query.get_mut(smud_shape_entities[0])
-                            {
-                                shape.sdf = inner_sdf.clone();
-                                shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
-                            }
+                    if expected_shapes == 1 {
+                        // Update single shape
+                        if let Ok(mut shape) = smud_shape_query.get_mut(smud_shape_entities[0]) {
+                            shape.sdf = inner_sdf.clone();
+                            shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
                         }
-                        UIShapeStructure::Classic => {
-                            // Update outer (border) and inner (filler) shapes
-                            if let Ok(mut outer_shape) =
-                                smud_shape_query.get_mut(smud_shape_entities[0])
-                            {
-                                outer_shape.sdf = outer_sdf.clone();
-                                outer_shape.frame =
-                                    Frame::Quad((box_width + border_width * 2.0) + 10.0);
-                            }
+                    } else {
+                        // Update outer (border) and inner (filler) shapes
+                        if let Ok(mut outer_shape) =
+                            smud_shape_query.get_mut(smud_shape_entities[0])
+                        {
+                            outer_shape.sdf = outer_sdf.clone();
+                            outer_shape.frame =
+                                Frame::Quad((box_width + border_width * 2.0) + 10.0);
+                        }
 
-                            if let Ok(mut inner_shape) =
-                                smud_shape_query.get_mut(smud_shape_entities[1])
-                            {
-                                inner_shape.sdf = inner_sdf.clone();
-                                inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
-                            }
+                        if let Ok(mut inner_shape) =
+                            smud_shape_query.get_mut(smud_shape_entities[1])
+                        {
+                            inner_shape.sdf = inner_sdf.clone();
+                            inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
                         }
                     }
                 } else {
@@ -434,13 +502,13 @@ pub(crate) fn update_ui_box_visibility_system(
 ) {
     // Check if we should process UI visibility (Battle or Overworld Backpack)
     // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
-    let should_process_ui = match app_state.get() {
-        crate::app_state::AppState::Battle => true,
-        crate::app_state::AppState::Overworld => overworld_state
+    let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
+    let is_backpack = matches!(app_state.get(), crate::app_state::AppState::Overworld)
+        && overworld_state
             .map(|s| s.get() == &OverworldState::Backpack)
-            .unwrap_or(false),
-        _ => false,
-    };
+            .unwrap_or(false);
+
+    let should_process_ui = is_battle || is_backpack;
 
     for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
         if !should_process_ui {
@@ -450,6 +518,38 @@ pub(crate) fn update_ui_box_visibility_system(
             continue;
         }
 
+        // For Battle state, use visibility rule directly without requiring RonUI parent
+        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        if is_battle {
+            // In Battle mode, check if the visibility rule allows showing
+            // (typically Always or specific battle layers)
+            // 在 Battle 模式下，检查可见性规则是否允许显示
+            // （通常是 Always 或特定的战斗层）
+            let should_show = matches!(
+                layer_visibility.rule(),
+                super::components::UILayerVisibilityRule::Always
+            ) || layer_visibility
+                .is_visible_for(&super::components::UILayer::new("Battle"));
+
+            trace!(
+                "Battle UI visibility check: entity {:?}, rule {:?}, should_show {}",
+                entity,
+                layer_visibility.rule(),
+                should_show
+            );
+
+            if should_show {
+                if *visibility != Visibility::Inherited {
+                    *visibility = Visibility::Inherited;
+                }
+            } else if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        }
+
+        // For Backpack state, use the original layer-based visibility logic
+        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
         let Ok(parent) = parent_query.get(entity) else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
@@ -496,13 +596,13 @@ pub(crate) fn update_ui_container_visibility_system(
 ) {
     // Check if we should process UI visibility (Battle or Overworld Backpack)
     // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
-    let should_process_ui = match app_state.get() {
-        crate::app_state::AppState::Battle => true,
-        crate::app_state::AppState::Overworld => overworld_state
+    let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
+    let is_backpack = matches!(app_state.get(), crate::app_state::AppState::Overworld)
+        && overworld_state
             .map(|s| s.get() == &OverworldState::Backpack)
-            .unwrap_or(false),
-        _ => false,
-    };
+            .unwrap_or(false);
+
+    let should_process_ui = is_battle || is_backpack;
 
     for (entity, container_visibility, mut visibility) in container_query.iter_mut() {
         if !should_process_ui {
@@ -512,6 +612,27 @@ pub(crate) fn update_ui_container_visibility_system(
             continue;
         }
 
+        // For Battle state, use visibility rule directly without requiring RonUI parent
+        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        if is_battle {
+            let should_show = matches!(
+                container_visibility.rule(),
+                super::components::UILayerVisibilityRule::Always
+            ) || container_visibility
+                .is_visible_for(&super::components::UILayer::new("Battle"));
+
+            if should_show {
+                if *visibility != Visibility::Inherited {
+                    *visibility = Visibility::Inherited;
+                }
+            } else if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        }
+
+        // For Backpack state, use the original layer-based visibility logic
+        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
         let Ok(parent) = parent_query.get(entity) else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;

@@ -489,45 +489,22 @@ pub struct UIBoxLogicDef {
     /// 示例："shared/shaders/hp_bar.wgsl"
     #[serde(default)]
     pub fill_shader: Option<String>,
-    /// Shape structure definition. If None, uses the classic UIBox (Border + Filler) structure.
-    /// Use "single" for a simple single-layer SmudShape (e.g., HP bar).
-    /// Use a path like "shared/ui_structures/undertale_box.ron" to load from file.
+    /// Optional path to load a complex SmudShape structure from file.
+    /// If None, generates a single SmudShape (default behavior).
+    /// Example: "shared/ui_structures/ui_box.smud.ron" for classic Undertale-style box.
     ///
-    /// 形状结构定义。如果为 None，使用经典的 UIBox（Border + Filler）结构。
-    /// 使用 "single" 表示简单的单层 SmudShape（例如血条）。
-    /// 使用如 "shared/ui_structures/undertale_box.ron" 的路径从文件加载。
+    /// 可选的路径，用于从文件加载复杂的 SmudShape 结构。
+    /// 如果为 None，则生成单个 SmudShape（默认行为）。
+    /// 示例："shared/ui_structures/ui_box.smud.ron" 用于经典 Undertale 风格盒子。
     #[serde(default)]
-    pub structure: Option<UIShapeStructure>,
-    /// Fill color for the shape. Defaults to BLACK for classic UIBox filler.
+    pub structure_file: Option<String>,
+    /// Fill color for the shape. Defaults to BLACK.
     /// For HP bar shaders, this color is used as a data bus (r=hp%, g=lag%, b=width, a=height).
     ///
-    /// 形状的填充颜色。经典 UIBox 填充默认为黑色。
+    /// 形状的填充颜色。默认为黑色。
     /// 对于血条着色器，此颜色用作数据总线（r=血量%, g=延迟%, b=宽度, a=高度）。
     #[serde(default)]
     pub fill_color: Option<SerializableColor>,
-}
-
-/// Shape structure definition - how the SmudShape layers are organized.
-///
-/// 形状结构定义 - SmudShape 层如何组织。
-#[derive(Debug, Deserialize, Clone)]
-pub enum UIShapeStructure {
-    /// Single layer SmudShape (e.g., HP bar, simple rectangle).
-    /// No border, just one SmudShape with the specified shader.
-    ///
-    /// 单层 SmudShape（例如血条，简单矩形）。
-    /// 无边框，只有一个带指定着色器的 SmudShape。
-    Single,
-    /// Classic Undertale-style box with border and filler.
-    /// Equivalent to the original hardcoded UIBox structure.
-    ///
-    /// 经典 Undertale 风格的带边框和填充的盒子。
-    /// 等同于原始硬编码的 UIBox 结构。
-    Classic,
-    /// Load structure from external RON file (for complex/custom structures).
-    ///
-    /// 从外部 RON 文件加载结构（用于复杂/自定义结构）。
-    FromFile(String),
 }
 
 #[derive(Debug, Deserialize, Clone)]

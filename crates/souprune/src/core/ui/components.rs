@@ -306,23 +306,6 @@ impl CameraAnchoredBundle {
     }
 }
 
-/// Shape structure type - how the SmudShape layers are organized.
-///
-/// 形状结构类型 - SmudShape 层如何组织。
-#[derive(Debug, Clone, Default, PartialEq)]
-#[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) enum UIShapeStructure {
-    /// Single layer SmudShape (e.g., HP bar, simple rectangle).
-    ///
-    /// 单层 SmudShape（例如血条，简单矩形）。
-    Single,
-    /// Classic Undertale-style box with border and filler.
-    ///
-    /// 经典 Undertale 风格的带边框和填充的盒子。
-    #[default]
-    Classic,
-}
-
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct UIBox {
@@ -335,10 +318,13 @@ pub(crate) struct UIBox {
     /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) fill_shader: Option<String>,
-    /// Shape structure type.
+    /// Optional path to load a complex SmudShape structure from file.
+    /// If None, generates a single SmudShape (default behavior).
     ///
-    /// 形状结构类型。
-    pub(crate) structure: UIShapeStructure,
+    /// 可选的路径，用于从文件加载复杂的 SmudShape 结构。
+    /// 如果为 None，则生成单个 SmudShape（默认行为）。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub(crate) structure_file: Option<String>,
     /// Fill color for the shape.
     ///
     /// 形状的填充颜色。
@@ -357,7 +343,7 @@ impl UIBox {
             border_width,
             texts: Vec::new(),
             fill_shader: None,
-            structure: UIShapeStructure::Classic,
+            structure_file: None,
             fill_color: Color::BLACK,
         }
     }
@@ -378,7 +364,7 @@ impl UIBox {
             border_width,
             texts,
             fill_shader: None,
-            structure: UIShapeStructure::Classic,
+            structure_file: None,
             fill_color: Color::BLACK,
         }
     }
@@ -392,7 +378,7 @@ impl UIBox {
         border_width: f32,
         texts: Vec<UITextConfig>,
         fill_shader: Option<String>,
-        structure: UIShapeStructure,
+        structure_file: Option<String>,
         fill_color: Color,
     ) -> Self {
         Self {
@@ -401,7 +387,7 @@ impl UIBox {
             border_width,
             texts,
             fill_shader,
-            structure,
+            structure_file,
             fill_color,
         }
     }
@@ -435,12 +421,12 @@ impl UIBox {
         self.fill_shader.as_deref()
     }
 
-    /// Get the shape structure type.
+    /// Get the structure file path.
     ///
-    /// 获取形状结构类型。
+    /// 获取结构文件路径。
     #[allow(dead_code)]
-    pub(crate) fn structure(&self) -> &UIShapeStructure {
-        &self.structure
+    pub(crate) fn structure_file(&self) -> Option<&str> {
+        self.structure_file.as_deref()
     }
 
     /// Get the fill color.
@@ -483,7 +469,6 @@ impl UIBoxVisibility {
         Self { rule }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
         &self.rule
     }
@@ -538,6 +523,10 @@ pub(crate) struct UIContainerVisibility {
 impl UIContainerVisibility {
     pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
         Self { rule }
+    }
+
+    pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
+        &self.rule
     }
 
     pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
