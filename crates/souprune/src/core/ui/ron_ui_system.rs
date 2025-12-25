@@ -812,11 +812,12 @@ fn spawn_ui_node(
             };
 
             let mut box_entity = parent.spawn((
-                UIBox::new_with_texts(
+                UIBox::new_with_shader(
                     ui_shape_logic.width,
                     ui_shape_logic.height,
                     ui_shape_logic.border_width,
                     texts,
+                    ui_shape_logic.fill_shader.clone(),
                 ),
                 UIBoxVisibility::new(visibility_rule.clone()),
                 Visibility::default(),

@@ -146,6 +146,16 @@
                         )),
                     )),
                 ),
+                (
+                    name: "HPBar",
+                    ui_shape_logic: Some((
+                        width: 100.0,
+                        height: 20.0,
+                        border_width: 0.0,
+                        offset: (x: 0.0, y: -100.0, z: 1.0),
+                        fill_shader: Some("shared/shaders/hp_bar.wgsl"),
+                    )),
+                )
             ],
         ),
     ]

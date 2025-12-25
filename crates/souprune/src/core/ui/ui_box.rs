@@ -149,7 +149,14 @@ fn spawn_ui_box_children(
     let box_height = ui_box.height();
     let border_width = ui_box.border_width();
 
-    let shader_source = super::shaders::load_ui_solid_fill_body();
+    // Load custom shader if specified, otherwise use default solid fill
+    // 如果指定了自定义着色器则加载，否则使用默认实体填充
+    let shader_source = if let Some(shader_path) = &ui_box.fill_shader {
+        info!("Loading custom fill shader for UI box: {}", shader_path);
+        super::shaders::load_custom_shader_body(shader_path)
+    } else {
+        super::shaders::load_ui_solid_fill_body()
+    };
     let solid_fill = shaders.add_fill_body(&shader_source);
 
     let mut filler_entity: Option<Entity> = None;

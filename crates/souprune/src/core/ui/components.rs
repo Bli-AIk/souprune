@@ -311,6 +311,11 @@ pub(crate) struct UIBox {
     pub(crate) height: f32,
     pub(crate) border_width: f32,
     pub(crate) texts: Vec<UITextConfig>,
+    /// Optional custom fill shader path for data-driven shader loading.
+    ///
+    /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub(crate) fill_shader: Option<String>,
 }
 
 impl UIBox {
@@ -324,6 +329,7 @@ impl UIBox {
             height,
             border_width,
             texts: Vec::new(),
+            fill_shader: None,
         }
     }
 
@@ -341,6 +347,26 @@ impl UIBox {
             height,
             border_width,
             texts,
+            fill_shader: None,
+        }
+    }
+
+    /// Create a new `UIBox` component with text configurations and custom fill shader.
+    ///
+    /// 创建一个带有文本配置和自定义填充着色器的新 `UIBox` 组件。
+    pub(crate) fn new_with_shader(
+        width: f32,
+        height: f32,
+        border_width: f32,
+        texts: Vec<UITextConfig>,
+        fill_shader: Option<String>,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            border_width,
+            texts,
+            fill_shader,
         }
     }
 
@@ -363,6 +389,14 @@ impl UIBox {
     /// 获取边框宽度。
     pub(crate) fn border_width(&self) -> f32 {
         self.border_width
+    }
+
+    /// Get the custom fill shader path.
+    ///
+    /// 获取自定义填充着色器路径。
+    #[allow(dead_code)]
+    pub(crate) fn fill_shader(&self) -> Option<&str> {
+        self.fill_shader.as_deref()
     }
 
     /// Set the box dimensions.

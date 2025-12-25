@@ -481,6 +481,13 @@ pub struct UIBoxLogicDef {
     pub height: f32,
     pub border_width: f32,
     pub offset: SerializableVec3,
+    /// Optional custom fill shader path for data-driven shader loading.
+    /// Example: "shared/shaders/hp_bar.wgsl"
+    ///
+    /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
+    /// 示例："shared/shaders/hp_bar.wgsl"
+    #[serde(default)]
+    pub fill_shader: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

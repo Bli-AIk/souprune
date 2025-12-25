@@ -75,8 +75,8 @@
 - [x] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
 - [x] 实现 Native Mod Loader (DLL 加载与符号解析)
 - [x] 重构 UI 框架以支持战斗 UI
-- [x] 搭建 Battle UI
-- [ ] 实现战斗系统 UI 热重载
+- [x] 实现战斗系统 UI 热重载
+- [ ] 搭建 Battle UI
 
 ### v0.4.1: 战斗系统执行器
 - [ ] 实现执行器系统
