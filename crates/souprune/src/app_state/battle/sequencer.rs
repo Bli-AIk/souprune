@@ -62,6 +62,7 @@ struct CurrentBattleFlow(Handle<BattleFlowAsset>);
 
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TODO: Remove hardcoded chapter path - should be configurable or load from save data
+    // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
     let handle = asset_server.load::<BattleFlowAsset>("battle/chapters/demo.chapter.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
     info!("Loading default battle flow: battle/chapters/demo.chapter.ron");

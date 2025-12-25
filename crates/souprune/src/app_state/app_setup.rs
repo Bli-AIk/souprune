@@ -91,7 +91,6 @@ fn check_textures_system(
 
 fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
     commands.spawn((
-        // TODO: 区分 OW Camera 和 Battle Camera
         Name::new("Overworld Camera2d"),
         Camera2d,
         Projection::Orthographic(OrthographicProjection {

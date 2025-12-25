@@ -21,6 +21,7 @@ use serde::Deserialize;
 use std::fs;
 
 // TODO: Remove hardcoded path - should be configurable or discovered dynamically
+// TODO：删除硬编码路径 - 应该是可配置的或动态发现的
 const PLAYER_BEHAVIOR_PATH: &str = "overworld/players/player_behavior.ron";
 
 /// Runtime configuration describing how the overworld player should behave.
