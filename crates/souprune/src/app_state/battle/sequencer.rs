@@ -130,14 +130,14 @@ fn process_camera_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
     mut camera_query: Query<
-        (&mut Transform, &mut Projection),
+        (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetCamera(action) = &active_chapter.0 {
             // Using iter_mut instead of get_single_mut to be safe and compatible
-            for (mut transform, mut proj) in camera_query.iter_mut() {
+            for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
                 match action {
                     super::chapter::CameraAction::SetPosition(pos) => {
                         transform.translation = pos.extend(transform.translation.z);

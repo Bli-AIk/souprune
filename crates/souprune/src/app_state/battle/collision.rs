@@ -23,7 +23,10 @@ pub(crate) fn constrain_player_to_battle_box_system(
         (&mut Transform, &PhysicsCollider),
         (With<crate::core::mod_system::SoulParams>, Without<UIBox>),
     >,
-    battle_box_query: Query<(&GlobalTransform, &UIBox), (With<BattleBox>, Without<PhysicsCollider>)>,
+    battle_box_query: Query<
+        (&GlobalTransform, &UIBox),
+        (With<BattleBox>, Without<PhysicsCollider>),
+    >,
 ) {
     // Find the battle box (by marker component)
     let Some((box_transform, ui_box)) = battle_box_query.iter().next() else {
@@ -44,10 +47,6 @@ pub(crate) fn constrain_player_to_battle_box_system(
 
         // Only update if position changed
         if (constrained_pos - current_pos).length_squared() > 0.0001 {
-            info!(
-                "Constraining player from {:?} to {:?}",
-                current_pos, constrained_pos
-            );
             player_transform.translation.x = constrained_pos.x;
             player_transform.translation.y = constrained_pos.y;
         }

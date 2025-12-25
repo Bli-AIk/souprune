@@ -212,7 +212,7 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
     }
 
     let Ok(camera_transform) = camera_query.single() else {
-        warn!("No Camera2d available for anchoring UI");
+        warn_once!("No Camera2d available for anchoring UI");
         return;
     };
 
