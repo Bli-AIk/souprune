@@ -10,14 +10,17 @@ use std::collections::{HashMap, HashSet};
 
 use souprune::{IndexBoundDef, SerializableVec3, TransitionActionDef, UILayoutAsset, UINodeDef};
 
-const UI_DIR: &str = "ui";
+const UI_DIRS: &[&str] = &["overworld/ui", "battle/ui"];
 const UI_SUFFIX: &str = ".ui_layout.ron";
 
 fn ui_files() -> Vec<String> {
-    let files = test_support::list_project_files_with_suffix(UI_DIR, UI_SUFFIX);
+    let mut files = Vec::new();
+    for dir in UI_DIRS {
+        files.extend(test_support::list_project_files_with_suffix(dir, UI_SUFFIX));
+    }
     assert!(
         !files.is_empty(),
-        "No .ui_layout.ron files found under projects/example_mod/ui"
+        "No .ui_layout.ron files found under projects/example_mod"
     );
     files
 }

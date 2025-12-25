@@ -54,8 +54,10 @@ use ron_ui_system::{
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
-use text::{refresh_text_glyphs_system, show_text_when_ready_system};
-use ui_box::{update_ui_box_system, update_ui_box_visibility_system};
+use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
+use ui_box::{
+    update_ui_box_system, update_ui_box_visibility_system, update_ui_container_visibility_system,
+};
 
 use crate::app_state::AppState;
 #[cfg(feature = "debug")]
@@ -101,6 +103,8 @@ impl Plugin for CoreUIPlugin {
                     ui_animation_init_system,
                     update_ui_box_system,
                     update_ui_box_visibility_system,
+                    update_ui_container_visibility_system,
+                    assign_text_material_system,
                     spawn_box_cursor_visual_system,
                     update_box_cursor_state_system,
                     show_text_when_ready_system,

@@ -67,15 +67,12 @@
             )),
         ),
 
-        // HUD Info
+        // HUD Info - Pure container node (no visible box, just texts and children)
+        // HUD 信息 - 纯容器节点（无可见框，只有文本和子节点）
         (
             name: "BattleHUD",
-            ui_shape_logic: Some((
-                width: 0.0,
-                height: 0.0,
-                border_width: 0.0,
-                offset: (x: 0.0, y: 0.0, z: 0.0),
-            )),
+            // 重构后不再需要 0x0 的 ui_shape_logic hack
+            // After refactoring, the 0x0 ui_shape_logic hack is no longer needed
             texts: [
                 (
                     id: "PlayerName",

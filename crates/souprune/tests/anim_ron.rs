@@ -9,7 +9,7 @@ use proptest::prelude::*;
 use proptest::test_runner::TestRunner;
 use souprune::{AnimationConfigAsset, Direction, StateAnimationMapping};
 
-const ANIM_DIR: &str = "characters";
+const ANIM_DIR: &str = "overworld/characters";
 const ANIM_SUFFIX: &str = ".animation.ron";
 
 fn animation_files() -> Vec<String> {

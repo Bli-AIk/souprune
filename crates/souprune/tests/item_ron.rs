@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use souprune::{Item, ItemEffect, ItemRegistry, ItemType};
 
-const ITEM_DIR: &str = "items";
+const ITEM_DIR: &str = "shared/items";
 const ITEM_SUFFIX: &str = ".item.ron";
 
 fn item_files() -> Vec<String> {

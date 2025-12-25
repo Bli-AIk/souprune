@@ -431,6 +431,34 @@ pub(crate) struct BoxCursorReady;
 #[derive(Component)]
 pub(crate) struct UIBoxFiller;
 
+/// Marker component for a UI container node that can hold texts and children
+/// without requiring a visual UIBox (background box).
+///
+/// 用于标记 UI 容器节点的组件，该节点可以承载文本和子节点，
+/// 而无需视觉上的 UIBox（背景框）。
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UIContainer;
+
+/// Controls which [`UILayer`]s should render a given UI container (without UIBox).
+///
+/// 控制指定 UI 容器（无 UIBox）在哪些 [`UILayer`] 中可见。
+#[derive(Component, Debug)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) struct UIContainerVisibility {
+    rule: UILayerVisibilityRule,
+}
+
+impl UIContainerVisibility {
+    pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
+        Self { rule }
+    }
+
+    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+        self.rule.is_visible_for(layer)
+    }
+}
+
 /// Controls the visibility behavior of a [`BoxCursor`] relative to the active [`UILayer`].
 ///
 /// 控制 [`BoxCursor`] 相对于当前激活 [`UILayer`] 的可见性表现。

@@ -598,6 +598,75 @@ fn spawn_ron_ui_for_entity(
 use crate::core::ui::ui_box::parse_text_preserving_whitespace;
 use bevy_rich_text3d::Text3d;
 
+/// Helper function to build UITextConfig from TextDef.
+///
+/// 从 TextDef 构建 UITextConfig 的辅助函数。
+fn build_text_config(
+    text_def: &TextDef,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> UITextConfig {
+    let raw_content = text_def.content.as_deref().unwrap_or("");
+    let mut content = resolve_text_content(raw_content, mortar_strings, player_data, item_registry);
+
+    let color = if let Some(conditional_style) = &text_def.conditional_style {
+        let condition_met = evaluate_condition(&conditional_style.condition, player_data);
+        if condition_met {
+            let conditional_color = Srgba::new(
+                conditional_style.color.r,
+                conditional_style.color.g,
+                conditional_style.color.b,
+                conditional_style.color.a,
+            );
+            content = format!(
+                "{{#{:02x}{:02x}{:02x}:{}}}",
+                (conditional_color.red * 255.0) as u8,
+                (conditional_color.green * 255.0) as u8,
+                (conditional_color.blue * 255.0) as u8,
+                content
+            );
+            conditional_color
+        } else {
+            Srgba::new(
+                text_def.color.r,
+                text_def.color.g,
+                text_def.color.b,
+                text_def.color.a,
+            )
+        }
+    } else {
+        Srgba::new(
+            text_def.color.r,
+            text_def.color.g,
+            text_def.color.b,
+            text_def.color.a,
+        )
+    };
+
+    UITextConfig {
+        name: Name::new(text_def.id.clone()),
+        content,
+        template: Some(raw_content.to_string()),
+        font: text_def.font.clone().into(),
+        world_scale: text_def.world_scale.clone().into(),
+        color,
+        transform: {
+            let mut t =
+                Transform::from_translation(text_def.transform.translation.to_static_vec3());
+            if let Some(scale) = &text_def.transform.scale {
+                t.scale = scale.to_static_vec3();
+            }
+            if let Some(rot) = text_def.transform.rotation {
+                t.rotation = Quat::from_rotation_z(rot.to_radians());
+            }
+            t
+        },
+        line_height: text_def.line_height.unwrap_or(1.0),
+        ..Default::default()
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn spawn_ui_node(
     commands: &mut Commands,
@@ -611,9 +680,25 @@ fn spawn_ui_node(
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
 ) {
+    // Determine if this node has a UIBox (ui_shape_logic)
+    let has_ui_box = node_def.ui_shape_logic.is_some();
+    // Determine if this is a standalone sprite node (sprite without UIBox)
+    let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
+    // Determine if this is a pure container (no UIBox, no standalone sprite, but may have texts/children)
+    let is_pure_container = !has_ui_box
+        && !is_standalone_sprite
+        && (!node_def.texts.is_empty() || !node_def.children.is_empty());
+
+    // Variable to track the spawned entity ID for recursive child processing
+    // 用于追踪生成的实体 ID 以进行递归子节点处理的变量
+    let mut spawned_entity_id: Option<Entity> = None;
+
     commands.entity(parent_entity).with_children(|parent| {
-        // Handle nodes with only sprite (no UIBox)
-        if node_def.ui_shape_logic.is_none() && node_def.sprite.is_some() {
+        // =====================================================================
+        // Case 1: Standalone Sprite Node (no UIBox, has sprite)
+        // 情况 1: 独立精灵节点（无 UIBox，有 sprite）
+        // =====================================================================
+        if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
@@ -684,9 +769,12 @@ fn spawn_ui_node(
             return;
         }
 
-        // TODO: 重构 UI 系统，解除 Texts 和子节点对 UIBox (ui_shape_logic) 的强制依赖。
-        // 目前如果一个节点没有 ui_shape_logic 且没有 sprite，它的 texts 和 children 将不会被处理。
-        if let Some(ui_shape_logic) = &node_def.ui_shape_logic {
+        // =====================================================================
+        // Case 2: UIBox Node (has ui_shape_logic)
+        // 情况 2: UIBox 节点（有 ui_shape_logic）
+        // =====================================================================
+        if has_ui_box {
+            let ui_shape_logic = node_def.ui_shape_logic.as_ref().unwrap();
             info!(
                 "[UI Box] Creating UIBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
@@ -705,71 +793,7 @@ fn spawn_ui_node(
                 .texts
                 .iter()
                 .map(|text_def| {
-                    let raw_content = text_def.content.as_deref().unwrap_or("");
-                    let mut content = resolve_text_content(
-                        raw_content,
-                        mortar_strings,
-                        player_data,
-                        item_registry,
-                    );
-
-                    let color = if let Some(conditional_style) = &text_def.conditional_style {
-                        let condition_met =
-                            evaluate_condition(&conditional_style.condition, player_data);
-                        if condition_met {
-                            let conditional_color = Srgba::new(
-                                conditional_style.color.r,
-                                conditional_style.color.g,
-                                conditional_style.color.b,
-                                conditional_style.color.a,
-                            );
-                            content = format!(
-                                "{{#{:02x}{:02x}{:02x}:{}}}",
-                                (conditional_color.red * 255.0) as u8,
-                                (conditional_color.green * 255.0) as u8,
-                                (conditional_color.blue * 255.0) as u8,
-                                content
-                            );
-                            conditional_color
-                        } else {
-                            Srgba::new(
-                                text_def.color.r,
-                                text_def.color.g,
-                                text_def.color.b,
-                                text_def.color.a,
-                            )
-                        }
-                    } else {
-                        Srgba::new(
-                            text_def.color.r,
-                            text_def.color.g,
-                            text_def.color.b,
-                            text_def.color.a,
-                        )
-                    };
-
-                    UITextConfig {
-                        name: Name::new(text_def.id.clone()),
-                        content,
-                        template: Some(raw_content.to_string()),
-                        font: text_def.font.clone().into(),
-                        world_scale: text_def.world_scale.clone().into(),
-                        color,
-                        transform: {
-                            let mut t = Transform::from_translation(
-                                text_def.transform.translation.to_static_vec3(),
-                            );
-                            if let Some(scale) = &text_def.transform.scale {
-                                t.scale = scale.to_static_vec3();
-                            }
-                            if let Some(rot) = text_def.transform.rotation {
-                                t.rotation = Quat::from_rotation_z(rot.to_radians());
-                            }
-                            t
-                        },
-                        line_height: text_def.line_height.unwrap_or(1.0),
-                        ..Default::default()
-                    }
+                    build_text_config(text_def, mortar_strings, player_data, item_registry)
                 })
                 .collect::<Vec<_>>();
 
@@ -866,9 +890,6 @@ fn spawn_ui_node(
                     if let Some(translation) = &transform.translation {
                         BoxCursorPosition::Static(translation.to_static_vec3())
                     } else {
-                        // Fallback if no translation is defined in transform either
-                        //
-                        // 如果 transform 中也没有定义 translation，则回退
                         BoxCursorPosition::Static(Vec3::ZERO)
                     }
                 } else {
@@ -926,8 +947,146 @@ fn spawn_ui_node(
                     cursor_transform,
                 ));
             }
+
+            // Store entity ID for recursive child processing after closure ends
+            // 存储实体 ID 以便在闭包结束后进行递归子节点处理
+            spawned_entity_id = Some(box_entity.id());
+            return;
+        }
+
+        // =====================================================================
+        // Case 3: Pure Container Node (no UIBox, no sprite, but has texts/children)
+        // 情况 3: 纯容器节点（无 UIBox，无 sprite，但有 texts 或 children）
+        // =====================================================================
+        if is_pure_container {
+            info!(
+                "[UI Container] Creating pure container '{}' with {} texts and {} children",
+                node_def.name,
+                node_def.texts.len(),
+                node_def.children.len()
+            );
+
+            let visibility_rule = node_def
+                .visibility_rule
+                .as_ref()
+                .map(parse_visibility_rule)
+                .unwrap_or(UILayerVisibilityRule::Always);
+
+            // Spawn container entity with UIContainer marker
+            // 使用 UIContainer 标记生成容器实体
+            let mut container_entity = parent.spawn((
+                UIContainer,
+                UIContainerVisibility::new(visibility_rule),
+                Transform::default(),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                CameraAnchored::new(Vec3::ZERO),
+                Name::new(node_def.name.clone()),
+                RonDrivenUI,
+            ));
+
+            // Spawn texts directly as children of the container
+            // 将文本直接作为容器的子节点生成
+            container_entity.with_children(|container_parent| {
+                spawn_container_texts(
+                    container_parent,
+                    &node_def.texts,
+                    mortar_strings,
+                    player_data,
+                    item_registry,
+                    camera_transform,
+                );
+            });
+
+            // Store entity ID for recursive child processing after closure ends
+            // 存储实体 ID 以便在闭包结束后进行递归子节点处理
+            spawned_entity_id = Some(container_entity.id());
         }
     });
+
+    // Process children recursively AFTER the closure ends to avoid borrowing conflicts
+    // 在闭包结束后递归处理子节点，以避免借用冲突
+    if let Some(entity_id) = spawned_entity_id {
+        for child_def in &node_def.children {
+            spawn_ui_node(
+                commands,
+                asset_server,
+                entity_id,
+                child_def,
+                camera_transform,
+                sprite_params,
+                animation_assets,
+                mortar_strings,
+                player_data,
+                item_registry,
+            );
+        }
+    }
+}
+
+/// Spawn text entities directly as children of a container (without UIBox).
+///
+/// 将文本实体直接作为容器的子节点生成（无 UIBox）。
+fn spawn_container_texts(
+    parent: &mut ChildSpawnerCommands,
+    texts: &[TextDef],
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &crate::core::data::PlayerData,
+    item_registry: &crate::core::item::ItemRegistry,
+    camera_transform: &Transform,
+) {
+    use bevy_rich_text3d::Text3dStyling;
+
+    for text_def in texts {
+        let text_config = build_text_config(text_def, mortar_strings, player_data, item_registry);
+
+        info!(
+            "[UI Container] Spawning text '{}' for container",
+            text_config.name
+        );
+
+        let text3d = parse_text_preserving_whitespace(&text_config.content);
+
+        // Calculate text position relative to camera
+        // 计算相对于相机的文本位置
+        let text_world_transform = Transform::from_translation(
+            camera_transform.translation + text_config.transform.translation,
+        )
+        .with_rotation(text_config.transform.rotation)
+        .with_scale(text_config.transform.scale);
+
+        let mut cmd = parent.spawn((
+            text_config.name.clone(),
+            text3d,
+            Text3dStyling {
+                font: text_config.font.font_name().into(),
+                size: text_config.font.default_size(),
+                world_scale: Some(text_config.world_scale),
+                color: text_config.color,
+                align: text_config.align,
+                anchor: text_config.anchor,
+                line_height: text_config.line_height,
+                ..Default::default()
+            },
+            Mesh2d::default(),
+            // Use NeedsTextMaterial marker instead of default handle to avoid purple box
+            // 使用 NeedsTextMaterial 标记而不是默认句柄以避免紫色方块
+            super::text::NeedsTextMaterial,
+            text_world_transform,
+            Visibility::Hidden,
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            CameraAnchored::new(text_config.transform.translation),
+            super::text::NeedsGlyphRefresh,
+            RonDrivenUI,
+        ));
+
+        if let Some(template) = &text_config.template {
+            cmd.insert(UITextTemplate(template.clone()));
+        }
+    }
 }
 
 fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> UILayerVisibilityRule {

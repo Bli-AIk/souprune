@@ -19,13 +19,20 @@
 //! 管理 UI 文本元素的字形刷新和可见性控制。
 
 use bevy::prelude::*;
-use bevy_rich_text3d::Text3d;
+use bevy::sprite_render::AlphaMode2d;
+use bevy_rich_text3d::{Text3d, TextAtlas};
 
 /// Marker component for newly spawned text that needs glyph refresh
 ///
 /// 新生成文本的标记组件，需要刷新字形
 #[derive(Component)]
 pub(crate) struct NeedsGlyphRefresh;
+
+/// Marker component for text entities that need material assignment.
+///
+/// 需要分配材质的文本实体的标记组件。
+#[derive(Component)]
+pub(crate) struct NeedsTextMaterial;
 
 /// After spawning, change the Text3d string in PreUpdate phase to immediately render glyphs.
 ///
@@ -43,6 +50,32 @@ pub(crate) fn refresh_text_glyphs_system(
 
         commands.entity(entity).remove::<NeedsGlyphRefresh>();
         debug!("Refreshed glyphs for text entity {:?}", entity);
+    }
+}
+
+/// Assign proper ColorMaterial to text entities that need it.
+/// This fixes the purple box issue for container texts.
+///
+/// 为需要的文本实体分配正确的 ColorMaterial。
+/// 这修复了容器文本的紫色方块问题。
+pub(crate) fn assign_text_material_system(
+    mut commands: Commands,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    text_query: Query<Entity, (With<Text3d>, With<NeedsTextMaterial>)>,
+) {
+    for entity in text_query.iter() {
+        let mat = color_materials.add(ColorMaterial {
+            texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
+            alpha_mode: AlphaMode2d::Blend,
+            ..Default::default()
+        });
+
+        commands
+            .entity(entity)
+            .insert(MeshMaterial2d(mat))
+            .remove::<NeedsTextMaterial>();
+
+        debug!("Assigned text material to entity {:?}", entity);
     }
 }
 

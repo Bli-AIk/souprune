@@ -7,7 +7,7 @@ mod test_support;
 
 use souprune::{AnimationConfigAsset, CharacterAsset};
 
-const CHAR_DIR: &str = "characters";
+const CHAR_DIR: &str = "overworld/characters";
 const CHAR_SUFFIX: &str = ".character.ron";
 
 fn character_files() -> Vec<String> {

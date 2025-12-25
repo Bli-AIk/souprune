@@ -386,3 +386,65 @@ pub(crate) fn update_ui_box_visibility_system(
         }
     }
 }
+
+/// Toggle UI container visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
+/// This system handles pure container nodes that don't have a UIBox but need visibility control.
+///
+/// 根据当前激活的 [`UILayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
+/// 此系统处理没有 UIBox 但需要可见性控制的纯容器节点。
+pub(crate) fn update_ui_container_visibility_system(
+    app_state: Res<State<crate::app_state::AppState>>,
+    overworld_state: Option<Res<State<OverworldState>>>,
+    ui_query: Query<&RonUI>,
+    parent_query: Query<&ChildOf>,
+    mut container_query: Query<
+        (
+            Entity,
+            &super::components::UIContainerVisibility,
+            &mut Visibility,
+        ),
+        With<super::components::UIContainer>,
+    >,
+) {
+    // Check if we should process UI visibility (Battle or Overworld Backpack)
+    // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
+    let should_process_ui = match app_state.get() {
+        crate::app_state::AppState::Battle => true,
+        crate::app_state::AppState::Overworld => overworld_state
+            .map(|s| s.get() == &OverworldState::Backpack)
+            .unwrap_or(false),
+        _ => false,
+    };
+
+    for (entity, container_visibility, mut visibility) in container_query.iter_mut() {
+        if !should_process_ui {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        }
+
+        let Ok(parent) = parent_query.get(entity) else {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        };
+
+        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+            continue;
+        };
+
+        let should_show = container_visibility.is_visible_for(overworld_ui.layer());
+        if should_show {
+            if *visibility != Visibility::Inherited {
+                *visibility = Visibility::Inherited;
+            }
+        } else if *visibility != Visibility::Hidden {
+            *visibility = Visibility::Hidden;
+        }
+    }
+}
