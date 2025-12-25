@@ -794,6 +794,8 @@ fn spawn_ui_node(
                 ),
                 UIBoxVisibility::new(visibility_rule.clone()),
                 Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
                 Name::new(node_def.name.clone()),
                 RonDrivenUI,

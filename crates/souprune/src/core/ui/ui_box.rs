@@ -227,6 +227,8 @@ fn spawn_ui_box_children(
                     MeshMaterial2d(mat.clone()),
                     text_config.transform,
                     Visibility::Hidden,
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
                     NeedsGlyphRefresh,
                 ));
 
@@ -332,19 +334,28 @@ pub(crate) fn update_overworld_ui_box_system(
     }
 }
 
-/// Toggle UI box visibility according to the active [`UILayer`].
+/// Toggle UI box visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
 ///
-/// 根据当前激活的 [`UILayer`] 切换 UI 框可见性。
+/// 根据当前激活的 [`UILayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
 pub(crate) fn update_overworld_ui_box_visibility_system(
-    overworld_state: Res<State<OverworldState>>,
+    app_state: Res<State<crate::app_state::AppState>>,
+    overworld_state: Option<Res<State<OverworldState>>>,
     ui_query: Query<&RonUI>,
     parent_query: Query<&ChildOf>,
     mut box_query: Query<(Entity, &UIBoxVisibility, &mut Visibility), With<UIBox>>,
 ) {
-    let in_backpack = overworld_state.get() == &OverworldState::Backpack;
+    // Check if we should process UI visibility (Battle or Overworld Backpack)
+    // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
+    let should_process_ui = match app_state.get() {
+        crate::app_state::AppState::Battle => true,
+        crate::app_state::AppState::Overworld => overworld_state
+            .map(|s| s.get() == &OverworldState::Backpack)
+            .unwrap_or(false),
+        _ => false,
+    };
 
     for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
-        if !in_backpack {
+        if !should_process_ui {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }

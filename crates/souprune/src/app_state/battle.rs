@@ -81,13 +81,14 @@ fn setup_battle_camera(
     }
 
     // Spawn Battle Camera
+    // Battle scene needs a larger viewport, so use scale 1.0 instead of dividing by resolution_scale
+    // 战斗场景需要更大的视野，因此使用 scale 1.0 而不是除以 resolution_scale
     commands.spawn((
         Camera2d,
-        Camera {
-            // Set order to ensure it renders on top if needed.
-            order: 100,
-            ..default()
-        },
+        Projection::Orthographic(OrthographicProjection {
+            scale: 1.0,
+            ..OrthographicProjection::default_2d()
+        }),
         BattleCamera,
         BattleEntity(),
         Name::new("BattleCamera"),
