@@ -24,7 +24,7 @@ pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;
     use crate::app_state::overworld::tilemap::*;
-    use crate::core::collision::Rect2DCollider;
+    use crate::core::collision::{PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::prelude::*;
     use bevy_smud::prelude::*;
 
@@ -130,6 +130,10 @@ pub mod debug_collider {
                 Without<ColliderVisualizer>,
             ),
         >,
+        // Queries for Battle colliders to prevent cleanup
+        battle_physics_colliders: Query<Entity, With<PhysicsCollider>>,
+        battle_trigger_colliders: Query<Entity, With<TriggerCollider>>,
+        battle_boxes: Query<Entity, With<crate::app_state::battle::collision::BattleBox>>,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         let Ok(debug_root_entity) = debug_root.single() else {
@@ -152,7 +156,10 @@ pub mod debug_collider {
         for (visualizer_entity, visualizer) in existing_visualizers.iter() {
             let parent_exists = player_colliders.get(visualizer.parent).is_ok()
                 || tilemap_colliders.get(visualizer.parent).is_ok()
-                || object_colliders.get(visualizer.parent).is_ok();
+                || object_colliders.get(visualizer.parent).is_ok()
+                || battle_physics_colliders.get(visualizer.parent).is_ok()
+                || battle_trigger_colliders.get(visualizer.parent).is_ok()
+                || battle_boxes.get(visualizer.parent).is_ok();
             if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
             }
@@ -325,16 +332,6 @@ pub mod debug_collider {
             return;
         }
 
-        // Debug log to check if we're finding any colliders
-        let physics_count = physics_colliders.iter().count();
-        let trigger_count = trigger_colliders.iter().count();
-        if physics_count > 0 || trigger_count > 0 {
-            info!(
-                "Rendering battle colliders: {} physics, {} triggers",
-                physics_count, trigger_count
-            );
-        }
-
         // Visualize physics colliders (green)
         for (entity, transform, physics_collider) in physics_colliders.iter() {
             // Check if visualizer already exists
@@ -348,34 +345,27 @@ pub mod debug_collider {
 
             let (sdf, frame_size, name) = match physics_collider {
                 PhysicsCollider::Circle { radius } => {
-                    let sdf = shaders.add_sdf_expr(format!("smud::sd_circle(p, {})", radius));
-                    (sdf, radius * 2.5, "Physics Collider (Circle)")
+                    let sdf = shaders
+                        .add_sdf_expr(format!("abs(smud::sd_circle(p, {})) - 0.125", radius));
+                    (sdf, radius + 2.0, "Physics Collider (Circle)")
                 }
                 PhysicsCollider::Box { half_size } => {
                     let sdf = shaders.add_sdf_expr(format!(
-                        "smud::sd_box(p, vec2<f32>({}, {}))",
+                        "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
                         half_size.x, half_size.y
                     ));
-                    let max_dim = half_size.x.max(half_size.y) * 2.5;
+                    let max_dim = half_size.x.max(half_size.y) + 2.0;
                     (sdf, max_dim, "Physics Collider (Box)")
                 }
             };
 
-            let fill = shaders.add_fill_body(
-                r#"
-                let a = smud::sd_fill_alpha_fwidth(input.distance);
-                let edge = 1.0 - smoothstep(-2.0, -1.0, input.distance);
-                return vec4<f32>(0.0, 1.0, 0.0, a * 0.3 + edge * 0.7);
-                "#,
-            );
-
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     SmudShape {
-                        color: Color::WHITE,
+                        color: Color::hsl(120.0, 1.0, 0.5),
                         sdf,
                         frame: Frame::Quad(frame_size),
-                        fill,
+                        fill: SIMPLE_FILL_HANDLE,
                         ..default()
                     },
                     Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
@@ -397,34 +387,27 @@ pub mod debug_collider {
 
             let (sdf, frame_size, name) = match trigger_collider {
                 TriggerCollider::Circle { radius } => {
-                    let sdf = shaders.add_sdf_expr(format!("smud::sd_circle(p, {})", radius));
-                    (sdf, radius * 2.5, "Trigger Collider (Circle)")
+                    let sdf = shaders
+                        .add_sdf_expr(format!("abs(smud::sd_circle(p, {})) - 0.125", radius));
+                    (sdf, radius + 2.0, "Trigger Collider (Circle)")
                 }
                 TriggerCollider::Box { half_size } => {
                     let sdf = shaders.add_sdf_expr(format!(
-                        "smud::sd_box(p, vec2<f32>({}, {}))",
+                        "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
                         half_size.x, half_size.y
                     ));
-                    let max_dim = half_size.x.max(half_size.y) * 2.5;
+                    let max_dim = half_size.x.max(half_size.y) + 2.0;
                     (sdf, max_dim, "Trigger Collider (Box)")
                 }
             };
 
-            let fill = shaders.add_fill_body(
-                r#"
-                let a = smud::sd_fill_alpha_fwidth(input.distance);
-                let edge = 1.0 - smoothstep(-2.0, -1.0, input.distance);
-                return vec4<f32>(1.0, 1.0, 0.0, a * 0.3 + edge * 0.7);
-                "#,
-            );
-
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     SmudShape {
-                        color: Color::WHITE,
+                        color: Color::hsl(60.0, 1.0, 0.5),
                         sdf,
                         frame: Frame::Quad(frame_size),
-                        fill,
+                        fill: SIMPLE_FILL_HANDLE,
                         ..default()
                     },
                     Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
@@ -448,27 +431,19 @@ pub mod debug_collider {
             let half_height = ui_box.height() / 2.0;
 
             let sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
-                half_width, half_height, 2.0
+                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
+                half_width, half_height
             ));
 
-            let frame_size = half_width.max(half_height) * 2.5;
-
-            // Simple white stroke
-            let fill = shaders.add_fill_body(
-                r#"
-                let a = smud::sd_fill_alpha_fwidth(input.distance);
-                return vec4<f32>(1.0, 1.0, 1.0, a);
-                "#,
-            );
+            let frame_size = half_width.max(half_height) + 2.0;
 
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     SmudShape {
-                        color: Color::WHITE,
+                        color: Color::hsl(120.0, 1.0, 0.5),
                         sdf,
                         frame: Frame::Quad(frame_size),
-                        fill,
+                        fill: SIMPLE_FILL_HANDLE,
                         ..default()
                     },
                     Transform::from_translation(
