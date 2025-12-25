@@ -194,7 +194,7 @@ fn process_ui_action_system(
 
                     // Signal watcher to reload
                     // Using public export from ui module
-                    let _ = crate::core::ui::UILayoutWatcher::default();
+                    commands.init_resource::<crate::core::ui::UILayoutWatcher>();
                 }
                 _ => {
                     warn!("UI action {:?} not fully implemented yet", action);

@@ -74,6 +74,11 @@
 - [x] 实现 Mod SDK (Context 封装与 Safe Rust 接口)
 - [x] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
 - [x] 实现 Native Mod Loader (DLL 加载与符号解析)
+- [x] 重构 UI 框架以支持战斗 UI
+- [x] 搭建 Battle UI
+- [ ] 实现战斗系统 UI 热重载
+
+### v0.4.1: 战斗系统执行器
 - [ ] 实现执行器系统
   - [ ] 实现 `SoulMode` 组件 (持有当前 Mod 的 VTable)
   - [ ] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)
@@ -82,14 +87,14 @@
 - [ ] 定义 `BattleContext` 运行时资源
 - [ ] 实现 Chapter 执行器：根据当前 Chapter 类型切换子状态
 
-### v0.4.1: 弹幕系统 (Danmaku Core)
+### v0.4.2: 弹幕系统 (Danmaku Core)
 - [x] 实现碰撞层 Debug 可视化 (F3 切换，支持 Battle 碰撞体)
 - [ ] 定义 `BulletBehavior` 枚举 (Functional, Tween, Composite)
 - [ ] 实现 `BulletSpawner` 系统
 - [ ] 实现基于 `Functional` 的运动逻辑系统
 - [ ] 实现基于 `Tween` 的运动逻辑系统
 
-### v0.4.2 OverworldSession 部分
+### v0.4.3 OverworldSession 部分
 
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)

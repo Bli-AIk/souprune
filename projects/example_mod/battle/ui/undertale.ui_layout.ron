@@ -101,7 +101,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -147.5, y: -155.0, z: 1.0),
+                        translation: (x: -148.5, y: -155.0, z: 1.0),
                     ),
                 ),
                 (
@@ -121,7 +121,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: 34.5, y: -155.0, z: 1.0),
+                        translation: (x: 33.5, y: -155.0, z: 1.0),
                     ),
                 ),
                 (
@@ -131,7 +131,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: 64.5, y: -155.0, z: 1.0),
+                        translation: (x: 57.5, y: -155.0, z: 1.0),
                     ),
                 ),
             ],
