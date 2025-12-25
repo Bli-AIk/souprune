@@ -85,8 +85,8 @@
                     ),
                 ),
                 (
-                    id: "PlayerLevel",
-                    content: Some("{{battle/ui:LV}} {@player.lv}"),
+                    id: "PlayerLevelLabel",
+                    content: Some("{{battle/ui:LV}}"),
                     font: BattleHud,
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
@@ -95,13 +95,43 @@
                     ),
                 ),
                 (
-                    id: "HPValue",
-                    content: Some("{@player.hp} / {@player.hp_max}"),
+                    id: "PlayerLevelValue",
+                    content: Some("{@player.lv}"),
+                    font: BattleHud,
+                    world_scale: (x: 24.0, y: 24.0),
+                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    transform: (
+                        translation: (x: -147.5, y: -155.0, z: 1.0),
+                    ),
+                ),
+                (
+                    id: "HPValueCurrent",
+                    content: Some("{@player.hp}"),
                     font: BattleHud,
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
                         translation: (x: -5.5, y: -155.0, z: 1.0),
+                    ),
+                ),
+                (
+                    id: "HPSeparator",
+                    content: Some("/"),
+                    font: BattleHud,
+                    world_scale: (x: 24.0, y: 24.0),
+                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    transform: (
+                        translation: (x: 34.5, y: -155.0, z: 1.0),
+                    ),
+                ),
+                (
+                    id: "HPValueMax",
+                    content: Some("{@player.hp_max}"),
+                    font: BattleHud,
+                    world_scale: (x: 24.0, y: 24.0),
+                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    transform: (
+                        translation: (x: 64.5, y: -155.0, z: 1.0),
                     ),
                 ),
             ],
@@ -112,7 +142,7 @@
                         path: "textures/battle/ui/hpname.png",
                         is_animation: false,
                         transform: Some((
-                            translation: (x: 20.0, y: -168.0, z: 1.0),
+                            translation: (x: -64.5, y: -170.0, z: 1.0),
                         )),
                     )),
                 ),
