@@ -9,7 +9,7 @@
                 width: 566.0,
                 height: 130.0,
                 border_width: 5.0,
-                offset: (x: 0.0, y: -50.0, z: 0.0),
+                offset: (x: 0.0, y: -80.0, z: 0.0),
             )),
             // Optional: Add HP bar or text here later
             children: [],
