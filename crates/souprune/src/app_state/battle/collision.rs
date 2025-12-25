@@ -9,6 +9,12 @@ use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::ui::components::UIBox;
 use bevy::prelude::*;
 
+/// Marker component for the battle box boundary
+///
+/// 战斗框边界的标记组件
+#[derive(Component)]
+pub struct BattleBox;
+
 /// System to constrain player position within battle box boundaries
 ///
 /// 限制玩家位置在战斗框边界内的系统
@@ -17,14 +23,10 @@ pub(crate) fn constrain_player_to_battle_box_system(
         (&mut Transform, &PhysicsCollider),
         (With<crate::core::mod_system::SoulParams>, Without<UIBox>),
     >,
-    battle_box_query: Query<(&GlobalTransform, &UIBox, &Name), Without<PhysicsCollider>>,
+    battle_box_query: Query<(&GlobalTransform, &UIBox), (With<BattleBox>, Without<PhysicsCollider>)>,
 ) {
-    // Find the battle box (by name "BattleBox")
-    let Some((box_transform, ui_box)) = battle_box_query
-        .iter()
-        .find(|(_, _, name)| name.as_str() == "BattleBox")
-        .map(|(t, b, _)| (t, b))
-    else {
+    // Find the battle box (by marker component)
+    let Some((box_transform, ui_box)) = battle_box_query.iter().next() else {
         return;
     };
 

@@ -154,6 +154,8 @@ pub struct GlobalTriggerRuleDef {
 pub struct UINodeDef {
     pub name: String,
     #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
     #[allow(dead_code)]
     pub style: StyleDef,
     #[serde(default)]

@@ -304,9 +304,9 @@ pub mod debug_collider {
                 Entity,
                 &GlobalTransform,
                 &crate::core::ui::components::UIBox,
-                &Name,
             ),
             (
+                With<crate::app_state::battle::collision::BattleBox>,
                 Without<SmudShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
@@ -435,11 +435,7 @@ pub mod debug_collider {
         }
 
         // Visualize Battle Box (White)
-        for (entity, global_transform, ui_box, name) in battle_boxes.iter() {
-            if name.as_str() != "BattleBox" {
-                continue;
-            }
-
+        for (entity, global_transform, ui_box) in battle_boxes.iter() {
             let has_visualizer = existing_visualizers
                 .iter()
                 .any(|(_, vis)| vis.parent == entity);
@@ -515,6 +511,7 @@ pub mod debug_collider {
             &GlobalTransform,
             (
                 With<crate::core::ui::components::UIBox>,
+                With<crate::app_state::battle::collision::BattleBox>,
                 Without<ColliderVisualizer>,
             ),
         >,

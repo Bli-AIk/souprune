@@ -801,6 +801,11 @@ fn spawn_ui_node(
                 RonDrivenUI,
             ));
 
+            if node_def.tags.contains(&"BattleBox".to_string()) {
+                box_entity.insert(crate::app_state::battle::collision::BattleBox);
+                info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);
+            }
+
             info!(
                 "[UI Box] Spawned UIBox '{}' at camera offset: {:?}",
                 node_def.name, offset

@@ -4,6 +4,7 @@
         // Battle Box (Dialog/Bullet Box)
         (
             name: "BattleBox",
+            tags: ["BattleBox"],
             ui_shape_logic: Some((
                 width: 570.0,
                 height: 130.0,
