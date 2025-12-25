@@ -34,6 +34,10 @@ path = "textures/battle/ui/mercy/false.png"
 name = "mercy_true"
 path = "textures/battle/ui/mercy/true.png"
 
+[[sprites]]
+name = "hpname"
+path = "textures/battle/ui/hpname.png"
+
 # Example sprites with flip settings
 [[sprites]]
 name = "example_sprite_flipped_x"

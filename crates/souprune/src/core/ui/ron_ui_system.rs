@@ -684,6 +684,8 @@ fn spawn_ui_node(
             return;
         }
 
+        // TODO: 重构 UI 系统，解除 Texts 和子节点对 UIBox (ui_shape_logic) 的强制依赖。
+        // 目前如果一个节点没有 ui_shape_logic 且没有 sprite，它的 texts 和 children 将不会被处理。
         if let Some(ui_shape_logic) = &node_def.ui_shape_logic {
             info!(
                 "[UI Box] Creating UIBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
