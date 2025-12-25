@@ -242,15 +242,15 @@ fn spawn_ui_box_children(
 /// Update UI box geometry each time layout components change.
 ///
 /// 当布局组件变化时更新 UI 框的几何数据。
-pub(crate) fn update_overworld_ui_box_system(
+pub(crate) fn update_ui_box_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
-    overworld_ui_box_query: UIBoxQuery,
+    ui_box_query: UIBoxQuery,
     mut smud_shape_query: Query<&mut SmudShape>,
     children_query: Query<&Children>,
 ) {
-    for (entity, ui_box, transform, children_opt) in overworld_ui_box_query.iter() {
+    for (entity, ui_box, transform, children_opt) in ui_box_query.iter() {
         let box_width = ui_box.width();
         let box_height = ui_box.height();
         let border_width = ui_box.border_width();
@@ -337,7 +337,7 @@ pub(crate) fn update_overworld_ui_box_system(
 /// Toggle UI box visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
 ///
 /// 根据当前激活的 [`UILayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
-pub(crate) fn update_overworld_ui_box_visibility_system(
+pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
     ui_query: Query<&RonUI>,

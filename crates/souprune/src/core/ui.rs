@@ -55,7 +55,7 @@ use ron_ui_system::{
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{refresh_text_glyphs_system, show_text_when_ready_system};
-use ui_box::{update_overworld_ui_box_system, update_overworld_ui_box_visibility_system};
+use ui_box::{update_ui_box_system, update_ui_box_visibility_system};
 
 use crate::app_state::AppState;
 #[cfg(feature = "debug")]
@@ -64,12 +64,12 @@ use components::{
     UIBoxVisibility, UILayer,
 };
 
-/// RON-driven UI plugin for the Overworld.
+/// RON-driven UI plugin for both Overworld and Battle scenes.
 ///
 /// This plugin loads UI layouts from RON files and renders them using SDF shapes and 3D text.
 /// Different UI styles can be achieved by modifying the RON files without code changes.
 ///
-/// RON 驱动的 Overworld UI 插件。
+/// RON 驱动的 UI 插件，支持 Overworld 和 Battle 场景。
 /// 该插件从 RON 文件加载 UI 布局，并使用 SDF 形状和 3D 文本进行渲染。
 /// 通过修改 RON 文件可以实现不同的 UI 风格，而无需更改代码。
 pub(crate) struct CoreUIPlugin;
@@ -99,8 +99,8 @@ impl Plugin for CoreUIPlugin {
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
-                    update_overworld_ui_box_system,
-                    update_overworld_ui_box_visibility_system,
+                    update_ui_box_system,
+                    update_ui_box_visibility_system,
                     spawn_box_cursor_visual_system,
                     update_box_cursor_state_system,
                     show_text_when_ready_system,
