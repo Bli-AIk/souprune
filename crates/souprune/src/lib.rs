@@ -199,6 +199,7 @@ pub fn run() {
 
     App::new()
         // TODO: 读取 mod 配置并加载正确的项目
+        .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
             AssetSource::build()

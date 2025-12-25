@@ -64,8 +64,12 @@
 - [x] 定义 `Chapter` 枚举
 - [x] 定义 `BattleSequencer` 作为 序列器
 - [x] 实现调度器系统
-- [x] 定义 `PlayerAction`
+- [x] 定义 `PlayerAction` 与执行逻辑 (Spawn, Teleport, SetActive)
+- [x] 定义 `UIAction` 与执行逻辑 (LoadLayout)
+- [x] 定义 `CameraAction` 与执行逻辑 (SetPosition, SetZoom)
+- [x] 实现 `Wait` 章节执行逻辑
 - [x] 实现 Chapter ron 文件雏形
+- [x] 实现战斗碰撞系统 (基于 SDF 的 BattleBox 约束)
 - [x] 创建 `souprune_api` crate (定义 HostApi/VTable 协议)
 - [x] 实现 Mod SDK (Context 封装与 Safe Rust 接口)
 - [x] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
@@ -79,6 +83,7 @@
 - [ ] 实现 Chapter 执行器：根据当前 Chapter 类型切换子状态
 
 ### v0.4.1: 弹幕系统 (Danmaku Core)
+- [x] 实现碰撞层 Debug 可视化 (F3 切换，支持 Battle 碰撞体)
 - [ ] 定义 `BulletBehavior` 枚举 (Functional, Tween, Composite)
 - [ ] 实现 `BulletSpawner` 系统
 - [ ] 实现基于 `Functional` 的运动逻辑系统
