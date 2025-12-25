@@ -24,7 +24,7 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 pub mod chapter;
-mod collision;
+pub mod collision;
 pub mod config;
 mod sequencer;
 
