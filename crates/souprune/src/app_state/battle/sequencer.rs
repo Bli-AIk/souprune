@@ -299,13 +299,38 @@ fn process_player_spawn_requests(
         if let Some(config) = configs.get(&req.config_handle) {
             info!("Config loaded. Spawning player...");
 
+            // Convert collider configs to components
+            let physics_collider = match &config.physics_collider.shape {
+                crate::app_state::battle::config::ColliderShape::Circle { radius } => {
+                    crate::core::collision::PhysicsCollider::Circle { radius: *radius }
+                }
+                crate::app_state::battle::config::ColliderShape::Box { half_size } => {
+                    crate::core::collision::PhysicsCollider::Box {
+                        half_size: *half_size,
+                    }
+                }
+            };
+
+            let damage_trigger = match &config.damage_trigger.shape {
+                crate::app_state::battle::config::ColliderShape::Circle { radius } => {
+                    crate::core::collision::TriggerCollider::Circle { radius: *radius }
+                }
+                crate::app_state::battle::config::ColliderShape::Box { half_size } => {
+                    crate::core::collision::TriggerCollider::Box {
+                        half_size: *half_size,
+                    }
+                }
+            };
+
             commands.spawn((
                 Sprite {
                     image: asset_server.load(&config.sprite_path),
                     color: config.color,
                     ..default()
                 },
-                Transform::from_translation(req.position.extend(0.0)),
+                Transform::from_translation(req.position.extend(config.z_position)),
+                physics_collider.clone(),
+                damage_trigger.clone(),
                 SoulParams {
                     mode_id: config.default_mode_id.clone(),
                 },
@@ -314,6 +339,11 @@ fn process_player_spawn_requests(
                 crate::app_state::battle::BattleEntity(),
                 Name::new("BattlePlayer"),
             ));
+
+            info!(
+                "Spawned player with physics collider: {:?}, damage trigger: {:?}, at z: {}",
+                physics_collider, damage_trigger, config.z_position
+            );
 
             commands.entity(entity).despawn();
         }

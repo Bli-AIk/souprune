@@ -36,6 +36,12 @@ pub mod debug_collider {
         pub parent: Entity,
     }
 
+    /// Marker to prevent duplicate Battle collider visualizers
+    ///
+    /// 防止重复创建 Battle 碰撞体可视化器的标记
+    #[derive(Component)]
+    pub struct BattleColliderVisualized;
+
     /// Root entity for organizing all debug visualizers.
     ///
     /// 用于组织所有调试可视化器的根实体。
@@ -54,6 +60,8 @@ pub mod debug_collider {
                     toggle_collider_visibility_system,
                     render_rect_colliders_system,
                     update_collider_visualizer_positions_system,
+                    render_battle_colliders_system,
+                    update_battle_collider_visualizer_positions_system,
                 ),
             );
     }
@@ -262,6 +270,265 @@ pub mod debug_collider {
             if let Ok((parent_transform, collider)) = colliders.get(visualizer.parent) {
                 let final_position = parent_transform.translation + collider.offset.extend(0.1);
                 vis_transform.translation = final_position;
+            }
+        }
+    }
+
+    /// System to render Battle colliders (PhysicsCollider and TriggerCollider)
+    ///
+    /// Battle 碰撞体（物理碰撞体和触发器）的渲染系统
+    #[allow(clippy::too_many_arguments)]
+    fn render_battle_colliders_system(
+        mut commands: Commands,
+        mut shaders: ResMut<Assets<Shader>>,
+        settings: Res<ColliderDebugSettings>,
+        debug_root: Query<Entity, With<DebugVisualizerRoot>>,
+        physics_colliders: Query<
+            (Entity, &Transform, &crate::core::collision::PhysicsCollider),
+            (
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+                Without<BattleColliderVisualized>,
+            ),
+        >,
+        trigger_colliders: Query<
+            (Entity, &Transform, &crate::core::collision::TriggerCollider),
+            (
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+                Without<BattleColliderVisualized>,
+            ),
+        >,
+        battle_boxes: Query<
+            (
+                Entity,
+                &GlobalTransform,
+                &crate::core::ui::components::UIBox,
+                &Name,
+            ),
+            (
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+                Without<BattleColliderVisualized>,
+                Without<crate::core::collision::PhysicsCollider>,
+            ),
+        >,
+        existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
+    ) {
+        use crate::core::collision::{PhysicsCollider, TriggerCollider};
+
+        let Ok(debug_root_entity) = debug_root.single() else {
+            return;
+        };
+
+        if !settings.show_colliders {
+            return;
+        }
+
+        // Debug log to check if we're finding any colliders
+        let physics_count = physics_colliders.iter().count();
+        let trigger_count = trigger_colliders.iter().count();
+        if physics_count > 0 || trigger_count > 0 {
+            info!(
+                "Rendering battle colliders: {} physics, {} triggers",
+                physics_count, trigger_count
+            );
+        }
+
+        // Visualize physics colliders (green)
+        for (entity, transform, physics_collider) in physics_colliders.iter() {
+            // Check if visualizer already exists
+            let has_visualizer = existing_visualizers
+                .iter()
+                .any(|(_, vis)| vis.parent == entity);
+
+            if has_visualizer {
+                continue;
+            }
+
+            let (sdf, frame_size, name) = match physics_collider {
+                PhysicsCollider::Circle { radius } => {
+                    let sdf = shaders.add_sdf_expr(format!("smud::sd_circle(p, {})", radius));
+                    (sdf, radius * 2.5, "Physics Collider (Circle)")
+                }
+                PhysicsCollider::Box { half_size } => {
+                    let sdf = shaders.add_sdf_expr(format!(
+                        "smud::sd_box(p, vec2<f32>({}, {}))",
+                        half_size.x, half_size.y
+                    ));
+                    let max_dim = half_size.x.max(half_size.y) * 2.5;
+                    (sdf, max_dim, "Physics Collider (Box)")
+                }
+            };
+
+            let fill = shaders.add_fill_body(
+                r#"
+                let a = smud::sd_fill_alpha_fwidth(input.distance);
+                let edge = 1.0 - smoothstep(-2.0, -1.0, input.distance);
+                return vec4<f32>(0.0, 1.0, 0.0, a * 0.3 + edge * 0.7);
+                "#,
+            );
+
+            commands.entity(debug_root_entity).with_children(|parent| {
+                parent.spawn((
+                    SmudShape {
+                        color: Color::WHITE,
+                        sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill,
+                        ..default()
+                    },
+                    Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
+                    ColliderVisualizer { parent: entity },
+                    Name::new(name.to_string()),
+                ));
+            });
+        }
+
+        // Visualize trigger colliders (yellow)
+        for (entity, transform, trigger_collider) in trigger_colliders.iter() {
+            let has_visualizer = existing_visualizers
+                .iter()
+                .any(|(_, vis)| vis.parent == entity);
+
+            if has_visualizer {
+                continue;
+            }
+
+            let (sdf, frame_size, name) = match trigger_collider {
+                TriggerCollider::Circle { radius } => {
+                    let sdf = shaders.add_sdf_expr(format!("smud::sd_circle(p, {})", radius));
+                    (sdf, radius * 2.5, "Trigger Collider (Circle)")
+                }
+                TriggerCollider::Box { half_size } => {
+                    let sdf = shaders.add_sdf_expr(format!(
+                        "smud::sd_box(p, vec2<f32>({}, {}))",
+                        half_size.x, half_size.y
+                    ));
+                    let max_dim = half_size.x.max(half_size.y) * 2.5;
+                    (sdf, max_dim, "Trigger Collider (Box)")
+                }
+            };
+
+            let fill = shaders.add_fill_body(
+                r#"
+                let a = smud::sd_fill_alpha_fwidth(input.distance);
+                let edge = 1.0 - smoothstep(-2.0, -1.0, input.distance);
+                return vec4<f32>(1.0, 1.0, 0.0, a * 0.3 + edge * 0.7);
+                "#,
+            );
+
+            commands.entity(debug_root_entity).with_children(|parent| {
+                parent.spawn((
+                    SmudShape {
+                        color: Color::WHITE,
+                        sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill,
+                        ..default()
+                    },
+                    Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
+                    ColliderVisualizer { parent: entity },
+                    Name::new(name.to_string()),
+                ));
+            });
+        }
+
+        // Visualize Battle Box (White)
+        for (entity, global_transform, ui_box, name) in battle_boxes.iter() {
+            if name.as_str() != "BattleBox" {
+                continue;
+            }
+
+            let has_visualizer = existing_visualizers
+                .iter()
+                .any(|(_, vis)| vis.parent == entity);
+
+            if has_visualizer {
+                continue;
+            }
+
+            let half_width = ui_box.width() / 2.0;
+            let half_height = ui_box.height() / 2.0;
+
+            let sdf = shaders.add_sdf_expr(format!(
+                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
+                half_width, half_height, 2.0
+            ));
+
+            let frame_size = half_width.max(half_height) * 2.5;
+
+            // Simple white stroke
+            let fill = shaders.add_fill_body(
+                r#"
+                let a = smud::sd_fill_alpha_fwidth(input.distance);
+                return vec4<f32>(1.0, 1.0, 1.0, a);
+                "#,
+            );
+
+            commands.entity(debug_root_entity).with_children(|parent| {
+                parent.spawn((
+                    SmudShape {
+                        color: Color::WHITE,
+                        sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill,
+                        ..default()
+                    },
+                    Transform::from_translation(
+                        global_transform.translation() + Vec3::new(0.0, 0.0, 50.0),
+                    ),
+                    ColliderVisualizer { parent: entity },
+                    Name::new("Battle Box Debug"),
+                ));
+            });
+        }
+    }
+
+    /// Update Battle collider visualizer positions
+    ///
+    /// 更新 Battle 碰撞体可视化器位置
+    #[allow(clippy::type_complexity)]
+    fn update_battle_collider_visualizer_positions_system(
+        mut visualizers: Query<
+            (&mut Transform, &ColliderVisualizer),
+            (
+                Without<crate::core::collision::PhysicsCollider>,
+                Without<crate::core::collision::TriggerCollider>,
+            ),
+        >,
+        physics_colliders: Query<
+            &Transform,
+            (
+                With<crate::core::collision::PhysicsCollider>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
+        trigger_colliders: Query<
+            &Transform,
+            (
+                With<crate::core::collision::TriggerCollider>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
+        battle_boxes: Query<
+            &GlobalTransform,
+            (
+                With<crate::core::ui::components::UIBox>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
+    ) {
+        for (mut vis_transform, visualizer) in visualizers.iter_mut() {
+            if let Ok(parent_transform) = physics_colliders.get(visualizer.parent) {
+                vis_transform.translation.x = parent_transform.translation.x;
+                vis_transform.translation.y = parent_transform.translation.y;
+            } else if let Ok(parent_transform) = trigger_colliders.get(visualizer.parent) {
+                vis_transform.translation.x = parent_transform.translation.x;
+                vis_transform.translation.y = parent_transform.translation.y;
+            } else if let Ok(parent_global) = battle_boxes.get(visualizer.parent) {
+                vis_transform.translation.x = parent_global.translation().x;
+                vis_transform.translation.y = parent_global.translation().y;
             }
         }
     }

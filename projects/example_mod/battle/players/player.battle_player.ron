@@ -1,7 +1,15 @@
 (
     sprite_path: "textures/common/ui/heart.png",
     color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
-    collider_size: (16.0, 16.0),
+    physics_collider: (
+        shape: Circle(radius: 4.0),
+        debug_z_offset: 10.0,
+    ),
+    damage_trigger: (
+        shape: Box(half_size: (8.0, 8.0)),
+        debug_z_offset: 10.0,
+    ),
+    z_position: 10.0,
     default_mode_id: "soul_red",
     speed: 150.0,
     focus_speed_ratio: 0.5,

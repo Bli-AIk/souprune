@@ -68,8 +68,8 @@
 - [x] 实现 Chapter ron 文件雏形
 - [x] 创建 `souprune_api` crate (定义 HostApi/VTable 协议)
 - [x] 实现 Mod SDK (Context 封装与 Safe Rust 接口)
-- [ ] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
-- [ ] 实现 Native Mod Loader (DLL 加载与符号解析)
+- [x] 实现 Host 端 FFI 函数 (连接 Bevy ECS 与 C ABI)
+- [x] 实现 Native Mod Loader (DLL 加载与符号解析)
 - [ ] 实现执行器系统
   - [ ] 实现 `SoulMode` 组件 (持有当前 Mod 的 VTable)
   - [ ] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)

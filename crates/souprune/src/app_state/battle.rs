@@ -24,10 +24,12 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 pub mod chapter;
+mod collision;
 pub mod config;
 mod sequencer;
 
 use crate::app_state::battle::chapter::Chapter;
+use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
@@ -62,7 +64,7 @@ impl Plugin for BattlePlugin {
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
             ]))
-            .add_plugins(SequencerPlugin)
+            .add_plugins((SequencerPlugin, BattleCollisionPlugin))
             .add_systems(OnEnter(AppState::Battle), setup_battle_camera)
             .add_systems(
                 OnExit(AppState::Battle),
