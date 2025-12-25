@@ -80,31 +80,31 @@
                 (
                     id: "PlayerName",
                     content: Some("{@player.name}"),
-                    font: Hud,
+                    font: BattleHud,
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -290.5, y: -158.5, z: 1.0),
+                        translation: (x: -290.0, y: -155.0, z: 1.0),
                     ),
                 ),
                 (
                     id: "PlayerLevel",
                     content: Some("{{battle/ui:LV}} {@player.lv}"),
-                    font: Hud,
+                    font: BattleHud,
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -120.0, y: -158.5, z: 1.0),
+                        translation: (x: -187.5, y: -155.0, z: 1.0),
                     ),
                 ),
                 (
                     id: "HPValue",
                     content: Some("{@player.hp} / {@player.hp_max}"),
-                    font: Hud,
+                    font: BattleHud,
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: 50.0, y: -158.5, z: 1.0),
+                        translation: (x: -5.5, y: -155.0, z: 1.0),
                     ),
                 ),
             ],

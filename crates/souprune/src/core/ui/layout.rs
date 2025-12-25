@@ -347,6 +347,7 @@ pub enum UIFontDef {
     DeterminationMono,
     DeterminationSans,
     Hud,
+    BattleHud,
 }
 
 impl From<UIFontDef> for super::components::UIFont {
@@ -355,6 +356,7 @@ impl From<UIFontDef> for super::components::UIFont {
             UIFontDef::DeterminationMono => super::components::UIFont::DeterminationMono,
             UIFontDef::DeterminationSans => super::components::UIFont::DeterminationSans,
             UIFontDef::Hud => super::components::UIFont::Hud,
+            UIFontDef::BattleHud => super::components::UIFont::BattleHud,
         }
     }
 }

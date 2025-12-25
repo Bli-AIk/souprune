@@ -187,6 +187,7 @@ pub(crate) enum UIFont {
     DeterminationMono,
     DeterminationSans,
     Hud,
+    BattleHud,
     // Add more fonts as needed.
     //
     // 按需继续添加更多字体。
@@ -201,6 +202,7 @@ impl UIFont {
             UIFont::DeterminationMono => "Determination Mono SimSun",
             UIFont::DeterminationSans => "Determination Sans SimSun",
             UIFont::Hud => "Crypt of Tomorrow Fusion",
+            UIFont::BattleHud => "Mars Needs Cunnilingus",
         }
     }
 
