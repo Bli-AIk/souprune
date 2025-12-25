@@ -18,7 +18,9 @@
 //!
 //! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
 
-use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
+use super::components::{
+    RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UIShapeStructure, UITextTemplate,
+};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -132,8 +134,10 @@ type UIBoxQuery<'w, 's> = Query<
 >;
 
 /// Create SmudShape child entities for each UI box.
+/// Supports both classic (Border + Filler) and single layer structures.
 ///
 /// 为 UI 框创建 SmudShape 子实体。
+/// 支持经典（边框 + 填充）和单层结构。
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
@@ -143,8 +147,6 @@ fn spawn_ui_box_children(
     shaders: &mut ResMut<Assets<Shader>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
-    info!("Spawning SmudShape children for UI box");
-
     let box_width = ui_box.width();
     let box_height = ui_box.height();
     let border_width = ui_box.border_width();
@@ -159,26 +161,19 @@ fn spawn_ui_box_children(
     };
     let solid_fill = shaders.add_fill_body(&shader_source);
 
-    let mut filler_entity: Option<Entity> = None;
+    match ui_box.structure {
+        UIShapeStructure::Single => {
+            // Single layer structure - just one SmudShape, no border
+            // 单层结构 - 只有一个 SmudShape，无边框
+            info!("Spawning single-layer SmudShape for UI box");
 
-    commands.entity(entity).with_children(|parent| {
-        parent
-            .spawn((
-                SmudShape {
-                    color: Color::WHITE,
-                    sdf: outer_sdf.clone(),
-                    frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                    fill: solid_fill.clone(),
-                    ..default()
-                },
-                Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-                Name::new("UIBoxBorder"),
-            ))
-            .with_children(|border_parent| {
-                let filler = border_parent
+            let mut filler_entity: Option<Entity> = None;
+
+            commands.entity(entity).with_children(|parent| {
+                let filler = parent
                     .spawn((
                         SmudShape {
-                            color: Color::BLACK,
+                            color: ui_box.fill_color,
                             sdf: inner_sdf.clone(),
                             frame: Frame::Quad(box_width.max(box_height) + 10.0),
                             fill: solid_fill.clone(),
@@ -189,15 +184,76 @@ fn spawn_ui_box_children(
                         UIBoxFiller,
                     ))
                     .id();
-
                 filler_entity = Some(filler);
             });
-    });
 
-    let Some(filler_entity) = filler_entity else {
-        warn!("Failed to spawn UI box filler for entity {:?}", entity);
+            // Spawn texts as children of filler
+            if let Some(filler_entity) = filler_entity {
+                spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
+            }
+        }
+        UIShapeStructure::Classic => {
+            // Classic structure - Border + Filler (original hardcoded behavior)
+            // 经典结构 - 边框 + 填充（原始硬编码行为）
+            info!("Spawning classic (Border + Filler) SmudShape for UI box");
+
+            let mut filler_entity: Option<Entity> = None;
+
+            commands.entity(entity).with_children(|parent| {
+                parent
+                    .spawn((
+                        SmudShape {
+                            color: Color::WHITE,
+                            sdf: outer_sdf.clone(),
+                            frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
+                            fill: solid_fill.clone(),
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+                        Name::new("UIBoxBorder"),
+                    ))
+                    .with_children(|border_parent| {
+                        let filler = border_parent
+                            .spawn((
+                                SmudShape {
+                                    color: ui_box.fill_color,
+                                    sdf: inner_sdf.clone(),
+                                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                                    fill: solid_fill.clone(),
+                                    ..default()
+                                },
+                                Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                                Name::new("UIBoxFiller"),
+                                UIBoxFiller,
+                            ))
+                            .id();
+
+                        filler_entity = Some(filler);
+                    });
+            });
+
+            // Spawn texts as children of filler
+            if let Some(filler_entity) = filler_entity {
+                spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
+            } else {
+                warn!("Failed to spawn UI box filler for entity {:?}", entity);
+            }
+        }
+    }
+}
+
+/// Spawn text entities as children of the filler entity.
+///
+/// 将文本实体作为填充实体的子节点生成。
+fn spawn_texts_for_filler(
+    commands: &mut Commands,
+    filler_entity: Entity,
+    ui_box: &UIBox,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    if ui_box.texts.is_empty() {
         return;
-    };
+    }
 
     commands
         .entity(filler_entity)
@@ -274,6 +330,13 @@ pub(crate) fn update_ui_box_system(
             box_height / 2.0
         ));
 
+        // Determine expected SmudShape count based on structure
+        // 根据结构确定预期的 SmudShape 数量
+        let expected_shapes = match ui_box.structure {
+            UIShapeStructure::Single => 1,
+            UIShapeStructure::Classic => 2,
+        };
+
         match children_opt {
             Some(children) => {
                 let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
@@ -282,7 +345,7 @@ pub(crate) fn update_ui_box_system(
                 while let Some(child) = queue.pop_front() {
                     if smud_shape_query.get(child).is_ok() {
                         smud_shape_entities.push(child);
-                        if smud_shape_entities.len() >= 2 {
+                        if smud_shape_entities.len() >= expected_shapes {
                             break;
                         }
                     }
@@ -292,17 +355,35 @@ pub(crate) fn update_ui_box_system(
                     }
                 }
 
-                if smud_shape_entities.len() >= 2 {
+                if smud_shape_entities.len() >= expected_shapes {
                     trace!("Updating existing SmudShape children for UI box");
 
-                    if let Ok(mut outer_shape) = smud_shape_query.get_mut(smud_shape_entities[0]) {
-                        outer_shape.sdf = outer_sdf.clone();
-                        outer_shape.frame = Frame::Quad((box_width + border_width * 2.0) + 10.0);
-                    }
+                    match ui_box.structure {
+                        UIShapeStructure::Single => {
+                            // Update single shape
+                            if let Ok(mut shape) = smud_shape_query.get_mut(smud_shape_entities[0])
+                            {
+                                shape.sdf = inner_sdf.clone();
+                                shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
+                            }
+                        }
+                        UIShapeStructure::Classic => {
+                            // Update outer (border) and inner (filler) shapes
+                            if let Ok(mut outer_shape) =
+                                smud_shape_query.get_mut(smud_shape_entities[0])
+                            {
+                                outer_shape.sdf = outer_sdf.clone();
+                                outer_shape.frame =
+                                    Frame::Quad((box_width + border_width * 2.0) + 10.0);
+                            }
 
-                    if let Ok(mut inner_shape) = smud_shape_query.get_mut(smud_shape_entities[1]) {
-                        inner_shape.sdf = inner_sdf.clone();
-                        inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
+                            if let Ok(mut inner_shape) =
+                                smud_shape_query.get_mut(smud_shape_entities[1])
+                            {
+                                inner_shape.sdf = inner_sdf.clone();
+                                inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
+                            }
+                        }
                     }
                 } else {
                     info!(

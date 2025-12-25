@@ -12,7 +12,9 @@
 
 use crate::core::input::Action;
 use bevy::color::Srgba;
-use bevy::prelude::{Bundle, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3};
+use bevy::prelude::{
+    Bundle, Color, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3,
+};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -304,6 +306,23 @@ impl CameraAnchoredBundle {
     }
 }
 
+/// Shape structure type - how the SmudShape layers are organized.
+///
+/// 形状结构类型 - SmudShape 层如何组织。
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub(crate) enum UIShapeStructure {
+    /// Single layer SmudShape (e.g., HP bar, simple rectangle).
+    ///
+    /// 单层 SmudShape（例如血条，简单矩形）。
+    Single,
+    /// Classic Undertale-style box with border and filler.
+    ///
+    /// 经典 Undertale 风格的带边框和填充的盒子。
+    #[default]
+    Classic,
+}
+
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct UIBox {
@@ -316,6 +335,14 @@ pub(crate) struct UIBox {
     /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) fill_shader: Option<String>,
+    /// Shape structure type.
+    ///
+    /// 形状结构类型。
+    pub(crate) structure: UIShapeStructure,
+    /// Fill color for the shape.
+    ///
+    /// 形状的填充颜色。
+    pub(crate) fill_color: Color,
 }
 
 impl UIBox {
@@ -330,12 +357,15 @@ impl UIBox {
             border_width,
             texts: Vec::new(),
             fill_shader: None,
+            structure: UIShapeStructure::Classic,
+            fill_color: Color::BLACK,
         }
     }
 
     /// Create a new `UIBox` component with text configurations.
     ///
     /// 创建一个带有文本配置的新 `UIBox` 组件。
+    #[allow(dead_code)]
     pub(crate) fn new_with_texts(
         width: f32,
         height: f32,
@@ -348,18 +378,22 @@ impl UIBox {
             border_width,
             texts,
             fill_shader: None,
+            structure: UIShapeStructure::Classic,
+            fill_color: Color::BLACK,
         }
     }
 
-    /// Create a new `UIBox` component with text configurations and custom fill shader.
+    /// Create a new `UIBox` component with full configuration.
     ///
-    /// 创建一个带有文本配置和自定义填充着色器的新 `UIBox` 组件。
-    pub(crate) fn new_with_shader(
+    /// 创建一个带有完整配置的新 `UIBox` 组件。
+    pub(crate) fn new_full(
         width: f32,
         height: f32,
         border_width: f32,
         texts: Vec<UITextConfig>,
         fill_shader: Option<String>,
+        structure: UIShapeStructure,
+        fill_color: Color,
     ) -> Self {
         Self {
             width,
@@ -367,6 +401,8 @@ impl UIBox {
             border_width,
             texts,
             fill_shader,
+            structure,
+            fill_color,
         }
     }
 
@@ -397,6 +433,22 @@ impl UIBox {
     #[allow(dead_code)]
     pub(crate) fn fill_shader(&self) -> Option<&str> {
         self.fill_shader.as_deref()
+    }
+
+    /// Get the shape structure type.
+    ///
+    /// 获取形状结构类型。
+    #[allow(dead_code)]
+    pub(crate) fn structure(&self) -> &UIShapeStructure {
+        &self.structure
+    }
+
+    /// Get the fill color.
+    ///
+    /// 获取填充颜色。
+    #[allow(dead_code)]
+    pub(crate) fn fill_color(&self) -> Color {
+        self.fill_color
     }
 
     /// Set the box dimensions.

@@ -76,6 +76,7 @@
 - [x] 实现 Native Mod Loader (DLL 加载与符号解析)
 - [x] 重构 UI 框架以支持战斗 UI
 - [x] 实现战斗系统 UI 热重载
+- [ ] 重构 UIBox 结构 为 SmudShape 层
 - [ ] 搭建 Battle UI
 
 ### v0.4.1: 战斗系统执行器
