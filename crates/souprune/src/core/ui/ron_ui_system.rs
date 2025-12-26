@@ -1189,12 +1189,12 @@ fn spawn_ui_node(
         // Add DynamicUIElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
-            let has_dynamic = sprite_def.transform.as_ref().map_or(false, |t| {
-                t.translation.is_dynamic() || t.scale.as_ref().map_or(false, |s| s.is_dynamic())
+            let has_dynamic = sprite_def.transform.as_ref().is_some_and(|t| {
+                t.translation.is_dynamic() || t.scale.as_ref().is_some_and(|s| s.is_dynamic())
             }) || sprite_def
                 .shader_params
                 .as_ref()
-                .map_or(false, |p| p.is_dynamic());
+                .is_some_and(|p| p.is_dynamic());
 
             if has_dynamic {
                 commands
@@ -1291,7 +1291,7 @@ fn spawn_container_texts(
                 .transform
                 .scale
                 .as_ref()
-                .map_or(false, |s| s.is_dynamic());
+                .is_some_and(|s| s.is_dynamic());
 
         if has_dynamic {
             cmd.insert(super::components::DynamicUIElement {
