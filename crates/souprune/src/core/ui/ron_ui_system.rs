@@ -1604,39 +1604,36 @@ pub(crate) fn update_hp_bar_shader_params(
 ) {
     let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
 
-    for (material_handle, mut lag) in query.iter_mut() {
-        // Detect significant HP drop (Damage taken)
-        if hp_ratio < lag.last_hp_ratio {
-            // Start the sequence
-            lag.delay_timer = 0.5; // Short pause before animation
-            lag.start_lag_ratio = lag.lag_hp_ratio;
-            lag.anim_progress = 0.0;
-            info!("[HP Bar] Damage detected! Starting OutCirc animation in 0.5s.");
-        }
-
-        lag.last_hp_ratio = hp_ratio;
-
-        if hp_ratio > lag.lag_hp_ratio {
-            // HEALED: Instant sync
-            lag.lag_hp_ratio = hp_ratio;
-            lag.anim_progress = 0.5;
-            lag.delay_timer = 0.0;
-        } else if hp_ratio < lag.lag_hp_ratio {
-            if lag.delay_timer > 0.0 {
-                lag.delay_timer -= time.delta_secs();
-            } else if lag.anim_progress < 0.5 {
-                lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
-
-                // OutCirc easing formula
-                // t: 0.0 -> 1.0
-                let t = lag.anim_progress / 0.5;
-                let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
-
-                // Interpolate between start and current actual HP
-                lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+        for (material_handle, mut lag) in query.iter_mut() {
+            // Detect significant HP drop (Damage taken)
+            if hp_ratio < lag.last_hp_ratio {
+                // Start the sequence immediately
+                lag.delay_timer = 0.0; 
+                lag.start_lag_ratio = lag.lag_hp_ratio;
+                lag.anim_progress = 0.0;
+                info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
             }
-        }
-
+            
+            lag.last_hp_ratio = hp_ratio;
+    
+            if hp_ratio > lag.lag_hp_ratio {
+                // HEALED: Instant sync
+                lag.lag_hp_ratio = hp_ratio;
+                lag.anim_progress = 0.5;
+                lag.delay_timer = 0.0;
+            } else if hp_ratio < lag.lag_hp_ratio {
+                if lag.anim_progress < 0.5 {
+                    lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+                    
+                    // OutCirc easing formula
+                    // t: 0.0 -> 1.0
+                    let t = lag.anim_progress / 0.5;
+                    let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+                    
+                    // Interpolate between start and current actual HP
+                    lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+                }
+            }
         // Final safety sync
         if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
             lag.lag_hp_ratio = hp_ratio;
