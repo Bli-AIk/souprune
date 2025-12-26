@@ -863,26 +863,36 @@ pub struct HPBarSprite {
 
 /// HP bar lag effect state.
 /// Tracks delayed HP percentage for smooth decrease animation.
-///
-/// HP 条延迟效果状态。
-/// 跟踪延迟的 HP 百分比以实现平滑减少动画。
-#[derive(Resource)]
-pub struct HPBarLagState {
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct HPBarLag {
     pub lag_hp_ratio: f32,
-    pub lag_speed: f32, // Units per second
+    pub last_hp_ratio: f32,
+    pub start_lag_ratio: f32, // The ratio when the drain animation started
+    pub delay_timer: f32,     // Wait before animation starts
+    pub anim_progress: f32,   // 0.0 to 0.5 (seconds)
 }
 
-impl Default for HPBarLagState {
+impl Default for HPBarLag {
     fn default() -> Self {
-        Self::new()
+        Self {
+            lag_hp_ratio: 1.0,
+            last_hp_ratio: 1.0,
+            start_lag_ratio: 1.0,
+            delay_timer: 0.0,
+            anim_progress: 0.0,
+        }
     }
 }
 
-impl HPBarLagState {
-    pub fn new() -> Self {
+impl HPBarLag {
+    pub fn new(hp_ratio: f32) -> Self {
         Self {
-            lag_hp_ratio: 1.0,
-            lag_speed: 0.15, // Very slow: Decreases by 15% per second (6.7 seconds for full drain)
+            lag_hp_ratio: hp_ratio,
+            last_hp_ratio: hp_ratio,
+            start_lag_ratio: hp_ratio,
+            delay_timer: 0.0,
+            anim_progress: 0.5, // Start finished
         }
     }
 }

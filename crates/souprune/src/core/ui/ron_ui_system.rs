@@ -1551,7 +1551,6 @@ pub(crate) fn setup_hp_bar_sprites(
     mut commands: Commands,
     procedural_textures: Option<Res<super::procedural_textures::ProceduralTextures>>,
     player_data: Option<Res<crate::core::data::PlayerData>>,
-    mut lag_state: Option<ResMut<super::components::HPBarLagState>>,
     mut materials: ResMut<Assets<super::custom_sprite_material::CustomSpriteMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     // Add Without<Mesh2d> to prevent running every frame
@@ -1568,33 +1567,26 @@ pub(crate) fn setup_hp_bar_sprites(
         1.0
     };
 
-    // Initialize lag state to current HP if this is the first setup
-    // 如果这是第一次setup，将lag状态初始化为当前HP
-    if let Some(ref mut lag) = lag_state {
-        // Only initialize if it looks uninitialized (e.g. 0 or 1)
-        // Or just sync it on spawn.
-        lag.lag_hp_ratio = hp_ratio;
-        debug!("[HP Bar Setup] Initialized lag_hp_ratio to {:.2}", hp_ratio);
-    }
-
     let half_width = 40.0;
 
     // Create quad mesh (unit square, will be scaled by Transform)
     let mesh = meshes.add(Rectangle::new(1.0, 1.0));
 
-    for (entity, _hp_bar, transform) in query.iter() {
+    for (entity, _hp_bar, _transform) in query.iter() {
         let material = materials.add(super::custom_sprite_material::CustomSpriteMaterial {
             color_params: LinearRgba::new(hp_ratio, hp_ratio, half_width, 1.0),
             texture: textures.white_pixel.clone(),
         });
 
-        commands
-            .entity(entity)
-            .insert((Mesh2d(mesh.clone()), MeshMaterial2d(material)));
+        commands.entity(entity).insert((
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(material),
+            HPBarLag::new(hp_ratio),
+        ));
 
-        debug!(
-            "[Custom Sprite] Applied shader material to entity {:?} at scale {:?}, HP ratio: {:.2}",
-            entity, transform.scale, hp_ratio
+        info!(
+            "[HP Bar Setup] Spawned HP bar for entity {:?}. Initial HP ratio: {:.2}",
+            entity, hp_ratio
         );
     }
 }
@@ -1604,54 +1596,67 @@ pub(crate) fn setup_hp_bar_sprites(
 pub(crate) fn update_hp_bar_shader_params(
     time: Res<Time>,
     player_data: Res<crate::core::data::PlayerData>,
-    mut lag_state: ResMut<super::components::HPBarLagState>,
     mut materials: ResMut<Assets<super::custom_sprite_material::CustomSpriteMaterial>>,
-    query: Query<
+    mut query: Query<(
         &MeshMaterial2d<super::custom_sprite_material::CustomSpriteMaterial>,
-        With<HPBarSprite>,
-    >,
+        &mut HPBarLag,
+    )>,
 ) {
     let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
 
-    // When HP decreases: lag stays at old value and slowly catches up
-    // When HP increases: instantly update lag to new HP (no delay on heal)
-    // HP减少时：lag保持旧值并慢慢追赶
-    // HP增加时：立即更新lag到新HP（治疗无延迟）
-    if hp_ratio < lag_state.lag_hp_ratio {
-        // HP decreased, start lag animation
-        let delta = lag_state.lag_speed * time.delta_secs();
-        lag_state.lag_hp_ratio = (lag_state.lag_hp_ratio - delta).max(hp_ratio);
+    for (material_handle, mut lag) in query.iter_mut() {
+        // Detect significant HP drop (Damage taken)
+        if hp_ratio < lag.last_hp_ratio {
+            // Start the sequence
+            lag.delay_timer = 0.5; // Short pause before animation
+            lag.start_lag_ratio = lag.lag_hp_ratio;
+            lag.anim_progress = 0.0;
+            info!("[HP Bar] Damage detected! Starting OutCirc animation in 0.5s.");
+        }
 
-        trace!(
-            "[HP Bar] Lag tracking: HP={:.2}, Lag={:.2}, delta={:.4}",
-            hp_ratio, lag_state.lag_hp_ratio, delta
-        );
-    } else if hp_ratio > lag_state.lag_hp_ratio {
-        // HP increased (healed), instantly update lag
-        lag_state.lag_hp_ratio = hp_ratio;
-        debug!(
-            "[HP Bar] HP increased, lag updated instantly to {:.2}",
-            hp_ratio
-        );
-    }
-    // else: HP unchanged, keep lag as is (either still catching up or already caught up)
+        lag.last_hp_ratio = hp_ratio;
 
-    let half_width = 40.0; // Match the value in RON config
-    let target_params = LinearRgba::new(hp_ratio, lag_state.lag_hp_ratio, half_width, 1.0);
+        if hp_ratio > lag.lag_hp_ratio {
+            // HEALED: Instant sync
+            lag.lag_hp_ratio = hp_ratio;
+            lag.anim_progress = 0.5;
+            lag.delay_timer = 0.0;
+        } else if hp_ratio < lag.lag_hp_ratio {
+            if lag.delay_timer > 0.0 {
+                lag.delay_timer -= time.delta_secs();
+            } else if lag.anim_progress < 0.5 {
+                lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
 
-    for material_handle in query.iter() {
+                // OutCirc easing formula
+                // t: 0.0 -> 1.0
+                let t = lag.anim_progress / 0.5;
+                let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+
+                // Interpolate between start and current actual HP
+                lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+            }
+        }
+
+        // Final safety sync
+        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
+            lag.lag_hp_ratio = hp_ratio;
+        }
+
+        let half_width = 40.0; // Match the value in RON config
+        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
+
         if let Some(material) = materials.get_mut(material_handle) {
-            let old_hp = material.color_params.red;
-            let old_lag = material.color_params.green;
+            let m_old_hp = material.color_params.red;
+            let m_old_lag = material.color_params.green;
 
             // Always update to ensure Material is marked as changed
             material.color_params = target_params;
 
             // Log whenever values change significantly
-            if (old_hp - hp_ratio).abs() > 0.001 || (old_lag - lag_state.lag_hp_ratio).abs() > 0.001 {
-                debug!(
-                    "[HP Bar] Shader updated: HP {:.3} -> {:.3}, Lag {:.3} -> {:.3}",
-                    old_hp, hp_ratio, old_lag, lag_state.lag_hp_ratio
+            if (m_old_hp - hp_ratio).abs() > 0.001 || (m_old_lag - lag.lag_hp_ratio).abs() > 0.001 {
+                info!(
+                    "[HP Bar] Material Updated: Entity HP={:.3}, Lag={:.3}",
+                    hp_ratio, lag.lag_hp_ratio
                 );
             }
         }

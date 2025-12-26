@@ -94,7 +94,6 @@ impl Plugin for CoreUIPlugin {
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
-            .insert_resource(components::HPBarLagState::new())
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
                 Update,
@@ -105,10 +104,8 @@ impl Plugin for CoreUIPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                ron_ui_system::update_hp_bar_shader_params.run_if(
-                    in_state(AppState::Battle)
-                        .and(resource_exists::<procedural_textures::ProceduralTextures>),
-                ),
+                ron_ui_system::update_hp_bar_shader_params
+                    .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
             .add_systems(
                 Update,
