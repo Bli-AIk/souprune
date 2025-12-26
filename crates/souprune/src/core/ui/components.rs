@@ -853,3 +853,36 @@ impl UILayerTransitionConfig {
         self.transitions.get(layer)
     }
 }
+
+/// Marker component for HP bar sprites that need custom Material2d setup.
+/// 标记组件，用于需要自定义 Material2d 设置的 HP 条精灵。
+#[derive(Component)]
+pub struct HPBarSprite {
+    pub shader_params: Color,
+}
+
+/// HP bar lag effect state.
+/// Tracks delayed HP percentage for smooth decrease animation.
+///
+/// HP 条延迟效果状态。
+/// 跟踪延迟的 HP 百分比以实现平滑减少动画。
+#[derive(Resource)]
+pub struct HPBarLagState {
+    pub lag_hp_ratio: f32,
+    pub lag_speed: f32, // Units per second
+}
+
+impl Default for HPBarLagState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HPBarLagState {
+    pub fn new() -> Self {
+        Self {
+            lag_hp_ratio: 1.0,
+            lag_speed: 0.15, // Very slow: Decreases by 15% per second (6.7 seconds for full drain)
+        }
+    }
+}

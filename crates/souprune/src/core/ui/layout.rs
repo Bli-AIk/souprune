@@ -340,6 +340,20 @@ pub struct SpriteDef {
     pub flip_y: bool,
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
+    /// Optional custom shader path for sprite material.
+    /// Enables data-driven shader effects on sprites (e.g., HP bar gradients).
+    ///
+    /// 可选的精灵材质自定义着色器路径。
+    /// 启用精灵的数据驱动着色器效果（例如HP条渐变）。
+    #[serde(default)]
+    pub custom_shader: Option<String>,
+    /// Shader parameters passed via uniform data.
+    /// Used with custom_shader to pass dynamic values (e.g., HP percentage).
+    ///
+    /// 通过uniform数据传递的着色器参数。
+    /// 与 custom_shader 一起使用以传递动态值（例如HP百分比）。
+    #[serde(default)]
+    pub shader_params: Option<SerializableColor>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

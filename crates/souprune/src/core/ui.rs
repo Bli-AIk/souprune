@@ -32,13 +32,15 @@ pub struct UIUpdate;
 mod camera;
 pub(crate) mod components;
 mod cursor;
+mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
+mod procedural_textures;
 mod ron_ui_system;
 mod shaders;
+mod smud_shape;
 mod state;
 mod text;
-mod ui_box;
 
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
@@ -46,19 +48,20 @@ use camera::{
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
-use layout::UILayoutAsset;
 pub(crate) use layout::SmudStructureAsset;
+use layout::UILayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 pub use ron_ui_system::{UILayoutHandle, UILayoutWatcher};
 use ron_ui_system::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
+use smud_shape::{
+    update_smud_shape_system, update_ui_box_visibility_system,
+    update_ui_container_visibility_system,
+};
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
-use ui_box::{
-    update_ui_box_system, update_ui_box_visibility_system, update_ui_container_visibility_system,
-};
 
 use crate::app_state::AppState;
 #[cfg(feature = "debug")]
@@ -66,6 +69,8 @@ use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, RonUI, UIBox,
     UIBoxVisibility, UILayer,
 };
+
+use bevy::sprite_render::Material2dPlugin;
 
 /// RON-driven UI plugin for both Overworld and Battle scenes.
 ///
@@ -83,9 +88,14 @@ impl Plugin for CoreUIPlugin {
             .register_asset_loader(RonAssetLoader::<UILayoutAsset>::new(&["ui_layout.ron"]))
             .init_asset::<SmudStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SmudStructureAsset>::new(&["smud.ron"]))
+            .add_plugins(Material2dPlugin::<
+                custom_sprite_material::CustomSpriteMaterial,
+            >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
+            .insert_resource(components::HPBarLagState::new())
+            .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
                 Update,
                 spawn_backpack_ui_system
@@ -93,6 +103,13 @@ impl Plugin for CoreUIPlugin {
             )
             .add_systems(OnExit(OverworldState::Backpack), despawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
+            .add_systems(
+                Update,
+                ron_ui_system::update_hp_bar_shader_params.run_if(
+                    in_state(AppState::Battle)
+                        .and(resource_exists::<procedural_textures::ProceduralTextures>),
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -104,7 +121,9 @@ impl Plugin for CoreUIPlugin {
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
-                    update_ui_box_system,
+                    ron_ui_system::setup_hp_bar_sprites
+                        .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
+                    update_smud_shape_system,
                     update_ui_box_visibility_system,
                     update_ui_container_visibility_system,
                     assign_text_material_system,

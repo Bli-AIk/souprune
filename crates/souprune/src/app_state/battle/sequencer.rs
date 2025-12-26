@@ -205,6 +205,7 @@ fn process_ui_action_system(
         // Handle legacy UIInteraction by treating it as LoadLayout
         // (For compatibility with demo.chapter.ron)
         else if let Chapter::UIInteraction { ui_layout } = &active_chapter.0 {
+            info!("[Battle] Loading UI layout for battle: {}", ui_layout);
             let handle = asset_server.load(ui_layout);
             commands.insert_resource(crate::core::ui::UILayoutHandle {
                 handle,

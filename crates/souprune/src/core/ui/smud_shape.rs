@@ -1,22 +1,24 @@
-//! # ui_box.rs
+//! # smud_shape.rs
 //!
-//! # ui_box.rs 文件
+//! # smud_shape.rs 文件
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
 //!
-//! This module handles the rendering of UI boxes using bevy_smud for SDF shapes.
+//! This module handles the rendering of UI shapes using bevy_smud for SDF shapes.
 //!
-//! 本模块使用 bevy_smud 处理 UI 盒子的 SDF 形状渲染。
+//! 本模块使用 bevy_smud 处理 UI 形状的 SDF 渲染。
 //!
 //! ## Source File Overview
 //!
 //! ## 源文件概述
 //!
-//! It manages box geometry, text content, and visibility based on the current UI layer.
+//! It manages shape geometry, text content, and visibility based on the current UI layer.
+//! Structures are loaded from external RON files for maximum flexibility.
 //!
-//! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
+//! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
+//! 结构从外部 RON 文件加载以获得最大灵活性。
 
 use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
 use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
@@ -178,7 +180,10 @@ fn spawn_ui_box_children(
     } else {
         // Default: single layer SmudShape
         // 默认：单层 SmudShape
-        info!("Spawning single-layer SmudShape for UI box");
+        info!(
+            "[SmudShape] Spawning single-layer SmudShape, dimensions: {}x{}, shader: {:?}",
+            box_width, box_height, ui_box.fill_shader
+        );
 
         let mut filler_entity: Option<Entity> = None;
 
@@ -193,6 +198,10 @@ fn spawn_ui_box_children(
                         ..default()
                     },
                     Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
                     Name::new("UIBoxFiller"),
                     UIBoxFiller,
                 ))
@@ -231,7 +240,12 @@ fn spawn_structure_from_file(
                 structure_file
             );
             spawn_single_layer_fallback(
-                commands, entity, ui_box, inner_sdf, solid_fill, color_materials,
+                commands,
+                entity,
+                ui_box,
+                inner_sdf,
+                solid_fill,
+                color_materials,
             );
             return;
         }
@@ -340,6 +354,10 @@ fn spawn_layer_recursive(
                 ..default()
             },
             Transform::from_translation(Vec3::new(0.0, 0.0, layer_def.z_offset)),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
             Name::new(layer_def.name.clone()),
         ));
 
@@ -402,6 +420,10 @@ fn spawn_single_layer_fallback(
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 Name::new("UIBoxFiller"),
                 UIBoxFiller,
             ))
@@ -474,10 +496,10 @@ fn spawn_texts_for_filler(
         });
 }
 
-/// Update UI box geometry each time layout components change.
+/// Update SmudShape-based UI geometry each time layout components change.
 ///
-/// 当布局组件变化时更新 UI 框的几何数据。
-pub(crate) fn update_ui_box_system(
+/// 当布局组件变化时更新基于 SmudShape 的 UI 几何数据。
+pub(crate) fn update_smud_shape_system(
     mut shaders: ResMut<Assets<Shader>>,
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -559,7 +581,7 @@ pub(crate) fn update_ui_box_system(
                         }
                     }
                 } else {
-                    info!(
+                    trace!(
                         "Adding SmudShape children to existing UI box at position: {:?}",
                         transform.translation
                     );
@@ -576,7 +598,7 @@ pub(crate) fn update_ui_box_system(
                 }
             }
             None => {
-                info!(
+                trace!(
                     "Creating new SmudShape children for UI box at position: {:?}",
                     transform.translation
                 );
@@ -635,13 +657,6 @@ pub(crate) fn update_ui_box_visibility_system(
                 super::components::UILayerVisibilityRule::Always
             ) || layer_visibility
                 .is_visible_for(&super::components::UILayer::new("Battle"));
-
-            trace!(
-                "Battle UI visibility check: entity {:?}, rule {:?}, should_show {}",
-                entity,
-                layer_visibility.rule(),
-                should_show
-            );
 
             if should_show {
                 if *visibility != Visibility::Inherited {

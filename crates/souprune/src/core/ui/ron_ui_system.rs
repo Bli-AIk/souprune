@@ -591,11 +591,12 @@ fn spawn_ron_ui_for_entity(
             mortar_strings,
             player_data,
             item_registry,
+            true, // Top-level nodes
         );
     }
 }
 
-use crate::core::ui::ui_box::parse_text_preserving_whitespace;
+use crate::core::ui::smud_shape::parse_text_preserving_whitespace;
 use bevy_rich_text3d::Text3d;
 
 /// Helper function to build UITextConfig from TextDef.
@@ -679,6 +680,7 @@ fn spawn_ui_node(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
+    is_top_level: bool,
 ) {
     // Determine if this node has a UIBox (ui_shape_logic)
     let has_ui_box = node_def.ui_shape_logic.is_some();
@@ -737,34 +739,81 @@ fn spawn_ui_node(
                 ));
                 info!("[UI Sprite] Spawned animated sprite '{}'", node_def.name);
             } else {
-                let texture_handle = asset_server.load(&sprite_def.path);
-
-                let entity_id = parent
-                    .spawn((
-                        Sprite {
-                            image: texture_handle.clone(),
-                            flip_x: sprite_def.flip_x,
-                            flip_y: sprite_def.flip_y,
-                            color: sprite_def
-                                .color
-                                .clone()
-                                .map(Color::from)
-                                .unwrap_or(Color::WHITE),
-                            ..Default::default()
-                        },
-                        transform,
-                        GlobalTransform::default(),
-                        Visibility::default(),
-                        InheritedVisibility::default(),
-                        ViewVisibility::default(),
-                        Name::new(node_def.name.clone()),
-                        RonDrivenUI,
-                    ))
-                    .id();
-                info!(
-                    "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
-                    node_def.name, entity_id, sprite_def.path
-                );
+                // Check if using procedural texture or custom shader
+                let use_custom_material = sprite_def.custom_shader.is_some();
+                
+                if use_custom_material {
+                    // Use Material2d with custom shader (HP bar)
+                    // Requires procedural textures resource
+                    // 使用自定义着色器的 Material2d（HP 条）
+                    // 需要程序生成纹理资源
+                    
+                    // This will be handled by a separate system after ProceduralTextures is available
+                    // For now, mark with a special component to be processed later
+                    // 这将由单独的系统在 ProceduralTextures 可用后处理
+                    // 现在用特殊组件标记以便稍后处理
+                    let entity_id = parent
+                        .spawn((
+                            Transform::from_translation(transform.translation)
+                                .with_scale(transform.scale)
+                                .with_rotation(transform.rotation),
+                            GlobalTransform::default(),
+                            Visibility::default(),
+                            InheritedVisibility::default(),
+                            ViewVisibility::default(),
+                            Name::new(node_def.name.clone()),
+                            RonDrivenUI,
+                            HPBarSprite {
+                                shader_params: sprite_def
+                                    .shader_params
+                                    .clone()
+                                    .map(Color::from)
+                                    .unwrap_or(Color::WHITE),
+                            },
+                        ))
+                        .id();
+                    
+                    info!(
+                        "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
+                        node_def.name, entity_id
+                    );
+                } else {
+                    // Standard sprite
+                    let texture_handle = if sprite_def.path.starts_with("procedural://") {
+                        // This will be replaced by setup system
+                        // For now use default handle
+                        Handle::default()
+                    } else {
+                        asset_server.load(&sprite_def.path)
+                    };
+                    
+                    let entity_id = parent
+                        .spawn((
+                            Sprite {
+                                image: texture_handle.clone(),
+                                flip_x: sprite_def.flip_x,
+                                flip_y: sprite_def.flip_y,
+                                color: sprite_def
+                                    .color
+                                    .clone()
+                                    .map(Color::from)
+                                    .unwrap_or(Color::WHITE),
+                                ..Default::default()
+                            },
+                            transform,
+                            GlobalTransform::default(),
+                            Visibility::default(),
+                            InheritedVisibility::default(),
+                            ViewVisibility::default(),
+                            Name::new(node_def.name.clone()),
+                            RonDrivenUI,
+                        ))
+                        .id();
+                    info!(
+                        "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
+                        node_def.name, entity_id, sprite_def.path
+                    );
+                }
             }
             return;
         }
@@ -819,24 +868,48 @@ fn spawn_ui_node(
                 .map(|c| Color::srgba(c.r, c.g, c.b, c.a))
                 .unwrap_or(Color::BLACK);
 
-            let mut box_entity = parent.spawn((
-                UIBox::new_full(
-                    ui_shape_logic.width,
-                    ui_shape_logic.height,
-                    ui_shape_logic.border_width,
-                    texts,
-                    ui_shape_logic.fill_shader.clone(),
-                    ui_shape_logic.structure_file.clone(),
-                    fill_color,
-                ),
-                UIBoxVisibility::new(visibility_rule.clone()),
-                Visibility::default(),
-                InheritedVisibility::default(),
-                ViewVisibility::default(),
-                CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
-                Name::new(node_def.name.clone()),
-                RonDrivenUI,
-            ));
+            let mut box_entity = if is_top_level {
+                // Top-level nodes use CameraAnchored
+                parent.spawn((
+                    UIBox::new_full(
+                        ui_shape_logic.width,
+                        ui_shape_logic.height,
+                        ui_shape_logic.border_width,
+                        texts,
+                        ui_shape_logic.fill_shader.clone(),
+                        ui_shape_logic.structure_file.clone(),
+                        fill_color,
+                    ),
+                    UIBoxVisibility::new(visibility_rule.clone()),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
+                    CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
+                    Name::new(node_def.name.clone()),
+                    RonDrivenUI,
+                ))
+            } else {
+                // Child nodes use regular Transform relative to parent
+                parent.spawn((
+                    UIBox::new_full(
+                        ui_shape_logic.width,
+                        ui_shape_logic.height,
+                        ui_shape_logic.border_width,
+                        texts,
+                        ui_shape_logic.fill_shader.clone(),
+                        ui_shape_logic.structure_file.clone(),
+                        fill_color,
+                    ),
+                    UIBoxVisibility::new(visibility_rule.clone()),
+                    Transform::from_translation(offset),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
+                    Name::new(node_def.name.clone()),
+                    RonDrivenUI,
+                ))
+            };
 
             if node_def.tags.contains(&"BattleBox".to_string()) {
                 box_entity.insert(crate::app_state::battle::collision::BattleBox);
@@ -1032,6 +1105,7 @@ fn spawn_ui_node(
                 mortar_strings,
                 player_data,
                 item_registry,
+                false, // Child nodes are not top-level
             );
         }
     }
@@ -1468,5 +1542,118 @@ fn spawn_ui_sprite(
                 Name::new(format!("{}_sprite", node_name)),
             ));
         });
+    }
+}
+
+/// Setup custom shader sprites with Material2d.
+/// 自定义着色器精灵的 Material2d 设置。
+pub(crate) fn setup_hp_bar_sprites(
+    mut commands: Commands,
+    procedural_textures: Option<Res<super::procedural_textures::ProceduralTextures>>,
+    player_data: Option<Res<crate::core::data::PlayerData>>,
+    mut lag_state: Option<ResMut<super::components::HPBarLagState>>,
+    mut materials: ResMut<Assets<super::custom_sprite_material::CustomSpriteMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    // Add Without<Mesh2d> to prevent running every frame
+    query: Query<(Entity, &HPBarSprite, &Transform), (Without<Sprite>, Without<Mesh2d>)>,
+) {
+    let Some(textures) = procedural_textures else {
+        return;
+    };
+
+    // Use actual player HP if available, otherwise default to full
+    let hp_ratio = if let Some(pd) = player_data {
+        pd.hp as f32 / pd.hp_max as f32
+    } else {
+        1.0
+    };
+
+    // Initialize lag state to current HP if this is the first setup
+    // 如果这是第一次setup，将lag状态初始化为当前HP
+    if let Some(ref mut lag) = lag_state {
+        // Only initialize if it looks uninitialized (e.g. 0 or 1)
+        // Or just sync it on spawn.
+        lag.lag_hp_ratio = hp_ratio;
+        debug!("[HP Bar Setup] Initialized lag_hp_ratio to {:.2}", hp_ratio);
+    }
+
+    let half_width = 40.0;
+
+    // Create quad mesh (unit square, will be scaled by Transform)
+    let mesh = meshes.add(Rectangle::new(1.0, 1.0));
+
+    for (entity, _hp_bar, transform) in query.iter() {
+        let material = materials.add(super::custom_sprite_material::CustomSpriteMaterial {
+            color_params: LinearRgba::new(hp_ratio, hp_ratio, half_width, 1.0),
+            texture: textures.white_pixel.clone(),
+        });
+
+        commands
+            .entity(entity)
+            .insert((Mesh2d(mesh.clone()), MeshMaterial2d(material)));
+
+        debug!(
+            "[Custom Sprite] Applied shader material to entity {:?} at scale {:?}, HP ratio: {:.2}",
+            entity, transform.scale, hp_ratio
+        );
+    }
+}
+
+/// Update HP bar shader parameters based on player HP.
+/// 根据玩家HP更新HP条着色器参数。
+pub(crate) fn update_hp_bar_shader_params(
+    time: Res<Time>,
+    player_data: Res<crate::core::data::PlayerData>,
+    mut lag_state: ResMut<super::components::HPBarLagState>,
+    mut materials: ResMut<Assets<super::custom_sprite_material::CustomSpriteMaterial>>,
+    query: Query<
+        &MeshMaterial2d<super::custom_sprite_material::CustomSpriteMaterial>,
+        With<HPBarSprite>,
+    >,
+) {
+    let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
+
+    // When HP decreases: lag stays at old value and slowly catches up
+    // When HP increases: instantly update lag to new HP (no delay on heal)
+    // HP减少时：lag保持旧值并慢慢追赶
+    // HP增加时：立即更新lag到新HP（治疗无延迟）
+    if hp_ratio < lag_state.lag_hp_ratio {
+        // HP decreased, start lag animation
+        let delta = lag_state.lag_speed * time.delta_secs();
+        lag_state.lag_hp_ratio = (lag_state.lag_hp_ratio - delta).max(hp_ratio);
+
+        trace!(
+            "[HP Bar] Lag tracking: HP={:.2}, Lag={:.2}, delta={:.4}",
+            hp_ratio, lag_state.lag_hp_ratio, delta
+        );
+    } else if hp_ratio > lag_state.lag_hp_ratio {
+        // HP increased (healed), instantly update lag
+        lag_state.lag_hp_ratio = hp_ratio;
+        debug!(
+            "[HP Bar] HP increased, lag updated instantly to {:.2}",
+            hp_ratio
+        );
+    }
+    // else: HP unchanged, keep lag as is (either still catching up or already caught up)
+
+    let half_width = 40.0; // Match the value in RON config
+    let target_params = LinearRgba::new(hp_ratio, lag_state.lag_hp_ratio, half_width, 1.0);
+
+    for material_handle in query.iter() {
+        if let Some(material) = materials.get_mut(material_handle) {
+            let old_hp = material.color_params.red;
+            let old_lag = material.color_params.green;
+
+            // Always update to ensure Material is marked as changed
+            material.color_params = target_params;
+
+            // Log whenever values change significantly
+            if (old_hp - hp_ratio).abs() > 0.001 || (old_lag - lag_state.lag_hp_ratio).abs() > 0.001 {
+                debug!(
+                    "[HP Bar] Shader updated: HP {:.3} -> {:.3}, Lag {:.3} -> {:.3}",
+                    old_hp, hp_ratio, old_lag, lag_state.lag_hp_ratio
+                );
+            }
+        }
     }
 }

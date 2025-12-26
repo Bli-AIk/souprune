@@ -150,15 +150,15 @@
                 ),
                 (
                     name: "HPBar",
-                    ui_shape_logic: Some((
-                        width: 100.0,
-                        height: 20.0,
-                        offset: (x: 0.0, y: -170.0, z: 1.0),
-                        fill_shader: Some("shared/shaders/hp_bar.wgsl"),
-                        // No structure_file = single layer SmudShape (default)
-                        // fill_color is used as data bus for HP bar shader:
-                        // r = current HP%, g = delayed HP%, b = width, a = height
-                        fill_color: Some((r: 0.5, g: 0.5, b: 100.0, a: 20.0)),
+                    sprite: Some((
+                        path: "procedural://white_pixel",  // Use procedural texture
+                        is_animation: false,
+                        transform: Some((
+                            translation: (x: -30.0, y: -170.0, z: 1.0),  // Move left, behind text (z=1)
+                            scale: Some((x: 80.0, y: 16.0, z: 1.0)),  // Smaller: 80x16
+                        )),
+                        custom_shader: Some("shaders/hp_bar_sprite.wgsl"),
+                        shader_params: Some((r: 0.8, g: 0.8, b: 40.0, a: 1.0)),  // HP%, lag%, half_width (40), alpha
                     )),
                 )
             ],
