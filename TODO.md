@@ -84,7 +84,7 @@
 ### v0.4.1: 战斗系统执行器
 - [ ] 实现执行器系统
   - [ ] 实现 `SoulMode` 组件 (持有当前 Mod 的 VTable)
-  - [ ] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)
+  - [x] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)
 - [ ] 定义 `BattleSetup`
 - [ ] 实现 `.battle.ron` 的 `AssetLoader`
 - [ ] 定义 `BattleContext` 运行时资源
@@ -97,7 +97,29 @@
 - [ ] 实现基于 `Functional` 的运动逻辑系统
 - [ ] 实现基于 `Tween` 的运动逻辑系统
 
-### v0.4.3 OverworldSession 部分
+### v0.4.3: API 桥接与 SDK
+- [ ] **Phase 1: Interoptopus 迁移**
+  - [ ] 在 `souprune_api` 添加 `interoptopus` 依赖
+  - [ ] 用 `#[ffi_type]` 重构 `ContextHandle` 和 `HostApi`
+  - [ ] 创建 `bindgen` bin target 并实现基础 C 绑定生成
+- [ ] **Phase 2: C# 集成 (.NET Native AOT)**
+  - [ ] 在 `bindgen` 中启用 C# 后端
+  - [ ] 建立 `souprune-sdk-dotnet` 项目结构
+  - [ ] 实现 C# 版本的 `Hello World` Mod
+- [ ] **Phase 3: Haxe 集成 (hxcpp)**
+  - [ ] 在 `bindgen` 中实现 Haxe 代码生成逻辑
+  - [ ] 建立 `souprune-sdk-haxe` 项目结构
+  - [ ] 实现 Haxe 版本的 `Hello World` Mod
+- [ ] **Phase 4: Nelua 集成**
+  - [ ] 在 `bindgen` 中实现 Nelua 代码生成逻辑
+  - [ ] 建立 `souprune-sdk-nelua` 项目结构
+  - [ ] 实现 Nelua 版本的 `Hello World` Mod
+- [ ] **Phase 5: Nim 集成**
+  - [ ] 在 `bindgen` 中实现 Nim 代码生成逻辑
+  - [ ] 建立 `souprune-sdk-nim` 项目结构
+  - [ ] 实现 Nim 版本的 `Hello World` Mod
+
+### v0.4.4: OverworldSession 部分
 
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)
