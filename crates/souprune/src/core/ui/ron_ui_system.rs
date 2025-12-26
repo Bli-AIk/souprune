@@ -741,13 +741,13 @@ fn spawn_ui_node(
             } else {
                 // Check if using procedural texture or custom shader
                 let use_custom_material = sprite_def.custom_shader.is_some();
-                
+
                 if use_custom_material {
                     // Use Material2d with custom shader (HP bar)
                     // Requires procedural textures resource
                     // 使用自定义着色器的 Material2d（HP 条）
                     // 需要程序生成纹理资源
-                    
+
                     // This will be handled by a separate system after ProceduralTextures is available
                     // For now, mark with a special component to be processed later
                     // 这将由单独的系统在 ProceduralTextures 可用后处理
@@ -772,7 +772,7 @@ fn spawn_ui_node(
                             },
                         ))
                         .id();
-                    
+
                     info!(
                         "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
                         node_def.name, entity_id
@@ -786,7 +786,7 @@ fn spawn_ui_node(
                     } else {
                         asset_server.load(&sprite_def.path)
                     };
-                    
+
                     let entity_id = parent
                         .spawn((
                             Sprite {
@@ -1604,36 +1604,36 @@ pub(crate) fn update_hp_bar_shader_params(
 ) {
     let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
 
-        for (material_handle, mut lag) in query.iter_mut() {
-            // Detect significant HP drop (Damage taken)
-            if hp_ratio < lag.last_hp_ratio {
-                // Start the sequence immediately
-                lag.delay_timer = 0.0; 
-                lag.start_lag_ratio = lag.lag_hp_ratio;
-                lag.anim_progress = 0.0;
-                info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
+    for (material_handle, mut lag) in query.iter_mut() {
+        // Detect significant HP drop (Damage taken)
+        if hp_ratio < lag.last_hp_ratio {
+            // Start the sequence immediately
+            lag.delay_timer = 0.0;
+            lag.start_lag_ratio = lag.lag_hp_ratio;
+            lag.anim_progress = 0.0;
+            info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
+        }
+
+        lag.last_hp_ratio = hp_ratio;
+
+        if hp_ratio > lag.lag_hp_ratio {
+            // HEALED: Instant sync
+            lag.lag_hp_ratio = hp_ratio;
+            lag.anim_progress = 0.5;
+            lag.delay_timer = 0.0;
+        } else if hp_ratio < lag.lag_hp_ratio {
+            if lag.anim_progress < 0.5 {
+                lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+
+                // OutCirc easing formula
+                // t: 0.0 -> 1.0
+                let t = lag.anim_progress / 0.5;
+                let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+
+                // Interpolate between start and current actual HP
+                lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
             }
-            
-            lag.last_hp_ratio = hp_ratio;
-    
-            if hp_ratio > lag.lag_hp_ratio {
-                // HEALED: Instant sync
-                lag.lag_hp_ratio = hp_ratio;
-                lag.anim_progress = 0.5;
-                lag.delay_timer = 0.0;
-            } else if hp_ratio < lag.lag_hp_ratio {
-                if lag.anim_progress < 0.5 {
-                    lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
-                    
-                    // OutCirc easing formula
-                    // t: 0.0 -> 1.0
-                    let t = lag.anim_progress / 0.5;
-                    let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
-                    
-                    // Interpolate between start and current actual HP
-                    lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
-                }
-            }
+        }
         // Final safety sync
         if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
             lag.lag_hp_ratio = hp_ratio;
