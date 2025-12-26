@@ -861,6 +861,16 @@ pub struct HPBarSprite {
     pub shader_params: Color,
 }
 
+/// Marker component for UI elements that need dynamic updates based on player data.
+/// Stores the original definition for re-evaluation.
+/// 标记需要根据玩家数据动态更新的UI元素的组件。
+/// 存储原始定义以便重新求值。
+#[derive(Component, Clone)]
+pub struct DynamicUIElement {
+    pub sprite_def: Option<crate::core::ui::layout::SpriteDef>,
+    pub text_def: Option<crate::core::ui::layout::TextDef>,
+}
+
 /// HP bar lag effect state.
 /// Tracks delayed HP percentage for smooth decrease animation.
 #[derive(Component, Debug, Clone)]

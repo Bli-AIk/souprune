@@ -78,7 +78,7 @@
 - [x] 实现战斗系统 UI 热重载
 - [x] 重构 UIBox 结构 为 SmudShape 层
 - [x] 加入 UI 轴点
-- [ ] 加入 Debug 调整玩家等级
+- [x] 加入 Debug 调整玩家等级
 - [ ] 搭建 Battle UI
 
 ### v0.4.1: 战斗系统执行器

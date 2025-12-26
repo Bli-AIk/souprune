@@ -303,6 +303,29 @@ impl From<SerializableColor> for Color {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct DynamicColor {
+    pub r: FloatOrExpr,
+    pub g: FloatOrExpr,
+    pub b: FloatOrExpr,
+    pub a: FloatOrExpr,
+}
+
+impl DynamicColor {
+    pub fn to_static_color(&self) -> Color {
+        Color::srgba(
+            self.r.as_float(),
+            self.g.as_float(),
+            self.b.as_float(),
+            self.a.as_float(),
+        )
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        self.r.is_dynamic() || self.g.is_dynamic() || self.b.is_dynamic() || self.a.is_dynamic()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct UIVisibilityRuleDef {
     pub rule_type: String,
     #[serde(default)]
@@ -353,7 +376,7 @@ pub struct SpriteDef {
     /// 通过uniform数据传递的着色器参数。
     /// 与 custom_shader 一起使用以传递动态值（例如HP百分比）。
     #[serde(default)]
-    pub shader_params: Option<SerializableColor>,
+    pub shader_params: Option<DynamicColor>,
     #[serde(default)]
     pub pivot: Option<SerializableVec2>,
 }
@@ -398,6 +421,10 @@ impl FloatOrExpr {
             _ => None,
         }
     }
+
+    pub fn is_dynamic(&self) -> bool {
+        matches!(self, FloatOrExpr::Dynamic(_))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -410,6 +437,10 @@ pub struct SerializableVec3 {
 impl SerializableVec3 {
     pub fn to_static_vec3(&self) -> Vec3 {
         Vec3::new(self.x.as_float(), self.y.as_float(), self.z.as_float())
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        self.x.is_dynamic() || self.y.is_dynamic() || self.z.is_dynamic()
     }
 }
 

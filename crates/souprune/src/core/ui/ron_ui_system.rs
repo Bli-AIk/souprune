@@ -396,6 +396,53 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
     1
 }
 
+/// Evaluate a FloatOrExpr with player data context.
+/// 使用玩家数据上下文求值 FloatOrExpr。
+fn evaluate_float_expr(expr: &FloatOrExpr, player_data: &crate::core::data::PlayerData) -> f32 {
+    match expr {
+        FloatOrExpr::Static(v) => *v,
+        FloatOrExpr::Dynamic(expr_str) => {
+            use evalexpr::{ContextWithMutableVariables, DefaultNumericTypes, HashMapContext};
+
+            let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+            let _ = context.set_value(
+                "@player.hp".to_string(),
+                evalexpr::Value::Int(player_data.hp as i64),
+            );
+            let _ = context.set_value(
+                "@player.hp_max".to_string(),
+                evalexpr::Value::Int(player_data.hp_max as i64),
+            );
+            let _ = context.set_value(
+                "@player.lv".to_string(),
+                evalexpr::Value::Int(player_data.lv as i64),
+            );
+
+            match evalexpr::eval_with_context(expr_str, &context) {
+                Ok(val) => {
+                    if let Ok(f) = val.as_float() {
+                        let f_f64: f64 = f;
+                        f_f64 as f32
+                    } else if let Ok(i) = val.as_int() {
+                        let i_i64: i64 = i;
+                        i_i64 as f32
+                    } else {
+                        warn!(
+                            "Failed to convert expression result to number: {}",
+                            expr_str
+                        );
+                        0.0
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to evaluate expression '{}': {}", expr_str, e);
+                    0.0
+                }
+            }
+        }
+    }
+}
+
 #[derive(Component)]
 pub(super) struct UIGenerated;
 
@@ -653,10 +700,18 @@ fn build_text_config(
         world_scale: text_def.world_scale.clone().into(),
         color,
         transform: {
-            let mut t =
-                Transform::from_translation(text_def.transform.translation.to_static_vec3());
+            let translation = Vec3::new(
+                evaluate_float_expr(&text_def.transform.translation.x, player_data),
+                evaluate_float_expr(&text_def.transform.translation.y, player_data),
+                evaluate_float_expr(&text_def.transform.translation.z, player_data),
+            );
+            let mut t = Transform::from_translation(translation);
             if let Some(scale) = &text_def.transform.scale {
-                t.scale = scale.to_static_vec3();
+                t.scale = Vec3::new(
+                    evaluate_float_expr(&scale.x, player_data),
+                    evaluate_float_expr(&scale.y, player_data),
+                    evaluate_float_expr(&scale.z, player_data),
+                );
             }
             if let Some(rot) = text_def.transform.rotation {
                 t.rotation = Quat::from_rotation_z(rot.to_radians());
@@ -704,9 +759,17 @@ fn spawn_ui_node(
             let sprite_def = node_def.sprite.as_ref().unwrap();
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
-                transform.translation = t_def.translation.to_static_vec3();
+                transform.translation = Vec3::new(
+                    evaluate_float_expr(&t_def.translation.x, player_data),
+                    evaluate_float_expr(&t_def.translation.y, player_data),
+                    evaluate_float_expr(&t_def.translation.z, player_data),
+                );
                 if let Some(scale) = &t_def.scale {
-                    transform.scale = scale.to_static_vec3();
+                    transform.scale = Vec3::new(
+                        evaluate_float_expr(&scale.x, player_data),
+                        evaluate_float_expr(&scale.y, player_data),
+                        evaluate_float_expr(&scale.z, player_data),
+                    );
                 }
                 if let Some(rot) = t_def.rotation {
                     transform.rotation = Quat::from_rotation_z(rot.to_radians());
@@ -775,12 +838,15 @@ fn spawn_ui_node(
                             HPBarSprite {
                                 shader_params: sprite_def
                                     .shader_params
-                                    .clone()
-                                    .map(Color::from)
+                                    .as_ref()
+                                    .map(|c| c.to_static_color())
                                     .unwrap_or(Color::WHITE),
                             },
                         ))
                         .id();
+
+                    // Store entity ID to add DynamicUIElement later outside closure
+                    spawned_entity_id = Some(entity_id);
 
                     info!(
                         "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
@@ -954,6 +1020,7 @@ fn spawn_ui_node(
                     sprite_params,
                     node_def.name.as_str(),
                     animation_assets,
+                    player_data,
                 );
             }
 
@@ -1109,6 +1176,26 @@ fn spawn_ui_node(
     // Process children recursively AFTER the closure ends to avoid borrowing conflicts
     // 在闭包结束后递归处理子节点，以避免借用冲突
     if let Some(entity_id) = spawned_entity_id {
+        // Add DynamicUIElement component if needed
+        if is_standalone_sprite {
+            let sprite_def = node_def.sprite.as_ref().unwrap();
+            let has_dynamic = sprite_def.transform.as_ref().map_or(false, |t| {
+                t.translation.is_dynamic() || t.scale.as_ref().map_or(false, |s| s.is_dynamic())
+            }) || sprite_def
+                .shader_params
+                .as_ref()
+                .map_or(false, |p| p.is_dynamic());
+
+            if has_dynamic {
+                commands
+                    .entity(entity_id)
+                    .insert(super::components::DynamicUIElement {
+                        sprite_def: Some(sprite_def.clone()),
+                        text_def: None,
+                    });
+            }
+        }
+
         for child_def in &node_def.children {
             spawn_ui_node(
                 commands,
@@ -1186,6 +1273,21 @@ fn spawn_container_texts(
 
         if let Some(template) = &text_config.template {
             cmd.insert(UITextTemplate(template.clone()));
+        }
+
+        // Add DynamicUIElement if transform has dynamic expressions
+        let has_dynamic = text_def.transform.translation.is_dynamic()
+            || text_def
+                .transform
+                .scale
+                .as_ref()
+                .map_or(false, |s| s.is_dynamic());
+
+        if has_dynamic {
+            cmd.insert(super::components::DynamicUIElement {
+                sprite_def: None,
+                text_def: Some(text_def.clone()),
+            });
         }
     }
 }
@@ -1504,12 +1606,21 @@ fn spawn_ui_sprite(
     _sprite_params: &mut SpriteParams,
     node_name: &str,
     _animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+    player_data: &crate::core::data::PlayerData,
 ) {
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {
-        transform.translation = t_def.translation.to_static_vec3();
+        transform.translation = Vec3::new(
+            evaluate_float_expr(&t_def.translation.x, player_data),
+            evaluate_float_expr(&t_def.translation.y, player_data),
+            evaluate_float_expr(&t_def.translation.z, player_data),
+        );
         if let Some(scale) = &t_def.scale {
-            transform.scale = scale.to_static_vec3();
+            transform.scale = Vec3::new(
+                evaluate_float_expr(&scale.x, player_data),
+                evaluate_float_expr(&scale.y, player_data),
+                evaluate_float_expr(&scale.z, player_data),
+            );
         }
         if let Some(rot) = t_def.rotation {
             transform.rotation = Quat::from_rotation_z(rot.to_radians());
@@ -1660,11 +1771,91 @@ pub(crate) fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
         }
 
-        let half_width = 40.0; // Match the value in RON config
+        let half_width = 40.0 + (player_data.hp_max as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
         let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
 
         if let Some(material) = materials.get_mut(material_handle) {
             material.color_params = target_params;
+        }
+    }
+}
+
+/// Update dynamic UI elements based on player data changes.
+/// 根据玩家数据变化更新动态UI元素。
+pub(crate) fn update_dynamic_ui_elements(
+    player_data: Res<crate::core::data::PlayerData>,
+    mut query: Query<(
+        &super::components::DynamicUIElement,
+        &mut Transform,
+        Option<&mut HPBarSprite>,
+    )>,
+) {
+    if !player_data.is_changed() {
+        return;
+    }
+
+    for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
+        // Update sprite transform and shader params if present
+        if let Some(sprite_def) = &dynamic_elem.sprite_def {
+            if let Some(t_def) = &sprite_def.transform {
+                let new_translation = Vec3::new(
+                    evaluate_float_expr(&t_def.translation.x, &player_data),
+                    evaluate_float_expr(&t_def.translation.y, &player_data),
+                    evaluate_float_expr(&t_def.translation.z, &player_data),
+                );
+
+                if let Some(scale_def) = &t_def.scale {
+                    let new_scale = Vec3::new(
+                        evaluate_float_expr(&scale_def.x, &player_data),
+                        evaluate_float_expr(&scale_def.y, &player_data),
+                        evaluate_float_expr(&scale_def.z, &player_data),
+                    );
+
+                    // Apply pivot offset if present
+                    if let Some(pivot) = &sprite_def.pivot {
+                        let shift_x = (0.5 - pivot.x) * new_scale.x;
+                        let shift_y = (0.5 - pivot.y) * new_scale.y;
+                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                        transform.translation = new_translation + shift;
+                    } else {
+                        transform.translation = new_translation;
+                    }
+
+                    transform.scale = new_scale;
+                } else {
+                    transform.translation = new_translation;
+                }
+            }
+
+            // Update HP bar shader params if present
+            if let (Some(mut hp_bar_sprite), Some(shader_params)) =
+                (hp_bar, &sprite_def.shader_params)
+            {
+                hp_bar_sprite.shader_params = Color::srgba(
+                    evaluate_float_expr(&shader_params.r, &player_data),
+                    evaluate_float_expr(&shader_params.g, &player_data),
+                    evaluate_float_expr(&shader_params.b, &player_data),
+                    evaluate_float_expr(&shader_params.a, &player_data),
+                );
+            }
+        }
+
+        // Update text transform if present
+        if let Some(text_def) = &dynamic_elem.text_def {
+            let new_translation = Vec3::new(
+                evaluate_float_expr(&text_def.transform.translation.x, &player_data),
+                evaluate_float_expr(&text_def.transform.translation.y, &player_data),
+                evaluate_float_expr(&text_def.transform.translation.z, &player_data),
+            );
+            transform.translation = new_translation;
+
+            if let Some(scale_def) = &text_def.transform.scale {
+                transform.scale = Vec3::new(
+                    evaluate_float_expr(&scale_def.x, &player_data),
+                    evaluate_float_expr(&scale_def.y, &player_data),
+                    evaluate_float_expr(&scale_def.z, &player_data),
+                );
+            }
         }
     }
 }

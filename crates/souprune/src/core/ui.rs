@@ -109,6 +109,11 @@ impl Plugin for CoreUIPlugin {
             )
             .add_systems(
                 Update,
+                ron_ui_system::update_dynamic_ui_elements
+                    .run_if(resource_exists::<crate::core::data::PlayerData>),
+            )
+            .add_systems(
+                Update,
                 (
                     update_ui_from_map_system,
                     watch_ui_layout_changes_system,
