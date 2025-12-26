@@ -91,6 +91,7 @@ fn check_textures_system(
 
 fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
     commands.spawn((
+        Name::new("Overworld Camera2d"),
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
             scale: 1.0 / resolution_scale.get() as f32,

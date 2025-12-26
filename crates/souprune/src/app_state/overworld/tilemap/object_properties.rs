@@ -47,10 +47,10 @@ pub fn process_map_object_properties_system(
     }
 
     for tiled_map_handle in tiled_maps_query.iter() {
-        debug!("Processing tiled map handle");
+        trace!("Processing tiled map handle");
 
         if let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) {
-            info!("Found tiled map asset");
+            trace!("Found tiled map asset");
 
             // Calculate map center offset (same as tilemap collision system)
             //
@@ -63,17 +63,17 @@ pub fn process_map_object_properties_system(
             let center_offset_y = -map_height / 2.0;
 
             for layer in tiled_map_asset.map.layers() {
-                info!("Processing layer: {}", layer.name);
+                trace!("Processing layer: {}", layer.name);
 
                 if let Some(object_layer) = layer.as_object_layer() {
-                    info!(
+                    trace!(
                         "Processing object layer '{}' with {} objects",
                         layer.name,
                         object_layer.objects().count()
                     );
 
                     for object_data in object_layer.objects() {
-                        info!(
+                        trace!(
                             "Checking object '{}' at ({}, {}) with shape {:?}",
                             object_data.name, object_data.x, object_data.y, object_data.shape
                         );
@@ -82,10 +82,10 @@ pub fn process_map_object_properties_system(
                         //
                         // 检查此对象是否将碰撞属性设置为 true
                         if let Some(collision_value) = object_data.properties.get("collision") {
-                            info!("Found collision property: {:?}", collision_value);
+                            trace!("Found collision property: {:?}", collision_value);
 
                             if let tiled::PropertyValue::BoolValue(true) = collision_value {
-                                info!(
+                                trace!(
                                     "Found collision object '{}' with collision=true",
                                     object_data.name
                                 );
@@ -106,7 +106,7 @@ pub fn process_map_object_properties_system(
 
                                     let size = Vec2::new(width, height);
 
-                                    info!(
+                                    trace!(
                                         "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
                                         object_data.name, world_x, world_y, width, height
                                     );
@@ -120,20 +120,20 @@ pub fn process_map_object_properties_system(
                                         Name::new(format!("ObjectCollision_{}", object_data.name)),
                                     ));
                                 } else {
-                                    info!("Object '{}' is not a rectangle", object_data.name);
+                                    trace!("Object '{}' is not a rectangle", object_data.name);
                                 }
                             }
                         } else {
-                            info!("Object '{}' has no collision property", object_data.name);
+                            trace!("Object '{}' has no collision property", object_data.name);
                         }
                     }
                 } else {
-                    info!("Layer '{}' is not an object layer", layer.name);
+                    trace!("Layer '{}' is not an object layer", layer.name);
                 }
             }
             break; // Process only the first map for now
         } else {
-            info!("Could not get tiled map asset");
+            trace!("Could not get tiled map asset");
         }
     }
 }

@@ -1,0 +1,14 @@
+[
+    SetCamera(SetZoom(0.4)),
+    UIInteraction(ui_layout: "battle/ui/undertale.ui_layout.ron"),
+    SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+    Wait(5.0),
+    BulletPattern(
+        pattern_id: ["flowey_pellets_circle"]
+    ),
+    Wait(2.0),
+    Nested([
+        Wait(0.5),
+        SetPlayer(Despawn),
+    ]),
+]

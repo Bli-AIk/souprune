@@ -1,3 +1,15 @@
+//! # image_overlay.rs
+//!
+//! # image_overlay.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Provides a debug tool to overlay an image on the screen (toggled via F4), useful for comparing in-game visuals with reference assets.
+//!
+//! 提供一个在屏幕上覆盖图像的调试工具（通过 F4 切换），用于将游戏内视觉效果与参考资产进行对比。
+
 #[cfg(feature = "debug")]
 pub mod debug_image_overlay {
     use bevy::prelude::*;

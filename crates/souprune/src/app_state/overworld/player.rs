@@ -31,6 +31,7 @@ pub(crate) mod config;
 mod systems;
 pub(crate) mod utils;
 
+use crate::app_state::overworld::{OverworldUpdate, character};
 #[derive(Clone)]
 pub struct SpawnPlayerRequest;
 
@@ -47,12 +48,10 @@ impl Plugin for PlayerPlugin {
             .add_message::<SpawnPlayerRequest>()
             .add_systems(
                 Update,
-                (player_direction_control_system, spawn_player_on_event),
+                (player_direction_control_system, spawn_player_on_event).in_set(OverworldUpdate),
             );
     }
 }
-
-use crate::app_state::overworld::character;
 
 fn spawn_player_on_event(
     mut events: MessageReader<SpawnPlayerRequest>,
@@ -62,7 +61,7 @@ fn spawn_player_on_event(
     asset_server: Res<AssetServer>,
     player_behavior: Res<PlayerBehavior>,
 ) {
-    if !events.read().next().is_some() {
+    if events.read().next().is_none() {
         return;
     }
 

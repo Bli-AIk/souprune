@@ -18,7 +18,7 @@
 //!
 //! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
 
-use crate::app_state::overworld::character;
+use crate::app_state::overworld::{OverworldEntity, character};
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
@@ -51,8 +51,10 @@ pub struct CollisionTileGroup;
 pub struct ObjectCollisionGroup;
 
 pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // TODO: Remove hardcoded map path - should load from config or save data
     commands.spawn((
-        TiledMap(asset_server.load("levels/ruins/ruins_3.tmx")),
+        OverworldEntity(),
+        TiledMap(asset_server.load("overworld/levels/ruins/ruins_3.tmx")),
         TilemapAnchor::Center,
         TiledMapLayerZOffset(10.0),
     ));
@@ -131,6 +133,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
+                OverworldEntity(),
                 CollisionTileGroup,
                 Name::new("CollisionTiles"),
                 Transform::default(),
@@ -147,6 +150,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
+                OverworldEntity(),
                 ObjectCollisionGroup,
                 Name::new("ObjectCollisions"),
                 Transform::default(),
@@ -513,22 +517,29 @@ pub fn setup_camera_bounds_system(
 /// 根据地图属性更新背景音乐。
 pub fn update_map_bgm_system(
     mut current_bgm: ResMut<super::CurrentMapBgm>,
+    mut bgm_handle: ResMut<super::CurrentBgmHandle>,
     tiled_maps: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     audio: Res<bevy_kira_audio::Audio>,
+    mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
     asset_server: Res<AssetServer>,
 ) {
     for tiled_map in tiled_maps.iter() {
-        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
-            if let Some(bgm_prop) = map_asset.map.properties.get("bgm") {
-                if let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop {
-                    if current_bgm.0.as_deref() != Some(bgm_path) {
-                        info!("Switching BGM to: {}", bgm_path);
-                        crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
-                        current_bgm.0 = Some(bgm_path.clone());
-                    }
-                }
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
+            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && current_bgm.0.as_deref() != Some(bgm_path)
+        {
+            if let Some(handle) = &bgm_handle.0
+                && let Some(instance) = audio_instances.get_mut(handle)
+            {
+                instance.stop(bevy_kira_audio::AudioTween::default());
             }
+
+            info!("Switching BGM to: {}", bgm_path);
+            let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+            current_bgm.0 = Some(bgm_path.clone());
+            bgm_handle.0 = Some(handle);
         }
     }
 }

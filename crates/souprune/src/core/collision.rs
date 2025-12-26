@@ -10,9 +10,11 @@
 //!
 //! 该模块提供碰撞检测组件和系统。
 
+pub mod battle_collision;
 pub(crate) mod components;
 pub(crate) mod systems;
 
+pub use battle_collision::*;
 pub use components::*;
 
 use bevy::app::*;

@@ -1,0 +1,2 @@
+pub const LV: String = "LV"
+pub const HP: String = "HP"

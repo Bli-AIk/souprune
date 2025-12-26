@@ -1,6 +1,6 @@
 [package]
 name = "souprune"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 authors = ["Bli-AIk <haikun2333@gmail.com>"]
 license = "LGPL-3.0-or-later"
@@ -58,6 +58,8 @@ tracing = "0.1.43"
 chrono = "0.4.42"
 evalexpr = "13.1.0"
 proptest = "1.9.0"
+libloading = "0.9.0"
+souprune_api = { path = "../souprune_api" }
 
 [dev-dependencies]
 once_cell = "1.20.2"
@@ -72,6 +74,10 @@ git = "https://github.com/Bli-AIk/iyes_perf_ui"
 branch = "bevy-0.17"
 optional = true
 
+[dependencies.bevy_brp_extras]
+version = "0.17.2"
+optional = true
+
 [features]
 default = []
-debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui"]
+debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui", "dep:bevy_brp_extras"]

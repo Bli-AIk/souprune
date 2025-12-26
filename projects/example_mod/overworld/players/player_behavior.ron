@@ -1,0 +1,10 @@
+(
+    character_asset: "overworld/characters/frisk.character.ron",
+    spawn_position: (x: 0.0, y: 0.0),
+    initial_facing: Down,
+    initial_state: "Walk",
+    run: Some((
+        action: Cancel,
+        speed_multiplier: 2.0,
+    )),
+)

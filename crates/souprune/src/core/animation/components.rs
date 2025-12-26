@@ -1,3 +1,15 @@
+//! # components.rs
+//!
+//! # components.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines ECS components for sprite animation, including `SpriteAnimationClip` (holding frames), `SpriteAnimationTimer` (controlling timing), and `SpriteAnimationCurrentFrame`.
+//!
+//! 定义用于精灵动画的 ECS 组件，包括 `SpriteAnimationClip`（保存帧）、`SpriteAnimationTimer`（控制时序）和 `SpriteAnimationCurrentFrame`。
+
 use crate::core::sprite::load_context::SpriteLoadContext;
 use anyhow::Result;
 use bevy::prelude::{Component, Sprite};

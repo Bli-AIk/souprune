@@ -1,3 +1,15 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Implements the system that updates the camera's position to track its `Followable` target, respecting any configured bounds.
+//!
+//! 实现更新相机位置以追踪其 `Followable` 目标的系统，并遵守任何配置的边界。
+
 use super::components::Followable;
 use bevy::prelude::*;
 

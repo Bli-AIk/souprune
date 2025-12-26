@@ -1,3 +1,15 @@
+//! # config.rs
+//!
+//! # config.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines the `PlayerBehavior` resource and configuration, which dictates how the player behaves in the overworld, including movement, animation, and interaction settings.
+//!
+//! 定义 `PlayerBehavior` 资源和配置，规定玩家在 Overworld 中的行为，包括移动、动画和交互设置。
+
 use crate::config;
 use crate::core::basic_components::Direction;
 use crate::core::character_asset::{AnimationConfigAsset, CharacterAsset};
@@ -8,7 +20,9 @@ use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
 
-const PLAYER_BEHAVIOR_PATH: &str = "player/player_behavior.ron";
+// TODO: Remove hardcoded path - should be configurable or discovered dynamically
+// TODO：删除硬编码路径 - 应该是可配置的或动态发现的
+const PLAYER_BEHAVIOR_PATH: &str = "overworld/players/player_behavior.ron";
 
 /// Runtime configuration describing how the overworld player should behave.
 ///

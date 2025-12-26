@@ -1,3 +1,15 @@
+//! # components.rs
+//!
+//! # components.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines the `Followable` component, which allows a camera to follow a target entity within optional spatial bounds.
+//!
+//! 定义 `Followable` 组件，允许相机在可选的空间边界内跟随目标实体。
+
 use bevy::prelude::*;
 
 #[derive(Component, Default)]

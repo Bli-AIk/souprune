@@ -1,3 +1,15 @@
+//! # inspector.rs
+//!
+//! # inspector.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Sets up the integrated `bevy-inspector-egui` for debugging, including a standalone inspector window, performance UI, and debug help text overlay.
+//!
+//! 设置集成的 `bevy-inspector-egui` 以进行调试，包括独立的检查器窗口、性能 UI 和调试帮助文本覆盖层。
+
 #[cfg(feature = "debug")]
 pub mod debug_inspector {
     use crate::app_state::overworld::character::components::PlayerControlled;
@@ -117,7 +129,9 @@ pub mod debug_inspector {
                     "Performance monitoring: [F2]",
                     "Show colliders: [F3]",
                     "Debug image overlay: [F4]",
-                    "Cycle Player HP (1/Half/Full): [F5]",
+                    "Cycle Player HP (Full/Half/1): [F5]",
+                    "Switch to Battle: [F6]",
+                    "Toggle Player Level/HP (LV 20/99HP): [F7]",
                     "Toggle debug help: [F12]",
                 ];
 
@@ -250,6 +264,7 @@ pub mod debug_inspector {
 
         let window_entity = commands
             .spawn((
+                Name::new("Debug: Inspector Window"),
                 Window {
                     title: "Souprune Inspector".into(),
                     resolution: WindowResolution::new(960, 640),
@@ -263,8 +278,8 @@ pub mod debug_inspector {
 
         let camera_entity = commands
             .spawn((
-                Camera3d::default(),
-                Transform::from_xyz(0.0, 0.0, 1.0),
+                Name::new("Debug: Inspector Camera"),
+                Camera2d,
                 Camera {
                     target: RenderTarget::Window(WindowRef::Entity(window_entity)),
                     ..default()
@@ -341,9 +356,9 @@ pub mod debug_inspector {
         let mut contexts =
             world.query_filtered::<&mut EguiContext, With<StandaloneInspectorCamera>>();
         let mut egui_context = match contexts.get_mut(world, camera_entity) {
-            Ok(ctx) => {
+            Ok(context) => {
                 // Clone so we can drop the world borrow before running the UI, mirroring the quick plugin.
-                ctx.clone()
+                context.clone()
             }
             Err(_) => return,
         };

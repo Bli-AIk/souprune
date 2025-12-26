@@ -1,0 +1,8 @@
+[package]
+name = "souprune_mock_host"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+souprune_api = { path = "../souprune_api" }
+libloading = "0.9.0"

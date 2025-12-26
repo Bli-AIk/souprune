@@ -54,6 +54,20 @@ Yes, **Soup**Rune is a pun — and here’s what it stands for:
 * Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
 * Design goals: **clear structure, modular expansion, and easy customization**.
 
+## 🏗️ Project Architecture
+
+SoupRune adopts a multi-crate workspace architecture:
+
+| Crate                                                   | Description                                                                                  |
+|:--------------------------------------------------------|:---------------------------------------------------------------------------------------------|
+| [`souprune`](./crates/souprune)                         | **Core Framework**: The main framework body, application entry point, and core logic.        |
+| [`souprune_api`](./crates/souprune_api)                 | **Protocol Layer**: Defines interface standards for Project (Mod) interaction with the core. |
+| [`souprune_sdk`](./crates/souprune_sdk)                 | **Development Kit**: A wrapper for the API, provided for external Project (Mod) scripts.     |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**： Sample test library for scripting systems.                                   |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.           |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.    |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                       |
+
 ## 🧩 Script Layer Support
 
 SoupRune provides multi-language scripting support so developers from different backgrounds can get started quickly:
@@ -132,6 +146,7 @@ This project uses the following open-source projects as libraries, dependencies,
 | [bevy_smud](https://crates.io/crates/bevy_smud)                           | 0.12.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 2D SDF shape renderer plugin for Bevy                                                                  |
 | [bevy_rich_text3d](https://crates.io/crates/bevy_rich_text3d)             | 0.5.1                                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Mesh-based rasterized rich text implementation                                                         |
 | [bevy_kira_audio](https://crates.io/crates/bevy_kira_audio)               | 0.24.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Audio playback plugin using Kira, supports WAV, OGG, FLAC, MP3 formats                                 |
+| [bevy_brp_extras](https://crates.io/crates/bevy_brp_extras)               | 0.17.2                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Extra features for Bevy Remote Protocol (BRP)                                                          |
 
 ### Rust Crates
 

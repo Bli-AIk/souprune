@@ -9,14 +9,14 @@ use proptest::prelude::*;
 use proptest::test_runner::TestRunner;
 use souprune::{AnimationConfigAsset, Direction, StateAnimationMapping};
 
-const ANIM_DIR: &str = "characters";
-const ANIM_SUFFIX: &str = ".anim.ron";
+const ANIM_DIR: &str = "overworld/characters";
+const ANIM_SUFFIX: &str = ".animation.ron";
 
 fn animation_files() -> Vec<String> {
     let files = test_support::list_project_files_with_suffix(ANIM_DIR, ANIM_SUFFIX);
     assert!(
         !files.is_empty(),
-        "No .anim.ron files found under projects/example_mod/characters"
+        "No .animation.ron files found under projects/example_mod/characters"
     );
     files
 }
