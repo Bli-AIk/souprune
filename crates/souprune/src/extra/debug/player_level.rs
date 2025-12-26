@@ -30,14 +30,20 @@ pub mod debug_player_level {
                 player_data.lv = 1;
                 player_data.hp_max = 20;
                 player_data.hp = 20;
-                info!("Debug: Player Reset to LV 1, HP 20/20");
+                info!(
+                    "[F7 DEBUG] Player Reset to LV 1, HP 20/20 | hp_max={}",
+                    player_data.hp_max
+                );
             } else {
                 // Switch to LV 20
                 // 切换到 LV 20
                 player_data.lv = 20;
                 player_data.hp_max = 99;
                 player_data.hp = 99;
-                info!("Debug: Player Boosted to LV 20, HP 99/99");
+                info!(
+                    "[F7 DEBUG] Player Boosted to LV 20, HP 99/99 | hp_max={}",
+                    player_data.hp_max
+                );
             }
         }
     }

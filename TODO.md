@@ -79,7 +79,7 @@
 - [x] 重构 UIBox 结构 为 SmudShape 层
 - [x] 加入 UI 轴点
 - [x] 加入 Debug 调整玩家等级
-- [ ] 搭建 Battle UI
+- [x] 搭建 Battle UI
 
 ### v0.4.1: 战斗系统执行器
 - [ ] 实现执行器系统

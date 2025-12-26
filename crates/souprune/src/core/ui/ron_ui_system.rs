@@ -656,7 +656,17 @@ fn build_text_config(
     item_registry: &crate::core::item::ItemRegistry,
 ) -> UITextConfig {
     let raw_content = text_def.content.as_deref().unwrap_or("");
+    info!(
+        "[build_text_config] Building text config for '{}' with raw_content: '{}'",
+        text_def.id, raw_content
+    );
+
     let mut content = resolve_text_content(raw_content, mortar_strings, player_data, item_registry);
+
+    info!(
+        "[build_text_config] Resolved content for '{}': '{}'",
+        text_def.id, content
+    );
 
     let color = if let Some(conditional_style) = &text_def.conditional_style {
         let condition_met = evaluate_condition(&conditional_style.condition, player_data);
@@ -1425,8 +1435,16 @@ pub(crate) fn resolve_data_path(
     match path {
         "player.name" => player_data.name.clone(),
         "player.lv" => player_data.lv.to_string(),
-        "player.hp" => player_data.hp.to_string(),
-        "player.hp_max" => player_data.hp_max.to_string(),
+        "player.hp" => {
+            let result = player_data.hp.to_string();
+            info!("[resolve_data_path] player.hp = {}", result);
+            result
+        }
+        "player.hp_max" => {
+            let result = player_data.hp_max.to_string();
+            info!("[resolve_data_path] player.hp_max = {}", result);
+            result
+        }
         "player.gold" => player_data.gold.to_string(),
         "player.exp" => player_data.exp.to_string(),
         "player.next_exp" => player_data.next_exp.to_string(),
@@ -1508,7 +1526,8 @@ pub(crate) fn resolve_data_path(
 }
 
 pub(crate) fn update_dynamic_text_system(
-    mut text_query: Query<(&UITextTemplate, &mut Text3d)>,
+    mut commands: Commands,
+    mut text_query: Query<(Entity, &UITextTemplate, &mut Text3d, &Name)>,
     player_data: Res<crate::core::data::PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -1517,9 +1536,24 @@ pub(crate) fn update_dynamic_text_system(
         return;
     }
 
-    for (template, mut text3d) in text_query.iter_mut() {
+    info!(
+        "[update_dynamic_text_system] PlayerData changed! hp={}, hp_max={}",
+        player_data.hp, player_data.hp_max
+    );
+
+    for (entity, template, mut text3d, name) in text_query.iter_mut() {
+        info!(
+            "[update_dynamic_text_system] Updating text '{}' with template: '{}'",
+            name, template.0
+        );
+
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
+
+        info!(
+            "[update_dynamic_text_system] Resolved content for '{}': '{}'",
+            name, new_content
+        );
 
         // We also need to check if there is a conditional style embedded (not fully supported by simple re-resolve yet)
         // But the original spawn logic handled conditional color.
@@ -1531,6 +1565,16 @@ pub(crate) fn update_dynamic_text_system(
 
         // Re-parsing the text3d
         *text3d = parse_text_preserving_whitespace(&new_content);
+
+        // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
+        // 关键修复：添加 NeedsGlyphRefresh 以触发文本重新渲染
+        commands
+            .entity(entity)
+            .insert(super::text::NeedsGlyphRefresh);
+        info!(
+            "[update_dynamic_text_system] Added NeedsGlyphRefresh to '{}'",
+            name
+        );
 
         // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
         // To support that, we would need to store the `conditional_style` in a component too.
