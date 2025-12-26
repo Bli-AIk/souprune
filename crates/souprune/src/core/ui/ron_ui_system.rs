@@ -1641,19 +1641,7 @@ pub(crate) fn update_hp_bar_shader_params(
         let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
 
         if let Some(material) = materials.get_mut(material_handle) {
-            let m_old_hp = material.color_params.red;
-            let m_old_lag = material.color_params.green;
-
-            // Always update to ensure Material is marked as changed
             material.color_params = target_params;
-
-            // Log whenever values change significantly
-            if (m_old_hp - hp_ratio).abs() > 0.001 || (m_old_lag - lag.lag_hp_ratio).abs() > 0.001 {
-                info!(
-                    "[HP Bar] Material Updated: Entity HP={:.3}, Lag={:.3}",
-                    hp_ratio, lag.lag_hp_ratio
-                );
-            }
         }
     }
 }
