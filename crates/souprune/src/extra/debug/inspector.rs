@@ -129,7 +129,7 @@ pub mod debug_inspector {
                     "Performance monitoring: [F2]",
                     "Show colliders: [F3]",
                     "Debug image overlay: [F4]",
-                    "Cycle Player HP (1/Half/Full): [F5]",
+                    "Cycle Player HP (Full/Half/1): [F5]",
                     "Switch to Battle: [F6]",
                     "Toggle debug help: [F12]",
                 ];

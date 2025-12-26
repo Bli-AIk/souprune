@@ -27,14 +27,14 @@ pub mod debug_player_hp {
             let max = player_data.hp_max;
             let current = player_data.hp;
 
-            // Logic: 1 -> Max/2 -> Max -> 1
-            // 逻辑：1 -> 半血 -> 满血 -> 1
-            let new_hp = if current == 1 {
+            // Logic: Max -> Max/2 -> 1 -> Max
+            // 逻辑：满血 -> 半血 -> 1 -> 满血
+            let new_hp = if current == max {
                 max / 2
             } else if current == max / 2 {
-                max
-            } else {
                 1
+            } else {
+                max
             };
 
             player_data.hp = new_hp;
