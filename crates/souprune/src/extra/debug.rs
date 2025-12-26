@@ -27,6 +27,8 @@ mod image_overlay;
 mod inspector;
 #[cfg(feature = "debug")]
 mod player_hp;
+#[cfg(feature = "debug")]
+mod player_level;
 
 use bevy::app::{App, Plugin};
 
@@ -53,6 +55,11 @@ impl Plugin for DebugPlugin {
             //
             // 设置玩家 HP 调试功能。
             player_hp::debug_player_hp::setup_player_hp_debug(_app);
+
+            // Set up player Level debugging features.
+            //
+            // 设置玩家等级调试功能。
+            player_level::debug_player_level::setup_player_level_debug(_app);
 
             // Set up battle test debugging features.
             //
