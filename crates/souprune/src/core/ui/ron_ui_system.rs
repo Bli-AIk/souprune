@@ -1621,18 +1621,16 @@ pub(crate) fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
             lag.anim_progress = 0.5;
             lag.delay_timer = 0.0;
-        } else if hp_ratio < lag.lag_hp_ratio {
-            if lag.anim_progress < 0.5 {
-                lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
+            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
 
-                // OutCirc easing formula
-                // t: 0.0 -> 1.0
-                let t = lag.anim_progress / 0.5;
-                let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+            // OutCirc easing formula
+            // t: 0.0 -> 1.0
+            let t = lag.anim_progress / 0.5;
+            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
 
-                // Interpolate between start and current actual HP
-                lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
-            }
+            // Interpolate between start and current actual HP
+            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
         }
         // Final safety sync
         if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {

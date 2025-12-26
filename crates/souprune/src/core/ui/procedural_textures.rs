@@ -19,7 +19,7 @@ pub struct ProceduralTextures {
 /// 初始化程序生成的纹理。
 pub fn init_procedural_textures(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // Create 1x1 white pixel texture
-    let mut white_pixel = Image::new_fill(
+    let white_pixel = Image::new_fill(
         Extent3d {
             width: 1,
             height: 1,

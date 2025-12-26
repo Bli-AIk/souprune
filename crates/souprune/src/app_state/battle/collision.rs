@@ -4,7 +4,7 @@
 //!
 //! Battle 碰撞系统，用于限制玩家在战斗框内移动。
 
-use crate::app_state::battle::{BattleEntity, BattleUpdate};
+use crate::app_state::battle::BattleUpdate;
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::ui::components::UIBox;
 use bevy::prelude::*;
