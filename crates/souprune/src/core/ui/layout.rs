@@ -553,3 +553,107 @@ pub enum TransitionActionDef {
     PopState,
     PushState(String),
 }
+
+// ============================================================================
+// SmudStructure Asset Definition
+// SmudStructure 资产定义
+// ============================================================================
+
+/// Asset type for SmudShape structure definitions.
+/// Loaded from `.smud.ron` files to define complex SDF shape hierarchies.
+///
+/// SmudShape 结构定义的资产类型。
+/// 从 `.smud.ron` 文件加载，用于定义复杂的 SDF 形状层次结构。
+#[derive(Asset, TypePath, Debug, Deserialize, Clone)]
+pub struct SmudStructureAsset {
+    /// Number of SmudShape layers in this structure.
+    /// Used to determine expected entity count during updates.
+    ///
+    /// 此结构中的 SmudShape 层数。
+    /// 用于在更新时确定预期的实体数量。
+    pub layer_count: usize,
+
+    /// The root layer definition.
+    ///
+    /// 根层定义。
+    pub root: SmudLayerDef,
+}
+
+/// Definition for a single SmudShape layer.
+///
+/// 单个 SmudShape 层的定义。
+#[derive(Debug, Deserialize, Clone)]
+pub struct SmudLayerDef {
+    /// Name for this layer (used for entity naming).
+    ///
+    /// 此层的名称（用于实体命名）。
+    pub name: String,
+
+    /// SDF type for this layer.
+    ///
+    /// 此层的 SDF 类型。
+    pub sdf_type: SmudSdfType,
+
+    /// Color source for this layer.
+    ///
+    /// 此层的颜色来源。
+    #[serde(default)]
+    pub color_source: SmudColorSource,
+
+    /// Z offset for this layer's transform.
+    ///
+    /// 此层变换的 Z 偏移。
+    #[serde(default = "default_z_offset")]
+    pub z_offset: f32,
+
+    /// Whether this layer should have the UIBoxFiller marker.
+    ///
+    /// 此层是否应该有 UIBoxFiller 标记。
+    #[serde(default)]
+    pub is_filler: bool,
+
+    /// Child layers (nested SmudShapes).
+    ///
+    /// 子层（嵌套的 SmudShape）。
+    #[serde(default)]
+    pub children: Vec<SmudLayerDef>,
+}
+
+fn default_z_offset() -> f32 {
+    0.1
+}
+
+/// SDF type definition for a SmudShape layer.
+///
+/// SmudShape 层的 SDF 类型定义。
+#[derive(Debug, Deserialize, Clone)]
+pub enum SmudSdfType {
+    /// Use the outer SDF (box dimensions + border width).
+    ///
+    /// 使用外部 SDF（盒子尺寸 + 边框宽度）。
+    Outer,
+    /// Use the inner SDF (box dimensions only).
+    ///
+    /// 使用内部 SDF（仅盒子尺寸）。
+    Inner,
+}
+
+/// Color source for a SmudShape layer.
+///
+/// SmudShape 层的颜色来源。
+#[derive(Debug, Deserialize, Clone, Default)]
+pub enum SmudColorSource {
+    /// Use the fill_color from UIBox.
+    ///
+    /// 使用 UIBox 的 fill_color。
+    #[default]
+    FillColor,
+    /// Use a fixed white color.
+    ///
+    /// 使用固定的白色。
+    White,
+    /// Use a custom color.
+    ///
+    /// 使用自定义颜色。
+    Custom(SerializableColor),
+}

@@ -3,16 +3,30 @@
 // UI 盒子结构定义
 // 此文件定义经典 Undertale 风格的带边框和填充的 UI 盒子。
 //
-// When structure_file contains "ui_box", the engine will create:
-// 1. UIBoxBorder - White outer rectangle
-// 2. UIBoxFiller - Black inner rectangle (child of border)
+// Structure:
+// 1. UIBoxBorder - White outer rectangle (uses Outer SDF)
+// 2. UIBoxFiller - Black inner rectangle, child of border (uses Inner SDF)
 //
-// 当 structure_file 包含 "ui_box" 时，引擎将创建：
-// 1. UIBoxBorder - 白色外部矩形
-// 2. UIBoxFiller - 黑色内部矩形（边框的子节点）
-//
-// This is a marker file - the actual structure is built by the engine
-// based on the filename containing "ui_box".
-// 这是一个标记文件 - 实际结构由引擎根据文件名包含 "ui_box" 来构建。
-
-// TODO: 重构以去除硬编码的 "ui_box" 检测逻辑。
+// 结构：
+// 1. UIBoxBorder - 白色外部矩形（使用外部 SDF）
+// 2. UIBoxFiller - 黑色内部矩形，边框的子节点（使用内部 SDF）
+(
+    layer_count: 2,
+    root: (
+        name: "UIBoxBorder",
+        sdf_type: Outer,
+        color_source: White,
+        z_offset: 5.0,
+        is_filler: false,
+        children: [
+            (
+                name: "UIBoxFiller",
+                sdf_type: Inner,
+                color_source: FillColor,
+                z_offset: 0.1,
+                is_filler: true,
+                children: [],
+            ),
+        ],
+    ),
+)

@@ -47,6 +47,7 @@ use camera::{
 use components::{UILayerNavigationConfig, UILayerTransitionConfig};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 use layout::UILayoutAsset;
+pub(crate) use layout::SmudStructureAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 pub use ron_ui_system::{UILayoutHandle, UILayoutWatcher};
 use ron_ui_system::{
@@ -80,6 +81,8 @@ impl Plugin for CoreUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<UILayoutAsset>()
             .register_asset_loader(RonAssetLoader::<UILayoutAsset>::new(&["ui_layout.ron"]))
+            .init_asset::<SmudStructureAsset>()
+            .register_asset_loader(RonAssetLoader::<SmudStructureAsset>::new(&["smud.ron"]))
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
             .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()

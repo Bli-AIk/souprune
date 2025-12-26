@@ -19,6 +19,7 @@
 //! 管理盒子几何形状、文本内容和基于当前 UI 层级的可见性。
 
 use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
+use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -147,7 +148,6 @@ fn spawn_ui_box_children(
 ) {
     let box_width = ui_box.width();
     let box_height = ui_box.height();
-    let border_width = ui_box.border_width();
 
     // Load custom shader if specified, otherwise use default solid fill
     // 如果指定了自定义着色器则加载，否则使用默认实体填充
@@ -221,90 +221,196 @@ fn spawn_structure_from_file(
     solid_fill: Handle<Shader>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
+    // Load structure definition from RON file
+    // 从 RON 文件加载结构定义
+    let structure = match load_smud_structure(structure_file) {
+        Some(s) => s,
+        None => {
+            warn!(
+                "Failed to load structure from '{}', falling back to single layer",
+                structure_file
+            );
+            spawn_single_layer_fallback(
+                commands, entity, ui_box, inner_sdf, solid_fill, color_materials,
+            );
+            return;
+        }
+    };
+
+    info!(
+        "Spawning SmudShape structure from '{}' with {} layers",
+        structure_file, structure.layer_count
+    );
+
+    // Spawn the structure recursively based on the RON definition
+    // 基于 RON 定义递归生成结构
+    let filler_entity = spawn_layer_recursive(
+        commands,
+        entity,
+        &structure.root,
+        ui_box,
+        &outer_sdf,
+        &inner_sdf,
+        &solid_fill,
+    );
+
+    // Spawn texts as children of filler (if found)
+    // 将文本作为 filler 的子节点生成（如果找到）
+    if let Some(filler_entity) = filler_entity {
+        spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
+    } else {
+        warn!(
+            "No filler layer found in structure '{}' for entity {:?}",
+            structure_file, entity
+        );
+    }
+}
+
+/// Load SmudStructureAsset from a RON file synchronously.
+///
+/// 从 RON 文件同步加载 SmudStructureAsset。
+fn load_smud_structure(structure_file: &str) -> Option<SmudStructureAsset> {
+    let config = crate::config::load_config();
+    let full_path = format!("projects/{}/{}", config.project.mod_name, structure_file);
+
+    let content = std::fs::read_to_string(&full_path)
+        .map_err(|e| {
+            warn!("Failed to read structure file '{}': {}", full_path, e);
+            e
+        })
+        .ok()?;
+
+    ron::de::from_str::<SmudStructureAsset>(&content)
+        .map_err(|e| {
+            warn!("Failed to parse structure file '{}': {}", full_path, e);
+            e
+        })
+        .ok()
+}
+
+/// Recursively spawn SmudShape layers based on the structure definition.
+/// Returns the entity ID of the filler layer (if any).
+///
+/// 基于结构定义递归生成 SmudShape 层。
+/// 返回 filler 层的实体 ID（如果有）。
+fn spawn_layer_recursive(
+    commands: &mut Commands,
+    parent: Entity,
+    layer_def: &SmudLayerDef,
+    ui_box: &UIBox,
+    outer_sdf: &Handle<Shader>,
+    inner_sdf: &Handle<Shader>,
+    solid_fill: &Handle<Shader>,
+) -> Option<Entity> {
     let box_width = ui_box.width();
     let box_height = ui_box.height();
     let border_width = ui_box.border_width();
 
-    // For now, we support a special "ui_box" structure that mimics the classic Undertale box
-    // In the future, this could load arbitrary RON-defined structures
-    // 目前，我们支持一个特殊的 "ui_box" 结构，模拟经典的 Undertale 盒子
-    // 未来，这可以加载任意 RON 定义的结构
-    if structure_file.contains("ui_box") {
-        // Classic structure - Border + Filler
-        // 经典结构 - 边框 + 填充
-        info!("Spawning classic (Border + Filler) SmudShape structure");
+    // Determine SDF and frame based on layer definition
+    // 根据层定义确定 SDF 和 frame
+    let (sdf, frame) = match layer_def.sdf_type {
+        SmudSdfType::Outer => (
+            outer_sdf.clone(),
+            Frame::Quad((box_width + border_width * 2.0) + 10.0),
+        ),
+        SmudSdfType::Inner => (
+            inner_sdf.clone(),
+            Frame::Quad(box_width.max(box_height) + 10.0),
+        ),
+    };
 
-        let mut filler_entity: Option<Entity> = None;
+    // Determine color based on layer definition
+    // 根据层定义确定颜色
+    let color = match &layer_def.color_source {
+        SmudColorSource::FillColor => ui_box.fill_color,
+        SmudColorSource::White => Color::WHITE,
+        SmudColorSource::Custom(c) => Color::srgba(c.r, c.g, c.b, c.a),
+    };
 
-        commands.entity(entity).with_children(|parent| {
-            parent
-                .spawn((
-                    SmudShape {
-                        color: Color::WHITE,
-                        sdf: outer_sdf.clone(),
-                        frame: Frame::Quad((box_width + border_width * 2.0) + 10.0),
-                        fill: solid_fill.clone(),
-                        ..default()
-                    },
-                    Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
-                    Name::new("UIBoxBorder"),
-                ))
-                .with_children(|border_parent| {
-                    let filler = border_parent
-                        .spawn((
-                            SmudShape {
-                                color: ui_box.fill_color,
-                                sdf: inner_sdf.clone(),
-                                frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                                fill: solid_fill.clone(),
-                                ..default()
-                            },
-                            Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
-                            Name::new("UIBoxFiller"),
-                            UIBoxFiller,
-                        ))
-                        .id();
+    let mut spawned_entity: Option<Entity> = None;
+    let mut filler_entity: Option<Entity> = None;
 
-                    filler_entity = Some(filler);
-                });
-        });
+    commands.entity(parent).with_children(|parent_builder| {
+        let mut entity_cmd = parent_builder.spawn((
+            SmudShape {
+                color,
+                sdf,
+                frame,
+                fill: solid_fill.clone(),
+                ..default()
+            },
+            Transform::from_translation(Vec3::new(0.0, 0.0, layer_def.z_offset)),
+            Name::new(layer_def.name.clone()),
+        ));
 
-        // Spawn texts as children of filler
-        if let Some(filler_entity) = filler_entity {
-            spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
-        } else {
-            warn!("Failed to spawn UI box filler for entity {:?}", entity);
+        // Add UIBoxFiller marker if this is the filler layer
+        // 如果这是 filler 层，添加 UIBoxFiller 标记
+        if layer_def.is_filler {
+            entity_cmd.insert(UIBoxFiller);
         }
-    } else {
-        // Unknown structure file - fall back to single layer
-        // 未知结构文件 - 回退到单层
-        warn!(
-            "Unknown structure file '{}', falling back to single layer",
-            structure_file
-        );
 
-        let mut filler_entity: Option<Entity> = None;
-        commands.entity(entity).with_children(|parent| {
-            let filler = parent
-                .spawn((
-                    SmudShape {
-                        color: ui_box.fill_color,
-                        sdf: inner_sdf.clone(),
-                        frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                        fill: solid_fill.clone(),
-                        ..default()
-                    },
-                    Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
-                    Name::new("UIBoxFiller"),
-                    UIBoxFiller,
-                ))
-                .id();
-            filler_entity = Some(filler);
-        });
+        spawned_entity = Some(entity_cmd.id());
 
-        if let Some(filler_entity) = filler_entity {
-            spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
+        // Track filler entity
+        if layer_def.is_filler {
+            filler_entity = spawned_entity;
         }
+    });
+
+    // Recursively spawn children
+    // 递归生成子节点
+    if let Some(spawned) = spawned_entity {
+        for child_def in &layer_def.children {
+            if let Some(child_filler) = spawn_layer_recursive(
+                commands, spawned, child_def, ui_box, outer_sdf, inner_sdf, solid_fill,
+            ) {
+                // Propagate filler entity from children
+                // 从子节点传播 filler 实体
+                if filler_entity.is_none() {
+                    filler_entity = Some(child_filler);
+                }
+            }
+        }
+    }
+
+    filler_entity
+}
+
+/// Spawn a single layer fallback structure when structure file loading fails.
+///
+/// 当结构文件加载失败时生成单层回退结构。
+fn spawn_single_layer_fallback(
+    commands: &mut Commands,
+    entity: Entity,
+    ui_box: &UIBox,
+    inner_sdf: Handle<Shader>,
+    solid_fill: Handle<Shader>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    let box_width = ui_box.width();
+    let box_height = ui_box.height();
+
+    let mut filler_entity: Option<Entity> = None;
+    commands.entity(entity).with_children(|parent| {
+        let filler = parent
+            .spawn((
+                SmudShape {
+                    color: ui_box.fill_color,
+                    sdf: inner_sdf.clone(),
+                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
+                    fill: solid_fill.clone(),
+                    ..default()
+                },
+                Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
+                Name::new("UIBoxFiller"),
+                UIBoxFiller,
+            ))
+            .id();
+        filler_entity = Some(filler);
+    });
+
+    if let Some(filler_entity) = filler_entity {
+        spawn_texts_for_filler(commands, filler_entity, ui_box, color_materials);
     }
 }
 
@@ -398,13 +504,12 @@ pub(crate) fn update_ui_box_system(
 
         // Determine expected SmudShape count based on structure_file
         // 根据 structure_file 确定预期的 SmudShape 数量
-        let has_structure_file = ui_box.structure_file.is_some();
-        let is_ui_box_structure = ui_box
-            .structure_file
-            .as_ref()
-            .is_some_and(|f| f.contains("ui_box"));
-        let expected_shapes = if has_structure_file && is_ui_box_structure {
-            2 // Classic structure
+        let expected_shapes = if let Some(structure_file) = &ui_box.structure_file {
+            // Load layer_count from the structure file
+            // 从结构文件加载 layer_count
+            load_smud_structure(structure_file)
+                .map(|s| s.layer_count)
+                .unwrap_or(1) // Fallback to single layer if loading fails
         } else {
             1 // Single layer (default)
         };
