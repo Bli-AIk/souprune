@@ -1,4 +1,20 @@
-use crate::app_state::AppState;
+//! # overworld.rs
+//!
+//! # overworld.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! The `overworld` module manages the game's overworld state, including player movement, tilemaps, characters, and UI interactions.
+//!
+//! `overworld` 模块管理游戏的大地图（Overworld）状态，包括玩家移动、瓦片地图、角色和用户界面交互。
+//!
+//! It orchestrates sub-plugins and handles camera binding to the player.
+//!
+//! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
+
+use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -7,6 +23,12 @@ pub(crate) mod character;
 pub(crate) mod player;
 pub(crate) mod tilemap;
 pub(crate) mod ui;
+
+/// Marker component for overworld entities
+///
+/// 标记 Overworld 实体的组件
+#[derive(Component)]
+pub(crate) struct OverworldEntity();
 
 /// Overworld substates
 ///
@@ -19,35 +41,66 @@ pub(crate) enum OverworldState {
     Cutscene,
 }
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OverworldUpdate;
+
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<OverworldState>()
-            .add_plugins((
-                tilemap::TilemapPlugin,
-                player::PlayerPlugin,
-                character::CharacterPlugin,
-                ui::OverworldUIPlugin,
-            ))
-            .add_systems(
-                OnEnter(AppState::Overworld),
-                create_overworld_entities_system,
-            )
-            .add_systems(Update, bind_camera_target_system)
-            .add_systems(
-                OnEnter(OverworldState::Backpack),
-                player::force_player_idle_on_state_change_system,
-            )
-            .add_systems(
-                OnEnter(OverworldState::Cutscene),
-                player::force_player_idle_on_state_change_system,
-            );
+        app.configure_sets(
+            Update,
+            OverworldUpdate.run_if(in_state(AppState::Overworld)),
+        )
+        // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
+        //
+        // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
+        .init_state::<OverworldState>()
+        .add_plugins((
+            tilemap::TilemapPlugin,
+            player::PlayerPlugin,
+            character::CharacterPlugin,
+            crate::core::ui::CoreUIPlugin,
+        ))
+        .add_systems(
+            OnEnter(AppState::Overworld),
+            create_overworld_entities_system,
+        )
+        .add_systems(
+            OnExit(AppState::Overworld),
+            (
+                cleanup_entities_system::<OverworldEntity>,
+                stop_bgm_on_exit_system,
+            ),
+        )
+        .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
+        .add_systems(
+            OnEnter(OverworldState::Backpack),
+            player::force_player_idle_on_state_change_system,
+        )
+        .add_systems(
+            OnEnter(OverworldState::Cutscene),
+            player::force_player_idle_on_state_change_system,
+        );
     }
 }
 
 fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::SpawnPlayerRequest>) {
     spawn_events.write(player::SpawnPlayerRequest);
+}
+
+fn stop_bgm_on_exit_system(
+    mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
+    mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
+    mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
+) {
+    if let Some(handle) = &bgm_handle.0
+        && let Some(instance) = audio_instances.get_mut(handle)
+    {
+        instance.stop(bevy_kira_audio::AudioTween::default());
+    }
+    bgm_handle.0 = None;
+    current_map_bgm.0 = None;
 }
 
 fn bind_camera_target_system(

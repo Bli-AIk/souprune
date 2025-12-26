@@ -1,3 +1,15 @@
+//! # load_context.rs
+//!
+//! # load_context.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines `SpriteLoadContext`, a helper struct that encapsulates access to various assets and registries needed for loading sprites and animations dynamically.
+//!
+//! 定义 `SpriteLoadContext`，这是一个辅助结构体，封装了对动态加载精灵和动画所需的各种资产和注册表的访问。
+
 use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;

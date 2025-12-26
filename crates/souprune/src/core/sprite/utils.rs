@@ -1,3 +1,15 @@
+//! # utils.rs
+//!
+//! # utils.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Provides utility functions for creating and managing texture atlases from loaded folders, including handling TOML configurations and generating fallback textures.
+//!
+//! 提供用于从加载的文件夹创建和管理纹理图集的实用函数，包括处理 TOML 配置和生成回退纹理。
+
 use crate::core::sprite::resources::ModuleSpriteRegistry;
 use crate::extra::toml::TomlAsset;
 use crate::extra::toml::config::TomlConfigRegistry;

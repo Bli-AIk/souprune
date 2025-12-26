@@ -1,3 +1,15 @@
+//! # config.rs
+//!
+//! # config.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles loading and accessing the global configuration for the engine. It reads `projects/config.toml` to determine the active project mod, language settings, and window configuration, and provides utilities for resolving asset paths.
+//!
+//! 本模块处理引擎全局配置的加载与访问。它读取 `projects/config.toml` 以确定当前激活的项目模组、语言设置和窗口配置，并提供了用于解析资产路径的实用工具。
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::fs;
@@ -68,16 +80,15 @@ fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
 }
 
 pub fn load_config() -> &'static SoupruneConfig {
-    CONFIG.get_or_init(|| match read_config_from_disk("projects/config.toml") {
-        Ok(config) => config,
-        Err(err) => {
+    CONFIG.get_or_init(|| {
+        read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
             error!(
                 "{}
 Falling back to default configuration (example_mod)",
                 err
             );
             default_config()
-        }
+        })
     })
 }
 

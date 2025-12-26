@@ -1,0 +1,7 @@
+[package]
+name = "souprune_sdk"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+souprune_api = { path = "../souprune_api" }

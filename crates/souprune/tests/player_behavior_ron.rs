@@ -86,7 +86,7 @@ struct RawVec2 {
 }
 
 fn load_raw_behavior() -> RawPlayerBehavior {
-    let path = test_support::project_root().join("player/player_behavior.ron");
+    let path = test_support::project_root().join("overworld/players/player_behavior.ron");
     let contents = test_support::read_string(&path);
     from_str(&contents).expect("player behavior ron should parse")
 }

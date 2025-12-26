@@ -1,28 +1,40 @@
+//! # lib.rs
+//!
+//! # lib.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This is the main library entry point for the Souprune framework. It orchestrates the application startup, including logging initialization, plugin registration (Bevy defaults, third-party, and game-specific), and configuring the asset system for multi-source loading.
+//!
+//! 这是 Souprune 框架的主要库入口点。它负责协调应用程序的启动，包括日志初始化、插件注册（Bevy 默认插件、第三方插件和游戏特定插件），以及配置用于多源加载的资产系统。
+
 pub mod app_state;
 pub mod config;
 pub mod core;
 pub mod extra;
 
 pub use crate::app_state::overworld::player::config::PlayerBehavior;
-pub use crate::app_state::overworld::ui::layout::{
-    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
-    UINodeDef,
-};
 pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
 pub use crate::core::input::actions::Action;
 pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::ui::layout::{
+    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
+    UINodeDef,
+};
 
 use std::default::Default;
 
 use crate::core::*;
 use crate::extra::multi_source::MultiSourceAssetReader;
-use app_state::{app_setup, overworld};
+use app_state::{app_setup, battle, overworld};
 use bevy::app::PluginGroupBuilder;
-use bevy::asset::io::file::FileAssetReader;
+use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
@@ -134,15 +146,14 @@ fn get_file_importer_plugins() -> (
 ///
 /// 获取应用程序中使用的第三方插件。
 fn get_third_plugins() -> (
-    leafwing_input_manager::prelude::InputManagerPlugin<crate::core::input::Action>,
+    leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     seldom_state::prelude::StateMachinePlugin,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
 ) {
     (
-        leafwing_input_manager::prelude::InputManagerPlugin::<crate::core::input::Action>::default(
-        ),
+        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
         seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
         bevy_smud::SmudPlugin,
@@ -161,13 +172,17 @@ fn get_game_plugins() -> (
     CorePlugin,
     app_setup::AppSetupPlugin,
     overworld::OverworldPlugin,
+    battle::BattlePlugin,
     GlobalPlugin,
+    core::mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
         app_setup::AppSetupPlugin,
         overworld::OverworldPlugin,
+        battle::BattlePlugin,
         GlobalPlugin,
+        core::mod_system::ModPlugin,
     )
 }
 
@@ -184,15 +199,52 @@ pub fn run() {
 
     App::new()
         // TODO: 读取 mod 配置并加载正确的项目
+        .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
-            AssetSource::build().with_reader(move || {
-                let roots = config::get_asset_roots(&project_name);
-                let readers = roots.into_iter().map(FileAssetReader::new).collect();
-                Box::new(MultiSourceAssetReader::new(readers))
-            }),
+            AssetSource::build()
+                .with_reader(move || {
+                    let roots = config::get_asset_roots(&project_name);
+                    let readers = roots.into_iter().map(FileAssetReader::new).collect();
+                    Box::new(MultiSourceAssetReader::new(readers))
+                })
+                .with_watcher(|sender| {
+                    // Watch the primary project directory for hot reloading
+                    //
+                    // 监听主项目目录以实现热重载
+                    let config = config::load_config();
+                    let roots = config::get_asset_roots(&config.project.mod_name);
+
+                    // Find the first root that actually exists on disk
+                    //
+                    // 找到磁盘上实际存在的第一个根目录
+                    for root in &roots {
+                        if root.exists() {
+                            info!("[Hot Reload] Setting up file watcher for: {:?}", root);
+                            match FileWatcher::new(
+                                root.clone(),
+                                sender.clone(),
+                                std::time::Duration::from_millis(300),
+                            ) {
+                                Ok(watcher) => {
+                                    return Some(
+                                        Box::new(watcher) as Box<dyn bevy::asset::io::AssetWatcher>
+                                    );
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
+                                        root, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    error!("[Hot Reload] No valid asset root found for file watching");
+                    None
+                }),
         )
-        .insert_resource(app_setup::ResolutionScale(resolution_scale as u32))
+        .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
             get_bevy_default_plugins(resolution_scale),
@@ -200,6 +252,8 @@ pub fn run() {
             get_third_plugins(),
             #[cfg(feature = "debug")]
             extra::debug::DebugPlugin,
+            #[cfg(feature = "debug")]
+            bevy_brp_extras::BrpExtrasPlugin,
         ))
         .insert_resource(bevy_rich_text3d::LoadFonts {
             font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
@@ -207,6 +261,12 @@ pub fn run() {
         })
         .init_resource::<input::PlayerInputSettings>()
         .init_state::<app_state::AppState>()
+        .configure_sets(
+            Update,
+            core::ui::UIUpdate.run_if(
+                in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
+            ),
+        )
         .add_plugins(get_game_plugins())
         .run();
 }

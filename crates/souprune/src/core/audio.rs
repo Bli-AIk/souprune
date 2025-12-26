@@ -53,7 +53,11 @@ pub fn play_sound(audio: &Audio, asset_server: &AssetServer, sound_path: &str) {
 /// ```ignore
 /// play_bgm(&audio, &asset_server, "mus_ruins.ogg");
 /// ```
-pub fn play_bgm(audio: &Audio, asset_server: &AssetServer, music_path: &str) {
+pub fn play_bgm(
+    audio: &Audio,
+    asset_server: &AssetServer,
+    music_path: &str,
+) -> Handle<AudioInstance> {
     let music_handle = asset_server.load(format!("audios/music/{}", music_path));
-    audio.play(music_handle).looped();
+    audio.play(music_handle).looped().handle()
 }

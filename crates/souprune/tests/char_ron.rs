@@ -7,14 +7,14 @@ mod test_support;
 
 use souprune::{AnimationConfigAsset, CharacterAsset};
 
-const CHAR_DIR: &str = "characters";
-const CHAR_SUFFIX: &str = ".char.ron";
+const CHAR_DIR: &str = "overworld/characters";
+const CHAR_SUFFIX: &str = ".character.ron";
 
 fn character_files() -> Vec<String> {
     let files = test_support::list_project_files_with_suffix(CHAR_DIR, CHAR_SUFFIX);
     assert!(
         !files.is_empty(),
-        "No .char.ron files found under projects/example_mod/characters"
+        "No .character.ron files found under projects/example_mod/characters"
     );
     files
 }

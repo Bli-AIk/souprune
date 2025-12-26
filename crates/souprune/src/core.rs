@@ -38,8 +38,11 @@ pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub(crate) mod data;
 pub(crate) mod input;
-pub(crate) mod item;
-pub(crate) mod sprite;
+pub mod item;
+pub mod mod_system;
+pub mod ron_loader;
+pub mod sprite;
+pub(crate) mod ui;
 
 use crate::extra;
 use bevy::app::*;
@@ -59,8 +62,14 @@ impl Plugin for CorePlugin {
         app.init_resource::<extra::toml::config::TomlConfigRegistry>()
             .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
-            .init_asset_loader::<character_asset::CharacterAssetLoader>()
-            .init_asset_loader::<character_asset::AnimationConfigAssetLoader>()
+            .register_asset_loader(
+                ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&[
+                    "character.ron",
+                ]),
+            )
+            .register_asset_loader(ron_loader::RonAssetLoader::<
+                character_asset::AnimationConfigAsset,
+            >::new(&["animation.ron"]))
             .add_plugins((
                 animation::AnimationPlugin,
                 audio::AudioPlugin,

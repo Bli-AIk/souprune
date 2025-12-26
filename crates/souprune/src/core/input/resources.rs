@@ -1,3 +1,15 @@
+//! # resources.rs
+//!
+//! # resources.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines `PlayerInputSettings`, a resource that manages input mappings (keyboard, gamepad) for player actions, supporting multiple control schemes.
+//!
+//! 定义 `PlayerInputSettings`，该资源管理玩家动作的输入映射（键盘、手柄），支持多种控制方案。
+
 use super::actions::Action;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;

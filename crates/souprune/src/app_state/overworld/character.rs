@@ -18,6 +18,7 @@
 //! ## 源文件概述
 //! 该文件定义了 `CharacterPlugin`，它集成了用于更新 Overworld 中角色移动和行为的系统。
 
+use crate::app_state::overworld::OverworldUpdate;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
@@ -36,7 +37,8 @@ impl Plugin for CharacterPlugin {
                 update_running_system,
                 animation::character_animation_system,
             )
-                .in_set(MovementSet),
+                .in_set(MovementSet)
+                .in_set(OverworldUpdate),
         );
     }
 }

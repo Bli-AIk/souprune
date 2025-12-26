@@ -1,3 +1,15 @@
+//! # systems.rs
+//!
+//! # systems.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Implements systems for updating sprite animations, including frame advancement based on timers and synchronizing the visual `Sprite` component with the current animation frame.
+//!
+//! 实现用于更新精灵动画的系统，包括基于计时器的帧推进以及将可视化的 `Sprite` 组件与当前动画帧同步。
+
 use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
