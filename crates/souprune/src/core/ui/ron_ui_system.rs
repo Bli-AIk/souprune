@@ -752,11 +752,20 @@ fn spawn_ui_node(
                     // For now, mark with a special component to be processed later
                     // 这将由单独的系统在 ProceduralTextures 可用后处理
                     // 现在用特殊组件标记以便稍后处理
+                    let mut final_transform = Transform::from_translation(transform.translation)
+                        .with_scale(transform.scale)
+                        .with_rotation(transform.rotation);
+
+                    if let Some(pivot) = &sprite_def.pivot {
+                        let shift_x = (0.5 - pivot.x) * transform.scale.x;
+                        let shift_y = (0.5 - pivot.y) * transform.scale.y;
+                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                        final_transform.translation += shift;
+                    }
+
                     let entity_id = parent
                         .spawn((
-                            Transform::from_translation(transform.translation)
-                                .with_scale(transform.scale)
-                                .with_rotation(transform.rotation),
+                            final_transform,
                             GlobalTransform::default(),
                             Visibility::default(),
                             InheritedVisibility::default(),
@@ -787,6 +796,12 @@ fn spawn_ui_node(
                         asset_server.load(&sprite_def.path)
                     };
 
+                    let anchor_component = if let Some(pivot) = &sprite_def.pivot {
+                        bevy::sprite::Anchor(Vec2::new(pivot.x - 0.5, pivot.y - 0.5))
+                    } else {
+                        bevy::sprite::Anchor(Vec2::ZERO)
+                    };
+
                     let entity_id = parent
                         .spawn((
                             Sprite {
@@ -800,6 +815,7 @@ fn spawn_ui_node(
                                     .unwrap_or(Color::WHITE),
                                 ..Default::default()
                             },
+                            anchor_component,
                             transform,
                             GlobalTransform::default(),
                             Visibility::default(),
@@ -1524,6 +1540,12 @@ fn spawn_ui_sprite(
         // Static sprite
         let texture_handle = asset_server.load(&sprite_def.path);
 
+        let anchor_component = if let Some(pivot) = &sprite_def.pivot {
+            bevy::sprite::Anchor(Vec2::new(pivot.x - 0.5, pivot.y - 0.5))
+        } else {
+            bevy::sprite::Anchor(Vec2::ZERO)
+        };
+
         parent.with_children(|p| {
             p.spawn((
                 Sprite {
@@ -1537,6 +1559,7 @@ fn spawn_ui_sprite(
                         .unwrap_or(Color::WHITE),
                     ..Default::default()
                 },
+                anchor_component,
                 transform,
                 Visibility::default(),
                 Name::new(format!("{}_sprite", node_name)),

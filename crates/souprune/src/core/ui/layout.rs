@@ -354,6 +354,8 @@ pub struct SpriteDef {
     /// 与 custom_shader 一起使用以传递动态值（例如HP百分比）。
     #[serde(default)]
     pub shader_params: Option<SerializableColor>,
+    #[serde(default)]
+    pub pivot: Option<SerializableVec2>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

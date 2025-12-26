@@ -83,7 +83,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -290.0, y: -155.0, z: 1.0),
+                        translation: (x: -290.0, y: -155.5, z: 1.0),
                     ),
                 ),
                 (
@@ -93,7 +93,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -187.5, y: -155.0, z: 1.0),
+                        translation: (x: -187.5, y: -155.5, z: 1.0),
                     ),
                 ),
                 (
@@ -103,7 +103,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -148.5, y: -155.0, z: 1.0),
+                        translation: (x: -148.5, y: -155.5, z: 1.0),
                     ),
                 ),
                 (
@@ -113,7 +113,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -5.5, y: -155.0, z: 1.0),
+                        translation: (x: -5.5, y: -155.5, z: 1.0),
                     ),
                 ),
                 (
@@ -123,7 +123,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: 33.5, y: -155.0, z: 1.0),
+                        translation: (x: 33.5, y: -155.5, z: 1.0),
                     ),
                 ),
                 (
@@ -133,7 +133,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: 57.5, y: -155.0, z: 1.0),
+                        translation: (x: 57.5, y: -155.5, z: 1.0),
                     ),
                 ),
             ],
@@ -154,11 +154,12 @@
                         path: "procedural://white_pixel",  // Use procedural texture
                         is_animation: false,
                         transform: Some((
-                            translation: (x: -30.0, y: -170.0, z: 1.0),  // Move left, behind text (z=1)
-                            scale: Some((x: 25.0, y: 18.0, z: 1.0)),  // Smaller: 80x16
+                            translation: (x: -45.0, y: -170.5, z: 1.0),  // Move left, behind text (z=1)
+                            scale: Some((x: 25.0, y: 20.5, z: 1.0)),  // Smaller: 80x16
                         )),
                         custom_shader: Some("shaders/hp_bar_sprite.wgsl"),
                         shader_params: Some((r: 0.8, g: 0.8, b: 40.0, a: 1.0)),  // HP%, lag%, half_width (40), alpha
+                        pivot: Some((x: 0.0, y: 0.5)),
                     )),
                 )
             ],
