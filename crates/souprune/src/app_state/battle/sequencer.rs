@@ -39,7 +39,7 @@ impl Plugin for SequencerPlugin {
 use super::chapter::{Chapter, PlayerAction};
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
-use crate::app_state::battle::{BattleFlowAsset, BattleUpdate};
+use crate::app_state::battle::{BattleAsset, BattleUpdate};
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
 
@@ -58,21 +58,21 @@ struct ActiveChapter(Chapter);
 struct WaitTimer(Timer);
 
 #[derive(Resource)]
-struct CurrentBattleFlow(Handle<BattleFlowAsset>);
+struct CurrentBattleFlow(Handle<BattleAsset>);
 
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TODO: Remove hardcoded chapter path - should be configurable or load from save data
     // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
-    let handle = asset_server.load::<BattleFlowAsset>("battle/chapters/demo.chapter.ron");
+    let handle = asset_server.load::<BattleAsset>("battle/chapters/demo.battle.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: battle/chapters/demo.chapter.ron");
+    info!("Loading default battle flow: battle/chapters/demo.battle.ron");
 }
 
 fn sync_battle_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentBattleFlow>>,
     mut queue: ResMut<BattleQueue>,
-    assets: Res<Assets<BattleFlowAsset>>,
+    assets: Res<Assets<BattleAsset>>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)

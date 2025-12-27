@@ -115,12 +115,12 @@
 #### 2. 战斗资源与定义重构
 目标：理清 "Battle" (整场战斗) 与 "Chapter" (战斗中的一步) 的关系。
 
-- [ ] **资产重命名**
-  - [ ] 将 `BattleFlowAsset` 重命名为 `BattleAsset` (对应 `.battle.ron`)
-  - [ ] 将 `demo.chapter.ron` 重命名为 `demo.battle.ron`
-  - [ ] 更新 `AssetLoader` 注册逻辑
-- [ ] **Chapter 定义完善**
-  - [ ] 审查 `Chapter` 枚举，确保其作为“战斗步骤”的定义清晰
+- [x] **资产重命名**
+  - [x] 将 `BattleFlowAsset` 重命名为 `BattleAsset` (对应 `.battle.ron`)
+  - [x] 将 `demo.chapter.ron` 重命名为 `demo.battle.ron`
+  - [x] 更新 `AssetLoader` 注册逻辑
+- [x] **Chapter 定义完善**
+  - [x] 审查 `Chapter` 枚举，确保其作为“战斗步骤”的定义清晰 (无需重命名，BattleAsset = Vec<Chapter> 关系明确)
 
 #### 3. 战斗执行器 (Battle Executor)
 目标：实现一个状态机，能够读取 `BattleAsset` 并按顺序执行其中的 `Chapter`。

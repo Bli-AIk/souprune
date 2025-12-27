@@ -58,8 +58,8 @@ impl Plugin for BattlePlugin {
             // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
             // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
-            .init_asset::<BattleFlowAsset>()
-            .register_asset_loader(RonAssetLoader::<BattleFlowAsset>::new(&["chapter.ron"]))
+            .init_asset::<BattleAsset>()
+            .register_asset_loader(RonAssetLoader::<BattleAsset>::new(&["battle.ron"]))
             .init_asset::<BattlePlayerConfig>()
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
@@ -107,4 +107,4 @@ fn restore_cameras(_q_cameras: Query<&mut Camera, (With<Camera2d>, Without<Battl
 
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct BattleFlowAsset(pub Vec<Chapter>);
+pub struct BattleAsset(pub Vec<Chapter>);
