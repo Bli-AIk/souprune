@@ -82,15 +82,52 @@
 - [x] 搭建 Battle UI
 
 ### v0.4.1: 战斗系统执行器 (通用化重构)
-- [ ] **重构：通用行为系统 (Behavior System)**
-  - [ ] 将 API 中的 `SoulMode` 重命名为 `Behavior` (如 `BehaviorVTable`)
-  - [ ] 将 Context 重命名为 `BehaviorContext`
-  - [ ] 实现 `ActiveBehavior` 组件 (在初始化时缓存 VTable，替代每帧 Hash 查找)
-  - [x] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)
-- [ ] 定义 `BattleSetup`
-- [ ] 实现 `.battle.ron` 的 `AssetLoader`
-- [ ] 定义 `BattleContext` 运行时资源
-- [ ] 实现 Chapter 执行器：根据当前 Chapter 类型切换子状态
+
+#### 1. 核心架构重构: 从 SoulMode 到 Behavior
+目标：将 "SoulMode" (灵魂模式) 泛化为通用的 "Behavior" (行为) 系统，使其可用于任何实体（如敌人、弹幕、过场角色）。
+
+- [ ] **ABI 层重构 (`souprune_api`)**
+  - [ ] 将 `SoulModeVTable` 重命名为 `BehaviorVTable`
+  - [ ] 将 `ContextHandle` 的相关函数签名中的命名统一化
+  - [ ] 确保 FFI 接口名称变更 (`get_soul_mode_count` -> `get_behavior_count` 等)
+- [ ] **SDK 层重构 (`souprune_sdk`)**
+  - [ ] 将 `SoulMode` trait 重命名为 `Behavior`
+  - [ ] 更新 `declare_souls!` 宏为 `declare_behaviors!`
+  - [ ] 更新 `Context` 封装
+- [ ] **引擎层重构 (`crates/souprune`)**
+  - [ ] **重命名组件与资源**:
+    - [ ] `SoulRegistry` -> `BehaviorRegistry`
+    - [ ] `SoulParams` -> `BehaviorParams`
+    - [ ] `SoulState` -> `BehaviorState`
+  - [ ] **性能优化**:
+    - [ ] 实现 `ActiveBehavior` 组件 (在 `Added<BehaviorParams>` 时查询并缓存 VTable 指针)
+    - [ ] 重写 `update_behaviors_system`: 直接遍历 `ActiveBehavior` 调用函数指针，移除每帧 Hash 查找
+  - [ ] **迁移示例 Mod**: 更新 `example_mod` 以适配新的 API
+
+#### 2. 战斗资源与定义重构
+目标：理清 "Battle" (整场战斗) 与 "Chapter" (战斗中的一步) 的关系。
+
+- [ ] **资产重命名**
+  - [ ] 将 `BattleFlowAsset` 重命名为 `BattleAsset` (对应 `.battle.ron`)
+  - [ ] 将 `demo.chapter.ron` 重命名为 `demo.battle.ron`
+  - [ ] 更新 `AssetLoader` 注册逻辑
+- [ ] **Chapter 定义完善**
+  - [ ] 审查 `Chapter` 枚举，确保其作为“战斗步骤”的定义清晰
+
+#### 3. 战斗执行器 (Battle Executor)
+目标：实现一个状态机，能够读取 `BattleAsset` 并按顺序执行其中的 `Chapter`。
+
+- [ ] **运行时资源 (`BattleContext`)**
+  - [ ] 定义 `BattleContext` 资源，包含：
+    - [ ] `current_step`: `usize` (当前执行到的 Chapter 索引)
+    - [ ] `wait_timer`: `Timer` (用于 Wait 类型的等待)
+    - [ ] `state`: `BattleExecutionState` (Idle, Processing, Waiting)
+- [ ] **执行器系统 (`BattleExecutorSystem`)**
+  - [ ] **Dispatch 逻辑**: 根据当前 `Chapter` 类型分发处理
+  - [ ] **Wait 处理**: 实现 `Wait(f32)` 的计时与自动步进
+  - [ ] **Action 处理**: 实现 `SetPlayer`, `SetCamera`, `SetUI` 的即时执行与步进
+  - [ ] **UI 交互处理**: 实现 `UIInteraction` 的挂起逻辑 (等待 UI 信号/事件)
+  - [ ] **嵌套处理**: 实现 `Nested` 的递归或堆栈执行逻辑 (可选，视复杂度而定)
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
 - [x] 实现碰撞层 Debug 可视化 (F3 切换，支持 Battle 碰撞体)
