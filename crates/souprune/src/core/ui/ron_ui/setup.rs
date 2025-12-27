@@ -4,9 +4,8 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::super::components::{
-    HPBarLag, HPBarSprite, IndexBound, LayerTransitions, TransitionAction, TransitionRule,
-    UIAnimationState, UILayer, UILayerNavigationConfig, UILayerNavigationRule,
-    UILayerTransitionConfig,
+    HPBarLag, HPBarSprite, IndexBound, LayerTransitions, UIAnimationState, UILayer,
+    UILayerNavigationConfig, UILayerNavigationRule, UILayerTransitionConfig,
 };
 use super::super::layout::{IndexBoundDef, TransitionActionDef, UILayoutAsset};
 use super::parsing::{parse_action, parse_overworld_state};

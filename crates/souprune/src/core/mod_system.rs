@@ -5,7 +5,7 @@ use souprune_api::{
     HostApi,
 };
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_float, c_void};
+use std::ffi::{CStr, CString, c_float};
 use std::path::Path;
 
 // === Host API Implementation (Must be static / extern "C") ===
@@ -235,7 +235,7 @@ fn update_behaviors_system(
     });
 
     // 2. Iterate Active Behaviors
-    for (entity, mut active, mut velocity, mut transform) in query.iter_mut() {
+    for (entity, active, mut velocity, mut transform) in query.iter_mut() {
         let mut ctx = BehaviorContext {
             entity,
             velocity: velocity.0,
