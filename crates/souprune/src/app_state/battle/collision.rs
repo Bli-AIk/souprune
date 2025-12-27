@@ -6,6 +6,7 @@
 
 use crate::app_state::battle::BattleUpdate;
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
+use crate::core::mod_system::BehaviorParams;
 use crate::core::ui::components::UIBox;
 use bevy::prelude::*;
 
@@ -21,7 +22,7 @@ pub struct BattleBox;
 pub(crate) fn constrain_player_to_battle_box_system(
     mut player_query: Query<
         (&mut Transform, &PhysicsCollider),
-        (With<crate::core::mod_system::SoulParams>, Without<UIBox>),
+        (With<BehaviorParams>, Without<UIBox>),
     >,
     battle_box_query: Query<
         (&GlobalTransform, &UIBox),

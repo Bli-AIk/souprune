@@ -40,7 +40,7 @@ use super::chapter::{Chapter, PlayerAction};
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleFlowAsset, BattleUpdate};
-use crate::core::mod_system::{SoulParams, SoulState, SoulVelocity};
+use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
 
 /// [Resource] includes the queue of Chapters that have not yet occurred
@@ -238,7 +238,7 @@ fn process_player_action_system(
     mut player_query: Query<
         &mut Transform,
         (
-            With<SoulParams>,
+            With<BehaviorParams>,
             With<crate::app_state::battle::BattleEntity>,
         ),
     >,
@@ -333,11 +333,10 @@ fn process_player_spawn_requests(
                 Transform::from_translation(req.position.extend(config.z_position)),
                 physics_collider.clone(),
                 damage_trigger.clone(),
-                SoulParams {
+                BehaviorParams {
                     mode_id: config.default_mode_id.clone(),
                 },
-                SoulState::default(),
-                SoulVelocity::default(),
+                BehaviorVelocity::default(),
                 crate::app_state::battle::BattleEntity(),
                 Name::new("BattlePlayer"),
             ));

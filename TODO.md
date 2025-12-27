@@ -86,31 +86,31 @@
 #### 1. 核心架构重构: 从 SoulMode 到 Behavior
 目标：将 "SoulMode" (灵魂模式) 泛化为通用的 "Behavior" (行为) 系统，使其可用于任何实体（如敌人、弹幕、过场角色）。
 
-- [ ] **ABI 层重构 (`souprune_api`)**
-  - [ ] 将 `SoulModeVTable` 重命名为 `BehaviorVTable`
-  - [ ] 将 `ContextHandle` 的相关函数签名中的命名统一化
-  - [ ] 确保 FFI 接口名称变更 (`get_soul_mode_count` -> `get_behavior_count` 等)
-- [ ] **SDK 层重构 (`souprune_sdk`)**
-  - [ ] 将 `SoulMode` trait 重命名为 `Behavior`
-  - [ ] 更新 `declare_souls!` 宏为 `declare_behaviors!`
-  - [ ] 更新 `Context` 封装
-  - [ ] **修复状态丢失缺陷 (Critical Fix)**:
+- [x] **ABI 层重构 (`souprune_api`)**
+  - [x] 将 `SoulModeVTable` 重命名为 `BehaviorVTable`
+  - [x] 将 `ContextHandle` 的相关函数签名中的命名统一化
+  - [x] 确保 FFI 接口名称变更 (`get_soul_mode_count` -> `get_behavior_count` 等)
+- [x] **SDK 层重构 (`souprune_sdk`)**
+  - [x] 将 `SoulMode` trait 重命名为 `Behavior`
+  - [x] 更新 `declare_souls!` 宏为 `declare_behaviors!`
+  - [x] 更新 `Context` 封装
+  - [x] **修复状态丢失缺陷 (Critical Fix)**:
     - *原因*: 当前实现每帧都在栈上重新创建 Mod 实例 (`let mut mode = $constructor()`)，导致 Mod 无法保存任何状态 (如计数器、计时器)。必须将实例生命周期托管到堆上。
-    - [ ] **ABI 变更**: 修改 `create_behavior` 签名，返回 `(*mut c_void, BehaviorVTable)` 而非仅 `BehaviorVTable`。返回的指针指向堆上的 Mod 实例。
-    - [ ] **VTable 变更**: 修改 `BehaviorVTable` 中的所有函数指针 (如 `on_update`)，增加 `instance: *mut c_void` 作为第一个参数 (相当于 `self`)。
-    - [ ] **SDK 宏重写**: 更新 `declare_behaviors!` 宏：
+    - [x] **ABI 变更**: 修改 `create_behavior` 签名，返回 `(*mut c_void, BehaviorVTable)` 而非仅 `BehaviorVTable`。返回的指针指向堆上的 Mod 实例。
+    - [x] **VTable 变更**: 修改 `BehaviorVTable` 中的所有函数指针 (如 `on_update`)，增加 `instance: *mut c_void` 作为第一个参数 (相当于 `self`)。
+    - [x] **SDK 宏重写**: 更新 `declare_behaviors!` 宏：
       - 在 `create_behavior` 中使用 `Box::new($constructor()).into_raw()` 创建并泄露实例所有权给 Host。
       - 在 `wrapper_on_update` 等回调中，使用 `(instance as *mut $mod_type).as_mut()` 恢复引用来调用方法，避免重新构造。
-    - [ ] **资源清理**: 在 `BehaviorVTable` 中增加 `destroy` 函数，用于在 Host 销毁 Behavior 时调用 `Box::from_raw(instance)` 重新获取所有权并 Drop，防止内存泄漏。
-- [ ] **引擎层重构 (`crates/souprune`)**
-  - [ ] **重命名组件与资源**:
-    - [ ] `SoulRegistry` -> `BehaviorRegistry`
-    - [ ] `SoulParams` -> `BehaviorParams`
-    - [ ] `SoulState` -> `BehaviorState`
-  - [ ] **性能优化**:
-    - [ ] 实现 `ActiveBehavior` 组件 (在 `Added<BehaviorParams>` 时查询并缓存 VTable 指针)
-    - [ ] 重写 `update_behaviors_system`: 直接遍历 `ActiveBehavior` 调用函数指针，移除每帧 Hash 查找
-  - [ ] **迁移示例 Mod**: 更新 `example_mod` 以适配新的 API
+    - [x] **资源清理**: 在 `BehaviorVTable` 中增加 `destroy` 函数，用于在 Host 销毁 Behavior 时调用 `Box::from_raw(instance)` 重新获取所有权并 Drop，防止内存泄漏。
+- [x] **引擎层重构 (`crates/souprune`)**
+  - [x] **重命名组件与资源**:
+    - [x] `SoulRegistry` -> `BehaviorRegistry`
+    - [x] `SoulParams` -> `BehaviorParams`
+    - [x] `SoulState` -> `BehaviorState` (注意：实际实现中因机制优化已移除该组件)
+  - [x] **性能优化**:
+    - [x] 实现 `ActiveBehavior` 组件 (在 `Added<BehaviorParams>` 时查询并缓存 VTable 指针)
+    - [x] 重写 `update_behaviors_system`: 直接遍历 `ActiveBehavior` 调用函数指针，移除每帧 Hash 查找
+  - [x] **迁移示例 Mod**: 更新 `example_mod` 以适配新的 API
 
 #### 2. 战斗资源与定义重构
 目标：理清 "Battle" (整场战斗) 与 "Chapter" (战斗中的一步) 的关系。

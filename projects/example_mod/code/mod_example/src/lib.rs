@@ -1,4 +1,4 @@
-use souprune_sdk::{declare_souls, Action, Context, SoulMode};
+use souprune_sdk::{Action, Behavior, Context, declare_behaviors};
 
 struct RedSoul {
     speed: f32,
@@ -15,7 +15,7 @@ impl RedSoul {
     }
 }
 
-impl SoulMode for RedSoul {
+impl Behavior for RedSoul {
     fn on_enter(&mut self, context: &mut Context) {
         context.log("Red Soul Mode Activated!");
         // TODO: Read parameters from context if supported in future
@@ -47,7 +47,7 @@ impl SoulMode for RedSoul {
             velocity_y /= length;
 
             let mut current_speed = self.speed;
-            
+
             // Check for Focus (Cancel button usually maps to Shift/X)
             if input.pressed(Action::Cancel) {
                 current_speed *= self.focus_ratio;
@@ -69,7 +69,7 @@ impl SoulMode for RedSoul {
 // === Blue Soul (Gravity Mode) ===
 struct BlueSoul;
 
-impl SoulMode for BlueSoul {
+impl Behavior for BlueSoul {
     fn on_enter(&mut self, context: &mut Context) {
         context.log("Blue Soul Mode (Gravity) Activated!");
     }
@@ -77,7 +77,7 @@ impl SoulMode for BlueSoul {
     fn on_update(&mut self, context: &mut Context, _dt: f32) {
         // Simple gravity simulation for demo
         context.kinematics().set_velocity(0.0, -200.0);
-        
+
         if context.input().pressed(Action::Confirm) {
             context.log("Blue Soul Jump!");
             context.kinematics().set_velocity(0.0, 300.0);
@@ -89,7 +89,7 @@ impl SoulMode for BlueSoul {
     }
 }
 
-declare_souls!(
+declare_behaviors!(
     ("soul_red", RedSoul, || RedSoul::new()),
     ("soul_blue", BlueSoul, || BlueSoul)
 );

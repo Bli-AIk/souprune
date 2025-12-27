@@ -6,7 +6,7 @@
 //! 包含原始的 C 兼容结构体、枚举和函数指针定义，
 //! 作为宿主（游戏引擎）和客体（模组）之间的契约。
 
-use core::ffi::c_float;
+pub use core::ffi::{c_float, c_void};
 
 /// A non-opaque context handle.
 /// On the Bevy side, it points to a struct containing the Entity World ID.
@@ -48,25 +48,36 @@ pub struct HostApi {
 }
 
 #[repr(C)]
-pub struct SoulModeVTable {
-    pub on_enter: Option<extern "C" fn(context: *mut ContextHandle)>,
+#[derive(Clone, Copy)]
+pub struct BehaviorVTable {
+    pub on_enter: Option<extern "C" fn(instance: *mut c_void, context: *mut ContextHandle)>,
 
-    pub on_update: Option<extern "C" fn(context: *mut ContextHandle, delta_time: c_float)>,
+    pub on_update: Option<
+        extern "C" fn(instance: *mut c_void, context: *mut ContextHandle, delta_time: c_float),
+    >,
 
-    pub on_exit: Option<extern "C" fn(context: *mut ContextHandle)>,
+    pub on_exit: Option<extern "C" fn(instance: *mut c_void, context: *mut ContextHandle)>,
+
+    pub destroy: Option<extern "C" fn(instance: *mut c_void)>,
 }
 
-/// Function type to get the number of exported soul modes in the DLL.
-pub type GetSoulModeCountFn = extern "C" fn() -> u32;
+#[repr(C)]
+pub struct BehaviorInstance {
+    pub instance: *mut c_void,
+    pub vtable: BehaviorVTable,
+}
 
-/// Function type to get the ID of a soul mode by index.
+/// Function type to get the number of exported behaviors in the DLL.
+pub type GetBehaviorCountFn = extern "C" fn() -> u32;
+
+/// Function type to get the ID of a behavior by index.
 /// Returns null if index is out of bounds.
-pub type GetSoulModeIdFn = extern "C" fn(index: u32) -> *const u8;
+pub type GetBehaviorIdFn = extern "C" fn(index: u32) -> *const u8;
 
-/// Handshake protocol: This is the type signature of the function exported by the DLL to create a soul mode instance.
-/// The engine will look for a symbol named "create_soul_mode".
+/// Handshake protocol: This is the type signature of the function exported by the DLL to create a behavior instance.
+/// The engine will look for a symbol named "create_behavior".
 ///
-/// 握手协议：这是 DLL 导出的用于创建 soul mode 实例的函数类型签名
-/// 引擎会查找名为 "create_soul_mode" 的符号
-pub type CreateSoulModeFn =
-    unsafe extern "C" fn(id: *const u8, api: *const HostApi) -> SoulModeVTable;
+/// 握手协议：这是 DLL 导出的用于创建 behavior 实例的函数类型签名
+/// 引擎会查找名为 "create_behavior" 的符号
+pub type CreateBehaviorFn =
+    unsafe extern "C" fn(id: *const u8, api: *const HostApi) -> BehaviorInstance;
