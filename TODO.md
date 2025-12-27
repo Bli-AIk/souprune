@@ -81,9 +81,11 @@
 - [x] 加入 Debug 调整玩家等级
 - [x] 搭建 Battle UI
 
-### v0.4.1: 战斗系统执行器
-- [ ] 实现执行器系统
-  - [ ] 实现 `SoulMode` 组件 (持有当前 Mod 的 VTable)
+### v0.4.1: 战斗系统执行器 (通用化重构)
+- [ ] **重构：通用行为系统 (Behavior System)**
+  - [ ] 将 API 中的 `SoulMode` 重命名为 `Behavior` (如 `BehaviorVTable`)
+  - [ ] 将 Context 重命名为 `BehaviorContext`
+  - [ ] 实现 `ActiveBehavior` 组件 (在初始化时缓存 VTable，替代每帧 Hash 查找)
   - [x] 实现 `ModUpdateSystem` (驱动 on_update 生命周期)
 - [ ] 定义 `BattleSetup`
 - [ ] 实现 `.battle.ron` 的 `AssetLoader`
