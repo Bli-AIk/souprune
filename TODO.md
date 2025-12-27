@@ -94,6 +94,14 @@
   - [ ] 将 `SoulMode` trait 重命名为 `Behavior`
   - [ ] 更新 `declare_souls!` 宏为 `declare_behaviors!`
   - [ ] 更新 `Context` 封装
+  - [ ] **修复状态丢失缺陷 (Critical Fix)**:
+    - *原因*: 当前实现每帧都在栈上重新创建 Mod 实例 (`let mut mode = $constructor()`)，导致 Mod 无法保存任何状态 (如计数器、计时器)。必须将实例生命周期托管到堆上。
+    - [ ] **ABI 变更**: 修改 `create_behavior` 签名，返回 `(*mut c_void, BehaviorVTable)` 而非仅 `BehaviorVTable`。返回的指针指向堆上的 Mod 实例。
+    - [ ] **VTable 变更**: 修改 `BehaviorVTable` 中的所有函数指针 (如 `on_update`)，增加 `instance: *mut c_void` 作为第一个参数 (相当于 `self`)。
+    - [ ] **SDK 宏重写**: 更新 `declare_behaviors!` 宏：
+      - 在 `create_behavior` 中使用 `Box::new($constructor()).into_raw()` 创建并泄露实例所有权给 Host。
+      - 在 `wrapper_on_update` 等回调中，使用 `(instance as *mut $mod_type).as_mut()` 恢复引用来调用方法，避免重新构造。
+    - [ ] **资源清理**: 在 `BehaviorVTable` 中增加 `destroy` 函数，用于在 Host 销毁 Behavior 时调用 `Box::from_raw(instance)` 重新获取所有权并 Drop，防止内存泄漏。
 - [ ] **引擎层重构 (`crates/souprune`)**
   - [ ] **重命名组件与资源**:
     - [ ] `SoulRegistry` -> `BehaviorRegistry`
