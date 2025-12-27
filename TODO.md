@@ -130,11 +130,27 @@
   - [ ] **嵌套处理**: 实现 `Nested` 的递归或堆栈执行逻辑 (可选，视复杂度而定)
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
-- [x] 实现碰撞层 Debug 可视化 (F3 切换，支持 Battle 碰撞体)
-- [ ] 定义 `BulletBehavior` 枚举 (Functional, Tween, Composite)
-- [ ] 实现 `BulletSpawner` 系统
-- [ ] 实现基于 `Functional` 的运动逻辑系统
-- [ ] 实现基于 `Tween` 的运动逻辑系统
+核心架构：基于堆栈的复合弹幕系统 (Stack-Based Composite Danmaku System)，将弹幕逻辑从代码解耦为可组合的资产。
+
+- [ ] **核心数据结构定义**
+  - [ ] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`): 包含外观、运动堆栈、子生成器。
+  - [ ] 定义 `MotionTrack` 枚举:
+    - [ ] `Keyframed`: 关键帧轨道 (支持 Tween 缓动)。
+    - [ ] `Algorithmic`: 算法轨道 (引用算法 ID + 参数表)。
+  - [ ] 定义 `ChildSpawner` 结构: 触发条件 (`AtTime`, `OnHit`) 与嵌套蓝图引用。
+  - [ ] 实现 `DanmakuAssetLoader`。
+
+- [ ] **运行时系统 (Runtime Systems)**
+  - [ ] **Spawner**: 实现 `spawn_danmaku` 逻辑，解析 BluePrint 并初始化组件。
+  - [ ] **Motion Solver (运动解算器)**:
+    - [ ] 实现 `MotionSolverSystem`: 每一帧计算 `t`，遍历 Stack 累加位移。
+    - [ ] 实现 `Tween` 插值计算逻辑。
+    - [ ] 建立 `AlgorithmRegistry`: 管理原生/脚本算法 (如螺旋、正弦波)。
+  - [ ] **Child Spawning (嵌套生成)**:
+    - [ ] 实现触发器检测逻辑 (如时间到达时生成子弹幕)。
+
+- [ ] **可视化调试**
+  - [ ] 实现弹幕路径预测绘制 (利用纯函数特性，提前计算未来路径并用 Gizmos 绘制)。
 
 ### v0.4.3: API 桥接与 SDK
 - [ ] **Phase 1: Interoptopus 迁移**
