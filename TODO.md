@@ -162,6 +162,10 @@
 - [ ] **可视化调试**
   - [ ] 实现弹幕路径预测绘制。
 
+- [ ] **具体弹幕实现 (Example Patterns)**
+  - [ ] 实现 `BulletPattern` 章节执行器逻辑 (在 `sequencer.rs` 中分发)
+  - [ ] 实现 `flowey_pellets_circle` 弹幕 (作为首个测试弹幕)
+
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19
 
