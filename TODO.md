@@ -156,6 +156,9 @@
   - [ ] 实现弹幕路径预测绘制。
 
 ### v0.4.3: API 桥接与 SDK
+见 https://github.com/Bli-AIk/souprune/issues/19
+
+- [ ] 重写 readme 以反映新的多语言支持愿景
 - [ ] **Phase 1: Interoptopus 迁移**
   - [ ] 在 `souprune_api` 添加 `interoptopus` 依赖
   - [ ] 用 `#[ffi_type]` 重构 `ContextHandle` 和 `HostApi`
