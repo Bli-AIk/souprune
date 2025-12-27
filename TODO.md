@@ -164,7 +164,13 @@
 
 - [ ] **具体弹幕实现 (Example Patterns)**
   - [ ] 实现 `BulletPattern` 章节执行器逻辑 (在 `sequencer.rs` 中分发)
-  - [ ] 实现 `flowey_pellets_circle` 弹幕 (作为首个测试弹幕)
+  - [ ] **Code-driven (脚本驱动)**: 实现 `flowey_pellets_circle`
+    - [ ] 逻辑：生成环绕玩家的弹幕圈，并向内收缩。
+    - [ ] 资源：`projects/example_mod/textures/battle/bullets/flowey_pellet` (需处理为动画/图集)
+  - [ ] **Tween-driven (补间驱动)**: 实现 `undyne_spear_sweep`
+    - [ ] 逻辑：生成横扫屏幕的长矛。
+    - [ ] 资源：`projects/example_mod/textures/battle/bullets/spear/spear.png`
+    - [ ] 技术：使用 `bevy_tween` 定义 `Translation` 和 `Rotation` 轨道。
 
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19
