@@ -1,0 +1,190 @@
+use super::super::components::{DynamicUIElement, HPBarLag, HPBarSprite, UITextTemplate};
+use super::super::smud_shape::parse_text_preserving_whitespace;
+use super::parsing::{evaluate_float_expr, resolve_text_content};
+use crate::core::data::PlayerData;
+use bevy::prelude::*;
+use bevy_rich_text3d::Text3d;
+
+pub fn update_hp_bar_shader_params(
+    time: Res<Time>,
+    player_data: Res<PlayerData>,
+    mut materials: ResMut<Assets<super::super::custom_sprite_material::CustomSpriteMaterial>>,
+    mut query: Query<(
+        &MeshMaterial2d<super::super::custom_sprite_material::CustomSpriteMaterial>,
+        &mut HPBarLag,
+    )>,
+) {
+    let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
+
+    for (material_handle, mut lag) in query.iter_mut() {
+        // Detect significant HP drop (Damage taken)
+        if hp_ratio < lag.last_hp_ratio {
+            // Start the sequence immediately
+            lag.delay_timer = 0.0;
+            lag.start_lag_ratio = lag.lag_hp_ratio;
+            lag.anim_progress = 0.0;
+            info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
+        }
+
+        lag.last_hp_ratio = hp_ratio;
+
+        if hp_ratio > lag.lag_hp_ratio {
+            // HEALED: Instant sync
+            lag.lag_hp_ratio = hp_ratio;
+            lag.anim_progress = 0.5;
+            lag.delay_timer = 0.0;
+        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
+            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+
+            // OutCirc easing formula
+            // t: 0.0 -> 1.0
+            let t = lag.anim_progress / 0.5;
+            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+
+            // Interpolate between start and current actual HP
+            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+        }
+        // Final safety sync
+        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
+            lag.lag_hp_ratio = hp_ratio;
+        }
+
+        let half_width = 40.0 + (player_data.hp_max as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
+        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
+
+        if let Some(material) = materials.get_mut(material_handle) {
+            material.color_params = target_params;
+        }
+    }
+}
+
+pub fn update_dynamic_ui_elements(
+    player_data: Res<PlayerData>,
+    mut query: Query<(&DynamicUIElement, &mut Transform, Option<&mut HPBarSprite>)>,
+) {
+    if !player_data.is_changed() {
+        return;
+    }
+
+    for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
+        // Update sprite transform and shader params if present
+        if let Some(sprite_def) = &dynamic_elem.sprite_def {
+            if let Some(t_def) = &sprite_def.transform {
+                let new_translation = Vec3::new(
+                    evaluate_float_expr(&t_def.translation.x, &player_data),
+                    evaluate_float_expr(&t_def.translation.y, &player_data),
+                    evaluate_float_expr(&t_def.translation.z, &player_data),
+                );
+
+                if let Some(scale_def) = &t_def.scale {
+                    let new_scale = Vec3::new(
+                        evaluate_float_expr(&scale_def.x, &player_data),
+                        evaluate_float_expr(&scale_def.y, &player_data),
+                        evaluate_float_expr(&scale_def.z, &player_data),
+                    );
+
+                    // Apply pivot offset if present
+                    if let Some(pivot) = &sprite_def.pivot {
+                        let shift_x = (0.5 - pivot.x) * new_scale.x;
+                        let shift_y = (0.5 - pivot.y) * new_scale.y;
+                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                        transform.translation = new_translation + shift;
+                    } else {
+                        transform.translation = new_translation;
+                    }
+
+                    transform.scale = new_scale;
+                } else {
+                    transform.translation = new_translation;
+                }
+            }
+
+            // Update HP bar shader params if present
+            if let (Some(mut hp_bar_sprite), Some(shader_params)) =
+                (hp_bar, &sprite_def.shader_params)
+            {
+                hp_bar_sprite.shader_params = Color::srgba(
+                    evaluate_float_expr(&shader_params.r, &player_data),
+                    evaluate_float_expr(&shader_params.g, &player_data),
+                    evaluate_float_expr(&shader_params.b, &player_data),
+                    evaluate_float_expr(&shader_params.a, &player_data),
+                );
+            }
+        }
+
+        // Update text transform if present
+        if let Some(text_def) = &dynamic_elem.text_def {
+            let new_translation = Vec3::new(
+                evaluate_float_expr(&text_def.transform.translation.x, &player_data),
+                evaluate_float_expr(&text_def.transform.translation.y, &player_data),
+                evaluate_float_expr(&text_def.transform.translation.z, &player_data),
+            );
+            transform.translation = new_translation;
+
+            if let Some(scale_def) = &text_def.transform.scale {
+                transform.scale = Vec3::new(
+                    evaluate_float_expr(&scale_def.x, &player_data),
+                    evaluate_float_expr(&scale_def.y, &player_data),
+                    evaluate_float_expr(&scale_def.z, &player_data),
+                );
+            }
+        }
+    }
+}
+
+pub fn update_dynamic_text_system(
+    mut commands: Commands,
+    mut text_query: Query<(Entity, &UITextTemplate, &mut Text3d, &Name)>,
+    player_data: Res<PlayerData>,
+    item_registry: Res<crate::core::item::ItemRegistry>,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+) {
+    if !player_data.is_changed() {
+        return;
+    }
+
+    info!(
+        "[update_dynamic_text_system] PlayerData changed! hp={}, hp_max={}",
+        player_data.hp, player_data.hp_max
+    );
+
+    for (entity, template, mut text3d, name) in text_query.iter_mut() {
+        info!(
+            "[update_dynamic_text_system] Updating text '{}' with template: '{}'",
+            name, template.0
+        );
+
+        let new_content =
+            resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
+
+        info!(
+            "[update_dynamic_text_system] Resolved content for '{}': '{}'",
+            name, new_content
+        );
+
+        // We also need to check if there is a conditional style embedded (not fully supported by simple re-resolve yet)
+        // But the original spawn logic handled conditional color.
+        // For now, let's just update the content. Re-implementing conditional color here would be ideal.
+        //
+        // 我们还需要检查是否嵌入了条件样式（目前的简单重新解析尚未完全支持）。
+        // 但原始生成逻辑处理了条件颜色。
+        // 目前，我们只更新内容。在此处理想情况下重新实现条件颜色。
+
+        // Re-parsing the text3d
+        *text3d = parse_text_preserving_whitespace(&new_content);
+
+        // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
+        // 关键修复：添加 NeedsGlyphRefresh 以触发文本重新渲染
+        commands
+            .entity(entity)
+            .insert(super::super::text::NeedsGlyphRefresh);
+        info!(
+            "[update_dynamic_text_system] Added NeedsGlyphRefresh to '{}'",
+            name
+        );
+
+        // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
+        // To support that, we would need to store the `conditional_style` in a component too.
+        // For HP update, it is usually just text change, so this might be enough for the bug report.
+    }
+}

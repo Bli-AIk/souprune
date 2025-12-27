@@ -20,7 +20,7 @@
 
 use crate::app_state::overworld::OverworldState;
 use crate::core::ron_loader::RonAssetLoader;
-use crate::core::ui::ron_ui_system::rebuild_reloaded_ui_system;
+
 use bevy::prelude::*;
 
 /// Universal UI update system set
@@ -36,7 +36,7 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
-mod ron_ui_system;
+mod ron_ui;
 mod shaders;
 mod smud_shape;
 mod state;
@@ -51,8 +51,8 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SmudStructureAsset;
 use layout::UILayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
-pub use ron_ui_system::{UILayoutHandle, UILayoutWatcher};
-use ron_ui_system::{
+pub use ron_ui::{UILayoutHandle, UILayoutWatcher};
+use ron_ui::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
@@ -93,7 +93,7 @@ impl Plugin for CoreUIPlugin {
             >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
-            .init_resource::<ron_ui_system::UIGlobalTriggerConfig>()
+            .init_resource::<ron_ui::UIGlobalTriggerConfig>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
                 Update,
@@ -104,12 +104,12 @@ impl Plugin for CoreUIPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                ron_ui_system::update_hp_bar_shader_params
+                ron_ui::update_hp_bar_shader_params
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
             .add_systems(
                 Update,
-                ron_ui_system::update_dynamic_ui_elements
+                ron_ui::update_dynamic_ui_elements
                     .run_if(resource_exists::<crate::core::data::PlayerData>),
             )
             .add_systems(
@@ -117,13 +117,13 @@ impl Plugin for CoreUIPlugin {
                 (
                     update_ui_from_map_system,
                     watch_ui_layout_changes_system,
-                    rebuild_reloaded_ui_system,
+                    crate::core::ui::ron_ui::reload::rebuild_reloaded_ui_system,
                     load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
-                    ron_ui_system::setup_hp_bar_sprites
+                    ron_ui::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_smud_shape_system,
                     update_ui_box_visibility_system,
