@@ -137,40 +137,36 @@
   - [x] **嵌套处理**: 实现 `Sequence` (队列展开) 和 `Parallel` (父子追踪) 的执行逻辑
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
-核心架构：基于堆栈的复合弹幕系统，利用 `bevy_tween` 的 `delta` 特性实现叠加。
+核心架构：基于组件的弹幕运动系统。
 
-- [ ] **依赖集成**
+- [x] **依赖集成**
   - [x] 在 `Cargo.toml` 中添加 `bevy_tween` 依赖。
-    - [ ] 启用 `serde` feature。
-  - [ ] 注册 `bevy_tween` 插件，并配置自定义的插值器（如果需要）。
+  - [x] 使用 Bevy 0.17 Message API 替代旧版 Event API。
 
-- [ ] **核心数据结构定义**
-  - [ ] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`): 包含外观、运动堆栈、子生成器。
-  - [ ] 定义 `MotionTrack` 枚举 (封装 `bevy_tween` 的类型):
-    - [ ] `TranslationTrack`: 对应 `bevy_tween::interpolate::Translation` (开启 `delta: true`)。
-    - [ ] `RotationTrack`: 对应 `bevy_tween::interpolate::Rotation`。
-    - [ ] `ScriptTrack`: 脚本驱动的轨道 (自定义 `Interpolator`)。
-  - [ ] 定义 `ChildSpawner` 结构。
+- [x] **素材注册**
+  - [x] 在 `textures/battle/config.toml` 注册 `flowey_pellet` 动画 (36帧)。
+  - [x] 在 `textures/battle/config.toml` 注册 `spear` 精灵。
 
-- [ ] **运行时系统 (Runtime Systems)**
-  - [ ] **Danmaku Spawner**:
-    - [ ] 解析 BluePrint，生成 Bullet Entity。
-    - [ ] **Stack 实现**: 遍历 `motion_tracks`，为每个轨道生成一个独立的 "Driver Entity"，挂载 `Tween` 组件，`Target` 指向 Bullet Entity。这样实现多层叠加。
-  - [ ] **生命周期管理**: 确保 Driver Entity 随 Bullet Entity 销毁。
-  - [ ] **Child Spawning**: 实现触发器逻辑。
+- [x] **核心数据结构定义**
+  - [x] 创建 `danmaku` 模块 (`danmaku.rs`, `components.rs`, `patterns.rs`, `systems.rs`)。
+  - [x] 定义弹幕组件 (`Bullet`, `CircularMotion`, `SweepMotion`, `LinearMotion`, `BulletLifetime`, `BulletDamage`)。
+  - [x] 定义 `PatternRegistry` 资源和 `PatternType` 枚举。
+  - [x] 定义 `SpawnPatternEvent` 消息事件。
 
-- [ ] **可视化调试**
-  - [ ] 实现弹幕路径预测绘制。
+- [x] **运行时系统 (Runtime Systems)**
+  - [x] **Danmaku Spawner**: 实现 `process_spawn_pattern_events` 系统。
+  - [x] **运动更新**: 实现 `update_bullet_motion` 系统 (支持圆周运动、线性运动、横扫运动)。
+  - [x] **生命周期管理**: 实现 `update_bullet_lifetime` 和 `cleanup_dead_bullets` 系统。
 
-- [ ] **具体弹幕实现 (Example Patterns)**
-  - [ ] 实现 `BulletPattern` 章节执行器逻辑 (在 `sequencer.rs` 中分发)
-  - [ ] **Code-driven (脚本驱动)**: 实现 `flowey_pellets_circle`
-    - [ ] 逻辑：生成环绕玩家的弹幕圈，并向内收缩。
-    - [ ] 资源：`projects/example_mod/textures/battle/bullets/flowey_pellet` (需处理为动画/图集)
-  - [ ] **Tween-driven (补间驱动)**: 实现 `undyne_spear_sweep`
-    - [ ] 逻辑：生成横扫屏幕的长矛。
-    - [ ] 资源：`projects/example_mod/textures/battle/bullets/spear/spear.png`
-    - [ ] 技术：使用 `bevy_tween` 定义 `Translation` 和 `Rotation` 轨道。
+- [x] **具体弹幕实现 (Example Patterns)**
+  - [x] 实现 `BulletPattern` 章节执行器逻辑 (在 `sequencer.rs` 中分发)
+  - [x] **Code-driven (脚本驱动)**: 实现 `flowey_pellets_circle`
+    - [x] 逻辑：生成环绕玩家的弹幕圈 (12个弹幕)，旋转并向内收缩。
+    - [x] 资源：使用 `flowey_pellet` 动画 (36帧动画)。
+  - [x] **Sweep-driven (横扫驱动)**: 实现 `undyne_spear_sweep`
+    - [x] 逻辑：生成横扫屏幕的长矛 (5支)。
+    - [x] 资源：使用 `spear` 精灵。
+    - [x] 技术：使用 `SweepMotion` 组件实现平滑的线性插值运动。
 
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19

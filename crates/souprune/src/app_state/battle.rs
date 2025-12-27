@@ -26,11 +26,13 @@
 pub mod chapter;
 pub mod collision;
 pub mod config;
+pub mod danmaku;
 mod sequencer;
 
 use crate::app_state::battle::chapter::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::config::BattlePlayerConfig;
+use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::ron_loader::RonAssetLoader;
@@ -64,7 +66,7 @@ impl Plugin for BattlePlugin {
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
             ]))
-            .add_plugins((SequencerPlugin, BattleCollisionPlugin))
+            .add_plugins((SequencerPlugin, BattleCollisionPlugin, DanmakuPlugin))
             .add_systems(OnEnter(AppState::Battle), setup_battle_camera)
             .add_systems(
                 OnExit(AppState::Battle),

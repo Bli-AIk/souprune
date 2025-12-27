@@ -26,6 +26,7 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
+                    process_bullet_pattern_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
                     process_parallel_chapter_system,
@@ -39,6 +40,7 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::chapter::{Chapter, PlayerAction};
+use super::danmaku::SpawnPatternEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
@@ -322,6 +324,22 @@ fn process_ui_action_system(
                 crate::app_state::battle::BattleEntity(),
                 Name::new("BattleUI Root"),
             ));
+            commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+fn process_bullet_pattern_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
+    mut pattern_events: bevy::ecs::message::MessageWriter<SpawnPatternEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::BulletPattern { pattern_id } = &active_chapter.chapter {
+            for pattern in pattern_id {
+                info!("[Battle] Spawning bullet pattern: {}", pattern);
+                pattern_events.write(SpawnPatternEvent::new(pattern.clone()));
+            }
             commands.entity(entity).insert(ChapterFinished);
         }
     }
