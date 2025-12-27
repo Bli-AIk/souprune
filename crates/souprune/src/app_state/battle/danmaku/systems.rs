@@ -2,9 +2,9 @@
 //!
 //! ## Module Overview
 //!
-//! Implements runtime systems for the danmaku system.
+//! Implements runtime systems for the data-driven danmaku system.
 //!
-//! 实现弹幕系统的运行时系统。
+//! 实现数据驱动弹幕系统的运行时系统。
 
 use super::components::*;
 use super::patterns::*;
@@ -15,223 +15,397 @@ use crate::core::sprite::params::SpriteParams;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 
-/// System to process spawn pattern events and create bullets.
+/// System to process spawn pattern events and queue blueprint loads.
 ///
-/// 处理生成弹幕模式事件并创建弹幕的系统。
+/// 处理生成弹幕模式事件并排队加载蓝图。
 pub fn process_spawn_pattern_events(
-    mut commands: Commands,
     mut events: MessageReader<SpawnPatternEvent>,
-    registry: Res<PatternRegistry>,
-    mut sprite_params: SpriteParams,
-    player_query: Query<&Transform, With<BehaviorParams>>,
+    mut pending: ResMut<PendingBlueprintLoads>,
     asset_server: Res<AssetServer>,
+    player_query: Query<&Transform, With<BehaviorParams>>,
 ) {
     for event in events.read() {
-        let Some(pattern) = registry.get(&event.pattern_id) else {
-            warn!("Pattern not found: {}", event.pattern_id);
-            continue;
-        };
-
-        // Get player position as center for patterns that need it
-        let player_pos = player_query
+        // Get player position as default center
+        let center = player_query
             .iter()
             .next()
             .map(|t| t.translation.truncate())
             .unwrap_or(event.position);
 
-        match pattern.clone() {
-            PatternType::FloweyPelletsCircle {
-                count,
-                radius,
-                converge_speed,
-                lifetime,
-            } => {
-                spawn_flowey_pellets_circle(
-                    &mut commands,
-                    &mut sprite_params,
-                    player_pos,
-                    count,
-                    radius,
-                    converge_speed,
-                    lifetime,
-                );
-            }
-            PatternType::UndyneSpearSweep {
-                count,
-                direction,
-                speed,
-                spacing,
-                lifetime,
-            } => {
-                spawn_undyne_spear_sweep(
-                    &mut commands,
-                    &asset_server,
-                    player_pos,
-                    count,
-                    direction,
-                    speed,
-                    spacing,
-                    lifetime,
+        let mut event_with_pos = event.clone();
+        if event.position == Vec2::ZERO {
+            event_with_pos.position = center;
+        }
+
+        let handle = asset_server.load::<DanmakuBlueprint>(&event.blueprint_path);
+        pending.pending.push((handle, event_with_pos));
+
+        info!("Queued blueprint load: {}", event.blueprint_path);
+    }
+}
+
+/// System to spawn bullets when blueprints are loaded.
+///
+/// 当蓝图加载完成时生成弹幕。
+pub fn spawn_bullets_from_blueprints(
+    mut commands: Commands,
+    mut pending: ResMut<PendingBlueprintLoads>,
+    blueprints: Res<Assets<DanmakuBlueprint>>,
+    mut sprite_params: SpriteParams,
+    asset_server: Res<AssetServer>,
+) {
+    let mut still_pending = Vec::new();
+
+    for (handle, event) in pending.pending.drain(..) {
+        if let Some(blueprint) = blueprints.get(&handle) {
+            spawn_pattern_from_blueprint(
+                &mut commands,
+                blueprint,
+                &event,
+                &mut sprite_params,
+                &asset_server,
+            );
+            info!("Spawned pattern from blueprint: {}", event.blueprint_path);
+        } else {
+            // Still loading
+            still_pending.push((handle, event));
+        }
+    }
+
+    pending.pending = still_pending;
+}
+
+/// Spawn bullets based on blueprint configuration.
+fn spawn_pattern_from_blueprint(
+    commands: &mut Commands,
+    blueprint: &DanmakuBlueprint,
+    event: &SpawnPatternEvent,
+    sprite_params: &mut SpriteParams,
+    asset_server: &AssetServer,
+) {
+    let spawn_positions = calculate_spawn_positions(blueprint, event);
+
+    for (i, (pos, angle, radius)) in spawn_positions.into_iter().enumerate() {
+        spawn_single_bullet(
+            commands,
+            blueprint,
+            pos,
+            angle,
+            radius,
+            event.position,
+            i,
+            sprite_params,
+            asset_server,
+        );
+    }
+}
+
+/// Calculate spawn positions based on SpawnPattern configuration.
+fn calculate_spawn_positions(
+    blueprint: &DanmakuBlueprint,
+    event: &SpawnPatternEvent,
+) -> Vec<(Vec2, f32, f32)> {
+    let center = event.position;
+
+    match &blueprint.spawn_pattern {
+        SpawnPattern::Single => {
+            vec![(center, 0.0, 0.0)]
+        }
+        SpawnPattern::Circle {
+            count,
+            radius,
+            start_angle,
+        } => {
+            let count = event.count.unwrap_or(*count);
+            let angle_step = std::f32::consts::TAU / count as f32;
+
+            (0..count)
+                .map(|i| {
+                    let angle = start_angle + angle_step * i as f32;
+                    let pos = center + Vec2::new(angle.cos(), angle.sin()) * *radius;
+                    (pos, angle, *radius)
+                })
+                .collect()
+        }
+        SpawnPattern::Line {
+            count,
+            spacing,
+            direction,
+        } => {
+            let count = event.count.unwrap_or(*count);
+            let dir = Vec2::new(direction.0, direction.1).normalize_or_zero();
+            let perp = Vec2::new(-dir.y, dir.x);
+            let total_width = *spacing * (count - 1) as f32;
+            let start_offset = -total_width / 2.0;
+
+            (0..count)
+                .map(|i| {
+                    let offset = start_offset + *spacing * i as f32;
+                    let pos = center + perp * offset;
+                    let angle = dir.y.atan2(dir.x);
+                    (pos, angle, 0.0)
+                })
+                .collect()
+        }
+        SpawnPattern::Edge {
+            count,
+            side,
+            spacing,
+            margin,
+        } => {
+            let count = event.count.unwrap_or(*count);
+            let move_dir = side.to_direction();
+            let start_offset = side.to_offset(*margin);
+            let perp = Vec2::new(-move_dir.y, move_dir.x);
+            let total_width = *spacing * (count - 1) as f32;
+            let start_perp_offset = -total_width / 2.0;
+
+            (0..count)
+                .map(|i| {
+                    let perp_offset = start_perp_offset + *spacing * i as f32;
+                    let pos = center + start_offset + perp * perp_offset;
+                    let angle = move_dir.y.atan2(move_dir.x);
+                    (pos, angle, 0.0)
+                })
+                .collect()
+        }
+    }
+}
+
+/// Spawn a single bullet entity.
+fn spawn_single_bullet(
+    commands: &mut Commands,
+    blueprint: &DanmakuBlueprint,
+    position: Vec2,
+    angle: f32,
+    radius: f32,
+    spawn_center: Vec2,
+    index: usize,
+    sprite_params: &mut SpriteParams,
+    asset_server: &AssetServer,
+) {
+    let mut entity_commands = commands.spawn((
+        Bullet,
+        Transform::from_translation(position.extend(blueprint.z_index)),
+        BulletLifetime::new(blueprint.lifetime),
+        BulletDamage(blueprint.damage),
+        BulletMotionState::new(spawn_center)
+            .with_offset(position - spawn_center)
+            .with_angle(angle)
+            .with_radius(radius),
+        BulletMotionTracks(blueprint.motion_tracks.clone()),
+        BattleEntity(),
+        Name::new(format!("Bullet_{}", index)),
+    ));
+
+    // Add visual component based on blueprint
+    match &blueprint.visual {
+        BulletVisual::Sprite { path } => {
+            entity_commands.insert(Sprite {
+                image: asset_server.load(path),
+                ..default()
+            });
+
+            // Apply rotation for edge-spawned bullets
+            if let SpawnPattern::Edge { side, .. } = &blueprint.spawn_pattern {
+                entity_commands.insert(
+                    Transform::from_translation(position.extend(blueprint.z_index))
+                        .with_rotation(Quat::from_rotation_z(side.rotation_angle())),
                 );
             }
         }
-
-        info!("Spawned pattern: {}", event.pattern_id);
-    }
-}
-
-/// Spawns the Flowey pellet circle pattern.
-fn spawn_flowey_pellets_circle(
-    commands: &mut Commands,
-    sprite_params: &mut SpriteParams,
-    center: Vec2,
-    count: usize,
-    radius: f32,
-    converge_speed: f32,
-    lifetime: f32,
-) {
-    let angle_step = std::f32::consts::TAU / count as f32;
-
-    for i in 0..count {
-        let angle = angle_step * i as f32;
-
-        // Create animation clip for flowey pellet
-        let mut sprite_context = sprite_params.create_sprite_context();
-        let clip = match SpriteAnimationClip::new(&mut sprite_context, "battle", "flowey_pellet") {
-            Ok(clip) => clip,
-            Err(e) => {
-                warn!("Failed to create flowey_pellet animation: {}", e);
-                continue;
+        BulletVisual::Animation {
+            module,
+            name,
+            frame_duration,
+        } => {
+            let mut sprite_context = sprite_params.create_sprite_context();
+            match SpriteAnimationClip::new(&mut sprite_context, module, name) {
+                Ok(clip) => {
+                    entity_commands.insert((
+                        Sprite::default(),
+                        clip,
+                        SpriteAnimationTimer::new(*frame_duration),
+                    ));
+                }
+                Err(e) => {
+                    warn!("Failed to create animation '{}': {}", name, e);
+                    // Fallback to default sprite
+                    entity_commands.insert(Sprite::default());
+                }
             }
-        };
-
-        let circular_motion =
-            CircularMotion::new(center, radius, angle, 0.5).with_radial_velocity(-converge_speed);
-
-        // Calculate initial position
-        let initial_pos = center + Vec2::new(angle.cos(), angle.sin()) * radius;
-
-        commands.spawn((
-            Bullet,
-            Sprite::default(),
-            clip,
-            SpriteAnimationTimer::new(0.05),
-            Transform::from_translation(initial_pos.extend(5.0)),
-            circular_motion,
-            BulletLifetime::new(lifetime),
-            BulletDamage::default(),
-            BattleEntity(),
-            Name::new(format!("FloweyPellet_{}", i)),
-        ));
+        }
     }
 }
 
-/// Spawns the Undyne spear sweep pattern.
-fn spawn_undyne_spear_sweep(
-    commands: &mut Commands,
-    asset_server: &AssetServer,
-    center: Vec2,
-    count: usize,
-    direction: SpearDirection,
-    speed: f32,
-    spacing: f32,
-    lifetime: f32,
-) {
-    let screen_margin = 200.0;
-    let start_offset = direction.start_offset(screen_margin);
-    let move_direction = direction.to_vec2();
-    let rotation = direction.rotation_angle();
-
-    // Calculate perpendicular direction for spacing
-    let perp = Vec2::new(-move_direction.y, move_direction.x);
-
-    // Calculate total width to center the pattern
-    let total_width = spacing * (count - 1) as f32;
-    let start_offset_perp = -total_width / 2.0;
-
-    for i in 0..count {
-        let perp_offset = start_offset_perp + spacing * i as f32;
-        let spawn_pos = center + start_offset + perp * perp_offset;
-        let end_pos = center - start_offset + perp * perp_offset;
-
-        let duration = (end_pos - spawn_pos).length() / speed;
-
-        commands.spawn((
-            Bullet,
-            Sprite {
-                image: asset_server.load("textures/battle/bullets/spear/spear.png"),
-                ..default()
-            },
-            Transform::from_translation(spawn_pos.extend(5.0))
-                .with_rotation(Quat::from_rotation_z(rotation)),
-            SweepMotion::new(spawn_pos, end_pos, duration),
-            BulletLifetime::new(lifetime),
-            BulletDamage(2.0),
-            BattleEntity(),
-            Name::new(format!("UndyneSpear_{}", i)),
-        ));
-    }
-}
-
-/// System to update bullet motion based on their motion components.
+/// System to update bullet motion based on their motion tracks.
 ///
-/// 根据运动组件更新弹幕运动的系统。
+/// 根据运动轨道更新弹幕运动的系统。
 pub fn update_bullet_motion(
     time: Res<Time>,
-    mut circular_query: Query<(&mut Transform, &mut CircularMotion), With<Bullet>>,
-    mut linear_query: Query<
-        (&mut Transform, &LinearMotion),
-        (With<Bullet>, Without<CircularMotion>),
-    >,
-    mut sweep_query: Query<
-        (&mut Transform, &mut SweepMotion),
-        (With<Bullet>, Without<CircularMotion>, Without<LinearMotion>),
-    >,
+    player_query: Query<&Transform, (With<BehaviorParams>, Without<Bullet>)>,
+    mut query: Query<(&mut Transform, &mut BulletMotionState, &BulletMotionTracks), With<Bullet>>,
 ) {
     let dt = time.delta_secs();
+    let player_pos = player_query
+        .iter()
+        .next()
+        .map(|t| t.translation.truncate())
+        .unwrap_or(Vec2::ZERO);
 
-    // Update circular motion bullets
-    for (mut transform, mut motion) in circular_query.iter_mut() {
-        motion.current_angle += motion.angular_velocity * dt;
-        motion.radius += motion.radial_velocity * dt;
+    for (mut transform, mut state, tracks) in query.iter_mut() {
+        state.elapsed += dt;
 
-        // Clamp radius to prevent negative values
-        motion.radius = motion.radius.max(0.0);
+        // Calculate position from motion stack
+        let mut position = state.spawn_center + state.initial_offset;
+        let mut rotation_delta = 0.0;
 
-        let new_pos = motion.center
-            + Vec2::new(motion.current_angle.cos(), motion.current_angle.sin()) * motion.radius;
+        for track in &tracks.0 {
+            match track {
+                MotionTrack::Linear { direction, speed } => {
+                    let dir = Vec2::new(direction.0, direction.1).normalize_or_zero();
+                    position += dir * *speed * state.elapsed;
+                }
+                MotionTrack::Circular {
+                    angular_velocity,
+                    radial_velocity,
+                } => {
+                    let current_angle = state.initial_angle + angular_velocity * state.elapsed;
+                    let current_radius = state.initial_radius + radial_velocity * state.elapsed;
+                    let current_radius = current_radius.max(0.0);
 
-        transform.translation.x = new_pos.x;
-        transform.translation.y = new_pos.y;
-    }
+                    position = state.spawn_center
+                        + Vec2::new(current_angle.cos(), current_angle.sin()) * current_radius;
+                    rotation_delta += angular_velocity * dt;
+                }
+                MotionTrack::Sine {
+                    axis,
+                    amplitude,
+                    frequency,
+                    phase,
+                } => {
+                    let axis_vec = Vec2::new(axis.0, axis.1).normalize_or_zero();
+                    let wave = (state.elapsed * frequency * std::f32::consts::TAU + phase).sin();
+                    position += axis_vec * wave * *amplitude;
+                }
+                MotionTrack::Homing {
+                    strength,
+                    max_turn_rate,
+                } => {
+                    let to_player = (player_pos - position).normalize_or_zero();
+                    let current_dir = state.velocity_direction;
 
-    // Update linear motion bullets
-    for (mut transform, motion) in linear_query.iter_mut() {
-        let velocity = motion.direction * motion.speed;
-        transform.translation.x += velocity.x * dt;
-        transform.translation.y += velocity.y * dt;
-    }
+                    // Gradually turn towards player
+                    let turn_amount = (strength * dt).min(*max_turn_rate * dt);
+                    let new_dir = current_dir.lerp(to_player, turn_amount).normalize_or_zero();
+                    state.velocity_direction = new_dir;
 
-    // Update sweep motion bullets
-    for (mut transform, mut motion) in sweep_query.iter_mut() {
-        motion.elapsed += dt;
-        let t = motion.progress();
+                    // Homing typically needs a base speed, apply it
+                    position += new_dir * 100.0 * dt; // Default homing speed
+                }
+                MotionTrack::Keyframed {
+                    target,
+                    keyframes,
+                    loop_mode,
+                } => {
+                    if let Some(value) = evaluate_keyframes(keyframes, state.elapsed, *loop_mode) {
+                        match target {
+                            PropertyTarget::Position => {
+                                if let KeyframeValue::Vec2(x, y) = value {
+                                    position += Vec2::new(x, y);
+                                }
+                            }
+                            PropertyTarget::PositionX => {
+                                if let KeyframeValue::Float(x) = value {
+                                    position.x += x;
+                                }
+                            }
+                            PropertyTarget::PositionY => {
+                                if let KeyframeValue::Float(y) = value {
+                                    position.y += y;
+                                }
+                            }
+                            PropertyTarget::Rotation => {
+                                if let KeyframeValue::Float(r) = value {
+                                    rotation_delta += r;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                MotionTrack::Algorithmic { .. } => {
+                    // TODO: Implement algorithm registry for custom motion
+                }
+            }
+        }
 
-        // Use easing for smoother motion
-        let eased_t = ease_in_out_quad(t);
+        transform.translation.x = position.x;
+        transform.translation.y = position.y;
 
-        let new_pos = motion.start_pos.lerp(motion.end_pos, eased_t);
-        transform.translation.x = new_pos.x;
-        transform.translation.y = new_pos.y;
+        if rotation_delta != 0.0 {
+            transform.rotate_z(rotation_delta);
+        }
     }
 }
 
-/// Quadratic ease in-out function.
-fn ease_in_out_quad(t: f32) -> f32 {
-    if t < 0.5 {
-        2.0 * t * t
-    } else {
-        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+/// Evaluate keyframes at a given time.
+fn evaluate_keyframes(
+    keyframes: &[Keyframe],
+    time: f32,
+    loop_mode: LoopMode,
+) -> Option<KeyframeValue> {
+    if keyframes.is_empty() {
+        return None;
+    }
+
+    let duration = keyframes.last()?.t;
+    if duration <= 0.0 {
+        return Some(keyframes[0].value.clone());
+    }
+
+    // Apply loop mode
+    let effective_time = match loop_mode {
+        LoopMode::Once => time.min(duration),
+        LoopMode::Loop => time % duration,
+        LoopMode::PingPong => {
+            let cycle = (time / duration) as i32;
+            let t = time % duration;
+            if cycle % 2 == 0 { t } else { duration - t }
+        }
+    };
+
+    // Find keyframe pair
+    let mut prev_kf = &keyframes[0];
+    for kf in keyframes {
+        if kf.t > effective_time {
+            let local_t = if kf.t == prev_kf.t {
+                0.0
+            } else {
+                (effective_time - prev_kf.t) / (kf.t - prev_kf.t)
+            };
+            let eased_t = kf.ease.apply(local_t);
+
+            return Some(interpolate_keyframe_values(
+                &prev_kf.value,
+                &kf.value,
+                eased_t,
+            ));
+        }
+        prev_kf = kf;
+    }
+
+    Some(keyframes.last()?.value.clone())
+}
+
+/// Interpolate between two keyframe values.
+fn interpolate_keyframe_values(a: &KeyframeValue, b: &KeyframeValue, t: f32) -> KeyframeValue {
+    match (a, b) {
+        (KeyframeValue::Float(a), KeyframeValue::Float(b)) => KeyframeValue::Float(a + (b - a) * t),
+        (KeyframeValue::Vec2(ax, ay), KeyframeValue::Vec2(bx, by)) => {
+            KeyframeValue::Vec2(ax + (bx - ax) * t, ay + (by - ay) * t)
+        }
+        _ => a.clone(),
     }
 }
 

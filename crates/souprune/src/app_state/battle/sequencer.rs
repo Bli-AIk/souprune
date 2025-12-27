@@ -335,10 +335,14 @@ fn process_bullet_pattern_system(
     mut pattern_events: bevy::ecs::message::MessageWriter<SpawnPatternEvent>,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::BulletPattern { pattern_id } = &active_chapter.chapter {
-            for pattern in pattern_id {
-                info!("[Battle] Spawning bullet pattern: {}", pattern);
-                pattern_events.write(SpawnPatternEvent::new(pattern.clone()));
+        if let Chapter::BulletPattern { blueprints, count } = &active_chapter.chapter {
+            for blueprint_path in blueprints {
+                info!("[Battle] Spawning bullet pattern from: {}", blueprint_path);
+                let mut event = SpawnPatternEvent::new(blueprint_path.clone());
+                if let Some(c) = count {
+                    event = event.with_count(*c);
+                }
+                pattern_events.write(event);
             }
             commands.entity(entity).insert(ChapterFinished);
         }

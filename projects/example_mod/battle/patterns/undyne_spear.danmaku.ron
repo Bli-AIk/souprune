@@ -1,0 +1,28 @@
+// Undyne Spear Sweep Pattern
+// Spears that sweep across the screen from the left
+(
+    visual: Sprite(
+        path: "textures/battle/bullets/spear/spear.png",
+    ),
+    collider_radius: 6.0,
+    damage: 2.0,
+    lifetime: 3.0,
+    z_index: 5.0,
+
+    spawn_pattern: Edge(
+        count: 5,
+        side: Left,
+        spacing: 30.0,
+        margin: 200.0,
+    ),
+
+    motion_tracks: [
+        // Track 1: Linear motion in the spawn direction
+        Linear(
+            direction: (1.0, 0.0),  // Move right
+            speed: 200.0,
+        ),
+    ],
+
+    children: [],
+)

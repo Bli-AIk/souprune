@@ -4,11 +4,11 @@
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(2.0),
     BulletPattern(
-        pattern_id: ["flowey_pellets_circle"]
+        blueprints: ["battle/patterns/flowey_pellet.danmaku.ron"]
     ),
     Wait(3.0),
     BulletPattern(
-        pattern_id: ["undyne_spear_sweep"]
+        blueprints: ["battle/patterns/undyne_spear.danmaku.ron"]
     ),
     Wait(2.0),
     Sequence([

@@ -34,14 +34,17 @@ pub enum Chapter {
 
     /// Bullet Pattern Chapter.
     ///
-    /// The Chapter is responsible for generating bullet patterns.
+    /// The Chapter is responsible for generating bullet patterns from blueprints.
     ///
     /// 弹幕生成章节。
     ///
-    /// 此章节负责生成弹幕模式。
+    /// 此章节负责从蓝图生成弹幕模式。
     BulletPattern {
-        pattern_id: Vec<String>,
-        // TODO: 我们需要评估是否需要在这里添加更多的参数，例如 击破条件、name、时间限制 等。
+        /// List of blueprint paths (e.g., "battle/patterns/flowey_pellet.danmaku.ron")
+        blueprints: Vec<String>,
+        /// Optional count override for patterns that support it
+        #[serde(default)]
+        count: Option<usize>,
     },
 
     /// Simple Wait Chapter.

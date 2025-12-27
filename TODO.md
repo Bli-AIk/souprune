@@ -137,7 +137,7 @@
   - [x] **嵌套处理**: 实现 `Sequence` (队列展开) 和 `Parallel` (父子追踪) 的执行逻辑
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
-核心架构：基于组件的弹幕运动系统。
+核心架构：基于堆栈的复合弹幕系统，采用数据驱动设计。
 
 - [x] **依赖集成**
   - [x] 在 `Cargo.toml` 中添加 `bevy_tween` 依赖。
@@ -147,26 +147,31 @@
   - [x] 在 `textures/battle/config.toml` 注册 `flowey_pellet` 动画 (36帧)。
   - [x] 在 `textures/battle/config.toml` 注册 `spear` 精灵。
 
-- [x] **核心数据结构定义**
-  - [x] 创建 `danmaku` 模块 (`danmaku.rs`, `components.rs`, `patterns.rs`, `systems.rs`)。
-  - [x] 定义弹幕组件 (`Bullet`, `CircularMotion`, `SweepMotion`, `LinearMotion`, `BulletLifetime`, `BulletDamage`)。
-  - [x] 定义 `PatternRegistry` 资源和 `PatternType` 枚举。
-  - [x] 定义 `SpawnPatternEvent` 消息事件。
+- [x] **核心数据结构定义 (数据驱动)**
+  - [x] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`)
+    - [x] `BulletVisual`: Sprite 或 Animation 视觉表现
+    - [x] `SpawnPattern`: Single, Circle, Line, Edge 生成模式
+    - [x] `MotionTrack`: Linear, Circular, Sine, Homing, Keyframed, Algorithmic 运动轨道
+    - [x] `ChildSpawner`: 子发射器（嵌套弹幕支持）
+  - [x] 定义 `SpawnPatternEvent` 消息事件 (引用 blueprint 路径)
+  - [x] 定义 `BulletMotionState` 和 `BulletMotionTracks` 运行时组件
 
 - [x] **运行时系统 (Runtime Systems)**
-  - [x] **Danmaku Spawner**: 实现 `process_spawn_pattern_events` 系统。
-  - [x] **运动更新**: 实现 `update_bullet_motion` 系统 (支持圆周运动、线性运动、横扫运动)。
-  - [x] **生命周期管理**: 实现 `update_bullet_lifetime` 和 `cleanup_dead_bullets` 系统。
+  - [x] **Blueprint Loader**: 实现 `.danmaku.ron` 资产加载器
+  - [x] **Danmaku Spawner**: 实现 `process_spawn_pattern_events` + `spawn_bullets_from_blueprints` 系统
+  - [x] **运动堆栈评估**: 实现 `update_bullet_motion` 系统 (支持多轨道叠加)
+  - [x] **生命周期管理**: 实现 `update_bullet_lifetime` 和 `cleanup_dead_bullets` 系统
 
-- [x] **具体弹幕实现 (Example Patterns)**
-  - [x] 实现 `BulletPattern` 章节执行器逻辑 (在 `sequencer.rs` 中分发)
-  - [x] **Code-driven (脚本驱动)**: 实现 `flowey_pellets_circle`
-    - [x] 逻辑：生成环绕玩家的弹幕圈 (12个弹幕)，旋转并向内收缩。
-    - [x] 资源：使用 `flowey_pellet` 动画 (36帧动画)。
-  - [x] **Sweep-driven (横扫驱动)**: 实现 `undyne_spear_sweep`
-    - [x] 逻辑：生成横扫屏幕的长矛 (5支)。
-    - [x] 资源：使用 `spear` 精灵。
-    - [x] 技术：使用 `SweepMotion` 组件实现平滑的线性插值运动。
+- [x] **具体弹幕实现 (Example Blueprints)**
+  - [x] 实现 `BulletPattern` 章节执行器逻辑 (加载 blueprint 路径)
+  - [x] 创建 `flowey_pellet.danmaku.ron`
+    - [x] 配置：Circle 生成 (12个弹幕, 半径 120)
+    - [x] 运动：Circular 轨道 (旋转 + 向内收缩)
+    - [x] 视觉：Animation (flowey_pellet, 36帧)
+  - [x] 创建 `undyne_spear.danmaku.ron`
+    - [x] 配置：Edge 生成 (5支矛, 从左侧)
+    - [x] 运动：Linear 轨道 (向右移动)
+    - [x] 视觉：Sprite (spear.png)
 
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19

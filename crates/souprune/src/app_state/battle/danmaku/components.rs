@@ -6,6 +6,7 @@
 //!
 //! 定义弹幕系统的 ECS 组件。
 
+use super::patterns::{LoopMode, MotionTrack};
 use bevy::prelude::*;
 
 /// Marker component for bullet entities.
@@ -13,12 +14,6 @@ use bevy::prelude::*;
 /// 弹幕实体的标记组件。
 #[derive(Component)]
 pub struct Bullet;
-
-/// Bullet velocity component.
-///
-/// 弹幕速度组件。
-#[derive(Component, Default)]
-pub struct BulletVelocity(pub Vec2);
 
 /// Bullet lifetime component. When timer finishes, bullet is despawned.
 ///
@@ -54,75 +49,83 @@ impl Default for BulletDamage {
 #[derive(Component)]
 pub struct DespawnBullet;
 
-/// Component for bullets that follow a circular motion around a center point.
+/// Runtime state for a bullet's motion stack evaluation.
+/// Stores the current elapsed time and initial spawn data.
 ///
-/// 环绕中心点做圆周运动的弹幕组件。
+/// 弹幕运动堆栈评估的运行时状态。
+/// 存储当前经过时间和初始生成数据。
 #[derive(Component)]
-pub struct CircularMotion {
-    pub center: Vec2,
-    pub radius: f32,
-    pub angular_velocity: f32,
-    pub current_angle: f32,
-    pub radial_velocity: f32,
+pub struct BulletMotionState {
+    /// Time since spawn
+    pub elapsed: f32,
+    /// Initial spawn position (center of pattern)
+    pub spawn_center: Vec2,
+    /// Initial position offset from center
+    pub initial_offset: Vec2,
+    /// Initial angle (for circular patterns)
+    pub initial_angle: f32,
+    /// Initial radius (for circular patterns)
+    pub initial_radius: f32,
+    /// Current velocity direction (for homing/linear tracks)
+    pub velocity_direction: Vec2,
 }
 
-impl CircularMotion {
-    pub fn new(center: Vec2, radius: f32, start_angle: f32, angular_velocity: f32) -> Self {
+impl BulletMotionState {
+    pub fn new(spawn_center: Vec2) -> Self {
         Self {
-            center,
-            radius,
-            angular_velocity,
-            current_angle: start_angle,
-            radial_velocity: 0.0,
+            elapsed: 0.0,
+            spawn_center,
+            initial_offset: Vec2::ZERO,
+            initial_angle: 0.0,
+            initial_radius: 0.0,
+            velocity_direction: Vec2::NEG_Y,
         }
     }
 
-    pub fn with_radial_velocity(mut self, radial_velocity: f32) -> Self {
-        self.radial_velocity = radial_velocity;
+    pub fn with_offset(mut self, offset: Vec2) -> Self {
+        self.initial_offset = offset;
+        self
+    }
+
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.initial_angle = angle;
+        self.velocity_direction = Vec2::new(angle.cos(), angle.sin());
+        self
+    }
+
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.initial_radius = radius;
+        self
+    }
+
+    pub fn with_direction(mut self, direction: Vec2) -> Self {
+        self.velocity_direction = direction.normalize_or_zero();
         self
     }
 }
 
-/// Component for linear bullet motion.
+/// Component holding the motion tracks for a bullet.
+/// This is cloned from the blueprint at spawn time.
 ///
-/// 线性弹幕运动组件。
+/// 持有弹幕运动轨道的组件。
+/// 在生成时从蓝图克隆。
+#[derive(Component, Clone)]
+pub struct BulletMotionTracks(pub Vec<MotionTrack>);
+
+/// Component for keyframed track state.
 #[derive(Component)]
-pub struct LinearMotion {
-    pub direction: Vec2,
-    pub speed: f32,
+pub struct KeyframedTrackState {
+    pub current_keyframe_index: usize,
+    pub loop_count: usize,
+    pub loop_mode: LoopMode,
 }
 
-impl LinearMotion {
-    pub fn new(direction: Vec2, speed: f32) -> Self {
+impl Default for KeyframedTrackState {
+    fn default() -> Self {
         Self {
-            direction: direction.normalize_or_zero(),
-            speed,
+            current_keyframe_index: 0,
+            loop_count: 0,
+            loop_mode: LoopMode::Once,
         }
-    }
-}
-
-/// Component for sweeping motion (like Undyne spears).
-///
-/// 横扫运动组件（如 Undyne 的矛）。
-#[derive(Component)]
-pub struct SweepMotion {
-    pub start_pos: Vec2,
-    pub end_pos: Vec2,
-    pub duration: f32,
-    pub elapsed: f32,
-}
-
-impl SweepMotion {
-    pub fn new(start_pos: Vec2, end_pos: Vec2, duration: f32) -> Self {
-        Self {
-            start_pos,
-            end_pos,
-            duration,
-            elapsed: 0.0,
-        }
-    }
-
-    pub fn progress(&self) -> f32 {
-        (self.elapsed / self.duration).clamp(0.0, 1.0)
     }
 }
