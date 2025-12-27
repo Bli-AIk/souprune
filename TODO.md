@@ -130,27 +130,30 @@
   - [ ] **嵌套处理**: 实现 `Nested` 的递归或堆栈执行逻辑 (可选，视复杂度而定)
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
-核心架构：基于堆栈的复合弹幕系统 (Stack-Based Composite Danmaku System)，将弹幕逻辑从代码解耦为可组合的资产。
+核心架构：基于堆栈的复合弹幕系统，利用 `bevy_tween` 的 `delta` 特性实现叠加。
+
+- [ ] **依赖集成**
+  - [x] 在 `Cargo.toml` 中添加 `bevy_tween` 依赖。
+    - [ ] 启用 `serde` feature。
+  - [ ] 注册 `bevy_tween` 插件，并配置自定义的插值器（如果需要）。
 
 - [ ] **核心数据结构定义**
   - [ ] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`): 包含外观、运动堆栈、子生成器。
-  - [ ] 定义 `MotionTrack` 枚举:
-    - [ ] `Keyframed`: 关键帧轨道 (支持 Tween 缓动)。
-    - [ ] `Algorithmic`: 算法轨道 (引用算法 ID + 参数表)。
-  - [ ] 定义 `ChildSpawner` 结构: 触发条件 (`AtTime`, `OnHit`) 与嵌套蓝图引用。
-  - [ ] 实现 `DanmakuAssetLoader`。
+  - [ ] 定义 `MotionTrack` 枚举 (封装 `bevy_tween` 的类型):
+    - [ ] `TranslationTrack`: 对应 `bevy_tween::interpolate::Translation` (开启 `delta: true`)。
+    - [ ] `RotationTrack`: 对应 `bevy_tween::interpolate::Rotation`。
+    - [ ] `ScriptTrack`: 脚本驱动的轨道 (自定义 `Interpolator`)。
+  - [ ] 定义 `ChildSpawner` 结构。
 
 - [ ] **运行时系统 (Runtime Systems)**
-  - [ ] **Spawner**: 实现 `spawn_danmaku` 逻辑，解析 BluePrint 并初始化组件。
-  - [ ] **Motion Solver (运动解算器)**:
-    - [ ] 实现 `MotionSolverSystem`: 每一帧计算 `t`，遍历 Stack 累加位移。
-    - [ ] 实现 `Tween` 插值计算逻辑。
-    - [ ] 建立 `AlgorithmRegistry`: 管理原生/脚本算法 (如螺旋、正弦波)。
-  - [ ] **Child Spawning (嵌套生成)**:
-    - [ ] 实现触发器检测逻辑 (如时间到达时生成子弹幕)。
+  - [ ] **Danmaku Spawner**:
+    - [ ] 解析 BluePrint，生成 Bullet Entity。
+    - [ ] **Stack 实现**: 遍历 `motion_tracks`，为每个轨道生成一个独立的 "Driver Entity"，挂载 `Tween` 组件，`Target` 指向 Bullet Entity。这样实现多层叠加。
+  - [ ] **生命周期管理**: 确保 Driver Entity 随 Bullet Entity 销毁。
+  - [ ] **Child Spawning**: 实现触发器逻辑。
 
 - [ ] **可视化调试**
-  - [ ] 实现弹幕路径预测绘制 (利用纯函数特性，提前计算未来路径并用 Gizmos 绘制)。
+  - [ ] 实现弹幕路径预测绘制。
 
 ### v0.4.3: API 桥接与 SDK
 - [ ] **Phase 1: Interoptopus 迁移**
@@ -175,6 +178,7 @@
   - [ ] 实现 Nim 版本的 `Hello World` Mod
 
 ### v0.4.4: OverworldSession 部分
+目标：实现 Overworld 状态的保存与恢复机制。
 
 - [ ] 定义 `OverworldSession` 资源
 - [ ] 实现 `save_overworld_state` (OnExit Overworld)
@@ -197,6 +201,11 @@
 - [ ] 扩展 `bevy_mortar_bond` 支持新的逻辑指令
 - [ ] 实现 `Dialogue` Chapter 与脚本系统的互操作
 
+### v0.5.2: 背包系统补全
+- [ ] 实现物品使用逻辑 (Item Use Effects)
+- [ ] 实现物品查看逻辑 
+- [ ] 实现物品丢弃逻辑
+
 ---
 
 ## 🎨 待办：v0.6.x (视听体验)
@@ -213,4 +222,3 @@
 - [ ] 创建 `PostProcessPlugin`
 - [ ] 实现基础 Post-processing Shader (CRT, 色差等)
 - [ ] 实现 2D 光照组件 `PointLight2d`
-- [ ] 扩展 `.ui.ron` 支持 `Sprite` 元素 (用于战斗 UI)
