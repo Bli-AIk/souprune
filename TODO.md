@@ -125,17 +125,16 @@
 #### 3. 战斗执行器 (Battle Executor)
 目标：实现一个状态机，能够读取 `BattleAsset` 并按顺序执行其中的 `Chapter`。
 
-- [ ] **运行时资源 (`BattleContext`)**
-  - [ ] 定义 `BattleContext` 资源，包含：
-    - [ ] `current_step`: `usize` (当前执行到的 Chapter 索引)
-    - [ ] `wait_timer`: `Timer` (用于 Wait 类型的等待)
-    - [ ] `state`: `BattleExecutionState` (Idle, Processing, Waiting)
-- [ ] **执行器系统 (`BattleExecutorSystem`)**
-  - [ ] **Dispatch 逻辑**: 根据当前 `Chapter` 类型分发处理
-  - [ ] **Wait 处理**: 实现 `Wait(f32)` 的计时与自动步进
-  - [ ] **Action 处理**: 实现 `SetPlayer`, `SetCamera`, `SetUI` 的即时执行与步进
-  - [ ] **UI 交互处理**: 实现 `UIInteraction` 的挂起逻辑 (等待 UI 信号/事件)
-  - [ ] **嵌套处理**: 实现 `Nested` 的递归或堆栈执行逻辑 (可选，视复杂度而定)
+- [x] **运行时资源 (`BattleContext`)**
+  - [x] 定义 `BattleContext` 资源，包含：
+    - [x] `chapters`: `Vec<Chapter>`
+    - [x] `state`: `BattleExecutionState` (Idle, Processing, Waiting)
+- [x] **执行器系统 (`BattleExecutorSystem`)**
+  - [x] **Dispatch 逻辑**: 根据当前 `Chapter` 类型分发处理
+  - [x] **Wait 处理**: 实现 `Wait(f32)` 的计时与自动步进
+  - [x] **Action 处理**: 实现 `SetPlayer`, `SetCamera`, `SetUI` 的即时执行与步进
+  - [x] **UI 交互处理**: 实现 `UIInteraction` 的挂起逻辑 (等待 UI 信号/事件 - 目前作为非阻塞处理，需未来增强)
+  - [x] **嵌套处理**: 实现 `Sequence` (队列展开) 和 `Parallel` (父子追踪) 的执行逻辑
 
 ### v0.4.2: 弹幕系统 (Danmaku Core)
 核心架构：基于堆栈的复合弹幕系统，利用 `bevy_tween` 的 `delta` 特性实现叠加。
@@ -188,7 +187,21 @@
   - [ ] 建立 `souprune-sdk-nim` 项目结构
   - [ ] 实现 Nim 版本的 `Hello World` Mod
 
-### v0.4.4: OverworldSession 部分
+### v0.4.4: 战斗 UI 交互 (Battle UI Interaction)
+目标：完善战斗中的 UI 交互流程，实现阻塞式对话与选择，并还原 Undertale 风格的基础战斗菜单。
+
+- [ ] **基础交互架构**
+  - [ ] 实现 `UIInteraction` 的真正阻塞逻辑 (BattleExecutor 暂停直到 UI 发送完成信号)
+  - [ ] 定义 UI -> Battle 通信事件 (`BattleUIEvent::SelectionMade`, `BattleUIEvent::DialogueFinished`)
+  - [ ] 更新 `sequencer.rs` 以处理这些事件并恢复流程
+- [ ] **Undertale 战斗 UI 实现**
+  - [ ] 实现四个主要按钮 (Fight, Act, Item, Mercy) 的 UI 布局与导航逻辑
+  - [ ] 实现 **Fight** 逻辑: 选择敌人 -> 攻击动画 (QTE) -> 伤害计算
+  - [ ] 实现 **Act** 逻辑: 选择敌人 -> 选择动作 -> 执行动作 (调用 Behavior 接口)
+  - [ ] 实现 **Item** 逻辑: 读取背包 -> 选择物品 -> 使用效果
+  - [ ] 实现 **Mercy** 逻辑: Spare (检查条件) / Flee (概率逃跑)
+
+### v0.4.5: OverworldSession 部分
 目标：实现 Overworld 状态的保存与恢复机制。
 
 - [ ] 定义 `OverworldSession` 资源

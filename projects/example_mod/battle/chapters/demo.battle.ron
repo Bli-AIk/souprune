@@ -7,7 +7,7 @@
         pattern_id: ["flowey_pellets_circle"]
     ),
     Wait(2.0),
-    Nested([
+    Sequence([
         Wait(0.5),
         SetPlayer(Despawn),
     ]),
