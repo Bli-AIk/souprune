@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// 标记 Battle 实体的组件
 #[derive(Component)]
-pub(crate) struct BattleEntity();
+pub(crate) struct BattleEntity;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
@@ -67,11 +67,7 @@ impl Plugin for BattlePlugin {
                 "battle_player.ron",
             ]))
             .add_plugins((SequencerPlugin, BattleCollisionPlugin, DanmakuPlugin))
-            .add_systems(OnEnter(AppState::Battle), setup_battle_camera)
-            .add_systems(
-                OnExit(AppState::Battle),
-                (cleanup_entities_system::<BattleEntity>, restore_cameras),
-            );
+            .add_systems(OnEnter(AppState::Battle), setup_battle_camera);
     }
 }
 
@@ -79,14 +75,10 @@ fn setup_battle_camera(
     mut commands: Commands,
     q_cameras: Query<Entity, (With<Camera2d>, Without<BattleCamera>)>,
 ) {
-    // Despawn existing cameras
     for camera_entity in q_cameras.iter() {
         commands.entity(camera_entity).despawn();
     }
 
-    // Spawn Battle Camera
-    // Battle scene needs a larger viewport, so use scale 1.0 instead of dividing by resolution_scale
-    // 战斗场景需要更大的视野，因此使用 scale 1.0 而不是除以 resolution_scale
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
@@ -94,17 +86,9 @@ fn setup_battle_camera(
             ..OrthographicProjection::default_2d()
         }),
         BattleCamera,
-        BattleEntity(),
-        Name::new("BattleCamera"),
+        BattleEntity,
+        Name::new("Battle Camera2d"),
     ));
-}
-
-fn restore_cameras(_q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>) {
-    // No longer needed as we despawn battle camera
-    // The overworld camera is recreated when entering overworld state
-    //
-    // 不再需要，因为我们销毁了 battle 相机
-    // 当进入 overworld 状态时会重新创建 overworld 相机
 }
 
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]

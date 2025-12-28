@@ -93,9 +93,24 @@ pub enum Chapter {
 /// 摄像机操作枚举。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum CameraAction {
+    /// Set Camera Position.
+    ///
+    /// 设置摄像机位置。
     SetPosition(Vec2),
+
+    /// Set Camera Zoom Level.
+    ///
+    /// 设置摄像机缩放级别。
     SetZoom(f32),
+
+    /// Start Camera Shake Effect.
+    ///
+    /// 开始摄像机震动效果。
     Shake { duration: f32, intensity: f32 },
+
+    /// Set Camera to Follow Player.
+    ///
+    /// 设置摄像机跟随玩家。
     FollowPlayer(bool),
 }
 

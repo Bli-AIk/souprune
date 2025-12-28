@@ -59,8 +59,8 @@ pub(crate) fn constrain_player_to_battle_box_system(
 /// Battle 碰撞系统插件
 pub(crate) struct BattleCollisionPlugin;
 
-impl bevy::app::Plugin for BattleCollisionPlugin {
-    fn build(&self, app: &mut bevy::app::App) {
+impl Plugin for BattleCollisionPlugin {
+    fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
             constrain_player_to_battle_box_system.in_set(BattleUpdate),

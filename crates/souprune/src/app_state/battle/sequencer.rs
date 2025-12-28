@@ -13,6 +13,9 @@
 //! Sequencer 是战斗系统的线性序列管理器。
 //! 它负责管理和执行战斗中的章节（Chapter），确保它们按顺序进行。
 
+/// Module for the battle sequencer.
+///
+/// 战斗系统的线性序列管理器。
 pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
@@ -81,6 +84,9 @@ struct ParallelTracker {
 #[derive(Resource)]
 struct CurrentBattleFlow(Handle<BattleAsset>);
 
+/// System to load the default chapter resource.
+///
+/// 加载默认章节资源的系统。
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TODO: Remove hardcoded chapter path - should be configurable or load from save data
     // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
@@ -131,12 +137,8 @@ fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<Entit
                 spawn_chapter(commands, child, Some(entity));
             }
         }
-        Chapter::Sequence(mut children) => {
-            if parent.is_none() {
-                // If parent is none, handled in advance_battle_flow_system.
-                // But if we reach here, it means we spawned it as an entity, which shouldn't happen for root sequence.
-                // Or maybe we treat it as Parallel for now if somehow spawned.
-            } else {
+        Chapter::Sequence(children) => {
+            if !parent.is_none() {
                 warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
                 commands.entity(entity).insert(ParallelTracker {
                     pending_count: children.len(),
@@ -150,16 +152,19 @@ fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<Entit
     }
 }
 
-// Let's rewrite `advance_battle_flow_system` to use the helper and handle Sequence properly
+/// System to advance the battle flow.
+///
+/// 推进战斗流程系统。
 fn advance_battle_flow_system(
     mut commands: Commands,
     mut context: ResMut<BattleContext>,
     active_chapters: Query<&ActiveChapter>,
 ) {
     // Check if any root-level chapter is active
+    // 检查是否有任何根级章节处于活动状态
     for chapter in active_chapters.iter() {
         if chapter.parent.is_none() {
-            return; // Busy
+            return;
         }
     }
 
@@ -294,7 +299,7 @@ fn process_ui_action_system(
                         Visibility::default(),
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
-                        crate::app_state::battle::BattleEntity(),
+                        crate::app_state::battle::BattleEntity,
                         Name::new("BattleUI Root"),
                     ));
                     commands.init_resource::<crate::core::ui::UILayoutWatcher>();
@@ -321,7 +326,7 @@ fn process_ui_action_system(
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
-                crate::app_state::battle::BattleEntity(),
+                crate::app_state::battle::BattleEntity,
                 Name::new("BattleUI Root"),
             ));
             commands.entity(entity).insert(ChapterFinished);
@@ -382,7 +387,7 @@ fn process_player_action_system(
                             config_handle: handle,
                             position: *position,
                         },
-                        crate::app_state::battle::BattleEntity(),
+                        crate::app_state::battle::BattleEntity,
                     ));
                 }
                 PlayerAction::Teleport(pos) => {
@@ -449,7 +454,7 @@ fn process_player_spawn_requests(
                     mode_id: config.default_mode_id.clone(),
                 },
                 BehaviorVelocity::default(),
-                crate::app_state::battle::BattleEntity(),
+                crate::app_state::battle::BattleEntity,
                 Name::new("BattlePlayer"),
             ));
 

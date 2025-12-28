@@ -260,7 +260,7 @@ fn spawn_single_bullet(
             .with_radius(radius),
         BehaviorStack::new(behaviors.to_vec()).with_cached_params(cached_params),
         TweenState::default(),
-        BattleEntity(),
+        BattleEntity,
         Name::new(format!("Bullet_{}", index)),
     ));
 
