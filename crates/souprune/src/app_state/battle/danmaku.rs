@@ -41,7 +41,7 @@ impl Plugin for DanmakuPlugin {
             .register_type::<BulletBehavior>()
             .register_type::<LinearConfig>()
             .register_type::<HomingConfig>()
-            .register_type::<CircularConfig>()
+            .register_type::<OrbitalConfig>()
             .register_type::<SineConfig>()
             .register_type::<TweenConfig>()
             .register_type::<TweenTarget>()

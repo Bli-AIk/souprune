@@ -149,9 +149,9 @@
 
 - [x] **核心数据结构定义 (数据驱动)**
   - [x] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`)
-    - [x] `BulletVisual`: Sprite 或 Animation 视觉表现
-    - [x] `SpawnPattern`: Single, Circle, Line, Edge 生成模式
-    - [x] `MotionTrack`: Linear, Circular, Sine, Homing, Keyframed, Algorithmic 运动轨道
+    - [x] `BulletVisual`: Sprite, SpriteRef 或 Animation 视觉表现
+    - [x] `SpawnPattern`: Single, RingGenerator, LineGenerator, EdgeGenerator 生成模式
+    - [x] `MotionTrack`: Linear, Orbital (原 Circular), Sine, Homing, Tween, Algo 运动轨道
     - [x] `ChildSpawner`: 子发射器（嵌套弹幕支持）
   - [x] 定义 `SpawnPatternEvent` 消息事件 (引用 blueprint 路径)
   - [x] 定义 `BulletMotionState` 和 `BulletMotionTracks` 运行时组件
@@ -165,13 +165,25 @@
 - [x] **具体弹幕实现 (Example Blueprints)**
   - [x] 实现 `BulletPattern` 章节执行器逻辑 (加载 blueprint 路径)
   - [x] 创建 `flowey_pellet.danmaku.ron`
-    - [x] 配置：Circle 生成 (12个弹幕, 半径 120)
-    - [x] 运动：Circular 轨道 (旋转 + 向内收缩)
+    - [x] 配置：RingGenerator 生成 (12个弹幕, 半径 120)
+    - [x] 运动：Orbital 轨道 (旋转 + 向内收缩)
     - [x] 视觉：Animation (flowey_pellet, 36帧)
   - [x] 创建 `undyne_spear.danmaku.ron`
-    - [x] 配置：Edge 生成 (5支矛, 从左侧)
+    - [x] 配置：EdgeGenerator 生成 (5支矛, 从左侧)
     - [x] 运动：Linear 轨道 (向右移动)
-    - [x] 视觉：Sprite (spear.png)
+    - [x] 视觉：SpriteRef (battle/spear)
+
+- [x] **API 改进与 SDK 封装**
+  - [x] 重命名 API 以提高清晰度：
+    - [x] `Circular` -> `Orbital` (避免与 Tween 混淆)
+    - [x] `Circle`/`Box` -> `CircleCollider`/`BoxCollider`
+    - [x] `Ring`/`Line`/`Edge` -> `RingGenerator`/`LineGenerator`/`EdgeGenerator`
+  - [x] 添加 `SpriteRef` 视觉类型，通过 config.toml 名称引用精灵
+  - [x] 添加 `TriggerCollider` 组件到弹幕实体以支持 F3 碰撞箱可视化
+  - [x] Timeline 支持 `absolute` 字段（绝对时间）和默认的相对时间
+  - [x] Timeline 支持 `behaviors` 字段（内联行为定义）
+  - [x] 修复动画帧排序问题（实现自然数字排序）
+  - [x] SDK 封装 unsafe：提供 `BulletState`、`Vec2` 安全封装和 `wrap_algorithm!` 宏
 
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19

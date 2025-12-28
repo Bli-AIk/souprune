@@ -10,7 +10,7 @@ pub mod traits;
 
 // Re-export for user convenience
 // 重新导出，方便用户使用
-pub use context::Context;
+pub use context::{BulletState, Context, Vec2};
 pub use souprune_api::{
     Action, BehaviorInstance, BehaviorVTable, BulletStateC, ContextHandle, DanmakuUpdateFn,
     HostApi, Vec2C, c_float, c_void,
@@ -138,23 +138,30 @@ macro_rules! declare_behaviors {
 }
 
 /// This macro is used to register danmaku algorithms for the bullet pattern system.
-/// Each algorithm is a pure function that takes BulletStateC and returns Vec2C.
+/// Each algorithm should be an `extern "C"` function that wraps your safe algorithm.
+/// Use `wrap_algorithm!` to create the wrapper from a safe function.
 ///
 /// 这个宏用于注册弹幕算法到弹幕模式系统。
-/// 每个算法是一个纯函数，接收 BulletStateC 并返回 Vec2C。
+/// 每个算法应该是一个 `extern "C"` 函数，包装你的安全算法。
+/// 使用 `wrap_algorithm!` 从安全函数创建包装器。
 ///
 /// # Example
 /// ```ignore
-/// declare_algorithms!(
-///     ("homing_spear", homing_spear_algorithm),
-///     ("spiral", spiral_algorithm),
-/// );
+/// use souprune_sdk::{BulletState, Vec2, declare_algorithms, wrap_algorithm};
 ///
-/// extern "C" fn homing_spear_algorithm(state: *const BulletStateC) -> Vec2C {
-///     let s = unsafe { &*state };
-///     // ... algorithm logic
-///     Vec2C { x: 0.0, y: 0.0 }
+/// // Define your safe algorithm function
+/// fn my_homing_algorithm(state: &BulletState) -> Vec2 {
+///     let speed = state.param(0, 200.0);
+///     Vec2::new(0.0, -speed * state.elapsed)
 /// }
+///
+/// // Create the FFI wrapper
+/// wrap_algorithm!(homing_spear_wrapper, my_homing_algorithm);
+///
+/// // Register the wrapper
+/// declare_algorithms!(
+///     ("homing_spear", homing_spear_wrapper),
+/// );
 /// ```
 #[macro_export]
 macro_rules! declare_algorithms {
@@ -197,6 +204,32 @@ macro_rules! declare_algorithms {
             )*
 
             None
+        }
+    };
+}
+
+/// Macro to wrap a safe algorithm function into an extern "C" FFI function.
+/// The safe function should take `&BulletState` and return `Vec2`.
+///
+/// 将安全的算法函数包装成 `extern "C"` FFI 函数的宏。
+/// 安全函数应接受 `&BulletState` 并返回 `Vec2`。
+///
+/// # Example
+/// ```ignore
+/// fn my_algorithm(state: &BulletState) -> Vec2 {
+///     Vec2::new(state.elapsed * 100.0, 0.0)
+/// }
+///
+/// wrap_algorithm!(my_algorithm_ffi, my_algorithm);
+/// ```
+#[macro_export]
+macro_rules! wrap_algorithm {
+    ($wrapper_name:ident, $safe_fn:expr) => {
+        extern "C" fn $wrapper_name(state: *const $crate::BulletStateC) -> $crate::Vec2C {
+            // SAFETY: The host guarantees that `state` is a valid pointer
+            let safe_state = unsafe { $crate::BulletState::from_raw(state) };
+            let result = $safe_fn(&safe_state);
+            result.to_vec2c()
         }
     };
 }

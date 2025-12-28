@@ -133,8 +133,10 @@ pub struct BulletPrototype {
 /// 弹幕的视觉表现。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub enum BulletVisual {
-    /// Static sprite image
+    /// Static sprite image by direct path (legacy)
     Sprite { path: String },
+    /// Static sprite by reference to config.toml sprite name
+    SpriteRef { module: String, name: String },
     /// Animated sprite (references animation name in config.toml)
     Animation {
         module: String,
@@ -180,8 +182,8 @@ pub enum BulletBehavior {
     /// Tween animation (opacity, scale, position, etc.)
     Tween(TweenConfig),
 
-    /// Circular/orbital motion
-    Circular(CircularConfig),
+    /// Orbital motion around spawn center (rotation + radial movement)
+    Orbital(OrbitalConfig),
 
     /// Sinusoidal oscillation
     Sine(SineConfig),
@@ -236,16 +238,18 @@ impl Default for HomingConfig {
     }
 }
 
-/// Circular motion configuration.
+/// Orbital motion configuration (rotation around spawn center).
+///
+/// 轨道运动配置（围绕生成中心旋转）。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub struct CircularConfig {
+pub struct OrbitalConfig {
     #[serde(default = "default_angular_velocity")]
     pub angular_velocity: f32,
     #[serde(default)]
     pub radial_velocity: f32,
 }
 
-impl Default for CircularConfig {
+impl Default for OrbitalConfig {
     fn default() -> Self {
         Self {
             angular_velocity: default_angular_velocity(),

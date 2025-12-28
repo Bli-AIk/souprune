@@ -316,6 +316,18 @@ fn spawn_single_bullet(
                 ..default()
             });
         }
+        BulletVisual::SpriteRef { module, name } => {
+            let mut sprite_context = sprite_params.create_sprite_context();
+            match sprite_context.get_sprite(module, name) {
+                Ok(sprite) => {
+                    entity_commands.insert(sprite);
+                }
+                Err(e) => {
+                    warn!("Failed to load sprite '{}': {}", name, e);
+                    entity_commands.insert(Sprite::default());
+                }
+            }
+        }
         BulletVisual::Animation {
             module,
             name,
@@ -391,7 +403,7 @@ pub fn update_bullet_motion(
                     position += dir * config.speed * state.elapsed;
                 }
 
-                BulletBehavior::Circular(config) => {
+                BulletBehavior::Orbital(config) => {
                     let current_angle =
                         state.initial_angle + config.angular_velocity * state.elapsed;
                     let current_radius =
