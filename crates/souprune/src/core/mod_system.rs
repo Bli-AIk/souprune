@@ -67,7 +67,7 @@ impl Plugin for ModPlugin {
             .add_systems(
                 Update,
                 (init_behaviors_system, update_behaviors_system)
-                    .in_set(crate::app_state::battle::BattleUpdate),
+                    .in_set(crate::app_state::battle::BattleMovementSet),
             );
     }
 }

@@ -49,6 +49,14 @@ pub(crate) struct BattleEntity;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
 
+/// System set for battle movement (mod behaviors).
+/// Collision systems should run after this.
+///
+/// Battle移动系统集（mod行为）。
+/// 碰撞系统应在此之后运行。
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BattleMovementSet;
+
 #[derive(Component)]
 pub struct BattleCamera;
 
@@ -57,6 +65,7 @@ pub(crate) struct BattlePlugin;
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+            .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
             // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
             // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态

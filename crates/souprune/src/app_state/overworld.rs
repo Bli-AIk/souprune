@@ -20,6 +20,7 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
 pub(crate) mod character;
+mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
 pub(crate) mod ui;
@@ -74,6 +75,13 @@ impl Plugin for OverworldPlugin {
             ),
         )
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
+        .add_systems(
+            Update,
+            collision::player_tilemap_collision_system
+                .after(character::MovementSet)
+                .before(crate::core::camera::CameraUpdateSet)
+                .in_set(OverworldUpdate),
+        )
         .add_systems(
             OnEnter(OverworldState::Backpack),
             player::force_player_idle_on_state_change_system,
