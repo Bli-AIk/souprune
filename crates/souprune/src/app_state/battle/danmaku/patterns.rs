@@ -149,13 +149,13 @@ pub enum BulletVisual {
 /// 碰撞形状用于命中检测。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub enum ColliderShape {
-    Circle(f32),
-    Box(f32, f32),
+    CircleCollider(f32),
+    BoxCollider(f32, f32),
 }
 
 impl Default for ColliderShape {
     fn default() -> Self {
-        ColliderShape::Circle(4.0)
+        ColliderShape::CircleCollider(4.0)
     }
 }
 
@@ -362,8 +362,22 @@ impl Easing {
 /// 时间轴事件 - 描述在特定时间发生的事情。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub struct TimelineEvent {
-    /// Time in seconds from performance start
+    /// Time in seconds from performance start.
+    /// By default this is relative time (delta from previous event).
+    /// Set `absolute: true` to use absolute time from performance start.
+    ///
+    /// 距演出开始的时间（秒）。
+    /// 默认为相对时间（与上一事件的时间差）。
+    /// 设置 `absolute: true` 使用距演出开始的绝对时间。
     pub t: f32,
+
+    /// Whether t is absolute time (from performance start) or relative (from previous event).
+    /// Default is false (relative time).
+    ///
+    /// t 是否为绝对时间（从演出开始）还是相对时间（从上一事件）。
+    /// 默认为 false（相对时间）。
+    #[serde(default)]
+    pub absolute: bool,
 
     /// Prototype ID to spawn
     pub spawn: String,
@@ -375,6 +389,14 @@ pub struct TimelineEvent {
     /// List of behavior IDs to apply (references to `behaviors` map)
     #[serde(default)]
     pub apply: Vec<String>,
+
+    /// Inline behavior definitions (applied after referenced behaviors)
+    /// Use this for one-off behaviors that don't need to be reused.
+    ///
+    /// 内联行为定义（在引用行为之后应用）
+    /// 用于不需要复用的一次性行为。
+    #[serde(default)]
+    pub behaviors: Vec<BulletBehavior>,
 }
 
 /// Spawn pattern for timeline events.
@@ -388,7 +410,7 @@ pub enum SpawnPattern {
     Single,
 
     /// Spawn bullets in a ring/circle
-    Ring {
+    RingGenerator {
         count: usize,
         #[serde(default)]
         radius: f32,
@@ -397,7 +419,7 @@ pub enum SpawnPattern {
     },
 
     /// Spawn bullets in a line
-    Line {
+    LineGenerator {
         count: usize,
         #[serde(default = "default_line_spacing")]
         spacing: f32,
@@ -406,7 +428,7 @@ pub enum SpawnPattern {
     },
 
     /// Spawn bullets from a screen edge
-    Edge {
+    EdgeGenerator {
         count: usize,
         #[serde(default)]
         side: EdgeSide,
@@ -417,7 +439,7 @@ pub enum SpawnPattern {
     },
 
     /// Custom spawn pattern from mod system
-    Custom {
+    CustomGenerator {
         id: String,
         #[serde(default)]
         params: HashMap<String, f32>,

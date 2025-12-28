@@ -181,10 +181,14 @@ impl<'a> SpriteLoadContext<'a> {
                 ));
             }
 
-            // Sort by filename to ensure correct frame order
+            // Sort by filename using natural (numeric) ordering to ensure correct frame order
+            // e.g., frame_2.png comes before frame_10.png
             //
-            // 按文件名排序以确保正确的帧顺序
-            matching_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
+            // 使用自然（数字）排序以确保正确的帧顺序
+            // 例如：frame_2.png 排在 frame_10.png 之前
+            matching_files.sort_by(|(path_a, _), (path_b, _)| {
+                natural_sort_key(path_a).cmp(&natural_sort_key(path_b))
+            });
 
             let sprites = matching_files
                 .into_iter()
@@ -244,4 +248,46 @@ impl<'a> SpriteLoadContext<'a> {
             ..Default::default()
         }
     }
+}
+
+/// Natural sort key: splits a string into segments of digits and non-digits,
+/// allowing numeric comparison of digit sequences.
+///
+/// 自然排序键：将字符串分割成数字和非数字段，
+/// 允许对数字序列进行数值比较。
+fn natural_sort_key(s: &str) -> Vec<NaturalSortSegment> {
+    let mut result = Vec::new();
+    let mut current_str = String::new();
+    let mut in_number = false;
+
+    for c in s.chars() {
+        let is_digit = c.is_ascii_digit();
+        if is_digit != in_number && !current_str.is_empty() {
+            if in_number {
+                result.push(NaturalSortSegment::Number(current_str.parse().unwrap_or(0)));
+            } else {
+                result.push(NaturalSortSegment::Text(current_str.clone()));
+            }
+            current_str.clear();
+        }
+        current_str.push(c);
+        in_number = is_digit;
+    }
+
+    if !current_str.is_empty() {
+        if in_number {
+            result.push(NaturalSortSegment::Number(current_str.parse().unwrap_or(0)));
+        } else {
+            result.push(NaturalSortSegment::Text(current_str));
+        }
+    }
+
+    result
+}
+
+/// Segment type for natural sorting
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum NaturalSortSegment {
+    Text(String),
+    Number(u64),
 }

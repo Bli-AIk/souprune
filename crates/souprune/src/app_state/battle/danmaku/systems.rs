@@ -10,6 +10,7 @@ use super::components::*;
 use super::patterns::*;
 use crate::app_state::battle::BattleEntity;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
+use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::{BehaviorParams, DanmakuRegistry};
 use crate::core::sprite::params::SpriteParams;
 use bevy::ecs::message::MessageReader;
@@ -90,11 +91,16 @@ pub fn advance_performance_timeline(
             continue;
         };
 
+        // Calculate absolute trigger times from timeline events
+        // 从时间线事件计算绝对触发时间
+        let trigger_times = calculate_absolute_trigger_times(&performance.timeline);
+
         // Process timeline events that should fire
         while player.next_event_index < performance.timeline.len() {
             let event = &performance.timeline[player.next_event_index];
+            let trigger_time = trigger_times[player.next_event_index];
 
-            if event.t > player.elapsed {
+            if trigger_time > player.elapsed {
                 break;
             }
 
@@ -119,6 +125,29 @@ pub fn advance_performance_timeline(
     }
 }
 
+/// Calculate absolute trigger times from timeline events.
+/// Handles both absolute and relative time modes.
+///
+/// 从时间线事件计算绝对触发时间。
+/// 同时处理绝对时间和相对时间模式。
+fn calculate_absolute_trigger_times(timeline: &[TimelineEvent]) -> Vec<f32> {
+    let mut times = Vec::with_capacity(timeline.len());
+    let mut accumulated = 0.0;
+
+    for event in timeline {
+        if event.absolute {
+            // Absolute time: use t directly
+            accumulated = event.t;
+        } else {
+            // Relative time: add t to accumulated
+            accumulated += event.t;
+        }
+        times.push(accumulated);
+    }
+
+    times
+}
+
 /// Spawn bullets from a timeline event.
 fn spawn_bullets_from_timeline_event(
     commands: &mut Commands,
@@ -133,11 +162,17 @@ fn spawn_bullets_from_timeline_event(
         return;
     };
 
-    let behaviors: Vec<BulletBehavior> = event
+    // Collect behaviors: first from references, then inline behaviors
+    // 收集行为：首先是引用的行为，然后是内联行为
+    let mut behaviors: Vec<BulletBehavior> = event
         .apply
         .iter()
         .filter_map(|id| performance.behaviors.get(id).cloned())
         .collect();
+
+    // Append inline behaviors
+    // 追加内联行为
+    behaviors.extend(event.behaviors.clone());
 
     let spawn_positions = calculate_spawn_positions(&event.pattern, spawn_center);
 
@@ -163,7 +198,7 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
         SpawnPattern::Single => {
             vec![(center, 0.0, 0.0)]
         }
-        SpawnPattern::Ring {
+        SpawnPattern::RingGenerator {
             count,
             radius,
             start_angle,
@@ -177,7 +212,7 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
                 })
                 .collect()
         }
-        SpawnPattern::Line {
+        SpawnPattern::LineGenerator {
             count,
             spacing,
             direction,
@@ -196,7 +231,7 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
                 })
                 .collect()
         }
-        SpawnPattern::Edge {
+        SpawnPattern::EdgeGenerator {
             count,
             side,
             spacing,
@@ -217,7 +252,7 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
                 })
                 .collect()
         }
-        SpawnPattern::Custom { id, .. } => {
+        SpawnPattern::CustomGenerator { id, .. } => {
             warn!("Custom spawn pattern '{}' not yet implemented", id);
             vec![(center, 0.0, 0.0)]
         }
@@ -249,6 +284,15 @@ fn spawn_single_bullet(
         .flatten()
         .collect();
 
+    // Convert ColliderShape to TriggerCollider
+    // 将 ColliderShape 转换为 TriggerCollider
+    let trigger_collider = match &prototype.collider {
+        ColliderShape::CircleCollider(r) => TriggerCollider::Circle { radius: *r },
+        ColliderShape::BoxCollider(w, h) => TriggerCollider::Box {
+            half_size: Vec2::new(*w, *h),
+        },
+    };
+
     let mut entity_commands = commands.spawn((
         Bullet,
         Transform::from_translation(position.extend(prototype.z_index)),
@@ -260,6 +304,7 @@ fn spawn_single_bullet(
             .with_radius(radius),
         BehaviorStack::new(behaviors.to_vec()).with_cached_params(cached_params),
         TweenState::default(),
+        trigger_collider,
         BattleEntity,
         Name::new(format!("Bullet_{}", index)),
     ));
