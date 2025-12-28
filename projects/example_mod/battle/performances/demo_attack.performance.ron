@@ -1,10 +1,19 @@
 // Demo Battle Performance
 // Demonstrates three attack patterns:
-// 1. Spear linear attack (长矛线性攻击)
-// 2. Pellet ring attack (花颗粒一圈攻击)
-// 3. Homing spear attack using mod algorithm (长矛自机狙)
+// 1. Spear linear attack
+// 2. Pellet ring attack
+// 3. Homing spear attack using mod algorithm
+
+// 测试战斗表演
+// 展示三种攻击模式：
+// 1. 长矛线性攻击
+// 2. 花颗粒一圈攻击
+// 3. 长矛自机狙攻击（使用mod算法）
 (
     // === Bullet Prototypes ===
+    // === 弹幕原型 ===
+    // We define our bullet "prefabs" here, including their visual representation, colliders, damage, and lifetime.
+    // 我们在这里定义弹幕的“预制体”，包括它们的视觉表现、碰撞体、伤害值和生命周期。
     prototypes: {
         "spear": (
             visual: Sprite(path: "textures/battle/bullets/spear/spear.png"),
@@ -27,38 +36,51 @@
     },
 
     // === Behavior Definitions ===
+    // === 行为定义 ===
+    // Here we define reusable behaviors that can be applied to bullets when they are spawned.
+    // Note: This step is optional. Behaviors can also be defined inline in the timeline.
+    // 在这里我们定义可重用的行为，这些行为可以在弹幕生成时应用。
+    // 请注意：这一步不是必须的。 行为也可以直接在时间线上内联定义。
+
+    // TODO: 实现时间线定义
     behaviors: {
         // Linear movement to the right
+        // 向右的线性移动
         "move_right": Linear((
             dir: (1.0, 0.0),
             speed: 200.0,
         )),
 
         // Linear movement to the left
+        // 向左的线性移动
         "move_left": Linear((
             dir: (-1.0, 0.0),
             speed: 200.0,
         )),
 
         // Linear movement downward
+        // 向下的线性移动
         "move_down": Linear((
             dir: (0.0, -1.0),
             speed: 150.0,
         )),
 
         // Circular contraction toward center
+        // 向中心收缩的圆周运动
         "spiral_in": Circular((
             angular_velocity: 0.8,
             radial_velocity: -60.0,
         )),
 
-        // Homing spear using mod algorithm (自机狙)
+        // Homing spear using mod algorithm
+        // 通过 mod 算法实现的长矛自机狙
         "homing": Algo(
             id: "homing_spear",
             params: [180.0, 0.8],
         ),
 
         // Fade in effect
+        // 淡入效果
         "fade_in": Tween((
             target: Opacity,
             duration: 0.3,
@@ -69,8 +91,12 @@
     },
 
     // === Timeline ===
+    // === 时间线 ===
+    // This section defines the sequence of bullet spawns and their associated patterns and behaviors.
+    // 这一部分定义了弹幕生成的顺序及其相关的模式和行为。
     timeline: [
-        // Wave 1: Spear linear attack from left (t=0.0) - 长矛线性攻击
+        // Step 1: Spear linear attack from left (t=0.0) - 长矛线性攻击
+        // 第一步：从左侧发起的长矛线性攻击 (t=0.0)
         (
             t: 0.0,
             spawn: "spear",
@@ -78,7 +104,8 @@
             apply: ["move_right", "fade_in"],
         ),
 
-        // Wave 2: Pellet ring attack (t=1.5) - 花颗粒一圈攻击
+        // Step 2: Pellet ring attack (t=1.5) - 花颗粒一圈攻击
+        // 第二步：花颗粒一圈攻击 (t=1.5)
         (
             t: 1.5,
             spawn: "pellet",
@@ -86,7 +113,8 @@
             apply: ["spiral_in", "fade_in"],
         ),
 
-        // Wave 3: Homing spears from top (t=3.5) - 长矛自机狙
+        // Step 3: Homing spears from top (t=3.5) - 长矛自机狙
+        // 第三步：从顶部发起的长矛自机狙 (t=3.5)
         (
             t: 3.5,
             spawn: "spear",
@@ -94,7 +122,8 @@
             apply: ["homing", "fade_in"],
         ),
 
-        // Wave 4: Another pellet ring (t=5.0)
+        // Step 4: Another pellet ring (t=5.0)
+        // 第四步：另一个花颗粒一圈攻击 (t=5.0)
         (
             t: 5.0,
             spawn: "pellet",
@@ -102,7 +131,8 @@
             apply: ["spiral_in"],
         ),
 
-        // Wave 5: Spear sweep from right (t=6.5)
+        // Step 5: Spear sweep from right (t=6.5)
+        // 第五步：从右侧发起的长矛横扫 (t=6.5)
         (
             t: 6.5,
             spawn: "spear",

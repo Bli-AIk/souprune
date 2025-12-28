@@ -3,7 +3,6 @@
     UIInteraction(ui_layout: "battle/ui/undertale.ui_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(1.0),
-    // V2: Use DanmakuPerformance for timeline-based attack sequence
     DanmakuPerformance(
         performance: "battle/performances/demo_attack.performance.ron",
         position: Some((0.0, 50.0)),
