@@ -10,6 +10,20 @@ use crate::core::mod_system::BehaviorParams;
 use crate::core::ui::components::UIBox;
 use bevy::prelude::*;
 
+/// Plugin for battle collision systems
+///
+/// Battle 碰撞系统插件
+pub(crate) struct BattleCollisionPlugin;
+
+impl Plugin for BattleCollisionPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            constrain_player_to_battle_box_system.in_set(BattleUpdate),
+        );
+    }
+}
+
 /// Marker component for the battle box boundary
 ///
 /// 战斗框边界的标记组件
@@ -51,19 +65,5 @@ pub(crate) fn constrain_player_to_battle_box_system(
             player_transform.translation.x = constrained_pos.x;
             player_transform.translation.y = constrained_pos.y;
         }
-    }
-}
-
-/// Plugin for battle collision systems
-///
-/// Battle 碰撞系统插件
-pub(crate) struct BattleCollisionPlugin;
-
-impl Plugin for BattleCollisionPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            constrain_player_to_battle_box_system.in_set(BattleUpdate),
-        );
     }
 }
