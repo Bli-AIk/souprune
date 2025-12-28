@@ -1,0 +1,354 @@
+<template>
+  <div class="min-h-screen bg-black text-white font-vt323 relative overflow-hidden cyber-grid selection:bg-yellow-500 selection:text-black">
+    
+    <!-- Top Status Bar -->
+    <header class="fixed top-0 left-0 right-0 h-16 bg-black border-b-4 border-white z-50 px-4 flex items-center justify-between shadow-[0_4px_0_rgba(0,0,0,0.5)]">
+      <div class="flex items-center gap-4">
+        <span class="text-xl text-yellow-400 tracking-widest">SOUPRUNE_DOCS</span>
+        <div class="hidden md:flex gap-4 text-xs md:text-sm text-gray-400 font-pixel">
+          <span class="flex items-center gap-2"><span class="text-white">LV</span> {{ day }}</span>
+          <span class="flex items-center gap-2"><span class="text-white">HP</span> {{ time }}</span>
+          <span class="text-yellow-300">G {{ milliseconds }}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 md:gap-6">
+        <!-- Social Icons -->
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/your-repo" target="_blank" rel="noopener noreferrer" class="text-white hover:text-yellow-300 transition-colors">
+            <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 fill-current"><title>GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          </a>
+          <a href="https://gamejolt.com/your-game" target="_blank" rel="noopener noreferrer" class="text-white hover:text-yellow-300 transition-colors">
+            <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 fill-current"><title>Game Jolt</title><path d="M6.353 0v2.824H4.94v2.823H3.53v2.824H2.118v2.823H.706v2.824h8.47v2.823H7.765v2.824H6.353v2.823h1.412v-1.412h1.411v-1.411h1.412v-1.412H12V16.94h1.412v-1.41h1.412v-1.411h1.411v-1.412h1.412v-1.412h1.412V9.882h1.412V8.471h1.411V7.059h-4.235V5.647h1.412V4.235h1.412V2.824h1.411V1.412h1.412V0zm0 22.588H4.94V24h1.412zM7.765 2.824h9.882v1.411h-1.412v1.412h-1.411V7.06h-1.412v1.41H12v1.411h1.412v1.412H12V9.882h-1.412v1.412H9.176V9.882H7.765v1.412H6.353V9.882H4.94V8.471h1.412V5.647h1.412zM6.353 8.47v1.411h1.412v-1.41zm2.823 1.411h1.412v-1.41H9.176zm5.648 0h1.411v1.412h-1.411Z"/></svg>
+          </a>
+          <a href="https://discord.gg/your-invite" target="_blank" rel="noopener noreferrer" class="text-white hover:text-yellow-300 transition-colors">
+            <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 fill-current"><title>Discord</title><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+          </a>
+          <a href="https://your-name.itch.io/" target="_blank" rel="noopener noreferrer" class="text-white hover:text-yellow-300 transition-colors">
+            <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 fill-current"><title>Itch.io</title><path d="M3.13 1.338C2.08 1.96.02 4.328 0 4.95v1.03c0 1.303 1.22 2.45 2.325 2.45 1.33 0 2.436-1.102 2.436-2.41 0 1.308 1.07 2.41 2.4 2.41 1.328 0 2.362-1.102 2.362-2.41 0 1.308 1.137 2.41 2.466 2.41h.024c1.33 0 2.466-1.102 2.466-2.41 0 1.308 1.034 2.41 2.363 2.41 1.33 0 2.4-1.102 2.4-2.41 0 1.308 1.106 2.41 2.435 2.41C22.78 8.43 24 7.282 24 5.98V4.95c-.02-.62-2.082-2.99-3.13-3.612-3.253-.114-5.508-.134-8.87-.133-3.362 0-7.945.053-8.87.133zm6.376 6.477a2.74 2.74 0 0 1-.468.602c-.5.49-1.19.795-1.947.795a2.786 2.786 0 0 1-1.95-.795c-.182-.178-.32-.37-.446-.59-.127.222-.303.412-.486.59a2.788 2.788 0 0 1-1.95.795c-.092 0-.187-.025-.264-.052-.107 1.113-.152 2.176-.168 2.95v.005l-.006 1.167c.02 2.334-.23 7.564 1.03 8.85 1.952.454 5.545.662 9.15.663 3.605 0 7.198-.21 9.15-.664 1.26-1.284 1.01-6.514 1.03-8.848l-.006-1.167v-.004c-.016-.775-.06-1.838-.168-2.95-.077.026-.172.052-.263.052a2.788 2.788 0 0 1-1.95-.795c-.184-.178-.36-.368-.486-.59-.127.22-.265.412-.447.59a2.786 2.786 0 0 1-1.95.794c-.76 0-1.446-.303-1.948-.793a2.74 2.74 0 0 1-.468-.602 2.738 2.738 0 0 1-.463.602 2.787 2.787 0 0 1-1.95.794h-.16a2.787 2.787 0 0 1-1.95-.793 2.738 2.738 0 0 1-.464-.602zm-2.004 2.59v.002c.795.002 1.5 0 2.373.953.687-.072 1.406-.108 2.125-.107.72 0 1.438.035 2.125.107.873-.953 1.578-.95 2.372-.953.376 0 1.876 0 2.92 2.934l1.123 4.028c.832 2.995-.266 3.068-1.636 3.07-2.03-.075-3.156-1.55-3.156-3.025-1.124.184-2.436.276-3.748.277-1.312 0-2.624-.093-3.748-.277 0 1.475-1.125 2.95-3.156 3.026-1.37-.004-2.468-.077-1.636-3.072l1.122-4.027c1.045-2.934 2.545-2.934 2.92-2.934zM12 12.714c-.002.002-2.14 1.964-2.523 2.662l1.4-.056v1.22c0 .056.56.033 1.123.007.562.026 1.124.05 1.124-.008v-1.22l1.4.055C14.138 14.677 12 12.713 12 12.713z"/></svg>
+          </a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button @click="menuOpen = !menuOpen" class="md:hidden text-white hover:text-yellow-300 transition-colors">
+          <X v-if="menuOpen" :size="24" />
+          <Menu v-else :size="24" />
+        </button>
+      </div>
+    </header>
+
+    <div class="pt-20 pb-8 px-2 md:px-8 max-w-[1600px] mx-auto h-[calc(100vh)] flex flex-col md:flex-row gap-6 relative z-10">
+      
+      <!-- Left Column: The "Menu" -->
+      <nav 
+        :class="[
+          'fixed md:static inset-0 top-16 bg-black/95 md:bg-transparent z-40',
+          'flex flex-col gap-6 w-full md:w-80 shrink-0 transition-transform duration-300',
+          menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        ]"
+      >
+        <div class="p-4 md:p-0 overflow-y-auto h-full">
+          <!-- User Card -->
+          <div class="border-4 border-white bg-black p-4 mb-6 shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]">
+            <div class="flex items-center gap-4 mb-2">
+              <div class="w-12 h-12 bg-green-500 border-2 border-white"></div>
+              <div>
+                <div class="text-lg text-yellow-300">RALSEI</div>
+                <div class="font-pixel text-sm text-gray-300">Mage / Doc Writer</div>
+              </div>
+            </div>
+            <div class="w-full h-4 bg-red-900 border border-white mt-2 relative">
+              <div 
+                class="absolute top-0 left-0 h-full bg-yellow-400 transition-all duration-300 ease-in-out" 
+                :style="{ width: scrollProgress + '%' }"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Navigation Groups -->
+          <div class="space-y-6">
+            <NavGroup 
+              v-for="(items, category) in groupedNav"
+              :key="category"
+              :title="category.toUpperCase()" 
+              :icon="getIcon(category as string)" 
+              :items="items" 
+              :activeId="activeId" 
+              @select="handleNavSelect" 
+            />
+          </div>
+          
+
+        </div>
+      </nav>
+
+      <!-- Right Column: The "Content Box" -->
+      <main 
+        class="flex-1 min-w-0 relative h-full flex flex-col"
+        @touchstart="onTouchStart"
+        @touchmove="onTouchMove"
+        @touchend="onTouchEnd"
+      >
+        <Transition
+          :name="transitionName"
+          mode="out-in"
+        >
+          <div 
+            v-if="activeDoc"
+            :key="activeDoc.id"
+            class="flex-1 flex flex-col h-full pb-16 md:pb-0"
+          >
+            <div class="border-4 border-white bg-black flex-1 flex flex-col relative shadow-[8px_8px_0px_0px_rgba(100,100,100,0.5)] overflow-hidden">
+              <!-- Corner Decors -->
+              <div class="absolute -top-1 -left-1 w-4 h-4 bg-white z-20"></div>
+              <div class="absolute -top-1 -right-1 w-4 h-4 bg-white z-20"></div>
+              <div class="absolute -bottom-1 -left-1 w-4 h-4 bg-white z-20"></div>
+              <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-white z-20"></div>
+
+              <!-- Header Bar inside Content -->
+              <div class="bg-white text-black p-2 px-4 md:px-6 flex justify-between items-center z-10 shrink-0">
+                <span class="font-pixel text-xs md:text-base uppercase tracking-widest truncate mr-2">
+                  {{ activeDoc.category }} // {{ activeDoc.title }}
+                </span>
+                <div class="flex gap-1 shrink-0">
+                  <div class="w-3 h-3 bg-black rounded-full"></div>
+                  <div class="w-3 h-3 bg-black rounded-full opacity-50"></div>
+                  <div class="w-3 h-3 bg-black rounded-full opacity-25"></div>
+                </div>
+              </div>
+
+              <!-- Scrollable Area -->
+              <div 
+                ref="contentScrollContainer"
+                class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
+              >
+                <MarkdownRenderer :content="activeDoc.content" />
+                
+                <!-- Page Footer with Navigation Hints -->
+                <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">
+                  <button 
+                    @click="navigate('prev')" 
+                    class="hover:text-white flex items-center gap-2 transition-colors md:hidden"
+                    :disabled="activeId === flatNavOrder[0].id"
+                  >
+                    <ChevronLeft /> PREV
+                  </button>
+                  
+                  <span class="hidden md:inline">PAGE_{{ activeDoc.id.toUpperCase() }}</span>
+                  <span class="hidden md:inline">(PRESS Z TO PROCEED)</span>
+
+                  <button 
+                    @click="navigate('next')" 
+                    class="hover:text-white flex items-center gap-2 transition-colors md:hidden"
+                    :disabled="activeId === flatNavOrder[flatNavOrder.length - 1].id"
+                  >
+                    NEXT <ChevronRight />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
+import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { NAV_ITEMS, DOCS_DATA } from 'virtual:docs';
+import MarkdownRenderer from './components/MarkdownRenderer.vue';
+import NavGroup from './components/NavGroup.vue';
+import { DocPage } from './types';
+
+const activeId = ref<string>('intro');
+const activeDoc = ref<DocPage | undefined>(DOCS_DATA.find(d => d.id === 'intro'));
+const menuOpen = ref(false);
+const direction = ref(0); // -1 for prev, 1 for next
+const transitionName = ref('slide-left');
+
+// Time-related state
+const day = ref('');
+const time = ref('');
+const milliseconds = ref('');
+let timeInterval: any;
+let animationFrameId: any;
+const scrollProgress = ref(0); // This will become global progress
+
+const updateMilliseconds = () => {
+  milliseconds.value = String(new Date().getMilliseconds()).padStart(3, '0');
+  animationFrameId = requestAnimationFrame(updateMilliseconds);
+};
+
+// No updateScrollProgress function anymore
+
+onMounted(() => {
+  timeInterval = setInterval(() => {
+    const now = new Date();
+    day.value = String(now.getDate()).padStart(2, '0');
+    time.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }, 1000);
+  updateMilliseconds();
+  // Initial global progress calculation
+  updateGlobalProgress();
+});
+
+onUnmounted(() => {
+  clearInterval(timeInterval);
+  cancelAnimationFrame(animationFrameId);
+});
+
+// Swipe handling state
+const touchStartX = ref<number | null>(null);
+const touchEndX = ref<number | null>(null);
+const MIN_SWIPE_DISTANCE = 50;
+
+// Content scroll container ref
+const contentScrollContainer = ref<HTMLElement | null>(null);
+
+// Group items dynamically
+const groupedNav = computed(() => {
+  const groups: Record<string, typeof NAV_ITEMS> = {};
+  
+  // Define order
+  const order = ['guide', 'scripting', 'assets'];
+  
+  // Initialize with order
+  order.forEach(key => groups[key] = []);
+  
+  NAV_ITEMS.forEach(item => {
+    if (!groups[item.category]) groups[item.category] = [];
+    groups[item.category].push(item);
+  });
+  
+  return groups;
+});
+
+const getIcon = (category: string) => {
+  switch (category) {
+    case 'guide': return Shield;
+    case 'scripting': return Book;
+    case 'assets': return Box;
+    default: return Shield;
+  }
+};
+
+// Flatten navigation for next/prev logic
+const flatNavOrder = NAV_ITEMS;
+
+const updateGlobalProgress = () => {
+  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
+  if (currentIndex !== -1 && flatNavOrder.length > 0) {
+    // Calculate progress as (current_article_index + 1) / total_articles * 100
+    scrollProgress.value = ((currentIndex + 1) / flatNavOrder.length) * 100;
+  } else {
+    scrollProgress.value = 0;
+  }
+};
+
+watch(activeId, async () => {
+  const doc = DOCS_DATA.find(d => d.id === activeId.value);
+  activeDoc.value = doc;
+
+  await nextTick();
+  if (contentScrollContainer.value) {
+    contentScrollContainer.value.scrollTop = 0;
+  }
+  // Update global progress
+  updateGlobalProgress();
+});
+
+const navigate = (dir: 'next' | 'prev') => {
+  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
+  if (currentIndex === -1) return;
+
+  let nextIndex = dir === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+  // Clamp for documentation
+  if (nextIndex >= 0 && nextIndex < flatNavOrder.length) {
+    direction.value = dir === 'next' ? 1 : -1;
+    transitionName.value = dir === 'next' ? 'slide-left' : 'slide-right';
+    activeId.value = flatNavOrder[nextIndex].id;
+  }
+};
+
+const handleNavSelect = (id: string) => {
+  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
+  const nextIndex = flatNavOrder.findIndex(item => item.id === id);
+  
+  direction.value = nextIndex > currentIndex ? 1 : -1;
+  transitionName.value = nextIndex > currentIndex ? 'slide-left' : 'slide-right';
+  activeId.value = id;
+  menuOpen.value = false;
+};
+
+const onTouchStart = (e: TouchEvent) => {
+  touchStartX.value = e.targetTouches[0].clientX;
+  touchEndX.value = null;
+};
+
+const onTouchMove = (e: TouchEvent) => {
+  touchEndX.value = e.targetTouches[0].clientX;
+};
+
+const onTouchEnd = () => {
+  if (touchStartX.value === null || touchEndX.value === null) return;
+  
+  const distance = touchStartX.value - touchEndX.value;
+  const isLeftSwipe = distance > MIN_SWIPE_DISTANCE;
+  const isRightSwipe = distance < -MIN_SWIPE_DISTANCE;
+
+  if (isLeftSwipe) {
+    navigate('next');
+  } else if (isRightSwipe) {
+    navigate('prev');
+  }
+  
+  // Reset
+  touchStartX.value = null;
+  touchEndX.value = null;
+};
+</script>
+
+<style>
+/* Slide transitions */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(50px) scale(0.95);
+}
+
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-50px) scale(0.95);
+}
+
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-50px) scale(0.95);
+}
+
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(50px) scale(0.95);
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 4s linear infinite;
+}
+</style>
