@@ -110,7 +110,7 @@ fn default_z_index() -> f32 {
 /// Visual representation of a bullet.
 ///
 /// 弹幕的视觉表现。
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub enum BulletVisual {
     /// Static sprite image
     Sprite { path: String },
@@ -194,7 +194,7 @@ fn default_edge_margin() -> f32 {
 }
 
 /// Which screen edge to spawn from.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
 pub enum EdgeSide {
     #[default]
     Left,
@@ -354,7 +354,7 @@ pub enum KeyframeValue {
 }
 
 /// Easing functions for keyframe interpolation.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
 pub enum EaseFunction {
     #[default]
     Linear,
@@ -451,4 +451,337 @@ pub enum SpawnTrigger {
 #[derive(Resource, Default)]
 pub struct PendingBlueprintLoads {
     pub pending: Vec<(Handle<DanmakuBlueprint>, SpawnPatternEvent)>,
+}
+
+// ============================================================================
+// V2 Architecture: DanmakuPerformance (Timeline & Reference)
+// ============================================================================
+//
+// The V2 architecture replaces nested blueprints with a flat, timeline-based
+// structure. Instead of defining a single bullet, a DanmakuPerformance defines
+// a complete "performance" (time sequence of spawns and behaviors).
+//
+// V2 架构用扁平的时间轴结构替代嵌套的蓝图。
+// DanmakuPerformance 不再定义单个弹幕，而是定义一个完整的"演出"
+// （生成和行为的时间序列）。
+
+/// V2: Danmaku Performance asset - defines a complete bullet pattern sequence.
+/// Corresponds to a .performance.ron file.
+///
+/// V2: 弹幕演出资产 - 定义完整的弹幕模式序列。
+/// 对应 .performance.ron 文件。
+#[derive(Asset, Debug, Clone, Deserialize, Serialize, Reflect)]
+#[reflect(Debug)]
+pub struct DanmakuPerformance {
+    /// Bullet prototypes: ID -> visual/collision/damage data
+    #[serde(default)]
+    pub prototypes: HashMap<String, BulletPrototype>,
+
+    /// Behavior definitions: ID -> BulletBehavior
+    #[serde(default)]
+    pub behaviors: HashMap<String, BulletBehavior>,
+
+    /// Timeline: sequence of timed events
+    pub timeline: Vec<TimelineEvent>,
+}
+
+/// V2: Bullet prototype - defines the appearance and collision of a bullet type.
+///
+/// V2: 弹幕原型 - 定义弹幕类型的外观和碰撞。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct BulletPrototype {
+    /// Visual representation
+    pub visual: BulletVisual,
+
+    /// Collision shape
+    #[serde(default)]
+    pub collider: ColliderShape,
+
+    /// Base damage
+    #[serde(default = "default_damage")]
+    pub damage: f32,
+
+    /// Lifetime in seconds
+    #[serde(default = "default_lifetime")]
+    pub lifetime: f32,
+
+    /// Z-index for rendering order
+    #[serde(default = "default_z_index")]
+    pub z_index: f32,
+}
+
+/// V2: Collider shape for hit detection.
+///
+/// V2: 碰撞形状用于命中检测。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub enum ColliderShape {
+    Circle(f32),
+    Box(f32, f32),
+}
+
+impl Default for ColliderShape {
+    fn default() -> Self {
+        ColliderShape::Circle(4.0)
+    }
+}
+
+/// V2: Bullet behavior definition.
+/// Supports both built-in algorithms and custom FFI algorithms.
+///
+/// V2: 弹幕行为定义。
+/// 同时支持内置算法和自定义 FFI 算法。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub enum BulletBehavior {
+    // === Built-in Behaviors (内置行为) ===
+    /// Linear motion in a direction
+    Linear(LinearConfig),
+
+    /// Homing towards player
+    Homing(HomingConfig),
+
+    /// Tween animation (opacity, scale, position, etc.)
+    Tween(TweenConfig),
+
+    /// Circular/orbital motion
+    Circular(CircularConfig),
+
+    /// Sinusoidal oscillation
+    Sine(SineConfig),
+
+    // === Custom Behavior (自定义行为) ===
+    /// Algorithm loaded from mod system via FFI
+    Algo {
+        /// Algorithm ID registered in DanmakuRegistry
+        id: String,
+        /// Parameters passed to the algorithm
+        #[serde(default)]
+        params: Vec<f32>,
+    },
+}
+
+/// V2: Linear motion configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct LinearConfig {
+    #[serde(default = "default_linear_direction")]
+    pub dir: (f32, f32),
+    #[serde(default = "default_linear_speed")]
+    pub speed: f32,
+}
+
+impl Default for LinearConfig {
+    fn default() -> Self {
+        Self {
+            dir: default_linear_direction(),
+            speed: default_linear_speed(),
+        }
+    }
+}
+
+/// V2: Homing behavior configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct HomingConfig {
+    #[serde(default = "default_homing_strength")]
+    pub strength: f32,
+    #[serde(default = "default_homing_max_turn")]
+    pub max_turn_rate: f32,
+    #[serde(default = "default_linear_speed")]
+    pub speed: f32,
+}
+
+impl Default for HomingConfig {
+    fn default() -> Self {
+        Self {
+            strength: default_homing_strength(),
+            max_turn_rate: default_homing_max_turn(),
+            speed: default_linear_speed(),
+        }
+    }
+}
+
+/// V2: Circular motion configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct CircularConfig {
+    #[serde(default = "default_angular_velocity")]
+    pub angular_velocity: f32,
+    #[serde(default)]
+    pub radial_velocity: f32,
+}
+
+impl Default for CircularConfig {
+    fn default() -> Self {
+        Self {
+            angular_velocity: default_angular_velocity(),
+            radial_velocity: 0.0,
+        }
+    }
+}
+
+/// V2: Sine wave configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct SineConfig {
+    #[serde(default = "default_sine_axis")]
+    pub axis: (f32, f32),
+    #[serde(default = "default_sine_amplitude")]
+    pub amplitude: f32,
+    #[serde(default = "default_sine_frequency")]
+    pub frequency: f32,
+    #[serde(default)]
+    pub phase: f32,
+}
+
+impl Default for SineConfig {
+    fn default() -> Self {
+        Self {
+            axis: default_sine_axis(),
+            amplitude: default_sine_amplitude(),
+            frequency: default_sine_frequency(),
+            phase: 0.0,
+        }
+    }
+}
+
+/// V2: Tween animation configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct TweenConfig {
+    /// Target property to animate
+    pub target: TweenTarget,
+    /// Duration in seconds
+    pub duration: f32,
+    /// Easing function
+    #[serde(default)]
+    pub ease: EaseFunction,
+    /// Value range (start, end)
+    pub range: (f32, f32),
+    /// Delay before starting
+    #[serde(default)]
+    pub delay: f32,
+}
+
+/// V2: Tween target properties.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Reflect, Default)]
+pub enum TweenTarget {
+    #[default]
+    Opacity,
+    Scale,
+    ScaleX,
+    ScaleY,
+    PositionX,
+    PositionY,
+    Rotation,
+}
+
+/// V2: Timeline event - describes what happens at a specific time.
+///
+/// V2: 时间轴事件 - 描述在特定时间发生的事情。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub struct TimelineEvent {
+    /// Time in seconds from performance start
+    pub t: f32,
+
+    /// Prototype ID to spawn
+    pub spawn: String,
+
+    /// Spawn pattern (built-in geometric patterns)
+    #[serde(default)]
+    pub pattern: SpawnPatternV2,
+
+    /// List of behavior IDs to apply (references to `behaviors` map)
+    #[serde(default)]
+    pub apply: Vec<String>,
+}
+
+/// V2: Spawn pattern for timeline events.
+/// Built-in geometric patterns for bullet arrangement.
+///
+/// V2: 时间轴事件的生成模式。
+/// 内置的几何图案用于弹幕排列。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+pub enum SpawnPatternV2 {
+    /// Spawn a single bullet at center
+    Single,
+
+    /// Spawn bullets in a ring/circle
+    Ring {
+        count: usize,
+        #[serde(default)]
+        radius: f32,
+        #[serde(default)]
+        start_angle: f32,
+    },
+
+    /// Spawn bullets in a line
+    Line {
+        count: usize,
+        #[serde(default = "default_line_spacing")]
+        spacing: f32,
+        #[serde(default = "default_line_direction")]
+        direction: (f32, f32),
+    },
+
+    /// Spawn bullets from a screen edge
+    Edge {
+        count: usize,
+        #[serde(default)]
+        side: EdgeSide,
+        #[serde(default = "default_edge_spacing")]
+        spacing: f32,
+        #[serde(default = "default_edge_margin")]
+        margin: f32,
+    },
+
+    /// Custom spawn pattern from mod system
+    Custom {
+        id: String,
+        #[serde(default)]
+        params: HashMap<String, f32>,
+    },
+}
+
+impl Default for SpawnPatternV2 {
+    fn default() -> Self {
+        SpawnPatternV2::Single
+    }
+}
+
+// ============================================================================
+// V2 Runtime Resources
+// ============================================================================
+
+/// Resource tracking pending performance loads.
+#[derive(Resource, Default)]
+pub struct PendingPerformanceLoads {
+    pub pending: Vec<(Handle<DanmakuPerformance>, PlayPerformanceEvent)>,
+}
+
+/// Event to play a danmaku performance.
+///
+/// 播放弹幕演出的事件。
+#[derive(bevy::ecs::message::Message, Clone)]
+pub struct PlayPerformanceEvent {
+    /// Path to the .performance.ron file
+    pub performance_path: String,
+    /// Center position for the performance
+    pub position: Vec2,
+    /// Optional parameter overrides
+    pub params_override: HashMap<String, f32>,
+}
+
+impl PlayPerformanceEvent {
+    pub fn new(performance_path: impl Into<String>) -> Self {
+        Self {
+            performance_path: performance_path.into(),
+            position: Vec2::ZERO,
+            params_override: HashMap::new(),
+        }
+    }
+
+    pub fn at_position(mut self, position: Vec2) -> Self {
+        self.position = position;
+        self
+    }
+
+    pub fn with_param(mut self, key: impl Into<String>, value: f32) -> Self {
+        self.params_override.insert(key.into(), value);
+        self
+    }
 }

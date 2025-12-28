@@ -1,0 +1,113 @@
+// Demo Battle Performance
+// Demonstrates three attack patterns:
+// 1. Spear linear attack (长矛线性攻击)
+// 2. Pellet ring attack (花颗粒一圈攻击)
+// 3. Homing spear attack using mod algorithm (长矛自机狙)
+(
+    // === Bullet Prototypes ===
+    prototypes: {
+        "spear": (
+            visual: Sprite(path: "textures/battle/bullets/spear/spear.png"),
+            collider: Circle(6.0),
+            damage: 2.0,
+            lifetime: 4.0,
+            z_index: 15.0,
+        ),
+        "pellet": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: Circle(8.0),
+            damage: 1.0,
+            lifetime: 5.0,
+            z_index: 15.0,
+        ),
+    },
+
+    // === Behavior Definitions ===
+    behaviors: {
+        // Linear movement to the right
+        "move_right": Linear((
+            dir: (1.0, 0.0),
+            speed: 200.0,
+        )),
+
+        // Linear movement to the left
+        "move_left": Linear((
+            dir: (-1.0, 0.0),
+            speed: 200.0,
+        )),
+
+        // Linear movement downward
+        "move_down": Linear((
+            dir: (0.0, -1.0),
+            speed: 150.0,
+        )),
+
+        // Circular contraction toward center
+        "spiral_in": Circular((
+            angular_velocity: 0.8,
+            radial_velocity: -60.0,
+        )),
+
+        // Homing spear using mod algorithm (自机狙)
+        "homing": Algo(
+            id: "homing_spear",
+            params: [180.0, 0.8],
+        ),
+
+        // Fade in effect
+        "fade_in": Tween((
+            target: Opacity,
+            duration: 0.3,
+            ease: QuadOut,
+            range: (0.0, 1.0),
+            delay: 0.0,
+        )),
+    },
+
+    // === Timeline ===
+    timeline: [
+        // Wave 1: Spear linear attack from left (t=0.0) - 长矛线性攻击
+        (
+            t: 0.0,
+            spawn: "spear",
+            pattern: Edge(count: 5, side: Left, spacing: 35.0, margin: 250.0),
+            apply: ["move_right", "fade_in"],
+        ),
+
+        // Wave 2: Pellet ring attack (t=1.5) - 花颗粒一圈攻击
+        (
+            t: 1.5,
+            spawn: "pellet",
+            pattern: Ring(count: 12, radius: 100.0, start_angle: 0.0),
+            apply: ["spiral_in", "fade_in"],
+        ),
+
+        // Wave 3: Homing spears from top (t=3.5) - 长矛自机狙
+        (
+            t: 3.5,
+            spawn: "spear",
+            pattern: Line(count: 3, spacing: 60.0, direction: (0.0, -1.0)),
+            apply: ["homing", "fade_in"],
+        ),
+
+        // Wave 4: Another pellet ring (t=5.0)
+        (
+            t: 5.0,
+            spawn: "pellet",
+            pattern: Ring(count: 16, radius: 80.0, start_angle: 0.785),
+            apply: ["spiral_in"],
+        ),
+
+        // Wave 5: Spear sweep from right (t=6.5)
+        (
+            t: 6.5,
+            spawn: "spear",
+            pattern: Edge(count: 7, side: Right, spacing: 30.0, margin: 250.0),
+            apply: ["move_left"],
+        ),
+    ],
+)

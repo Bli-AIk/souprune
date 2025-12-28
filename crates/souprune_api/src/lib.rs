@@ -81,3 +81,94 @@ pub type GetBehaviorIdFn = extern "C" fn(index: u32) -> *const u8;
 /// 引擎会查找名为 "create_behavior" 的符号
 pub type CreateBehaviorFn =
     unsafe extern "C" fn(id: *const u8, api: *const HostApi) -> BehaviorInstance;
+
+// ============================================================================
+// Danmaku Scripting API (弹幕脚本 API)
+// ============================================================================
+
+/// C-compatible 2D vector for FFI.
+///
+/// 用于 FFI 的 C 兼容二维向量。
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Vec2C {
+    pub x: c_float,
+    pub y: c_float,
+}
+
+impl Vec2C {
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+
+    pub fn new(x: c_float, y: c_float) -> Self {
+        Self { x, y }
+    }
+}
+
+/// Bullet runtime state for C-ABI.
+/// This is passed to danmaku algorithm functions for stateless evaluation.
+///
+/// 弹幕运行时状态的 C 兼容表示。
+/// 传递给弹幕算法函数用于无状态计算。
+#[repr(C)]
+pub struct BulletStateC {
+    /// Time since bullet spawn (seconds)
+    pub elapsed: c_float,
+    /// Spawn center X coordinate
+    pub spawn_x: c_float,
+    /// Spawn center Y coordinate
+    pub spawn_y: c_float,
+    /// Initial offset X (relative to spawn center)
+    pub offset_x: c_float,
+    /// Initial offset Y (relative to spawn center)
+    pub offset_y: c_float,
+    /// Initial angle (radians)
+    pub initial_angle: c_float,
+    /// Initial radius (for circular patterns)
+    pub initial_radius: c_float,
+    /// Current velocity direction X
+    pub dir_x: c_float,
+    /// Current velocity direction Y
+    pub dir_y: c_float,
+    /// Pointer to custom parameters array (from RON config)
+    pub params: *const c_float,
+    /// Length of parameters array
+    pub params_len: usize,
+}
+
+impl Default for BulletStateC {
+    fn default() -> Self {
+        Self {
+            elapsed: 0.0,
+            spawn_x: 0.0,
+            spawn_y: 0.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            initial_angle: 0.0,
+            initial_radius: 0.0,
+            dir_x: 0.0,
+            dir_y: -1.0,
+            params: std::ptr::null(),
+            params_len: 0,
+        }
+    }
+}
+
+/// Danmaku algorithm function signature.
+/// Input: readonly bullet state
+/// Output: position offset for this frame
+///
+/// 弹幕算法函数签名。
+/// 输入：只读弹幕状态
+/// 输出：本帧的位置偏移
+pub type DanmakuUpdateFn = extern "C" fn(state: *const BulletStateC) -> Vec2C;
+
+/// Function type to get the number of exported danmaku algorithms in the DLL.
+pub type GetAlgorithmCountFn = extern "C" fn() -> u32;
+
+/// Function type to get the ID of an algorithm by index.
+/// Returns null if index is out of bounds.
+pub type GetAlgorithmIdFn = extern "C" fn(index: u32) -> *const u8;
+
+/// Function type to retrieve a danmaku algorithm by ID.
+/// Returns None if the ID is not found.
+pub type GetAlgorithmFn = unsafe extern "C" fn(id: *const u8) -> Option<DanmakuUpdateFn>;

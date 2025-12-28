@@ -2,15 +2,13 @@
     SetCamera(SetZoom(0.4)),
     UIInteraction(ui_layout: "battle/ui/undertale.ui_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
-    Wait(2.0),
-    BulletPattern(
-        blueprints: ["battle/patterns/flowey_pellet.danmaku.ron"]
+    Wait(1.0),
+    // V2: Use DanmakuPerformance for timeline-based attack sequence
+    DanmakuPerformance(
+        performance: "battle/performances/demo_attack.performance.ron",
+        position: Some((0.0, 50.0)),
     ),
-    Wait(3.0),
-    BulletPattern(
-        blueprints: ["battle/patterns/undyne_spear.danmaku.ron"]
-    ),
-    Wait(2.0),
+    Wait(10.0),
     Sequence([
         Wait(0.5),
         SetPlayer(Despawn),

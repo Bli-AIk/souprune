@@ -1,4 +1,4 @@
-use souprune_sdk::{Action, Behavior, Context, declare_behaviors};
+use souprune_sdk::{Action, Behavior, BulletStateC, Context, Vec2C, declare_algorithms, declare_behaviors};
 
 struct RedSoul {
     speed: f32,
@@ -92,4 +92,77 @@ impl Behavior for BlueSoul {
 declare_behaviors!(
     ("soul_red", RedSoul, || RedSoul::new()),
     ("soul_blue", BlueSoul, || BlueSoul)
+);
+
+// ============================================================================
+// Danmaku Algorithms (弹幕算法)
+// ============================================================================
+
+/// Homing spear algorithm - spears that track toward player position
+/// The algorithm calculates position based on initial direction modified by homing behavior
+///
+/// 自机狙长矛算法 - 追踪玩家位置的长矛
+/// 算法根据初始方向并结合追踪行为计算位置
+///
+/// Parameters (from RON config):
+/// - params[0]: speed (pixels per second)
+/// - params[1]: homing_strength (0.0 = no homing, 1.0 = instant tracking)
+extern "C" fn homing_spear_algorithm(state: *const BulletStateC) -> Vec2C {
+    let s = unsafe { &*state };
+
+    // Get parameters with defaults
+    let speed = if s.params_len > 0 {
+        unsafe { *s.params.add(0) }
+    } else {
+        200.0
+    };
+    let homing_strength = if s.params_len > 1 {
+        unsafe { *s.params.add(1) }
+    } else {
+        0.5
+    };
+
+    // Current position (spawn + offset + accumulated movement)
+    let current_x = s.spawn_x + s.offset_x;
+    let current_y = s.spawn_y + s.offset_y;
+
+    // For simplicity, assume player is at origin (0, 0) as we don't have access to player pos
+    // In a real implementation, player position would need to be passed through params
+    let player_x = 0.0;
+    let player_y = -80.0; // Player typically spawns here in demo
+
+    // Calculate direction to player
+    let to_player_x = player_x - current_x;
+    let to_player_y = player_y - current_y;
+    let dist = (to_player_x * to_player_x + to_player_y * to_player_y).sqrt();
+
+    if dist < 0.01 {
+        return Vec2C { x: 0.0, y: 0.0 };
+    }
+
+    let target_dir_x = to_player_x / dist;
+    let target_dir_y = to_player_y / dist;
+
+    // Blend between initial direction and target direction based on homing strength
+    let blend = (homing_strength * s.elapsed).min(1.0);
+    let dir_x = s.dir_x * (1.0 - blend) + target_dir_x * blend;
+    let dir_y = s.dir_y * (1.0 - blend) + target_dir_y * blend;
+
+    // Normalize blended direction
+    let len = (dir_x * dir_x + dir_y * dir_y).sqrt();
+    let (norm_x, norm_y) = if len > 0.01 {
+        (dir_x / len, dir_y / len)
+    } else {
+        (0.0, -1.0)
+    };
+
+    // Return position offset based on elapsed time and speed
+    Vec2C {
+        x: norm_x * speed * s.elapsed,
+        y: norm_y * speed * s.elapsed,
+    }
+}
+
+declare_algorithms!(
+    ("homing_spear", homing_spear_algorithm),
 );

@@ -12,7 +12,8 @@ pub mod traits;
 // 重新导出，方便用户使用
 pub use context::Context;
 pub use souprune_api::{
-    Action, BehaviorInstance, BehaviorVTable, ContextHandle, HostApi, c_float, c_void,
+    Action, BehaviorInstance, BehaviorVTable, BulletStateC, ContextHandle, DanmakuUpdateFn,
+    HostApi, Vec2C, c_float, c_void,
 };
 pub use traits::Behavior;
 
@@ -132,6 +133,70 @@ macro_rules! declare_behaviors {
                     destroy: None,
                 }
             }
+        }
+    };
+}
+
+/// This macro is used to register danmaku algorithms for the bullet pattern system.
+/// Each algorithm is a pure function that takes BulletStateC and returns Vec2C.
+///
+/// 这个宏用于注册弹幕算法到弹幕模式系统。
+/// 每个算法是一个纯函数，接收 BulletStateC 并返回 Vec2C。
+///
+/// # Example
+/// ```ignore
+/// declare_algorithms!(
+///     ("homing_spear", homing_spear_algorithm),
+///     ("spiral", spiral_algorithm),
+/// );
+///
+/// extern "C" fn homing_spear_algorithm(state: *const BulletStateC) -> Vec2C {
+///     let s = unsafe { &*state };
+///     // ... algorithm logic
+///     Vec2C { x: 0.0, y: 0.0 }
+/// }
+/// ```
+#[macro_export]
+macro_rules! declare_algorithms {
+    ( $( ($id:literal, $algo_fn:expr) ),* $(,)? ) => {
+        /// Export the number of Danmaku Algorithms in this DLL
+        #[unsafe(no_mangle)]
+        pub extern "C" fn get_algorithm_count() -> u32 {
+            let mut count = 0;
+            $(
+                count += 1;
+                let _ = $id; // Suppress unused warning
+            )*
+            count
+        }
+
+        /// Export the ID of an Algorithm by index
+        #[unsafe(no_mangle)]
+        pub extern "C" fn get_algorithm_id(index: u32) -> *const u8 {
+            let ids = [ $( concat!($id, "\0").as_ptr() ),* ];
+            if (index as usize) < ids.len() {
+                ids[index as usize]
+            } else {
+                std::ptr::null()
+            }
+        }
+
+        /// Get an algorithm function by ID
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn get_algorithm(id: *const u8) -> Option<$crate::DanmakuUpdateFn> {
+            let id_str = unsafe {
+                std::ffi::CStr::from_ptr(id as *const i8)
+                    .to_str()
+                    .unwrap_or("")
+            };
+
+            $(
+                if id_str == $id {
+                    return Some($algo_fn);
+                }
+            )*
+
+            None
         }
     };
 }

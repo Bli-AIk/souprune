@@ -27,6 +27,7 @@ impl Plugin for SequencerPlugin {
                     process_camera_action_system,
                     process_ui_action_system,
                     process_bullet_pattern_system,
+                    process_danmaku_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
                     process_parallel_chapter_system,
@@ -40,7 +41,7 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::chapter::{Chapter, PlayerAction};
-use super::danmaku::SpawnPatternEvent;
+use super::danmaku::{PlayPerformanceEvent, SpawnPatternEvent};
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
@@ -344,6 +345,34 @@ fn process_bullet_pattern_system(
                 }
                 pattern_events.write(event);
             }
+            commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+/// V2: System to process DanmakuPerformance chapters.
+///
+/// V2: 处理弹幕演出章节的系统。
+fn process_danmaku_performance_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
+    mut performance_events: bevy::ecs::message::MessageWriter<PlayPerformanceEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::DanmakuPerformance {
+            performance,
+            position,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "[Battle] Starting danmaku performance from: {}",
+                performance
+            );
+            let mut event = PlayPerformanceEvent::new(performance.clone());
+            if let Some((x, y)) = position {
+                event = event.at_position(Vec2::new(*x, *y));
+            }
+            performance_events.write(event);
             commands.entity(entity).insert(ChapterFinished);
         }
     }

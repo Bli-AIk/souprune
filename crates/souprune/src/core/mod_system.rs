@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use libloading::{Library, Symbol};
 use souprune_api::{
-    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, GetBehaviorCountFn, GetBehaviorIdFn,
+    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, DanmakuUpdateFn,
+    GetAlgorithmCountFn, GetAlgorithmFn, GetAlgorithmIdFn, GetBehaviorCountFn, GetBehaviorIdFn,
     HostApi,
 };
 use std::collections::HashMap;
@@ -61,6 +62,7 @@ pub struct ModPlugin;
 impl Plugin for ModPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BehaviorRegistry>()
+            .init_resource::<DanmakuRegistry>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
                 Update,
@@ -78,7 +80,37 @@ pub struct BehaviorRegistry {
     factories: HashMap<String, CreateBehaviorFn>,
 }
 
-fn load_mods_system(mut registry: ResMut<BehaviorRegistry>) {
+/// Registry for danmaku algorithm functions loaded from mods.
+/// Stores function pointers to stateless bullet motion algorithms.
+///
+/// 弹幕算法函数注册表，从模组中加载。
+/// 存储无状态弹幕运动算法的函数指针。
+#[derive(Resource, Default)]
+pub struct DanmakuRegistry {
+    algorithms: HashMap<String, DanmakuUpdateFn>,
+}
+
+impl DanmakuRegistry {
+    /// Get a danmaku algorithm by ID.
+    pub fn get(&self, id: &str) -> Option<DanmakuUpdateFn> {
+        self.algorithms.get(id).copied()
+    }
+
+    /// Check if an algorithm is registered.
+    pub fn contains(&self, id: &str) -> bool {
+        self.algorithms.contains_key(id)
+    }
+
+    /// Get all registered algorithm IDs.
+    pub fn algorithm_ids(&self) -> impl Iterator<Item = &String> {
+        self.algorithms.keys()
+    }
+}
+
+fn load_mods_system(
+    mut registry: ResMut<BehaviorRegistry>,
+    mut danmaku_registry: ResMut<DanmakuRegistry>,
+) {
     // Hardcoded loading for now
     let lib_name = if cfg!(target_os = "windows") {
         "mod_example.dll"
@@ -96,6 +128,7 @@ fn load_mods_system(mut registry: ResMut<BehaviorRegistry>) {
         info!("Loading mod: {}", mod_path);
         let lib = Library::new(&mod_path).expect("Failed to load DLL");
 
+        // === Load Behaviors ===
         // 1. Get Count
         let get_count: Symbol<GetBehaviorCountFn> =
             lib.get(b"get_behavior_count").expect("No count fn found");
@@ -120,6 +153,32 @@ fn load_mods_system(mut registry: ResMut<BehaviorRegistry>) {
 
             info!("Registered Behavior: {}", id);
             registry.factories.insert(id, create_fn_ptr);
+        }
+
+        // === Load Danmaku Algorithms ===
+        if let Ok(get_algo_count) = lib.get::<GetAlgorithmCountFn>(b"get_algorithm_count") {
+            let algo_count = get_algo_count();
+            info!("Found {} Danmaku Algorithms in DLL", algo_count);
+
+            if let (Ok(get_algo_id), Ok(get_algo)) = (
+                lib.get::<GetAlgorithmIdFn>(b"get_algorithm_id"),
+                lib.get::<GetAlgorithmFn>(b"get_algorithm"),
+            ) {
+                for i in 0..algo_count {
+                    let id_ptr = get_algo_id(i);
+                    if id_ptr.is_null() {
+                        continue;
+                    }
+                    let id = CStr::from_ptr(id_ptr as *const i8)
+                        .to_string_lossy()
+                        .into_owned();
+
+                    if let Some(algo_fn) = get_algo(id_ptr) {
+                        info!("Registered Danmaku Algorithm: {}", id);
+                        danmaku_registry.algorithms.insert(id, algo_fn);
+                    }
+                }
+            }
         }
 
         registry.libs.push(lib);

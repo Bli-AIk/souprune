@@ -47,6 +47,23 @@ pub enum Chapter {
         count: Option<usize>,
     },
 
+    /// V2: Danmaku Performance Chapter.
+    ///
+    /// The Chapter is responsible for playing a complete danmaku performance (timeline-based).
+    /// This is the V2 architecture that replaces nested blueprints with flat timeline events.
+    ///
+    /// V2: 弹幕演出章节。
+    ///
+    /// 此章节负责播放完整的弹幕演出（基于时间轴）。
+    /// 这是 V2 架构，用扁平的时间轴事件替代嵌套蓝图。
+    DanmakuPerformance {
+        /// Path to the performance file (e.g., "battle/performances/boss_attack.performance.ron")
+        performance: String,
+        /// Optional spawn position override (defaults to center of battle box)
+        #[serde(default)]
+        position: Option<(f32, f32)>,
+    },
+
     /// Simple Wait Chapter.
     ///
     /// 简单的等待章节。

@@ -6,7 +6,7 @@
 //!
 //! 定义弹幕系统的 ECS 组件。
 
-use super::patterns::{LoopMode, MotionTrack};
+use super::patterns::{BulletBehavior, LoopMode, MotionTrack};
 use bevy::prelude::*;
 
 /// Marker component for bullet entities.
@@ -104,10 +104,10 @@ impl BulletMotionState {
     }
 }
 
-/// Component holding the motion tracks for a bullet.
+/// Component holding the motion tracks for a bullet (legacy V1 system).
 /// This is cloned from the blueprint at spawn time.
 ///
-/// 持有弹幕运动轨道的组件。
+/// 持有弹幕运动轨道的组件（旧版 V1 系统）。
 /// 在生成时从蓝图克隆。
 #[derive(Component, Clone)]
 pub struct BulletMotionTracks(pub Vec<MotionTrack>);
@@ -129,3 +129,94 @@ impl Default for KeyframedTrackState {
         }
     }
 }
+
+// ============================================================================
+// V2 Components: BehaviorStack and PerformancePlayer
+// ============================================================================
+
+/// V2: Behavior stack component for a bullet.
+/// Contains a list of active behaviors that are evaluated each frame.
+///
+/// V2: 弹幕的行为栈组件。
+/// 包含每帧都会评估的活跃行为列表。
+#[derive(Component, Clone)]
+pub struct BehaviorStack {
+    /// List of active behaviors
+    pub behaviors: Vec<BulletBehavior>,
+    /// Cached parameters for FFI algorithms (converted to C array)
+    pub cached_params: Vec<f32>,
+}
+
+impl BehaviorStack {
+    pub fn new(behaviors: Vec<BulletBehavior>) -> Self {
+        Self {
+            behaviors,
+            cached_params: Vec::new(),
+        }
+    }
+
+    pub fn with_cached_params(mut self, params: Vec<f32>) -> Self {
+        self.cached_params = params;
+        self
+    }
+}
+
+impl Default for BehaviorStack {
+    fn default() -> Self {
+        Self {
+            behaviors: Vec::new(),
+            cached_params: Vec::new(),
+        }
+    }
+}
+
+/// V2: Tween state for a single tween behavior.
+/// Tracks the progress of tween animations.
+///
+/// V2: 单个补间行为的状态。
+/// 追踪补间动画的进度。
+#[derive(Component, Default)]
+pub struct TweenState {
+    /// Current time for each tween (indexed by behavior position in stack)
+    pub timers: Vec<f32>,
+}
+
+/// V2: Performance player component.
+/// Attached to an entity that is playing a DanmakuPerformance timeline.
+///
+/// V2: 演出播放器组件。
+/// 附加到正在播放 DanmakuPerformance 时间轴的实体上。
+#[derive(Component)]
+pub struct PerformancePlayer {
+    /// Current playback time
+    pub elapsed: f32,
+    /// Index of the next event to process
+    pub next_event_index: usize,
+    /// Whether the performance has finished
+    pub finished: bool,
+    /// Center position for spawning
+    pub spawn_center: Vec2,
+}
+
+impl PerformancePlayer {
+    pub fn new(spawn_center: Vec2) -> Self {
+        Self {
+            elapsed: 0.0,
+            next_event_index: 0,
+            finished: false,
+            spawn_center,
+        }
+    }
+}
+
+/// V2: Component that links a PerformancePlayer to its loaded performance asset.
+///
+/// V2: 将 PerformancePlayer 与其加载的演出资产关联的组件。
+#[derive(Component)]
+pub struct PerformanceHandle(pub Handle<super::patterns::DanmakuPerformance>);
+
+/// V2: Marker component for performance player entities.
+///
+/// V2: 演出播放器实体的标记组件。
+#[derive(Component)]
+pub struct PerformancePlayerMarker;
