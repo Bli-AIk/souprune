@@ -26,7 +26,6 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
-                    process_bullet_pattern_system,
                     process_danmaku_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
@@ -41,7 +40,7 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::chapter::{Chapter, PlayerAction};
-use super::danmaku::{PlayPerformanceEvent, SpawnPatternEvent};
+use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
@@ -330,29 +329,9 @@ fn process_ui_action_system(
     }
 }
 
-fn process_bullet_pattern_system(
-    mut commands: Commands,
-    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    mut pattern_events: bevy::ecs::message::MessageWriter<SpawnPatternEvent>,
-) {
-    for (entity, active_chapter) in query.iter() {
-        if let Chapter::BulletPattern { blueprints, count } = &active_chapter.chapter {
-            for blueprint_path in blueprints {
-                info!("[Battle] Spawning bullet pattern from: {}", blueprint_path);
-                let mut event = SpawnPatternEvent::new(blueprint_path.clone());
-                if let Some(c) = count {
-                    event = event.with_count(*c);
-                }
-                pattern_events.write(event);
-            }
-            commands.entity(entity).insert(ChapterFinished);
-        }
-    }
-}
-
-/// V2: System to process DanmakuPerformance chapters.
+/// System to process DanmakuPerformance chapters.
 ///
-/// V2: 处理弹幕演出章节的系统。
+/// 处理弹幕演出章节的系统。
 fn process_danmaku_performance_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,

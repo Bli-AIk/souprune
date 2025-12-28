@@ -32,30 +32,13 @@ pub enum Chapter {
     /// 涉及 UI 交互的章节都应应用此项，如 玩家选择、对话 等。
     UIInteraction { ui_layout: String },
 
-    /// Bullet Pattern Chapter.
-    ///
-    /// The Chapter is responsible for generating bullet patterns from blueprints.
-    ///
-    /// 弹幕生成章节。
-    ///
-    /// 此章节负责从蓝图生成弹幕模式。
-    BulletPattern {
-        /// List of blueprint paths (e.g., "battle/patterns/flowey_pellet.danmaku.ron")
-        blueprints: Vec<String>,
-        /// Optional count override for patterns that support it
-        #[serde(default)]
-        count: Option<usize>,
-    },
-
-    /// V2: Danmaku Performance Chapter.
+    /// Danmaku Performance Chapter.
     ///
     /// The Chapter is responsible for playing a complete danmaku performance (timeline-based).
-    /// This is the V2 architecture that replaces nested blueprints with flat timeline events.
     ///
-    /// V2: 弹幕演出章节。
+    /// 弹幕演出章节。
     ///
     /// 此章节负责播放完整的弹幕演出（基于时间轴）。
-    /// 这是 V2 架构，用扁平的时间轴事件替代嵌套蓝图。
     DanmakuPerformance {
         /// Path to the performance file (e.g., "battle/performances/boss_attack.performance.ron")
         performance: String,

@@ -6,7 +6,7 @@
 //!
 //! 定义弹幕系统的 ECS 组件。
 
-use super::patterns::{BulletBehavior, LoopMode, MotionTrack};
+use super::patterns::BulletBehavior;
 use bevy::prelude::*;
 
 /// Marker component for bullet entities.
@@ -49,10 +49,10 @@ impl Default for BulletDamage {
 #[derive(Component)]
 pub struct DespawnBullet;
 
-/// Runtime state for a bullet's motion stack evaluation.
+/// Runtime state for a bullet's motion evaluation.
 /// Stores the current elapsed time and initial spawn data.
 ///
-/// 弹幕运动堆栈评估的运行时状态。
+/// 弹幕运动评估的运行时状态。
 /// 存储当前经过时间和初始生成数据。
 #[derive(Component)]
 pub struct BulletMotionState {
@@ -66,7 +66,7 @@ pub struct BulletMotionState {
     pub initial_angle: f32,
     /// Initial radius (for circular patterns)
     pub initial_radius: f32,
-    /// Current velocity direction (for homing/linear tracks)
+    /// Current velocity direction (for homing/linear behaviors)
     pub velocity_direction: Vec2,
 }
 
@@ -97,53 +97,22 @@ impl BulletMotionState {
         self.initial_radius = radius;
         self
     }
-
-    pub fn with_direction(mut self, direction: Vec2) -> Self {
-        self.velocity_direction = direction.normalize_or_zero();
-        self
-    }
-}
-
-/// Component holding the motion tracks for a bullet (legacy V1 system).
-/// This is cloned from the blueprint at spawn time.
-///
-/// 持有弹幕运动轨道的组件（旧版 V1 系统）。
-/// 在生成时从蓝图克隆。
-#[derive(Component, Clone)]
-pub struct BulletMotionTracks(pub Vec<MotionTrack>);
-
-/// Component for keyframed track state.
-#[derive(Component)]
-pub struct KeyframedTrackState {
-    pub current_keyframe_index: usize,
-    pub loop_count: usize,
-    pub loop_mode: LoopMode,
-}
-
-impl Default for KeyframedTrackState {
-    fn default() -> Self {
-        Self {
-            current_keyframe_index: 0,
-            loop_count: 0,
-            loop_mode: LoopMode::Once,
-        }
-    }
 }
 
 // ============================================================================
-// V2 Components: BehaviorStack and PerformancePlayer
+// Performance System Components
 // ============================================================================
 
-/// V2: Behavior stack component for a bullet.
+/// Behavior stack component for a bullet.
 /// Contains a list of active behaviors that are evaluated each frame.
 ///
-/// V2: 弹幕的行为栈组件。
+/// 弹幕的行为栈组件。
 /// 包含每帧都会评估的活跃行为列表。
 #[derive(Component, Clone)]
 pub struct BehaviorStack {
     /// List of active behaviors
     pub behaviors: Vec<BulletBehavior>,
-    /// Cached parameters for FFI algorithms (converted to C array)
+    /// Cached parameters for FFI algorithms
     pub cached_params: Vec<f32>,
 }
 
@@ -170,10 +139,10 @@ impl Default for BehaviorStack {
     }
 }
 
-/// V2: Tween state for a single tween behavior.
+/// Tween state for tween behaviors.
 /// Tracks the progress of tween animations.
 ///
-/// V2: 单个补间行为的状态。
+/// 补间行为的状态。
 /// 追踪补间动画的进度。
 #[derive(Component, Default)]
 pub struct TweenState {
@@ -181,10 +150,10 @@ pub struct TweenState {
     pub timers: Vec<f32>,
 }
 
-/// V2: Performance player component.
+/// Performance player component.
 /// Attached to an entity that is playing a DanmakuPerformance timeline.
 ///
-/// V2: 演出播放器组件。
+/// 演出播放器组件。
 /// 附加到正在播放 DanmakuPerformance 时间轴的实体上。
 #[derive(Component)]
 pub struct PerformancePlayer {
@@ -209,14 +178,14 @@ impl PerformancePlayer {
     }
 }
 
-/// V2: Component that links a PerformancePlayer to its loaded performance asset.
+/// Component that links a PerformancePlayer to its loaded performance asset.
 ///
-/// V2: 将 PerformancePlayer 与其加载的演出资产关联的组件。
+/// 将 PerformancePlayer 与其加载的演出资产关联的组件。
 #[derive(Component)]
 pub struct PerformanceHandle(pub Handle<super::patterns::DanmakuPerformance>);
 
-/// V2: Marker component for performance player entities.
+/// Marker component for performance player entities.
 ///
-/// V2: 演出播放器实体的标记组件。
+/// 演出播放器实体的标记组件。
 #[derive(Component)]
 pub struct PerformancePlayerMarker;
