@@ -5,7 +5,7 @@
 //! 提供对原始 `ContextHandle` 和 `HostApi` 的安全封装。
 //! 允许模组开发者使用惯用的 Rust 方法与游戏世界交互（例如获取输入、设置速度）。
 
-use souprune_api::{BulletStateC, ContextHandle, HostApi, Vec2C};
+use souprune_api::{BulletContextC, ContextHandle, HostApi};
 use std::ffi::CString;
 
 /// Context is the only window for dialogue between Mod and Engine.
@@ -94,18 +94,20 @@ impl<'b, 'a> InputHelper<'b, 'a> {
 }
 
 // ============================================================================
-// Bullet State Safe Wrapper (弹幕状态安全封装)
+// Bullet Context Safe Wrapper (弹幕上下文安全封装)
 // ============================================================================
 
-/// Safe wrapper around BulletStateC for danmaku algorithms.
-/// Provides safe access to bullet state without requiring unsafe code in user scripts.
+/// Safe wrapper around BulletContextC for danmaku algorithms.
+/// Provides safe access to bullet context without requiring unsafe code in user scripts.
 ///
-/// BulletStateC 的安全封装，用于弹幕算法。
-/// 提供对弹幕状态的安全访问，用户脚本无需使用 unsafe 代码。
+/// BulletContextC 的安全封装，用于弹幕算法。
+/// 提供对弹幕上下文的安全访问，用户脚本无需使用 unsafe 代码。
 #[derive(Debug, Clone, Copy)]
-pub struct BulletState {
+pub struct BulletContext {
     /// Time since bullet spawn (seconds)
     pub elapsed: f32,
+    /// Delta time for this frame
+    pub delta_time: f32,
     /// Spawn center position
     pub spawn_pos: Vec2,
     /// Initial offset from spawn center
@@ -114,52 +116,53 @@ pub struct BulletState {
     pub initial_angle: f32,
     /// Initial radius (for circular patterns)
     pub initial_radius: f32,
-    /// Current velocity direction (normalized)
-    pub direction: Vec2,
+    /// Current player position (for homing behaviors)
+    pub player_pos: Vec2,
     /// Custom parameters from RON config
     params: [f32; 16], // Fixed size array to avoid heap allocation
     params_len: usize,
 }
 
-impl BulletState {
-    /// Create a BulletState from raw C pointer.
+impl BulletContext {
+    /// Create a BulletContext from raw C pointer.
     /// This is called internally by the SDK macro.
     ///
-    /// 从原始 C 指针创建 BulletState。
+    /// 从原始 C 指针创建 BulletContext。
     /// 由 SDK 宏内部调用。
     ///
     /// # Safety
     ///
-    /// `state` must be a valid pointer to BulletStateC provided by the host.
-    pub unsafe fn from_raw(state: *const BulletStateC) -> Self {
-        // SAFETY: Caller guarantees state is valid
-        let s = unsafe { &*state };
+    /// `ctx` must be a valid pointer to BulletContextC provided by the host.
+    pub unsafe fn from_raw(ctx: *const BulletContextC) -> Self {
+        // SAFETY: Caller guarantees ctx is valid
+        let c = unsafe { &*ctx };
 
         // Safely copy parameters into fixed-size array
         let mut params = [0.0f32; 16];
-        let params_len = s.params_len.min(16);
-        if !s.params.is_null() && params_len > 0 {
+        let params_len = c.params_len.min(16);
+        if !c.params.is_null() && params_len > 0 {
             for i in 0..params_len {
                 // SAFETY: We've checked params is not null and i < params_len
-                params[i] = unsafe { *s.params.add(i) };
+                params[i] = unsafe { *c.params.add(i) };
             }
         }
 
         Self {
-            elapsed: s.elapsed,
+            elapsed: c.elapsed,
+            delta_time: c.delta_time,
             spawn_pos: Vec2 {
-                x: s.spawn_x,
-                y: s.spawn_y,
+                x: c.spawn_x,
+                y: c.spawn_y,
             },
             initial_offset: Vec2 {
-                x: s.offset_x,
-                y: s.offset_y,
+                x: c.offset_x,
+                y: c.offset_y,
             },
-            initial_angle: s.initial_angle,
-            initial_radius: s.initial_radius,
-            direction: Vec2 {
-                x: s.dir_x,
-                y: s.dir_y,
+            initial_angle: c.initial_angle,
+            initial_radius: c.initial_radius,
+            player_pos: Vec2 {
+                x: c.player_x,
+                y: c.player_y,
             },
             params,
             params_len,
@@ -180,13 +183,60 @@ impl BulletState {
     /// Get current position (spawn + offset).
     ///
     /// 获取当前位置（生成点 + 偏移）。
-    pub fn current_pos(&self) -> Vec2 {
+    pub fn spawn_position(&self) -> Vec2 {
         Vec2 {
             x: self.spawn_pos.x + self.initial_offset.x,
             y: self.spawn_pos.y + self.initial_offset.y,
         }
     }
 }
+
+// ============================================================================
+// Bullet Output (弹幕输出)
+// ============================================================================
+
+/// Output from a danmaku behavior's on_update method.
+///
+/// 弹幕行为 on_update 方法的输出。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BulletOutput {
+    /// Position offset
+    pub offset: Vec2,
+    /// Rotation delta (radians)
+    pub rotation: f32,
+}
+
+impl BulletOutput {
+    pub const ZERO: Self = Self {
+        offset: Vec2::ZERO,
+        rotation: 0.0,
+    };
+
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {
+            offset: Vec2::new(x, y),
+            rotation: 0.0,
+        }
+    }
+
+    pub fn with_rotation(mut self, rotation: f32) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    /// Convert to C-compatible BulletOutputC for return value.
+    pub fn to_output_c(self) -> souprune_api::BulletOutputC {
+        souprune_api::BulletOutputC {
+            offset_x: self.offset.x,
+            offset_y: self.offset.y,
+            rotation: self.rotation,
+        }
+    }
+}
+
+// ============================================================================
+// Vec2 Helper (二维向量辅助)
+// ============================================================================
 
 /// Simple 2D vector for SDK use.
 ///
@@ -220,13 +270,41 @@ impl Vec2 {
         }
     }
 
+    /// Subtract another vector
+    pub fn sub(&self, other: &Vec2) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+
     /// Convert to C-compatible Vec2C for return value.
     ///
     /// 转换为 C 兼容的 Vec2C 用于返回值。
-    pub fn to_vec2c(self) -> Vec2C {
-        Vec2C {
+    pub fn to_vec2c(self) -> souprune_api::Vec2C {
+        souprune_api::Vec2C {
             x: self.x,
             y: self.y,
+        }
+    }
+}
+
+impl std::ops::Sub for Vec2 {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl std::ops::Mul<f32> for Vec2 {
+    type Output = Self;
+    fn mul(self, scalar: f32) -> Self {
+        Self {
+            x: self.x * scalar,
+            y: self.y * scalar,
         }
     }
 }

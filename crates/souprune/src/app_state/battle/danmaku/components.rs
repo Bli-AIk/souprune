@@ -8,6 +8,7 @@
 
 use super::patterns::BulletBehavior;
 use bevy::prelude::*;
+use souprune_api::DanmakuInstance;
 
 /// Marker component for bullet entities.
 ///
@@ -189,3 +190,77 @@ pub struct PerformanceHandle(pub Handle<super::patterns::DanmakuPerformance>);
 /// 演出播放器实体的标记组件。
 #[derive(Component)]
 pub struct PerformancePlayerMarker;
+
+// ============================================================================
+// Active Danmaku Behavior Component
+// ============================================================================
+
+/// Component that holds an active danmaku behavior instance from a mod.
+/// Manages the lifecycle of the FFI instance (on_enter/on_update/on_exit).
+///
+/// 持有来自模组的活跃弹幕行为实例的组件。
+/// 管理 FFI 实例的生命周期（on_enter/on_update/on_exit）。
+#[derive(Component)]
+pub struct ActiveDanmaku {
+    instance: DanmakuInstance,
+    /// Whether on_enter has been called
+    initialized: bool,
+    /// Parameters from RON config
+    pub params: Vec<f32>,
+}
+
+// SAFETY: The DanmakuInstance is accessed only from the main thread
+unsafe impl Send for ActiveDanmaku {}
+unsafe impl Sync for ActiveDanmaku {}
+
+impl ActiveDanmaku {
+    pub fn new(instance: DanmakuInstance, params: Vec<f32>) -> Self {
+        Self {
+            instance,
+            initialized: false,
+            params,
+        }
+    }
+
+    /// Check if on_enter has been called
+    pub fn is_initialized(&self) -> bool {
+        self.initialized
+    }
+
+    /// Call on_enter (should only be called once)
+    pub fn call_on_enter(&mut self, ctx: &souprune_api::BulletContextC) {
+        if !self.initialized {
+            if let Some(on_enter) = self.instance.vtable.on_enter {
+                on_enter(self.instance.instance, ctx);
+            }
+            self.initialized = true;
+        }
+    }
+
+    /// Call on_update and return the output
+    pub fn call_on_update(
+        &mut self,
+        ctx: &souprune_api::BulletContextC,
+    ) -> souprune_api::BulletOutputC {
+        if let Some(on_update) = self.instance.vtable.on_update {
+            on_update(self.instance.instance, ctx)
+        } else {
+            souprune_api::BulletOutputC::default()
+        }
+    }
+}
+
+impl Drop for ActiveDanmaku {
+    fn drop(&mut self) {
+        // Call on_exit if initialized
+        if self.initialized {
+            if let Some(on_exit) = self.instance.vtable.on_exit {
+                on_exit(self.instance.instance);
+            }
+        }
+        // Critical: Call destroy to free memory on the guest side
+        if let Some(destroy) = self.instance.vtable.destroy {
+            destroy(self.instance.instance);
+        }
+    }
+}

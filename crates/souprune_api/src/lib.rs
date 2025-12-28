@@ -104,15 +104,19 @@ impl Vec2C {
     }
 }
 
-/// Bullet runtime state for C-ABI.
-/// This is passed to danmaku algorithm functions for stateless evaluation.
+/// Bullet context for C-ABI.
+/// This is passed to danmaku behavior functions.
+/// Contains both immutable spawn data and current frame data.
 ///
-/// 弹幕运行时状态的 C 兼容表示。
-/// 传递给弹幕算法函数用于无状态计算。
+/// 弹幕上下文的 C 兼容表示。
+/// 传递给弹幕行为函数。
+/// 包含不可变的生成数据和当前帧数据。
 #[repr(C)]
-pub struct BulletStateC {
+pub struct BulletContextC {
     /// Time since bullet spawn (seconds)
     pub elapsed: c_float,
+    /// Delta time for this frame
+    pub delta_time: c_float,
     /// Spawn center X coordinate
     pub spawn_x: c_float,
     /// Spawn center Y coordinate
@@ -125,16 +129,137 @@ pub struct BulletStateC {
     pub initial_angle: c_float,
     /// Initial radius (for circular patterns)
     pub initial_radius: c_float,
-    /// Current velocity direction X
-    pub dir_x: c_float,
-    /// Current velocity direction Y
-    pub dir_y: c_float,
+    /// Player position X (for homing behaviors)
+    pub player_x: c_float,
+    /// Player position Y (for homing behaviors)
+    pub player_y: c_float,
     /// Pointer to custom parameters array (from RON config)
     pub params: *const c_float,
     /// Length of parameters array
     pub params_len: usize,
 }
 
+impl Default for BulletContextC {
+    fn default() -> Self {
+        Self {
+            elapsed: 0.0,
+            delta_time: 0.0,
+            spawn_x: 0.0,
+            spawn_y: 0.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            initial_angle: 0.0,
+            initial_radius: 0.0,
+            player_x: 0.0,
+            player_y: 0.0,
+            params: std::ptr::null(),
+            params_len: 0,
+        }
+    }
+}
+
+/// Bullet output for C-ABI.
+/// Contains the computed position offset and other visual properties.
+///
+/// 弹幕输出的 C 兼容表示。
+/// 包含计算出的位置偏移和其他视觉属性。
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BulletOutputC {
+    /// Position offset X
+    pub offset_x: c_float,
+    /// Position offset Y
+    pub offset_y: c_float,
+    /// Rotation delta (radians)
+    pub rotation: c_float,
+}
+
+impl BulletOutputC {
+    pub const ZERO: Self = Self {
+        offset_x: 0.0,
+        offset_y: 0.0,
+        rotation: 0.0,
+    };
+
+    pub fn new(x: c_float, y: c_float) -> Self {
+        Self {
+            offset_x: x,
+            offset_y: y,
+            rotation: 0.0,
+        }
+    }
+
+    pub fn with_rotation(mut self, rotation: c_float) -> Self {
+        self.rotation = rotation;
+        self
+    }
+}
+
+/// VTable for danmaku behaviors (similar to BehaviorVTable).
+/// Allows stateful danmaku algorithms with on_enter/on_update/on_exit lifecycle.
+///
+/// 弹幕行为的 VTable（类似于 BehaviorVTable）。
+/// 允许有状态的弹幕算法，具有 on_enter/on_update/on_exit 生命周期。
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DanmakuVTable {
+    /// Called once when the bullet is spawned.
+    /// Use this to capture initial state (e.g., player position for homing).
+    pub on_enter: Option<extern "C" fn(instance: *mut c_void, context: *const BulletContextC)>,
+
+    /// Called every frame to compute bullet movement.
+    /// Returns the position offset for this frame.
+    pub on_update: Option<
+        extern "C" fn(instance: *mut c_void, context: *const BulletContextC) -> BulletOutputC,
+    >,
+
+    /// Called when the bullet is despawned.
+    pub on_exit: Option<extern "C" fn(instance: *mut c_void)>,
+
+    /// Called to destroy the instance and free memory.
+    pub destroy: Option<extern "C" fn(instance: *mut c_void)>,
+}
+
+/// Instance of a danmaku behavior.
+#[repr(C)]
+pub struct DanmakuInstance {
+    pub instance: *mut c_void,
+    pub vtable: DanmakuVTable,
+}
+
+/// Function type to get the number of exported danmaku algorithms in the DLL.
+pub type GetAlgorithmCountFn = extern "C" fn() -> u32;
+
+/// Function type to get the ID of an algorithm by index.
+/// Returns null if index is out of bounds.
+pub type GetAlgorithmIdFn = extern "C" fn(index: u32) -> *const u8;
+
+/// Function type to create a danmaku behavior instance by ID.
+pub type CreateDanmakuFn = unsafe extern "C" fn(id: *const u8) -> DanmakuInstance;
+
+// Legacy API - kept for compatibility but deprecated
+// 旧版 API - 保留兼容性但已弃用
+
+/// Bullet runtime state for C-ABI (Legacy).
+#[repr(C)]
+#[deprecated(note = "Use BulletContextC and DanmakuVTable instead")]
+pub struct BulletStateC {
+    pub elapsed: c_float,
+    pub spawn_x: c_float,
+    pub spawn_y: c_float,
+    pub offset_x: c_float,
+    pub offset_y: c_float,
+    pub initial_angle: c_float,
+    pub initial_radius: c_float,
+    pub dir_x: c_float,
+    pub dir_y: c_float,
+    pub player_x: c_float,
+    pub player_y: c_float,
+    pub params: *const c_float,
+    pub params_len: usize,
+}
+
+#[allow(deprecated)]
 impl Default for BulletStateC {
     fn default() -> Self {
         Self {
@@ -147,28 +272,20 @@ impl Default for BulletStateC {
             initial_radius: 0.0,
             dir_x: 0.0,
             dir_y: -1.0,
+            player_x: 0.0,
+            player_y: 0.0,
             params: std::ptr::null(),
             params_len: 0,
         }
     }
 }
 
-/// Danmaku algorithm function signature.
-/// Input: readonly bullet state
-/// Output: position offset for this frame
-///
-/// 弹幕算法函数签名。
-/// 输入：只读弹幕状态
-/// 输出：本帧的位置偏移
+/// Legacy danmaku function signature (deprecated).
+#[deprecated(note = "Use DanmakuVTable instead")]
+#[allow(deprecated)]
 pub type DanmakuUpdateFn = extern "C" fn(state: *const BulletStateC) -> Vec2C;
 
-/// Function type to get the number of exported danmaku algorithms in the DLL.
-pub type GetAlgorithmCountFn = extern "C" fn() -> u32;
-
-/// Function type to get the ID of an algorithm by index.
-/// Returns null if index is out of bounds.
-pub type GetAlgorithmIdFn = extern "C" fn(index: u32) -> *const u8;
-
-/// Function type to retrieve a danmaku algorithm by ID.
-/// Returns None if the ID is not found.
+/// Legacy function type (deprecated).
+#[deprecated(note = "Use CreateDanmakuFn instead")]
+#[allow(deprecated)]
 pub type GetAlgorithmFn = unsafe extern "C" fn(id: *const u8) -> Option<DanmakuUpdateFn>;

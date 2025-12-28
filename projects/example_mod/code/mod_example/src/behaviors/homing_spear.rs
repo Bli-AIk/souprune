@@ -1,0 +1,60 @@
+//! Homing Spear danmaku behavior - aims at player position at spawn time
+//! 自机狙长矛弹幕行为 - 在生成时瞄准玩家位置
+
+use souprune_sdk::{BulletContext, BulletOutput, DanmakuBehavior, Vec2};
+
+/// Homing spear that captures player position on spawn and moves toward it.
+/// The bullet moves in a straight line toward where the player WAS at spawn time.
+///
+/// 自机狙长矛，在生成时捕获玩家位置并朝向移动。
+/// 弹幕沿直线向玩家生成时的位置移动。
+///
+/// Parameters (from RON config):
+/// - params[0]: speed (pixels per second, default: 200.0)
+pub struct HomingSpear {
+    /// Target position captured at spawn time
+    target_pos: Vec2,
+    /// Movement direction (normalized)
+    direction: Vec2,
+    /// Speed in pixels per second
+    speed: f32,
+}
+
+impl HomingSpear {
+    pub fn new() -> Self {
+        Self {
+            target_pos: Vec2::ZERO,
+            direction: Vec2::ZERO,
+            speed: 200.0,
+        }
+    }
+}
+
+impl Default for HomingSpear {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DanmakuBehavior for HomingSpear {
+    fn on_enter(&mut self, ctx: &BulletContext) {
+        // Capture player position at spawn time - this is the key!
+        // 在生成时捕获玩家位置 - 这是关键！
+        self.target_pos = ctx.player_pos;
+
+        // Get speed from parameters
+        self.speed = ctx.param(0, 200.0);
+
+        // Calculate direction from spawn position to player position
+        let spawn_pos = ctx.spawn_position();
+        let to_target = self.target_pos - spawn_pos;
+        self.direction = to_target.normalize();
+    }
+
+    fn on_update(&mut self, ctx: &BulletContext) -> BulletOutput {
+        // Move in the direction calculated at spawn time
+        // 沿生成时计算的方向移动
+        let offset = self.direction * self.speed * ctx.elapsed;
+        BulletOutput::new(offset.x, offset.y)
+    }
+}

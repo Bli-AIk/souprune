@@ -15,7 +15,7 @@ use crate::core::mod_system::{BehaviorParams, DanmakuRegistry};
 use crate::core::sprite::params::SpriteParams;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
-use souprune_api::{BulletStateC, Vec2C};
+use souprune_api::BulletContextC;
 
 // ============================================================================
 // Performance System: Event Processing and Asset Loading
@@ -74,11 +74,20 @@ pub fn advance_performance_timeline(
     mut commands: Commands,
     time: Res<Time>,
     performances: Res<Assets<DanmakuPerformance>>,
+    danmaku_registry: Res<DanmakuRegistry>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
+    player_query: Query<&Transform, (With<BehaviorParams>, Without<Bullet>)>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
 ) {
     let dt = time.delta_secs();
+
+    // Get player position for homing behaviors
+    let player_pos = player_query
+        .iter()
+        .next()
+        .map(|t| t.translation.truncate())
+        .unwrap_or(Vec2::ZERO);
 
     for (entity, mut player, perf_handle) in query.iter_mut() {
         if player.finished {
@@ -110,6 +119,8 @@ pub fn advance_performance_timeline(
                 performance,
                 event,
                 player.spawn_center,
+                player_pos,
+                &danmaku_registry,
                 &mut sprite_params,
                 &asset_server,
             );
@@ -154,6 +165,8 @@ fn spawn_bullets_from_timeline_event(
     performance: &DanmakuPerformance,
     event: &TimelineEvent,
     spawn_center: Vec2,
+    player_pos: Vec2,
+    danmaku_registry: &DanmakuRegistry,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
@@ -185,7 +198,9 @@ fn spawn_bullets_from_timeline_event(
             angle,
             radius,
             spawn_center,
+            player_pos,
             i,
+            danmaku_registry,
             sprite_params,
             asset_server,
         );
@@ -268,22 +283,12 @@ fn spawn_single_bullet(
     angle: f32,
     radius: f32,
     spawn_center: Vec2,
+    player_pos: Vec2,
     index: usize,
+    danmaku_registry: &DanmakuRegistry,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
-    let cached_params: Vec<f32> = behaviors
-        .iter()
-        .filter_map(|b| {
-            if let BulletBehavior::Algo { params, .. } = b {
-                Some(params.clone())
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .collect();
-
     // Convert ColliderShape to TriggerCollider
     // 将 ColliderShape 转换为 TriggerCollider
     let trigger_collider = match &prototype.collider {
@@ -302,12 +307,46 @@ fn spawn_single_bullet(
             .with_offset(position - spawn_center)
             .with_angle(angle)
             .with_radius(radius),
-        BehaviorStack::new(behaviors.to_vec()).with_cached_params(cached_params),
+        BehaviorStack::new(behaviors.to_vec()),
         TweenState::default(),
         trigger_collider,
         BattleEntity,
         Name::new(format!("Bullet_{}", index)),
     ));
+
+    // Create ActiveDanmaku instances for Algo behaviors and call on_enter
+    // 为 Algo 行为创建 ActiveDanmaku 实例并调用 on_enter
+    for behavior in behaviors {
+        if let BulletBehavior::Algo { id, params } = behavior {
+            if let Some(instance) = danmaku_registry.create(id) {
+                let mut active_danmaku = ActiveDanmaku::new(instance, params.clone());
+
+                // Build initial context and call on_enter
+                // 构建初始上下文并调用 on_enter
+                let ctx = BulletContextC {
+                    elapsed: 0.0,
+                    delta_time: 0.0,
+                    spawn_x: spawn_center.x,
+                    spawn_y: spawn_center.y,
+                    offset_x: position.x - spawn_center.x,
+                    offset_y: position.y - spawn_center.y,
+                    initial_angle: angle,
+                    initial_radius: radius,
+                    player_x: player_pos.x,
+                    player_y: player_pos.y,
+                    params: params.as_ptr(),
+                    params_len: params.len(),
+                };
+                active_danmaku.call_on_enter(&ctx);
+
+                entity_commands.insert(active_danmaku);
+                // Only support one Algo behavior per bullet for now
+                break;
+            } else {
+                warn!("Danmaku algorithm '{}' not found in registry", id);
+            }
+        }
+    }
 
     match &prototype.visual {
         BulletVisual::Sprite { path } => {
@@ -362,7 +401,6 @@ fn spawn_single_bullet(
 /// 同时处理内置行为和 FFI 算法调用。
 pub fn update_bullet_motion(
     time: Res<Time>,
-    danmaku_registry: Res<DanmakuRegistry>,
     player_query: Query<&Transform, (With<BehaviorParams>, Without<Bullet>)>,
     mut query: Query<
         (
@@ -371,6 +409,7 @@ pub fn update_bullet_motion(
             &BehaviorStack,
             &mut TweenState,
             Option<&mut Sprite>,
+            Option<&mut ActiveDanmaku>,
         ),
         With<Bullet>,
     >,
@@ -382,7 +421,9 @@ pub fn update_bullet_motion(
         .map(|t| t.translation.truncate())
         .unwrap_or(Vec2::ZERO);
 
-    for (mut transform, mut state, behavior_stack, mut tween_state, sprite) in query.iter_mut() {
+    for (mut transform, mut state, behavior_stack, mut tween_state, sprite, active_danmaku) in
+        query.iter_mut()
+    {
         state.elapsed += dt;
 
         let mut position = state.spawn_center + state.initial_offset;
@@ -461,29 +502,34 @@ pub fn update_bullet_motion(
                     }
                 }
 
-                BulletBehavior::Algo { id, params } => {
-                    if let Some(algo_fn) = danmaku_registry.get(id) {
-                        let state_c = BulletStateC {
-                            elapsed: state.elapsed,
-                            spawn_x: state.spawn_center.x,
-                            spawn_y: state.spawn_center.y,
-                            offset_x: state.initial_offset.x,
-                            offset_y: state.initial_offset.y,
-                            initial_angle: state.initial_angle,
-                            initial_radius: state.initial_radius,
-                            dir_x: state.velocity_direction.x,
-                            dir_y: state.velocity_direction.y,
-                            params: params.as_ptr(),
-                            params_len: params.len(),
-                        };
-
-                        let result: Vec2C = algo_fn(&state_c);
-                        position += Vec2::new(result.x, result.y);
-                    } else {
-                        warn!("Danmaku algorithm '{}' not found in registry", id);
-                    }
+                // Algo behaviors are handled separately via ActiveDanmaku
+                BulletBehavior::Algo { .. } => {
+                    // Skip - handled below
                 }
             }
+        }
+
+        // Handle ActiveDanmaku (new VTable-based API)
+        // 处理 ActiveDanmaku（新的基于 VTable 的 API）
+        if let Some(mut danmaku) = active_danmaku {
+            let ctx = BulletContextC {
+                elapsed: state.elapsed,
+                delta_time: dt,
+                spawn_x: state.spawn_center.x,
+                spawn_y: state.spawn_center.y,
+                offset_x: state.initial_offset.x,
+                offset_y: state.initial_offset.y,
+                initial_angle: state.initial_angle,
+                initial_radius: state.initial_radius,
+                player_x: player_pos.x,
+                player_y: player_pos.y,
+                params: danmaku.params.as_ptr(),
+                params_len: danmaku.params.len(),
+            };
+
+            let output = danmaku.call_on_update(&ctx);
+            position += Vec2::new(output.offset_x, output.offset_y);
+            rotation_delta += output.rotation;
         }
 
         transform.translation.x = position.x;

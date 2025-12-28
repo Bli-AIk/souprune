@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use libloading::{Library, Symbol};
 use souprune_api::{
-    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, DanmakuUpdateFn,
-    GetAlgorithmCountFn, GetAlgorithmFn, GetAlgorithmIdFn, GetBehaviorCountFn, GetBehaviorIdFn,
-    HostApi,
+    Action, BehaviorInstance, BulletContextC, BulletOutputC, ContextHandle, CreateBehaviorFn,
+    CreateDanmakuFn, DanmakuInstance, GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn,
+    GetBehaviorIdFn, HostApi,
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};
@@ -80,30 +80,39 @@ pub struct BehaviorRegistry {
     factories: HashMap<String, CreateBehaviorFn>,
 }
 
-/// Registry for danmaku algorithm functions loaded from mods.
-/// Stores function pointers to stateless bullet motion algorithms.
+/// Registry for danmaku behavior factories loaded from mods.
+/// Stores factory functions to create stateful bullet behavior instances.
 ///
-/// 弹幕算法函数注册表，从模组中加载。
-/// 存储无状态弹幕运动算法的函数指针。
+/// 弹幕行为工厂注册表，从模组中加载。
+/// 存储创建有状态弹幕行为实例的工厂函数。
 #[derive(Resource, Default)]
 pub struct DanmakuRegistry {
-    algorithms: HashMap<String, DanmakuUpdateFn>,
+    factories: HashMap<String, CreateDanmakuFn>,
 }
 
 impl DanmakuRegistry {
-    /// Get a danmaku algorithm by ID.
-    pub fn get(&self, id: &str) -> Option<DanmakuUpdateFn> {
-        self.algorithms.get(id).copied()
+    /// Create a new danmaku behavior instance by ID.
+    /// Returns None if the ID is not registered.
+    pub fn create(&self, id: &str) -> Option<DanmakuInstance> {
+        let factory = self.factories.get(id)?;
+        let id_cstring = CString::new(id).ok()?;
+        // SAFETY: Factory function is loaded from a valid mod library
+        let instance = unsafe { factory(id_cstring.as_ptr() as *const u8) };
+        if instance.instance.is_null() {
+            None
+        } else {
+            Some(instance)
+        }
     }
 
     /// Check if an algorithm is registered.
     pub fn contains(&self, id: &str) -> bool {
-        self.algorithms.contains_key(id)
+        self.factories.contains_key(id)
     }
 
     /// Get all registered algorithm IDs.
     pub fn algorithm_ids(&self) -> impl Iterator<Item = &String> {
-        self.algorithms.keys()
+        self.factories.keys()
     }
 }
 
@@ -155,15 +164,17 @@ fn load_mods_system(
             registry.factories.insert(id, create_fn_ptr);
         }
 
-        // === Load Danmaku Algorithms ===
+        // === Load Danmaku Algorithms (new VTable-based API) ===
         if let Ok(get_algo_count) = lib.get::<GetAlgorithmCountFn>(b"get_algorithm_count") {
             let algo_count = get_algo_count();
             info!("Found {} Danmaku Algorithms in DLL", algo_count);
 
-            if let (Ok(get_algo_id), Ok(get_algo)) = (
+            if let (Ok(get_algo_id), Ok(create_danmaku)) = (
                 lib.get::<GetAlgorithmIdFn>(b"get_algorithm_id"),
-                lib.get::<GetAlgorithmFn>(b"get_algorithm"),
+                lib.get::<CreateDanmakuFn>(b"create_danmaku"),
             ) {
+                let create_danmaku_ptr: CreateDanmakuFn = *create_danmaku;
+
                 for i in 0..algo_count {
                     let id_ptr = get_algo_id(i);
                     if id_ptr.is_null() {
@@ -173,10 +184,8 @@ fn load_mods_system(
                         .to_string_lossy()
                         .into_owned();
 
-                    if let Some(algo_fn) = get_algo(id_ptr) {
-                        info!("Registered Danmaku Algorithm: {}", id);
-                        danmaku_registry.algorithms.insert(id, algo_fn);
-                    }
+                    info!("Registered Danmaku Algorithm: {}", id);
+                    danmaku_registry.factories.insert(id, create_danmaku_ptr);
                 }
             }
         }
