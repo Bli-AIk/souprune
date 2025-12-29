@@ -32,7 +32,7 @@
             ),
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
-            lifetime: 5.0,
+            lifetime: 3.0,
             z_index: 15.0,
         ),
     },
