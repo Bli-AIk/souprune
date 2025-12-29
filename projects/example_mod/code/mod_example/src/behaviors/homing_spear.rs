@@ -9,8 +9,9 @@ use souprune_sdk::{BulletContext, BulletOutput, DanmakuBehavior, Vec2};
 /// 自机狙长矛，在生成时捕获玩家位置并朝向移动。
 /// 弹幕沿直线向玩家生成时的位置移动。
 ///
-/// Parameters (from RON config):
-/// - params[0]: speed (pixels per second, default: 200.0)
+/// Properties (from RON config):
+/// - "speed": pixels per second (default: 200.0)
+/// - "smoothness": turn rate toward player (future support)
 pub struct HomingSpear {
     /// Target position captured at spawn time
     target_pos: Vec2,
@@ -42,8 +43,8 @@ impl DanmakuBehavior for HomingSpear {
         // 在生成时捕获玩家位置 - 这是关键！
         self.target_pos = ctx.player_pos;
 
-        // Get speed from parameters
-        self.speed = ctx.param(0, 200.0);
+        // Get speed from named properties
+        self.speed = ctx.get_float("speed").unwrap_or(200.0);
 
         // Calculate direction from spawn position to player position
         let spawn_pos = ctx.spawn_position();

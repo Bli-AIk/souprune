@@ -74,9 +74,12 @@
 
         // Homing spear using mod algorithm
         // 通过 mod 算法实现的长矛自机狙
-        "homing": Algo(
+        "homing": Custom(
             id: "homing_spear",
-            params: [180.0, 0.8],
+            props: {
+                "speed": 180.0,
+                "smoothness": 0.8,
+            },
         ),
 
         // Fade in effect

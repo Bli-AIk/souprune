@@ -104,6 +104,14 @@ impl Vec2C {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PropC {
+    pub name: *const u8,
+    pub name_len: usize,
+    pub value: c_float,
+}
+
 /// Bullet context for C-ABI.
 /// This is passed to danmaku behavior functions.
 /// Contains both immutable spawn data and current frame data.
@@ -133,9 +141,13 @@ pub struct BulletContextC {
     pub player_x: c_float,
     /// Player position Y (for homing behaviors)
     pub player_y: c_float,
-    /// Pointer to custom parameters array (from RON config)
+    /// Pointer to custom properties array (from RON config)
+    pub props: *const PropC,
+    /// Length of properties array
+    pub props_len: usize,
+    /// Legacy: Pointer to custom parameters array
     pub params: *const c_float,
-    /// Length of parameters array
+    /// Legacy: Length of parameters array
     pub params_len: usize,
 }
 
@@ -152,6 +164,8 @@ impl Default for BulletContextC {
             initial_radius: 0.0,
             player_x: 0.0,
             player_y: 0.0,
+            props: std::ptr::null(),
+            props_len: 0,
             params: std::ptr::null(),
             params_len: 0,
         }

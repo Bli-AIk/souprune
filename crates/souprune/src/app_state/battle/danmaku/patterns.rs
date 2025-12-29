@@ -190,12 +190,12 @@ pub enum BulletBehavior {
 
     // === Custom Behavior (自定义行为) ===
     /// Algorithm loaded from mod system via FFI
-    Algo {
+    Custom {
         /// Algorithm ID registered in DanmakuRegistry
         id: String,
-        /// Parameters passed to the algorithm
+        /// Properties passed to the algorithm
         #[serde(default)]
-        params: Vec<f32>,
+        props: HashMap<String, f32>,
     },
 }
 

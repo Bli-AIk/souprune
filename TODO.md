@@ -151,7 +151,7 @@
   - [x] 定义 `DanmakuBlueprint` 资产 (`.danmaku.ron`)
     - [x] `BulletVisual`: Sprite, SpriteRef 或 Animation 视觉表现
     - [x] `SpawnPattern`: Single, RingGenerator, LineGenerator, EdgeGenerator 生成模式
-    - [x] `MotionTrack`: Linear, Orbital (原 Circular), Sine, Homing, Tween, Algo 运动轨道
+    - [x] `MotionTrack`: Linear, Orbital (原 Circular), Sine, Homing, Tween, Custom (原 Algo) 运动轨道
     - [x] `ChildSpawner`: 子发射器（嵌套弹幕支持）
   - [x] 定义 `SpawnPatternEvent` 消息事件 (引用 blueprint 路径)
   - [x] 定义 `BulletMotionState` 和 `BulletMotionTracks` 运行时组件
@@ -183,7 +183,7 @@
   - [x] Timeline 支持 `absolute` 字段（绝对时间）和默认的相对时间
   - [x] Timeline 支持 `behaviors` 字段（内联行为定义）
   - [x] 修复动画帧排序问题（实现自然数字排序）
-  - [x] SDK 封装 unsafe：提供 `BulletState`、`Vec2` 安全封装和 `wrap_algorithm!` 宏
+  - [x] SDK 封装 unsafe：提供 `BulletContext`、`Vec2` 安全封装，支持命名属性 (props) 和 `get_float` API
 
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19

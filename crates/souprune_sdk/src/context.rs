@@ -102,7 +102,7 @@ impl<'b, 'a> InputHelper<'b, 'a> {
 ///
 /// BulletContextC 的安全封装，用于弹幕算法。
 /// 提供对弹幕上下文的安全访问，用户脚本无需使用 unsafe 代码。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BulletContext {
     /// Time since bullet spawn (seconds)
     pub elapsed: f32,
@@ -118,8 +118,10 @@ pub struct BulletContext {
     pub initial_radius: f32,
     /// Current player position (for homing behaviors)
     pub player_pos: Vec2,
-    /// Custom parameters from RON config
-    params: [f32; 16], // Fixed size array to avoid heap allocation
+    /// Custom properties from RON config (named)
+    props: Vec<(String, f32)>,
+    /// Legacy custom parameters from RON config (indexed)
+    params: [f32; 16],
     params_len: usize,
 }
 
@@ -137,7 +139,23 @@ impl BulletContext {
         // SAFETY: Caller guarantees ctx is valid
         let c = unsafe { &*ctx };
 
-        // Safely copy parameters into fixed-size array
+        // Parse named properties
+        let mut props = Vec::with_capacity(c.props_len);
+        if !c.props.is_null() && c.props_len > 0 {
+            for i in 0..c.props_len {
+                // SAFETY: We've checked props is not null and i < props_len
+                let prop_c = unsafe { &*c.props.add(i) };
+                let name = if !prop_c.name.is_null() && prop_c.name_len > 0 {
+                    let slice = unsafe { std::slice::from_raw_parts(prop_c.name, prop_c.name_len) };
+                    String::from_utf8_lossy(slice).into_owned()
+                } else {
+                    String::new()
+                };
+                props.push((name, prop_c.value));
+            }
+        }
+
+        // Safely copy legacy parameters into fixed-size array
         let mut params = [0.0f32; 16];
         let params_len = c.params_len.min(16);
         if !c.params.is_null() && params_len > 0 {
@@ -164,9 +182,17 @@ impl BulletContext {
                 x: c.player_x,
                 y: c.player_y,
             },
+            props,
             params,
             params_len,
         }
+    }
+
+    /// Get a named property value, or None if not found.
+    ///
+    /// 获取指定名称的属性值，若未找到则返回 None。
+    pub fn get_float(&self, name: &str) -> Option<f32> {
+        self.props.iter().find(|(n, _)| n == name).map(|(_, v)| *v)
     }
 
     /// Get parameter at index, or default value if out of bounds.

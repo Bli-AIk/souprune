@@ -314,12 +314,13 @@ fn spawn_single_bullet(
         Name::new(format!("Bullet_{}", index)),
     ));
 
-    // Create ActiveDanmaku instances for Algo behaviors and call on_enter
-    // 为 Algo 行为创建 ActiveDanmaku 实例并调用 on_enter
+    // Create ActiveDanmaku instances for Custom behaviors and call on_enter
+    // 为 Custom 行为创建 ActiveDanmaku 实例并调用 on_enter
     for behavior in behaviors {
-        if let BulletBehavior::Algo { id, params } = behavior {
+        if let BulletBehavior::Custom { id, props } = behavior {
             if let Some(instance) = danmaku_registry.create(id) {
-                let mut active_danmaku = ActiveDanmaku::new(instance, params.clone());
+                let mut active_danmaku = ActiveDanmaku::new(instance, props.clone(), Vec::new());
+                let (props_ptr, props_len) = active_danmaku.ffi_props();
 
                 // Build initial context and call on_enter
                 // 构建初始上下文并调用 on_enter
@@ -334,13 +335,15 @@ fn spawn_single_bullet(
                     initial_radius: radius,
                     player_x: player_pos.x,
                     player_y: player_pos.y,
-                    params: params.as_ptr(),
-                    params_len: params.len(),
+                    props: props_ptr,
+                    props_len: props_len,
+                    params: std::ptr::null(),
+                    params_len: 0,
                 };
                 active_danmaku.call_on_enter(&ctx);
 
                 entity_commands.insert(active_danmaku);
-                // Only support one Algo behavior per bullet for now
+                // Only support one Custom behavior per bullet for now
                 break;
             } else {
                 warn!("Danmaku algorithm '{}' not found in registry", id);
@@ -502,8 +505,8 @@ pub fn update_bullet_motion(
                     }
                 }
 
-                // Algo behaviors are handled separately via ActiveDanmaku
-                BulletBehavior::Algo { .. } => {
+                // Custom behaviors are handled separately via ActiveDanmaku
+                BulletBehavior::Custom { .. } => {
                     // Skip - handled below
                 }
             }
@@ -512,6 +515,7 @@ pub fn update_bullet_motion(
         // Handle ActiveDanmaku (new VTable-based API)
         // 处理 ActiveDanmaku（新的基于 VTable 的 API）
         if let Some(mut danmaku) = active_danmaku {
+            let (props_ptr, props_len) = danmaku.ffi_props();
             let ctx = BulletContextC {
                 elapsed: state.elapsed,
                 delta_time: dt,
@@ -523,6 +527,8 @@ pub fn update_bullet_motion(
                 initial_radius: state.initial_radius,
                 player_x: player_pos.x,
                 player_y: player_pos.y,
+                props: props_ptr,
+                props_len: props_len,
                 params: danmaku.params.as_ptr(),
                 params_len: danmaku.params.len(),
             };

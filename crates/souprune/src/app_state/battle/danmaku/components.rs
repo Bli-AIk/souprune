@@ -8,7 +8,9 @@
 
 use super::patterns::BulletBehavior;
 use bevy::prelude::*;
-use souprune_api::DanmakuInstance;
+use souprune_api::{DanmakuInstance, PropC};
+use std::collections::HashMap;
+use std::ffi::CString;
 
 /// Marker component for bullet entities.
 ///
@@ -205,8 +207,16 @@ pub struct ActiveDanmaku {
     instance: DanmakuInstance,
     /// Whether on_enter has been called
     initialized: bool,
-    /// Parameters from RON config
+    /// Properties from RON config (named)
+    pub props: HashMap<String, f32>,
+    /// Legacy parameters from RON config (indexed)
     pub params: Vec<f32>,
+
+    /// Cached FFI-compatible properties
+    cached_props: Vec<PropC>,
+    /// Keep CStrings alive for the pointers in cached_props
+    #[allow(dead_code)]
+    cached_names: Vec<CString>,
 }
 
 // SAFETY: The DanmakuInstance is accessed only from the main thread
@@ -214,11 +224,27 @@ unsafe impl Send for ActiveDanmaku {}
 unsafe impl Sync for ActiveDanmaku {}
 
 impl ActiveDanmaku {
-    pub fn new(instance: DanmakuInstance, params: Vec<f32>) -> Self {
+    pub fn new(instance: DanmakuInstance, props: HashMap<String, f32>, params: Vec<f32>) -> Self {
+        let mut cached_names = Vec::with_capacity(props.len());
+        let mut cached_props = Vec::with_capacity(props.len());
+
+        for (name, value) in &props {
+            let c_name = CString::new(name.as_str()).unwrap_or_default();
+            cached_props.push(PropC {
+                name: c_name.as_ptr() as *const u8,
+                name_len: name.len(),
+                value: *value,
+            });
+            cached_names.push(c_name);
+        }
+
         Self {
             instance,
             initialized: false,
+            props,
             params,
+            cached_props,
+            cached_names,
         }
     }
 
@@ -235,6 +261,11 @@ impl ActiveDanmaku {
             }
             self.initialized = true;
         }
+    }
+
+    /// Get cached props for FFI
+    pub fn ffi_props(&self) -> (*const PropC, usize) {
+        (self.cached_props.as_ptr(), self.cached_props.len())
     }
 
     /// Call on_update and return the output
