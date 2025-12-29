@@ -26,3 +26,14 @@ agent_*.md
 
 logs/
 dev/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
