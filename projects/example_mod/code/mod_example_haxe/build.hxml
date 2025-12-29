@@ -1,0 +1,18 @@
+# Haxe build configuration for Souprune mod
+
+-cp src
+
+# Main entry point
+-main Main
+
+# Target: C++ via hxcpp
+-cpp bin
+
+# Include the C header for native FFI
+-D HXCPP_M64
+
+# Library name for the compiled shared library
+# -D dll_link
+
+# Additional compiler flags can be added here
+# -D analyzer-optimize

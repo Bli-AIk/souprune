@@ -5,14 +5,12 @@ members = [
     "crates/souprune",
     "crates/bevy_ecs_typewriter",
     "crates/bevy_fact_rule_event",
-    "crates/bevy_mortar_bond"
-,
-    "crates/souprune_api"
-,
-    "crates/souprune_sdk"
-,
+    "crates/bevy_mortar_bond",
+    "crates/souprune_api",
+    "crates/souprune_sdk",
     "crates/souprune_mod_test",
     "crates/souprune_mock_host",
+    "crates/interoptopus_backend_haxe",
 ]
 
 [workspace.lints.rust]

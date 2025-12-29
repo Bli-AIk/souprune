@@ -3855,6 +3855,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "interoptopus_backend_haxe"
+version = "0.1.0"
+dependencies = [
+ "derive_builder",
+ "heck",
+ "interoptopus",
+ "interoptopus_backend_utils",
+]
+
+[[package]]
 name = "interoptopus_backend_utils"
 version = "0.15.0-alpha.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6016,6 +6026,7 @@ dependencies = [
  "interoptopus",
  "interoptopus_backend_c",
  "interoptopus_backend_csharp",
+ "interoptopus_backend_haxe",
 ]
 
 [[package]]

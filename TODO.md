@@ -198,10 +198,10 @@
   - [x] 建立 `souprune-sdk-dotnet` 项目结构
   - [x] 实现 C# 版本弹幕 Mod (SpiralHomingDanmaku, WaveBurstDanmaku, GravityDropDanmaku)
   - [x] 实现 Rust 版本等效弹幕行为 (在 souprune_mod_test 中)
-- [ ] **Phase 3: Haxe 集成 (hxcpp)**
-  - [ ] 在 `bindgen` 中实现 Haxe 代码生成逻辑
-  - [ ] 建立 `souprune-sdk-haxe` 项目结构
-  - [ ] 实现 Haxe 版本的 `Hello World` Mod
+- [x] **Phase 3: Haxe 集成 (hxcpp)**
+  - [x] 在 `bindgen` 中实现 Haxe 代码生成逻辑 (`interoptopus_backend_haxe` crate)
+  - [x] 建立 `souprune-sdk-haxe` 项目结构 (projects/example_mod/code/mod_example_haxe)
+  - [x] 实现 Haxe 版本的 `Hello World` Mod (Main.hx + Sdk.hx)
 - [ ] **Phase 4: Nelua 集成**
   - [ ] 在 `bindgen` 中实现 Nelua 代码生成逻辑
   - [ ] 建立 `souprune-sdk-nelua` 项目结构

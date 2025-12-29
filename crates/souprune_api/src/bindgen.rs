@@ -1,8 +1,8 @@
 //! Binding generator for souprune API.
-//! Generates C and C# bindings from the FFI types defined in this crate.
+//! Generates C, C#, and Haxe bindings from the FFI types defined in this crate.
 //!
 //! 绑定生成器。
-//! 从此 crate 中定义的 FFI 类型生成 C 和 C# 绑定。
+//! 从此 crate 中定义的 FFI 类型生成 C、C# 和 Haxe 绑定。
 
 use interoptopus::inventory::Inventory;
 use souprune_api::bindgen_inventory::build_inventory;
@@ -22,6 +22,9 @@ fn main() {
 
     // Generate C# bindings
     generate_csharp_bindings(&inventory, out_path);
+
+    // Generate Haxe bindings
+    generate_haxe_bindings(&inventory, out_path);
 
     println!("Bindings generated successfully in: {}", out_path.display());
 }
@@ -54,4 +57,24 @@ fn generate_csharp_bindings(inventory: &Inventory, out_path: &Path) {
         .expect("Failed to write C# bindings");
 
     println!("Generated C# bindings: {}", csharp_path.display());
+}
+
+fn generate_haxe_bindings(inventory: &Inventory, out_path: &Path) {
+    use interoptopus_backend_haxe::{Config, Interop};
+
+    let haxe_path = out_path.join("SoupruneApi.hx");
+
+    Interop::builder()
+        .inventory(inventory.clone())
+        .config(Config {
+            lib_name: "souprune".to_string(),
+            package_name: "souprune.ffi".to_string(),
+            ..Default::default()
+        })
+        .build()
+        .expect("Failed to build Haxe interop")
+        .write_file(&haxe_path)
+        .expect("Failed to write Haxe bindings");
+
+    println!("Generated Haxe bindings: {}", haxe_path.display());
 }
