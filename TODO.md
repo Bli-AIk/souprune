@@ -188,7 +188,7 @@
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19
 
-- [ ] 在保留原始 readme 结构的基础上，重写 readme 以反映新的多语言支持愿景
+- [x] 在保留原始 readme 结构的基础上，重写 readme 以反映新的多语言支持愿景
 - [x] **Phase 1: Interoptopus 迁移**
   - [x] 在 `souprune_api` 添加 `interoptopus` 依赖
   - [x] 用镜像类型实现 FFI 类型定义 (`bindgen_inventory.rs`)
