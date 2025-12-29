@@ -2,7 +2,7 @@
 
 **SoupRune** 是一个基于 **Rust** 和 **Bevy** 引擎构建的游戏框架，专为创作 **Deltarune** 和 **Undertale** 风格的同人游戏而设计。
 
-与传统的 Unitale 或 Create Your Frisk 不同，SoupRune 利用了 Rust 的高性能和 Bevy 的 ECS（实体组件系统）架构，提供了更高的灵活性和扩展性。
+SoupRune 利用了 Rust 的高性能和 Bevy 的 ECS（实体组件系统）架构，提供了更高的灵活性和扩展性。
 
 ## 核心特性
 

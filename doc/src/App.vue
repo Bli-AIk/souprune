@@ -12,6 +12,14 @@
         </div>
       </div>
       <div class="flex items-center gap-4 md:gap-6">
+        <!-- Language Switcher -->
+        <button 
+          @click="toggleLang" 
+          class="font-pixel text-yellow-300 hover:text-white border-2 border-yellow-300 hover:border-white px-2 py-1 text-xs transition-colors"
+        >
+          {{ currentLang === 'en' ? 'ZH' : 'EN' }}
+        </button>
+
         <!-- Social Icons -->
         <div class="flex items-center gap-4">
           <a href="https://github.com/Bli-AIk/souprune/" target="_blank" rel="noopener noreferrer" class="text-white hover:text-yellow-300 transition-colors">
@@ -98,25 +106,25 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
-                <MarkdownRenderer :content="activeDoc.content" />
+                <MarkdownRenderer :content="activeDoc?.content || ''" />
                 
                 <!-- Page Footer with Navigation Hints -->
                 <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">
                   <button 
                     @click="navigate('prev')" 
                     class="hover:text-white flex items-center gap-2 transition-colors md:hidden"
-                    :disabled="activeId === flatNavOrder[0].id"
+                    :disabled="flatNavOrder.length === 0 || activeId === flatNavOrder[0].id"
                   >
                     <ChevronLeft /> PREV
                   </button>
                   
-                  <span class="hidden md:inline">PAGE_{{ activeDoc.id.toUpperCase() }}</span>
+                  <span class="hidden md:inline">PAGE_{{ activeDoc?.id.toUpperCase() || 'UNKNOWN' }}</span>
                   <span class="hidden md:inline">(PRESS Z TO PROCEED)</span>
 
                   <button 
                     @click="navigate('next')" 
                     class="hover:text-white flex items-center gap-2 transition-colors md:hidden"
-                    :disabled="activeId === flatNavOrder[flatNavOrder.length - 1].id"
+                    :disabled="flatNavOrder.length === 0 || activeId === flatNavOrder[flatNavOrder.length - 1].id"
                   >
                     NEXT <ChevronRight />
                   </button>
@@ -133,16 +141,32 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
 import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight } from 'lucide-vue-next';
-import { NAV_ITEMS, DOCS_DATA } from 'virtual:docs';
+import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
-import { DocPage } from './types';
+import { DocPage, NavItem } from './types';
 
+// Cast the imported data to Record<string, ...>
+const navItemsMap = ALL_NAV_ITEMS as Record<string, NavItem[]>;
+const docsDataMap = ALL_DOCS_DATA as Record<string, DocPage[]>;
+
+const currentLang = ref('en');
 const activeId = ref<string>('intro');
-const activeDoc = ref<DocPage | undefined>(DOCS_DATA.find(d => d.id === 'intro'));
 const menuOpen = ref(false);
 const direction = ref(0); // -1 for prev, 1 for next
 const transitionName = ref('slide-left');
+
+// Computed data based on language
+const currentDocsData = computed(() => docsDataMap[currentLang.value] || []);
+const currentNavItems = computed(() => navItemsMap[currentLang.value] || []);
+
+// Active doc based on ID and current data
+const activeDoc = computed(() => currentDocsData.value.find(d => d.id === activeId.value));
+
+// Toggle Language
+const toggleLang = () => {
+  currentLang.value = currentLang.value === 'en' ? 'zh-hans' : 'en';
+};
 
 // Time-related state
 const day = ref('');
@@ -185,7 +209,7 @@ const contentScrollContainer = ref<HTMLElement | null>(null);
 
 // Group items dynamically
 const groupedNav = computed(() => {
-  const groups: Record<string, typeof NAV_ITEMS> = {};
+  const groups: Record<string, NavItem[]> = {};
   
   // Define order
   const order = ['guide', 'scripting', 'assets'];
@@ -193,7 +217,7 @@ const groupedNav = computed(() => {
   // Initialize with order
   order.forEach(key => groups[key] = []);
   
-  NAV_ITEMS.forEach(item => {
+  currentNavItems.value.forEach(item => {
     if (!groups[item.category]) groups[item.category] = [];
     groups[item.category].push(item);
   });
@@ -211,22 +235,19 @@ const getIcon = (category: string) => {
 };
 
 // Flatten navigation for next/prev logic
-const flatNavOrder = NAV_ITEMS;
+const flatNavOrder = computed(() => currentNavItems.value);
 
 const updateGlobalProgress = () => {
-  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
-  if (currentIndex !== -1 && flatNavOrder.length > 0) {
+  const currentIndex = flatNavOrder.value.findIndex(item => item.id === activeId.value);
+  if (currentIndex !== -1 && flatNavOrder.value.length > 0) {
     // Calculate progress as (current_article_index + 1) / total_articles * 100
-    scrollProgress.value = ((currentIndex + 1) / flatNavOrder.length) * 100;
+    scrollProgress.value = ((currentIndex + 1) / flatNavOrder.value.length) * 100;
   } else {
     scrollProgress.value = 0;
   }
 };
 
 watch(activeId, async () => {
-  const doc = DOCS_DATA.find(d => d.id === activeId.value);
-  activeDoc.value = doc;
-
   await nextTick();
   if (contentScrollContainer.value) {
     contentScrollContainer.value.scrollTop = 0;
@@ -235,23 +256,33 @@ watch(activeId, async () => {
   updateGlobalProgress();
 });
 
+// Also watch language change to ensure we don't get stuck on invalid ID if sets differ
+watch(currentLang, () => {
+    // If the current activeId doesn't exist in the new language, reset to first item
+    const exists = currentDocsData.value.some(d => d.id === activeId.value);
+    if (!exists && currentDocsData.value.length > 0) {
+        activeId.value = currentDocsData.value[0].id;
+    }
+    updateGlobalProgress();
+});
+
 const navigate = (dir: 'next' | 'prev') => {
-  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
+  const currentIndex = flatNavOrder.value.findIndex(item => item.id === activeId.value);
   if (currentIndex === -1) return;
 
   let nextIndex = dir === 'next' ? currentIndex + 1 : currentIndex - 1;
 
   // Clamp for documentation
-  if (nextIndex >= 0 && nextIndex < flatNavOrder.length) {
+  if (nextIndex >= 0 && nextIndex < flatNavOrder.value.length) {
     direction.value = dir === 'next' ? 1 : -1;
     transitionName.value = dir === 'next' ? 'slide-left' : 'slide-right';
-    activeId.value = flatNavOrder[nextIndex].id;
+    activeId.value = flatNavOrder.value[nextIndex].id;
   }
 };
 
 const handleNavSelect = (id: string) => {
-  const currentIndex = flatNavOrder.findIndex(item => item.id === activeId.value);
-  const nextIndex = flatNavOrder.findIndex(item => item.id === id);
+  const currentIndex = flatNavOrder.value.findIndex(item => item.id === activeId.value);
+  const nextIndex = flatNavOrder.value.findIndex(item => item.id === id);
   
   direction.value = nextIndex > currentIndex ? 1 : -1;
   transitionName.value = nextIndex > currentIndex ? 'slide-left' : 'slide-right';

@@ -8,61 +8,69 @@ const docsPlugin = () => {
   const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
   const generateDocs = () => {
-    const summaryPath = 'docs/SUMMARY.md';
-    if (!fs.existsSync(summaryPath)) {
-      return `export const DOCS_DATA = []; export const NAV_ITEMS = [];`;
-    }
-    const summaryContent = fs.readFileSync(summaryPath, 'utf-8');
-    const lines = summaryContent.split('\n');
+    const docsDir = 'docs';
+    const languages = ['en', 'zh-hans']; // Fixed list or fs.readdirSync(docsDir) if strictly structured
+    
+    const allDocsData: Record<string, any[]> = {};
+    const allNavItems: Record<string, any[]> = {};
 
-    const docsData = [];
-    const navItems = [];
-    let currentCategory = '';
+    for (const lang of languages) {
+      allDocsData[lang] = [];
+      allNavItems[lang] = [];
 
-    const categoryRegex = /^#\s+(.*)/;
-    const itemRegex = /-\s+\[(.*?)\]\((.*?)\)/;
+      const summaryPath = path.join(docsDir, lang, 'SUMMARY.md');
+      if (!fs.existsSync(summaryPath)) continue;
 
-    for (const line of lines) {
-      const categoryMatch = line.match(categoryRegex);
-      if (categoryMatch) {
-        currentCategory = categoryMatch[1].trim();
-        continue;
-      }
+      const summaryContent = fs.readFileSync(summaryPath, 'utf-8');
+      const lines = summaryContent.split('\n');
+      
+      let currentCategory = '';
+      const categoryRegex = /^#\s+(.*)/;
+      const itemRegex = /-\s+\[(.*?)\]\((.*?)\)/;
 
-      const itemMatch = line.match(itemRegex);
-      if (itemMatch && currentCategory) {
-        const label = itemMatch[1].trim();
-        const itemPath = itemMatch[2].trim();
-        
-        const id = path.basename(itemPath, '.md');
-        const filePath = path.join('docs', itemPath);
-        
-        if (!fs.existsSync(filePath)) continue;
+      for (const line of lines) {
+        const categoryMatch = line.match(categoryRegex);
+        if (categoryMatch) {
+          currentCategory = categoryMatch[1].trim();
+          continue;
+        }
 
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const titleMatch = content.match(/^#\s+(.*)/m);
-        const title = titleMatch ? titleMatch[1] : label;
-        const categorySlug = currentCategory.toLowerCase();
+        const itemMatch = line.match(itemRegex);
+        if (itemMatch && currentCategory) {
+          const label = itemMatch[1].trim();
+          const relativeItemPath = itemMatch[2].trim();
+          
+          const id = path.basename(relativeItemPath, '.md');
+          // File path is now docs/<lang>/<relative_path>
+          const filePath = path.join(docsDir, lang, relativeItemPath);
+          
+          if (!fs.existsSync(filePath)) continue;
 
-        docsData.push({
-          id,
-          title,
-          category: categorySlug,
-          content,
-        });
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const titleMatch = content.match(/^#\s+(.*)/m);
+          const title = titleMatch ? titleMatch[1] : label;
+          const categorySlug = currentCategory.toLowerCase(); // Note: categories might need translation mapping if SUMMARY changes
 
-        navItems.push({
-          id,
-          label,
-          category: categorySlug,
-          font: categorySlug === 'guide' ? 'dtm-sans' : undefined,
-        });
+          allDocsData[lang].push({
+            id,
+            title,
+            category: categorySlug,
+            content,
+          });
+
+          allNavItems[lang].push({
+            id,
+            label,
+            category: categorySlug,
+            font: categorySlug === 'guide' ? 'dtm-sans' : undefined,
+          });
+        }
       }
     }
 
     return `
-      export const DOCS_DATA = ${JSON.stringify(docsData)};
-      export const NAV_ITEMS = ${JSON.stringify(navItems)};
+      export const DOCS_DATA = ${JSON.stringify(allDocsData)};
+      export const NAV_ITEMS = ${JSON.stringify(allNavItems)};
     `;
   };
 
