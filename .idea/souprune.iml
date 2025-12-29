@@ -23,6 +23,9 @@
       <excludeFolder url="file://$MODULE_DIR$/.idea/dictionaries" />
       <excludeFolder url="file://$MODULE_DIR$/logs" />
       <excludeFolder url="file://$MODULE_DIR$/dev" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/souprune/logs" />
+      <excludeFolder url="file://$MODULE_DIR$/doc/.idea" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/code/mod_example/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
