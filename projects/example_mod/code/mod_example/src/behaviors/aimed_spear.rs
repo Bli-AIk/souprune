@@ -56,6 +56,22 @@ impl DanmakuBehavior for AimedSpear {
         // Move in the direction calculated at spawn time
         // 沿生成时计算的方向移动
         let offset = self.direction * self.speed * ctx.elapsed;
-        BulletOutput::new(offset.x, offset.y)
+
+        // Calculate target angle from direction vector
+        // 计算方向向量的目标角度
+        let target_angle = self.direction.y.atan2(self.direction.x);
+
+        let mut output = BulletOutput::new(offset.x, offset.y);
+
+        // Apply rotation on the first frame to face the player
+        // 在第一帧应用旋转以朝向玩家
+        // Correct for sprite pointing UP (PI/2) by default
+        // 修正图片默认朝上 (PI/2) 的偏移
+        if ctx.elapsed <= ctx.delta_time {
+            let rotation_diff = target_angle - std::f32::consts::FRAC_PI_2;
+            output = output.with_rotation(rotation_diff);
+        }
+
+        output
     }
 }
