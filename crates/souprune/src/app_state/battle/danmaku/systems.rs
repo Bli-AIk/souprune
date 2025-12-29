@@ -82,7 +82,7 @@ pub fn advance_performance_timeline(
 ) {
     let dt = time.delta_secs();
 
-    // Get player position for homing behaviors
+    // Get player position for aimed/homing behaviors
     let player_pos = player_query
         .iter()
         .next()
@@ -464,15 +464,6 @@ pub fn update_bullet_motion(
                         + config.phase)
                         .sin();
                     position += axis_vec * wave * config.amplitude;
-                }
-
-                BulletBehavior::Homing(config) => {
-                    let to_player = (player_pos - position).normalize_or_zero();
-                    let current_dir = state.velocity_direction;
-                    let turn_amount = (config.strength * dt).min(config.max_turn_rate * dt);
-                    let new_dir = current_dir.lerp(to_player, turn_amount).normalize_or_zero();
-                    state.velocity_direction = new_dir;
-                    position += new_dir * config.speed * dt;
                 }
 
                 BulletBehavior::Tween(config) => {

@@ -1,9 +1,9 @@
-//! Homing Spear danmaku behavior - aims at player position at spawn time
+//! Aimed Spear danmaku behavior - aims at player position at spawn time
 //! 自机狙长矛弹幕行为 - 在生成时瞄准玩家位置
 
 use souprune_sdk::{BulletContext, BulletOutput, DanmakuBehavior, Vec2};
 
-/// Homing spear that captures player position on spawn and moves toward it.
+/// Aimed spear that captures player position on spawn and moves toward it.
 /// The bullet moves in a straight line toward where the player WAS at spawn time.
 ///
 /// 自机狙长矛，在生成时捕获玩家位置并朝向移动。
@@ -12,7 +12,7 @@ use souprune_sdk::{BulletContext, BulletOutput, DanmakuBehavior, Vec2};
 /// Properties (from RON config):
 /// - "speed": pixels per second (default: 200.0)
 /// - "smoothness": turn rate toward player (future support)
-pub struct HomingSpear {
+pub struct AimedSpear {
     /// Target position captured at spawn time
     target_pos: Vec2,
     /// Movement direction (normalized)
@@ -21,7 +21,7 @@ pub struct HomingSpear {
     speed: f32,
 }
 
-impl HomingSpear {
+impl AimedSpear {
     pub fn new() -> Self {
         Self {
             target_pos: Vec2::ZERO,
@@ -31,13 +31,13 @@ impl HomingSpear {
     }
 }
 
-impl Default for HomingSpear {
+impl Default for AimedSpear {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl DanmakuBehavior for HomingSpear {
+impl DanmakuBehavior for AimedSpear {
     fn on_enter(&mut self, ctx: &BulletContext) {
         // Capture player position at spawn time - this is the key!
         // 在生成时捕获玩家位置 - 这是关键！

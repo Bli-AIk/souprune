@@ -69,8 +69,8 @@ pub struct BulletMotionState {
     pub initial_angle: f32,
     /// Initial radius (for circular patterns)
     pub initial_radius: f32,
-    /// Current velocity direction (for homing/linear behaviors)
-    pub velocity_direction: Vec2,
+    /// Current velocity direction (for aimed/linear behaviors)
+    pub velocity_dir: Vec2,
 }
 
 impl BulletMotionState {
@@ -81,7 +81,7 @@ impl BulletMotionState {
             initial_offset: Vec2::ZERO,
             initial_angle: 0.0,
             initial_radius: 0.0,
-            velocity_direction: Vec2::NEG_Y,
+            velocity_dir: Vec2::NEG_Y,
         }
     }
 
@@ -92,7 +92,7 @@ impl BulletMotionState {
 
     pub fn with_angle(mut self, angle: f32) -> Self {
         self.initial_angle = angle;
-        self.velocity_direction = Vec2::new(angle.cos(), angle.sin());
+        self.velocity_dir = Vec2::new(angle.cos(), angle.sin());
         self
     }
 

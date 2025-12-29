@@ -55,14 +55,6 @@ fn default_sine_frequency() -> f32 {
     2.0
 }
 
-fn default_homing_strength() -> f32 {
-    1.0
-}
-
-fn default_homing_max_turn() -> f32 {
-    3.0
-}
-
 fn default_line_spacing() -> f32 {
     20.0
 }
@@ -176,9 +168,6 @@ pub enum BulletBehavior {
     /// Linear motion in a direction
     Linear(LinearConfig),
 
-    /// Homing towards player
-    Homing(HomingConfig),
-
     /// Tween animation (opacity, scale, position, etc.)
     Tween(TweenConfig),
 
@@ -212,27 +201,6 @@ impl Default for LinearConfig {
     fn default() -> Self {
         Self {
             dir: default_linear_direction(),
-            speed: default_linear_speed(),
-        }
-    }
-}
-
-/// Homing behavior configuration.
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub struct HomingConfig {
-    #[serde(default = "default_homing_strength")]
-    pub strength: f32,
-    #[serde(default = "default_homing_max_turn")]
-    pub max_turn_rate: f32,
-    #[serde(default = "default_linear_speed")]
-    pub speed: f32,
-}
-
-impl Default for HomingConfig {
-    fn default() -> Self {
-        Self {
-            strength: default_homing_strength(),
-            max_turn_rate: default_homing_max_turn(),
             speed: default_linear_speed(),
         }
     }

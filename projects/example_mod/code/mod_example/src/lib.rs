@@ -1,12 +1,12 @@
 //! Example mod demonstrating the Souprune modding API.
-//! Contains player behaviors (RedSoul, BlueSoul) and danmaku behaviors (HomingSpear).
+//! Contains player behaviors (RedSoul, BlueSoul) and danmaku behaviors (AimedSpear).
 //!
 //! 示例模组，演示 Souprune 模组 API。
 //! 包含玩家行为（红魂、蓝魂）和弹幕行为（自机狙长矛）。
 
 mod behaviors;
 
-use behaviors::{BlueSoul, HomingSpear, RedSoul};
+use behaviors::{AimedSpear, BlueSoul, RedSoul};
 use souprune_sdk::{declare_behaviors, declare_danmaku};
 
 // Register player behaviors
@@ -19,5 +19,5 @@ declare_behaviors!(
 // Register danmaku behaviors
 // 注册弹幕行为
 declare_danmaku!(
-    ("homing_spear", HomingSpear, || HomingSpear::new()),
+    ("aimed_spear", AimedSpear, || AimedSpear::new()),
 );

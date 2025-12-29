@@ -137,9 +137,9 @@ pub struct BulletContextC {
     pub initial_angle: c_float,
     /// Initial radius (for circular patterns)
     pub initial_radius: c_float,
-    /// Player position X (for homing behaviors)
+    /// Player position X (for aimed behaviors)
     pub player_x: c_float,
-    /// Player position Y (for homing behaviors)
+    /// Player position Y (for aimed behaviors)
     pub player_y: c_float,
     /// Pointer to custom properties array (from RON config)
     pub props: *const PropC,
@@ -218,7 +218,7 @@ impl BulletOutputC {
 #[derive(Clone, Copy)]
 pub struct DanmakuVTable {
     /// Called once when the bullet is spawned.
-    /// Use this to capture initial state (e.g., player position for homing).
+    /// Use this to capture initial state (e.g., player position for aimed behaviors).
     pub on_enter: Option<extern "C" fn(instance: *mut c_void, context: *const BulletContextC)>,
 
     /// Called every frame to compute bullet movement.

@@ -2,7 +2,7 @@
 // Demonstrates three attack patterns:
 // 1. Spear linear attack
 // 2. Pellet ring attack
-// 3. Homing spear attack using mod algorithm
+// 3. Aimed spear attack using mod algorithm
 
 // 测试战斗表演
 // 展示三种攻击模式：
@@ -72,10 +72,10 @@
             radial_velocity: -60.0,
         )),
 
-        // Homing spear using mod algorithm
+        // Aimed spear using mod algorithm
         // 通过 mod 算法实现的长矛自机狙
-        "homing": Custom(
-            id: "homing_spear",
+        "aimed": Custom(
+            id: "aimed_spear",
             props: {
                 "speed": 180.0,
                 "smoothness": 0.8,
@@ -118,13 +118,13 @@
             apply: ["spiral_in", "fade_in"],
         ),
 
-        // Step 3: Homing spears from top (t=2.0 after previous) - 长矛自机狙
+        // Step 3: Aimed spears from top (t=2.0 after previous) - 长矛自机狙
         // 第三步：从顶部发起的长矛自机狙 (距上一事件 2.0 秒)
         (
             t: 2.0,
             spawn: "spear",
             pattern: LineGenerator(count: 3, spacing: 60.0, direction: (0.0, -1.0)),
-            apply: ["homing", "fade_in"],
+            apply: ["aimed", "fade_in"],
         ),
 
         // Step 4: Another pellet ring with inline behavior (t=1.5 after previous)

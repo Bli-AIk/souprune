@@ -116,7 +116,7 @@ pub struct BulletContext {
     pub initial_angle: f32,
     /// Initial radius (for circular patterns)
     pub initial_radius: f32,
-    /// Current player position (for homing behaviors)
+    /// Current player position (for aimed behaviors)
     pub player_pos: Vec2,
     /// Custom properties from RON config (named)
     props: Vec<(String, f32)>,

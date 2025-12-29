@@ -40,7 +40,6 @@ impl Plugin for DanmakuPlugin {
             .register_type::<ColliderShape>()
             .register_type::<BulletBehavior>()
             .register_type::<LinearConfig>()
-            .register_type::<HomingConfig>()
             .register_type::<OrbitalConfig>()
             .register_type::<SineConfig>()
             .register_type::<TweenConfig>()

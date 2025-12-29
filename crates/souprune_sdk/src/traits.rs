@@ -31,12 +31,9 @@ pub trait Behavior {
 /// 弹幕行为的 Trait。
 /// 类似于 Behavior，但操作弹幕上下文而非玩家上下文。
 pub trait DanmakuBehavior {
-    /// Called once when the bullet is spawned.
-    /// Use this to capture initial state (e.g., player position for homing).
-    ///
-    /// 弹幕生成时调用一次。
-    /// 用于捕获初始状态（如：自机狙的玩家位置）。
-    fn on_enter(&mut self, _context: &BulletContext) {}
+    /// Initialize behavior state when the bullet is spawned.
+    /// Use this to capture initial state (e.g., player position for aimed behaviors).
+    fn on_enter(&mut self, _ctx: &BulletContext) {}
 
     /// Called every frame to compute bullet movement.
     /// Returns the position offset and rotation for this frame.
