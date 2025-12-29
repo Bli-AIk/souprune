@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed } from 'vue';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import miHighlight from 'markdown-it-highlightjs';
@@ -85,13 +85,11 @@ md.renderer.rules.image = (tokens, idx) => {
   return `<img src="${src}" alt="${alt}" class="border-4 border-white my-6 w-full max-w-lg mx-auto image-pixelated" />`;
 };
 
-const tableOpen = md.renderer.rules.table_open;
-md.renderer.rules.table_open = (tokens, idx, options, env, self) => {
+md.renderer.rules.table_open = (_tokens, _idx, _options, _env, _self) => {
   return '<div class="overflow-x-auto my-8 border-2 border-gray-600 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]"><table class="w-full border-collapse bg-black text-left">';
 };
 
-const tableClose = md.renderer.rules.table_close;
-md.renderer.rules.table_close = (tokens, idx, options, env, self) => {
+md.renderer.rules.table_close = (_tokens, _idx, _options, _env, _self) => {
   return '</table></div>';
 };
 
