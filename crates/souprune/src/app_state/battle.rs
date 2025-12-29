@@ -26,11 +26,13 @@
 pub mod chapter;
 pub mod collision;
 pub mod config;
+pub mod danmaku;
 mod sequencer;
 
 use crate::app_state::battle::chapter::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::config::BattlePlayerConfig;
+use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::ron_loader::RonAssetLoader;
@@ -42,10 +44,18 @@ use serde::{Deserialize, Serialize};
 ///
 /// 标记 Battle 实体的组件
 #[derive(Component)]
-pub(crate) struct BattleEntity();
+pub(crate) struct BattleEntity;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
+
+/// System set for battle movement (mod behaviors).
+/// Collision systems should run after this.
+///
+/// Battle移动系统集（mod行为）。
+/// 碰撞系统应在此之后运行。
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BattleMovementSet;
 
 #[derive(Component)]
 pub struct BattleCamera;
@@ -55,21 +65,18 @@ pub(crate) struct BattlePlugin;
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+            .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
             // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
             // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
-            .init_asset::<BattleFlowAsset>()
-            .register_asset_loader(RonAssetLoader::<BattleFlowAsset>::new(&["chapter.ron"]))
+            .init_asset::<BattleAsset>()
+            .register_asset_loader(RonAssetLoader::<BattleAsset>::new(&["battle.ron"]))
             .init_asset::<BattlePlayerConfig>()
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
             ]))
-            .add_plugins((SequencerPlugin, BattleCollisionPlugin))
-            .add_systems(OnEnter(AppState::Battle), setup_battle_camera)
-            .add_systems(
-                OnExit(AppState::Battle),
-                (cleanup_entities_system::<BattleEntity>, restore_cameras),
-            );
+            .add_plugins((SequencerPlugin, BattleCollisionPlugin, DanmakuPlugin))
+            .add_systems(OnEnter(AppState::Battle), setup_battle_camera);
     }
 }
 
@@ -77,14 +84,10 @@ fn setup_battle_camera(
     mut commands: Commands,
     q_cameras: Query<Entity, (With<Camera2d>, Without<BattleCamera>)>,
 ) {
-    // Despawn existing cameras
     for camera_entity in q_cameras.iter() {
         commands.entity(camera_entity).despawn();
     }
 
-    // Spawn Battle Camera
-    // Battle scene needs a larger viewport, so use scale 1.0 instead of dividing by resolution_scale
-    // 战斗场景需要更大的视野，因此使用 scale 1.0 而不是除以 resolution_scale
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
@@ -92,19 +95,11 @@ fn setup_battle_camera(
             ..OrthographicProjection::default_2d()
         }),
         BattleCamera,
-        BattleEntity(),
-        Name::new("BattleCamera"),
+        BattleEntity,
+        Name::new("Battle Camera2d"),
     ));
-}
-
-fn restore_cameras(_q_cameras: Query<&mut Camera, (With<Camera2d>, Without<BattleCamera>)>) {
-    // No longer needed as we despawn battle camera
-    // The overworld camera is recreated when entering overworld state
-    //
-    // 不再需要，因为我们销毁了 battle 相机
-    // 当进入 overworld 状态时会重新创建 overworld 相机
 }
 
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct BattleFlowAsset(pub Vec<Chapter>);
+pub struct BattleAsset(pub Vec<Chapter>);

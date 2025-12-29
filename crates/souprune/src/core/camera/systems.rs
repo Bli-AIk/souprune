@@ -13,6 +13,12 @@
 use super::components::Followable;
 use bevy::prelude::*;
 
+/// System set for camera updates. Collision systems should run before this.
+///
+/// 摄像机更新的系统集。碰撞系统应在此之前运行。
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CameraUpdateSet;
+
 pub(crate) fn update_followable_camera_system(
     mut camera: Query<(&Followable, &mut Transform, &Camera)>,
     target: Query<&Transform, Without<Camera>>,
@@ -24,10 +30,15 @@ pub(crate) fn update_followable_camera_system(
             let mut new_x = target_transform.translation.x;
             let mut new_y = target_transform.translation.y;
 
-            // Apply bounds if enabled.
+            // Apply bounds if enabled and valid.
+            // Invalid bounds (min >= max) can occur before tilemap loads.
             //
-            // 如果启用了边界限制，则应用边界限制。
-            if followable.bounds_enabled {
+            // 如果启用了边界限制且边界有效，则应用边界限制。
+            // 无效边界（min >= max）可能在tilemap加载前出现。
+            if followable.bounds_enabled
+                && followable.min_x < followable.max_x
+                && followable.min_y < followable.max_y
+            {
                 new_x = new_x.clamp(followable.min_x, followable.max_x);
                 new_y = new_y.clamp(followable.min_y, followable.max_y);
             }

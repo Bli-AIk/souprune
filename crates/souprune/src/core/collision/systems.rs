@@ -8,108 +8,110 @@
 //! 基于SDF的碰撞系统，使用梯度进行分离。
 //! 在检测和分离阶段都使用SDF并集操作以保证一致性。
 
-use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::tilemap::{ObjectCollider, systems::TilemapCollider};
 use crate::core::collision::components::Rect2DCollider;
 use bevy::prelude::*;
 
-type PlayerQuery<'w, 's> = Query<
-    'w,
-    's,
-    (&'static mut Transform, &'static Rect2DCollider),
-    (With<PlayerControlled>, Without<TilemapCollider>),
->;
-type TilemapCollidersQuery<'w, 's> = Query<
-    'w,
-    's,
-    (&'static Transform, &'static Rect2DCollider),
-    (
-        Or<(With<TilemapCollider>, With<ObjectCollider>)>,
-        Without<PlayerControlled>,
-    ),
->;
-
-/// True SDF-based collision detection and response system
-/// Uses SDF gradient for stable, consistent separation
+/// Marker component for static collision tiles/objects
 ///
-/// 真正基于SDF的碰撞检测和响应系统
-/// 使用SDF梯度进行稳定一致的分离
-pub fn player_tilemap_collision_system(
-    mut player_query: PlayerQuery,
-    tilemap_colliders: TilemapCollidersQuery,
-) {
-    const MAX_ITERATIONS: u8 = 4;
+/// 静态碰撞瓦片/对象的标记组件
+#[derive(Component)]
+pub struct StaticCollider;
 
-    for (mut player_transform, player_collider) in player_query.iter_mut() {
-        let initial_player_pos = player_transform.translation.truncate() + player_collider.offset;
+/// Marker component for dynamic collision entities (e.g., player)
+///
+/// 动态碰撞实体的标记组件（如玩家）
+#[derive(Component)]
+pub struct DynamicCollider;
 
-        // Collect all nearby tiles for SDF merge
-        //
-        // 收集所有附近的瓦片以进行SDF合并
-        let nearby_tiles = collect_nearby_tiles(&initial_player_pos, tilemap_colliders);
+/// SDF collision response configuration
+///
+/// SDF碰撞响应配置
+pub struct SdfCollisionConfig {
+    pub max_iterations: u8,
+    pub search_radius: f32,
+}
 
-        if nearby_tiles.is_empty() {
-            continue;
-        }
-
-        for _ in 0..MAX_ITERATIONS {
-            let player_pos = player_transform.translation.truncate() + player_collider.offset;
-
-            let (distance, min_idx_opt) =
-                merged_sdf_distance_and_index(player_pos, player_collider, &nearby_tiles);
-
-            if distance < 0.0 {
-                if let Some(min_idx) = min_idx_opt {
-                    let separation = calculate_analytic_separation(
-                        player_pos,
-                        player_collider,
-                        &nearby_tiles,
-                        min_idx,
-                        distance,
-                    );
-                    player_transform.translation.x += separation.x;
-                    player_transform.translation.y += separation.y;
-                } else {
-                    // Should not happen if distance is negative
-                    break;
-                }
-            } else {
-                // No collision, resolution is complete for this player
-                break;
-            }
+impl Default for SdfCollisionConfig {
+    fn default() -> Self {
+        Self {
+            max_iterations: 4,
+            search_radius: 40.0,
         }
     }
 }
 
-/// Collect tiles within collision range, sorted by distance for deterministic results
-/// 收集碰撞范围内的瓦片，按距离排序确保结果确定性
-fn collect_nearby_tiles(
-    player_pos: &Vec2,
-    tilemap_colliders: TilemapCollidersQuery,
+/// Resolve SDF-based collision between a dynamic entity and static colliders.
+/// Returns the separation vector to apply to the entity.
+///
+/// 解决动态实体和静态碰撞体之间的SDF碰撞。
+/// 返回需要应用到实体的分离向量。
+pub fn resolve_sdf_collision(
+    entity_pos: Vec2,
+    entity_collider: &Rect2DCollider,
+    static_colliders: &[(Vec2, Vec2)], // (position, half_size)
+    config: &SdfCollisionConfig,
+) -> Vec2 {
+    let mut total_separation = Vec2::ZERO;
+    let mut current_pos = entity_pos;
+
+    for _ in 0..config.max_iterations {
+        let (distance, min_idx_opt) =
+            merged_sdf_distance_and_index(current_pos, entity_collider, static_colliders);
+
+        if distance < 0.0 {
+            if let Some(min_idx) = min_idx_opt {
+                let separation = calculate_analytic_separation(
+                    current_pos,
+                    entity_collider,
+                    static_colliders,
+                    min_idx,
+                    distance,
+                );
+                total_separation += separation;
+                current_pos += separation;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    total_separation
+}
+
+/// Collect colliders within range, sorted by distance for deterministic results.
+/// Returns (position, half_size) tuples.
+///
+/// 收集范围内的碰撞体，按距离排序确保结果确定性。
+/// 返回(位置, 半尺寸)元组。
+pub fn collect_nearby_colliders<'a>(
+    center_pos: Vec2,
+    search_radius: f32,
+    colliders: impl Iterator<Item = (&'a Transform, &'a Rect2DCollider)>,
 ) -> Vec<(Vec2, Vec2)> {
-    // (position, half_size)
-    let mut nearby_tiles = Vec::new();
-    let search_radius = 40.0;
+    let mut nearby = Vec::new();
+    let search_radius_sq = search_radius * search_radius;
 
-    for (tile_transform, tile_collider) in tilemap_colliders.iter() {
-        let tile_pos = tile_transform.translation.truncate() + tile_collider.offset;
-        let distance_sq = (tile_pos - *player_pos).length_squared();
+    for (transform, collider) in colliders {
+        let pos = transform.translation.truncate() + collider.offset;
+        let distance_sq = (pos - center_pos).length_squared();
 
-        if distance_sq < search_radius * search_radius {
-            nearby_tiles.push((tile_pos, tile_collider.size * 0.5));
+        if distance_sq < search_radius_sq {
+            nearby.push((pos, collider.size * 0.5));
         }
     }
 
     // Sort by distance for deterministic behavior
-    nearby_tiles.sort_by(|a, b| {
-        let dist_a = (a.0 - *player_pos).length_squared();
-        let dist_b = (b.0 - *player_pos).length_squared();
+    nearby.sort_by(|a, b| {
+        let dist_a = (a.0 - center_pos).length_squared();
+        let dist_b = (b.0 - center_pos).length_squared();
         dist_a
             .partial_cmp(&dist_b)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    nearby_tiles
+    nearby
 }
 
 /// SDF collision detection using merged tiles (returns min distance and index of closest tile)

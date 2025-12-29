@@ -2,13 +2,18 @@
 
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
-<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> <img src="https://img.shields.io/badge/GameMaker Language-即将支持-9CA3AF?style=for-the-badge&logo=gamemaker&logoColor=white" />
-<img src="https://img.shields.io/badge/Lua-即将支持-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
-<img src="https://img.shields.io/badge/.NET-即将支持-9CA3AF?style=for-the-badge&logo=dotnet&logoColor=white" />
+<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
+<img src="https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white" />
+<img src="https://img.shields.io/badge/Haxe-EA8220?style=for-the-badge&logo=haxe&logoColor=white" />
+<img src="https://img.shields.io/badge/Nim-即将支持-FFE953?style=for-the-badge&logo=nim&logoColor=black" />
+<img src="https://img.shields.io/badge/Nelua-即将支持-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
 
 > **状态**：🚧 初始开发阶段（框架结构仍在快速演进中）
 
-**SoupRune** 是一个专为 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/) Fangame** 设计的游戏框架。
+[![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
+
+**SoupRune** 是一个专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 的
+RPG / STG 游戏而设计的实验性游戏框架。
 
 | 英语                     | 简体中文 |
 |------------------------|------|
@@ -18,33 +23,66 @@
 
 嘿，别被上面那个 **「Rust」** 徽章吓到 —— **SoupRune 可不只是给某些专业程序员玩的冷门工具！**
 
-它支持 **Gamemaker**、*
-*[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**
-、以及 **.NET (C#)** 生态，
+为什么这么说呢？因为：
 
-无论你是习惯码 GML、写 Lua、还是 Unity / Godot 开发者，也许都能在这里找到熟悉的感觉。
+### SoupRune 是语言无关的框架！
 
-**名字里的「Rune」也不是随便取的 ——**
+SoupRune 采用了 **框架 - Project (Mod)** 架构。通过 `bevy` 构建的核心引擎负责底层运行，而您的游戏逻辑则位于独立的
+"Project" 中，通过标准接口与核心交互。
 
-Undertale 的 Fangame 框架兴许已经饱和，但 Deltarune 的社区正在蓬勃发展。
+我们通过 `C ABI` 使使得 SoupRune 能够真正做到 **语言无关（Language-Agnostic）**。在语言支持的选择上，我们优先考虑了对 **传统
+Undertale / Deltarune 开发者友好** 的语言，旨在为来自 **GameMaker** (Haxe)、**Lua** (Nelua) 或 **Python / GDScript** (Nim)
+背景的开发者搭建一座桥梁。
 
-SoupRune 就是趁此机会打造的 Fangame 框架，~~
-同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
+我们热烈欢迎来自各个语言社区的开发者加入，共同完善这些语言的支持！
+
+### SoupRune 是面向社区的框架！
+
+SoupRune——它名字里的 **「Rune」** 不是随便取的。
+
+Undertale 的 Fangame 框架兴许已经饱和，但 Deltarune 社区正在蓬勃发展。
+
+SoupRune 就是趁此机会打造的 Fangame 框架，
+~~同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
 
 但这也不意味着 SoupRune 只是一个 Deltarune 框架 —— 对于 Undertale Fangame 的支持，我们也同样看重！
 
 SoupRune 的目标是成为真正意义上的 **「面向社区的 Fangame 框架」** —— 开放、灵活、现代，同时依然保持那个熟悉的 DR / UT 风格。
 
+### SoupRune 是开源的框架！
+
+SoupRune 采用 **LGPL-3.0** 许可协议开源发布。该许可证仅适用于框架核心代码。
+
+这意味着：
+
+* 你开发的 Project (Mod) 可以使用其他开源许可证，也可以闭源；
+* 你可以在闭源项目中使用 SoupRune 的源代码；
+* 但若你修改了框架核心代码，需将这些修改以 LGPL 方式开源；
+* 若你希望在完全闭源环境下使用修改版 SoupRune 核心代码，可联系我获取商业许可。
+
+此外，仍需遵守 Toby Fox 对粉丝游戏的相关使用规定。
+
+### SoupRune 是实验性的框架！
+
+尽管实验性意味着不稳定和不完善，但它也代表着无限的可能性。
+
+用它来做 dr / ut 的 fangame？或者试试还原其他的经典游戏？甚至开发全新的原创游戏？ 一切皆有可能！
+
+SoupRune 目前仍处于 **初始开发阶段**，框架结构和设计理念仍在快速演进中。
+我们欢迎社区成员积极参与讨论和贡献，共同塑造这个框架的未来。
+
+加入我们的 [Discord](https://discord.gg/5YXK5DRjPZ) 吧！
+
 ## 🧭 S.O.U.P 原则
 
 是的，**Soup**Rune当然是一个双关啦——
 
-|  缩写   | 全称                | 含义                                |
-|:-----:|:------------------|:----------------------------------|
-| **S** | **Strong**        | 基于 **Bevy** 与 **Rust**，性能强劲、架构现代。 |
-| **O** | **Open**          | 采用 **LGPL** 开源协议，允许自由使用与拓展。       |
-| **U** | **User-friendly** | 提供多语言脚本层，降低上手门槛。                  |
-| **P** | **Popular**       | 兼容 DR/UT 社区主流生态与使用习惯。             |
+|  缩写   | 全称                | 含义                                  |
+|:-----:|:------------------|:------------------------------------|
+| **S** | **Strong**        | 基于 **Bevy** 与 **Rust**，性能强劲、架构现代。   |
+| **O** | **Open**          | 采用 **LGPL** 开源协议，允许自由使用与拓展。         |
+| **U** | **User-friendly** | 提供多语言脚本层，降低上手门槛。                    |
+| **P** | **Polyglot**      | 支持多种编程语言（Rust、C#、Haxe、Nim、Nelua 等）。 |
 
 ## ⚙️ 技术基础
 
@@ -67,34 +105,18 @@ SoupRune 采用多 Crate 的工作空间架构：
 
 ## 🧩 脚本层支持
 
-SoupRune 将提供多语言脚本支持，让不同背景的开发者都能快速上手：
+SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。我们精心挑选了一系列支持 **AOT 编译**
+的语言，旨在对应不同的开发范式，让来自其他引擎的开发者能平滑迁移经验：
 
-|                                   语言                                   | 适用人群                                                                                                      | 描述                          |
-|:----------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------|:----------------------------|
-|                                **Rust**                                | 系统层开发者 / Rustacean / Bevy 用户                                                                              | 原生支持，性能最佳。                  |
-| **[COL（Configurable Open Language）](https://github.com/Bli-AIk/col/)** | GML / GameMaker 用户                                                                                        | 我自研的开源 GML 替代语言，完全兼容语法、易扩展。 |
-|                                **Lua**                                 | [Unitale](https://github.com/lvk/Unitale) / [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) 用户 | 轻量级脚本语言，快速上手。               |
-|                          **.NET (C#/VB/F#)**                           | Unity / Godot 用户                                                                                          | 熟悉语法？平滑迁移。                  |
+|           语言           | 适用人群                                 | 描述                                     |
+|:----------------------:|:-------------------------------------|:---------------------------------------|
+|        **Rust**        | 系统层开发者 / Rustacean / Bevy 用户         | 原生支持，性能最佳。                             |
+|     **.NET (C#)**      | Unity / Godot / C# 用户                | 工业标准语言。通过 **Native AOT** 技术实现无缝集成与高性能。 |
+|        **Haxe**        | **Haxe** 用户 / **GameMaker** 用户       | 强大的高级语言。其语法与 GML 有相似之处，是开发的绝佳选择。       |
+|  **Nim**(Coming Soon)  | **Python** / **GDScript** (Godot) 用户 | 类似 Python 的缩进式语法，却能编译成 C 代码，兼具优雅与高效。   |
+| **Nelua**(Coming Soon) | **Lua** 用户                           | 继承了 Lua 的极简语法风格，但编译为原生机器码，提供极致性能。      |
 
-未来还会：
-
-* 尝试为 [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / Gamemaker 爱好者提供熟悉的开发体验（例如相似的事件系统或脚本接口）；
-*
-
-提供从 [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / [Undertale Engine](https://github.com/TML233/UndertaleEngine)
-项目迁移的指南。
-
-## 💬 开源与许可
-
-SoupRune 采用 **LGPL-3.0** 许可协议。
-
-这意味着：
-
-* 你可以在闭源项目中使用 SoupRune；
-* 但若你修改了框架核心代码，需将这些修改以 LGPL 方式开源；
-* 若你希望在完全闭源环境下使用修改版 SoupRune，可联系我获取商业许可。
-
-此外，仍需遵守 Toby Fox 对粉丝游戏的相关使用规定。
+如果你有兴趣为 SoupRune 的多语言支持提供帮助，欢迎参与贡献！
 
 ## 引用说明
 
@@ -106,14 +128,6 @@ SoupRune 采用 **LGPL-3.0** 许可协议。
 |-------------------------------------|--------------|
 | [Undertale](https://undertale.com/) | UNDERTALE 原作 |
 | [Deltarune](https://deltarune.com/) | DELTARUNE 原作 |
-
-### 引擎 / 框架参考
-
-| 项目                                                                       | 描述                                        |
-|--------------------------------------------------------------------------|-------------------------------------------|
-| [Unitale](https://github.com/lvk/Unitale)                                | 使用 Unity 5 制作、可通过 Lua 进行模组化的 Undertale 引擎 |
-| [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk) | 由 Rhenaud The Lukark 制作的 Unitale 分支       |
-| [Undertale Engine](https://github.com/TML233/UndertaleEngine)            | 专为制作 Undertale 同人游戏而设计的 GameMaker 项目模板    |
 
 ### 前身
 

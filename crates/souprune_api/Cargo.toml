@@ -3,4 +3,26 @@ name = "souprune_api"
 version = "0.0.0"
 edition = "2024"
 
+[features]
+default = []
+bindgen = ["dep:interoptopus", "dep:interoptopus_backend_c", "dep:interoptopus_backend_csharp", "dep:interoptopus_backend_haxe"]
+
 [dependencies]
+interoptopus = { version = "0.15.0-alpha.24", optional = true }
+
+[dependencies.interoptopus_backend_c]
+version = "0.15.0-alpha.24"
+optional = true
+
+[dependencies.interoptopus_backend_csharp]
+version = "0.15.0-alpha.24"
+optional = true
+
+[dependencies.interoptopus_backend_haxe]
+path = "../interoptopus_backend_haxe"
+optional = true
+
+[[bin]]
+name = "souprune_bindgen"
+path = "src/bindgen.rs"
+required-features = ["bindgen"]

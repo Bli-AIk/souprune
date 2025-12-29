@@ -4,13 +4,13 @@
 //! 使用 SDK 的模组参考实现。
 //! 作为示例和测试用例，用于验证模组编译和加载流程是否正常工作。
 
-use souprune_sdk::{Context, SoulMode, declare_souls};
+use souprune_sdk::{Behavior, Context, declare_behaviors};
 
 struct MyTestSoul {
     counter: u32,
 }
 
-impl SoulMode for MyTestSoul {
+impl Behavior for MyTestSoul {
     fn on_enter(&mut self, context: &mut Context) {
         context.log("TestMod: I have entered the stage!");
     }
@@ -39,7 +39,7 @@ impl SoulMode for MyTestSoul {
 
 struct MySecondSoul;
 
-impl SoulMode for MySecondSoul {
+impl Behavior for MySecondSoul {
     fn on_enter(&mut self, context: &mut Context) {
         context.log("SecondSoul: Hello from the second soul!");
     }
@@ -56,7 +56,7 @@ impl SoulMode for MySecondSoul {
 }
 
 // 注册 Mod
-declare_souls!(
+declare_behaviors!(
     ("test_soul", MyTestSoul, || MyTestSoul { counter: 0 }),
     ("second_soul", MySecondSoul, || MySecondSoul)
 );
