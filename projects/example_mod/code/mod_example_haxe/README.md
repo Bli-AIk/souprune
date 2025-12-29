@@ -1,6 +1,7 @@
 # Souprune Haxe Mod Example
 
-This is a Hello World example mod for Souprune written in Haxe using hxcpp.
+This is an example mod for Souprune written in Haxe using hxcpp.
+It implements the same three danmaku behaviors as the Rust and C# versions.
 
 ## Prerequisites
 
@@ -22,21 +23,28 @@ haxe build.hxml
 
 ```
 mod_example_haxe/
-├── build.hxml          # Haxe build configuration
+├── build.hxml                  # Haxe build configuration
 ├── src/
-│   ├── Main.hx         # Entry point
-│   └── souprune/
-│       └── ffi/
-│           └── SoupruneApi.hx  # Generated FFI bindings
+│   ├── Main.hx                 # Entry point (mod registration)
+│   └── behaviors/
+│       ├── SpiralHomingDanmaku.hx
+│       ├── WaveBurstDanmaku.hx
+│       └── GravityDropDanmaku.hx
 └── README.md
 ```
 
-## Notes
+## Implemented Behaviors
 
-The `SoupruneApi.hx` file is auto-generated from `souprune_api`. 
-Do not edit it manually. To regenerate, run:
+1. **SpiralHomingDanmaku** - Spirals outward while slowly tracking the player
+2. **WaveBurstDanmaku** - Moves in sine wave pattern with burst acceleration  
+3. **GravityDropDanmaku** - Falls with gravity and bounces
 
-```bash
-cd /path/to/souprune
-cargo run -p souprune_api --features bindgen --bin souprune_bindgen
-```
+These behaviors are identical to the Rust (`mod_example`) and C# (`mod_example_csharp`) versions.
+
+## SDK Reference
+
+The SDK is located at `crates/souprune_sdk_haxe/` and provides:
+- `IDanmakuBehavior` interface
+- `BulletContext`, `BulletOutput`, `Vec2` types
+- `DanmakuRegistry` for behavior registration
+

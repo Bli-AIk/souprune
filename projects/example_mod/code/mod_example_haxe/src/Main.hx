@@ -1,38 +1,46 @@
+// Haxe Mod Entry Point for example_mod
+// example_mod 的 Haxe 模组入口点
+
 package;
 
-import souprune.ffi.SoupruneApi;
-import souprune.ffi.Vec2C;
-import souprune.ffi.BulletOutputC;
+import souprune.sdk.DanmakuRegistry;
+import souprune.sdk.IDanmakuBehavior;
+import behaviors.SpiralHomingDanmaku;
+import behaviors.WaveBurstDanmaku;
+import behaviors.GravityDropDanmaku;
 
 /**
- * Hello World Mod for Souprune - Haxe version
+ * Entry point for the Haxe mod.
+ * Contains the registration logic and exported functions that the game engine will call.
  * 
- * This demonstrates basic FFI usage with the Souprune API.
+ * Haxe 模组的入口点。
+ * 包含游戏引擎将调用的注册逻辑和导出函数。
  */
 class Main {
+    private static var initialized:Bool = false;
+    private static var behaviorIds:Array<String>;
+    
+    /**
+     * Initialize the mod and register behaviors.
+     */
+    private static function ensureInitialized():Void {
+        if (initialized) return;
+        initialized = true;
+        
+        // Register danmaku behaviors
+        // 注册弹幕行为
+        DanmakuRegistry.register("spiral_homing", () -> new SpiralHomingDanmaku());
+        DanmakuRegistry.register("wave_burst", () -> new WaveBurstDanmaku());
+        DanmakuRegistry.register("gravity_drop", () -> new GravityDropDanmaku());
+        
+        behaviorIds = DanmakuRegistry.getIds();
+        
+        trace('[ModExample Haxe] Initialized with ${behaviorIds.length} danmaku behaviors');
+    }
+    
     static function main() {
-        trace("Hello from Haxe Mod!");
-        
-        // Example: Create a Vec2C
-        var vec = SoupruneApi.vec2cNew(3.0, 4.0);
-        trace('Created vector: (${vec.x}, ${vec.y})');
-        
-        // Example: Get vector length
-        var length = SoupruneApi.vec2cLength(vec);
-        trace('Vector length: $length');
-        
-        // Example: Normalize the vector
-        var normalized = SoupruneApi.vec2cNormalize(vec);
-        trace('Normalized: (${normalized.x}, ${normalized.y})');
-        
-        // Example: Create bullet output
-        var output = SoupruneApi.danmakuOutputNew(10.0, 20.0);
-        trace('Bullet output: offset=(${output.offset_x}, ${output.offset_y}), rotation=${output.rotation}');
-        
-        // Example: Create bullet output with rotation
-        var rotatedOutput = SoupruneApi.danmakuOutputWithRotation(5.0, 10.0, 1.57);
-        trace('Rotated output: offset=(${rotatedOutput.offset_x}, ${rotatedOutput.offset_y}), rotation=${rotatedOutput.rotation}');
-        
-        trace("Haxe mod initialization complete!");
+        ensureInitialized();
+        trace("Haxe mod loaded!");
     }
 }
+

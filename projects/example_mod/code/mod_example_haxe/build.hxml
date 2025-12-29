@@ -1,6 +1,12 @@
 # Haxe build configuration for Souprune mod
+# Souprune 模组的 Haxe 构建配置
 
+# Source paths
 -cp src
+
+# SDK path (relative to this project)
+-cp ../../../../crates/souprune_sdk_haxe
+-cp ../../../../crates/souprune_sdk_haxe/Sdk
 
 # Main entry point
 -main Main
@@ -11,8 +17,6 @@
 # Include the C header for native FFI
 -D HXCPP_M64
 
-# Library name for the compiled shared library
-# -D dll_link
+# Output as shared library
+# Note: Additional configuration may be needed for cdylib output
 
-# Additional compiler flags can be added here
-# -D analyzer-optimize
