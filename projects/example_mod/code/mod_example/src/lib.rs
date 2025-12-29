@@ -6,14 +6,13 @@
 
 mod behaviors;
 
-use behaviors::{AimedSpear, BlueSoul, RedSoul};
+use behaviors::{AimedSpear, RedSoul};
 use souprune_sdk::{declare_behaviors, declare_danmaku};
 
 // Register player behaviors
 // 注册玩家行为
 declare_behaviors!(
     ("soul_red", RedSoul, || RedSoul::new()),
-    ("soul_blue", BlueSoul, || BlueSoul),
 );
 
 // Register danmaku behaviors
