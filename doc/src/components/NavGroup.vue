@@ -1,5 +1,5 @@
 <template>
-  <div class="border-2 border-gray-700 bg-black/80">
+  <div class="border-2 border-gray-700 bg-black/80 mb-4">
     <div class="bg-gray-800 text-gray-200 p-2 flex items-center gap-2 font-speechbubble text-xs tracking-wider border-b-2 border-gray-700">
       <component :is="icon" :size="18" />
       {{ title }}

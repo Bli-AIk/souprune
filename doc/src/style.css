@@ -214,3 +214,9 @@ body {
   width: 1rem; /* Adjust width to keep asterisk left-aligned */
   text-align: center;
 }
+
+.hud-box {
+  border: 48px solid transparent;
+  border-image: url('/hud.png') 30 fill stretch;
+  image-rendering: pixelated;
+}

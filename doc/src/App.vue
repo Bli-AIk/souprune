@@ -36,7 +36,7 @@
       </div>
     </header>
 
-    <div class="pt-20 pb-8 px-2 md:px-8 max-w-[1600px] mx-auto h-[calc(100vh)] flex flex-col md:flex-row gap-6 relative z-10">
+    <div class="pt-20 pb-8 px-2 md:px-8 w-full mx-auto h-[calc(100vh)] flex flex-col md:flex-row gap-6 relative z-10">
       
       <!-- Left Column: The "Menu" -->
       <nav 
@@ -97,25 +97,8 @@
             :key="activeDoc.id"
             class="flex-1 flex flex-col h-full pb-16 md:pb-0"
           >
-            <div class="border-4 border-white bg-black flex-1 flex flex-col relative shadow-[8px_8px_0px_0px_rgba(100,100,100,0.5)] overflow-hidden">
-              <!-- Corner Decors -->
-              <div class="absolute -top-1 -left-1 w-4 h-4 bg-white z-20"></div>
-              <div class="absolute -top-1 -right-1 w-4 h-4 bg-white z-20"></div>
-              <div class="absolute -bottom-1 -left-1 w-4 h-4 bg-white z-20"></div>
-              <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-white z-20"></div>
-
-              <!-- Header Bar inside Content -->
-              <div class="bg-white text-black p-2 px-4 md:px-6 flex justify-between items-center z-10 shrink-0">
-                <span class="font-pixel text-xs md:text-base uppercase tracking-widest truncate mr-2">
-                  {{ activeDoc.category }} // {{ activeDoc.title }}
-                </span>
-                <div class="flex gap-1 shrink-0">
-                  <div class="w-3 h-3 bg-black rounded-full"></div>
-                  <div class="w-3 h-3 bg-black rounded-full opacity-50"></div>
-                  <div class="w-3 h-3 bg-black rounded-full opacity-25"></div>
-                </div>
-              </div>
-
+            <div class="hud-box flex-1 flex flex-col relative shadow-[8px_8px_0px_0px_rgba(100,100,100,0.5)] overflow-hidden">
+              
               <!-- Scrollable Area -->
               <div 
                 ref="contentScrollContainer"
