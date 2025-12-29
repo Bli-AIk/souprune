@@ -6,6 +6,9 @@
 //! 包含原始的 C 兼容结构体、枚举和函数指针定义，
 //! 作为宿主（游戏引擎）和客体（模组）之间的契约。
 
+#[cfg(feature = "bindgen")]
+pub mod bindgen_inventory;
+
 pub use core::ffi::{c_float, c_void};
 
 /// A non-opaque context handle.
@@ -35,6 +38,11 @@ pub enum Action {
     Menu = 6,
 }
 
+/// Host API function table for behavior mods.
+/// Contains function pointers for logging, input, and kinematics.
+///
+/// 行为模组的宿主 API 函数表。
+/// 包含日志、输入和运动学的函数指针。
 #[repr(C)]
 pub struct HostApi {
     pub log: extern "C" fn(level: u32, msg: *const u8, len: usize),
@@ -104,6 +112,9 @@ impl Vec2C {
     }
 }
 
+/// Named property for danmaku behaviors.
+///
+/// 弹幕行为的命名属性。
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct PropC {

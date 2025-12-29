@@ -188,15 +188,16 @@
 ### v0.4.3: API 桥接与 SDK
 见 https://github.com/Bli-AIk/souprune/issues/19
 
-- [ ] 重写 readme 以反映新的多语言支持愿景
-- [ ] **Phase 1: Interoptopus 迁移**
-  - [ ] 在 `souprune_api` 添加 `interoptopus` 依赖
-  - [ ] 用 `#[ffi_type]` 重构 `ContextHandle` 和 `HostApi`
-  - [ ] 创建 `bindgen` bin target 并实现基础 C 绑定生成
-- [ ] **Phase 2: C# 集成 (.NET Native AOT)**
-  - [ ] 在 `bindgen` 中启用 C# 后端
-  - [ ] 建立 `souprune-sdk-dotnet` 项目结构
-  - [ ] 实现 C# 版本的 `Hello World` Mod
+- [ ] 在保留原始 readme 结构的基础上，重写 readme 以反映新的多语言支持愿景
+- [x] **Phase 1: Interoptopus 迁移**
+  - [x] 在 `souprune_api` 添加 `interoptopus` 依赖
+  - [x] 用镜像类型实现 FFI 类型定义 (`bindgen_inventory.rs`)
+  - [x] 创建 `bindgen` bin target 并实现基础 C/C# 绑定生成
+- [x] **Phase 2: C# 集成 (.NET Native AOT)**
+  - [x] 在 `bindgen` 中启用 C# 后端
+  - [x] 建立 `souprune-sdk-dotnet` 项目结构
+  - [x] 实现 C# 版本弹幕 Mod (SpiralHomingDanmaku, WaveBurstDanmaku, GravityDropDanmaku)
+  - [x] 实现 Rust 版本等效弹幕行为 (在 souprune_mod_test 中)
 - [ ] **Phase 3: Haxe 集成 (hxcpp)**
   - [ ] 在 `bindgen` 中实现 Haxe 代码生成逻辑
   - [ ] 建立 `souprune-sdk-haxe` 项目结构

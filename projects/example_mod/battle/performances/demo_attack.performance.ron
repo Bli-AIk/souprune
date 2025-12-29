@@ -1,14 +1,20 @@
 // Demo Battle Performance
-// Demonstrates three attack patterns:
+// Demonstrates various attack patterns including custom mod behaviors:
 // 1. Spear linear attack
 // 2. Pellet ring attack
 // 3. Aimed spear attack using mod algorithm
+// 4. Spiral homing attack (custom C#/Rust behavior)
+// 5. Wave burst attack (custom C#/Rust behavior)
+// 6. Gravity drop attack (custom C#/Rust behavior)
 
 // 测试战斗表演
-// 展示三种攻击模式：
+// 展示各种攻击模式，包括自定义模组行为：
 // 1. 长矛线性攻击
 // 2. 花颗粒一圈攻击
 // 3. 长矛自机狙攻击（使用mod算法）
+// 4. 螺旋追踪攻击（自定义 C#/Rust 行为）
+// 5. 波动爆发攻击（自定义 C#/Rust 行为）
+// 6. 重力下落攻击（自定义 C#/Rust 行为）
 (
     // === Bullet Prototypes ===
     // === 弹幕原型 ===
@@ -91,6 +97,44 @@
             range: (0.0, 1.0),
             delay: 0.0,
         )),
+
+        // === Custom Mod Behaviors (C#/Rust) ===
+        // === 自定义模组行为 (C#/Rust) ===
+
+        // Spiral homing - spirals outward while tracking the player
+        // 螺旋追踪 - 向外螺旋运动同时追踪玩家
+        "spiral_homing": Custom(
+            id: "spiral_homing",
+            props: {
+                "spiral_speed": 80.0,
+                "angular_velocity": 3.0,
+                "homing_strength": 0.5,
+                "homing_delay": 0.5,
+            },
+        ),
+
+        // Wave burst - moves in sine wave with initial burst speed
+        // 波动爆发 - 以正弦波模式移动，初始有爆发速度
+        "wave_burst": Custom(
+            id: "wave_burst",
+            props: {
+                "base_speed": 120.0,
+                "wave_amplitude": 30.0,
+                "wave_frequency": 4.0,
+                "burst_time": 0.8,
+                "burst_multiplier": 2.5,
+            },
+        ),
+
+        // Gravity drop - falls with gravity and bounces
+        // 重力下落 - 受重力影响下落并反弹
+        "gravity_drop": Custom(
+            id: "gravity_drop",
+            props: {
+                "gravity": 200.0,
+                "bounce_damping": 0.7,
+            },
+        ),
     },
 
     // === Timeline ===
@@ -154,6 +198,36 @@
             spawn: "spear",
             pattern: EdgeGenerator(count: 7, side: Right, spacing: 30.0, margin: 250.0),
             apply: ["move_left"],
+        ),
+
+        // === Custom Mod Behavior Demonstrations ===
+        // === 自定义模组行为演示 ===
+
+        // Step 6: Spiral Homing Attack - pellets spiral outward while tracking player
+        // 第六步：螺旋追踪攻击 - 花颗粒向外螺旋同时追踪玩家
+        (
+            t: 2.0,
+            spawn: "pellet",
+            pattern: RingGenerator(count: 8, radius: 60.0, start_angle: 0.0),
+            apply: ["spiral_homing", "fade_in"],
+        ),
+
+        // Step 7: Wave Burst Attack - spears move in wave pattern with initial burst
+        // 第七步：波动爆发攻击 - 长矛以波动模式移动，带有初始爆发
+        (
+            t: 2.0,
+            spawn: "spear",
+            pattern: LineGenerator(count: 5, spacing: 40.0, direction: (0.0, -1.0)),
+            apply: ["wave_burst", "fade_in"],
+        ),
+
+        // Step 8: Gravity Drop Attack - pellets fall with gravity and bounce
+        // 第八步：重力下落攻击 - 花颗粒受重力下落并反弹
+        (
+            t: 2.0,
+            spawn: "pellet",
+            pattern: LineGenerator(count: 6, spacing: 50.0, direction: (1.0, 0.0)),
+            apply: ["gravity_drop", "fade_in"],
         ),
     ],
 )
