@@ -8,7 +8,7 @@
 
 use libloading::{Library, Symbol};
 use souprune_api::{
-    Action, ContextHandle, CreateSoulModeFn, GetSoulModeCountFn, GetSoulModeIdFn, HostApi,
+    Action, ContextHandle, CreateBehaviorFn, GetBehaviorCountFn, GetBehaviorIdFn, HostApi,
 };
 use std::ffi::{CStr, CString, c_float};
 
@@ -59,55 +59,63 @@ fn main() {
         let lib = Library::new(lib_path).expect("Failed to load DLL");
 
         // B. 验证 Mod 列表
-        let get_count: Symbol<GetSoulModeCountFn> = lib
-            .get(b"get_soul_mode_count")
-            .expect("Function get_soul_mode_count not found");
+        let get_count: Symbol<GetBehaviorCountFn> = lib
+            .get(b"get_behavior_count")
+            .expect("Function get_behavior_count not found");
         let count = get_count();
-        println!("[HOST] Found {} Soul Modes.", count);
+        println!("[HOST] Found {} Behaviors.", count);
 
-        let get_id: Symbol<GetSoulModeIdFn> = lib
-            .get(b"get_soul_mode_id")
-            .expect("Function get_soul_mode_id not found");
+        let get_id: Symbol<GetBehaviorIdFn> = lib
+            .get(b"get_behavior_id")
+            .expect("Function get_behavior_id not found");
 
         for i in 0..count {
             let id_ptr = get_id(i);
             let id_str = CStr::from_ptr(id_ptr as *const i8)
                 .to_str()
                 .expect("Invalid UTF-8 ID");
-            println!("[HOST] Soul Mode #{}: '{}'", i, id_str);
+            println!("[HOST] Behavior #{}: '{}'", i, id_str);
         }
 
         // C. 查找入口函数
-        let create_func: Symbol<CreateSoulModeFn> =
-            lib.get(b"create_soul_mode").expect("Symbol not found");
+        let create_func: Symbol<CreateBehaviorFn> =
+            lib.get(b"create_behavior").expect("Symbol not found");
 
         // D. 测试 "test_soul"
         println!("\n--- Testing 'test_soul' ---");
         let id_test = CString::new("test_soul").unwrap();
-        let vtable_test = create_func(id_test.as_ptr() as *const u8, &api);
+        let instance_test = create_func(id_test.as_ptr() as *const u8, &api);
 
-        if let Some(on_enter) = vtable_test.on_enter {
+        if let Some(on_enter) = instance_test.vtable.on_enter {
             let mut dummy = std::mem::zeroed();
-            on_enter(&mut dummy);
+            on_enter(instance_test.instance, &mut dummy);
         } else {
             println!("[HOST] 'test_soul' on_enter is missing!");
         }
 
-        if let Some(on_update) = vtable_test.on_update {
+        if let Some(on_update) = instance_test.vtable.on_update {
             let mut dummy = std::mem::zeroed();
-            on_update(&mut dummy, 0.016);
+            on_update(instance_test.instance, &mut dummy, 0.016);
+        }
+
+        if let Some(destroy) = instance_test.vtable.destroy {
+            destroy(instance_test.instance);
         }
 
         // E. 测试 "second_soul"
         println!("\n--- Testing 'second_soul' ---");
         let id_second = CString::new("second_soul").unwrap();
-        let vtable_second = create_func(id_second.as_ptr() as *const u8, &api);
+        let instance_second = create_func(id_second.as_ptr() as *const u8, &api);
 
-        if let Some(on_enter) = vtable_second.on_enter {
+        if let Some(on_enter) = instance_second.vtable.on_enter {
             let mut dummy = std::mem::zeroed();
-            on_enter(&mut dummy);
+            on_enter(instance_second.instance, &mut dummy);
         } else {
             println!("[HOST] 'second_soul' on_enter is missing!");
+        }
+
+        if let Some(destroy) = instance_second.vtable.destroy {
+            destroy(instance_second.instance);
         }
 
         println!("--- End Simulation ---");

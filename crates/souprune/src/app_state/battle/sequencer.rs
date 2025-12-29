@@ -13,11 +13,14 @@
 //! Sequencer 是战斗系统的线性序列管理器。
 //! 它负责管理和执行战斗中的章节（Chapter），确保它们按顺序进行。
 
+/// Module for the battle sequencer.
+///
+/// 战斗系统的线性序列管理器。
 pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BattleQueue>()
+        app.init_resource::<BattleContext>()
             .add_systems(OnEnter(AppState::Battle), load_default_chapter_system)
             .add_systems(
                 Update,
@@ -26,8 +29,11 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
+                    process_danmaku_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
+                    process_parallel_chapter_system,
+                    cleanup_finished_chapters_system,
                     sync_battle_flow_system,
                 )
                     .chain()
@@ -37,91 +43,203 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::chapter::{Chapter, PlayerAction};
+use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
-use crate::app_state::battle::{BattleFlowAsset, BattleUpdate};
-use crate::core::mod_system::{SoulParams, SoulState, SoulVelocity};
+use crate::app_state::battle::{BattleAsset, BattleUpdate};
+use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BattleExecutionState {
+    #[default]
+    Idle,
+    Processing,
+    Waiting,
+}
 
 /// [Resource] includes the queue of Chapters that have not yet occurred
 ///
 /// [Resource] 存放还没发生的章节队列
 #[derive(Resource, Default)]
-pub struct BattleQueue {
+pub struct BattleContext {
     pub chapters: Vec<Chapter>,
+    pub state: BattleExecutionState,
 }
 
 #[derive(Component)]
-struct ActiveChapter(Chapter);
+struct ActiveChapter {
+    chapter: Chapter,
+    parent: Option<Entity>,
+}
 
 #[derive(Component)]
 struct WaitTimer(Timer);
 
-#[derive(Resource)]
-struct CurrentBattleFlow(Handle<BattleFlowAsset>);
+#[derive(Component)]
+struct ParallelTracker {
+    pending_count: usize,
+}
 
+#[derive(Resource)]
+struct CurrentBattleFlow(Handle<BattleAsset>);
+
+/// System to load the default chapter resource.
+///
+/// 加载默认章节资源的系统。
 fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TODO: Remove hardcoded chapter path - should be configurable or load from save data
     // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
-    let handle = asset_server.load::<BattleFlowAsset>("battle/chapters/demo.chapter.ron");
+    let handle = asset_server.load::<BattleAsset>("battle/chapters/demo.battle.ron");
     commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: battle/chapters/demo.chapter.ron");
+    info!("Loading default battle flow: battle/chapters/demo.battle.ron");
 }
 
 fn sync_battle_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentBattleFlow>>,
-    mut queue: ResMut<BattleQueue>,
-    assets: Res<Assets<BattleFlowAsset>>,
+    mut context: ResMut<BattleContext>,
+    assets: Res<Assets<BattleAsset>>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)
-        && queue.chapters.is_empty()
+        && context.chapters.is_empty()
     {
         info!(
             "Battle flow loaded. Pushing {} chapters to queue.",
             asset.0.len()
         );
-        queue.chapters.extend(asset.0.clone());
+        context.chapters.extend(asset.0.clone());
         commands.remove_resource::<CurrentBattleFlow>();
     }
 }
 
-/// Advance the battle flow system.
+// Helper to spawn chapters
+fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<Entity>) {
+    let entity = commands
+        .spawn(ActiveChapter {
+            chapter: chapter.clone(),
+            parent,
+        })
+        .id();
+
+    match chapter {
+        Chapter::Wait(secs) => {
+            commands
+                .entity(entity)
+                .insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
+        }
+        Chapter::Parallel(children) => {
+            commands.entity(entity).insert(ParallelTracker {
+                pending_count: children.len(),
+            });
+            for child in children {
+                spawn_chapter(commands, child, Some(entity));
+            }
+        }
+        Chapter::Sequence(children) => {
+            if !parent.is_none() {
+                warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
+                commands.entity(entity).insert(ParallelTracker {
+                    pending_count: children.len(),
+                });
+                for child in children {
+                    spawn_chapter(commands, child, Some(entity));
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// System to advance the battle flow.
+///
+/// 推进战斗流程系统。
 fn advance_battle_flow_system(
     mut commands: Commands,
-    mut queue: ResMut<BattleQueue>,
-    active_query: Query<Entity, With<ActiveChapter>>,
+    mut context: ResMut<BattleContext>,
+    active_chapters: Query<&ActiveChapter>,
 ) {
-    if !active_query.is_empty() {
+    // Check if any root-level chapter is active
+    // 检查是否有任何根级章节处于活动状态
+    for chapter in active_chapters.iter() {
+        if chapter.parent.is_none() {
+            return;
+        }
+    }
+
+    if context.chapters.is_empty() {
         return;
     }
 
-    if queue.chapters.is_empty() {
-        return;
+    let next_chapter = context.chapters.remove(0);
+
+    match next_chapter {
+        Chapter::Sequence(sub_chapters) => {
+            // Unpack sequence to the front of the queue
+            let mut new_queue = sub_chapters;
+            new_queue.append(&mut context.chapters);
+            context.chapters = new_queue;
+            // Loop again next frame to pick up the first item
+        }
+        _ => {
+            info!("Starting Root Chapter: {:?}", next_chapter);
+            spawn_chapter(&mut commands, next_chapter, None);
+        }
     }
-    let next_chapter = queue.chapters.remove(0);
+}
 
-    info!("Starting Chapter: {:?}", next_chapter);
-    let entity = commands.spawn(ActiveChapter(next_chapter.clone())).id();
+fn process_parallel_chapter_system(
+    _commands: Commands,
+    _parents: Query<(Entity, &mut ParallelTracker)>,
+) {
+    // Placeholder to keep the system chain happy if needed, or remove it.
+    // Logic moved to cleanup_finished_chapters_system
+}
 
-    // Add specific components based on chapter type
-    if let Chapter::Wait(secs) = next_chapter {
-        commands
-            .entity(entity)
-            .insert(WaitTimer(Timer::from_seconds(secs, TimerMode::Once)));
+#[derive(Component)]
+struct ChapterFinished;
+
+fn cleanup_finished_chapters_system(
+    mut commands: Commands,
+    finished_query: Query<(Entity, &ActiveChapter), With<ChapterFinished>>,
+    mut parallel_parents: Query<&mut ParallelTracker>,
+) {
+    for (entity, chapter) in finished_query.iter() {
+        if let Some(parent_entity) = chapter.parent {
+            if let Ok(mut tracker) = parallel_parents.get_mut(parent_entity) {
+                tracker.pending_count = tracker.pending_count.saturating_sub(1);
+                if tracker.pending_count == 0 {
+                    // Parent finished!
+                    commands.entity(parent_entity).insert(ChapterFinished);
+                }
+            }
+        }
+
+        // Use despawn_recursive from Bevy's hierarchy extension
+        // Since I cannot easily import it here without changing prelude usage,
+        // and despawn_recursive is a trait method on EntityCommands.
+        // It requires `bevy::hierarchy::DespawnRecursiveExt`.
+        //
+        // However, a simpler way in standard Bevy usage is usually commands.entity(e).despawn_recursive().
+        // If it's not found, maybe I should just use despawn() if I don't expect children?
+        // But Parallel chapters have children (though children despawn themselves).
+        // The Parallel parent itself doesn't "own" children in ECS hierarchy (Transform parent),
+        // it just tracks them via Entity ID.
+        // So despawn() is fine.
+        commands.entity(entity).despawn();
     }
 }
 
 fn process_wait_chapter_system(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut WaitTimer), With<ActiveChapter>>,
+    mut query: Query<(Entity, &mut WaitTimer), Without<ChapterFinished>>,
     time: Res<Time>,
 ) {
     for (entity, mut timer) in query.iter_mut() {
         timer.0.tick(time.delta());
         if timer.0.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(ChapterFinished);
             info!("Wait Chapter finished.");
         }
     }
@@ -129,15 +247,14 @@ fn process_wait_chapter_system(
 
 fn process_camera_action_system(
     mut commands: Commands,
-    query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     mut camera_query: Query<
         (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetCamera(action) = &active_chapter.0 {
-            // Using iter_mut instead of get_single_mut to be safe and compatible
+        if let Chapter::SetCamera(action) = &active_chapter.chapter {
             for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
                 match action {
                     super::chapter::CameraAction::SetPosition(pos) => {
@@ -146,28 +263,25 @@ fn process_camera_action_system(
                     super::chapter::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
                             ortho.scale = *zoom;
-                        } else {
-                            warn!("BattleCamera does not have OrthographicProjection!");
                         }
                     }
-                    // Shake and FollowPlayer need more components/systems
                     _ => {
                         warn!("Camera action {:?} not implemented yet", action);
                     }
                 }
             }
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
 
 fn process_ui_action_system(
     mut commands: Commands,
-    query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetUI(action) = &active_chapter.0 {
+        if let Chapter::SetUI(action) = &active_chapter.chapter {
             match action {
                 super::chapter::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
@@ -175,9 +289,6 @@ fn process_ui_action_system(
                         handle,
                         last_modified: None,
                     });
-
-                    // Spawn a root Battle UI entity
-                    // Reuse RonUI component structure
                     commands.spawn((
                         crate::core::ui::components::RonUI::new(
                             crate::core::ui::components::UILayer::BACKPACK_MENU,
@@ -188,23 +299,17 @@ fn process_ui_action_system(
                         Visibility::default(),
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
-                        crate::app_state::battle::BattleEntity(),
+                        crate::app_state::battle::BattleEntity,
                         Name::new("BattleUI Root"),
                     ));
-
-                    // Signal watcher to reload
-                    // Using public export from ui module
                     commands.init_resource::<crate::core::ui::UILayoutWatcher>();
                 }
                 _ => {
                     warn!("UI action {:?} not fully implemented yet", action);
                 }
             }
-            commands.entity(entity).despawn();
-        }
-        // Handle legacy UIInteraction by treating it as LoadLayout
-        // (For compatibility with demo.chapter.ron)
-        else if let Chapter::UIInteraction { ui_layout } = &active_chapter.0 {
+            commands.entity(entity).insert(ChapterFinished);
+        } else if let Chapter::UIInteraction { ui_layout } = &active_chapter.chapter {
             info!("[Battle] Loading UI layout for battle: {}", ui_layout);
             let handle = asset_server.load(ui_layout);
             commands.insert_resource(crate::core::ui::UILayoutHandle {
@@ -221,30 +326,56 @@ fn process_ui_action_system(
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
-                crate::app_state::battle::BattleEntity(),
+                crate::app_state::battle::BattleEntity,
                 Name::new("BattleUI Root"),
             ));
-            // Don't despawn yet? If we want to block?
-            // For now, let's treat it as non-blocking to keep it simple, or implement blocking later.
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+/// System to process DanmakuPerformance chapters.
+///
+/// 处理弹幕演出章节的系统。
+fn process_danmaku_performance_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
+    mut performance_events: bevy::ecs::message::MessageWriter<PlayPerformanceEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::DanmakuPerformance {
+            performance,
+            position,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "[Battle] Starting danmaku performance from: {}",
+                performance
+            );
+            let mut event = PlayPerformanceEvent::new(performance.clone());
+            if let Some((x, y)) = position {
+                event = event.at_position(Vec2::new(*x, *y));
+            }
+            performance_events.write(event);
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
 
 fn process_player_action_system(
     mut commands: Commands,
-    query: Query<(Entity, &ActiveChapter), Without<WaitTimer>>,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
     mut player_query: Query<
         &mut Transform,
         (
-            With<SoulParams>,
+            With<BehaviorParams>,
             With<crate::app_state::battle::BattleEntity>,
         ),
     >,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetPlayer(action) = &active_chapter.0 {
+        if let Chapter::SetPlayer(action) = &active_chapter.chapter {
             match action {
                 PlayerAction::Spawn {
                     config_path,
@@ -256,7 +387,7 @@ fn process_player_action_system(
                             config_handle: handle,
                             position: *position,
                         },
-                        crate::app_state::battle::BattleEntity(),
+                        crate::app_state::battle::BattleEntity,
                     ));
                 }
                 PlayerAction::Teleport(pos) => {
@@ -265,15 +396,9 @@ fn process_player_action_system(
                         info!("Player teleported to {}", pos);
                     }
                 }
-                PlayerAction::Despawn => {
-                    // For simplicity, just despawn all battle entities with SoulParams
-                    // In reality, should be more specific
-                    // Handled here via a hacky way for now
-                }
                 _ => {}
             }
-            // Most SetPlayer actions are instantaneous
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
@@ -283,13 +408,6 @@ struct PlayerSpawnRequest {
     config_handle: Handle<BattlePlayerConfig>,
     position: Vec2,
 }
-
-// System to handle the actual spawn once config is loaded
-// I need to add this to the plugin or App.
-// Let's add it to SequencerPlugin above.
-
-// Wait, I cannot modify SequencerPlugin easily inside this replace block if I don't add the system there.
-// I'll add `process_player_spawn_requests` to the system list in `build`.
 
 fn process_player_spawn_requests(
     mut commands: Commands,
@@ -301,7 +419,6 @@ fn process_player_spawn_requests(
         if let Some(config) = configs.get(&req.config_handle) {
             info!("Config loaded. Spawning player...");
 
-            // Convert collider configs to components
             let physics_collider = match &config.physics_collider.shape {
                 crate::app_state::battle::config::ColliderShape::Circle { radius } => {
                     crate::core::collision::PhysicsCollider::Circle { radius: *radius }
@@ -333,12 +450,11 @@ fn process_player_spawn_requests(
                 Transform::from_translation(req.position.extend(config.z_position)),
                 physics_collider.clone(),
                 damage_trigger.clone(),
-                SoulParams {
+                BehaviorParams {
                     mode_id: config.default_mode_id.clone(),
                 },
-                SoulState::default(),
-                SoulVelocity::default(),
-                crate::app_state::battle::BattleEntity(),
+                BehaviorVelocity::default(),
+                crate::app_state::battle::BattleEntity,
                 Name::new("BattlePlayer"),
             ));
 

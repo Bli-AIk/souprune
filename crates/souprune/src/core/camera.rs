@@ -22,8 +22,8 @@ pub(crate) mod components;
 mod systems;
 
 pub(crate) use components::*;
+pub use systems::CameraUpdateSet;
 
-use crate::core::collision::systems::player_tilemap_collision_system;
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::IntoScheduleConfigs;
 
@@ -32,9 +32,14 @@ pub(crate) struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
-        app.add_systems(
+        // Configure CameraUpdateSet to run in Update schedule.
+        // Other systems can use .before(CameraUpdateSet) to ensure they run first.
+        //
+        // 配置 CameraUpdateSet 在 Update 调度中运行。
+        // 其他系统可以使用 .before(CameraUpdateSet) 确保它们先运行。
+        app.configure_sets(Update, CameraUpdateSet).add_systems(
             Update,
-            update_followable_camera_system.after(player_tilemap_collision_system),
+            update_followable_camera_system.in_set(CameraUpdateSet),
         );
     }
 }

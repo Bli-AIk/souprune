@@ -2,14 +2,18 @@
 
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune / Undertale-black?style=for-the-badge&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
-<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" /> <img src="https://img.shields.io/badge/GameMaker Language-Coming Soon-9CA3AF?style=for-the-badge&logo=gamemaker&logoColor=white" />
-<img src="https://img.shields.io/badge/Lua-Coming Soon-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
-<img src="https://img.shields.io/badge/.NET-Coming Soon-9CA3AF?style=for-the-badge&logo=dotnet&logoColor=white" />
+<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
+<img src="https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white" />
+<img src="https://img.shields.io/badge/Haxe-EA8220?style=for-the-badge&logo=haxe&logoColor=white" />
+<img src="https://img.shields.io/badge/Nim-Coming_Soon-FFE953?style=for-the-badge&logo=nim&logoColor=black" />
+<img src="https://img.shields.io/badge/Nelua-Coming_Soon-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
 
-> **Status**: 🚧 Initial iteration (features and structure may change frequently)
+> **Status**: 🚧 Initial development phase (framework structure is still evolving rapidly)
 
-**SoupRune** is a game framework designed specifically for *
-*[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/) fangames**.
+[![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
+
+**SoupRune** is an experimental game framework designed specifically for creating RPG / STG games similar to 
+**[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
 | English         | Simplified Chinese          |
 |-----------------|-----------------------------|
@@ -19,35 +23,71 @@
 
 Hey, don’t be scared by that **“Rust”** badge above — **SoupRune isn’t just a niche tool for hardcore programmers!**
 
-It supports **Gamemaker**, *
-*[Unitale](https://github.com/lvk/Unitale) / [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk)**,
-and the **.NET (C#)** ecosystem.
+Why is that? Because:
 
-Whether you’re used to coding in GML, scripting in Lua, or developing in Unity / Godot, you may find something familiar
-here.
+### SoupRune is a Language-Agnostic Framework!
 
-**And the “Rune” in the name isn’t random either —**
+SoupRune adopts a **Framework - Project (Mod)** architecture. The core engine built with `bevy` handles the low-level
+execution, while your game logic resides in an independent "Project" that interacts with the core via standard
+interfaces.
+
+We achieve true **Language-Agnosticism** through the `C ABI`. In choosing supported languages, we prioritize those
+friendly to **traditional Undertale / Deltarune developers**, aiming to build a bridge for developers from **GameMaker
+** (Haxe), **Lua** (Nelua), or **Python / GDScript** (Nim) backgrounds.
+
+We warmly welcome developers from all language communities to join us in improving support for these languages!
+
+### SoupRune is a Community-Oriented Framework!
+
+SoupRune — the **“Rune”** in the name isn’t just random.
 
 While the Undertale fangame framework space may already be saturated, the Deltarune community is thriving.
 
-SoupRune was created to seize this opportunity as a fangame framework, ~~while also serving as a spiritual successor
-to [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template)~~.
+SoupRune was created to seize this opportunity as a fangame framework, 
+~~while also serving as a spiritual successor to [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template)~~.
 
 But that doesn’t mean SoupRune is only a Deltarune framework — we also value support for Undertale fangames!
 
 SoupRune aims to become a true **“community-oriented fangame framework”** — open, flexible, modern, yet still retaining
 that familiar DR / UT style.
 
+### SoupRune is an Open Source Framework!
+
+SoupRune uses the **LGPL-3.0** license. This license applies only to the framework core code.
+
+This means:
+
+* The Project (Mod) you develop can use other open-source licenses or be closed-source;
+* You can use SoupRune's source code in closed-source projects;
+* But if you modify the framework's core code, you must release those changes under the LGPL;
+* If you wish to use modified SoupRune core code in a fully closed-source environment, you can contact me for a
+  commercial license.
+
+Additionally, you must still follow Toby Fox’s rules for fan games.
+
+### SoupRune is an Experimental Framework!
+
+Although "experimental" implies instability and imperfection, it also represents infinite possibilities.
+
+Use it to make a dr / ut fangame? Or try to recreate other classic games? Or even develop a brand new original game?
+Anything is possible!
+
+SoupRune is currently still in the **initial development phase**, and the framework structure and design philosophy are
+evolving rapidly. We welcome community members to actively participate in discussions and contributions to shape the
+future of this framework.
+
+Join our [Discord](https://discord.gg/5YXK5DRjPZ)!
+
 ## 🧭 S.O.U.P Principles
 
 Yes, **Soup**Rune is a pun — and here’s what it stands for:
 
-| Abbreviation | Full Form         | Meaning                                                                 |
-|:------------:|:------------------|:------------------------------------------------------------------------|
-|    **S**     | **Strong**        | Built on **Bevy** and **Rust**, powerful and modern architecture.       |
-|    **O**     | **Open**          | Uses the **LGPL** open-source license, allowing free use and extension. |
-|    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.            |
-|    **P**     | **Popular**       | Compatible with mainstream DR/UT community ecosystems and habits.       |
+| Abbreviation | Full Form         | Meaning                                                                     |
+|:------------:|:------------------|:----------------------------------------------------------------------------|
+|    **S**     | **Strong**        | Built on **Bevy** and **Rust**, powerful and modern architecture.           |
+|    **O**     | **Open**          | Uses the **LGPL** open-source license, allowing free use and extension.     |
+|    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.                |
+|    **P**     | **Polyglot**      | Supports multiple programming languages (Rust, C#, Haxe, Nim, Nelua, etc.). |
 
 ## ⚙️ Technical Foundation
 
@@ -70,34 +110,19 @@ SoupRune adopts a multi-crate workspace architecture:
 
 ## 🧩 Script Layer Support
 
-SoupRune provides multi-language scripting support so developers from different backgrounds can get started quickly:
+SoupRune's scripting system is built on **C ABI** to achieve high-performance interoperability. We have carefully
+selected a series of languages that support **AOT compilation**, aiming to correspond to different development paradigms
+so that developers from other engines can smoothly migrate their experience:
 
-|                                Language                                 | Target Users                                                                                                 | Description                                                                                            |
-|:-----------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------|
-|                                **Rust**                                 | System-level developers / Rustaceans / Bevy users                                                            | Native support, best performance.                                                                      |
-| **[COL (Configurable Open Language)](https://github.com/Bli-AIk/col/)** | GML / GameMaker users                                                                                        | My self-developed open-source GML alternative, fully compatible with GML syntax and easily extensible. |
-|                                 **Lua**                                 | [Unitale](https://github.com/lvk/Unitale) / [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) users | Lightweight scripting language, easy to pick up.                                                       |
-|                           **.NET (C#/VB/F#)**                           | Unity / Godot users                                                                                          | Familiar syntax, smooth migration.                                                                     |
+|        Language         | Target Users                                      | Description                                                                                                |
+|:-----------------------:|:--------------------------------------------------|:-----------------------------------------------------------------------------------------------------------|
+|        **Rust**         | System-level developers / Rustaceans / Bevy users | Native support, best performance.                                                                          |
+|      **.NET (C#)**      | Unity / Godot / C# users                          | Industry standard language. Seamless integration and high performance via **Native AOT**.                  |
+|        **Haxe**         | **Haxe** users / **GameMaker** users              | Powerful high-level language. Its syntax is similar to GML, making it an excellent choice for development. |
+|  **Nim** (Coming Soon)  | **Python** / **GDScript** (Godot) users           | Python-like indentation syntax, compiles to C, combining elegance with efficiency.                         |
+| **Nelua** (Coming Soon) | **Lua** users                                     | Inherits Lua's minimalist syntax style but compiles to native machine code for extreme performance.        |
 
-Future plans include:
-
-* Providing a familiar development experience for [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / Gamemaker
-  enthusiasts (e.g., similar event systems or script APIs);
-* Offering migration guides
-  from  [CYF](https://github.com/RhenaudTheLukark/CreateYourFrisk) / [Undertale Engine](https://github.com/TML233/UndertaleEngine)
-  projects.
-
-## 💬 Open Source & License
-
-SoupRune uses the **LGPL-3.0** license.
-
-This means:
-
-* You can use SoupRune in closed-source projects;
-* If you modify the framework’s core, you must release those changes under the LGPL;
-* If you want to use a modified version in a fully closed-source environment, contact me for a commercial license.
-
-Additionally, you must still follow Toby Fox’s rules for fan games.
+If you are interested in helping with SoupRune's multi-language support, contributions are welcome!
 
 ## Citation Instructions
 
@@ -109,14 +134,6 @@ This project uses the following open-source projects as libraries, dependencies,
 |-------------------------------------|-------------------------|
 | [Undertale](https://undertale.com/) | UNDERTALE Original Game |
 | [Deltarune](https://deltarune.com/) | DELTARUNE Original Game |
-
-### Engine / Framework References
-
-| Project                                                                  | Description                                                            |
-|--------------------------------------------------------------------------|------------------------------------------------------------------------|
-| [Unitale](https://github.com/lvk/Unitale)                                | An Undertale engine built with Unity 5, moddable via Lua               |
-| [Create Your Frisk](https://github.com/RhenaudTheLukark/CreateYourFrisk) | A fork of Unitale by Rhenaud The Lukark                                |
-| [Undertale Engine](https://github.com/TML233/UndertaleEngine)            | A GameMaker project template designed for creating Undertale fan games |
 
 ### Predecessor
 

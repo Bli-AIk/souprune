@@ -375,7 +375,8 @@ pub mod debug_collider {
             });
         }
 
-        // Visualize trigger colliders (yellow)
+        // Visualize trigger colliders (green - same as physics colliders)
+        // 可视化触发器碰撞体（绿色 - 与物理碰撞体相同）
         for (entity, transform, trigger_collider) in trigger_colliders.iter() {
             let has_visualizer = existing_visualizers
                 .iter()
@@ -404,7 +405,7 @@ pub mod debug_collider {
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     SmudShape {
-                        color: Color::hsl(60.0, 1.0, 0.5),
+                        color: Color::hsl(120.0, 1.0, 0.5),
                         sdf,
                         frame: Frame::Quad(frame_size),
                         fill: SIMPLE_FILL_HANDLE,
