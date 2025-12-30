@@ -50,7 +50,8 @@ ron = "0.10"
 toml = "0.9.8"
 bevy_smud = "0.12.0"
 bevy_rich_text3d = { version = "0.5.1", features = ["reflect"] }
-bevy_kira_audio = { version = "0.24", features = ["wav", "ogg", "flac", "mp3"] }
+bevy_kira_audio = { version = "0.24", features = ["wav", "ogg", "flac", "mp3"], optional = true }
+bevy_seedling = { version = "0.6.1", features = ["wav", "ogg", "flac", "mp3"], optional = true }
 anyhow = "1.0.100"
 tracing-appender = "0.2.4"
 tracing-subscriber = "0.3.22"
@@ -79,5 +80,6 @@ version = "0.17.2"
 optional = true
 
 [features]
-default = []
+default = ["bevy_kira_audio"]
 debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui", "dep:bevy_brp_extras"]
+experimental = ["bevy_seedling"]
