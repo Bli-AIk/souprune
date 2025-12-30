@@ -515,6 +515,7 @@ pub fn setup_camera_bounds_system(
 /// Update background music based on map properties.
 ///
 /// 根据地图属性更新背景音乐。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
 pub fn update_map_bgm_system(
     mut current_bgm: ResMut<super::CurrentMapBgm>,
     mut bgm_handle: ResMut<super::CurrentBgmHandle>,
@@ -540,6 +541,34 @@ pub fn update_map_bgm_system(
             let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
             current_bgm.0 = Some(bgm_path.clone());
             bgm_handle.0 = Some(handle);
+        }
+    }
+}
+
+#[cfg(feature = "experimental")]
+pub fn update_map_bgm_system(
+    mut commands: Commands,
+    mut current_bgm: ResMut<super::CurrentMapBgm>,
+    mut bgm_handle: ResMut<super::CurrentBgmHandle>,
+    tiled_maps: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    asset_server: Res<AssetServer>,
+) {
+    for tiled_map in tiled_maps.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
+            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && current_bgm.0.as_deref() != Some(bgm_path)
+        {
+            // Stop previous BGM by despawning entity
+            if let Some(entity) = bgm_handle.0 {
+                commands.entity(entity).despawn();
+            }
+
+            info!("Switching BGM to: {}", bgm_path);
+            let entity = crate::core::audio::play_bgm(&mut commands, &asset_server, bgm_path);
+            current_bgm.0 = Some(bgm_path.clone());
+            bgm_handle.0 = Some(entity);
         }
     }
 }

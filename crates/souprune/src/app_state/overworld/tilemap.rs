@@ -27,13 +27,19 @@ pub mod systems;
 use crate::app_state::overworld::OverworldUpdate;
 pub use object_properties::ObjectCollider;
 
-use bevy_kira_audio::AudioInstance;
-
 #[derive(Resource, Default)]
 pub struct CurrentMapBgm(pub Option<String>);
 
+// ============================================================================
+// BGM Handle Resources - Backend Specific
+// ============================================================================
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
 #[derive(Resource, Default)]
-pub struct CurrentBgmHandle(pub Option<Handle<AudioInstance>>);
+pub struct CurrentBgmHandle(pub Option<Handle<bevy_kira_audio::AudioInstance>>);
+
+#[cfg(feature = "experimental")]
+#[derive(Resource, Default)]
+pub struct CurrentBgmHandle(pub Option<Entity>);
 
 pub(crate) struct TilemapPlugin;
 
