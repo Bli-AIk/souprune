@@ -26,6 +26,31 @@ incremental = true
 opt-level = 3
 debug = 0
 
+# Ensure audio libraries are always optimized to prevent underruns
+[profile.dev.package.bevy_seedling]
+opt-level = 3
+
+[profile.dev.package.firewheel]
+opt-level = 3
+
+[profile.dev.package.firewheel-core]
+opt-level = 3
+
+[profile.dev.package.firewheel-graph]
+opt-level = 3
+
+[profile.dev.package.firewheel-nodes]
+opt-level = 3
+
+[profile.dev.package.firewheel-cpal]
+opt-level = 3
+
+[profile.dev.package.cpal]
+opt-level = 3
+
+[profile.dev.package.symphonium]
+opt-level = 3
+
 [patch.crates-io]
 # Force every workspace crate to use the local mortar compiler implementation.
 mortar_compiler = { path = "../mortar/crates/mortar_compiler" }
