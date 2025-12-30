@@ -23,7 +23,7 @@ use bevy::prelude::*;
 // ============================================================================
 // Kira Audio Backend (default)
 // ============================================================================
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 mod kira_backend {
     use bevy::prelude::*;
     use bevy_kira_audio::prelude::*;
@@ -32,7 +32,7 @@ mod kira_backend {
 
     impl Plugin for AudioPluginImpl {
         fn build(&self, app: &mut App) {
-            app.add_plugins(bevy_kira_audio::AudioPlugin);
+            app.add_plugins(AudioPlugin);
         }
     }
 
@@ -51,13 +51,13 @@ mod kira_backend {
     }
 }
 
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub use kira_backend::*;
 
 // ============================================================================
-// Seedling Audio Backend (experimental)
+// Seedling Audio Backend (firewheel)
 // ============================================================================
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 mod seedling_backend {
     use bevy::prelude::*;
     use bevy_seedling::prelude::*;
@@ -93,12 +93,13 @@ mod seedling_backend {
                 ..Default::default()
             };
 
-            app.add_plugins(plugin).add_systems(Startup, setup_audio_pools);
+            app.add_plugins(plugin)
+                .add_systems(Startup, setup_audio_pools);
         }
     }
 
     /// Set up audio pools for BGM and SFX with optimized configurations
-    /// 
+    ///
     /// 为 BGM 和 SFX 设置音频池，使用优化的配置
     fn setup_audio_pools(mut commands: Commands) {
         // Create BGM pool with fixed size - BGM doesn't need many samplers
@@ -128,18 +129,13 @@ mod seedling_backend {
         ));
     }
 
-    pub fn play_sound_impl(
-        commands: &mut Commands,
-        asset_server: &AssetServer,
-        sound_path: &str,
-    ) {
+    pub fn play_sound_impl(commands: &mut Commands, asset_server: &AssetServer, sound_path: &str) {
         let sound_handle = asset_server.load(format!("audios/sfx/{}", sound_path));
         // One-shot sounds go to SFX pool with full volume
         // 一次性音效进入 SFX 池，使用全音量
         commands.spawn((
             Name::new(format!("SFX: {}", sound_path)),
-            SamplePlayer::new(sound_handle)
-                .with_volume(Volume::Decibels(0.0)), // Full volume (0dB = no attenuation)
+            SamplePlayer::new(sound_handle).with_volume(Volume::Decibels(0.0)), // Full volume (0dB = no attenuation)
             SfxPool,
             // Extend queue lifetime to prevent sounds from being skipped during resource loading
             // 延长队列生命周期，防止音效在资源加载期间被跳过
@@ -167,7 +163,7 @@ mod seedling_backend {
     }
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub use seedling_backend::*;
 
 // ============================================================================
@@ -198,12 +194,12 @@ impl Plugin for AudioPlugin {
 /// ```ignore
 /// play_sound(&mut commands, &asset_server, "choice.wav");
 /// ```
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn play_sound(audio: &bevy_kira_audio::Audio, asset_server: &AssetServer, sound_path: &str) {
     play_sound_impl(audio, asset_server, sound_path);
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_path: &str) {
     play_sound_impl(commands, asset_server, sound_path);
 }
@@ -221,7 +217,7 @@ pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_pat
 /// ```ignore
 /// let entity = play_bgm(&mut commands, &asset_server, "mus_ruins.ogg");
 /// ```
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn play_bgm(
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
@@ -230,7 +226,7 @@ pub fn play_bgm(
     play_bgm_impl(audio, asset_server, music_path)
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub fn play_bgm(commands: &mut Commands, asset_server: &AssetServer, music_path: &str) -> Entity {
     play_bgm_impl(commands, asset_server, music_path)
 }

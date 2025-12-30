@@ -515,7 +515,7 @@ pub fn setup_camera_bounds_system(
 /// Update background music based on map properties.
 ///
 /// 根据地图属性更新背景音乐。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn update_map_bgm_system(
     mut current_bgm: ResMut<super::CurrentMapBgm>,
     mut bgm_handle: ResMut<super::CurrentBgmHandle>,
@@ -545,7 +545,7 @@ pub fn update_map_bgm_system(
     }
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub fn update_map_bgm_system(
     mut commands: Commands,
     mut current_bgm: ResMut<super::CurrentMapBgm>,

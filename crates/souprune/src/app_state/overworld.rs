@@ -97,7 +97,7 @@ fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::Spaw
     spawn_events.write(player::SpawnPlayerRequest);
 }
 
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 fn stop_bgm_on_exit_system(
     mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
     mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
@@ -112,7 +112,7 @@ fn stop_bgm_on_exit_system(
     current_map_bgm.0 = None;
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 fn stop_bgm_on_exit_system(
     mut commands: Commands,
     mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,

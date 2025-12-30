@@ -33,11 +33,11 @@ pub struct CurrentMapBgm(pub Option<String>);
 // ============================================================================
 // BGM Handle Resources - Backend Specific
 // ============================================================================
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 #[derive(Resource, Default)]
 pub struct CurrentBgmHandle(pub Option<Handle<bevy_kira_audio::AudioInstance>>);
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 #[derive(Resource, Default)]
 pub struct CurrentBgmHandle(pub Option<Entity>);
 

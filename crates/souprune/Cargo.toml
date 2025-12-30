@@ -82,4 +82,5 @@ optional = true
 [features]
 default = ["bevy_kira_audio"]
 debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui", "dep:bevy_brp_extras"]
-experimental = ["bevy_seedling"]
+firewheel = ["bevy_seedling"]
+experimental = []

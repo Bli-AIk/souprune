@@ -31,7 +31,7 @@ use leafwing_input_manager::action_state::ActionState;
 /// Handle transitions between overworld sub-states driven by menu actions.
 ///
 /// 处理菜单输入驱动的 Overworld 子状态间转换。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn menu_overworld_state_transitions_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
@@ -225,7 +225,7 @@ fn calculate_max_index_for_layer(
 /// Update UI focus navigation while the overworld backpack is active.
 ///
 /// 在背包界面激活时更新 UI 焦点导航。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "experimental")))]
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn update_overworld_ui_navigation_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
@@ -311,7 +311,7 @@ pub(crate) fn update_overworld_ui_navigation_system(
 // Experimental Seedling Audio Backend Systems
 // ============================================================================
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub(crate) fn menu_overworld_state_transitions_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -422,7 +422,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
     }
 }
 
-#[cfg(feature = "experimental")]
+#[cfg(feature = "firewheel")]
 pub(crate) fn update_overworld_ui_navigation_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
