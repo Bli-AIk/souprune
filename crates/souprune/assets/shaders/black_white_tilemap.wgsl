@@ -161,41 +161,39 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     }
     
     // ========== PIXEL GENERATION ANIMATION ==========
-    // Apply ease-based scale animation for pixel appearance
-    // 应用基于缓动的缩放动画以实现像素生成效果
+    // Smooth, continuous alpha-based animation without any stepping
+    // 完全连续的基于alpha的动画，无任何步进
     
-    // Calculate animation progress based on diffusion and fade
-    // Higher fade = earlier in animation (pixels not yet generated)
-    // 基于扩散和淡入计算动画进度
-    // 更高的 fade = 动画早期（像素尚未生成）
-    let anim_progress = clamp((1.0 - fade) * 2.5, 0.0, 1.0);
+    // Calculate overall animation progress (0 = start, 1 = complete)
+    // 计算整体动画进度（0 = 开始，1 = 完成）
+    let global_progress = clamp((1.0 - fade) * 3.0, 0.0, 1.0);
     
-    // Each pixel has its own generation timing based on diffusion_factor
-    // Reduce randomness range for smoother overall transition
-    // 每个像素根据 diffusion_factor 有自己的生成时机
-    // 减小随机范围以实现更平滑的整体过渡
-    let pixel_start = diffusion_factor * 0.6;
+    // Each pixel has staggered timing for wave effect
+    // Use smaller offset range (0-0.3) for smoother overall flow
+    // 每个像素有交错的时机以产生波浪效果
+    // 使用更小的偏移范围（0-0.3）以实现更平滑的整体流动
+    let pixel_offset = diffusion_factor * 0.3;
     
-    // Calculate how far along this pixel is in its generation (0 = not started, 1 = complete)
-    // Use larger multiplier for faster, smoother transition per pixel
-    // 计算此像素生成的进度（0 = 未开始，1 = 完成）
-    // 使用更大的乘数以实现每个像素更快更平滑的过渡
-    let pixel_progress = clamp((anim_progress - pixel_start) * 5.0, 0.0, 1.0);
+    // Calculate this pixel's individual progress with smooth blending window
+    // Wider window (8.0x multiplier) = smoother, more gradual transition
+    // 计算此像素的个体进度，使用平滑混合窗口
+    // 更宽的窗口（8.0x 乘数）= 更平滑、更渐进的过渡
+    let pixel_progress = clamp((global_progress - pixel_offset) * 8.0, 0.0, 1.0);
     
-    // Apply ease-out quad easing for smoother transition (less aggressive than cubic)
-    // f(t) = 1 - (1-t)^2
-    // 应用 ease-out 二次方缓动以实现更平滑的过渡（比三次方更柔和）
-    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 2.0);
+    // Apply smoothstep for ultra-smooth S-curve easing
+    // This eliminates any perception of "steps" or "jumps"
+    // 应用 smoothstep 以实现超平滑的 S 曲线缓动
+    // 这消除了任何"步进"或"跳跃"的感知
+    let smooth_progress = smoothstep(0.0, 1.0, pixel_progress);
     
-    // Scale alpha based on eased progress to create "grow-in" effect
-    // Clamp to ensure clean final state (no artifacts)
-    // 基于缓动进度缩放 alpha 以创建"生长"效果
-    // 钳制以确保干净的最终状态（无杂色）
-    let pixel_alpha = clamp(eased_progress, 0.0, 1.0);
+    // Apply additional ease-out for even gentler finish
+    // f(t) = t * (2 - t)
+    // 应用额外的 ease-out 以实现更柔和的结束
+    let eased_progress = smooth_progress * (2.0 - smooth_progress);
     
-    // Ensure fully clean appearance when animation is complete (fade <= 0.5)
-    // 确保动画完成后完全干净的外观（fade <= 0.5）
-    let final_alpha = select(pixel_alpha, 1.0, fade <= 0.5);
+    // Final alpha with hard cutoff only at the very end to ensure clean result
+    // 最终 alpha，仅在最末端硬截断以确保干净结果
+    let pixel_alpha = select(eased_progress, 1.0, fade <= 0.48);
     
-    return vec4<f32>(final_color, final_color, final_color, tex_color.a * final_alpha);
+    return vec4<f32>(final_color, final_color, final_color, tex_color.a * pixel_alpha);
 }

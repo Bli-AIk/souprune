@@ -65,32 +65,37 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let bw = select(0.0, 1.0, luminance > THRESHOLD);
     
     // ========== PIXEL GENERATION ANIMATION ==========
-    // Calculate pixel position in texture space for stable randomness
-    // 计算纹理空间中的像素位置以获得稳定的随机性
-    let pixel_pos = atlas_uv * vec2<f32>(1024.0, 1024.0); // Approximate texture size
+    // Smooth, continuous alpha-based animation without any stepping
+    // 完全连续的基于alpha的动画，无任何步进
+    
+    // Calculate pixel position for stable per-pixel randomness
+    // 计算像素位置以获得稳定的每像素随机性
+    let pixel_pos = atlas_uv * vec2<f32>(1024.0, 1024.0);
     let pixel_random = hash21_tile(floor(pixel_pos));
     
-    // Use vertex color red channel as animation progress (if available)
-    // Assume in.color.r ranges from 0.0 (early) to 1.0 (late)
-    // 使用顶点颜色红色通道作为动画进度（如果可用）
-    // 假设 in.color.r 范围从 0.0（早期）到 1.0（晚期）
-    let anim_progress = in.color.r * 1.2;
+    // Global animation progress with extended range
+    // 全局动画进度，扩展范围
+    let global_progress = clamp(in.color.r * 1.5, 0.0, 1.0);
     
-    // Calculate pixel generation timing
-    // Reduce randomness range for smoother transition
-    // 计算像素生成时机
-    // 减小随机范围以实现更平滑的过渡
-    let pixel_start = pixel_random * 0.6;
-    let pixel_progress = clamp((anim_progress - pixel_start) * 4.0, 0.0, 1.0);
+    // Smaller offset range (0-0.3) for smoother, more continuous flow
+    // 更小的偏移范围（0-0.3）以实现更平滑、更连续的流动
+    let pixel_offset = pixel_random * 0.3;
     
-    // Apply ease-out quad easing for smoother transition
-    // f(t) = 1 - (1-t)^2
-    // 应用 ease-out 二次方缓动以实现更平滑的过渡
-    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 2.0);
+    // Wide blending window (8.0x) for ultra-smooth per-pixel transition
+    // 宽混合窗口（8.0x）以实现超平滑的每像素过渡
+    let pixel_progress = clamp((global_progress - pixel_offset) * 8.0, 0.0, 1.0);
     
-    // Ensure fully clean appearance when animation is complete (in.color.r >= 0.9)
-    // 确保动画完成后完全干净的外观（in.color.r >= 0.9）
-    let final_alpha = select(eased_progress, 1.0, in.color.r >= 0.9);
+    // Smoothstep for S-curve easing eliminates perceived stepping
+    // Smoothstep 的 S 曲线缓动消除可感知的步进
+    let smooth_progress = smoothstep(0.0, 1.0, pixel_progress);
+    
+    // Additional ease-out for gentle finish
+    // 额外的 ease-out 以实现柔和结束
+    let eased_progress = smooth_progress * (2.0 - smooth_progress);
+    
+    // Clean cutoff only at the very end
+    // 仅在最末端干净截断
+    let final_alpha = select(eased_progress, 1.0, in.color.r >= 0.88);
     
     return vec4<f32>(bw, bw, bw, tex_color.a * final_alpha);
 }
