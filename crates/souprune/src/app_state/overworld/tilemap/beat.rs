@@ -171,7 +171,7 @@ impl Plugin for BeatPlugin {
                     // DELETE OR DISABLE THIS SYSTEM when no longer needed.
                     // 此系统播放音效作为测试用节拍器。
                     // 不再需要时删除或禁用此系统。
-                    test_metronome_system,
+                    //test_metronome_system,
                     // ========== END TEST METRONOME SYSTEM ==========
                 )
                     .chain()

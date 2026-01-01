@@ -44,7 +44,7 @@ use std::time::Duration;
 // 此常量用于揭示精灵着色器和瓦片地图着色器。
 // 较低的值 = 更多白色，较高的值 = 更多黑色。
 // 亮度高于此值的像素变为白色，低于的变为黑色。
-pub const BLACK_WHITE_THRESHOLD: f32 = 0.1; // <-- ADJUST THIS VALUE / 调整此值
+pub const BLACK_WHITE_THRESHOLD: f32 = 0.125; // <-- ADJUST THIS VALUE / 调整此值
 
 /// Marker component for revealed tile sprites.
 ///

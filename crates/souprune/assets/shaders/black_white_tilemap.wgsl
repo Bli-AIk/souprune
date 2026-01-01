@@ -16,7 +16,7 @@
 // 重要：此值必须与 black_white_tile.wgsl 中的 THRESHOLD 匹配！
 // 要更改，请同时更新此文件和 black_white_tile.wgsl。
 // 较低的值 = 更多白色，较高的值 = 更多黑色。
-const THRESHOLD: f32 = 0.1; // <-- MUST MATCH black_white_tile.wgsl / 必须与 black_white_tile.wgsl 匹配
+const THRESHOLD: f32 = 0.125; // <-- MUST MATCH black_white_tile.wgsl / 必须与 black_white_tile.wgsl 匹配
 
 @fragment
 fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
