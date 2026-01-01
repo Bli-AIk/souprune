@@ -168,26 +168,34 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     // Higher fade = earlier in animation (pixels not yet generated)
     // 基于扩散和淡入计算动画进度
     // 更高的 fade = 动画早期（像素尚未生成）
-    let anim_progress = clamp((1.0 - fade) * 2.0, 0.0, 1.0);
+    let anim_progress = clamp((1.0 - fade) * 2.5, 0.0, 1.0);
     
     // Each pixel has its own generation timing based on diffusion_factor
+    // Reduce randomness range for smoother overall transition
     // 每个像素根据 diffusion_factor 有自己的生成时机
-    let pixel_start = diffusion_factor;
+    // 减小随机范围以实现更平滑的整体过渡
+    let pixel_start = diffusion_factor * 0.6;
     
     // Calculate how far along this pixel is in its generation (0 = not started, 1 = complete)
+    // Use larger multiplier for faster, smoother transition per pixel
     // 计算此像素生成的进度（0 = 未开始，1 = 完成）
-    let pixel_progress = clamp((anim_progress - pixel_start) * 3.0, 0.0, 1.0);
+    // 使用更大的乘数以实现每个像素更快更平滑的过渡
+    let pixel_progress = clamp((anim_progress - pixel_start) * 5.0, 0.0, 1.0);
     
-    // Apply ease-out cubic easing for smooth scale-up
-    // f(t) = 1 - (1-t)^3
-    // 应用 ease-out 三次方缓动以实现平滑放大
-    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 3.0);
+    // Apply ease-out quad easing for smoother transition (less aggressive than cubic)
+    // f(t) = 1 - (1-t)^2
+    // 应用 ease-out 二次方缓动以实现更平滑的过渡（比三次方更柔和）
+    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 2.0);
     
     // Scale alpha based on eased progress to create "grow-in" effect
-    // Pixels start invisible (alpha=0) and grow to visible (alpha=1)
+    // Clamp to ensure clean final state (no artifacts)
     // 基于缓动进度缩放 alpha 以创建"生长"效果
-    // 像素从不可见 (alpha=0) 生长为可见 (alpha=1)
-    let pixel_alpha = eased_progress;
+    // 钳制以确保干净的最终状态（无杂色）
+    let pixel_alpha = clamp(eased_progress, 0.0, 1.0);
     
-    return vec4<f32>(final_color, final_color, final_color, tex_color.a * pixel_alpha);
+    // Ensure fully clean appearance when animation is complete (fade <= 0.5)
+    // 确保动画完成后完全干净的外观（fade <= 0.5）
+    let final_alpha = select(pixel_alpha, 1.0, fade <= 0.5);
+    
+    return vec4<f32>(final_color, final_color, final_color, tex_color.a * final_alpha);
 }

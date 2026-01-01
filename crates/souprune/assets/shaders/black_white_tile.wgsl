@@ -72,20 +72,25 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     
     // Use vertex color red channel as animation progress (if available)
     // Assume in.color.r ranges from 0.0 (early) to 1.0 (late)
-    // For now, default to fully visible (1.0) since tile shader may not have time uniform
     // 使用顶点颜色红色通道作为动画进度（如果可用）
     // 假设 in.color.r 范围从 0.0（早期）到 1.0（晚期）
-    // 目前，默认为完全可见 (1.0)，因为瓦片着色器可能没有时间 uniform
-    let anim_progress = in.color.r;
+    let anim_progress = in.color.r * 1.2;
     
     // Calculate pixel generation timing
+    // Reduce randomness range for smoother transition
     // 计算像素生成时机
-    let pixel_start = pixel_random;
-    let pixel_progress = clamp((anim_progress - pixel_start) * 2.0, 0.0, 1.0);
+    // 减小随机范围以实现更平滑的过渡
+    let pixel_start = pixel_random * 0.6;
+    let pixel_progress = clamp((anim_progress - pixel_start) * 4.0, 0.0, 1.0);
     
-    // Apply ease-out cubic easing
-    // 应用 ease-out 三次方缓动
-    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 3.0);
+    // Apply ease-out quad easing for smoother transition
+    // f(t) = 1 - (1-t)^2
+    // 应用 ease-out 二次方缓动以实现更平滑的过渡
+    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 2.0);
     
-    return vec4<f32>(bw, bw, bw, tex_color.a * eased_progress);
+    // Ensure fully clean appearance when animation is complete (in.color.r >= 0.9)
+    // 确保动画完成后完全干净的外观（in.color.r >= 0.9）
+    let final_alpha = select(eased_progress, 1.0, in.color.r >= 0.9);
+    
+    return vec4<f32>(bw, bw, bw, tex_color.a * final_alpha);
 }
