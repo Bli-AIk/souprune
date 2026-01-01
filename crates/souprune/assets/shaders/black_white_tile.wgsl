@@ -29,6 +29,14 @@ var base_sampler: sampler;
 @group(2) @binding(3)
 var<uniform> uv_rect: vec4<f32>;
 
+// Simple hash for per-pixel randomness
+// 用于每像素随机性的简单哈希
+fn hash21_tile(p: vec2<f32>) -> f32 {
+    var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+    p3 = p3 + dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Map UV from mesh space to texture atlas space
@@ -56,5 +64,28 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // 亮度 > THRESHOLD 的像素变为白色，否则为黑色
     let bw = select(0.0, 1.0, luminance > THRESHOLD);
     
-    return vec4<f32>(bw, bw, bw, tex_color.a);
+    // ========== PIXEL GENERATION ANIMATION ==========
+    // Calculate pixel position in texture space for stable randomness
+    // 计算纹理空间中的像素位置以获得稳定的随机性
+    let pixel_pos = atlas_uv * vec2<f32>(1024.0, 1024.0); // Approximate texture size
+    let pixel_random = hash21_tile(floor(pixel_pos));
+    
+    // Use vertex color red channel as animation progress (if available)
+    // Assume in.color.r ranges from 0.0 (early) to 1.0 (late)
+    // For now, default to fully visible (1.0) since tile shader may not have time uniform
+    // 使用顶点颜色红色通道作为动画进度（如果可用）
+    // 假设 in.color.r 范围从 0.0（早期）到 1.0（晚期）
+    // 目前，默认为完全可见 (1.0)，因为瓦片着色器可能没有时间 uniform
+    let anim_progress = in.color.r;
+    
+    // Calculate pixel generation timing
+    // 计算像素生成时机
+    let pixel_start = pixel_random;
+    let pixel_progress = clamp((anim_progress - pixel_start) * 2.0, 0.0, 1.0);
+    
+    // Apply ease-out cubic easing
+    // 应用 ease-out 三次方缓动
+    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 3.0);
+    
+    return vec4<f32>(bw, bw, bw, tex_color.a * eased_progress);
 }

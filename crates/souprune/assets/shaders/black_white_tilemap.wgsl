@@ -160,5 +160,34 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
         final_color = tone;
     }
     
-    return vec4<f32>(final_color, final_color, final_color, tex_color.a);
+    // ========== PIXEL GENERATION ANIMATION ==========
+    // Apply ease-based scale animation for pixel appearance
+    // 应用基于缓动的缩放动画以实现像素生成效果
+    
+    // Calculate animation progress based on diffusion and fade
+    // Higher fade = earlier in animation (pixels not yet generated)
+    // 基于扩散和淡入计算动画进度
+    // 更高的 fade = 动画早期（像素尚未生成）
+    let anim_progress = clamp((1.0 - fade) * 2.0, 0.0, 1.0);
+    
+    // Each pixel has its own generation timing based on diffusion_factor
+    // 每个像素根据 diffusion_factor 有自己的生成时机
+    let pixel_start = diffusion_factor;
+    
+    // Calculate how far along this pixel is in its generation (0 = not started, 1 = complete)
+    // 计算此像素生成的进度（0 = 未开始，1 = 完成）
+    let pixel_progress = clamp((anim_progress - pixel_start) * 3.0, 0.0, 1.0);
+    
+    // Apply ease-out cubic easing for smooth scale-up
+    // f(t) = 1 - (1-t)^3
+    // 应用 ease-out 三次方缓动以实现平滑放大
+    let eased_progress = 1.0 - pow(1.0 - pixel_progress, 3.0);
+    
+    // Scale alpha based on eased progress to create "grow-in" effect
+    // Pixels start invisible (alpha=0) and grow to visible (alpha=1)
+    // 基于缓动进度缩放 alpha 以创建"生长"效果
+    // 像素从不可见 (alpha=0) 生长为可见 (alpha=1)
+    let pixel_alpha = eased_progress;
+    
+    return vec4<f32>(final_color, final_color, final_color, tex_color.a * pixel_alpha);
 }
