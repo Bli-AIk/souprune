@@ -7,16 +7,27 @@
 //! ## 模块概述
 //!
 //! This module implements a tile reveal effect for the tilemap.
-//! Tiles are spawned as sprites that animate from small to large, creating a ripple effect
-//! from a center point. All tiles are rendered in pure black and white using a shader.
-//! After each tile's animation completes, the sprite is hidden and the original tile is shown.
-//! The original tilemap also uses a black/white shader.
+//! Tiles are spawned as pure white sprites that animate from small to large, creating a
+//! ripple effect from a center point. After the sprite animation, the original tile is shown
+//! and gradually fades from white to normal B&W rendering using TileColor.
 //!
 //! 本模块实现了瓦片地图的揭示效果。
-//! 瓦片作为精灵生成，从小到大播放动画，从中心点向外产生涟漪效果。
-//! 所有瓦片都通过着色器以纯黑白渲染。
-//! 每个瓦片动画完成后，隐藏精灵并显示原始瓦片。
-//! 原始瓦片地图也使用黑白着色器。
+//! 瓦片作为纯白色精灵生成，从小到大播放动画，从中心点向外产生涟漪效果。
+//! 精灵动画完成后，显示原始瓦片并通过 TileColor 从纯白渐变到正常黑白渲染。
+//!
+//! ## Fade Value Semantics
+//!
+//! ## 淡入值语义
+//!
+//! TileColor.r is used as fade value (passed to shader via in.color.r):
+//! - 0.0 = pure black
+//! - 0.5 = normal black & white rendering
+//! - 1.0 = pure white
+//!
+//! TileColor.r 用作淡入值（通过 in.color.r 传递给着色器）：
+//! - 0.0 = 纯黑
+//! - 0.5 = 正常黑白渲染
+//! - 1.0 = 纯白
 //!
 //! ## Experimental Feature
 //!
@@ -37,18 +48,38 @@ use bevy_tween::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
 
+// ========== FADE CONFIGURATION ==========
+// 淡入配置
+
+/// Number of eighth notes to fade from 1.0 (white) to 0.5 (normal B&W).
+/// 32 eighth notes = 8 quarter notes (beats) = 2 bars in 4/4 time.
+/// 从 1.0（白色）淡入到 0.5（正常黑白）所需的八分音符数。
+/// 32 个八分音符 = 8 个四分音符（拍）= 4/4 拍中的 2 小节。
+pub const FADE_EIGHTH_NOTES: u32 = 32;
+
+/// Target fade value (normal B&W rendering).
+/// 目标淡入值（正常黑白渲染）。
+pub const FADE_TARGET: f32 = 0.5;
+
+/// Initial fade value (pure white).
+/// 初始淡入值（纯白）。
+pub const FADE_INITIAL: f32 = 1.0;
+
 // ========== BLACK/WHITE THRESHOLD ==========
-// This constant is used for BOTH the reveal sprite shader AND the tilemap shader.
+// This constant is used for the BlackWhiteMaterial (if used for sprite shader).
+// Currently sprites use pure white, so this is only kept for reference.
 // Lower value = more white, higher value = more black.
-// Pixels with luminance ABOVE this become WHITE, BELOW become BLACK.
-// 此常量用于揭示精灵着色器和瓦片地图着色器。
+// 此常量用于 BlackWhiteMaterial（如果用于精灵着色器）。
+// 目前精灵使用纯白色，因此这里仅保留供参考。
 // 较低的值 = 更多白色，较高的值 = 更多黑色。
-// 亮度高于此值的像素变为白色，低于的变为黑色。
-pub const BLACK_WHITE_THRESHOLD: f32 = 0.125; // <-- ADJUST THIS VALUE / 调整此值
+#[allow(dead_code)]
+pub const BLACK_WHITE_THRESHOLD: f32 = 0.125;
 
 /// Marker component for revealed tile sprites.
+/// These sprites are now pure white for the ripple effect.
 ///
 /// 已揭示的瓦片精灵的标记组件。
+/// 这些精灵现在是纯白色，用于涟漪效果。
 #[derive(Component)]
 pub struct RevealedTileSprite {
     /// Manhattan distance from the reveal origin.
@@ -59,6 +90,29 @@ pub struct RevealedTileSprite {
     ///
     /// 瓦片位置 (x, y)，用于与原始瓦片匹配。
     pub tile_pos: (u32, u32),
+}
+
+/// Component to track tile fade state.
+/// Attached to original TiledTile entities after their sprite animation completes.
+///
+/// 跟踪瓦片淡入状态的组件。
+/// 在精灵动画完成后附加到原始 TiledTile 实体。
+#[derive(Component)]
+pub struct TileFadeState {
+    /// Current fade value (1.0 = white, 0.5 = normal, 0.0 = black).
+    ///
+    /// 当前淡入值（1.0 = 白色，0.5 = 正常，0.0 = 黑色）。
+    pub fade: f32,
+    /// Random offset for stepped fade (0-31 eighth notes).
+    /// This creates a "noise" effect as tiles don't all transition at once.
+    ///
+    /// 步进淡入的随机偏移（0-31 个八分音符）。
+    /// 这会产生"噪点"效果，因为瓦片不会同时转换。
+    pub random_offset: u32,
+    /// Count of eighth notes processed since this tile started fading.
+    ///
+    /// 自此瓦片开始淡入以来处理的八分音符数。
+    pub eighth_notes_elapsed: u32,
 }
 
 /// Marker component for tiles that are currently animating.
@@ -214,11 +268,13 @@ impl Plugin for TileRevealPlugin {
                 (
                     apply_black_white_tilemap_material_system,
                     cache_tilemap_textures_system,
+                    initialize_tile_colors_system,
                     hide_all_original_tiles_system,
                     create_tile_sprites_system,
                     update_reveal_animation_system,
                     check_animation_complete_system,
                     cleanup_completed_sprites_system,
+                    update_tile_fade_system,
                 )
                     .chain()
                     .in_set(super::super::OverworldUpdate),
@@ -307,6 +363,24 @@ fn cache_tilemap_textures_system(
     }
 }
 
+/// Initialize TileColor for all tiles to white (fade = 1.0).
+/// This sets the initial state so tiles appear white in the shader.
+///
+/// 为所有瓦片初始化 TileColor 为白色（fade = 1.0）。
+/// 这设置初始状态，使瓦片在着色器中显示为白色。
+fn initialize_tile_colors_system(
+    mut commands: Commands,
+    tiles_query: Query<Entity, (With<TiledTile>, Without<TileColor>)>,
+) {
+    for entity in tiles_query.iter() {
+        // Set TileColor with fade = 1.0 (white) in the red channel
+        // 在红色通道设置 TileColor，fade = 1.0（白色）
+        commands
+            .entity(entity)
+            .insert(TileColor(Color::srgba(FADE_INITIAL, 1.0, 1.0, 1.0)));
+    }
+}
+
 /// Hide all original tiles by setting TileVisible to false.
 ///
 /// 通过将 TileVisible 设置为 false 来隐藏所有原始瓦片。
@@ -330,31 +404,19 @@ fn hide_all_original_tiles_system(
     }
 }
 
-/// Stores information about a tile position and its texture.
-///
-/// 存储瓦片位置及其纹理的信息。
-struct TileInfo {
-    world_pos: Vec2,
-    distance: u32,
-    texture_handle: Handle<Image>,
-    /// UV rect in normalized coordinates (0-1).
-    uv_rect: Vec4,
-}
-
 /// Create sprite proxies for each tile to enable individual animations.
-/// Uses actual tile textures with black/white material.
+/// Uses pure white color for the ripple effect (no texture needed).
 ///
 /// 为每个瓦片创建精灵代理以启用独立动画。
-/// 使用实际的瓦片纹理和黑白材质。
+/// 使用纯白色进行涟漪效果（不需要纹理）。
 fn create_tile_sprites_system(
     mut commands: Commands,
     mut reveal_state: ResMut<TileRevealState>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<BlackWhiteMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
     texture_cache: Res<TilemapTextureCache>,
     tiled_maps_query: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    images: Res<Assets<Image>>,
     player_behavior: Option<Res<crate::app_state::overworld::player::config::PlayerBehavior>>,
     existing_sprites: Query<Entity, With<RevealedTileSprite>>,
 ) {
@@ -401,21 +463,10 @@ fn create_tile_sprites_system(
     let mut max_distance: u32 = 0;
 
     // Collect all visible tiles from all layers (ignoring layer, only using xy)
+    // We only need position and distance now, no texture info needed
     // 从所有图层收集所有可见瓦片（忽略图层，只使用 xy）
-    let mut tile_infos: HashMap<(u32, u32), TileInfo> = HashMap::new();
-
-    // Get the first texture for use with all tiles (simplified approach)
-    let Some(first_texture) = texture_cache.textures.first() else {
-        return;
-    };
-
-    // Get image dimensions for UV calculation
-    let image_size = images
-        .get(first_texture)
-        .map(|img| Vec2::new(img.width() as f32, img.height() as f32))
-        .unwrap_or(Vec2::new(256.0, 256.0));
-
-    let tiles_per_row = (image_size.x / tile_width).floor() as u32;
+    // 现在只需要位置和距离，不需要纹理信息
+    let mut tile_positions: HashMap<(u32, u32), (Vec2, u32)> = HashMap::new();
 
     for layer in tiled_map_asset.map.layers() {
         let Some(tile_layer) = layer.as_tile_layer() else {
@@ -449,28 +500,7 @@ fn create_tile_sprites_system(
                     as u32;
                 max_distance = max_distance.max(distance);
 
-                // Calculate UV rect based on tile id
-                // 根据瓦片 ID 计算 UV 矩形
-                let tile_id = layer_tile.id();
-                let tex_x = (tile_id % tiles_per_row) as f32 * tile_width;
-                let tex_y = (tile_id / tiles_per_row) as f32 * tile_height;
-
-                let uv_rect = Vec4::new(
-                    tex_x / image_size.x,
-                    tex_y / image_size.y,
-                    tile_width / image_size.x,
-                    tile_height / image_size.y,
-                );
-
-                tile_infos.insert(
-                    pos_key,
-                    TileInfo {
-                        world_pos: Vec2::new(world_x, world_y),
-                        distance,
-                        texture_handle: first_texture.clone(),
-                        uv_rect,
-                    },
-                );
+                tile_positions.insert(pos_key, (Vec2::new(world_x, world_y), distance));
             },
         );
     }
@@ -481,33 +511,30 @@ fn create_tile_sprites_system(
     // 添加少量重叠（0.5 像素）以防止瓦片之间出现缝隙
     let tile_mesh = meshes.add(Rectangle::new(tile_width + 0.5, tile_height + 0.5));
 
+    // Create a pure white material for all sprites
+    // 为所有精灵创建纯白色材质
+    let white_material = color_materials.add(ColorMaterial::from_color(Color::WHITE));
+
     let mut tile_count = 0;
 
     // Now create sprites for each unique tile position
+    // Using pure white color instead of textured black/white material
     // 现在为每个唯一的瓦片位置创建精灵
-    for ((tile_x, tile_y), tile_info) in tile_infos.iter() {
-        // Create black/white material for this tile
-        // Uses BLACK_WHITE_THRESHOLD constant defined at the top of this file
-        // 为此瓦片创建黑白材质
-        // 使用此文件顶部定义的 BLACK_WHITE_THRESHOLD 常量
-        let material = materials.add(BlackWhiteMaterial {
-            threshold: BLACK_WHITE_THRESHOLD,
-            texture: tile_info.texture_handle.clone(),
-            uv_rect: tile_info.uv_rect,
-        });
-
+    // 使用纯白色而不是带纹理的黑白材质
+    for ((tile_x, tile_y), (world_pos, distance)) in tile_positions.iter() {
         // Spawn sprite with initial scale of 0 (invisible)
+        // Pure white color for the ripple effect
         // 生成初始缩放为 0 的精灵（不可见）
+        // 使用纯白色进行涟漪效果
         commands.spawn((
             Name::new(format!("RevealTile({},{})", tile_x, tile_y)),
             RevealedTileSprite {
-                manhattan_distance: tile_info.distance,
+                manhattan_distance: *distance,
                 tile_pos: (*tile_x, *tile_y),
             },
             Mesh2d(tile_mesh.clone()),
-            MeshMaterial2d(material),
-            Transform::from_xyz(tile_info.world_pos.x, tile_info.world_pos.y, -1.0)
-                .with_scale(Vec3::ZERO),
+            MeshMaterial2d(white_material.clone()),
+            Transform::from_xyz(world_pos.x, world_pos.y, -1.0).with_scale(Vec3::ZERO),
             Visibility::Inherited,
             super::super::OverworldEntity(),
         ));
@@ -610,25 +637,102 @@ fn check_animation_complete_system(
     }
 }
 
-/// Cleanup completed sprite animations: hide sprite, show original tile.
+/// Cleanup completed sprite animations: hide sprite, show original tile, add fade state.
 ///
-/// 清理已完成的精灵动画：隐藏精灵，显示原始瓦片。
+/// 清理已完成的精灵动画：隐藏精灵，显示原始瓦片，添加淡入状态。
 fn cleanup_completed_sprites_system(
     mut commands: Commands,
     completed_sprites: Query<(Entity, &RevealedTileSprite), With<AnimationComplete>>,
-    mut tiles_query: Query<(&TilePos, &mut TileVisible), With<TiledTile>>,
+    mut tiles_query: Query<
+        (Entity, &TilePos, &mut TileVisible),
+        (With<TiledTile>, Without<TileFadeState>),
+    >,
 ) {
     for (sprite_entity, reveal_sprite) in completed_sprites.iter() {
         // Find and show the original tile(s) at this position
+        // Add TileFadeState to start the fade animation
         // 找到并显示此位置的原始瓦片
-        for (tile_pos, mut tile_visible) in tiles_query.iter_mut() {
+        // 添加 TileFadeState 以开始淡入动画
+        for (tile_entity, tile_pos, mut tile_visible) in tiles_query.iter_mut() {
             if tile_pos.x == reveal_sprite.tile_pos.0 && tile_pos.y == reveal_sprite.tile_pos.1 {
                 tile_visible.0 = true;
+
+                // Small random offset (0-7 eighth notes) for subtle tile-level variation
+                // The pixel-level noise in shader provides main randomness
+                // 小随机偏移（0-7个八分音符）用于微妙的瓦片级变化
+                // 着色器中的像素级噪点提供主要随机性
+                let hash =
+                    (tile_pos.x.wrapping_mul(73856093)) ^ (tile_pos.y.wrapping_mul(19349663));
+                let random_offset = hash % 8;
+
+                commands.entity(tile_entity).insert(TileFadeState {
+                    fade: FADE_INITIAL,
+                    random_offset,
+                    eighth_notes_elapsed: 0,
+                });
             }
         }
 
         // Despawn the sprite
         // 销毁精灵
         commands.entity(sprite_entity).despawn();
+    }
+}
+
+/// Update tile fade based on eighth notes.
+/// Each eighth note, tiles with elapsed >= random_offset step towards FADE_TARGET.
+///
+/// 根据八分音符更新瓦片淡入。
+/// 每个八分音符，elapsed >= random_offset 的瓦片向 FADE_TARGET 步进。
+fn update_tile_fade_system(
+    mut beat_events: MessageReader<super::beat::BeatEvent>,
+    mut tiles_query: Query<(&mut TileColor, &mut TileFadeState), With<TiledTile>>,
+) {
+    // Check for eighth note events
+    // 检查八分音符事件
+    let mut eighth_note_count = 0u32;
+    for event in beat_events.read() {
+        if matches!(event, super::beat::BeatEvent::EighthNote) {
+            eighth_note_count += 1;
+        }
+    }
+
+    if eighth_note_count == 0 {
+        return;
+    }
+
+    // Calculate step size: we need to go from 1.0 to 0.5 in FADE_EIGHTH_NOTES steps
+    // 计算步长：我们需要在 FADE_EIGHTH_NOTES 步内从 1.0 变为 0.5
+    let step_size = (FADE_INITIAL - FADE_TARGET) / FADE_EIGHTH_NOTES as f32;
+
+    for (mut tile_color, mut fade_state) in tiles_query.iter_mut() {
+        // Already at target, skip
+        // 已达到目标，跳过
+        if fade_state.fade <= FADE_TARGET {
+            continue;
+        }
+
+        // Increment elapsed count
+        // 增加已用计数
+        fade_state.eighth_notes_elapsed += eighth_note_count;
+
+        // Only start fading after random offset is reached
+        // 只有在达到随机偏移后才开始淡入
+        if fade_state.eighth_notes_elapsed <= fade_state.random_offset {
+            continue;
+        }
+
+        // Calculate how many steps to apply (accounting for random offset)
+        // 计算要应用的步数（考虑随机偏移）
+        let effective_steps = fade_state.eighth_notes_elapsed - fade_state.random_offset;
+        let target_fade = (FADE_INITIAL - step_size * effective_steps as f32).max(FADE_TARGET);
+
+        // Update fade value
+        // 更新淡入值
+        fade_state.fade = target_fade;
+
+        // Update TileColor (red channel holds the fade value)
+        // 更新 TileColor（红色通道保存淡入值）
+        tile_color.0 = Color::srgba(target_fade, 1.0, 1.0, 1.0);
     }
 }
