@@ -9,10 +9,12 @@
 //! This module implements a tile reveal effect for the tilemap.
 //! Tiles are spawned as sprites that animate from small to large, creating a ripple effect
 //! from a center point. All tiles are rendered in pure black and white using a shader.
+//! After each tile's animation completes, the sprite is hidden and the original tile is shown.
 //!
 //! 本模块实现了瓦片地图的揭示效果。
 //! 瓦片作为精灵生成，从小到大播放动画，从中心点向外产生涟漪效果。
 //! 所有瓦片都通过着色器以纯黑白渲染。
+//! 每个瓦片动画完成后，隐藏精灵并显示原始瓦片。
 //!
 //! ## Experimental Feature
 //!
@@ -33,12 +35,6 @@ use bevy_tween::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// Marker component for the original tilemap that has been hidden.
-///
-/// 已隐藏的原始瓦片地图的标记组件。
-#[derive(Component)]
-pub struct HiddenTilemap;
-
 /// Marker component for revealed tile sprites.
 ///
 /// 已揭示的瓦片精灵的标记组件。
@@ -48,7 +44,28 @@ pub struct RevealedTileSprite {
     ///
     /// 距离揭示原点的曼哈顿距离。
     pub manhattan_distance: u32,
+    /// Tile position (x, y) for matching with original tiles.
+    ///
+    /// 瓦片位置 (x, y)，用于与原始瓦片匹配。
+    pub tile_pos: (u32, u32),
 }
+
+/// Marker component for tiles that are currently animating.
+///
+/// 当前正在动画的瓦片的标记组件。
+#[derive(Component)]
+pub struct AnimatingTile {
+    /// Timer to track when animation is complete.
+    ///
+    /// 跟踪动画完成的计时器。
+    pub animation_timer: Timer,
+}
+
+/// Marker component for tiles that have finished animating.
+///
+/// 已完成动画的瓦片的标记组件。
+#[derive(Component)]
+pub struct AnimationComplete;
 
 /// Resource to track the reveal animation state.
 ///
@@ -75,15 +92,20 @@ pub struct TileRevealState {
     /// 要揭示的最大曼哈顿距离。
     pub max_distance: u32,
 
-    /// Whether the reveal animation is complete.
+    /// Whether the reveal animation triggering is complete.
     ///
-    /// 揭示动画是否完成。
-    pub complete: bool,
+    /// 揭示动画触发是否完成。
+    pub all_triggered: bool,
 
     /// Whether initialization is done.
     ///
     /// 初始化是否完成。
     pub initialized: bool,
+
+    /// Whether all original tiles have been made visible initially.
+    ///
+    /// 是否已将所有原始瓦片初始设置为不可见。
+    pub tiles_hidden: bool,
 }
 
 impl Default for TileRevealState {
@@ -98,8 +120,9 @@ impl Default for TileRevealState {
             // 值越低 = 揭示越快。
             step_timer: Timer::from_seconds(0.08, TimerMode::Repeating),
             max_distance: 0,
-            complete: false,
+            all_triggered: false,
             initialized: false,
+            tiles_hidden: false,
         }
     }
 }
@@ -120,11 +143,13 @@ pub struct TilemapTextureCache {
 /// 将瓦片纹理转换为纯黑色 (#000000) 和纯白色 (#FFFFFF)。
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct BlackWhiteMaterial {
-    /// Threshold for black/white conversion (0.5 default).
-    /// Pixels with luminance above this become white, below become black.
-    ///
-    /// 黑白转换的阈值（默认 0.5）。
-    /// 亮度高于此值的像素变为白色，低于的变为黑色。
+    // ========== BLACK/WHITE THRESHOLD ==========
+    // Threshold for black/white conversion.
+    // Lower value = more white, higher value = more black.
+    // Pixels with luminance ABOVE this become WHITE, BELOW become BLACK.
+    // 黑白转换的阈值。
+    // 较低的值 = 更多白色，较高的值 = 更多黑色。
+    // 亮度高于此值的像素变为白色，低于的变为黑色。
     #[uniform(0)]
     pub threshold: f32,
 
@@ -162,16 +187,16 @@ impl Plugin for TileRevealPlugin {
         app.add_plugins(Material2dPlugin::<BlackWhiteMaterial>::default())
             .init_resource::<TileRevealState>()
             .init_resource::<TilemapTextureCache>()
-            .add_tween_systems(bevy_tween::tween::component_tween_system::<
-                ScaleInterpolator,
-            >())
+            .add_tween_systems(bevy_tween::tween::component_tween_system::<ScaleInterpolator>())
             .add_systems(
                 Update,
                 (
                     cache_tilemap_textures_system,
-                    hide_original_tilemaps_system,
+                    hide_all_original_tiles_system,
                     create_tile_sprites_system,
                     update_reveal_animation_system,
+                    check_animation_complete_system,
+                    cleanup_completed_sprites_system,
                 )
                     .chain()
                     .in_set(super::super::OverworldUpdate),
@@ -234,32 +259,26 @@ fn cache_tilemap_textures_system(
     }
 }
 
-/// Hide the original tilemaps when experimental feature is enabled.
-/// Hide all TiledTilemap entities (the actual tile renderers).
+/// Hide all original tiles by setting TileVisible to false.
 ///
-/// 当启用 experimental feature 时隐藏原始瓦片地图。
-/// 隐藏所有 TiledTilemap 实体（实际的瓦片渲染器）。
-fn hide_original_tilemaps_system(
-    mut commands: Commands,
-    tilemaps_query: Query<Entity, (With<TiledTilemap>, Without<HiddenTilemap>)>,
-    tile_layers_query: Query<(Entity, &TiledLayer), Without<HiddenTilemap>>,
+/// 通过将 TileVisible 设置为 false 来隐藏所有原始瓦片。
+fn hide_all_original_tiles_system(
+    mut reveal_state: ResMut<TileRevealState>,
+    mut tiles_query: Query<&mut TileVisible, With<TiledTile>>,
 ) {
-    // Hide TiledTilemap entities (the batch renderers)
-    // 隐藏 TiledTilemap 实体（批量渲染器）
-    for entity in tilemaps_query.iter() {
-        commands
-            .entity(entity)
-            .insert((HiddenTilemap, Visibility::Hidden));
+    if reveal_state.tiles_hidden {
+        return;
     }
 
-    // Also hide tile layers (but not object layers)
-    // 也隐藏瓦片图层（但不隐藏对象图层）
-    for (entity, layer) in tile_layers_query.iter() {
-        if matches!(layer, TiledLayer::Tiles) {
-            commands
-                .entity(entity)
-                .insert((HiddenTilemap, Visibility::Hidden));
-        }
+    let mut hidden_count = 0;
+    for mut tile_visible in tiles_query.iter_mut() {
+        tile_visible.0 = false;
+        hidden_count += 1;
+    }
+
+    if hidden_count > 0 {
+        reveal_state.tiles_hidden = true;
+        info!("Hidden {} original tiles", hidden_count);
     }
 }
 
@@ -296,8 +315,8 @@ fn create_tile_sprites_system(
         return;
     }
 
-    // Wait for textures to be cached
-    if texture_cache.textures.is_empty() {
+    // Wait for textures to be cached and tiles to be hidden
+    if texture_cache.textures.is_empty() || !reveal_state.tiles_hidden {
         return;
     }
 
@@ -370,14 +389,16 @@ fn create_tile_sprites_system(
                 }
 
                 let pos_key = (tile_pos.x, tile_pos.y);
-                let world_x = center_offset_x + (tile_pos.x as f32 * tile_width) + (tile_width / 2.0);
+                let world_x =
+                    center_offset_x + (tile_pos.x as f32 * tile_width) + (tile_width / 2.0);
                 let world_y =
                     center_offset_y + (tile_pos.y as f32 * tile_height) + (tile_height / 2.0);
 
                 // Calculate Manhattan distance from origin
                 // 计算距离原点的曼哈顿距离
                 let distance = ((tile_pos.x as i32 - origin_tile_x).abs()
-                    + (tile_pos.y as i32 - origin_tile_y).abs()) as u32;
+                    + (tile_pos.y as i32 - origin_tile_y).abs())
+                    as u32;
                 max_distance = max_distance.max(distance);
 
                 // Calculate UV rect based on tile id
@@ -407,7 +428,10 @@ fn create_tile_sprites_system(
     }
 
     // Create a shared mesh for all tiles
-    let tile_mesh = meshes.add(Rectangle::new(tile_width, tile_height));
+    // Add a small overlap (0.5 pixels) to prevent gaps between tiles
+    // 为所有瓦片创建共享网格
+    // 添加少量重叠（0.5 像素）以防止瓦片之间出现缝隙
+    let tile_mesh = meshes.add(Rectangle::new(tile_width + 0.5, tile_height + 0.5));
 
     let mut tile_count = 0;
 
@@ -415,9 +439,13 @@ fn create_tile_sprites_system(
     // 现在为每个唯一的瓦片位置创建精灵
     for ((tile_x, tile_y), tile_info) in tile_infos.iter() {
         // Create black/white material for this tile
-        // 为此瓦片创建黑白材质
+        // ========== BLACK/WHITE THRESHOLD ==========
+        // Lower value = more white, higher value = more black.
+        // Pixels with luminance ABOVE this become WHITE, BELOW become BLACK.
+        // 较低的值 = 更多白色，较高的值 = 更多黑色。
+        // 亮度高于此值的像素变为白色，低于的变为黑色。
         let material = materials.add(BlackWhiteMaterial {
-            threshold: 0.5,
+            threshold: 0.1, // <-- ADJUST THIS VALUE TO CHANGE BLACK/WHITE RATIO / 调整此值以更改黑白比例
             texture: tile_info.texture_handle.clone(),
             uv_rect: tile_info.uv_rect,
         });
@@ -428,6 +456,7 @@ fn create_tile_sprites_system(
             Name::new(format!("RevealTile({},{})", tile_x, tile_y)),
             RevealedTileSprite {
                 manhattan_distance: tile_info.distance,
+                tile_pos: (*tile_x, *tile_y),
             },
             Mesh2d(tile_mesh.clone()),
             MeshMaterial2d(material),
@@ -456,9 +485,12 @@ fn update_reveal_animation_system(
     mut commands: Commands,
     time: Res<Time>,
     mut reveal_state: ResMut<TileRevealState>,
-    tiles_query: Query<(Entity, &RevealedTileSprite), Without<AnimatingTile>>,
+    tiles_query: Query<
+        (Entity, &RevealedTileSprite),
+        (Without<AnimatingTile>, Without<AnimationComplete>),
+    >,
 ) {
-    if !reveal_state.initialized || reveal_state.complete {
+    if !reveal_state.initialized || reveal_state.all_triggered {
         return;
     }
 
@@ -472,9 +504,15 @@ fn update_reveal_animation_system(
                 // ========== ANIMATION DURATION ==========
                 // Duration of each tile's scale animation (in milliseconds).
                 // 每个瓦片缩放动画的持续时间（毫秒）。
-                let animation_duration = Duration::from_millis(300);
+                let animation_duration_ms = 2000; // <-- ADJUST THIS VALUE TO CHANGE ANIMATION SPEED / 调整此值以更改动画速度
+                let animation_duration = Duration::from_millis(animation_duration_ms);
 
-                commands.entity(entity).insert(AnimatingTile);
+                commands.entity(entity).insert(AnimatingTile {
+                    animation_timer: Timer::from_seconds(
+                        animation_duration_ms as f32 / 1000.0,
+                        TimerMode::Once,
+                    ),
+                });
                 commands.entity(entity).animation().insert_tween_here(
                     animation_duration,
                     // ========== ANIMATION EASING ==========
@@ -492,14 +530,47 @@ fn update_reveal_animation_system(
         reveal_state.current_step += 1;
 
         if reveal_state.current_step > reveal_state.max_distance {
-            reveal_state.complete = true;
-            info!("Tile reveal animation complete");
+            reveal_state.all_triggered = true;
+            info!("All tile reveal animations triggered");
         }
     }
 }
 
-/// Marker component for tiles that are currently animating.
+/// Check if animating tiles have completed their animation.
 ///
-/// 当前正在动画的瓦片的标记组件。
-#[derive(Component)]
-struct AnimatingTile;
+/// 检查动画中的瓦片是否已完成动画。
+fn check_animation_complete_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut animating_tiles: Query<(Entity, &mut AnimatingTile), Without<AnimationComplete>>,
+) {
+    for (entity, mut animating) in animating_tiles.iter_mut() {
+        animating.animation_timer.tick(time.delta());
+        if animating.animation_timer.is_finished() {
+            commands.entity(entity).insert(AnimationComplete);
+        }
+    }
+}
+
+/// Cleanup completed sprite animations: hide sprite, show original tile.
+///
+/// 清理已完成的精灵动画：隐藏精灵，显示原始瓦片。
+fn cleanup_completed_sprites_system(
+    mut commands: Commands,
+    completed_sprites: Query<(Entity, &RevealedTileSprite), With<AnimationComplete>>,
+    mut tiles_query: Query<(&TilePos, &mut TileVisible), With<TiledTile>>,
+) {
+    for (sprite_entity, reveal_sprite) in completed_sprites.iter() {
+        // Find and show the original tile(s) at this position
+        // 找到并显示此位置的原始瓦片
+        for (tile_pos, mut tile_visible) in tiles_query.iter_mut() {
+            if tile_pos.x == reveal_sprite.tile_pos.0 && tile_pos.y == reveal_sprite.tile_pos.1 {
+                tile_visible.0 = true;
+            }
+        }
+
+        // Despawn the sprite
+        // 销毁精灵
+        commands.entity(sprite_entity).despawn();
+    }
+}

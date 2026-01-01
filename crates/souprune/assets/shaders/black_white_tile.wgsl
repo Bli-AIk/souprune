@@ -2,7 +2,9 @@
 // 黑白瓦片着色器
 //
 // Converts tile textures to pure black and white (only #000000 and #FFFFFF).
+// White is the primary color, black is used for darker areas only.
 // 将瓦片纹理转换为纯黑白色（仅包含 #000000 和 #FFFFFF）。
+// 白色为主，黑色仅用于较暗的区域。
 
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 
@@ -40,7 +42,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let luminance = dot(tex_color.rgb, vec3<f32>(0.299, 0.587, 0.114));
     
     // Threshold to pure black or white
+    // Lower threshold means more white (luminance > threshold -> white)
     // 阈值化为纯黑或纯白
+    // 较低的阈值意味着更多白色（亮度 > 阈值 -> 白色）
     let bw = select(0.0, 1.0, luminance > threshold);
     
     return vec4<f32>(bw, bw, bw, tex_color.a);
