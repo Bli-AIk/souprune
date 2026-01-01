@@ -10,11 +10,13 @@
 //! Tiles are spawned as sprites that animate from small to large, creating a ripple effect
 //! from a center point. All tiles are rendered in pure black and white using a shader.
 //! After each tile's animation completes, the sprite is hidden and the original tile is shown.
+//! The original tilemap also uses a black/white shader.
 //!
 //! 本模块实现了瓦片地图的揭示效果。
 //! 瓦片作为精灵生成，从小到大播放动画，从中心点向外产生涟漪效果。
 //! 所有瓦片都通过着色器以纯黑白渲染。
 //! 每个瓦片动画完成后，隐藏精灵并显示原始瓦片。
+//! 原始瓦片地图也使用黑白着色器。
 //!
 //! ## Experimental Feature
 //!
@@ -34,6 +36,15 @@ use bevy_tween::interpolate::Interpolator;
 use bevy_tween::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
+
+// ========== BLACK/WHITE THRESHOLD ==========
+// This constant is used for BOTH the reveal sprite shader AND the tilemap shader.
+// Lower value = more white, higher value = more black.
+// Pixels with luminance ABOVE this become WHITE, BELOW become BLACK.
+// 此常量用于揭示精灵着色器和瓦片地图着色器。
+// 较低的值 = 更多白色，较高的值 = 更多黑色。
+// 亮度高于此值的像素变为白色，低于的变为黑色。
+pub const BLACK_WHITE_THRESHOLD: f32 = 0.1; // <-- ADJUST THIS VALUE / 调整此值
 
 /// Marker component for revealed tile sprites.
 ///
@@ -177,6 +188,26 @@ impl Material2d for BlackWhiteMaterial {
     }
 }
 
+/// Black and white material for bevy_ecs_tilemap.
+/// Uses a custom fragment shader to convert tilemap to pure black and white.
+///
+/// bevy_ecs_tilemap 的黑白材质。
+/// 使用自定义片段着色器将瓦片地图转换为纯黑白。
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
+pub struct BlackWhiteTilemapMaterial {}
+
+impl MaterialTilemap for BlackWhiteTilemapMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/black_white_tilemap.wgsl".into()
+    }
+}
+
+/// Marker component for tilemaps that have been given the black/white material.
+///
+/// 已应用黑白材质的瓦片地图的标记组件。
+#[derive(Component)]
+pub struct HasBlackWhiteMaterial;
+
 /// Plugin for the tile reveal effect.
 ///
 /// 瓦片揭示效果的插件。
@@ -185,12 +216,14 @@ pub struct TileRevealPlugin;
 impl Plugin for TileRevealPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<BlackWhiteMaterial>::default())
+            .add_plugins(MaterialTilemapPlugin::<BlackWhiteTilemapMaterial>::default())
             .init_resource::<TileRevealState>()
             .init_resource::<TilemapTextureCache>()
             .add_tween_systems(bevy_tween::tween::component_tween_system::<ScaleInterpolator>())
             .add_systems(
                 Update,
                 (
+                    apply_black_white_tilemap_material_system,
                     cache_tilemap_textures_system,
                     hide_all_original_tiles_system,
                     create_tile_sprites_system,
@@ -218,6 +251,32 @@ impl Interpolator for ScaleInterpolator {
 
     fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
         item.scale = self.start.lerp(self.end, value);
+    }
+}
+
+/// Apply black/white material to all TiledTilemap entities.
+/// Remove the default StandardTilemapMaterial and add BlackWhiteTilemapMaterial.
+///
+/// 为所有 TiledTilemap 实体应用黑白材质。
+/// 移除默认的 StandardTilemapMaterial 并添加 BlackWhiteTilemapMaterial。
+fn apply_black_white_tilemap_material_system(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<BlackWhiteTilemapMaterial>>,
+    tilemaps_query: Query<Entity, (With<TiledTilemap>, Without<HasBlackWhiteMaterial>)>,
+) {
+    for entity in tilemaps_query.iter() {
+        let material_handle = materials.add(BlackWhiteTilemapMaterial {});
+        commands
+            .entity(entity)
+            // Remove the default StandardTilemapMaterial handle
+            // 移除默认的 StandardTilemapMaterial 句柄
+            .remove::<MaterialTilemapHandle<StandardTilemapMaterial>>()
+            // Add our custom BlackWhiteTilemapMaterial handle
+            // 添加我们的自定义 BlackWhiteTilemapMaterial 句柄
+            .insert((
+                MaterialTilemapHandle(material_handle),
+                HasBlackWhiteMaterial,
+            ));
     }
 }
 
@@ -439,13 +498,11 @@ fn create_tile_sprites_system(
     // 现在为每个唯一的瓦片位置创建精灵
     for ((tile_x, tile_y), tile_info) in tile_infos.iter() {
         // Create black/white material for this tile
-        // ========== BLACK/WHITE THRESHOLD ==========
-        // Lower value = more white, higher value = more black.
-        // Pixels with luminance ABOVE this become WHITE, BELOW become BLACK.
-        // 较低的值 = 更多白色，较高的值 = 更多黑色。
-        // 亮度高于此值的像素变为白色，低于的变为黑色。
+        // Uses BLACK_WHITE_THRESHOLD constant defined at the top of this file
+        // 为此瓦片创建黑白材质
+        // 使用此文件顶部定义的 BLACK_WHITE_THRESHOLD 常量
         let material = materials.add(BlackWhiteMaterial {
-            threshold: 0.1, // <-- ADJUST THIS VALUE TO CHANGE BLACK/WHITE RATIO / 调整此值以更改黑白比例
+            threshold: BLACK_WHITE_THRESHOLD,
             texture: tile_info.texture_handle.clone(),
             uv_rect: tile_info.uv_rect,
         });
@@ -504,7 +561,7 @@ fn update_reveal_animation_system(
                 // ========== ANIMATION DURATION ==========
                 // Duration of each tile's scale animation (in milliseconds).
                 // 每个瓦片缩放动画的持续时间（毫秒）。
-                let animation_duration_ms = 2000; // <-- ADJUST THIS VALUE TO CHANGE ANIMATION SPEED / 调整此值以更改动画速度
+                let animation_duration_ms = 500; // <-- ADJUST THIS VALUE TO CHANGE ANIMATION SPEED / 调整此值以更改动画速度
                 let animation_duration = Duration::from_millis(animation_duration_ms);
 
                 commands.entity(entity).insert(AnimatingTile {
