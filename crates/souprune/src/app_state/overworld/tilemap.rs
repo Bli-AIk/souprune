@@ -21,6 +21,8 @@
 use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
+#[cfg(feature = "experimental")]
+pub mod beat;
 pub mod object_properties;
 #[cfg(feature = "experimental")]
 pub mod reveal;
@@ -66,6 +68,9 @@ impl Plugin for TilemapPlugin {
         // Add tile reveal effect plugin when experimental feature is enabled
         // 当启用 experimental feature 时添加瓦片揭示效果插件
         #[cfg(feature = "experimental")]
-        app.add_plugins(reveal::TileRevealPlugin);
+        {
+            app.add_plugins(reveal::TileRevealPlugin);
+            app.add_plugins(beat::BeatPlugin);
+        }
     }
 }

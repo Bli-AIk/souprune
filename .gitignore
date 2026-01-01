@@ -37,3 +37,5 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+ignore_music.wav

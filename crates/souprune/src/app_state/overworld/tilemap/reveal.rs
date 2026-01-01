@@ -93,11 +93,6 @@ pub struct TileRevealState {
     /// 当前揭示步骤（曼哈顿距离阈值）。
     pub current_step: u32,
 
-    /// Timer for stepping to the next distance ring.
-    ///
-    /// 步进到下一个距离环的计时器。
-    pub step_timer: Timer,
-
     /// Maximum Manhattan distance to reveal.
     ///
     /// 要揭示的最大曼哈顿距离。
@@ -124,12 +119,6 @@ impl Default for TileRevealState {
         Self {
             origin: Vec2::ZERO,
             current_step: 0,
-            // ========== REVEAL SPEED ==========
-            // Time between each distance ring reveal (in seconds).
-            // Lower value = faster reveal.
-            // 每个距离环揭示之间的时间（秒）。
-            // 值越低 = 揭示越快。
-            step_timer: Timer::from_seconds(0.08, TimerMode::Repeating),
             max_distance: 0,
             all_triggered: false,
             initialized: false,
@@ -536,24 +525,36 @@ fn create_tile_sprites_system(
 }
 
 /// Update the reveal animation, triggering scale tweens for tiles at the current distance.
+/// Now synchronized with eighth notes from the beat system.
 ///
 /// 更新揭示动画，为当前距离的瓦片触发缩放补间。
+/// 现在与节拍系统的八分音符同步。
 fn update_reveal_animation_system(
     mut commands: Commands,
-    time: Res<Time>,
     mut reveal_state: ResMut<TileRevealState>,
+    mut beat_events: MessageReader<super::beat::BeatEvent>,
     tiles_query: Query<
         (Entity, &RevealedTileSprite),
         (Without<AnimatingTile>, Without<AnimationComplete>),
     >,
 ) {
     if !reveal_state.initialized || reveal_state.all_triggered {
+        // Clear events even if not processing to prevent buildup
+        beat_events.clear();
         return;
     }
 
-    reveal_state.step_timer.tick(time.delta());
+    // Check for eighth note events to trigger tile reveal
+    // 检查八分音符事件以触发瓦片揭示
+    let mut should_step = false;
+    for event in beat_events.read() {
+        if matches!(event, super::beat::BeatEvent::EighthNote) {
+            should_step = true;
+            break;
+        }
+    }
 
-    if reveal_state.step_timer.just_finished() {
+    if should_step {
         // Animate all tiles at the current step distance
         // 为当前步骤距离的所有瓦片添加动画
         for (entity, tile) in tiles_query.iter() {
