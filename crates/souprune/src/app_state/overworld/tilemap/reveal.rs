@@ -525,10 +525,10 @@ fn create_tile_sprites_system(
 }
 
 /// Update the reveal animation, triggering scale tweens for tiles at the current distance.
-/// Now synchronized with eighth notes from the beat system.
+/// Now synchronized with quarter notes from the beat system.
 ///
 /// 更新揭示动画，为当前距离的瓦片触发缩放补间。
-/// 现在与节拍系统的八分音符同步。
+/// 现在与节拍系统的四分音符同步。
 fn update_reveal_animation_system(
     mut commands: Commands,
     mut reveal_state: ResMut<TileRevealState>,
@@ -544,11 +544,11 @@ fn update_reveal_animation_system(
         return;
     }
 
-    // Check for eighth note events to trigger tile reveal
-    // 检查八分音符事件以触发瓦片揭示
+    // Check for quarter note events to trigger tile reveal
+    // 检查四分音符事件以触发瓦片揭示
     let mut should_step = false;
     for event in beat_events.read() {
-        if matches!(event, super::beat::BeatEvent::EighthNote) {
+        if matches!(event, super::beat::BeatEvent::QuarterNote) {
             should_step = true;
             break;
         }

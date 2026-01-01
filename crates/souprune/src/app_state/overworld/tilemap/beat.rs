@@ -31,7 +31,7 @@ pub const BGM_BPM: f32 = 198.0;
 
 /// Offset in seconds to skip the silent part at the beginning of the BGM.
 /// 偏移量（秒），用于跳过 BGM 开头的静音部分。
-pub const BGM_OFFSET: f32 = 1.35;
+pub const BGM_OFFSET: f32 = 1.325;
 
 // ========== END BGM TIMING CONFIGURATION ==========
 
@@ -259,28 +259,31 @@ fn update_beat_tracker_system(
 // 不再需要时删除或注释掉此系统。
 
 /// Test metronome system that plays sound effects on beats.
-/// Uses "selected.wav" on quarter notes and "choice.wav" on eighth notes.
+/// Uses "selected.wav" on the first beat of each bar (4 beats), and "choice.wav" on beats 2-4.
 /// 测试用节拍器系统，在节拍时播放音效。
-/// 四分音符时播放 "selected.wav"，八分音符时播放 "choice.wav"。
+/// 每小节（4拍）的第1拍播放 "selected.wav"，第2-4拍播放 "choice.wav"。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 fn test_metronome_system(
     mut beat_events: MessageReader<BeatEvent>,
+    beat_tracker: Res<BeatTracker>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
 ) {
     for event in beat_events.read() {
-        match event {
-            BeatEvent::QuarterNote => {
-                // Play "selected.wav" on quarter notes (the main beat)
-                // 四分音符（主拍）时播放 "selected.wav"
+        if matches!(event, BeatEvent::QuarterNote) {
+            // Get the current quarter note count (which beat we're on)
+            // 获取当前四分音符计数（我们在第几拍）
+            let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
+
+            if beat_in_bar == 0 {
+                // First beat of the bar: play "selected.wav"
+                // 小节的第一拍：播放 "selected.wav"
                 crate::core::audio::play_sound(&audio, &asset_server, "selected.wav");
-            }
-            BeatEvent::EighthNote => {
-                // Play "choice.wav" on eighth notes (subdivisions)
-                // 八分音符（细分）时播放 "choice.wav"
+            } else {
+                // Beats 2-4: play "choice.wav"
+                // 第2-4拍：播放 "choice.wav"
                 crate::core::audio::play_sound(&audio, &asset_server, "choice.wav");
             }
-            _ => {}
         }
     }
 }
@@ -289,21 +292,24 @@ fn test_metronome_system(
 fn test_metronome_system(
     mut commands: Commands,
     mut beat_events: MessageReader<BeatEvent>,
+    beat_tracker: Res<BeatTracker>,
     asset_server: Res<AssetServer>,
 ) {
     for event in beat_events.read() {
-        match event {
-            BeatEvent::QuarterNote => {
-                // Play "selected.wav" on quarter notes (the main beat)
-                // 四分音符（主拍）时播放 "selected.wav"
+        if matches!(event, BeatEvent::QuarterNote) {
+            // Get the current quarter note count (which beat we're on)
+            // 获取当前四分音符计数（我们在第几拍）
+            let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
+
+            if beat_in_bar == 0 {
+                // First beat of the bar: play "selected.wav"
+                // 小节的第一拍：播放 "selected.wav"
                 crate::core::audio::play_sound(&mut commands, &asset_server, "selected.wav");
-            }
-            BeatEvent::EighthNote => {
-                // Play "choice.wav" on eighth notes (subdivisions)
-                // 八分音符（细分）时播放 "choice.wav"
+            } else {
+                // Beats 2-4: play "choice.wav"
+                // 第2-4拍：播放 "choice.wav"
                 crate::core::audio::play_sound(&mut commands, &asset_server, "choice.wav");
             }
-            _ => {}
         }
     }
 }
