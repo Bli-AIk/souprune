@@ -692,7 +692,7 @@ fn update_reveal_animation_system(
     // ========== TILES PER BEAT ==========
     // Number of tiles to reveal per quarter note beat
     // 每个四分音符节拍揭示的瓦片数量
-    const TILES_PER_BEAT: usize = 2;
+    const TILES_PER_BEAT: usize = 8;
     
     for tile_index in 0..TILES_PER_BEAT {
         // Recalculate available directions for each tile
