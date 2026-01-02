@@ -90,6 +90,10 @@ pub struct RevealedTileSprite {
     ///
     /// 瓦片位置 (x, y)，用于与原始瓦片匹配。
     pub tile_pos: (u32, u32),
+    /// Direction from origin to this tile.
+    ///
+    /// 从原点到此瓦片的方向。
+    pub direction: RippleDirection,
 }
 
 /// Component to track tile fade state.
@@ -132,6 +136,29 @@ pub struct AnimatingTile {
 #[derive(Component)]
 pub struct AnimationComplete;
 
+/// Direction for ripple expansion.
+/// 涟漪扩展方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RippleDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl RippleDirection {
+    /// Get all four directions.
+    /// 获取所有四个方向。
+    pub fn all() -> [RippleDirection; 4] {
+        [
+            RippleDirection::Up,
+            RippleDirection::Down,
+            RippleDirection::Left,
+            RippleDirection::Right,
+        ]
+    }
+}
+
 /// Resource to track the reveal animation state.
 ///
 /// 跟踪揭示动画状态的资源。
@@ -166,6 +193,20 @@ pub struct TileRevealState {
     ///
     /// 是否已将所有原始瓦片初始设置为不可见。
     pub tiles_hidden: bool,
+
+    /// Directions that have been used in the current step.
+    /// A direction can only be used again after all four directions have been used.
+    ///
+    /// 当前步骤中已使用的方向。
+    /// 只有在四个方向都使用后，才能再次使用某个方向。
+    pub used_directions: Vec<RippleDirection>,
+
+    /// Pending tiles to reveal for the current step, organized by direction.
+    /// This stores (direction, entity) pairs for tiles that should be revealed next.
+    ///
+    /// 当前步骤待揭示的瓦片，按方向组织。
+    /// 存储 (方向, 实体) 对，表示下一个要揭示的瓦片。
+    pub pending_tiles_by_direction: HashMap<RippleDirection, Vec<Entity>>,
 }
 
 impl Default for TileRevealState {
@@ -177,6 +218,8 @@ impl Default for TileRevealState {
             all_triggered: false,
             initialized: false,
             tiles_hidden: false,
+            used_directions: Vec::new(),
+            pending_tiles_by_direction: HashMap::new(),
         }
     }
 }
@@ -271,6 +314,7 @@ impl Plugin for TileRevealPlugin {
                     initialize_tile_colors_system,
                     hide_all_original_tiles_system,
                     create_tile_sprites_system,
+                    collect_pending_tiles_system,
                     update_reveal_animation_system,
                     check_animation_complete_system,
                     cleanup_completed_sprites_system,
@@ -463,10 +507,10 @@ fn create_tile_sprites_system(
     let mut max_distance: u32 = 0;
 
     // Collect all visible tiles from all layers (ignoring layer, only using xy)
-    // We only need position and distance now, no texture info needed
+    // Now also includes direction from origin
     // 从所有图层收集所有可见瓦片（忽略图层，只使用 xy）
-    // 现在只需要位置和距离，不需要纹理信息
-    let mut tile_positions: HashMap<(u32, u32), (Vec2, u32)> = HashMap::new();
+    // 现在也包括从原点的方向
+    let mut tile_positions: HashMap<(u32, u32), (Vec2, u32, RippleDirection)> = HashMap::new();
 
     for layer in tiled_map_asset.map.layers() {
         let Some(tile_layer) = layer.as_tile_layer() else {
@@ -495,12 +539,32 @@ fn create_tile_sprites_system(
 
                 // Calculate Manhattan distance from origin
                 // 计算距离原点的曼哈顿距离
-                let distance = ((tile_pos.x as i32 - origin_tile_x).abs()
-                    + (tile_pos.y as i32 - origin_tile_y).abs())
-                    as u32;
+                let dx = tile_pos.x as i32 - origin_tile_x;
+                let dy = tile_pos.y as i32 - origin_tile_y;
+                let distance = (dx.abs() + dy.abs()) as u32;
                 max_distance = max_distance.max(distance);
 
-                tile_positions.insert(pos_key, (Vec2::new(world_x, world_y), distance));
+                // Determine the primary direction from origin to this tile
+                // For tiles at the origin, default to Up
+                // 确定从原点到此瓦片的主要方向
+                // 对于原点处的瓦片，默认为 Up
+                let direction = if dx == 0 && dy == 0 {
+                    RippleDirection::Up
+                } else if dx.abs() >= dy.abs() {
+                    if dx > 0 {
+                        RippleDirection::Right
+                    } else {
+                        RippleDirection::Left
+                    }
+                } else {
+                    if dy > 0 {
+                        RippleDirection::Up
+                    } else {
+                        RippleDirection::Down
+                    }
+                };
+
+                tile_positions.insert(pos_key, (Vec2::new(world_x, world_y), distance, direction));
             },
         );
     }
@@ -521,7 +585,7 @@ fn create_tile_sprites_system(
     // Using pure white color instead of textured black/white material
     // 现在为每个唯一的瓦片位置创建精灵
     // 使用纯白色而不是带纹理的黑白材质
-    for ((tile_x, tile_y), (world_pos, distance)) in tile_positions.iter() {
+    for ((tile_x, tile_y), (world_pos, distance, direction)) in tile_positions.iter() {
         // Spawn sprite with initial scale of 0 (invisible)
         // Pure white color for the ripple effect
         // 生成初始缩放为 0 的精灵（不可见）
@@ -531,6 +595,7 @@ fn create_tile_sprites_system(
             RevealedTileSprite {
                 manhattan_distance: *distance,
                 tile_pos: (*tile_x, *tile_y),
+                direction: *direction,
             },
             Mesh2d(tile_mesh.clone()),
             MeshMaterial2d(white_material.clone()),
@@ -551,19 +616,53 @@ fn create_tile_sprites_system(
     );
 }
 
-/// Update the reveal animation, triggering scale tweens for tiles at the current distance.
-/// Now synchronized with quarter notes from the beat system.
+/// Collect pending tiles for the current step, organized by direction.
+/// This system runs before the reveal animation to prepare tiles for random direction selection.
 ///
-/// 更新揭示动画，为当前距离的瓦片触发缩放补间。
-/// 现在与节拍系统的四分音符同步。
-fn update_reveal_animation_system(
-    mut commands: Commands,
+/// 收集当前步骤的待揭示瓦片，按方向组织。
+/// 此系统在揭示动画之前运行，为随机方向选择准备瓦片。
+fn collect_pending_tiles_system(
     mut reveal_state: ResMut<TileRevealState>,
-    mut beat_events: MessageReader<super::beat::BeatEvent>,
     tiles_query: Query<
         (Entity, &RevealedTileSprite),
         (Without<AnimatingTile>, Without<AnimationComplete>),
     >,
+) {
+    if !reveal_state.initialized || reveal_state.all_triggered {
+        return;
+    }
+
+    // Only collect if pending tiles are empty for the current step
+    // 只有当当前步骤的待揭示瓦片为空时才收集
+    if !reveal_state.pending_tiles_by_direction.is_empty() {
+        return;
+    }
+
+    // Collect tiles at the current distance, organized by direction
+    // 收集当前距离的瓦片，按方向组织
+    for (entity, tile) in tiles_query.iter() {
+        if tile.manhattan_distance == reveal_state.current_step {
+            reveal_state
+                .pending_tiles_by_direction
+                .entry(tile.direction)
+                .or_default()
+                .push(entity);
+        }
+    }
+}
+
+/// Update the reveal animation, triggering scale tweens for tiles.
+/// On each quarter note, reveals tiles from random available directions.
+/// A direction can only be used again after all four directions have been used.
+///
+/// 更新揭示动画，触发瓦片的缩放补间。
+/// 在每个四分音符时，从随机可用方向揭示瓦片。
+/// 只有在四个方向都使用后，才能再次使用某个方向。
+fn update_reveal_animation_system(
+    mut commands: Commands,
+    mut reveal_state: ResMut<TileRevealState>,
+    mut beat_events: MessageReader<super::beat::BeatEvent>,
+    beat_tracker: Res<super::beat::BeatTracker>,
 ) {
     if !reveal_state.initialized || reveal_state.all_triggered {
         // Clear events even if not processing to prevent buildup
@@ -581,38 +680,150 @@ fn update_reveal_animation_system(
         }
     }
 
-    if should_step {
-        // Animate all tiles at the current step distance
-        // 为当前步骤距离的所有瓦片添加动画
-        for (entity, tile) in tiles_query.iter() {
-            if tile.manhattan_distance == reveal_state.current_step {
-                // ========== ANIMATION DURATION ==========
-                // Duration of each tile's scale animation (in milliseconds).
-                // 每个瓦片缩放动画的持续时间（毫秒）。
-                let animation_duration_ms = 500; // <-- ADJUST THIS VALUE TO CHANGE ANIMATION SPEED / 调整此值以更改动画速度
-                let animation_duration = Duration::from_millis(animation_duration_ms);
+    if !should_step {
+        return;
+    }
 
-                commands.entity(entity).insert(AnimatingTile {
-                    animation_timer: Timer::from_seconds(
-                        animation_duration_ms as f32 / 1000.0,
-                        TimerMode::Once,
-                    ),
-                });
-                commands.entity(entity).animation().insert_tween_here(
-                    animation_duration,
-                    // ========== ANIMATION EASING ==========
-                    // Easing function for the scale animation.
-                    // 缩放动画的缓动函数。
-                    EaseKind::BackOut,
-                    entity.into_target().with(ScaleInterpolator {
-                        start: Vec3::ZERO,
-                        end: Vec3::ONE,
-                    }),
-                );
+    // Use beat count and current step as a pseudo-random seed for direction selection
+    // This provides deterministic but varied selection across beats
+    // 使用节拍计数和当前步骤作为方向选择的伪随机种子
+    // 这提供了跨节拍的确定性但多样化的选择
+    
+    // ========== TILES PER BEAT ==========
+    // Number of tiles to reveal per quarter note beat
+    // 每个四分音符节拍揭示的瓦片数量
+    const TILES_PER_BEAT: usize = 2;
+    
+    for tile_index in 0..TILES_PER_BEAT {
+        // Recalculate available directions for each tile
+        // 为每个瓦片重新计算可用方向
+        let all_directions = RippleDirection::all();
+        let available_directions: Vec<RippleDirection> = all_directions
+            .iter()
+            .filter(|d| !reveal_state.used_directions.contains(d))
+            .copied()
+            .collect();
+
+        // If all directions have been used, reset the cycle
+        // 如果所有方向都已使用，重置周期
+        let available_directions = if available_directions.is_empty() {
+            reveal_state.used_directions.clear();
+            all_directions.to_vec()
+        } else {
+            available_directions
+        };
+
+        // Find directions that have pending tiles
+        // 查找有待揭示瓦片的方向
+        let directions_with_tiles: Vec<RippleDirection> = available_directions
+            .iter()
+            .filter(|d| {
+                reveal_state
+                    .pending_tiles_by_direction
+                    .get(d)
+                    .is_some_and(|v| !v.is_empty())
+            })
+            .copied()
+            .collect();
+
+        // If no tiles available in current available directions, try used directions
+        // 如果当前可用方向没有瓦片，尝试已使用的方向
+        let directions_with_tiles = if directions_with_tiles.is_empty() {
+            // Check if any direction has tiles
+            let any_direction_with_tiles: Vec<RippleDirection> = reveal_state
+                .pending_tiles_by_direction
+                .iter()
+                .filter(|(_, v)| !v.is_empty())
+                .map(|(d, _)| *d)
+                .collect();
+
+            if any_direction_with_tiles.is_empty() {
+                // No more tiles at current step, move to next step
+                // 当前步骤没有更多瓦片，移动到下一步
+                reveal_state.current_step += 1;
+                reveal_state.pending_tiles_by_direction.clear();
+
+                if reveal_state.current_step > reveal_state.max_distance {
+                    reveal_state.all_triggered = true;
+                    info!("All tile reveal animations triggered");
+                }
+                return;
             }
+            any_direction_with_tiles
+        } else {
+            directions_with_tiles
+        };
+
+        // Skip if no directions available
+        if directions_with_tiles.is_empty() {
+            break;
         }
 
+        let pseudo_random_seed = (beat_tracker.counts.quarter as usize)
+            .wrapping_mul(73856093)
+            .wrapping_add((reveal_state.current_step as usize).wrapping_mul(19349663))
+            .wrapping_add(reveal_state.used_directions.len().wrapping_mul(83492791))
+            .wrapping_add(tile_index.wrapping_mul(47619417));
+        let index = pseudo_random_seed % directions_with_tiles.len();
+        let selected_direction = directions_with_tiles[index];
+
+        // Mark this direction as used
+        // 标记此方向为已使用
+        if !reveal_state.used_directions.contains(&selected_direction) {
+            reveal_state.used_directions.push(selected_direction);
+        }
+
+        // Get one tile from this direction
+        // 从此方向获取一个瓦片
+        let Some(tiles) = reveal_state
+            .pending_tiles_by_direction
+            .get_mut(&selected_direction)
+        else {
+            continue;
+        };
+
+        let Some(entity) = tiles.pop() else {
+            continue;
+        };
+
+        // Animate this single tile
+        // 为这个单一瓦片添加动画
+        // ========== ANIMATION DURATION ==========
+        // Duration of each tile's scale animation (in milliseconds).
+        // 每个瓦片缩放动画的持续时间（毫秒）。
+        let animation_duration_ms = 500; // <-- ADJUST THIS VALUE TO CHANGE ANIMATION SPEED / 调整此值以更改动画速度
+        let animation_duration = Duration::from_millis(animation_duration_ms);
+
+        commands.entity(entity).insert(AnimatingTile {
+            animation_timer: Timer::from_seconds(animation_duration_ms as f32 / 1000.0, TimerMode::Once),
+        });
+        commands.entity(entity).animation().insert_tween_here(
+            animation_duration,
+            // ========== ANIMATION EASING ==========
+            // Easing function for the scale animation.
+            // 缩放动画的缓动函数。
+            EaseKind::BackOut,
+            entity.into_target().with(ScaleInterpolator {
+                start: Vec3::ZERO,
+                end: Vec3::ONE,
+            }),
+        );
+    }
+
+    // Check if we should advance to the next step
+    // Only advance if all pending tiles have been revealed
+    // 检查是否应该前进到下一步
+    // 只有当所有待揭示瓦片都已揭示时才前进
+    let all_empty = reveal_state
+        .pending_tiles_by_direction
+        .values()
+        .all(|v| v.is_empty());
+
+    if all_empty {
         reveal_state.current_step += 1;
+        reveal_state.pending_tiles_by_direction.clear();
+        // Don't reset used_directions here - let the cycle continue across steps
+        // 这里不重置 used_directions - 让周期跨步骤继续
 
         if reveal_state.current_step > reveal_state.max_distance {
             reveal_state.all_triggered = true;

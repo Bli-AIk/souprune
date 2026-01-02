@@ -164,9 +164,14 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     // Smooth, continuous alpha-based animation without any stepping
     // 完全连续的基于alpha的动画，无任何步进
     
-    // Calculate overall animation progress (0 = start, 1 = complete)
-    // 计算整体动画进度（0 = 开始，1 = 完成）
-    let global_progress = clamp((1.0 - fade) * 3.0, 0.0, 1.0);
+    // When fade = 1.0 (initial state), tile should be fully visible and white
+    // The animation progresses as fade decreases from 1.0 to 0.5
+    // 当 fade = 1.0（初始状态）时，瓦片应完全可见且为白色
+    // 动画随着 fade 从 1.0 减少到 0.5 而进行
+    
+    // Calculate overall animation progress (0 = start/white, 1 = complete/normal)
+    // 计算整体动画进度（0 = 开始/白色，1 = 完成/正常）
+    let global_progress = clamp((1.0 - fade) * 2.0, 0.0, 1.0);
     
     // Each pixel has staggered timing for wave effect
     // Use smaller offset range (0-0.3) for smoother overall flow
@@ -191,9 +196,11 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     // 应用额外的 ease-out 以实现更柔和的结束
     let eased_progress = smooth_progress * (2.0 - smooth_progress);
     
-    // Final alpha with hard cutoff only at the very end to ensure clean result
-    // 最终 alpha，仅在最末端硬截断以确保干净结果
-    let pixel_alpha = select(eased_progress, 1.0, fade <= 0.48);
+    // Alpha is always 1.0 - tiles are always fully visible
+    // The "animation" is in the color transition, not alpha
+    // Alpha 始终为 1.0 - 瓦片始终完全可见
+    // "动画"在于颜色过渡，而不是 alpha
+    let pixel_alpha = 1.0;
     
     return vec4<f32>(final_color, final_color, final_color, tex_color.a * pixel_alpha);
 }
