@@ -1,11 +1,11 @@
-// Demo FRE Rules for Overworld
-// 演示 Overworld 的 FRE 规则
+// Demo FRE Rules for Overworld (Experimental Feature)
+// 演示 Overworld 的 FRE 规则（实验性功能）
 //
-// This file demonstrates the data-driven rule system.
-// Walk into the trigger zone 3 times to set HP to 42.
+// This file demonstrates the data-driven rule system with danmaku integration.
+// Walk into the trigger zone to trigger a danmaku performance immediately.
 //
-// 此文件演示数据驱动的规则系统。
-// 走进触发区域 3 次将 HP 设置为 42。
+// 此文件演示数据驱动的规则系统与弹幕系统的整合。
+// 走进触发区域将立即触发弹幕演出。
 
 (
     version: 1,
@@ -17,8 +17,8 @@
     },
 
     rules: [
-        // Rule 1: Increment counter on every trigger entry
-        // 规则 1：每次进入触发器时增加计数器
+        // Rule 1: Increment counter and trigger danmaku on every trigger entry
+        // 规则 1：每次进入触发器时增加计数器并触发弹幕
         (
             id: "demo_increment_visit",
             trigger: "trigger_enter_demo_trigger",
@@ -26,42 +26,11 @@
             modifications: [
                 Increment(key: "demo_area_visit_count", amount: 1),
             ],
+            actions: [
+                Log(message: "Player entered trigger zone - spawning danmaku!"),
+            ],
             outputs: ["demo_visit_updated"],
             priority: 10,
-        ),
-
-        // Rule 2: On the 3rd visit, trigger HP change
-        // 规则 2：第 3 次访问时触发 HP 变化
-        (
-            id: "demo_set_hp_on_third_visit",
-            trigger: "demo_visit_updated",
-            condition: Equals(key: "demo_area_visit_count", value: Int(3)),
-            actions: [
-                Log(message: "Triggering HP change to 42!"),
-                Custom(
-                    action_type: "SetPlayerHP",
-                    params: {
-                        "value": "42",
-                    },
-                ),
-            ],
-            outputs: ["demo_hp_change_requested"],
-            priority: 5,
-        ),
-
-        // Rule 3: Log when HP change is complete
-        // 规则 3：HP 变化完成时记录日志
-        (
-            id: "demo_hp_change_complete",
-            trigger: "demo_hp_change_requested",
-            condition: Always,
-            actions: [
-                Log(message: "HP has been set to 42! The demo rule system is working."),
-            ],
-            modifications: [
-                Set(key: "demo_hp_changed", value: Bool(true)),
-            ],
-            priority: 0,
         ),
     ],
 )

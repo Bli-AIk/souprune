@@ -24,6 +24,7 @@ pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;
     use crate::app_state::overworld::tilemap::*;
+    #[cfg(feature = "experimental")]
     use crate::app_state::overworld::trigger::TriggerZone;
     use crate::core::collision::{PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::prelude::*;
@@ -60,12 +61,14 @@ pub mod debug_collider {
                 (
                     toggle_collider_visibility_system,
                     render_rect_colliders_system,
-                    render_trigger_zones_system,
                     update_collider_visualizer_positions_system,
                     render_battle_colliders_system,
                     update_battle_collider_visualizer_positions_system,
                 ),
             );
+
+        #[cfg(feature = "experimental")]
+        app.add_systems(Update, render_trigger_zones_system);
     }
 
     /// Set up the root entity for debug visualizers.
@@ -136,8 +139,7 @@ pub mod debug_collider {
         battle_physics_colliders: Query<Entity, With<PhysicsCollider>>,
         battle_trigger_colliders: Query<Entity, With<TriggerCollider>>,
         battle_boxes: Query<Entity, With<crate::app_state::battle::collision::BattleBox>>,
-        // Query for FRE trigger zones
-        fre_trigger_zones: Query<Entity, With<TriggerZone>>,
+        #[cfg(feature = "experimental")] fre_trigger_zones: Query<Entity, With<TriggerZone>>,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         let Ok(debug_root_entity) = debug_root.single() else {
@@ -158,13 +160,18 @@ pub mod debug_collider {
         //
         // 对于已失去碰撞体的实体，移除其对应的可视化器。
         for (visualizer_entity, visualizer) in existing_visualizers.iter() {
-            let parent_exists = player_colliders.get(visualizer.parent).is_ok()
+            let mut parent_exists = player_colliders.get(visualizer.parent).is_ok()
                 || tilemap_colliders.get(visualizer.parent).is_ok()
                 || object_colliders.get(visualizer.parent).is_ok()
                 || battle_physics_colliders.get(visualizer.parent).is_ok()
                 || battle_trigger_colliders.get(visualizer.parent).is_ok()
-                || battle_boxes.get(visualizer.parent).is_ok()
-                || fre_trigger_zones.get(visualizer.parent).is_ok();
+                || battle_boxes.get(visualizer.parent).is_ok();
+
+            #[cfg(feature = "experimental")]
+            {
+                parent_exists = parent_exists || fre_trigger_zones.get(visualizer.parent).is_ok();
+            }
+
             if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
             }
@@ -268,8 +275,11 @@ pub mod debug_collider {
     }
 
     /// System to render FRE TriggerZone entities (cyan color).
+    /// Only available with the `experimental` feature.
     ///
     /// 渲染 FRE TriggerZone 实体的系统（青色）。
+    /// 仅在启用 `experimental` 特性时可用。
+    #[cfg(feature = "experimental")]
     #[allow(clippy::type_complexity)]
     fn render_trigger_zones_system(
         mut commands: Commands,

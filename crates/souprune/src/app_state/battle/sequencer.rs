@@ -47,6 +47,7 @@ use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
+use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
 
@@ -454,6 +455,7 @@ fn process_player_spawn_requests(
                     mode_id: config.default_mode_id.clone(),
                 },
                 BehaviorVelocity::default(),
+                BulletTarget::new(),
                 crate::app_state::battle::BattleEntity,
                 Name::new("BattlePlayer"),
             ));

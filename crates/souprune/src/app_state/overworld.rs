@@ -19,10 +19,14 @@ use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
+#[cfg(feature = "experimental")]
+use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
+
 pub(crate) mod character;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
+#[cfg(feature = "experimental")]
 pub mod trigger;
 pub(crate) mod ui;
 
@@ -46,6 +50,12 @@ pub(crate) enum OverworldState {
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OverworldUpdate;
 
+/// System set for FRE trigger processing (experimental).
+/// Runs before DanmakuUpdate to ensure PlayPerformanceEvent is written first.
+#[cfg(feature = "experimental")]
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FRETriggerSet;
+
 pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
@@ -63,15 +73,10 @@ impl Plugin for OverworldPlugin {
             player::PlayerPlugin,
             character::CharacterPlugin,
             crate::core::ui::CoreUIPlugin,
-            bevy_fact_rule_event::FREPlugin,
         ))
-        .init_resource::<trigger::LoadedRuleSets>()
         .add_systems(
             OnEnter(AppState::Overworld),
-            (
-                create_overworld_entities_system,
-                trigger::setup_action_handlers_system,
-            ),
+            create_overworld_entities_system,
         )
         .add_systems(
             OnExit(AppState::Overworld),
@@ -89,19 +94,6 @@ impl Plugin for OverworldPlugin {
                 .in_set(OverworldUpdate),
         )
         .add_systems(
-            Update,
-            (
-                trigger::load_fre_rules_system,
-                trigger::register_loaded_rules_system,
-                trigger::spawn_demo_trigger_zone_system,
-                trigger::trigger_zone_detection_system,
-                trigger::apply_hp_change_system,
-                trigger::log_fact_changes_system,
-            )
-                .chain()
-                .in_set(OverworldUpdate),
-        )
-        .add_systems(
             OnEnter(OverworldState::Backpack),
             player::force_player_idle_on_state_change_system,
         )
@@ -109,11 +101,56 @@ impl Plugin for OverworldPlugin {
             OnEnter(OverworldState::Cutscene),
             player::force_player_idle_on_state_change_system,
         );
+
+        // Experimental features: FRE + Danmaku integration
+        #[cfg(feature = "experimental")]
+        {
+            use crate::app_state::AppState;
+
+            app.add_plugins(bevy_fact_rule_event::FREPlugin)
+                // Configure FRETriggerSet to run in OverworldUpdate
+                .configure_sets(Update, FRETriggerSet.in_set(OverworldUpdate))
+                // Configure DanmakuUpdate to run when in either Battle OR Overworld state
+                // This allows the danmaku systems to work in both modes without conflicting in_set
+                .configure_sets(
+                    Update,
+                    DanmakuUpdate
+                        .run_if(in_state(AppState::Battle).or(in_state(AppState::Overworld)))
+                        .after(FRETriggerSet),
+                )
+                .init_resource::<trigger::LoadedRuleSets>()
+                .add_systems(
+                    OnEnter(AppState::Overworld),
+                    (
+                        trigger::setup_action_handlers_system,
+                        set_overworld_danmaku_context,
+                    ),
+                )
+                .add_systems(
+                    Update,
+                    (
+                        trigger::load_fre_rules_system,
+                        trigger::register_loaded_rules_system,
+                        trigger::spawn_demo_trigger_zone_system,
+                        trigger::trigger_zone_detection_system,
+                        trigger::play_danmaku_on_trigger_system,
+                        trigger::log_fact_changes_system,
+                    )
+                        .chain()
+                        .in_set(FRETriggerSet),
+                );
+        }
     }
 }
 
 fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::SpawnPlayerRequest>) {
     spawn_events.write(player::SpawnPlayerRequest);
+}
+
+#[cfg(feature = "experimental")]
+fn set_overworld_danmaku_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
+    *spawn_context = DanmakuSpawnContext::Overworld;
+    info!("Danmaku: Set spawn context to Overworld");
 }
 
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]

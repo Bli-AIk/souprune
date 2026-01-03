@@ -347,9 +347,10 @@ fn generate_object_colliders(
                     });
                 }
 
-                // Check if this object has trigger property set to true
+                // Check if this object has trigger property set to true (experimental feature)
                 //
-                // 检查此对象是否将触发器属性设置为 true
+                // 检查此对象是否将触发器属性设置为 true（实验性功能）
+                #[cfg(feature = "experimental")]
                 if let Some(trigger_value) = object_data.properties.get("trigger")
                     && let tiled::PropertyValue::BoolValue(true) = trigger_value
                 {

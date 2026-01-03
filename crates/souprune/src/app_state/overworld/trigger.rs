@@ -9,11 +9,16 @@
 //! 基于 FRE 的 Overworld 区域触发器。
 //! 处理触发区域检测并发出 FRE 事件。
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
+//!
+//! NOTE: This module is only available with the `experimental` feature.
+//! 注意：此模块仅在启用 `experimental` 特性时可用。
+
+#![cfg(feature = "experimental")]
 
 use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
-use crate::core::data::PlayerData;
+use crate::core::danmaku::PlayPerformanceEvent;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactDatabase, FactEvent, FactEventId, FactValueDef, RuleActionDef,
@@ -109,7 +114,7 @@ pub fn spawn_demo_trigger_zone_system(
         "FRE: Spawned demo trigger zone at ({:.1}, {:.1})",
         trigger_pos.x, trigger_pos.y
     );
-    info!("FRE: Walk into the cyan box (press F3 to see it) 3 times to set HP to 42");
+    info!("FRE: Walk into the cyan box (press F3 to see it) to trigger danmaku!");
 }
 
 /// System to detect player entering/exiting trigger zones and emit FRE events.
@@ -228,24 +233,39 @@ pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRe
     info!("FRE: Custom action handlers registered");
 }
 
-/// System to apply HP changes when the FRE rule triggers.
-/// This handles the actual HP modification that was requested by the RON rules.
+/// System to play danmaku performance when player enters trigger zone.
+/// Triggers immediately on first entry.
 ///
-/// 当 FRE 规则触发时应用 HP 变化的系统。
-/// 处理由 RON 规则请求的实际 HP 修改。
-pub fn apply_hp_change_system(
+/// 当玩家进入触发区域时播放弹幕演出的系统。
+/// 首次进入时立即触发。
+pub fn play_danmaku_on_trigger_system(
     mut events: MessageReader<FactEvent>,
-    mut player_data: ResMut<PlayerData>,
+    mut performance_writer: MessageWriter<PlayPerformanceEvent>,
+    player_query: Query<&Transform, With<PlayerControlled>>,
     fact_db: Res<FactDatabase>,
 ) {
     for event in events.read() {
-        if event.id == FactEventId::new("demo_hp_change_requested") {
+        // Trigger on every entry (demo_visit_updated is emitted on each entry)
+        if event.id == FactEventId::new("demo_visit_updated") {
             let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+
+            // Get player position for spawning performance
+            let spawn_pos = player_query
+                .iter()
+                .next()
+                .map(|t| t.translation.truncate())
+                .unwrap_or(Vec2::ZERO);
+
             info!(
-                "FRE: Setting player HP to 42 (visit count: {})",
-                visit_count
+                "FRE: Playing danmaku performance at {:?} (visit count: {})",
+                spawn_pos, visit_count
             );
-            player_data.hp = 42;
+
+            // Play danmaku performance from the new location
+            performance_writer.write(
+                PlayPerformanceEvent::new("danmaku/demo_attack.performance.ron")
+                    .at_position(spawn_pos),
+            );
         }
     }
 }

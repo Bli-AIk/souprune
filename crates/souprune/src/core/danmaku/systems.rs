@@ -1,17 +1,22 @@
-//! # systems.rs
+//! # danmaku/systems.rs
 //!
 //! ## Module Overview
 //!
 //! Implements runtime systems for the timeline-based danmaku system.
+//! This is the core state-agnostic implementation.
 //!
 //! 实现基于时间轴的弹幕系统的运行时系统。
+//! 这是与状态无关的核心实现。
 
+use super::DanmakuSpawnContext;
 use super::components::*;
 use super::patterns::*;
+use super::target::BulletTarget;
 use crate::app_state::battle::BattleEntity;
+use crate::app_state::overworld::OverworldEntity;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
-use crate::core::mod_system::{BehaviorParams, DanmakuRegistry};
+use crate::core::mod_system::DanmakuRegistry;
 use crate::core::sprite::params::SpriteParams;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
@@ -43,17 +48,29 @@ pub fn spawn_performance_players(
     mut commands: Commands,
     mut pending: ResMut<PendingPerformanceLoads>,
     performances: Res<Assets<DanmakuPerformance>>,
+    spawn_context: Res<DanmakuSpawnContext>,
 ) {
     let mut still_pending = Vec::new();
 
     for (handle, event) in pending.pending.drain(..) {
         if performances.get(&handle).is_some() {
-            commands.spawn((
+            let mut entity_commands = commands.spawn((
                 PerformancePlayer::new(event.position),
                 PerformanceHandle(handle.clone()),
                 PerformancePlayerMarker,
                 Name::new("PerformancePlayer"),
             ));
+
+            // Add context-specific marker
+            match *spawn_context {
+                DanmakuSpawnContext::Battle => {
+                    entity_commands.insert(BattleEntity);
+                }
+                DanmakuSpawnContext::Overworld => {
+                    entity_commands.insert(OverworldEntity());
+                }
+            }
+
             info!("Started performance: {}", event.performance_path);
         } else {
             still_pending.push((handle, event));
@@ -75,8 +92,10 @@ pub fn advance_performance_timeline(
     time: Res<Time>,
     performances: Res<Assets<DanmakuPerformance>>,
     danmaku_registry: Res<DanmakuRegistry>,
+    spawn_context: Res<DanmakuSpawnContext>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
-    player_query: Query<&Transform, (With<BehaviorParams>, Without<Bullet>)>,
+    // Use BulletTarget instead of BehaviorParams for generalized targeting
+    player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
 ) {
@@ -121,6 +140,7 @@ pub fn advance_performance_timeline(
                 player.spawn_center,
                 player_pos,
                 &danmaku_registry,
+                &spawn_context,
                 &mut sprite_params,
                 &asset_server,
             );
@@ -167,6 +187,7 @@ fn spawn_bullets_from_timeline_event(
     spawn_center: Vec2,
     player_pos: Vec2,
     danmaku_registry: &DanmakuRegistry,
+    spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
@@ -201,6 +222,7 @@ fn spawn_bullets_from_timeline_event(
             player_pos,
             i,
             danmaku_registry,
+            spawn_context,
             sprite_params,
             asset_server,
         );
@@ -286,6 +308,7 @@ fn spawn_single_bullet(
     player_pos: Vec2,
     index: usize,
     danmaku_registry: &DanmakuRegistry,
+    spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
@@ -310,9 +333,19 @@ fn spawn_single_bullet(
         BehaviorStack::new(behaviors.to_vec()),
         TweenState::default(),
         trigger_collider,
-        BattleEntity,
         Name::new(format!("Bullet_{}", index)),
     ));
+
+    // Add context-specific entity marker
+    // 添加上下文特定的实体标记
+    match spawn_context {
+        DanmakuSpawnContext::Battle => {
+            entity_commands.insert(BattleEntity);
+        }
+        DanmakuSpawnContext::Overworld => {
+            entity_commands.insert(OverworldEntity());
+        }
+    }
 
     // Create ActiveDanmaku instances for Custom behaviors and call on_enter
     // 为 Custom 行为创建 ActiveDanmaku 实例并调用 on_enter
@@ -404,7 +437,8 @@ fn spawn_single_bullet(
 /// 同时处理内置行为和 FFI 算法调用。
 pub fn update_bullet_motion(
     time: Res<Time>,
-    player_query: Query<&Transform, (With<BehaviorParams>, Without<Bullet>)>,
+    // Use BulletTarget for generalized targeting
+    player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     mut query: Query<
         (
             &mut Transform,

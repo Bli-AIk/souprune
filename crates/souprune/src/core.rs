@@ -36,6 +36,7 @@ pub(crate) mod basic_components;
 pub(crate) mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
+pub mod danmaku;
 pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
@@ -75,6 +76,7 @@ impl Plugin for CorePlugin {
                 audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
+                danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 input::InputPlugin,
                 item::ItemPlugin,

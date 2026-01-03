@@ -4,35 +4,38 @@
 //!
 //! ## 模块概述
 //!
-//! Core danmaku (bullet pattern) system for the battle module.
-//! Provides timeline-based infrastructure for spawning, updating, and managing bullets.
+//! Battle-specific danmaku configuration.
+//! This module configures the core danmaku system for battle state.
 //!
-//! 战斗模块的核心弹幕系统。
-//! 提供基于时间轴的生成、更新和管理弹幕的基础设施。
+//! 战斗特定的弹幕配置。
+//! 此模块为战斗状态配置核心弹幕系统。
 
-mod components;
-mod patterns;
-mod systems;
+// Re-export core danmaku types for backwards compatibility
+pub use crate::core::danmaku::*;
 
-pub use patterns::*;
-
-use crate::app_state::battle::BattleUpdate;
-use crate::core::ron_loader::RonAssetLoader;
+use crate::app_state::AppState;
+use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
 use bevy::prelude::*;
 
+/// Battle-specific danmaku plugin.
+/// Configures CoreDanmakuPlugin for battle state.
+///
+/// 战斗特定的弹幕插件。
+/// 为战斗状态配置 CoreDanmakuPlugin。
 pub struct DanmakuPlugin;
 
 impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
-        // === Asset Registration ===
-        app.init_asset::<DanmakuPerformance>()
-            .register_asset_loader(RonAssetLoader::<DanmakuPerformance>::new(&[
-                "performance.ron",
-            ]))
-            .init_resource::<PendingPerformanceLoads>()
-            .add_message::<PlayPerformanceEvent>();
+        // Configure DanmakuUpdate run condition:
+        // When experimental feature is OFF, only run in Battle state
+        // When experimental feature is ON, the run_if is configured in overworld.rs to allow both states
+        #[cfg(not(feature = "experimental"))]
+        app.configure_sets(Update, DanmakuUpdate.run_if(in_state(AppState::Battle)));
 
-        // === Register Reflect Types ===
+        // Set spawn context to Battle when entering battle state
+        app.add_systems(OnEnter(AppState::Battle), set_battle_context);
+
+        // Register reflect types for inspector
         app.register_type::<DanmakuPerformance>()
             .register_type::<BulletPrototype>()
             .register_type::<BulletVisual>()
@@ -47,20 +50,10 @@ impl Plugin for DanmakuPlugin {
             .register_type::<TimelineEvent>()
             .register_type::<SpawnPattern>()
             .register_type::<EdgeSide>();
-
-        // === Systems ===
-        app.add_systems(
-            Update,
-            (
-                systems::process_play_performance_events,
-                systems::spawn_performance_players,
-                systems::advance_performance_timeline,
-                systems::update_bullet_motion,
-                systems::update_bullet_lifetime,
-                systems::cleanup_dead_bullets,
-            )
-                .chain()
-                .in_set(BattleUpdate),
-        );
     }
+}
+
+fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
+    *spawn_context = DanmakuSpawnContext::Battle;
+    info!("Danmaku: Set spawn context to Battle");
 }

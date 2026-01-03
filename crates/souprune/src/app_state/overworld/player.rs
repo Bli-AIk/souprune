@@ -20,6 +20,7 @@
 
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::animation::components::SpriteAnimationClip;
+use crate::core::danmaku::BulletTarget;
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin, Update};
@@ -140,6 +141,7 @@ pub fn spawn_overworld_player(
         Name::new("OverworldPlayer"),
         StateIdle,
         PlayerControlled,
+        BulletTarget::new(),
         state_machine,
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
