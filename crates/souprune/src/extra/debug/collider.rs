@@ -24,6 +24,7 @@ pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;
     use crate::app_state::overworld::tilemap::*;
+    use crate::app_state::overworld::trigger::TriggerZone;
     use crate::core::collision::{PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::prelude::*;
     use bevy_smud::prelude::*;
@@ -59,6 +60,7 @@ pub mod debug_collider {
                 (
                     toggle_collider_visibility_system,
                     render_rect_colliders_system,
+                    render_trigger_zones_system,
                     update_collider_visualizer_positions_system,
                     render_battle_colliders_system,
                     update_battle_collider_visualizer_positions_system,
@@ -134,6 +136,8 @@ pub mod debug_collider {
         battle_physics_colliders: Query<Entity, With<PhysicsCollider>>,
         battle_trigger_colliders: Query<Entity, With<TriggerCollider>>,
         battle_boxes: Query<Entity, With<crate::app_state::battle::collision::BattleBox>>,
+        // Query for FRE trigger zones
+        fre_trigger_zones: Query<Entity, With<TriggerZone>>,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         let Ok(debug_root_entity) = debug_root.single() else {
@@ -159,7 +163,8 @@ pub mod debug_collider {
                 || object_colliders.get(visualizer.parent).is_ok()
                 || battle_physics_colliders.get(visualizer.parent).is_ok()
                 || battle_trigger_colliders.get(visualizer.parent).is_ok()
-                || battle_boxes.get(visualizer.parent).is_ok();
+                || battle_boxes.get(visualizer.parent).is_ok()
+                || fre_trigger_zones.get(visualizer.parent).is_ok();
             if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
             }
@@ -262,6 +267,73 @@ pub mod debug_collider {
         }
     }
 
+    /// System to render FRE TriggerZone entities (cyan color).
+    ///
+    /// 渲染 FRE TriggerZone 实体的系统（青色）。
+    #[allow(clippy::type_complexity)]
+    fn render_trigger_zones_system(
+        mut commands: Commands,
+        mut shaders: ResMut<Assets<Shader>>,
+        settings: Res<ColliderDebugSettings>,
+        debug_root: Query<Entity, With<DebugVisualizerRoot>>,
+        trigger_zones: Query<
+            (Entity, &Transform, &Rect2DCollider, &TriggerZone),
+            (Without<SmudShape>, Without<ColliderVisualizer>),
+        >,
+        existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
+    ) {
+        let Ok(debug_root_entity) = debug_root.single() else {
+            return;
+        };
+
+        if !settings.show_colliders {
+            return;
+        }
+
+        for (entity, transform, collider, trigger_zone) in trigger_zones.iter() {
+            // Skip entities that already own a visualizer.
+            let has_visualizer = existing_visualizers
+                .iter()
+                .any(|(_, vis)| vis.parent == entity);
+            if has_visualizer {
+                continue;
+            }
+
+            // Build a thin-border SDF (cyan color for trigger zones)
+            let border_sdf = shaders.add_sdf_expr(format!(
+                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
+                collider.size.x / 2.0,
+                collider.size.y / 2.0,
+                0.125
+            ));
+
+            let frame_size = (collider.size.x.max(collider.size.y) / 2.0) + 2.0;
+            let final_position = transform.translation + collider.offset.extend(0.1);
+
+            // Use cyan color for trigger zones to distinguish from colliders
+            let color = if trigger_zone.player_inside {
+                Color::hsl(180.0, 1.0, 0.7) // Brighter cyan when active
+            } else {
+                Color::hsl(180.0, 1.0, 0.5) // Normal cyan
+            };
+
+            commands.entity(debug_root_entity).with_children(|parent| {
+                parent.spawn((
+                    ColliderVisualizer { parent: entity },
+                    SmudShape {
+                        color,
+                        sdf: border_sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill: SIMPLE_FILL_HANDLE,
+                        ..default()
+                    },
+                    Transform::from_translation(final_position),
+                    Name::new(format!("TriggerZone_{}", trigger_zone.id)),
+                ));
+            });
+        }
+    }
+
     /// Update visualizer positions when parent transforms change.
     ///
     /// 当父变换改变时更新可视化器位置的系统。
@@ -285,6 +357,7 @@ pub mod debug_collider {
     ///
     /// Battle 碰撞体（物理碰撞体和触发器）的渲染系统
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::type_complexity)]
     fn render_battle_colliders_system(
         mut commands: Commands,
         mut shaders: ResMut<Assets<Shader>>,

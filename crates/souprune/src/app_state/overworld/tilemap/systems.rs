@@ -304,26 +304,29 @@ fn generate_object_colliders(
             );
 
             for object_data in object_layer.objects() {
+                let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+                    continue;
+                };
+
+                // Calculate world position (same coordinate system as tilemap)
+                // Tiled uses top-left origin, convert to center-based
+                //
+                // 计算世界位置（与瓦片地图坐标系相同）
+                // Tiled 使用左上角原点，转换为基于中心
+                let world_x = center_offset_x + object_data.x + width / 2.0;
+                let world_y = center_offset_y
+                    + (tiled_map_asset.map.height as f32 * tile_height
+                        - object_data.y
+                        - height / 2.0);
+
+                let size = Vec2::new(width, height);
+
                 // Check if this object has collision property set to true
                 //
                 // 检查此对象是否将碰撞属性设置为 true
                 if let Some(collision_value) = object_data.properties.get("collision")
                     && let tiled::PropertyValue::BoolValue(true) = collision_value
-                    && let tiled::ObjectShape::Rect { width, height } = object_data.shape
                 {
-                    // Calculate world position (same coordinate system as tilemap)
-                    // Tiled uses top-left origin, convert to center-based
-                    //
-                    // 计算世界位置（与瓦片地图坐标系相同）
-                    // Tiled 使用左上角原点，转换为基于中心
-                    let world_x = center_offset_x + object_data.x + width / 2.0;
-                    let world_y = center_offset_y
-                        + (tiled_map_asset.map.height as f32 * tile_height
-                            - object_data.y
-                            - height / 2.0);
-
-                    let size = Vec2::new(width, height);
-
                     info!(
                         "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
                         object_data.name, world_x, world_y, width, height
@@ -340,6 +343,43 @@ fn generate_object_colliders(
                             Transform::from_xyz(world_x, world_y, 0.0),
                             Visibility::Hidden,
                             Name::new(format!("ObjectCollision_{}", object_data.name)),
+                        ));
+                    });
+                }
+
+                // Check if this object has trigger property set to true
+                //
+                // 检查此对象是否将触发器属性设置为 true
+                if let Some(trigger_value) = object_data.properties.get("trigger")
+                    && let tiled::PropertyValue::BoolValue(true) = trigger_value
+                {
+                    // Get trigger ID from name or id property
+                    let trigger_id = if let Some(id_value) =
+                        object_data.properties.get("trigger_id")
+                        && let tiled::PropertyValue::StringValue(id) = id_value
+                    {
+                        id.clone()
+                    } else if !object_data.name.is_empty() {
+                        object_data.name.clone()
+                    } else {
+                        format!("trigger_{}", object_data.id())
+                    };
+
+                    info!(
+                        "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
+                        trigger_id, world_x, world_y, width, height
+                    );
+
+                    // Spawn trigger zone entity
+                    //
+                    // 创建触发区域实体
+                    commands.entity(parent_entity).with_children(|parent| {
+                        parent.spawn((
+                            crate::app_state::overworld::trigger::TriggerZone::new(&trigger_id),
+                            Rect2DCollider::new(size, Vec2::ZERO),
+                            Transform::from_xyz(world_x, world_y, 0.0),
+                            Visibility::Hidden,
+                            Name::new(format!("TriggerZone_{}", trigger_id)),
                         ));
                     });
                 }

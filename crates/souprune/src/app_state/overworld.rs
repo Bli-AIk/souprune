@@ -23,6 +23,7 @@ pub(crate) mod character;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
+pub mod trigger;
 pub(crate) mod ui;
 
 /// Marker component for overworld entities
@@ -62,10 +63,14 @@ impl Plugin for OverworldPlugin {
             player::PlayerPlugin,
             character::CharacterPlugin,
             crate::core::ui::CoreUIPlugin,
+            bevy_fact_rule_event::FREPlugin,
         ))
         .add_systems(
             OnEnter(AppState::Overworld),
-            create_overworld_entities_system,
+            (
+                create_overworld_entities_system,
+                trigger::setup_demo_fre_rules,
+            ),
         )
         .add_systems(
             OnExit(AppState::Overworld),
@@ -80,6 +85,17 @@ impl Plugin for OverworldPlugin {
             collision::player_tilemap_collision_system
                 .after(character::MovementSet)
                 .before(crate::core::camera::CameraUpdateSet)
+                .in_set(OverworldUpdate),
+        )
+        .add_systems(
+            Update,
+            (
+                trigger::spawn_demo_trigger_zone_system,
+                trigger::trigger_zone_detection_system,
+                trigger::apply_hp_change_system,
+                trigger::log_fact_changes_system,
+            )
+                .chain()
                 .in_set(OverworldUpdate),
         )
         .add_systems(
