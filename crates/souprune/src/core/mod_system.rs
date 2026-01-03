@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use libloading::{Library, Symbol};
 use souprune_api::{
-    Action, BehaviorInstance, BulletContextC, BulletOutputC, ContextHandle, CreateBehaviorFn,
-    CreateDanmakuFn, DanmakuInstance, GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn,
-    GetBehaviorIdFn, HostApi,
+    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, CreateDanmakuFn, DanmakuInstance,
+    GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn, GetBehaviorIdFn, HostApi,
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};

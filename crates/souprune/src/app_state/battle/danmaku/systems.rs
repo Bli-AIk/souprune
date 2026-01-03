@@ -336,7 +336,7 @@ fn spawn_single_bullet(
                     player_x: player_pos.x,
                     player_y: player_pos.y,
                     props: props_ptr,
-                    props_len: props_len,
+                    props_len,
                     params: std::ptr::null(),
                     params_len: 0,
                 };
@@ -519,7 +519,7 @@ pub fn update_bullet_motion(
                 player_x: player_pos.x,
                 player_y: player_pos.y,
                 props: props_ptr,
-                props_len: props_len,
+                props_len,
                 params: danmaku.params.as_ptr(),
                 params_len: danmaku.params.len(),
             };

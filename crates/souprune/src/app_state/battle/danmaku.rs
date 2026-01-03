@@ -14,7 +14,6 @@ mod components;
 mod patterns;
 mod systems;
 
-pub use components::*;
 pub use patterns::*;
 
 use crate::app_state::battle::BattleUpdate;

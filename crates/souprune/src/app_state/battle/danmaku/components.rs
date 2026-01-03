@@ -111,7 +111,7 @@ impl BulletMotionState {
 ///
 /// 弹幕的行为栈组件。
 /// 包含每帧都会评估的活跃行为列表。
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Default)]
 pub struct BehaviorStack {
     /// List of active behaviors
     pub behaviors: Vec<BulletBehavior>,
@@ -130,15 +130,6 @@ impl BehaviorStack {
     pub fn with_cached_params(mut self, params: Vec<f32>) -> Self {
         self.cached_params = params;
         self
-    }
-}
-
-impl Default for BehaviorStack {
-    fn default() -> Self {
-        Self {
-            behaviors: Vec::new(),
-            cached_params: Vec::new(),
-        }
     }
 }
 
@@ -284,10 +275,10 @@ impl ActiveDanmaku {
 impl Drop for ActiveDanmaku {
     fn drop(&mut self) {
         // Call on_exit if initialized
-        if self.initialized {
-            if let Some(on_exit) = self.instance.vtable.on_exit {
-                on_exit(self.instance.instance);
-            }
+        if self.initialized
+            && let Some(on_exit) = self.instance.vtable.on_exit
+        {
+            on_exit(self.instance.instance);
         }
         // Critical: Call destroy to free memory on the guest side
         if let Some(destroy) = self.instance.vtable.destroy {

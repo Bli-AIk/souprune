@@ -376,9 +376,10 @@ pub struct TimelineEvent {
 ///
 /// 时间轴事件的生成模式。
 /// 内置的几何图案用于弹幕排列。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
 pub enum SpawnPattern {
     /// Spawn a single bullet at center
+    #[default]
     Single,
 
     /// Spawn bullets in a ring/circle
@@ -416,12 +417,6 @@ pub enum SpawnPattern {
         #[serde(default)]
         params: HashMap<String, f32>,
     },
-}
-
-impl Default for SpawnPattern {
-    fn default() -> Self {
-        SpawnPattern::Single
-    }
 }
 
 /// Which screen edge to spawn from.

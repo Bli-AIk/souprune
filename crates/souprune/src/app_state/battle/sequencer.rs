@@ -138,7 +138,7 @@ fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<Entit
             }
         }
         Chapter::Sequence(children) => {
-            if !parent.is_none() {
+            if parent.is_some() {
                 warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
                 commands.entity(entity).insert(ParallelTracker {
                     pending_count: children.len(),
@@ -206,13 +206,13 @@ fn cleanup_finished_chapters_system(
     mut parallel_parents: Query<&mut ParallelTracker>,
 ) {
     for (entity, chapter) in finished_query.iter() {
-        if let Some(parent_entity) = chapter.parent {
-            if let Ok(mut tracker) = parallel_parents.get_mut(parent_entity) {
-                tracker.pending_count = tracker.pending_count.saturating_sub(1);
-                if tracker.pending_count == 0 {
-                    // Parent finished!
-                    commands.entity(parent_entity).insert(ChapterFinished);
-                }
+        if let Some(parent_entity) = chapter.parent
+            && let Ok(mut tracker) = parallel_parents.get_mut(parent_entity)
+        {
+            tracker.pending_count = tracker.pending_count.saturating_sub(1);
+            if tracker.pending_count == 0 {
+                // Parent finished!
+                commands.entity(parent_entity).insert(ChapterFinished);
             }
         }
 
