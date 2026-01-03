@@ -27,6 +27,10 @@ fn default_z_index() -> f32 {
     15.0
 }
 
+fn default_scale() -> f32 {
+    1.0
+}
+
 fn default_frame_duration() -> f32 {
     0.05
 }
@@ -118,6 +122,10 @@ pub struct BulletPrototype {
     /// Z-index for rendering order
     #[serde(default = "default_z_index")]
     pub z_index: f32,
+
+    /// Scale factor (default: 1.0)
+    #[serde(default = "default_scale")]
+    pub scale: f32,
 }
 
 /// Visual representation of a bullet.

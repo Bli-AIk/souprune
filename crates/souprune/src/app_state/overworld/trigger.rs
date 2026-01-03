@@ -234,10 +234,10 @@ pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRe
 }
 
 /// System to play danmaku performance when player enters trigger zone.
-/// Triggers immediately on first entry.
+/// Only triggers on the 3rd visit.
 ///
 /// 当玩家进入触发区域时播放弹幕演出的系统。
-/// 首次进入时立即触发。
+/// 仅在第三次访问时触发。
 pub fn play_danmaku_on_trigger_system(
     mut events: MessageReader<FactEvent>,
     mut performance_writer: MessageWriter<PlayPerformanceEvent>,
@@ -245,27 +245,35 @@ pub fn play_danmaku_on_trigger_system(
     fact_db: Res<FactDatabase>,
 ) {
     for event in events.read() {
-        // Trigger on every entry (demo_visit_updated is emitted on each entry)
+        // Only trigger on the 3rd entry
         if event.id == FactEventId::new("demo_visit_updated") {
             let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
 
-            // Get player position for spawning performance
-            let spawn_pos = player_query
-                .iter()
-                .next()
-                .map(|t| t.translation.truncate())
-                .unwrap_or(Vec2::ZERO);
+            // Only play danmaku on exactly the 3rd visit
+            if visit_count == 3 {
+                // Get player position for spawning performance
+                let spawn_pos = player_query
+                    .iter()
+                    .next()
+                    .map(|t| t.translation.truncate())
+                    .unwrap_or(Vec2::ZERO);
 
-            info!(
-                "FRE: Playing danmaku performance at {:?} (visit count: {})",
-                spawn_pos, visit_count
-            );
+                info!(
+                    "FRE: Playing danmaku performance at {:?} (3rd visit)",
+                    spawn_pos
+                );
 
-            // Play danmaku performance from the new location
-            performance_writer.write(
-                PlayPerformanceEvent::new("danmaku/demo_attack.performance.ron")
-                    .at_position(spawn_pos),
-            );
+                // Play Overworld-specific danmaku performance with 0.5x scale
+                performance_writer.write(
+                    PlayPerformanceEvent::new("danmaku/demo_attack_ow.performance.ron")
+                        .at_position(spawn_pos),
+                );
+            } else {
+                info!(
+                    "FRE: Trigger entered (visit count: {}), waiting for 3rd visit",
+                    visit_count
+                );
+            }
         }
     }
 }

@@ -149,7 +149,7 @@ fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::Spaw
 
 #[cfg(feature = "experimental")]
 fn set_overworld_danmaku_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
-    *spawn_context = DanmakuSpawnContext::Overworld;
+    *spawn_context = DanmakuSpawnContext::overworld();
     info!("Danmaku: Set spawn context to Overworld");
 }
 

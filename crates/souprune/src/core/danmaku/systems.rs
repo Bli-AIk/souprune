@@ -50,6 +50,8 @@ pub fn spawn_performance_players(
     performances: Res<Assets<DanmakuPerformance>>,
     spawn_context: Res<DanmakuSpawnContext>,
 ) {
+    use super::DanmakuActiveState;
+
     let mut still_pending = Vec::new();
 
     for (handle, event) in pending.pending.drain(..) {
@@ -62,11 +64,11 @@ pub fn spawn_performance_players(
             ));
 
             // Add context-specific marker
-            match *spawn_context {
-                DanmakuSpawnContext::Battle => {
+            match spawn_context.state {
+                DanmakuActiveState::Battle => {
                     entity_commands.insert(BattleEntity);
                 }
-                DanmakuSpawnContext::Overworld => {
+                DanmakuActiveState::Overworld => {
                     entity_commands.insert(OverworldEntity());
                 }
             }
@@ -312,18 +314,24 @@ fn spawn_single_bullet(
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
-    // Convert ColliderShape to TriggerCollider
-    // 将 ColliderShape 转换为 TriggerCollider
+    use super::DanmakuActiveState;
+
+    // Get scale from prototype
+    let scale = prototype.scale;
+
+    // Convert ColliderShape to TriggerCollider, scaled by prototype.scale
+    // 将 ColliderShape 转换为 TriggerCollider，根据 prototype.scale 缩放
     let trigger_collider = match &prototype.collider {
-        ColliderShape::CircleCollider(r) => TriggerCollider::Circle { radius: *r },
+        ColliderShape::CircleCollider(r) => TriggerCollider::Circle { radius: *r * scale },
         ColliderShape::BoxCollider(w, h) => TriggerCollider::Box {
-            half_size: Vec2::new(*w, *h),
+            half_size: Vec2::new(*w * scale, *h * scale),
         },
     };
 
     let mut entity_commands = commands.spawn((
         Bullet,
-        Transform::from_translation(position.extend(prototype.z_index)),
+        Transform::from_translation(position.extend(prototype.z_index))
+            .with_scale(Vec3::splat(scale)),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),
         BulletMotionState::new(spawn_center)
@@ -338,11 +346,11 @@ fn spawn_single_bullet(
 
     // Add context-specific entity marker
     // 添加上下文特定的实体标记
-    match spawn_context {
-        DanmakuSpawnContext::Battle => {
+    match spawn_context.state {
+        DanmakuActiveState::Battle => {
             entity_commands.insert(BattleEntity);
         }
-        DanmakuSpawnContext::Overworld => {
+        DanmakuActiveState::Overworld => {
             entity_commands.insert(OverworldEntity());
         }
     }

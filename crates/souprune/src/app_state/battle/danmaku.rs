@@ -14,7 +14,9 @@
 pub use crate::core::danmaku::*;
 
 use crate::app_state::AppState;
-use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
+use crate::core::danmaku::DanmakuSpawnContext;
+#[cfg(not(feature = "experimental"))]
+use crate::core::danmaku::DanmakuUpdate;
 use bevy::prelude::*;
 
 /// Battle-specific danmaku plugin.
@@ -54,6 +56,6 @@ impl Plugin for DanmakuPlugin {
 }
 
 fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
-    *spawn_context = DanmakuSpawnContext::Battle;
+    *spawn_context = DanmakuSpawnContext::battle();
     info!("Danmaku: Set spawn context to Battle");
 }

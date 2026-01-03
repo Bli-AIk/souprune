@@ -34,18 +34,43 @@ use crate::core::ron_loader::RonAssetLoader;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DanmakuUpdate;
 
+/// The active state for danmaku spawning.
+///
+/// 弹幕生成的活动状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DanmakuActiveState {
+    /// Battle state (adds BattleEntity marker)
+    #[default]
+    Battle,
+    /// Overworld state (adds OverworldEntity marker)
+    Overworld,
+}
+
 /// Resource to configure danmaku spawning context.
 /// Determines which entity marker to add to spawned bullets.
 ///
 /// 配置弹幕生成上下文的资源。
 /// 决定将哪种实体标记添加到生成的弹幕上。
 #[derive(Resource, Debug, Clone, Default)]
-pub enum DanmakuSpawnContext {
-    /// Spawn bullets for Battle state (adds BattleEntity marker)
-    #[default]
-    Battle,
-    /// Spawn bullets for Overworld state (adds OverworldEntity marker)
-    Overworld,
+pub struct DanmakuSpawnContext {
+    /// The active state for spawning (Battle or Overworld)
+    pub state: DanmakuActiveState,
+}
+
+impl DanmakuSpawnContext {
+    /// Create a new context for Battle state.
+    pub fn battle() -> Self {
+        Self {
+            state: DanmakuActiveState::Battle,
+        }
+    }
+
+    /// Create a new context for Overworld state.
+    pub fn overworld() -> Self {
+        Self {
+            state: DanmakuActiveState::Overworld,
+        }
+    }
 }
 
 /// Core danmaku plugin - provides state-agnostic bullet system.
