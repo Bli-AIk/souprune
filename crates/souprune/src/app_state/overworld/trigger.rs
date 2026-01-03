@@ -219,14 +219,13 @@ pub fn register_loaded_rules_system(
 pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
     // Register the SetPlayerHP action handler
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
-            if let Some(value_str) = params.get("value") {
-                if let Ok(hp) = value_str.parse::<usize>() {
-                    info!("FRE Action: SetPlayerHP requested with value {}", hp);
-                    // Note: Actual HP change is handled by apply_hp_change_system
-                    // because we can't access PlayerData from Commands
-                }
-            }
+        if let RuleActionDef::Custom { params, .. } = action
+            && let Some(value_str) = params.get("value")
+            && let Ok(hp) = value_str.parse::<usize>()
+        {
+            info!("FRE Action: SetPlayerHP requested with value {}", hp);
+            // Note: Actual HP change is handled by apply_hp_change_system
+            // because we can't access PlayerData from Commands
         }
     });
 
