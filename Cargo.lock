@@ -887,7 +887,10 @@ dependencies = [
 name = "bevy_fact_rule_event"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "bevy",
+ "ron",
+ "serde",
 ]
 
 [[package]]

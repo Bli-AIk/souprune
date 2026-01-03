@@ -65,11 +65,12 @@ impl Plugin for OverworldPlugin {
             crate::core::ui::CoreUIPlugin,
             bevy_fact_rule_event::FREPlugin,
         ))
+        .init_resource::<trigger::LoadedRuleSets>()
         .add_systems(
             OnEnter(AppState::Overworld),
             (
                 create_overworld_entities_system,
-                trigger::setup_demo_fre_rules,
+                trigger::setup_action_handlers_system,
             ),
         )
         .add_systems(
@@ -90,6 +91,8 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             Update,
             (
+                trigger::load_fre_rules_system,
+                trigger::register_loaded_rules_system,
                 trigger::spawn_demo_trigger_zone_system,
                 trigger::trigger_zone_detection_system,
                 trigger::apply_hp_change_system,

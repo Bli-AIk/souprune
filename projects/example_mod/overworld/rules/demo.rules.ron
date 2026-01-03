@@ -1,0 +1,67 @@
+// Demo FRE Rules for Overworld
+// 演示 Overworld 的 FRE 规则
+//
+// This file demonstrates the data-driven rule system.
+// Walk into the trigger zone 3 times to set HP to 42.
+//
+// 此文件演示数据驱动的规则系统。
+// 走进触发区域 3 次将 HP 设置为 42。
+
+(
+    version: 1,
+
+    // Initial facts to set when this rule set is loaded
+    // 加载此规则集时设置的初始事实
+    initial_facts: {
+        "demo_area_visit_count": Int(0),
+    },
+
+    rules: [
+        // Rule 1: Increment counter on every trigger entry
+        // 规则 1：每次进入触发器时增加计数器
+        (
+            id: "demo_increment_visit",
+            trigger: "trigger_enter_demo_trigger",
+            condition: Always,
+            modifications: [
+                Increment(key: "demo_area_visit_count", amount: 1),
+            ],
+            outputs: ["demo_visit_updated"],
+            priority: 10,
+        ),
+
+        // Rule 2: On the 3rd visit, trigger HP change
+        // 规则 2：第 3 次访问时触发 HP 变化
+        (
+            id: "demo_set_hp_on_third_visit",
+            trigger: "demo_visit_updated",
+            condition: Equals(key: "demo_area_visit_count", value: Int(3)),
+            actions: [
+                Log(message: "Triggering HP change to 42!"),
+                Custom(
+                    action_type: "SetPlayerHP",
+                    params: {
+                        "value": "42",
+                    },
+                ),
+            ],
+            outputs: ["demo_hp_change_requested"],
+            priority: 5,
+        ),
+
+        // Rule 3: Log when HP change is complete
+        // 规则 3：HP 变化完成时记录日志
+        (
+            id: "demo_hp_change_complete",
+            trigger: "demo_hp_change_requested",
+            condition: Always,
+            actions: [
+                Log(message: "HP has been set to 42! The demo rule system is working."),
+            ],
+            modifications: [
+                Set(key: "demo_hp_changed", value: Bool(true)),
+            ],
+            priority: 0,
+        ),
+    ],
+)

@@ -3,10 +3,12 @@
 //! ## Module Overview
 //! FRE-based trigger zones for overworld areas.
 //! Handles trigger zone detection and emits FRE events.
+//! Rules are loaded from RON files for data-driven gameplay.
 //!
 //! ## 模块概述
 //! 基于 FRE 的 Overworld 区域触发器。
 //! 处理触发区域检测并发出 FRE 事件。
+//! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
 
 use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
@@ -14,8 +16,8 @@ use crate::core::collision::Rect2DCollider;
 use crate::core::data::PlayerData;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
-    FactDatabase, FactEvent, FactEventId, FactModification, FactValue, Rule, RuleAction,
-    RuleCondition, RuleRegistry,
+    ActionHandlerRegistry, FactDatabase, FactEvent, FactEventId, FactValueDef, RuleActionDef,
+    RuleRegistry, RuleSetAsset,
 };
 
 /// Marker component for trigger zones.
@@ -56,6 +58,15 @@ impl TriggerZone {
 /// 演示触发区域的标记，用于避免重复生成。
 #[derive(Component)]
 pub struct DemoTriggerSpawned;
+
+/// Resource to track loaded rule set handles.
+///
+/// 跟踪已加载规则集句柄的资源。
+#[derive(Resource, Default)]
+pub struct LoadedRuleSets {
+    pub handles: Vec<Handle<RuleSetAsset>>,
+    pub initialized: bool,
+}
 
 /// System to spawn a demo trigger zone for testing FRE.
 /// This creates a 64x64 trigger zone near the player spawn point.
@@ -142,46 +153,86 @@ pub fn trigger_zone_detection_system(
     }
 }
 
-/// Setup the demo FRE rules for the area visit counter gameplay.
+/// System to load FRE rules from RON files.
 ///
-/// 设置区域访问计数器游戏玩法的演示 FRE 规则。
-pub fn setup_demo_fre_rules(mut registry: ResMut<RuleRegistry>, mut fact_db: ResMut<FactDatabase>) {
-    // Initialize the visit counter
-    fact_db.set("demo_area_visit_count", 0i64);
+/// 从 RON 文件加载 FRE 规则的系统。
+pub fn load_fre_rules_system(
+    asset_server: Res<AssetServer>,
+    mut loaded_rule_sets: ResMut<LoadedRuleSets>,
+) {
+    if loaded_rule_sets.initialized {
+        return;
+    }
 
-    // Rule 1: Increment counter on every entry
-    let increment_rule = Rule::builder("demo_increment_visit", "trigger_enter_demo_trigger")
-        .condition(RuleCondition::Always)
-        .modify(FactModification::Increment(
-            "demo_area_visit_count".to_string(),
-            1,
-        ))
-        .output("demo_visit_updated")
-        .priority(10)
-        .build();
+    // Load the demo rules from the asset folder
+    let handle: Handle<RuleSetAsset> = asset_server.load("overworld/rules/demo.rules.ron");
+    loaded_rule_sets.handles.push(handle);
+    loaded_rule_sets.initialized = true;
 
-    // Rule 2: On the 3rd visit, set player HP to 42
-    let hp_rule = Rule::builder("demo_set_hp_on_third_visit", "demo_visit_updated")
-        .condition(RuleCondition::Equals(
-            "demo_area_visit_count".to_string(),
-            FactValue::Int(3),
-        ))
-        .action(RuleAction::new(|_event, _db, _commands| {
-            info!("FRE Action: Requesting HP change to 42 (will be applied by separate system)");
-        }))
-        .output("demo_hp_change_requested")
-        .priority(5)
-        .build();
+    info!("FRE: Loading rules from overworld/rules/demo.rules.ron");
+}
 
-    registry.register(increment_rule);
-    registry.register(hp_rule);
+/// System to register rules from loaded assets.
+///
+/// 从已加载的资产注册规则的系统。
+pub fn register_loaded_rules_system(
+    loaded_rule_sets: Res<LoadedRuleSets>,
+    rule_set_assets: Res<Assets<RuleSetAsset>>,
+    mut registry: ResMut<RuleRegistry>,
+    mut fact_db: ResMut<FactDatabase>,
+    mut registered: Local<bool>,
+) {
+    if *registered || !loaded_rule_sets.initialized {
+        return;
+    }
 
-    info!("FRE: Demo rules registered");
+    for handle in &loaded_rule_sets.handles {
+        if let Some(rule_set) = rule_set_assets.get(handle) {
+            // Apply initial facts
+            for (key, value) in rule_set.get_initial_facts() {
+                let fact_value = match value {
+                    FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
+                    FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
+                    FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
+                    FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
+                };
+                fact_db.set(key.as_str(), fact_value);
+                info!("FRE: Set initial fact '{}' from RON", key);
+            }
+
+            // Register all rules
+            rule_set.register_rules(&mut registry);
+            *registered = true;
+            info!("FRE: Rules registered from RON asset");
+        }
+    }
+}
+
+/// System to setup custom action handlers for game-specific actions.
+///
+/// 设置游戏特定动作的自定义动作处理程序的系统。
+pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
+    // Register the SetPlayerHP action handler
+    handler_registry.register("SetPlayerHP", |action, _db, _commands| {
+        if let RuleActionDef::Custom { params, .. } = action {
+            if let Some(value_str) = params.get("value") {
+                if let Ok(hp) = value_str.parse::<usize>() {
+                    info!("FRE Action: SetPlayerHP requested with value {}", hp);
+                    // Note: Actual HP change is handled by apply_hp_change_system
+                    // because we can't access PlayerData from Commands
+                }
+            }
+        }
+    });
+
+    info!("FRE: Custom action handlers registered");
 }
 
 /// System to apply HP changes when the FRE rule triggers.
+/// This handles the actual HP modification that was requested by the RON rules.
 ///
 /// 当 FRE 规则触发时应用 HP 变化的系统。
+/// 处理由 RON 规则请求的实际 HP 修改。
 pub fn apply_hp_change_system(
     mut events: MessageReader<FactEvent>,
     mut player_data: ResMut<PlayerData>,
