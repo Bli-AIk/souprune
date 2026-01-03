@@ -46,6 +46,20 @@ impl Default for BulletDamage {
     }
 }
 
+/// Base scale for bullets, used as the base for Tween scale modifications.
+/// Stores the initial scale from the prototype so Tween can multiply on top of it.
+///
+/// 弹幕的基础缩放，用作 Tween 缩放修改的基础。
+/// 存储来自原型的初始缩放，以便 Tween 可以在其之上进行乘法。
+#[derive(Component, Debug, Clone, Copy)]
+pub struct BulletBaseScale(pub f32);
+
+impl Default for BulletBaseScale {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
 /// Marker for bullets that should be despawned.
 ///
 /// 标记需要销毁的弹幕。

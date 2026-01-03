@@ -334,6 +334,7 @@ fn spawn_single_bullet(
             .with_scale(Vec3::splat(scale)),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),
+        BulletBaseScale(scale), // Store base scale for Tween calculations
         BulletMotionState::new(spawn_center)
             .with_offset(position - spawn_center)
             .with_angle(angle)
@@ -453,6 +454,7 @@ pub fn update_bullet_motion(
             &mut BulletMotionState,
             &BehaviorStack,
             &mut TweenState,
+            &BulletBaseScale,
             Option<&mut Sprite>,
             Option<&mut ActiveDanmaku>,
         ),
@@ -466,8 +468,15 @@ pub fn update_bullet_motion(
         .map(|t| t.translation.truncate())
         .unwrap_or(Vec2::ZERO);
 
-    for (mut transform, mut state, behavior_stack, mut tween_state, sprite, active_danmaku) in
-        query.iter_mut()
+    for (
+        mut transform,
+        mut state,
+        behavior_stack,
+        mut tween_state,
+        base_scale,
+        sprite,
+        active_danmaku,
+    ) in query.iter_mut()
     {
         state.elapsed += dt;
 
@@ -578,9 +587,11 @@ pub fn update_bullet_motion(
             transform.rotate_z(rotation_delta);
         }
 
+        // Apply scale based on base_scale * (1.0 + tween_delta)
+        // This ensures Tween scales are relative to the prototype's base scale
         if scale_delta != Vec2::ZERO {
-            transform.scale.x = 1.0 + scale_delta.x;
-            transform.scale.y = 1.0 + scale_delta.y;
+            transform.scale.x = base_scale.0 * (1.0 + scale_delta.x);
+            transform.scale.y = base_scale.0 * (1.0 + scale_delta.y);
         }
 
         if let (Some(opacity_val), Some(mut sprite)) = (opacity, sprite) {
