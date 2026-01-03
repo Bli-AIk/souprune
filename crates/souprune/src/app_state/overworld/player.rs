@@ -142,6 +142,8 @@ pub fn spawn_overworld_player(
         StateIdle,
         PlayerControlled,
         BulletTarget::new(),
+        #[cfg(feature = "experimental")]
+        crate::app_state::overworld::chase::ChaseHighlight,
         state_machine,
         player_input.get_merged_map(),
         ActionState::<Action>::default(),

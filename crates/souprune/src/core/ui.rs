@@ -42,6 +42,8 @@ mod smud_shape;
 mod state;
 mod text;
 
+pub use custom_sprite_material::PixelOutlineMaterial;
+
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
     update_dynamic_camera_anchors_system,
@@ -90,6 +92,9 @@ impl Plugin for CoreUIPlugin {
             .register_asset_loader(RonAssetLoader::<SmudStructureAsset>::new(&["smud.ron"]))
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
+            >::default())
+            .add_plugins(Material2dPlugin::<
+                custom_sprite_material::PixelOutlineMaterial,
             >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()

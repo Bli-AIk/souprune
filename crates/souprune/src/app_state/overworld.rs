@@ -23,6 +23,8 @@ use bevy::prelude::*;
 use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
 
 pub(crate) mod character;
+#[cfg(feature = "experimental")]
+pub mod chase;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
@@ -45,6 +47,10 @@ pub(crate) enum OverworldState {
     Normal,
     Backpack,
     Cutscene,
+    /// Chase state - screen darkened with highlighted entities and tilemap edges
+    ///
+    /// 追逐战状态 - 屏幕变暗，高亮实体和瓦片地图边缘
+    Chase,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -101,13 +107,15 @@ impl Plugin for OverworldPlugin {
             OnEnter(OverworldState::Cutscene),
             player::force_player_idle_on_state_change_system,
         );
+        // Note: Chase state allows player movement, so we don't force idle
 
-        // Experimental features: FRE + Danmaku integration
+        // Experimental features: FRE + Danmaku integration + Chase
         #[cfg(feature = "experimental")]
         {
             use crate::app_state::AppState;
 
             app.add_plugins(bevy_fact_rule_event::FREPlugin)
+                .add_plugins(chase::ChasePlugin)
                 // Configure FRETriggerSet to run in OverworldUpdate
                 .configure_sets(Update, FRETriggerSet.in_set(OverworldUpdate))
                 // Configure DanmakuUpdate to run when in either Battle OR Overworld state
@@ -134,6 +142,7 @@ impl Plugin for OverworldPlugin {
                         trigger::spawn_demo_trigger_zone_system,
                         trigger::trigger_zone_detection_system,
                         trigger::play_danmaku_on_trigger_system,
+                        trigger::handle_chase_state_actions_system,
                         trigger::log_fact_changes_system,
                     )
                         .chain()

@@ -288,3 +288,29 @@ pub fn log_fact_changes_system(mut events: MessageReader<FactEvent>, fact_db: Re
         }
     }
 }
+
+/// System to handle chase state transitions based on FRE events.
+///
+/// 根据 FRE 事件处理追逐战状态转换的系统。
+pub fn handle_chase_state_actions_system(
+    mut events: MessageReader<FactEvent>,
+    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldState>>,
+    fact_db: Res<FactDatabase>,
+) {
+    for event in events.read() {
+        if event.id == FactEventId::new("demo_visit_updated") {
+            let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+
+            // Enter chase state on 2nd visit
+            if visit_count == 2 {
+                info!("FRE: Entering Chase state (2nd visit)");
+                next_state.set(crate::app_state::overworld::OverworldState::Chase);
+            }
+            // Exit chase state on 5th visit
+            else if visit_count == 5 {
+                info!("FRE: Exiting Chase state (5th visit)");
+                next_state.set(crate::app_state::overworld::OverworldState::Normal);
+            }
+        }
+    }
+}

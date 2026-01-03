@@ -146,6 +146,10 @@ pub(crate) fn menu_overworld_state_transitions_system(
             OverworldState::Cutscene => {
                 info!("Menu key pressed during cutscene, ignoring");
             }
+            OverworldState::Chase => {
+                // Chase state - menu input is disabled during chase
+                // 追逐战状态 - 追逐战期间禁用菜单输入
+            }
         }
     }
 }

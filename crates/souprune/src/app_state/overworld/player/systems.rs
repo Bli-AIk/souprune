@@ -29,11 +29,12 @@ pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
 ) {
-    // Allow direction control only in the Normal overworld state.
+    // Allow direction control in Normal and Chase states.
     //
-    // 只在 Normal 状态下允许方向控制。
-    if *overworld_state != OverworldState::Normal {
-        return;
+    // 在 Normal 和 Chase 状态下允许方向控制。
+    match *overworld_state.get() {
+        OverworldState::Normal | OverworldState::Chase => {}
+        _ => return,
     }
 
     for (mut facing, action_state) in query.iter_mut() {
