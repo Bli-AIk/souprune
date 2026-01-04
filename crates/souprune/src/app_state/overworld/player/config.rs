@@ -40,6 +40,8 @@ pub struct PlayerBehavior {
     pub animation_config_path: String,
     pub run_action: Option<Action>,
     pub run_speed_multiplier: f32,
+    /// Player invincibility configuration
+    pub invincibility: InvincibilityConfig,
 }
 
 impl PlayerBehavior {
@@ -77,6 +79,11 @@ impl PlayerBehavior {
             (None, default_run_speed_multiplier())
         };
 
+        let invincibility = config_data
+            .invincibility
+            .map(InvincibilityConfig::from)
+            .unwrap_or_default();
+
         Ok(Self {
             spawn_position: config_data.spawn_position.into_vec2(),
             initial_facing: config_data.initial_facing,
@@ -89,6 +96,7 @@ impl PlayerBehavior {
             animation_config_path: character_asset.animation_config,
             run_action,
             run_speed_multiplier,
+            invincibility,
         })
     }
 }
@@ -139,6 +147,9 @@ struct PlayerBehaviorFile {
     initial_state: String,
     #[serde(default)]
     run: Option<RunConfig>,
+    /// Player invincibility configuration for chase/battle damage
+    #[serde(default)]
+    invincibility: Option<InvincibilityFileConfig>,
 }
 
 impl PlayerBehaviorFile {
@@ -187,4 +198,87 @@ fn default_spawn_position() -> Vec2Config {
 
 fn default_run_speed_multiplier() -> f32 {
     2.0
+}
+
+/// File-level invincibility configuration (loaded from RON).
+///
+/// 文件级无敌配置（从 RON 加载）。
+#[derive(Debug, Clone, Deserialize)]
+struct InvincibilityFileConfig {
+    /// Duration of invincibility in seconds after taking damage
+    #[serde(default = "default_invincibility_duration")]
+    duration: f32,
+    /// Interval for heart color flash during invincibility (in seconds)
+    #[serde(default = "default_flash_interval")]
+    flash_interval: f32,
+    /// Normal heart color (hex format, e.g., "#FF0000")
+    #[serde(default = "default_normal_color")]
+    normal_color: String,
+    /// Flash heart color (hex format, e.g., "#800000")
+    #[serde(default = "default_flash_color")]
+    flash_color: String,
+}
+
+impl Default for InvincibilityFileConfig {
+    fn default() -> Self {
+        Self {
+            duration: default_invincibility_duration(),
+            flash_interval: default_flash_interval(),
+            normal_color: default_normal_color(),
+            flash_color: default_flash_color(),
+        }
+    }
+}
+
+fn default_invincibility_duration() -> f32 {
+    1.0
+}
+
+fn default_flash_interval() -> f32 {
+    0.1
+}
+
+fn default_normal_color() -> String {
+    "#FF0000".to_string()
+}
+
+fn default_flash_color() -> String {
+    "#800000".to_string()
+}
+
+/// Runtime invincibility configuration.
+///
+/// 运行时无敌配置。
+#[derive(Debug, Clone)]
+pub struct InvincibilityConfig {
+    /// Duration of invincibility in seconds after taking damage
+    pub duration: f32,
+    /// Interval for heart color flash during invincibility (in seconds)
+    pub flash_interval: f32,
+    /// Normal heart color (hex format)
+    pub normal_color: String,
+    /// Flash heart color (hex format)
+    pub flash_color: String,
+}
+
+impl Default for InvincibilityConfig {
+    fn default() -> Self {
+        Self {
+            duration: default_invincibility_duration(),
+            flash_interval: default_flash_interval(),
+            normal_color: default_normal_color(),
+            flash_color: default_flash_color(),
+        }
+    }
+}
+
+impl From<InvincibilityFileConfig> for InvincibilityConfig {
+    fn from(file_config: InvincibilityFileConfig) -> Self {
+        Self {
+            duration: file_config.duration,
+            flash_interval: file_config.flash_interval,
+            normal_color: file_config.normal_color,
+            flash_color: file_config.flash_color,
+        }
+    }
 }

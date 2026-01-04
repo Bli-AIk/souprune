@@ -279,52 +279,6 @@ impl Default for DamageUIConfig {
     }
 }
 
-/// Player invincibility configuration.
-///
-/// 玩家无敌时间配置。
-#[derive(Debug, Clone, Deserialize)]
-pub struct InvincibilityConfig {
-    /// Duration of invincibility in seconds after taking damage
-    #[serde(default = "default_invincibility_duration")]
-    pub duration: f32,
-    /// Interval for heart color flash during invincibility (in seconds)
-    #[serde(default = "default_flash_interval")]
-    pub flash_interval: f32,
-    /// Normal heart color (pure red)
-    #[serde(default = "default_normal_color")]
-    pub normal_color: String,
-    /// Flash heart color (dark red)
-    #[serde(default = "default_flash_color")]
-    pub flash_color: String,
-}
-
-fn default_invincibility_duration() -> f32 {
-    1.0
-}
-
-fn default_flash_interval() -> f32 {
-    0.5
-}
-
-fn default_normal_color() -> String {
-    "#FF0000".to_string()
-}
-
-fn default_flash_color() -> String {
-    "#800000".to_string()
-}
-
-impl Default for InvincibilityConfig {
-    fn default() -> Self {
-        Self {
-            duration: default_invincibility_duration(),
-            flash_interval: default_flash_interval(),
-            normal_color: default_normal_color(),
-            flash_color: default_flash_color(),
-        }
-    }
-}
-
 /// Complete chase configuration loaded from RON file.
 ///
 /// 从 RON 文件加载的完整追逐战配置。
@@ -337,8 +291,6 @@ pub struct ChaseConfig {
     pub hitbox: HitboxConfig,
     #[serde(default)]
     pub damage_ui: DamageUIConfig,
-    #[serde(default)]
-    pub invincibility: InvincibilityConfig,
 }
 
 impl Default for ChaseConfig {
@@ -349,7 +301,6 @@ impl Default for ChaseConfig {
             dark_overlay: DarkOverlayConfig::default(),
             hitbox: HitboxConfig::default(),
             damage_ui: DamageUIConfig::default(),
-            invincibility: InvincibilityConfig::default(),
         }
     }
 }
@@ -822,8 +773,21 @@ fn update_chase_effect_alpha_system(
 fn update_heart_marker_alpha_system(
     transition: Res<ChaseTransition>,
     chase_config: Res<ChaseConfig>,
+    player_invincibility: Res<PlayerInvincibility>,
     mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
 ) {
+    // Skip if player is invincible (let invincibility system handle color)
+    // 如果玩家处于无敌状态，跳过（让无敌系统处理颜色）
+    if player_invincibility.is_invincible() {
+        return;
+    }
+
+    // Only update during active transition
+    // 仅在活动过渡期间更新
+    if !transition.active {
+        return;
+    }
+
     let duration = chase_config.transition_duration();
     let progress = if duration > 0.0 {
         transition.timer / duration
@@ -1021,6 +985,7 @@ pub fn cleanup_player_hitbox_system(
 pub fn chase_damage_detection_system(
     mut commands: Commands,
     chase_config: Res<ChaseConfig>,
+    player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
     overworld_state: Res<State<OverworldState>>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
@@ -1140,7 +1105,7 @@ pub fn chase_damage_detection_system(
             });
 
             // Start player invincibility
-            player_invincibility.start(chase_config.invincibility.duration);
+            player_invincibility.start(player_behavior.invincibility.duration);
 
             // Play hurt sound
             #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
@@ -1214,6 +1179,7 @@ fn check_trigger_collision(
 pub fn update_player_invincibility_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
+    player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
     overworld_state: Res<State<OverworldState>>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
@@ -1228,7 +1194,7 @@ pub fn update_player_invincibility_system(
     }
 
     let delta = time.delta_secs();
-    let config = &chase_config.invincibility;
+    let config = &player_behavior.invincibility;
 
     // Update invincibility timer
     player_invincibility.timer -= delta;
@@ -1293,46 +1259,47 @@ fn parse_hex_color_for_heart(hex: &str) -> Option<Color> {
 }
 
 /// System to handle damage UI display.
+/// Uses a simple sprite overlay instead of complex RON UI system.
 ///
 /// 处理受伤UI显示的系统。
+/// 使用简单的精灵覆盖层而不是复杂的 RON UI 系统。
 pub fn damage_ui_display_system(
     mut commands: Commands,
     time: Res<Time>,
-    chase_config: Res<ChaseConfig>,
     asset_server: Res<AssetServer>,
     mut damage_ui_state: ResMut<DamageUIState>,
     mut damage_events: MessageReader<ChasePlayerDamageEvent>,
     damage_ui_query: Query<Entity, With<DamageUIMarker>>,
+    camera_query: Query<&Transform, With<Camera2d>>,
 ) {
     // Check for new damage events
     for _event in damage_events.read() {
         if !damage_ui_state.showing {
-            // Spawn damage UI
-            let handle = asset_server.load(&chase_config.damage_ui.layout_path);
-            commands.insert_resource(crate::core::ui::UILayoutHandle {
-                handle,
-                last_modified: None,
-            });
+            // Get camera position to center the overlay
+            let camera_pos = camera_query
+                .single()
+                .map(|t| t.translation)
+                .unwrap_or(Vec3::ZERO);
+
+            // Spawn a simple red overlay sprite
             commands.spawn((
-                crate::core::ui::components::RonUI::new(
-                    crate::core::ui::components::UILayer::new("DamageUI"),
-                    0,
-                ),
-                Transform::default(),
-                GlobalTransform::default(),
-                Visibility::default(),
-                InheritedVisibility::default(),
-                ViewVisibility::default(),
+                Sprite {
+                    color: Color::srgba(1.0, 0.0, 0.0, 0.3),
+                    custom_size: Some(Vec2::new(640.0, 480.0)),
+                    image: asset_server.load("textures/common/ui/white_pixel.png"),
+                    ..default()
+                },
+                Transform::from_translation(Vec3::new(camera_pos.x, camera_pos.y, 500.0)),
                 OverworldEntity(),
                 DamageUIMarker,
-                Name::new("DamageUI Root"),
+                Name::new("DamageFlashOverlay"),
             ));
             damage_ui_state.showing = true;
-            damage_ui_state.timer = chase_config.damage_ui.display_duration;
-            info!("Chase: Showing damage UI");
+            damage_ui_state.timer = 0.1; // Short flash duration
+            info!("Chase: Showing damage flash overlay");
         } else {
             // Reset timer if already showing
-            damage_ui_state.timer = chase_config.damage_ui.display_duration;
+            damage_ui_state.timer = 0.1;
         }
     }
 
@@ -1344,9 +1311,8 @@ pub fn damage_ui_display_system(
             for entity in damage_ui_query.iter() {
                 commands.entity(entity).despawn();
             }
-            commands.remove_resource::<crate::core::ui::UILayoutHandle>();
             damage_ui_state.showing = false;
-            info!("Chase: Hiding damage UI");
+            info!("Chase: Hiding damage flash overlay");
         }
     }
 }

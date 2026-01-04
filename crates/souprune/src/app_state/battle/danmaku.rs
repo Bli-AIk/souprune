@@ -45,7 +45,7 @@ impl Default for BattleInvincibilityConfig {
     fn default() -> Self {
         Self {
             duration: 1.0,
-            flash_interval: 0.1,
+            flash_interval: 0.25,
             normal_color: Color::srgb(1.0, 0.0, 0.0), // #FF0000
             flash_color: Color::srgb(0.5, 0.0, 0.0),  // #800000
         }

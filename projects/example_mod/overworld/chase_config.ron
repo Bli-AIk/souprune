@@ -74,26 +74,6 @@
         
         // Duration to show the damage UI (seconds)
         // 显示受伤UI的持续时间（秒）
-        display_duration: 0.5,
-    ),
-    
-    // Player invincibility configuration
-    // 玩家无敌时间配置
-    invincibility: (
-        // Duration of invincibility after taking damage (seconds)
-        // 受伤后的无敌持续时间（秒）
-        duration: 1.0,
-        
-        // Interval for heart color flashing during invincibility (seconds)
-        // 无敌时心形颜色闪烁间隔（秒）
-        flash_interval: 0.25,
-        
-        // Normal heart color (pure red) - hex format
-        // 正常心形颜色（纯红色）- 十六进制格式
-        normal_color: "#FF0000",
-        
-        // Flash heart color (dark red) - hex format
-        // 闪烁心形颜色（暗红色）- 十六进制格式
-        flash_color: "#800000",
+        display_duration: 2.5,
     ),
 )
