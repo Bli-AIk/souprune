@@ -99,6 +99,39 @@ pub struct DanmakuPerformance {
 // Bullet Prototype
 // ============================================================================
 
+/// Hit behavior preset for RON configuration.
+/// Maps to BulletHitBehavior component at runtime.
+///
+/// RON 配置的命中行为预设。
+/// 在运行时映射到 BulletHitBehavior 组件。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
+pub enum HitBehaviorPreset {
+    /// Default: despawn on hit, damage always (default)
+    #[default]
+    Default,
+    /// Persistent: doesn't despawn on hit, has i-frames
+    Persistent,
+    /// Blue soul style: damage only when player is moving
+    DamageWhenMoving,
+    /// Orange soul style: damage only when player is stationary
+    DamageWhenStationary,
+    /// Custom configuration
+    Custom {
+        #[serde(default = "default_despawn_on_hit")]
+        despawn_on_hit: bool,
+        #[serde(default)]
+        damage_on_player_moving: bool,
+        #[serde(default)]
+        damage_on_player_stationary: bool,
+        #[serde(default)]
+        invincibility_duration: f32,
+    },
+}
+
+fn default_despawn_on_hit() -> bool {
+    true
+}
+
 /// Bullet prototype - defines the appearance and collision of a bullet type.
 ///
 /// 弹幕原型 - 定义弹幕类型的外观和碰撞。
@@ -126,6 +159,10 @@ pub struct BulletPrototype {
     /// Scale factor (default: 1.0)
     #[serde(default = "default_scale")]
     pub scale: f32,
+
+    /// Hit behavior configuration (default: despawn on hit)
+    #[serde(default)]
+    pub hit_behavior: HitBehaviorPreset,
 }
 
 /// Visual representation of a bullet.

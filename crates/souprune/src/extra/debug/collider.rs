@@ -382,12 +382,21 @@ pub mod debug_collider {
             ),
         >,
         trigger_colliders: Query<
-            (Entity, &Transform, &crate::core::collision::TriggerCollider),
+            (
+                Entity,
+                &Transform,
+                &crate::core::collision::TriggerCollider,
+                Option<&crate::core::collision::HitboxOffset>,
+            ),
             (
                 Without<SmudShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
             ),
+        >,
+        #[cfg(feature = "experimental")] chase_hitboxes: Query<
+            Entity,
+            With<crate::app_state::overworld::chase::ChasePlayerHitbox>,
         >,
         battle_boxes: Query<
             (
@@ -458,9 +467,9 @@ pub mod debug_collider {
             });
         }
 
-        // Visualize trigger colliders (green - same as physics colliders)
-        // 可视化触发器碰撞体（绿色 - 与物理碰撞体相同）
-        for (entity, transform, trigger_collider) in trigger_colliders.iter() {
+        // Visualize trigger colliders (green for battle, red for chase hitbox)
+        // 可视化触发器碰撞体（战斗为绿色，追逐战判定框为红色）
+        for (entity, transform, trigger_collider, hitbox_offset) in trigger_colliders.iter() {
             let has_visualizer = existing_visualizers
                 .iter()
                 .any(|(_, vis)| vis.parent == entity);
@@ -469,11 +478,31 @@ pub mod debug_collider {
                 continue;
             }
 
+            // Determine if this is a chase hitbox (red) or battle collider (green)
+            #[cfg(feature = "experimental")]
+            let is_chase_hitbox = chase_hitboxes.get(entity).is_ok();
+            #[cfg(not(feature = "experimental"))]
+            let is_chase_hitbox = false;
+
+            let color = if is_chase_hitbox {
+                Color::hsl(0.0, 1.0, 0.5) // Red for chase hitbox
+            } else {
+                Color::hsl(120.0, 1.0, 0.5) // Green for battle
+            };
+
             let (sdf, frame_size, name) = match trigger_collider {
                 TriggerCollider::Circle { radius } => {
                     let sdf = shaders
                         .add_sdf_expr(format!("abs(smud::sd_circle(p, {})) - 0.125", radius));
-                    (sdf, radius + 2.0, "Trigger Collider (Circle)")
+                    (
+                        sdf,
+                        radius + 2.0,
+                        if is_chase_hitbox {
+                            "Chase Hitbox (Circle)"
+                        } else {
+                            "Trigger Collider (Circle)"
+                        },
+                    )
                 }
                 TriggerCollider::Box { half_size } => {
                     let sdf = shaders.add_sdf_expr(format!(
@@ -481,20 +510,32 @@ pub mod debug_collider {
                         half_size.x, half_size.y
                     ));
                     let max_dim = half_size.x.max(half_size.y) + 2.0;
-                    (sdf, max_dim, "Trigger Collider (Box)")
+                    (
+                        sdf,
+                        max_dim,
+                        if is_chase_hitbox {
+                            "Chase Hitbox (Box)"
+                        } else {
+                            "Trigger Collider (Box)"
+                        },
+                    )
                 }
             };
+
+            // Apply hitbox offset if present
+            let offset = hitbox_offset.map(|o| o.0).unwrap_or(Vec2::ZERO);
+            let position = transform.translation + offset.extend(20.0);
 
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     SmudShape {
-                        color: Color::hsl(120.0, 1.0, 0.5),
+                        color,
                         sdf,
                         frame: Frame::Quad(frame_size),
                         fill: SIMPLE_FILL_HANDLE,
                         ..default()
                     },
-                    Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
+                    Transform::from_translation(position),
                     ColliderVisualizer { parent: entity },
                     Name::new(name.to_string()),
                 ));
@@ -560,7 +601,7 @@ pub mod debug_collider {
             ),
         >,
         trigger_colliders: Query<
-            &Transform,
+            (&Transform, Option<&crate::core::collision::HitboxOffset>),
             (
                 With<crate::core::collision::TriggerCollider>,
                 Without<ColliderVisualizer>,
@@ -579,9 +620,12 @@ pub mod debug_collider {
             if let Ok(parent_transform) = physics_colliders.get(visualizer.parent) {
                 vis_transform.translation.x = parent_transform.translation.x;
                 vis_transform.translation.y = parent_transform.translation.y;
-            } else if let Ok(parent_transform) = trigger_colliders.get(visualizer.parent) {
-                vis_transform.translation.x = parent_transform.translation.x;
-                vis_transform.translation.y = parent_transform.translation.y;
+            } else if let Ok((parent_transform, hitbox_offset)) =
+                trigger_colliders.get(visualizer.parent)
+            {
+                let offset = hitbox_offset.map(|o| o.0).unwrap_or(Vec2::ZERO);
+                vis_transform.translation.x = parent_transform.translation.x + offset.x;
+                vis_transform.translation.y = parent_transform.translation.y + offset.y;
             } else if let Ok(parent_global) = battle_boxes.get(visualizer.parent) {
                 vis_transform.translation.x = parent_global.translation().x;
                 vis_transform.translation.y = parent_global.translation().y;

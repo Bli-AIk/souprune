@@ -1,0 +1,20 @@
+// Simple damage flash UI for testing
+// 简单的受伤闪烁UI（测试用）
+(
+    version: 1,
+    roots: [
+        // Red flash overlay when taking damage
+        // 受伤时的红色闪烁覆盖层
+        (
+            name: "DamageFlash",
+            ui_shape_logic: Some((
+                width: 640.0,
+                height: 480.0,
+                border_width: 0.0,
+                offset: (x: 0.0, y: 0.0, z: 100.0),
+                fill_color: Some((r: 1.0, g: 0.0, b: 0.0, a: 0.3)),
+            )),
+            children: [],
+        ),
+    ]
+)

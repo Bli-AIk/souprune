@@ -328,6 +328,26 @@ fn spawn_single_bullet(
         },
     };
 
+    // Convert HitBehaviorPreset to BulletHitBehavior component
+    // 将 HitBehaviorPreset 转换为 BulletHitBehavior 组件
+    let hit_behavior = match &prototype.hit_behavior {
+        HitBehaviorPreset::Default => BulletHitBehavior::default_despawn(),
+        HitBehaviorPreset::Persistent => BulletHitBehavior::persistent(),
+        HitBehaviorPreset::DamageWhenMoving => BulletHitBehavior::damage_when_moving(),
+        HitBehaviorPreset::DamageWhenStationary => BulletHitBehavior::damage_when_stationary(),
+        HitBehaviorPreset::Custom {
+            despawn_on_hit,
+            damage_on_player_moving,
+            damage_on_player_stationary,
+            invincibility_duration,
+        } => BulletHitBehavior {
+            despawn_on_hit: *despawn_on_hit,
+            damage_on_player_moving: *damage_on_player_moving,
+            damage_on_player_stationary: *damage_on_player_stationary,
+            invincibility_duration: *invincibility_duration,
+        },
+    };
+
     let mut entity_commands = commands.spawn((
         Bullet,
         Transform::from_translation(position.extend(prototype.z_index))
@@ -342,6 +362,8 @@ fn spawn_single_bullet(
         BehaviorStack::new(behaviors.to_vec()),
         TweenState::default(),
         trigger_collider,
+        hit_behavior,
+        BulletLastHitTime::default(),
         Name::new(format!("Bullet_{}", index)),
     ));
 

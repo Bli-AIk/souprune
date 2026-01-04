@@ -20,6 +20,7 @@
 //! - 心形判定标记作为玩家的子实体附着
 //! 所有效果都有 0.5 秒的透明度过渡。
 
+use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::image::TextureAtlasLayout;
 use bevy::prelude::*;
 use bevy::sprite_render::MeshMaterial2d;
@@ -192,9 +193,11 @@ impl Default for DarkOverlayConfig {
 /// Simple Vec2 config for RON deserialization.
 ///
 /// 用于 RON 反序列化的简单 Vec2 配置。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Vec2Config {
+    #[serde(default)]
     pub x: f32,
+    #[serde(default)]
     pub y: f32,
 }
 
@@ -220,6 +223,62 @@ fn default_alpha() -> f32 {
     1.0
 }
 
+/// Hitbox shape configuration.
+///
+/// 判定框形状配置。
+#[derive(Debug, Clone, Deserialize)]
+pub enum HitboxShapeConfig {
+    Circle { radius: f32 },
+    Box { half_width: f32, half_height: f32 },
+}
+
+impl Default for HitboxShapeConfig {
+    fn default() -> Self {
+        HitboxShapeConfig::Circle { radius: 4.0 }
+    }
+}
+
+/// Hitbox configuration for damage detection.
+///
+/// 用于伤害检测的判定框配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct HitboxConfig {
+    /// Shape of the hitbox
+    pub shape: HitboxShapeConfig,
+    /// Offset from player center
+    #[serde(default)]
+    pub offset: Vec2Config,
+}
+
+impl Default for HitboxConfig {
+    fn default() -> Self {
+        Self {
+            shape: HitboxShapeConfig::default(),
+            offset: Vec2Config { x: 0.0, y: -5.0 },
+        }
+    }
+}
+
+/// Damage UI configuration.
+///
+/// 受伤UI配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct DamageUIConfig {
+    /// UI layout file path
+    pub layout_path: String,
+    /// Display duration in seconds
+    pub display_duration: f32,
+}
+
+impl Default for DamageUIConfig {
+    fn default() -> Self {
+        Self {
+            layout_path: "overworld/ui/damage_flash.ui_layout.ron".to_string(),
+            display_duration: 0.5,
+        }
+    }
+}
+
 /// Complete chase configuration loaded from RON file.
 ///
 /// 从 RON 文件加载的完整追逐战配置。
@@ -228,6 +287,10 @@ pub struct ChaseConfig {
     pub heart_marker: HeartMarkerConfig,
     pub outline: OutlineConfig,
     pub dark_overlay: DarkOverlayConfig,
+    #[serde(default)]
+    pub hitbox: HitboxConfig,
+    #[serde(default)]
+    pub damage_ui: DamageUIConfig,
 }
 
 impl Default for ChaseConfig {
@@ -236,6 +299,8 @@ impl Default for ChaseConfig {
             heart_marker: HeartMarkerConfig::default(),
             outline: OutlineConfig::default(),
             dark_overlay: DarkOverlayConfig::default(),
+            hitbox: HitboxConfig::default(),
+            damage_ui: DamageUIConfig::default(),
         }
     }
 }
@@ -279,6 +344,8 @@ impl Plugin for ChasePlugin {
 
         app.insert_resource(chase_config)
             .init_resource::<ChaseTransition>()
+            .init_resource::<DamageUIState>()
+            .add_message::<ChasePlayerDamageEvent>()
             .add_systems(
                 OnEnter(OverworldState::Chase),
                 (
@@ -297,10 +364,14 @@ impl Plugin for ChasePlugin {
                     spawn_chase_dark_overlay_system,
                     spawn_player_outline_system,
                     spawn_heart_marker_system,
+                    spawn_player_hitbox_system,
                     update_player_outline_system,
                     update_chase_effect_alpha_system,
                     update_heart_marker_alpha_system,
+                    chase_damage_detection_system,
+                    damage_ui_display_system,
                     cleanup_chase_effects_system,
+                    cleanup_player_hitbox_system,
                 )
                     .chain()
                     .in_set(OverworldUpdate),
@@ -760,3 +831,328 @@ fn cleanup_chase_effects_system(
     transition.cleanup_done = true;
     info!("Chase: Cleaned up all effects");
 }
+
+// ============================================================================
+// Player Hitbox and Damage Detection Systems (experimental feature)
+// 玩家判定框和伤害检测系统（experimental 特性）
+// ============================================================================
+
+/// Marker component for the player's damage hitbox in chase mode.
+///
+/// 追逐战模式下玩家伤害判定框的标记组件。
+#[derive(Component)]
+pub struct ChasePlayerHitbox;
+
+/// Resource to track damage UI display timer.
+///
+/// 追踪受伤UI显示计时器的资源。
+#[derive(Resource, Default)]
+pub struct DamageUIState {
+    /// Whether damage UI is currently showing
+    pub showing: bool,
+    /// Timer for auto-hide
+    pub timer: f32,
+}
+
+/// Event fired when player takes damage in chase mode.
+///
+/// 玩家在追逐战模式下受伤时触发的事件。
+#[derive(Clone)]
+pub struct ChasePlayerDamageEvent {
+    pub damage: f32,
+}
+
+impl Message for ChasePlayerDamageEvent {}
+
+/// System to add TriggerCollider to player when entering chase state.
+///
+/// 进入追逐战状态时为玩家添加 TriggerCollider 的系统。
+pub fn spawn_player_hitbox_system(
+    mut commands: Commands,
+    chase_config: Res<ChaseConfig>,
+    transition: Res<ChaseTransition>,
+    player_query: Query<Entity, (With<PlayerControlled>, Without<ChasePlayerHitbox>)>,
+) {
+    // Only spawn when transitioning in
+    if !transition.transitioning_in {
+        return;
+    }
+
+    let Ok(player_entity) = player_query.single() else {
+        return;
+    };
+
+    // Create TriggerCollider based on hitbox config
+    let trigger_collider = match &chase_config.hitbox.shape {
+        HitboxShapeConfig::Circle { radius } => {
+            crate::core::collision::TriggerCollider::Circle { radius: *radius }
+        }
+        HitboxShapeConfig::Box {
+            half_width,
+            half_height,
+        } => crate::core::collision::TriggerCollider::Box {
+            half_size: Vec2::new(*half_width, *half_height),
+        },
+    };
+
+    commands.entity(player_entity).insert((
+        ChasePlayerHitbox,
+        trigger_collider,
+        crate::core::collision::HitboxOffset(chase_config.hitbox.offset.to_vec2()),
+    ));
+
+    info!(
+        "Chase: Added player hitbox with shape {:?}",
+        chase_config.hitbox.shape
+    );
+}
+
+/// System to remove TriggerCollider from player when exiting chase state.
+///
+/// 退出追逐战状态时从玩家移除 TriggerCollider 的系统。
+pub fn cleanup_player_hitbox_system(
+    mut commands: Commands,
+    transition: Res<ChaseTransition>,
+    player_query: Query<Entity, With<ChasePlayerHitbox>>,
+) {
+    // Only cleanup when transition out is complete
+    if transition.active || transition.transitioning_in || transition.timer > 0.0 {
+        return;
+    }
+
+    for player_entity in player_query.iter() {
+        commands
+            .entity(player_entity)
+            .remove::<ChasePlayerHitbox>()
+            .remove::<crate::core::collision::TriggerCollider>()
+            .remove::<crate::core::collision::HitboxOffset>();
+        info!("Chase: Removed player hitbox");
+    }
+}
+
+/// System to detect bullet collision with player hitbox in chase mode.
+///
+/// 检测追逐战模式下弹幕与玩家判定框碰撞的系统。
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+pub fn chase_damage_detection_system(
+    mut commands: Commands,
+    chase_config: Res<ChaseConfig>,
+    overworld_state: Res<State<OverworldState>>,
+    asset_server: Res<AssetServer>,
+    #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
+        bevy_kira_audio::Audio,
+    >,
+    player_query: Query<
+        (
+            &Transform,
+            &crate::core::collision::TriggerCollider,
+            Option<&crate::core::collision::HitboxOffset>,
+            Option<&crate::app_state::overworld::character::components::StateWalking>,
+            Option<&crate::app_state::overworld::character::components::StateRunning>,
+        ),
+        With<ChasePlayerHitbox>,
+    >,
+    mut bullet_query: Query<
+        (
+            Entity,
+            &Transform,
+            &crate::core::collision::TriggerCollider,
+            &crate::core::danmaku::BulletDamage,
+            &crate::core::danmaku::BulletHitBehavior,
+            &mut crate::core::danmaku::BulletLastHitTime,
+            &crate::core::danmaku::BulletMotionState,
+        ),
+        With<crate::core::danmaku::Bullet>,
+    >,
+    mut damage_events: MessageWriter<ChasePlayerDamageEvent>,
+) {
+    // Only run in chase state
+    if *overworld_state.get() != OverworldState::Chase {
+        return;
+    }
+
+    let Ok((player_transform, player_hitbox, hitbox_offset, is_walking, is_running)) =
+        player_query.single()
+    else {
+        return;
+    };
+
+    let player_center = player_transform.translation.truncate()
+        + hitbox_offset
+            .map(|o| o.0)
+            .unwrap_or(chase_config.hitbox.offset.to_vec2());
+
+    // Check if player is moving
+    let player_is_moving = is_walking.is_some() || is_running.is_some();
+
+    for (
+        bullet_entity,
+        bullet_transform,
+        bullet_collider,
+        bullet_damage,
+        hit_behavior,
+        mut last_hit_time,
+        motion_state,
+    ) in bullet_query.iter_mut()
+    {
+        let bullet_center = bullet_transform.translation.truncate();
+
+        // Check collision between player hitbox and bullet collider
+        if !check_trigger_collision(player_hitbox, player_center, bullet_collider, bullet_center) {
+            continue;
+        }
+
+        // Check invincibility frames
+        if hit_behavior.invincibility_duration > 0.0 {
+            let time_since_last_hit = motion_state.elapsed - last_hit_time.0;
+            if time_since_last_hit < hit_behavior.invincibility_duration {
+                continue;
+            }
+        }
+
+        // Check movement-based damage conditions
+        let should_damage = if hit_behavior.damage_on_player_moving {
+            // "Blue soul" style: only damage when player is moving
+            player_is_moving
+        } else if hit_behavior.damage_on_player_stationary {
+            // "Orange soul" style: only damage when player is stationary
+            !player_is_moving
+        } else {
+            // Default: always damage
+            true
+        };
+
+        if should_damage {
+            // Update last hit time
+            last_hit_time.0 = motion_state.elapsed;
+
+            // Fire damage event
+            damage_events.write(ChasePlayerDamageEvent {
+                damage: bullet_damage.0,
+            });
+
+            // Play hurt sound
+            #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+            crate::core::audio::play_sound(&audio, &asset_server, "hurtsound.wav");
+            #[cfg(feature = "firewheel")]
+            crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
+
+            info!("Chase: Player hit by bullet! Damage: {}", bullet_damage.0);
+        }
+
+        // Handle despawn behavior
+        if hit_behavior.despawn_on_hit && should_damage {
+            commands
+                .entity(bullet_entity)
+                .insert(crate::core::danmaku::DespawnBullet);
+        }
+    }
+}
+
+/// Helper function to check collision between two trigger colliders.
+///
+/// 检查两个触发器碰撞体之间是否发生碰撞的辅助函数。
+fn check_trigger_collision(
+    a: &crate::core::collision::TriggerCollider,
+    a_center: Vec2,
+    b: &crate::core::collision::TriggerCollider,
+    b_center: Vec2,
+) -> bool {
+    use crate::core::collision::TriggerCollider;
+
+    match (a, b) {
+        (TriggerCollider::Circle { radius: r1 }, TriggerCollider::Circle { radius: r2 }) => {
+            let dist = a_center.distance(b_center);
+            dist <= r1 + r2
+        }
+        (TriggerCollider::Box { half_size: hs1 }, TriggerCollider::Box { half_size: hs2 }) => {
+            let diff = (a_center - b_center).abs();
+            diff.x <= hs1.x + hs2.x && diff.y <= hs1.y + hs2.y
+        }
+        (TriggerCollider::Circle { radius }, TriggerCollider::Box { half_size })
+        | (TriggerCollider::Box { half_size }, TriggerCollider::Circle { radius }) => {
+            let (circle_center, box_center, box_half) =
+                if matches!(a, TriggerCollider::Circle { .. }) {
+                    (a_center, b_center, *half_size)
+                } else {
+                    (b_center, a_center, *half_size)
+                };
+            // Closest point on box to circle center
+            let closest = Vec2::new(
+                circle_center
+                    .x
+                    .clamp(box_center.x - box_half.x, box_center.x + box_half.x),
+                circle_center
+                    .y
+                    .clamp(box_center.y - box_half.y, box_center.y + box_half.y),
+            );
+            circle_center.distance(closest) <= *radius
+        }
+    }
+}
+
+/// System to handle damage UI display.
+///
+/// 处理受伤UI显示的系统。
+pub fn damage_ui_display_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    chase_config: Res<ChaseConfig>,
+    asset_server: Res<AssetServer>,
+    mut damage_ui_state: ResMut<DamageUIState>,
+    mut damage_events: MessageReader<ChasePlayerDamageEvent>,
+    damage_ui_query: Query<Entity, With<DamageUIMarker>>,
+) {
+    // Check for new damage events
+    for _event in damage_events.read() {
+        if !damage_ui_state.showing {
+            // Spawn damage UI
+            let handle = asset_server.load(&chase_config.damage_ui.layout_path);
+            commands.insert_resource(crate::core::ui::UILayoutHandle {
+                handle,
+                last_modified: None,
+            });
+            commands.spawn((
+                crate::core::ui::components::RonUI::new(
+                    crate::core::ui::components::UILayer::new("DamageUI"),
+                    0,
+                ),
+                Transform::default(),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                OverworldEntity(),
+                DamageUIMarker,
+                Name::new("DamageUI Root"),
+            ));
+            damage_ui_state.showing = true;
+            damage_ui_state.timer = chase_config.damage_ui.display_duration;
+            info!("Chase: Showing damage UI");
+        } else {
+            // Reset timer if already showing
+            damage_ui_state.timer = chase_config.damage_ui.display_duration;
+        }
+    }
+
+    // Update timer and hide UI when done
+    if damage_ui_state.showing {
+        damage_ui_state.timer -= time.delta_secs();
+        if damage_ui_state.timer <= 0.0 {
+            // Despawn damage UI
+            for entity in damage_ui_query.iter() {
+                commands.entity(entity).despawn();
+            }
+            commands.remove_resource::<crate::core::ui::UILayoutHandle>();
+            damage_ui_state.showing = false;
+            info!("Chase: Hiding damage UI");
+        }
+    }
+}
+
+/// Marker component for damage UI entities.
+///
+/// 受伤UI实体的标记组件。
+#[derive(Component)]
+pub struct DamageUIMarker;

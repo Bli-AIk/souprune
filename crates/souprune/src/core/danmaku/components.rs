@@ -46,6 +46,90 @@ impl Default for BulletDamage {
     }
 }
 
+/// Bullet hit behavior configuration.
+/// Controls what happens when a bullet hits the player.
+///
+/// 弹幕命中行为配置。
+/// 控制弹幕击中玩家时的行为。
+#[derive(Component, Debug, Clone, Default)]
+pub struct BulletHitBehavior {
+    /// Whether the bullet should despawn on hit (default: true)
+    ///
+    /// 弹幕命中后是否销毁（默认：true）
+    pub despawn_on_hit: bool,
+
+    /// Whether damage is only dealt when player is moving (default: false)
+    /// If true, stationary player won't take damage
+    ///
+    /// 是否仅在玩家移动时造成伤害（默认：false）
+    /// 如果为 true，静止的玩家不会受到伤害
+    pub damage_on_player_moving: bool,
+
+    /// Whether damage is only dealt when player is stationary (default: false)
+    /// If true, moving player won't take damage
+    ///
+    /// 是否仅在玩家静止时造成伤害（默认：false）
+    /// 如果为 true，移动的玩家不会受到伤害
+    pub damage_on_player_stationary: bool,
+
+    /// Invincibility frames after being hit (in seconds, default: 0.0)
+    /// During this time, this bullet won't deal damage again
+    ///
+    /// 被击中后的无敌帧时间（秒，默认：0.0）
+    /// 在此期间，该弹幕不会再次造成伤害
+    pub invincibility_duration: f32,
+}
+
+impl BulletHitBehavior {
+    /// Create default hit behavior (despawn on hit, damage always)
+    pub fn default_despawn() -> Self {
+        Self {
+            despawn_on_hit: true,
+            damage_on_player_moving: false,
+            damage_on_player_stationary: false,
+            invincibility_duration: 0.0,
+        }
+    }
+
+    /// Create persistent bullet (doesn't despawn on hit)
+    pub fn persistent() -> Self {
+        Self {
+            despawn_on_hit: false,
+            damage_on_player_moving: false,
+            damage_on_player_stationary: false,
+            invincibility_duration: 0.5, // Default i-frames for persistent bullets
+        }
+    }
+
+    /// Create "blue soul" style (damage only when moving)
+    pub fn damage_when_moving() -> Self {
+        Self {
+            despawn_on_hit: true,
+            damage_on_player_moving: true,
+            damage_on_player_stationary: false,
+            invincibility_duration: 0.0,
+        }
+    }
+
+    /// Create "orange soul" style (damage only when stationary)
+    pub fn damage_when_stationary() -> Self {
+        Self {
+            despawn_on_hit: true,
+            damage_on_player_moving: false,
+            damage_on_player_stationary: true,
+            invincibility_duration: 0.0,
+        }
+    }
+}
+
+/// Tracks the last time this bullet dealt damage to the player.
+/// Used for invincibility frame calculations.
+///
+/// 追踪该弹幕最后一次对玩家造成伤害的时间。
+/// 用于无敌帧计算。
+#[derive(Component, Debug, Clone, Default)]
+pub struct BulletLastHitTime(pub f32);
+
 /// Base scale for bullets, used as the base for Tween scale modifications.
 /// Stores the initial scale from the prototype so Tween can multiply on top of it.
 ///
