@@ -53,7 +53,7 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SmudStructureAsset;
 use layout::UILayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
-pub use ron_ui::{UILayoutHandle, UILayoutWatcher};
+pub use ron_ui::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
 use ron_ui::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,

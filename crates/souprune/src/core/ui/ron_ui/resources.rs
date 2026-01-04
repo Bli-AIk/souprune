@@ -21,7 +21,7 @@ pub struct UILayoutWatcher {
 }
 
 impl UILayoutWatcher {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             timer: Timer::from_seconds(1.0, TimerMode::Repeating),
             pending_reload: false,

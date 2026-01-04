@@ -181,6 +181,19 @@ pub struct UINodeDef {
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<UINodeDef>,
+    /// If true, this UI node will be anchored to the camera and follow its movement.
+    /// This is useful for HUD elements that should stay fixed on screen.
+    /// Default is true for top-level nodes with ui_shape_logic.
+    ///
+    /// 如果为 true，此 UI 节点将锚定到摄像机并跟随其移动。
+    /// 这对于应该固定在屏幕上的 HUD 元素很有用。
+    /// 对于带有 ui_shape_logic 的顶级节点，默认为 true。
+    #[serde(default = "default_camera_anchored")]
+    pub camera_anchored: bool,
+}
+
+fn default_camera_anchored() -> bool {
+    true
 }
 
 #[allow(dead_code)]

@@ -352,11 +352,12 @@ impl Plugin for ChasePlugin {
                 (
                     setup_chase_effect_root_system,
                     start_chase_transition_in_system,
+                    setup_chase_hud_system,
                 ),
             )
             .add_systems(
                 OnExit(OverworldState::Chase),
-                start_chase_transition_out_system,
+                (start_chase_transition_out_system, cleanup_chase_hud_system),
             )
             .add_systems(
                 Update,
@@ -1259,14 +1260,15 @@ fn parse_hex_color_for_heart(hex: &str) -> Option<Color> {
 }
 
 /// System to handle damage UI display.
-/// Uses a simple sprite overlay instead of complex RON UI system.
+/// Now simplified since HP bar HUD provides primary damage feedback.
+/// This only handles a brief screen tint effect on damage.
 ///
 /// 处理受伤UI显示的系统。
-/// 使用简单的精灵覆盖层而不是复杂的 RON UI 系统。
+/// 由于血条 HUD 提供了主要的受伤反馈，此系统已简化。
+/// 仅处理受伤时的短暂屏幕色调效果。
 pub fn damage_ui_display_system(
     mut commands: Commands,
     time: Res<Time>,
-    asset_server: Res<AssetServer>,
     mut damage_ui_state: ResMut<DamageUIState>,
     mut damage_events: MessageReader<ChasePlayerDamageEvent>,
     damage_ui_query: Query<Entity, With<DamageUIMarker>>,
@@ -1281,12 +1283,12 @@ pub fn damage_ui_display_system(
                 .map(|t| t.translation)
                 .unwrap_or(Vec3::ZERO);
 
-            // Spawn a simple red overlay sprite
+            // Spawn a simple red overlay sprite without requiring a texture
+            // The HP bar HUD now provides the primary damage feedback
             commands.spawn((
                 Sprite {
                     color: Color::srgba(1.0, 0.0, 0.0, 0.3),
                     custom_size: Some(Vec2::new(640.0, 480.0)),
-                    image: asset_server.load("textures/common/ui/white_pixel.png"),
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(camera_pos.x, camera_pos.y, 500.0)),
@@ -1322,3 +1324,78 @@ pub fn damage_ui_display_system(
 /// 受伤UI实体的标记组件。
 #[derive(Component)]
 pub struct DamageUIMarker;
+
+/// Marker component for Chase HUD UI root entity.
+///
+/// 追逐战 HUD UI 根实体的标记组件。
+#[derive(Component)]
+pub struct ChaseHUDRoot;
+
+/// System to setup Chase HUD when entering chase state.
+/// Loads the damage_flash.ui_layout.ron which contains HP bar and HP text.
+///
+/// 进入追逐战状态时设置 HUD 的系统。
+/// 加载包含血条和血量文字的 damage_flash.ui_layout.ron。
+fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+    info!("Chase: Setting up Chase HUD");
+
+    // Load the chase HUD UI layout
+    let handle = asset_server.load("overworld/ui/damage_flash.ui_layout.ron");
+
+    // Insert the UI layout handle resource
+    commands.insert_resource(crate::core::ui::UILayoutHandle {
+        handle,
+        last_modified: None,
+    });
+
+    // Spawn a root entity for the RON UI system to attach to
+    commands.spawn((
+        crate::core::ui::components::RonUI::new(
+            crate::core::ui::components::UILayer::new("ChaseHUD"),
+            0,
+        ),
+        Transform::default(),
+        GlobalTransform::default(),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
+        OverworldEntity(),
+        ChaseHUDRoot,
+        Name::new("ChaseHUD Root"),
+    ));
+
+    // Insert UILayoutWatcher with pending_reload = false to ensure clean state
+    // This prevents double UI spawning from rebuild_reloaded_ui_system
+    // 插入 pending_reload = false 的 UILayoutWatcher 以确保干净的状态
+    // 这可以防止 rebuild_reloaded_ui_system 导致的双重 UI 生成
+    commands.insert_resource(crate::core::ui::UILayoutWatcher::new());
+
+    info!("Chase: Chase HUD setup complete");
+}
+
+/// System to cleanup Chase HUD when exiting chase state.
+///
+/// 退出追逐战状态时清理 HUD 的系统。
+fn cleanup_chase_hud_system(
+    mut commands: Commands,
+    chase_hud_query: Query<Entity, With<ChaseHUDRoot>>,
+    ron_driven_ui_query: Query<Entity, With<crate::core::ui::RonDrivenUI>>,
+) {
+    info!("Chase: Cleaning up Chase HUD");
+
+    // Despawn the Chase HUD root and all RON-driven UI entities
+    for entity in chase_hud_query.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Also despawn any RON-driven UI entities that may have been spawned
+    for entity in ron_driven_ui_query.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Remove the UI layout handle resource
+    commands.remove_resource::<crate::core::ui::UILayoutHandle>();
+    commands.remove_resource::<crate::core::ui::UILayoutWatcher>();
+
+    info!("Chase: Chase HUD cleanup complete");
+}
