@@ -93,44 +93,50 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let inside_sprite = sprite_uv_normalized.x >= 0.0 && sprite_uv_normalized.x <= 1.0 &&
                         sprite_uv_normalized.y >= 0.0 && sprite_uv_normalized.y <= 1.0;
     
-    // If inside sprite, sample and return the sprite pixel
-    if (inside_sprite) {
-        let clamped_uv = clamp(atlas_uv, uv_min, uv_max - pixel_size * 0.5);
-        let original = textureSample(base_texture, base_sampler, clamped_uv);
-        
-        // If opaque, return original
-        if (original.a > 0.1) {
-            return original;
-        }
-        
-        // If transparent inside sprite, check adjacent for outline
-        if (outline_alpha > 0.0) {
-            let up_uv = clamp(atlas_uv + vec2<f32>(0.0, pixel_size.y), uv_min, uv_max);
-            let down_uv = clamp(atlas_uv - vec2<f32>(0.0, pixel_size.y), uv_min, uv_max);
-            let left_uv = clamp(atlas_uv - vec2<f32>(pixel_size.x, 0.0), uv_min, uv_max);
-            let right_uv = clamp(atlas_uv + vec2<f32>(pixel_size.x, 0.0), uv_min, uv_max);
-            
-            let up = textureSample(base_texture, base_sampler, up_uv);
-            let down = textureSample(base_texture, base_sampler, down_uv);
-            let left = textureSample(base_texture, base_sampler, left_uv);
-            let right = textureSample(base_texture, base_sampler, right_uv);
-            
-            let adjacent_alpha = max(max(up.a, down.a), max(left.a, right.a));
-            if (adjacent_alpha > 0.1) {
-                return vec4<f32>(outline_color, outline_alpha);
-            }
-        }
-        
-        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
-    }
-    
-    // Outside sprite bounds - this is the border area
-    // Check if adjacent sprite pixel is opaque to draw outline
+    // Early exit if no outline needed
     if (outline_alpha <= 0.0) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     
-    // Find the nearest sprite edge pixel
+    // If inside sprite bounds, check if this is a transparent pixel adjacent to opaque pixel
+    // Only draw outline on transparent pixels that are next to opaque pixels (outer edge only)
+    // 如果在精灵边界内，检查这是否是与不透明像素相邻的透明像素
+    // 只在与不透明像素相邻的透明像素上绘制描边（仅外边缘）
+    if (inside_sprite) {
+        let clamped_uv = clamp(atlas_uv, uv_min, uv_max - pixel_size * 0.5);
+        let current_pixel = textureSample(base_texture, base_sampler, clamped_uv);
+        
+        // If current pixel is opaque, don't draw anything (we don't draw on top of sprite)
+        // 如果当前像素是不透明的，不绘制任何东西（我们不在精灵上方绘制）
+        if (current_pixel.a > 0.1) {
+            return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        }
+        
+        // Current pixel is transparent, check if any adjacent pixel is opaque
+        // 当前像素是透明的，检查是否有相邻像素是不透明的
+        let up_uv = clamp(atlas_uv + vec2<f32>(0.0, pixel_size.y), uv_min, uv_max);
+        let down_uv = clamp(atlas_uv - vec2<f32>(0.0, pixel_size.y), uv_min, uv_max);
+        let left_uv = clamp(atlas_uv - vec2<f32>(pixel_size.x, 0.0), uv_min, uv_max);
+        let right_uv = clamp(atlas_uv + vec2<f32>(pixel_size.x, 0.0), uv_min, uv_max);
+        
+        let up = textureSample(base_texture, base_sampler, up_uv);
+        let down = textureSample(base_texture, base_sampler, down_uv);
+        let left = textureSample(base_texture, base_sampler, left_uv);
+        let right = textureSample(base_texture, base_sampler, right_uv);
+        
+        let max_adjacent_alpha = max(max(up.a, down.a), max(left.a, right.a));
+        if (max_adjacent_alpha > 0.1) {
+            // This transparent pixel is adjacent to an opaque pixel - draw outline
+            return vec4<f32>(outline_color, outline_alpha);
+        }
+        
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+    
+    // Outside sprite bounds - this is the 1px border area
+    // Check if the nearest sprite edge pixel is opaque to draw outline
+    // 在精灵边界外 - 这是1像素边框区域
+    // 检查最近的精灵边缘像素是否不透明以绘制描边
     let clamped_sprite_uv = clamp(sprite_uv_normalized, vec2<f32>(0.0), vec2<f32>(1.0));
     let edge_atlas_uv = uv_min + clamped_sprite_uv * uv_size;
     let edge_pixel = textureSample(base_texture, base_sampler, clamp(edge_atlas_uv, uv_min, uv_max - pixel_size * 0.5));

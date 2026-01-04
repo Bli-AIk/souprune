@@ -9,22 +9,27 @@
 //! This module implements the chase state visual effects for the Overworld.
 //! When entering chase state, the following effects are applied:
 //! - Full screen dark overlay with 0.5 alpha
-//! - Red 1-pixel outline on player sprite using custom shader
+//! - Red 1-pixel outline on player sprite using custom shader (outline only, no original image)
+//! - Heart marker (judgment indicator) attached to player as child entity
 //! All effects have a 0.5 second alpha transition.
 //!
 //! 本模块实现 Overworld 的追逐战状态视觉效果。
 //! 进入追逐战状态时，将应用以下效果：
 //! - 全屏 0.5 透明度的黑色覆盖层
-//! - 玩家精灵使用自定义着色器的红色1像素描边
+//! - 玩家精灵使用自定义着色器的红色1像素描边（仅描边，不含原始图像）
+//! - 心形判定标记作为玩家的子实体附着
 //! 所有效果都有 0.5 秒的透明度过渡。
 
 use bevy::image::TextureAtlasLayout;
 use bevy::prelude::*;
 use bevy::sprite_render::MeshMaterial2d;
 use bevy_smud::prelude::*;
+use serde::Deserialize;
+use std::fs;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::{OverworldEntity, OverworldState, OverworldUpdate};
+use crate::config;
 use crate::core::ui::PixelOutlineMaterial;
 
 /// Marker component for entities that should be highlighted during chase state.
@@ -54,11 +59,20 @@ impl Default for ChaseEffect {
 #[derive(Component)]
 pub struct ChaseDarkOverlay;
 
-/// Marker for the player outline entity.
+/// Marker for the player outline entity, also stores current sprite size for change detection.
 ///
-/// 玩家描边实体的标记。
+/// 玩家描边实体的标记，同时存储当前精灵尺寸用于变化检测。
 #[derive(Component)]
-pub struct ChasePlayerOutline;
+pub struct ChasePlayerOutline {
+    /// Current sprite size (used to detect when mesh needs updating)
+    pub current_size: Vec2,
+}
+
+/// Marker for the heart marker (judgment indicator) entity.
+///
+/// 心形判定标记实体的标记组件。
+#[derive(Component)]
+pub struct ChaseHeartMarker;
 
 /// Root entity for organizing chase effect visualizers.
 ///
@@ -81,14 +95,190 @@ pub struct ChaseTransition {
     pub cleanup_done: bool,
 }
 
-const TRANSITION_DURATION: f32 = 0.5;
-const OVERLAY_TARGET_ALPHA: f32 = 0.5;
+// ============================================================================
+// Chase configuration structures (loaded from RON file)
+// 追逐战配置结构（从 RON 文件加载）
+// ============================================================================
+
+const CHASE_CONFIG_PATH: &str = "overworld/chase_config.ron";
+
+/// Configuration for the heart marker effect.
+///
+/// 心形判定标记效果配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct HeartMarkerConfig {
+    /// Texture path for the heart marker
+    pub texture_path: String,
+    /// Offset from player center
+    pub offset: Vec2Config,
+    /// Z-offset from player
+    pub z_offset: f32,
+    /// Scale of the heart marker
+    #[serde(default = "default_heart_scale")]
+    pub scale: f32,
+    /// Tint color (RGBA)
+    pub color: ColorConfig,
+    /// Fade duration in seconds
+    pub fade_duration: f32,
+}
+
+fn default_heart_scale() -> f32 {
+    0.5
+}
+
+impl Default for HeartMarkerConfig {
+    fn default() -> Self {
+        Self {
+            texture_path: "textures/common/ui/dr_heart.png".to_string(),
+            offset: Vec2Config { x: 0.0, y: -2.0 },
+            z_offset: 101.0,
+            scale: 0.5,
+            color: ColorConfig {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            },
+            fade_duration: 0.5,
+        }
+    }
+}
+
+/// Configuration for the outline effect.
+///
+/// 描边效果配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct OutlineConfig {
+    /// Outline color (RGB)
+    pub color: ColorConfig,
+    /// Fade duration in seconds
+    pub fade_duration: f32,
+}
+
+impl Default for OutlineConfig {
+    fn default() -> Self {
+        Self {
+            color: ColorConfig {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            },
+            fade_duration: 0.5,
+        }
+    }
+}
+
+/// Configuration for the dark overlay effect.
+///
+/// 黑色覆盖层效果配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct DarkOverlayConfig {
+    /// Target alpha value
+    pub target_alpha: f32,
+    /// Fade duration in seconds
+    pub fade_duration: f32,
+}
+
+impl Default for DarkOverlayConfig {
+    fn default() -> Self {
+        Self {
+            target_alpha: 0.5,
+            fade_duration: 0.5,
+        }
+    }
+}
+
+/// Simple Vec2 config for RON deserialization.
+///
+/// 用于 RON 反序列化的简单 Vec2 配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct Vec2Config {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2Config {
+    pub fn to_vec2(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+}
+
+/// Simple color config for RON deserialization.
+///
+/// 用于 RON 反序列化的简单颜色配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct ColorConfig {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    #[serde(default = "default_alpha")]
+    pub a: f32,
+}
+
+fn default_alpha() -> f32 {
+    1.0
+}
+
+/// Complete chase configuration loaded from RON file.
+///
+/// 从 RON 文件加载的完整追逐战配置。
+#[derive(Debug, Clone, Deserialize, Resource)]
+pub struct ChaseConfig {
+    pub heart_marker: HeartMarkerConfig,
+    pub outline: OutlineConfig,
+    pub dark_overlay: DarkOverlayConfig,
+}
+
+impl Default for ChaseConfig {
+    fn default() -> Self {
+        Self {
+            heart_marker: HeartMarkerConfig::default(),
+            outline: OutlineConfig::default(),
+            dark_overlay: DarkOverlayConfig::default(),
+        }
+    }
+}
+
+impl ChaseConfig {
+    /// Load chase configuration from RON file.
+    ///
+    /// 从 RON 文件加载追逐战配置。
+    pub fn load() -> Self {
+        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH) {
+            if let Ok(contents) = fs::read_to_string(&path) {
+                if let Ok(config) = ron::de::from_str(&contents) {
+                    info!("Chase: Loaded config from {}", path.display());
+                    return config;
+                } else {
+                    warn!(
+                        "Chase: Failed to parse config at {}, using defaults",
+                        path.display()
+                    );
+                }
+            }
+        }
+        info!("Chase: Using default config");
+        Self::default()
+    }
+
+    /// Get transition duration (uses heart marker fade duration as reference).
+    ///
+    /// 获取过渡持续时间（使用心形标记的渐变持续时间作为参考）。
+    pub fn transition_duration(&self) -> f32 {
+        self.heart_marker.fade_duration
+    }
+}
 
 pub struct ChasePlugin;
 
 impl Plugin for ChasePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ChaseTransition>()
+        // Load chase config at plugin build time
+        let chase_config = ChaseConfig::load();
+
+        app.insert_resource(chase_config)
+            .init_resource::<ChaseTransition>()
             .add_systems(
                 OnEnter(OverworldState::Chase),
                 (
@@ -106,8 +296,10 @@ impl Plugin for ChasePlugin {
                     update_chase_transition_system,
                     spawn_chase_dark_overlay_system,
                     spawn_player_outline_system,
+                    spawn_heart_marker_system,
                     update_player_outline_system,
                     update_chase_effect_alpha_system,
+                    update_heart_marker_alpha_system,
                     cleanup_chase_effects_system,
                 )
                     .chain()
@@ -144,22 +336,30 @@ fn start_chase_transition_in_system(mut transition: ResMut<ChaseTransition>) {
 /// Start transition out of chase state.
 ///
 /// 开始退出追逐战状态的过渡。
-fn start_chase_transition_out_system(mut transition: ResMut<ChaseTransition>) {
+fn start_chase_transition_out_system(
+    mut transition: ResMut<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
+) {
     transition.transitioning_in = false;
-    transition.timer = TRANSITION_DURATION;
+    transition.timer = chase_config.transition_duration();
     info!("Chase: Starting transition OUT");
 }
 
 /// Update chase transition timer.
 ///
 /// 更新追逐战过渡计时器。
-fn update_chase_transition_system(time: Res<Time>, mut transition: ResMut<ChaseTransition>) {
+fn update_chase_transition_system(
+    time: Res<Time>,
+    mut transition: ResMut<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
+) {
     if !transition.active && !transition.transitioning_in && transition.timer <= 0.0 {
         return;
     }
 
+    let duration = chase_config.transition_duration();
     if transition.transitioning_in {
-        transition.timer = (transition.timer + time.delta_secs()).min(TRANSITION_DURATION);
+        transition.timer = (transition.timer + time.delta_secs()).min(duration);
     } else {
         transition.timer = (transition.timer - time.delta_secs()).max(0.0);
         if transition.timer <= 0.0 {
@@ -175,6 +375,7 @@ fn spawn_chase_dark_overlay_system(
     mut commands: Commands,
     mut shaders: ResMut<Assets<Shader>>,
     transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
     chase_root: Query<Entity, With<ChaseEffectRoot>>,
     existing_overlay: Query<Entity, With<ChaseDarkOverlay>>,
 ) {
@@ -199,7 +400,7 @@ fn spawn_chase_dark_overlay_system(
         parent.spawn((
             ChaseDarkOverlay,
             ChaseEffect {
-                target_alpha: OVERLAY_TARGET_ALPHA,
+                target_alpha: chase_config.dark_overlay.target_alpha,
             },
             SmudShape {
                 color: Color::srgba(0.0, 0.0, 0.0, 0.0),
@@ -307,7 +508,9 @@ fn spawn_player_outline_system(
     // Spawn outline entity as child of chase root, positioned at player
     commands.entity(root_entity).with_children(|parent| {
         parent.spawn((
-            ChasePlayerOutline,
+            ChasePlayerOutline {
+                current_size: sprite_size,
+            },
             ChaseEffect { target_alpha: 1.0 },
             Mesh2d(mesh),
             MeshMaterial2d(material),
@@ -319,14 +522,66 @@ fn spawn_player_outline_system(
     info!("Chase: Spawned player outline");
 }
 
+/// Spawn heart marker (judgment indicator) as child of player entity.
+///
+/// 在玩家实体下生成心形判定标记作为子实体。
+fn spawn_heart_marker_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
+    player_query: Query<Entity, With<PlayerControlled>>,
+    existing_markers: Query<Entity, With<ChaseHeartMarker>>,
+) {
+    // Only spawn if transitioning in and marker doesn't exist
+    if !transition.transitioning_in || !existing_markers.is_empty() {
+        return;
+    }
+
+    let Ok(player_entity) = player_query.single() else {
+        return;
+    };
+
+    let config = &chase_config.heart_marker;
+    let offset = config.offset.to_vec2();
+
+    // Load the heart texture
+    let texture: Handle<Image> = asset_server.load(&config.texture_path);
+
+    // Spawn heart marker as child of player so it follows automatically
+    commands.entity(player_entity).with_children(|parent| {
+        parent.spawn((
+            ChaseHeartMarker,
+            Sprite {
+                image: texture,
+                // Start with 0 alpha for fade in
+                color: Color::srgba(config.color.r, config.color.g, config.color.b, 0.0),
+                ..default()
+            },
+            Transform::from_xyz(offset.x, offset.y, config.z_offset)
+                .with_scale(Vec3::splat(config.scale)),
+            Name::new("ChaseHeartMarker"),
+        ));
+    });
+
+    info!("Chase: Spawned heart marker");
+}
+
 /// Update player outline position and texture to follow player sprite.
 ///
 /// 更新玩家描边位置和纹理以跟随玩家精灵。
 #[allow(clippy::type_complexity)]
 fn update_player_outline_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut outline_query: Query<
-        (&mut Transform, &MeshMaterial2d<PixelOutlineMaterial>),
-        (With<ChasePlayerOutline>, Without<PlayerControlled>),
+        (
+            Entity,
+            &mut Transform,
+            &mut ChasePlayerOutline,
+            &MeshMaterial2d<PixelOutlineMaterial>,
+        ),
+        Without<PlayerControlled>,
     >,
     player_query: Query<(&Transform, &Sprite), With<PlayerControlled>>,
     images: Res<Assets<Image>>,
@@ -342,7 +597,9 @@ fn update_player_outline_system(
         return;
     };
 
-    for (mut outline_transform, material_handle) in outline_query.iter_mut() {
+    for (entity, mut outline_transform, mut outline_marker, material_handle) in
+        outline_query.iter_mut()
+    {
         // Update position
         outline_transform.translation.x = player_transform.translation.x;
         outline_transform.translation.y = player_transform.translation.y;
@@ -359,31 +616,46 @@ fn update_player_outline_system(
                 0.0,
             );
 
-            // Update UV rect based on TextureAtlas or sprite.rect
+            // Update UV rect and mesh size based on TextureAtlas or sprite.rect
             if let Some(image) = images.get(&sprite.image) {
                 let tex_size = image.size().as_vec2();
-                material.uv_rect = if let Some(ref atlas) = sprite.texture_atlas {
+                let (new_uv_rect, sprite_size) = if let Some(ref atlas) = sprite.texture_atlas {
                     if let Some(layout) = atlas_layouts.get(&atlas.layout) {
                         let rect = layout.textures[atlas.index];
-                        Vec4::new(
+                        let uv = Vec4::new(
                             rect.min.x as f32 / tex_size.x,
                             rect.min.y as f32 / tex_size.y,
                             rect.max.x as f32 / tex_size.x,
                             rect.max.y as f32 / tex_size.y,
-                        )
+                        );
+                        let size = Vec2::new(rect.width() as f32, rect.height() as f32);
+                        (uv, size)
                     } else {
-                        Vec4::new(0.0, 0.0, 1.0, 1.0)
+                        (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
                     }
                 } else if let Some(rect) = sprite.rect {
-                    Vec4::new(
+                    let uv = Vec4::new(
                         rect.min.x / tex_size.x,
                         rect.min.y / tex_size.y,
                         rect.max.x / tex_size.x,
                         rect.max.y / tex_size.y,
-                    )
+                    );
+                    let size = Vec2::new(rect.width(), rect.height());
+                    (uv, size)
                 } else {
-                    Vec4::new(0.0, 0.0, 1.0, 1.0)
+                    (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
                 };
+
+                material.uv_rect = new_uv_rect;
+
+                // Only update mesh if sprite size changed (avoid creating new mesh every frame)
+                // 只在精灵尺寸变化时更新 mesh（避免每帧创建新 mesh）
+                if (outline_marker.current_size - sprite_size).length() > 0.01 {
+                    outline_marker.current_size = sprite_size;
+                    let outline_size = sprite_size + Vec2::splat(2.0);
+                    let new_mesh = meshes.add(Rectangle::new(outline_size.x, outline_size.y));
+                    commands.entity(entity).insert(Mesh2d(new_mesh));
+                }
             }
         }
     }
@@ -394,11 +666,17 @@ fn update_player_outline_system(
 /// 根据过渡进度更新所有追逐战效果的透明度。
 fn update_chase_effect_alpha_system(
     transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
     mut smud_effects: Query<(&mut SmudShape, &ChaseEffect)>,
     mut outline_query: Query<&MeshMaterial2d<PixelOutlineMaterial>, With<ChasePlayerOutline>>,
     mut materials: ResMut<Assets<PixelOutlineMaterial>>,
 ) {
-    let progress = transition.timer / TRANSITION_DURATION;
+    let duration = chase_config.transition_duration();
+    let progress = if duration > 0.0 {
+        transition.timer / duration
+    } else {
+        1.0
+    };
 
     // Update SmudShape effects (dark overlay)
     for (mut shape, effect) in smud_effects.iter_mut() {
@@ -416,6 +694,32 @@ fn update_chase_effect_alpha_system(
     }
 }
 
+/// Update heart marker alpha based on transition progress.
+///
+/// 根据过渡进度更新心形标记的透明度。
+fn update_heart_marker_alpha_system(
+    transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
+    mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
+) {
+    let duration = chase_config.transition_duration();
+    let progress = if duration > 0.0 {
+        transition.timer / duration
+    } else {
+        1.0
+    };
+
+    let config = &chase_config.heart_marker;
+    for mut sprite in heart_markers.iter_mut() {
+        sprite.color = Color::srgba(
+            config.color.r,
+            config.color.g,
+            config.color.b,
+            config.color.a * progress,
+        );
+    }
+}
+
 /// Cleanup chase effects when transition out is complete.
 ///
 /// 当退出过渡完成时清理追逐战效果。
@@ -425,6 +729,7 @@ fn cleanup_chase_effects_system(
     chase_root: Query<Entity, With<ChaseEffectRoot>>,
     overlays: Query<Entity, With<ChaseDarkOverlay>>,
     outlines: Query<Entity, With<ChasePlayerOutline>>,
+    heart_markers: Query<Entity, With<ChaseHeartMarker>>,
 ) {
     // Only cleanup when transition out is complete and cleanup hasn't been done
     if transition.active || transition.transitioning_in || transition.timer > 0.0 {
@@ -441,6 +746,9 @@ fn cleanup_chase_effects_system(
         commands.entity(entity).despawn();
     }
     for entity in outlines.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in heart_markers.iter() {
         commands.entity(entity).despawn();
     }
 
