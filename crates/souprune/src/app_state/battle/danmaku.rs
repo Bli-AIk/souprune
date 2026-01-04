@@ -44,10 +44,10 @@ pub struct BattleInvincibilityConfig {
 impl Default for BattleInvincibilityConfig {
     fn default() -> Self {
         Self {
-            duration: 1.5,
-            flash_interval: 0.5,
-            normal_color: Color::srgb(1.0, 0.0, 0.0),          // #FF0000
-            flash_color: Color::srgb(0.5, 0.0, 0.0),           // #800000
+            duration: 1.0,
+            flash_interval: 0.1,
+            normal_color: Color::srgb(1.0, 0.0, 0.0), // #FF0000
+            flash_color: Color::srgb(0.5, 0.0, 0.0),  // #800000
         }
     }
 }
@@ -150,6 +150,7 @@ fn battle_damage_detection_system(
     mut commands: Commands,
     invincibility_config: Res<BattleInvincibilityConfig>,
     mut player_invincibility: ResMut<BattlePlayerInvincibility>,
+    mut player_data: ResMut<crate::core::data::PlayerData>,
     player_query: Query<(&Transform, &TriggerCollider), With<BehaviorParams>>,
     mut bullet_query: Query<
         (
@@ -233,6 +234,14 @@ fn battle_damage_detection_system(
             // Update last hit time
             last_hit_time.0 = motion_state.elapsed;
 
+            // Apply damage to player HP (fixed integer damage)
+            let damage = bullet_damage.0 as usize;
+            if player_data.hp > damage {
+                player_data.hp -= damage;
+            } else {
+                player_data.hp = 0;
+            }
+
             // Start player invincibility
             player_invincibility.start(invincibility_config.duration);
 
@@ -242,14 +251,20 @@ fn battle_damage_detection_system(
             #[cfg(feature = "firewheel")]
             crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
 
-            info!("Battle: Player hit by bullet! Damage: {}", bullet_damage.0);
-        }
+            info!(
+                "Battle: Player hit! Damage: {}, HP: {}/{}",
+                damage, player_data.hp, player_data.hp_max
+            );
 
-        // Handle despawn behavior
-        if hit_behavior.despawn_on_hit && should_damage {
-            commands
-                .entity(bullet_entity)
-                .insert(crate::core::danmaku::DespawnBullet);
+            // Handle despawn behavior
+            if hit_behavior.despawn_on_hit {
+                commands
+                    .entity(bullet_entity)
+                    .insert(crate::core::danmaku::DespawnBullet);
+            }
+
+            // Only one bullet can deal damage per frame
+            break;
         }
     }
 }

@@ -299,7 +299,7 @@ pub struct InvincibilityConfig {
 }
 
 fn default_invincibility_duration() -> f32 {
-    1.5
+    1.0
 }
 
 fn default_flash_interval() -> f32 {
@@ -1024,6 +1024,7 @@ pub fn chase_damage_detection_system(
     overworld_state: Res<State<OverworldState>>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
+    mut player_data: ResMut<crate::core::data::PlayerData>,
     #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
         bevy_kira_audio::Audio,
     >,
@@ -1125,6 +1126,14 @@ pub fn chase_damage_detection_system(
             // Update last hit time
             last_hit_time.0 = motion_state.elapsed;
 
+            // Apply damage to player HP (fixed integer damage)
+            let damage = bullet_damage.0 as usize;
+            if player_data.hp > damage {
+                player_data.hp -= damage;
+            } else {
+                player_data.hp = 0;
+            }
+
             // Fire damage event
             damage_events.write(ChasePlayerDamageEvent {
                 damage: bullet_damage.0,
@@ -1139,14 +1148,20 @@ pub fn chase_damage_detection_system(
             #[cfg(feature = "firewheel")]
             crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
 
-            info!("Chase: Player hit by bullet! Damage: {}", bullet_damage.0);
-        }
+            info!(
+                "Chase: Player hit! Damage: {}, HP: {}/{}",
+                damage, player_data.hp, player_data.hp_max
+            );
 
-        // Handle despawn behavior
-        if hit_behavior.despawn_on_hit && should_damage {
-            commands
-                .entity(bullet_entity)
-                .insert(crate::core::danmaku::DespawnBullet);
+            // Handle despawn behavior
+            if hit_behavior.despawn_on_hit {
+                commands
+                    .entity(bullet_entity)
+                    .insert(crate::core::danmaku::DespawnBullet);
+            }
+
+            // Only one bullet can deal damage per frame
+            break;
         }
     }
 }

@@ -422,10 +422,8 @@ fn spawn_single_bullet(
                 ..default()
             };
             // Apply color tint if specified
-            if let Some(tint) = &prototype.color_tint {
-                if let Some(color) = tint.to_color() {
-                    sprite.color = color;
-                }
+            if let Some(color) = prototype.color_tint.to_color() {
+                sprite.color = color;
             }
             entity_commands.insert(sprite);
         }
@@ -434,10 +432,8 @@ fn spawn_single_bullet(
             match sprite_context.get_sprite(module, name) {
                 Ok(mut sprite) => {
                     // Apply color tint if specified
-                    if let Some(tint) = &prototype.color_tint {
-                        if let Some(color) = tint.to_color() {
-                            sprite.color = color;
-                        }
+                    if let Some(color) = prototype.color_tint.to_color() {
+                        sprite.color = color;
                     }
                     entity_commands.insert(sprite);
                 }
@@ -457,10 +453,8 @@ fn spawn_single_bullet(
                 Ok(clip) => {
                     let mut sprite = Sprite::default();
                     // Apply color tint if specified
-                    if let Some(tint) = &prototype.color_tint {
-                        if let Some(color) = tint.to_color() {
-                            sprite.color = color;
-                        }
+                    if let Some(color) = prototype.color_tint.to_color() {
+                        sprite.color = color;
                     }
                     entity_commands.insert((
                         sprite,

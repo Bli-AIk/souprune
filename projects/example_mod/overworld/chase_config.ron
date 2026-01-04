@@ -82,11 +82,11 @@
     invincibility: (
         // Duration of invincibility after taking damage (seconds)
         // 受伤后的无敌持续时间（秒）
-        duration: 1.5,
+        duration: 1.0,
         
         // Interval for heart color flashing during invincibility (seconds)
         // 无敌时心形颜色闪烁间隔（秒）
-        flash_interval: 0.5,
+        flash_interval: 0.25,
         
         // Normal heart color (pure red) - hex format
         // 正常心形颜色（纯红色）- 十六进制格式

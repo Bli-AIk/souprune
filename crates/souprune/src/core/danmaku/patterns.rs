@@ -141,8 +141,8 @@ fn default_despawn_on_hit() -> bool {
 pub struct ColorTint {
     /// Hex color string (e.g., "#FCA600" for orange, "#40FEFE" for blue)
     #[serde(default)]
-    pub hex: Option<String>,
-    /// RGBA values (0.0-1.0), used if hex is not provided
+    pub hex: String,
+    /// RGBA values (0.0-1.0), used if hex is empty
     #[serde(default)]
     pub rgba: Option<(f32, f32, f32, f32)>,
 }
@@ -150,8 +150,8 @@ pub struct ColorTint {
 impl ColorTint {
     /// Convert to Bevy Color
     pub fn to_color(&self) -> Option<Color> {
-        if let Some(hex) = &self.hex {
-            parse_hex_color(hex)
+        if !self.hex.is_empty() {
+            parse_hex_color(&self.hex)
         } else if let Some((r, g, b, a)) = self.rgba {
             Some(Color::srgba(r, g, b, a))
         } else {
@@ -231,9 +231,10 @@ pub struct BulletPrototype {
     #[serde(default)]
     pub hit_behavior: HitBehaviorPreset,
 
-    /// Color tint overlay (optional, for blue/orange soul bullets)
+    /// Color tint overlay (for blue/orange soul bullets)
+    /// Empty hex string means no tint
     #[serde(default)]
-    pub color_tint: Option<ColorTint>,
+    pub color_tint: ColorTint,
 }
 
 /// Visual representation of a bullet.

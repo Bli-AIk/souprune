@@ -61,7 +61,7 @@
             lifetime: 3.0,
             z_index: 15.0,
             hit_behavior: DamageWhenStationary,
-            color_tint: Some((hex: Some("#FCA600"))),
+            color_tint: (hex: "#FCA600"),
         ),
         // Blue pellet: damage only when player is moving
         // 蓝色花颗粒：仅当玩家移动时造成伤害
@@ -76,7 +76,7 @@
             lifetime: 3.0,
             z_index: 15.0,
             hit_behavior: DamageWhenMoving,
-            color_tint: Some((hex: Some("#40FEFE"))),
+            color_tint: (hex: "#40FEFE"),
         ),
     },
 
