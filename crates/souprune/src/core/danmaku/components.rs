@@ -18,6 +18,17 @@ use std::ffi::CString;
 #[derive(Component)]
 pub struct Bullet;
 
+/// Container for all bullets spawned by a PerformancePlayer.
+/// This helps organize the entity hierarchy in the inspector.
+///
+/// 由 PerformancePlayer 生成的所有弹幕的容器。
+/// 这有助于在检查器中组织实体层级结构。
+#[derive(Component, Debug)]
+pub struct BulletContainer {
+    /// Center position for this bullet container
+    pub center: Vec2,
+}
+
 /// Bullet lifetime component. When timer finishes, bullet is despawned.
 ///
 /// 弹幕生命周期组件。当计时器结束时，弹幕被销毁。
@@ -257,6 +268,8 @@ pub struct PerformancePlayer {
     pub finished: bool,
     /// Center position for spawning
     pub spawn_center: Vec2,
+    /// Entity ID of the bullet container for this performance
+    pub container_entity: Option<Entity>,
 }
 
 impl PerformancePlayer {
@@ -266,6 +279,7 @@ impl PerformancePlayer {
             next_event_index: 0,
             finished: false,
             spawn_center,
+            container_entity: None,
         }
     }
 }

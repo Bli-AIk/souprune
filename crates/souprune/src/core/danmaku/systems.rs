@@ -56,24 +56,46 @@ pub fn spawn_performance_players(
 
     for (handle, event) in pending.pending.drain(..) {
         if performances.get(&handle).is_some() {
-            let mut entity_commands = commands.spawn((
-                PerformancePlayer::new(event.position),
+            // Create BulletContainer first
+            let mut container_commands = commands.spawn((
+                BulletContainer {
+                    center: event.position,
+                },
+                Transform::from_translation(event.position.extend(0.0)),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                Name::new("BulletContainer"),
+            ));
+
+            // Add context-specific marker to container
+            match spawn_context.state {
+                DanmakuActiveState::Battle => {
+                    container_commands.insert(BattleEntity);
+                }
+                DanmakuActiveState::Overworld => {
+                    container_commands.insert(OverworldEntity());
+                }
+            }
+
+            let container_entity = container_commands.id();
+
+            // Create PerformancePlayer and link it to the container
+            let mut player = PerformancePlayer::new(event.position);
+            player.container_entity = Some(container_entity);
+
+            commands.spawn((
+                player,
                 PerformanceHandle(handle.clone()),
                 PerformancePlayerMarker,
                 Name::new("PerformancePlayer"),
             ));
 
-            // Add context-specific marker
-            match spawn_context.state {
-                DanmakuActiveState::Battle => {
-                    entity_commands.insert(BattleEntity);
-                }
-                DanmakuActiveState::Overworld => {
-                    entity_commands.insert(OverworldEntity());
-                }
-            }
-
-            info!("Started performance: {}", event.performance_path);
+            info!(
+                "Started performance: {} with container {:?}",
+                event.performance_path, container_entity
+            );
         } else {
             still_pending.push((handle, event));
         }
@@ -141,6 +163,7 @@ pub fn advance_performance_timeline(
                 event,
                 player.spawn_center,
                 player_pos,
+                player.container_entity,
                 &danmaku_registry,
                 &spawn_context,
                 &mut sprite_params,
@@ -153,6 +176,10 @@ pub fn advance_performance_timeline(
         // Check if performance is finished
         if player.next_event_index >= performance.timeline.len() {
             player.finished = true;
+            // Despawn the container (which will automatically despawn children in Bevy)
+            if let Some(container) = player.container_entity {
+                commands.entity(container).despawn();
+            }
             commands.entity(entity).despawn();
         }
     }
@@ -188,6 +215,7 @@ fn spawn_bullets_from_timeline_event(
     event: &TimelineEvent,
     spawn_center: Vec2,
     player_pos: Vec2,
+    container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
     spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
@@ -223,6 +251,7 @@ fn spawn_bullets_from_timeline_event(
             spawn_center,
             player_pos,
             i,
+            container_entity,
             danmaku_registry,
             spawn_context,
             sprite_params,
@@ -309,6 +338,7 @@ fn spawn_single_bullet(
     spawn_center: Vec2,
     player_pos: Vec2,
     index: usize,
+    container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
     spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
@@ -352,6 +382,7 @@ fn spawn_single_bullet(
         Bullet,
         Transform::from_translation(position.extend(prototype.z_index))
             .with_scale(Vec3::splat(scale)),
+        GlobalTransform::default(),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),
         BulletBaseScale(scale), // Store base scale for Tween calculations
@@ -367,15 +398,12 @@ fn spawn_single_bullet(
         Name::new(format!("Bullet_{}", index)),
     ));
 
-    // Add context-specific entity marker
-    // 添加上下文特定的实体标记
-    match spawn_context.state {
-        DanmakuActiveState::Battle => {
-            entity_commands.insert(BattleEntity);
-        }
-        DanmakuActiveState::Overworld => {
-            entity_commands.insert(OverworldEntity());
-        }
+    // Set parent to container entity if available
+    // 如果容器实体可用，将其设置为父实体
+    if let Some(container) = container_entity {
+        entity_commands.insert(ChildOf(container));
+    } else {
+        warn!("No container entity available for bullet {}", index);
     }
 
     // Create ActiveDanmaku instances for Custom behaviors and call on_enter
@@ -484,9 +512,11 @@ pub fn update_bullet_motion(
     time: Res<Time>,
     // Use BulletTarget for generalized targeting
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
+    container_query: Query<&Transform, (With<BulletContainer>, Without<Bullet>)>,
     mut query: Query<
         (
             &mut Transform,
+            &ChildOf,
             &mut BulletMotionState,
             &BehaviorStack,
             &mut TweenState,
@@ -506,6 +536,7 @@ pub fn update_bullet_motion(
 
     for (
         mut transform,
+        parent,
         mut state,
         behavior_stack,
         mut tween_state,
@@ -516,6 +547,7 @@ pub fn update_bullet_motion(
     {
         state.elapsed += dt;
 
+        // Calculate world position based on behaviors
         let mut position = state.spawn_center + state.initial_offset;
         let mut rotation_delta = 0.0;
         let mut scale_delta = Vec2::ZERO;
@@ -616,8 +648,18 @@ pub fn update_bullet_motion(
             rotation_delta += output.rotation;
         }
 
-        transform.translation.x = position.x;
-        transform.translation.y = position.y;
+        // Convert world position to local position relative to parent container
+        // 将世界位置转换为相对于父容器的局部位置
+        if let Ok(parent_transform) = container_query.get(parent.0) {
+            let parent_pos = parent_transform.translation.truncate();
+            let local_pos = position - parent_pos;
+            transform.translation.x = local_pos.x;
+            transform.translation.y = local_pos.y;
+        } else {
+            // Fallback to world position if parent not found
+            transform.translation.x = position.x;
+            transform.translation.y = position.y;
+        }
 
         if rotation_delta != 0.0 {
             transform.rotate_z(rotation_delta);

@@ -151,11 +151,11 @@ fn battle_damage_detection_system(
     invincibility_config: Res<BattleInvincibilityConfig>,
     mut player_invincibility: ResMut<BattlePlayerInvincibility>,
     mut player_data: ResMut<crate::core::data::PlayerData>,
-    player_query: Query<(&Transform, &TriggerCollider), With<BehaviorParams>>,
+    player_query: Query<(&GlobalTransform, &TriggerCollider), With<BehaviorParams>>,
     mut bullet_query: Query<
         (
             Entity,
-            &Transform,
+            &GlobalTransform,
             &TriggerCollider,
             &crate::core::danmaku::BulletDamage,
             &crate::core::danmaku::BulletHitBehavior,
@@ -173,7 +173,7 @@ fn battle_damage_detection_system(
         return;
     };
 
-    let player_center = player_transform.translation.truncate();
+    let player_center = player_transform.translation().truncate();
 
     // TODO: Battle player movement detection for blue/orange soul mechanics
     // For now, assume player is always "moving" in battle mode
@@ -192,7 +192,7 @@ fn battle_damage_detection_system(
         motion_state,
     ) in bullet_query.iter_mut()
     {
-        let bullet_center = bullet_transform.translation.truncate();
+        let bullet_center = bullet_transform.translation().truncate();
 
         // Check collision between player hitbox and bullet collider
         if !check_battle_collision(player_hitbox, player_center, bullet_collider, bullet_center) {

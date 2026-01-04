@@ -1007,7 +1007,7 @@ pub fn chase_damage_detection_system(
     mut bullet_query: Query<
         (
             Entity,
-            &Transform,
+            &GlobalTransform,
             &crate::core::collision::TriggerCollider,
             &crate::core::danmaku::BulletDamage,
             &crate::core::danmaku::BulletHitBehavior,
@@ -1050,7 +1050,7 @@ pub fn chase_damage_detection_system(
         motion_state,
     ) in bullet_query.iter_mut()
     {
-        let bullet_center = bullet_transform.translation.truncate();
+        let bullet_center = bullet_transform.translation().truncate();
 
         // Check collision between player hitbox and bullet collider
         if !check_trigger_collision(player_hitbox, player_center, bullet_collider, bullet_center) {
