@@ -146,6 +146,14 @@ pub enum RippleDirection {
     Right,
 }
 
+/// Marker component for the reveal tiles parent container.
+/// All RevealTile entities are children of this entity for cleaner hierarchy.
+///
+/// 揭示瓦片父容器的标记组件。
+/// 所有 RevealTile 实体都是此实体的子实体，使层级结构更整洁。
+#[derive(Component)]
+pub struct RevealTilesRoot;
+
 impl RippleDirection {
     /// Get all four directions.
     /// 获取所有四个方向。
@@ -577,6 +585,18 @@ fn create_tile_sprites_system(
     // 为所有精灵创建纯白色材质
     let white_material = color_materials.add(ColorMaterial::from_color(Color::WHITE));
 
+    // Create parent container for all reveal tiles
+    // 为所有揭示瓦片创建父容器
+    let reveal_tiles_root = commands
+        .spawn((
+            Name::new("RevealTiles"),
+            RevealTilesRoot,
+            Transform::default(),
+            Visibility::Inherited,
+            super::super::OverworldEntity(),
+        ))
+        .id();
+
     let mut tile_count = 0;
 
     // Now create sprites for each unique tile position
@@ -588,21 +608,24 @@ fn create_tile_sprites_system(
         // Pure white color for the ripple effect
         // 生成初始缩放为 0 的精灵（不可见）
         // 使用纯白色进行涟漪效果
-        commands.spawn((
-            Name::new(format!("RevealTile({},{})", tile_x, tile_y)),
-            RevealedTileSprite {
-                manhattan_distance: *distance,
-                tile_pos: (*tile_x, *tile_y),
-                direction: *direction,
-            },
-            Mesh2d(tile_mesh.clone()),
-            MeshMaterial2d(white_material.clone()),
-            Transform::from_xyz(world_pos.x, world_pos.y, -1.0).with_scale(Vec3::ZERO),
-            Visibility::Inherited,
-            super::super::OverworldEntity(),
-        ));
+        let tile_entity = commands
+            .spawn((
+                Name::new(format!("RevealTile({},{})", tile_x, tile_y)),
+                RevealedTileSprite {
+                    manhattan_distance: *distance,
+                    tile_pos: (*tile_x, *tile_y),
+                    direction: *direction,
+                },
+                Mesh2d(tile_mesh.clone()),
+                MeshMaterial2d(white_material.clone()),
+                Transform::from_xyz(world_pos.x, world_pos.y, -1.0).with_scale(Vec3::ZERO),
+                Visibility::Inherited,
+                ChildOf(reveal_tiles_root),
+            ))
+            .id();
 
         tile_count += 1;
+        let _ = tile_entity; // Suppress unused warning
     }
 
     reveal_state.max_distance = max_distance;

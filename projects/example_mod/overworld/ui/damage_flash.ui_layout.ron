@@ -1,7 +1,9 @@
 // Chase mode damage HUD UI (HP bar and HP text)
 // 追逐战模式受伤 HUD UI（血条和血量文字）
-// Uses Battle UI style HP bar and text layout with high Z for top visibility
-// 使用 Battle UI 风格的血条和文字布局，高 Z 值确保显示在最顶层
+// Adjusted for Overworld resolution (smaller visible area than Battle)
+// 针对 Overworld 分辨率调整（可见区域比 Battle 小）
+// With resolution_scale=2, visible area is ±160x±120
+// 当 resolution_scale=2 时，可见区域为 ±160x±120
 (
     version: 1,
     roots: [
@@ -18,7 +20,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -290.0, y: -195.5, z: 501.0),
+                        translation: (x: -145.0, y: -97.0, z: 501.0),
                     ),
                 ),
                 (
@@ -28,7 +30,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -187.5, y: -195.5, z: 501.0),
+                        translation: (x: -93.0, y: -97.0, z: 501.0),
                     ),
                 ),
                 (
@@ -38,7 +40,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: -148.5, y: -195.5, z: 501.0),
+                        translation: (x: -74.0, y: -97.0, z: 501.0),
                     ),
                 ),
                 (
@@ -48,7 +50,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: "-5.5 + (@player.hp_max - 20) * 94.5 / 79", y: -195.5, z: 501.0),
+                        translation: (x: "-3.0 + (@player.hp_max - 20) * 47.0 / 79", y: -97.0, z: 501.0),
                     ),
                 ),
                 (
@@ -58,7 +60,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: "33.5 + (@player.hp_max - 20) * 94.5 / 79", y: -195.5, z: 501.0),
+                        translation: (x: "17.0 + (@player.hp_max - 20) * 47.0 / 79", y: -97.0, z: 501.0),
                     ),
                 ),
                 (
@@ -68,7 +70,7 @@
                     world_scale: (x: 24.0, y: 24.0),
                     color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
                     transform: (
-                        translation: (x: "57.5 + (@player.hp_max - 20) * 94.5 / 79", y: -195.5, z: 501.0),
+                        translation: (x: "29.0 + (@player.hp_max - 20) * 47.0 / 79", y: -97.0, z: 501.0),
                     ),
                 ),
             ],
@@ -79,7 +81,7 @@
                         path: "textures/battle/ui/hpname.png",
                         is_animation: false,
                         transform: Some((
-                            translation: (x: -64.5, y: -210.0, z: 501.0),
+                            translation: (x: -32.0, y: -105.0, z: 501.0),
                         )),
                     )),
                 ),
@@ -89,11 +91,11 @@
                         path: "procedural://white_pixel",
                         is_animation: false,
                         transform: Some((
-                            translation: (x: -45.0, y: -210.5, z: 501.0),
-                            scale: Some((x: "25.0 + (@player.hp_max - 20) * 95.0 / 79", y: 20.5, z: 1.0)),
+                            translation: (x: -22.0, y: -105.0, z: 501.0),
+                            scale: Some((x: "12.5 + (@player.hp_max - 20) * 47.5 / 79", y: 10.0, z: 1.0)),
                         )),
                         custom_shader: Some("shaders/hp_bar_sprite.wgsl"),
-                        shader_params: Some((r: 0.8, g: 0.8, b: "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", a: 1.0)),
+                        shader_params: Some((r: 0.8, g: 0.8, b: "20.0 + (@player.hp_max - 20) * 47.5 / 79 / 2", a: 1.0)),
                         pivot: Some((x: 0.0, y: 0.5)),
                     )),
                 ),
