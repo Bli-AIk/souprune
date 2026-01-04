@@ -132,6 +132,73 @@ fn default_despawn_on_hit() -> bool {
     true
 }
 
+/// Color tint configuration for bullets.
+/// Supports hex color strings like "#FCA600".
+///
+/// 弹幕的颜色叠加配置。
+/// 支持十六进制颜色字符串如 "#FCA600"。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
+pub struct ColorTint {
+    /// Hex color string (e.g., "#FCA600" for orange, "#40FEFE" for blue)
+    #[serde(default)]
+    pub hex: Option<String>,
+    /// RGBA values (0.0-1.0), used if hex is not provided
+    #[serde(default)]
+    pub rgba: Option<(f32, f32, f32, f32)>,
+}
+
+impl ColorTint {
+    /// Convert to Bevy Color
+    pub fn to_color(&self) -> Option<Color> {
+        if let Some(hex) = &self.hex {
+            parse_hex_color(hex)
+        } else if let Some((r, g, b, a)) = self.rgba {
+            Some(Color::srgba(r, g, b, a))
+        } else {
+            None
+        }
+    }
+}
+
+/// Parse hex color string to Color.
+/// Supports formats: "#RGB", "#RGBA", "#RRGGBB", "#RRGGBBAA"
+fn parse_hex_color(hex: &str) -> Option<Color> {
+    let hex = hex.trim_start_matches('#');
+    match hex.len() {
+        3 => {
+            // #RGB
+            let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
+            let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
+            let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
+            Some(Color::srgb_u8(r, g, b))
+        }
+        4 => {
+            // #RGBA
+            let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
+            let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
+            let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
+            let a = u8::from_str_radix(&hex[3..4], 16).ok()? * 17;
+            Some(Color::srgba_u8(r, g, b, a))
+        }
+        6 => {
+            // #RRGGBB
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            Some(Color::srgb_u8(r, g, b))
+        }
+        8 => {
+            // #RRGGBBAA
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
+            Some(Color::srgba_u8(r, g, b, a))
+        }
+        _ => None,
+    }
+}
+
 /// Bullet prototype - defines the appearance and collision of a bullet type.
 ///
 /// 弹幕原型 - 定义弹幕类型的外观和碰撞。
@@ -163,6 +230,10 @@ pub struct BulletPrototype {
     /// Hit behavior configuration (default: despawn on hit)
     #[serde(default)]
     pub hit_behavior: HitBehaviorPreset,
+
+    /// Color tint overlay (optional, for blue/orange soul bullets)
+    #[serde(default)]
+    pub color_tint: Option<ColorTint>,
 }
 
 /// Visual representation of a bullet.

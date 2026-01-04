@@ -279,6 +279,52 @@ impl Default for DamageUIConfig {
     }
 }
 
+/// Player invincibility configuration.
+///
+/// 玩家无敌时间配置。
+#[derive(Debug, Clone, Deserialize)]
+pub struct InvincibilityConfig {
+    /// Duration of invincibility in seconds after taking damage
+    #[serde(default = "default_invincibility_duration")]
+    pub duration: f32,
+    /// Interval for heart color flash during invincibility (in seconds)
+    #[serde(default = "default_flash_interval")]
+    pub flash_interval: f32,
+    /// Normal heart color (pure red)
+    #[serde(default = "default_normal_color")]
+    pub normal_color: String,
+    /// Flash heart color (dark red)
+    #[serde(default = "default_flash_color")]
+    pub flash_color: String,
+}
+
+fn default_invincibility_duration() -> f32 {
+    1.5
+}
+
+fn default_flash_interval() -> f32 {
+    0.5
+}
+
+fn default_normal_color() -> String {
+    "#FF0000".to_string()
+}
+
+fn default_flash_color() -> String {
+    "#800000".to_string()
+}
+
+impl Default for InvincibilityConfig {
+    fn default() -> Self {
+        Self {
+            duration: default_invincibility_duration(),
+            flash_interval: default_flash_interval(),
+            normal_color: default_normal_color(),
+            flash_color: default_flash_color(),
+        }
+    }
+}
+
 /// Complete chase configuration loaded from RON file.
 ///
 /// 从 RON 文件加载的完整追逐战配置。
@@ -291,6 +337,8 @@ pub struct ChaseConfig {
     pub hitbox: HitboxConfig,
     #[serde(default)]
     pub damage_ui: DamageUIConfig,
+    #[serde(default)]
+    pub invincibility: InvincibilityConfig,
 }
 
 impl Default for ChaseConfig {
@@ -301,6 +349,7 @@ impl Default for ChaseConfig {
             dark_overlay: DarkOverlayConfig::default(),
             hitbox: HitboxConfig::default(),
             damage_ui: DamageUIConfig::default(),
+            invincibility: InvincibilityConfig::default(),
         }
     }
 }
@@ -345,6 +394,7 @@ impl Plugin for ChasePlugin {
         app.insert_resource(chase_config)
             .init_resource::<ChaseTransition>()
             .init_resource::<DamageUIState>()
+            .init_resource::<PlayerInvincibility>()
             .add_message::<ChasePlayerDamageEvent>()
             .add_systems(
                 OnEnter(OverworldState::Chase),
@@ -369,6 +419,7 @@ impl Plugin for ChasePlugin {
                     update_chase_effect_alpha_system,
                     update_heart_marker_alpha_system,
                     chase_damage_detection_system,
+                    update_player_invincibility_system,
                     damage_ui_display_system,
                     cleanup_chase_effects_system,
                     cleanup_player_hitbox_system,
@@ -854,6 +905,38 @@ pub struct DamageUIState {
     pub timer: f32,
 }
 
+/// Resource to track player invincibility state.
+/// Used for both OW chase mode and Battle mode.
+///
+/// 追踪玩家无敌状态的资源。
+/// 用于 OW 追逐战模式和战斗模式。
+#[derive(Resource, Default)]
+pub struct PlayerInvincibility {
+    /// Whether player is currently invincible
+    pub active: bool,
+    /// Remaining invincibility time
+    pub timer: f32,
+    /// Flash timer for heart color toggle
+    pub flash_timer: f32,
+    /// Current flash state (true = normal color, false = flash color)
+    pub flash_state: bool,
+}
+
+impl PlayerInvincibility {
+    /// Start invincibility with the given duration.
+    pub fn start(&mut self, duration: f32) {
+        self.active = true;
+        self.timer = duration;
+        self.flash_timer = 0.0;
+        self.flash_state = true;
+    }
+
+    /// Check if player is invincible.
+    pub fn is_invincible(&self) -> bool {
+        self.active && self.timer > 0.0
+    }
+}
+
 /// Event fired when player takes damage in chase mode.
 ///
 /// 玩家在追逐战模式下受伤时触发的事件。
@@ -940,6 +1023,7 @@ pub fn chase_damage_detection_system(
     chase_config: Res<ChaseConfig>,
     overworld_state: Res<State<OverworldState>>,
     asset_server: Res<AssetServer>,
+    mut player_invincibility: ResMut<PlayerInvincibility>,
     #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
         bevy_kira_audio::Audio,
     >,
@@ -986,6 +1070,9 @@ pub fn chase_damage_detection_system(
     // Check if player is moving
     let player_is_moving = is_walking.is_some() || is_running.is_some();
 
+    // Check if player is invincible
+    let is_invincible = player_invincibility.is_invincible();
+
     for (
         bullet_entity,
         bullet_transform,
@@ -1003,7 +1090,7 @@ pub fn chase_damage_detection_system(
             continue;
         }
 
-        // Check invincibility frames
+        // Check bullet's own invincibility frames (for persistent bullets)
         if hit_behavior.invincibility_duration > 0.0 {
             let time_since_last_hit = motion_state.elapsed - last_hit_time.0;
             if time_since_last_hit < hit_behavior.invincibility_duration {
@@ -1023,6 +1110,17 @@ pub fn chase_damage_detection_system(
             true
         };
 
+        // If player is invincible, don't deal damage but still handle despawn
+        if is_invincible {
+            // Handle despawn behavior even during invincibility
+            if hit_behavior.despawn_on_hit && should_damage {
+                commands
+                    .entity(bullet_entity)
+                    .insert(crate::core::danmaku::DespawnBullet);
+            }
+            continue;
+        }
+
         if should_damage {
             // Update last hit time
             last_hit_time.0 = motion_state.elapsed;
@@ -1031,6 +1129,9 @@ pub fn chase_damage_detection_system(
             damage_events.write(ChasePlayerDamageEvent {
                 damage: bullet_damage.0,
             });
+
+            // Start player invincibility
+            player_invincibility.start(chase_config.invincibility.duration);
 
             // Play hurt sound
             #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
@@ -1089,6 +1190,90 @@ fn check_trigger_collision(
             );
             circle_center.distance(closest) <= *radius
         }
+    }
+}
+
+/// System to update player invincibility timer and heart flashing effect.
+///
+/// 更新玩家无敌时间和心形闪烁效果的系统。
+pub fn update_player_invincibility_system(
+    time: Res<Time>,
+    chase_config: Res<ChaseConfig>,
+    overworld_state: Res<State<OverworldState>>,
+    mut player_invincibility: ResMut<PlayerInvincibility>,
+    mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
+) {
+    // Only run in chase state
+    if *overworld_state.get() != OverworldState::Chase {
+        return;
+    }
+
+    if !player_invincibility.active {
+        return;
+    }
+
+    let delta = time.delta_secs();
+    let config = &chase_config.invincibility;
+
+    // Update invincibility timer
+    player_invincibility.timer -= delta;
+
+    if player_invincibility.timer <= 0.0 {
+        // Invincibility ended - reset to normal color
+        player_invincibility.active = false;
+        player_invincibility.timer = 0.0;
+        player_invincibility.flash_state = true;
+
+        // Reset heart color to pure red
+        for mut sprite in heart_markers.iter_mut() {
+            let heart_config = &chase_config.heart_marker;
+            sprite.color = Color::srgba(
+                heart_config.color.r,
+                heart_config.color.g,
+                heart_config.color.b,
+                heart_config.color.a,
+            );
+        }
+
+        info!("Chase: Player invincibility ended");
+        return;
+    }
+
+    // Update flash timer
+    player_invincibility.flash_timer += delta;
+
+    if player_invincibility.flash_timer >= config.flash_interval {
+        player_invincibility.flash_timer = 0.0;
+        player_invincibility.flash_state = !player_invincibility.flash_state;
+
+        // Toggle heart color
+        let color = if player_invincibility.flash_state {
+            // Normal color (pure red)
+            parse_hex_color_for_heart(&config.normal_color)
+        } else {
+            // Flash color (dark red)
+            parse_hex_color_for_heart(&config.flash_color)
+        };
+
+        for mut sprite in heart_markers.iter_mut() {
+            if let Some(c) = color {
+                sprite.color = c;
+            }
+        }
+    }
+}
+
+/// Parse hex color string for heart color.
+fn parse_hex_color_for_heart(hex: &str) -> Option<Color> {
+    let hex = hex.trim_start_matches('#');
+    match hex.len() {
+        6 => {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            Some(Color::srgb_u8(r, g, b))
+        }
+        _ => None,
     }
 }
 

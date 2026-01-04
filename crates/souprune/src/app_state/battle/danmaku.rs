@@ -23,6 +23,67 @@ use bevy::prelude::*;
 
 use super::BattleUpdate;
 
+/// Battle invincibility configuration.
+/// Similar to chase config but for battle mode.
+///
+/// 战斗模式的无敌时间配置。
+#[cfg(feature = "experimental")]
+#[derive(Resource)]
+pub struct BattleInvincibilityConfig {
+    /// Duration of invincibility in seconds after taking damage
+    pub duration: f32,
+    /// Interval for heart color flash during invincibility (in seconds)
+    pub flash_interval: f32,
+    /// Normal heart color (pure red)
+    pub normal_color: Color,
+    /// Flash heart color (dark red)
+    pub flash_color: Color,
+}
+
+#[cfg(feature = "experimental")]
+impl Default for BattleInvincibilityConfig {
+    fn default() -> Self {
+        Self {
+            duration: 1.5,
+            flash_interval: 0.5,
+            normal_color: Color::srgb(1.0, 0.0, 0.0),          // #FF0000
+            flash_color: Color::srgb(0.5, 0.0, 0.0),           // #800000
+        }
+    }
+}
+
+/// Resource to track player invincibility state in battle mode.
+///
+/// 追踪战斗模式下玩家无敌状态的资源。
+#[cfg(feature = "experimental")]
+#[derive(Resource, Default)]
+pub struct BattlePlayerInvincibility {
+    /// Whether player is currently invincible
+    pub active: bool,
+    /// Remaining invincibility time
+    pub timer: f32,
+    /// Flash timer for heart color toggle
+    pub flash_timer: f32,
+    /// Current flash state (true = normal color, false = flash color)
+    pub flash_state: bool,
+}
+
+#[cfg(feature = "experimental")]
+impl BattlePlayerInvincibility {
+    /// Start invincibility with the given duration.
+    pub fn start(&mut self, duration: f32) {
+        self.active = true;
+        self.timer = duration;
+        self.flash_timer = 0.0;
+        self.flash_state = true;
+    }
+
+    /// Check if player is invincible.
+    pub fn is_invincible(&self) -> bool {
+        self.active && self.timer > 0.0
+    }
+}
+
 /// Battle-specific danmaku plugin.
 /// Configures CoreDanmakuPlugin for battle state.
 ///
@@ -41,9 +102,21 @@ impl Plugin for DanmakuPlugin {
         // Set spawn context to Battle when entering battle state
         app.add_systems(OnEnter(AppState::Battle), set_battle_context);
 
-        // Add damage detection system (experimental feature)
+        // Add damage detection and invincibility systems (experimental feature)
         #[cfg(feature = "experimental")]
-        app.add_systems(Update, battle_damage_detection_system.in_set(BattleUpdate));
+        {
+            app.init_resource::<BattleInvincibilityConfig>()
+                .init_resource::<BattlePlayerInvincibility>()
+                .add_systems(
+                    Update,
+                    (
+                        battle_damage_detection_system,
+                        update_battle_invincibility_system,
+                    )
+                        .chain()
+                        .in_set(BattleUpdate),
+                );
+        }
 
         // Register reflect types for inspector
         app.register_type::<DanmakuPerformance>()
@@ -72,8 +145,11 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 ///
 /// 检测战斗模式下弹幕与玩家碰撞的系统。
 #[cfg(feature = "experimental")]
+#[allow(clippy::too_many_arguments)]
 fn battle_damage_detection_system(
     mut commands: Commands,
+    invincibility_config: Res<BattleInvincibilityConfig>,
+    mut player_invincibility: ResMut<BattlePlayerInvincibility>,
     player_query: Query<(&Transform, &TriggerCollider), With<BehaviorParams>>,
     mut bullet_query: Query<
         (
@@ -102,6 +178,9 @@ fn battle_damage_detection_system(
     // For now, assume player is always "moving" in battle mode
     let player_is_moving = true;
 
+    // Check if player is invincible
+    let is_invincible = player_invincibility.is_invincible();
+
     for (
         bullet_entity,
         bullet_transform,
@@ -119,7 +198,7 @@ fn battle_damage_detection_system(
             continue;
         }
 
-        // Check invincibility frames
+        // Check bullet's own invincibility frames (for persistent bullets)
         if hit_behavior.invincibility_duration > 0.0 {
             let time_since_last_hit = motion_state.elapsed - last_hit_time.0;
             if time_since_last_hit < hit_behavior.invincibility_duration {
@@ -139,9 +218,23 @@ fn battle_damage_detection_system(
             true
         };
 
+        // If player is invincible, don't deal damage but still handle despawn
+        if is_invincible {
+            // Handle despawn behavior even during invincibility
+            if hit_behavior.despawn_on_hit && should_damage {
+                commands
+                    .entity(bullet_entity)
+                    .insert(crate::core::danmaku::DespawnBullet);
+            }
+            continue;
+        }
+
         if should_damage {
             // Update last hit time
             last_hit_time.0 = motion_state.elapsed;
+
+            // Start player invincibility
+            player_invincibility.start(invincibility_config.duration);
 
             // Play hurt sound
             #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
@@ -157,6 +250,60 @@ fn battle_damage_detection_system(
             commands
                 .entity(bullet_entity)
                 .insert(crate::core::danmaku::DespawnBullet);
+        }
+    }
+}
+
+/// System to update battle player invincibility timer and heart flashing effect.
+///
+/// 更新战斗玩家无敌时间和心形闪烁效果的系统。
+#[cfg(feature = "experimental")]
+fn update_battle_invincibility_system(
+    time: Res<Time>,
+    invincibility_config: Res<BattleInvincibilityConfig>,
+    mut player_invincibility: ResMut<BattlePlayerInvincibility>,
+    mut player_query: Query<&mut Sprite, With<BehaviorParams>>,
+) {
+    if !player_invincibility.active {
+        return;
+    }
+
+    let delta = time.delta_secs();
+
+    // Update invincibility timer
+    player_invincibility.timer -= delta;
+
+    if player_invincibility.timer <= 0.0 {
+        // Invincibility ended - reset to normal color
+        player_invincibility.active = false;
+        player_invincibility.timer = 0.0;
+        player_invincibility.flash_state = true;
+
+        // Reset heart color to pure red
+        for mut sprite in player_query.iter_mut() {
+            sprite.color = invincibility_config.normal_color;
+        }
+
+        info!("Battle: Player invincibility ended");
+        return;
+    }
+
+    // Update flash timer
+    player_invincibility.flash_timer += delta;
+
+    if player_invincibility.flash_timer >= invincibility_config.flash_interval {
+        player_invincibility.flash_timer = 0.0;
+        player_invincibility.flash_state = !player_invincibility.flash_state;
+
+        // Toggle heart color
+        let color = if player_invincibility.flash_state {
+            invincibility_config.normal_color
+        } else {
+            invincibility_config.flash_color
+        };
+
+        for mut sprite in player_query.iter_mut() {
+            sprite.color = color;
         }
     }
 }

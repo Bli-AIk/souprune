@@ -6,6 +6,8 @@
 // 4. Spiral homing attack (custom C#/Rust behavior)
 // 5. Wave burst attack (custom C#/Rust behavior)
 // 6. Gravity drop attack (custom C#/Rust behavior)
+// 7. Orange pellets (damage when player stationary)
+// 8. Blue pellets (damage when player moving)
 
 // 测试战斗表演
 // 展示各种攻击模式，包括自定义模组行为：
@@ -15,6 +17,8 @@
 // 4. 螺旋追踪攻击（自定义 C#/Rust 行为）
 // 5. 波动爆发攻击（自定义 C#/Rust 行为）
 // 6. 重力下落攻击（自定义 C#/Rust 行为）
+// 7. 橙色花颗粒（玩家静止时造成伤害）
+// 8. 蓝色花颗粒（玩家移动时造成伤害）
 (
     // === Bullet Prototypes ===
     // === 弹幕原型 ===
@@ -31,6 +35,9 @@
             // High z_index to ensure bullets render on top in Overworld
             // 高 z_index 确保弹幕在 Overworld 中渲染在最上层
             z_index: 100.0,
+            // Spears don't despawn on hit (persistent)
+            // 长矛碰撞后不消失（持续型）
+            hit_behavior: Persistent,
         ),
         "pellet": (
             visual: Animation(
@@ -44,6 +51,36 @@
             // High z_index to ensure bullets render on top in Overworld
             // 高 z_index 确保弹幕在 Overworld 中渲染在最上层
             z_index: 100.0,
+        ),
+        // Orange pellet: damage only when player is stationary
+        // 橙色花颗粒：仅当玩家静止时造成伤害
+        "pellet_orange": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: BoxCollider(6.0, 6.0),
+            damage: 1.0,
+            lifetime: 3.0,
+            z_index: 100.0,
+            hit_behavior: DamageWhenStationary,
+            color_tint: Some((hex: Some("#FCA600"))),
+        ),
+        // Blue pellet: damage only when player is moving
+        // 蓝色花颗粒：仅当玩家移动时造成伤害
+        "pellet_blue": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: BoxCollider(6.0, 6.0),
+            damage: 1.0,
+            lifetime: 3.0,
+            z_index: 100.0,
+            hit_behavior: DamageWhenMoving,
+            color_tint: Some((hex: Some("#40FEFE"))),
         ),
     },
 
@@ -148,8 +185,8 @@
     // 这一部分定义了弹幕生成的顺序及其相关的模式和行为。
     // 时间值默认为相对时间（与上一事件的时间差）。设置 `absolute: true` 使用绝对时间。
     timeline: [
-        // Step 1: Spear linear attack from left (t=0.0) - 长矛线性攻击
-        // 第一步：从左侧发起的长矛线性攻击 (t=0.0)
+        // Step 1: Spear linear attack from left (persistent)
+        // 第一步：从左侧发起的长矛线性攻击（持续型）
         (
             t: 0.0,
             spawn: "spear",
@@ -157,17 +194,17 @@
             apply: ["move_right", "fade_in"],
         ),
 
-        // Step 2: Pellet ring attack (t=1.5 after previous) - 花颗粒一圈攻击
-        // 第二步：花颗粒一圈攻击 (距上一事件 1.5 秒)
+        // Step 2: Orange pellet ring attack - damage when stationary
+        // 第二步：橙色花颗粒一圈攻击 - 玩家静止时造成伤害
         (
             t: 1.5,
-            spawn: "pellet",
+            spawn: "pellet_orange",
             pattern: RingGenerator(count: 12, radius: 100.0, start_angle: 0.0),
             apply: ["spiral_in", "fade_in"],
         ),
 
-        // Step 3: Aimed spears from top (t=2.0 after previous) - 长矛自机狙
-        // 第三步：从顶部发起的长矛自机狙 (距上一事件 2.0 秒)
+        // Step 3: Aimed spears from top (persistent)
+        // 第三步：从顶部发起的长矛自机狙（持续型）
         (
             t: 2.0,
             spawn: "spear",
@@ -175,15 +212,13 @@
             apply: ["aimed", "fade_in"],
         ),
 
-        // Step 4: Another pellet ring with inline behavior (t=1.5 after previous)
-        // 第四步：另一个花颗粒一圈攻击，使用内联行为 (距上一事件 1.5 秒)
+        // Step 4: Blue pellet ring - damage when moving
+        // 第四步：蓝色花颗粒一圈攻击 - 玩家移动时造成伤害
         (
             t: 1.5,
-            spawn: "pellet",
+            spawn: "pellet_blue",
             pattern: RingGenerator(count: 16, radius: 80.0, start_angle: 0.785),
             apply: ["spiral_in"],
-            // Example of inline behavior - no need to define in behaviors map
-            // 内联行为示例 - 无需在 behaviors 映射中定义
             behaviors: [
                 Tween((
                     target: Scale,
@@ -195,8 +230,8 @@
             ],
         ),
 
-        // Step 5: Spear sweep from right (t=1.5 after previous)
-        // 第五步：从右侧发起的长矛横扫 (距上一事件 1.5 秒)
+        // Step 5: Spear sweep from right (persistent)
+        // 第五步：从右侧发起的长矛横扫（持续型）
         (
             t: 1.5,
             spawn: "spear",
@@ -207,17 +242,17 @@
         // === Custom Mod Behavior Demonstrations ===
         // === 自定义模组行为演示 ===
 
-        // Step 6: Spiral Homing Attack - pellets spiral outward while tracking player
-        // 第六步：螺旋追踪攻击 - 花颗粒向外螺旋同时追踪玩家
+        // Step 6: Spiral Homing Attack - orange pellets spiral outward while tracking player
+        // 第六步：螺旋追踪攻击 - 橙色花颗粒向外螺旋同时追踪玩家
         (
             t: 2.0,
-            spawn: "pellet",
+            spawn: "pellet_orange",
             pattern: RingGenerator(count: 8, radius: 60.0, start_angle: 0.0),
             apply: ["spiral_homing", "fade_in"],
         ),
 
-        // Step 7: Wave Burst Attack - spears move in wave pattern with initial burst
-        // 第七步：波动爆发攻击 - 长矛以波动模式移动，带有初始爆发
+        // Step 7: Wave Burst Attack - spears move in wave pattern (persistent)
+        // 第七步：波动爆发攻击 - 长矛以波动模式移动（持续型）
         (
             t: 2.0,
             spawn: "spear",
@@ -225,11 +260,11 @@
             apply: ["wave_burst", "fade_in"],
         ),
 
-        // Step 8: Gravity Drop Attack - pellets fall with gravity and bounce
-        // 第八步：重力下落攻击 - 花颗粒受重力下落并反弹
+        // Step 8: Gravity Drop Attack - blue pellets fall with gravity
+        // 第八步：重力下落攻击 - 蓝色花颗粒受重力下落
         (
             t: 2.0,
-            spawn: "pellet",
+            spawn: "pellet_blue",
             pattern: LineGenerator(count: 6, spacing: 50.0, direction: (1.0, 0.0)),
             apply: ["gravity_drop", "fade_in"],
         ),

@@ -417,15 +417,28 @@ fn spawn_single_bullet(
 
     match &prototype.visual {
         BulletVisual::Sprite { path } => {
-            entity_commands.insert(Sprite {
+            let mut sprite = Sprite {
                 image: asset_server.load(path),
                 ..default()
-            });
+            };
+            // Apply color tint if specified
+            if let Some(tint) = &prototype.color_tint {
+                if let Some(color) = tint.to_color() {
+                    sprite.color = color;
+                }
+            }
+            entity_commands.insert(sprite);
         }
         BulletVisual::SpriteRef { module, name } => {
             let mut sprite_context = sprite_params.create_sprite_context();
             match sprite_context.get_sprite(module, name) {
-                Ok(sprite) => {
+                Ok(mut sprite) => {
+                    // Apply color tint if specified
+                    if let Some(tint) = &prototype.color_tint {
+                        if let Some(color) = tint.to_color() {
+                            sprite.color = color;
+                        }
+                    }
                     entity_commands.insert(sprite);
                 }
                 Err(e) => {
@@ -442,8 +455,15 @@ fn spawn_single_bullet(
             let mut sprite_context = sprite_params.create_sprite_context();
             match SpriteAnimationClip::new(&mut sprite_context, module, name) {
                 Ok(clip) => {
+                    let mut sprite = Sprite::default();
+                    // Apply color tint if specified
+                    if let Some(tint) = &prototype.color_tint {
+                        if let Some(color) = tint.to_color() {
+                            sprite.color = color;
+                        }
+                    }
                     entity_commands.insert((
-                        Sprite::default(),
+                        sprite,
                         clip,
                         SpriteAnimationTimer::new(*frame_duration),
                     ));
