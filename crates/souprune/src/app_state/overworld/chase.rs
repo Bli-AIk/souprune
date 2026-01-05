@@ -985,6 +985,7 @@ pub fn cleanup_player_hitbox_system(
 #[allow(clippy::type_complexity)]
 pub fn chase_damage_detection_system(
     mut commands: Commands,
+    time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
     overworld_state: Res<State<OverworldState>>,
@@ -999,8 +1000,6 @@ pub fn chase_damage_detection_system(
             &Transform,
             &crate::core::collision::TriggerCollider,
             Option<&crate::core::collision::HitboxOffset>,
-            Option<&crate::app_state::overworld::character::components::StateWalking>,
-            Option<&crate::app_state::overworld::character::components::StateRunning>,
         ),
         With<ChasePlayerHitbox>,
     >,
@@ -1017,15 +1016,15 @@ pub fn chase_damage_detection_system(
         With<crate::core::danmaku::Bullet>,
     >,
     mut damage_events: MessageWriter<ChasePlayerDamageEvent>,
+    mut last_player_state: Local<Option<(Vec2, f64)>>,
 ) {
     // Only run in chase state
     if *overworld_state.get() != OverworldState::Chase {
+        *last_player_state = None; // Reset when not in chase
         return;
     }
 
-    let Ok((player_transform, player_hitbox, hitbox_offset, is_walking, is_running)) =
-        player_query.single()
-    else {
+    let Ok((player_transform, player_hitbox, hitbox_offset)) = player_query.single() else {
         return;
     };
 
@@ -1033,9 +1032,22 @@ pub fn chase_damage_detection_system(
         + hitbox_offset
             .map(|o| o.0)
             .unwrap_or(chase_config.hitbox.offset.to_vec2());
+    let current_time = time.elapsed_secs_f64();
 
-    // Check if player is moving
-    let player_is_moving = is_walking.is_some() || is_running.is_some();
+    // Check if player is moving based on position change
+    let player_is_moving = if let Some((last_pos, last_time)) = *last_player_state {
+        // If too much time passed (e.g. paused, lag spike), reset detection
+        if current_time - last_time > time.delta_secs_f64() * 1.5 {
+            false
+        } else {
+            player_center.distance_squared(last_pos) > 0.0001 // sqrt(0.0001) = 0.01 threshold
+        }
+    } else {
+        false
+    };
+
+    // Update last state
+    *last_player_state = Some((player_center, current_time));
 
     // Check if player is invincible
     let is_invincible = player_invincibility.is_invincible();

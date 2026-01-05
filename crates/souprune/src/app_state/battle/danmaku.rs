@@ -148,6 +148,7 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 #[allow(clippy::too_many_arguments)]
 fn battle_damage_detection_system(
     mut commands: Commands,
+    time: Res<Time>,
     invincibility_config: Res<BattleInvincibilityConfig>,
     mut player_invincibility: ResMut<BattlePlayerInvincibility>,
     mut player_data: ResMut<crate::core::data::PlayerData>,
@@ -164,6 +165,7 @@ fn battle_damage_detection_system(
         ),
         With<crate::core::danmaku::Bullet>,
     >,
+    mut last_player_state: Local<Option<(Vec2, f64)>>,
     #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
         bevy_kira_audio::Audio,
     >,
@@ -174,10 +176,23 @@ fn battle_damage_detection_system(
     };
 
     let player_center = player_transform.translation().truncate();
+    let current_time = time.elapsed_secs_f64();
 
-    // TODO: Battle player movement detection for blue/orange soul mechanics
-    // For now, assume player is always "moving" in battle mode
-    let player_is_moving = true;
+    // Battle player movement detection
+    // Check if player position changed significantly since last frame
+    let player_is_moving = if let Some((last_pos, last_time)) = *last_player_state {
+        // If too much time passed (e.g. paused, lag spike, or system didn't run), reset detection
+        if current_time - last_time > time.delta_secs_f64() * 1.5 {
+            false
+        } else {
+            player_center.distance_squared(last_pos) > 0.0001 // sqrt(0.0001) = 0.01 threshold
+        }
+    } else {
+        false
+    };
+
+    // Update last state
+    *last_player_state = Some((player_center, current_time));
 
     // Check if player is invincible
     let is_invincible = player_invincibility.is_invincible();
