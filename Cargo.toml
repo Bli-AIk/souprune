@@ -6,6 +6,7 @@ members = [
     "crates/bevy_ecs_typewriter",
     "crates/bevy_fact_rule_event",
     "crates/bevy_mortar_bond",
+    "crates/bevy_alight_motion",
     "crates/souprune_api",
     "crates/souprune_sdk",
     "crates/souprune_mod_test",
