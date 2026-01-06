@@ -119,10 +119,10 @@ fn handle_input(keyboard: Res<ButtonInput<KeyCode>>, mut playback: ResMut<AmPlay
 
     // Speed control (up = faster, down = slower)
     if keyboard.just_pressed(KeyCode::ArrowUp) {
-        playback.speed = (playback.speed * 1.5).min(4.0);
+        playback.speed = (playback.speed + 0.1).min(4.0);
     }
     if keyboard.just_pressed(KeyCode::ArrowDown) {
-        playback.speed = (playback.speed / 1.5).max(0.25);
+        playback.speed = (playback.speed - 0.1).max(0.1);
     }
 
     // Loop mode toggle
