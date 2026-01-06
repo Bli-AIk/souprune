@@ -49,7 +49,7 @@ fn spawn_loaded_projects(
             );
             println!("  Media count: {}", project.scene.media.len());
             println!("  Images loaded: {}", project.images.len());
-            for (uri, _) in &project.images {
+            for uri in project.images.keys() {
                 println!("    - {}", uri);
             }
             println!("  Layers count: {}", project.scene.layers.len());

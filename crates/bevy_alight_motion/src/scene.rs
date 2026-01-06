@@ -386,12 +386,10 @@ fn get_initial_location(
         crate::schema::parse_vec3(&sorted[0].value)
             .map(|v| (v[0], v[1]))
             .unwrap_or((0.0, 0.0))
+    } else if has_parent {
+        (0.0, 0.0) // Local origin for children
     } else {
-        if has_parent {
-            (0.0, 0.0) // Local origin for children
-        } else {
-            (config.canvas_width / 2.0, config.canvas_height / 2.0) // Canvas center for root
-        }
+        (config.canvas_width / 2.0, config.canvas_height / 2.0) // Canvas center for root
     };
 
     if has_parent {
