@@ -1,10 +1,12 @@
 //! Example player for Alight Motion projects.
 //!
 //! Controls:
-//! - Space: Play/Pause
-//! - R: Reset to beginning
-//! - Left/Right: Seek backward/forward
-//! - Up/Down: Speed up/slow down
+//! - Space: Play/Pause toggle
+//! - R: Reset to beginning (keeps current play state)
+//! - P: Replay from beginning (resets and plays)
+//! - Left/Right: Seek backward/forward by 50ms
+//! - Up/Down: Speed up/slow down playback
+//! - L: Toggle loop mode
 
 use bevy::prelude::*;
 use bevy_alight_motion::prelude::*;
@@ -15,13 +17,16 @@ fn main() {
             primary_window: Some(Window {
                 title: "Alight Motion Player".to_string(),
                 resolution: (1280, 960).into(),
+                resizable: false,
                 ..default()
             }),
             ..default()
         }))
+        // Black background matching AM project
+        .insert_resource(ClearColor(Color::BLACK))
         .add_plugins(AlightMotionPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (handle_input, update_ui))
+        .add_systems(Update, (handle_input, update_ui, debug_sprites))
         .run();
 }
 
@@ -53,9 +58,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         StatusText,
     ));
 
-    // Instructions
+    // Instructions - clear English key descriptions
     commands.spawn((
-        Text::new("Controls: Space=Play/Pause, R=Reset, Left/Right=Seek, Up/Down=Speed, L=Loop"),
+        Text::new("[Space] Play/Pause | [R] Reset | [P] Replay | [Left/Right] Seek | [Up/Down] Speed | [L] Loop"),
         TextFont {
             font_size: 16.0,
             ..default()
@@ -70,18 +75,41 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
+/// Debug system to print sprite info once
+fn debug_sprites(query: Query<(&AmLayerMarker, &Transform, &Sprite), Added<Sprite>>) {
+    for (marker, transform, sprite) in query.iter() {
+        println!(
+            "Sprite added: '{}' at ({:.1},{:.1},{:.1}) scale=({:.2},{:.2}) alpha={:.2} size={:?}",
+            marker.label,
+            transform.translation.x,
+            transform.translation.y,
+            transform.translation.z,
+            transform.scale.x,
+            transform.scale.y,
+            sprite.color.alpha(),
+            sprite.custom_size
+        );
+    }
+}
+
 fn handle_input(keyboard: Res<ButtonInput<KeyCode>>, mut playback: ResMut<AmPlayback>) {
-    // Play/Pause
+    // Play/Pause toggle
     if keyboard.just_pressed(KeyCode::Space) {
         playback.toggle();
     }
 
-    // Reset
+    // Reset (keeps current play/pause state)
     if keyboard.just_pressed(KeyCode::KeyR) {
         playback.reset();
     }
 
-    // Seek
+    // Replay (reset and start playing)
+    if keyboard.just_pressed(KeyCode::KeyP) {
+        playback.reset();
+        playback.playing = true;
+    }
+
+    // Seek backward/forward by 50ms
     if keyboard.pressed(KeyCode::ArrowLeft) {
         playback.current_time_ms = (playback.current_time_ms - 50.0).max(0.0);
     }
@@ -89,7 +117,7 @@ fn handle_input(keyboard: Res<ButtonInput<KeyCode>>, mut playback: ResMut<AmPlay
         playback.current_time_ms = (playback.current_time_ms + 50.0).min(playback.total_time_ms);
     }
 
-    // Speed control
+    // Speed control (up = faster, down = slower)
     if keyboard.just_pressed(KeyCode::ArrowUp) {
         playback.speed = (playback.speed * 1.5).min(4.0);
     }
@@ -97,7 +125,7 @@ fn handle_input(keyboard: Res<ButtonInput<KeyCode>>, mut playback: ResMut<AmPlay
         playback.speed = (playback.speed / 1.5).max(0.25);
     }
 
-    // Loop toggle
+    // Loop mode toggle
     if keyboard.just_pressed(KeyCode::KeyL) {
         playback.looping = !playback.looping;
     }

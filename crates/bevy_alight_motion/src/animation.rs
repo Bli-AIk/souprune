@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::scene::AmLayerMarker;
 use crate::schema::{AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmKeyframe, Easing};
 
 /// Component marking an entity as part of an AM animation.
@@ -21,6 +22,10 @@ pub struct AmAnimated {
     pub scale: AmAnimatedVec2,
     /// Opacity animation data.
     pub opacity: AmAnimatedFloat,
+    /// Canvas width for coordinate conversion.
+    pub canvas_width: f32,
+    /// Canvas height for coordinate conversion.
+    pub canvas_height: f32,
 }
 
 /// Resource to control animation playback.
@@ -91,11 +96,11 @@ pub fn advance_playback(time: Res<Time>, mut playback: ResMut<AmPlayback>) {
 /// System to animate transforms based on keyframes.
 pub fn animate_transform(
     playback: Res<AmPlayback>,
-    mut query: Query<(&AmAnimated, &mut Transform)>,
+    mut query: Query<(&AmAnimated, &mut Transform, &AmLayerMarker)>,
 ) {
     let current_time = playback.current_time_ms;
 
-    for (animated, mut transform) in query.iter_mut() {
+    for (animated, mut transform, marker) in query.iter_mut() {
         // Check if layer is active at current time
         if current_time < animated.start_time as f32 || current_time > animated.end_time as f32 {
             continue;
@@ -105,14 +110,30 @@ pub fn animate_transform(
         let layer_duration = (animated.end_time - animated.start_time) as f32;
         let layer_time = (current_time - animated.start_time as f32) / layer_duration;
 
-        // Interpolate location
+        // Interpolate location and convert from AM to Bevy coordinates
         if let Some(loc) = interpolate_vec3(&animated.location, layer_time) {
-            transform.translation = Vec3::new(loc[0], loc[1], loc[2]);
+            // AM: Origin at top-left, Y increases downward
+            // Bevy: Origin at center, Y increases upward
+            let bx = loc[0] - animated.canvas_width / 2.0;
+            let by = animated.canvas_height / 2.0 - loc[1];
+
+            // Debug output for GB (extended range)
+            if marker.label.contains("GB")
+                && marker.id == 10131904
+                && (current_time < 20.0 || (current_time > 490.0 && current_time < 520.0))
+            {
+                println!(
+                    "GB t={:.1}ms layer_t={:.4} am_y={:.1} -> bevy_y={:.1}",
+                    current_time, layer_time, loc[1], by
+                );
+            }
+
+            transform.translation = Vec3::new(bx, by, transform.translation.z);
         }
 
-        // Interpolate rotation
+        // Interpolate rotation (negate for Bevy's coordinate system)
         if let Some(rot) = interpolate_float(&animated.rotation, layer_time) {
-            transform.rotation = Quat::from_rotation_z(rot.to_radians());
+            transform.rotation = Quat::from_rotation_z((-rot).to_radians());
         }
 
         // Interpolate scale

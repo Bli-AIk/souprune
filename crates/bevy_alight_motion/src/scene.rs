@@ -99,43 +99,19 @@ pub fn spawn_scene(
             AmLayer::Shape(shape) => {
                 let entity = spawn_shape(commands, shape, images, config, z);
                 entity_map.insert(shape.id, entity);
-
-                if shape.parent != 0 {
-                    deferred_parents.push((entity, shape.parent));
-                } else {
-                    commands.entity(parent).add_child(entity);
-                }
+                // All entities attached to root for now (simplifies coordinate handling)
+                commands.entity(parent).add_child(entity);
             }
             AmLayer::Nullobj(null) => {
                 let entity = spawn_null(commands, null, config, z);
                 entity_map.insert(null.id, entity);
-
-                if null.parent != 0 {
-                    deferred_parents.push((entity, null.parent));
-                } else {
-                    commands.entity(parent).add_child(entity);
-                }
+                commands.entity(parent).add_child(entity);
             }
             AmLayer::EmbedScene(embed) => {
                 let entity = spawn_embed_scene(commands, embed, images, config, z);
                 entity_map.insert(embed.id, entity);
-
-                if embed.parent != 0 {
-                    deferred_parents.push((entity, embed.parent));
-                } else {
-                    commands.entity(parent).add_child(entity);
-                }
+                commands.entity(parent).add_child(entity);
             }
-        }
-    }
-
-    // Second pass: establish parent relationships
-    for (child_entity, parent_id) in deferred_parents {
-        if let Some(&parent_entity) = entity_map.get(&parent_id) {
-            commands.entity(parent_entity).add_child(child_entity);
-        } else {
-            // Parent not found, attach to root
-            commands.entity(parent).add_child(child_entity);
         }
     }
 
@@ -159,6 +135,21 @@ fn spawn_shape(
     // Get size from properties
     let (width, height) = get_shape_size(&shape.properties);
 
+    println!(
+        "Spawning shape '{}' (id={}): pos=({:.1},{:.1}), scale=({:.2},{:.2}), opacity={:.2}, size=({:.0},{:.0}), fill={}, image={}",
+        shape.label,
+        shape.id,
+        tx,
+        ty,
+        sx,
+        sy,
+        opacity,
+        width,
+        height,
+        shape.fill_type,
+        shape.fill_image
+    );
+
     let transform = Transform {
         translation: Vec3::new(tx, ty, z),
         rotation: Quat::from_rotation_z(rotation.to_radians()),
@@ -178,6 +169,8 @@ fn spawn_shape(
             rotation: shape.transform.rotation.clone(),
             scale: shape.transform.scale.clone(),
             opacity: shape.transform.opacity.clone(),
+            canvas_width: config.canvas_width,
+            canvas_height: config.canvas_height,
         },
         transform,
         GlobalTransform::default(),
@@ -189,12 +182,15 @@ fn spawn_shape(
     // Add sprite if it's a media fill
     if shape.fill_type == "media" && !shape.fill_image.is_empty() {
         if let Some(handle) = images.get(&shape.fill_image) {
+            println!("  -> Added media sprite with handle");
             entity.insert(Sprite {
                 image: handle.clone(),
                 color: Color::srgba(1.0, 1.0, 1.0, opacity),
                 custom_size: Some(Vec2::new(width, height)),
                 ..default()
             });
+        } else {
+            println!("  -> Image not found: {}", shape.fill_image);
         }
     } else if shape.fill_type == "color" {
         // Color fill - create a colored sprite
@@ -206,6 +202,7 @@ fn spawn_shape(
             Color::srgba(1.0, 1.0, 1.0, opacity)
         };
 
+        println!("  -> Added color sprite");
         entity.insert(Sprite {
             color,
             custom_size: Some(Vec2::new(width, height)),
@@ -227,6 +224,11 @@ fn spawn_null(
     let rotation = get_initial_rotation(&null.transform.rotation);
     let (sx, sy) = get_initial_scale(&null.transform.scale);
 
+    println!(
+        "Spawning nullobj '{}' (id={}): pos=({:.1},{:.1}), scale=({:.2},{:.2})",
+        null.label, null.id, tx, ty, sx, sy
+    );
+
     let transform = Transform {
         translation: Vec3::new(tx, ty, z),
         rotation: Quat::from_rotation_z(rotation.to_radians()),
@@ -247,6 +249,8 @@ fn spawn_null(
                 rotation: null.transform.rotation.clone(),
                 scale: null.transform.scale.clone(),
                 opacity: null.transform.opacity.clone(),
+                canvas_width: config.canvas_width,
+                canvas_height: config.canvas_height,
             },
             transform,
             GlobalTransform::default(),
@@ -289,6 +293,8 @@ fn spawn_embed_scene(
                 rotation: embed.transform.rotation.clone(),
                 scale: embed.transform.scale.clone(),
                 opacity: embed.transform.opacity.clone(),
+                canvas_width: config.canvas_width,
+                canvas_height: config.canvas_height,
             },
             transform,
             GlobalTransform::default(),

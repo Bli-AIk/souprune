@@ -40,6 +40,20 @@ fn spawn_loaded_projects(
         }
 
         if let Some(project) = projects.get(&root.handle) {
+            println!(
+                "Loading AM project: {} ({}x{}, {}ms)",
+                project.scene.title,
+                project.scene.width,
+                project.scene.height,
+                project.scene.total_time
+            );
+            println!("  Media count: {}", project.scene.media.len());
+            println!("  Images loaded: {}", project.images.len());
+            for (uri, _) in &project.images {
+                println!("    - {}", uri);
+            }
+            println!("  Layers count: {}", project.scene.layers.len());
+
             // Update playback duration
             playback.total_time_ms = project.scene.total_time as f32;
 
@@ -60,6 +74,7 @@ fn spawn_loaded_projects(
             );
 
             root.spawned = true;
+            println!("Scene spawned successfully");
         }
     }
 }
