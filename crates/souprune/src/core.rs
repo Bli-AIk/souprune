@@ -41,6 +41,8 @@ pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
 pub mod mod_system;
+pub mod player_components;
+pub mod render_layers;
 pub mod ron_loader;
 pub mod sprite;
 pub(crate) mod ui;
