@@ -11,6 +11,7 @@
 //! 本模块处理引擎全局配置的加载与访问。它读取 `projects/config.toml` 以确定当前激活的项目模组、语言设置和窗口配置，并提供了用于解析资产路径的实用工具。
 
 use anyhow::{Context, Result};
+use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -21,6 +22,10 @@ use tracing::error;
 pub struct SoupruneConfig {
     pub project: ProjectConfig,
     pub window: WindowConfig,
+    #[serde(default)]
+    pub game: GameConfig,
+    #[serde(default)]
+    pub render: RenderConfig,
 }
 
 #[derive(Clone, Deserialize)]
@@ -32,6 +37,142 @@ pub struct ProjectConfig {
 #[derive(Clone, Deserialize)]
 pub struct WindowConfig {
     pub resolution_scale: u32,
+}
+
+/// Game flow configuration for paths and module loading.
+///
+/// 游戏流程配置，包含路径和模块加载设置。
+#[derive(Clone, Deserialize, Resource)]
+pub struct GameConfig {
+    /// Initial map path to load when entering Overworld.
+    ///
+    /// 进入 Overworld 时加载的初始地图路径。
+    #[serde(default = "default_initial_map_path")]
+    pub initial_map_path: String,
+
+    /// Debug battle chapter path to load when entering Battle state.
+    ///
+    /// 进入 Battle 状态时加载的调试用战斗章节路径。
+    #[serde(default = "default_debug_battle_chapter")]
+    pub debug_battle_chapter: String,
+
+    /// Path to player behavior configuration file.
+    ///
+    /// 玩家行为配置文件路径。
+    #[serde(default = "default_player_behavior_path")]
+    pub player_behavior_path: String,
+
+    /// Texture modules required before transitioning from AppSetup.
+    ///
+    /// 从 AppSetup 状态转换前需要加载的纹理模块。
+    #[serde(default = "default_required_modules")]
+    pub required_modules: Vec<String>,
+
+    /// Keywords for layer names that should be hidden (e.g., prototype, collision).
+    ///
+    /// 需要隐藏的图层名关键字（如 prototype、collision）。
+    #[serde(default = "default_hidden_layer_keywords")]
+    pub hidden_layer_keywords: Vec<String>,
+}
+
+impl Default for GameConfig {
+    fn default() -> Self {
+        Self {
+            initial_map_path: default_initial_map_path(),
+            debug_battle_chapter: default_debug_battle_chapter(),
+            player_behavior_path: default_player_behavior_path(),
+            required_modules: default_required_modules(),
+            hidden_layer_keywords: default_hidden_layer_keywords(),
+        }
+    }
+}
+
+fn default_initial_map_path() -> String {
+    "overworld/levels/ruins/ruins_3.tmx".to_string()
+}
+
+fn default_debug_battle_chapter() -> String {
+    "battle/chapters/demo.battle.ron".to_string()
+}
+
+fn default_player_behavior_path() -> String {
+    "overworld/players/player_behavior.ron".to_string()
+}
+
+fn default_required_modules() -> Vec<String> {
+    vec!["overworld".to_string(), "common".to_string()]
+}
+
+fn default_hidden_layer_keywords() -> Vec<String> {
+    vec!["prototype".to_string(), "collision".to_string()]
+}
+
+/// Render configuration for resolution and Z-ordering.
+///
+/// 渲染配置，包含分辨率和 Z 轴排序设置。
+#[derive(Clone, Deserialize, Resource)]
+pub struct RenderConfig {
+    /// Base resolution width (game world units).
+    ///
+    /// 基准分辨率宽度（游戏世界单位）。
+    #[serde(default = "default_base_resolution_width")]
+    pub base_resolution_width: u32,
+
+    /// Base resolution height (game world units).
+    ///
+    /// 基准分辨率高度（游戏世界单位）。
+    #[serde(default = "default_base_resolution_height")]
+    pub base_resolution_height: u32,
+
+    /// Z-offset applied to tilemap layers.
+    ///
+    /// 应用于 tilemap 图层的 Z 轴偏移。
+    #[serde(default = "default_z_layer_tilemap")]
+    pub z_layer_tilemap: f32,
+
+    /// Base Z value for layer sorting.
+    ///
+    /// 图层排序的基准 Z 值。
+    #[serde(default = "default_z_layer_base")]
+    pub z_layer_base: f32,
+
+    /// Z step between consecutive layers.
+    ///
+    /// 连续图层之间的 Z 步长。
+    #[serde(default = "default_z_layer_step")]
+    pub z_layer_step: f32,
+}
+
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self {
+            base_resolution_width: default_base_resolution_width(),
+            base_resolution_height: default_base_resolution_height(),
+            z_layer_tilemap: default_z_layer_tilemap(),
+            z_layer_base: default_z_layer_base(),
+            z_layer_step: default_z_layer_step(),
+        }
+    }
+}
+
+fn default_base_resolution_width() -> u32 {
+    320
+}
+
+fn default_base_resolution_height() -> u32 {
+    240
+}
+
+fn default_z_layer_tilemap() -> f32 {
+    10.0
+}
+
+fn default_z_layer_base() -> f32 {
+    -2.0
+}
+
+fn default_z_layer_step() -> f32 {
+    0.5
 }
 
 static CONFIG: OnceLock<SoupruneConfig> = OnceLock::new();
@@ -101,5 +242,7 @@ fn default_config() -> SoupruneConfig {
         window: WindowConfig {
             resolution_scale: 2,
         },
+        game: GameConfig::default(),
+        render: RenderConfig::default(),
     }
 }

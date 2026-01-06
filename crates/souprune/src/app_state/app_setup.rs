@@ -68,13 +68,10 @@ fn check_textures_system(
     sprite_registry: Res<ModuleSpriteRegistry>,
     asset_server: Res<AssetServer>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
+    game_config: Res<crate::config::GameConfig>,
 ) {
-    // TODO 配置于toml文件
-    // 目前会检查所有需要的Sprite是否加载完成，然后才切换状态
-    // 但是这样做不够灵活
-    // 我们应该在toml文件中配置某个AppState加载前，需要哪些模块的Sprite
     for _ in events.read() {
-        let all_loaded = ["overworld", "common"].into_iter().all(|module| {
+        let all_loaded = game_config.required_modules.iter().all(|module| {
             if let Some(handle) = sprite_registry.get_module(module) {
                 asset_server.is_loaded_with_dependencies(handle)
             } else {

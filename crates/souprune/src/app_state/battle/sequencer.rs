@@ -88,12 +88,15 @@ struct CurrentBattleFlow(Handle<BattleAsset>);
 /// System to load the default chapter resource.
 ///
 /// 加载默认章节资源的系统。
-fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // TODO: Remove hardcoded chapter path - should be configurable or load from save data
-    // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
-    let handle = asset_server.load::<BattleAsset>("battle/chapters/demo.battle.ron");
+fn load_default_chapter_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    game_config: Res<crate::config::GameConfig>,
+) {
+    let chapter_path = &game_config.debug_battle_chapter;
+    let handle = asset_server.load::<BattleAsset>(chapter_path);
     commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: battle/chapters/demo.battle.ron");
+    info!("Loading default battle flow: {}", chapter_path);
 }
 
 fn sync_battle_flow_system(

@@ -110,12 +110,20 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
 /// Get the default Bevy plugins with custom window size and image plugin settings.
 ///
 /// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
-fn get_bevy_default_plugins(resolution_scale: u32) -> PluginGroupBuilder {
+fn get_bevy_default_plugins(
+    resolution_scale: u32,
+    render_config: &config::RenderConfig,
+) -> PluginGroupBuilder {
+    let base_width = render_config.base_resolution_width;
+    let base_height = render_config.base_resolution_height;
     DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: WindowResolution::new(320 * resolution_scale, 240 * resolution_scale),
+                resolution: WindowResolution::new(
+                    base_width * resolution_scale,
+                    base_height * resolution_scale,
+                ),
                 resizable: false,
                 ..default()
             }),
@@ -196,6 +204,8 @@ pub fn run() {
     let resolution_scale = config.window.resolution_scale;
     let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
+    let game_config = config.game.clone();
+    let render_config = config.render.clone();
 
     App::new()
         // TODO: 读取 mod 配置并加载正确的项目
@@ -247,7 +257,7 @@ pub fn run() {
         .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
-            get_bevy_default_plugins(resolution_scale),
+            get_bevy_default_plugins(resolution_scale, &render_config),
             get_file_importer_plugins(),
             get_third_plugins(),
             #[cfg(feature = "debug")]
@@ -255,6 +265,8 @@ pub fn run() {
             #[cfg(feature = "debug")]
             bevy_brp_extras::BrpExtrasPlugin,
         ))
+        .insert_resource(game_config)
+        .insert_resource(render_config)
         .insert_resource(bevy_rich_text3d::LoadFonts {
             font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
             ..Default::default()

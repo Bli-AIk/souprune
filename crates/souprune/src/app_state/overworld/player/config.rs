@@ -20,10 +20,6 @@ use bevy::prelude::Resource;
 use serde::Deserialize;
 use std::fs;
 
-// TODO: Remove hardcoded path - should be configurable or discovered dynamically
-// TODO：删除硬编码路径 - 应该是可配置的或动态发现的
-const PLAYER_BEHAVIOR_PATH: &str = "overworld/players/player_behavior.ron";
-
 /// Runtime configuration describing how the overworld player should behave.
 ///
 /// 描述 Overworld 玩家行为的运行时配置资源。
@@ -46,7 +42,10 @@ pub struct PlayerBehavior {
 
 impl PlayerBehavior {
     pub fn load() -> Result<Self> {
-        let config_data = PlayerBehaviorFile::read()?;
+        // Get path from global config
+        let global_config = config::load_config();
+        let behavior_path = &global_config.game.player_behavior_path;
+        let config_data = PlayerBehaviorFile::read(behavior_path)?;
 
         let character_asset: CharacterAsset = load_ron_asset(&config_data.character_asset)
             .with_context(|| {
@@ -153,19 +152,11 @@ struct PlayerBehaviorFile {
 }
 
 impl PlayerBehaviorFile {
-    fn read() -> Result<Self> {
-        let contents = read_prioritized_file(PLAYER_BEHAVIOR_PATH).with_context(|| {
-            format!(
-                "Failed to read player behavior config at {}",
-                PLAYER_BEHAVIOR_PATH
-            )
-        })?;
-        ron::de::from_str(&contents).with_context(|| {
-            format!(
-                "Failed to parse player behavior config at {}",
-                PLAYER_BEHAVIOR_PATH
-            )
-        })
+    fn read(path: &str) -> Result<Self> {
+        let contents = read_prioritized_file(path)
+            .with_context(|| format!("Failed to read player behavior config at {}", path))?;
+        ron::de::from_str(&contents)
+            .with_context(|| format!("Failed to parse player behavior config at {}", path))
     }
 }
 

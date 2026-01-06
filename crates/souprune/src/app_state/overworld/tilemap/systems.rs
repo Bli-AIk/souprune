@@ -50,13 +50,17 @@ pub struct CollisionTileGroup;
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
 
-pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // TODO: Remove hardcoded map path - should load from config or save data
+pub fn setup_tilemap_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    game_config: Res<crate::config::GameConfig>,
+    render_config: Res<crate::config::RenderConfig>,
+) {
     commands.spawn((
         OverworldEntity(),
-        TiledMap(asset_server.load("overworld/levels/ruins/ruins_3.tmx")),
+        TiledMap(asset_server.load(&game_config.initial_map_path)),
         TilemapAnchor::Center,
-        TiledMapLayerZOffset(10.0),
+        TiledMapLayerZOffset(render_config.z_layer_tilemap),
     ));
     // TODO: Tilemap的资源加载（或许）应当在 AppSetup 阶段完成。
 }
@@ -69,19 +73,20 @@ pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServe
 pub fn initialize_tilemap_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
+    game_config: Res<crate::config::GameConfig>,
+    render_config: Res<crate::config::RenderConfig>,
 ) {
     let mut layers: Vec<_> = layers_query.iter().collect();
 
     layers.sort_by_key(|(entity, _)| entity.index());
 
+    let hidden_keywords = &game_config.hidden_layer_keywords;
+
     for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
         let layer_name_str = layer_name.as_str();
 
         let name_lower = layer_name_str.to_ascii_lowercase();
-        if ["prototype", "collision"]
-            .iter()
-            .any(|s| name_lower.contains(s))
-        {
+        if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
             if name_lower.contains("collision") {
                 info!(
                     "Hide collision layer: {} and generate collision tiles",
@@ -94,7 +99,8 @@ pub fn initialize_tilemap_system(
         } else {
             info!("Show layers: {}", layer_name_str);
 
-            let z_offset = -2.0 - (layers.len() as f32 - 1.0 - index as f32) * 0.5;
+            let z_offset = render_config.z_layer_base
+                - (layers.len() as f32 - 1.0 - index as f32) * render_config.z_layer_step;
 
             commands
                 .entity(*layer_entity)
@@ -477,6 +483,7 @@ pub fn setup_camera_bounds_system(
     tiled_maps_query: Query<&TiledMap>,
     windows: Query<&Window>,
     cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
+    render_config: Res<crate::config::RenderConfig>,
 ) {
     // Only proceed if a tilemap asset is loaded.
     //
@@ -497,6 +504,9 @@ pub fn setup_camera_bounds_system(
     let map_width = tiled_map_asset.map.width as f32 * tile_width;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
 
+    let default_width = render_config.base_resolution_width as f32;
+    let default_height = render_config.base_resolution_height as f32;
+
     // Get the viewport size from the window and camera.
     //
     // 从窗口和摄像机获取视口大小。
@@ -511,10 +521,10 @@ pub fn setup_camera_bounds_system(
             let scale = camera_transform.scale.x;
             window.resolution.width() * scale
         } else {
-            320.0 // fallback to default
+            default_width
         }
     } else {
-        320.0 // fallback to default
+        default_width
     };
 
     let viewport_height = if let Ok(window) = windows.single() {
@@ -522,10 +532,10 @@ pub fn setup_camera_bounds_system(
             let scale = camera_transform.scale.y;
             window.resolution.height() * scale
         } else {
-            240.0 // fallback to default
+            default_height
         }
     } else {
-        240.0 // fallback to default
+        default_height
     };
 
     // Calculate bounds so the camera center stays inside the map minus half the viewport.
