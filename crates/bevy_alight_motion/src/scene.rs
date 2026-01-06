@@ -155,7 +155,7 @@ fn spawn_shape(
     let opacity = get_initial_opacity(&shape.transform.opacity);
 
     // Get size from properties
-    let (width, height) = get_shape_size(&shape.properties);
+    let (width, height) = get_shape_size(&shape.properties, &shape.fill_type);
 
     println!(
         "Spawning shape '{}' (id={}, parent={}): pos=({:.1},{:.1}), scale=({:.2},{:.2}), opacity={:.2}, size=({:.0},{:.0}), fill={}, image={}",
@@ -348,8 +348,11 @@ fn spawn_embed_scene(
 fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig, has_parent: bool) -> (f32, f32) {
     let (x, y) = if let Some(val) = &prop.value {
         (val[0], val[1])
-    } else if let Some(kf) = prop.keyframes.first() {
-        crate::schema::parse_vec3(&kf.value)
+    } else if !prop.keyframes.is_empty() {
+        // Sort keyframes by time and get the first one
+        let mut sorted: Vec<_> = prop.keyframes.iter().collect();
+        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        crate::schema::parse_vec3(&sorted[0].value)
             .map(|v| (v[0], v[1]))
             .unwrap_or((0.0, 0.0))
     } else {
@@ -374,8 +377,11 @@ fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig, has_paren
 fn get_initial_rotation(prop: &AmAnimatedFloat) -> f32 {
     if let Some(val) = prop.value {
         -val // Negate for Bevy's coordinate system
-    } else if let Some(kf) = prop.keyframes.first() {
-        -kf.value.parse().unwrap_or(0.0)
+    } else if !prop.keyframes.is_empty() {
+        // Sort keyframes by time and get the first one
+        let mut sorted: Vec<_> = prop.keyframes.iter().collect();
+        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        -sorted[0].value.parse().unwrap_or(0.0)
     } else {
         0.0
     }
@@ -385,8 +391,11 @@ fn get_initial_rotation(prop: &AmAnimatedFloat) -> f32 {
 fn get_initial_scale(prop: &AmAnimatedVec2) -> (f32, f32) {
     if let Some(val) = &prop.value {
         (val[0], val[1])
-    } else if let Some(kf) = prop.keyframes.first() {
-        crate::schema::parse_vec2(&kf.value)
+    } else if !prop.keyframes.is_empty() {
+        // Sort keyframes by time and get the first one
+        let mut sorted: Vec<_> = prop.keyframes.iter().collect();
+        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        crate::schema::parse_vec2(&sorted[0].value)
             .unwrap_or([1.0, 1.0])
             .into()
     } else {
@@ -398,21 +407,32 @@ fn get_initial_scale(prop: &AmAnimatedVec2) -> (f32, f32) {
 fn get_initial_opacity(prop: &AmAnimatedFloat) -> f32 {
     if let Some(val) = prop.value {
         val
-    } else if let Some(kf) = prop.keyframes.first() {
-        kf.value.parse().unwrap_or(1.0)
+    } else if !prop.keyframes.is_empty() {
+        // Sort keyframes by time and get the first one
+        let mut sorted: Vec<_> = prop.keyframes.iter().collect();
+        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        sorted[0].value.parse().unwrap_or(1.0)
     } else {
         1.0
     }
 }
 
 /// Get shape size from properties.
-fn get_shape_size(properties: &[crate::schema::AmProperty]) -> (f32, f32) {
+/// For color-filled shapes, AM stores size as half-extents.
+/// For media-filled shapes, AM uses actual pixel size.
+fn get_shape_size(properties: &[crate::schema::AmProperty], fill_type: &str) -> (f32, f32) {
     for prop in properties {
         if prop.name == "size"
             && prop.prop_type == "vec2"
             && let Ok(size) = crate::schema::parse_vec2(&prop.value)
         {
-            return (size[0], size[1]);
+            // For color fills, size is half-extent (like a radius)
+            // For media fills, size is the actual dimension
+            if fill_type == "color" {
+                return (size[0] * 2.0, size[1] * 2.0);
+            } else {
+                return (size[0], size[1]);
+            }
         }
     }
     (100.0, 100.0)
@@ -472,8 +492,14 @@ mod tests {
             keyframes: vec![],
         }];
 
-        let (w, h) = get_shape_size(&props);
+        // For media fill, use actual size
+        let (w, h) = get_shape_size(&props, "media");
         assert!((w - 200.0).abs() < 0.01);
         assert!((h - 300.0).abs() < 0.01);
+        
+        // For color fill, double the size (half-extent)
+        let (w, h) = get_shape_size(&props, "color");
+        assert!((w - 400.0).abs() < 0.01);
+        assert!((h - 600.0).abs() < 0.01);
     }
 }

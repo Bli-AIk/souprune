@@ -26,7 +26,7 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .add_plugins(AlightMotionPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (handle_input, update_ui, debug_sprites))
+        .add_systems(Update, (handle_input, update_ui, debug_sprites, debug_rect))
         .run();
 }
 
@@ -89,6 +89,32 @@ fn debug_sprites(query: Query<(&AmLayerMarker, &Transform, &Sprite), Added<Sprit
             sprite.color.alpha(),
             sprite.custom_size
         );
+    }
+}
+
+/// Debug system to monitor 长方形 1 during animation
+fn debug_rect(
+    playback: Res<AmPlayback>,
+    query: Query<(&AmLayerMarker, &Transform, &Sprite)>,
+) {
+    // Only print at specific times
+    let time_ms = playback.current_time_ms as u32;
+    if !(time_ms >= 700 && time_ms <= 710) && !(time_ms >= 900 && time_ms <= 910) {
+        return;
+    }
+    
+    for (marker, transform, sprite) in query.iter() {
+        if marker.label == "长方形 1" {
+            let final_width = sprite.custom_size.map(|s| s.x * transform.scale.x).unwrap_or(0.0);
+            println!(
+                "白条 @ {:.0}ms: scale=({:.3},{:.3}) alpha={:.2} final_width={:.1}",
+                playback.current_time_ms,
+                transform.scale.x,
+                transform.scale.y,
+                sprite.color.alpha(),
+                final_width
+            );
+        }
     }
 }
 
