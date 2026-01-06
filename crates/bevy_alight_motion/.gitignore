@@ -1,0 +1,42 @@
+/target
+
+# JetBrains Rider
+*.sln.iml
+# JetBrains Rider / IntelliJ IDEA
+.idea/*
+# Shared project settings
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/runConfigurations/
+!.idea/vcs.xml
+!.idea/modules.xml
+!.idea/*.iml
+# Ignore user workspace-level files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+*.iws
+*.sln.DotSettings.user
+*.user
+
+AGENTS.md
+GEMINI.md
+agent_*.md
+
+logs/
+dev/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+ignore_music.wav
+*.amproj
