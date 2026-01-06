@@ -89,9 +89,9 @@ pub fn spawn_scene(
     config: &AmSceneConfig,
 ) -> HashMap<u64, Entity> {
     let mut entity_map: HashMap<u64, Entity> = HashMap::new();
-    let mut deferred_parents: Vec<(Entity, u64)> = Vec::new();
+    let mut parent_relations: Vec<(Entity, u64)> = Vec::new();
 
-    // First pass: create all entities
+    // First pass: create all entities and collect parent relationships
     for (idx, layer) in scene.layers.iter().enumerate() {
         let z = idx as f32 * config.z_spacing;
 
@@ -99,19 +99,40 @@ pub fn spawn_scene(
             AmLayer::Shape(shape) => {
                 let entity = spawn_shape(commands, shape, images, config, z);
                 entity_map.insert(shape.id, entity);
-                // All entities attached to root for now (simplifies coordinate handling)
-                commands.entity(parent).add_child(entity);
+                if shape.parent != 0 {
+                    parent_relations.push((entity, shape.parent));
+                } else {
+                    commands.entity(parent).add_child(entity);
+                }
             }
             AmLayer::Nullobj(null) => {
                 let entity = spawn_null(commands, null, config, z);
                 entity_map.insert(null.id, entity);
-                commands.entity(parent).add_child(entity);
+                if null.parent != 0 {
+                    parent_relations.push((entity, null.parent));
+                } else {
+                    commands.entity(parent).add_child(entity);
+                }
             }
             AmLayer::EmbedScene(embed) => {
                 let entity = spawn_embed_scene(commands, embed, images, config, z);
                 entity_map.insert(embed.id, entity);
-                commands.entity(parent).add_child(entity);
+                if embed.parent != 0 {
+                    parent_relations.push((entity, embed.parent));
+                } else {
+                    commands.entity(parent).add_child(entity);
+                }
             }
+        }
+    }
+
+    // Second pass: set up parent-child relationships
+    for (child_entity, parent_id) in parent_relations {
+        if let Some(&parent_entity) = entity_map.get(&parent_id) {
+            commands.entity(parent_entity).add_child(child_entity);
+        } else {
+            // Parent not found in this scene, attach to scene root
+            commands.entity(parent).add_child(child_entity);
         }
     }
 
@@ -126,8 +147,9 @@ fn spawn_shape(
     config: &AmSceneConfig,
     z: f32,
 ) -> Entity {
-    // Get initial transform values
-    let (tx, ty) = get_initial_location(&shape.transform.location, config);
+    // Get initial transform values - use local coords if has parent
+    let has_parent = shape.parent != 0;
+    let (tx, ty) = get_initial_location(&shape.transform.location, config, has_parent);
     let rotation = get_initial_rotation(&shape.transform.rotation);
     let (sx, sy) = get_initial_scale(&shape.transform.scale);
     let opacity = get_initial_opacity(&shape.transform.opacity);
@@ -136,9 +158,10 @@ fn spawn_shape(
     let (width, height) = get_shape_size(&shape.properties);
 
     println!(
-        "Spawning shape '{}' (id={}): pos=({:.1},{:.1}), scale=({:.2},{:.2}), opacity={:.2}, size=({:.0},{:.0}), fill={}, image={}",
+        "Spawning shape '{}' (id={}, parent={}): pos=({:.1},{:.1}), scale=({:.2},{:.2}), opacity={:.2}, size=({:.0},{:.0}), fill={}, image={}",
         shape.label,
         shape.id,
+        shape.parent,
         tx,
         ty,
         sx,
@@ -171,6 +194,7 @@ fn spawn_shape(
             opacity: shape.transform.opacity.clone(),
             canvas_width: config.canvas_width,
             canvas_height: config.canvas_height,
+            has_parent,
         },
         transform,
         GlobalTransform::default(),
@@ -220,13 +244,14 @@ fn spawn_null(
     config: &AmSceneConfig,
     z: f32,
 ) -> Entity {
-    let (tx, ty) = get_initial_location(&null.transform.location, config);
+    let has_parent = null.parent != 0;
+    let (tx, ty) = get_initial_location(&null.transform.location, config, has_parent);
     let rotation = get_initial_rotation(&null.transform.rotation);
     let (sx, sy) = get_initial_scale(&null.transform.scale);
 
     println!(
-        "Spawning nullobj '{}' (id={}): pos=({:.1},{:.1}), scale=({:.2},{:.2})",
-        null.label, null.id, tx, ty, sx, sy
+        "Spawning nullobj '{}' (id={}, parent={}): pos=({:.1},{:.1}), scale=({:.2},{:.2})",
+        null.label, null.id, null.parent, tx, ty, sx, sy
     );
 
     let transform = Transform {
@@ -251,6 +276,7 @@ fn spawn_null(
                 opacity: null.transform.opacity.clone(),
                 canvas_width: config.canvas_width,
                 canvas_height: config.canvas_height,
+                has_parent,
             },
             transform,
             GlobalTransform::default(),
@@ -269,7 +295,8 @@ fn spawn_embed_scene(
     config: &AmSceneConfig,
     z: f32,
 ) -> Entity {
-    let (tx, ty) = get_initial_location(&embed.transform.location, config);
+    let has_parent = embed.parent != 0;
+    let (tx, ty) = get_initial_location(&embed.transform.location, config, has_parent);
     let rotation = get_initial_rotation(&embed.transform.rotation);
     let (sx, sy) = get_initial_scale(&embed.transform.scale);
 
@@ -295,6 +322,7 @@ fn spawn_embed_scene(
                 opacity: embed.transform.opacity.clone(),
                 canvas_width: config.canvas_width,
                 canvas_height: config.canvas_height,
+                has_parent,
             },
             transform,
             GlobalTransform::default(),
@@ -317,7 +345,7 @@ fn spawn_embed_scene(
 }
 
 /// Get initial location from animated property.
-fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig) -> (f32, f32) {
+fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig, has_parent: bool) -> (f32, f32) {
     let (x, y) = if let Some(val) = &prop.value {
         (val[0], val[1])
     } else if let Some(kf) = prop.keyframes.first() {
@@ -325,10 +353,21 @@ fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig) -> (f32, 
             .map(|v| (v[0], v[1]))
             .unwrap_or((0.0, 0.0))
     } else {
-        (config.canvas_width / 2.0, config.canvas_height / 2.0)
+        if has_parent {
+            (0.0, 0.0) // Local origin for children
+        } else {
+            (config.canvas_width / 2.0, config.canvas_height / 2.0) // Canvas center for root
+        }
     };
 
-    am_to_bevy_coords(x, y, config)
+    if has_parent {
+        // For layers with parents, use local coordinates
+        // Only flip Y axis (AM Y-down -> Bevy Y-up)
+        (x, -y)
+    } else {
+        // For root layers, convert from canvas coordinates
+        am_to_bevy_coords(x, y, config)
+    }
 }
 
 /// Get initial rotation from animated property.

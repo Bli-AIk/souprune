@@ -26,6 +26,8 @@ pub struct AmAnimated {
     pub canvas_width: f32,
     /// Canvas height for coordinate conversion.
     pub canvas_height: f32,
+    /// Whether this layer has a parent (uses local coordinates).
+    pub has_parent: bool,
 }
 
 /// Resource to control animation playback.
@@ -112,21 +114,19 @@ pub fn animate_transform(
 
         // Interpolate location and convert from AM to Bevy coordinates
         if let Some(loc) = interpolate_vec3(&animated.location, layer_time) {
-            // AM: Origin at top-left, Y increases downward
-            // Bevy: Origin at center, Y increases upward
-            let bx = loc[0] - animated.canvas_width / 2.0;
-            let by = animated.canvas_height / 2.0 - loc[1];
-
-            // Debug output for GB (extended range)
-            if marker.label.contains("GB")
-                && marker.id == 10131904
-                && (current_time < 20.0 || (current_time > 490.0 && current_time < 520.0))
-            {
-                println!(
-                    "GB t={:.1}ms layer_t={:.4} am_y={:.1} -> bevy_y={:.1}",
-                    current_time, layer_time, loc[1], by
-                );
-            }
+            let (bx, by) = if animated.has_parent {
+                // For layers with parents, use local coordinates
+                // Only flip Y axis (AM Y-down -> Bevy Y-up)
+                (loc[0], -loc[1])
+            } else {
+                // For root layers, convert from canvas coordinates
+                // AM: Origin at top-left, Y increases downward
+                // Bevy: Origin at center, Y increases upward
+                (
+                    loc[0] - animated.canvas_width / 2.0,
+                    animated.canvas_height / 2.0 - loc[1],
+                )
+            };
 
             transform.translation = Vec3::new(bx, by, transform.translation.z);
         }
