@@ -5,7 +5,9 @@ use std::collections::HashMap;
 
 use crate::animation::AmAnimated;
 use crate::loader::AmProject;
-use crate::schema::{AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmEffect, AmKeyframe, AmLayer, AmScene, AmShape};
+use crate::schema::{
+    AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmEffect, AmLayer, AmScene, AmShape,
+};
 
 /// Component bundle for an AM project root.
 #[derive(Bundle)]
@@ -353,13 +355,21 @@ fn spawn_embed_scene(
 }
 
 /// Get initial location from animated property.
-fn get_initial_location(prop: &AmAnimatedVec3, config: &AmSceneConfig, has_parent: bool) -> (f32, f32) {
+fn get_initial_location(
+    prop: &AmAnimatedVec3,
+    config: &AmSceneConfig,
+    has_parent: bool,
+) -> (f32, f32) {
     let (x, y) = if let Some(val) = &prop.value {
         (val[0], val[1])
     } else if !prop.keyframes.is_empty() {
         // Sort keyframes by time and get the first one
         let mut sorted: Vec<_> = prop.keyframes.iter().collect();
-        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            a.time
+                .partial_cmp(&b.time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         crate::schema::parse_vec3(&sorted[0].value)
             .map(|v| (v[0], v[1]))
             .unwrap_or((0.0, 0.0))
@@ -388,7 +398,11 @@ fn get_initial_rotation(prop: &AmAnimatedFloat) -> f32 {
     } else if !prop.keyframes.is_empty() {
         // Sort keyframes by time and get the first one
         let mut sorted: Vec<_> = prop.keyframes.iter().collect();
-        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            a.time
+                .partial_cmp(&b.time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         -sorted[0].value.parse().unwrap_or(0.0)
     } else {
         0.0
@@ -402,7 +416,11 @@ fn get_initial_scale(prop: &AmAnimatedVec2) -> (f32, f32) {
     } else if !prop.keyframes.is_empty() {
         // Sort keyframes by time and get the first one
         let mut sorted: Vec<_> = prop.keyframes.iter().collect();
-        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            a.time
+                .partial_cmp(&b.time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         crate::schema::parse_vec2(&sorted[0].value)
             .unwrap_or([1.0, 1.0])
             .into()
@@ -418,7 +436,11 @@ fn get_initial_opacity(prop: &AmAnimatedFloat) -> f32 {
     } else if !prop.keyframes.is_empty() {
         // Sort keyframes by time and get the first one
         let mut sorted: Vec<_> = prop.keyframes.iter().collect();
-        sorted.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            a.time
+                .partial_cmp(&b.time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         sorted[0].value.parse().unwrap_or(1.0)
     } else {
         1.0
@@ -530,7 +552,7 @@ mod tests {
         let (w, h) = get_shape_size(&props, "media");
         assert!((w - 400.0).abs() < 0.01);
         assert!((h - 600.0).abs() < 0.01);
-        
+
         let (w, h) = get_shape_size(&props, "color");
         assert!((w - 400.0).abs() < 0.01);
         assert!((h - 600.0).abs() < 0.01);

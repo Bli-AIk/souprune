@@ -105,19 +105,19 @@ mod tests {
         use animation::interpolate_float;
         use schema::{AmAnimatedFloat, AmKeyframe};
 
-        // Test animation with easing
+        // Test animation with easing (easing is on target keyframe)
         let prop = AmAnimatedFloat {
             value: None,
             keyframes: vec![
                 AmKeyframe {
                     time: 0.0,
                     value: "0.0".to_string(),
-                    easing: Some("cubicBezier 0.42 0.0 0.58 1.0".to_string()),
+                    easing: None,
                 },
                 AmKeyframe {
                     time: 1.0,
                     value: "100.0".to_string(),
-                    easing: None,
+                    easing: Some("cubicBezier 0.42 0.0 0.58 1.0".to_string()),
                 },
             ],
         };

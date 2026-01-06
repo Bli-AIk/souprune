@@ -186,7 +186,8 @@ pub fn interpolate_vec3(prop: &AmAnimatedVec3, t: f32) -> Option<[f32; 3]> {
     let v_prev = parse_keyframe_vec3(&kf_prev.value).unwrap_or([0.0, 0.0, 0.0]);
     let v_next = parse_keyframe_vec3(&kf_next.value).unwrap_or(v_prev);
 
-    let easing = kf_prev
+    // Easing is defined on the "target" keyframe (describes how to arrive at it)
+    let easing = kf_next
         .easing
         .as_ref()
         .map(|e| Easing::parse(e))
@@ -211,7 +212,8 @@ pub fn interpolate_vec2(prop: &AmAnimatedVec2, t: f32) -> Option<[f32; 2]> {
     let v_prev = parse_keyframe_vec2(&kf_prev.value).unwrap_or([1.0, 1.0]);
     let v_next = parse_keyframe_vec2(&kf_next.value).unwrap_or(v_prev);
 
-    let easing = kf_prev
+    // Easing is defined on the "target" keyframe (describes how to arrive at it)
+    let easing = kf_next
         .easing
         .as_ref()
         .map(|e| Easing::parse(e))
@@ -235,7 +237,8 @@ pub fn interpolate_float(prop: &AmAnimatedFloat, t: f32) -> Option<f32> {
     let v_prev: f32 = kf_prev.value.parse().unwrap_or(0.0);
     let v_next: f32 = kf_next.value.parse().unwrap_or(v_prev);
 
-    let easing = kf_prev
+    // Easing is defined on the "target" keyframe (describes how to arrive at it)
+    let easing = kf_next
         .easing
         .as_ref()
         .map(|e| Easing::parse(e))
@@ -347,11 +350,12 @@ mod tests {
 
     #[test]
     fn test_interpolate_float_step() {
+        // Easing is on the target keyframe (describes how to arrive at it)
         let prop = AmAnimatedFloat {
             value: None,
             keyframes: vec![
-                make_keyframe(0.0, "1.0", Some("step 1.0 0.0")),
-                make_keyframe(1.0, "0.0", None),
+                make_keyframe(0.0, "1.0", None),
+                make_keyframe(1.0, "0.0", Some("step 1.0 0.0")),
             ],
         };
 
@@ -409,11 +413,12 @@ mod tests {
 
     #[test]
     fn test_interpolate_cubic_bezier() {
+        // Easing is on the target keyframe (describes how to arrive at it)
         let prop = AmAnimatedFloat {
             value: None,
             keyframes: vec![
-                make_keyframe(0.0, "0.0", Some("cubicBezier 0.0 0.0 0.58 1.0")),
-                make_keyframe(1.0, "100.0", None),
+                make_keyframe(0.0, "0.0", None),
+                make_keyframe(1.0, "100.0", Some("cubicBezier 0.0 0.0 0.58 1.0")),
             ],
         };
 
