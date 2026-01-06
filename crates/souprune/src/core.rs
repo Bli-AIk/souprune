@@ -44,6 +44,7 @@ pub mod mod_system;
 pub mod player_components;
 pub mod render_layers;
 pub mod ron_loader;
+pub mod save;
 pub mod sprite;
 pub(crate) mod ui;
 
@@ -82,6 +83,7 @@ impl Plugin for CorePlugin {
                 data::DataPlugin,
                 input::InputPlugin,
                 item::ItemPlugin,
+                save::SavePlugin,
                 sprite::SpritePlugin,
             ));
     }

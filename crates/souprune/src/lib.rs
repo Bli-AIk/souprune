@@ -22,6 +22,10 @@ pub use crate::core::character_asset::{
 };
 pub use crate::core::input::actions::Action;
 pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::save::{
+    LoadCompleteEvent, LoadGameEvent, SaveCompleteEvent, SaveConfig, SaveData, SaveGameEvent,
+    SaveMetadata, SaveSlot, Saveable,
+};
 pub use crate::core::ui::layout::{
     BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
     SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
