@@ -516,6 +516,7 @@ mod tests {
             canvas_height: 960.0,
             flip_y: true,
             z_spacing: 0.001,
+            time_offset: 0,
         };
 
         // Center of AM canvas should be at Bevy origin
