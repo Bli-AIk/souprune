@@ -7,3 +7,6 @@
 [submodule "crates/bevy_ecs_typewriter"]
 	path = crates/bevy_ecs_typewriter
 	url = git@github.com:Bli-AIk/bevy_ecs_typewriter.git
+[submodule "crates/bevy_alight_motion"]
+	path = crates/bevy_alight_motion
+	url = https://github.com/Bli-AIk/bevy_alight_motion.git
