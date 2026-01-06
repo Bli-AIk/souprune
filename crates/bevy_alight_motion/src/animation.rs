@@ -10,10 +10,12 @@ use crate::schema::{AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmKeyframe,
 pub struct AmAnimated {
     /// Unique layer ID from AM.
     pub layer_id: u64,
-    /// Start time in milliseconds.
+    /// Start time in milliseconds (relative to time_offset).
     pub start_time: i32,
-    /// End time in milliseconds.
+    /// End time in milliseconds (relative to time_offset).
     pub end_time: i32,
+    /// Time offset from parent scene (for embedded scenes).
+    pub time_offset: i32,
     /// Location animation data.
     pub location: AmAnimatedVec3,
     /// Rotation animation data.
@@ -104,17 +106,20 @@ pub fn animate_transform(
     playback: Res<AmPlayback>,
     mut query: Query<(&AmAnimated, &mut Transform, &AmLayerMarker)>,
 ) {
-    let current_time = playback.current_time_ms;
+    let global_time = playback.current_time_ms;
 
     for (animated, mut transform, _marker) in query.iter_mut() {
-        // Check if layer is active at current time
-        if current_time < animated.start_time as f32 || current_time > animated.end_time as f32 {
+        // Calculate local time (accounting for time offset from parent scene)
+        let local_time = global_time - animated.time_offset as f32;
+
+        // Check if layer is active at current local time
+        if local_time < animated.start_time as f32 || local_time > animated.end_time as f32 {
             continue;
         }
 
         // Calculate normalized time within layer duration
         let layer_duration = (animated.end_time - animated.start_time) as f32;
-        let layer_time = (current_time - animated.start_time as f32) / layer_duration;
+        let layer_time = (local_time - animated.start_time as f32) / layer_duration;
 
         // Interpolate location and convert from AM to Bevy coordinates
         if let Some(loc) = interpolate_vec3(&animated.location, layer_time) {
@@ -157,17 +162,20 @@ pub fn animate_transform(
 
 /// System to animate sprite opacity.
 pub fn animate_opacity(playback: Res<AmPlayback>, mut query: Query<(&AmAnimated, &mut Sprite)>) {
-    let current_time = playback.current_time_ms;
+    let global_time = playback.current_time_ms;
 
     for (animated, mut sprite) in query.iter_mut() {
+        // Calculate local time (accounting for time offset from parent scene)
+        let local_time = global_time - animated.time_offset as f32;
+
         // Check if layer is active
-        if current_time < animated.start_time as f32 || current_time > animated.end_time as f32 {
+        if local_time < animated.start_time as f32 || local_time > animated.end_time as f32 {
             sprite.color.set_alpha(0.0);
             continue;
         }
 
         let layer_duration = (animated.end_time - animated.start_time) as f32;
-        let layer_time = (current_time - animated.start_time as f32) / layer_duration;
+        let layer_time = (local_time - animated.start_time as f32) / layer_duration;
 
         if let Some(opacity) = interpolate_float(&animated.opacity, layer_time) {
             sprite.color.set_alpha(opacity.clamp(0.0, 1.0));

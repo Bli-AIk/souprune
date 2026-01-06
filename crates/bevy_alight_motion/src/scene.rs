@@ -55,6 +55,8 @@ pub struct AmSceneConfig {
     pub flip_y: bool,
     /// Z-spacing between layers.
     pub z_spacing: f32,
+    /// Time offset from parent scene (for embedded scenes).
+    pub time_offset: i32,
 }
 
 impl Default for AmSceneConfig {
@@ -64,6 +66,7 @@ impl Default for AmSceneConfig {
             canvas_height: 960.0,
             flip_y: true,
             z_spacing: 0.001,
+            time_offset: 0,
         }
     }
 }
@@ -191,6 +194,7 @@ fn spawn_shape(
             layer_id: shape.id,
             start_time: shape.start_time,
             end_time: shape.end_time,
+            time_offset: config.time_offset,
             location: shape.transform.location.clone(),
             rotation: shape.transform.rotation.clone(),
             scale: shape.transform.scale.clone(),
@@ -276,6 +280,7 @@ fn spawn_null(
                 layer_id: null.id,
                 start_time: null.start_time,
                 end_time: null.end_time,
+                time_offset: config.time_offset,
                 location: null.transform.location.clone(),
                 rotation: null.transform.rotation.clone(),
                 scale: null.transform.scale.clone(),
@@ -308,6 +313,11 @@ fn spawn_embed_scene(
     let rotation = get_initial_rotation(&embed.transform.rotation);
     let (sx, sy) = get_initial_scale(&embed.transform.scale);
 
+    println!(
+        "Spawning embedScene '{}' (id={}, parent={}): pos=({:.1},{:.1}), start_time={}, time_offset={}",
+        embed.label, embed.id, embed.parent, tx, ty, embed.start_time, config.time_offset
+    );
+
     let transform = Transform {
         translation: Vec3::new(tx, ty, z),
         rotation: Quat::from_rotation_z(rotation.to_radians()),
@@ -324,6 +334,7 @@ fn spawn_embed_scene(
                 layer_id: embed.id,
                 start_time: embed.start_time,
                 end_time: embed.end_time,
+                time_offset: config.time_offset,
                 location: embed.transform.location.clone(),
                 rotation: embed.transform.rotation.clone(),
                 scale: embed.transform.scale.clone(),
@@ -342,10 +353,12 @@ fn spawn_embed_scene(
         ))
         .id();
 
-    // Recursively spawn nested scene
+    // Recursively spawn nested scene with accumulated time offset
+    // The nested scene's layers use times relative to the embed's start_time
     let nested_config = AmSceneConfig {
         canvas_width: embed.scene.width as f32,
         canvas_height: embed.scene.height as f32,
+        time_offset: config.time_offset + embed.start_time,
         ..config.clone()
     };
 
