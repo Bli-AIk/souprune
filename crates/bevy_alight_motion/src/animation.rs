@@ -28,6 +28,10 @@ pub struct AmAnimated {
     pub canvas_height: f32,
     /// Whether this layer has a parent (uses local coordinates).
     pub has_parent: bool,
+    /// Effect position X offset (from transform2 effect).
+    pub effect_pos_x: AmAnimatedFloat,
+    /// Effect position Y offset (from transform2 effect).
+    pub effect_pos_y: AmAnimatedFloat,
 }
 
 /// Resource to control animation playback.
@@ -102,7 +106,7 @@ pub fn animate_transform(
 ) {
     let current_time = playback.current_time_ms;
 
-    for (animated, mut transform, marker) in query.iter_mut() {
+    for (animated, mut transform, _marker) in query.iter_mut() {
         // Check if layer is active at current time
         if current_time < animated.start_time as f32 || current_time > animated.end_time as f32 {
             continue;
@@ -114,7 +118,7 @@ pub fn animate_transform(
 
         // Interpolate location and convert from AM to Bevy coordinates
         if let Some(loc) = interpolate_vec3(&animated.location, layer_time) {
-            let (bx, by) = if animated.has_parent {
+            let (mut bx, mut by) = if animated.has_parent {
                 // For layers with parents, use local coordinates
                 // Only flip Y axis (AM Y-down -> Bevy Y-up)
                 (loc[0], -loc[1])
@@ -127,6 +131,14 @@ pub fn animate_transform(
                     animated.canvas_height / 2.0 - loc[1],
                 )
             };
+
+            // Apply effect position offsets (transform2 effect)
+            if let Some(effect_x) = interpolate_float(&animated.effect_pos_x, layer_time) {
+                bx += effect_x;
+            }
+            if let Some(effect_y) = interpolate_float(&animated.effect_pos_y, layer_time) {
+                by -= effect_y; // Y is inverted
+            }
 
             transform.translation = Vec3::new(bx, by, transform.translation.z);
         }

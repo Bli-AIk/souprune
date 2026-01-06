@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::animation::AmAnimated;
 use crate::loader::AmProject;
-use crate::schema::{AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmLayer, AmScene, AmShape};
+use crate::schema::{AmAnimatedFloat, AmAnimatedVec2, AmAnimatedVec3, AmEffect, AmKeyframe, AmLayer, AmScene, AmShape};
 
 /// Component bundle for an AM project root.
 #[derive(Bundle)]
@@ -153,6 +153,7 @@ fn spawn_shape(
     let rotation = get_initial_rotation(&shape.transform.rotation);
     let (sx, sy) = get_initial_scale(&shape.transform.scale);
     let opacity = get_initial_opacity(&shape.transform.opacity);
+    let (effect_pos_x, effect_pos_y) = extract_effect_animations(&shape.effects);
 
     // Get size from properties
     let (width, height) = get_shape_size(&shape.properties, &shape.fill_type);
@@ -195,6 +196,8 @@ fn spawn_shape(
             canvas_width: config.canvas_width,
             canvas_height: config.canvas_height,
             has_parent,
+            effect_pos_x,
+            effect_pos_y,
         },
         transform,
         GlobalTransform::default(),
@@ -248,6 +251,7 @@ fn spawn_null(
     let (tx, ty) = get_initial_location(&null.transform.location, config, has_parent);
     let rotation = get_initial_rotation(&null.transform.rotation);
     let (sx, sy) = get_initial_scale(&null.transform.scale);
+    let (effect_pos_x, effect_pos_y) = extract_effect_animations(&null.effects);
 
     println!(
         "Spawning nullobj '{}' (id={}, parent={}): pos=({:.1},{:.1}), scale=({:.2},{:.2})",
@@ -277,6 +281,8 @@ fn spawn_null(
                 canvas_width: config.canvas_width,
                 canvas_height: config.canvas_height,
                 has_parent,
+                effect_pos_x,
+                effect_pos_y,
             },
             transform,
             GlobalTransform::default(),
@@ -323,6 +329,8 @@ fn spawn_embed_scene(
                 canvas_width: config.canvas_width,
                 canvas_height: config.canvas_height,
                 has_parent,
+                effect_pos_x: AmAnimatedFloat::default(),
+                effect_pos_y: AmAnimatedFloat::default(),
             },
             transform,
             GlobalTransform::default(),
@@ -418,24 +426,50 @@ fn get_initial_opacity(prop: &AmAnimatedFloat) -> f32 {
 }
 
 /// Get shape size from properties.
-/// For color-filled shapes, AM stores size as half-extents.
-/// For media-filled shapes, AM uses actual pixel size.
-fn get_shape_size(properties: &[crate::schema::AmProperty], fill_type: &str) -> (f32, f32) {
+/// Note: AM stores size as half-extents (like radius), so we double them to get full dimensions.
+fn get_shape_size(properties: &[crate::schema::AmProperty], _fill_type: &str) -> (f32, f32) {
     for prop in properties {
         if prop.name == "size"
             && prop.prop_type == "vec2"
             && let Ok(size) = crate::schema::parse_vec2(&prop.value)
         {
-            // For color fills, size is half-extent (like a radius)
-            // For media fills, size is the actual dimension
-            if fill_type == "color" {
-                return (size[0] * 2.0, size[1] * 2.0);
-            } else {
-                return (size[0], size[1]);
-            }
+            // AM size is half-extent for all shape types, double it for full size
+            return (size[0] * 2.0, size[1] * 2.0);
         }
     }
     (100.0, 100.0)
+}
+
+/// Extract effect animation data (posx, posy) from transform2 effects.
+fn extract_effect_animations(effects: &[AmEffect]) -> (AmAnimatedFloat, AmAnimatedFloat) {
+    let mut pos_x = AmAnimatedFloat::default();
+    let mut pos_y = AmAnimatedFloat::default();
+
+    for effect in effects {
+        if effect.id == "com.alightcreative.effects.transform2" {
+            for prop in &effect.properties {
+                match prop.name.as_str() {
+                    "posx" => {
+                        if !prop.keyframes.is_empty() {
+                            pos_x.keyframes = prop.keyframes.clone();
+                        } else if let Ok(v) = prop.value.parse::<f32>() {
+                            pos_x.value = Some(v);
+                        }
+                    }
+                    "posy" => {
+                        if !prop.keyframes.is_empty() {
+                            pos_y.keyframes = prop.keyframes.clone();
+                        } else if let Ok(v) = prop.value.parse::<f32>() {
+                            pos_y.value = Some(v);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    (pos_x, pos_y)
 }
 
 #[cfg(test)]
@@ -492,12 +526,11 @@ mod tests {
             keyframes: vec![],
         }];
 
-        // For media fill, use actual size
+        // Size is always doubled (half-extent to full size)
         let (w, h) = get_shape_size(&props, "media");
-        assert!((w - 200.0).abs() < 0.01);
-        assert!((h - 300.0).abs() < 0.01);
+        assert!((w - 400.0).abs() < 0.01);
+        assert!((h - 600.0).abs() < 0.01);
         
-        // For color fill, double the size (half-extent)
         let (w, h) = get_shape_size(&props, "color");
         assert!((w - 400.0).abs() < 0.01);
         assert!((h - 600.0).abs() < 0.01);
