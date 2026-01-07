@@ -485,9 +485,12 @@ name = "bevy_alight_motion"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy-inspector-egui",
+ "bevy_smud",
  "quick-xml",
  "serde",
  "thiserror 2.0.17",
+ "ttf-parser 0.25.1",
  "zip",
 ]
 
