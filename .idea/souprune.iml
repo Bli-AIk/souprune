@@ -29,6 +29,7 @@
       <excludeFolder url="file://$MODULE_DIR$/crates/souprune/logs" />
       <excludeFolder url="file://$MODULE_DIR$/doc/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/code/mod_example/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/assets/debug/_video_frames" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
