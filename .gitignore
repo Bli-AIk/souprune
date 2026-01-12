@@ -40,3 +40,5 @@ yarn-error.log*
 
 ignore_music.wav
 *.amproj
+
+reports/
