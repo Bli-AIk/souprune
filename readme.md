@@ -89,10 +89,39 @@ Yes, **Soup**Rune is a pun — and here’s what it stands for:
 |    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.                |
 |    **P**     | **Polyglot**      | Supports multiple programming languages (Rust, C#, Haxe, Nim, Nelua, etc.). |
 
-## ⚙️ Technical Foundation
+## ⚙️ Design Philosophy
 
-* Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
-* Design goals: **clear structure, modular expansion, and easy customization**.
+On a technical level, SoupRune:
+
+*   Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
+*   Design goals: **clear structure, modular expansion, and easy customization**;
+
+In terms of architecture, SoupRune:
+It adopts an architecture that separates the **Engine** and the **Project**.
+
+You can think of this as the relationship between a **"Game Console"** and a **"Game Cartridge"**:
+
+*   **Engine (Core)**: The underlying "Console". It handles the heavy lifting—rendering beautiful graphics, processing realistic physics, etc. Built with high-performance Rust, you usually don't need to worry about this part.
+*   **Project / Mod (Content)**: The "Cartridge" you create. This is where your creativity lives—character dialogue, exciting battles, and moving stories.
+
+### 📝 Development Workflow: Embracing Configuration & Scripting
+
+In SoupRune, game development doesn't mean staring at tedious code all day. We promote a **"Data-Driven"** approach, combining **RON configuration files** with **custom scripts**:
+
+1.  **RON Configuration Files (Content Description)**:
+    Most game content is created by writing **RON (Rusty Object Notation)** files. It's like **filling out a form** or **playing with blocks**—clear and intuitive.
+    *   Want to design a battle? Write a `.performance.ron` to schedule the bullet timeline.
+    *   Need to layout a UI? Use a `.ui_layout.ron` to define buttons and text.
+    *   Defining character stats? Set animations and colliders in a `.character.ron`.
+    *   *Even without a programming background, you can create rich game content by modifying these configs.*
+
+2.  **Custom Scripts (Behavior & Algorithms)**:
+    You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a special boss mechanic).
+    This is where SoupRune shines—you can choose **Rust**, **C# (.NET)**, or even **Haxe** to write this logic!
+    *   Your code is compiled into a dynamic library (`.dll` or `.so`) and "plugged" into the engine.
+    *   The engine communicates with your script via a standard interface (C ABI), giving you **high performance** while letting you use the **language you know best**.
+
+**In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your favorite spoon (programming language) to add the ingredients and cook your delicious game!**
 
 ## 🏗️ Project Architecture
 
