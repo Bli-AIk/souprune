@@ -22,7 +22,8 @@ designed specifically for creating RPG / STG games similar to
 
 ## 🥣 What is this?
 
-**SoupRune** is a refreshingly modern framework for the next generation of fangames, built on the `bevy` engine and born for creating RPG and Danmaku (STG)
+**SoupRune** is a refreshingly modern framework for the next generation of fangames, built on the `bevy` engine and born
+for creating RPG and Danmaku (STG)
 games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
 It strives to be the next-generation community-driven Fangame engine—bringing a unique flavor while embracing high
@@ -113,6 +114,8 @@ backgrounds—
 * Developers used to **Unity/Godot** can use **C#** (achieving excellent performance via Native AOT);
 * Friends used to **Lua** or **Python / GDScript** will be able to join seamlessly via **Nelua** or **Nim** in the
   future.
+    * If you prefer the flexibility of **Lua dynamic scripting** or are used to the **Love2D** workflow, we strongly
+      recommend you try [SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)!
 
 Our goal is to let every creator in the community **develop games in the language they are most comfortable with**.
 
@@ -196,6 +199,17 @@ so that developers from other engines can smoothly migrate their experience:
 | **Nelua** (Coming Soon) | **Lua** users                                     | Inherits Lua's minimalist syntax style but compiles to native machine code for extreme performance.        |
 
 If you are interested in helping with SoupRune's multi-language support, contributions are welcome!
+
+> 🤝 **Friendly Recommendation / Looking for Lua (Love2D) Ecosystem?**
+>
+> SoupRune focuses on the extreme performance of AOT compilation and statically typed languages.
+> If you prefer the flexibility of **Lua dynamic scripting** or are used to the **Love2D** workflow, we strongly
+> recommend you try another excellent framework in the community:
+>
+> **[SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)** — Designed for rapid prototyping and
+> dynamic building.
+>
+> *We want to build not just a framework, but a thriving ecosystem for UT/DR fangame development together. ❤️*
 
 ## Citation Instructions
 

@@ -99,6 +99,8 @@ SoupRune 采用了 **核心 (Engine) - 项目 (Project/Mod)** 分离的架构。
 * 来自 **GameMaker** 的开发者会发现 **Haxe** 亲切自然；
 * 习惯 **Unity/Godot** 的开发者可以使用 **C#** (通过 Native AOT 获得极佳性能)；
 * 习惯 **Lua** 或 **Python / GDScript** 的朋友，未来也能通过 **Nelua** 或 **Nim** 无缝接入。
+    * 如果您更偏爱 **Lua 动态脚本** 的灵活性，或者习惯 **Love2D**
+      的工作流，我们强烈推荐您尝试 [SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)!
 
 让社区的每一位创作者都能**用自己最熟悉的语言**来开发游戏，是我们设计的初衷。
 
@@ -178,6 +180,15 @@ SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。
 | **Nelua**(Coming Soon) | **Lua** 用户                           | 继承了 Lua 的极简语法风格，但编译为原生机器码，提供极致性能。      |
 
 如果你有兴趣为 SoupRune 的多语言支持提供帮助，欢迎参与贡献！
+
+> 🤝 **友情推荐 / 寻找 Lua (Love2D) 生态？**
+>
+> SoupRune 专注于 AOT 编译与静态类型语言的极致性能。
+> 如果您更偏爱 **Lua 动态脚本** 的灵活性，或者习惯 **Love2D** 的工作流，我们强烈推荐您尝试社区中另一款优秀的框架：
+>
+> **[SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)** —— 专为快速原型与动态构建设计。
+>
+> *我们要做的不仅仅是框架，而是共同繁荣的 UT/DR 同人开发生态。❤️*
 
 ## 引用说明
 
