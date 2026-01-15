@@ -12,116 +12,160 @@
 
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
-**SoupRune** is an experimental game framework designed specifically for creating RPG / STG games similar to 
+**SoupRune** is a modern, experimental game framework
+designed specifically for creating RPG / STG games similar to
 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
-| English         | Simplified Chinese          |
-|-----------------|-----------------------------|
-| English Version | [简体中文](./readme_zh-hans.md) |
+| English | Simplified Chinese          |
+|---------|-----------------------------|
+| English | [简体中文](./readme_zh-hans.md) |
 
-## 🥣 Introduction
+## 🥣 What is this?
 
-Hey, don’t be scared by that **“Rust”** badge above — **SoupRune isn’t just a niche tool for hardcore programmers!**
+**SoupRune** is a modern experimental game framework built on the `bevy` engine, born for creating RPG and Danmaku (STG)
+games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
-Why is that? Because:
-
-### SoupRune is a Language-Agnostic Framework!
-
-SoupRune adopts a **Framework - Project (Mod)** architecture. The core engine built with `bevy` handles the low-level
-execution, while your game logic resides in an independent "Project" that interacts with the core via standard
-interfaces.
-
-We achieve true **Language-Agnosticism** through the `C ABI`. In choosing supported languages, we prioritize those
-friendly to **traditional Undertale / Deltarune developers**, aiming to build a bridge for developers from **GameMaker
-** (Haxe), **Lua** (Nelua), or **Python / GDScript** (Nim) backgrounds.
-
-We warmly welcome developers from all language communities to join us in improving support for these languages!
-
-### SoupRune is a Community-Oriented Framework!
-
-SoupRune — the **“Rune”** in the name isn’t just random.
-
-While the Undertale fangame framework space may already be saturated, the Deltarune community is thriving.
-
-SoupRune was created to seize this opportunity as a fangame framework, 
-~~while also serving as a spiritual successor to [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template)~~.
-
-But that doesn’t mean SoupRune is only a Deltarune framework — we also value support for Undertale fangames!
-
-SoupRune aims to become a true **“community-oriented fangame framework”** — open, flexible, modern, yet still retaining
-that familiar DR / UT style.
-
-### SoupRune is an Open Source Framework!
-
-SoupRune uses the **LGPL-3.0** license. This license applies only to the framework core code.
-
-This means:
-
-* The Project (Mod) you develop can use other open-source licenses or be closed-source;
-* You can use SoupRune's source code in closed-source projects;
-* But if you modify the framework's core code, you must release those changes under the LGPL;
-* If you wish to use modified SoupRune core code in a fully closed-source environment, you can contact me for a
-  commercial license.
-
-Additionally, you must still follow Toby Fox’s rules for fan games.
-
-### SoupRune is an Experimental Framework!
-
-Although "experimental" implies instability and imperfection, it also represents infinite possibilities.
-
-Use it to make a dr / ut fangame? Or try to recreate other classic games? Or even develop a brand new original game?
-Anything is possible!
-
-SoupRune is currently still in the **initial development phase**, and the framework structure and design philosophy are
-evolving rapidly. We welcome community members to actively participate in discussions and contributions to shape the
-future of this framework.
-
-Join our [Discord](https://discord.gg/5YXK5DRjPZ)!
+It strives to be the next-generation community-driven Fangame engine—bringing a unique flavor while embracing high
+performance and modern development paradigms at its core.
 
 ## 🧭 S.O.U.P Principles
 
-Yes, **Soup**Rune is a pun — and here’s what it stands for:
+Our design philosophy is concentrated in a delicious bowl of **S.O.U.P**:
 
-| Abbreviation | Full Form         | Meaning                                                                     |
-|:------------:|:------------------|:----------------------------------------------------------------------------|
-|    **S**     | **Strong**        | Built on **Bevy** and **Rust**, powerful and modern architecture.           |
-|    **O**     | **Open**          | Uses the **LGPL** open-source license, allowing free use and extension.     |
-|    **U**     | **User-friendly** | Offers multi-language scripting to lower the learning curve.                |
-|    **P**     | **Polyglot**      | Supports multiple programming languages (Rust, C#, Haxe, Nim, Nelua, etc.). |
+* **S (Strong) - Powerful Core**: Built on **Bevy Engine** and **Rust**, enjoying the performance and parallel computing
+  advantages of the ECS architecture.
+* **O (Open) - Truly Open Source**: Licensed under **LGPL-3.0**. The framework core is open source, while your Project /
+  Mod (game) belongs to you.
+* **U (User-friendly) - Easy to Start**: Provides out-of-the-box RPG features (dialogue, battle, maps), bullet
+  sequencers (STG - supports turn-based), and visual tool integration (supports Alight Motion projects), allowing you to
+  focus on creativity.
+* **P (Polyglot) - Multi-language Support**: Language-agnostic via C ABI. You can choose the "utensil" (C#, Haxe, Rust,
+  etc.) that suits you best to enjoy this soup.
+
+## 🚀 Quick Start
+
+SoupRune is currently in the **🚧 Initial Development Phase**, but if you're eager to try it out, you can start with
+these steps:
+
+1. **Prepare Environment**: Install the [Rust Development Environment](https://www.rust-lang.org/).
+2. **Clone Repository**: `git clone https://github.com/Bli-AIk/souprune.git`
+3. **Enter Directory**: `cd souprune`
+4. **Update Submodules**: `git submodule update --init --recursive`
+5. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
 
 ## ⚙️ Design Philosophy
 
 On a technical level, SoupRune:
 
-*   Core built with **Bevy engine** and **Rust**, ensuring performance and extensibility;
-*   Design goals: **clear structure, modular expansion, and easy customization**;
+* Uses **Bevy engine** and **Rust** for the core implementation, ensuring performance and extensibility;
+* Aims for: **clear structure, modular expansion, and easy customization**;
 
-In terms of architecture, SoupRune:
-It adopts an architecture that separates the **Engine** and the **Project**.
+In terms of project architecture, SoupRune adopts a design that separates the **Engine** and the **Project**.
 
 You can think of this as the relationship between a **"Game Console"** and a **"Game Cartridge"**:
 
-*   **Engine (Core)**: The underlying "Console". It handles the heavy lifting—rendering beautiful graphics, processing realistic physics, etc. Built with high-performance Rust, you usually don't need to worry about this part.
-*   **Project / Mod (Content)**: The "Cartridge" you create. This is where your creativity lives—character dialogue, exciting battles, and moving stories.
+* **Engine (Core)**: The underlying "Console". It handles the heavy, complex tasks—like "how to render brilliant
+  graphics" and "how to make physical collisions more realistic". This part is built with high-performance Rust and
+  usually doesn't require your attention.
+* **Project / Mod (Content)**: The "Game Cartridge" you create. This is where your creativity lives—character dialogue,
+  exciting battles, and moving stories.
 
 ### 📝 Development Workflow: Embracing Configuration & Scripting
 
-In SoupRune, game development doesn't mean staring at tedious code all day. We promote a **"Data-Driven"** approach, combining **RON configuration files** with **custom scripts**:
+In SoupRune, game development doesn't mean staring at tedious code all day. We promote a **"Data-Driven"** approach,
+combining **RON configuration files** with **custom scripts**:
 
-1.  **RON Configuration Files (Content Description)**:
-    Most game content is created by writing **RON (Rusty Object Notation)** files. It's like **filling out a form** or **playing with blocks**—clear and intuitive.
-    *   Want to design a battle? Write a `.performance.ron` to schedule the bullet timeline.
-    *   Need to layout a UI? Use a `.ui_layout.ron` to define buttons and text.
-    *   Defining character stats? Set animations and colliders in a `.character.ron`.
-    *   *Even without a programming background, you can create rich game content by modifying these configs.*
+1. **RON Configuration Files (Content Description)**:
+   Most game content is created by writing **RON (Rusty Object Notation)** files. It's like **filling out a form** or *
+   *playing with blocks**—clear and intuitive.
+    * Want to design a battle? Write a `.performance.ron` to schedule the bullet timeline.
+    * Need to layout a UI? Use a `.ui_layout.ron` to define buttons and text.
+    * Defining character stats? Set animations and colliders in a `.character.ron`.
+    * *Even without a programming background, you can create rich game content by modifying these configs.*
 
-2.  **Custom Scripts (Behavior & Algorithms)**:
-    You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a special boss mechanic).
-    This is where SoupRune shines—you can choose **Rust**, **C# (.NET)**, or even **Haxe** to write this logic!
-    *   Your code is compiled into a dynamic library (`.dll` or `.so`) and "plugged" into the engine.
-    *   The engine communicates with your script via a standard interface (C ABI), giving you **high performance** while letting you use the **language you know best**.
+2. **Custom Scripts (Behavior & Algorithms)**:
+   You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a
+   special boss mechanic).
+   This is where SoupRune shines—you can choose **Rust**, **C# (.NET)**, or **Haxe** to write this logic!
+    * Your code is compiled into a dynamic library (`.dll` or `.so`) and "plugged" into the engine like a plugin.
+    * The engine communicates with your script via a standard interface (C ABI), giving you **high performance** while
+      letting you use the **language you know best**.
 
-**In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your favorite spoon (programming language) to add the ingredients and cook your delicious game!**
+**In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your
+favorite spoon (programming language) to add the ingredients and cook your delicious game!**
+
+<details>
+<summary><strong>So, what was the original intention behind SoupRune?</strong></summary>
+
+If you're interested in the design thinking behind SoupRune, here are more details:
+
+### 🏗️ Architecture: Why separate Core and Project? Why be "Language-Agnostic"?
+
+SoupRune adopts a **Core (Engine) - Project (Mod)** separated architecture.
+
+* **Core**: Driven by Rust and Bevy, responsible for all underlying heavy lifting (rendering, physics, ECS scheduling).
+* **Project**: Communicates with the core via a standard **C ABI**.
+
+This design aims to **build a bridge**. We know that developers in the Undertale / Deltarune community come from diverse
+backgrounds—
+
+* Developers from **GameMaker** will find **Haxe** familiar and natural;
+* Developers used to **Unity/Godot** can use **C#** (achieving excellent performance via Native AOT);
+* Friends used to **Lua** or **Python / GDScript** will be able to join seamlessly via **Nelua** or **Nim** in the
+  future.
+
+Our goal is to let every creator in the community **develop games in the language they are most comfortable with**.
+
+### ⚖️ License: About LGPL Open Source
+
+We chose **LGPL-3.0** to find a balance between "open source contribution" and "creator rights". Simply put:
+
+* ✅ **Your game, your rules**: Projects (Mods) you develop based on SoupRune can be closed-source or commercialized; you
+  don't need to open-source your game logic.
+* 🤝 **Give back to the community**: If you modify SoupRune's **framework core code** (the Engine part), you must
+  open-source those changes so everyone can benefit.
+* 🏢 **Commercial Licensing**: If you need to modify the core code in a closed-source environment, you can contact me for
+  a commercial license.
+
+### 🔮 Vision: Towards Community-Driven—An Experiment for the Community
+
+The **"Rune"** in SoupRune's name both pays tribute to Deltarune and symbolizes a heritage.
+
+It is the spiritual successor to [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template). We
+still carry the determination to change everything—our goal is not to make a closed tool, but an **open, modern—and most
+importantly, community-oriented experimental ground**.
+
+While "experimental" means early-stage instability, it also represents infinite possibilities—whether recreating
+classics or creating entirely original works, we hope SoupRune becomes the tool of choice in your hands.
+
+</details>
+
+## Contributors
+
+The following individuals have contributed to the SoupRune project!
+
+<a href = "https://github.com/Bli-AIk/souprune/Python/graphs/contributors">
+<img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
+</a>
+
+**Heartfelt thanks to each and every one of you! 🎔**
+
+## 🤝 Join Us
+
+Whether you:
+
+* Want to make your own DR/UT style game;
+* Want to try Bevy and Rust;
+* Or simply love the open-source and experimental spirit—
+
+You're welcome to participate in the construction of **SoupRune**:
+
+* Submit Issues for any questions or suggestions!
+* Contribute to SoupRune by providing Pull Requests!
+* Share ideas and discuss architecture in Discord or GitHub Discussions!
+* Or just chat about game development in the community!
+
+**Let's cook the most delicious Soup together!**
 
 ## 🏗️ Project Architecture
 
@@ -132,7 +176,7 @@ SoupRune adopts a multi-crate workspace architecture:
 | [`souprune`](./crates/souprune)                         | **Core Framework**: The main framework body, application entry point, and core logic.        |
 | [`souprune_api`](./crates/souprune_api)                 | **Protocol Layer**: Defines interface standards for Project (Mod) interaction with the core. |
 | [`souprune_sdk`](./crates/souprune_sdk)                 | **Development Kit**: A wrapper for the API, provided for external Project (Mod) scripts.     |
-| [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**： Sample test library for scripting systems.                                   |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**: Sample test library for scripting systems.                                   |
 | [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.           |
 | [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.    |
 | [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                       |
@@ -208,30 +252,4 @@ This project uses the following open-source projects as libraries, dependencies,
 |-----------------------------------------------------|-----------------------------------------------------------|
 | [DTTVL-Fonts](https://github.com/UTCLC/DTTVL-Fonts) | Font files used in the DELTATRAVELER localization project |
 
-**Heartfelt thanks to every contributor to the project! 🎔**
-
-## Contributors
-
-The following individuals have contributed to the project.
-
-<a href = "https://github.com/Bli-AIk/souprune/Python/graphs/contributors">
-<img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
-</a>
-
-**Heartfelt thanks to each and every one of you! 🎔**
-
-## 🤝 Join Us
-
-Whether you:
-
-* Want to create your own DR/UT-style game;
-* Want to try Bevy and Rust;
-* Or simply love open-source and experimentation —
-
-You’re welcome to contribute to **SoupRune**:
-
-* Submit Issues or Pull Requests!
-* Share ideas and discuss architecture!
-* Or just chat about game development in the community!
-
-**Let’s cook the most delicious Soup together!**
+**Heartfelt thanks to the contributors of each of these projects! 🎔**
