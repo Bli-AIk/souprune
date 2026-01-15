@@ -13,81 +13,109 @@
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
 **SoupRune** 是一个专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 的
-RPG / STG 游戏而设计的实验性游戏框架。
+RPG / STG 游戏而设计的、现代化的实验性游戏框架。
 
 | 英语                     | 简体中文 |
 |------------------------|------|
 | [English](./readme.md) | 简体中文 |
 
-## 🥣 简介
+## 🥣 这是什么？
 
-嘿，别被上面那个 **「Rust」** 徽章吓到 —— **SoupRune 可不只是给某些专业程序员玩的冷门工具！**
+**SoupRune** 是一个现代化的实验性游戏框架，它基于 `bevy`
+引擎制作，专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale**](https://undertale.com/) 风格的 RPG /
+弹幕射击游戏而生。
 
-为什么这么说呢？因为：
-
-### SoupRune 是语言无关的框架！
-
-SoupRune 采用了 **框架 - Project (Mod)** 架构。通过 `bevy` 构建的核心引擎负责底层运行，而您的游戏逻辑则位于独立的
-"Project" 中，通过标准接口与核心交互。
-
-我们通过 `C ABI` 使使得 SoupRune 能够真正做到 **语言无关（Language-Agnostic）**。在语言支持的选择上，我们优先考虑了对 **传统
-Undertale / Deltarune 开发者友好** 的语言，旨在为来自 **GameMaker** (Haxe)、**Lua** (Nelua) 或 **Python / GDScript** (Nim)
-背景的开发者搭建一座桥梁。
-
-我们热烈欢迎来自各个语言社区的开发者加入，共同完善这些语言的支持！
-
-### SoupRune 是面向社区的框架！
-
-SoupRune——它名字里的 **「Rune」** 不是随便取的。
-
-Undertale 的 Fangame 框架兴许已经饱和，但 Deltarune 社区正在蓬勃发展。
-
-SoupRune 就是趁此机会打造的 Fangame 框架，
-~~同时顺带充当 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template) 的精神续作。~~
-
-但这也不意味着 SoupRune 只是一个 Deltarune 框架 —— 对于 Undertale Fangame 的支持，我们也同样看重！
-
-SoupRune 的目标是成为真正意义上的 **「面向社区的 Fangame 框架」** —— 开放、灵活、现代，同时依然保持那个熟悉的 DR / UT 风格。
-
-### SoupRune 是开源的框架！
-
-SoupRune 采用 **LGPL-3.0** 许可协议开源发布。该许可证仅适用于框架核心代码。
-
-这意味着：
-
-* 你开发的 Project (Mod) 可以使用其他开源许可证，也可以闭源；
-* 你可以在闭源项目中使用 SoupRune 的源代码；
-* 但若你修改了框架核心代码，需将这些修改以 LGPL 方式开源；
-* 若你希望在完全闭源环境下使用修改版 SoupRune 核心代码，可联系我获取商业许可。
-
-此外，仍需遵守 Toby Fox 对粉丝游戏的相关使用规定。
-
-### SoupRune 是实验性的框架！
-
-尽管实验性意味着不稳定和不完善，但它也代表着无限的可能性。
-
-用它来做 dr / ut 的 fangame？或者试试还原其他的经典游戏？甚至开发全新的原创游戏？ 一切皆有可能！
-
-SoupRune 目前仍处于 **初始开发阶段**，框架结构和设计理念仍在快速演进中。
-我们欢迎社区成员积极参与讨论和贡献，共同塑造这个框架的未来。
-
-加入我们的 [Discord](https://discord.gg/5YXK5DRjPZ) 吧！
+它致力于成为下一代社区驱动的 Fangame 引擎——既带来了独特的味道，又在底层架构上拥抱了高性能与现代开发范式。
 
 ## 🧭 S.O.U.P 原则
 
-是的，**Soup**Rune当然是一个双关啦——
+我们的设计哲学凝聚在一碗美味的 **S.O.U.P** 里：
 
-|  缩写   | 全称                | 含义                                  |
-|:-----:|:------------------|:------------------------------------|
-| **S** | **Strong**        | 基于 **Bevy** 与 **Rust**，性能强劲、架构现代。   |
-| **O** | **Open**          | 采用 **LGPL** 开源协议，允许自由使用与拓展。         |
-| **U** | **User-friendly** | 提供多语言脚本层，降低上手门槛。                    |
-| **P** | **Polyglot**      | 支持多种编程语言（Rust、C#、Haxe、Nim、Nelua 等）。 |
+* **S (Strong) - 强劲内核**：基于 **Bevy 引擎** 与 **Rust** 构建，享受 ECS 架构带来的高性能与并行计算优势。
+* **O (Open) - 自由开源**：采用 **LGPL-3.0** 协议。核心代码库开源，但你的 Project / Mod（游戏）属于你自己。
+* **U (User-friendly) - 易于上手**：提供开箱即用的 RPG 功能（对话、战斗、地图）、弹幕序列器（STG-支持回合制）、以及可视化工具集成（支持
+  Alight Motion 工程），让你专注于创意。
+* **P (Polyglot) - 多语言支持**：通过 C ABI 实现语言无关，你可以选择最顺手的“餐具”（C#、Haxe、Rust 等）来享用这碗汤。
 
-## ⚙️ 技术基础
+## 🚀 快速开始
+
+SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜，可以按以下步骤起步：
+
+1. **准备环境**：安装 [Rust 开发环境](https://www.rust-lang.org/)。
+2. **克隆仓库**：`git clone https://github.com/Bli-AIk/souprune.git`
+3. **进入目录**：`cd souprune`
+4. **拉取子模块**：`git submodule update --init --recursive`
+5. **在Debug模式下，运行示例**：`cargo run --package souprune --bin souprune --features debug`
+
+## ⚙️ 设计理念
+
+在技术层面，SoupRune：
 
 * 核心使用 **Bevy 引擎** 与 **Rust 语言** 实现，保证性能与可扩展性；
 * 设计目标是：**结构清晰、可模块化扩展、易于定制**；
+
+在项目架构上，SoupRune：
+// TODO: 完成此处的内容。重点讲解 project/mod 与 engine 的分离设计，以及多语言支持的做法。写这里的内容时应考虑读者可能代码水平有限，需要尽可能亲切的描述。
+
+<details>
+<summary><strong>那么，SoupRune 的设计初衷是什么呢？</strong></summary>
+
+如果你对 SoupRune 背后的设计思考感兴趣，这里有更多细节：
+
+### 🏗️ 架构：为何要将核心与项目分开？为何要做到“语言无关”？
+
+SoupRune 采用了 **核心 (Engine) - 项目 (Project/Mod)** 分离的架构。
+
+* **核心**：由 Rust 和 Bevy 驱动，负责所有底层的繁重工作（渲染、物理、ECS 调度）。
+* **项目**：通过标准的 **C ABI** 与核心对话。
+
+这种设计是为了**架起一座桥梁**。我们深知 Undertale / Deltarune 社区的开发者背景各异——
+
+* 来自 **GameMaker** 的开发者会发现 **Haxe** 亲切自然；
+* 习惯 **Unity/Godot** 的开发者可以使用 **C#** (通过 Native AOT 获得极佳性能)；
+* 习惯 **Lua** 或 **Python / GDScript** 的朋友，未来也能通过 **Nelua** 或 **Nim** 无缝接入。
+
+让社区的每一位创作者都能**用自己最熟悉的语言**来开发游戏，是我们设计的初衷。
+
+### ⚖️ 协议：关于 LGPL 开源
+
+我们选择 **LGPL-3.0** 是为了在“开源贡献”和“创作者权益”之间找到平衡。简而言之：
+
+* ✅ **你的游戏由你做主**：你基于 SoupRune 开发的 Project (Mod) 可以闭源，也可以商业化销售，无需开源你的游戏逻辑代码。
+* 🤝 **回馈社区**：如果你修改了 SoupRune 的**框架核心代码**（Engine 部分），则必须将这些修改开源，让所有人受益。
+* 🏢 **商业许可**：如果你确实需要在闭源环境下修改核心代码，可以联系我获取商业授权。
+
+### 🔮 愿景：走向社区驱动——属于社区的一场实验
+
+SoupRune 名字里的 **「Rune」** 既致敬了 Deltarune，也象征着一种传承。
+
+它是 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template)
+的精神续作。我们仍然怀揣着改变一切的决心——我们的目标不是做一个封闭的工具，而是一个**开放的、现代的——且最重要的，
+面向社区的实验场**。
+
+虽然“实验性”意味着早期可能不稳定，但它也代表了无限的可能性——无论是复刻经典，还是创造全新的原创作品，我们都希望
+SoupRune 能成为你手中的利器。
+
+</details>
+
+
+## 🤝 加入我们
+
+无论你是：
+
+* 想做自己的 DR/UT 风格游戏；
+* 想尝试 Bevy 与 Rust；
+* 还是单纯热爱开源与实验精神——
+
+都欢迎参与 **SoupRune** 的建设：
+
+* 针对任何 问题、建议，提交 Issue，提出你的宝贵意见！
+* 为 SoupRune 填砖加瓦，提供 Pull Request！
+* 在 Discord 或 Github Discussions 分享想法、讨论架构！
+* 或者在社区里单纯聊聊游戏开发！
+
+**让我们一起煮出一锅最美味的 Soup 吧！**
+
 
 ## 🏗️ 项目架构
 
@@ -184,19 +212,3 @@ SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。
 </a>
 
 **衷心感谢你们每一个人！🎔**
-
-## 🤝 加入我们
-
-无论你是：
-
-* 想做自己的 DR/UT 风格游戏；
-* 想尝试 Bevy 与 Rust；
-* 还是单纯热爱开源与实验精神——
-
-都欢迎参与 **SoupRune** 的建设：
-
-* 提交 Issue 或 Pull Request！
-* 分享想法、讨论架构！
-* 或者在社区里单纯聊聊游戏开发！
-
-**让我们一起煮出一锅最美味的 Soup 吧！**
