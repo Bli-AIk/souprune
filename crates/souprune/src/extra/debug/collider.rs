@@ -24,7 +24,6 @@ pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;
     use crate::app_state::overworld::tilemap::*;
-    #[cfg(feature = "experimental")]
     use crate::app_state::overworld::trigger::TriggerZone;
     use crate::core::collision::{PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::prelude::*;
@@ -67,7 +66,6 @@ pub mod debug_collider {
                 ),
             );
 
-        #[cfg(feature = "experimental")]
         app.add_systems(Update, render_trigger_zones_system);
     }
 
@@ -139,7 +137,7 @@ pub mod debug_collider {
         battle_physics_colliders: Query<Entity, With<PhysicsCollider>>,
         battle_trigger_colliders: Query<Entity, With<TriggerCollider>>,
         battle_boxes: Query<Entity, With<crate::app_state::battle::collision::BattleBox>>,
-        #[cfg(feature = "experimental")] fre_trigger_zones: Query<Entity, With<TriggerZone>>,
+        fre_trigger_zones: Query<Entity, With<TriggerZone>>,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         let Ok(debug_root_entity) = debug_root.single() else {
@@ -167,10 +165,7 @@ pub mod debug_collider {
                 || battle_trigger_colliders.get(visualizer.parent).is_ok()
                 || battle_boxes.get(visualizer.parent).is_ok();
 
-            #[cfg(feature = "experimental")]
-            {
-                parent_exists = parent_exists || fre_trigger_zones.get(visualizer.parent).is_ok();
-            }
+            parent_exists = parent_exists || fre_trigger_zones.get(visualizer.parent).is_ok();
 
             if !parent_exists {
                 commands.entity(visualizer_entity).despawn();
@@ -275,11 +270,8 @@ pub mod debug_collider {
     }
 
     /// System to render FRE TriggerZone entities (cyan color).
-    /// Only available with the `experimental` feature.
     ///
     /// 渲染 FRE TriggerZone 实体的系统（青色）。
-    /// 仅在启用 `experimental` 特性时可用。
-    #[cfg(feature = "experimental")]
     #[allow(clippy::type_complexity)]
     fn render_trigger_zones_system(
         mut commands: Commands,
@@ -394,7 +386,7 @@ pub mod debug_collider {
                 Without<BattleColliderVisualized>,
             ),
         >,
-        #[cfg(feature = "experimental")] chase_hitboxes: Query<
+        chase_hitboxes: Query<
             Entity,
             With<crate::app_state::overworld::chase::ChasePlayerHitbox>,
         >,
@@ -479,10 +471,7 @@ pub mod debug_collider {
             }
 
             // Determine if this is a chase hitbox (red) or battle collider (green)
-            #[cfg(feature = "experimental")]
             let is_chase_hitbox = chase_hitboxes.get(entity).is_ok();
-            #[cfg(not(feature = "experimental"))]
-            let is_chase_hitbox = false;
 
             let color = if is_chase_hitbox {
                 Color::hsl(0.0, 1.0, 0.5) // Red for chase hitbox

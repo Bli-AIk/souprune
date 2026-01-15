@@ -19,16 +19,13 @@ use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
-#[cfg(feature = "experimental")]
 use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
 
 pub(crate) mod character;
-#[cfg(feature = "experimental")]
 pub mod chase;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
-#[cfg(feature = "experimental")]
 pub mod trigger;
 pub(crate) mod ui;
 
@@ -58,7 +55,6 @@ pub struct OverworldUpdate;
 
 /// System set for FRE trigger processing (experimental).
 /// Runs before DanmakuUpdate to ensure PlayPerformanceEvent is written first.
-#[cfg(feature = "experimental")]
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FRETriggerSet;
 
@@ -66,6 +62,8 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
+        use crate::app_state::AppState;
+
         app.configure_sets(
             Update,
             OverworldUpdate.run_if(in_state(AppState::Overworld)),
@@ -109,46 +107,41 @@ impl Plugin for OverworldPlugin {
         );
         // Note: Chase state allows player movement, so we don't force idle
 
-        // Experimental features: FRE + Danmaku integration + Chase
-        #[cfg(feature = "experimental")]
-        {
-            use crate::app_state::AppState;
-
-            app.add_plugins(bevy_fact_rule_event::FREPlugin)
-                .add_plugins(chase::ChasePlugin)
-                // Configure FRETriggerSet to run in OverworldUpdate
-                .configure_sets(Update, FRETriggerSet.in_set(OverworldUpdate))
-                // Configure DanmakuUpdate to run when in either Battle OR Overworld state
-                // This allows the danmaku systems to work in both modes without conflicting in_set
-                .configure_sets(
-                    Update,
-                    DanmakuUpdate
-                        .run_if(in_state(AppState::Battle).or(in_state(AppState::Overworld)))
-                        .after(FRETriggerSet),
+        // FRE + Danmaku integration + Chase
+        app.add_plugins(bevy_fact_rule_event::FREPlugin)
+            .add_plugins(chase::ChasePlugin)
+            // Configure FRETriggerSet to run in OverworldUpdate
+            .configure_sets(Update, FRETriggerSet.in_set(OverworldUpdate))
+            // Configure DanmakuUpdate to run when in either Battle OR Overworld state
+            // This allows the danmaku systems to work in both modes without conflicting in_set
+            .configure_sets(
+                Update,
+                DanmakuUpdate
+                    .run_if(in_state(AppState::Battle).or(in_state(AppState::Overworld)))
+                    .after(FRETriggerSet),
+            )
+            .init_resource::<trigger::LoadedRuleSets>()
+            .add_systems(
+                OnEnter(AppState::Overworld),
+                (
+                    trigger::setup_action_handlers_system,
+                    set_overworld_danmaku_context,
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    trigger::load_fre_rules_system,
+                    trigger::register_loaded_rules_system,
+                    trigger::spawn_demo_trigger_zone_system,
+                    trigger::trigger_zone_detection_system,
+                    trigger::play_danmaku_on_trigger_system,
+                    trigger::handle_chase_state_actions_system,
+                    trigger::log_fact_changes_system,
                 )
-                .init_resource::<trigger::LoadedRuleSets>()
-                .add_systems(
-                    OnEnter(AppState::Overworld),
-                    (
-                        trigger::setup_action_handlers_system,
-                        set_overworld_danmaku_context,
-                    ),
-                )
-                .add_systems(
-                    Update,
-                    (
-                        trigger::load_fre_rules_system,
-                        trigger::register_loaded_rules_system,
-                        trigger::spawn_demo_trigger_zone_system,
-                        trigger::trigger_zone_detection_system,
-                        trigger::play_danmaku_on_trigger_system,
-                        trigger::handle_chase_state_actions_system,
-                        trigger::log_fact_changes_system,
-                    )
-                        .chain()
-                        .in_set(FRETriggerSet),
-                );
-        }
+                    .chain()
+                    .in_set(FRETriggerSet),
+            );
     }
 }
 
@@ -156,7 +149,6 @@ fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::Spaw
     spawn_events.write(player::SpawnPlayerRequest);
 }
 
-#[cfg(feature = "experimental")]
 fn set_overworld_danmaku_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
     *spawn_context = DanmakuSpawnContext::overworld();
     info!("Danmaku: Set spawn context to Overworld");

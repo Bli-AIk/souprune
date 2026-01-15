@@ -16,7 +16,6 @@ pub use crate::core::danmaku::*;
 use crate::app_state::AppState;
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::DanmakuSpawnContext;
-#[cfg(not(feature = "experimental"))]
 use crate::core::danmaku::DanmakuUpdate;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
@@ -27,7 +26,6 @@ use super::BattleUpdate;
 /// Similar to chase config but for battle mode.
 ///
 /// 战斗模式的无敌时间配置。
-#[cfg(feature = "experimental")]
 #[derive(Resource)]
 pub struct BattleInvincibilityConfig {
     /// Duration of invincibility in seconds after taking damage
@@ -40,7 +38,6 @@ pub struct BattleInvincibilityConfig {
     pub flash_color: Color,
 }
 
-#[cfg(feature = "experimental")]
 impl Default for BattleInvincibilityConfig {
     fn default() -> Self {
         Self {
@@ -55,7 +52,6 @@ impl Default for BattleInvincibilityConfig {
 /// Resource to track player invincibility state in battle mode.
 ///
 /// 追踪战斗模式下玩家无敌状态的资源。
-#[cfg(feature = "experimental")]
 #[derive(Resource, Default)]
 pub struct BattlePlayerInvincibility {
     /// Whether player is currently invincible
@@ -68,7 +64,6 @@ pub struct BattlePlayerInvincibility {
     pub flash_state: bool,
 }
 
-#[cfg(feature = "experimental")]
 impl BattlePlayerInvincibility {
     /// Start invincibility with the given duration.
     pub fn start(&mut self, duration: f32) {
@@ -93,30 +88,21 @@ pub struct DanmakuPlugin;
 
 impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
-        // Configure DanmakuUpdate run condition:
-        // When experimental feature is OFF, only run in Battle state
-        // When experimental feature is ON, the run_if is configured in overworld.rs to allow both states
-        #[cfg(not(feature = "experimental"))]
-        app.configure_sets(Update, DanmakuUpdate.run_if(in_state(AppState::Battle)));
-
         // Set spawn context to Battle when entering battle state
         app.add_systems(OnEnter(AppState::Battle), set_battle_context);
 
-        // Add damage detection and invincibility systems (experimental feature)
-        #[cfg(feature = "experimental")]
-        {
-            app.init_resource::<BattleInvincibilityConfig>()
-                .init_resource::<BattlePlayerInvincibility>()
-                .add_systems(
-                    Update,
-                    (
-                        battle_damage_detection_system,
-                        update_battle_invincibility_system,
-                    )
-                        .chain()
-                        .in_set(BattleUpdate),
-                );
-        }
+        // Add damage detection and invincibility systems
+        app.init_resource::<BattleInvincibilityConfig>()
+            .init_resource::<BattlePlayerInvincibility>()
+            .add_systems(
+                Update,
+                (
+                    battle_damage_detection_system,
+                    update_battle_invincibility_system,
+                )
+                    .chain()
+                    .in_set(BattleUpdate),
+            );
 
         // Register reflect types for inspector
         app.register_type::<DanmakuPerformance>()
@@ -144,7 +130,6 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 /// System to detect bullet collision with player in battle mode.
 ///
 /// 检测战斗模式下弹幕与玩家碰撞的系统。
-#[cfg(feature = "experimental")]
 #[allow(clippy::too_many_arguments)]
 fn battle_damage_detection_system(
     mut commands: Commands,
@@ -287,7 +272,6 @@ fn battle_damage_detection_system(
 /// System to update battle player invincibility timer and heart flashing effect.
 ///
 /// 更新战斗玩家无敌时间和心形闪烁效果的系统。
-#[cfg(feature = "experimental")]
 fn update_battle_invincibility_system(
     time: Res<Time>,
     invincibility_config: Res<BattleInvincibilityConfig>,
@@ -341,7 +325,6 @@ fn update_battle_invincibility_system(
 /// Helper function to check collision between two trigger colliders.
 ///
 /// 检查两个触发器碰撞体之间是否发生碰撞的辅助函数。
-#[cfg(feature = "experimental")]
 fn check_battle_collision(
     a: &TriggerCollider,
     a_center: Vec2,

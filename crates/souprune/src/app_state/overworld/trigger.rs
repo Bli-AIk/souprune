@@ -9,11 +9,6 @@
 //! 基于 FRE 的 Overworld 区域触发器。
 //! 处理触发区域检测并发出 FRE 事件。
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
-//!
-//! NOTE: This module is only available with the `experimental` feature.
-//! 注意：此模块仅在启用 `experimental` 特性时可用。
-
-#![cfg(feature = "experimental")]
 
 use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
