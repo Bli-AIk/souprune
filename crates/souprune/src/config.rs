@@ -183,6 +183,11 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
 
     roots.push(project_path.clone());
 
+    // Fallback to absolute path to ensure assets are found
+    if let Ok(abs_path) = std::fs::canonicalize(&project_path) {
+        roots.push(abs_path);
+    }
+
     #[cfg(feature = "debug")]
     {
         roots.push(
