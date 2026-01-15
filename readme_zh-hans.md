@@ -12,8 +12,8 @@
 
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
-**SoupRune** 是一个专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 的
-RPG / STG 游戏而设计的、现代化的实验性游戏框架。
+**SoupRune** 是一个令人耳目一新的现代化框架，为次世代同人游戏而生，
+专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 的 RPG / STG 游戏而设计。
 
 | 英语                     | 简体中文 |
 |------------------------|------|
@@ -21,9 +21,8 @@ RPG / STG 游戏而设计的、现代化的实验性游戏框架。
 
 ## 🥣 这是什么？
 
-**SoupRune** 是一个现代化的实验性游戏框架，它基于 `bevy`
-引擎制作，专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale**](https://undertale.com/) 风格的 RPG /
-弹幕射击游戏而生。
+**SoupRune** 是一个令人耳目一新的现代化框架，它基于 `bevy` 引擎制作，为次世代同人游戏而生，
+专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 风格的 RPG / 弹幕射击游戏。
 
 它致力于成为下一代社区驱动的 Fangame 引擎——既带来了独特的味道，又在底层架构上拥抱了高性能与现代开发范式。
 
@@ -111,15 +110,15 @@ SoupRune 采用了 **核心 (Engine) - 项目 (Project/Mod)** 分离的架构。
 * 🤝 **回馈社区**：如果你修改了 SoupRune 的**框架核心代码**（Engine 部分），则必须将这些修改开源，让所有人受益。
 * 🏢 **商业许可**：如果你确实需要在闭源环境下修改核心代码，可以联系我获取商业授权。
 
-### 🔮 愿景：走向社区驱动——属于社区的一场实验
+### 🔮 愿景：走向社区驱动——属于社区的次世代游乐场
 
 SoupRune 名字里的 **「Rune」** 既致敬了 Deltarune，也象征着一种传承。
 
 它是 [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template)
 的精神续作。我们仍然怀揣着改变一切的决心——我们的目标不是做一个封闭的工具，而是一个**开放的、现代的——且最重要的，
-面向社区的实验场**。
+面向社区的次世代游乐场**。
 
-虽然“实验性”意味着早期可能不稳定，但它也代表了无限的可能性——无论是复刻经典，还是创造全新的原创作品，我们都希望
+虽然“次世代”意味着处于不断进化的前沿，但它也代表了无限的可能性——无论是复刻经典，还是创造全新的原创作品，我们都希望
 SoupRune 能成为你手中的利器。
 
 </details>
@@ -140,7 +139,7 @@ SoupRune 能成为你手中的利器。
 
 * 想做自己的 DR/UT 风格游戏；
 * 想尝试 Bevy 与 Rust；
-* 还是单纯热爱开源与实验精神——
+* 还是单纯热爱开源与先锋精神——
 
 都欢迎参与 **SoupRune** 的建设：
 

@@ -12,7 +12,7 @@
 
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
-**SoupRune** is a modern, experimental game framework
+**SoupRune** is a refreshingly modern framework for the next generation of fangames,
 designed specifically for creating RPG / STG games similar to
 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
@@ -22,7 +22,7 @@ designed specifically for creating RPG / STG games similar to
 
 ## 🥣 What is this?
 
-**SoupRune** is a modern experimental game framework built on the `bevy` engine, born for creating RPG and Danmaku (STG)
+**SoupRune** is a refreshingly modern framework for the next generation of fangames, built on the `bevy` engine and born for creating RPG and Danmaku (STG)
 games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
 It strives to be the next-generation community-driven Fangame engine—bringing a unique flavor while embracing high
@@ -127,15 +127,15 @@ We chose **LGPL-3.0** to find a balance between "open source contribution" and "
 * 🏢 **Commercial Licensing**: If you need to modify the core code in a closed-source environment, you can contact me for
   a commercial license.
 
-### 🔮 Vision: Towards Community-Driven—An Experiment for the Community
+### 🔮 Vision: Towards Community-Driven—The Next Generation Playground
 
 The **"Rune"** in SoupRune's name both pays tribute to Deltarune and symbolizes a heritage.
 
 It is the spiritual successor to [Undertale Changer Template](https://github.com/Bli-AIk/Undertale-Changer-Template). We
 still carry the determination to change everything—our goal is not to make a closed tool, but an **open, modern—and most
-importantly, community-oriented experimental ground**.
+importantly, a community-oriented next-gen playground**.
 
-While "experimental" means early-stage instability, it also represents infinite possibilities—whether recreating
+While "next-gen" implies evolving frontiers, it also represents infinite possibilities—whether recreating
 classics or creating entirely original works, we hope SoupRune becomes the tool of choice in your hands.
 
 </details>
@@ -156,7 +156,7 @@ Whether you:
 
 * Want to make your own DR/UT style game;
 * Want to try Bevy and Rust;
-* Or simply love the open-source and experimental spirit—
+* Or simply love the open-source and next-gen spirit—
 
 You're welcome to participate in the construction of **SoupRune**:
 
