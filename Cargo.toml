@@ -51,7 +51,3 @@ opt-level = 3
 
 [profile.dev.package.symphonium]
 opt-level = 3
-
-[patch.crates-io]
-# Force every workspace crate to use the local mortar compiler implementation.
-mortar_compiler = { path = "../mortar/crates/mortar_compiler" }
