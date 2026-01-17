@@ -63,6 +63,28 @@ build_target() {
     fi
 }
 
+# 检查依赖函数
+check_rust_target() {
+    local target=$1
+    if ! rustup target list --installed | grep -q "^$target$"; then
+        echo "错误: 未安装 Rust 目标: $target"
+        echo "请运行: rustup target add $target"
+        return 1
+    fi
+    return 0
+}
+
+check_command() {
+    local cmd=$1
+    local package_hint=$2
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "错误: 未找到命令: $cmd"
+        echo "请安装: $package_hint"
+        return 1
+    fi
+    return 0
+}
+
 # 检查源代码目录
 if [ ! -d "$MOD_SOURCE_DIR" ]; then
     echo "错误: 源代码目录不存在: $MOD_SOURCE_DIR"
@@ -75,20 +97,44 @@ if [ "$BUILD_WIN" = true ]; then
     
     # 1. 构建 MSVC 版本 (使用 cargo-xwin)
     if command -v cargo-xwin >/dev/null 2>&1; then
-        echo "检测到 cargo-xwin，开始构建 MSVC 版本..."
-        # MSVC 不需要手动设置 static-crt，通常默认兼容性较好，或者由 xwin 处理
-        # 清除 RUSTFLAGS 以避免冲突 (如 gnu 的 static-crt 标志)
-        export RUSTFLAGS="" 
-        build_target "x86_64-pc-windows-msvc" "mod_example.dll" "mod_example_msvc.dll" "cargo xwin build"
+        echo "检测到 cargo-xwin，准备构建 MSVC 版本..."
+        if check_rust_target "x86_64-pc-windows-msvc"; then
+             # MSVC 不需要手动设置 static-crt，通常默认兼容性较好，或者由 xwin 处理
+             # 清除 RUSTFLAGS 以避免冲突 (如 gnu 的 static-crt 标志)
+             export RUSTFLAGS="" 
+             build_target "x86_64-pc-windows-msvc" "mod_example.dll" "mod_example_msvc.dll" "cargo xwin build"
+        else
+             echo "警告: 跳过 MSVC 构建 (缺少 Rust Target)。"
+        fi
     else
         echo "警告: 未找到 cargo-xwin，跳过 MSVC 构建。"
+        echo "提示: 在 Linux 上构建 MSVC 版本需要 cargo-xwin (cargo install cargo-xwin)"
     fi
 
     # 2. 构建 GNU 版本 (使用 MinGW)
-    # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll
-    echo "开始构建 GNU 版本..."
-    export RUSTFLAGS="-C target-feature=+crt-static"
-    build_target "x86_64-pc-windows-gnu" "mod_example.dll" "mod_example_gnu.dll"
+    echo "---"
+    echo "准备构建 GNU 版本..."
+    
+    MISSING_GNU_DEPS=false
+    
+    # 检查 Rust Target
+    if ! check_rust_target "x86_64-pc-windows-gnu"; then
+        MISSING_GNU_DEPS=true
+    fi
+    
+    # 检查 MinGW Linker
+    if ! check_command "x86_64-w64-mingw32-gcc" "mingw-w64 (sudo apt install mingw-w64)"; then
+        MISSING_GNU_DEPS=true
+    fi
+    
+    if [ "$MISSING_GNU_DEPS" = false ]; then
+        # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll
+        export RUSTFLAGS="-C target-feature=+crt-static"
+        build_target "x86_64-pc-windows-gnu" "mod_example.dll" "mod_example_gnu.dll"
+    else
+        echo "错误: 缺少构建 GNU 版本的依赖，构建失败。"
+        exit 1
+    fi
 else
     # 默认构建本地 Linux 版本
     build_target "" "libmod_example.so" "libmod_example.so"
