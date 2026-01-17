@@ -4,7 +4,7 @@
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(1.0),
     DanmakuPerformance(
-        performance: "battle/performances/demo_attack.performance.ron",
+        performance: "battle/danmaku/demo_attack.performance.ron",
         position: Some((0.0, 50.0)),
     ),
     Wait(10.0),

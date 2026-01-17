@@ -259,7 +259,7 @@ pub fn play_danmaku_on_trigger_system(
 
                 // Play Overworld-specific danmaku performance with 0.5x scale
                 performance_writer.write(
-                    PlayPerformanceEvent::new("danmaku/demo_attack_ow.performance.ron")
+                    PlayPerformanceEvent::new("overworld/danmaku/demo_attack_ow.performance.ron")
                         .at_position(spawn_pos),
                 );
             } else {

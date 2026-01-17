@@ -386,10 +386,7 @@ pub mod debug_collider {
                 Without<BattleColliderVisualized>,
             ),
         >,
-        chase_hitboxes: Query<
-            Entity,
-            With<crate::app_state::overworld::chase::ChasePlayerHitbox>,
-        >,
+        chase_hitboxes: Query<Entity, With<crate::app_state::overworld::chase::ChasePlayerHitbox>>,
         battle_boxes: Query<
             (
                 Entity,
