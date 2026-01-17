@@ -30,7 +30,9 @@ done
 # 构建函数
 build_target() {
     local target=$1
-    local output_name=$2
+    local cargo_output_name=$2
+    local final_output_name=$3
+    local custom_build_cmd=${4:-"cargo build"}
     local cargo_target_flag=""
     local target_dir="target/$BUILD_MODE"
 
@@ -43,18 +45,18 @@ build_target() {
     fi
 
     pushd "$MOD_SOURCE_DIR" > /dev/null
-    cargo build $CARGO_FLAGS $cargo_target_flag
+    $custom_build_cmd $CARGO_FLAGS $cargo_target_flag
     popd > /dev/null
 
-    local source_file="$MOD_SOURCE_DIR/$target_dir/$output_name"
+    local source_file="$MOD_SOURCE_DIR/$target_dir/$cargo_output_name"
     # 兼容某些情况下产物在 deps 目录的问题
     if [ ! -f "$source_file" ]; then
-        source_file="$MOD_SOURCE_DIR/$target_dir/deps/$output_name"
+        source_file="$MOD_SOURCE_DIR/$target_dir/deps/$cargo_output_name"
     fi
 
     if [ -f "$source_file" ]; then
-        echo "正在同步 $output_name 到 $DESTINATION_DIR ..."
-        cp -f "$source_file" "$DESTINATION_DIR/$output_name"
+        echo "正在同步 $cargo_output_name 到 $DESTINATION_DIR/$final_output_name ..."
+        cp -f "$source_file" "$DESTINATION_DIR/$final_output_name"
     else
         echo "错误：找不到构建产物 $source_file"
         exit 1
@@ -68,13 +70,28 @@ if [ ! -d "$MOD_SOURCE_DIR" ]; then
 fi
 
 # 执行构建
-    if [ "$BUILD_WIN" = true ]; then
-        # 构建 Windows 版本
-        # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll 等导致在无 MinGW 环境下无法运行或加载错误的 DLL (Error 193)
-        export RUSTFLAGS="-C target-feature=+crt-static"
-        build_target "x86_64-pc-windows-gnu" "mod_example.dll"
-    else    # 默认构建本地 Linux 版本
-    build_target "" "libmod_example.so"
+if [ "$BUILD_WIN" = true ]; then
+    echo "=== Windows 构建模式 ==="
+    
+    # 1. 构建 MSVC 版本 (使用 cargo-xwin)
+    if command -v cargo-xwin >/dev/null 2>&1; then
+        echo "检测到 cargo-xwin，开始构建 MSVC 版本..."
+        # MSVC 不需要手动设置 static-crt，通常默认兼容性较好，或者由 xwin 处理
+        # 清除 RUSTFLAGS 以避免冲突 (如 gnu 的 static-crt 标志)
+        export RUSTFLAGS="" 
+        build_target "x86_64-pc-windows-msvc" "mod_example.dll" "mod_example_msvc.dll" "cargo xwin build"
+    else
+        echo "警告: 未找到 cargo-xwin，跳过 MSVC 构建。"
+    fi
+
+    # 2. 构建 GNU 版本 (使用 MinGW)
+    # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll
+    echo "开始构建 GNU 版本..."
+    export RUSTFLAGS="-C target-feature=+crt-static"
+    build_target "x86_64-pc-windows-gnu" "mod_example.dll" "mod_example_gnu.dll"
+else
+    # 默认构建本地 Linux 版本
+    build_target "" "libmod_example.so" "libmod_example.so"
 fi
 
 echo "构建与同步完成！"

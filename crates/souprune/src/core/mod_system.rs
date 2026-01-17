@@ -119,22 +119,45 @@ fn load_mods_system(
     mut registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
 ) {
-    // Hardcoded loading for now
-    let lib_name = if cfg!(target_os = "windows") {
-        "mod_example.dll"
-    } else {
-        "libmod_example.so"
-    };
-    let mod_path = format!("projects/example_mod/{}", lib_name);
+    let mut candidate_paths = Vec::new();
 
-    if !Path::new(&mod_path).exists() {
-        warn!("Mod file not found: {}", mod_path);
-        return;
+    if cfg!(target_os = "windows") {
+        if cfg!(target_env = "msvc") {
+            // If host is MSVC, prioritize MSVC dll
+            candidate_paths.push("projects/example_mod/mod_example_msvc.dll");
+            candidate_paths.push("projects/example_mod/mod_example_gnu.dll");
+        } else {
+            // If host is GNU (or other), prioritize GNU dll
+            candidate_paths.push("projects/example_mod/mod_example_gnu.dll");
+            candidate_paths.push("projects/example_mod/mod_example_msvc.dll");
+        }
+    } else {
+        // Linux / Unix
+        candidate_paths.push("projects/example_mod/libmod_example.so");
     }
+
+    let mut loaded_path = None;
+    for path in &candidate_paths {
+        if Path::new(path).exists() {
+            loaded_path = Some(path.to_string());
+            break;
+        }
+    }
+
+    let Some(mod_path) = loaded_path else {
+        warn!("Mod file not found. Checked: {:?}", candidate_paths);
+        return;
+    };
 
     unsafe {
         info!("Loading mod: {}", mod_path);
-        let lib = Library::new(&mod_path).expect("Failed to load DLL");
+        let lib = match Library::new(&mod_path) {
+            Ok(l) => l,
+            Err(e) => {
+                error!("Failed to load DLL '{}': {:?}", mod_path, e);
+                return;
+            }
+        };
 
         // === Load Behaviors ===
         // 1. Get Count
