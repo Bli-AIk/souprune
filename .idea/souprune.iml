@@ -30,6 +30,9 @@
       <excludeFolder url="file://$MODULE_DIR$/doc/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/code/mod_example/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/assets/debug/_video_frames" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/reports" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/code/mod_example/.cargo" />
+      <excludeFolder url="file://$MODULE_DIR$/reports" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

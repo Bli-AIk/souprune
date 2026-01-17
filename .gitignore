@@ -42,3 +42,5 @@ ignore_music.wav
 *.amproj
 
 reports/
+
+.cargo/
