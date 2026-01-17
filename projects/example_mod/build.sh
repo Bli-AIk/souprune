@@ -68,11 +68,12 @@ if [ ! -d "$MOD_SOURCE_DIR" ]; then
 fi
 
 # 执行构建
-if [ "$BUILD_WIN" = true ]; then
-    # 构建 Windows 版本
-    build_target "x86_64-pc-windows-gnu" "mod_example.dll"
-else
-    # 默认构建本地 Linux 版本
+    if [ "$BUILD_WIN" = true ]; then
+        # 构建 Windows 版本
+        # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll 等导致在无 MinGW 环境下无法运行或加载错误的 DLL (Error 193)
+        export RUSTFLAGS="-C target-feature=+crt-static"
+        build_target "x86_64-pc-windows-gnu" "mod_example.dll"
+    else    # 默认构建本地 Linux 版本
     build_target "" "libmod_example.so"
 fi
 
