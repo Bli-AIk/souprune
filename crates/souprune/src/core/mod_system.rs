@@ -6,7 +6,7 @@ use souprune_api::{
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // === Host API Implementation (Must be static / extern "C") ===
 
@@ -149,12 +149,15 @@ fn load_mods_system(
         return;
     };
 
+    // Use dunce to canonicalize the path (resolves absolute path, handles Windows UNC)
+    let mod_path = dunce::canonicalize(&mod_path).unwrap_or_else(|_| PathBuf::from(mod_path));
+
     unsafe {
-        info!("Loading mod: {}", mod_path);
+        info!("Loading mod: {}", mod_path.display());
         let lib = match Library::new(&mod_path) {
             Ok(l) => l,
             Err(e) => {
-                error!("Failed to load DLL '{}': {:?}", mod_path, e);
+                error!("Failed to load DLL '{}': {:?}", mod_path.display(), e);
                 return;
             }
         };
