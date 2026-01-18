@@ -119,26 +119,23 @@ fn load_mods_system(
     mut registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
 ) {
-    // TODO: Use config.project.mod_name instead of hardcoded "example_mod"
-    let mod_dir_name = "example_mod";
-    // Heuristic: try to match the dll name based on the directory name, 
-    // but here we know the files are named 'mod_example_...' not 'mod_example_mod_...'
-    // so we hardcode the stem for now to match existing files.
-    let dll_stem = "example"; 
-
-    let base_path = Path::new("projects").join(mod_dir_name);
+    let config = crate::config::load_config();
+    let mod_name = &config.project.mod_name;
+    let base_path = Path::new("projects").join(mod_name);
 
     let mut candidate_filenames = Vec::new();
+    
     if cfg!(target_os = "windows") {
         if cfg!(target_env = "msvc") {
-            candidate_filenames.push(format!("mod_{}_msvc.dll", dll_stem));
-            candidate_filenames.push(format!("mod_{}_gnu.dll", dll_stem));
+            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+            // Fallback to GNU if MSVC not found
+            candidate_filenames.push(format!("{}_gnu.dll", mod_name)); 
         } else {
-            candidate_filenames.push(format!("mod_{}_gnu.dll", dll_stem));
-            candidate_filenames.push(format!("mod_{}_msvc.dll", dll_stem));
+            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
         }
     } else {
-        candidate_filenames.push(format!("libmod_{}.so", dll_stem));
+        candidate_filenames.push(format!("{}.so", mod_name));
     }
 
     let mut loaded_path = None;

@@ -3,9 +3,18 @@ set -e
 
 # 注意：此脚本设计为在 Linux 环境下运行。
 # 它支持本地构建 (Linux .so) 以及通过交叉编译构建 (Windows .dll)。
-# 在进行 Windows 构建前，请确保已安装：
-# 1. sudo apt-get install mingw-w64
-# 2. rustup target add x86_64-pc-windows-gnu
+# 在进行 Windows 构建前，请确保已安装相应依赖：
+# 
+# Debian/Ubuntu:
+#   1. sudo apt-get install mingw-w64
+#   2. rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+#
+# Arch Linux:
+#   1. sudo pacman -S mingw-w64-gcc
+#   2. rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc
+# 
+# 对于 MSVC 构建 (cargo xwin):
+#   cargo install cargo-xwin (或 Arch AUR: yay -S cargo-xwin)
 
 # 获取脚本所在的绝对路径
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -102,7 +111,7 @@ if [ "$BUILD_WIN" = true ]; then
              # MSVC 不需要手动设置 static-crt，通常默认兼容性较好，或者由 xwin 处理
              # 清除 RUSTFLAGS 以避免冲突 (如 gnu 的 static-crt 标志)
              export RUSTFLAGS="" 
-             build_target "x86_64-pc-windows-msvc" "mod_example.dll" "mod_example_msvc.dll" "cargo xwin build"
+             build_target "x86_64-pc-windows-msvc" "mod_example.dll" "example_mod_msvc.dll" "cargo xwin build"
         else
              echo "警告: 跳过 MSVC 构建 (缺少 Rust Target)。"
         fi
@@ -130,14 +139,14 @@ if [ "$BUILD_WIN" = true ]; then
     if [ "$MISSING_GNU_DEPS" = false ]; then
         # 使用 static-crt 防止依赖 libgcc_s_seh-1.dll
         export RUSTFLAGS="-C target-feature=+crt-static"
-        build_target "x86_64-pc-windows-gnu" "mod_example.dll" "mod_example_gnu.dll"
+        build_target "x86_64-pc-windows-gnu" "mod_example.dll" "example_mod_gnu.dll"
     else
         echo "错误: 缺少构建 GNU 版本的依赖，构建失败。"
         exit 1
     fi
 else
     # 默认构建本地 Linux 版本
-    build_target "" "libmod_example.so" "libmod_example.so"
+    build_target "" "libmod_example.so" "example_mod.so"
 fi
 
 echo "构建与同步完成！"

@@ -140,7 +140,7 @@ if (-not (Test-Command "cargo")) {
 Write-Host "=== Building MSVC Version ===" -ForegroundColor Magenta
 # Default Windows target implies MSVC usually, but let's be explicit if we want mod_example_msvc.dll
 # Note: x86_64-pc-windows-msvc is usually the default, but we'll specify it to be safe and consistent with file naming.
-Build-Target "x86_64-pc-windows-msvc" "mod_example.dll" "mod_example_msvc.dll"
+Build-Target "x86_64-pc-windows-msvc" "mod_example.dll" "example_mod_msvc.dll"
 
 # 2. Build GNU (Optional)
 if ($All) {
@@ -149,7 +149,7 @@ if ($All) {
         # Check for MinGW/GCC roughly
         if ((Test-Command "gcc") -or (Test-Command "x86_64-w64-mingw32-gcc")) {
              # Use static-crt to avoid dependency hell
-             Build-Target "x86_64-pc-windows-gnu" "mod_example.dll" "mod_example_gnu.dll" "RUSTFLAGS" "-C target-feature=+crt-static"
+             Build-Target "x86_64-pc-windows-gnu" "mod_example.dll" "example_mod_gnu.dll" "RUSTFLAGS" "-C target-feature=+crt-static"
         } else {
             Write-Warning "GNU target installed but GCC/MinGW linker not found in PATH. Skipping GNU build."
             Write-Host "To fix: Install MinGW-w64."
