@@ -124,12 +124,12 @@ fn load_mods_system(
     let base_path = Path::new("projects").join(mod_name);
 
     let mut candidate_filenames = Vec::new();
-    
+
     if cfg!(target_os = "windows") {
         if cfg!(target_env = "msvc") {
             candidate_filenames.push(format!("{}_msvc.dll", mod_name));
             // Fallback to GNU if MSVC not found
-            candidate_filenames.push(format!("{}_gnu.dll", mod_name)); 
+            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
         } else {
             candidate_filenames.push(format!("{}_gnu.dll", mod_name));
             candidate_filenames.push(format!("{}_msvc.dll", mod_name));
@@ -148,7 +148,10 @@ fn load_mods_system(
     }
 
     let Some(mod_path_buf) = loaded_path else {
-        let msg = format!("Mod file not found. Checked in {:?} for {:?}", base_path, candidate_filenames);
+        let msg = format!(
+            "Mod file not found. Checked in {:?} for {:?}",
+            base_path, candidate_filenames
+        );
         warn!("{}", msg);
         eprintln!("[Souprune] Warning: {}", msg);
         return;
@@ -160,8 +163,11 @@ fn load_mods_system(
 
     unsafe {
         info!("Loading mod: {}", mod_path.display());
-        eprintln!("[Souprune] Attempting to load mod from: {}", mod_path.display());
-        
+        eprintln!(
+            "[Souprune] Attempting to load mod from: {}",
+            mod_path.display()
+        );
+
         let lib = match Library::new(&mod_path) {
             Ok(l) => l,
             Err(e) => {
