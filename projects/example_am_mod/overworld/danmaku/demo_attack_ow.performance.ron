@@ -1,0 +1,265 @@
+// Demo Overworld Performance (scaled for Overworld)
+// Demonstrates various attack patterns with 0.5x scale for Overworld display
+// Includes orange (damage when stationary) and blue (damage when moving) soul bullets
+// 演示大地图弹幕表演（为 Overworld 缩放）
+// 展示各种攻击模式，使用 0.5 倍缩放以适配大地图显示
+// 包含橙色（玩家静止时造成伤害）和蓝色（玩家移动时造成伤害）灵魂弹幕
+(
+    // === Bullet Prototypes ===
+    // === 弹幕原型 ===
+    // We define our bullet "prefabs" here, including their visual representation, colliders, damage, and lifetime.
+    // 我们在这里定义弹幕的"预制体"，包括它们的视觉表现、碰撞体、伤害值和生命周期。
+    prototypes: {
+        "spear": (
+            // Use SpriteRef to reference sprite by name from config.toml
+            // 使用 SpriteRef 通过 config.toml 中的名称引用精灵
+            visual: SpriteRef(module: "battle", name: "spear"),
+            collider: BoxCollider(3.0, 12.0),
+            damage: 2.0,
+            lifetime: 4.0,
+            // High z_index to ensure bullets render on top in Overworld
+            // 高 z_index 确保弹幕在 Overworld 中渲染在最上层
+            z_index: 100.0,
+            // Scale for Overworld: 0.5x to match tilemap visual size
+            // Overworld 缩放：0.5 倍以匹配瓦片地图的视觉大小
+            scale: 0.5,
+            // Spears don't despawn on hit (persistent)
+            // 长矛碰撞后不消失（持续型）
+            hit_behavior: Persistent,
+        ),
+        "pellet": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: BoxCollider(6.0, 6.0),
+            damage: 1.0,
+            lifetime: 3.0,
+            // High z_index to ensure bullets render on top in Overworld
+            // 高 z_index 确保弹幕在 Overworld 中渲染在最上层
+            z_index: 100.0,
+            // Scale for Overworld: 0.5x to match tilemap visual size
+            // Overworld 缩放：0.5 倍以匹配瓦片地图的视觉大小
+            scale: 0.5,
+        ),
+        // Orange pellet: damage only when player is stationary
+        // 橙色花颗粒：仅当玩家静止时造成伤害
+        "pellet_orange": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: BoxCollider(6.0, 6.0),
+            damage: 1.0,
+            lifetime: 3.0,
+            z_index: 100.0,
+            scale: 0.5,
+            hit_behavior: DamageWhenStationary,
+            color_tint: (hex: "#FCA600"),
+        ),
+        // Blue pellet: damage only when player is moving
+        // 蓝色花颗粒：仅当玩家移动时造成伤害
+        "pellet_blue": (
+            visual: Animation(
+                module: "battle",
+                name: "flowey_pellet",
+                frame_duration: 0.05,
+            ),
+            collider: BoxCollider(6.0, 6.0),
+            damage: 1.0,
+            lifetime: 3.0,
+            z_index: 100.0,
+            scale: 0.5,
+            hit_behavior: DamageWhenMoving,
+            color_tint: (hex: "#40FEFE"),
+        ),
+    },
+
+    // === Behavior Definitions ===
+    // === 行为定义 ===
+    // Here we define reusable behaviors that can be applied to bullets when they are spawned.
+    // Note: Behaviors can also be defined inline in the timeline using the `behaviors` field.
+    // 在这里我们定义可重用的行为，这些行为可以在弹幕生成时应用。
+    // 请注意：行为也可以在时间线的 `behaviors` 字段中内联定义。
+    behaviors: {
+        // Linear movement to the right
+        // 向右的线性移动
+        "move_right": Linear((
+            dir: (1.0, 0.0),
+            speed: 200.0,
+        )),
+
+        // Linear movement to the left
+        // 向左的线性移动
+        "move_left": Linear((
+            dir: (-1.0, 0.0),
+            speed: 200.0,
+        )),
+
+        // Linear movement downward
+        // 向下的线性移动
+        "move_down": Linear((
+            dir: (0.0, -1.0),
+            speed: 150.0,
+        )),
+
+        // Orbital contraction toward center
+        // 向中心收缩的轨道运动
+        "spiral_in": Orbital((
+            angular_velocity: 0.8,
+            radial_velocity: -60.0,
+        )),
+
+        // Aimed spear using mod algorithm
+        // 通过 mod 算法实现的长矛自机狙
+        "aimed": Custom(
+            id: "aimed_spear",
+            props: {
+                "speed": 180.0,
+                "smoothness": 0.8,
+            },
+        ),
+
+        // Fade in effect
+        // 淡入效果
+        "fade_in": Tween((
+            target: Opacity,
+            duration: 2.0,
+            ease: QuadOut,
+            range: (0.0, 1.0),
+            delay: 0.0,
+        )),
+
+        // === Custom Mod Behaviors (C#/Rust) ===
+        // === 自定义模组行为 (C#/Rust) ===
+
+        // Spiral homing - spirals outward while tracking the player
+        // 螺旋追踪 - 向外螺旋运动同时追踪玩家
+        "spiral_homing": Custom(
+            id: "spiral_homing",
+            props: {
+                "spiral_speed": 80.0,
+                "angular_velocity": 3.0,
+                "homing_strength": 0.5,
+                "homing_delay": 0.5,
+            },
+        ),
+
+        // Wave burst - moves in sine wave with initial burst speed
+        // 波动爆发 - 以正弦波模式移动，初始有爆发速度
+        "wave_burst": Custom(
+            id: "wave_burst",
+            props: {
+                "base_speed": 120.0,
+                "wave_amplitude": 30.0,
+                "wave_frequency": 4.0,
+                "burst_time": 0.8,
+                "burst_multiplier": 2.5,
+            },
+        ),
+
+        // Gravity drop - falls with gravity and bounces
+        // 重力下落 - 受重力影响下落并反弹
+        "gravity_drop": Custom(
+            id: "gravity_drop",
+            props: {
+                "gravity": 200.0,
+                "bounce_damping": 0.7,
+            },
+        ),
+    },
+
+    // === Timeline ===
+    // === 时间线 ===
+    // This section defines the sequence of bullet spawns and their associated patterns and behaviors.
+    // Time values are relative by default (delta from previous event). Set `absolute: true` for absolute time.
+    // 这一部分定义了弹幕生成的顺序及其相关的模式和行为。
+    // 时间值默认为相对时间（与上一事件的时间差）。设置 `absolute: true` 使用绝对时间。
+    timeline: [
+        // Step 1: Spear linear attack from left (persistent)
+        // 第一步：从左侧发起的长矛线性攻击（持续型）
+        (
+            t: 0.0,
+            spawn: "spear",
+            pattern: EdgeGenerator(count: 5, side: Left, spacing: 35.0, margin: 250.0),
+            apply: ["move_right", "fade_in"],
+        ),
+
+        // Step 2: Orange pellet ring attack - damage when stationary
+        // 第二步：橙色花颗粒一圈攻击 - 玩家静止时造成伤害
+        (
+            t: 1.5,
+            spawn: "pellet_orange",
+            pattern: RingGenerator(count: 12, radius: 100.0, start_angle: 0.0),
+            apply: ["spiral_in", "fade_in"],
+        ),
+
+        // Step 3: Aimed spears from top (persistent)
+        // 第三步：从顶部发起的长矛自机狙（持续型）
+        (
+            t: 2.0,
+            spawn: "spear",
+            pattern: LineGenerator(count: 3, spacing: 60.0, direction: (0.0, -1.0)),
+            apply: ["aimed", "fade_in"],
+        ),
+
+        // Step 4: Blue pellet ring - damage when moving
+        // 第四步：蓝色花颗粒一圈攻击 - 玩家移动时造成伤害
+        (
+            t: 1.5,
+            spawn: "pellet_blue",
+            pattern: RingGenerator(count: 16, radius: 80.0, start_angle: 0.785),
+            apply: ["spiral_in"],
+            behaviors: [
+                Tween((
+                    target: Scale,
+                    duration: 1.0,
+                    ease: QuadOut,
+                    range: (0.5, 1.0),
+                    delay: 0.0,
+                )),
+            ],
+        ),
+
+        // Step 5: Spear sweep from right (persistent)
+        // 第五步：从右侧发起的长矛横扫（持续型）
+        (
+            t: 1.5,
+            spawn: "spear",
+            pattern: EdgeGenerator(count: 7, side: Right, spacing: 30.0, margin: 250.0),
+            apply: ["move_left"],
+        ),
+
+        // === Custom Mod Behavior Demonstrations ===
+        // === 自定义模组行为演示 ===
+
+        // Step 6: Spiral Homing Attack - orange pellets spiral outward while tracking player
+        // 第六步：螺旋追踪攻击 - 橙色花颗粒向外螺旋同时追踪玩家
+        (
+            t: 2.0,
+            spawn: "pellet_orange",
+            pattern: RingGenerator(count: 8, radius: 60.0, start_angle: 0.0),
+            apply: ["spiral_homing", "fade_in"],
+        ),
+
+        // Step 7: Wave Burst Attack - spears move in wave pattern (persistent)
+        // 第七步：波动爆发攻击 - 长矛以波动模式移动（持续型）
+        (
+            t: 2.0,
+            spawn: "spear",
+            pattern: LineGenerator(count: 5, spacing: 40.0, direction: (0.0, -1.0)),
+            apply: ["wave_burst", "fade_in"],
+        ),
+
+        // Step 8: Gravity Drop Attack - blue pellets fall with gravity
+        // 第八步：重力下落攻击 - 蓝色花颗粒受重力下落
+        (
+            t: 2.0,
+            spawn: "pellet_blue",
+            pattern: LineGenerator(count: 6, spacing: 50.0, direction: (1.0, 0.0)),
+            apply: ["gravity_drop", "fade_in"],
+        ),
+    ],
+)

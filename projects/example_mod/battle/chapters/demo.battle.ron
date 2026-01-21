@@ -1,5 +1,5 @@
 [
-    SetCamera(SetZoom(0.4)),
+    SetCamera(SetZoom(2.0)),
     UIInteraction(ui_layout: "battle/ui/undertale.ui_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(1.0),

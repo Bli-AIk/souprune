@@ -30,8 +30,10 @@ impl Plugin for SequencerPlugin {
                     process_camera_action_system,
                     process_ui_action_system,
                     process_danmaku_performance_system,
+                    process_am_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
+                    process_am_wait_chapter_system,
                     process_parallel_chapter_system,
                     cleanup_finished_chapters_system,
                     sync_battle_flow_system,
@@ -42,6 +44,7 @@ impl Plugin for SequencerPlugin {
     }
 }
 
+use super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
 use super::chapter::{Chapter, PlayerAction};
 use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
@@ -256,6 +259,7 @@ fn process_camera_action_system(
         (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
+    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetCamera(action) = &active_chapter.chapter {
@@ -266,7 +270,13 @@ fn process_camera_action_system(
                     }
                     super::chapter::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
-                            ortho.scale = *zoom;
+                            // Apply zoom relative to base resolution scale
+                            // 相对于基础分辨率缩放应用缩放
+                            ortho.scale = *zoom / resolution_scale.get() as f32;
+                            info!(
+                                "[Battle] SetZoom: requested={}, actual={}",
+                                zoom, ortho.scale
+                            );
                         }
                     }
                     _ => {
@@ -469,6 +479,83 @@ fn process_player_spawn_requests(
             );
 
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Marker component for AM performance chapter tracking
+#[derive(Component)]
+struct AmPerformanceTracker {
+    wait_for_completion: bool,
+    /// Whether we've seen the performance start (is_playing became true)
+    started: bool,
+}
+
+/// System to process AmPerformance chapters.
+///
+/// 处理 AM 演出章节的系统。
+fn process_am_performance_system(
+    mut commands: Commands,
+    query: Query<
+        (Entity, &ActiveChapter),
+        (
+            Without<WaitTimer>,
+            Without<ChapterFinished>,
+            Without<AmPerformanceTracker>,
+        ),
+    >,
+    mut performance_events: bevy::ecs::message::MessageWriter<PlayAmPerformanceEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::AmPerformance {
+            amproj_path,
+            wait_for_completion,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "[Battle] Starting AM performance from: {}",
+                amproj_path
+            );
+
+            // Send event to start the AM performance
+            performance_events.write(PlayAmPerformanceEvent::new(amproj_path.clone()));
+
+            if *wait_for_completion {
+                // Add tracker component to wait for completion
+                commands.entity(entity).insert(AmPerformanceTracker {
+                    wait_for_completion: true,
+                    started: false,
+                });
+            } else {
+                // Not waiting, mark as finished immediately
+                commands.entity(entity).insert(ChapterFinished);
+            }
+        }
+    }
+}
+
+/// System to check if AM performance has completed and finish the chapter.
+///
+/// 检查 AM 演出是否完成并结束章节的系统。
+fn process_am_wait_chapter_system(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut AmPerformanceTracker), Without<ChapterFinished>>,
+    am_state: Res<AmPerformanceState>,
+) {
+    for (entity, mut tracker) in query.iter_mut() {
+        if !tracker.wait_for_completion {
+            continue;
+        }
+
+        // Wait for performance to start first
+        if am_state.is_playing {
+            tracker.started = true;
+        }
+
+        // Only mark finished after performance has started and then stopped
+        if tracker.started && !am_state.is_playing {
+            info!("[Battle] AM performance chapter finished");
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }

@@ -47,6 +47,25 @@ pub enum Chapter {
         position: Option<(f32, f32)>,
     },
 
+    /// Alight Motion Animation Performance Chapter.
+    ///
+    /// Plays an Alight Motion project (.amproj) as a battle animation.
+    /// Layers with names starting with "#B" are treated as bullets (with collision).
+    /// Layers with names starting with "#C" are treated as battle box boundaries.
+    ///
+    /// Alight Motion 动画演出章节。
+    ///
+    /// 播放 Alight Motion 项目 (.amproj) 作为战斗动画。
+    /// 名称以 "#B" 开头的图层被视为弹幕（带碰撞体）。
+    /// 名称以 "#C" 开头的图层被视为战斗框边界。
+    AmPerformance {
+        /// Path to the .amproj file (e.g., "demo_turn.amproj")
+        amproj_path: String,
+        /// Wait for animation to complete before continuing (default: true)
+        #[serde(default = "default_true")]
+        wait_for_completion: bool,
+    },
+
     /// Simple Wait Chapter.
     ///
     /// 简单的等待章节。
@@ -86,6 +105,10 @@ pub enum Chapter {
     ///
     /// 设置 摄像机 状态的章节。
     SetCamera(CameraAction),
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Camera Action Enum.

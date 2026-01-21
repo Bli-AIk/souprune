@@ -43,6 +43,7 @@ bevy_tween = "0.10.0"
 bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_mortar_bond = { path = "../bevy_mortar_bond" }
+bevy_alight_motion = { path = "../bevy_alight_motion" }
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

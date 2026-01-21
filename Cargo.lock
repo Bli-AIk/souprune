@@ -6778,6 +6778,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy-inspector-egui",
+ "bevy_alight_motion",
  "bevy_brp_extras",
  "bevy_ecs_tiled",
  "bevy_ecs_typewriter",

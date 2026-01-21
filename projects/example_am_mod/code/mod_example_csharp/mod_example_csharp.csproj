@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    
+    <!-- Native AOT settings for creating shared library -->
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    
+    <!-- Output as shared library (Linux: .so, Windows: .dll) -->
+    <OutputType>Library</OutputType>
+    <AssemblyName>libmod_example_csharp</AssemblyName>
+    
+    <!-- Optimize for size -->
+    <OptimizationPreference>Size</OptimizationPreference>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the SDK (copy files from crates/souprune_sdk_csharp/Sdk) -->
+    <Compile Include="Sdk/*.cs" />
+  </ItemGroup>
+</Project>

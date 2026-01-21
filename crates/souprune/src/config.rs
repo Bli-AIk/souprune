@@ -44,6 +44,12 @@ pub struct WindowConfig {
 /// 游戏流程配置，包含路径和模块加载设置。
 #[derive(Clone, Deserialize, Resource)]
 pub struct GameConfig {
+    /// The mod name (from project config).
+    ///
+    /// mod 名称（来自项目配置）。
+    #[serde(default)]
+    pub mod_name: String,
+    
     /// Initial map path to load when entering Overworld.
     ///
     /// 进入 Overworld 时加载的初始地图路径。
@@ -83,6 +89,7 @@ impl Default for GameConfig {
             player_behavior_path: default_player_behavior_path(),
             required_modules: default_required_modules(),
             hidden_layer_keywords: default_hidden_layer_keywords(),
+            mod_name: String::new(),
         }
     }
 }

@@ -177,6 +177,7 @@ fn get_third_plugins() -> (
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
+    bevy_alight_motion::prelude::AlightMotionPlugin,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
@@ -188,6 +189,7 @@ fn get_third_plugins() -> (
             load_system_fonts: false,
             ..Default::default()
         },
+        bevy_alight_motion::prelude::AlightMotionPlugin,
     )
 }
 
@@ -225,7 +227,8 @@ pub fn run() {
     let resolution_scale = config.window.resolution_scale;
     let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
-    let game_config = config.game.clone();
+    let mut game_config = config.game.clone();
+    game_config.mod_name = project_name.clone();
     let render_config = config.render.clone();
 
     App::new()

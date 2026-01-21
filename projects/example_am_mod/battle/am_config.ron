@@ -1,0 +1,12 @@
+// AM Battle Configuration / AM 战斗配置
+// 
+// scale: Scale multiplier for AM project (default: 1.0)
+//        放大倍数（默认 1.0）
+//
+// offset: Position offset (x, y) in pixels before scaling
+//         位置偏移（像素，缩放前）
+//
+(
+    scale: 2.0,
+    offset: (0.0, -200.0),
+)

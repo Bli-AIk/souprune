@@ -1,0 +1,12 @@
+name = "example_am_mod"
+version = "0.1.0"
+authors = ["Your Name"]
+description = "An example mod for SoupRune with Alight Motion integration."
+
+[dependencies]
+# List dependencies here
+
+[soul_modes]
+# These IDs are now all provided by the same DLL below
+"soul_red" = "libmod_example.so"
+"soul_blue" = "libmod_example.so"
