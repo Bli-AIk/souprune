@@ -25,7 +25,6 @@
 //!   如果编组图层匹配，所有子元素继承相同行为
 
 use bevy::prelude::*;
-use bevy_alight_motion::masked_sprite::UnifiedEffectMaterial;
 use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
@@ -53,6 +52,11 @@ pub struct AmBulletMarker;
 /// Inherited from parent group if parent has this marker.
 #[derive(Component, Debug, Clone, Default)]
 pub struct AmBattleBoxMarker;
+
+/// Marker for entities that need collision setup in the next frame.
+/// This allows GlobalTransform to propagate before calculating collision size.
+#[derive(Component, Debug, Clone, Default)]
+pub struct NeedsCollisionSetup;
 
 /// Configuration for AM battle integration.
 /// Place this in your mod's `battle/am_config.ron` file.
@@ -422,6 +426,10 @@ fn add_am_collision_system(
     battlebox_marker_query: Query<Entity, (With<AmBattleBoxMarker>, Without<BattleBox>)>,
     // AmLayerSpec query for collision size (contains actual layer dimensions)
     layer_spec_query: Query<&AmLayerSpec>,
+    // AmAnimated query for layer's animated scale
+    animated_query: Query<&AmAnimated>,
+    // Parent query to traverse hierarchy
+    parent_query: Query<&ChildOf>,
     // Visibility query for hiding bullet layers
     mut visibility_query: Query<&mut Visibility>,
 ) {
@@ -445,6 +453,56 @@ fn add_am_collision_system(
             AmLayerSpec::Text { .. } | AmLayerSpec::Null | AmLayerSpec::EmbedScene => None,
         }
     }
+    
+    // Helper function to get initial scale from AmAnimated.scale
+    fn get_animated_scale(animated: &AmAnimated) -> Vec2 {
+        // First try static value
+        if let Some(val) = &animated.scale.value {
+            return Vec2::new(val[0].abs(), val[1].abs());
+        }
+        // Then try first keyframe
+        if let Some(kf) = animated.scale.keyframes.first() {
+            // Parse "x,y" format
+            let parts: Vec<&str> = kf.value.split(',').collect();
+            if parts.len() == 2 {
+                if let (Ok(x), Ok(y)) = (parts[0].trim().parse::<f32>(), parts[1].trim().parse::<f32>()) {
+                    return Vec2::new(x.abs(), y.abs());
+                }
+            }
+        }
+        // Default to 1.0
+        Vec2::ONE
+    }
+    
+    // Helper function to compute total scale by traversing parent hierarchy
+    fn compute_total_scale(
+        entity: Entity,
+        animated_query: &Query<&AmAnimated>,
+        parent_query: &Query<&ChildOf>,
+        final_scale: f32,
+    ) -> Vec2 {
+        let mut total_scale = Vec2::splat(final_scale);
+        let mut current = entity;
+        
+        // Traverse up the hierarchy
+        loop {
+            // Get this entity's own scale
+            if let Ok(animated) = animated_query.get(current) {
+                let scale = get_animated_scale(animated);
+                total_scale *= scale;
+            }
+            
+            // Move to parent
+            if let Ok(child_of) = parent_query.get(current) {
+                current = child_of.0;
+            } else {
+                break;
+            }
+        }
+        
+        total_scale
+    }
+    
     // Add collision components to bullet-marked entities
     // Only add collision to actual visual elements, not groups (Null/EmbedScene)
     // Now using SDF shape dimensions directly from AmLayerSpec
@@ -472,14 +530,14 @@ fn add_am_collision_system(
             continue;
         };
         
-        // Use the final_scale from AM performance state (which is base_scale * config.scale)
-        // This is the actual scale applied to the AM project root transform
-        let final_scale = am_state.final_scale;
+        // Compute total scale by traversing parent hierarchy
+        // This includes: layer's own scale + all parent scales + project root scale (final_scale)
+        let total_scale = compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
         
-        // Calculate final collision half_size (size * final_scale / 2)
+        // Calculate final collision half_size (size * total_scale / 2)
         let half_size = Vec2::new(
-            width * final_scale / 2.0,
-            height * final_scale / 2.0,
+            width * total_scale.x / 2.0,
+            height * total_scale.y / 2.0,
         );
 
         commands.entity(entity).insert((
@@ -498,18 +556,19 @@ fn add_am_collision_system(
             BulletMotionState::new(Vec2::ZERO),
         ));
         
+        // TODO: Temporarily disabled for debugging
         // Hide the bullet layer (set visibility to Hidden)
-        if let Ok(mut visibility) = visibility_query.get_mut(entity) {
-            *visibility = Visibility::Hidden;
-            info!(
-                "[AM Battle] Hidden bullet entity {:?}",
-                entity
-            );
-        }
+        // if let Ok(mut visibility) = visibility_query.get_mut(entity) {
+        //     *visibility = Visibility::Hidden;
+        //     info!(
+        //         "[AM Battle] Hidden bullet entity {:?}",
+        //         entity
+        //     );
+        // }
 
         info!(
-            "[AM Battle] ADDED COLLISION to entity {:?} (half_size={:?}, size=({:.1}x{:.1}), final_scale={}, damage={})",
-            entity, half_size, width, height, final_scale, am_config.bullet_damage
+            "[AM Battle] ADDED COLLISION to entity {:?} (half_size={:?}, size=({:.1}x{:.1}), total_scale={:?}, damage={})",
+            entity, half_size, width, height, total_scale, am_config.bullet_damage
         );
     }
     
@@ -526,13 +585,13 @@ fn add_am_collision_system(
             continue;
         }
         
-        // Use the final_scale from AM performance state
-        let final_scale = am_state.final_scale;
+        // Compute total scale by traversing parent hierarchy
+        let total_scale = compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
         
-        // Get size from AmLayerSpec with final scale
+        // Get size from AmLayerSpec with total_scale
         let (width, height) = if let Ok(spec) = layer_spec_query.get(entity) {
             if let Some((w, h)) = get_layer_size(spec) {
-                (w.abs() * final_scale, h.abs() * final_scale)
+                (w.abs() * total_scale.x, h.abs() * total_scale.y)
             } else {
                 (565.0, 140.0)
             }
@@ -546,8 +605,8 @@ fn add_am_collision_system(
         ));
 
         info!(
-            "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, final_scale={})",
-            entity, width, height, final_scale
+            "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, total_scale={:?})",
+            entity, width, height, total_scale
         );
     }
 }
