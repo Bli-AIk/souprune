@@ -181,6 +181,24 @@ fn battle_damage_detection_system(
 
     // Check if player is invincible
     let is_invincible = player_invincibility.is_invincible();
+    
+    // Debug: Count bullets
+    let bullet_count = bullet_query.iter().count();
+    if bullet_count > 0 {
+        // Only log occasionally to avoid spam (every second or so)
+        static mut LAST_LOG_TIME: f64 = 0.0;
+        let should_log = unsafe {
+            if current_time - LAST_LOG_TIME > 1.0 {
+                LAST_LOG_TIME = current_time;
+                true
+            } else {
+                false
+            }
+        };
+        if should_log {
+            info!("[Battle Damage] Found {} bullets, player at {:?}", bullet_count, player_center);
+        }
+    }
 
     for (
         bullet_entity,

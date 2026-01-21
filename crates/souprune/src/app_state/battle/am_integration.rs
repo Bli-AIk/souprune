@@ -486,7 +486,14 @@ fn add_am_collision_system(
             Bullet,
             TriggerCollider::Box { half_size },
             BulletDamage(am_config.bullet_damage),
-            BulletHitBehavior::persistent(),
+            // AM bullets use no invincibility_duration since they're animated
+            // and motion_state.elapsed doesn't track their real age
+            BulletHitBehavior {
+                despawn_on_hit: false,
+                damage_on_player_moving: false,
+                damage_on_player_stationary: false,
+                invincibility_duration: 0.0, // Disable bullet i-frames for AM bullets
+            },
             BulletLastHitTime::default(),
             BulletMotionState::new(Vec2::ZERO),
         ));
