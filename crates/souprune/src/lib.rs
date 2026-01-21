@@ -121,7 +121,6 @@ fn get_bevy_default_plugins(
     let base_width = render_config.base_resolution_width;
     let base_height = render_config.base_resolution_height;
 
-    // 1. 构建基础插件组
     let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
@@ -138,16 +137,13 @@ fn get_bevy_default_plugins(
         })
         .disable::<bevy::log::LogPlugin>();
 
-    // 2. [核心修复] 如果开启了 unsafe_gpu 特性
     #[cfg(feature = "unsafe_gpu")]
     {
         info!("【SYSTEM】Unsafe GPU Mode Detected: Forcing WGPU Validation Layers OFF.");
 
         plugins = plugins.set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
-                // 【修正 2】字段名改为 instance_flags，类型改为 InstanceFlags
-                // 这里的逻辑是：保留默认 flags，但把 VALIDATION 这一位给关掉
-                instance_flags: InstanceFlags::default() & !InstanceFlags::VALIDATION,
+                instance_flags: InstanceFlags::empty(),
                 ..default()
             }),
             ..default()
