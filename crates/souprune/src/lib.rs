@@ -41,7 +41,10 @@ use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
+use bevy::render::RenderPlugin;
+use bevy::render::settings::{InstanceFlags, RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
+
 use chrono::Local;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -117,7 +120,9 @@ fn get_bevy_default_plugins(
 ) -> PluginGroupBuilder {
     let base_width = render_config.base_resolution_width;
     let base_height = render_config.base_resolution_height;
-    DefaultPlugins
+
+    // 1. 构建基础插件组
+    let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
             primary_window: Some(Window {
@@ -126,14 +131,30 @@ fn get_bevy_default_plugins(
                     base_height * resolution_scale,
                 ),
                 resizable: false,
+                title: "SoupRune".into(),
                 ..default()
             }),
             ..default()
         })
-        // Disable the default LogPlugin because we initialize our own tracing subscriber
-        //
-        // 禁用默认的 LogPlugin，因为我们初始化了自己的追踪订阅者
-        .disable::<bevy::log::LogPlugin>()
+        .disable::<bevy::log::LogPlugin>();
+
+    // 2. [核心修复] 如果开启了 unsafe_gpu 特性
+    #[cfg(feature = "unsafe_gpu")]
+    {
+        info!("【SYSTEM】Unsafe GPU Mode Detected: Forcing WGPU Validation Layers OFF.");
+
+        plugins = plugins.set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                // 【修正 2】字段名改为 instance_flags，类型改为 InstanceFlags
+                // 这里的逻辑是：保留默认 flags，但把 VALIDATION 这一位给关掉
+                instance_flags: InstanceFlags::default() & !InstanceFlags::VALIDATION,
+                ..default()
+            }),
+            ..default()
+        });
+    }
+
+    plugins
 }
 
 /// Get the file importer plugins used in the application.
@@ -183,7 +204,7 @@ fn get_game_plugins() -> (
     overworld::OverworldPlugin,
     battle::BattlePlugin,
     GlobalPlugin,
-    core::mod_system::ModPlugin,
+    mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
@@ -191,25 +212,18 @@ fn get_game_plugins() -> (
         overworld::OverworldPlugin,
         battle::BattlePlugin,
         GlobalPlugin,
-        core::mod_system::ModPlugin,
+        mod_system::ModPlugin,
     )
 }
 
 pub fn run() {
-    #[cfg(feature = "unsafe_gpu")]
-    {
-        // 强制禁用 Vulkan 验证层
-        // SAFETY: This is called at the very beginning of the program, before any threads are spawned.
-        unsafe {
-            std::env::set_var("WGPU_VALIDATION", "0");
-        }
-        info!("UNSAFE_GPU feature enabled: WGPU_VALIDATION set to 0");
-    }
-
     // Initialize logging and keep the guard alive
     //
     // 初始化日志记录并保持 guard 存活
     let _log_guard = setup_logging().expect("Failed to initialize logging");
+
+    #[cfg(feature = "unsafe_gpu")]
+    info!("Starting SoupRune with [unsafe_gpu] feature enabled.");
 
     let config = config::load_config();
     let resolution_scale = config.window.resolution_scale;
@@ -268,6 +282,7 @@ pub fn run() {
         .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
+            // 这里现在会根据 unsafe_gpu 特性自动返回配置好的插件组
             get_bevy_default_plugins(resolution_scale, &render_config),
             get_file_importer_plugins(),
             get_third_plugins(),
@@ -286,7 +301,7 @@ pub fn run() {
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,
-            core::ui::UIUpdate.run_if(
+            ui::UIUpdate.run_if(
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )

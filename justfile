@@ -73,14 +73,14 @@ run:
 # ===============================================
 # 不安全 GPU 运行（禁用 Vulkan 验证层）
 # ===============================================
-unsafe-gpu:
+unsafe_gpu:
     cargo run -p {{project}} --features unsafe_gpu
 
 # ===============================================
 # 不安全 GPU 开发运行（debug + 禁用验证层）
 # ===============================================
-unsafe-dev:
-    cargo run -p {{project}} --features "unsafe-gpu,debug"
+unsafe_dev:
+    cargo run -p {{project}} --features "unsafe_gpu,debug"
 
 # ===============================================
 # 测试
