@@ -80,7 +80,7 @@ unsafe-gpu:
 # 不安全 GPU 开发运行（debug + 禁用验证层）
 # ===============================================
 unsafe-dev:
-    cargo run -p {{project}} --features unsafe-dev
+    cargo run -p {{project}} --features "unsafe-gpu,debug"
 
 # ===============================================
 # 测试
