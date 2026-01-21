@@ -6,7 +6,26 @@
 // offset: Position offset (x, y) in pixels before scaling
 //         位置偏移（像素，缩放前）
 //
+// bullet_pattern: Regex pattern for bullet layers (default: "^#B")
+//                 弹幕图层的正则表达式模式
+//
+// battlebox_pattern: Regex pattern for battle box layers (default: "^#C")
+//                    战斗框图层的正则表达式模式
+//
+// bullet_damage: Damage dealt by bullets (default: 1.0)
+//                弹幕造成的伤害
+//
+// collision_scale: Scale factor for collision boxes (default: 0.05)
+//                  Since AM sprites often have large transparent areas,
+//                  this scales down collision boxes to match actual content.
+//                  碰撞体缩放因子（默认 0.05）
+//                  由于 AM 精灵常有大量透明区域，此参数用于缩小碰撞体以匹配实际内容。
+//
 (
     scale: 2.0,
-    offset: (0.0, -200.0),
+    offset: (0.0, 0.0),
+    bullet_pattern: "^#B",
+    battlebox_pattern: "^#C",
+    bullet_damage: 1.0,
+    collision_scale: 0.05,
 )
