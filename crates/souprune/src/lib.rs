@@ -111,9 +111,6 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     Ok(guard)
 }
 
-/// Get the default Bevy plugins with custom window size and image plugin settings.
-///
-/// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
 fn get_bevy_default_plugins(
     resolution_scale: u32,
     render_config: &config::RenderConfig,
@@ -199,6 +196,16 @@ fn get_game_plugins() -> (
 }
 
 pub fn run() {
+    #[cfg(feature = "unsafe_gpu")]
+    {
+        // 强制禁用 Vulkan 验证层
+        // SAFETY: This is called at the very beginning of the program, before any threads are spawned.
+        unsafe {
+            std::env::set_var("WGPU_VALIDATION", "0");
+        }
+        info!("UNSAFE_GPU feature enabled: WGPU_VALIDATION set to 0");
+    }
+
     // Initialize logging and keep the guard alive
     //
     // 初始化日志记录并保持 guard 存活
