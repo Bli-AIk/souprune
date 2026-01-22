@@ -755,7 +755,6 @@ fn handle_play_am_performance_event(
     mut events: bevy::ecs::message::MessageReader<PlayAmPerformanceEvent>,
     mut am_state: ResMut<AmPerformanceState>,
     asset_server: Res<AssetServer>,
-    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
     am_config: Res<AmBattleConfig>,
 ) {
     for event in events.read() {
@@ -765,10 +764,10 @@ fn handle_play_am_performance_event(
         let entity = load_am_project(&mut commands, &asset_server, &event.amproj_path);
 
         // Calculate scale to fit the AM project into the camera view
-        // Camera scale = 1.0 / resolution_scale, so visible area = window_size * camera_scale
-        // AM project needs to be scaled by the same factor as the camera
-        // Then apply additional scale from config
-        let base_scale = 1.0 / resolution_scale.get() as f32;
+        // We use a fixed base scale of 0.25 to match the behavior at resolution_scale=4.
+        // This ensures the AM project size remains constant relative to the game world
+        // regardless of the actual window resolution_scale.
+        let base_scale = 0.25;
         let final_scale = base_scale * am_config.scale;
 
         // Apply offset from config (scaled by base_scale to work in screen coordinates)
