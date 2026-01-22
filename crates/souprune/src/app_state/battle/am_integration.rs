@@ -249,6 +249,8 @@ impl Plugin for AmBattlePlugin {
                 Update,
                 (
                     handle_play_am_performance_event,
+                    // Sync fit scale for mask coordinate calculation
+                    sync_am_fit_scale_system,
                     // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc) are available
                     ApplyDeferred,
                     propagate_am_markers_system,
@@ -729,9 +731,14 @@ fn add_am_collision_system(
             Vec2::ZERO
         };
 
-        commands
-            .entity(entity)
-            .insert((BattleBox, AmBattleBoxBounds { width, height, center_offset }));
+        commands.entity(entity).insert((
+            BattleBox,
+            AmBattleBoxBounds {
+                width,
+                height,
+                center_offset,
+            },
+        ));
 
         info!(
             "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, total_scale={:?}, center_offset={:?})",
@@ -982,9 +989,9 @@ fn update_am_battlebox_bounds_system(
         let new_center_offset = -animated.anchor_offset * full_scale;
 
         // Only update if changed significantly (avoid noise)
-        if (bounds.width - new_width).abs() > 0.1 
-            || (bounds.height - new_height).abs() > 0.1 
-            || (bounds.center_offset - new_center_offset).length() > 0.1 
+        if (bounds.width - new_width).abs() > 0.1
+            || (bounds.height - new_height).abs() > 0.1
+            || (bounds.center_offset - new_center_offset).length() > 0.1
         {
             bounds.width = new_width;
             bounds.height = new_height;
@@ -1042,4 +1049,34 @@ fn compute_total_scale_at_time(
     }
 
     total_scale
+}
+
+/// System to synchronize inv_fit_scale with the scale applied by souprune.
+/// This ensures mask coordinates are correctly calculated when souprune applies
+/// additional scaling to the AM project root entity.
+///
+/// 同步 inv_fit_scale 与 souprune 应用的缩放。
+/// 确保当 souprune 对 AM 项目根实体应用额外缩放时，遮罩坐标能正确计算。
+fn sync_am_fit_scale_system(
+    am_state: Res<AmPerformanceState>,
+    mut pending_layers_query: Query<&mut AmPendingLayers>,
+) {
+    if !am_state.is_playing {
+        return;
+    }
+
+    // Update inv_fit_scale based on the scale applied by souprune
+    // final_scale is the combined scale applied to the project root
+    for mut pending_layers in pending_layers_query.iter_mut() {
+        let expected_inv_fit_scale = 1.0 / am_state.final_scale;
+
+        // Only update if different (avoid unnecessary mutation)
+        if (pending_layers.inv_fit_scale - expected_inv_fit_scale).abs() > 0.0001 {
+            info!(
+                "[AM Battle] Updating inv_fit_scale from {} to {} (final_scale={})",
+                pending_layers.inv_fit_scale, expected_inv_fit_scale, am_state.final_scale
+            );
+            pending_layers.inv_fit_scale = expected_inv_fit_scale;
+        }
+    }
 }

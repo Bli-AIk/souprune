@@ -43,6 +43,15 @@ pub mod debug_collider {
     #[derive(Component)]
     pub struct BattleColliderVisualized;
 
+    /// Marker component for AM mask visualizer entities.
+    ///
+    /// AM 遮罩可视化实体的标记组件。
+    #[derive(Component)]
+    pub struct AmMaskVisualizer {
+        /// The mask layer id this visualizer is tracking
+        pub mask_layer_id: u64,
+    }
+
     /// Root entity for organizing all debug visualizers.
     ///
     /// 用于组织所有调试可视化器的根实体。
@@ -67,6 +76,15 @@ pub mod debug_collider {
             );
 
         app.add_systems(Update, render_trigger_zones_system);
+
+        // AM mask debug visualization
+        app.add_systems(
+            Update,
+            (
+                render_am_masks_system,
+                update_am_mask_visualizer_positions_system,
+            ),
+        );
     }
 
     /// Set up the root entity for debug visualizers.
@@ -581,7 +599,7 @@ pub mod debug_collider {
                 ));
             });
         }
-        
+
         // Visualize AM Battle Box (Cyan to distinguish from UI battle box)
         for (entity, global_transform, am_bounds) in am_battle_boxes.iter() {
             let has_visualizer = existing_visualizers
@@ -603,7 +621,8 @@ pub mod debug_collider {
             let frame_size = half_width.max(half_height) + 2.0;
 
             // Apply center_offset to get the actual geometric center
-            let center_pos = global_transform.translation() + Vec3::new(am_bounds.center_offset.x, am_bounds.center_offset.y, 50.0);
+            let center_pos = global_transform.translation()
+                + Vec3::new(am_bounds.center_offset.x, am_bounds.center_offset.y, 50.0);
 
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
@@ -660,7 +679,10 @@ pub mod debug_collider {
             ),
         >,
         am_battle_boxes: Query<
-            (&GlobalTransform, &crate::app_state::battle::collision::AmBattleBoxBounds),
+            (
+                &GlobalTransform,
+                &crate::app_state::battle::collision::AmBattleBoxBounds,
+            ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
                 Without<crate::core::ui::components::UIBox>,
@@ -683,8 +705,152 @@ pub mod debug_collider {
                 vis_transform.translation.y = parent_global.translation().y;
             } else if let Ok((parent_global, am_bounds)) = am_battle_boxes.get(visualizer.parent) {
                 // Apply center_offset to get the actual geometric center
-                vis_transform.translation.x = parent_global.translation().x + am_bounds.center_offset.x;
-                vis_transform.translation.y = parent_global.translation().y + am_bounds.center_offset.y;
+                vis_transform.translation.x =
+                    parent_global.translation().x + am_bounds.center_offset.x;
+                vis_transform.translation.y =
+                    parent_global.translation().y + am_bounds.center_offset.y;
+            }
+        }
+    }
+
+    /// System to render AM masks as semi-transparent red rectangles (debug only).
+    /// Reads actual mask_params from SdfMaterial to ensure exact match.
+    ///
+    /// 以红色半透明矩形渲染 AM 遮罩的系统（仅调试模式）。
+    /// 从 SdfMaterial 读取实际的 mask_params 以确保完全匹配。
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::type_complexity)]
+    fn render_am_masks_system(
+        mut commands: Commands,
+        mut shaders: ResMut<Assets<Shader>>,
+        settings: Res<ColliderDebugSettings>,
+        debug_root: Query<Entity, With<DebugVisualizerRoot>>,
+        // Query SDF shapes that have masks to get actual mask_params
+        sdf_query: Query<(
+            Entity,
+            &MeshMaterial2d<bevy_alight_motion::sdf_material::SdfMaterial>,
+        )>,
+        sdf_materials: Res<Assets<bevy_alight_motion::sdf_material::SdfMaterial>>,
+        existing_visualizers: Query<(Entity, &AmMaskVisualizer)>,
+    ) {
+        let Ok(debug_root_entity) = debug_root.single() else {
+            return;
+        };
+
+        // Remove visualizers when debug mode is off
+        if !settings.show_colliders {
+            for (visualizer_entity, _) in existing_visualizers.iter() {
+                commands.entity(visualizer_entity).despawn();
+            }
+            return;
+        }
+
+        // Find the first SDF shape with an active mask and read its mask_params
+        let mut found_mask_params: Option<(f32, f32, f32, f32)> = None;
+        let mut total_sdf_shapes = 0;
+        let mut masked_shapes = 0;
+        for (_, material_handle) in sdf_query.iter() {
+            total_sdf_shapes += 1;
+            if let Some(material) = sdf_materials.get(&material_handle.0) {
+                let mask_type = material.uniform_data.mask_type;
+                if mask_type > 0.5 {
+                    masked_shapes += 1;
+                    // This shape has an active mask
+                    let params = material.uniform_data.mask_params;
+                    if found_mask_params.is_none() {
+                        found_mask_params = Some((params.x, params.y, params.z, params.w));
+                    }
+                }
+            }
+        }
+
+        // Check if we already have a visualizer
+        let has_existing_visualizer = !existing_visualizers.is_empty();
+
+        // Only create if we don't have one yet
+        if let Some((center_x, center_y, half_width, half_height)) = found_mask_params {
+            if !has_existing_visualizer {
+                // Create an outline SDF (same style as other collider visualizers)
+                let outline_sdf = shaders.add_sdf_expr(format!(
+                    "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.5",
+                    half_width, half_height
+                ));
+
+                let frame_size = half_width.max(half_height) + 5.0;
+
+                bevy::log::info!(
+                    "[MaskDebug] Creating visualizer: center=({:.1},{:.1}), half_size=({:.1},{:.1}), frame={:.1}",
+                    center_x, center_y, half_width, half_height, frame_size
+                );
+                bevy::log::info!(
+                    "[MaskDebug] Stats: total_sdf_shapes={}, masked_shapes={}",
+                    total_sdf_shapes, masked_shapes
+                );
+
+                commands.entity(debug_root_entity).with_children(|parent| {
+                    parent.spawn((
+                        AmMaskVisualizer { mask_layer_id: 0 },
+                        SmudShape {
+                            color: Color::hsl(0.0, 1.0, 0.5), // Solid red (same as chase hitbox)
+                            sdf: outline_sdf,
+                            frame: Frame::Quad(frame_size),
+                            fill: SIMPLE_FILL_HANDLE,
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(center_x, center_y, 100.0)),
+                        Name::new("AM Mask Debug (from shader params)"),
+                    ));
+                });
+            }
+        } else {
+            // No mask found, remove visualizers
+            for (visualizer_entity, _) in existing_visualizers.iter() {
+                commands.entity(visualizer_entity).despawn();
+            }
+        }
+    }
+
+    /// Update AM mask visualizer positions based on actual shader mask_params.
+    ///
+    /// 根据实际 shader mask_params 更新 AM 遮罩可视化器位置。
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::type_complexity)]
+    fn update_am_mask_visualizer_positions_system(
+        mut commands: Commands,
+        mut shaders: ResMut<Assets<Shader>>,
+        // Query SDF shapes that have masks to get actual mask_params
+        sdf_query: Query<&MeshMaterial2d<bevy_alight_motion::sdf_material::SdfMaterial>>,
+        sdf_materials: Res<Assets<bevy_alight_motion::sdf_material::SdfMaterial>>,
+        mut visualizers: Query<(Entity, &mut Transform, &mut SmudShape, &AmMaskVisualizer)>,
+    ) {
+        // Find the first SDF shape with an active mask and read its mask_params
+        let mut found_mask_params: Option<(f32, f32, f32, f32)> = None;
+        for material_handle in sdf_query.iter() {
+            if let Some(material) = sdf_materials.get(&material_handle.0) {
+                let mask_type = material.uniform_data.mask_type;
+                if mask_type > 0.5 {
+                    let params = material.uniform_data.mask_params;
+                    found_mask_params = Some((params.x, params.y, params.z, params.w));
+                    break;
+                }
+            }
+        }
+
+        if let Some((center_x, center_y, half_width, half_height)) = found_mask_params {
+            for (entity, mut vis_transform, mut smud_shape, _) in visualizers.iter_mut() {
+                // Update position
+                vis_transform.translation.x = center_x;
+                vis_transform.translation.y = center_y;
+
+                // Update SDF dimensions by recreating the shader
+                let new_sdf = shaders.add_sdf_expr(format!(
+                    "smud::sd_box(p, vec2<f32>({}, {}))",
+                    half_width, half_height
+                ));
+                smud_shape.sdf = new_sdf;
+                smud_shape.frame = Frame::Quad(half_width.max(half_height) + 2.0);
+
+                let _ = (entity, &mut commands); // suppress unused warning
             }
         }
     }

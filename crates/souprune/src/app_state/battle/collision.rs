@@ -80,11 +80,7 @@ pub(crate) fn constrain_player_to_battle_box_system(
         // Create boundary from AM battle box bounds
         // Apply center_offset to get the actual geometric center of the battle box
         let center_pos = box_transform.translation().truncate() + am_bounds.center_offset;
-        BattleBoxBoundary::from_ui_box(
-            am_bounds.width,
-            am_bounds.height,
-            center_pos,
-        )
+        BattleBoxBoundary::from_ui_box(am_bounds.width, am_bounds.height, center_pos)
     } else {
         return;
     };
