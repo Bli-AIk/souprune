@@ -512,10 +512,7 @@ fn process_am_performance_system(
             wait_for_completion,
         } = &active_chapter.chapter
         {
-            info!(
-                "[Battle] Starting AM performance from: {}",
-                amproj_path
-            );
+            info!("[Battle] Starting AM performance from: {}", amproj_path);
 
             // Send event to start the AM performance
             performance_events.write(PlayAmPerformanceEvent::new(amproj_path.clone()));

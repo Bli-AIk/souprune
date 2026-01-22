@@ -587,7 +587,10 @@ pub mod debug_collider {
             ),
         >,
         trigger_colliders: Query<
-            (&GlobalTransform, Option<&crate::core::collision::HitboxOffset>),
+            (
+                &GlobalTransform,
+                Option<&crate::core::collision::HitboxOffset>,
+            ),
             (
                 With<crate::core::collision::TriggerCollider>,
                 Without<ColliderVisualizer>,

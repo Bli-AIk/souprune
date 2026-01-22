@@ -28,8 +28,8 @@ use bevy::prelude::*;
 use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
-use crate::app_state::battle::collision::{AmBattleBoxBounds, BattleBox};
 use crate::app_state::battle::BattleEntity;
+use crate::app_state::battle::collision::{AmBattleBoxBounds, BattleBox};
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
     Bullet, BulletDamage, BulletHitBehavior, BulletLastHitTime, BulletMotionState,
@@ -52,6 +52,11 @@ pub struct AmBulletMarker;
 /// Inherited from parent group if parent has this marker.
 #[derive(Component, Debug, Clone, Default)]
 pub struct AmBattleBoxMarker;
+
+/// Marker for entities that should be hidden (based on hidden_pattern config)
+/// Inherited from parent group if parent has this marker.
+#[derive(Component, Debug, Clone, Default)]
+pub struct AmHiddenMarker;
 
 /// Marker for entities that need collision setup in the next frame.
 /// This allows GlobalTransform to propagate before calculating collision size.
@@ -84,7 +89,7 @@ pub struct AmBattleConfig {
     /// 默认：1.0（无额外缩放）
     #[serde(default = "default_scale")]
     pub scale: f32,
-    
+
     /// Offset position for AM project (x, y)
     /// Default: (0.0, 0.0)
     ///
@@ -92,7 +97,7 @@ pub struct AmBattleConfig {
     /// 默认：(0.0, 0.0)
     #[serde(default = "default_offset")]
     pub offset: (f32, f32),
-    
+
     /// Regex pattern for bullet layers (default: "^#B")
     /// Layers with names matching this pattern are treated as bullets.
     /// If a group matches, all children inherit bullet behavior.
@@ -102,7 +107,7 @@ pub struct AmBattleConfig {
     /// 如果编组匹配，所有子元素继承弹幕行为。
     #[serde(default = "default_bullet_pattern")]
     pub bullet_pattern: String,
-    
+
     /// Regex pattern for battle box layers (default: "^#C")
     /// Layers with names matching this pattern are treated as battle box boundaries.
     /// If a group matches, all children inherit battle box behavior.
@@ -112,7 +117,7 @@ pub struct AmBattleConfig {
     /// 如果编组匹配，所有子元素继承战斗框行为。
     #[serde(default = "default_battlebox_pattern")]
     pub battlebox_pattern: String,
-    
+
     /// Regex pattern for layers that should be hidden (default: empty = hide nothing)
     /// Layers with names matching this pattern will have their visibility set to Hidden.
     /// This is useful for hiding collision marker layers that shouldn't be rendered.
@@ -122,13 +127,13 @@ pub struct AmBattleConfig {
     /// 这对于隐藏不应该渲染的碰撞标记图层很有用。
     #[serde(default = "default_hidden_pattern")]
     pub hidden_pattern: String,
-    
+
     /// Damage dealt by bullets (default: 1.0)
     ///
     /// 弹幕造成的伤害（默认：1.0）
     #[serde(default = "default_bullet_damage")]
     pub bullet_damage: f32,
-    
+
     /// Scale factor for bullet collision boxes relative to sprite size (default: 0.05)
     /// Since AM sprites often have large transparent areas, this scales down
     /// the collision box to better match the actual visible content.
@@ -244,10 +249,13 @@ impl Plugin for AmBattlePlugin {
                 Update,
                 (
                     handle_play_am_performance_event,
+                    // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc) are available
+                    ApplyDeferred,
                     propagate_am_markers_system,
                     // Apply commands before checking markers for collision
                     ApplyDeferred,
                     add_am_collision_system,
+                    apply_am_hidden_visibility,
                     check_am_performance_completion,
                     debug_am_entities,
                 )
@@ -269,30 +277,29 @@ fn load_am_battle_config(
     mut am_config: ResMut<AmBattleConfig>,
     game_config: Res<crate::config::GameConfig>,
 ) {
-    let config_path = format!(
-        "projects/{}/battle/am_config.ron",
-        game_config.mod_name
-    );
-    
+    let config_path = format!("projects/{}/battle/am_config.ron", game_config.mod_name);
+
     match std::fs::read_to_string(&config_path) {
-        Ok(content) => {
-            match ron::from_str::<AmBattleConfig>(&content) {
-                Ok(config) => {
-                    *am_config = config;
-                    info!(
-                        "[AM Battle] Loaded config from {}: scale={}, offset={:?}, bullet_pattern='{}', battlebox_pattern='{}', damage={}",
-                        config_path, am_config.scale, am_config.offset, 
-                        am_config.bullet_pattern, am_config.battlebox_pattern, am_config.bullet_damage
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "[AM Battle] Failed to parse {}: {}. Using defaults.",
-                        config_path, e
-                    );
-                }
+        Ok(content) => match ron::from_str::<AmBattleConfig>(&content) {
+            Ok(config) => {
+                *am_config = config;
+                info!(
+                    "[AM Battle] Loaded config from {}: scale={}, offset={:?}, bullet_pattern='{}', battlebox_pattern='{}', damage={}",
+                    config_path,
+                    am_config.scale,
+                    am_config.offset,
+                    am_config.bullet_pattern,
+                    am_config.battlebox_pattern,
+                    am_config.bullet_damage
+                );
             }
-        }
+            Err(e) => {
+                warn!(
+                    "[AM Battle] Failed to parse {}: {}. Using defaults.",
+                    config_path, e
+                );
+            }
+        },
         Err(e) => {
             info!(
                 "[AM Battle] Config file {} not found ({}). Using defaults: scale={}, offset={:?}",
@@ -300,45 +307,63 @@ fn load_am_battle_config(
             );
         }
     }
-    
+
     // Compile regex patterns
     let bullet_regex = match Regex::new(&am_config.bullet_pattern) {
         Ok(r) => {
-            info!("[AM Battle] Compiled bullet regex: '{}'", am_config.bullet_pattern);
+            info!(
+                "[AM Battle] Compiled bullet regex: '{}'",
+                am_config.bullet_pattern
+            );
             Some(r)
         }
         Err(e) => {
-            warn!("[AM Battle] Invalid bullet pattern '{}': {}", am_config.bullet_pattern, e);
+            warn!(
+                "[AM Battle] Invalid bullet pattern '{}': {}",
+                am_config.bullet_pattern, e
+            );
             None
         }
     };
-    
+
     let battlebox_regex = match Regex::new(&am_config.battlebox_pattern) {
         Ok(r) => {
-            info!("[AM Battle] Compiled battlebox regex: '{}'", am_config.battlebox_pattern);
+            info!(
+                "[AM Battle] Compiled battlebox regex: '{}'",
+                am_config.battlebox_pattern
+            );
             Some(r)
         }
         Err(e) => {
-            warn!("[AM Battle] Invalid battlebox pattern '{}': {}", am_config.battlebox_pattern, e);
+            warn!(
+                "[AM Battle] Invalid battlebox pattern '{}': {}",
+                am_config.battlebox_pattern, e
+            );
             None
         }
     };
-    
+
     let hidden_regex = if am_config.hidden_pattern.is_empty() {
         None
     } else {
         match Regex::new(&am_config.hidden_pattern) {
             Ok(r) => {
-                info!("[AM Battle] Compiled hidden regex: '{}'", am_config.hidden_pattern);
+                info!(
+                    "[AM Battle] Compiled hidden regex: '{}'",
+                    am_config.hidden_pattern
+                );
                 Some(r)
             }
             Err(e) => {
-                warn!("[AM Battle] Invalid hidden pattern '{}': {}", am_config.hidden_pattern, e);
+                warn!(
+                    "[AM Battle] Invalid hidden pattern '{}': {}",
+                    am_config.hidden_pattern, e
+                );
                 None
             }
         }
     };
-    
+
     commands.insert_resource(AmBattlePatterns {
         bullet_regex,
         battlebox_regex,
@@ -375,23 +400,37 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.bullet_regex {
             if regex.is_match(layer_name) {
                 commands.entity(event.entity).insert(AmBulletMarker);
-                info!("  → Matched bullet pattern, added AmBulletMarker to '{}'", layer_name);
+                info!(
+                    "  → Matched bullet pattern, added AmBulletMarker to '{}'",
+                    layer_name
+                );
             }
         }
-        
+
         // Check battlebox pattern
         if let Some(ref regex) = patterns.battlebox_regex {
             if regex.is_match(layer_name) {
                 commands.entity(event.entity).insert(AmBattleBoxMarker);
-                info!("  → Matched battlebox pattern, added AmBattleBoxMarker to '{}'", layer_name);
+                info!(
+                    "  → Matched battlebox pattern, added AmBattleBoxMarker to '{}'",
+                    layer_name
+                );
             }
         }
-        
-        // Check hidden pattern - hide layers matching this pattern
+
+        // Check hidden pattern - mark layers matching this pattern for hiding
         if let Some(ref regex) = patterns.hidden_regex {
             if regex.is_match(layer_name) {
-                commands.entity(event.entity).insert(Visibility::Hidden);
-                info!("  → Matched hidden pattern, hiding '{}'", layer_name);
+                // Add both AmHiddenMarker (for propagation) and AmForceHidden (for AM library)
+                commands.entity(event.entity).insert((
+                    AmHiddenMarker,
+                    AmForceHidden, // Tell bevy_alight_motion to keep this hidden
+                    Visibility::Hidden,
+                ));
+                info!(
+                    "  → Matched hidden pattern, added AmHiddenMarker + AmForceHidden to '{}'",
+                    layer_name
+                );
             }
         }
     }
@@ -403,50 +442,90 @@ pub fn on_am_entity_spawned(
 fn propagate_am_markers_system(
     mut commands: Commands,
     // All AM entities that might need marker inheritance
-    am_entities: Query<(Entity, Option<&AmBulletMarker>, Option<&AmBattleBoxMarker>), With<AmBattleEntity>>,
+    am_entities: Query<
+        (
+            Entity,
+            Option<&AmBulletMarker>,
+            Option<&AmBattleBoxMarker>,
+            Option<&AmHiddenMarker>,
+        ),
+        With<AmBattleEntity>,
+    >,
     // Parent hierarchy for inheritance
     parent_query: Query<&ChildOf>,
 ) {
     // Propagate markers from parents to children
-    for (entity, bullet_marker, battlebox_marker) in am_entities.iter() {
-        // If already has markers, skip
-        if bullet_marker.is_some() || battlebox_marker.is_some() {
+    for (entity, bullet_marker, battlebox_marker, hidden_marker) in am_entities.iter() {
+        // Check if already has all markers - can skip
+        let has_bullet = bullet_marker.is_some();
+        let has_battlebox = battlebox_marker.is_some();
+        let has_hidden = hidden_marker.is_some();
+
+        // If already has all markers we care about, skip
+        if has_bullet && has_battlebox && has_hidden {
             continue;
         }
-        
+
         // Check parent chain for markers
         let mut current = entity;
         let mut inherited_bullet = false;
         let mut inherited_battlebox = false;
-        
+        let mut inherited_hidden = false;
+
         while let Ok(child_of) = parent_query.get(current) {
             let parent = child_of.parent();
-            
-            // Check if parent has bullet marker
-            if let Ok((_, parent_bullet, parent_battlebox)) = am_entities.get(parent) {
-                if parent_bullet.is_some() {
+
+            // Check if parent has markers
+            if let Ok((_, parent_bullet, parent_battlebox, parent_hidden)) = am_entities.get(parent)
+            {
+                if !has_bullet && parent_bullet.is_some() {
                     inherited_bullet = true;
                 }
-                if parent_battlebox.is_some() {
+                if !has_battlebox && parent_battlebox.is_some() {
                     inherited_battlebox = true;
                 }
+                if !has_hidden && parent_hidden.is_some() {
+                    inherited_hidden = true;
+                }
             }
-            
-            if inherited_bullet || inherited_battlebox {
+
+            // If found all needed inheritance, stop
+            if (has_bullet || inherited_bullet)
+                && (has_battlebox || inherited_battlebox)
+                && (has_hidden || inherited_hidden)
+            {
                 break;
             }
-            
+
             current = parent;
         }
-        
+
         // Apply inherited markers
         if inherited_bullet {
             commands.entity(entity).insert(AmBulletMarker);
-            info!("[AM Battle] Inherited AmBulletMarker to entity {:?}", entity);
+            info!(
+                "[AM Battle] Inherited AmBulletMarker to entity {:?}",
+                entity
+            );
         }
         if inherited_battlebox {
             commands.entity(entity).insert(AmBattleBoxMarker);
-            info!("[AM Battle] Inherited AmBattleBoxMarker to entity {:?}", entity);
+            info!(
+                "[AM Battle] Inherited AmBattleBoxMarker to entity {:?}",
+                entity
+            );
+        }
+        if inherited_hidden {
+            // Add both AmHiddenMarker (for tracking) and AmForceHidden (for AM library)
+            commands.entity(entity).insert((
+                AmHiddenMarker,
+                AmForceHidden, // Tell bevy_alight_motion to keep this hidden
+                Visibility::Hidden,
+            ));
+            info!(
+                "[AM Battle] Inherited AmHiddenMarker + AmForceHidden to entity {:?}",
+                entity
+            );
         }
     }
 }
@@ -483,7 +562,7 @@ fn add_am_collision_system(
                 | AmLayerSpec::Text { .. }
         )
     }
-    
+
     // Helper function to get size from AmLayerSpec (SDF shapes have actual dimensions)
     fn get_layer_size(spec: &AmLayerSpec) -> Option<(f32, f32)> {
         match spec {
@@ -493,7 +572,7 @@ fn add_am_collision_system(
             AmLayerSpec::Text { .. } | AmLayerSpec::Null | AmLayerSpec::EmbedScene => None,
         }
     }
-    
+
     // Helper function to get initial scale from AmAnimated.scale
     fn get_animated_scale(animated: &AmAnimated) -> Vec2 {
         // First try static value
@@ -505,7 +584,10 @@ fn add_am_collision_system(
             // Parse "x,y" format
             let parts: Vec<&str> = kf.value.split(',').collect();
             if parts.len() == 2 {
-                if let (Ok(x), Ok(y)) = (parts[0].trim().parse::<f32>(), parts[1].trim().parse::<f32>()) {
+                if let (Ok(x), Ok(y)) = (
+                    parts[0].trim().parse::<f32>(),
+                    parts[1].trim().parse::<f32>(),
+                ) {
                     return Vec2::new(x.abs(), y.abs());
                 }
             }
@@ -513,7 +595,7 @@ fn add_am_collision_system(
         // Default to 1.0
         Vec2::ONE
     }
-    
+
     // Helper function to compute total scale by traversing parent hierarchy
     fn compute_total_scale(
         entity: Entity,
@@ -523,7 +605,7 @@ fn add_am_collision_system(
     ) -> Vec2 {
         let mut total_scale = Vec2::splat(final_scale);
         let mut current = entity;
-        
+
         // Traverse up the hierarchy
         loop {
             // Get this entity's own scale
@@ -531,7 +613,7 @@ fn add_am_collision_system(
                 let scale = get_animated_scale(animated);
                 total_scale *= scale;
             }
-            
+
             // Move to parent
             if let Ok(child_of) = parent_query.get(current) {
                 current = child_of.0;
@@ -539,10 +621,10 @@ fn add_am_collision_system(
                 break;
             }
         }
-        
+
         total_scale
     }
-    
+
     // Add collision components to bullet-marked entities
     // Only add collision to actual visual elements, not groups (Null/EmbedScene)
     // Now using SDF shape dimensions directly from AmLayerSpec
@@ -563,22 +645,17 @@ fn add_am_collision_system(
                 continue; // Skip non-visual elements
             }
         } else {
-            info!(
-                "[AM Battle] SKIPPING entity {:?} - no AmLayerSpec",
-                entity
-            );
+            info!("[AM Battle] SKIPPING entity {:?} - no AmLayerSpec", entity);
             continue;
         };
-        
+
         // Compute total scale by traversing parent hierarchy
         // This includes: layer's own scale + all parent scales + project root scale (final_scale)
-        let total_scale = compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
-        
+        let total_scale =
+            compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
+
         // Calculate final collision half_size (size * total_scale / 2)
-        let half_size = Vec2::new(
-            width * total_scale.x / 2.0,
-            height * total_scale.y / 2.0,
-        );
+        let half_size = Vec2::new(width * total_scale.x / 2.0, height * total_scale.y / 2.0);
 
         commands.entity(entity).insert((
             Bullet,
@@ -595,7 +672,7 @@ fn add_am_collision_system(
             BulletLastHitTime::default(),
             BulletMotionState::new(Vec2::ZERO),
         ));
-        
+
         // TODO: Temporarily disabled for debugging
         // Hide the bullet layer (set visibility to Hidden)
         // if let Ok(mut visibility) = visibility_query.get_mut(entity) {
@@ -611,7 +688,7 @@ fn add_am_collision_system(
             entity, half_size, width, height, total_scale, am_config.bullet_damage
         );
     }
-    
+
     // Add battle box components to battlebox-marked entities
     for entity in battlebox_marker_query.iter() {
         // Check if this is a visual element (skip groups)
@@ -620,14 +697,15 @@ fn add_am_collision_system(
         } else {
             (false, "No AmLayerSpec".to_string())
         };
-        
+
         if !is_visual {
             continue;
         }
-        
+
         // Compute total scale by traversing parent hierarchy
-        let total_scale = compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
-        
+        let total_scale =
+            compute_total_scale(entity, &animated_query, &parent_query, am_state.final_scale);
+
         // Get size from AmLayerSpec with total_scale
         let (width, height) = if let Ok(spec) = layer_spec_query.get(entity) {
             if let Some((w, h)) = get_layer_size(spec) {
@@ -639,10 +717,9 @@ fn add_am_collision_system(
             (565.0, 140.0)
         };
 
-        commands.entity(entity).insert((
-            BattleBox,
-            AmBattleBoxBounds { width, height },
-        ));
+        commands
+            .entity(entity)
+            .insert((BattleBox, AmBattleBoxBounds { width, height }));
 
         info!(
             "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, total_scale={:?})",
@@ -674,14 +751,14 @@ fn handle_play_am_performance_event(
         // Then apply additional scale from config
         let base_scale = 1.0 / resolution_scale.get() as f32;
         let final_scale = base_scale * am_config.scale;
-        
+
         // Apply offset from config (scaled by base_scale to work in screen coordinates)
         let offset = Vec3::new(
             am_config.offset.0 * base_scale,
             am_config.offset.1 * base_scale,
             0.0,
         );
-        
+
         // Mark as battle entity and apply scale and offset
         commands.entity(entity).insert((
             BattleEntity,
@@ -691,7 +768,7 @@ fn handle_play_am_performance_event(
                 ..Default::default()
             },
         ));
-        
+
         info!(
             "[AM Battle] Performance started, entity: {:?}, base_scale: {}, config_scale: {}, final_scale: {}, offset: {:?}",
             entity, base_scale, am_config.scale, final_scale, am_config.offset
@@ -783,20 +860,20 @@ fn debug_am_entities(
     for (entity, name, global_transform, visibility, inherited_vis, sprite) in query.iter() {
         let translation = global_transform.translation();
         let scale = global_transform.to_scale_rotation_translation().0;
-        
+
         let vis_str = match visibility {
             Some(Visibility::Inherited) => "Inherited",
             Some(Visibility::Visible) => "Visible",
             Some(Visibility::Hidden) => "Hidden",
             None => "None",
         };
-        
+
         let inherited_vis_str = match inherited_vis {
             Some(v) if v.get() => "true",
             Some(_) => "false",
             None => "None",
         };
-        
+
         let sprite_info = if let Some(s) = sprite {
             format!(
                 "rect={:?}, custom_size={:?}, color={:?}",
@@ -805,7 +882,7 @@ fn debug_am_entities(
         } else {
             "NO SPRITE".to_string()
         };
-        
+
         info!(
             "[AM Debug] Entity {:?} '{}': pos={:?}, z={}, scale={:?}, vis={}, inherited={}, sprite=[{}]",
             entity,
@@ -817,5 +894,25 @@ fn debug_am_entities(
             inherited_vis_str,
             sprite_info
         );
+    }
+}
+
+/// System to apply visibility hidden to entities with AmHiddenMarker.
+/// Runs after propagate_am_markers_system and apply_deferred so all markers are propagated.
+///
+/// 将带有 AmHiddenMarker 的实体设置为隐藏。
+/// 在 propagate_am_markers_system 和 apply_deferred 之后运行，确保所有标记都已传播。
+fn apply_am_hidden_visibility(
+    mut hidden_entities: Query<(Entity, &Name, &mut Visibility), With<AmHiddenMarker>>,
+) {
+    for (entity, name, mut visibility) in hidden_entities.iter_mut() {
+        if *visibility != Visibility::Hidden {
+            *visibility = Visibility::Hidden;
+            // Only log when we actually change visibility
+            info!(
+                "[AM Battle] Applied Hidden visibility to entity {:?} '{}'",
+                entity, name
+            );
+        }
     }
 }

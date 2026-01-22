@@ -49,7 +49,7 @@ pub struct GameConfig {
     /// mod 名称（来自项目配置）。
     #[serde(default)]
     pub mod_name: String,
-    
+
     /// Initial map path to load when entering Overworld.
     ///
     /// 进入 Overworld 时加载的初始地图路径。
