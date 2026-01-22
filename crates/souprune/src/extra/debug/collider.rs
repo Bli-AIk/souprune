@@ -401,6 +401,22 @@ pub mod debug_collider {
                 Without<crate::core::collision::PhysicsCollider>,
             ),
         >,
+        // AM animated battle boxes (no UIBox, use AmBattleBoxBounds instead)
+        am_battle_boxes: Query<
+            (
+                Entity,
+                &GlobalTransform,
+                &crate::app_state::battle::collision::AmBattleBoxBounds,
+            ),
+            (
+                With<crate::app_state::battle::collision::BattleBox>,
+                Without<crate::core::ui::components::UIBox>,
+                Without<SmudShape>,
+                Without<ColliderVisualizer>,
+                Without<BattleColliderVisualized>,
+                Without<crate::core::collision::PhysicsCollider>,
+            ),
+        >,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
         use crate::core::collision::{PhysicsCollider, TriggerCollider};
@@ -565,6 +581,45 @@ pub mod debug_collider {
                 ));
             });
         }
+        
+        // Visualize AM Battle Box (Cyan to distinguish from UI battle box)
+        for (entity, global_transform, am_bounds) in am_battle_boxes.iter() {
+            let has_visualizer = existing_visualizers
+                .iter()
+                .any(|(_, vis)| vis.parent == entity);
+
+            if has_visualizer {
+                continue;
+            }
+
+            let half_width = am_bounds.width / 2.0;
+            let half_height = am_bounds.height / 2.0;
+
+            let sdf = shaders.add_sdf_expr(format!(
+                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
+                half_width, half_height
+            ));
+
+            let frame_size = half_width.max(half_height) + 2.0;
+
+            // Apply center_offset to get the actual geometric center
+            let center_pos = global_transform.translation() + Vec3::new(am_bounds.center_offset.x, am_bounds.center_offset.y, 50.0);
+
+            commands.entity(debug_root_entity).with_children(|parent| {
+                parent.spawn((
+                    SmudShape {
+                        color: Color::hsl(180.0, 1.0, 0.5), // Cyan for AM battle box
+                        sdf,
+                        frame: Frame::Quad(frame_size),
+                        fill: SIMPLE_FILL_HANDLE,
+                        ..default()
+                    },
+                    Transform::from_translation(center_pos),
+                    ColliderVisualizer { parent: entity },
+                    Name::new("AM Battle Box Debug"),
+                ));
+            });
+        }
     }
 
     /// Update Battle collider visualizer positions
@@ -604,6 +659,14 @@ pub mod debug_collider {
                 Without<ColliderVisualizer>,
             ),
         >,
+        am_battle_boxes: Query<
+            (&GlobalTransform, &crate::app_state::battle::collision::AmBattleBoxBounds),
+            (
+                With<crate::app_state::battle::collision::BattleBox>,
+                Without<crate::core::ui::components::UIBox>,
+                Without<ColliderVisualizer>,
+            ),
+        >,
     ) {
         for (mut vis_transform, visualizer) in visualizers.iter_mut() {
             if let Ok(parent_transform) = physics_colliders.get(visualizer.parent) {
@@ -618,6 +681,10 @@ pub mod debug_collider {
             } else if let Ok(parent_global) = battle_boxes.get(visualizer.parent) {
                 vis_transform.translation.x = parent_global.translation().x;
                 vis_transform.translation.y = parent_global.translation().y;
+            } else if let Ok((parent_global, am_bounds)) = am_battle_boxes.get(visualizer.parent) {
+                // Apply center_offset to get the actual geometric center
+                vis_transform.translation.x = parent_global.translation().x + am_bounds.center_offset.x;
+                vis_transform.translation.y = parent_global.translation().y + am_bounds.center_offset.y;
             }
         }
     }

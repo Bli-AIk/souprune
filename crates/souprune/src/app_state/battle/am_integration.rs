@@ -256,6 +256,8 @@ impl Plugin for AmBattlePlugin {
                     ApplyDeferred,
                     add_am_collision_system,
                     apply_am_hidden_visibility,
+                    // Dynamic update for animated battle boxes
+                    update_am_battlebox_bounds_system,
                     check_am_performance_completion,
                     debug_am_entities,
                 )
@@ -717,13 +719,23 @@ fn add_am_collision_system(
             (565.0, 140.0)
         };
 
+        // Calculate center_offset from anchor_offset
+        // anchor_offset moves entity from center to pivot point
+        // So center_offset = -anchor_offset to go back to center
+        // Also need to apply scale to the offset
+        let center_offset = if let Ok(animated) = animated_query.get(entity) {
+            -animated.anchor_offset * total_scale
+        } else {
+            Vec2::ZERO
+        };
+
         commands
             .entity(entity)
-            .insert((BattleBox, AmBattleBoxBounds { width, height }));
+            .insert((BattleBox, AmBattleBoxBounds { width, height, center_offset }));
 
         info!(
-            "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, total_scale={:?})",
-            entity, width, height, total_scale
+            "[AM Battle] Added BattleBox to entity {:?} (size={}x{}, total_scale={:?}, center_offset={:?})",
+            entity, width, height, total_scale, center_offset
         );
     }
 }
@@ -915,4 +927,119 @@ fn apply_am_hidden_visibility(
             );
         }
     }
+}
+
+/// System to dynamically update battle box bounds based on current animation time.
+/// This handles battle boxes with scale animations (e.g., shrinking/expanding).
+///
+/// 根据当前动画时间动态更新战斗框边界。
+/// 处理带有缩放动画的战斗框（如收缩/扩展）。
+fn update_am_battlebox_bounds_system(
+    playback: Option<Res<AmPlayback>>,
+    am_state: Res<AmPerformanceState>,
+    mut battlebox_query: Query<(Entity, &AmAnimated, &AmLayerSpec, &mut AmBattleBoxBounds)>,
+    parent_query: Query<&ChildOf>,
+    animated_query: Query<&AmAnimated>,
+) {
+    let Some(playback) = playback else {
+        return;
+    };
+
+    if !am_state.is_playing {
+        return;
+    }
+
+    let current_time_ms = playback.current_time_ms;
+
+    for (entity, animated, layer_spec, mut bounds) in battlebox_query.iter_mut() {
+        // Get base size from layer spec
+        let (base_width, base_height) = match layer_spec {
+            AmLayerSpec::SdfShape { width, height, .. } => (width.abs(), height.abs()),
+            AmLayerSpec::Image { width, height, .. } => (width.abs(), height.abs()),
+            _ => continue,
+        };
+
+        // Calculate total scale by traversing parent hierarchy with current time interpolation
+        let total_scale = compute_total_scale_at_time(
+            entity,
+            &animated_query,
+            &parent_query,
+            am_state.final_scale,
+            current_time_ms,
+        );
+
+        // Get this entity's current scale at this time
+        let local_time = animated.calc_local_time(current_time_ms);
+        let local_scale = get_animated_scale_at_time(&animated.scale, local_time);
+
+        // Final dimensions
+        let new_width = base_width * total_scale.x * local_scale.x;
+        let new_height = base_height * total_scale.y * local_scale.y;
+
+        // Calculate center_offset with current scale
+        // anchor_offset is static, but we need to scale it by current total scale
+        let full_scale = total_scale * local_scale;
+        let new_center_offset = -animated.anchor_offset * full_scale;
+
+        // Only update if changed significantly (avoid noise)
+        if (bounds.width - new_width).abs() > 0.1 
+            || (bounds.height - new_height).abs() > 0.1 
+            || (bounds.center_offset - new_center_offset).length() > 0.1 
+        {
+            bounds.width = new_width;
+            bounds.height = new_height;
+            bounds.center_offset = new_center_offset;
+        }
+    }
+}
+
+/// Get animated scale at a specific local time using interpolation.
+///
+/// 使用插值获取特定本地时间的动画缩放。
+fn get_animated_scale_at_time(scale_prop: &AmAnimatedVec2, local_time_ms: f32) -> Vec2 {
+    // Use interpolate_vec2 from bevy_alight_motion
+    if let Some([x, y]) = interpolate_vec2(scale_prop, local_time_ms) {
+        Vec2::new(x.abs(), y.abs())
+    } else {
+        // Fall back to default
+        Vec2::ONE
+    }
+}
+
+/// Compute total scale from parent hierarchy at a specific time.
+///
+/// 计算特定时间下从父级层次结构累积的总缩放。
+fn compute_total_scale_at_time(
+    entity: Entity,
+    animated_query: &Query<&AmAnimated>,
+    parent_query: &Query<&ChildOf>,
+    final_scale: f32,
+    current_time_ms: f32,
+) -> Vec2 {
+    let mut total_scale = Vec2::splat(final_scale);
+    let mut current = entity;
+
+    // Traverse up the hierarchy (skip the entity itself, we handle it separately)
+    if let Ok(child_of) = parent_query.get(current) {
+        current = child_of.0;
+    } else {
+        return total_scale;
+    }
+
+    // Traverse parent chain
+    loop {
+        if let Ok(animated) = animated_query.get(current) {
+            let local_time = animated.calc_local_time(current_time_ms);
+            let scale = get_animated_scale_at_time(&animated.scale, local_time);
+            total_scale *= scale;
+        }
+
+        if let Ok(child_of) = parent_query.get(current) {
+            current = child_of.0;
+        } else {
+            break;
+        }
+    }
+
+    total_scale
 }

@@ -41,6 +41,12 @@ pub struct BattleBox;
 pub struct AmBattleBoxBounds {
     pub width: f32,
     pub height: f32,
+    /// Offset from entity position to the geometric center of the battle box (Bevy coords).
+    /// This compensates for non-centered pivot points in AM animations.
+    ///
+    /// 从实体位置到战斗框几何中心的偏移（Bevy 坐标）。
+    /// 用于补偿 AM 动画中非居中的锚点。
+    pub center_offset: Vec2,
 }
 
 /// System to constrain player position within battle box boundaries
@@ -72,10 +78,12 @@ pub(crate) fn constrain_player_to_battle_box_system(
         )
     } else if let Some((box_transform, am_bounds)) = am_battle_box_query.iter().next() {
         // Create boundary from AM battle box bounds
+        // Apply center_offset to get the actual geometric center of the battle box
+        let center_pos = box_transform.translation().truncate() + am_bounds.center_offset;
         BattleBoxBoundary::from_ui_box(
             am_bounds.width,
             am_bounds.height,
-            box_transform.translation().truncate(),
+            center_pos,
         )
     } else {
         return;
