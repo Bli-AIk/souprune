@@ -151,7 +151,12 @@ The following individuals have contributed to the SoupRune project!
 <img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
 </a>
 
-**Heartfelt thanks to each and every one of you! 🎔**
+### Non-Code Contributors
+
+* **71**: Provided many Alight Motion example projects (including Undertale bullet patterns and visual PVs) during
+  testing. Great help with AM integration!
+
+**Heartfelt thanks to each one of you! 🎔**
 
 ## 🤝 Join Us
 

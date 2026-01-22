@@ -133,6 +133,10 @@ SoupRune 能成为你手中的利器。
 <img src = "https://contrib.rocks/image?repo=Bli-AIk/souprune" alt=""/>
 </a>
 
+### 非代码贡献者
+
+* **71**: 他在此项目测试过程中提供了许多 Alight Motion 示例工程（包括undertale弹幕，以及一些视觉pv），为 AM 集成提供了很大帮助！
+
 **衷心感谢你们每一个人！🎔**
 
 ## 🤝 加入我们
