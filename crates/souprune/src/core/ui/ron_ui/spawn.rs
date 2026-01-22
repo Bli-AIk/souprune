@@ -158,16 +158,16 @@ pub fn build_text_config(
         color,
         transform: {
             let translation = Vec3::new(
-                evaluate_float_expr(&text_def.transform.translation.x, player_data),
-                evaluate_float_expr(&text_def.transform.translation.y, player_data),
-                evaluate_float_expr(&text_def.transform.translation.z, player_data),
+                evaluate_float_expr(&text_def.transform.translation.x, player_data, None),
+                evaluate_float_expr(&text_def.transform.translation.y, player_data, None),
+                evaluate_float_expr(&text_def.transform.translation.z, player_data, None),
             );
             let mut t = Transform::from_translation(translation);
             if let Some(scale) = &text_def.transform.scale {
                 t.scale = Vec3::new(
-                    evaluate_float_expr(&scale.x, player_data),
-                    evaluate_float_expr(&scale.y, player_data),
-                    evaluate_float_expr(&scale.z, player_data),
+                    evaluate_float_expr(&scale.x, player_data, None),
+                    evaluate_float_expr(&scale.y, player_data, None),
+                    evaluate_float_expr(&scale.z, player_data, None),
                 );
             }
             if let Some(rot) = text_def.transform.rotation {
@@ -217,21 +217,22 @@ pub fn spawn_ui_node(
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
                 transform.translation = Vec3::new(
-                    evaluate_float_expr(&t_def.translation.x, player_data),
-                    evaluate_float_expr(&t_def.translation.y, player_data),
-                    evaluate_float_expr(&t_def.translation.z, player_data),
+                    evaluate_float_expr(&t_def.translation.x, player_data, None),
+                    evaluate_float_expr(&t_def.translation.y, player_data, None),
+                    evaluate_float_expr(&t_def.translation.z, player_data, None),
                 );
                 if let Some(scale) = &t_def.scale {
                     transform.scale = Vec3::new(
-                        evaluate_float_expr(&scale.x, player_data),
-                        evaluate_float_expr(&scale.y, player_data),
-                        evaluate_float_expr(&scale.z, player_data),
+                        evaluate_float_expr(&scale.x, player_data, None),
+                        evaluate_float_expr(&scale.y, player_data, None),
+                        evaluate_float_expr(&scale.z, player_data, None),
                     );
                 }
                 if let Some(rot) = t_def.rotation {
                     transform.rotation = Quat::from_rotation_z(rot.to_radians());
                 }
             }
+
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
@@ -758,15 +759,15 @@ fn spawn_ui_sprite(
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {
         transform.translation = Vec3::new(
-            evaluate_float_expr(&t_def.translation.x, player_data),
-            evaluate_float_expr(&t_def.translation.y, player_data),
-            evaluate_float_expr(&t_def.translation.z, player_data),
+            evaluate_float_expr(&t_def.translation.x, player_data, None),
+            evaluate_float_expr(&t_def.translation.y, player_data, None),
+            evaluate_float_expr(&t_def.translation.z, player_data, None),
         );
         if let Some(scale) = &t_def.scale {
             transform.scale = Vec3::new(
-                evaluate_float_expr(&scale.x, player_data),
-                evaluate_float_expr(&scale.y, player_data),
-                evaluate_float_expr(&scale.z, player_data),
+                evaluate_float_expr(&scale.x, player_data, None),
+                evaluate_float_expr(&scale.y, player_data, None),
+                evaluate_float_expr(&scale.z, player_data, None),
             );
         }
         if let Some(rot) = t_def.rotation {

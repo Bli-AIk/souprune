@@ -66,3 +66,16 @@ name = "flowey_pellet"
 path = "textures/battle/bullets/flowey_pellet"
 frame_duration = 0.05
 looping = true
+
+# Sans
+[[sprites]]
+name = "sans_head"
+path = "textures/battle/sans/head.png"
+
+[[sprites]]
+name = "sans_legs"
+path = "textures/battle/sans/legs.png"
+
+[[sprites]]
+name = "sans_torso"
+path = "textures/battle/sans/torso.png"

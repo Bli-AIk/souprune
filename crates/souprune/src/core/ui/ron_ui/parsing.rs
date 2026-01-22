@@ -78,7 +78,11 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
     1
 }
 
-pub fn evaluate_float_expr(expr: &FloatOrExpr, player_data: &crate::core::data::PlayerData) -> f32 {
+pub fn evaluate_float_expr(
+    expr: &FloatOrExpr,
+    player_data: &crate::core::data::PlayerData,
+    time: Option<f64>,
+) -> f32 {
     match expr {
         FloatOrExpr::Static(v) => *v,
         FloatOrExpr::Dynamic(expr_str) => {
@@ -97,6 +101,10 @@ pub fn evaluate_float_expr(expr: &FloatOrExpr, player_data: &crate::core::data::
                 "@player.lv".to_string(),
                 evalexpr::Value::Int(player_data.lv as i64),
             );
+
+            if let Some(t) = time {
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
+            }
 
             match evalexpr::eval_with_context(expr_str, &context) {
                 Ok(val) => {

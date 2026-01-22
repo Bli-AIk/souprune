@@ -1,6 +1,6 @@
 [
     SetCamera(SetZoom(2.0)),
-    // 加载不带战斗框的 UI（战斗框由 AM 动画提供）
+    UIInteraction(ui_layout: "battle/ui/sans_idle.ui_layout.ron"),
     UIInteraction(ui_layout: "battle/ui/undertale_no_box.ui_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(0.5),
