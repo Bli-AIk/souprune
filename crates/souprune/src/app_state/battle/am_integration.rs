@@ -113,6 +113,16 @@ pub struct AmBattleConfig {
     #[serde(default = "default_battlebox_pattern")]
     pub battlebox_pattern: String,
     
+    /// Regex pattern for layers that should be hidden (default: empty = hide nothing)
+    /// Layers with names matching this pattern will have their visibility set to Hidden.
+    /// This is useful for hiding collision marker layers that shouldn't be rendered.
+    ///
+    /// 应该隐藏的图层的正则表达式模式（默认：空 = 不隐藏任何内容）
+    /// 名称匹配此模式的图层将被设置为隐藏。
+    /// 这对于隐藏不应该渲染的碰撞标记图层很有用。
+    #[serde(default = "default_hidden_pattern")]
+    pub hidden_pattern: String,
+    
     /// Damage dealt by bullets (default: 1.0)
     ///
     /// 弹幕造成的伤害（默认：1.0）
@@ -148,6 +158,10 @@ fn default_battlebox_pattern() -> String {
     "^#C".to_string()
 }
 
+fn default_hidden_pattern() -> String {
+    String::new() // Empty = hide nothing by default
+}
+
 fn default_bullet_damage() -> f32 {
     1.0
 }
@@ -163,6 +177,7 @@ impl Default for AmBattleConfig {
             offset: (0.0, 0.0),
             bullet_pattern: default_bullet_pattern(),
             battlebox_pattern: default_battlebox_pattern(),
+            hidden_pattern: default_hidden_pattern(),
             bullet_damage: default_bullet_damage(),
             collision_scale: default_collision_scale(),
         }
@@ -174,6 +189,7 @@ impl Default for AmBattleConfig {
 pub struct AmBattlePatterns {
     pub bullet_regex: Option<Regex>,
     pub battlebox_regex: Option<Regex>,
+    pub hidden_regex: Option<Regex>,
 }
 
 /// Resource to track active AM performance state.
@@ -308,9 +324,25 @@ fn load_am_battle_config(
         }
     };
     
+    let hidden_regex = if am_config.hidden_pattern.is_empty() {
+        None
+    } else {
+        match Regex::new(&am_config.hidden_pattern) {
+            Ok(r) => {
+                info!("[AM Battle] Compiled hidden regex: '{}'", am_config.hidden_pattern);
+                Some(r)
+            }
+            Err(e) => {
+                warn!("[AM Battle] Invalid hidden pattern '{}': {}", am_config.hidden_pattern, e);
+                None
+            }
+        }
+    };
+    
     commands.insert_resource(AmBattlePatterns {
         bullet_regex,
         battlebox_regex,
+        hidden_regex,
     });
 }
 
@@ -337,7 +369,7 @@ pub fn on_am_entity_spawned(
     // Add AmBattleEntity marker to all AM entities
     commands.entity(event.entity).insert(AmBattleEntity);
 
-    // Check regex patterns for bullet/battlebox markers
+    // Check regex patterns for bullet/battlebox/hidden markers
     if let Some(patterns) = patterns {
         // Check bullet pattern
         if let Some(ref regex) = patterns.bullet_regex {
@@ -352,6 +384,14 @@ pub fn on_am_entity_spawned(
             if regex.is_match(layer_name) {
                 commands.entity(event.entity).insert(AmBattleBoxMarker);
                 info!("  → Matched battlebox pattern, added AmBattleBoxMarker to '{}'", layer_name);
+            }
+        }
+        
+        // Check hidden pattern - hide layers matching this pattern
+        if let Some(ref regex) = patterns.hidden_regex {
+            if regex.is_match(layer_name) {
+                commands.entity(event.entity).insert(Visibility::Hidden);
+                info!("  → Matched hidden pattern, hiding '{}'", layer_name);
             }
         }
     }

@@ -86,7 +86,10 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
         .add_directive("bevy=info".parse()?)
         .add_directive("bevy_render=warn".parse()?)
         .add_directive("bevy_app=warn".parse()?)
-        .add_directive("bevy_ecs=warn".parse()?);
+        .add_directive("bevy_ecs=warn".parse()?)
+        // Silence bevy_alight_motion verbose logs (debug/trace level)
+        // 静音 bevy_alight_motion 的详细日志（debug/trace 级别）
+        .add_directive("bevy_alight_motion=warn".parse()?);
 
     // File layer: writes to the log file
     //

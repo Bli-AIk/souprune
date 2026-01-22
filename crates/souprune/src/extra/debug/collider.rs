@@ -376,7 +376,7 @@ pub mod debug_collider {
         trigger_colliders: Query<
             (
                 Entity,
-                &Transform,
+                &GlobalTransform,
                 &crate::core::collision::TriggerCollider,
                 Option<&crate::core::collision::HitboxOffset>,
             ),
@@ -510,7 +510,7 @@ pub mod debug_collider {
 
             // Apply hitbox offset if present
             let offset = hitbox_offset.map(|o| o.0).unwrap_or(Vec2::ZERO);
-            let position = transform.translation + offset.extend(20.0);
+            let position = transform.translation() + offset.extend(20.0);
 
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
@@ -587,7 +587,7 @@ pub mod debug_collider {
             ),
         >,
         trigger_colliders: Query<
-            (&Transform, Option<&crate::core::collision::HitboxOffset>),
+            (&GlobalTransform, Option<&crate::core::collision::HitboxOffset>),
             (
                 With<crate::core::collision::TriggerCollider>,
                 Without<ColliderVisualizer>,
@@ -606,12 +606,12 @@ pub mod debug_collider {
             if let Ok(parent_transform) = physics_colliders.get(visualizer.parent) {
                 vis_transform.translation.x = parent_transform.translation.x;
                 vis_transform.translation.y = parent_transform.translation.y;
-            } else if let Ok((parent_transform, hitbox_offset)) =
+            } else if let Ok((parent_global, hitbox_offset)) =
                 trigger_colliders.get(visualizer.parent)
             {
                 let offset = hitbox_offset.map(|o| o.0).unwrap_or(Vec2::ZERO);
-                vis_transform.translation.x = parent_transform.translation.x + offset.x;
-                vis_transform.translation.y = parent_transform.translation.y + offset.y;
+                vis_transform.translation.x = parent_global.translation().x + offset.x;
+                vis_transform.translation.y = parent_global.translation().y + offset.y;
             } else if let Ok(parent_global) = battle_boxes.get(visualizer.parent) {
                 vis_transform.translation.x = parent_global.translation().x;
                 vis_transform.translation.y = parent_global.translation().y;

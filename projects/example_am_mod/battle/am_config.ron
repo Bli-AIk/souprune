@@ -12,6 +12,10 @@
 // battlebox_pattern: Regex pattern for battle box layers (default: "^#C")
 //                    战斗框图层的正则表达式模式
 //
+// hidden_pattern: Regex pattern for hidden layers (default: "")
+//                 隐藏图层的正则表达式模式（空字符串表示不隐藏任何图层）
+//                 Example: "^#B" to hide bullet markers
+//
 // bullet_damage: Damage dealt by bullets (default: 1.0)
 //                弹幕造成的伤害
 //
@@ -26,6 +30,7 @@
     offset: (0.0, 0.0),
     bullet_pattern: "^#B",
     battlebox_pattern: "^#C",
+    hidden_pattern: "^#B",
     bullet_damage: 1.0,
     collision_scale: 0.05,
 )
