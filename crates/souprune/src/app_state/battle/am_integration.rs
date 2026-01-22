@@ -792,17 +792,21 @@ fn handle_play_am_performance_event(
 
         // Update AmPendingLayers.inv_fit_scale to match our custom scale
         // This ensures mask coordinate calculations use the correct scale factor
-        commands.entity(entity).queue(move |mut entity_world: bevy::ecs::world::EntityWorldMut| {
-            // Update all descendant AmPendingLayers components
-            if let Some(mut pending) = entity_world.get_mut::<AmPendingLayers>() {
-                let old_inv_fit_scale = pending.inv_fit_scale;
-                pending.inv_fit_scale = 1.0 / final_scale;
-                bevy::log::info!(
-                    "[AM Battle] Updated inv_fit_scale: {} -> {} (final_scale={})",
-                    old_inv_fit_scale, pending.inv_fit_scale, final_scale
-                );
-            }
-        });
+        commands
+            .entity(entity)
+            .queue(move |mut entity_world: bevy::ecs::world::EntityWorldMut| {
+                // Update all descendant AmPendingLayers components
+                if let Some(mut pending) = entity_world.get_mut::<AmPendingLayers>() {
+                    let old_inv_fit_scale = pending.inv_fit_scale;
+                    pending.inv_fit_scale = 1.0 / final_scale;
+                    bevy::log::info!(
+                        "[AM Battle] Updated inv_fit_scale: {} -> {} (final_scale={})",
+                        old_inv_fit_scale,
+                        pending.inv_fit_scale,
+                        final_scale
+                    );
+                }
+            });
 
         info!(
             "[AM Battle] Performance started, entity: {:?}, base_scale: {}, config_scale: {}, final_scale: {}, offset: {:?}",

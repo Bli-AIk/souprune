@@ -786,11 +786,16 @@ pub mod debug_collider {
 
                 bevy::log::info!(
                     "[MaskDebug] Creating visualizer: center=({:.1},{:.1}), half_size=({:.1},{:.1}), frame={:.1}",
-                    center_x, center_y, half_width, half_height, frame_size
+                    center_x,
+                    center_y,
+                    half_width,
+                    half_height,
+                    frame_size
                 );
                 bevy::log::info!(
                     "[MaskDebug] Stats: total_sdf_shapes={}, masked_shapes={}",
-                    total_sdf_shapes, masked_shapes
+                    total_sdf_shapes,
+                    masked_shapes
                 );
 
                 commands.entity(debug_root_entity).with_children(|parent| {
