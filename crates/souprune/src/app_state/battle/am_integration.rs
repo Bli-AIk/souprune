@@ -390,10 +390,10 @@ pub fn on_am_entity_spawned(
     let event = trigger.event();
     let layer_name = &event.layer_name;
 
-    info!(
-        "[AM Battle] Entity spawned: '{}' (type={:?})",
-        layer_name, event.element_type
-    );
+    // info!(
+    //     "[AM Battle] Entity spawned: '{}' (type={:?})",
+    //     layer_name, event.element_type
+    // );
 
     // Add AmBattleEntity marker to all AM entities
     commands.entity(event.entity).insert(AmBattleEntity);
@@ -404,10 +404,10 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.bullet_regex {
             if regex.is_match(layer_name) {
                 commands.entity(event.entity).insert(AmBulletMarker);
-                info!(
-                    "  → Matched bullet pattern, added AmBulletMarker to '{}'",
-                    layer_name
-                );
+                // info!(
+                //     "  → Matched bullet pattern, added AmBulletMarker to '{}'",
+                //     layer_name
+                // );
             }
         }
 
@@ -415,10 +415,10 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.battlebox_regex {
             if regex.is_match(layer_name) {
                 commands.entity(event.entity).insert(AmBattleBoxMarker);
-                info!(
-                    "  → Matched battlebox pattern, added AmBattleBoxMarker to '{}'",
-                    layer_name
-                );
+                // info!(
+                //     "  → Matched battlebox pattern, added AmBattleBoxMarker to '{}'",
+                //     layer_name
+                // );
             }
         }
 
@@ -431,10 +431,10 @@ pub fn on_am_entity_spawned(
                     AmForceHidden, // Tell bevy_alight_motion to keep this hidden
                     Visibility::Hidden,
                 ));
-                info!(
-                    "  → Matched hidden pattern, added AmHiddenMarker + AmForceHidden to '{}'",
-                    layer_name
-                );
+                // info!(
+                //     "  → Matched hidden pattern, added AmHiddenMarker + AmForceHidden to '{}'",
+                //     layer_name
+                // );
             }
         }
     }
@@ -832,15 +832,15 @@ fn check_am_performance_completion(
     am_roots: Query<(Entity, &Name, &AmProjectRoot, &GlobalTransform), With<AmProjectRoot>>,
 ) {
     // Debug: Log all AM project roots
-    for (entity, name, root, transform) in am_roots.iter() {
-        info!(
-            "[AM Battle Debug] Project root: {:?} '{}' spawned={} pos={:?}",
-            entity,
-            name,
-            root.spawned,
-            transform.translation()
-        );
-    }
+    // for (entity, name, root, transform) in am_roots.iter() {
+    //     info!(
+    //         "[AM Battle Debug] Project root: {:?} '{}' spawned={} pos={:?}",
+    //         entity,
+    //         name,
+    //         root.spawned,
+    //         transform.translation()
+    //     );
+    // }
 
     if !am_state.is_playing {
         return;
@@ -922,17 +922,17 @@ fn debug_am_entities(
             "NO SPRITE".to_string()
         };
 
-        info!(
-            "[AM Debug] Entity {:?} '{}': pos={:?}, z={}, scale={:?}, vis={}, inherited={}, sprite=[{}]",
-            entity,
-            name,
-            Vec2::new(translation.x, translation.y),
-            translation.z,
-            scale,
-            vis_str,
-            inherited_vis_str,
-            sprite_info
-        );
+        // info!(
+        //     "[AM Debug] Entity {:?} '{}': pos={:?}, z={}, scale={:?}, vis={}, inherited={}, sprite=[{}]",
+        //     entity,
+        //     name,
+        //     Vec2::new(translation.x, translation.y),
+        //     translation.z,
+        //     scale,
+        //     vis_str,
+        //     inherited_vis_str,
+        //     sprite_info
+        // );
     }
 }
 
