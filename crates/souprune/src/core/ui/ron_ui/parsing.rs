@@ -86,9 +86,31 @@ pub fn evaluate_float_expr(
     match expr {
         FloatOrExpr::Static(v) => *v,
         FloatOrExpr::Dynamic(expr_str) => {
-            use evalexpr::{ContextWithMutableVariables, DefaultNumericTypes, HashMapContext};
+            use evalexpr::{
+                ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
+                HashMapContext,
+            };
 
             let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+
+            // Register sin function
+            let _ = context.set_function(
+                "sin".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.sin()))
+                }),
+            );
+
+            // Register cos function
+            let _ = context.set_function(
+                "cos".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.cos()))
+                }),
+            );
+
             let _ = context.set_value(
                 "@player.hp".to_string(),
                 evalexpr::Value::Int(player_data.hp as i64),
@@ -104,6 +126,8 @@ pub fn evaluate_float_expr(
 
             if let Some(t) = time {
                 let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
+            } else {
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
             }
 
             match evalexpr::eval_with_context(expr_str, &context) {

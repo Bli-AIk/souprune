@@ -63,10 +63,19 @@ pub fn update_dynamic_ui_elements(
     player_data: Res<PlayerData>,
     mut query: Query<(&DynamicUIElement, &mut Transform, Option<&mut HPBarSprite>)>,
 ) {
+    if !query.is_empty() {
+         // info!("update_dynamic_ui_elements: processing {} entities", query.iter().len());
+    }
+
     for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
         // Update sprite transform and shader params if present
         if let Some(sprite_def) = &dynamic_elem.sprite_def {
             if let Some(t_def) = &sprite_def.transform {
+                // Debug log for specific entity
+                // if let Some(expr) = t_def.translation.x.as_expr() {
+                //    debug!("Evaluating expr: {}", expr);
+                // }
+                
                 let new_translation = Vec3::new(
                     evaluate_float_expr(
                         &t_def.translation.x,

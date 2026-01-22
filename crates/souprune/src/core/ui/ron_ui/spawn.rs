@@ -645,6 +645,7 @@ pub fn spawn_ui_node(
                 .is_some_and(|p| p.is_dynamic());
 
             if has_dynamic {
+                info!("Adding DynamicUIElement to entity {:?}", entity_id);
                 commands
                     .entity(entity_id)
                     .insert(super::super::components::DynamicUIElement {

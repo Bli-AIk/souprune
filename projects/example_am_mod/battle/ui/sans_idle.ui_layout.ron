@@ -7,6 +7,7 @@
                 path: "textures/battle/sans/legs.png",
                 transform: Some((
                     translation: (x: 0.0, y: 15.0, z: 0.0),
+                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
                 )),
             )),
         ),
@@ -22,6 +23,7 @@
                         y: "57.0 + (sin(@time * 20.0) / 1.5)", 
                         z: 0.1
                     ),
+                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
                 )),
             )),
         ),
@@ -37,6 +39,7 @@
                         y: "87.0 + sin(@time * 20.0)", 
                         z: 0.2
                     ),
+                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
                 )),
             )),
         ),
