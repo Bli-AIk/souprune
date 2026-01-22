@@ -349,6 +349,9 @@ pub fn spawn_ui_node(
                             RonDrivenUI,
                         ))
                         .id();
+
+                    spawned_entity_id = Some(entity_id);
+
                     info!(
                         "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
                         node_def.name, entity_id, sprite_def.path
@@ -633,25 +636,52 @@ pub fn spawn_ui_node(
 
     // Process children recursively AFTER the closure ends to avoid borrowing conflicts
     // 在闭包结束后递归处理子节点，以避免借用冲突
+    info!("After closure, spawned_entity_id: {:?}", spawned_entity_id);
     if let Some(entity_id) = spawned_entity_id {
         // Add DynamicUIElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
-            let has_dynamic = sprite_def.transform.as_ref().is_some_and(|t| {
-                t.translation.is_dynamic() || t.scale.as_ref().is_some_and(|s| s.is_dynamic())
-            }) || sprite_def
+
+            let mut has_dynamic = false;
+            if let Some(t) = &sprite_def.transform {
+                let tx = t.translation.x.is_dynamic();
+                let ty = t.translation.y.is_dynamic();
+                let tz = t.translation.z.is_dynamic();
+                info!(
+                    "Checking dynamics for {}: x={}, y={}, z={}",
+                    node_def.name, tx, ty, tz
+                );
+
+                if tx || ty || tz {
+                    has_dynamic = true;
+                }
+                if let Some(s) = &t.scale {
+                    if s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic() {
+                        has_dynamic = true;
+                    }
+                }
+            }
+            if sprite_def
                 .shader_params
                 .as_ref()
-                .is_some_and(|p| p.is_dynamic());
+                .is_some_and(|p| p.is_dynamic())
+            {
+                has_dynamic = true;
+            }
 
             if has_dynamic {
-                info!("Adding DynamicUIElement to entity {:?}", entity_id);
+                info!(
+                    "Adding DynamicUIElement to entity {:?} ({})",
+                    entity_id, node_def.name
+                );
                 commands
                     .entity(entity_id)
                     .insert(super::super::components::DynamicUIElement {
                         sprite_def: Some(sprite_def.clone()),
                         text_def: None,
                     });
+            } else {
+                info!("No dynamic properties found for {}", node_def.name);
             }
         }
 

@@ -125,6 +125,7 @@ pub fn evaluate_float_expr(
             );
 
             if let Some(t) = time {
+                // debug!("Setting @time to {}", t);
                 let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
             } else {
                 let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
