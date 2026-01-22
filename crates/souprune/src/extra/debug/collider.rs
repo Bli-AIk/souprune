@@ -733,7 +733,13 @@ pub mod debug_collider {
         sdf_materials: Res<Assets<bevy_alight_motion::sdf_material::SdfMaterial>>,
         existing_visualizers: Query<(Entity, &AmMaskVisualizer)>,
     ) {
+        // Debug log every frame when F3 is on
+        if settings.show_colliders {
+            bevy::log::debug!("[MaskDebug] System running, show_colliders=true");
+        }
+
         let Ok(debug_root_entity) = debug_root.single() else {
+            bevy::log::warn!("[MaskDebug] No DebugVisualizerRoot found!");
             return;
         };
 
@@ -816,41 +822,29 @@ pub mod debug_collider {
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::type_complexity)]
     fn update_am_mask_visualizer_positions_system(
-        mut commands: Commands,
-        mut shaders: ResMut<Assets<Shader>>,
         // Query SDF shapes that have masks to get actual mask_params
         sdf_query: Query<&MeshMaterial2d<bevy_alight_motion::sdf_material::SdfMaterial>>,
         sdf_materials: Res<Assets<bevy_alight_motion::sdf_material::SdfMaterial>>,
-        mut visualizers: Query<(Entity, &mut Transform, &mut SmudShape, &AmMaskVisualizer)>,
+        mut visualizers: Query<(&mut Transform, &AmMaskVisualizer)>,
     ) {
         // Find the first SDF shape with an active mask and read its mask_params
-        let mut found_mask_params: Option<(f32, f32, f32, f32)> = None;
+        let mut found_mask_params: Option<(f32, f32)> = None;
         for material_handle in sdf_query.iter() {
             if let Some(material) = sdf_materials.get(&material_handle.0) {
                 let mask_type = material.uniform_data.mask_type;
                 if mask_type > 0.5 {
                     let params = material.uniform_data.mask_params;
-                    found_mask_params = Some((params.x, params.y, params.z, params.w));
+                    found_mask_params = Some((params.x, params.y)); // center only
                     break;
                 }
             }
         }
 
-        if let Some((center_x, center_y, half_width, half_height)) = found_mask_params {
-            for (entity, mut vis_transform, mut smud_shape, _) in visualizers.iter_mut() {
-                // Update position
+        // Only update position, don't recreate shader every frame
+        if let Some((center_x, center_y)) = found_mask_params {
+            for (mut vis_transform, _) in visualizers.iter_mut() {
                 vis_transform.translation.x = center_x;
                 vis_transform.translation.y = center_y;
-
-                // Update SDF dimensions by recreating the shader
-                let new_sdf = shaders.add_sdf_expr(format!(
-                    "smud::sd_box(p, vec2<f32>({}, {}))",
-                    half_width, half_height
-                ));
-                smud_shape.sdf = new_sdf;
-                smud_shape.frame = Frame::Quad(half_width.max(half_height) + 2.0);
-
-                let _ = (entity, &mut commands); // suppress unused warning
             }
         }
     }
