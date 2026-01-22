@@ -6,42 +6,40 @@
             sprite: Some((
                 path: "textures/battle/sans/legs.png",
                 transform: Some((
-                    translation: (x: 0.0, y: 15.0, z: 0.0),
+                    translation: (x: 0.0, y: 57.0, z: 0.0),
                     scale: Some((x: 2.0, y: 2.0, z: 2.0)),
                 )),
             )),
-        ),
-        (
-            name: "Sans_Torso",
-            sprite: Some((
-                path: "textures/battle/sans/torso.png",
-                transform: Some((
-                    translation: (
-                        // xoff = cos(siner / 6)
-                        x: "cos(@time * 10.0)", 
-                        // yoff = sin(siner / 3) / 1.5, Base Y adjusted
-                        y: "57.0 + (sin(@time * 20.0) / 1.5)", 
-                        z: 0.1
-                    ),
-                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
-                )),
-            )),
-        ),
-        (
-            name: "Sans_Head",
-            sprite: Some((
-                path: "textures/battle/sans/head.png",
-                transform: Some((
-                    translation: (
-                        // xoff = cos(siner / 6)
-                        x: "cos(@time * 10.0)", 
-                        // yoff = sin(siner / 3), Base Y adjusted
-                        y: "87.0 + sin(@time * 20.0)", 
-                        z: 0.2
-                    ),
-                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
-                )),
-            )),
+            children: [
+                (
+                    name: "Sans_Torso",
+                    sprite: Some((
+                        path: "textures/battle/sans/torso.png",
+                        transform: Some((
+                            translation: (
+                                x: "cos(snap(@time * 0.5, 1.0/30.0) * 10.0)",
+                                y: "23.0 + (sin(snap(@time * 0.5, 1.0/30.0) * 20.0) / 1.5)",
+                                z: 0.1
+                            ),
+                            // Scale inherited from parent
+                        )),
+                    )),
+                ),
+                (
+                    name: "Sans_Head",
+                    sprite: Some((
+                        path: "textures/battle/sans/head.png",
+                        transform: Some((
+                            translation: (
+                                x: "cos(snap(@time * 0.5, 1.0/30.0) * 10.0)",
+                                y: "46.0 + sin(snap(@time * 0.5, 1.0/30.0) * 20.0)",
+                                z: 0.2
+                            ),
+                            // Scale inherited from parent
+                        )),
+                    )),
+                ),
+            ],
         ),
     ]
 )
