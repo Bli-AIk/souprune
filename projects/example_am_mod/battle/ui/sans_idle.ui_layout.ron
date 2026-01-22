@@ -6,7 +6,7 @@
             sprite: Some((
                 path: "textures/battle/sans/legs.png",
                 transform: Some((
-                    translation: (x: 0.0, y: 57.0, z: 0.0),
+                    translation: (x: 3.0, y: 57.0, z: 0.0),
                     scale: Some((x: 2.0, y: 2.0, z: 2.0)),
                 )),
             )),
@@ -32,7 +32,7 @@
                         transform: Some((
                             translation: (
                                 x: "cos(snap(@time * 0.5, 1.0/30.0) * 10.0)",
-                                y: "46.0 + sin(snap(@time * 0.5, 1.0/30.0) * 20.0)",
+                                y: "45.0 + sin(snap(@time * 0.5, 1.0/30.0) * 20.0)",
                                 z: 0.2
                             ),
                             // Scale inherited from parent
