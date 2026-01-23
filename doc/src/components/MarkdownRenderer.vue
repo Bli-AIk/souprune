@@ -73,36 +73,56 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
   const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
 
   if (info === 'dialogue') {
-    const content = token.content.trim();
-    const splitIdx = content.indexOf(':');
-    
+    const lines = token.content.trim().split('\n');
+    let firstLine = lines[0].trim();
+    let imageSrc = '/images/faces/toriel.png'; // default fallback
     let charName = 'toriel';
-    let dialogueText = content;
+    let textLines = lines;
 
-    if (splitIdx !== -1) {
-      charName = content.slice(0, splitIdx).trim().toLowerCase();
-      dialogueText = content.slice(splitIdx + 1).trim();
-      // Remove surrounding quotes if present
-      if (dialogueText.startsWith('"') && dialogueText.endsWith('"')) {
-        dialogueText = dialogueText.slice(1, -1);
-      }
+    // Check for header configuration
+    const pathMatch = firstLine.match(/^<path:(.*?)>$/i);
+
+    if (pathMatch) {
+      imageSrc = pathMatch[1].trim();
+      textLines = lines.slice(1);
+    } else if (firstLine.toLowerCase().startsWith('image:')) {
+      imageSrc = firstLine.substring(6).trim();
+      textLines = lines.slice(1);
+    } else if (firstLine.endsWith(':')) {
+      // Format: "Toriel:"
+      charName = firstLine.slice(0, -1).trim().toLowerCase();
+      imageSrc = `/images/faces/${charName}.png`;
+      textLines = lines.slice(1);
+    } else if (firstLine.includes(':') && !firstLine.startsWith('*')) {
+      // Format: "Toriel: Hello" (Legacy one-liner support)
+      // Check !startsWith('*') to avoid confusing "* Text: Part 2" as a header
+      const splitIdx = firstLine.indexOf(':');
+      charName = firstLine.slice(0, splitIdx).trim().toLowerCase();
+      imageSrc = `/images/faces/${charName}.png`;
+      
+      // Modify the first line to strip the name, keep the rest
+      textLines = [...lines];
+      textLines[0] = firstLine.slice(splitIdx + 1).trim();
     }
 
-    // Default to toriel if name is empty or weird, though mostly rely on file existence
-    const faceUrl = `/images/faces/${charName}.png`;
+    // Process text lines
+    const renderedText = textLines.map(line => {
+      const trimmed = line.trim();
+      return md.renderInline(trimmed);
+    }).join('<br/>');
 
     return `
-      <div class="ut-box border-4 border-white bg-black p-6 my-8 flex gap-6 w-full max-w-4xl">
-        <div class="shrink-0 w-[100px] h-[100px] border-2 border-transparent overflow-hidden relative">
+      <div class="ut-box border-4 border-white bg-black p-4 my-8 flex gap-6 w-full max-w-4xl">
+        <div class="shrink-0 w-[100px] flex items-start justify-center">
           <img 
-            src="${faceUrl}" 
+            src="${imageSrc}" 
             alt="${charName}"
-            class="w-full h-full object-cover image-pixelated"
+            class="w-full h-auto object-contain image-pixelated"
             onerror="this.src='/images/faces/toriel.png'; this.style.opacity='0.5'" 
           />
         </div>
-        <div class="flex-1 font-vt323 text-2xl leading-relaxed text-white pt-0 -mt-3">
-          <span class="inline-block mr-2">*</span>${md.renderInline(dialogueText)}
+        <div class="flex-1 font-vt323 text-2xl text-white pt-0 -mt-3 leading-relaxed">
+          ${renderedText}
         </div>
       </div>
     `;
