@@ -18,6 +18,16 @@
   src: url('/fonts/speechbubble.ttf') format('truetype');
 }
 
+@font-face {
+  font-family: 'PixelComic';
+  src: url('/fonts/sans.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'PixelPapyrus';
+  src: url('/fonts/papyrus.ttf') format('truetype');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -60,6 +70,14 @@ body {
 
 .font-speechbubble {
   font-family: 'Speechbubble', sans-serif;
+}
+
+.font-comic {
+  font-family: 'PixelComic', sans-serif;
+}
+
+.font-papyrus {
+  font-family: 'PixelPapyrus', sans-serif;
 }
 
 /* Custom highlight.js styling */

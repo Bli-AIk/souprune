@@ -74,36 +74,66 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
 
   if (info === 'dialogue') {
     const lines = token.content.trim().split('\n');
-    let firstLine = lines[0].trim();
     let imageSrc = '/images/faces/toriel.png'; // default fallback
     let charName = 'toriel';
-    let textLines = lines;
+    let fontClass = 'font-vt323'; // default font
+    
+    let contentStartIndex = 0;
 
-    // Check for header configuration
-    const pathMatch = firstLine.match(/^<path:(.*?)>$/i);
-
-    if (pathMatch) {
-      imageSrc = pathMatch[1].trim();
-      textLines = lines.slice(1);
-    } else if (firstLine.toLowerCase().startsWith('image:')) {
-      imageSrc = firstLine.substring(6).trim();
-      textLines = lines.slice(1);
-    } else if (firstLine.endsWith(':')) {
-      // Format: "Toriel:"
-      charName = firstLine.slice(0, -1).trim().toLowerCase();
-      imageSrc = `/images/faces/${charName}.png`;
-      textLines = lines.slice(1);
-    } else if (firstLine.includes(':') && !firstLine.startsWith('*')) {
-      // Format: "Toriel: Hello" (Legacy one-liner support)
-      // Check !startsWith('*') to avoid confusing "* Text: Part 2" as a header
-      const splitIdx = firstLine.indexOf(':');
-      charName = firstLine.slice(0, splitIdx).trim().toLowerCase();
-      imageSrc = `/images/faces/${charName}.png`;
+    // Phase 1: Parse header tags (consume lines starting with <...>)
+    // This allows arbitrary order like:
+    // <path:/images/faces/sans.png>
+    // <font:comic>
+    while (contentStartIndex < lines.length) {
+      const line = lines[contentStartIndex].trim();
+      const pathMatch = line.match(/^<path:(.*?)>$/i);
+      const fontMatch = line.match(/^<font:(.*?)>$/i);
       
-      // Modify the first line to strip the name, keep the rest
-      textLines = [...lines];
-      textLines[0] = firstLine.slice(splitIdx + 1).trim();
+      if (pathMatch) {
+        imageSrc = pathMatch[1].trim();
+        contentStartIndex++;
+      } else if (fontMatch) {
+        const fontName = fontMatch[1].trim().toLowerCase();
+        if (fontName === 'comic' || fontName === 'sans') {
+          fontClass = 'font-comic tracking-wide';
+        } else if (fontName === 'papyrus') {
+          fontClass = 'font-papyrus tracking-widest'; // Papyrus usually needs more spacing
+        } else {
+          fontClass = `font-${fontName}`;
+        }
+        contentStartIndex++;
+      } else {
+        // Not a tag, stop parsing headers
+        break;
+      }
     }
+
+    // Phase 2: Legacy/Simple format fallback (only if no tags were found at the very top)
+    // Checks the first line of content for "Name:" or "image:" patterns
+    if (contentStartIndex === 0 && lines.length > 0) {
+      const firstLine = lines[0].trim();
+      if (firstLine.toLowerCase().startsWith('image:')) {
+        imageSrc = firstLine.substring(6).trim();
+        contentStartIndex = 1;
+      } else if (firstLine.endsWith(':')) {
+        // Format: "Toriel:"
+        charName = firstLine.slice(0, -1).trim().toLowerCase();
+        imageSrc = `/images/faces/${charName}.png`;
+        contentStartIndex = 1;
+      } else if (firstLine.includes(':') && !firstLine.startsWith('*')) {
+        // Format: "Toriel: Hello"
+        const splitIdx = firstLine.indexOf(':');
+        charName = firstLine.slice(0, splitIdx).trim().toLowerCase();
+        imageSrc = `/images/faces/${charName}.png`;
+        
+        // Don't skip the line, just strip the name prefix from it
+        lines[0] = firstLine.slice(splitIdx + 1).trim();
+        // contentStartIndex remains 0
+      }
+    }
+
+    // Slice the actual content
+    const textLines = lines.slice(contentStartIndex);
 
     // Process text lines
     const renderedText = textLines.map(line => {
@@ -121,7 +151,7 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
             onerror="this.src='/images/faces/toriel.png'; this.style.opacity='0.5'" 
           />
         </div>
-        <div class="flex-1 font-vt323 text-2xl text-white pt-0 -mt-4 leading-relaxed">
+        <div class="flex-1 ${fontClass} text-2xl text-white pt-0 -mt-4 leading-relaxed">
           ${renderedText}
         </div>
       </div>
