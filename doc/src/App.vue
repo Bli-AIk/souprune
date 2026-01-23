@@ -140,7 +140,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll } from 'lucide-vue-next';
 import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
@@ -211,27 +211,49 @@ const contentScrollContainer = ref<HTMLElement | null>(null);
 const groupedNav = computed(() => {
   const groups: Record<string, NavItem[]> = {};
   
-  // Define order
-  const order = ['guide', 'scripting', 'assets'];
-  
-  // Initialize with order
-  order.forEach(key => groups[key] = []);
-  
+  // Get all unique categories from the items
+  const categories = new Set<string>();
   currentNavItems.value.forEach(item => {
+    categories.add(item.category);
     if (!groups[item.category]) groups[item.category] = [];
     groups[item.category].push(item);
   });
   
-  return groups;
+  // Sort categories: "Part X" first, then others (Appendix)
+  const sortedCategories = Array.from(categories).sort((a, b) => {
+    const getWeight = (str: string) => {
+      const s = str.toLowerCase();
+      if (s.includes('table of contents') || s.includes('目录')) return -1;
+      if (s.includes('mise') || s.includes('备菜')) return 0;
+      if (s.includes('spicy') || s.includes('主菜')) return 1;
+      if (s.includes('plating') || s.includes('摆盘')) return 2;
+      if (s.includes('soul') || s.includes('甜点')) return 3;
+      if (s.includes('molecular') || s.includes('分子')) return 4;
+      if (s.includes('appendix') || s.includes('附录')) return 99;
+      return 50; // Unknown
+    };
+
+    return getWeight(a) - getWeight(b);
+  });
+
+  // Reconstruct object with sorted keys for v-for iteration
+  const sortedGroups: Record<string, NavItem[]> = {};
+  sortedCategories.forEach(key => {
+    sortedGroups[key] = groups[key];
+  });
+  
+  return sortedGroups;
 });
 
 const getIcon = (category: string) => {
-  switch (category) {
-    case 'guide': return Shield;
-    case 'scripting': return Book;
-    case 'assets': return Box;
-    default: return Shield;
-  }
+  const cat = category.toLowerCase();
+  if (cat.includes('mise') || cat.includes('备菜')) return Utensils;
+  if (cat.includes('spicy') || cat.includes('主菜')) return Flame;
+  if (cat.includes('plating') || cat.includes('摆盘')) return Map;
+  if (cat.includes('soul') || cat.includes('甜点')) return Sparkles;
+  if (cat.includes('molecular') || cat.includes('分子')) return FlaskConical;
+  if (cat.includes('appendix') || cat.includes('附录')) return Scroll;
+  return Shield;
 };
 
 // Flatten navigation for next/prev logic

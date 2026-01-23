@@ -25,7 +25,7 @@ const docsPlugin = () => {
       const lines = summaryContent.split('\n');
       
       let currentCategory = '';
-      const categoryRegex = /^#\s+(.*)/;
+      const categoryRegex = /^#{1,2}\s+(.*)/;
       const itemRegex = /-\s+\[(.*?)\]\((.*?)\)/;
 
       for (const line of lines) {
