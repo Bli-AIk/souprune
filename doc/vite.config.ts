@@ -51,11 +51,18 @@ const docsPlugin = () => {
           const title = titleMatch ? titleMatch[1] : label;
           const categorySlug = currentCategory.toLowerCase(); // Note: categories might need translation mapping if SUMMARY changes
 
+          let contentSerious = undefined;
+          const seriousPath = filePath.replace(/\.md$/, '.serious.md');
+          if (fs.existsSync(seriousPath)) {
+            contentSerious = fs.readFileSync(seriousPath, 'utf-8');
+          }
+
           allDocsData[lang].push({
             id,
             title,
             category: categorySlug,
             content,
+            contentSerious,
           });
 
           allNavItems[lang].push({

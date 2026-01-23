@@ -116,7 +116,7 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
-                <MarkdownRenderer :content="activeDoc?.content || ''" />
+                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
                 
                 <!-- Page Footer with Navigation Hints -->
                 <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">

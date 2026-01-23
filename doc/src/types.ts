@@ -2,6 +2,7 @@ export interface DocPage {
   id: string;
   title: string;
   content: string;
+  contentSerious?: string;
   category: 'guide' | 'api' | 'examples';
 }
 
