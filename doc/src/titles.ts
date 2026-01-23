@@ -1,12 +1,12 @@
 export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
   en: {
     // Categories
-    'Mise en place': 'Environment Setup',
-    'The Spicy Main Course': 'Battle System',
-    'Plating the World': 'World & Narrative',
-    'The Soul Dessert': 'Visuals & Audio',
-    'Molecular Gastronomy': 'Advanced Scripting',
-    "Appendix: Papyrus's Notes": 'Appendix',
+    'mise en place': 'Environment Setup',
+    'the spicy main course': 'Battle System',
+    'plating the world': 'World & Narrative',
+    'the soul dessert': 'Visuals & Audio',
+    'molecular gastronomy': 'Advanced Scripting',
+    "appendix: papyrus's notes": 'Appendix',
 
     // Part 0
     '0.1_welcome': 'Introduction',
