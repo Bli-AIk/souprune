@@ -1,12 +1,16 @@
 export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
   en: {
     // Categories
+    'table of contents': 'Official Documentation',
     'mise en place': 'Environment Setup',
     'the spicy main course': 'Battle System',
     'plating the world': 'World & Narrative',
     'the soul dessert': 'Visuals & Audio',
     'molecular gastronomy': 'Advanced Scripting',
     "appendix: papyrus's notes": 'Appendix',
+
+    // Items
+    'README': 'SoupRune Official Teaching Documentation',
 
     // Part 0
     '0.1_welcome': 'Introduction',
@@ -36,12 +40,16 @@ export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
   },
   'zh-hans': {
     // Categories
+    '目录': '官方文档',
     '备菜阶段': '环境配置与入门',
     '辛辣的主菜': '战斗系统开发',
     '精致摆盘': '世界场景与叙事',
     '灵魂甜点': '视听与美化',
     '分子料理': '高级脚本与底层开发',
     '附录：帕派瑞斯的备忘录': '附录',
+
+    // Items
+    'README': 'SoupRune 官方教学文档',
 
     // Part 0
     '0.1_welcome': '项目简介',

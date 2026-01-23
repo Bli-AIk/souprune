@@ -245,7 +245,7 @@ const groupedNav = computed(() => {
   const sortedCategories = Array.from(categories).sort((a, b) => {
     const getWeight = (str: string) => {
       const s = str.toLowerCase();
-      if (s.includes('table of contents') || s.includes('目录')) return -1;
+      if (s.includes('table of contents') || s.includes('目录') || s.includes('official documentation') || s.includes('官方文档')) return -1;
       if (s.includes('mise') || s.includes('备菜') || s.includes('environment setup') || s.includes('getting started') || s.includes('环境配置')) return 0;
       if (s.includes('spicy') || s.includes('主菜') || s.includes('battle system') || s.includes('战斗系统')) return 1;
       if (s.includes('plating') || s.includes('摆盘') || s.includes('world & narrative') || s.includes('世界场景')) return 2;
@@ -269,6 +269,7 @@ const groupedNav = computed(() => {
 
 const getIcon = (category: string) => {
   const cat = category.toLowerCase();
+  if (cat.includes('table of contents') || cat.includes('目录') || cat.includes('official documentation') || cat.includes('官方文档')) return Shield;
   if (cat.includes('mise') || cat.includes('备菜') || cat.includes('environment setup') || cat.includes('getting started') || cat.includes('环境配置')) return Utensils;
   if (cat.includes('spicy') || cat.includes('主菜') || cat.includes('battle system') || cat.includes('战斗系统')) return Flame;
   if (cat.includes('plating') || cat.includes('摆盘') || cat.includes('world & narrative') || cat.includes('世界场景')) return Map;
