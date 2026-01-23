@@ -9,14 +9,14 @@
 
 ## The Spicy Main Course
 - [The Form-Filling Master](part1_spicy_main_course/1.1_forms.md)
-- [Sprinkling Some Pepper: Danmaku Choreography](part1_spicy_main_course/1.2_danmaku.md)
-- [Visual Feast: Dancing with Alight Motion](part1_spicy_main_course/1.3_animation.md)
-- [Talk Therapy (ACT)](part1_spicy_main_course/1.4_act.md)
+- [Sprinkling Some Pepper](part1_spicy_main_course/1.2_danmaku.md)
+- [Visual Feast](part1_spicy_main_course/1.3_animation.md)
+- [Talk Therapy](part1_spicy_main_course/1.4_act.md)
 
 ## Plating the World
-- [Laying the Tablecloth: Map Drawing](part2_plating_the_world/2.1_maps.md)
-- [Secret Sauce: Mortar Script System](part2_plating_the_world/2.2_mortar.md)
-- [Inviting Guests: NPCs and Interaction](part2_plating_the_world/2.3_npc.md)
+- [Laying the Tablecloth](part2_plating_the_world/2.1_maps.md)
+- [Secret Sauce](part2_plating_the_world/2.2_mortar.md)
+- [Inviting Guests](part2_plating_the_world/2.3_npc.md)
 
 ## The Soul Dessert
 - [Adding Sugar to the Interface](part3_soul_dessert/3.1_ui.md)
