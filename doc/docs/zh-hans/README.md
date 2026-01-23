@@ -39,7 +39,7 @@
 
 ```dialogue
 <path:/images/faces/mkid.png>
-* Yo！看这儿！
+* 呦！看这儿！
 * 我也能做游戏了吗？ 
 ```
 

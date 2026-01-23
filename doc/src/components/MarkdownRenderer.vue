@@ -29,11 +29,11 @@ md.renderer.rules.heading_open = (tokens, idx) => {
   } else if (level === 'h2') {
     return `<div class="flex items-center gap-4 mt-10 mb-6">
       <img src="/images/spr_heartsmall_0.png" alt="Small Heart" class="w-4 h-4 object-contain image-pixelated relative top-0.5" />
-      <h2 class="font-pixel text-xl text-pink-400 uppercase">`;
+      <h2 class="font-speechbubble text-lg text-pink-400 uppercase">`;
   } else if (level === 'h3') {
-    return `<h3 class="font-pixel text-lg mt-6 mb-3 text-green-400">`;
+    return `<h3 class="font-speechbubble text-base mt-6 mb-3 text-green-400">`;
   }
-  return `<${level}>`;
+  return `<${level} class="font-speechbubble text-sm mt-4 mb-2 text-gray-400 uppercase">`;
 };
 
 md.renderer.rules.heading_close = (tokens, idx) => {
@@ -165,7 +165,7 @@ md.renderer.rules.thead_open = () => {
 };
 
 md.renderer.rules.th_open = () => {
-  return '<th class="p-4 text-lg font-pixel text-yellow-300 tracking-wider border-r border-gray-700 last:border-r-0">';
+  return '<th class="p-4 text-lg font-speechbubble text-yellow-300 tracking-wider border-r border-gray-700 last:border-r-0">';
 };
 
 md.renderer.rules.td_open = () => {
