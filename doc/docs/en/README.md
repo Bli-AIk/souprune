@@ -14,7 +14,7 @@
 ## Welcome to the Royal Kitchen!
 
 ```dialogue
-Toriel:
+<path:/images/faces/toriel.png>
 * Greetings, my child. I am Toriel, the caretaker of this kitchen.
 ```
 
@@ -31,7 +31,7 @@ Please take my hand, and let me introduce you to today's menu...
 > **Target Audience**: Everyone / Humans entering the kitchen for the first time
 
 ```dialogue
-Toriel:
+<path:/images/faces/toriel.png>
 * Before starting any great cooking, we must first wash our hands and prepare our spatulas.
 * This chapter will gently teach you how to **install SoupRune**. If you accidentally spill some flour (get an error), do not cry; there's a detailed cleanup guide inside.
 ```
@@ -46,7 +46,7 @@ Toriel:
 > **Target Audience**: Warriors who want to fight / Form-filling enthusiasts / **Undyne fans!!**
 
 ```dialogue
-Undyne:
+<path:/images/faces/undyne.png>
 * Listen up!! This is the best part of the whole cookbook!!!
 * Want to make a Boss fight? Want spears flying all over the screen? **You don't need to write code!!**
 * Just **fill out forms** like a true warrior! Put your determination into the `RON` files! Even a plant could learn this!!
@@ -65,7 +65,7 @@ Undyne:
 > **Target Audience**: Map designers / Writers / Pasta chefs
 
 ```dialogue
-Papyrus:
+<path:/images/faces/papyrus.png>
 * Nyeh heh heh! Finally, it's the Great Papyrus's turn!
 * Combat is important, but without a **cool** world to hold it, it's just a plate of pasta with no sauce!
 * In this chapter, I'll teach you how to let NPCs speak through **Mortar** (that's my favorite "language," though it's actually just a script)! It's simpler than solving my puzzles!
@@ -82,7 +82,7 @@ Papyrus:
 > **Target Audience**: UI Designers / Stars chasing glamour
 
 ```dialogue
-Mettaton:
+<path:/images/faces/mettaton.png>
 * Oh, YES... Darlings, look at your game. It's so... *au naturel*.
 * The audience needs **glamour**! **Drama**! **Ratings**!
 * In this section, we'll put lipstick on your UI and filters on your screen. Let's turn those boring pixels into a grand performance!
@@ -99,7 +99,7 @@ Mettaton:
 > **Target Audience**: Programmers / Royal Scientists / People who like staring at screens
 
 ```dialogue
-Alphys:
+<path:/images/faces/alphys.png>
 * Uh... hi. This... this is the laboratory area.
 * If you... I mean, if you're really not satisfied with just modifying config files and want to reconstruct this soup from the atomic level (code level)...
 * Here are instructions for **C#**, **Rust**, and **ECS architecture**. But be careful! It's really complicated here! D-Don't blow up the kitchen!
@@ -114,7 +114,7 @@ Alphys:
 ### [Appendix: Papyrus's Notes](https://www.google.com/search?q=./docs/appendix.md)
 
 ```dialogue
-Sans:
+<path:/images/faces/sans.png>
 * Hey. Here are some shortcuts.
 * If you're too lazy to read all those long-winded things above, or just want to look up a word, look here.
 * But I bet you're even too lazy to read this, huh?

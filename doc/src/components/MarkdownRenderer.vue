@@ -112,8 +112,8 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
     }).join('<br/>');
 
     return `
-      <div class="ut-box border-4 border-white bg-black p-4 my-8 flex gap-6 w-full max-w-4xl">
-        <div class="shrink-0 w-[100px] flex items-start justify-center">
+      <div class="ut-box border-4 border-white bg-black p-6 my-8 flex items-center gap-9 w-full max-w-3xl">
+        <div class="shrink-0 w-[100px] flex justify-center">
           <img 
             src="${imageSrc}" 
             alt="${charName}"
@@ -121,7 +121,7 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
             onerror="this.src='/images/faces/toriel.png'; this.style.opacity='0.5'" 
           />
         </div>
-        <div class="flex-1 font-vt323 text-2xl text-white pt-0 -mt-3 leading-relaxed">
+        <div class="flex-1 font-vt323 text-2xl text-white pt-0 -mt-8 leading-relaxed">
           ${renderedText}
         </div>
       </div>
