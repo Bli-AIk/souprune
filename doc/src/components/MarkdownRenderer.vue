@@ -65,6 +65,53 @@ md.renderer.rules.list_item_open = () => {
 
 // Removed custom fence rule as markdown-it-highlightjs handles it
 
+// Custom fence rule to intercept "dialogue" blocks
+const defaultFence = md.renderer.rules.fence;
+
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
+
+  if (info === 'dialogue') {
+    const content = token.content.trim();
+    const splitIdx = content.indexOf(':');
+    
+    let charName = 'toriel';
+    let dialogueText = content;
+
+    if (splitIdx !== -1) {
+      charName = content.slice(0, splitIdx).trim().toLowerCase();
+      dialogueText = content.slice(splitIdx + 1).trim();
+      // Remove surrounding quotes if present
+      if (dialogueText.startsWith('"') && dialogueText.endsWith('"')) {
+        dialogueText = dialogueText.slice(1, -1);
+      }
+    }
+
+    // Default to toriel if name is empty or weird, though mostly rely on file existence
+    const faceUrl = `/images/faces/${charName}.png`;
+
+    return `
+      <div class="ut-box border-4 border-white bg-black p-6 my-8 flex gap-6 w-full max-w-4xl">
+        <div class="shrink-0 w-[100px] h-[100px] border-2 border-transparent overflow-hidden relative">
+          <img 
+            src="${faceUrl}" 
+            alt="${charName}"
+            class="w-full h-full object-cover image-pixelated"
+            onerror="this.src='/images/faces/toriel.png'; this.style.opacity='0.5'" 
+          />
+        </div>
+        <div class="flex-1 font-vt323 text-2xl leading-relaxed text-white pt-0 -mt-3">
+          <span class="inline-block mr-2">*</span>${md.renderInline(dialogueText)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Fallback to default fence renderer (likely highlight.js)
+  return defaultFence ? defaultFence(tokens, idx, options, env, self) : `<pre><code class="hljs">${md.utils.escapeHtml(token.content)}</code></pre>`;
+};
+
 md.renderer.rules.code_inline = (tokens, idx) => {
   const content = tokens[idx].content;
   return `<code class="bg-[#002200] px-2 py-0.5 text-xl border border-green-800 rounded-sm font-vt323 tracking-wider">${md.utils.escapeHtml(content)}</code>`;
