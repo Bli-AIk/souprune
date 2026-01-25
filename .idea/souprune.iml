@@ -33,6 +33,10 @@
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/reports" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_mod/code/mod_example/.cargo" />
       <excludeFolder url="file://$MODULE_DIR$/reports" />
+      <excludeFolder url="file://$MODULE_DIR$/.cargo" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/logs" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_am_mod/code/mod_example/.cargo" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_am_mod/code/mod_example/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
