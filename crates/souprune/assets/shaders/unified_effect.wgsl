@@ -9,41 +9,41 @@
 //
 // Each effect can be toggled on/off via the effect_flags uniform.
 //
-// Uniform layout:
-// 0: color (vec4) - tint color
-// 1: effect_flags (vec4) - (mask_enabled, wipe_enabled, stretch_enabled, blur_enabled)
-// 2: mask_params (vec4) - (center_x, center_y, half_width, half_height)
-// 3: wipe_params (vec4) - (wipe_start, wipe_end, wipe_angle, wipe_feather)
-// 4: stretch_params (vec4) - (angle_radians, stretch_px, offset_px, smooth_width)
-// 5: original_size (vec4) - (orig_width, orig_height, mesh_width, mesh_height)
-// 6: mesh_offset (vec4) - (center_offset_x, center_offset_y, 0, 0)
-// 9: blur_params (vec4) - (radius_px, orig_width, orig_height, expansion_px)
-// 10: palette_flags (vec4) - (enabled, count, shades, alpha)
-// 11-18: palette_colors 1-8
+// All uniform data is packed into a single struct to minimize binding count
+// and ensure compatibility with hardware that limits uniform bindings to 15.
 
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 
-@group(2) @binding(0) var<uniform> color: vec4<f32>;
-@group(2) @binding(1) var<uniform> effect_flags: vec4<f32>;
-@group(2) @binding(2) var<uniform> mask_params: vec4<f32>;
-@group(2) @binding(3) var<uniform> wipe_params: vec4<f32>;
-@group(2) @binding(4) var<uniform> stretch_params: vec4<f32>;
-@group(2) @binding(5) var<uniform> original_size: vec4<f32>;
-@group(2) @binding(6) var<uniform> mesh_offset: vec4<f32>;
-@group(2) @binding(7) var base_texture: texture_2d<f32>;
-@group(2) @binding(8) var base_sampler: sampler;
-@group(2) @binding(9) var<uniform> blur_params: vec4<f32>;
-@group(2) @binding(10) var<uniform> palette_flags: vec4<f32>;
-@group(2) @binding(11) var<uniform> palette_color1: vec4<f32>;
-@group(2) @binding(12) var<uniform> palette_color2: vec4<f32>;
-@group(2) @binding(13) var<uniform> palette_color3: vec4<f32>;
-@group(2) @binding(14) var<uniform> palette_color4: vec4<f32>;
-@group(2) @binding(15) var<uniform> palette_color5: vec4<f32>;
-@group(2) @binding(16) var<uniform> palette_color6: vec4<f32>;
-@group(2) @binding(17) var<uniform> palette_color7: vec4<f32>;
-@group(2) @binding(18) var<uniform> palette_color8: vec4<f32>;
-@group(2) @binding(19) var<uniform> mask2_params: vec4<f32>;
-@group(2) @binding(20) var<uniform> mask2_flags: vec4<f32>;
+// Packed uniform struct containing all effect parameters
+struct UnifiedEffectUniform {
+    color: vec4<f32>,              // tint color
+    effect_flags: vec4<f32>,       // (mask_enabled, wipe_enabled, stretch_enabled, blur_enabled)
+    mask_params: vec4<f32>,        // (center_x, center_y, half_width, half_height)
+    wipe_params: vec4<f32>,        // (wipe_start, wipe_end, wipe_angle, wipe_feather)
+    stretch_params: vec4<f32>,     // (angle_radians, stretch_px, offset_px, smooth_width)
+    original_size: vec4<f32>,      // (orig_width, orig_height, mesh_width, mesh_height)
+    mesh_offset: vec4<f32>,        // (center_offset_x, center_offset_y, 0, 0)
+    blur_params: vec4<f32>,        // (radius_px, orig_width, orig_height, expansion_px)
+    palette_flags: vec4<f32>,      // (enabled, count, shades, alpha)
+    palette_color1: vec4<f32>,
+    palette_color2: vec4<f32>,
+    palette_color3: vec4<f32>,
+    palette_color4: vec4<f32>,
+    palette_color5: vec4<f32>,
+    palette_color6: vec4<f32>,
+    palette_color7: vec4<f32>,
+    palette_color8: vec4<f32>,
+    mask2_params: vec4<f32>,       // (center_x, center_y, half_width, half_height)
+    mask2_flags: vec4<f32>,        // (mask2_type, mask1_rotation, mask2_rotation, 0)
+    replace_color_flags: vec4<f32>,// (enabled, lock_luminance, 0, 0)
+    replace_old_color: vec4<f32>,  // (r, g, b, a)
+    replace_new_color: vec4<f32>,  // (r, g, b, a)
+    replace_color_params: vec4<f32>,// (threshold, feather, alpha, 0)
+}
+
+@group(2) @binding(0) var<uniform> uniforms: UnifiedEffectUniform;
+@group(2) @binding(1) var base_texture: texture_2d<f32>;
+@group(2) @binding(2) var base_sampler: sampler;
 
 // Helper: rotate 2D vector by angle
 fn rotate_vec(v: vec2<f32>, angle: f32) -> vec2<f32> {
@@ -55,19 +55,37 @@ fn rotate_vec(v: vec2<f32>, angle: f32) -> vec2<f32> {
     );
 }
 
+// Helper: convert sRGB to linear RGB (single channel)
+fn srgb_to_linear_channel(c: f32) -> f32 {
+    if c <= 0.04045 {
+        return c / 12.92;
+    } else {
+        return pow((c + 0.055) / 1.055, 2.4);
+    }
+}
+
+// Helper: convert sRGB color to linear RGB
+fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(
+        srgb_to_linear_channel(color.r),
+        srgb_to_linear_channel(color.g),
+        srgb_to_linear_channel(color.b)
+    );
+}
+
 // Apply stretch segment effect - returns modified UV
 fn apply_stretch_segment(uv: vec2<f32>) -> vec2<f32> {
-    let angle = stretch_params.x;
-    let stretch_px = stretch_params.y;
-    let offset_px = stretch_params.z;
+    let angle = uniforms.stretch_params.x;
+    let stretch_px = uniforms.stretch_params.y;
+    let offset_px = uniforms.stretch_params.z;
     
-    let orig_width = original_size.x;
-    let orig_height = original_size.y;
-    let mesh_width = original_size.z;
-    let mesh_height = original_size.w;
+    let orig_width = uniforms.original_size.x;
+    let orig_height = uniforms.original_size.y;
+    let mesh_width = uniforms.original_size.z;
+    let mesh_height = uniforms.original_size.w;
     
-    let center_off_x = mesh_offset.x;
-    let center_off_y = mesh_offset.y;
+    let center_off_x = uniforms.mesh_offset.x;
+    let center_off_y = uniforms.mesh_offset.y;
     
     let angle_factor = mix(1.0, 0.9, abs(sin(angle)));
     let half_gap = stretch_px * 0.5 * angle_factor;
@@ -97,10 +115,10 @@ fn apply_stretch_segment(uv: vec2<f32>) -> vec2<f32> {
 
 // Apply wipe effect - returns alpha multiplier
 fn apply_wipe(uv: vec2<f32>) -> f32 {
-    let wipe_start = wipe_params.x;
-    let wipe_end = wipe_params.y;
-    let wipe_angle = wipe_params.z;
-    let wipe_feather = wipe_params.w;
+    let wipe_start = uniforms.wipe_params.x;
+    let wipe_end = uniforms.wipe_params.y;
+    let wipe_angle = uniforms.wipe_params.z;
+    let wipe_feather = uniforms.wipe_params.w;
     
     let cos_angle = cos(wipe_angle);
     let sin_angle = sin(wipe_angle);
@@ -181,11 +199,11 @@ fn apply_single_mask(world_pos: vec2<f32>, mask_type: f32, mask_center: vec2<f32
 // - Multiple exclude masks: UNION (hide if inside ANY exclude mask)
 // - Mixed: (inside include intersection) AND (outside exclude union)
 fn apply_masks(world_pos: vec2<f32>) -> bool {
-    let mask1_type = effect_flags.x;
-    let mask2_type = mask2_flags.x;
+    let mask1_type = uniforms.effect_flags.x;
+    let mask2_type = uniforms.mask2_flags.x;
     // Rotation angles are stored in mask2_flags.y (mask1) and mask2_flags.z (mask2)
-    let mask1_rotation = mask2_flags.y;
-    let mask2_rotation = mask2_flags.z;
+    let mask1_rotation = uniforms.mask2_flags.y;
+    let mask2_rotation = uniforms.mask2_flags.z;
     
     // Disabled masks
     let mask1_enabled = mask1_type > 0.5;
@@ -203,10 +221,10 @@ fn apply_masks(world_pos: vec2<f32>) -> bool {
     let mask1_is_ellipse = (mask1_type > 1.5 && mask1_type < 2.5) || mask1_type > 3.5;
     let mask2_is_ellipse = (mask2_type > 1.5 && mask2_type < 2.5) || mask2_type > 3.5;
     
-    let mask1_inside = mask1_enabled && mask_params.z < 5000.0 && 
-        check_mask_shape_rotated(world_pos, mask_params.xy, mask_params.zw, mask1_is_ellipse, mask1_rotation);
-    let mask2_inside = mask2_enabled && mask2_params.z < 5000.0 && 
-        check_mask_shape_rotated(world_pos, mask2_params.xy, mask2_params.zw, mask2_is_ellipse, mask2_rotation);
+    let mask1_inside = mask1_enabled && uniforms.mask_params.z < 5000.0 && 
+        check_mask_shape_rotated(world_pos, uniforms.mask_params.xy, uniforms.mask_params.zw, mask1_is_ellipse, mask1_rotation);
+    let mask2_inside = mask2_enabled && uniforms.mask2_params.z < 5000.0 && 
+        check_mask_shape_rotated(world_pos, uniforms.mask2_params.xy, uniforms.mask2_params.zw, mask2_is_ellipse, mask2_rotation);
     
     // Separate into include and exclude groups
     let include1 = mask1_enabled && !mask1_is_exclude;
@@ -255,9 +273,9 @@ fn gaussian_weight_2d(dx: f32, dy: f32, sigma: f32) -> f32 {
 // and participate in the weighted average to create proper edge fade-out
 // blur_params: x = radius_px, y = orig_width, z = orig_height, w = expansion_px
 fn apply_blur(uv: vec2<f32>) -> vec4<f32> {
-    let radius = blur_params.x;
-    let orig_width = blur_params.y;
-    let orig_height = blur_params.z;
+    let radius = uniforms.blur_params.x;
+    let orig_width = uniforms.blur_params.y;
+    let orig_height = uniforms.blur_params.z;
     
     // Pixel size in UV space
     let pixel_size_x = 1.0 / orig_width;
@@ -316,41 +334,23 @@ fn apply_blur(uv: vec2<f32>) -> vec4<f32> {
     }
 }
 
-// Convert sRGB to linear color space (per channel)
-fn srgb_to_linear(c: f32) -> f32 {
-    if c <= 0.04045 {
-        return c / 12.92;
-    } else {
-        return pow((c + 0.055) / 1.055, 2.4);
-    }
-}
-
-// Convert vec3 from sRGB to linear
-fn srgb_to_linear_rgb(c: vec3<f32>) -> vec3<f32> {
-    return vec3<f32>(
-        srgb_to_linear(c.r),
-        srgb_to_linear(c.g),
-        srgb_to_linear(c.b)
-    );
-}
-
 // Get palette color by index (0-7)
 // Palette colors are stored as sRGB values, so convert to linear for correct comparison
 fn get_palette_color(index: i32) -> vec4<f32> {
-    var color: vec4<f32>;
+    var col: vec4<f32>;
     switch(index) {
-        case 0: { color = palette_color1; }
-        case 1: { color = palette_color2; }
-        case 2: { color = palette_color3; }
-        case 3: { color = palette_color4; }
-        case 4: { color = palette_color5; }
-        case 5: { color = palette_color6; }
-        case 6: { color = palette_color7; }
-        case 7: { color = palette_color8; }
-        default: { color = palette_color1; }
+        case 0: { col = uniforms.palette_color1; }
+        case 1: { col = uniforms.palette_color2; }
+        case 2: { col = uniforms.palette_color3; }
+        case 3: { col = uniforms.palette_color4; }
+        case 4: { col = uniforms.palette_color5; }
+        case 5: { col = uniforms.palette_color6; }
+        case 6: { col = uniforms.palette_color7; }
+        case 7: { col = uniforms.palette_color8; }
+        default: { col = uniforms.palette_color1; }
     }
     // Convert from sRGB to linear color space
-    return vec4<f32>(srgb_to_linear_rgb(color.rgb), color.a);
+    return vec4<f32>(srgb_to_linear(col.rgb), col.a);
 }
 
 // Calculate color distance with bias toward brighter palette colors
@@ -375,8 +375,8 @@ fn color_distance(c1: vec3<f32>, c2: vec3<f32>) -> f32 {
 
 // Apply palette map effect - quantize color to nearest palette color
 fn apply_palette_map(input_color: vec4<f32>) -> vec4<f32> {
-    let palette_count = i32(palette_flags.y);
-    let shades_enabled = palette_flags.z > 0.5;
+    let palette_count = i32(uniforms.palette_flags.y);
+    let shades_enabled = uniforms.palette_flags.z > 0.5;
     
     // Extract RGB from input (keep alpha separate)
     let input_rgb = input_color.rgb;
@@ -413,15 +413,64 @@ fn apply_palette_map(input_color: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(result_rgb, input_color.a);
 }
 
+// Apply replace color effect - replaces old_color with new_color based on threshold and feather
+// replace_color_flags: (enabled, lock_luminance, 0, 0)
+// replace_color_params: (threshold, feather, alpha, 0)
+fn apply_replace_color(input_color: vec4<f32>) -> vec4<f32> {
+    let threshold = uniforms.replace_color_params.x;
+    let feather = uniforms.replace_color_params.y;
+    let effect_alpha = uniforms.replace_color_params.z;
+    let lock_luminance = uniforms.replace_color_flags.y > 0.5;
+    
+    // Uniform colors are passed in sRGB space, convert to linear for blending
+    // since input_color from texture is already in linear space
+    let old_rgb = srgb_to_linear(uniforms.replace_old_color.rgb);
+    var new_rgb = srgb_to_linear(uniforms.replace_new_color.rgb);
+    
+    // Calculate color distance in linear RGB space (normalized 0-1)
+    let input_rgb = input_color.rgb;
+    let diff = input_rgb - old_rgb;
+    let distance = length(diff) / sqrt(3.0); // Normalize to 0-1 range
+    
+    // Calculate replacement factor based on threshold and feather
+    // If distance < threshold: full replacement
+    // If distance > threshold + feather: no replacement
+    // In between: smooth transition
+    var replace_factor: f32;
+    if feather > 0.001 {
+        replace_factor = 1.0 - smoothstep(threshold, threshold + feather, distance);
+    } else {
+        replace_factor = select(0.0, 1.0, distance <= threshold);
+    }
+    
+    // Apply effect alpha
+    replace_factor *= effect_alpha;
+    
+    // If lock_luminance is enabled, preserve original brightness
+    if lock_luminance {
+        let input_lum = dot(input_rgb, vec3<f32>(0.299, 0.587, 0.114));
+        let new_lum = dot(new_rgb, vec3<f32>(0.299, 0.587, 0.114));
+        if new_lum > 0.001 {
+            new_rgb = new_rgb * (input_lum / new_lum);
+        }
+    }
+    
+    // Blend between original and new color (all in linear space)
+    let result_rgb = mix(input_rgb, new_rgb, replace_factor);
+    
+    return vec4<f32>(result_rgb, input_color.a);
+}
+
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     // Extract effect flags
     // Mask is enabled if either mask1 or mask2 is enabled
-    let mask_enabled = effect_flags.x > 0.5 || mask2_flags.x > 0.5;
-    let wipe_enabled = effect_flags.y > 0.5;
-    let stretch_enabled = effect_flags.z > 0.5;
-    let blur_enabled = effect_flags.w > 0.5;
-    let palette_enabled = palette_flags.x > 0.5;
+    let mask_enabled = uniforms.effect_flags.x > 0.5 || uniforms.mask2_flags.x > 0.5;
+    let wipe_enabled = uniforms.effect_flags.y > 0.5;
+    let stretch_enabled = uniforms.effect_flags.z > 0.5;
+    let blur_enabled = uniforms.effect_flags.w > 0.5;
+    let palette_enabled = uniforms.palette_flags.x > 0.5;
+    let replace_color_enabled = uniforms.replace_color_flags.x > 0.5;
     
     var sample_uv = mesh.uv;
     
@@ -442,7 +491,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     var tex_color: vec4<f32>;
     
     if blur_enabled {
-        let blur_radius = blur_params.x;
+        let blur_radius = uniforms.blur_params.x;
         if blur_radius > 0.5 {
             tex_color = apply_blur(sample_uv);
         } else {
@@ -452,9 +501,14 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         tex_color = textureSample(base_texture, base_sampler, sample_uv);
     }
     
+    // Apply replace color effect if enabled (before palette map)
+    if replace_color_enabled {
+        tex_color = apply_replace_color(tex_color);
+    }
+    
     // Apply palette map effect if enabled
     if palette_enabled {
-        let palette_alpha = palette_flags.w;
+        let palette_alpha = uniforms.palette_flags.w;
         let quantized_color = apply_palette_map(tex_color);
         // Blend between original and quantized based on palette alpha
         tex_color = mix(tex_color, quantized_color, palette_alpha);
@@ -479,7 +533,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     }
     
     // Apply color tint and wipe alpha
-    var final_color = tex_color * color;
+    var final_color = tex_color * uniforms.color;
     final_color.a *= wipe_alpha;
     
     if final_color.a < 0.001 {
