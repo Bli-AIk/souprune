@@ -45,6 +45,11 @@ impl PlayerBehavior {
         // Get path from global config
         let global_config = config::load_config();
         let behavior_path = &global_config.game.player_behavior_path;
+
+        if behavior_path.is_empty() {
+            return Err(anyhow!("Player behavior path is empty"));
+        }
+
         let config_data = PlayerBehaviorFile::read(behavior_path)?;
 
         let character_asset: CharacterAsset = load_ron_asset(&config_data.character_asset)

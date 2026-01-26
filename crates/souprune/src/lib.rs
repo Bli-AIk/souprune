@@ -281,7 +281,7 @@ pub fn run() {
                                     );
                                 }
                                 Err(e) => {
-                                    error!(
+                                    warn!(
                                         "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
                                         root, e
                                     );

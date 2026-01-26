@@ -42,15 +42,23 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
-        let behavior =
-            config::PlayerBehavior::load().expect("Failed to load player behavior configuration");
-
-        app.insert_resource(behavior)
-            .add_message::<SpawnPlayerRequest>()
-            .add_systems(
-                Update,
-                (player_direction_control_system, spawn_player_on_event).in_set(OverworldUpdate),
-            );
+        match config::PlayerBehavior::load() {
+            Ok(behavior) => {
+                app.insert_resource(behavior)
+                    .add_message::<SpawnPlayerRequest>()
+                    .add_systems(
+                        Update,
+                        (player_direction_control_system, spawn_player_on_event)
+                            .in_set(OverworldUpdate),
+                    );
+            }
+            Err(e) => {
+                bevy::log::warn!(
+                    "Player behavior config not loaded: {}. Overworld player systems will be disabled.",
+                    e
+                );
+            }
+        }
     }
 }
 
