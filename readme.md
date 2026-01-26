@@ -100,6 +100,42 @@ favorite spoon (programming language) to add the ingredients and cook your delic
 
 If you're interested in the design thinking behind SoupRune, here are more details:
 
+### 🌌 Why "Rust" the Soul? Why Rust and Bevy?
+
+> To make a 2D pixel RPG, do you really need high-performance ECS engines like Rust and Bevy? Isn't that overkill?
+
+I think this is a question most people would ask—whether you are a systems developer or a creator who loves retro/doujin games.
+
+Yes, we are doing something that seems contradictory:
+Using **Rust**, a systems language so hardcore and performance-obsessed, to reconstruct a game genre that is most emotional, retro, and least concerned with graphics and technical prowess.
+
+Because—aesthetics can be retro, but technology should be cutting-edge.
+
+SoupRune is an exploration—we want to prove that ECS can run not only massive tech demos but also delicately handle a touching dialogue or a carefully choreographed performance. We turned Bevy into a paintbrush.
+
+SoupRune is also a weapon—for those great community creators who yearn to unleash all their talents. You have amazing creativity, but are often trapped by the performance bottlenecks of outdated tools. Lagging danmaku, crashing saves, complex mechanisms that are hard to implement.
+
+Before this, no one had ever envisioned the combination of the two—and now, it stands here.
+
+This is a map prepared for you; this is a weapon forged for you.
+
+We hope to use avant-garde rendering pipelines and architectural design to build an indestructible stage. Even if you don't know code, your work deserves industrial-grade performance.
+
+This is the goal of this project, the original intention of its design: to build a bridge.
+
+### 🌉 Our Promise: A Bridge Across the Gap
+
+> A bridge between technology and art—the intersection of light and dark, the boundary between dream and reality.
+
+SoupRune is not just a framework; it is **technical equality**.
+
+* **Simplicity is not just simple**:
+  In SoupRune, "simple" refers to your experience when creating, not the crudeness of the underlying layer.
+  We have shouldered all the underlying complexity (multi-threading, memory management, rendering pipelines) just so you can write logic as naturally as breathing.
+* **Powered by Love, but also Explosive**:
+  We believe that doujin works should not be synonymous with "making do".
+  Beauty and technical power should not be bound—even pixel games deserve 4K clarity, 144Hz smoothness, tens of thousands of particles and bullets, and a carnival of rendering effects.
+
 ### 🏗️ Architecture: Why separate Core and Project? Why be "Language-Agnostic"?
 
 SoupRune adopts a **Core (Engine) - Project (Mod)** separated architecture.
@@ -107,17 +143,16 @@ SoupRune adopts a **Core (Engine) - Project (Mod)** separated architecture.
 * **Core**: Driven by Rust and Bevy, responsible for all underlying heavy lifting (rendering, physics, ECS scheduling).
 * **Project**: Communicates with the core via a standard **C ABI**.
 
-This design aims to **build a bridge**. We know that developers in the Undertale / Deltarune community come from diverse
-backgrounds—
+We know that developers in the Undertale / Deltarune community come from diverse backgrounds—
 
-* Developers from **GameMaker** will find **Haxe** familiar and natural;
-* Developers used to **Unity/Godot** can use **C#** (achieving excellent performance via Native AOT);
+* Developers from **Clickteam Fusion** will find **Ron** is just another form of event table;
+* Enthusiasts from **GameMaker** will find **Haxe** familiar and natural;
+* Professionals used to **Unity/Godot** can continue to enjoy **C#** (achieving excellent performance via Native AOT);
 * Friends used to **Lua** or **Python / GDScript** will be able to join seamlessly via **Nelua** or **Nim** in the
   future.
-    * If you prefer the flexibility of **Lua dynamic scripting** or are used to the **Love2D** workflow, we strongly
-      recommend you try [SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)!
 
-Our goal is to let every creator in the community **develop games in the language they are most comfortable with**.
+Our original intention is to let every creator in the community **define game content in a simple and easy-to-use way**;
+Our goal is to let every developer in the community **write code logic in their own familiar way**.
 
 ### ⚖️ License: About LGPL Open Source
 
@@ -140,6 +175,21 @@ importantly, a community-oriented next-gen playground**.
 
 While "next-gen" implies evolving frontiers, it also represents infinite possibilities—whether recreating
 classics or creating entirely original works, we hope SoupRune becomes the tool of choice in your hands.
+
+### 🤝 Join Us: We Need Your Determination
+
+**(Join Us: Bring Your Determination)**
+
+This is an open-source **next-gen playground** belonging to the community.
+It may not be perfect yet, just like how every great adventure begins.
+
+* If you are a **Rustacean**, come help us forge this sword and challenge the limits of ECS architecture in narrative games.
+* If you are a **Renderer**, come help us polish this sword and create a stylized rendering pipeline that is both efficient and beautiful, unprecedented in retro RPG / STG.
+* If you are a **Creator**, try wielding this sword and tell us what kind of functions are needed to carry your imagination.
+
+The prophecy of the RUNE should be written by us together.
+
+Let us write a new future, line by line.
 
 </details>
 
