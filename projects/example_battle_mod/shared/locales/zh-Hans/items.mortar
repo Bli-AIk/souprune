@@ -1,0 +1,6 @@
+pub const MONSTER_CANDY: String = "怪物糖果"
+pub const TEST_PARENT: String = "测试父级"
+pub const TOUGH_GLOVE: String = "坚韧手套"
+pub const FADED_RIBBON: String = "褪色丝带"
+pub const STICK: String = "树枝"
+pub const BANDAGE: String = "绷带"
