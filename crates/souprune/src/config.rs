@@ -241,6 +241,7 @@ struct GameConfigPartial {
     initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
     player_behavior_path: Option<String>,
+    required_modules: Option<Vec<String>>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -288,6 +289,9 @@ Falling back to default configuration (example_mod)",
                             }
                             if let Some(val) = game_partial.player_behavior_path {
                                 config.game.player_behavior_path = val;
+                            }
+                            if let Some(val) = game_partial.required_modules {
+                                config.game.required_modules = val;
                             }
                         }
                     }
