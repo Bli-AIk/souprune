@@ -102,19 +102,16 @@ impl Default for GameConfig {
     }
 }
 
-// TODO: 移除硬编码路径
 fn default_initial_map_path() -> String {
-    "overworld/levels/ruins/ruins_3.tmx".to_string()
+    String::new()
 }
 
-// TODO: 移除硬编码路径
 fn default_debug_battle_chapter() -> String {
-    "battle/chapters/demo.battle.ron".to_string()
+    String::new()
 }
 
-// TODO: 移除硬编码路径
 fn default_player_behavior_path() -> String {
-    "overworld/players/player_behavior.ron".to_string()
+    String::new()
 }
 
 fn default_required_modules() -> Vec<String> {
@@ -234,6 +231,27 @@ pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
     None
 }
 
+#[derive(Deserialize)]
+struct ModConfigFile {
+    game: Option<GameConfigPartial>,
+}
+
+#[derive(Deserialize)]
+struct GameConfigPartial {
+    initial_map_path: Option<String>,
+    debug_battle_chapter: Option<String>,
+    player_behavior_path: Option<String>,
+}
+
+fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
+    let path_ref = path.as_ref();
+    let contents = fs::read_to_string(path_ref)
+        .with_context(|| format!("Failed to read mod config file at {}", path_ref.display()))?;
+
+    toml::from_str(&contents)
+        .with_context(|| format!("Failed to parse mod config file at {}", path_ref.display()))
+}
+
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
     let path_ref = path.as_ref();
     let contents = fs::read_to_string(path_ref)
@@ -246,14 +264,38 @@ fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
 pub fn load_config() -> SoupruneConfig {
     CONFIG
         .get_or_init(|| {
-            read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
+            let mut config = read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
                 error!(
                     "{}
 Falling back to default configuration (example_mod)",
                     err
                 );
                 default_config()
-            })
+            });
+
+            let mod_name = &config.project.mod_name;
+            let mod_config_path = Path::new("projects").join(mod_name).join("mod.toml");
+
+            if mod_config_path.exists() {
+                match read_mod_config(&mod_config_path) {
+                    Ok(mod_cfg) => {
+                        if let Some(game_partial) = mod_cfg.game {
+                            if let Some(val) = game_partial.initial_map_path {
+                                config.game.initial_map_path = val;
+                            }
+                            if let Some(val) = game_partial.debug_battle_chapter {
+                                config.game.debug_battle_chapter = val;
+                            }
+                            if let Some(val) = game_partial.player_behavior_path {
+                                config.game.player_behavior_path = val;
+                            }
+                        }
+                    }
+                    Err(e) => error!("Failed to load mod.toml: {}", e),
+                }
+            }
+
+            config
         })
         .clone()
 }
