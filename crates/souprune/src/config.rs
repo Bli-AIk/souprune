@@ -60,8 +60,10 @@ pub struct WindowConfig {
 #[derive(Clone, Deserialize)]
 pub struct GameConfig {
     /// Initial map path to load when entering Overworld.
+    /// If empty and `initial_battle_path` is set, the game will start in Battle mode.
     ///
     /// 进入 Overworld 时加载的初始地图路径。
+    /// 如果为空且设置了 `initial_battle_path`，游戏将以 Battle 模式启动。
     #[serde(default = "default_initial_map_path")]
     pub initial_map_path: String,
 
