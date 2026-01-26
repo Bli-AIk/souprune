@@ -86,7 +86,6 @@ fn discover_texture_modules() -> Vec<String> {
 fn load_textures_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    game_config: Res<crate::config::GameConfig>,
 ) {
     let mut registry = ModuleSpriteRegistry::new();
 
@@ -124,7 +123,7 @@ fn check_textures_system(
     sprite_registry: Res<ModuleSpriteRegistry>,
     asset_server: Res<AssetServer>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
-    game_config: Res<crate::config::GameConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
     discovered_modules: Res<DiscoveredModules>,
 ) {
     for _ in events.read() {
@@ -133,7 +132,7 @@ fn check_textures_system(
         //
         // 检查所有必需模块是否已加载
         // 必需模块来自配置，但必须存在于发现的模块中
-        let required_loaded = game_config.required_modules.iter().all(|module| {
+        let required_loaded = souprune_config.game.required_modules.iter().all(|module| {
             if !discovered_modules.0.contains(module) {
                 warn!(
                     "Required module '{}' not found in discovered modules",

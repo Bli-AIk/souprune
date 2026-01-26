@@ -1,4 +1,3 @@
-//! # am_integration.rs
 //!
 //! # AM 动画集成模块
 //!
@@ -279,9 +278,12 @@ impl Plugin for AmBattlePlugin {
 fn load_am_battle_config(
     mut commands: Commands,
     mut am_config: ResMut<AmBattleConfig>,
-    game_config: Res<crate::config::GameConfig>,
+    project_config: Res<crate::config::SoupruneConfig>,
 ) {
-    let config_path = format!("projects/{}/battle/am_config.ron", game_config.mod_name);
+    let config_path = format!(
+        "projects/{}/battle/am_config.ron",
+        project_config.project.mod_name
+    );
 
     match std::fs::read_to_string(&config_path) {
         Ok(content) => match ron::from_str::<AmBattleConfig>(&content) {

@@ -53,14 +53,13 @@ pub struct ObjectCollisionGroup;
 pub fn setup_tilemap_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    game_config: Res<crate::config::GameConfig>,
-    render_config: Res<crate::config::RenderConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     commands.spawn((
         OverworldEntity(),
-        TiledMap(asset_server.load(&game_config.initial_map_path)),
+        TiledMap(asset_server.load(&souprune_config.game.initial_map_path)),
         TilemapAnchor::Center,
-        TiledMapLayerZOffset(render_config.z_layer_tilemap),
+        TiledMapLayerZOffset(souprune_config.render.z_layer_tilemap),
     ));
     // TODO: Tilemap的资源加载（或许）应当在 AppSetup 阶段完成。
 }
@@ -73,14 +72,13 @@ pub fn setup_tilemap_system(
 pub fn initialize_tilemap_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
-    game_config: Res<crate::config::GameConfig>,
-    render_config: Res<crate::config::RenderConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     let mut layers: Vec<_> = layers_query.iter().collect();
 
     layers.sort_by_key(|(entity, _)| entity.index());
 
-    let hidden_keywords = &game_config.hidden_layer_keywords;
+    let hidden_keywords = &souprune_config.game.hidden_layer_keywords;
 
     for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
         let layer_name_str = layer_name.as_str();
@@ -99,8 +97,8 @@ pub fn initialize_tilemap_system(
         } else {
             info!("Show layers: {}", layer_name_str);
 
-            let z_offset = render_config.z_layer_base
-                - (layers.len() as f32 - 1.0 - index as f32) * render_config.z_layer_step;
+            let z_offset = souprune_config.render.z_layer_base
+                - (layers.len() as f32 - 1.0 - index as f32) * souprune_config.render.z_layer_step;
 
             commands
                 .entity(*layer_entity)
@@ -483,7 +481,7 @@ pub fn setup_camera_bounds_system(
     tiled_maps_query: Query<&TiledMap>,
     windows: Query<&Window>,
     cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
-    render_config: Res<crate::config::RenderConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     // Only proceed if a tilemap asset is loaded.
     //
@@ -504,8 +502,8 @@ pub fn setup_camera_bounds_system(
     let map_width = tiled_map_asset.map.width as f32 * tile_width;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
 
-    let default_width = render_config.base_resolution_width as f32;
-    let default_height = render_config.base_resolution_height as f32;
+    let default_width = souprune_config.render.base_resolution_width as f32;
+    let default_height = souprune_config.render.base_resolution_height as f32;
 
     // Get the viewport size from the window and camera.
     //

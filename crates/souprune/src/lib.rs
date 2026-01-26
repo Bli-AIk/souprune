@@ -87,8 +87,6 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
         .add_directive("bevy_render=warn".parse()?)
         .add_directive("bevy_app=warn".parse()?)
         .add_directive("bevy_ecs=warn".parse()?)
-        // Silence bevy_alight_motion verbose logs (debug/trace level)
-        // 静音 bevy_alight_motion 的详细日志（debug/trace 级别）
         .add_directive("bevy_alight_motion=warn".parse()?);
 
     // File layer: writes to the log file
@@ -117,6 +115,9 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     Ok(guard)
 }
 
+/// Get the default Bevy plugins with custom window size and image plugin settings.
+///
+/// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
 fn get_bevy_default_plugins(
     resolution_scale: u32,
     render_config: &config::RenderConfig,
@@ -140,6 +141,16 @@ fn get_bevy_default_plugins(
         })
         .disable::<bevy::log::LogPlugin>();
 
+    // On some devices, enabling the WGPU verification layer can cause a panic.
+    // This may be caused by driver incompatibility or resource limitations.
+    // Therefore, if the unsafe_gpu feature is enabled, we will forcibly disable the verification layer
+    // to improve compatibility, although this will sacrifice some debugging information and stability.
+    // We only recommend using this feature when running on known safe GPUs, and it is not
+    // recommended for production environments.
+    //
+    // 在某些设备上，启用 WGPU 验证层会导致 panic。这可能是由于驱动程序不兼容或资源限制引起的。
+    // 因此，如果启用了 unsafe_gpu 特性，我们将强制关闭验证层以提高兼容性，尽管这会牺牲一些调试信息和稳定性。
+    // 我们仅建议在已知安全的 GPU 上运行时使用此特性，并且不建议在生产环境中使用。
     #[cfg(feature = "unsafe_gpu")]
     {
         info!("【SYSTEM】Unsafe GPU Mode Detected: Forcing WGPU Validation Layers OFF.");
@@ -227,15 +238,16 @@ pub fn run() {
     info!("Starting SoupRune with [unsafe_gpu] feature enabled.");
 
     let config = config::load_config();
+
+    // Data
     let resolution_scale = config.window.resolution_scale;
     let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
-    let mut game_config = config.game.clone();
-    game_config.mod_name = project_name.clone();
+
+    // Config
     let render_config = config.render.clone();
 
     App::new()
-        // TODO: 读取 mod 配置并加载正确的项目
         .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
@@ -284,7 +296,6 @@ pub fn run() {
         .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
-            // 这里现在会根据 unsafe_gpu 特性自动返回配置好的插件组
             get_bevy_default_plugins(resolution_scale, &render_config),
             get_file_importer_plugins(),
             get_third_plugins(),
@@ -293,8 +304,7 @@ pub fn run() {
             #[cfg(feature = "debug")]
             bevy_brp_extras::BrpExtrasPlugin,
         ))
-        .insert_resource(game_config)
-        .insert_resource(render_config)
+        .insert_resource(config)
         .insert_resource(bevy_rich_text3d::LoadFonts {
             font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
             ..Default::default()

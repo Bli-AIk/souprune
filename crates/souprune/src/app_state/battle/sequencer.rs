@@ -94,9 +94,9 @@ struct CurrentBattleFlow(Handle<BattleAsset>);
 fn load_default_chapter_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    game_config: Res<crate::config::GameConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
-    let chapter_path = &game_config.debug_battle_chapter;
+    let chapter_path = &souprune_config.game.debug_battle_chapter;
     let handle = asset_server.load::<BattleAsset>(chapter_path);
     commands.insert_resource(CurrentBattleFlow(handle));
     info!("Loading default battle flow: {}", chapter_path);

@@ -18,12 +18,27 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tracing::error;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Resource)]
 pub struct SoupruneConfig {
+    /// Currently loaded Project (Mod) configuration.
+    ///
+    /// 当前加载的 Project (Mod) 配置。
     pub project: ProjectConfig,
+
+    /// Window configuration settings.
+    ///
+    /// 窗口配置设置。
     pub window: WindowConfig,
+
+    /// Game flow configuration settings.
+    ///
+    /// 游戏流程配置设置。
     #[serde(default)]
     pub game: GameConfig,
+
+    /// Render configuration settings.
+    ///
+    /// 渲染配置设置。
     #[serde(default)]
     pub render: RenderConfig,
 }
@@ -42,14 +57,8 @@ pub struct WindowConfig {
 /// Game flow configuration for paths and module loading.
 ///
 /// 游戏流程配置，包含路径和模块加载设置。
-#[derive(Clone, Deserialize, Resource)]
+#[derive(Clone, Deserialize)]
 pub struct GameConfig {
-    /// The mod name (from project config).
-    ///
-    /// mod 名称（来自项目配置）。
-    #[serde(default)]
-    pub mod_name: String,
-
     /// Initial map path to load when entering Overworld.
     ///
     /// 进入 Overworld 时加载的初始地图路径。
@@ -89,19 +98,21 @@ impl Default for GameConfig {
             player_behavior_path: default_player_behavior_path(),
             required_modules: default_required_modules(),
             hidden_layer_keywords: default_hidden_layer_keywords(),
-            mod_name: String::new(),
         }
     }
 }
 
+// TODO: 移除硬编码路径
 fn default_initial_map_path() -> String {
     "overworld/levels/ruins/ruins_3.tmx".to_string()
 }
 
+// TODO: 移除硬编码路径
 fn default_debug_battle_chapter() -> String {
     "battle/chapters/demo.battle.ron".to_string()
 }
 
+// TODO: 移除硬编码路径
 fn default_player_behavior_path() -> String {
     "overworld/players/player_behavior.ron".to_string()
 }
@@ -117,7 +128,7 @@ fn default_hidden_layer_keywords() -> Vec<String> {
 /// Render configuration for resolution and Z-ordering.
 ///
 /// 渲染配置，包含分辨率和 Z 轴排序设置。
-#[derive(Clone, Deserialize, Resource)]
+#[derive(Clone, Deserialize)]
 pub struct RenderConfig {
     /// Base resolution width (game world units).
     ///
@@ -232,7 +243,7 @@ fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
         .with_context(|| format!("Failed to parse config file at {}", path_ref.display()))
 }
 
-pub fn load_config() -> &'static SoupruneConfig {
+pub fn load_config() -> SoupruneConfig {
     CONFIG.get_or_init(|| {
         read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
             error!(
@@ -242,7 +253,7 @@ Falling back to default configuration (example_mod)",
             );
             default_config()
         })
-    })
+    }).clone()
 }
 
 fn default_config() -> SoupruneConfig {

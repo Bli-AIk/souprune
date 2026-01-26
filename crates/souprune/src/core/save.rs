@@ -328,10 +328,10 @@ fn handle_save_game_system(
     mut complete_events: MessageWriter<SaveCompleteEvent>,
     save_config: Res<SaveConfig>,
     player_query: MainPlayerQuery,
-    game_config: Res<crate::config::GameConfig>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     for event in events.read() {
-        let result = save_game(&save_config, &player_query, &game_config, &event.slot);
+        let result = save_game(&save_config, &player_query, &souprune_config.game, &event.slot);
 
         match result {
             Ok(()) => {
