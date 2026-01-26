@@ -150,7 +150,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
+import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
 import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
