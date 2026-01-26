@@ -135,7 +135,8 @@ SoupRune 能成为你手中的利器。
 
 ### 非代码贡献者
 
-* **71**: 他在此项目测试过程中提供了许多 Alight Motion 示例工程（包括undertale弹幕，以及一些视觉pv），为 AM 集成提供了很大帮助！
+* **71**: 他在此项目测试过程中提供了许多 Alight Motion 示例工程（包括 Undertale 弹幕，以及一些视觉 PV），为 AM 集成提供了很大帮助！
+* **陈皮**: 他提供了许多 Alight Motion 示例工程（主要是 Undertale 弹幕），为 AM 集成提供了很大帮助！
 
 **衷心感谢你们每一个人！🎔**
 
@@ -160,15 +161,17 @@ SoupRune 能成为你手中的利器。
 
 SoupRune 采用多 Crate 的工作空间架构：
 
-| Crate                                                   | 描述                                            |
-|:--------------------------------------------------------|:----------------------------------------------|
-| [`souprune`](./crates/souprune)                         | **核心框架**：框架本体，游戏的主入口和核心逻辑实现。                  |
-| [`souprune_api`](./crates/souprune_api)                 | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。       |
-| [`souprune_sdk`](./crates/souprune_sdk)                 | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。 |
-| [`souprune_mod_test`](./crates/souprune_mod_test)       | **样例 Mod**： 脚本系统的示例测试库。                       |
-| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。      |
-| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。             |
-| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。               |
+| Crate                                                             | 描述                                               |
+|:------------------------------------------------------------------|:-------------------------------------------------|
+| [`souprune`](./crates/souprune)                                   | **核心框架**：框架本体，游戏的主入口和核心逻辑实现。                     |
+| [`souprune_api`](./crates/souprune_api)                           | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。          |
+| [`souprune_sdk`](./crates/souprune_sdk)                           | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。    |
+| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **样例 Mod**： 脚本系统的示例测试库。                          |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)                   | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。         |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)             | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。                |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event)           | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。                  |
+| [`bevy_alight_motion`](./crates/bevy_alight_motion)               | **功能插件**：解析并播放 Alight Motion 动画工程的集成插件。          |
+| [`interoptopus_backend_haxe`](./crates/interoptopus_backend_haxe) | **工具库**：Interoptopus FFI 绑定生成器的 Haxe (hxcpp) 后端。 |
 
 ## 🧩 脚本层支持
 
@@ -226,8 +229,10 @@ SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。
 | [bevy_mortar_bond](https://github.com/Bli-AIk/bevy_mortar_bond)           | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 与 Mortar 语言的桥接库                   |
 | [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.19.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 管理游戏输入，处理键盘、鼠标和控制器的操作映射                |
 | [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 有限状态机实现                                |
-| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | dev（GitHub 分支）                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 集成 Bevy ECS 和 Tiled 地图编辑器，用于基于瓦片的游戏关卡  |
+| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | 0.10.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 集成 Bevy ECS 和 Tiled 地图编辑器，用于基于瓦片的游戏关卡  |
 | [bevy_tween](https://crates.io/crates/bevy_tween)                         | 0.10.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的补间动画库，用于平滑动画和过渡                  |
+| [bevy_alight_motion](https://github.com/Bli-AIk/bevy_alight_motion)       | 0.0.0                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Alight Motion 动画集成                     |
+| [bevy_seedling](https://crates.io/crates/bevy_seedling)                   | 0.6.1                                                                                                                          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 可选的音频后端                                |
 | [bevy-inspector-egui](https://crates.io/crates/bevy-inspector-egui)       | 0.35.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选编辑器/调试工具，用于实时检查 ECS 世界         |
 | [iyes_perf_ui](https://crates.io/crates/iyes_perf_ui)                     | dev（我基于 GitHub PR [#35](https://github.com/IyesGames/iyes_perf_ui/pull/35) 创建的 [分支](https://github.com/Bli-AIk/iyes_perf_ui) ) | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的可选性能监控 UI，显示 FPS、系统计时和性能分析信息     |
 | [bevy_smud](https://crates.io/crates/bevy_smud)                           | 0.12.0                                                                                                                         | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Bevy 的 2d sdf 形状渲染器插件                  |
@@ -237,11 +242,16 @@ SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。
 
 ### Rust crates
 
-| 项目                                      | 版本    | 许可证                                                                                                                                                                                                           | 功能                                       |
-|-----------------------------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
-| [serde](https://crates.io/crates/serde) | 1.0   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 序列化/反序列化框架，支持 `derive` 宏以方便地对结构体进行（反）序列化 |
-| [toml](https://crates.io/crates/toml)   | 0.9.8 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML 解析                                  |
-| [ron](https://crates.io/crates/ron)     | 0.10  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation 解析                 |
+| 项目                                                    | 版本              | 许可证                                                                                                                                                                                                           | 功能                                       |
+|-------------------------------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
+| [serde](https://crates.io/crates/serde)               | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 序列化/反序列化框架，支持 `derive` 宏以方便地对结构体进行（反）序列化 |
+| [toml](https://crates.io/crates/toml)                 | 0.9.8           | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML 解析                                  |
+| [ron](https://crates.io/crates/ron)                   | 0.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation 解析                 |
+| [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON 序列化/反序列化                            |
+| [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 正则表达式                                    |
+| [evalexpr](https://crates.io/crates/evalexpr)         | 13.1.0          | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 表达式求值                                    |
+| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 多语言绑定生成器                                 |
+| [mortar_compiler](https://github.com/Bli-AIk/mortar)  | 0.5.0           | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Mortar 语言编译器                             |
 
 ### 资源引用
 
