@@ -12,6 +12,5 @@ description = "An example mod for SoupRune with Alight Motion integration."
 "soul_blue" = "libmod_example.so"
 
 [game]
-initial_map_path = "overworld/levels/ruins/ruins_3.tmx"
-debug_battle_chapter = "battle/chapters/demo.battle.ron"
+initial_battle_path = "battle/chapters/demo.battle.ron"
 player_behavior_path = "overworld/players/player_behavior.ron"

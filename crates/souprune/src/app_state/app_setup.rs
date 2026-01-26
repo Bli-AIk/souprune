@@ -157,7 +157,18 @@ fn check_textures_system(
 
         if required_loaded && all_discovered_loaded {
             info!("All texture modules loaded: {:?}", discovered_modules.0);
-            next_state.set(AppState::Overworld);
+
+            if souprune_config.game.initial_map_path.is_empty()
+                && !souprune_config.game.initial_battle_path.is_empty()
+            {
+                info!(
+                    "No initial map path, but initial battle path found. Entering Battle: {}",
+                    souprune_config.game.initial_battle_path
+                );
+                next_state.set(AppState::Battle);
+            } else {
+                next_state.set(AppState::Overworld);
+            }
             break;
         }
     }

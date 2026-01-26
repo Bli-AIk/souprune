@@ -96,7 +96,7 @@ fn load_default_chapter_system(
     asset_server: Res<AssetServer>,
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
-    let chapter_path = &souprune_config.game.debug_battle_chapter;
+    let chapter_path = &souprune_config.game.initial_battle_path;
     let handle = asset_server.load::<BattleAsset>(chapter_path);
     commands.insert_resource(CurrentBattleFlow(handle));
     info!("Loading default battle flow: {}", chapter_path);

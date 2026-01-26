@@ -68,8 +68,8 @@ pub struct GameConfig {
     /// Debug battle chapter path to load when entering Battle state.
     ///
     /// 进入 Battle 状态时加载的调试用战斗章节路径。
-    #[serde(default = "default_debug_battle_chapter")]
-    pub debug_battle_chapter: String,
+    #[serde(default = "default_initial_battle_path")]
+    pub initial_battle_path: String,
 
     /// Path to player behavior configuration file.
     ///
@@ -94,7 +94,7 @@ impl Default for GameConfig {
     fn default() -> Self {
         Self {
             initial_map_path: default_initial_map_path(),
-            debug_battle_chapter: default_debug_battle_chapter(),
+            initial_battle_path: default_initial_battle_path(),
             player_behavior_path: default_player_behavior_path(),
             required_modules: default_required_modules(),
             hidden_layer_keywords: default_hidden_layer_keywords(),
@@ -106,7 +106,7 @@ fn default_initial_map_path() -> String {
     String::new()
 }
 
-fn default_debug_battle_chapter() -> String {
+fn default_initial_battle_path() -> String {
     String::new()
 }
 
@@ -239,7 +239,7 @@ struct ModConfigFile {
 #[derive(Deserialize)]
 struct GameConfigPartial {
     initial_map_path: Option<String>,
-    debug_battle_chapter: Option<String>,
+    initial_battle_path: Option<String>,
     player_behavior_path: Option<String>,
 }
 
@@ -283,8 +283,8 @@ Falling back to default configuration (example_mod)",
                             if let Some(val) = game_partial.initial_map_path {
                                 config.game.initial_map_path = val;
                             }
-                            if let Some(val) = game_partial.debug_battle_chapter {
-                                config.game.debug_battle_chapter = val;
+                            if let Some(val) = game_partial.initial_battle_path {
+                                config.game.initial_battle_path = val;
                             }
                             if let Some(val) = game_partial.player_behavior_path {
                                 config.game.player_behavior_path = val;
