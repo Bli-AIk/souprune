@@ -24,9 +24,6 @@ jobs:
         with:
           submodules: true
 
-      - name: Remove local cargo config
-        run: rm .cargo/config.toml
-
       - name: Checkout mortar
         uses: actions/checkout@v6
         with:
