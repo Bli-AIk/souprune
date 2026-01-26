@@ -83,10 +83,7 @@ fn discover_texture_modules() -> Vec<String> {
     ]
 }
 
-fn load_textures_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn load_textures_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     let mut registry = ModuleSpriteRegistry::new();
 
     // Discover available modules dynamically

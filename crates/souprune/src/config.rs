@@ -244,16 +244,18 @@ fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
 }
 
 pub fn load_config() -> SoupruneConfig {
-    CONFIG.get_or_init(|| {
-        read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
-            error!(
-                "{}
+    CONFIG
+        .get_or_init(|| {
+            read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
+                error!(
+                    "{}
 Falling back to default configuration (example_mod)",
-                err
-            );
-            default_config()
+                    err
+                );
+                default_config()
+            })
         })
-    }).clone()
+        .clone()
 }
 
 fn default_config() -> SoupruneConfig {

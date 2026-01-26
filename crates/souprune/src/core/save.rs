@@ -331,7 +331,12 @@ fn handle_save_game_system(
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     for event in events.read() {
-        let result = save_game(&save_config, &player_query, &souprune_config.game, &event.slot);
+        let result = save_game(
+            &save_config,
+            &player_query,
+            &souprune_config.game,
+            &event.slot,
+        );
 
         match result {
             Ok(()) => {
