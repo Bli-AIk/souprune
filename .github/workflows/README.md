@@ -80,8 +80,6 @@ act push -j test -n
 # 验证构建任务  
 act push -j build -n
 
-# 验证Coverage工作流
-act push -W .github/workflows/coverage.yml -n
 ```
 
 ## 配置说明
