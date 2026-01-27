@@ -30,11 +30,12 @@ pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     overworld_state: Res<State<OverworldState>>,
 ) -> prelude::Result<(), ()> {
-    // Allow player movement only when the overworld state is Normal.
+    // Allow player movement in Normal and Chase states.
     //
-    // 只在 Normal 状态下允许玩家移动。
-    if *overworld_state != OverworldState::Normal {
-        return Err(());
+    // 在 Normal 和 Chase 状态下允许玩家移动。
+    match *overworld_state.get() {
+        OverworldState::Normal | OverworldState::Chase => {}
+        _ => return Err(()),
     }
 
     let action_state = query.single().map_err(|_| ())?;
@@ -59,11 +60,12 @@ pub fn is_player_running(
     overworld_state: Res<State<OverworldState>>,
     player_behavior: Res<PlayerBehavior>,
 ) -> prelude::Result<(), ()> {
-    // Allow player sprinting only when the overworld state is Normal.
+    // Allow player sprinting in Normal and Chase states.
     //
-    // 只在 Normal 状态下允许玩家跑步。
-    if *overworld_state != OverworldState::Normal {
-        return Err(());
+    // 在 Normal 和 Chase 状态下允许玩家跑步。
+    match *overworld_state.get() {
+        OverworldState::Normal | OverworldState::Chase => {}
+        _ => return Err(()),
     }
 
     let Some(run_action) = player_behavior.run_action else {

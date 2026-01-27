@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use libloading::{Library, Symbol};
 use souprune_api::{
-    Action, BehaviorInstance, BulletContextC, BulletOutputC, ContextHandle, CreateBehaviorFn,
-    CreateDanmakuFn, DanmakuInstance, GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn,
-    GetBehaviorIdFn, HostApi,
+    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, CreateDanmakuFn, DanmakuInstance,
+    GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn, GetBehaviorIdFn, HostApi,
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};
@@ -120,29 +119,77 @@ fn load_mods_system(
     mut registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
 ) {
-    // Hardcoded loading for now
-    let lib_name = if cfg!(target_os = "windows") {
-        "mod_example.dll"
-    } else {
-        "libmod_example.so"
-    };
-    let mod_path = format!("projects/example_mod/{}", lib_name);
+    let config = crate::config::load_config();
+    let mod_name = &config.project.mod_name;
+    let base_path = Path::new("projects").join(mod_name);
 
-    if !Path::new(&mod_path).exists() {
-        warn!("Mod file not found: {}", mod_path);
-        return;
+    let mut candidate_filenames = Vec::new();
+
+    if cfg!(target_os = "windows") {
+        if cfg!(target_env = "msvc") {
+            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+            // Fallback to GNU if MSVC not found
+            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+        } else {
+            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+        }
+    } else {
+        candidate_filenames.push(format!("{}.so", mod_name));
     }
 
+    let mut loaded_path = None;
+    for filename in &candidate_filenames {
+        let p = base_path.join(filename);
+        if p.exists() {
+            loaded_path = Some(p);
+            break;
+        }
+    }
+
+    let Some(mod_path_buf) = loaded_path else {
+        let msg = format!(
+            "Mod file not found. Checked in {:?} for {:?}",
+            base_path, candidate_filenames
+        );
+        warn!("{}", msg);
+        eprintln!("[Souprune] Warning: {}", msg);
+        return;
+    };
+
+    // Use dunce to canonicalize the path (resolves absolute path, handles Windows UNC)
+    // We pass a reference to avoid moving, though mod_path_buf is now PathBuf so it's fine.
+    let mod_path = dunce::canonicalize(&mod_path_buf).unwrap_or(mod_path_buf);
+
     unsafe {
-        info!("Loading mod: {}", mod_path);
-        let lib = Library::new(&mod_path).expect("Failed to load DLL");
+        info!("Loading mod: {}", mod_path.display());
+        eprintln!(
+            "[Souprune] Attempting to load mod from: {}",
+            mod_path.display()
+        );
+
+        let lib = match Library::new(&mod_path) {
+            Ok(l) => l,
+            Err(e) => {
+                let msg = format!("Failed to load DLL '{}': {:?}", mod_path.display(), e);
+                error!("{}", msg);
+                eprintln!("[Souprune] Error: {}", msg);
+                return;
+            }
+        };
 
         // === Load Behaviors ===
         // 1. Get Count
-        let get_count: Symbol<GetBehaviorCountFn> =
-            lib.get(b"get_behavior_count").expect("No count fn found");
+        let get_count: Symbol<GetBehaviorCountFn> = match lib.get(b"get_behavior_count") {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Symbol 'get_behavior_count' not found: {:?}", e);
+                return;
+            }
+        };
         let count = get_count();
         info!("Found {} Behaviors in DLL", count);
+        eprintln!("[Souprune] Loaded {} behaviors from DLL", count);
 
         // 2. Get IDs helper
         let get_id_fn: Symbol<GetBehaviorIdFn> =
@@ -168,6 +215,7 @@ fn load_mods_system(
         if let Ok(get_algo_count) = lib.get::<GetAlgorithmCountFn>(b"get_algorithm_count") {
             let algo_count = get_algo_count();
             info!("Found {} Danmaku Algorithms in DLL", algo_count);
+            eprintln!("[Souprune] Found {} Danmaku Algorithms", algo_count);
 
             if let (Ok(get_algo_id), Ok(create_danmaku)) = (
                 lib.get::<GetAlgorithmIdFn>(b"get_algorithm_id"),

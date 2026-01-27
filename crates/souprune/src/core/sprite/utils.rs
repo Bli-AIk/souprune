@@ -100,7 +100,8 @@ pub fn create_texture_atlas(
 
     for handle in folder.handles.iter() {
         if let Some(path) = handle.path() {
-            let path_str = path.to_string();
+            // Normalize path to use forward slashes for consistency across platforms
+            let path_str = path.to_string().replace('\\', "/");
             if !path_str.ends_with(".png")
                 && !path_str.ends_with(".jpg")
                 && !path_str.ends_with(".jpeg")

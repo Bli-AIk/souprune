@@ -20,6 +20,7 @@
 
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::animation::components::SpriteAnimationClip;
+use crate::core::danmaku::BulletTarget;
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
 use bevy::app::{App, Plugin, Update};
@@ -41,15 +42,23 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
-        let behavior =
-            config::PlayerBehavior::load().expect("Failed to load player behavior configuration");
-
-        app.insert_resource(behavior)
-            .add_message::<SpawnPlayerRequest>()
-            .add_systems(
-                Update,
-                (player_direction_control_system, spawn_player_on_event).in_set(OverworldUpdate),
-            );
+        match config::PlayerBehavior::load() {
+            Ok(behavior) => {
+                app.insert_resource(behavior)
+                    .add_message::<SpawnPlayerRequest>()
+                    .add_systems(
+                        Update,
+                        (player_direction_control_system, spawn_player_on_event)
+                            .in_set(OverworldUpdate),
+                    );
+            }
+            Err(e) => {
+                bevy::log::warn!(
+                    "Player behavior config not loaded: {}. Overworld player systems will be disabled.",
+                    e
+                );
+            }
+        }
     }
 }
 
@@ -140,6 +149,8 @@ pub fn spawn_overworld_player(
         Name::new("OverworldPlayer"),
         StateIdle,
         PlayerControlled,
+        BulletTarget::new(),
+        crate::app_state::overworld::chase::ChaseHighlight,
         state_machine,
         player_input.get_merged_map(),
         ActionState::<Action>::default(),

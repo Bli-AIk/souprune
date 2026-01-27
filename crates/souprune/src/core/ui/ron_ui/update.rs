@@ -59,28 +59,64 @@ pub fn update_hp_bar_shader_params(
 }
 
 pub fn update_dynamic_ui_elements(
+    time: Res<Time>,
     player_data: Res<PlayerData>,
     mut query: Query<(&DynamicUIElement, &mut Transform, Option<&mut HPBarSprite>)>,
+    mut frame_count: Local<usize>,
 ) {
-    if !player_data.is_changed() {
-        return;
+    *frame_count += 1;
+    if !query.is_empty() && *frame_count % 60 == 0 {
+        info!(
+            "update_dynamic_ui_elements: processing {} entities. Time: {}",
+            query.iter().len(),
+            time.elapsed_secs_f64()
+        );
     }
 
     for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
         // Update sprite transform and shader params if present
         if let Some(sprite_def) = &dynamic_elem.sprite_def {
             if let Some(t_def) = &sprite_def.transform {
+                // Debug log for specific entity
+                // if let Some(expr) = t_def.translation.x.as_expr() {
+                //    debug!("Evaluating expr: {}", expr);
+                // }
+
                 let new_translation = Vec3::new(
-                    evaluate_float_expr(&t_def.translation.x, &player_data),
-                    evaluate_float_expr(&t_def.translation.y, &player_data),
-                    evaluate_float_expr(&t_def.translation.z, &player_data),
+                    evaluate_float_expr(
+                        &t_def.translation.x,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &t_def.translation.y,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &t_def.translation.z,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
                 );
 
                 if let Some(scale_def) = &t_def.scale {
                     let new_scale = Vec3::new(
-                        evaluate_float_expr(&scale_def.x, &player_data),
-                        evaluate_float_expr(&scale_def.y, &player_data),
-                        evaluate_float_expr(&scale_def.z, &player_data),
+                        evaluate_float_expr(
+                            &scale_def.x,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
+                        evaluate_float_expr(
+                            &scale_def.y,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
+                        evaluate_float_expr(
+                            &scale_def.z,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
                     );
 
                     // Apply pivot offset if present
@@ -104,10 +140,26 @@ pub fn update_dynamic_ui_elements(
                 (hp_bar, &sprite_def.shader_params)
             {
                 hp_bar_sprite.shader_params = Color::srgba(
-                    evaluate_float_expr(&shader_params.r, &player_data),
-                    evaluate_float_expr(&shader_params.g, &player_data),
-                    evaluate_float_expr(&shader_params.b, &player_data),
-                    evaluate_float_expr(&shader_params.a, &player_data),
+                    evaluate_float_expr(
+                        &shader_params.r,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &shader_params.g,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &shader_params.b,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &shader_params.a,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
                 );
             }
         }
@@ -115,17 +167,29 @@ pub fn update_dynamic_ui_elements(
         // Update text transform if present
         if let Some(text_def) = &dynamic_elem.text_def {
             let new_translation = Vec3::new(
-                evaluate_float_expr(&text_def.transform.translation.x, &player_data),
-                evaluate_float_expr(&text_def.transform.translation.y, &player_data),
-                evaluate_float_expr(&text_def.transform.translation.z, &player_data),
+                evaluate_float_expr(
+                    &text_def.transform.translation.x,
+                    &player_data,
+                    Some(time.elapsed_secs_f64()),
+                ),
+                evaluate_float_expr(
+                    &text_def.transform.translation.y,
+                    &player_data,
+                    Some(time.elapsed_secs_f64()),
+                ),
+                evaluate_float_expr(
+                    &text_def.transform.translation.z,
+                    &player_data,
+                    Some(time.elapsed_secs_f64()),
+                ),
             );
             transform.translation = new_translation;
 
             if let Some(scale_def) = &text_def.transform.scale {
                 transform.scale = Vec3::new(
-                    evaluate_float_expr(&scale_def.x, &player_data),
-                    evaluate_float_expr(&scale_def.y, &player_data),
-                    evaluate_float_expr(&scale_def.z, &player_data),
+                    evaluate_float_expr(&scale_def.x, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.y, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.z, &player_data, Some(time.elapsed_secs_f64())),
                 );
             }
         }

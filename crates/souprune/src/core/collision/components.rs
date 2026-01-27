@@ -36,3 +36,11 @@ impl Rect2DCollider {
         Self { size, offset }
     }
 }
+
+/// Offset component for TriggerCollider hitbox positioning.
+/// Used to position the hitbox relative to the entity's transform.
+///
+/// TriggerCollider 判定框位置偏移组件。
+/// 用于相对于实体变换定位判定框。
+#[derive(Component, Debug, Clone)]
+pub struct HitboxOffset(pub Vec2);

@@ -65,7 +65,7 @@ impl<'a> SpriteLoadContext<'a> {
         let (sprite_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_sprite(config_item_name) {
                 (
-                    sprite_config.path.clone(),
+                    sprite_config.path.clone().replace('\\', "/"),
                     sprite_config.flip_x,
                     sprite_config.flip_y,
                 )
@@ -120,7 +120,7 @@ impl<'a> SpriteLoadContext<'a> {
         let (config_path, flip_x, flip_y) =
             if let Some(sprite_config) = self.toml_registry.get_animation(config_item_name) {
                 (
-                    sprite_config.path.clone(),
+                    sprite_config.path.clone().replace('\\', "/"),
                     sprite_config.flip_x,
                     sprite_config.flip_y,
                 )

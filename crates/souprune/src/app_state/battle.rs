@@ -23,18 +23,20 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
+pub mod am_integration;
 pub mod chapter;
 pub mod collision;
 pub mod config;
 pub mod danmaku;
 mod sequencer;
 
+use crate::app_state::AppState;
+use crate::app_state::battle::am_integration::AmBattlePlugin;
 use crate::app_state::battle::chapter::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::sequencer::SequencerPlugin;
-use crate::app_state::{AppState, cleanup_entities_system};
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::*;
@@ -75,7 +77,12 @@ impl Plugin for BattlePlugin {
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
             ]))
-            .add_plugins((SequencerPlugin, BattleCollisionPlugin, DanmakuPlugin))
+            .add_plugins((
+                SequencerPlugin,
+                BattleCollisionPlugin,
+                DanmakuPlugin,
+                AmBattlePlugin,
+            ))
             .add_systems(OnEnter(AppState::Battle), setup_battle_camera);
     }
 }
@@ -83,7 +90,15 @@ impl Plugin for BattlePlugin {
 fn setup_battle_camera(
     mut commands: Commands,
     q_cameras: Query<Entity, (With<Camera2d>, Without<BattleCamera>)>,
+    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
 ) {
+    let scale_value = resolution_scale.get();
+    info!(
+        "[Battle] Setting up battle camera with resolution_scale={}, camera_scale={}",
+        scale_value,
+        1.0 / scale_value as f32
+    );
+
     for camera_entity in q_cameras.iter() {
         commands.entity(camera_entity).despawn();
     }
@@ -91,7 +106,7 @@ fn setup_battle_camera(
     commands.spawn((
         Camera2d,
         Projection::Orthographic(OrthographicProjection {
-            scale: 1.0,
+            scale: 1.0 / scale_value as f32,
             ..OrthographicProjection::default_2d()
         }),
         BattleCamera,

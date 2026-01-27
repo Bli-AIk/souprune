@@ -12,6 +12,16 @@
         </div>
       </div>
       <div class="flex items-center gap-4 md:gap-6">
+        <!-- Serious Mode Toggle -->
+        <button 
+          @click="isSerious = !isSerious" 
+          class="text-white hover:text-yellow-300 transition-colors"
+          :title="isSerious ? 'Switch to Lively Mode' : 'Switch to Serious Mode'"
+        >
+          <Briefcase v-if="!isSerious" :size="20" />
+          <PartyPopper v-else :size="20" class="text-yellow-300" />
+        </button>
+
         <!-- Language Switcher -->
         <button 
           @click="toggleLang" 
@@ -106,7 +116,7 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
-                <MarkdownRenderer :content="activeDoc?.content || ''" />
+                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
                 
                 <!-- Page Footer with Navigation Hints -->
                 <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">
@@ -140,17 +150,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Menu, X, Shield, Book, Box, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
 import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
 import { DocPage, NavItem } from './types';
+import { SERIOUS_TITLES } from './titles';
 
 // Cast the imported data to Record<string, ...>
 const navItemsMap = ALL_NAV_ITEMS as Record<string, NavItem[]>;
 const docsDataMap = ALL_DOCS_DATA as Record<string, DocPage[]>;
 
 const currentLang = ref('en');
+const isSerious = ref(false);
 const activeId = ref<string>('intro');
 const menuOpen = ref(false);
 const direction = ref(0); // -1 for prev, 1 for next
@@ -158,7 +170,17 @@ const transitionName = ref('slide-left');
 
 // Computed data based on language
 const currentDocsData = computed(() => docsDataMap[currentLang.value] || []);
-const currentNavItems = computed(() => navItemsMap[currentLang.value] || []);
+const currentNavItems = computed(() => {
+  const items = navItemsMap[currentLang.value] || [];
+  if (!isSerious.value) return items;
+
+  // If serious mode, map labels and categories
+  return items.map(item => ({
+    ...item,
+    label: SERIOUS_TITLES[currentLang.value]?.[item.id] || item.label,
+    category: SERIOUS_TITLES[currentLang.value]?.[item.category] || item.category
+  }));
+});
 
 // Active doc based on ID and current data
 const activeDoc = computed(() => currentDocsData.value.find(d => d.id === activeId.value));
@@ -211,27 +233,50 @@ const contentScrollContainer = ref<HTMLElement | null>(null);
 const groupedNav = computed(() => {
   const groups: Record<string, NavItem[]> = {};
   
-  // Define order
-  const order = ['guide', 'scripting', 'assets'];
-  
-  // Initialize with order
-  order.forEach(key => groups[key] = []);
-  
+  // Get all unique categories from the items
+  const categories = new Set<string>();
   currentNavItems.value.forEach(item => {
+    categories.add(item.category);
     if (!groups[item.category]) groups[item.category] = [];
     groups[item.category].push(item);
   });
   
-  return groups;
+  // Sort categories: "Part X" first, then others (Appendix)
+  const sortedCategories = Array.from(categories).sort((a, b) => {
+    const getWeight = (str: string) => {
+      const s = str.toLowerCase();
+      if (s.includes('table of contents') || s.includes('目录') || s.includes('official documentation') || s.includes('官方文档')) return -1;
+      if (s.includes('mise') || s.includes('备菜') || s.includes('environment setup') || s.includes('getting started') || s.includes('环境配置')) return 0;
+      if (s.includes('spicy') || s.includes('主菜') || s.includes('battle system') || s.includes('战斗系统')) return 1;
+      if (s.includes('plating') || s.includes('摆盘') || s.includes('world & narrative') || s.includes('世界场景')) return 2;
+      if (s.includes('soul') || s.includes('甜点') || s.includes('visuals & audio') || s.includes('视听')) return 3;
+      if (s.includes('molecular') || s.includes('分子') || s.includes('advanced scripting') || s.includes('高级脚本')) return 4;
+      if (s.includes('appendix') || s.includes('附录')) return 99;
+      return 50; // Unknown
+    };
+
+    return getWeight(a) - getWeight(b);
+  });
+
+  // Reconstruct object with sorted keys for v-for iteration
+  const sortedGroups: Record<string, NavItem[]> = {};
+  sortedCategories.forEach(key => {
+    sortedGroups[key] = groups[key];
+  });
+  
+  return sortedGroups;
 });
 
 const getIcon = (category: string) => {
-  switch (category) {
-    case 'guide': return Shield;
-    case 'scripting': return Book;
-    case 'assets': return Box;
-    default: return Shield;
-  }
+  const cat = category.toLowerCase();
+  if (cat.includes('table of contents') || cat.includes('目录') || cat.includes('official documentation') || cat.includes('官方文档')) return Shield;
+  if (cat.includes('mise') || cat.includes('备菜') || cat.includes('environment setup') || cat.includes('getting started') || cat.includes('环境配置')) return Utensils;
+  if (cat.includes('spicy') || cat.includes('主菜') || cat.includes('battle system') || cat.includes('战斗系统')) return Flame;
+  if (cat.includes('plating') || cat.includes('摆盘') || cat.includes('world & narrative') || cat.includes('世界场景')) return Map;
+  if (cat.includes('soul') || cat.includes('甜点') || cat.includes('visuals & audio') || cat.includes('视听')) return Sparkles;
+  if (cat.includes('molecular') || cat.includes('分子') || cat.includes('advanced scripting') || cat.includes('高级脚本')) return FlaskConical;
+  if (cat.includes('appendix') || cat.includes('附录')) return Scroll;
+  return Shield;
 };
 
 // Flatten navigation for next/prev logic

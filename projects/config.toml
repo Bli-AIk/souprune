@@ -1,6 +1,6 @@
 [project]
-mod_name = "example_mod"
+mod_name = "example_battle_mod"
 language = "en-US"
 
 [window]
-resolution_scale = 5
+resolution_scale = 4

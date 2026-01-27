@@ -1,0 +1,12 @@
+[package]
+name = "mod_example"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+souprune_sdk = { path = "../../../../crates/souprune_sdk" }

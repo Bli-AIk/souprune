@@ -6,7 +6,7 @@ pub mod spawn;
 pub mod update;
 
 // Re-export common types and systems
-pub use resources::{UIGlobalTriggerConfig, UILayoutHandle, UILayoutWatcher};
+pub use resources::{RonDrivenUI, UIGlobalTriggerConfig, UILayoutHandle, UILayoutWatcher};
 
 pub use parsing::*;
 pub use reload::*;

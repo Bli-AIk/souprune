@@ -42,6 +42,8 @@ mod smud_shape;
 mod state;
 mod text;
 
+pub use custom_sprite_material::PixelOutlineMaterial;
+
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
     update_dynamic_camera_anchors_system,
@@ -51,7 +53,7 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SmudStructureAsset;
 use layout::UILayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
-pub use ron_ui::{UILayoutHandle, UILayoutWatcher};
+pub use ron_ui::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
 use ron_ui::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
@@ -90,6 +92,9 @@ impl Plugin for CoreUIPlugin {
             .register_asset_loader(RonAssetLoader::<SmudStructureAsset>::new(&["smud.ron"]))
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
+            >::default())
+            .add_plugins(Material2dPlugin::<
+                custom_sprite_material::PixelOutlineMaterial,
             >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
