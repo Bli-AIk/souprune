@@ -65,7 +65,12 @@ jobs:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - *checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+          persist-credentials: false
 
       - name: Checkout mortar
         uses: actions/checkout@v4
@@ -76,8 +81,17 @@ jobs:
         shell: bash
         run: mv temp-mortar ../mortar
 
-      - *install-deps
-      - *install-rust
+      - name: Install dependencies (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev \
+            libxrandr-dev libx11-dev libxi-dev libxinerama-dev libxcursor-dev \
+            libgl1-mesa-dev pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
