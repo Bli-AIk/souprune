@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_fact_rule_event"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy",
@@ -6813,7 +6813,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_api"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "interoptopus",
  "interoptopus_backend_c",
@@ -6823,7 +6823,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_mock_host"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "libloading 0.9.0",
  "souprune_api",
@@ -6831,14 +6831,14 @@ dependencies = [
 
 [[package]]
 name = "souprune_mod_test"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "souprune_sdk",
 ]
 
 [[package]]
 name = "souprune_sdk"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "souprune_api",
 ]
