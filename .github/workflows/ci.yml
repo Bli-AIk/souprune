@@ -69,6 +69,9 @@ jobs:
       - name: Build
         run: cargo build --workspace --verbose
 
+      - name: Run tests
+        run: cargo test --workspace --verbose
+
   security:
     name: Security Audit
     if: github.event.pull_request.draft == false
