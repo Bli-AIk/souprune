@@ -25,7 +25,7 @@ name = "souprune_mock_host"
 [[package]]
 name = "interoptopus_backend_haxe"
 
-# Explicitly disable release-plz for git submodules
+# Explicitly disable release-plz for git submodules and their sub-crates
 [[package]]
 name = "bevy_alight_motion"
 release = false
@@ -41,6 +41,11 @@ release = false
 [[package]]
 name = "bevy_mortar_bond"
 release = false
+
+[[package]]
+name = "bevy_mortar_bond_macros"
+release = false
+
 
 
 
