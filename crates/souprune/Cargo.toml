@@ -11,6 +11,10 @@ documentation = "https://docs.rs/souprune"
 readme = "../../readme.md"
 keywords = ["game-framework", "deltarune", "undertale", "game-engine", "bevy"]
 categories = ["game-development", "game-engines"]
+exclude = [
+    "target/*",
+    ".github/*"
+]
 
 [dependencies]
 bevy = { version = "0.17.2", default-features = false, features = [
