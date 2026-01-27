@@ -1,6 +1,6 @@
 [package]
 name = "souprune"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 authors = ["Bli-AIk <haikun2333@gmail.com>"]
 license = "LGPL-3.0-or-later"
@@ -38,19 +38,22 @@ bevy = { version = "0.17.2", default-features = false, features = [
 ] }
 leafwing-input-manager = "0.19.0"
 seldom_state = "0.15.0"
-bevy_ecs_tiled = { git = "https://github.com/adrien-bon/bevy_ecs_tiled.git", branch = "dev" }
+bevy_ecs_tiled = "0.10"
 bevy_tween = "0.10.0"
 bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_mortar_bond = { path = "../bevy_mortar_bond" }
+bevy_alight_motion = { path = "../bevy_alight_motion" }
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ron = "0.10"
 toml = "0.9.8"
+regex = "1.10"
 bevy_smud = "0.12.0"
 bevy_rich_text3d = { version = "0.5.1", features = ["reflect"] }
-bevy_kira_audio = { version = "0.24", features = ["wav", "ogg", "flac", "mp3"] }
+bevy_kira_audio = { version = "0.24", features = ["wav", "ogg", "flac", "mp3"], optional = true }
+bevy_seedling = { version = "0.6.1", features = ["wav", "ogg", "flac", "mp3"], optional = true }
 anyhow = "1.0.100"
 tracing-appender = "0.2.4"
 tracing-subscriber = "0.3.22"
@@ -60,6 +63,7 @@ evalexpr = "13.1.0"
 proptest = "1.9.0"
 libloading = "0.9.0"
 souprune_api = { path = "../souprune_api" }
+dunce = "1.0.5"
 
 [dev-dependencies]
 once_cell = "1.20.2"
@@ -79,5 +83,8 @@ version = "0.17.2"
 optional = true
 
 [features]
-default = []
+default = ["bevy_kira_audio"]
 debug = ["dep:bevy-inspector-egui", "dep:iyes_perf_ui", "dep:bevy_brp_extras"]
+firewheel = ["bevy_seedling"]
+experimental = []
+unsafe_gpu = []

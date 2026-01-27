@@ -158,16 +158,16 @@ pub fn build_text_config(
         color,
         transform: {
             let translation = Vec3::new(
-                evaluate_float_expr(&text_def.transform.translation.x, player_data),
-                evaluate_float_expr(&text_def.transform.translation.y, player_data),
-                evaluate_float_expr(&text_def.transform.translation.z, player_data),
+                evaluate_float_expr(&text_def.transform.translation.x, player_data, None),
+                evaluate_float_expr(&text_def.transform.translation.y, player_data, None),
+                evaluate_float_expr(&text_def.transform.translation.z, player_data, None),
             );
             let mut t = Transform::from_translation(translation);
             if let Some(scale) = &text_def.transform.scale {
                 t.scale = Vec3::new(
-                    evaluate_float_expr(&scale.x, player_data),
-                    evaluate_float_expr(&scale.y, player_data),
-                    evaluate_float_expr(&scale.z, player_data),
+                    evaluate_float_expr(&scale.x, player_data, None),
+                    evaluate_float_expr(&scale.y, player_data, None),
+                    evaluate_float_expr(&scale.z, player_data, None),
                 );
             }
             if let Some(rot) = text_def.transform.rotation {
@@ -217,21 +217,22 @@ pub fn spawn_ui_node(
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
                 transform.translation = Vec3::new(
-                    evaluate_float_expr(&t_def.translation.x, player_data),
-                    evaluate_float_expr(&t_def.translation.y, player_data),
-                    evaluate_float_expr(&t_def.translation.z, player_data),
+                    evaluate_float_expr(&t_def.translation.x, player_data, None),
+                    evaluate_float_expr(&t_def.translation.y, player_data, None),
+                    evaluate_float_expr(&t_def.translation.z, player_data, None),
                 );
                 if let Some(scale) = &t_def.scale {
                     transform.scale = Vec3::new(
-                        evaluate_float_expr(&scale.x, player_data),
-                        evaluate_float_expr(&scale.y, player_data),
-                        evaluate_float_expr(&scale.z, player_data),
+                        evaluate_float_expr(&scale.x, player_data, None),
+                        evaluate_float_expr(&scale.y, player_data, None),
+                        evaluate_float_expr(&scale.z, player_data, None),
                     );
                 }
                 if let Some(rot) = t_def.rotation {
                     transform.rotation = Quat::from_rotation_z(rot.to_radians());
                 }
             }
+
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
@@ -348,6 +349,9 @@ pub fn spawn_ui_node(
                             RonDrivenUI,
                         ))
                         .id();
+
+                    spawned_entity_id = Some(entity_id);
+
                     info!(
                         "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
                         node_def.name, entity_id, sprite_def.path
@@ -632,24 +636,52 @@ pub fn spawn_ui_node(
 
     // Process children recursively AFTER the closure ends to avoid borrowing conflicts
     // 在闭包结束后递归处理子节点，以避免借用冲突
+    info!("After closure, spawned_entity_id: {:?}", spawned_entity_id);
     if let Some(entity_id) = spawned_entity_id {
         // Add DynamicUIElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
-            let has_dynamic = sprite_def.transform.as_ref().is_some_and(|t| {
-                t.translation.is_dynamic() || t.scale.as_ref().is_some_and(|s| s.is_dynamic())
-            }) || sprite_def
+
+            let mut has_dynamic = false;
+            if let Some(t) = &sprite_def.transform {
+                let tx = t.translation.x.is_dynamic();
+                let ty = t.translation.y.is_dynamic();
+                let tz = t.translation.z.is_dynamic();
+                info!(
+                    "Checking dynamics for {}: x={}, y={}, z={}",
+                    node_def.name, tx, ty, tz
+                );
+
+                if tx || ty || tz {
+                    has_dynamic = true;
+                }
+                if let Some(s) = &t.scale {
+                    if s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic() {
+                        has_dynamic = true;
+                    }
+                }
+            }
+            if sprite_def
                 .shader_params
                 .as_ref()
-                .is_some_and(|p| p.is_dynamic());
+                .is_some_and(|p| p.is_dynamic())
+            {
+                has_dynamic = true;
+            }
 
             if has_dynamic {
+                info!(
+                    "Adding DynamicUIElement to entity {:?} ({})",
+                    entity_id, node_def.name
+                );
                 commands
                     .entity(entity_id)
                     .insert(super::super::components::DynamicUIElement {
                         sprite_def: Some(sprite_def.clone()),
                         text_def: None,
                     });
+            } else {
+                info!("No dynamic properties found for {}", node_def.name);
             }
         }
 
@@ -758,15 +790,15 @@ fn spawn_ui_sprite(
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {
         transform.translation = Vec3::new(
-            evaluate_float_expr(&t_def.translation.x, player_data),
-            evaluate_float_expr(&t_def.translation.y, player_data),
-            evaluate_float_expr(&t_def.translation.z, player_data),
+            evaluate_float_expr(&t_def.translation.x, player_data, None),
+            evaluate_float_expr(&t_def.translation.y, player_data, None),
+            evaluate_float_expr(&t_def.translation.z, player_data, None),
         );
         if let Some(scale) = &t_def.scale {
             transform.scale = Vec3::new(
-                evaluate_float_expr(&scale.x, player_data),
-                evaluate_float_expr(&scale.y, player_data),
-                evaluate_float_expr(&scale.z, player_data),
+                evaluate_float_expr(&scale.x, player_data, None),
+                evaluate_float_expr(&scale.y, player_data, None),
+                evaluate_float_expr(&scale.z, player_data, None),
             );
         }
         if let Some(rot) = t_def.rotation {

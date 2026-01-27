@@ -21,19 +21,29 @@
 use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
+#[cfg(feature = "experimental")]
+pub mod beat;
 pub mod object_properties;
+#[cfg(feature = "experimental")]
+pub mod reveal;
 pub mod systems;
 
 use crate::app_state::overworld::OverworldUpdate;
 pub use object_properties::ObjectCollider;
 
-use bevy_kira_audio::AudioInstance;
-
 #[derive(Resource, Default)]
 pub struct CurrentMapBgm(pub Option<String>);
 
+// ============================================================================
+// BGM Handle Resources - Backend Specific
+// ============================================================================
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 #[derive(Resource, Default)]
-pub struct CurrentBgmHandle(pub Option<Handle<AudioInstance>>);
+pub struct CurrentBgmHandle(pub Option<Handle<bevy_kira_audio::AudioInstance>>);
+
+#[cfg(feature = "firewheel")]
+#[derive(Resource, Default)]
+pub struct CurrentBgmHandle(pub Option<Entity>);
 
 pub(crate) struct TilemapPlugin;
 
@@ -54,5 +64,13 @@ impl Plugin for TilemapPlugin {
                 )
                     .in_set(OverworldUpdate),
             );
+
+        // Add tile reveal effect plugin when experimental feature is enabled
+        // 当启用 experimental feature 时添加瓦片揭示效果插件
+        #[cfg(feature = "experimental")]
+        {
+            app.add_plugins(reveal::TileRevealPlugin);
+            app.add_plugins(beat::BeatPlugin);
+        }
     }
 }

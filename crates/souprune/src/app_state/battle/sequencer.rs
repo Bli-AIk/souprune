@@ -30,8 +30,10 @@ impl Plugin for SequencerPlugin {
                     process_camera_action_system,
                     process_ui_action_system,
                     process_danmaku_performance_system,
+                    process_am_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
+                    process_am_wait_chapter_system,
                     process_parallel_chapter_system,
                     cleanup_finished_chapters_system,
                     sync_battle_flow_system,
@@ -42,11 +44,13 @@ impl Plugin for SequencerPlugin {
     }
 }
 
+use super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
 use super::chapter::{Chapter, PlayerAction};
 use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
+use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
 
@@ -87,12 +91,15 @@ struct CurrentBattleFlow(Handle<BattleAsset>);
 /// System to load the default chapter resource.
 ///
 /// 加载默认章节资源的系统。
-fn load_default_chapter_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // TODO: Remove hardcoded chapter path - should be configurable or load from save data
-    // TODO：删除硬编码的章节路径 - 应该是可配置的或从保存数据加载
-    let handle = asset_server.load::<BattleAsset>("battle/chapters/demo.battle.ron");
+fn load_default_chapter_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    let chapter_path = &souprune_config.game.initial_battle_path;
+    let handle = asset_server.load::<BattleAsset>(chapter_path);
     commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: battle/chapters/demo.battle.ron");
+    info!("Loading default battle flow: {}", chapter_path);
 }
 
 fn sync_battle_flow_system(
@@ -138,7 +145,7 @@ fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<Entit
             }
         }
         Chapter::Sequence(children) => {
-            if !parent.is_none() {
+            if parent.is_some() {
                 warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
                 commands.entity(entity).insert(ParallelTracker {
                     pending_count: children.len(),
@@ -206,13 +213,13 @@ fn cleanup_finished_chapters_system(
     mut parallel_parents: Query<&mut ParallelTracker>,
 ) {
     for (entity, chapter) in finished_query.iter() {
-        if let Some(parent_entity) = chapter.parent {
-            if let Ok(mut tracker) = parallel_parents.get_mut(parent_entity) {
-                tracker.pending_count = tracker.pending_count.saturating_sub(1);
-                if tracker.pending_count == 0 {
-                    // Parent finished!
-                    commands.entity(parent_entity).insert(ChapterFinished);
-                }
+        if let Some(parent_entity) = chapter.parent
+            && let Ok(mut tracker) = parallel_parents.get_mut(parent_entity)
+        {
+            tracker.pending_count = tracker.pending_count.saturating_sub(1);
+            if tracker.pending_count == 0 {
+                // Parent finished!
+                commands.entity(parent_entity).insert(ChapterFinished);
             }
         }
 
@@ -252,6 +259,7 @@ fn process_camera_action_system(
         (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
+    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetCamera(action) = &active_chapter.chapter {
@@ -262,7 +270,13 @@ fn process_camera_action_system(
                     }
                     super::chapter::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
-                            ortho.scale = *zoom;
+                            // Apply zoom relative to base resolution scale
+                            // 相对于基础分辨率缩放应用缩放
+                            ortho.scale = *zoom / resolution_scale.get() as f32;
+                            info!(
+                                "[Battle] SetZoom: requested={}, actual={}",
+                                zoom, ortho.scale
+                            );
                         }
                     }
                     _ => {
@@ -454,6 +468,7 @@ fn process_player_spawn_requests(
                     mode_id: config.default_mode_id.clone(),
                 },
                 BehaviorVelocity::default(),
+                BulletTarget::new(),
                 crate::app_state::battle::BattleEntity,
                 Name::new("BattlePlayer"),
             ));
@@ -464,6 +479,80 @@ fn process_player_spawn_requests(
             );
 
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Marker component for AM performance chapter tracking
+#[derive(Component)]
+struct AmPerformanceTracker {
+    wait_for_completion: bool,
+    /// Whether we've seen the performance start (is_playing became true)
+    started: bool,
+}
+
+/// System to process AmPerformance chapters.
+///
+/// 处理 AM 演出章节的系统。
+fn process_am_performance_system(
+    mut commands: Commands,
+    query: Query<
+        (Entity, &ActiveChapter),
+        (
+            Without<WaitTimer>,
+            Without<ChapterFinished>,
+            Without<AmPerformanceTracker>,
+        ),
+    >,
+    mut performance_events: bevy::ecs::message::MessageWriter<PlayAmPerformanceEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::AmPerformance {
+            amproj_path,
+            wait_for_completion,
+        } = &active_chapter.chapter
+        {
+            info!("[Battle] Starting AM performance from: {}", amproj_path);
+
+            // Send event to start the AM performance
+            performance_events.write(PlayAmPerformanceEvent::new(amproj_path.clone()));
+
+            if *wait_for_completion {
+                // Add tracker component to wait for completion
+                commands.entity(entity).insert(AmPerformanceTracker {
+                    wait_for_completion: true,
+                    started: false,
+                });
+            } else {
+                // Not waiting, mark as finished immediately
+                commands.entity(entity).insert(ChapterFinished);
+            }
+        }
+    }
+}
+
+/// System to check if AM performance has completed and finish the chapter.
+///
+/// 检查 AM 演出是否完成并结束章节的系统。
+fn process_am_wait_chapter_system(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut AmPerformanceTracker), Without<ChapterFinished>>,
+    am_state: Res<AmPerformanceState>,
+) {
+    for (entity, mut tracker) in query.iter_mut() {
+        if !tracker.wait_for_completion {
+            continue;
+        }
+
+        // Wait for performance to start first
+        if am_state.is_playing {
+            tracker.started = true;
+        }
+
+        // Only mark finished after performance has started and then stopped
+        if tracker.started && !am_state.is_playing {
+            info!("[Battle] AM performance chapter finished");
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }

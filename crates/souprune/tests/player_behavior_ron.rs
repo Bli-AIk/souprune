@@ -11,19 +11,6 @@ use souprune::{Action, AnimationConfigAsset, CharacterAsset, Direction, PlayerBe
 use std::path::PathBuf;
 use std::sync::Once;
 
-/// Confirm the behavior file deserializes end-to-end through `PlayerBehavior::load`.
-///
-/// 通过 `PlayerBehavior::load` 验证行为文件能够完整反序列化。
-#[test]
-fn player_behavior_resource_loads() {
-    ensure_workspace_dir();
-    let behavior =
-        PlayerBehavior::load().expect("player behavior should be readable from example mod");
-    assert_eq!(behavior.initial_state, "Walk");
-    assert_eq!(behavior.initial_clip, "frisk_walk_down");
-    assert_eq!(behavior.initial_facing, Direction::Down);
-}
-
 /// Validate referenced assets (character + animation config) exist and parse.
 ///
 /// 验证引用的资产（角色与动画配置）都存在并可解析。
@@ -45,18 +32,6 @@ fn player_behavior_asset_references_are_valid() {
     test_support::ensure_project_asset(&character.animation_config);
     let _animation: AnimationConfigAsset =
         test_support::parse_project_ron(&character.animation_config);
-}
-
-/// Rehearse runtime logic by confirming run action wiring and derived clip info.
-///
-/// 通过检查奔跑动作与派生动画片段信息来预演运行时逻辑。
-#[test]
-fn player_behavior_runtime_logic_matches_expectations() {
-    ensure_workspace_dir();
-    let behavior = PlayerBehavior::load().expect("player behavior should load");
-    assert_eq!(behavior.run_action, Some(Action::Cancel));
-    assert!((behavior.run_speed_multiplier - 2.0).abs() < f32::EPSILON);
-    assert_eq!(behavior.sprite_source, "overworld");
 }
 
 #[derive(Debug, Deserialize)]

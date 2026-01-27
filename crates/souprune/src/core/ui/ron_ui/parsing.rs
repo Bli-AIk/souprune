@@ -78,13 +78,67 @@ fn evaluate_index_expression(expr: &str, player_data: &crate::core::data::Player
     1
 }
 
-pub fn evaluate_float_expr(expr: &FloatOrExpr, player_data: &crate::core::data::PlayerData) -> f32 {
+pub fn evaluate_float_expr(
+    expr: &FloatOrExpr,
+    player_data: &crate::core::data::PlayerData,
+    time: Option<f64>,
+) -> f32 {
     match expr {
         FloatOrExpr::Static(v) => *v,
         FloatOrExpr::Dynamic(expr_str) => {
-            use evalexpr::{ContextWithMutableVariables, DefaultNumericTypes, HashMapContext};
+            use evalexpr::{
+                ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
+                HashMapContext,
+            };
 
             let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+
+            // Register sin function
+            let _ = context.set_function(
+                "sin".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.sin()))
+                }),
+            );
+
+            // Register cos function
+            let _ = context.set_function(
+                "cos".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.cos()))
+                }),
+            );
+
+            // Register snap function (snap(val, step))
+            let _ = context.set_function(
+                "snap".to_string(),
+                evalexpr::Function::new(|arg| {
+                    if let Ok(tuple) = arg.as_tuple() {
+                        if tuple.len() != 2 {
+                            return Err(evalexpr::EvalexprError::CustomMessage(
+                                "snap expects 2 arguments".to_string(),
+                            ));
+                        }
+                        let val: f64 = tuple[0].as_float()?;
+                        let step: f64 = tuple[1].as_float()?;
+                        if step == 0.0 {
+                            return Ok(evalexpr::Value::Float(val));
+                        }
+                        // Use floor to snap to the previous step (like 30fps update)
+                        let snapped: f64 = (val / step).floor() * step;
+                        Ok(evalexpr::Value::Float(snapped))
+                    } else {
+                        // If single argument, maybe return as is or error?
+                        // But snap needs step.
+                        Err(evalexpr::EvalexprError::CustomMessage(
+                            "snap expects 2 arguments (val, step)".to_string(),
+                        ))
+                    }
+                }),
+            );
+
             let _ = context.set_value(
                 "@player.hp".to_string(),
                 evalexpr::Value::Int(player_data.hp as i64),
@@ -97,6 +151,13 @@ pub fn evaluate_float_expr(expr: &FloatOrExpr, player_data: &crate::core::data::
                 "@player.lv".to_string(),
                 evalexpr::Value::Int(player_data.lv as i64),
             );
+
+            if let Some(t) = time {
+                // debug!("Setting @time to {}", t);
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
+            } else {
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
+            }
 
             match evalexpr::eval_with_context(expr_str, &context) {
                 Ok(val) => {

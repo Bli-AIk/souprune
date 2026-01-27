@@ -83,7 +83,11 @@ fn apply_sprite_animation(
     current_frame: &SpriteAnimationCurrentFrame,
 ) {
     clip.frame = current_frame.value;
+    // Preserve the existing sprite color before applying animation frame
+    let preserved_color = sprite.color;
     *sprite = clip.get_current_sprite().clone();
+    // Restore the preserved color (for tinted bullets like orange/blue soul bullets)
+    sprite.color = preserved_color;
 }
 
 pub(crate) fn update_sprite_animation_system(

@@ -22,6 +22,10 @@ pub use crate::core::character_asset::{
 };
 pub use crate::core::input::actions::Action;
 pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::save::{
+    LoadCompleteEvent, LoadGameEvent, SaveCompleteEvent, SaveConfig, SaveData, SaveGameEvent,
+    SaveMetadata, SaveSlot, Saveable,
+};
 pub use crate::core::ui::layout::{
     BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
     SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
@@ -37,7 +41,10 @@ use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
+use bevy::render::RenderPlugin;
+use bevy::render::settings::{InstanceFlags, RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
+
 use chrono::Local;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -79,7 +86,8 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
         .add_directive("bevy=info".parse()?)
         .add_directive("bevy_render=warn".parse()?)
         .add_directive("bevy_app=warn".parse()?)
-        .add_directive("bevy_ecs=warn".parse()?);
+        .add_directive("bevy_ecs=warn".parse()?)
+        .add_directive("bevy_alight_motion=warn".parse()?);
 
     // File layer: writes to the log file
     //
@@ -110,21 +118,53 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
 /// Get the default Bevy plugins with custom window size and image plugin settings.
 ///
 /// 获取具有自定义窗口大小和图像插件设置的默认 Bevy 插件。
-fn get_bevy_default_plugins(resolution_scale: u32) -> PluginGroupBuilder {
-    DefaultPlugins
+fn get_bevy_default_plugins(
+    resolution_scale: u32,
+    render_config: &config::RenderConfig,
+) -> PluginGroupBuilder {
+    let base_width = render_config.base_resolution_width;
+    let base_height = render_config.base_resolution_height;
+
+    let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: WindowResolution::new(320 * resolution_scale, 240 * resolution_scale),
+                resolution: WindowResolution::new(
+                    base_width * resolution_scale,
+                    base_height * resolution_scale,
+                ),
                 resizable: false,
+                title: "SoupRune".into(),
                 ..default()
             }),
             ..default()
         })
-        // Disable the default LogPlugin because we initialize our own tracing subscriber
-        //
-        // 禁用默认的 LogPlugin，因为我们初始化了自己的追踪订阅者
-        .disable::<bevy::log::LogPlugin>()
+        .disable::<bevy::log::LogPlugin>();
+
+    // On some devices, enabling the WGPU verification layer can cause a panic.
+    // This may be caused by driver incompatibility or resource limitations.
+    // Therefore, if the unsafe_gpu feature is enabled, we will forcibly disable the verification layer
+    // to improve compatibility, although this will sacrifice some debugging information and stability.
+    // We only recommend using this feature when running on known safe GPUs, and it is not
+    // recommended for production environments.
+    //
+    // 在某些设备上，启用 WGPU 验证层会导致 panic。这可能是由于驱动程序不兼容或资源限制引起的。
+    // 因此，如果启用了 unsafe_gpu 特性，我们将强制关闭验证层以提高兼容性，尽管这会牺牲一些调试信息和稳定性。
+    // 我们仅建议在已知安全的 GPU 上运行时使用此特性，并且不建议在生产环境中使用。
+    #[cfg(feature = "unsafe_gpu")]
+    {
+        info!("【SYSTEM】Unsafe GPU Mode Detected: Forcing WGPU Validation Layers OFF.");
+
+        plugins = plugins.set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                instance_flags: InstanceFlags::empty(),
+                ..default()
+            }),
+            ..default()
+        });
+    }
+
+    plugins
 }
 
 /// Get the file importer plugins used in the application.
@@ -151,6 +191,7 @@ fn get_third_plugins() -> (
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
+    bevy_alight_motion::prelude::AlightMotionPlugin,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
@@ -162,6 +203,7 @@ fn get_third_plugins() -> (
             load_system_fonts: false,
             ..Default::default()
         },
+        bevy_alight_motion::prelude::AlightMotionPlugin,
     )
 }
 
@@ -174,7 +216,7 @@ fn get_game_plugins() -> (
     overworld::OverworldPlugin,
     battle::BattlePlugin,
     GlobalPlugin,
-    core::mod_system::ModPlugin,
+    mod_system::ModPlugin,
 ) {
     (
         CorePlugin,
@@ -182,7 +224,7 @@ fn get_game_plugins() -> (
         overworld::OverworldPlugin,
         battle::BattlePlugin,
         GlobalPlugin,
-        core::mod_system::ModPlugin,
+        mod_system::ModPlugin,
     )
 }
 
@@ -192,13 +234,20 @@ pub fn run() {
     // 初始化日志记录并保持 guard 存活
     let _log_guard = setup_logging().expect("Failed to initialize logging");
 
+    #[cfg(feature = "unsafe_gpu")]
+    info!("Starting SoupRune with [unsafe_gpu] feature enabled.");
+
     let config = config::load_config();
+
+    // Data
     let resolution_scale = config.window.resolution_scale;
     let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
 
+    // Config
+    let render_config = config.render.clone();
+
     App::new()
-        // TODO: 读取 mod 配置并加载正确的项目
         .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
@@ -232,7 +281,7 @@ pub fn run() {
                                     );
                                 }
                                 Err(e) => {
-                                    error!(
+                                    warn!(
                                         "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
                                         root, e
                                     );
@@ -247,7 +296,7 @@ pub fn run() {
         .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
         .add_plugins((
-            get_bevy_default_plugins(resolution_scale),
+            get_bevy_default_plugins(resolution_scale, &render_config),
             get_file_importer_plugins(),
             get_third_plugins(),
             #[cfg(feature = "debug")]
@@ -255,6 +304,7 @@ pub fn run() {
             #[cfg(feature = "debug")]
             bevy_brp_extras::BrpExtrasPlugin,
         ))
+        .insert_resource(config)
         .insert_resource(bevy_rich_text3d::LoadFonts {
             font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
             ..Default::default()
@@ -263,7 +313,7 @@ pub fn run() {
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,
-            core::ui::UIUpdate.run_if(
+            ui::UIUpdate.run_if(
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )

@@ -102,7 +102,8 @@ fn read_locale_constants_system(
                     //
                     // 从相对于 locale 文件夹的路径确定命名空间
                     let namespace = if let Some(path) = asset_server.get_path(id) {
-                        let full_path = path.path().to_string_lossy();
+                        // Normalize path to forward slashes for cross-platform consistency
+                        let full_path = path.path().to_string_lossy().replace('\\', "/");
                         let prefix = format!("shared/locales/{}/", locale.0);
 
                         if let Some(remaining) = full_path.strip_prefix(&prefix) {

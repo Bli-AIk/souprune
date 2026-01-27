@@ -36,11 +36,15 @@ pub(crate) mod basic_components;
 pub(crate) mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
+pub mod danmaku;
 pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
 pub mod mod_system;
+pub mod player_components;
+pub mod render_layers;
 pub mod ron_loader;
+pub mod save;
 pub mod sprite;
 pub(crate) mod ui;
 
@@ -75,9 +79,11 @@ impl Plugin for CorePlugin {
                 audio::AudioPlugin,
                 camera::CameraPlugin,
                 collision::CollisionPlugin,
+                danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 input::InputPlugin,
                 item::ItemPlugin,
+                save::SavePlugin,
                 sprite::SpritePlugin,
             ));
     }

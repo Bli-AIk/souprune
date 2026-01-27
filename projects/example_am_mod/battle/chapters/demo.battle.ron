@@ -1,0 +1,16 @@
+[
+    SetCamera(SetZoom(2.0)),
+    UIInteraction(ui_layout: "battle/ui/sans_idle.ui_layout.ron"),
+    UIInteraction(ui_layout: "battle/ui/undertale_no_box.ui_layout.ron"),
+    SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+
+    // AM 动画演出（包含战斗框和弹幕）
+    AmPerformance(
+        amproj_path: "demo_turn.amproj",
+        wait_for_completion: true,
+    ),
+    Sequence([
+        Wait(0.5),
+        SetPlayer(Despawn),
+    ]),
+]

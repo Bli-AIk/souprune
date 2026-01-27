@@ -50,13 +50,16 @@ pub struct CollisionTileGroup;
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
 
-pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // TODO: Remove hardcoded map path - should load from config or save data
+pub fn setup_tilemap_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
     commands.spawn((
         OverworldEntity(),
-        TiledMap(asset_server.load("overworld/levels/ruins/ruins_3.tmx")),
+        TiledMap(asset_server.load(&souprune_config.game.initial_map_path)),
         TilemapAnchor::Center,
-        TiledMapLayerZOffset(10.0),
+        TiledMapLayerZOffset(souprune_config.render.z_layer_tilemap),
     ));
     // TODO: Tilemap的资源加载（或许）应当在 AppSetup 阶段完成。
 }
@@ -69,19 +72,19 @@ pub fn setup_tilemap_system(mut commands: Commands, asset_server: Res<AssetServe
 pub fn initialize_tilemap_system(
     mut commands: Commands,
     layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     let mut layers: Vec<_> = layers_query.iter().collect();
 
     layers.sort_by_key(|(entity, _)| entity.index());
 
+    let hidden_keywords = &souprune_config.game.hidden_layer_keywords;
+
     for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
         let layer_name_str = layer_name.as_str();
 
         let name_lower = layer_name_str.to_ascii_lowercase();
-        if ["prototype", "collision"]
-            .iter()
-            .any(|s| name_lower.contains(s))
-        {
+        if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
             if name_lower.contains("collision") {
                 info!(
                     "Hide collision layer: {} and generate collision tiles",
@@ -94,7 +97,8 @@ pub fn initialize_tilemap_system(
         } else {
             info!("Show layers: {}", layer_name_str);
 
-            let z_offset = -2.0 - (layers.len() as f32 - 1.0 - index as f32) * 0.5;
+            let z_offset = souprune_config.render.z_layer_base
+                - (layers.len() as f32 - 1.0 - index as f32) * souprune_config.render.z_layer_step;
 
             commands
                 .entity(*layer_entity)
@@ -304,26 +308,29 @@ fn generate_object_colliders(
             );
 
             for object_data in object_layer.objects() {
+                let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+                    continue;
+                };
+
+                // Calculate world position (same coordinate system as tilemap)
+                // Tiled uses top-left origin, convert to center-based
+                //
+                // 计算世界位置（与瓦片地图坐标系相同）
+                // Tiled 使用左上角原点，转换为基于中心
+                let world_x = center_offset_x + object_data.x + width / 2.0;
+                let world_y = center_offset_y
+                    + (tiled_map_asset.map.height as f32 * tile_height
+                        - object_data.y
+                        - height / 2.0);
+
+                let size = Vec2::new(width, height);
+
                 // Check if this object has collision property set to true
                 //
                 // 检查此对象是否将碰撞属性设置为 true
                 if let Some(collision_value) = object_data.properties.get("collision")
                     && let tiled::PropertyValue::BoolValue(true) = collision_value
-                    && let tiled::ObjectShape::Rect { width, height } = object_data.shape
                 {
-                    // Calculate world position (same coordinate system as tilemap)
-                    // Tiled uses top-left origin, convert to center-based
-                    //
-                    // 计算世界位置（与瓦片地图坐标系相同）
-                    // Tiled 使用左上角原点，转换为基于中心
-                    let world_x = center_offset_x + object_data.x + width / 2.0;
-                    let world_y = center_offset_y
-                        + (tiled_map_asset.map.height as f32 * tile_height
-                            - object_data.y
-                            - height / 2.0);
-
-                    let size = Vec2::new(width, height);
-
                     info!(
                         "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
                         object_data.name, world_x, world_y, width, height
@@ -340,6 +347,44 @@ fn generate_object_colliders(
                             Transform::from_xyz(world_x, world_y, 0.0),
                             Visibility::Hidden,
                             Name::new(format!("ObjectCollision_{}", object_data.name)),
+                        ));
+                    });
+                }
+
+                // Check if this object has trigger property set to true (experimental feature)
+                //
+                // 检查此对象是否将触发器属性设置为 true（实验性功能）
+                #[cfg(feature = "experimental")]
+                if let Some(trigger_value) = object_data.properties.get("trigger")
+                    && let tiled::PropertyValue::BoolValue(true) = trigger_value
+                {
+                    // Get trigger ID from name or id property
+                    let trigger_id = if let Some(id_value) =
+                        object_data.properties.get("trigger_id")
+                        && let tiled::PropertyValue::StringValue(id) = id_value
+                    {
+                        id.clone()
+                    } else if !object_data.name.is_empty() {
+                        object_data.name.clone()
+                    } else {
+                        format!("trigger_{}", object_data.id())
+                    };
+
+                    info!(
+                        "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
+                        trigger_id, world_x, world_y, width, height
+                    );
+
+                    // Spawn trigger zone entity
+                    //
+                    // 创建触发区域实体
+                    commands.entity(parent_entity).with_children(|parent| {
+                        parent.spawn((
+                            crate::app_state::overworld::trigger::TriggerZone::new(&trigger_id),
+                            Rect2DCollider::new(size, Vec2::ZERO),
+                            Transform::from_xyz(world_x, world_y, 0.0),
+                            Visibility::Hidden,
+                            Name::new(format!("TriggerZone_{}", trigger_id)),
                         ));
                     });
                 }
@@ -436,6 +481,7 @@ pub fn setup_camera_bounds_system(
     tiled_maps_query: Query<&TiledMap>,
     windows: Query<&Window>,
     cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     // Only proceed if a tilemap asset is loaded.
     //
@@ -456,6 +502,9 @@ pub fn setup_camera_bounds_system(
     let map_width = tiled_map_asset.map.width as f32 * tile_width;
     let map_height = tiled_map_asset.map.height as f32 * tile_height;
 
+    let default_width = souprune_config.render.base_resolution_width as f32;
+    let default_height = souprune_config.render.base_resolution_height as f32;
+
     // Get the viewport size from the window and camera.
     //
     // 从窗口和摄像机获取视口大小。
@@ -470,10 +519,10 @@ pub fn setup_camera_bounds_system(
             let scale = camera_transform.scale.x;
             window.resolution.width() * scale
         } else {
-            320.0 // fallback to default
+            default_width
         }
     } else {
-        320.0 // fallback to default
+        default_width
     };
 
     let viewport_height = if let Ok(window) = windows.single() {
@@ -481,10 +530,10 @@ pub fn setup_camera_bounds_system(
             let scale = camera_transform.scale.y;
             window.resolution.height() * scale
         } else {
-            240.0 // fallback to default
+            default_height
         }
     } else {
-        240.0 // fallback to default
+        default_height
     };
 
     // Calculate bounds so the camera center stays inside the map minus half the viewport.
@@ -515,6 +564,7 @@ pub fn setup_camera_bounds_system(
 /// Update background music based on map properties.
 ///
 /// 根据地图属性更新背景音乐。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn update_map_bgm_system(
     mut current_bgm: ResMut<super::CurrentMapBgm>,
     mut bgm_handle: ResMut<super::CurrentBgmHandle>,
@@ -540,6 +590,34 @@ pub fn update_map_bgm_system(
             let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
             current_bgm.0 = Some(bgm_path.clone());
             bgm_handle.0 = Some(handle);
+        }
+    }
+}
+
+#[cfg(feature = "firewheel")]
+pub fn update_map_bgm_system(
+    mut commands: Commands,
+    mut current_bgm: ResMut<super::CurrentMapBgm>,
+    mut bgm_handle: ResMut<super::CurrentBgmHandle>,
+    tiled_maps: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
+    asset_server: Res<AssetServer>,
+) {
+    for tiled_map in tiled_maps.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
+            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && current_bgm.0.as_deref() != Some(bgm_path)
+        {
+            // Stop previous BGM by despawning entity
+            if let Some(entity) = bgm_handle.0 {
+                commands.entity(entity).despawn();
+            }
+
+            info!("Switching BGM to: {}", bgm_path);
+            let entity = crate::core::audio::play_bgm(&mut commands, &asset_server, bgm_path);
+            current_bgm.0 = Some(bgm_path.clone());
+            bgm_handle.0 = Some(entity);
         }
     }
 }

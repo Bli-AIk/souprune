@@ -26,21 +26,21 @@ use evalexpr::{
     Function, HashMapContext, Value,
 };
 
-/// Apply camera offsets whenever the camera actually moves (works in both Overworld Backpack and Battle states).
+/// Apply camera offsets whenever the camera actually moves (works in Overworld Backpack/Chase and Battle states).
 ///
-/// 当摄像机移动时同步锚点，支持 Overworld 背包和 Battle 场景。
+/// 当摄像机移动时同步锚点，支持 Overworld 背包/追逐战和 Battle 场景。
 pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
     camera_query: Query<&Transform, (With<Camera2d>, Changed<Transform>)>,
     mut anchored_ui_query: Query<(&CameraAnchored, &mut Transform), Without<Camera2d>>,
 ) {
-    // Only run in Battle state or Overworld Backpack state
-    // 仅在 Battle 状态或 Overworld Backpack 状态下运行
+    // Only run in Battle state or Overworld Backpack/Chase state
+    // 仅在 Battle 状态或 Overworld 背包/追逐战状态下运行
     let should_run = match app_state.get() {
         crate::app_state::AppState::Battle => true,
         crate::app_state::AppState::Overworld => overworld_state
-            .map(|s| s.get() == &OverworldState::Backpack)
+            .map(|s| matches!(s.get(), &OverworldState::Backpack | &OverworldState::Chase))
             .unwrap_or(false),
         _ => false,
     };
@@ -181,9 +181,9 @@ pub(crate) fn update_dynamic_camera_anchors_system(
     }
 }
 
-/// Initialize (or re-sync) anchors only when the entity's offset changes or gets added (works in both Overworld Backpack and Battle states).
+/// Initialize (or re-sync) anchors only when the entity's offset changes or gets added (works in Overworld Backpack/Chase and Battle states).
 ///
-/// 仅在新 UI 产生或偏移量改变时同步，支持 Overworld 背包和 Battle 场景。
+/// 仅在新 UI 产生或偏移量改变时同步，支持 Overworld 背包/追逐战和 Battle 场景。
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_camera_anchored_ui_on_change_system(
     app_state: Res<State<crate::app_state::AppState>>,
@@ -197,12 +197,12 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
         ),
     >,
 ) {
-    // Only run in Battle state or Overworld Backpack state
-    // 仅在 Battle 状态或 Overworld Backpack 状态下运行
+    // Only run in Battle state or Overworld Backpack/Chase state
+    // 仅在 Battle 状态或 Overworld 背包/追逐战状态下运行
     let should_run = match app_state.get() {
         crate::app_state::AppState::Battle => true,
         crate::app_state::AppState::Overworld => overworld_state
-            .map(|s| s.get() == &OverworldState::Backpack)
+            .map(|s| matches!(s.get(), &OverworldState::Backpack | &OverworldState::Chase))
             .unwrap_or(false),
         _ => false,
     };
