@@ -7,7 +7,6 @@
 allow_dirty = true
 
 # Only manage these packages (non-submodule crates)
-# By explicitly listing packages, release-plz will ignore any unlisted packages including submodules
 [[package]]
 name = "souprune"
 
@@ -25,5 +24,23 @@ name = "souprune_mock_host"
 
 [[package]]
 name = "interoptopus_backend_haxe"
+
+# Explicitly disable release-plz for git submodules
+[[package]]
+name = "bevy_alight_motion"
+release = false
+
+[[package]]
+name = "bevy_ecs_typewriter"
+release = false
+
+[[package]]
+name = "bevy_fact_rule_event"
+release = false
+
+[[package]]
+name = "bevy_mortar_bond"
+release = false
+
 
 
