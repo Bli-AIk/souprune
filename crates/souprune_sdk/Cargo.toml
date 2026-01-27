@@ -2,6 +2,11 @@
 name = "souprune_sdk"
 version = "0.1.0"
 edition = "2024"
+description = "Modding SDK for SoupRune game framework"
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/Bli-AIk/souprune"
+readme = "readme.md"
+keywords = ["game-framework", "modding", "sdk"]
 
 [dependencies]
-souprune_api = { path = "../souprune_api" }
+souprune_api = { path = "../souprune_api", version = "0.1" }
