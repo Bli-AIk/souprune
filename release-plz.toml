@@ -2,6 +2,18 @@
 # This file excludes git submodules from release-plz management.
 # Submodules have their own release cycles in separate repositories.
 
+[workspace]
+# Allow uncommitted changes in git submodules
+allow_dirty = true
+# Exclude submodule paths from processing
+exclude = [
+    "crates/bevy_alight_motion",
+    "crates/bevy_ecs_typewriter",
+    "crates/bevy_fact_rule_event",
+    "crates/bevy_mortar_bond",
+]
+
+# Only manage these packages (non-submodule crates)
 [[package]]
 name = "souprune"
 
@@ -20,8 +32,3 @@ name = "souprune_mock_host"
 [[package]]
 name = "interoptopus_backend_haxe"
 
-# Excluded packages (git submodules - managed in their own repositories):
-# - bevy_alight_motion
-# - bevy_ecs_typewriter
-# - bevy_fact_rule_event
-# - bevy_mortar_bond
