@@ -1,0 +1,80 @@
+# 工作流的名称：你可以随意修改它。
+name: Release-plz
+
+# 这个 Action 会在每次有代码推送到 main 分支时触发运行。
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  # 任务 1：发布尚未发布的包。
+  # 如果你只想让 release-plz 帮你更新版本号（即只做下面那个 PR 的事），
+  # 而你自己想手动处理 `cargo publish` 和推送 git tag，
+  # 那就删掉这个 job。
+  release-plz-release:
+    name: Release-plz release
+    runs-on: ubuntu-latest
+    # 这里的权限用于推送 git tags，以及创建 GitHub Releases。
+    permissions:
+      contents: write
+    steps:
+      - &checkout  # <--- 注意这个 &checkout，这是一个锚点（下面会复用它）
+        name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # `fetch-depth: 0` 意味着克隆完整的 git 历史记录。
+          # 这是必须的，因为工具需要从 Release PR 的最新 commit 进行操作。
+          fetch-depth: 0
+          persist-credentials: false
+
+      # 用你喜欢的方式安装 Rust 工具链。
+      # 下面这个 Action 是目前社区里比较流行的选择。
+      - &install-rust # <--- 这也是一个锚点
+        name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          # 运行 `release-plz release` 命令。
+          # （这一步会检测是否刚刚合并了一个 Release PR，如果是，它就打 Tag、发 Release）
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # 任务 2：创建一个包含新版本号和更新日志（changelog）的 PR，为下一次发布做准备。
+  # 如果你只想让 release-plz 帮你发布包（即只做上面那个 release 的事），
+  # 而你自己想手动去改 `Cargo.toml` 里的版本号和手写更新日志，
+  # 那就删掉这个 job。
+  release-plz-pr:
+    name: Release-plz PR
+    runs-on: ubuntu-latest
+    permissions:
+      # 用于创建和更新拉取请求（PR）。
+      pull-requests: write
+      # 用于向这个 PR 的分支推送代码。
+      contents: write
+
+    # 并发控制块在下方（官方文档）有解释。
+    # （博主注：这主要防止多个 push 同时触发时，机器人自己跟自己打架）
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      # 通过 YAML 锚点（*checkout）复用上面定义的步骤，省得再写一遍。
+      - *checkout
+      - *install-rust
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          # 运行 `release-plz release-pr` 命令。
+          # （这一步会计算下一个版本号，生成 CHANGELOG，然后给你提一个 PR）
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          # 在 `release-plz-pr` 这一步，只有当你使用私有仓库（registry）时才需要这个 Token。
+          # 如果是 GitHub 公开仓库通常不需要。
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
