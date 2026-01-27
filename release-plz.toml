@@ -1,0 +1,51 @@
+# Release-plz configuration
+# This file excludes git submodules from release-plz management.
+# Submodules have their own release cycles in separate repositories.
+
+[workspace]
+# Allow uncommitted changes in git submodules
+allow_dirty = true
+
+# Only manage these packages (non-submodule crates)
+[[package]]
+name = "souprune"
+
+[[package]]
+name = "souprune_api"
+
+[[package]]
+name = "souprune_sdk"
+
+[[package]]
+name = "souprune_mod_test"
+
+[[package]]
+name = "souprune_mock_host"
+
+[[package]]
+name = "interoptopus_backend_haxe"
+
+# Explicitly disable release-plz for git submodules and their sub-crates
+[[package]]
+name = "bevy_alight_motion"
+release = false
+
+[[package]]
+name = "bevy_ecs_typewriter"
+release = false
+
+[[package]]
+name = "bevy_fact_rule_event"
+release = false
+
+[[package]]
+name = "bevy_mortar_bond"
+release = false
+
+[[package]]
+name = "bevy_mortar_bond_macros"
+release = false
+
+
+
+
