@@ -6,66 +6,14 @@ on:
       - main
 
 jobs:
-  # Automatic publishing to crates.io is disabled because:
-  # 1. souprune is primarily a binary project and doesn't need to be published to crates.io
-  # 2. The other publishable crates in this workspace are managed manually
-  # 3. Submodules (bevy_alight_motion, bevy_ecs_typewriter, etc.) have their own release cycles
-  #
-  # release-plz-release:
-  #   name: Release-plz release
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - &checkout
-  #       name: Checkout repository
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #         submodules: true
-  #         persist-credentials: false
-  #
-  #     - name: Checkout mortar
-  #       uses: actions/checkout@v4
-  #       with:
-  #         repository: Bli-AIk/mortar
-  #         path: temp-mortar
-  #     - name: Move mortar to sibling directory
-  #       shell: bash
-  #       run: mv temp-mortar ../mortar
-  #
-  #     - &install-deps
-  #       name: Install dependencies (Ubuntu)
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y \
-  #           libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev \
-  #           libxrandr-dev libx11-dev libxi-dev libxinerama-dev libxcursor-dev \
-  #           libgl1-mesa-dev pkg-config
-  #
-  #     - &install-rust
-  #       name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@stable
-  #
-  #     - name: Run release-plz
-  #       uses: release-plz/action@v0.5
-  #       with:
-  #         command: release
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.PAT }}
-  #         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  release-plz-pr:
-    name: Release-plz PR
+  release-plz-release:
+    name: Release-plz release
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: write
-    concurrency:
-      group: release-plz-${{ github.ref }}
-      cancel-in-progress: false
     steps:
-      - name: Checkout repository
+      - &checkout
+        name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -81,7 +29,8 @@ jobs:
         shell: bash
         run: mv temp-mortar ../mortar
 
-      - name: Install dependencies (Ubuntu)
+      - &install-deps
+        name: Install dependencies (Ubuntu)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -89,8 +38,42 @@ jobs:
             libxrandr-dev libx11-dev libxi-dev libxinerama-dev libxcursor-dev \
             libgl1-mesa-dev pkg-config
 
-      - name: Install Rust toolchain
+      - &install-rust
+        name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  release-plz-pr:
+    name: Release-plz PR
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - *checkout
+
+      - name: Checkout mortar
+        uses: actions/checkout@v4
+        with:
+          repository: Bli-AIk/mortar
+          path: temp-mortar
+      - name: Move mortar to sibling directory
+        shell: bash
+        run: mv temp-mortar ../mortar
+
+      - *install-deps
+
+      - *install-rust
 
       - name: Run release-plz
         uses: release-plz/action@v0.5
