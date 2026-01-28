@@ -6773,7 +6773,7 @@ dependencies = [
 
 [[package]]
 name = "souprune"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "bevy",
@@ -6813,7 +6813,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "interoptopus",
  "interoptopus_backend_c",
@@ -6823,7 +6823,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_mock_host"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "libloading 0.9.0",
  "souprune_api",
@@ -6831,14 +6831,14 @@ dependencies = [
 
 [[package]]
 name = "souprune_mod_test"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "souprune_sdk",
 ]
 
 [[package]]
 name = "souprune_sdk"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "souprune_api",
 ]
