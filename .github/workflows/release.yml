@@ -6,6 +6,9 @@ on:
       - 'v*'
       - 'souprune-v*'
 
+permissions:
+  contents: write  # Required to upload release assets
+
 jobs:
   build-and-upload:
     name: Build and Upload
