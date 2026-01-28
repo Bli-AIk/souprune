@@ -1,3 +1,17 @@
+//! # player_config_schema.rs
+//!
+//! # player_config_schema.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines the schema for Battle Player configuration in RON files.
+//! Maps to `battle_player.ron`.
+//!
+//! 定义 Battle Player 在 RON 文件中的配置 Schema。
+//! 映射到 `battle_player.ron`。
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 

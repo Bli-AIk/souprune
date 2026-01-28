@@ -13,15 +13,15 @@
 
 #[path = "danmaku/components.rs"]
 mod components;
-#[path = "danmaku/patterns.rs"]
-mod patterns;
+#[path = "danmaku/danmaku_schema.rs"]
+mod danmaku_schema;
 #[path = "danmaku/systems.rs"]
 mod systems;
 #[path = "danmaku/target.rs"]
 mod target;
 
 pub use components::*;
-pub use patterns::*;
+pub use danmaku_schema::*;
 pub use systems::*;
 pub use target::*;
 

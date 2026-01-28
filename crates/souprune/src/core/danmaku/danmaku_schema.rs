@@ -1,6 +1,16 @@
-//! # patterns.rs
+//! # danmaku_schema.rs
+//!
+//! # danmaku_schema.rs 文件
 //!
 //! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Defines the schema for Danmaku Performance assets (`.performance.ron`) and related data structures.
+//! This module provides the data contract for the timeline-based danmaku system.
+//!
+//! 定义弹幕演出资产 (`.performance.ron`) 及相关数据结构的 Schema。
+//! 本模块为基于时间轴的弹幕系统提供数据契约。
 //!
 //! Defines the DanmakuPerformance asset and related data structures for
 //! the timeline-based danmaku system.

@@ -45,10 +45,10 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
-use super::chapter::{Chapter, PlayerAction};
+use super::chapter_schema::{Chapter, PlayerAction};
 use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
-use crate::app_state::battle::config::BattlePlayerConfig;
+use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
@@ -265,10 +265,10 @@ fn process_camera_action_system(
         if let Chapter::SetCamera(action) = &active_chapter.chapter {
             for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
                 match action {
-                    super::chapter::CameraAction::SetPosition(pos) => {
+                    super::chapter_schema::CameraAction::SetPosition(pos) => {
                         transform.translation = pos.extend(transform.translation.z);
                     }
-                    super::chapter::CameraAction::SetZoom(zoom) => {
+                    super::chapter_schema::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
                             // Apply zoom relative to base resolution scale
                             // 相对于基础分辨率缩放应用缩放
@@ -297,7 +297,7 @@ fn process_ui_action_system(
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetUI(action) = &active_chapter.chapter {
             match action {
-                super::chapter::UIAction::LoadLayout(path) => {
+                super::chapter_schema::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
                     commands.insert_resource(crate::core::ui::UILayoutHandle {
                         handle,
@@ -434,25 +434,25 @@ fn process_player_spawn_requests(
             info!("Config loaded. Spawning player...");
 
             let physics_collider = match &config.physics_collider.shape {
-                crate::app_state::battle::config::ColliderShape::Circle { radius } => {
-                    crate::core::collision::PhysicsCollider::Circle { radius: *radius }
-                }
-                crate::app_state::battle::config::ColliderShape::Box { half_size } => {
-                    crate::core::collision::PhysicsCollider::Box {
-                        half_size: *half_size,
-                    }
-                }
+                crate::app_state::battle::player_config_schema::ColliderShape::Circle {
+                    radius,
+                } => crate::core::collision::PhysicsCollider::Circle { radius: *radius },
+                crate::app_state::battle::player_config_schema::ColliderShape::Box {
+                    half_size,
+                } => crate::core::collision::PhysicsCollider::Box {
+                    half_size: *half_size,
+                },
             };
 
             let damage_trigger = match &config.damage_trigger.shape {
-                crate::app_state::battle::config::ColliderShape::Circle { radius } => {
-                    crate::core::collision::TriggerCollider::Circle { radius: *radius }
-                }
-                crate::app_state::battle::config::ColliderShape::Box { half_size } => {
-                    crate::core::collision::TriggerCollider::Box {
-                        half_size: *half_size,
-                    }
-                }
+                crate::app_state::battle::player_config_schema::ColliderShape::Circle {
+                    radius,
+                } => crate::core::collision::TriggerCollider::Circle { radius: *radius },
+                crate::app_state::battle::player_config_schema::ColliderShape::Box {
+                    half_size,
+                } => crate::core::collision::TriggerCollider::Box {
+                    half_size: *half_size,
+                },
             };
 
             commands.spawn((
