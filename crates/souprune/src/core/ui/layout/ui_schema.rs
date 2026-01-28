@@ -1,6 +1,6 @@
-//! # schema.rs
+//! # ui_schema.rs
 //!
-//! # schema.rs 文件
+//! # ui_schema.rs 文件
 //!
 //! ## Module Overview
 //!
