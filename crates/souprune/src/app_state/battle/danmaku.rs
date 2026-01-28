@@ -131,6 +131,7 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 ///
 /// 检测战斗模式下弹幕与玩家碰撞的系统。
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn battle_damage_detection_system(
     mut commands: Commands,
     time: Res<Time>,
