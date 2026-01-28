@@ -1,10 +1,18 @@
-//! # chapter.rs
+//! # chapter_schema.rs
 //!
-//! # chapter.rs 文件
+//! # chapter_schema.rs 文件
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
+//!
+//! Defines the schema for Battle Chapters in RON files.
+//! This module contains pure data structures that map directly to the `battle.ron` format.
+//! It serves as the data contract between the configuration files and the game logic.
+//!
+//! 定义 Battle Chapter 在 RON 文件中的 Schema。
+//! 本模块包含直接映射到 `battle.ron` 格式的纯数据结构。
+//! 它作为配置文件与游戏逻辑之间的数据契约。
 //!
 //! Chapter is the minimal unit of the linear sequence in the battle system.
 //! It is an enum type representing different events in the battle.

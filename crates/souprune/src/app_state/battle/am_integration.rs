@@ -75,13 +75,13 @@ pub struct AmHiddenMarker;
 /// )
 /// ```
 #[derive(Resource, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
 pub struct AmBattleConfig {
     /// Scale multiplier for AM project (relative to base scale of 1.0/resolution_scale)
     /// Default: 1.0 (no additional scaling)
     ///
     /// AM 项目的缩放倍数（相对于基础缩放 1.0/resolution_scale）
     /// 默认：1.0（无额外缩放）
-    #[serde(default = "default_scale")]
     pub scale: f32,
 
     /// Offset position for AM project (x, y)
@@ -89,7 +89,6 @@ pub struct AmBattleConfig {
     ///
     /// AM 项目的偏移位置 (x, y)
     /// 默认：(0.0, 0.0)
-    #[serde(default = "default_offset")]
     pub offset: (f32, f32),
 
     /// Regex pattern for bullet layers (default: "^#B")
@@ -99,7 +98,6 @@ pub struct AmBattleConfig {
     /// 弹幕图层的正则表达式模式（默认："^#B"）
     /// 名称匹配此模式的图层被视为弹幕。
     /// 如果编组匹配，所有子元素继承弹幕行为。
-    #[serde(default = "default_bullet_pattern")]
     pub bullet_pattern: String,
 
     /// Regex pattern for battle box layers (default: "^#C")
@@ -109,7 +107,6 @@ pub struct AmBattleConfig {
     /// 战斗框图层的正则表达式模式（默认："^#C"）
     /// 名称匹配此模式的图层被视为战斗框边界。
     /// 如果编组匹配，所有子元素继承战斗框行为。
-    #[serde(default = "default_battle_box_pattern")]
     pub battle_box_pattern: String,
 
     /// Regex pattern for layers that should be hidden (default: empty = hide nothing)
@@ -119,13 +116,11 @@ pub struct AmBattleConfig {
     /// 应该隐藏的图层的正则表达式模式（默认：空 = 不隐藏任何内容）
     /// 名称匹配此模式的图层将被设置为隐藏。
     /// 这对于隐藏不应该渲染的碰撞标记图层很有用。
-    #[serde(default = "default_hidden_pattern")]
     pub hidden_pattern: String,
 
     /// Damage dealt by bullets (default: 1.0)
     ///
     /// 弹幕造成的伤害（默认：1.0）
-    #[serde(default = "default_bullet_damage")]
     pub bullet_damage: f32,
 
     /// Scale factor for bullet collision boxes relative to sprite size (default: 0.05)
@@ -137,36 +132,7 @@ pub struct AmBattleConfig {
     /// 由于 AM 精灵通常有大面积透明区域，这个参数用于缩小
     /// 碰撞体以更好地匹配实际可见内容。
     /// 例如，0.05 表示碰撞体是精灵大小的 5%。
-    #[serde(default = "default_collision_scale")]
     pub collision_scale: f32,
-}
-
-fn default_scale() -> f32 {
-    1.0
-}
-
-fn default_offset() -> (f32, f32) {
-    (0.0, 0.0)
-}
-
-fn default_bullet_pattern() -> String {
-    "^#B".to_string()
-}
-
-fn default_battle_box_pattern() -> String {
-    "^#C".to_string()
-}
-
-fn default_hidden_pattern() -> String {
-    String::new() // Empty = hide nothing by default
-}
-
-fn default_bullet_damage() -> f32 {
-    1.0
-}
-
-fn default_collision_scale() -> f32 {
-    0.05 // Default to 5% of sprite size since AM sprites often have large transparent areas
 }
 
 impl Default for AmBattleConfig {
@@ -174,11 +140,11 @@ impl Default for AmBattleConfig {
         Self {
             scale: 1.0,
             offset: (0.0, 0.0),
-            bullet_pattern: default_bullet_pattern(),
-            battle_box_pattern: default_battle_box_pattern(),
-            hidden_pattern: default_hidden_pattern(),
-            bullet_damage: default_bullet_damage(),
-            collision_scale: default_collision_scale(),
+            bullet_pattern: "^#B".to_string(),
+            battle_box_pattern: "^#C".to_string(),
+            hidden_pattern: String::new(), // Empty = hide nothing by default
+            bullet_damage: 1.0,
+            collision_scale: 0.05, // Default to 5% of sprite size since AM sprites often have large transparent areas
         }
     }
 }
@@ -245,7 +211,7 @@ impl Plugin for AmBattlePlugin {
                     handle_play_am_performance_event,
                     // Sync fit scale for mask coordinate calculation
                     sync_am_fit_scale_system,
-                    // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc) are available
+                    // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc.) are available
                     ApplyDeferred,
                     propagate_am_markers_system,
                     // Apply commands before checking markers for collision
@@ -379,7 +345,7 @@ fn load_am_battle_config(
 /// 根据图层命名约定添加标记组件。
 /// 碰撞组件由 propagate_am_markers_system 稍后添加。
 pub fn on_am_entity_spawned(
-    trigger: Trigger<AmEntitySpawned>,
+    trigger: On<AmEntitySpawned>,
     mut commands: Commands,
     patterns: Option<Res<AmBattlePatterns>>,
 ) {
@@ -440,6 +406,7 @@ pub fn on_am_entity_spawned(
 ///
 /// 将 AM 标记从父编组传播到子元素。
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn propagate_am_markers_system(
     mut commands: Commands,
     // All AM entities that might need marker inheritance
@@ -552,8 +519,6 @@ fn add_am_collision_system(
     animated_query: Query<&AmAnimated>,
     // Parent query to traverse hierarchy
     parent_query: Query<&ChildOf>,
-    // Visibility query for hiding bullet layers
-    mut visibility_query: Query<&mut Visibility>,
 ) {
     // Helper function to check if layer spec is a visual element that should have collision
     fn is_visual_element(spec: &AmLayerSpec) -> bool {
@@ -751,7 +716,7 @@ fn add_am_collision_system(
 /// 处理 PlayAmPerformanceEvent 的系统。
 fn handle_play_am_performance_event(
     mut commands: Commands,
-    mut events: bevy::ecs::message::MessageReader<PlayAmPerformanceEvent>,
+    mut events: MessageReader<PlayAmPerformanceEvent>,
     mut am_state: ResMut<AmPerformanceState>,
     asset_server: Res<AssetServer>,
     am_config: Res<AmBattleConfig>,
@@ -792,16 +757,14 @@ fn handle_play_am_performance_event(
         // This ensures mask coordinate calculations use the correct scale factor
         commands
             .entity(entity)
-            .queue(move |mut entity_world: bevy::ecs::world::EntityWorldMut| {
+            .queue(move |mut entity_world: EntityWorldMut| {
                 // Update all descendant AmPendingLayers components
                 if let Some(mut pending) = entity_world.get_mut::<AmPendingLayers>() {
                     let old_inv_fit_scale = pending.inv_fit_scale;
                     pending.inv_fit_scale = 1.0 / final_scale;
-                    bevy::log::info!(
+                    info!(
                         "[AM Battle] Updated inv_fit_scale: {} -> {} (final_scale={})",
-                        old_inv_fit_scale,
-                        pending.inv_fit_scale,
-                        final_scale
+                        old_inv_fit_scale, pending.inv_fit_scale, final_scale
                     );
                 }
             });
@@ -827,19 +790,7 @@ fn handle_play_am_performance_event(
 fn check_am_performance_completion(
     playback: Option<Res<AmPlayback>>,
     mut am_state: ResMut<AmPerformanceState>,
-    am_roots: Query<(Entity, &Name, &AmProjectRoot, &GlobalTransform), With<AmProjectRoot>>,
 ) {
-    // Debug: Log all AM project roots
-    // for (entity, name, root, transform) in am_roots.iter() {
-    //     info!(
-    //         "[AM Battle Debug] Project root: {:?} '{}' spawned={} pos={:?}",
-    //         entity,
-    //         name,
-    //         root.spawned,
-    //         transform.translation()
-    //     );
-    // }
-
     if !am_state.is_playing {
         return;
     }

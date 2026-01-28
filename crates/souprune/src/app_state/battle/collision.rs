@@ -52,6 +52,7 @@ pub struct AmBattleBoxBounds {
 /// System to constrain player position within battle box boundaries
 ///
 /// 限制玩家位置在战斗框边界内的系统
+#[allow(clippy::type_complexity)]
 pub(crate) fn constrain_player_to_battle_box_system(
     mut player_query: Query<
         (&mut Transform, &PhysicsCollider),
