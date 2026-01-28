@@ -304,6 +304,7 @@ fn process_ui_action_system(
                     commands.insert_resource(crate::core::ui::UILayoutHandle {
                         handle,
                         last_modified: None,
+                        path: path.clone(),
                     });
                     commands.spawn((
                         crate::core::ui::components::RonUI::new(
@@ -333,6 +334,7 @@ fn process_ui_action_system(
             commands.insert_resource(crate::core::ui::UILayoutHandle {
                 handle,
                 last_modified: None,
+                path: view_layout.clone(),
             });
             commands.spawn((
                 crate::core::ui::components::RonUI::new(

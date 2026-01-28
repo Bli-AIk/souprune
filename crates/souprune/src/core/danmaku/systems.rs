@@ -344,8 +344,6 @@ fn spawn_single_bullet(
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
-    
-
     // Get scale from prototype
     let scale = prototype.scale;
 

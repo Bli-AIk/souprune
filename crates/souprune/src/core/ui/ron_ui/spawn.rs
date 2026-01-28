@@ -53,6 +53,7 @@ pub fn spawn_ron_ui_system(
             &mortar_strings,
             &player_data,
             &item_registry,
+            &ui_layout_handle.path, // Pass the layout path
         );
         commands.entity(ui_entity).insert(UIGenerated);
         spawned_any = true;
@@ -75,7 +76,20 @@ pub fn spawn_ron_ui_for_entity(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
+    layout_path: &str, // New parameter: layout asset path
 ) {
+    // Generate namespace from layout path
+    // 从布局路径生成命名空间
+    let namespace = crate::core::ui::components::ViewRoot::namespace_from_path(layout_path);
+
+    // Attach ViewRoot to the UI entity
+    // 为 UI 实体附加 ViewRoot 组件
+    commands
+        .entity(ui_entity)
+        .insert(crate::core::ui::components::ViewRoot::new(
+            layout_path.to_string(),
+        ));
+
     for root in &ui_layout.roots {
         spawn_ui_node(
             commands,
@@ -88,7 +102,8 @@ pub fn spawn_ron_ui_for_entity(
             mortar_strings,
             player_data,
             item_registry,
-            true, // Top-level nodes
+            true,       // Top-level nodes
+            &namespace, // Pass namespace to children
         );
     }
 }
@@ -193,6 +208,7 @@ pub fn spawn_ui_node(
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
     is_top_level: bool,
+    namespace: &str, // New parameter: namespace for ViewElement
 ) {
     // Determine if this node has a UIBox (ui_shape_logic)
     let has_ui_box = node_def.ui_shape_logic.is_some();
@@ -202,6 +218,18 @@ pub fn spawn_ui_node(
     let is_pure_container = !has_ui_box
         && !is_standalone_sprite
         && (!node_def.texts.is_empty() || !node_def.children.is_empty());
+
+    // Create ViewElement for named nodes
+    // 为具名节点创建 ViewElement
+    let view_element = if !node_def.name.is_empty() {
+        Some(crate::core::ui::components::ViewElement::new(
+            namespace.to_string(),
+            node_def.name.clone(),
+            node_def.tags.clone(),
+        ))
+    } else {
+        None
+    };
 
     // Variable to track the spawned entity ID for recursive child processing
     // 用于追踪生成的实体 ID 以进行递归子节点处理的变量
@@ -243,7 +271,7 @@ pub fn spawn_ui_node(
                 let config_handle = asset_server
                     .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
 
-                parent.spawn((
+                let mut entity_cmd = parent.spawn((
                     crate::core::character_asset::CharacterAnimator {
                         config: config_handle,
                     },
@@ -258,6 +286,11 @@ pub fn spawn_ui_node(
                     Name::new(node_def.name.clone()),
                     RonDrivenUI,
                 ));
+                // Attach ViewElement if the node has a name
+                // 如果节点有名称，则附加 ViewElement
+                if let Some(ref ve) = view_element {
+                    entity_cmd.insert(ve.clone());
+                }
                 info!("[UI Sprite] Spawned animated sprite '{}'", node_def.name);
             } else {
                 // Check if using procedural texture or custom shader
@@ -284,24 +317,29 @@ pub fn spawn_ui_node(
                         final_transform.translation += shift;
                     }
 
-                    let entity_id = parent
-                        .spawn((
-                            final_transform,
-                            GlobalTransform::default(),
-                            Visibility::default(),
-                            InheritedVisibility::default(),
-                            ViewVisibility::default(),
-                            Name::new(node_def.name.clone()),
-                            RonDrivenUI,
-                            HPBarSprite {
-                                shader_params: sprite_def
-                                    .shader_params
-                                    .as_ref()
-                                    .map(|c| c.to_static_color())
-                                    .unwrap_or(Color::WHITE),
-                            },
-                        ))
-                        .id();
+                    let mut entity_cmd = parent.spawn((
+                        final_transform,
+                        GlobalTransform::default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                        ViewVisibility::default(),
+                        Name::new(node_def.name.clone()),
+                        RonDrivenUI,
+                        HPBarSprite {
+                            shader_params: sprite_def
+                                .shader_params
+                                .as_ref()
+                                .map(|c| c.to_static_color())
+                                .unwrap_or(Color::WHITE),
+                        },
+                    ));
+                    // Attach ViewElement if the node has a name
+                    // 如果节点有名称，则附加 ViewElement
+                    if let Some(ref ve) = view_element {
+                        entity_cmd.insert(ve.clone());
+                    }
+
+                    let entity_id = entity_cmd.id();
 
                     // Store entity ID to add DynamicUIElement later outside closure
                     spawned_entity_id = Some(entity_id);
@@ -326,29 +364,34 @@ pub fn spawn_ui_node(
                         bevy::sprite::Anchor(Vec2::ZERO)
                     };
 
-                    let entity_id = parent
-                        .spawn((
-                            Sprite {
-                                image: texture_handle.clone(),
-                                flip_x: sprite_def.flip_x,
-                                flip_y: sprite_def.flip_y,
-                                color: sprite_def
-                                    .color
-                                    .clone()
-                                    .map(Color::from)
-                                    .unwrap_or(Color::WHITE),
-                                ..Default::default()
-                            },
-                            anchor_component,
-                            transform,
-                            GlobalTransform::default(),
-                            Visibility::default(),
-                            InheritedVisibility::default(),
-                            ViewVisibility::default(),
-                            Name::new(node_def.name.clone()),
-                            RonDrivenUI,
-                        ))
-                        .id();
+                    let mut entity_cmd = parent.spawn((
+                        Sprite {
+                            image: texture_handle.clone(),
+                            flip_x: sprite_def.flip_x,
+                            flip_y: sprite_def.flip_y,
+                            color: sprite_def
+                                .color
+                                .clone()
+                                .map(Color::from)
+                                .unwrap_or(Color::WHITE),
+                            ..Default::default()
+                        },
+                        anchor_component,
+                        transform,
+                        GlobalTransform::default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                        ViewVisibility::default(),
+                        Name::new(node_def.name.clone()),
+                        RonDrivenUI,
+                    ));
+                    // Attach ViewElement if the node has a name
+                    // 如果节点有名称，则附加 ViewElement
+                    if let Some(ref ve) = view_element {
+                        entity_cmd.insert(ve.clone());
+                    }
+
+                    let entity_id = entity_cmd.id();
 
                     spawned_entity_id = Some(entity_id);
 
@@ -413,7 +456,7 @@ pub fn spawn_ui_node(
 
             let mut box_entity = if is_top_level {
                 // Top-level nodes use CameraAnchored
-                parent.spawn((
+                let mut entity_cmd = parent.spawn((
                     UIBox::new_full(
                         ui_shape_logic.width,
                         ui_shape_logic.height,
@@ -430,10 +473,16 @@ pub fn spawn_ui_node(
                     CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
                     Name::new(node_def.name.clone()),
                     RonDrivenUI,
-                ))
+                ));
+                // Attach ViewElement if the node has a name
+                // 如果节点有名称，则附加 ViewElement
+                if let Some(ref ve) = view_element {
+                    entity_cmd.insert(ve.clone());
+                }
+                entity_cmd
             } else {
                 // Child nodes use regular Transform relative to parent
-                parent.spawn((
+                let mut entity_cmd = parent.spawn((
                     UIBox::new_full(
                         ui_shape_logic.width,
                         ui_shape_logic.height,
@@ -451,7 +500,13 @@ pub fn spawn_ui_node(
                     ViewVisibility::default(),
                     Name::new(node_def.name.clone()),
                     RonDrivenUI,
-                ))
+                ));
+                // Attach ViewElement if the node has a name
+                // 如果节点有名称，则附加 ViewElement
+                if let Some(ref ve) = view_element {
+                    entity_cmd.insert(ve.clone());
+                }
+                entity_cmd
             };
 
             if node_def.tags.contains(&"BattleBox".to_string()) {
@@ -614,6 +669,11 @@ pub fn spawn_ui_node(
                 Name::new(node_def.name.clone()),
                 RonDrivenUI,
             ));
+            // Attach ViewElement if the node has a name
+            // 如果节点有名称，则附加 ViewElement
+            if let Some(ref ve) = view_element {
+                container_entity.insert(ve.clone());
+            }
 
             // Spawn texts directly as children of the container
             // 将文本直接作为容器的子节点生成
@@ -656,9 +716,10 @@ pub fn spawn_ui_node(
                     has_dynamic = true;
                 }
                 if let Some(s) = &t.scale
-                    && (s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic()) {
-                        has_dynamic = true;
-                    }
+                    && (s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic())
+                {
+                    has_dynamic = true;
+                }
             }
             if sprite_def
                 .shader_params
@@ -696,7 +757,8 @@ pub fn spawn_ui_node(
                 mortar_strings,
                 player_data,
                 item_registry,
-                false, // Child nodes are not top-level
+                false,     // Child nodes are not top-level
+                namespace, // Pass namespace to children
             );
         }
     }

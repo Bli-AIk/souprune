@@ -282,8 +282,7 @@ impl Default for DamageUIConfig {
 /// Complete chase configuration loaded from RON file.
 ///
 /// 从 RON 文件加载的完整追逐战配置。
-#[derive(Debug, Clone, Deserialize, Resource)]
-#[derive(Default)]
+#[derive(Debug, Clone, Deserialize, Resource, Default)]
 pub struct ChaseConfig {
     pub heart_marker: HeartMarkerConfig,
     pub outline: OutlineConfig,
@@ -294,24 +293,24 @@ pub struct ChaseConfig {
     pub damage_ui: DamageUIConfig,
 }
 
-
 impl ChaseConfig {
     /// Load chase configuration from RON file.
     ///
     /// 从 RON 文件加载追逐战配置。
     pub fn load() -> Self {
         if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH)
-            && let Ok(contents) = fs::read_to_string(&path) {
-                if let Ok(config) = ron::de::from_str(&contents) {
-                    info!("Chase: Loaded config from {}", path.display());
-                    return config;
-                } else {
-                    warn!(
-                        "Chase: Failed to parse config at {}, using defaults",
-                        path.display()
-                    );
-                }
+            && let Ok(contents) = fs::read_to_string(&path)
+        {
+            if let Ok(config) = ron::de::from_str(&contents) {
+                info!("Chase: Loaded config from {}", path.display());
+                return config;
+            } else {
+                warn!(
+                    "Chase: Failed to parse config at {}, using defaults",
+                    path.display()
+                );
             }
+        }
         info!("Chase: Using default config");
         Self::default()
     }
@@ -1341,12 +1340,14 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
     info!("Chase: Setting up Chase HUD");
 
     // Load the chase HUD UI layout / 加载追逐战 HUD 视图布局
-    let handle = asset_server.load("overworld/ui/damage_flash.view_layout.ron");
+    let ui_path = "overworld/ui/damage_flash.view_layout.ron";
+    let handle = asset_server.load(ui_path);
 
     // Insert the UI layout handle resource
     commands.insert_resource(crate::core::ui::UILayoutHandle {
         handle,
         last_modified: None,
+        path: ui_path.to_string(),
     });
 
     // Spawn a root entity for the RON UI system to attach to

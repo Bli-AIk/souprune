@@ -9,6 +9,10 @@ use std::time::SystemTime;
 pub struct UILayoutHandle {
     pub handle: Handle<ViewLayoutAsset>,
     pub last_modified: Option<SystemTime>,
+    /// Layout asset path (e.g., "battle/ui/undertale.view_layout.ron")
+    ///
+    /// 布局资源路径（例如 "battle/ui/undertale.view_layout.ron"）
+    pub path: String,
 }
 
 #[derive(Component)]

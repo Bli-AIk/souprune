@@ -13,7 +13,7 @@
 use crate::core::input::Action;
 use bevy::color::Srgba;
 use bevy::prelude::{
-    Bundle, Color, Component, Entity, Name, Resource, Sprite, Transform, Vec2, Vec3,
+    Bundle, Color, Component, Entity, Name, Query, Resource, Sprite, Transform, Vec2, Vec3,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -905,4 +905,144 @@ impl HPBarLag {
             anim_progress: 0.5, // Start finished
         }
     }
+}
+
+// ============================================================================
+// View Element System - Phase 2 Refactoring
+// 视图元素系统 - Phase 2 重构
+// ============================================================================
+
+/// View Element - represents a referenceable element in a view layout.
+///
+/// Each element spawned from a `.view_layout.ron` file receives this component,
+/// enabling runtime queries and modifications.
+///
+/// 视图元素 - 表示视图布局中可被引用的元素。
+///
+/// 从 `.view_layout.ron` 文件生成的每个元素都会获得此组件，
+/// 从而支持运行时查询和修改。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ViewElement {
+    /// Fully qualified name with namespace.
+    /// Format: "namespace::element_name"
+    /// Example: "battle_ui_undertale::BtnFight"
+    ///
+    /// 完全限定名称（含命名空间）。
+    /// 格式: "namespace::element_name"
+    /// 示例: "battle_ui_undertale::BtnFight"
+    pub full_name: String,
+
+    /// Local name without namespace.
+    ///
+    /// 局部名称（无命名空间）。
+    pub local_name: String,
+
+    /// Namespace (inherited from ViewRoot).
+    ///
+    /// 命名空间（从 ViewRoot 继承）。
+    pub namespace: String,
+
+    /// Tag list for batch queries.
+    ///
+    /// 标签列表（用于批量查询）。
+    pub tags: Vec<String>,
+}
+
+/// View Root - marks the root entity of a view layout and defines its namespace.
+///
+/// 视图根 - 标记视图布局的根实体并定义其命名空间。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ViewRoot {
+    /// Layout asset path.
+    ///
+    /// 布局资源路径。
+    pub layout_path: String,
+
+    /// Namespace (auto-generated from layout path).
+    /// Example: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
+    ///
+    /// 命名空间（从布局路径自动生成）。
+    /// 示例: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
+    pub namespace: String,
+}
+
+impl ViewRoot {
+    /// Create a new ViewRoot from a layout path.
+    ///
+    /// 从布局路径创建新的 ViewRoot。
+    pub fn new(layout_path: String) -> Self {
+        let namespace = Self::namespace_from_path(&layout_path);
+        Self {
+            layout_path,
+            namespace,
+        }
+    }
+
+    /// Generate namespace from layout path.
+    ///
+    /// Removes the `.view_layout.ron` extension and replaces `/` and `.` with `_`.
+    ///
+    /// 从布局路径生成命名空间。
+    ///
+    /// 移除 `.view_layout.ron` 扩展名，并将 `/` 和 `.` 替换为 `_`。
+    pub fn namespace_from_path(path: &str) -> String {
+        path.trim_end_matches(".view_layout.ron")
+            .replace(['/', '.'], "_")
+    }
+}
+
+/// Query helper functions for ViewElement.
+///
+/// ViewElement 的查询辅助函数。
+impl ViewElement {
+    /// Create a new ViewElement.
+    ///
+    /// 创建新的 ViewElement。
+    pub fn new(namespace: String, local_name: String, tags: Vec<String>) -> Self {
+        let full_name = format!("{}::{}", namespace, local_name);
+        Self {
+            full_name,
+            local_name,
+            namespace,
+            tags,
+        }
+    }
+}
+
+/// Find an element by its fully qualified name.
+///
+/// 通过完全限定名称查找元素。
+pub fn find_element_by_full_name(
+    query: &Query<(Entity, &ViewElement)>,
+    full_name: &str,
+) -> Option<Entity> {
+    query
+        .iter()
+        .find(|(_, elem)| elem.full_name == full_name)
+        .map(|(entity, _)| entity)
+}
+
+/// Find an element within a specific namespace by its local name.
+///
+/// 在特定命名空间内通过局部名称查找元素。
+pub fn find_element_in_namespace(
+    query: &Query<(Entity, &ViewElement)>,
+    namespace: &str,
+    local_name: &str,
+) -> Option<Entity> {
+    let full_name = format!("{}::{}", namespace, local_name);
+    find_element_by_full_name(query, &full_name)
+}
+
+/// Find all elements with a specific tag.
+///
+/// 查找所有具有特定标签的元素。
+pub fn find_elements_by_tag(query: &Query<(Entity, &ViewElement)>, tag: &str) -> Vec<Entity> {
+    query
+        .iter()
+        .filter(|(_, elem)| elem.tags.contains(&tag.to_string()))
+        .map(|(entity, _)| entity)
+        .collect()
 }

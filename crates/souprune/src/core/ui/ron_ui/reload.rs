@@ -30,6 +30,7 @@ pub fn update_ui_from_map_system(
             commands.insert_resource(UILayoutHandle {
                 handle,
                 last_modified: None,
+                path: path.clone(),
             });
 
             if let Some(ref mut w) = watcher {
@@ -143,6 +144,7 @@ pub fn rebuild_reloaded_ui_system(
             &mortar_strings,
             &player_data,
             &item_registry,
+            &handle.path, // Pass the layout path
         );
         rebuilt_count += 1;
     }

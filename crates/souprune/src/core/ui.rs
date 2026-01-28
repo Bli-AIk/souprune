@@ -48,7 +48,8 @@ use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
     update_dynamic_camera_anchors_system,
 };
-use components::{UILayerNavigationConfig, UILayerTransitionConfig};
+use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};
+pub use components::{find_element_by_full_name, find_element_in_namespace, find_elements_by_tag};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SmudStructureAsset;
 use layout::ViewLayoutAsset;
@@ -157,7 +158,9 @@ impl Plugin for CoreUIPlugin {
                 .register_type::<UIBoxVisibility>()
                 .register_type::<BoxCursor>()
                 .register_type::<BoxCursorPosition>()
-                .register_type::<BoxCursorVisibility>();
+                .register_type::<BoxCursorVisibility>()
+                .register_type::<ViewElement>()
+                .register_type::<ViewRoot>();
         }
     }
 }
