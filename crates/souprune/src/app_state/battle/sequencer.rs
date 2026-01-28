@@ -29,6 +29,7 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
+                    process_modify_view_element_system, // Phase 3
                     process_danmaku_performance_system,
                     process_am_performance_system,
                     process_player_spawn_requests,
@@ -556,6 +557,265 @@ fn process_am_wait_chapter_system(
         if tracker.started && !am_state.is_playing {
             info!("[Battle] AM performance chapter finished");
             commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+// ============================================================================
+// Phase 3 & 4: Process ModifyViewElement and TweenViewElement
+// Phase 3 & 4: 处理 ModifyViewElement 和 TweenViewElement
+// ============================================================================
+
+fn process_modify_view_element_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    active_chapters: Query<
+        (Entity, &ActiveChapter),
+        (Without<WaitTimer>, Without<ChapterFinished>),
+    >,
+    view_elements: Query<(Entity, &crate::core::ui::components::ViewElement)>,
+    mut transforms: Query<&mut Transform>,
+    mut sprites: Query<&mut Sprite>,
+    mut visibilities: Query<&mut Visibility>,
+    mut histories: Query<&mut crate::core::ui::ViewElementHistory>,
+) {
+    for (chapter_entity, active_chapter) in active_chapters.iter() {
+        if let Chapter::ModifyViewElement {
+            selector,
+            modification,
+        } = &active_chapter.chapter
+        {
+            info!("[ModifyViewElement] Processing: selector={:?}, modification={:?}", selector, modification);
+            
+            // Resolve the selector to get target entities
+            // 解析选择器以获取目标实体
+            let target_entities = match selector {
+                super::chapter_schema::ElementSelector::ByFullName(full_name) => {
+                    if let Some(entity) =
+                        crate::core::ui::find_element_by_full_name(&view_elements, full_name)
+                    {
+                        info!("[ModifyViewElement] Found element: {:?} (full_name={})", entity, full_name);
+                        vec![entity]
+                    } else {
+                        warn!("[ModifyViewElement] Element not found (full name): {}", full_name);
+                        vec![]
+                    }
+                }
+                super::chapter_schema::ElementSelector::ByLocalName(local_name) => {
+                    // For simplicity, search in all namespaces
+                    // 为简单起见，在所有命名空间中搜索
+                    view_elements
+                        .iter()
+                        .filter(|(_, elem)| elem.local_name == *local_name)
+                        .map(|(entity, _)| entity)
+                        .collect()
+                }
+                super::chapter_schema::ElementSelector::ByTag(tag) => {
+                    crate::core::ui::find_elements_by_tag(&view_elements, tag)
+                }
+            };
+
+            // Apply the modification to all target entities
+            // 对所有目标实体应用修改
+            for entity in target_entities {
+                info!("[ModifyViewElement] Applying modification to entity {:?}", entity);
+                
+                match modification {
+                    super::chapter_schema::ElementModification::SetTexture(path) => {
+                        if let Ok(mut sprite) = sprites.get_mut(entity) {
+                            let texture_path = if path.starts_with("textures/") {
+                                path.clone()
+                            } else {
+                                format!("textures/{}", path)
+                            };
+                            sprite.image = asset_server.load(&texture_path);
+                            info!("Set texture for entity {:?}: {}", entity, texture_path);
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
+                        if let Ok(mut transform) = transforms.get_mut(entity) {
+                            // Ensure history exists or create it
+                            // 确保历史存在或创建它
+                            let history_exists = histories.get_mut(entity).is_ok();
+                            if !history_exists {
+                                let original_state = crate::core::ui::ElementState::capture(
+                                    Some(&*transform),
+                                    sprites.get(entity).ok(),
+                                    visibilities.get(entity).ok(),
+                                );
+                                commands.entity(entity).insert(crate::core::ui::ViewElementHistory::new(original_state));
+                            }
+                            
+                            // Apply modification
+                            // 应用修改
+                            transform.translation = Vec3::new(*x, *y, *z);
+                            
+                            // Push NEW state to history AFTER modification
+                            // 在修改后将新状态推送到历史
+                            if let Ok(mut history) = histories.get_mut(entity) {
+                                let new_state = crate::core::ui::ElementState::capture(
+                                    Some(&*transform),
+                                    sprites.get(entity).ok(),
+                                    visibilities.get(entity).ok(),
+                                );
+                                history.push(new_state);
+                            }
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetScale(x, y, z) => {
+                        if let Ok(mut transform) = transforms.get_mut(entity) {
+                            transform.scale = Vec3::new(*x, *y, *z);
+                            info!("Set scale for entity {:?}: ({}, {}, {})", entity, x, y, z);
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
+                        if let Ok(mut sprite) = sprites.get_mut(entity) {
+                            sprite.color = Color::srgba(*r, *g, *b, *a);
+                            info!(
+                                "Set color for entity {:?}: ({}, {}, {}, {})",
+                                entity, r, g, b, a
+                            );
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetVisibility(visible) => {
+                        if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                            *visibility = if *visible {
+                                Visibility::Visible
+                            } else {
+                                Visibility::Hidden
+                            };
+                            info!("Set visibility for entity {:?}: {}", entity, visible);
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetPositionRandom(base_y, base_z, range) => {
+                        // Generate random offset using current time as seed
+                        // 使用当前时间作为种子生成随机偏移
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        let nanos = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .subsec_nanos();
+                        
+                        // Simple pseudo-random using nanos (only for Y axis)
+                        // 使用纳秒进行简单伪随机（仅用于 Y 轴）
+                        let rand_y = ((nanos % 1000) as f32 / 1000.0) * 2.0 - 1.0; // -1.0 to 1.0
+                        
+                        let final_y = base_y + rand_y * range;
+                        let final_z = *base_z;
+                        
+                        if let Ok(mut transform) = transforms.get_mut(entity) {
+                            // X coordinate uses current value
+                            // X 坐标使用当前值
+                            let final_x = transform.translation.x;
+                            
+                            // Ensure history exists or create it
+                            // 确保历史存在或创建它
+                            let history_exists = histories.get_mut(entity).is_ok();
+                            if !history_exists {
+                                let original_state = crate::core::ui::ElementState::capture(
+                                    Some(&*transform),
+                                    sprites.get(entity).ok(),
+                                    visibilities.get(entity).ok(),
+                                );
+                                commands.entity(entity).insert(crate::core::ui::ViewElementHistory::new(original_state));
+                            }
+                            
+                            // Apply modification
+                            // 应用修改
+                            transform.translation = Vec3::new(final_x, final_y, final_z);
+                            
+                            // Push NEW state to history AFTER modification
+                            // 在修改后将新状态推送到历史
+                            if let Ok(mut history) = histories.get_mut(entity) {
+                                let new_state = crate::core::ui::ElementState::capture(
+                                    Some(&*transform),
+                                    sprites.get(entity).ok(),
+                                    visibilities.get(entity).ok(),
+                                );
+                                history.push(new_state);
+                            }
+                        }
+                    }
+                    super::chapter_schema::ElementModification::Undo => {
+                        if let Ok(mut history) = histories.get_mut(entity) {
+                            if let Some(previous_state) = history.undo() {
+                                // Apply previous state
+                                // 应用之前的状态
+                                if let Some((trans, rot, scale)) = previous_state.transform {
+                                    if let Ok(mut transform) = transforms.get_mut(entity) {
+                                        transform.translation = trans;
+                                        transform.rotation = rot;
+                                        transform.scale = scale;
+                                    }
+                                }
+                                if let Some(color) = previous_state.color {
+                                    if let Ok(mut sprite) = sprites.get_mut(entity) {
+                                        sprite.color = color;
+                                    }
+                                }
+                                if let Some(vis) = previous_state.visibility {
+                                    if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                                        *visibility = vis;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    super::chapter_schema::ElementModification::Redo => {
+                        if let Ok(mut history) = histories.get_mut(entity) {
+                            if let Some(next_state) = history.redo() {
+                                // Apply next state
+                                // 应用下一个状态
+                                if let Some((trans, rot, scale)) = next_state.transform {
+                                    if let Ok(mut transform) = transforms.get_mut(entity) {
+                                        transform.translation = trans;
+                                        transform.rotation = rot;
+                                        transform.scale = scale;
+                                    }
+                                }
+                                if let Some(color) = next_state.color {
+                                    if let Ok(mut sprite) = sprites.get_mut(entity) {
+                                        sprite.color = color;
+                                    }
+                                }
+                                if let Some(vis) = next_state.visibility {
+                                    if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                                        *visibility = vis;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    super::chapter_schema::ElementModification::Reset => {
+                        if let Ok(mut history) = histories.get_mut(entity) {
+                            let original_state = history.reset();
+                            // Apply original state
+                            // 应用原始状态
+                            if let Some((trans, rot, scale)) = original_state.transform {
+                                if let Ok(mut transform) = transforms.get_mut(entity) {
+                                    transform.translation = trans;
+                                    transform.rotation = rot;
+                                    transform.scale = scale;
+                                }
+                            }
+                            if let Some(color) = original_state.color {
+                                if let Ok(mut sprite) = sprites.get_mut(entity) {
+                                    sprite.color = color;
+                                }
+                            }
+                            if let Some(vis) = original_state.visibility {
+                                if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                                    *visibility = vis;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mark chapter as finished
+            // 标记章节为完成
+            commands.entity(chapter_entity).insert(ChapterFinished);
         }
     }
 }

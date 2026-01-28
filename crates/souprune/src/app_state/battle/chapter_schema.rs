@@ -121,6 +121,19 @@ pub enum Chapter {
     ///
     /// 设置 UI 状态的章节。
     SetUI(UIAction),
+
+    /// Modify View Element Chapter (Phase 3).
+    ///
+    /// Modify properties of view elements at runtime by selector.
+    ///
+    /// 修改视图元素章节（Phase 3）。
+    ///
+    /// 通过选择器在运行时修改视图元素的属性。
+    ModifyViewElement {
+        selector: ElementSelector,
+        modification: ElementModification,
+    },
+
     /// Set Camera State Chapter.
     ///
     /// 设置 摄像机 状态的章节。
@@ -205,4 +218,85 @@ pub enum PlayerAction {
     ///
     /// 销毁玩家实体。
     Despawn,
+}
+
+// ============================================================================
+// Phase 3 & 4: View Element Modification and Tweening
+// Phase 3 & 4: 视图元素修改与补间动画
+// ============================================================================
+
+/// Element Selector - specifies which elements to target.
+///
+/// 元素选择器 - 指定要目标的元素。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ElementSelector {
+    /// Select by fully qualified name (namespace::name).
+    ///
+    /// 通过完全限定名（namespace::name）选择。
+    ByFullName(String),
+
+    /// Select by local name within the current layout's namespace.
+    ///
+    /// 在当前布局的命名空间内通过局部名称选择。
+    ByLocalName(String),
+
+    /// Select all elements with a specific tag.
+    ///
+    /// 选择所有具有特定标签的元素。
+    ByTag(String),
+}
+
+/// Element Modification - property changes to apply.
+///
+/// 元素修改 - 要应用的属性更改。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ElementModification {
+    /// Set sprite texture path.
+    ///
+    /// 设置精灵贴图路径。
+    SetTexture(String),
+
+    /// Set position (x, y, z).
+    ///
+    /// 设置位置 (x, y, z)。
+    SetPosition(f32, f32, f32),
+    
+    /// Set position with random offset on Y axis only (base_y, base_z, random_range).
+    ///
+    /// X coordinate uses current value. Random offset will be applied to Y in range [-random_range, +random_range].
+    ///
+    /// 仅在 Y 轴设置随机偏移位置 (base_y, base_z, random_range)。
+    ///
+    /// X 坐标使用当前值。随机偏移将在 [-random_range, +random_range] 范围内应用于 Y。
+    SetPositionRandom(f32, f32, f32),
+
+    /// Set scale (x, y, z).
+    ///
+    /// 设置缩放 (x, y, z)。
+    SetScale(f32, f32, f32),
+
+    /// Set color (r, g, b, a) - values 0.0 to 1.0.
+    ///
+    /// 设置颜色 (r, g, b, a) - 值范围 0.0 至 1.0。
+    SetColor(f32, f32, f32, f32),
+
+    /// Set visibility (true = visible, false = hidden).
+    ///
+    /// 设置可见性（true = 可见，false = 隐藏）。
+    SetVisibility(bool),
+    
+    /// Undo last modification for this element.
+    ///
+    /// 撤销此元素的最后一次修改。
+    Undo,
+    
+    /// Redo last undone modification for this element.
+    ///
+    /// 重做此元素最后撤销的修改。
+    Redo,
+    
+    /// Reset element to its original spawn state.
+    ///
+    /// 将元素重置为其原始生成状态。
+    Reset,
 }
