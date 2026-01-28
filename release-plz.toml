@@ -5,8 +5,10 @@
 [workspace]
 # Allow uncommitted changes in git submodules
 allow_dirty = true
-# Customize PR title to include version number when releasing single package
-pr_name = "chore{% if package and version %}: release {{ package }} v{{ version }}{% else %}: release{% endif %}"
+# Customize PR title to show package info for single/multi-package releases
+# Single package: "chore: release souprune v0.5.1"
+# Multiple packages: "chore: release (5 packages updated)"
+pr_name = "chore{% if package and version %}: release {{ package }} v{{ version }}{% elif packages %}: release ({{ packages | length }} packages updated){% else %}: release{% endif %}"
 
 [changelog]
 # Filter out release-related commits from changelog
