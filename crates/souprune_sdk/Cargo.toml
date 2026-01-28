@@ -1,6 +1,6 @@
 [package]
 name = "souprune_sdk"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Modding SDK for SoupRune game framework"
 license = "LGPL-3.0-or-later"
