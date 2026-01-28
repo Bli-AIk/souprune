@@ -5,6 +5,29 @@
 [workspace]
 # Allow uncommitted changes in git submodules
 allow_dirty = true
+# Customize PR title to include version number when releasing single package
+pr_name = "chore{% if package and version %}: release {{ package }} v{{ version }}{% else %}: release{% endif %}"
+
+[changelog]
+# Filter out release-related commits from changelog
+# This removes noise from automated release commits and merge commits
+commit_parsers = [
+    # Skip commits containing release-related keywords
+    { message = ".*release.*", skip = true },
+    { message = "^chore: release", skip = true },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^Merge pull request", skip = true },
+    # Default parsers for conventional commits
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^style", group = "Styling" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore", group = "Miscellaneous Tasks" },
+    { message = "^.*", group = "Other" },
+]
 
 # Only manage these packages (non-submodule crates)
 [[package]]
