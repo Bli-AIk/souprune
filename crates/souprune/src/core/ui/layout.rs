@@ -14,8 +14,8 @@
 //! 本模块组织了 UI Schema 定义和 Serde 辅助类型。
 //! 它对应 `layout/` 目录。
 
-pub mod ui_schema;
 pub mod serde_types;
+pub mod ui_schema;
 
-pub use ui_schema::*;
 pub use serde_types::*;
+pub use ui_schema::*;
