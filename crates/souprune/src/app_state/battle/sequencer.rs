@@ -48,8 +48,9 @@ use super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
-use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
+use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use crate::app_state::battle::{BattleAsset, BattleUpdate};
+use crate::core::collision::PhysicsCollider;
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use bevy::prelude::*;
@@ -251,7 +252,7 @@ fn process_wait_chapter_system(
         }
     }
 }
-
+#[allow(clippy::type_complexity)]
 fn process_camera_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -356,7 +357,7 @@ fn process_ui_action_system(
 fn process_danmaku_performance_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    mut performance_events: bevy::ecs::message::MessageWriter<PlayPerformanceEvent>,
+    mut performance_events: MessageWriter<PlayPerformanceEvent>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::DanmakuPerformance {
@@ -437,23 +438,17 @@ fn process_player_spawn_requests(
             info!("Config loaded. Spawning player...");
 
             let physics_collider = match &config.physics_collider.shape {
-                crate::app_state::battle::player_config_schema::ColliderShape::Circle {
-                    radius,
-                } => crate::core::collision::PhysicsCollider::Circle { radius: *radius },
-                crate::app_state::battle::player_config_schema::ColliderShape::Box {
-                    half_size,
-                } => crate::core::collision::PhysicsCollider::Box {
+                ColliderShape::Circle { radius } => PhysicsCollider::Circle { radius: *radius },
+                ColliderShape::Box { half_size } => PhysicsCollider::Box {
                     half_size: *half_size,
                 },
             };
 
             let damage_trigger = match &config.damage_trigger.shape {
-                crate::app_state::battle::player_config_schema::ColliderShape::Circle {
-                    radius,
-                } => crate::core::collision::TriggerCollider::Circle { radius: *radius },
-                crate::app_state::battle::player_config_schema::ColliderShape::Box {
-                    half_size,
-                } => crate::core::collision::TriggerCollider::Box {
+                ColliderShape::Circle { radius } => {
+                    crate::core::collision::TriggerCollider::Circle { radius: *radius }
+                }
+                ColliderShape::Box { half_size } => crate::core::collision::TriggerCollider::Box {
                     half_size: *half_size,
                 },
             };
@@ -508,7 +503,7 @@ fn process_am_performance_system(
             Without<AmPerformanceTracker>,
         ),
     >,
-    mut performance_events: bevy::ecs::message::MessageWriter<PlayAmPerformanceEvent>,
+    mut performance_events: MessageWriter<PlayAmPerformanceEvent>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::AmPerformance {
