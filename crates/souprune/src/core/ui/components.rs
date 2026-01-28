@@ -13,7 +13,8 @@
 use crate::core::input::Action;
 use bevy::color::Srgba;
 use bevy::prelude::{
-    Bundle, Color, Component, Entity, Name, Query, Resource, Sprite, Transform, Vec2, Vec3, Quat, Visibility,
+    Bundle, Color, Component, Entity, Name, Quat, Query, Resource, Sprite, Transform, Vec2, Vec3,
+    Visibility,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -1062,17 +1063,17 @@ pub struct ViewElementHistory {
     ///
     /// 元素首次生成时的原始状态。
     pub original: ElementState,
-    
+
     /// History stack of past states (for undo).
     ///
     /// 过去状态的历史栈（用于撤销）。
     pub history: Vec<ElementState>,
-    
+
     /// Redo stack of undone states (for redo).
     ///
     /// 已撤销状态的重做栈（用于重做）。
     pub redo_stack: Vec<ElementState>,
-    
+
     /// Current index in history (-1 means at original state).
     ///
     /// 历史中的当前索引（-1 表示处于原始状态）。
@@ -1089,17 +1090,17 @@ pub struct ElementState {
     ///
     /// 变换（位置、旋转、缩放）。
     pub transform: Option<(Vec3, Quat, Vec3)>,
-    
+
     /// Sprite color.
     ///
     /// 精灵颜色。
     pub color: Option<Color>,
-    
+
     /// Visibility.
     ///
     /// 可见性。
     pub visibility: Option<Visibility>,
-    
+
     /// Texture path (if Sprite has image).
     ///
     /// 贴图路径（如果 Sprite 有图片）。
@@ -1115,10 +1116,10 @@ impl ViewElementHistory {
             original,
             history: Vec::new(),
             redo_stack: Vec::new(),
-            current_index: -1,  // -1 means at original state
+            current_index: -1, // -1 means at original state
         }
     }
-    
+
     /// Push a new state to history (called AFTER a modification is made).
     ///
     /// This should be called with the NEW state after applying a modification.
@@ -1130,7 +1131,7 @@ impl ViewElementHistory {
         // Clear redo stack when a new modification is made
         // 进行新修改时清除重做栈
         self.redo_stack.clear();
-        
+
         // If we're in the middle of history (after undo), truncate future states
         // 如果我们在历史中间（撤销后），截断未来的状态
         if self.current_index >= 0 {
@@ -1138,11 +1139,11 @@ impl ViewElementHistory {
         } else {
             self.history.clear();
         }
-        
+
         self.history.push(new_state);
         self.current_index = self.history.len() as isize - 1;
     }
-    
+
     /// Undo last modification, returns the previous state.
     ///
     /// 撤销最后一次修改，返回之前的状态。
@@ -1152,23 +1153,23 @@ impl ViewElementHistory {
             // 已经在原始状态，无法进一步撤销
             return None;
         }
-        
+
         // Save current state to redo stack
         // 将当前状态保存到重做栈
         let current = self.history[self.current_index as usize].clone();
         self.redo_stack.push(current);
-        
+
         // Move to previous state
         // 移动到之前的状态
         self.current_index -= 1;
-        
+
         if self.current_index >= 0 {
             Some(self.history[self.current_index as usize].clone())
         } else {
             Some(self.original.clone())
         }
     }
-    
+
     /// Redo last undone modification, returns the next state.
     ///
     /// 重做最后撤销的修改，返回下一个状态。
@@ -1180,7 +1181,7 @@ impl ViewElementHistory {
             None
         }
     }
-    
+
     /// Reset to original state.
     ///
     /// 重置为原始状态。
@@ -1189,12 +1190,16 @@ impl ViewElementHistory {
         self.redo_stack.clear();
         self.original.clone()
     }
-    
+
     /// Get debug info about history stack sizes.
     ///
     /// 获取历史栈大小的调试信息。
     pub fn debug_info(&self) -> (usize, usize, isize) {
-        (self.history.len(), self.redo_stack.len(), self.current_index)
+        (
+            self.history.len(),
+            self.redo_stack.len(),
+            self.current_index,
+        )
     }
 }
 
@@ -1211,7 +1216,7 @@ impl ElementState {
             transform: transform.map(|t| (t.translation, t.rotation, t.scale)),
             color: sprite.map(|s| s.color),
             visibility: visibility.copied(),
-            texture: None,  // We don't track texture path currently
+            texture: None, // We don't track texture path currently
         }
     }
 }

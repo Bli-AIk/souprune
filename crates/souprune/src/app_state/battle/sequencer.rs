@@ -585,8 +585,11 @@ fn process_modify_view_element_system(
             modification,
         } = &active_chapter.chapter
         {
-            info!("[ModifyViewElement] Processing: selector={:?}, modification={:?}", selector, modification);
-            
+            info!(
+                "[ModifyViewElement] Processing: selector={:?}, modification={:?}",
+                selector, modification
+            );
+
             // Resolve the selector to get target entities
             // 解析选择器以获取目标实体
             let target_entities = match selector {
@@ -594,10 +597,16 @@ fn process_modify_view_element_system(
                     if let Some(entity) =
                         crate::core::ui::find_element_by_full_name(&view_elements, full_name)
                     {
-                        info!("[ModifyViewElement] Found element: {:?} (full_name={})", entity, full_name);
+                        info!(
+                            "[ModifyViewElement] Found element: {:?} (full_name={})",
+                            entity, full_name
+                        );
                         vec![entity]
                     } else {
-                        warn!("[ModifyViewElement] Element not found (full name): {}", full_name);
+                        warn!(
+                            "[ModifyViewElement] Element not found (full name): {}",
+                            full_name
+                        );
                         vec![]
                     }
                 }
@@ -618,8 +627,11 @@ fn process_modify_view_element_system(
             // Apply the modification to all target entities
             // 对所有目标实体应用修改
             for entity in target_entities {
-                info!("[ModifyViewElement] Applying modification to entity {:?}", entity);
-                
+                info!(
+                    "[ModifyViewElement] Applying modification to entity {:?}",
+                    entity
+                );
+
                 match modification {
                     super::chapter_schema::ElementModification::SetTexture(path) => {
                         if let Ok(mut sprite) = sprites.get_mut(entity) {
@@ -643,13 +655,15 @@ fn process_modify_view_element_system(
                                     sprites.get(entity).ok(),
                                     visibilities.get(entity).ok(),
                                 );
-                                commands.entity(entity).insert(crate::core::ui::ViewElementHistory::new(original_state));
+                                commands.entity(entity).insert(
+                                    crate::core::ui::ViewElementHistory::new(original_state),
+                                );
                             }
-                            
+
                             // Apply modification
                             // 应用修改
                             transform.translation = Vec3::new(*x, *y, *z);
-                            
+
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史
                             if let Ok(mut history) = histories.get_mut(entity) {
@@ -687,7 +701,11 @@ fn process_modify_view_element_system(
                             info!("Set visibility for entity {:?}: {}", entity, visible);
                         }
                     }
-                    super::chapter_schema::ElementModification::SetPositionRandom(base_y, base_z, range) => {
+                    super::chapter_schema::ElementModification::SetPositionRandom(
+                        base_y,
+                        base_z,
+                        range,
+                    ) => {
                         // Generate random offset using current time as seed
                         // 使用当前时间作为种子生成随机偏移
                         use std::time::{SystemTime, UNIX_EPOCH};
@@ -695,19 +713,19 @@ fn process_modify_view_element_system(
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .subsec_nanos();
-                        
+
                         // Simple pseudo-random using nanos (only for Y axis)
                         // 使用纳秒进行简单伪随机（仅用于 Y 轴）
                         let rand_y = ((nanos % 1000) as f32 / 1000.0) * 2.0 - 1.0; // -1.0 to 1.0
-                        
+
                         let final_y = base_y + rand_y * range;
                         let final_z = *base_z;
-                        
+
                         if let Ok(mut transform) = transforms.get_mut(entity) {
                             // X coordinate uses current value
                             // X 坐标使用当前值
                             let final_x = transform.translation.x;
-                            
+
                             // Ensure history exists or create it
                             // 确保历史存在或创建它
                             let history_exists = histories.get_mut(entity).is_ok();
@@ -717,13 +735,15 @@ fn process_modify_view_element_system(
                                     sprites.get(entity).ok(),
                                     visibilities.get(entity).ok(),
                                 );
-                                commands.entity(entity).insert(crate::core::ui::ViewElementHistory::new(original_state));
+                                commands.entity(entity).insert(
+                                    crate::core::ui::ViewElementHistory::new(original_state),
+                                );
                             }
-                            
+
                             // Apply modification
                             // 应用修改
                             transform.translation = Vec3::new(final_x, final_y, final_z);
-                            
+
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史
                             if let Ok(mut history) = histories.get_mut(entity) {

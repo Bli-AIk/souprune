@@ -260,7 +260,7 @@ pub enum ElementModification {
     ///
     /// 设置位置 (x, y, z)。
     SetPosition(f32, f32, f32),
-    
+
     /// Set position with random offset on Y axis only (base_y, base_z, random_range).
     ///
     /// X coordinate uses current value. Random offset will be applied to Y in range [-random_range, +random_range].
@@ -284,17 +284,17 @@ pub enum ElementModification {
     ///
     /// 设置可见性（true = 可见，false = 隐藏）。
     SetVisibility(bool),
-    
+
     /// Undo last modification for this element.
     ///
     /// 撤销此元素的最后一次修改。
     Undo,
-    
+
     /// Redo last undone modification for this element.
     ///
     /// 重做此元素最后撤销的修改。
     Redo,
-    
+
     /// Reset element to its original spawn state.
     ///
     /// 将元素重置为其原始生成状态。
