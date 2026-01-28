@@ -22,66 +22,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ============================================================================
-// Default Value Functions
-// ============================================================================
-
-fn default_damage() -> f32 {
-    1.0
-}
-
-fn default_lifetime() -> f32 {
-    5.0
-}
-
-fn default_z_index() -> f32 {
-    15.0
-}
-
-fn default_scale() -> f32 {
-    1.0
-}
-
-fn default_frame_duration() -> f32 {
-    0.05
-}
-
-fn default_linear_direction() -> (f32, f32) {
-    (0.0, -1.0)
-}
-
-fn default_linear_speed() -> f32 {
-    100.0
-}
-
-fn default_angular_velocity() -> f32 {
-    1.0
-}
-
-fn default_sine_axis() -> (f32, f32) {
-    (1.0, 0.0)
-}
-
-fn default_sine_amplitude() -> f32 {
-    20.0
-}
-
-fn default_sine_frequency() -> f32 {
-    2.0
-}
-
-fn default_line_spacing() -> f32 {
-    20.0
-}
-
-fn default_edge_spacing() -> f32 {
-    30.0
-}
-
-fn default_edge_margin() -> f32 {
-    200.0
-}
-
-// ============================================================================
 // Core Types: DanmakuPerformance (Timeline & Reference Architecture)
 // ============================================================================
 
@@ -127,7 +67,7 @@ pub enum HitBehaviorPreset {
     DamageWhenStationary,
     /// Custom configuration
     Custom {
-        #[serde(default = "default_despawn_on_hit")]
+        #[serde(default = "HitBehaviorPreset::default_true")]
         despawn_on_hit: bool,
         #[serde(default)]
         damage_on_player_moving: bool,
@@ -138,8 +78,10 @@ pub enum HitBehaviorPreset {
     },
 }
 
-fn default_despawn_on_hit() -> bool {
-    true
+impl HitBehaviorPreset {
+    fn default_true() -> bool {
+        true
+    }
 }
 
 /// Color tint configuration for bullets.
@@ -213,38 +155,56 @@ fn parse_hex_color(hex: &str) -> Option<Color> {
 ///
 /// 弹幕原型 - 定义弹幕类型的外观和碰撞。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[serde(default)]
 pub struct BulletPrototype {
     /// Visual representation
     pub visual: BulletVisual,
 
     /// Collision shape
-    #[serde(default)]
     pub collider: ColliderShape,
 
     /// Base damage
-    #[serde(default = "default_damage")]
     pub damage: f32,
 
     /// Lifetime in seconds
-    #[serde(default = "default_lifetime")]
     pub lifetime: f32,
 
     /// Z-index for rendering order
-    #[serde(default = "default_z_index")]
     pub z_index: f32,
 
     /// Scale factor (default: 1.0)
-    #[serde(default = "default_scale")]
     pub scale: f32,
 
     /// Hit behavior configuration (default: despawn on hit)
-    #[serde(default)]
     pub hit_behavior: HitBehaviorPreset,
 
     /// Color tint overlay (for blue/orange soul bullets)
     /// Empty hex string means no tint
-    #[serde(default)]
     pub color_tint: ColorTint,
+}
+
+impl Default for BulletPrototype {
+    fn default() -> Self {
+        Self {
+            visual: BulletVisual::default(),
+            collider: ColliderShape::default(),
+            damage: 1.0,
+            lifetime: 5.0,
+            z_index: 15.0,
+            scale: 1.0,
+            hit_behavior: HitBehaviorPreset::Default,
+            color_tint: ColorTint::default(),
+        }
+    }
+}
+
+impl BulletPrototype {
+    pub fn new(visual: BulletVisual) -> Self {
+        Self {
+            visual,
+            ..Default::default()
+        }
+    }
 }
 
 /// Visual representation of a bullet.
@@ -260,9 +220,23 @@ pub enum BulletVisual {
     Animation {
         module: String,
         name: String,
-        #[serde(default = "default_frame_duration")]
+        #[serde(default = "BulletVisual::default_frame_duration")]
         frame_duration: f32,
     },
+}
+
+impl Default for BulletVisual {
+    fn default() -> Self {
+        Self::Sprite {
+            path: String::new(),
+        }
+    }
+}
+
+impl BulletVisual {
+    fn default_frame_duration() -> f32 {
+        0.05
+    }
 }
 
 /// Collider shape for hit detection.
@@ -317,18 +291,17 @@ pub enum BulletBehavior {
 
 /// Linear motion configuration.
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[serde(default)]
 pub struct LinearConfig {
-    #[serde(default = "default_linear_direction")]
     pub dir: (f32, f32),
-    #[serde(default = "default_linear_speed")]
     pub speed: f32,
 }
 
 impl Default for LinearConfig {
     fn default() -> Self {
         Self {
-            dir: default_linear_direction(),
-            speed: default_linear_speed(),
+            dir: (0.0, -1.0),
+            speed: 100.0,
         }
     }
 }
@@ -337,17 +310,16 @@ impl Default for LinearConfig {
 ///
 /// 轨道运动配置（围绕生成中心旋转）。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[serde(default)]
 pub struct OrbitalConfig {
-    #[serde(default = "default_angular_velocity")]
     pub angular_velocity: f32,
-    #[serde(default)]
     pub radial_velocity: f32,
 }
 
 impl Default for OrbitalConfig {
     fn default() -> Self {
         Self {
-            angular_velocity: default_angular_velocity(),
+            angular_velocity: 1.0,
             radial_velocity: 0.0,
         }
     }
@@ -355,23 +327,20 @@ impl Default for OrbitalConfig {
 
 /// Sine wave configuration.
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[serde(default)]
 pub struct SineConfig {
-    #[serde(default = "default_sine_axis")]
     pub axis: (f32, f32),
-    #[serde(default = "default_sine_amplitude")]
     pub amplitude: f32,
-    #[serde(default = "default_sine_frequency")]
     pub frequency: f32,
-    #[serde(default)]
     pub phase: f32,
 }
 
 impl Default for SineConfig {
     fn default() -> Self {
         Self {
-            axis: default_sine_axis(),
-            amplitude: default_sine_amplitude(),
-            frequency: default_sine_frequency(),
+            axis: (1.0, 0.0),
+            amplitude: 20.0,
+            frequency: 2.0,
             phase: 0.0,
         }
     }
@@ -521,9 +490,9 @@ pub enum SpawnPattern {
     /// Spawn bullets in a line
     LineGenerator {
         count: usize,
-        #[serde(default = "default_line_spacing")]
+        #[serde(default = "SpawnPattern::default_line_spacing")]
         spacing: f32,
-        #[serde(default = "default_linear_direction")]
+        #[serde(default = "SpawnPattern::default_linear_direction")]
         direction: (f32, f32),
     },
 
@@ -532,9 +501,9 @@ pub enum SpawnPattern {
         count: usize,
         #[serde(default)]
         side: EdgeSide,
-        #[serde(default = "default_edge_spacing")]
+        #[serde(default = "SpawnPattern::default_edge_spacing")]
         spacing: f32,
-        #[serde(default = "default_edge_margin")]
+        #[serde(default = "SpawnPattern::default_edge_margin")]
         margin: f32,
     },
 
@@ -544,6 +513,21 @@ pub enum SpawnPattern {
         #[serde(default)]
         params: HashMap<String, f32>,
     },
+}
+
+impl SpawnPattern {
+    fn default_line_spacing() -> f32 {
+        20.0
+    }
+    fn default_linear_direction() -> (f32, f32) {
+        (0.0, -1.0)
+    }
+    fn default_edge_spacing() -> f32 {
+        30.0
+    }
+    fn default_edge_margin() -> f32 {
+        200.0
+    }
 }
 
 /// Which screen edge to spawn from.

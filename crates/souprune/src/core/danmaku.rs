@@ -13,8 +13,8 @@
 
 mod components;
 mod danmaku_schema;
-mod target;
 mod systems;
+mod target;
 
 pub use components::*;
 pub use danmaku_schema::*;
