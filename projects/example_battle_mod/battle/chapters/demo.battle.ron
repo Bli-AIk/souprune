@@ -3,50 +3,6 @@
     ViewInteraction(view_layout: "battle/ui/undertale.view_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(1.0),
-    
-    // Phase 3 Demo: Modify View Elements with Undo/Redo/Reset
-    // Phase 3 演示：修改视图元素（带撤销/重做/重置）
-    
-    // 1. Move BattleBox to a fixed position
-    // 1. 将战斗框移动到固定位置
-    ModifyViewElement(
-        selector: ByLocalName("BattleBox"),
-        modification: SetPosition(-50.0, 0.0, 0.0),
-    ),
-    Wait(1.0),
-    
-    // 2. Move BattleBox with random Y offset (X keeps current value -50)
-    // 2. 将战斗框在 Y 轴随机偏移（X 保持当前值 -50）
-    ModifyViewElement(
-        selector: ByLocalName("BattleBox"),
-        modification: SetPositionRandom(30.0, 0.0, 30.0),  // base_y, base_z, range
-    ),
-    Wait(1.0),
-    
-    // 3. Undo the random move (back to -50, 0, 0)
-    // 3. 撤销随机移动（回到 -50, 0, 0）
-    ModifyViewElement(
-        selector: ByLocalName("BattleBox"),
-        modification: Undo,
-    ),
-    Wait(1.0),
-    
-    // 4. Redo the random move (same random result)
-    // 4. 重做随机移动（相同的随机结果）
-    ModifyViewElement(
-        selector: ByLocalName("BattleBox"),
-        modification: Redo,
-    ),
-    Wait(1.0),
-    
-    // 5. Reset to original position (0, 0, 0)
-    // 5. 重置为原始位置 (0, 0, 0)
-    ModifyViewElement(
-        selector: ByLocalName("BattleBox"),
-        modification: Reset,
-    ),
-    Wait(0.5),
-    
     DanmakuPerformance(
         performance: "battle/danmaku/demo_attack.performance.ron",
         position: Some((0.0, 50.0)),

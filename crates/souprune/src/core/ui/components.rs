@@ -909,8 +909,8 @@ impl HPBarLag {
 }
 
 // ============================================================================
-// View Element System - Phase 2 Refactoring
-// 视图元素系统 - Phase 2 重构
+// View Element System
+// 视图元素系统
 // ============================================================================
 
 /// View Element - represents a referenceable element in a view layout.
@@ -1048,6 +1048,7 @@ pub fn find_elements_by_tag(query: &Query<(Entity, &ViewElement)>, tag: &str) ->
         .collect()
 }
 
+// TODO: 重构此文件，按功能分离为不同的模块。
 // ============================================================================
 // View Element History - for Undo/Redo/Reset functionality
 // 视图元素历史 - 用于撤销/重做/重置功能

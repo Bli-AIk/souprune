@@ -53,7 +53,7 @@ pub fn spawn_ron_ui_system(
             &mortar_strings,
             &player_data,
             &item_registry,
-            &ui_layout_handle.path, // Pass the layout path
+            &ui_layout_handle.path,
         );
         commands.entity(ui_entity).insert(UIGenerated);
         spawned_any = true;
@@ -76,7 +76,7 @@ pub fn spawn_ron_ui_for_entity(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
-    layout_path: &str, // New parameter: layout asset path
+    layout_path: &str,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -757,8 +757,8 @@ pub fn spawn_ui_node(
                 mortar_strings,
                 player_data,
                 item_registry,
-                false,     // Child nodes are not top-level
-                namespace, // Pass namespace to children
+                false,
+                namespace,
             );
         }
     }

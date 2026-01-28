@@ -26,7 +26,7 @@
         // 原始位置: (0, -80, 0)
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(-100.0, 0.0, 0.0),
         ),
         Wait(0.8),
@@ -34,7 +34,7 @@
         // Undo should return to (0, -80, 0)
         // 撤销应该返回到 (0, -80, 0)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.8),
@@ -42,7 +42,7 @@
         // Redo should move back to (-100, 0, 0)
         // 重做应该移回 (-100, 0, 0)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Redo,
         ),
         Wait(0.8),
@@ -51,19 +51,19 @@
         // === 测试 2: 多次位置设置 ===
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(0.0, 50.0, 0.0),
         ),
         Wait(0.8),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(100.0, 50.0, 0.0),
         ),
         Wait(0.8),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(100.0, -50.0, 0.0),
         ),
         Wait(0.8),
@@ -71,19 +71,19 @@
         // Undo 3 times: (100, -50) -> (100, 50) -> (0, 50) -> (-100, 0)
         // 撤销 3 次: (100, -50) -> (100, 50) -> (0, 50) -> (-100, 0)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.8),
@@ -91,13 +91,13 @@
         // Redo 2 times: (-100, 0) -> (0, 50) -> (100, 50)
         // 重做 2 次: (-100, 0) -> (0, 50) -> (100, 50)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Redo,
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Redo,
         ),
         Wait(0.8),
@@ -108,7 +108,7 @@
         // Reset should go back to original (0, -80, 0)
         // 重置应该返回到原始位置 (0, -80, 0)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Reset,
         ),
         Wait(1.0),
@@ -117,13 +117,13 @@
         // === 测试 4: 分支历史（撤销后修改）===
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(-50.0, 0.0, 0.0),
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(50.0, 0.0, 0.0),
         ),
         Wait(0.6),
@@ -131,7 +131,7 @@
         // Undo once: (50, 0) -> (-50, 0)
         // 撤销一次: (50, 0) -> (-50, 0)
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.6),
@@ -139,7 +139,7 @@
         // New modification should discard the (50, 0) state
         // 新的修改应该丢弃 (50, 0) 状态
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(0.0, 80.0, 0.0),
         ),
         Wait(0.8),
@@ -147,7 +147,7 @@
         // Redo should fail (redo stack was cleared)
         // 重做应该失败（重做栈已清除）
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Redo,
         ),
         Wait(0.8),
@@ -156,13 +156,13 @@
         // === 测试 5: 随机位置设置 ===
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPositionRandom(0.0, 0.0, 50.0),  // Y random around 0, range ±50
         ),
         Wait(0.8),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPositionRandom(0.0, 0.0, 50.0),  // Another random Y
         ),
         Wait(0.8),
@@ -170,13 +170,13 @@
         // Undo twice to go back through random positions
         // 撤销两次以回退随机位置
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.8),
@@ -185,7 +185,7 @@
         // === 测试 6: 边界情况 - 在原始状态撤销 ===
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Reset,
         ),
         Wait(0.6),
@@ -193,7 +193,7 @@
         // This undo should fail (already at original)
         // 这个撤销应该失败（已经在原始状态）
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Undo,
         ),
         Wait(0.8),
@@ -202,13 +202,13 @@
         // === 测试 7: 多次重置 ===
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: SetPosition(75.0, 75.0, 0.0),
         ),
         Wait(0.6),
         
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Reset,
         ),
         Wait(0.6),
@@ -216,7 +216,7 @@
         // Reset again (should stay at original)
         // 再次重置（应该停留在原始位置）
         ModifyViewElement(
-            selector: ByLocalName("BattleBox"),
+            selector: LocalName("BattleBox"),
             modification: Reset,
         ),
         Wait(1.0),

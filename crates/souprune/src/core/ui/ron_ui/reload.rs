@@ -144,7 +144,7 @@ pub fn rebuild_reloaded_ui_system(
             &mortar_strings,
             &player_data,
             &item_registry,
-            &handle.path, // Pass the layout path
+            &handle.path,
         );
         rebuilt_count += 1;
     }

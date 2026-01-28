@@ -29,28 +29,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
-    /// View Interaction Chapter (renamed from UIInteraction).
+    /// View Interaction Chapter.
     ///
     /// This chapter allows players to interact with the view.
-    /// It loads a view layout file for UI interaction scenarios, such as player choices or dialogues.
+    /// It loads a view layout file for View interaction scenarios, such as player choices or dialogues.
     ///
-    /// 视图交互章节（原 UIInteraction 重命名）。
+    /// 视图交互章节。
     ///
     /// 此章节允许玩家与视图交互。
-    /// 它加载视图布局文件用于 UI 交互场景，如玩家选择、对话等。
+    /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
     ViewInteraction { view_layout: String },
-
-    /// Legacy alias for ViewInteraction (for backward compatibility).
-    /// Use ViewInteraction instead.
-    ///
-    /// ViewInteraction 的遗留别名（用于向后兼容）。
-    /// 请使用 ViewInteraction。
-    #[deprecated(since = "0.6.0", note = "Use ViewInteraction instead")]
-    #[serde(alias = "UIInteraction")]
-    UIInteraction {
-        #[serde(alias = "ui_layout")]
-        view_layout: String,
-    },
 
     /// Danmaku Performance Chapter.
     ///
@@ -122,11 +110,11 @@ pub enum Chapter {
     /// 设置 UI 状态的章节。
     SetUI(UIAction),
 
-    /// Modify View Element Chapter (Phase 3).
+    /// Modify View Element Chapter.
     ///
     /// Modify properties of view elements at runtime by selector.
     ///
-    /// 修改视图元素章节（Phase 3）。
+    /// 修改视图元素章节。
     ///
     /// 通过选择器在运行时修改视图元素的属性。
     ModifyViewElement {
@@ -220,30 +208,25 @@ pub enum PlayerAction {
     Despawn,
 }
 
-// ============================================================================
-// Phase 3 & 4: View Element Modification and Tweening
-// Phase 3 & 4: 视图元素修改与补间动画
-// ============================================================================
-
 /// Element Selector - specifies which elements to target.
 ///
-/// 元素选择器 - 指定要目标的元素。
+/// 元素选择器 - 指定目标元素。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ElementSelector {
     /// Select by fully qualified name (namespace::name).
     ///
     /// 通过完全限定名（namespace::name）选择。
-    ByFullName(String),
+    FullName(String),
 
     /// Select by local name within the current layout's namespace.
     ///
     /// 在当前布局的命名空间内通过局部名称选择。
-    ByLocalName(String),
+    LocalName(String),
 
     /// Select all elements with a specific tag.
     ///
     /// 选择所有具有特定标签的元素。
-    ByTag(String),
+    Tag(String),
 }
 
 /// Element Modification - property changes to apply.
@@ -261,6 +244,7 @@ pub enum ElementModification {
     /// 设置位置 (x, y, z)。
     SetPosition(f32, f32, f32),
 
+    /// TODO: 将随机数改为一种表达式语法，而非这种硬编码随机范围
     /// Set position with random offset on Y axis only (base_y, base_z, random_range).
     ///
     /// X coordinate uses current value. Random offset will be applied to Y in range [-random_range, +random_range].

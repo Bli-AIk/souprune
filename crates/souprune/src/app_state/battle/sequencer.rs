@@ -29,7 +29,7 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
-                    process_modify_view_element_system, // Phase 3
+                    process_modify_view_element_system,
                     process_danmaku_performance_system,
                     process_am_performance_system,
                     process_player_spawn_requests,
@@ -328,7 +328,7 @@ fn process_ui_action_system(
             }
             commands.entity(entity).insert(ChapterFinished);
         } else if let Chapter::ViewInteraction { view_layout }
-        | Chapter::UIInteraction { view_layout } = &active_chapter.chapter
+        | Chapter::ViewInteraction { view_layout } = &active_chapter.chapter
         {
             info!("[Battle] Loading view layout for battle: {}", view_layout);
             let handle = asset_server.load(view_layout);
@@ -593,7 +593,7 @@ fn process_modify_view_element_system(
             // Resolve the selector to get target entities
             // 解析选择器以获取目标实体
             let target_entities = match selector {
-                super::chapter_schema::ElementSelector::ByFullName(full_name) => {
+                super::chapter_schema::ElementSelector::FullName(full_name) => {
                     if let Some(entity) =
                         crate::core::ui::find_element_by_full_name(&view_elements, full_name)
                     {
@@ -610,7 +610,7 @@ fn process_modify_view_element_system(
                         vec![]
                     }
                 }
-                super::chapter_schema::ElementSelector::ByLocalName(local_name) => {
+                super::chapter_schema::ElementSelector::LocalName(local_name) => {
                     // For simplicity, search in all namespaces
                     // 为简单起见，在所有命名空间中搜索
                     view_elements
@@ -619,7 +619,7 @@ fn process_modify_view_element_system(
                         .map(|(entity, _)| entity)
                         .collect()
                 }
-                super::chapter_schema::ElementSelector::ByTag(tag) => {
+                super::chapter_schema::ElementSelector::Tag(tag) => {
                     crate::core::ui::find_elements_by_tag(&view_elements, tag)
                 }
             };
