@@ -655,11 +655,10 @@ pub fn spawn_ui_node(
                 if tx || ty || tz {
                     has_dynamic = true;
                 }
-                if let Some(s) = &t.scale {
-                    if s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic() {
+                if let Some(s) = &t.scale
+                    && (s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic()) {
                         has_dynamic = true;
                     }
-                }
             }
             if sprite_def
                 .shader_params

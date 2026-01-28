@@ -422,6 +422,7 @@ pub(crate) fn menu_overworld_state_transitions_system(
             OverworldState::Cutscene => {
                 info!("Menu key pressed during cutscene, ignoring");
             }
+            _ => {}
         }
     }
 }

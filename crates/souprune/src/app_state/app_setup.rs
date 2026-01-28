@@ -51,8 +51,8 @@ fn discover_texture_modules() -> Vec<String> {
 
     for root in roots {
         let textures_path = root.join("textures");
-        if textures_path.exists() && textures_path.is_dir() {
-            if let Ok(entries) = fs::read_dir(&textures_path) {
+        if textures_path.exists() && textures_path.is_dir()
+            && let Ok(entries) = fs::read_dir(&textures_path) {
                 let modules: Vec<String> = entries
                     .filter_map(|entry| entry.ok())
                     .filter(|entry| entry.path().is_dir())
@@ -69,7 +69,6 @@ fn discover_texture_modules() -> Vec<String> {
                     return modules;
                 }
             }
-        }
     }
 
     // Fallback to default modules if no modules discovered

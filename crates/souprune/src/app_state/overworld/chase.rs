@@ -283,6 +283,7 @@ impl Default for DamageUIConfig {
 ///
 /// 从 RON 文件加载的完整追逐战配置。
 #[derive(Debug, Clone, Deserialize, Resource)]
+#[derive(Default)]
 pub struct ChaseConfig {
     pub heart_marker: HeartMarkerConfig,
     pub outline: OutlineConfig,
@@ -293,25 +294,14 @@ pub struct ChaseConfig {
     pub damage_ui: DamageUIConfig,
 }
 
-impl Default for ChaseConfig {
-    fn default() -> Self {
-        Self {
-            heart_marker: HeartMarkerConfig::default(),
-            outline: OutlineConfig::default(),
-            dark_overlay: DarkOverlayConfig::default(),
-            hitbox: HitboxConfig::default(),
-            damage_ui: DamageUIConfig::default(),
-        }
-    }
-}
 
 impl ChaseConfig {
     /// Load chase configuration from RON file.
     ///
     /// 从 RON 文件加载追逐战配置。
     pub fn load() -> Self {
-        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH) {
-            if let Ok(contents) = fs::read_to_string(&path) {
+        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH)
+            && let Ok(contents) = fs::read_to_string(&path) {
                 if let Ok(config) = ron::de::from_str(&contents) {
                     info!("Chase: Loaded config from {}", path.display());
                     return config;
@@ -322,7 +312,6 @@ impl ChaseConfig {
                     );
                 }
             }
-        }
         info!("Chase: Using default config");
         Self::default()
     }

@@ -581,19 +581,16 @@ pub fn list_saves(config: &SaveConfig) -> Vec<SaveSlot> {
     if let Ok(entries) = fs::read_dir(&config.save_directory) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                    if ext == "toml" {
-                        if let Some(num_str) = name.strip_prefix("save_") {
-                            if let Ok(num) = num_str.parse::<u32>() {
+            if let Some(name) = path.file_stem().and_then(|s| s.to_str())
+                && let Some(ext) = path.extension().and_then(|s| s.to_str())
+                    && ext == "toml" {
+                        if let Some(num_str) = name.strip_prefix("save_")
+                            && let Ok(num) = num_str.parse::<u32>() {
                                 saves.push(SaveSlot::Numbered(num));
                                 continue;
                             }
-                        }
                         saves.push(SaveSlot::Named(name.to_string()));
                     }
-                }
-            }
         }
     }
 

@@ -14,7 +14,7 @@
 //!
 //! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
 
-use crate::app_state::{AppState, cleanup_entities_system};
+use crate::app_state::cleanup_entities_system;
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
