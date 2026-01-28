@@ -289,6 +289,7 @@ fn process_camera_action_system(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn process_ui_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -351,6 +352,7 @@ fn process_ui_action_system(
 /// System to process DanmakuPerformance chapters.
 ///
 /// 处理弹幕演出章节的系统。
+#[allow(clippy::type_complexity)]
 fn process_danmaku_performance_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -376,6 +378,7 @@ fn process_danmaku_performance_system(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -494,6 +497,7 @@ struct AmPerformanceTracker {
 /// System to process AmPerformance chapters.
 ///
 /// 处理 AM 演出章节的系统。
+#[allow(clippy::type_complexity)]
 fn process_am_performance_system(
     mut commands: Commands,
     query: Query<

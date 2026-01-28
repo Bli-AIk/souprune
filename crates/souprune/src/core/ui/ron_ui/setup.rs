@@ -253,6 +253,7 @@ pub fn ui_animation_init_system(
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn setup_hp_bar_sprites(
     mut commands: Commands,
     procedural_textures: Option<Res<super::super::procedural_textures::ProceduralTextures>>,

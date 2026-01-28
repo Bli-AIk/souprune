@@ -64,6 +64,7 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn update_dynamic_camera_anchors_system(
     mut anchored_query: Query<
         (&mut CameraAnchored, &CameraAnchoredDynamic, &mut Transform),
