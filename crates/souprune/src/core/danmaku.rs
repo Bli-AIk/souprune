@@ -11,17 +11,13 @@
 //! 核心弹幕系统 - 通用且与状态无关。
 //! 此模块提供弹幕模式系统的基础，可用于 Battle 和 Overworld 状态。
 
-#[path = "danmaku/components.rs"]
 mod components;
-#[path = "danmaku/patterns.rs"]
-mod patterns;
-#[path = "danmaku/systems.rs"]
+mod danmaku_schema;
 mod systems;
-#[path = "danmaku/target.rs"]
 mod target;
 
 pub use components::*;
-pub use patterns::*;
+pub use danmaku_schema::*;
 pub use systems::*;
 pub use target::*;
 

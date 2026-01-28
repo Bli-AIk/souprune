@@ -24,18 +24,18 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 pub mod am_integration;
-pub mod chapter;
+pub mod chapter_schema;
 pub mod collision;
-pub mod config;
 pub mod danmaku;
+pub mod player_config_schema;
 mod sequencer;
 
 use crate::app_state::AppState;
 use crate::app_state::battle::am_integration::AmBattlePlugin;
-use crate::app_state::battle::chapter::Chapter;
+use crate::app_state::battle::chapter_schema::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
-use crate::app_state::battle::config::BattlePlayerConfig;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
+use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin, Update};

@@ -6,7 +6,7 @@
 //!
 //! 定义弹幕系统的 ECS 组件。
 
-use super::patterns::BulletBehavior;
+use super::danmaku_schema::BulletBehavior;
 use bevy::prelude::*;
 use souprune_api::{DanmakuInstance, PropC};
 use std::collections::HashMap;
@@ -288,7 +288,7 @@ impl PerformancePlayer {
 ///
 /// 将 PerformancePlayer 与其加载的演出资产关联的组件。
 #[derive(Component)]
-pub struct PerformanceHandle(pub Handle<super::patterns::DanmakuPerformance>);
+pub struct PerformanceHandle(pub Handle<super::danmaku_schema::DanmakuPerformance>);
 
 /// Marker component for performance player entities.
 ///

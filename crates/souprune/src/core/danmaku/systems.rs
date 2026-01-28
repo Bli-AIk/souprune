@@ -10,7 +10,7 @@
 
 use super::DanmakuSpawnContext;
 use super::components::*;
-use super::patterns::*;
+use super::danmaku_schema::*;
 use super::target::BulletTarget;
 use crate::app_state::battle::BattleEntity;
 use crate::app_state::overworld::OverworldEntity;

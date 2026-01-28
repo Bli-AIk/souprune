@@ -15,6 +15,7 @@ use bevy::prelude::*;
 /// Generic character animation system that works for any entity with CharacterAnimator.
 ///
 /// 适用于任何具有 CharacterAnimator 的实体的通用角色动画系统。
+#[allow(clippy::type_complexity)]
 pub(crate) fn character_animation_system(
     mut sprite_params: SpriteParams,
     anim_configs: Res<Assets<AnimationConfigAsset>>,
