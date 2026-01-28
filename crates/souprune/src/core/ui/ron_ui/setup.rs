@@ -7,19 +7,19 @@ use super::super::components::{
     HPBarLag, HPBarSprite, IndexBound, LayerTransitions, UIAnimationState, UILayer,
     UILayerNavigationConfig, UILayerNavigationRule, UILayerTransitionConfig,
 };
-use super::super::layout::{IndexBoundDef, TransitionActionDef, UILayoutAsset};
+use super::super::layout::{IndexBoundDef, TransitionActionDef, ViewLayoutAsset};
 use super::parsing::{parse_action, parse_overworld_state};
 use super::resources::{GlobalTriggerRule, UIGlobalTriggerConfig, UILayoutHandle};
 use crate::core::sprite::params::SpriteParams;
 
 pub fn load_navigation_and_transitions_system(
     ui_layout_handle: Option<Res<UILayoutHandle>>,
-    ui_layouts: Res<Assets<UILayoutAsset>>,
+    ui_layouts: Res<Assets<ViewLayoutAsset>>,
     mut navigation_config: ResMut<UILayerNavigationConfig>,
     mut transition_config: ResMut<UILayerTransitionConfig>,
     mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
-    mut last_processed_handle: Local<Option<AssetId<UILayoutAsset>>>,
-    mut events: MessageReader<AssetEvent<UILayoutAsset>>,
+    mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
+    mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
 ) {
     let Some(ui_layout_handle) = ui_layout_handle else {
         return;

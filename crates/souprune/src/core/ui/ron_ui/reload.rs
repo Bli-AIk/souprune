@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
 use super::super::components::RonUI;
-use super::super::layout::UILayoutAsset;
+use super::super::layout::ViewLayoutAsset;
 use super::resources::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
 
@@ -44,7 +44,7 @@ pub fn update_ui_from_map_system(
 }
 
 pub fn watch_ui_layout_changes_system(
-    mut events: MessageReader<AssetEvent<UILayoutAsset>>,
+    mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     mut watcher: Option<ResMut<UILayoutWatcher>>,
     mut commands: Commands,
@@ -75,7 +75,7 @@ pub fn rebuild_reloaded_ui_system(
     asset_server: Res<AssetServer>,
     ui_layout_handle: Option<Res<UILayoutHandle>>,
     mut watcher: Option<ResMut<UILayoutWatcher>>,
-    ui_layouts: Res<Assets<UILayoutAsset>>,
+    ui_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     overworld_ui_query: Query<(Entity, &RonUI), Without<RonDrivenUI>>,
     camera_query: Query<&Transform, With<Camera2d>>,

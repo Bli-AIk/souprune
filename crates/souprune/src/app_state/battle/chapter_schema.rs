@@ -29,16 +29,28 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
-    /// UI Interaction Chapter.
+    /// View Interaction Chapter (renamed from UIInteraction).
     ///
-    /// The Chapter allows players to interact with the UI.
-    /// Chapters involving UI interaction should apply this, such as player choices, dialogues, etc.
+    /// This chapter allows players to interact with the view.
+    /// It loads a view layout file for UI interaction scenarios, such as player choices or dialogues.
     ///
-    /// UI 交互章节。
+    /// 视图交互章节（原 UIInteraction 重命名）。
     ///
-    /// 此章节允许玩家与 UI 交互。
-    /// 涉及 UI 交互的章节都应应用此项，如 玩家选择、对话 等。
-    UIInteraction { ui_layout: String },
+    /// 此章节允许玩家与视图交互。
+    /// 它加载视图布局文件用于 UI 交互场景，如玩家选择、对话等。
+    ViewInteraction { view_layout: String },
+
+    /// Legacy alias for ViewInteraction (for backward compatibility).
+    /// Use ViewInteraction instead.
+    ///
+    /// ViewInteraction 的遗留别名（用于向后兼容）。
+    /// 请使用 ViewInteraction。
+    #[deprecated(since = "0.6.0", note = "Use ViewInteraction instead")]
+    #[serde(alias = "UIInteraction")]
+    UIInteraction {
+        #[serde(alias = "ui_layout")]
+        view_layout: String,
+    },
 
     /// Danmaku Performance Chapter.
     ///

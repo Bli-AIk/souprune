@@ -28,8 +28,8 @@ pub use crate::core::save::{
 };
 pub use crate::core::ui::layout::{
     BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
-    UINodeDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
+    ViewNodeDef,
 };
 
 use std::default::Default;

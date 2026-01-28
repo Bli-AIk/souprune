@@ -1,6 +1,6 @@
 [
     SetCamera(SetZoom(2.0)),
-    UIInteraction(ui_layout: "battle/ui/undertale.ui_layout.ron"),
+    ViewInteraction(view_layout: "battle/ui/undertale.view_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
     Wait(1.0),
     DanmakuPerformance(

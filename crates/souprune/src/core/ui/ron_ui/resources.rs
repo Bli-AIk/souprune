@@ -1,4 +1,4 @@
-use super::super::layout::UILayoutAsset;
+use super::super::layout::ViewLayoutAsset;
 use crate::app_state::overworld::OverworldState;
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -7,7 +7,7 @@ use std::time::SystemTime;
 
 #[derive(Resource)]
 pub struct UILayoutHandle {
-    pub handle: Handle<UILayoutAsset>,
+    pub handle: Handle<ViewLayoutAsset>,
     pub last_modified: Option<SystemTime>,
 }
 

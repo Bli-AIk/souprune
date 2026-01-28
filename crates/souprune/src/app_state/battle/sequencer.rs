@@ -325,9 +325,11 @@ fn process_ui_action_system(
                 }
             }
             commands.entity(entity).insert(ChapterFinished);
-        } else if let Chapter::UIInteraction { ui_layout } = &active_chapter.chapter {
-            info!("[Battle] Loading UI layout for battle: {}", ui_layout);
-            let handle = asset_server.load(ui_layout);
+        } else if let Chapter::ViewInteraction { view_layout }
+        | Chapter::UIInteraction { view_layout } = &active_chapter.chapter
+        {
+            info!("[Battle] Loading view layout for battle: {}", view_layout);
+            let handle = asset_server.load(view_layout);
             commands.insert_resource(crate::core::ui::UILayoutHandle {
                 handle,
                 last_modified: None,

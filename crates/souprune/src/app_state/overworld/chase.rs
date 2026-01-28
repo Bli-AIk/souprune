@@ -273,7 +273,7 @@ pub struct DamageUIConfig {
 impl Default for DamageUIConfig {
     fn default() -> Self {
         Self {
-            layout_path: "overworld/ui/damage_flash.ui_layout.ron".to_string(),
+            layout_path: "overworld/ui/damage_flash.view_layout.ron".to_string(),
             display_duration: 0.5,
         }
     }
@@ -1344,15 +1344,15 @@ pub struct DamageUIMarker;
 pub struct ChaseHUDRoot;
 
 /// System to setup Chase HUD when entering chase state.
-/// Loads the damage_flash.ui_layout.ron which contains HP bar and HP text.
+/// Loads the damage_flash.view_layout.ron which contains HP bar and HP text.
 ///
 /// 进入追逐战状态时设置 HUD 的系统。
-/// 加载包含血条和血量文字的 damage_flash.ui_layout.ron。
+/// 加载包含血条和血量文字的 damage_flash.view_layout.ron。
 fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD UI layout
-    let handle = asset_server.load("overworld/ui/damage_flash.ui_layout.ron");
+    // Load the chase HUD UI layout / 加载追逐战 HUD 视图布局
+    let handle = asset_server.load("overworld/ui/damage_flash.view_layout.ron");
 
     // Insert the UI layout handle resource
     commands.insert_resource(crate::core::ui::UILayoutHandle {

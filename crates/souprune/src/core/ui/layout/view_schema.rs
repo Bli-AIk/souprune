@@ -1,17 +1,17 @@
-//! # ui_schema.rs
+//! # view_schema.rs
 //!
-//! # ui_schema.rs 文件
+//! # view_schema.rs 文件
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
 //!
-//! Defines the pure data schema for UI Layouts in RON files (`layout.ron`).
-//! This module contains `UILayoutAsset` and related definitions that map directly to the configuration files.
+//! Defines the pure data schema for View Layouts in RON files (`.view_layout.ron`).
+//! This module contains `ViewLayoutAsset` and related definitions that map directly to the configuration files.
 //! It relies on `serde_types` for type conversions.
 //!
-//! 定义 UI 布局在 RON 文件 (`layout.ron`) 中的纯数据 Schema。
-//! 本模块包含 `UILayoutAsset` 及相关定义，直接映射到配置文件。
+//! 定义视图布局在 RON 文件 (`.view_layout.ron`) 中的纯数据 Schema。
+//! 本模块包含 `ViewLayoutAsset` 及相关定义，直接映射到配置文件。
 //! 它依赖 `serde_types` 进行类型转换。
 
 use super::serde_types::*;
@@ -19,11 +19,16 @@ use bevy::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// View Layout Asset - represents a complete view layout configuration.
+///
+/// 视图布局资产 - 表示完整的视图布局配置。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
-pub struct UILayoutAsset {
+pub struct ViewLayoutAsset {
     #[allow(dead_code)]
     pub version: u32,
-    pub roots: Vec<UINodeDef>,
+    /// Root view nodes
+    /// 根视图节点
+    pub roots: Vec<ViewNodeDef>,
     #[serde(default)]
     pub navigation: Option<HashMap<String, NavigationRuleDef>>,
     #[serde(default)]
@@ -41,8 +46,11 @@ pub struct GlobalTriggerRuleDef {
     pub allowed_states: Option<Vec<String>>,
 }
 
+/// View Node Definition - defines a single visual element in the view layout.
+///
+/// 视图节点定义 - 定义视图布局中的单个可视化元素。
 #[derive(Debug, Deserialize, Clone)]
-pub struct UINodeDef {
+pub struct ViewNodeDef {
     pub name: String,
     #[serde(default)]
     pub tags: Vec<String>,
@@ -71,7 +79,7 @@ pub struct UINodeDef {
     pub ui_shape_logic: Option<UIBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
-    pub children: Vec<UINodeDef>,
+    pub children: Vec<ViewNodeDef>,
     /// If true, this UI node will be anchored to the camera and follow its movement.
     /// This is useful for HUD elements that should stay fixed on screen.
     /// Default is true for top-level nodes with ui_shape_logic.
