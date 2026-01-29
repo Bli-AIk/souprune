@@ -288,13 +288,13 @@ pub enum ElementModification {
     ///
     /// Each coordinate can be either a static float or a dynamic expression string.
     /// Expressions support sin/cos/snap and random() functions.
-    /// Use "current" to keep the existing coordinate value.
+    /// Use "@current" to keep the existing coordinate value.
     ///
     /// 设置位置 (x, y, z)。
     ///
     /// 每个坐标可以是静态浮点数或动态表达式字符串。
     /// 表达式支持 sin/cos/snap 和 random() 函数。
-    /// 使用 "current" 保持现有坐标值。
+    /// 使用 "@current" 保持现有坐标值。
     SetPosition(Val<f32>, Val<f32>, Val<f32>),
 
     /// Set scale (x, y, z).

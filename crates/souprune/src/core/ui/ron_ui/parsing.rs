@@ -427,8 +427,8 @@ pub fn resolve_val_f32(
     match val {
         crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
         crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
-            // Special case: "current" keyword
-            if expr_str == "current" {
+            // Special case: "@current" keyword
+            if expr_str == "@current" {
                 return current_value.unwrap_or(0.0);
             }
 

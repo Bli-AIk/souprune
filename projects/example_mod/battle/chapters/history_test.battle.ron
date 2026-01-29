@@ -17,7 +17,7 @@
     SetCamera(SetZoom(2.0)),
     // === Initial UI Setup ===
     // === 初始 UI 设置 ===
-    ViewInteraction(view_layout: "battle/ui/undertale.view_layout.ron"),
+    ViewInteraction(view_layout: "battle/view/undertale.view_layout.ron"),
     Wait(0.5),
         
         // === Test 1: Simple SetPosition ===
@@ -157,13 +157,13 @@
         
         ModifyViewElement(
             selector: LocalName("BattleBox"),
-            modification: SetPosition("current", "random(50.0)", 0.0),  // Static X (current), Random Y in [-50, 50]
+            modification: SetPosition("@current", "random(50.0)", 0.0),  // Static X (@current), Random Y in [-50, 50]
         ),
         Wait(0.8),
         
         ModifyViewElement(
             selector: LocalName("BattleBox"),
-            modification: SetPosition("current", "random(-30.0, 30.0)", 0.0),  // Random Y in [-30, 30]
+            modification: SetPosition("@current", "random(-30.0, 30.0)", 0.0),  // Random Y in [-30, 30]
         ),
         Wait(0.8),
         
