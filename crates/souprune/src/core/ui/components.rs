@@ -27,7 +27,7 @@ pub(crate) use cursor::{
     BoxCursor, BoxCursorOwner, BoxCursorPlacement, BoxCursorPosition, BoxCursorReady,
     BoxCursorSprite, BoxCursorVisibility,
 };
-pub(crate) use layer::{BackpackItemOption, UILayer};
+pub(crate) use layer::UILayer;
 pub(crate) use navigation::{
     IndexBound, LayerTransitions, TransitionAction, TransitionRule, UILayerNavigationConfig,
     UILayerNavigationRule, UILayerTransitionConfig,

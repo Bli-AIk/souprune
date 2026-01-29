@@ -49,7 +49,7 @@ use camera::{
     update_dynamic_camera_anchors_system,
 };
 pub use components::{
-    ElementState, ViewElementHistory, find_element_by_full_name, find_element_in_namespace,
+    ElementState, ViewElementHistory, find_element_by_full_name,
     find_elements_by_tag,
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};

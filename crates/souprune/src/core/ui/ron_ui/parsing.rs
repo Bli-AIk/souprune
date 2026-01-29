@@ -159,20 +159,20 @@ pub fn evaluate_float_expr(
                             let max: f64 = tuple[1].as_float()?;
                             let range = max - min;
                             let result = min + (rand_val + 1.0) * 0.5 * range;
-                            return Ok(evalexpr::Value::Float(result));
+                            Ok(evalexpr::Value::Float(result))
                         } else if tuple.len() == 1 {
                             // random(range) - return value in range [-range, range]
                             let range: f64 = tuple[0].as_float()?;
-                            return Ok(evalexpr::Value::Float(rand_val * range));
+                            Ok(evalexpr::Value::Float(rand_val * range))
                         } else {
-                            return Err(evalexpr::EvalexprError::CustomMessage(
+                            Err(evalexpr::EvalexprError::CustomMessage(
                                 "random expects 0, 1, or 2 arguments".to_string(),
-                            ));
+                            ))
                         }
                     } else {
                         // Single argument: random(range)
                         let range: f64 = arg.as_float()?;
-                        return Ok(evalexpr::Value::Float(rand_val * range));
+                        Ok(evalexpr::Value::Float(rand_val * range))
                     }
                 }),
             );
@@ -454,4 +454,3 @@ pub fn resolve_val_bool(
         }
     }
 }
-

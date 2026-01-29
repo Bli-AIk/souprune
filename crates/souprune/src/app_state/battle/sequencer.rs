@@ -649,9 +649,24 @@ fn process_modify_view_element_system(
                             use crate::core::ui::ron_ui::parsing::resolve_val_f32;
                             let player_data = crate::core::data::PlayerData::default();
 
-                            let final_x = resolve_val_f32(x, Some(transform.translation.x), &player_data, None);
-                            let final_y = resolve_val_f32(y, Some(transform.translation.y), &player_data, None);
-                            let final_z = resolve_val_f32(z, Some(transform.translation.z), &player_data, None);
+                            let final_x = resolve_val_f32(
+                                x,
+                                Some(transform.translation.x),
+                                &player_data,
+                                None,
+                            );
+                            let final_y = resolve_val_f32(
+                                y,
+                                Some(transform.translation.y),
+                                &player_data,
+                                None,
+                            );
+                            let final_z = resolve_val_f32(
+                                z,
+                                Some(transform.translation.z),
+                                &player_data,
+                                None,
+                            );
 
                             // Ensure history exists or create it
                             // 确保历史存在或创建它
@@ -670,7 +685,10 @@ fn process_modify_view_element_system(
                             // Apply modification
                             // 应用修改
                             transform.translation = Vec3::new(final_x, final_y, final_z);
-                            info!("Set position for entity {:?}: ({}, {}, {})", entity, final_x, final_y, final_z);
+                            info!(
+                                "Set position for entity {:?}: ({}, {}, {})",
+                                entity, final_x, final_y, final_z
+                            );
 
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史
@@ -689,12 +707,18 @@ fn process_modify_view_element_system(
                             use crate::core::ui::ron_ui::parsing::resolve_val_f32;
                             let player_data = crate::core::data::PlayerData::default();
 
-                            let final_x = resolve_val_f32(x, Some(transform.scale.x), &player_data, None);
-                            let final_y = resolve_val_f32(y, Some(transform.scale.y), &player_data, None);
-                            let final_z = resolve_val_f32(z, Some(transform.scale.z), &player_data, None);
+                            let final_x =
+                                resolve_val_f32(x, Some(transform.scale.x), &player_data, None);
+                            let final_y =
+                                resolve_val_f32(y, Some(transform.scale.y), &player_data, None);
+                            let final_z =
+                                resolve_val_f32(z, Some(transform.scale.z), &player_data, None);
 
                             transform.scale = Vec3::new(final_x, final_y, final_z);
-                            info!("Set scale for entity {:?}: ({}, {}, {})", entity, final_x, final_y, final_z);
+                            info!(
+                                "Set scale for entity {:?}: ({}, {}, {})",
+                                entity, final_x, final_y, final_z
+                            );
                         }
                     }
                     super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
@@ -703,10 +727,22 @@ fn process_modify_view_element_system(
                             let player_data = crate::core::data::PlayerData::default();
                             let color = sprite.color;
 
-                            let final_r = resolve_val_f32(r, Some(color.to_srgba().red), &player_data, None);
-                            let final_g = resolve_val_f32(g, Some(color.to_srgba().green), &player_data, None);
-                            let final_b = resolve_val_f32(b, Some(color.to_srgba().blue), &player_data, None);
-                            let final_a = resolve_val_f32(a, Some(color.to_srgba().alpha), &player_data, None);
+                            let final_r =
+                                resolve_val_f32(r, Some(color.to_srgba().red), &player_data, None);
+                            let final_g = resolve_val_f32(
+                                g,
+                                Some(color.to_srgba().green),
+                                &player_data,
+                                None,
+                            );
+                            let final_b =
+                                resolve_val_f32(b, Some(color.to_srgba().blue), &player_data, None);
+                            let final_a = resolve_val_f32(
+                                a,
+                                Some(color.to_srgba().alpha),
+                                &player_data,
+                                None,
+                            );
 
                             sprite.color = Color::srgba(final_r, final_g, final_b, final_a);
                             info!(
@@ -730,77 +766,66 @@ fn process_modify_view_element_system(
                         }
                     }
                     super::chapter_schema::ElementModification::Undo => {
-                        if let Ok(mut history) = histories.get_mut(entity) {
-                            if let Some(previous_state) = history.undo() {
+                        if let Ok(mut history) = histories.get_mut(entity)
+                            && let Some(previous_state) = history.undo() {
                                 // Apply previous state
                                 // 应用之前的状态
-                                if let Some((trans, rot, scale)) = previous_state.transform {
-                                    if let Ok(mut transform) = transforms.get_mut(entity) {
+                                if let Some((trans, rot, scale)) = previous_state.transform
+                                    && let Ok(mut transform) = transforms.get_mut(entity) {
                                         transform.translation = trans;
                                         transform.rotation = rot;
                                         transform.scale = scale;
                                     }
-                                }
-                                if let Some(color) = previous_state.color {
-                                    if let Ok(mut sprite) = sprites.get_mut(entity) {
+                                if let Some(color) = previous_state.color
+                                    && let Ok(mut sprite) = sprites.get_mut(entity) {
                                         sprite.color = color;
                                     }
-                                }
-                                if let Some(vis) = previous_state.visibility {
-                                    if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                                if let Some(vis) = previous_state.visibility
+                                    && let Ok(mut visibility) = visibilities.get_mut(entity) {
                                         *visibility = vis;
                                     }
-                                }
                             }
-                        }
                     }
                     super::chapter_schema::ElementModification::Redo => {
-                        if let Ok(mut history) = histories.get_mut(entity) {
-                            if let Some(next_state) = history.redo() {
+                        if let Ok(mut history) = histories.get_mut(entity)
+                            && let Some(next_state) = history.redo() {
                                 // Apply next state
                                 // 应用下一个状态
-                                if let Some((trans, rot, scale)) = next_state.transform {
-                                    if let Ok(mut transform) = transforms.get_mut(entity) {
+                                if let Some((trans, rot, scale)) = next_state.transform
+                                    && let Ok(mut transform) = transforms.get_mut(entity) {
                                         transform.translation = trans;
                                         transform.rotation = rot;
                                         transform.scale = scale;
                                     }
-                                }
-                                if let Some(color) = next_state.color {
-                                    if let Ok(mut sprite) = sprites.get_mut(entity) {
+                                if let Some(color) = next_state.color
+                                    && let Ok(mut sprite) = sprites.get_mut(entity) {
                                         sprite.color = color;
                                     }
-                                }
-                                if let Some(vis) = next_state.visibility {
-                                    if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                                if let Some(vis) = next_state.visibility
+                                    && let Ok(mut visibility) = visibilities.get_mut(entity) {
                                         *visibility = vis;
                                     }
-                                }
                             }
-                        }
                     }
                     super::chapter_schema::ElementModification::Reset => {
                         if let Ok(mut history) = histories.get_mut(entity) {
                             let original_state = history.reset();
                             // Apply original state
                             // 应用原始状态
-                            if let Some((trans, rot, scale)) = original_state.transform {
-                                if let Ok(mut transform) = transforms.get_mut(entity) {
+                            if let Some((trans, rot, scale)) = original_state.transform
+                                && let Ok(mut transform) = transforms.get_mut(entity) {
                                     transform.translation = trans;
                                     transform.rotation = rot;
                                     transform.scale = scale;
                                 }
-                            }
-                            if let Some(color) = original_state.color {
-                                if let Ok(mut sprite) = sprites.get_mut(entity) {
+                            if let Some(color) = original_state.color
+                                && let Ok(mut sprite) = sprites.get_mut(entity) {
                                     sprite.color = color;
                                 }
-                            }
-                            if let Some(vis) = original_state.visibility {
-                                if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                            if let Some(vis) = original_state.visibility
+                                && let Ok(mut visibility) = visibilities.get_mut(entity) {
                                     *visibility = vis;
                                 }
-                            }
                         }
                     }
                 }
