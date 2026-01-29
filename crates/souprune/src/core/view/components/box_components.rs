@@ -183,9 +183,9 @@ impl UIBoxVisibility {
     }
 }
 
-/// Marker placed on the filler entity that contains UI text and cursor sprites.
+/// Marker placed on the filler entity that contains UI text and indicator sprites.
 ///
-/// 标记承载 UI 文本与光标精灵的填充实体。
+/// 标记承载 UI 文本与指示器精灵的填充实体。
 #[derive(Component)]
 pub(crate) struct UIBoxFiller;
 

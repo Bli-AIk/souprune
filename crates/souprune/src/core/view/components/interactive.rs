@@ -334,9 +334,9 @@ pub struct InteractiveLayer {
     /// 当前选择索引。
     pub current_selection: usize,
 
-    /// Names of selectable elements (for cursor positioning and highlighting).
+    /// Names of selectable elements (for reactive indicator positioning and highlighting).
     ///
-    /// 可选元素的名称（用于光标定位和高亮）。
+    /// 可选元素的名称（用于响应式指示器定位和高亮）。
     ///
     /// The index in this list corresponds to the selection index.
     ///

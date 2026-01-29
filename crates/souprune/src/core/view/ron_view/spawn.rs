@@ -618,7 +618,7 @@ pub fn spawn_view_node(
 
             // Process reactive indicator definition (selection indicator, etc.)
             // 处理响应式指示器定义（选择指示器等）
-            if let Some(indicator_def) = &node_def.cursor {
+            if let Some(indicator_def) = &node_def.reactive_indicator {
                 let mut sprite_context = sprite_params.create_sprite_context();
                 let mut sprite = match sprite_context.get_sprite("common", "heartsmall") {
                     Ok(s) => s,

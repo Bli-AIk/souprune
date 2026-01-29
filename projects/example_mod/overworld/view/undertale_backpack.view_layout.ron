@@ -47,7 +47,7 @@
                     line_height: 1.375,
                 ),
             ],
-            cursor: (
+            reactive_indicator: (
                 sprite_path: "common/heartsmall",
                 default_translation: Some(Linear(
                     origin: (-19.0, 18.5, 2.0),
@@ -163,7 +163,7 @@
                     line_height: 1.2,
                 ),
             ],
-            cursor: (
+            reactive_indicator: (
                 sprite_path: "common/heartsmall",
                 default_translation: Some(Linear(
                     origin: (-72.0, 68.0, 2.0),

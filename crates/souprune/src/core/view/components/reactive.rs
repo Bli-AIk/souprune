@@ -4,11 +4,11 @@
 //!
 //! This module provides a generic reactive system that can respond to selection
 //! changes, layer activations, and other UI events. The primary use case is as
-//! a selection indicator (like the Undertale heart cursor), but the design supports
+//! a selection indicator (like the Undertale heart), but the design supports
 //! any reactive visual element that needs to update based on UI state changes.
 //!
 //! 本模块提供一个通用的响应式系统，可以响应选择变更、层激活和其他 UI 事件。
-//! 主要用例是作为选择指示器（如 Undertale 的心形光标），但设计上支持
+//! 主要用例是作为选择指示器（如 Undertale 的心形），但设计上支持
 //! 任何需要根据 UI 状态变化更新的响应式视觉元素。
 
 use bevy::prelude::*;
@@ -141,13 +141,13 @@ impl From<ReactivePosition> for ReactivePlacement {
 /// and layer activations. Can be attached to any [`UIBox`].
 ///
 /// This component is the core of the reactive UI system. While commonly used as a
-/// selection cursor (like the Undertale heart), it can represent any visual element
+/// selection indicator (like the Undertale heart), it can represent any visual element
 /// that needs to react to UI state changes.
 ///
 /// 一个响应式指示器元素，响应选择变更和层激活等 UI 事件。
 /// 可附着在任意 [`UIBox`] 上。
 ///
-/// 该组件是响应式 UI 系统的核心。虽然常用作选择光标（如 Undertale 的心形），
+/// 该组件是响应式 UI 系统的核心。虽然常用作选择指示器（如 Undertale 的心形），
 /// 但它可以表示任何需要响应 UI 状态变化的视觉元素。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]

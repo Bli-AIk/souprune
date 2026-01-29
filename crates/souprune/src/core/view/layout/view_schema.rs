@@ -92,7 +92,8 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    pub cursor: Option<CursorDef>,
+    #[serde(alias = "cursor")]
+    pub reactive_indicator: Option<ReactiveIndicatorDef>,
     #[serde(default)]
     #[serde(alias = "ui_box_logic")]
     pub ui_shape_logic: Option<UIBoxLogicDef>,
@@ -205,7 +206,7 @@ pub struct ConditionalStyleDef {
 /// RON 配置中响应式指示器元素的定义。
 /// 配置响应选择变更等 UI 事件的视觉元素。
 #[derive(Debug, Deserialize, Clone)]
-pub struct CursorDef {
+pub struct ReactiveIndicatorDef {
     #[allow(dead_code)]
     pub sprite_path: String,
     #[serde(default)]
