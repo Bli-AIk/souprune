@@ -626,7 +626,7 @@ impl OptionCountDef {
     /// Evaluate the option count, returning a static value or evaluating the expression.
     ///
     /// 求值选项数量，返回静态值或求值表达式。
-    pub fn evaluate(&self, player_data: &crate::core::data::PlayerData) -> usize {
+    pub(crate) fn evaluate(&self, player_data: &crate::core::data::PlayerData) -> usize {
         match self {
             OptionCountDef::Static(value) => *value,
             OptionCountDef::Dynamic(expr) => evaluate_option_count_expression(expr, player_data),
@@ -720,7 +720,10 @@ impl NavigatorTypeDef {
     /// Convert to runtime NavigatorType with expression evaluation.
     ///
     /// 使用表达式求值转换为运行时 NavigatorType。
-    pub fn into_navigator(self, player_data: &crate::core::data::PlayerData) -> NavigatorType {
+    pub(crate) fn into_navigator(
+        self,
+        player_data: &crate::core::data::PlayerData,
+    ) -> NavigatorType {
         match self {
             NavigatorTypeDef::Linear {
                 direction,
@@ -752,7 +755,7 @@ impl InteractiveLayerDef {
     /// # Arguments
     /// - `layer_id`: Unique identifier for this layer
     /// - `player_data`: Player data for evaluating dynamic expressions
-    pub fn build(
+    pub(crate) fn build(
         &self,
         layer_id: impl Into<String>,
         player_data: &crate::core::data::PlayerData,

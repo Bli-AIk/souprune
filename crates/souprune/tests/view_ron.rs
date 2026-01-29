@@ -8,7 +8,10 @@ mod test_support;
 use evalexpr::{ContextWithMutableVariables, HashMapContext, Value, eval_with_context};
 use std::collections::{HashMap, HashSet};
 
-use souprune::{IndexBoundDef, SerializableVec3, TransitionActionDef, UILayoutAsset, UINodeDef};
+use souprune::{
+    IndexBoundDef, ReactivePositionDef, SerializableVec3, TransitionActionDef, UILayoutAsset,
+    UINodeDef,
+};
 
 const VIEW_DIRS: &[&str] = &["overworld/view", "battle/view"];
 const VIEW_SUFFIX: &str = ".view_layout.ron";
@@ -247,15 +250,15 @@ fn check_vec_expr(vec: &SerializableVec3) {
 fn view_layout_dynamic_expressions_evaluate() {
     for (relative, layout) in load_view_layouts() {
         for node in all_nodes(&layout) {
-            if let Some(cursor) = &node.cursor {
-                if let Some(pos) = &cursor.default_translation {
+            if let Some(indicator) = &node.reactive_indicator {
+                if let Some(pos) = &indicator.default_translation {
                     match pos {
-                        souprune::BoxCursorPositionDef::Static(vec) => check_vec_expr(vec),
-                        souprune::BoxCursorPositionDef::Linear { origin, step } => {
+                        ReactivePositionDef::Static(vec) => check_vec_expr(vec),
+                        ReactivePositionDef::Linear { origin, step } => {
                             check_vec_expr(origin);
                             check_vec_expr(step);
                         }
-                        souprune::BoxCursorPositionDef::Custom { positions } => {
+                        ReactivePositionDef::Custom { positions } => {
                             for pos in positions {
                                 check_vec_expr(pos);
                             }
