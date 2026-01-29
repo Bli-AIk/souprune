@@ -133,12 +133,8 @@ pub fn build_text_config(
     let color = if let Some(conditional_style) = &text_def.conditional_style {
         let condition_met = evaluate_condition(&conditional_style.condition, player_data);
         if condition_met {
-            let conditional_color = Srgba::new(
-                conditional_style.color.r,
-                conditional_style.color.g,
-                conditional_style.color.b,
-                conditional_style.color.a,
-            );
+            let (r, g, b, a) = color_tuple_to_static(&conditional_style.color);
+            let conditional_color = Srgba::new(r, g, b, a);
             content = format!(
                 "{{#{:02x}{:02x}{:02x}:{}}}",
                 (conditional_color.red * 255.0) as u8,
@@ -148,20 +144,12 @@ pub fn build_text_config(
             );
             conditional_color
         } else {
-            Srgba::new(
-                text_def.color.r,
-                text_def.color.g,
-                text_def.color.b,
-                text_def.color.a,
-            )
+            let (r, g, b, a) = color_tuple_to_static(&text_def.color);
+            Srgba::new(r, g, b, a)
         }
     } else {
-        Srgba::new(
-            text_def.color.r,
-            text_def.color.g,
-            text_def.color.b,
-            text_def.color.a,
-        )
+        let (r, g, b, a) = color_tuple_to_static(&text_def.color);
+        Srgba::new(r, g, b, a)
     };
 
     UITextConfig {
@@ -169,7 +157,10 @@ pub fn build_text_config(
         content,
         template: Some(raw_content.to_string()),
         font: text_def.font.clone().into(),
-        world_scale: text_def.world_scale.clone().into(),
+        world_scale: {
+            let (x, y) = vec2_tuple_to_static(&text_def.world_scale);
+            Vec2::new(x, y)
+        },
         color,
         transform: {
             let translation = if let Some(trans) = &text_def.transform.translation {
@@ -317,8 +308,9 @@ pub fn spawn_ui_node(
                         .with_rotation(transform.rotation);
 
                     if let Some(pivot) = &sprite_def.pivot {
-                        let shift_x = (0.5 - pivot.x) * transform.scale.x;
-                        let shift_y = (0.5 - pivot.y) * transform.scale.y;
+                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                        let shift_x = (0.5 - pivot_x) * transform.scale.x;
+                        let shift_y = (0.5 - pivot_y) * transform.scale.y;
                         let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
                         final_transform.translation += shift;
                     }
@@ -365,7 +357,8 @@ pub fn spawn_ui_node(
                     };
 
                     let anchor_component = if let Some(pivot) = &sprite_def.pivot {
-                        bevy::sprite::Anchor(Vec2::new(pivot.x - 0.5, pivot.y - 0.5))
+                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                        bevy::sprite::Anchor(Vec2::new(pivot_x - 0.5, pivot_y - 0.5))
                     } else {
                         bevy::sprite::Anchor(Vec2::ZERO)
                     };
@@ -377,8 +370,11 @@ pub fn spawn_ui_node(
                             flip_y: sprite_def.flip_y,
                             color: sprite_def
                                 .color
-                                .clone()
-                                .map(Color::from)
+                                .as_ref()
+                                .map(|c| {
+                                    let (r, g, b, a) = color_tuple_to_static(c);
+                                    Color::srgba(r, g, b, a)
+                                })
                                 .unwrap_or(Color::WHITE),
                             ..Default::default()
                         },
@@ -457,7 +453,10 @@ pub fn spawn_ui_node(
             let fill_color = ui_shape_logic
                 .fill_color
                 .as_ref()
-                .map(|c| Color::srgba(c.r, c.g, c.b, c.a))
+                .map(|c| {
+                    let (r, g, b, a) = color_tuple_to_static(c);
+                    Color::srgba(r, g, b, a)
+                })
                 .unwrap_or(Color::BLACK);
 
             let mut box_entity = if is_top_level {
@@ -906,7 +905,8 @@ fn spawn_ui_sprite(
         let texture_handle = asset_server.load(&sprite_def.path);
 
         let anchor_component = if let Some(pivot) = &sprite_def.pivot {
-            bevy::sprite::Anchor(Vec2::new(pivot.x - 0.5, pivot.y - 0.5))
+            let (x, y) = vec2_tuple_to_static(pivot);
+            bevy::sprite::Anchor(Vec2::new(x - 0.5, y - 0.5))
         } else {
             bevy::sprite::Anchor(Vec2::ZERO)
         };
@@ -919,8 +919,11 @@ fn spawn_ui_sprite(
                     flip_y: sprite_def.flip_y,
                     color: sprite_def
                         .color
-                        .clone()
-                        .map(Color::from)
+                        .as_ref()
+                        .map(|c| {
+                            let (r, g, b, a) = color_tuple_to_static(c);
+                            Color::srgba(r, g, b, a)
+                        })
                         .unwrap_or(Color::WHITE),
                     ..Default::default()
                 },

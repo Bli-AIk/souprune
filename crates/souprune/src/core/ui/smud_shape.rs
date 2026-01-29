@@ -22,6 +22,7 @@
 
 use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
 use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
+use super::layout::serde_types::color_tuple_to_static;
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -338,7 +339,10 @@ fn spawn_layer_recursive(
     let color = match &layer_def.color_source {
         SmudColorSource::FillColor => ui_box.fill_color,
         SmudColorSource::White => Color::WHITE,
-        SmudColorSource::Custom(c) => Color::srgba(c.r, c.g, c.b, c.a),
+        SmudColorSource::Custom(c) => {
+            let (r, g, b, a) = color_tuple_to_static(c);
+            Color::srgba(r, g, b, a)
+        }
     };
 
     let mut spawned_entity: Option<Entity> = None;

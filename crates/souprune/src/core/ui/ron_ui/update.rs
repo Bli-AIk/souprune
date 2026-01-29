@@ -1,4 +1,5 @@
 use super::super::components::{DynamicUIElement, HPBarLag, HPBarSprite, UITextTemplate};
+use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::smud_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_float_expr, resolve_text_content};
 use crate::core::data::PlayerData;
@@ -125,8 +126,9 @@ pub fn update_dynamic_ui_elements(
 
                     // Apply pivot offset if present
                     if let Some(pivot) = &sprite_def.pivot {
-                        let shift_x = (0.5 - pivot.x) * new_scale.x;
-                        let shift_y = (0.5 - pivot.y) * new_scale.y;
+                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                        let shift_x = (0.5 - pivot_x) * new_scale.x;
+                        let shift_y = (0.5 - pivot_y) * new_scale.y;
                         let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
                         transform.translation = new_translation + shift;
                     } else {

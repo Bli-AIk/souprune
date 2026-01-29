@@ -122,22 +122,78 @@ impl From<SerializableAlignItems> for AlignItems {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct SerializableColor {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
-}
-
-impl From<SerializableColor> for Color {
-    fn from(val: SerializableColor) -> Self {
-        Color::srgba(val.r, val.g, val.b, val.a)
-    }
-}
-
 pub type DynamicColor = ColorTuple;
 pub type SerializableVec3 = Vec3Tuple;
+pub type SerializableVec2 = Vec2Tuple;
+pub type SerializableColor = ColorTuple;
+
+pub fn serializable_color_to_color(color: &SerializableColor) -> Color {
+    Color::srgba(
+        match &color.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.2 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.3 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+    )
+}
+
+pub fn serializable_vec2_to_vec2(vec: &SerializableVec2) -> Vec2 {
+    Vec2::new(
+        match &vec.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &vec.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+    )
+}
+
+pub fn color_tuple_to_static(color: &ColorTuple) -> (f32, f32, f32, f32) {
+    (
+        match &color.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 1.0,
+        },
+        match &color.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 1.0,
+        },
+        match &color.2 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 1.0,
+        },
+        match &color.3 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 1.0,
+        },
+    )
+}
+
+pub fn vec2_tuple_to_static(vec: &Vec2Tuple) -> (f32, f32) {
+    (
+        match &vec.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.5,
+        },
+        match &vec.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.5,
+        },
+    )
+}
 
 pub fn dynamic_color_to_static(color: &DynamicColor) -> Color {
     Color::srgba(
@@ -183,18 +239,6 @@ pub fn serializable_vec3_to_static(vec: &SerializableVec3) -> Vec3 {
 
 pub fn is_dynamic_vec3(vec: &SerializableVec3) -> bool {
     vec.0.is_expr() || vec.1.is_expr() || vec.2.is_expr()
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SerializableVec2 {
-    pub x: f32,
-    pub y: f32,
-}
-
-impl From<SerializableVec2> for Vec2 {
-    fn from(val: SerializableVec2) -> Self {
-        Vec2::new(val.x, val.y)
-    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

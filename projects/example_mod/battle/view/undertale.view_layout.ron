@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 (
     version: 1,
     roots: [
@@ -5,14 +6,14 @@
         (
             name: "BattleBox",
             tags: ["BattleBox"],
-            ui_shape_logic: Some((
+            ui_shape_logic: (
                 width: 566.0,
                 height: 130.0,
                 border_width: 5.0,
-                offset: (x: 0.0, y: -80.0, z: 0.0),
+                offset: (0.0, -80.0, 0.0),
                 // Use classic UIBox structure (Border + Filler)
-                structure_file: Some("shared/ui_structures/ui_box.smud.ron"),
-            )),
+                structure_file: "shared/ui_structures/ui_box.smud.ron",
+            ),
             // Optional: Add HP bar or text here later
             children: [],
         ),
@@ -20,53 +21,53 @@
         // Fight Button
         (
             name: "BtnFight",
-            sprite: Some((
+            sprite: (
                 path: "textures/battle/ui/fight/false.png",
                 is_animation: false,
-                transform: Some((
-                    translation: (x: -233.0, y: -213.0, z: 1.0),
-                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
-                )),
-            )),
+                transform: (
+                    translation: (-233.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
         ),
 
         // Act Button
         (
             name: "BtnAct",
-            sprite: Some((
+            sprite: (
                 path: "textures/battle/ui/act/false.png",
                 is_animation: false,
-                transform: Some((
-                    translation: (x: -80.0, y: -213.0, z: 1.0),
-                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
-                )),
-            )),
+                transform: (
+                    translation: (-80.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
         ),
 
         // Item Button
         (
             name: "BtnItem",
-            sprite: Some((
+            sprite: (
                 path: "textures/battle/ui/item/false.png",
                 is_animation: false,
-                transform: Some((
-                    translation: (x: 80.0, y: -213.0, z: 1.0),
-                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
-                )),
-            )),
+                transform: (
+                    translation: (80.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
         ),
 
         // Mercy Button
         (
             name: "BtnMercy",
-            sprite: Some((
+            sprite: (
                 path: "textures/battle/ui/mercy/false.png",
                 is_animation: false,
-                transform: Some((
-                    translation: (x: 235.0, y: -213.0, z: 1.0),
-                    scale: Some((x: 1.0, y: 1.0, z: 1.0)),
-                )),
-            )),
+                transform: (
+                    translation: (235.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
         ),
 
         // HUD Info - Pure container node (no visible box, just texts and children)
@@ -78,89 +79,89 @@
             texts: [
                 (
                     id: "PlayerName",
-                    content: Some("{@player.name}"),
+                    content: "{@player.name}",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: -290.0, y: -155.5, z: 1.0),
+                        translation: (-290.0, -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "PlayerLevelLabel",
-                    content: Some("{{battle/ui:LV}}"),
+                    content: "{{battle/ui:LV}}",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: -187.5, y: -155.5, z: 1.0),
+                        translation: (-187.5, -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "PlayerLevelValue",
-                    content: Some("{@player.lv}"),
+                    content: "{@player.lv}",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: -148.5, y: -155.5, z: 1.0),
+                        translation: (-148.5, -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPValueCurrent",
-                    content: Some("{@player.hp}"),
+                    content: "{@player.hp}",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: "-5.5 + (@player.hp_max - 20) * 94.5 / 79", y: -155.5, z: 1.0),
+                        translation: ("-5.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPSeparator",
-                    content: Some("/"),
+                    content: "/",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: "33.5 + (@player.hp_max - 20) * 94.5 / 79", y: -155.5, z: 1.0),
+                        translation: ("33.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPValueMax",
-                    content: Some("{@player.hp_max}"),
+                    content: "{@player.hp_max}",
                     font: BattleHud,
-                    world_scale: (x: 24.0, y: 24.0),
-                    color: (r: 1.0, g: 1.0, b: 1.0, a: 1.0),
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (x: "57.5 + (@player.hp_max - 20) * 94.5 / 79", y: -155.5, z: 1.0),
+                        translation: ("57.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
             ],
             children: [
                 (
                     name: "HPSprite",
-                    sprite: Some((
+                    sprite: (
                         path: "textures/battle/ui/hpname.png",
                         is_animation: false,
-                        transform: Some((
-                            translation: (x: -64.5, y: -170.0, z: 1.0),
-                        )),
-                    )),
+                        transform: (
+                            translation: (-64.5, -170.0, 1.0),
+                        ),
+                    ),
                 ),
                 (
                     name: "HPBar",
-                    sprite: Some((
+                    sprite: (
                         path: "procedural://white_pixel",  // Use procedural texture
                         is_animation: false,
-                        transform: Some((
-                            translation: (x: -45.0, y: -170.5, z: 1.0),  // Move left, behind text (z=1)
-                            scale: Some((x: "25.0 + (@player.hp_max - 20) * 95.0 / 79", y: 20.5, z: 1.0)),  // Dynamic width based on hp_max
-                        )),
-                        custom_shader: Some("shaders/hp_bar_sprite.wgsl"),
-                        shader_params: Some((r: 0.8, g: 0.8, b: "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", a: 1.0)),  // HP%, lag%, half_width (dynamic), alpha
-                        pivot: Some((x: 0.0, y: 0.5)),
-                    )),
+                        transform: (
+                            translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
+                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),  // Dynamic width based on hp_max
+                        ),
+                        custom_shader: "shaders/hp_bar_sprite.wgsl",
+                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0),  // HP%, lag%, half_width (dynamic), alpha
+                        pivot: (0.0, 0.5),
+                    ),
                 )
             ],
         ),

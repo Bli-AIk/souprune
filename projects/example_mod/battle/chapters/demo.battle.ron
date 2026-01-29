@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 [
     SetCamera(SetZoom(2.0)),
     ViewInteraction(view_layout: "battle/view/undertale.view_layout.ron"),
@@ -5,7 +6,7 @@
     Wait(1.0),
     DanmakuPerformance(
         performance: "battle/danmaku/demo_attack.performance.ron",
-        position: Some((0.0, 50.0)),
+        translation: Some((0.0, 50.0)),
     ),
     Wait(10.0),
     Sequence([

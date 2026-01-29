@@ -1,19 +1,20 @@
+#![enable(implicit_some)]
 (
     version: 1,
     roots: [
         (
             name: "Sans_Legs",
-            sprite: Some((
+            sprite: (
                 path: "textures/battle/sans/legs.png",
                 transform: Some((
-                    translation: (x: 3.0, y: 57.0, z: 0.0),
-                    scale: Some((x: 2.0, y: 2.0, z: 2.0)),
+                    translation: (3.0, 57.0, 0.0),
+                    scale: (2.0, 2.0, 2.0),
                 )),
-            )),
+            ),
             children: [
                 (
                     name: "Sans_Torso",
-                    sprite: Some((
+                    sprite: (
                         path: "textures/battle/sans/torso.png",
                         transform: Some((
                             translation: (
@@ -23,11 +24,11 @@
                             ),
                             // Scale inherited from parent
                         )),
-                    )),
+                    ),
                 ),
                 (
                     name: "Sans_Head",
-                    sprite: Some((
+                    sprite: (
                         path: "textures/battle/sans/head.png",
                         transform: Some((
                             translation: (
@@ -37,7 +38,7 @@
                             ),
                             // Scale inherited from parent
                         )),
-                    )),
+                    ),
                 ),
             ],
         ),

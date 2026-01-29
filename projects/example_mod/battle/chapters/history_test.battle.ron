@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 // History System Test Battle Chapter
 // 历史系统测试战斗章节
 //
@@ -226,7 +227,7 @@
     Wait(1.0),
     DanmakuPerformance(
         performance: "battle/danmaku/demo_attack.performance.ron",
-        position: Some((0.0, 50.0)),
+        position: (0.0, 50.0),
     ),
     Wait(10.0),
 ]

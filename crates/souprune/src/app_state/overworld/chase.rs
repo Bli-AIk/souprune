@@ -273,7 +273,7 @@ pub struct DamageUIConfig {
 impl Default for DamageUIConfig {
     fn default() -> Self {
         Self {
-            layout_path: "overworld/ui/damage_flash.view_layout.ron".to_string(),
+            layout_path: "overworld/view/damage_flash.view_layout.ron".to_string(),
             display_duration: 0.5,
         }
     }
@@ -1340,7 +1340,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
     info!("Chase: Setting up Chase HUD");
 
     // Load the chase HUD UI layout / 加载追逐战 HUD 视图布局
-    let ui_path = "overworld/ui/damage_flash.view_layout.ron";
+    let ui_path = "overworld/view/damage_flash.view_layout.ron";
     let handle = asset_server.load(ui_path);
 
     // Insert the UI layout handle resource

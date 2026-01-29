@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 // Demo FRE Rules for Overworld (Experimental Feature)
 // 演示 Overworld 的 FRE 规则（实验性功能）
 //
