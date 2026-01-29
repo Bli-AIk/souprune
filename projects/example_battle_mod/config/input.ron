@@ -1,0 +1,50 @@
+#![enable(implicit_some)]
+// Input configuration file for SoupRune
+// 输入配置文件
+
+(
+    actions: {
+        // Navigation keys
+        // 导航按键
+        "Up": [
+            Key("ArrowUp"),
+            Key("KeyW"),
+            Gamepad("DPadUp"),
+        ],
+        "Down": [
+            Key("ArrowDown"),
+            Key("KeyS"),
+            Gamepad("DPadDown"),
+        ],
+        "Left": [
+            Key("ArrowLeft"),
+            Key("KeyA"),
+            Gamepad("DPadLeft"),
+        ],
+        "Right": [
+            Key("ArrowRight"),
+            Key("KeyD"),
+            Gamepad("DPadRight"),
+        ],
+
+        // Action keys
+        // 动作按键
+        "Confirm": [
+            Key("KeyZ"),
+            Key("Enter"),
+            Gamepad("South"),
+        ],
+        "Cancel": [
+            Key("KeyX"),
+            Key("ShiftLeft"),
+            Key("ShiftRight"),
+            Gamepad("East"),
+        ],
+        "Menu": [
+            Key("KeyC"),
+            Key("ControlLeft"),
+            Key("ControlRight"),
+            Gamepad("North"),
+        ],
+    },
+)

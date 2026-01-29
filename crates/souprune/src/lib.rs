@@ -304,9 +304,12 @@ pub fn run() {
             #[cfg(feature = "debug")]
             bevy_brp_extras::BrpExtrasPlugin,
         ))
-        .insert_resource(config)
+        .insert_resource(config.clone())
         .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
+            font_directories: vec![format!(
+                "projects/{}/assets/fonts",
+                config.project.mod_name
+            )],
             ..Default::default()
         })
         .init_resource::<input::PlayerInputSettings>()

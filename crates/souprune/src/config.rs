@@ -150,10 +150,18 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     let mut roots = Vec::new();
     let project_path = Path::new("projects").join(mod_name);
 
+    // Primary: project's assets directory
+    // 主要：项目的 assets 目录
+    roots.push(project_path.join("assets"));
+
+    // Also check the project root for compatibility
+    // 同时检查项目根目录以保持兼容性
     roots.push(project_path.clone());
 
     // Fallback to absolute path to ensure assets are found
+    // 回退到绝对路径以确保找到资源
     if let Ok(abs_path) = dunce::canonicalize(&project_path) {
+        roots.push(abs_path.join("assets"));
         roots.push(abs_path);
     }
 
@@ -162,12 +170,15 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
         roots.push(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("../../")
+                .join(&project_path)
+                .join("assets"),
+        );
+        roots.push(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../")
                 .join(&project_path),
         );
     }
-
-    roots.push(PathBuf::from("assets"));
-    roots.push(PathBuf::from("crates/souprune/assets"));
 
     roots
 }

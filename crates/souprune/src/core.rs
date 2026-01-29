@@ -46,6 +46,7 @@ pub mod render_layers;
 pub mod ron_loader;
 pub mod save;
 pub mod sprite;
+pub(crate) mod state_config;
 pub(crate) mod view;
 
 use crate::extra;
@@ -85,6 +86,7 @@ impl Plugin for CorePlugin {
                 item::ItemPlugin,
                 save::SavePlugin,
                 sprite::SpritePlugin,
+                state_config::StateConfigPlugin,
             ));
     }
 }
