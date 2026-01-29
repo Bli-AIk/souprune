@@ -29,7 +29,7 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
-                    process_await_view_interaction_system,
+                    process_await_selection_system,
                     process_modify_view_element_system,
                     process_tween_view_element_system,
                     process_danmaku_performance_system,
@@ -39,7 +39,7 @@ impl Plugin for SequencerPlugin {
                     process_tween_wait_chapter_system,
                     process_am_wait_chapter_system,
                     process_parallel_chapter_system,
-                    check_await_interaction_completion_system,
+                    check_await_selection_completion_system,
                     update_interactive_layer_sprites_system,
                     cleanup_finished_chapters_system,
                     sync_battle_flow_system,
@@ -335,9 +335,7 @@ fn process_ui_action_system(
                 }
             }
             commands.entity(entity).insert(ChapterFinished);
-        } else if let Chapter::ViewInteraction { view_layout }
-        | Chapter::ViewInteraction { view_layout } = &active_chapter.chapter
-        {
+        } else if let Chapter::SpawnView { view_layout } = &active_chapter.chapter {
             info!("[Battle] Loading view layout for battle: {}", view_layout);
             let handle = asset_server.load(view_layout);
             commands.insert_resource(crate::core::view::UILayoutHandle {
@@ -1532,8 +1530,8 @@ fn process_tween_wait_chapter_system(
 }
 
 // ============================================================================
-// AwaitViewInteraction Systems
-// AwaitViewInteraction 系统
+// AwaitInteraction Systems
+// 等待选择系统
 // ============================================================================
 
 /// Marker component to track that this chapter is waiting for interaction.
@@ -1545,9 +1543,9 @@ struct AwaitingInteractionChapter {
     layer_id: String,
 }
 
-/// System to process AwaitViewInteraction chapters.
+/// System to process AwaitInteraction chapters.
 ///
-/// 处理 AwaitViewInteraction 章节的系统。
+/// 处理 AwaitInteraction 章节的系统。
 ///
 /// This system activates the specified interactive layer and marks the chapter
 /// as waiting for player input. The chapter won't finish until the player
@@ -1556,7 +1554,7 @@ struct AwaitingInteractionChapter {
 /// 此系统激活指定的交互层，并将章节标记为等待玩家输入。
 /// 章节不会结束，直到玩家确认选择。
 #[allow(clippy::type_complexity)]
-fn process_await_view_interaction_system(
+fn process_await_selection_system(
     mut commands: Commands,
     query: Query<
         (Entity, &ActiveChapter),
@@ -1569,13 +1567,13 @@ fn process_await_view_interaction_system(
     mut layer_query: Query<(Entity, &mut InteractiveLayer)>,
 ) {
     for (chapter_entity, active_chapter) in query.iter() {
-        if let Chapter::AwaitViewInteraction {
+        if let Chapter::AwaitInteraction {
             layer_id,
             initial_selection,
         } = &active_chapter.chapter
         {
             info!(
-                "[Battle] Starting AwaitViewInteraction for layer '{}' at index {}",
+                "[Battle] Starting AwaitInteraction for layer '{}' at index {}",
                 layer_id, initial_selection
             );
 
@@ -1619,15 +1617,15 @@ fn process_await_view_interaction_system(
     }
 }
 
-/// System to check for interaction completion and finish the AwaitViewInteraction chapter.
+/// System to check for interaction completion and finish the AwaitInteraction chapter.
 ///
-/// 检查交互完成情况并结束 AwaitViewInteraction 章节的系统。
+/// 检查交互完成情况并结束 AwaitInteraction 章节的系统。
 ///
 /// Listens for SelectionConfirmedEvent and marks the corresponding chapter as finished.
 ///
 /// 监听 SelectionConfirmedEvent 并将相应的章节标记为完成。
 #[allow(clippy::type_complexity)]
-fn check_await_interaction_completion_system(
+fn check_await_selection_completion_system(
     mut commands: Commands,
     mut confirm_events: MessageReader<crate::core::view::components::SelectionConfirmedEvent>,
     awaiting_query: Query<(Entity, &AwaitingInteractionChapter)>,
@@ -1658,7 +1656,7 @@ fn check_await_interaction_completion_system(
                     .remove::<AwaitingInteractionChapter>();
 
                 info!(
-                    "[Battle] AwaitViewInteraction for '{}' completed with selection {}",
+                    "[Battle] AwaitInteraction for '{}' completed with selection {}",
                     event.layer_id, event.selected_index
                 );
             }

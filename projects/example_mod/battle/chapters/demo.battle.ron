@@ -1,8 +1,8 @@
 #![enable(implicit_some)]
 [
     SetCamera(SetZoom(2.0)),
-    ViewInteraction(view_layout: "battle/view/undertale.view_layout.ron"),
-    AwaitViewInteraction(
+    SpawnView(view_layout: "battle/view/undertale.view_layout.ron"),
+    AwaitInteraction(
         layer_id: "BattleMainMenu",
         initial_selection: 0,
     ),

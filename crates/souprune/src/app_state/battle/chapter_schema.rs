@@ -96,35 +96,34 @@ impl<T> Val<T> {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
-    /// View Interaction Chapter.
+    /// Spawn View Chapter.
     ///
-    /// This chapter allows players to interact with the view.
-    /// It loads a view layout file for View interaction scenarios, such as player choices or dialogues.
+    /// Loads and spawns a view layout file. This creates the visual elements
+    /// defined in the .view_layout.ron file.
     ///
-    /// 视图交互章节。
+    /// 生成视图章节。
     ///
-    /// 此章节允许玩家与视图交互。
-    /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
-    ViewInteraction { view_layout: String },
+    /// 加载并生成视图布局文件。这会创建 .view_layout.ron 文件中定义的可视元素。
+    SpawnView { view_layout: String },
 
-    /// Await View Interaction Chapter.
+    /// Await Selection Chapter.
     ///
     /// Blocks the battle sequencer until player confirms a selection in the specified
     /// interactive layer. This is used for player choice menus like FIGHT/ACT/ITEM/MERCY.
     ///
-    /// 等待视图交互章节。
+    /// 等待选择章节。
     ///
     /// 阻塞战斗 sequencer 直到玩家在指定的交互层中确认选择。
     /// 用于玩家选择菜单，如 FIGHT/ACT/ITEM/MERCY。
     ///
     /// # Example / 示例
     /// ```ron
-    /// AwaitViewInteraction(
+    /// AwaitInteraction(
     ///     layer_id: "BattleMainMenu",
     ///     initial_selection: 0,
     /// ),
     /// ```
-    AwaitViewInteraction {
+    AwaitInteraction {
         /// The ID of the interactive layer to activate.
         ///
         /// 要激活的交互层的 ID。

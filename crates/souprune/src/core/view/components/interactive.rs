@@ -499,10 +499,10 @@ impl InteractiveLayerDef {
 ///
 /// # Battle Integration / 战斗集成
 ///
-/// In battle, this is used with the `AwaitViewInteraction` Chapter to block
+/// In battle, this is used with the `AwaitInteraction` Chapter to block
 /// the sequencer until the player makes a selection.
 ///
-/// 在战斗中，这与 `AwaitViewInteraction` Chapter 一起使用，
+/// 在战斗中，这与 `AwaitInteraction` Chapter 一起使用，
 /// 阻塞 sequencer 直到玩家做出选择。
 #[derive(Component, Debug, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
