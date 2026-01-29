@@ -30,6 +30,13 @@
     Wait(10.0),
     Sequence([
         Wait(0.5),
-        SetPlayer(Despawn),
+        SetPlayer(Despawn),// TODO: 实现这个功能
     ]),
+    TweenViewElement(
+        selector: LocalName("BattleBox"),
+        target: BoxSize(from: (300.0, 100.0), to: (566.0, 130.0)),
+        duration: 0.8,
+        easing: ElasticOut,
+        wait_for_completion: true,
+    ),
 ]
