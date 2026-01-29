@@ -21,8 +21,8 @@
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
 use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
-use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
 use super::layout::serde_types::color_tuple_to_static;
+use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;

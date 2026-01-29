@@ -14,8 +14,8 @@
 //! 本模块处理简单 RON 数据类型（如 `SerializableColor`）与 Bevy 运行时类型（如 `Color`, `Val`）之间的转换。
 
 use bevy::prelude::*;
-use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
 use bevy::ui::Val as BevyVal;
+use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
 use serde::Deserialize;
 
 pub use crate::app_state::battle::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};

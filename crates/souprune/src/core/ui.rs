@@ -49,8 +49,7 @@ use camera::{
     update_dynamic_camera_anchors_system,
 };
 pub use components::{
-    ElementState, ViewElementHistory, find_element_by_full_name,
-    find_elements_by_tag,
+    ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};

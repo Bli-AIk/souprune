@@ -39,5 +39,5 @@ pub(crate) use visibility::UILayerVisibilityRule;
 pub use hpbar::{DynamicUIElement, HPBarLag, HPBarSprite};
 pub use view_element::{
     ElementState, ViewElement, ViewElementHistory, ViewRoot, find_element_by_full_name,
-    find_element_in_namespace, find_elements_by_tag,
+    find_elements_by_tag,
 };

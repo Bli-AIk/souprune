@@ -327,7 +327,7 @@ pub fn spawn_ui_node(
                             shader_params: sprite_def
                                 .shader_params
                                 .as_ref()
-                                .map(|c| dynamic_color_to_static(c))
+                                .map(dynamic_color_to_static)
                                 .unwrap_or(Color::WHITE),
                         },
                     ));
@@ -571,7 +571,7 @@ pub fn spawn_ui_node(
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| serializable_vec3_to_static(v)).collect(),
+                            positions.iter().map(serializable_vec3_to_static).collect(),
                         ),
                     }
                 } else if let Some(transform) = &cursor_def.transform {
@@ -607,7 +607,7 @@ pub fn spawn_ui_node(
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| serializable_vec3_to_static(v)).collect(),
+                            positions.iter().map(serializable_vec3_to_static).collect(),
                         ),
                     };
                     placement = placement.with_override(layer, position);
@@ -731,7 +731,7 @@ pub fn spawn_ui_node(
             if sprite_def
                 .shader_params
                 .as_ref()
-                .is_some_and(|p| is_dynamic_color(p))
+                .is_some_and(is_dynamic_color)
             {
                 has_dynamic = true;
             }
@@ -834,12 +834,12 @@ pub(crate) fn spawn_container_texts(
             .transform
             .translation
             .as_ref()
-            .is_some_and(|t| is_dynamic_vec3(t))
+            .is_some_and(is_dynamic_vec3)
             || text_def
                 .transform
                 .scale
                 .as_ref()
-                .is_some_and(|s| is_dynamic_vec3(s));
+                .is_some_and(is_dynamic_vec3);
 
         if has_dynamic {
             cmd.insert(super::super::components::DynamicUIElement {

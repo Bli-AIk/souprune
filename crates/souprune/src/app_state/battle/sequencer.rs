@@ -767,45 +767,53 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::Undo => {
                         if let Ok(mut history) = histories.get_mut(entity)
-                            && let Some(previous_state) = history.undo() {
-                                // Apply previous state
-                                // 应用之前的状态
-                                if let Some((trans, rot, scale)) = previous_state.transform
-                                    && let Ok(mut transform) = transforms.get_mut(entity) {
-                                        transform.translation = trans;
-                                        transform.rotation = rot;
-                                        transform.scale = scale;
-                                    }
-                                if let Some(color) = previous_state.color
-                                    && let Ok(mut sprite) = sprites.get_mut(entity) {
-                                        sprite.color = color;
-                                    }
-                                if let Some(vis) = previous_state.visibility
-                                    && let Ok(mut visibility) = visibilities.get_mut(entity) {
-                                        *visibility = vis;
-                                    }
+                            && let Some(previous_state) = history.undo()
+                        {
+                            // Apply previous state
+                            // 应用之前的状态
+                            if let Some((trans, rot, scale)) = previous_state.transform
+                                && let Ok(mut transform) = transforms.get_mut(entity)
+                            {
+                                transform.translation = trans;
+                                transform.rotation = rot;
+                                transform.scale = scale;
                             }
+                            if let Some(color) = previous_state.color
+                                && let Ok(mut sprite) = sprites.get_mut(entity)
+                            {
+                                sprite.color = color;
+                            }
+                            if let Some(vis) = previous_state.visibility
+                                && let Ok(mut visibility) = visibilities.get_mut(entity)
+                            {
+                                *visibility = vis;
+                            }
+                        }
                     }
                     super::chapter_schema::ElementModification::Redo => {
                         if let Ok(mut history) = histories.get_mut(entity)
-                            && let Some(next_state) = history.redo() {
-                                // Apply next state
-                                // 应用下一个状态
-                                if let Some((trans, rot, scale)) = next_state.transform
-                                    && let Ok(mut transform) = transforms.get_mut(entity) {
-                                        transform.translation = trans;
-                                        transform.rotation = rot;
-                                        transform.scale = scale;
-                                    }
-                                if let Some(color) = next_state.color
-                                    && let Ok(mut sprite) = sprites.get_mut(entity) {
-                                        sprite.color = color;
-                                    }
-                                if let Some(vis) = next_state.visibility
-                                    && let Ok(mut visibility) = visibilities.get_mut(entity) {
-                                        *visibility = vis;
-                                    }
+                            && let Some(next_state) = history.redo()
+                        {
+                            // Apply next state
+                            // 应用下一个状态
+                            if let Some((trans, rot, scale)) = next_state.transform
+                                && let Ok(mut transform) = transforms.get_mut(entity)
+                            {
+                                transform.translation = trans;
+                                transform.rotation = rot;
+                                transform.scale = scale;
                             }
+                            if let Some(color) = next_state.color
+                                && let Ok(mut sprite) = sprites.get_mut(entity)
+                            {
+                                sprite.color = color;
+                            }
+                            if let Some(vis) = next_state.visibility
+                                && let Ok(mut visibility) = visibilities.get_mut(entity)
+                            {
+                                *visibility = vis;
+                            }
+                        }
                     }
                     super::chapter_schema::ElementModification::Reset => {
                         if let Ok(mut history) = histories.get_mut(entity) {
@@ -813,19 +821,22 @@ fn process_modify_view_element_system(
                             // Apply original state
                             // 应用原始状态
                             if let Some((trans, rot, scale)) = original_state.transform
-                                && let Ok(mut transform) = transforms.get_mut(entity) {
-                                    transform.translation = trans;
-                                    transform.rotation = rot;
-                                    transform.scale = scale;
-                                }
+                                && let Ok(mut transform) = transforms.get_mut(entity)
+                            {
+                                transform.translation = trans;
+                                transform.rotation = rot;
+                                transform.scale = scale;
+                            }
                             if let Some(color) = original_state.color
-                                && let Ok(mut sprite) = sprites.get_mut(entity) {
-                                    sprite.color = color;
-                                }
+                                && let Ok(mut sprite) = sprites.get_mut(entity)
+                            {
+                                sprite.color = color;
+                            }
                             if let Some(vis) = original_state.visibility
-                                && let Ok(mut visibility) = visibilities.get_mut(entity) {
-                                    *visibility = vis;
-                                }
+                                && let Ok(mut visibility) = visibilities.get_mut(entity)
+                            {
+                                *visibility = vis;
+                            }
                         }
                     }
                 }

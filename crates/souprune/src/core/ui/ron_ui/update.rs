@@ -85,21 +85,9 @@ pub fn update_dynamic_ui_elements(
 
                 let new_translation = if let Some(trans) = &t_def.translation {
                     Vec3::new(
-                        evaluate_float_expr(
-                            &trans.0,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &trans.1,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &trans.2,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
+                        evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
+                        evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
+                        evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
                     )
                 } else {
                     Vec3::ZERO
@@ -174,21 +162,9 @@ pub fn update_dynamic_ui_elements(
         if let Some(text_def) = &dynamic_elem.text_def {
             let new_translation = if let Some(trans) = &text_def.transform.translation {
                 Vec3::new(
-                    evaluate_float_expr(
-                        &trans.0,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &trans.1,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &trans.2,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
+                    evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
                 )
             } else {
                 Vec3::ZERO
