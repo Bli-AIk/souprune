@@ -1,6 +1,6 @@
 use super::super::components::*;
 use super::super::layout::*;
-use super::super::smud_shape::parse_text_preserving_whitespace;
+use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;

@@ -1646,20 +1646,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_smud"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27dc71abede9f6a9dcbe49f84ddf442aa7a0823356afbf55b159e7b6bf73570a"
-dependencies = [
- "bevy",
- "bitflags 2.9.4",
- "bytemuck",
- "copyless",
- "fixedbitset",
- "uuid",
-]
-
-[[package]]
 name = "bevy_sprite"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2375,12 +2361,6 @@ checksum = "e1aaf9b65849a68662ac6c0810c8893a765c960b907dd7cfab9c4a50bf764fbc"
 dependencies = [
  "const_soft_float",
 ]
-
-[[package]]
-name = "copyless"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2df960f5d869b2dd8532793fde43eb5427cceb126c929747a26823ab0eeb536"
 
 [[package]]
 name = "core-foundation"
@@ -6787,7 +6767,6 @@ dependencies = [
  "bevy_mortar_bond",
  "bevy_rich_text3d",
  "bevy_seedling",
- "bevy_smud",
  "bevy_tween",
  "chrono",
  "dunce",

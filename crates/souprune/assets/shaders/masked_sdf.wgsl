@@ -1,7 +1,6 @@
 // Masked SDF shader - SDF shapes with mask support
 //
 // This shader renders SDF shapes (circle, rect) with optional mask clipping.
-// It replaces bevy_smud for shapes that need mask support.
 //
 // Uniform layout:
 // 0: color (vec4) - fill color
