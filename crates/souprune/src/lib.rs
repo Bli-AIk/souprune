@@ -27,11 +27,10 @@ pub use crate::core::save::{
     SaveMetadata, SaveSlot, Saveable,
 };
 pub use crate::core::view::layout::{
-    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
+    FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef, ReactivePositionDef,
     SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
     ViewNodeDef,
 };
-// Backwards compatibility aliases
 pub use ViewLayoutAsset as UILayoutAsset;
 pub use ViewNodeDef as UINodeDef;
 

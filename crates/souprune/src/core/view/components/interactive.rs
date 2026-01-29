@@ -596,6 +596,99 @@ impl LayerTransitionActionDef {
     }
 }
 
+/// Option count definition supporting static values or dynamic expressions.
+///
+/// 支持静态值或动态表达式的选项数量定义。
+///
+/// # Examples
+/// ```ron
+/// // Static value
+/// option_count: 4,
+///
+/// // Dynamic expression
+/// option_count: "inventory.len()",
+/// option_count: "min(inventory.len(), 8)",
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum OptionCountDef {
+    /// A static numeric value.
+    ///
+    /// 静态数值。
+    Static(usize),
+    /// A dynamic expression to evaluate at runtime.
+    ///
+    /// 运行时求值的动态表达式。
+    Dynamic(String),
+}
+
+impl OptionCountDef {
+    /// Evaluate the option count, returning a static value or evaluating the expression.
+    ///
+    /// 求值选项数量，返回静态值或求值表达式。
+    pub fn evaluate(&self, player_data: &crate::core::data::PlayerData) -> usize {
+        match self {
+            OptionCountDef::Static(value) => *value,
+            OptionCountDef::Dynamic(expr) => evaluate_option_count_expression(expr, player_data),
+        }
+    }
+}
+
+/// Evaluate an option count expression.
+///
+/// 求值选项数量表达式。
+///
+/// Supported expressions:
+/// - `inventory.len()` - Number of items in inventory
+/// - `inventory_capacity` - Maximum inventory size
+/// - `min(a, b)` - Minimum of two values
+/// - `max(a, b)` - Maximum of two values
+/// - Numeric literals
+fn evaluate_option_count_expression(
+    expr: &str,
+    player_data: &crate::core::data::PlayerData,
+) -> usize {
+    let expr = expr.trim();
+
+    if expr == "inventory.len()" {
+        return player_data.inventory.len();
+    }
+
+    if expr == "inventory_capacity" {
+        return player_data.inventory_capacity;
+    }
+
+    if expr.starts_with("min(") && expr.ends_with(")") {
+        let inner = &expr[4..expr.len() - 1];
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 2 {
+            let a = evaluate_option_count_expression(parts[0], player_data);
+            let b = evaluate_option_count_expression(parts[1], player_data);
+            return a.min(b);
+        }
+    }
+
+    if expr.starts_with("max(") && expr.ends_with(")") {
+        let inner = &expr[4..expr.len() - 1];
+        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 2 {
+            let a = evaluate_option_count_expression(parts[0], player_data);
+            let b = evaluate_option_count_expression(parts[1], player_data);
+            return a.max(b);
+        }
+    }
+
+    if let Ok(value) = expr.parse::<usize>() {
+        return value;
+    }
+
+    warn!(
+        "Unable to evaluate option count expression: {}, defaulting to 1",
+        expr
+    );
+    1
+}
+
 /// RON definition for navigator type.
 ///
 /// 导航器类型的 RON 定义。
@@ -607,7 +700,7 @@ pub enum NavigatorTypeDef {
     Linear {
         #[serde(default)]
         direction: LinearDirection,
-        option_count: usize,
+        option_count: OptionCountDef,
         #[serde(default)]
         looping: bool,
     },
@@ -624,10 +717,10 @@ pub enum NavigatorTypeDef {
 }
 
 impl NavigatorTypeDef {
-    /// Convert to runtime NavigatorType.
+    /// Convert to runtime NavigatorType with expression evaluation.
     ///
-    /// 转换为运行时 NavigatorType。
-    pub fn into_navigator(self) -> NavigatorType {
+    /// 使用表达式求值转换为运行时 NavigatorType。
+    pub fn into_navigator(self, player_data: &crate::core::data::PlayerData) -> NavigatorType {
         match self {
             NavigatorTypeDef::Linear {
                 direction,
@@ -635,7 +728,7 @@ impl NavigatorTypeDef {
                 looping,
             } => NavigatorType::Linear {
                 direction,
-                option_count,
+                option_count: option_count.evaluate(player_data),
                 looping,
             },
             NavigatorTypeDef::Grid {
@@ -655,10 +748,20 @@ impl InteractiveLayerDef {
     /// Build an InteractiveLayer component from this definition.
     ///
     /// 从此定义构建 InteractiveLayer 组件。
-    pub fn build(&self, layer_id: impl Into<String>) -> InteractiveLayer {
-        let mut layer =
-            InteractiveLayer::new(layer_id, self.navigator_type.clone().into_navigator())
-                .with_selectable_elements(self.selectable_elements.clone());
+    ///
+    /// # Arguments
+    /// - `layer_id`: Unique identifier for this layer
+    /// - `player_data`: Player data for evaluating dynamic expressions
+    pub fn build(
+        &self,
+        layer_id: impl Into<String>,
+        player_data: &crate::core::data::PlayerData,
+    ) -> InteractiveLayer {
+        let mut layer = InteractiveLayer::new(
+            layer_id,
+            self.navigator_type.clone().into_navigator(player_data),
+        )
+        .with_selectable_elements(self.selectable_elements.clone());
 
         if let Some(sound) = &self.sound_on_navigate {
             layer = layer.with_sound(sound.clone());

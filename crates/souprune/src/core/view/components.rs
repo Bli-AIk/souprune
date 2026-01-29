@@ -10,11 +10,11 @@
 
 pub(crate) mod box_components;
 pub(crate) mod camera;
-pub(crate) mod cursor;
 pub(crate) mod hpbar;
 pub(crate) mod interactive;
 pub(crate) mod layer;
 pub(crate) mod navigation;
+pub(crate) mod reactive;
 pub(crate) mod text;
 pub(crate) mod view_element;
 pub(crate) mod visibility;
@@ -24,20 +24,20 @@ pub(crate) use box_components::{
     UIBox, UIBoxFiller, UIBoxVisibility, UIContainer, UIContainerVisibility,
 };
 pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDynamic};
-pub(crate) use cursor::{
-    BoxCursor, BoxCursorOwner, BoxCursorPlacement, BoxCursorPosition, BoxCursorReady,
-    BoxCursorSprite, BoxCursorVisibility,
-};
 pub(crate) use interactive::{
     AwaitingInteraction, InteractionResult, InteractiveLayer, InteractiveLayerDef,
     LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, LayerTransitionRule,
-    LinearDirection, NavigatorType, NavigatorTypeDef, SelectionCancelledEvent,
+    LinearDirection, NavigatorType, NavigatorTypeDef, OptionCountDef, SelectionCancelledEvent,
     SelectionChangedEvent, SelectionConfirmedEvent,
 };
 pub(crate) use layer::UILayer;
 pub(crate) use navigation::{
     IndexBound, LayerTransitions, TransitionAction, TransitionRule, UILayerNavigationConfig,
     UILayerNavigationRule, UILayerTransitionConfig,
+};
+pub(crate) use reactive::{
+    ReactiveIndicator, ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite,
+    ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
 };
 pub(crate) use text::{UIAnimationState, UIFont, UITextConfig, UITextTemplate};
 pub(crate) use visibility::UILayerVisibilityRule;

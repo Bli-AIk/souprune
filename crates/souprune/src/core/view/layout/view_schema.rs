@@ -199,34 +199,54 @@ pub struct ConditionalStyleDef {
     pub color: SerializableColor,
 }
 
+/// Definition for a reactive indicator element in RON configuration.
+/// This configures visual elements that respond to UI events such as selection changes.
+///
+/// RON 配置中响应式指示器元素的定义。
+/// 配置响应选择变更等 UI 事件的视觉元素。
 #[derive(Debug, Deserialize, Clone)]
 pub struct CursorDef {
     #[allow(dead_code)]
     pub sprite_path: String,
     #[serde(default)]
-    pub default_translation: Option<BoxCursorPositionDef>,
+    pub default_translation: Option<ReactivePositionDef>,
     #[serde(default)]
-    pub overrides: HashMap<String, BoxCursorPositionDef>,
+    pub overrides: HashMap<String, ReactivePositionDef>,
     #[serde(default)]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
     #[serde(default)]
-    pub transform: Option<CursorTransformDef>,
+    pub transform: Option<ReactiveTransformDef>,
 }
 
+/// Position calculation mode for reactive indicators.
+///
+/// 响应式指示器的位置计算模式。
 #[derive(Debug, Deserialize, Clone)]
-pub enum BoxCursorPositionDef {
+pub enum ReactivePositionDef {
+    /// Fixed position regardless of selection index.
+    ///
+    /// 固定位置，不随选择索引变化。
     Static(SerializableVec3),
+
+    /// Linear interpolation: origin + step * index.
+    ///
+    /// 线性插值：origin + step * index。
     Linear {
         origin: SerializableVec3,
         step: SerializableVec3,
     },
-    Custom {
-        positions: Vec<SerializableVec3>,
-    },
+
+    /// Custom positions for each index.
+    ///
+    /// 每个索引的自定义位置。
+    Custom { positions: Vec<SerializableVec3> },
 }
 
+/// Transform definition for reactive indicators.
+///
+/// 响应式指示器的变换定义。
 #[derive(Debug, Deserialize, Clone)]
-pub struct CursorTransformDef {
+pub struct ReactiveTransformDef {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
     #[serde(default)]

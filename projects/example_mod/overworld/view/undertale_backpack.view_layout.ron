@@ -382,7 +382,7 @@
         "BackpackItem": (
             navigator_type: Linear(
                 direction: Vertical,
-                option_count: 8,  // Will be clamped to actual inventory size
+                option_count: "max(inventory.len(), 1)",
                 looping: false,
             ),
             selectable_elements: [],

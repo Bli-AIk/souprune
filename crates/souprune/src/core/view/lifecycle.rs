@@ -49,6 +49,7 @@ pub(crate) fn spawn_backpack_ui_system(
     locale_loaded: Option<Res<LocaleLoaded>>,
     view_layout_handle: Option<Res<UILayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
+    player_data: Res<crate::core::data::PlayerData>,
 ) {
     if locale_loaded.is_none() {
         return;
@@ -111,7 +112,7 @@ pub(crate) fn spawn_backpack_ui_system(
     // Spawn InteractiveLayer entities for each defined layer
     // 为每个定义的层生成 InteractiveLayer 实体
     for (layer_id, layer_def) in interactive_layers {
-        let mut layer = layer_def.build(layer_id);
+        let mut layer = layer_def.build(layer_id, &player_data);
 
         // Activate the initial layer from configuration
         // 从配置激活初始层

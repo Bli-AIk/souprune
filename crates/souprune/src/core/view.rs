@@ -31,11 +31,11 @@ pub struct UIUpdate;
 
 mod camera;
 pub(crate) mod components;
-mod cursor;
 mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
+mod reactive;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
@@ -53,10 +53,10 @@ pub use components::{
     ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};
-use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
+use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
 pub use ron_view::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
 use ron_view::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
@@ -75,8 +75,8 @@ use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_wh
 use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{
-    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, InteractiveLayer,
-    NavigatorType, UIBox, UIBoxVisibility, UILayer,
+    CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
+    ReactiveIndicatorVisibility, ReactivePosition, UIBox, UIBoxVisibility, UILayer,
 };
 use components::{
     LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,
@@ -173,8 +173,8 @@ impl Plugin for CoreViewPlugin {
                     update_ui_box_visibility_system,
                     update_ui_container_visibility_system,
                     assign_text_material_system,
-                    spawn_box_cursor_visual_system,
-                    update_box_cursor_state_system,
+                    spawn_reactive_indicator_system,
+                    update_reactive_indicator_system,
                     show_text_when_ready_system,
                     update_camera_anchored_ui_on_camera_move_system,
                     update_camera_anchored_ui_on_change_system,
@@ -190,9 +190,9 @@ impl Plugin for CoreViewPlugin {
                 .register_type::<UILayer>()
                 .register_type::<CameraAnchored>()
                 .register_type::<UIBoxVisibility>()
-                .register_type::<BoxCursor>()
-                .register_type::<BoxCursorPosition>()
-                .register_type::<BoxCursorVisibility>()
+                .register_type::<ReactiveIndicator>()
+                .register_type::<ReactivePosition>()
+                .register_type::<ReactiveIndicatorVisibility>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()

@@ -149,7 +149,7 @@ pub fn spawn_ron_view_for_entity(
     // 如果定义了交互层则生成
     if let Some(interactive_layers) = &view_layout.interactive_layers {
         for (layer_id, layer_def) in interactive_layers {
-            let interactive_layer = layer_def.build(layer_id);
+            let interactive_layer = layer_def.build(layer_id, player_data);
             info!(
                 "Creating InteractiveLayer '{}' with navigator: {:?}",
                 layer_id, interactive_layer.navigator
@@ -616,13 +616,15 @@ pub fn spawn_view_node(
                 );
             }
 
-            if let Some(cursor_def) = &node_def.cursor {
+            // Process reactive indicator definition (selection indicator, etc.)
+            // 处理响应式指示器定义（选择指示器等）
+            if let Some(indicator_def) = &node_def.cursor {
                 let mut sprite_context = sprite_params.create_sprite_context();
                 let mut sprite = match sprite_context.get_sprite("common", "heartsmall") {
                     Ok(s) => s,
                     Err(e) => {
                         warn!(
-                            "Failed to load cursor sprite 'common/heartsmall': {}. using default.",
+                            "Failed to load indicator sprite 'common/heartsmall': {}. using default.",
                             e
                         );
                         sprite_context.get_missing_sprite()
@@ -630,63 +632,63 @@ pub fn spawn_view_node(
                 };
                 sprite.color = Color::srgb(1.0, 0.0, 0.0);
 
-                let cursor_position = if let Some(default_pos) = &cursor_def.default_translation {
+                let indicator_position = if let Some(default_pos) = &indicator_def.default_translation {
                     match default_pos {
-                        BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(serializable_vec3_to_static(vec))
+                        ReactivePositionDef::Static(vec) => {
+                            ReactivePosition::Static(serializable_vec3_to_static(vec))
                         }
-                        BoxCursorPositionDef::Linear { origin, step } => {
-                            BoxCursorPosition::Linear {
+                        ReactivePositionDef::Linear { origin, step } => {
+                            ReactivePosition::Linear {
                                 origin: serializable_vec3_to_static(origin),
                                 step: serializable_vec3_to_static(step),
                             }
                         }
-                        BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
+                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
                             positions.iter().map(serializable_vec3_to_static).collect(),
                         ),
                     }
-                } else if let Some(transform) = &cursor_def.transform {
+                } else if let Some(transform) = &indicator_def.transform {
                     if let Some(translation) = &transform.translation {
-                        BoxCursorPosition::Static(serializable_vec3_to_static(translation))
+                        ReactivePosition::Static(serializable_vec3_to_static(translation))
                     } else {
-                        BoxCursorPosition::Static(Vec3::ZERO)
+                        ReactivePosition::Static(Vec3::ZERO)
                     }
                 } else {
-                    BoxCursorPosition::Static(Vec3::ZERO)
+                    ReactivePosition::Static(Vec3::ZERO)
                 };
 
-                let cursor_visibility = if let Some(vis_rule) = &cursor_def.visibility_rule {
+                let indicator_visibility = if let Some(vis_rule) = &indicator_def.visibility_rule {
                     parse_visibility_rule(vis_rule)
                 } else if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
-                    BoxCursorVisibility::OnlyIn(layers.clone())
+                    ReactiveIndicatorVisibility::OnlyIn(layers.clone())
                 } else {
                     // Default to always visible if no visibility rule is specified
                     // 如果未指定可见性规则，默认始终可见
-                    BoxCursorVisibility::Always
+                    ReactiveIndicatorVisibility::Always
                 };
 
-                let mut placement = BoxCursorPlacement::new(cursor_position);
+                let mut placement = ReactivePlacement::new(indicator_position);
 
-                for (layer_name, position_def) in &cursor_def.overrides {
+                for (layer_name, position_def) in &indicator_def.overrides {
                     let layer = UILayer::new(layer_name.clone());
                     let position = match position_def {
-                        BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(serializable_vec3_to_static(vec))
+                        ReactivePositionDef::Static(vec) => {
+                            ReactivePosition::Static(serializable_vec3_to_static(vec))
                         }
-                        BoxCursorPositionDef::Linear { origin, step} => {
-                            BoxCursorPosition::Linear {
+                        ReactivePositionDef::Linear { origin, step} => {
+                            ReactivePosition::Linear {
                                 origin: serializable_vec3_to_static(origin),
                                 step: serializable_vec3_to_static(step),
                             }
                         }
-                        BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
+                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
                             positions.iter().map(serializable_vec3_to_static).collect(),
                         ),
                     };
                     placement = placement.with_override(layer, position);
                 }
 
-                let cursor_transform = if let Some(transform_def) = &cursor_def.transform {
+                let indicator_transform = if let Some(transform_def) = &indicator_def.transform {
                     let mut transform = Transform::default();
                     if let Some(scale) = &transform_def.scale {
                         transform.scale = serializable_vec3_to_static(scale);
@@ -701,11 +703,11 @@ pub fn spawn_view_node(
                     Transform::from_scale(Vec3::splat(1.0))
                 };
 
-                box_entity.insert(BoxCursor::new(
+                box_entity.insert(ReactiveIndicator::new(
                     sprite,
-                    cursor_visibility,
+                    indicator_visibility,
                     placement,
-                    cursor_transform,
+                    indicator_transform,
                 ));
             }
 
