@@ -8,8 +8,17 @@
     TweenViewElement(
         selector: LocalName("BattleBox"),
         target: BoxSize(to: (130, "@current")),
-        duration: 0.5,
+        duration: 0.85,
         easing: QuadInOut,
+        wait_for_completion: false,
+    ),
+    Wait(0.15),
+
+    TweenViewElement(
+        selector: LocalName("BattleBox"),
+        target: Position(to: ("@current", "@current + 80", "@current")),
+        duration: 1.0,
+        easing: CubicOut,
         wait_for_completion: true,
     ),
     Wait(1.0),

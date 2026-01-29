@@ -1429,17 +1429,28 @@ fn process_tween_view_element_system(
             );
 
             // Create the tween component
-            commands.entity(chapter_entity).insert(ActiveTween {
-                target_entity,
-                start_value,
-                end_value,
-                timer: Timer::from_seconds(*duration, TimerMode::Once),
-                easing: *easing,
-                wait_for_completion: *wait_for_completion,
-            });
-
-            // If not waiting for completion, mark as finished immediately
-            if !wait_for_completion {
+            // If not waiting for completion, spawn a separate entity for the tween
+            // so it can continue running after the chapter is marked as finished
+            if *wait_for_completion {
+                commands.entity(chapter_entity).insert(ActiveTween {
+                    target_entity,
+                    start_value,
+                    end_value,
+                    timer: Timer::from_seconds(*duration, TimerMode::Once),
+                    easing: *easing,
+                    wait_for_completion: *wait_for_completion,
+                });
+            } else {
+                // Spawn a detached tween entity that will clean itself up when done
+                commands.spawn(ActiveTween {
+                    target_entity,
+                    start_value,
+                    end_value,
+                    timer: Timer::from_seconds(*duration, TimerMode::Once),
+                    easing: *easing,
+                    wait_for_completion: false,
+                });
+                // Mark chapter as finished immediately
                 commands.entity(chapter_entity).insert(ChapterFinished);
             }
         }
@@ -1503,7 +1514,14 @@ fn process_tween_wait_chapter_system(
 
         if tween.timer.finished() {
             info!("[TweenViewElement] Tween completed");
-            commands.entity(entity).insert(ChapterFinished);
+            // If this tween is on a chapter entity (wait_for_completion: true),
+            // mark the chapter as finished. Otherwise, just despawn the tween entity.
+            if tween.wait_for_completion {
+                commands.entity(entity).insert(ChapterFinished);
+            } else {
+                // This is a detached tween entity, despawn it
+                commands.entity(entity).despawn();
+            }
         }
     }
 }
