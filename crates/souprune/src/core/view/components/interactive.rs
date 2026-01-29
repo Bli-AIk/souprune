@@ -106,6 +106,52 @@ pub enum LinearDirection {
     Horizontal,
 }
 
+// ============================================================================
+// Layer Transition Types
+// 层级转换类型
+// ============================================================================
+
+/// A transition rule with optional condition.
+///
+/// 带有可选条件的转换规则。
+#[derive(Debug, Clone)]
+pub struct LayerTransitionRule {
+    /// Optional condition expression.
+    /// If None, rule always matches.
+    /// Format: "index == 0", "index == 1 && !player.inventory.is_empty", etc.
+    ///
+    /// 可选条件表达式。
+    /// 如果为 None，规则始终匹配。
+    /// 格式: "index == 0", "index == 1 && !player.inventory.is_empty" 等。
+    pub condition: Option<String>,
+
+    /// Action to execute when this rule matches.
+    ///
+    /// 规则匹配时执行的动作。
+    pub action: LayerTransitionAction,
+}
+
+/// Action to perform when a transition is triggered.
+///
+/// 转换触发时执行的动作。
+#[derive(Debug, Clone)]
+pub enum LayerTransitionAction {
+    /// Switch to another layer within the same context.
+    ///
+    /// 切换到同一上下文中的另一个层。
+    GotoLayer(String),
+
+    /// Pop the current state (e.g., close menu, return to previous state).
+    ///
+    /// 弹出当前状态（例如关闭菜单、返回上一状态）。
+    PopState,
+
+    /// Push a new state onto the stack.
+    ///
+    /// 将新状态推入栈。
+    PushState(String),
+}
+
 impl Default for NavigatorType {
     fn default() -> Self {
         NavigatorType::Linear {
@@ -306,6 +352,32 @@ pub struct InteractiveLayer {
     ///
     /// 此层是否当前活跃/聚焦。
     pub is_active: bool,
+
+    /// Transition rules when confirm is pressed.
+    ///
+    /// 确认时的转换规则。
+    ///
+    /// Rules are evaluated in order; first matching rule is executed.
+    ///
+    /// 规则按顺序求值；执行第一个匹配的规则。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub on_confirm: Vec<LayerTransitionRule>,
+
+    /// Transition action when cancel is pressed.
+    ///
+    /// 取消时的转换动作。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub on_cancel: Option<LayerTransitionAction>,
+
+    /// Sound to play on confirm.
+    ///
+    /// 确认时播放的声音。
+    pub sound_on_confirm: Option<String>,
+
+    /// Sound to play on cancel.
+    ///
+    /// 取消时播放的声音。
+    pub sound_on_cancel: Option<String>,
 }
 
 impl InteractiveLayer {
@@ -320,6 +392,10 @@ impl InteractiveLayer {
             selectable_elements: Vec::new(),
             sound_on_navigate: None,
             is_active: false,
+            on_confirm: Vec::new(),
+            on_cancel: None,
+            sound_on_confirm: None,
+            sound_on_cancel: None,
         }
     }
 
@@ -344,6 +420,38 @@ impl InteractiveLayer {
     /// 设置活跃状态。
     pub fn with_active(mut self, active: bool) -> Self {
         self.is_active = active;
+        self
+    }
+
+    /// Set confirm transition rules.
+    ///
+    /// 设置确认转换规则。
+    pub fn with_on_confirm(mut self, rules: Vec<LayerTransitionRule>) -> Self {
+        self.on_confirm = rules;
+        self
+    }
+
+    /// Set cancel transition action.
+    ///
+    /// 设置取消转换动作。
+    pub fn with_on_cancel(mut self, action: LayerTransitionAction) -> Self {
+        self.on_cancel = Some(action);
+        self
+    }
+
+    /// Set confirm sound.
+    ///
+    /// 设置确认声音。
+    pub fn with_sound_on_confirm(mut self, sound: impl Into<String>) -> Self {
+        self.sound_on_confirm = Some(sound.into());
+        self
+    }
+
+    /// Set cancel sound.
+    ///
+    /// 设置取消声音。
+    pub fn with_sound_on_cancel(mut self, sound: impl Into<String>) -> Self {
+        self.sound_on_cancel = Some(sound.into());
         self
     }
 
@@ -407,6 +515,85 @@ pub struct InteractiveLayerDef {
     /// 导航时播放的声音。
     #[serde(default)]
     pub sound_on_navigate: Option<String>,
+
+    /// Transition rules when confirm is pressed.
+    ///
+    /// 确认时的转换规则。
+    #[serde(default)]
+    pub on_confirm: Option<Vec<LayerTransitionRuleDef>>,
+
+    /// Transition action when cancel is pressed.
+    ///
+    /// 取消时的转换动作。
+    #[serde(default)]
+    pub on_cancel: Option<LayerTransitionActionDef>,
+
+    /// Sound to play on confirm.
+    ///
+    /// 确认时播放的声音。
+    #[serde(default)]
+    pub sound_on_confirm: Option<String>,
+
+    /// Sound to play on cancel.
+    ///
+    /// 取消时播放的声音。
+    #[serde(default)]
+    pub sound_on_cancel: Option<String>,
+}
+
+/// RON definition for a layer transition rule.
+///
+/// 层级转换规则的 RON 定义。
+#[derive(Debug, Clone, Deserialize)]
+pub struct LayerTransitionRuleDef {
+    /// Optional condition expression.
+    ///
+    /// 可选条件表达式。
+    #[serde(default)]
+    pub condition: Option<String>,
+
+    /// Action to execute when rule matches.
+    ///
+    /// 规则匹配时执行的动作。
+    pub action: LayerTransitionActionDef,
+}
+
+/// RON definition for a layer transition action.
+///
+/// 层级转换动作的 RON 定义。
+#[derive(Debug, Clone, Deserialize)]
+pub enum LayerTransitionActionDef {
+    /// Switch to another layer.
+    GotoLayer(String),
+    /// Pop the current state.
+    PopState,
+    /// Push a new state.
+    PushState(String),
+}
+
+impl LayerTransitionRuleDef {
+    /// Convert to runtime LayerTransitionRule.
+    ///
+    /// 转换为运行时 LayerTransitionRule。
+    pub fn into_rule(self) -> LayerTransitionRule {
+        LayerTransitionRule {
+            condition: self.condition,
+            action: self.action.into_action(),
+        }
+    }
+}
+
+impl LayerTransitionActionDef {
+    /// Convert to runtime LayerTransitionAction.
+    ///
+    /// 转换为运行时 LayerTransitionAction。
+    pub fn into_action(self) -> LayerTransitionAction {
+        match self {
+            LayerTransitionActionDef::GotoLayer(layer) => LayerTransitionAction::GotoLayer(layer),
+            LayerTransitionActionDef::PopState => LayerTransitionAction::PopState,
+            LayerTransitionActionDef::PushState(state) => LayerTransitionAction::PushState(state),
+        }
+    }
 }
 
 /// RON definition for navigator type.
@@ -475,6 +662,24 @@ impl InteractiveLayerDef {
 
         if let Some(sound) = &self.sound_on_navigate {
             layer = layer.with_sound(sound.clone());
+        }
+
+        // Add transition rules
+        if let Some(on_confirm) = &self.on_confirm {
+            layer =
+                layer.with_on_confirm(on_confirm.iter().map(|r| r.clone().into_rule()).collect());
+        }
+
+        if let Some(on_cancel) = &self.on_cancel {
+            layer = layer.with_on_cancel(on_cancel.clone().into_action());
+        }
+
+        if let Some(sound) = &self.sound_on_confirm {
+            layer = layer.with_sound_on_confirm(sound.clone());
+        }
+
+        if let Some(sound) = &self.sound_on_cancel {
+            layer = layer.with_sound_on_cancel(sound.clone());
         }
 
         layer

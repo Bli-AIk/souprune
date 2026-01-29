@@ -19,7 +19,8 @@
 //! 处理光标精灵的生成和基于导航的光标位置更新。
 
 use super::components::{
-    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, RonUI, UIBox, UIBoxFiller,
+    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, InteractiveLayer, UIBox,
+    UIBoxFiller, UILayer,
 };
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
@@ -90,9 +91,13 @@ pub(crate) fn spawn_box_cursor_visual_system(
 /// Update cursor visibility and translation based on selection focus.
 ///
 /// 根据焦点位置更新光标的可见性与位移。
+///
+/// This system now uses InteractiveLayer instead of the legacy RonUI component.
+///
+/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
 pub(crate) fn update_box_cursor_state_system(
     overworld_state: Res<State<OverworldState>>,
-    ui_query: Query<&RonUI>,
+    interactive_layer_query: Query<&InteractiveLayer>,
     mut box_query: Query<&mut BoxCursor, With<UIBox>>,
     parent_query: Query<&ChildOf>,
     mut sprite_query: Query<
@@ -100,6 +105,9 @@ pub(crate) fn update_box_cursor_state_system(
         With<BoxCursorSprite>,
     >,
 ) {
+    // Find the currently active InteractiveLayer
+    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
+
     for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
         let Ok(mut cursor) = box_query.get_mut(owner.0) else {
             if *visibility != Visibility::Hidden {
@@ -108,27 +116,24 @@ pub(crate) fn update_box_cursor_state_system(
             continue;
         };
 
-        let Ok(parent) = parent_query.get(owner.0) else {
+        // Get the active layer or hide cursor
+        let Some(layer) = active_layer else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
             continue;
         };
 
-        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
+        // Create UILayer from layer_id for visibility check
+        let ui_layer = UILayer::new(layer.layer_id.clone());
 
         let mut should_show = overworld_state.get() == &OverworldState::Backpack;
         should_show &= !cursor.is_hidden();
-        should_show &= cursor.visibility().is_visible_for(overworld_ui.layer());
+        should_show &= cursor.visibility().is_visible_for(&ui_layer);
 
         if should_show {
             if let Some(translation) =
-                cursor.translation_for_index(overworld_ui.layer(), overworld_ui.index())
+                cursor.translation_for_index(&ui_layer, layer.current_selection)
                 && transform.translation != translation
             {
                 transform.translation = translation;

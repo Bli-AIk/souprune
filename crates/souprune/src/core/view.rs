@@ -67,8 +67,8 @@ use sdf_view_shape::{
     update_ui_container_visibility_system,
 };
 use state::{
-    handle_interactive_layer_confirm_cancel_system, handle_interactive_layer_navigation_system,
-    menu_overworld_state_transitions_system, update_overworld_ui_navigation_system,
+    global_trigger_system, handle_interactive_layer_confirm_cancel_system,
+    handle_interactive_layer_navigation_system, handle_interactive_layer_transitions_system,
 };
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
 
@@ -76,7 +76,7 @@ use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, InteractiveLayer,
-    NavigatorType, RonUI, UIBox, UIBoxVisibility, UILayer,
+    NavigatorType, UIBox, UIBoxVisibility, UILayer,
 };
 use components::{SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent};
 
@@ -145,12 +145,14 @@ impl Plugin for CoreViewPlugin {
                     watch_ui_layout_changes_system,
                     crate::core::view::ron_view::reload::rebuild_reloaded_ui_system,
                     load_navigation_and_transitions_system,
-                    menu_overworld_state_transitions_system,
-                    update_overworld_ui_navigation_system,
+                    // Global trigger system for state changes (e.g., opening backpack)
+                    // 全局触发器系统用于状态变更（如打开背包）
+                    global_trigger_system,
                     // Unified InteractiveLayer systems (for both OW and Battle)
                     // 统一的 InteractiveLayer 系统（同时用于 OW 和 Battle）
                     handle_interactive_layer_navigation_system,
                     handle_interactive_layer_confirm_cancel_system,
+                    handle_interactive_layer_transitions_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
                 )
@@ -179,8 +181,7 @@ impl Plugin for CoreViewPlugin {
 
         #[cfg(feature = "debug")]
         {
-            app.register_type::<RonUI>()
-                .register_type::<UIBox>()
+            app.register_type::<UIBox>()
                 .register_type::<UILayer>()
                 .register_type::<CameraAnchored>()
                 .register_type::<UIBoxVisibility>()

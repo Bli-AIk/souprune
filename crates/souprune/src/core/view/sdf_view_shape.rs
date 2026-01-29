@@ -20,7 +20,9 @@
 //! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
-use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
+use super::components::{
+    InteractiveLayer, UIBox, UIBoxFiller, UIBoxVisibility, UILayer, UITextTemplate,
+};
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
@@ -621,10 +623,14 @@ pub(crate) fn update_sdf_view_shape_system(
 /// Toggle UI box visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
 ///
 /// 根据当前激活的 [`UILayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
+///
+/// This system now uses InteractiveLayer instead of the legacy RonUI component.
+///
+/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
 pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    ui_query: Query<&RonUI>,
+    interactive_layer_query: Query<&InteractiveLayer>,
     parent_query: Query<&ChildOf>,
     mut box_query: Query<(Entity, &UIBoxVisibility, &mut Visibility), With<UIBox>>,
 ) {
@@ -638,6 +644,9 @@ pub(crate) fn update_ui_box_visibility_system(
 
     let should_process_ui = is_battle || is_backpack;
 
+    // Find active InteractiveLayer for Backpack state
+    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
+
     for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
@@ -646,8 +655,8 @@ pub(crate) fn update_ui_box_visibility_system(
             continue;
         }
 
-        // For Battle state, use visibility rule directly without requiring RonUI parent
-        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        // For Battle state, use visibility rule directly without requiring InteractiveLayer
+        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
         if is_battle {
             // In Battle mode, check if the visibility rule allows showing
             // (typically Always or specific battle layers)
@@ -669,23 +678,17 @@ pub(crate) fn update_ui_box_visibility_system(
             continue;
         }
 
-        // For Backpack state, use the original layer-based visibility logic
-        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
-        let Ok(parent) = parent_query.get(entity) else {
+        // For Backpack state, use InteractiveLayer for visibility
+        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
+        let Some(layer) = active_layer else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
             continue;
         };
 
-        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let should_show = layer_visibility.is_visible_for(overworld_ui.layer());
+        let ui_layer = UILayer::new(layer.layer_id.clone());
+        let should_show = layer_visibility.is_visible_for(&ui_layer);
         if should_show {
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;
@@ -701,10 +704,14 @@ pub(crate) fn update_ui_box_visibility_system(
 ///
 /// 根据当前激活的 [`UILayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
 /// 此系统处理没有 UIBox 但需要可见性控制的纯容器节点。
+///
+/// This system now uses InteractiveLayer instead of the legacy RonUI component.
+///
+/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
 pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    ui_query: Query<&RonUI>,
+    interactive_layer_query: Query<&InteractiveLayer>,
     parent_query: Query<&ChildOf>,
     mut container_query: Query<
         (
@@ -725,6 +732,9 @@ pub(crate) fn update_ui_container_visibility_system(
 
     let should_process_ui = is_battle || is_backpack;
 
+    // Find active InteractiveLayer for Backpack state
+    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
+
     for (entity, container_visibility, mut visibility) in container_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
@@ -733,8 +743,8 @@ pub(crate) fn update_ui_container_visibility_system(
             continue;
         }
 
-        // For Battle state, use visibility rule directly without requiring RonUI parent
-        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        // For Battle state, use visibility rule directly without requiring InteractiveLayer
+        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
         if is_battle {
             let should_show = matches!(
                 container_visibility.rule(),
@@ -752,23 +762,17 @@ pub(crate) fn update_ui_container_visibility_system(
             continue;
         }
 
-        // For Backpack state, use the original layer-based visibility logic
-        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
-        let Ok(parent) = parent_query.get(entity) else {
+        // For Backpack state, use InteractiveLayer for visibility
+        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
+        let Some(layer) = active_layer else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
             continue;
         };
 
-        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let should_show = container_visibility.is_visible_for(overworld_ui.layer());
+        let ui_layer = UILayer::new(layer.layer_id.clone());
+        let should_show = container_visibility.is_visible_for(&ui_layer);
         if should_show {
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;

@@ -623,3 +623,60 @@ pub fn resolve_val_bool(
         }
     }
 }
+
+/// Evaluate transition condition for InteractiveLayer.
+///
+/// 为 InteractiveLayer 评估转换条件。
+///
+/// Supports conditions like:
+/// - "index == 0"
+/// - "index == 1 && !player.inventory.is_empty"
+/// - "index == 0 && player.inventory.is_empty"
+///
+/// 支持的条件格式：
+/// - "index == 0"
+/// - "index == 1 && !player.inventory.is_empty"
+/// - "index == 0 && player.inventory.is_empty"
+pub fn evaluate_transition_condition_unified(
+    condition: &str,
+    index: usize,
+    player_data: &crate::core::data::PlayerData,
+) -> bool {
+    let condition = condition.trim();
+
+    // Handle "index == N" pattern with optional additional conditions
+    if condition.starts_with("index == ") {
+        if let Some(rest) = condition.strip_prefix("index == ") {
+            // Split by &&
+            let parts: Vec<&str> = rest.split("&&").map(|s| s.trim()).collect();
+
+            // First part should be the index number
+            if let Some(index_part) = parts.first() {
+                if let Ok(target_index) = index_part.parse::<usize>() {
+                    if index != target_index {
+                        return false;
+                    }
+
+                    // Check additional conditions
+                    for part in parts.iter().skip(1) {
+                        if *part == "!player.inventory.is_empty" {
+                            if player_data.inventory.is_empty() {
+                                return false;
+                            }
+                        } else if *part == "player.inventory.is_empty" {
+                            if !player_data.inventory.is_empty() {
+                                return false;
+                            }
+                        }
+                        // Add more conditions as needed
+                    }
+
+                    return true;
+                }
+            }
+        }
+    }
+
+    // For other conditions, delegate to the existing evaluate_condition
+    evaluate_condition(condition, player_data)
+}

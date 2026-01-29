@@ -1,5 +1,6 @@
 use super::super::components::*;
 use super::super::layout::*;
+use super::super::lifecycle::BackpackUIRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
@@ -9,6 +10,14 @@ use bevy::prelude::*;
 /// System to spawn view elements from RON layout.
 ///
 /// 从 RON 布局生成视图元素的系统。
+///
+/// This system handles both:
+/// - BackpackUIRoot: New unified system for OW Backpack
+/// - RonUI: Legacy support for Battle and Chase HUD
+///
+/// 该系统同时处理：
+/// - BackpackUIRoot：OW 背包的新统一系统
+/// - RonUI：Battle 和 Chase HUD 的旧版支持
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_view_system(
@@ -17,7 +26,19 @@ pub fn spawn_ron_view_system(
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_view_query: Query<(Entity, &RonUI), (Without<ViewGenerated>, Without<UIBox>)>,
+    backpack_root_query: Query<
+        Entity,
+        (With<BackpackUIRoot>, Without<ViewGenerated>, Without<UIBox>),
+    >,
+    ron_ui_query: Query<
+        Entity,
+        (
+            With<RonUI>,
+            Without<BackpackUIRoot>,
+            Without<ViewGenerated>,
+            Without<UIBox>,
+        ),
+    >,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -34,8 +55,41 @@ pub fn spawn_ron_view_system(
     };
 
     let mut spawned_any = false;
-    for (view_entity, _ron_ui) in overworld_view_query.iter() {
-        info!("Spawning view from RON layout");
+
+    // Handle BackpackUIRoot entities (new unified system)
+    // 处理 BackpackUIRoot 实体（新统一系统）
+    for view_entity in backpack_root_query.iter() {
+        info!("Spawning view from RON layout (BackpackUIRoot)");
+
+        let camera_transform = match camera_query.single() {
+            Ok(transform) => transform,
+            Err(_) => {
+                warn!("No Camera2d found for view spawning!");
+                return;
+            }
+        };
+
+        spawn_ron_view_for_entity(
+            &mut commands,
+            &asset_server,
+            view_entity,
+            view_layout,
+            camera_transform,
+            &mut sprite_params,
+            &animation_assets,
+            &mortar_strings,
+            &player_data,
+            &item_registry,
+            &view_layout_handle.path,
+        );
+        commands.entity(view_entity).insert(ViewGenerated);
+        spawned_any = true;
+    }
+
+    // Handle RonUI entities (legacy support for Battle/Chase)
+    // 处理 RonUI 实体（Battle/Chase 的旧版支持）
+    for view_entity in ron_ui_query.iter() {
+        info!("Spawning view from RON layout (RonUI legacy)");
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,

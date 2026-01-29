@@ -355,4 +355,66 @@
             sound_on_cancel: None,
         ),
     },
+    // New unified interactive layer system (Phase 7)
+    // 新的统一交互层系统（Phase 7）
+    interactive_layers: {
+        "BackpackMenu": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 2,
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    condition: "index == 0 && !player.inventory.is_empty",
+                    action: GotoLayer("BackpackItem"),
+                ),
+                (
+                    condition: "index == 1",
+                    action: GotoLayer("BackpackStatus"),
+                ),
+            ],
+            on_cancel: PopState,
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItem": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 8,  // Will be clamped to actual inventory size
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    action: GotoLayer("BackpackItemOptions"),
+                ),
+            ],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItemOptions": (
+            navigator_type: Linear(
+                direction: Horizontal,
+                option_count: 3,
+                looping: false,
+            ),
+            selectable_elements: ["ItemLayerOptionUse", "ItemLayerOptionInfo", "ItemLayerOptionDrop"],
+            sound_on_navigate: "choice.wav",
+            on_cancel: GotoLayer("BackpackItem"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackStatus": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 1,
+                looping: false,
+            ),
+            selectable_elements: [],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+    },
 )
