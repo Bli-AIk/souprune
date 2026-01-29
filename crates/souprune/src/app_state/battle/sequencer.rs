@@ -701,30 +701,56 @@ fn process_modify_view_element_system(
                             info!("Set visibility for entity {:?}: {}", entity, visible);
                         }
                     }
-                    super::chapter_schema::ElementModification::SetPositionRandom(
-                        base_y,
-                        base_z,
-                        range,
-                    ) => {
-                        // Generate random offset using current time as seed
-                        // 使用当前时间作为种子生成随机偏移
-                        use std::time::{SystemTime, UNIX_EPOCH};
-                        let nanos = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .subsec_nanos();
-
-                        // Simple pseudo-random using nanos (only for Y axis)
-                        // 使用纳秒进行简单伪随机（仅用于 Y 轴）
-                        let rand_y = ((nanos % 1000) as f32 / 1000.0) * 2.0 - 1.0; // -1.0 to 1.0
-
-                        let final_y = base_y + rand_y * range;
-                        let final_z = *base_z;
-
+                    super::chapter_schema::ElementModification::SetPositionExpr { x, y, z } => {
                         if let Ok(mut transform) = transforms.get_mut(entity) {
-                            // X coordinate uses current value
-                            // X 坐标使用当前值
-                            let final_x = transform.translation.x;
+                            // Parse and evaluate each coordinate expression
+                            // 解析并评估每个坐标表达式
+                            let final_x = if x == "current" {
+                                transform.translation.x
+                            } else if let Ok(val) = x.parse::<f32>() {
+                                val
+                            } else {
+                                // Treat as expression
+                                // 作为表达式处理
+                                use crate::core::ui::layout::FloatOrExpr;
+                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
+                                let player_data = crate::core::data::PlayerData::default();
+                                evaluate_float_expr(
+                                    &FloatOrExpr::Dynamic(x.clone()),
+                                    &player_data,
+                                    None,
+                                )
+                            };
+
+                            let final_y = if y == "current" {
+                                transform.translation.y
+                            } else if let Ok(val) = y.parse::<f32>() {
+                                val
+                            } else {
+                                use crate::core::ui::layout::FloatOrExpr;
+                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
+                                let player_data = crate::core::data::PlayerData::default();
+                                evaluate_float_expr(
+                                    &FloatOrExpr::Dynamic(y.clone()),
+                                    &player_data,
+                                    None,
+                                )
+                            };
+
+                            let final_z = if z == "current" {
+                                transform.translation.z
+                            } else if let Ok(val) = z.parse::<f32>() {
+                                val
+                            } else {
+                                use crate::core::ui::layout::FloatOrExpr;
+                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
+                                let player_data = crate::core::data::PlayerData::default();
+                                evaluate_float_expr(
+                                    &FloatOrExpr::Dynamic(z.clone()),
+                                    &player_data,
+                                    None,
+                                )
+                            };
 
                             // Ensure history exists or create it
                             // 确保历史存在或创建它
@@ -743,6 +769,10 @@ fn process_modify_view_element_system(
                             // Apply modification
                             // 应用修改
                             transform.translation = Vec3::new(final_x, final_y, final_z);
+                            info!(
+                                "Set position (expr) for entity {:?}: ({}, {}, {})",
+                                entity, final_x, final_y, final_z
+                            );
 
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史

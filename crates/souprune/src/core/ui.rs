@@ -36,7 +36,7 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
-mod ron_ui;
+pub(crate) mod ron_ui;
 mod shaders;
 mod smud_shape;
 mod state;

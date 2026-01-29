@@ -244,15 +244,18 @@ pub enum ElementModification {
     /// 设置位置 (x, y, z)。
     SetPosition(f32, f32, f32),
 
-    /// TODO: 将随机数改为一种表达式语法，而非这种硬编码随机范围
-    /// Set position with random offset on Y axis only (base_y, base_z, random_range).
+    /// Set position with expression support (including random()).
     ///
-    /// X coordinate uses current value. Random offset will be applied to Y in range [-random_range, +random_range].
+    /// Each coordinate can be either a static float or a dynamic expression string.
+    /// Expressions support sin/cos/snap and random() function.
+    /// Use "current" to keep the existing coordinate value.
     ///
-    /// 仅在 Y 轴设置随机偏移位置 (base_y, base_z, random_range)。
+    /// 使用表达式支持设置位置（包括 random()）。
     ///
-    /// X 坐标使用当前值。随机偏移将在 [-random_range, +random_range] 范围内应用于 Y。
-    SetPositionRandom(f32, f32, f32),
+    /// 每个坐标可以是静态浮点数或动态表达式字符串。
+    /// 表达式支持 sin/cos/snap 和 random() 函数。
+    /// 使用 "current" 保持现有坐标值。
+    SetPositionExpr { x: String, y: String, z: String },
 
     /// Set scale (x, y, z).
     ///

@@ -139,6 +139,44 @@ pub fn evaluate_float_expr(
                 }),
             );
 
+            // Register random function (random() or random(min, max))
+            let _ = context.set_function(
+                "random".to_string(),
+                evalexpr::Function::new(|arg| {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    // Use system time as seed for randomness
+                    let nanos = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .subsec_nanos();
+                    // Simple pseudo-random: -1.0 to 1.0
+                    let rand_val = ((nanos % 1000) as f64 / 1000.0) * 2.0 - 1.0;
+
+                    if let Ok(tuple) = arg.as_tuple() {
+                        if tuple.len() == 2 {
+                            // random(min, max) - return value in range [min, max]
+                            let min: f64 = tuple[0].as_float()?;
+                            let max: f64 = tuple[1].as_float()?;
+                            let range = max - min;
+                            let result = min + (rand_val + 1.0) * 0.5 * range;
+                            return Ok(evalexpr::Value::Float(result));
+                        } else if tuple.len() == 1 {
+                            // random(range) - return value in range [-range, range]
+                            let range: f64 = tuple[0].as_float()?;
+                            return Ok(evalexpr::Value::Float(rand_val * range));
+                        } else {
+                            return Err(evalexpr::EvalexprError::CustomMessage(
+                                "random expects 0, 1, or 2 arguments".to_string(),
+                            ));
+                        }
+                    } else {
+                        // Single argument: random(range)
+                        let range: f64 = arg.as_float()?;
+                        return Ok(evalexpr::Value::Float(rand_val * range));
+                    }
+                }),
+            );
+
             let _ = context.set_value(
                 "@player.hp".to_string(),
                 evalexpr::Value::Int(player_data.hp as i64),
