@@ -3,7 +3,17 @@
     SetCamera(SetZoom(2.0)),
     ViewInteraction(view_layout: "battle/view/undertale.view_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+    Wait(0.5),
+
+    TweenViewElement(
+        selector: LocalName("BattleBox"),
+        target: BoxSize(to: (130, "@current")),
+        duration: 0.5,
+        easing: QuadInOut,
+        wait_for_completion: true,
+    ),
     Wait(1.0),
+
     DanmakuPerformance(
         performance: "battle/danmaku/demo_attack.performance.ron",
         translation: Some((0.0, 50.0)),
