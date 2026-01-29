@@ -1352,19 +1352,16 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
         path: ui_path.to_string(),
     });
 
-    // Spawn a root entity for the RON UI system to attach to
+    // Spawn a root entity for the View system to attach to
+    // 生成一个根实体供 View 系统附加
     commands.spawn((
-        crate::core::view::components::RonUI::new(
-            crate::core::view::components::UILayer::new("ChaseHUD"),
-            0,
-        ),
+        ChaseHUDRoot,
         Transform::default(),
         GlobalTransform::default(),
         Visibility::default(),
         InheritedVisibility::default(),
         ViewVisibility::default(),
         OverworldEntity(),
-        ChaseHUDRoot,
         Name::new("ChaseHUD Root"),
     ));
 

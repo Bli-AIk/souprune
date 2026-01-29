@@ -37,16 +37,26 @@ use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
+use crate::core::input::{Action, InputConfig};
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::*;
+use leafwing_input_manager::action_state::ActionState;
 use serde::{Deserialize, Serialize};
 
-/// Marker component for overworld entities
+/// Marker component for battle entities
 ///
 /// 标记 Battle 实体的组件
 #[derive(Component)]
 pub(crate) struct BattleEntity;
+
+/// Marker component for the Battle UI root entity.
+///
+/// Battle UI 根实体的标记组件。
+///
+
+#[derive(Component)]
+pub struct BattleUIRoot;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
@@ -61,6 +71,14 @@ pub struct BattleMovementSet;
 
 #[derive(Component)]
 pub struct BattleCamera;
+
+/// Marker component for the Battle input manager entity.
+/// This entity holds the `ActionState<Action>` for Battle mode input handling.
+///
+/// Battle 输入管理器实体的标记组件。
+/// 该实体持有 Battle 模式下输入处理所需的 `ActionState<Action>`。
+#[derive(Component)]
+pub struct BattleInputManager;
 
 pub(crate) struct BattlePlugin;
 
@@ -83,7 +101,11 @@ impl Plugin for BattlePlugin {
                 DanmakuPlugin,
                 AmBattlePlugin,
             ))
-            .add_systems(OnEnter(AppState::Battle), setup_battle_camera);
+            .add_systems(
+                OnEnter(AppState::Battle),
+                (setup_battle_camera, setup_battle_input_manager),
+            )
+            .add_systems(OnExit(AppState::Battle), cleanup_battle_input_manager);
     }
 }
 
@@ -113,6 +135,38 @@ fn setup_battle_camera(
         BattleEntity,
         Name::new("Battle Camera2d"),
     ));
+}
+
+/// Sets up the Battle input manager entity with ActionState for handling UI navigation.
+/// Uses default input configuration from `InputConfig::default()`.
+///
+/// 设置 Battle 输入管理器实体，用于处理 UI 导航的 ActionState。
+/// 使用来自 `InputConfig::default()` 的默认输入配置。
+fn setup_battle_input_manager(mut commands: Commands) {
+    let config = InputConfig::default();
+    let input_map = config.build_input_map();
+
+    commands.spawn((
+        BattleInputManager,
+        BattleEntity,
+        input_map,
+        ActionState::<Action>::default(),
+        Name::new("Battle Input Manager"),
+    ));
+
+    info!("[Battle] Input manager spawned with default configuration");
+}
+
+/// Cleans up the Battle input manager when exiting Battle state.
+///
+/// 退出 Battle 状态时清理 Battle 输入管理器。
+fn cleanup_battle_input_manager(
+    mut commands: Commands,
+    query: Query<Entity, With<BattleInputManager>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]

@@ -4,6 +4,8 @@ use super::super::lifecycle::BackpackUIRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
+use crate::app_state::battle::BattleUIRoot;
+use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
 
@@ -11,13 +13,15 @@ use bevy::prelude::*;
 ///
 /// 从 RON 布局生成视图元素的系统。
 ///
-/// This system handles both:
-/// - BackpackUIRoot: New unified system for OW Backpack
-/// - RonUI: Legacy support for Battle and Chase HUD
+/// This system handles all UI root types:
+/// - BackpackUIRoot: OW Backpack
+/// - BattleUIRoot: Battle UI
+/// - ChaseHUDRoot: Chase HUD
 ///
-/// 该系统同时处理：
-/// - BackpackUIRoot：OW 背包的新统一系统
-/// - RonUI：Battle 和 Chase HUD 的旧版支持
+/// 该系统处理所有 UI 根类型：
+/// - BackpackUIRoot：OW 背包
+/// - BattleUIRoot：Battle UI
+/// - ChaseHUDRoot：Chase HUD
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_view_system(
@@ -30,15 +34,8 @@ pub fn spawn_ron_view_system(
         Entity,
         (With<BackpackUIRoot>, Without<ViewGenerated>, Without<UIBox>),
     >,
-    ron_ui_query: Query<
-        Entity,
-        (
-            With<RonUI>,
-            Without<BackpackUIRoot>,
-            Without<ViewGenerated>,
-            Without<UIBox>,
-        ),
-    >,
+    battle_root_query: Query<Entity, (With<BattleUIRoot>, Without<ViewGenerated>, Without<UIBox>)>,
+    chase_root_query: Query<Entity, (With<ChaseHUDRoot>, Without<ViewGenerated>, Without<UIBox>)>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -56,16 +53,15 @@ pub fn spawn_ron_view_system(
 
     let mut spawned_any = false;
 
-    // Handle BackpackUIRoot entities (new unified system)
-    // 处理 BackpackUIRoot 实体（新统一系统）
-    for view_entity in backpack_root_query.iter() {
-        info!("Spawning view from RON layout (BackpackUIRoot)");
+    // Helper closure to spawn view for an entity
+    let mut spawn_for_entity = |view_entity: Entity, label: &str| {
+        info!("Spawning view from RON layout ({})", label);
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
             Err(_) => {
                 warn!("No Camera2d found for view spawning!");
-                return;
+                return false;
             }
         };
 
@@ -83,37 +79,31 @@ pub fn spawn_ron_view_system(
             &view_layout_handle.path,
         );
         commands.entity(view_entity).insert(ViewGenerated);
-        spawned_any = true;
+        true
+    };
+
+    // Handle BackpackUIRoot entities (OW Backpack)
+    // 处理 BackpackUIRoot 实体（OW 背包）
+    for view_entity in backpack_root_query.iter() {
+        if spawn_for_entity(view_entity, "BackpackUIRoot") {
+            spawned_any = true;
+        }
     }
 
-    // Handle RonUI entities (legacy support for Battle/Chase)
-    // 处理 RonUI 实体（Battle/Chase 的旧版支持）
-    for view_entity in ron_ui_query.iter() {
-        info!("Spawning view from RON layout (RonUI legacy)");
+    // Handle BattleUIRoot entities (Battle UI)
+    // 处理 BattleUIRoot 实体（Battle UI）
+    for view_entity in battle_root_query.iter() {
+        if spawn_for_entity(view_entity, "BattleUIRoot") {
+            spawned_any = true;
+        }
+    }
 
-        let camera_transform = match camera_query.single() {
-            Ok(transform) => transform,
-            Err(_) => {
-                warn!("No Camera2d found for view spawning!");
-                return;
-            }
-        };
-
-        spawn_ron_view_for_entity(
-            &mut commands,
-            &asset_server,
-            view_entity,
-            view_layout,
-            camera_transform,
-            &mut sprite_params,
-            &animation_assets,
-            &mortar_strings,
-            &player_data,
-            &item_registry,
-            &view_layout_handle.path,
-        );
-        commands.entity(view_entity).insert(ViewGenerated);
-        spawned_any = true;
+    // Handle ChaseHUDRoot entities (Chase HUD)
+    // 处理 ChaseHUDRoot 实体（Chase HUD）
+    for view_entity in chase_root_query.iter() {
+        if spawn_for_entity(view_entity, "ChaseHUDRoot") {
+            spawned_any = true;
+        }
     }
 
     if spawned_any && let Some(ref mut w) = watcher {
@@ -670,7 +660,9 @@ pub fn spawn_view_node(
                 } else if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
                     BoxCursorVisibility::OnlyIn(layers.clone())
                 } else {
-                    BoxCursorVisibility::OnlyIn(vec![UILayer::BACKPACK_MENU])
+                    // Default to always visible if no visibility rule is specified
+                    // 如果未指定可见性规则，默认始终可见
+                    BoxCursorVisibility::Always
                 };
 
                 let mut placement = BoxCursorPlacement::new(cursor_position);

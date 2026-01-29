@@ -17,10 +17,9 @@
 //! ## 源文件概述
 //!
 //! It manages the root UI entity that controls the menu system, using InteractiveLayer
-//! for navigation and transitions instead of the legacy RonUI component.
+//! for navigation and transitions.
 //!
-//! 管理控制菜单系统的根 UI 实体，使用 InteractiveLayer 进行导航和转换，
-//! 取代旧的 RonUI 组件。
+//! 管理控制菜单系统的根 UI 实体，使用 InteractiveLayer 进行导航和转换。
 
 use super::components::InteractiveLayer;
 use super::layout::ViewLayoutAsset;
@@ -79,8 +78,24 @@ pub(crate) fn spawn_backpack_ui_system(
         return;
     };
 
-    if !interactive_layers.contains_key("BackpackMenu") {
-        warn!("BackpackMenu layer not found in interactive_layers");
+    // Determine the initial layer to activate
+    // 确定要激活的初始层
+    let initial_layer = layout.initial_layer.as_deref().unwrap_or_else(|| {
+        // Fall back to the first key in interactive_layers
+        // 回退到 interactive_layers 中的第一个键
+        interactive_layers
+            .keys()
+            .next()
+            .map(|s| s.as_str())
+            .unwrap_or("default")
+    });
+
+    if !interactive_layers.contains_key(initial_layer) {
+        warn!(
+            "Initial layer '{}' not found in interactive_layers, available layers: {:?}",
+            initial_layer,
+            interactive_layers.keys().collect::<Vec<_>>()
+        );
         return;
     }
 
@@ -98,9 +113,9 @@ pub(crate) fn spawn_backpack_ui_system(
     for (layer_id, layer_def) in interactive_layers {
         let mut layer = layer_def.build(layer_id);
 
-        // Activate the initial layer (BackpackMenu)
-        // 激活初始层（BackpackMenu）
-        if layer_id == "BackpackMenu" {
+        // Activate the initial layer from configuration
+        // 从配置激活初始层
+        if layer_id == initial_layer {
             layer.is_active = true;
         }
 
@@ -113,7 +128,10 @@ pub(crate) fn spawn_backpack_ui_system(
         info!("Spawned InteractiveLayer '{}' for backpack menu", layer_id);
     }
 
-    info!("Spawned backpack UI with InteractiveLayer system");
+    info!(
+        "Spawned backpack UI with InteractiveLayer system, initial layer: '{}'",
+        initial_layer
+    );
 }
 
 /// Despawn the root UI entity and all associated InteractiveLayers.

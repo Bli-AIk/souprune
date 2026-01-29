@@ -19,17 +19,23 @@
 //! 本文件实现了 `InputPlugin`，用于初始化并管理 `PlayerInputSettings` 与相关配置。
 
 pub(crate) mod actions;
+pub(crate) mod config;
 pub(crate) mod resources;
 
 pub(crate) use actions::*;
+pub(crate) use config::*;
 pub(crate) use resources::*;
 
+use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin};
+use bevy::asset::AssetApp;
 
 pub(crate) struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerInputSettings>();
+        app.init_resource::<PlayerInputSettings>()
+            .init_asset::<InputConfig>()
+            .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]));
     }
 }

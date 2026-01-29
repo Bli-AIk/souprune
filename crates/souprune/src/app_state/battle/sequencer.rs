@@ -316,10 +316,7 @@ fn process_ui_action_system(
                         path: path.clone(),
                     });
                     commands.spawn((
-                        crate::core::view::components::RonUI::new(
-                            crate::core::view::components::UILayer::BACKPACK_MENU,
-                            0,
-                        ),
+                        crate::app_state::battle::BattleUIRoot,
                         Transform::default(),
                         GlobalTransform::default(),
                         Visibility::default(),
@@ -344,10 +341,7 @@ fn process_ui_action_system(
                 path: view_layout.clone(),
             });
             commands.spawn((
-                crate::core::view::components::RonUI::new(
-                    crate::core::view::components::UILayer::BACKPACK_MENU,
-                    0,
-                ),
+                crate::app_state::battle::BattleUIRoot,
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),

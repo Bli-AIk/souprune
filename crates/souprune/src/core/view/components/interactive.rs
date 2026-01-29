@@ -839,6 +839,43 @@ pub struct SelectionCancelledEvent {
     pub entity: Entity,
 }
 
+/// Message fired when an interactive layer becomes active.
+///
+/// 当交互层变为活跃状态时触发的消息。
+#[derive(bevy::ecs::message::Message, Debug, Clone)]
+pub struct LayerActivatedEvent {
+    /// The layer ID.
+    ///
+    /// 层 ID。
+    pub layer_id: String,
+
+    /// Current selection index when activated.
+    ///
+    /// 激活时的当前选择索引。
+    pub current_selection: usize,
+
+    /// Entity of the layer.
+    ///
+    /// 层的实体。
+    pub entity: Entity,
+}
+
+/// Message fired when an interactive layer becomes inactive.
+///
+/// 当交互层变为非活跃状态时触发的消息。
+#[derive(bevy::ecs::message::Message, Debug, Clone)]
+pub struct LayerDeactivatedEvent {
+    /// The layer ID.
+    ///
+    /// 层 ID。
+    pub layer_id: String,
+
+    /// Entity of the layer.
+    ///
+    /// 层的实体。
+    pub entity: Entity,
+}
+
 // ============================================================================
 // Tests
 // ============================================================================

@@ -14,15 +14,16 @@
 //!
 //! ## 源文件概述
 //!
-//! It handles spawning cursor sprites and updating cursor positions based on navigation.
+//! It handles spawning cursor sprites and updating cursor positions based on navigation events.
 //!
-//! 处理光标精灵的生成和基于导航的光标位置更新。
+//! 处理光标精灵的生成和基于导航事件的光标位置更新。
 
 use super::components::{
-    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, InteractiveLayer, UIBox,
-    UIBoxFiller, UILayer,
+    BoxCursor, BoxCursorOwner, BoxCursorReady, BoxCursorSprite, InteractiveLayer,
+    LayerActivatedEvent, LayerDeactivatedEvent, SelectionChangedEvent, UIBox, UIBoxFiller, UILayer,
 };
 use crate::app_state::overworld::OverworldState;
+use bevy::ecs::message::MessageReader;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use std::collections::VecDeque;
@@ -88,16 +89,17 @@ pub(crate) fn spawn_box_cursor_visual_system(
     }
 }
 
-/// Update cursor visibility and translation based on selection focus.
+/// Update cursor position and visibility based on layer and selection events.
+/// This is a reactive system that only updates when events are received.
 ///
-/// 根据焦点位置更新光标的可见性与位移。
-///
-/// This system now uses InteractiveLayer instead of the legacy RonUI component.
-///
-/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
+/// 基于层和选择事件更新光标位置和可见性。
+/// 这是一个响应式系统，仅在收到事件时更新。
 pub(crate) fn update_box_cursor_state_system(
     overworld_state: Res<State<OverworldState>>,
     interactive_layer_query: Query<&InteractiveLayer>,
+    mut selection_changed: MessageReader<SelectionChangedEvent>,
+    mut layer_activated: MessageReader<LayerActivatedEvent>,
+    mut layer_deactivated: MessageReader<LayerDeactivatedEvent>,
     mut box_query: Query<&mut BoxCursor, With<UIBox>>,
     parent_query: Query<&ChildOf>,
     mut sprite_query: Query<
@@ -105,7 +107,91 @@ pub(crate) fn update_box_cursor_state_system(
         With<BoxCursorSprite>,
     >,
 ) {
-    // Find the currently active InteractiveLayer
+    let _ = &parent_query; // Suppress unused warning
+
+    // Handle selection changed events (cursor position update)
+    for event in selection_changed.read() {
+        let ui_layer = UILayer::new(event.layer_id.clone());
+
+        for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
+            let Ok(mut cursor) = box_query.get_mut(owner.0) else {
+                continue;
+            };
+
+            // Check if this cursor should respond to this layer
+            if !cursor.visibility().is_visible_for(&ui_layer) {
+                continue;
+            }
+
+            // Update cursor position
+            if let Some(translation) = cursor.translation_for_index(&ui_layer, event.new_index) {
+                if transform.translation != translation {
+                    transform.translation = translation;
+                }
+            }
+
+            // Ensure cursor is visible (if not hidden and in correct state)
+            let should_show =
+                overworld_state.get() == &OverworldState::Backpack && !cursor.is_hidden();
+            if should_show && *visibility != Visibility::Inherited {
+                *visibility = Visibility::Inherited;
+            }
+        }
+    }
+
+    // Handle layer activated events (show cursor and set initial position)
+    for event in layer_activated.read() {
+        let ui_layer = UILayer::new(event.layer_id.clone());
+
+        for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
+            let Ok(mut cursor) = box_query.get_mut(owner.0) else {
+                continue;
+            };
+
+            // Check if this cursor should respond to this layer
+            if !cursor.visibility().is_visible_for(&ui_layer) {
+                continue;
+            }
+
+            // Set initial cursor position
+            if let Some(translation) =
+                cursor.translation_for_index(&ui_layer, event.current_selection)
+            {
+                transform.translation = translation;
+            }
+
+            // Show cursor if in correct state
+            let should_show =
+                overworld_state.get() == &OverworldState::Backpack && !cursor.is_hidden();
+            if should_show {
+                *visibility = Visibility::Inherited;
+            }
+        }
+    }
+
+    // Handle layer deactivated events (hide cursor)
+    for event in layer_deactivated.read() {
+        let ui_layer = UILayer::new(event.layer_id.clone());
+
+        for (owner, _transform, mut visibility) in sprite_query.iter_mut() {
+            let Ok(mut cursor) = box_query.get_mut(owner.0) else {
+                continue;
+            };
+
+            // Check if this cursor should respond to this layer
+            if !cursor.visibility().is_visible_for(&ui_layer) {
+                continue;
+            }
+
+            // Hide cursor when layer is deactivated
+            *visibility = Visibility::Hidden;
+        }
+    }
+
+    // Fallback: If no events but cursor needs initial state sync
+    // This handles the case where a layer is already active when cursor spawns
+    // 后备处理：如果没有事件但光标需要初始状态同步
+    // 这处理光标生成时层已经处于活跃状态的情况
     let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
 
     for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {

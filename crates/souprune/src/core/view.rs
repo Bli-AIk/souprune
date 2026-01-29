@@ -78,7 +78,10 @@ use components::{
     BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, InteractiveLayer,
     NavigatorType, UIBox, UIBoxVisibility, UILayer,
 };
-use components::{SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent};
+use components::{
+    LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,
+    SelectionConfirmedEvent,
+};
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -101,7 +104,9 @@ impl Plugin for CoreViewPlugin {
         // 注册 InteractiveLayer 消息
         app.add_message::<SelectionChangedEvent>()
             .add_message::<SelectionConfirmedEvent>()
-            .add_message::<SelectionCancelledEvent>();
+            .add_message::<SelectionCancelledEvent>()
+            .add_message::<LayerActivatedEvent>()
+            .add_message::<LayerDeactivatedEvent>();
 
         app.init_asset::<ViewLayoutAsset>()
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&[

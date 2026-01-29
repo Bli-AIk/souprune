@@ -47,6 +47,13 @@ pub struct ViewLayoutAsset {
     /// 格式: { "层ID": InteractiveLayerDef }
     #[serde(default)]
     pub interactive_layers: Option<HashMap<String, InteractiveLayerDef>>,
+    /// The initial layer to activate when this layout is loaded.
+    /// If not specified, the first key in interactive_layers will be used.
+    ///
+    /// 加载此布局时要激活的初始层。
+    /// 如果未指定，将使用 interactive_layers 中的第一个键。
+    #[serde(default)]
+    pub initial_layer: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

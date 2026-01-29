@@ -623,10 +623,6 @@ pub(crate) fn update_sdf_view_shape_system(
 /// Toggle UI box visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
 ///
 /// 根据当前激活的 [`UILayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
-///
-/// This system now uses InteractiveLayer instead of the legacy RonUI component.
-///
-/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
 pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
@@ -704,10 +700,6 @@ pub(crate) fn update_ui_box_visibility_system(
 ///
 /// 根据当前激活的 [`UILayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
 /// 此系统处理没有 UIBox 但需要可见性控制的纯容器节点。
-///
-/// This system now uses InteractiveLayer instead of the legacy RonUI component.
-///
-/// 该系统现在使用 InteractiveLayer 替代旧的 RonUI 组件。
 pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,

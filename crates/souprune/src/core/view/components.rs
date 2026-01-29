@@ -30,19 +30,16 @@ pub(crate) use cursor::{
 };
 pub(crate) use interactive::{
     AwaitingInteraction, InteractionResult, InteractiveLayer, InteractiveLayerDef,
-    LayerTransitionAction, LayerTransitionRule, LinearDirection, NavigatorType, NavigatorTypeDef,
-    SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent,
+    LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, LayerTransitionRule,
+    LinearDirection, NavigatorType, NavigatorTypeDef, SelectionCancelledEvent,
+    SelectionChangedEvent, SelectionConfirmedEvent,
 };
 pub(crate) use layer::UILayer;
 pub(crate) use navigation::{
     IndexBound, LayerTransitions, TransitionAction, TransitionRule, UILayerNavigationConfig,
     UILayerNavigationRule, UILayerTransitionConfig,
 };
-// Note: RonUI is deprecated, use InteractiveLayer for new code.
-// Export for backward compatibility with chase.rs and battle/sequencer.rs
-// 注意：RonUI 已弃用，新代码请使用 InteractiveLayer。
-// 为了与 chase.rs 和 battle/sequencer.rs 保持向后兼容而导出
-pub(crate) use text::{RonUI, UIAnimationState, UIFont, UITextConfig, UITextTemplate};
+pub(crate) use text::{UIAnimationState, UIFont, UITextConfig, UITextTemplate};
 pub(crate) use visibility::UILayerVisibilityRule;
 
 // Public exports (used outside core::ui)

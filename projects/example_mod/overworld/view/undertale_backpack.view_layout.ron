@@ -355,8 +355,8 @@
             sound_on_cancel: None,
         ),
     },
-    // New unified interactive layer system (Phase 7)
-    // 新的统一交互层系统（Phase 7）
+    // Unified interactive layer system
+    // 统一交互层系统
     interactive_layers: {
         "BackpackMenu": (
             navigator_type: Linear(
@@ -417,4 +417,7 @@
             sound_on_confirm: "confirm.wav",
         ),
     },
+    // The initial layer to activate when this layout is loaded
+    // 加载此布局时要激活的初始层
+    initial_layer: "BackpackMenu",
 )
