@@ -223,6 +223,174 @@ pub fn evaluate_float_expr(
     }
 }
 
+/// Evaluate a float expression string with support for @current variable.
+/// This is used by the tween system where @current represents the current value.
+///
+/// 计算支持 @current 变量的浮点表达式字符串。
+/// 这由 tween 系统使用，其中 @current 代表当前值。
+pub fn evaluate_float_expr_with_current(
+    expr_str: &str,
+    current_value: Option<f32>,
+    player_data: &crate::core::data::PlayerData,
+    time: Option<f64>,
+) -> f32 {
+    use evalexpr::{
+        ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
+        HashMapContext,
+    };
+
+    let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+
+    // Register @current variable
+    if let Some(current) = current_value {
+        debug!(
+            "[evaluate_float_expr_with_current] Setting @current = {}",
+            current
+        );
+        let _ = context.set_value(
+            "@current".to_string(),
+            evalexpr::Value::Float(current as f64),
+        );
+    } else {
+        debug!("[evaluate_float_expr_with_current] Setting @current = 0.0 (no current value)");
+        let _ = context.set_value("@current".to_string(), evalexpr::Value::Float(0.0));
+    }
+
+    // Register sin function
+    let _ = context.set_function(
+        "sin".to_string(),
+        evalexpr::Function::new(|arg| {
+            let val: f64 = arg.as_float()?;
+            Ok(evalexpr::Value::Float(val.sin()))
+        }),
+    );
+
+    // Register cos function
+    let _ = context.set_function(
+        "cos".to_string(),
+        evalexpr::Function::new(|arg| {
+            let val: f64 = arg.as_float()?;
+            Ok(evalexpr::Value::Float(val.cos()))
+        }),
+    );
+
+    // Register snap function (snap(val, step))
+    let _ = context.set_function(
+        "snap".to_string(),
+        evalexpr::Function::new(|arg| {
+            if let Ok(tuple) = arg.as_tuple() {
+                if tuple.len() != 2 {
+                    return Err(evalexpr::EvalexprError::CustomMessage(
+                        "snap expects 2 arguments".to_string(),
+                    ));
+                }
+                let val: f64 = tuple[0].as_float()?;
+                let step: f64 = tuple[1].as_float()?;
+                if step == 0.0 {
+                    return Ok(evalexpr::Value::Float(val));
+                }
+                // Use floor to snap to the previous step (like 30fps update)
+                let snapped: f64 = (val / step).floor() * step;
+                Ok(evalexpr::Value::Float(snapped))
+            } else {
+                Err(evalexpr::EvalexprError::CustomMessage(
+                    "snap expects 2 arguments (val, step)".to_string(),
+                ))
+            }
+        }),
+    );
+
+    // Register random function (random() or random(min, max))
+    let _ = context.set_function(
+        "random".to_string(),
+        evalexpr::Function::new(|arg| {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            // Use system time as seed for randomness
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos();
+            let random = ((nanos as f64) / (u32::MAX as f64)) * 2.0 - 1.0;
+
+            if arg.is_empty() {
+                // random() returns value in [-1, 1]
+                Ok(evalexpr::Value::Float(random))
+            } else if let Ok(tuple) = arg.as_tuple() {
+                if tuple.len() == 1 {
+                    // random(max) returns value in [-max, max]
+                    let max: f64 = tuple[0].as_float()?;
+                    Ok(evalexpr::Value::Float(random * max))
+                } else if tuple.len() == 2 {
+                    // random(min, max) returns value in [min, max]
+                    let min: f64 = tuple[0].as_float()?;
+                    let max: f64 = tuple[1].as_float()?;
+                    let normalized = (random + 1.0) / 2.0;
+                    Ok(evalexpr::Value::Float(min + normalized * (max - min)))
+                } else {
+                    Err(evalexpr::EvalexprError::CustomMessage(
+                        "random expects 0, 1, or 2 arguments".to_string(),
+                    ))
+                }
+            } else {
+                // Single value, treat as max
+                let max: f64 = arg.as_float()?;
+                Ok(evalexpr::Value::Float(random * max))
+            }
+        }),
+    );
+
+    // Set player data variables
+    let _ = context.set_value(
+        "@player.hp".to_string(),
+        evalexpr::Value::Int(player_data.hp as i64),
+    );
+    let _ = context.set_value(
+        "@player.hp_max".to_string(),
+        evalexpr::Value::Int(player_data.hp_max as i64),
+    );
+    let _ = context.set_value(
+        "@player.lv".to_string(),
+        evalexpr::Value::Int(player_data.lv as i64),
+    );
+
+    if let Some(t) = time {
+        let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
+    } else {
+        let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
+    }
+
+    debug!(
+        "[evaluate_float_expr_with_current] Evaluating expression: '{}'",
+        expr_str
+    );
+    match evalexpr::eval_with_context(expr_str, &context) {
+        Ok(val) => {
+            if let Ok(f) = val.as_float() {
+                let f_f64: f64 = f;
+                debug!(
+                    "[evaluate_float_expr_with_current] Result: {} (float)",
+                    f_f64
+                );
+                f_f64 as f32
+            } else if let Ok(i) = val.as_int() {
+                let i_i64: i64 = i;
+                debug!("[evaluate_float_expr_with_current] Result: {} (int)", i_i64);
+                i_i64 as f32
+            } else {
+                warn!(
+                    "Failed to convert expression result to number: {}",
+                    expr_str
+                );
+                0.0
+            }
+        }
+        Err(e) => {
+            warn!("Failed to evaluate expression '{}': {}", expr_str, e);
+            0.0
+        }
+    }
+}
+
 pub fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
@@ -428,12 +596,14 @@ pub fn resolve_val_f32(
     match val {
         crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
         crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
+            // Special case: pure @current
             if expr_str == "@current" {
                 return current_value.unwrap_or(0.0);
             }
 
-            use crate::core::view::layout::FloatOrExpr;
-            evaluate_float_expr(&FloatOrExpr::Expr(expr_str.clone()), player_data, time)
+            // For expressions containing @current, use the full expression evaluator
+            // with @current set as a variable
+            evaluate_float_expr_with_current(expr_str, current_value, player_data, time)
         }
     }
 }
