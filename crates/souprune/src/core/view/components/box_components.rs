@@ -23,11 +23,11 @@ pub(crate) struct UIBox {
     /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) fill_shader: Option<String>,
-    /// Optional path to load a complex SmudShape structure from file.
-    /// If None, generates a single SmudShape (default behavior).
+    /// Optional path to load a complex SDF shape structure from file.
+    /// If None, generates a single SDF shape (default behavior).
     ///
-    /// 可选的路径，用于从文件加载复杂的 SmudShape 结构。
-    /// 如果为 None，则生成单个 SmudShape（默认行为）。
+    /// 可选的路径，用于从文件加载复杂的 SDF shape 结构。
+    /// 如果为 None，则生成单个 SDF shape（默认行为）。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) structure_file: Option<String>,
     /// Fill color for the shape.

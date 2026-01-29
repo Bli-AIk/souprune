@@ -1,14 +1,14 @@
-//! # smud_shape.rs
+//! # sdf_view_shape.rs
 //!
-//! # smud_shape.rs 文件
+//! # sdf_view_shape.rs 文件
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
 //!
-//! This module handles the rendering of UI shapes using bevy_smud for SDF shapes.
+//! This module handles the rendering of UI shapes using bevy_alight_motion's SdfMaterial.
 //!
-//! 本模块使用 bevy_smud 处理 UI 形状的 SDF 渲染。
+//! 本模块使用 bevy_alight_motion 的 SdfMaterial 处理 UI 形状的 SDF 渲染。
 //!
 //! ## Source File Overview
 //!
@@ -22,15 +22,15 @@
 
 use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
 use super::layout::serde_types::color_tuple_to_static;
-use super::layout::{SmudColorSource, SmudLayerDef, SmudSdfType, SmudStructureAsset};
+use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
+use super::sdf_shape::ViewSdfShape;
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
+use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_rich_text3d::{SegmentStyle, Text3d, Text3dSegment, Text3dStyling, TextAtlas};
-use bevy_smud::prelude::SdfAssets;
-use bevy_smud::{Frame, SmudShape};
 use std::collections::VecDeque;
 
 /// Parse text with color tags while preserving whitespace.
@@ -135,69 +135,57 @@ type UIBoxQuery<'w, 's> = Query<
     Or<(Added<UIBox>, Changed<UIBox>, Changed<Transform>)>,
 >;
 
-/// Create SmudShape child entities for each UI box.
-/// By default, generates a single SmudShape. If structure_file is specified, loads complex structure from file.
+/// Create SDF shape child entities for each UI box.
+/// By default, generates a single SDF shape. If structure_file is specified, loads complex structure from file.
 ///
-/// 为 UI 框创建 SmudShape 子实体。
-/// 默认生成单个 SmudShape。如果指定了 structure_file，则从文件加载复杂结构。
+/// 为 UI 框创建 SDF 形状子实体。
+/// 默认生成单个 SDF 形状。如果指定了 structure_file，则从文件加载复杂结构。
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
     ui_box: &UIBox,
-    outer_sdf: Handle<Shader>,
-    inner_sdf: Handle<Shader>,
-    shaders: &mut ResMut<Assets<Shader>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     let box_width = ui_box.width();
     let box_height = ui_box.height();
 
-    // Load custom shader if specified, otherwise use default solid fill
-    // 如果指定了自定义着色器则加载，否则使用默认实体填充
-    let shader_source = if let Some(shader_path) = &ui_box.fill_shader {
-        info!("Loading custom fill shader for UI box: {}", shader_path);
-        super::shaders::load_custom_shader_body(shader_path)
-    } else {
-        super::shaders::load_ui_solid_fill_body()
-    };
-    let solid_fill = shaders.add_fill_body(&shader_source);
-
     // Check if we should load a complex structure from file
     // 检查是否应该从文件加载复杂结构
     if let Some(structure_file) = &ui_box.structure_file {
-        // Load structure from file (e.g., ui_box.smud.ron for classic Border + Filler)
-        // 从文件加载结构（例如 ui_box.smud.ron 用于经典 Border + Filler）
-        info!("Loading SmudShape structure from file: {}", structure_file);
+        // Load structure from file
+        // 从文件加载结构
+        info!("Loading SDF structure from file: {}", structure_file);
         spawn_structure_from_file(
             commands,
             entity,
             ui_box,
             structure_file,
-            outer_sdf,
-            inner_sdf,
-            solid_fill,
+            meshes,
+            sdf_materials,
             color_materials,
         );
     } else {
-        // Default: single layer SmudShape
-        // 默认：单层 SmudShape
+        // Default: single layer SDF shape
+        // 默认：单层 SDF 形状
         info!(
-            "[SmudShape] Spawning single-layer SmudShape, dimensions: {}x{}, shader: {:?}",
-            box_width, box_height, ui_box.fill_shader
+            "[SdfShape] Spawning single-layer SDF shape, dimensions: {}x{}",
+            box_width, box_height
         );
+
+        let shape = ViewSdfShape::new(box_width, box_height, ui_box.fill_color);
+        let mesh = meshes.add(shape.create_mesh());
+        let material = sdf_materials.add(shape.to_material());
 
         let mut filler_entity: Option<Entity> = None;
 
         commands.entity(entity).with_children(|parent| {
             let filler = parent
                 .spawn((
-                    SmudShape {
-                        color: ui_box.fill_color,
-                        sdf: inner_sdf.clone(),
-                        frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                        fill: solid_fill.clone(),
-                        ..default()
-                    },
+                    shape,
+                    Mesh2d(mesh),
+                    MeshMaterial2d(material),
                     Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
                     GlobalTransform::default(),
                     Visibility::default(),
@@ -217,23 +205,22 @@ fn spawn_ui_box_children(
     }
 }
 
-/// Load and spawn SmudShape structure from external RON file.
+/// Load and spawn SDF structure from external RON file.
 ///
-/// 从外部 RON 文件加载并生成 SmudShape 结构。
+/// 从外部 RON 文件加载并生成 SDF 结构。
 #[allow(clippy::too_many_arguments)]
 fn spawn_structure_from_file(
     commands: &mut Commands,
     entity: Entity,
     ui_box: &UIBox,
     structure_file: &str,
-    outer_sdf: Handle<Shader>,
-    inner_sdf: Handle<Shader>,
-    solid_fill: Handle<Shader>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     // Load structure definition from RON file
     // 从 RON 文件加载结构定义
-    let structure = match load_smud_structure(structure_file) {
+    let structure = match load_sdf_structure(structure_file) {
         Some(s) => s,
         None => {
             warn!(
@@ -244,8 +231,8 @@ fn spawn_structure_from_file(
                 commands,
                 entity,
                 ui_box,
-                inner_sdf,
-                solid_fill,
+                meshes,
+                sdf_materials,
                 color_materials,
             );
             return;
@@ -253,7 +240,7 @@ fn spawn_structure_from_file(
     };
 
     info!(
-        "Spawning SmudShape structure from '{}' with {} layers",
+        "Spawning SDF structure from '{}' with {} layers",
         structure_file, structure.layer_count
     );
 
@@ -264,9 +251,8 @@ fn spawn_structure_from_file(
         entity,
         &structure.root,
         ui_box,
-        &outer_sdf,
-        &inner_sdf,
-        &solid_fill,
+        meshes,
+        sdf_materials,
     );
 
     // Spawn texts as children of filler (if found)
@@ -281,10 +267,10 @@ fn spawn_structure_from_file(
     }
 }
 
-/// Load SmudStructureAsset from a RON file synchronously.
+/// Load SdfStructureAsset from a RON file synchronously.
 ///
-/// 从 RON 文件同步加载 SmudStructureAsset。
-fn load_smud_structure(structure_file: &str) -> Option<SmudStructureAsset> {
+/// 从 RON 文件同步加载 SdfStructureAsset。
+fn load_sdf_structure(structure_file: &str) -> Option<SdfStructureAsset> {
     let config = crate::config::load_config();
     let full_path = format!("projects/{}/{}", config.project.mod_name, structure_file);
 
@@ -295,7 +281,7 @@ fn load_smud_structure(structure_file: &str) -> Option<SmudStructureAsset> {
         })
         .ok()?;
 
-    ron::de::from_str::<SmudStructureAsset>(&content)
+    ron::de::from_str::<SdfStructureAsset>(&content)
         .map_err(|e| {
             warn!("Failed to parse structure file '{}': {}", full_path, e);
             e
@@ -303,60 +289,56 @@ fn load_smud_structure(structure_file: &str) -> Option<SmudStructureAsset> {
         .ok()
 }
 
-/// Recursively spawn SmudShape layers based on the structure definition.
+/// Recursively spawn SDF layers based on the structure definition.
 /// Returns the entity ID of the filler layer (if any).
 ///
-/// 基于结构定义递归生成 SmudShape 层。
+/// 基于结构定义递归生成 SDF 层。
 /// 返回 filler 层的实体 ID（如果有）。
 fn spawn_layer_recursive(
     commands: &mut Commands,
     parent: Entity,
-    layer_def: &SmudLayerDef,
+    layer_def: &SdfLayerDef,
     ui_box: &UIBox,
-    outer_sdf: &Handle<Shader>,
-    inner_sdf: &Handle<Shader>,
-    solid_fill: &Handle<Shader>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
 ) -> Option<Entity> {
     let box_width = ui_box.width();
     let box_height = ui_box.height();
     let border_width = ui_box.border_width();
 
-    // Determine SDF and frame based on layer definition
-    // 根据层定义确定 SDF 和 frame
-    let (sdf, frame) = match layer_def.sdf_type {
-        SmudSdfType::Outer => (
-            outer_sdf.clone(),
-            Frame::Quad((box_width + border_width * 2.0) + 10.0),
+    // Determine shape dimensions based on layer definition
+    // 根据层定义确定形状尺寸
+    let (shape_width, shape_height) = match layer_def.sdf_type {
+        SdfShapeKind::Outer => (
+            box_width + border_width * 2.0,
+            box_height + border_width * 2.0,
         ),
-        SmudSdfType::Inner => (
-            inner_sdf.clone(),
-            Frame::Quad(box_width.max(box_height) + 10.0),
-        ),
+        SdfShapeKind::Inner => (box_width, box_height),
     };
 
     // Determine color based on layer definition
     // 根据层定义确定颜色
     let color = match &layer_def.color_source {
-        SmudColorSource::FillColor => ui_box.fill_color,
-        SmudColorSource::White => Color::WHITE,
-        SmudColorSource::Custom(c) => {
+        SdfColorSource::FillColor => ui_box.fill_color,
+        SdfColorSource::White => Color::WHITE,
+        SdfColorSource::Custom(c) => {
             let (r, g, b, a) = color_tuple_to_static(c);
             Color::srgba(r, g, b, a)
         }
     };
+
+    let shape = ViewSdfShape::new(shape_width, shape_height, color);
+    let mesh = meshes.add(shape.create_mesh());
+    let material = sdf_materials.add(shape.to_material());
 
     let mut spawned_entity: Option<Entity> = None;
     let mut filler_entity: Option<Entity> = None;
 
     commands.entity(parent).with_children(|parent_builder| {
         let mut entity_cmd = parent_builder.spawn((
-            SmudShape {
-                color,
-                sdf,
-                frame,
-                fill: solid_fill.clone(),
-                ..default()
-            },
+            shape,
+            Mesh2d(mesh),
+            MeshMaterial2d(material),
             Transform::from_translation(Vec3::new(0.0, 0.0, layer_def.z_offset)),
             GlobalTransform::default(),
             Visibility::default(),
@@ -383,9 +365,9 @@ fn spawn_layer_recursive(
     // 递归生成子节点
     if let Some(spawned) = spawned_entity {
         for child_def in &layer_def.children {
-            if let Some(child_filler) = spawn_layer_recursive(
-                commands, spawned, child_def, ui_box, outer_sdf, inner_sdf, solid_fill,
-            ) {
+            if let Some(child_filler) =
+                spawn_layer_recursive(commands, spawned, child_def, ui_box, meshes, sdf_materials)
+            {
                 // Propagate filler entity from children
                 // 从子节点传播 filler 实体
                 if filler_entity.is_none() {
@@ -405,24 +387,24 @@ fn spawn_single_layer_fallback(
     commands: &mut Commands,
     entity: Entity,
     ui_box: &UIBox,
-    inner_sdf: Handle<Shader>,
-    solid_fill: Handle<Shader>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     let box_width = ui_box.width();
     let box_height = ui_box.height();
 
+    let shape = ViewSdfShape::new(box_width, box_height, ui_box.fill_color);
+    let mesh = meshes.add(shape.create_mesh());
+    let material = sdf_materials.add(shape.to_material());
+
     let mut filler_entity: Option<Entity> = None;
     commands.entity(entity).with_children(|parent| {
         let filler = parent
             .spawn((
-                SmudShape {
-                    color: ui_box.fill_color,
-                    sdf: inner_sdf.clone(),
-                    frame: Frame::Quad(box_width.max(box_height) + 10.0),
-                    fill: solid_fill.clone(),
-                    ..default()
-                },
+                shape,
+                Mesh2d(mesh),
+                MeshMaterial2d(material),
                 Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -500,15 +482,16 @@ fn spawn_texts_for_filler(
         });
 }
 
-/// Update SmudShape-based UI geometry each time layout components change.
+/// Update SDF-based UI geometry each time layout components change.
 ///
-/// 当布局组件变化时更新基于 SmudShape 的 UI 几何数据。
-pub(crate) fn update_smud_shape_system(
-    mut shaders: ResMut<Assets<Shader>>,
+/// 当布局组件变化时更新基于 SDF 的 UI 几何数据。
+pub(crate) fn update_sdf_view_shape_system(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     ui_box_query: UIBoxQuery,
-    mut smud_shape_query: Query<&mut SmudShape>,
+    mut sdf_shape_query: Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>)>,
     children_query: Query<&Children>,
 ) {
     for (entity, ui_box, transform, children_opt) in ui_box_query.iter() {
@@ -516,24 +499,12 @@ pub(crate) fn update_smud_shape_system(
         let box_height = ui_box.height();
         let border_width = ui_box.border_width();
 
-        let outer_sdf = shaders.add_sdf_expr(format!(
-            "smud::sd_box(p, vec2<f32>({}, {}))",
-            (box_width + border_width * 2.0) / 2.0,
-            (box_height + border_width * 2.0) / 2.0
-        ));
-
-        let inner_sdf = shaders.add_sdf_expr(format!(
-            "smud::sd_box(p, vec2<f32>({}, {}))",
-            box_width / 2.0,
-            box_height / 2.0
-        ));
-
-        // Determine expected SmudShape count based on structure_file
-        // 根据 structure_file 确定预期的 SmudShape 数量
+        // Determine expected SDF shape count based on structure_file
+        // 根据 structure_file 确定预期的 SDF 形状数量
         let expected_shapes = if let Some(structure_file) = &ui_box.structure_file {
             // Load layer_count from the structure file
             // 从结构文件加载 layer_count
-            load_smud_structure(structure_file)
+            load_sdf_structure(structure_file)
                 .map(|s| s.layer_count)
                 .unwrap_or(1) // Fallback to single layer if loading fails
         } else {
@@ -543,12 +514,12 @@ pub(crate) fn update_smud_shape_system(
         match children_opt {
             Some(children) => {
                 let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
-                let mut smud_shape_entities: Vec<Entity> = Vec::new();
+                let mut sdf_shape_entities: Vec<Entity> = Vec::new();
 
                 while let Some(child) = queue.pop_front() {
-                    if smud_shape_query.get(child).is_ok() {
-                        smud_shape_entities.push(child);
-                        if smud_shape_entities.len() >= expected_shapes {
+                    if sdf_shape_query.get(child).is_ok() {
+                        sdf_shape_entities.push(child);
+                        if sdf_shape_entities.len() >= expected_shapes {
                             break;
                         }
                     }
@@ -558,35 +529,46 @@ pub(crate) fn update_smud_shape_system(
                     }
                 }
 
-                if smud_shape_entities.len() >= expected_shapes {
-                    trace!("Updating existing SmudShape children for UI box");
+                if sdf_shape_entities.len() >= expected_shapes {
+                    trace!("Updating existing SDF shape children for UI box");
 
                     if expected_shapes == 1 {
                         // Update single shape
-                        if let Ok(mut shape) = smud_shape_query.get_mut(smud_shape_entities[0]) {
-                            shape.sdf = inner_sdf.clone();
-                            shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
+                        if let Ok((mut shape, mat_handle)) =
+                            sdf_shape_query.get_mut(sdf_shape_entities[0])
+                        {
+                            shape.half_width = box_width / 2.0;
+                            shape.half_height = box_height / 2.0;
+                            // Update material
+                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
+                                *material = shape.to_material();
+                            }
                         }
                     } else {
                         // Update outer (border) and inner (filler) shapes
-                        if let Ok(mut outer_shape) =
-                            smud_shape_query.get_mut(smud_shape_entities[0])
+                        if let Ok((mut outer_shape, mat_handle)) =
+                            sdf_shape_query.get_mut(sdf_shape_entities[0])
                         {
-                            outer_shape.sdf = outer_sdf.clone();
-                            outer_shape.frame =
-                                Frame::Quad((box_width + border_width * 2.0) + 10.0);
+                            outer_shape.half_width = (box_width + border_width * 2.0) / 2.0;
+                            outer_shape.half_height = (box_height + border_width * 2.0) / 2.0;
+                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
+                                *material = outer_shape.to_material();
+                            }
                         }
 
-                        if let Ok(mut inner_shape) =
-                            smud_shape_query.get_mut(smud_shape_entities[1])
+                        if let Ok((mut inner_shape, mat_handle)) =
+                            sdf_shape_query.get_mut(sdf_shape_entities[1])
                         {
-                            inner_shape.sdf = inner_sdf.clone();
-                            inner_shape.frame = Frame::Quad(box_width.max(box_height) + 10.0);
+                            inner_shape.half_width = box_width / 2.0;
+                            inner_shape.half_height = box_height / 2.0;
+                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
+                                *material = inner_shape.to_material();
+                            }
                         }
                     }
                 } else {
                     trace!(
-                        "Adding SmudShape children to existing UI box at position: {:?}",
+                        "Adding SDF shape children to existing UI box at position: {:?}",
                         transform.translation
                     );
 
@@ -594,16 +576,15 @@ pub(crate) fn update_smud_shape_system(
                         &mut commands,
                         entity,
                         ui_box,
-                        outer_sdf,
-                        inner_sdf,
-                        &mut shaders,
+                        &mut meshes,
+                        &mut sdf_materials,
                         &mut color_materials,
                     );
                 }
             }
             None => {
                 trace!(
-                    "Creating new SmudShape children for UI box at position: {:?}",
+                    "Creating new SDF shape children for UI box at position: {:?}",
                     transform.translation
                 );
 
@@ -611,9 +592,8 @@ pub(crate) fn update_smud_shape_system(
                     &mut commands,
                     entity,
                     ui_box,
-                    outer_sdf,
-                    inner_sdf,
-                    &mut shaders,
+                    &mut meshes,
+                    &mut sdf_materials,
                     &mut color_materials,
                 );
             }

@@ -1,4 +1,4 @@
-// SDF Shape Shader - Custom implementation replacing bevy_smud
+// SDF Shape Shader - Custom implementation for Bevy
 //
 // Renders rectangles (round/miter/bevel corners) and circles/ellipses
 // with optional strokes using signed distance field techniques.
@@ -95,6 +95,40 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     
     let mask1_enabled = mask1_type > 0.5 && material.mask_params.z < 5000.0;
     let mask2_enabled = mask2_type > 0.5 && material.mask2_params.z < 5000.0;
+    
+    // For include masks: can do early discard outside mask area
+    // For exclude masks: must NOT do early discard (we keep pixels OUTSIDE the mask)
+    let mask1_is_include_type = mask1_type > 0.5 && mask1_type < 2.5; // types 1.0 and 2.0 are includes
+    if mask1_enabled && mask1_is_include_type {
+        let world_pos = in.world_position.xy;
+        let center1 = material.mask_params.xy;
+        let half_size1 = material.mask_params.zw;
+        var rel_pos1 = world_pos - center1;
+        
+        // Apply rotation
+        let rot1 = -material.mask_rotation;
+        let cos1 = cos(rot1);
+        let sin1 = sin(rot1);
+        rel_pos1 = vec2<f32>(
+            rel_pos1.x * cos1 - rel_pos1.y * sin1,
+            rel_pos1.x * sin1 + rel_pos1.y * cos1
+        );
+        
+        let is_ellipse1 = mask1_type > 1.5;
+        var inside: bool;
+        if is_ellipse1 {
+            let normalized1 = rel_pos1 / half_size1;
+            inside = dot(normalized1, normalized1) <= 1.0;
+        } else {
+            inside = abs(rel_pos1.x) <= half_size1.x && abs(rel_pos1.y) <= half_size1.y;
+        }
+        
+        if !inside {
+            // Outside include mask - discard
+            discard;
+        }
+        // Inside include mask - continue to normal rendering below
+    }
     
     if mask1_enabled || mask2_enabled {
         let world_pos = in.world_position.xy;
@@ -232,12 +266,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     }
     
-    // Anti-aliasing width based on screen-space derivatives
-    let aa_width = fwidth(dist);
-    let safe_aa_width = clamp(aa_width, 0.5, 10.0);
+    // Hard edge rendering (pixel-perfect for retro style games)
+    // Use step instead of smoothstep for crisp edges
     
-    // Fill: inside the shape (dist < 0)
-    let fill_alpha = 1.0 - smoothstep(-safe_aa_width, safe_aa_width, dist);
+    // Fill: inside the shape (dist <= 0)
+    let fill_alpha = step(dist, 0.0);
     let fill_col = vec4<f32>(material.color.rgb, material.color.a * fill_alpha);
     
     // Handle stroke if stroke_width > 0
@@ -247,13 +280,15 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         // Centered stroke: distance band around the edge
         let half_stroke = stroke_width * 0.5;
         let dist_from_edge = abs(dist);
-        let stroke_alpha = 1.0 - smoothstep(half_stroke - safe_aa_width, half_stroke + safe_aa_width, dist_from_edge);
+        // Hard edge stroke: inside if dist_from_edge <= half_stroke
+        let stroke_alpha = step(dist_from_edge, half_stroke);
         let stroke_col = vec4<f32>(stroke_color.rgb, stroke_color.a * stroke_alpha);
         
         // Composite: stroke over fill
         let out_a = stroke_col.a + fill_col.a * (1.0 - stroke_col.a);
         
-        if out_a <= 0.0 {
+        // Use threshold to handle floating point precision issues
+        if out_a < 0.01 {
             discard;
         }
         

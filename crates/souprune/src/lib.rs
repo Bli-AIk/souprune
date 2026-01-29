@@ -192,7 +192,6 @@ fn get_third_plugins() -> (
     leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     seldom_state::prelude::StateMachinePlugin,
     bevy_ecs_tiled::prelude::TiledPlugin,
-    bevy_smud::SmudPlugin,
     bevy_rich_text3d::Text3dPlugin,
     bevy_alight_motion::prelude::AlightMotionPlugin,
 ) {
@@ -200,7 +199,6 @@ fn get_third_plugins() -> (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
         seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
-        bevy_smud::SmudPlugin,
         bevy_rich_text3d::Text3dPlugin {
             default_atlas_dimension: (1024, 1024),
             load_system_fonts: false,
