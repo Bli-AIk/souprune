@@ -82,38 +82,42 @@ pub fn update_dynamic_ui_elements(
                 //    debug!("Evaluating expr: {}", expr);
                 // }
 
-                let new_translation = Vec3::new(
-                    evaluate_float_expr(
-                        &t_def.translation.x,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &t_def.translation.y,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &t_def.translation.z,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                );
+                let new_translation = if let Some(trans) = &t_def.translation {
+                    Vec3::new(
+                        evaluate_float_expr(
+                            &trans.0,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
+                        evaluate_float_expr(
+                            &trans.1,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
+                        evaluate_float_expr(
+                            &trans.2,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        ),
+                    )
+                } else {
+                    Vec3::ZERO
+                };
 
                 if let Some(scale_def) = &t_def.scale {
                     let new_scale = Vec3::new(
                         evaluate_float_expr(
-                            &scale_def.x,
+                            &scale_def.0,
                             &player_data,
                             Some(time.elapsed_secs_f64()),
                         ),
                         evaluate_float_expr(
-                            &scale_def.y,
+                            &scale_def.1,
                             &player_data,
                             Some(time.elapsed_secs_f64()),
                         ),
                         evaluate_float_expr(
-                            &scale_def.z,
+                            &scale_def.2,
                             &player_data,
                             Some(time.elapsed_secs_f64()),
                         ),
@@ -141,22 +145,22 @@ pub fn update_dynamic_ui_elements(
             {
                 hp_bar_sprite.shader_params = Color::srgba(
                     evaluate_float_expr(
-                        &shader_params.r,
+                        &shader_params.0,
                         &player_data,
                         Some(time.elapsed_secs_f64()),
                     ),
                     evaluate_float_expr(
-                        &shader_params.g,
+                        &shader_params.1,
                         &player_data,
                         Some(time.elapsed_secs_f64()),
                     ),
                     evaluate_float_expr(
-                        &shader_params.b,
+                        &shader_params.2,
                         &player_data,
                         Some(time.elapsed_secs_f64()),
                     ),
                     evaluate_float_expr(
-                        &shader_params.a,
+                        &shader_params.3,
                         &player_data,
                         Some(time.elapsed_secs_f64()),
                     ),
@@ -166,30 +170,34 @@ pub fn update_dynamic_ui_elements(
 
         // Update text transform if present
         if let Some(text_def) = &dynamic_elem.text_def {
-            let new_translation = Vec3::new(
-                evaluate_float_expr(
-                    &text_def.transform.translation.x,
-                    &player_data,
-                    Some(time.elapsed_secs_f64()),
-                ),
-                evaluate_float_expr(
-                    &text_def.transform.translation.y,
-                    &player_data,
-                    Some(time.elapsed_secs_f64()),
-                ),
-                evaluate_float_expr(
-                    &text_def.transform.translation.z,
-                    &player_data,
-                    Some(time.elapsed_secs_f64()),
-                ),
-            );
+            let new_translation = if let Some(trans) = &text_def.transform.translation {
+                Vec3::new(
+                    evaluate_float_expr(
+                        &trans.0,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &trans.1,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                    evaluate_float_expr(
+                        &trans.2,
+                        &player_data,
+                        Some(time.elapsed_secs_f64()),
+                    ),
+                )
+            } else {
+                Vec3::ZERO
+            };
             transform.translation = new_translation;
 
             if let Some(scale_def) = &text_def.transform.scale {
                 transform.scale = Vec3::new(
-                    evaluate_float_expr(&scale_def.x, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.y, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.z, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.0, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.1, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.2, &player_data, Some(time.elapsed_secs_f64())),
                 );
             }
         }

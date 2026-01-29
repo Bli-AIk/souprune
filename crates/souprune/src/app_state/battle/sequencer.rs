@@ -367,7 +367,7 @@ fn process_danmaku_performance_system(
     for (entity, active_chapter) in query.iter() {
         if let Chapter::DanmakuPerformance {
             performance,
-            position,
+            translation,
         } = &active_chapter.chapter
         {
             info!(
@@ -375,7 +375,7 @@ fn process_danmaku_performance_system(
                 performance
             );
             let mut event = PlayPerformanceEvent::new(performance.clone());
-            if let Some((x, y)) = position {
+            if let Some((x, y)) = translation {
                 event = event.at_position(Vec2::new(*x, *y));
             }
             performance_events.write(event);

@@ -172,17 +172,21 @@ pub fn build_text_config(
         world_scale: text_def.world_scale.clone().into(),
         color,
         transform: {
-            let translation = Vec3::new(
-                evaluate_float_expr(&text_def.transform.translation.x, player_data, None),
-                evaluate_float_expr(&text_def.transform.translation.y, player_data, None),
-                evaluate_float_expr(&text_def.transform.translation.z, player_data, None),
-            );
+            let translation = if let Some(trans) = &text_def.transform.translation {
+                Vec3::new(
+                    evaluate_float_expr(&trans.0, player_data, None),
+                    evaluate_float_expr(&trans.1, player_data, None),
+                    evaluate_float_expr(&trans.2, player_data, None),
+                )
+            } else {
+                Vec3::ZERO
+            };
             let mut t = Transform::from_translation(translation);
             if let Some(scale) = &text_def.transform.scale {
                 t.scale = Vec3::new(
-                    evaluate_float_expr(&scale.x, player_data, None),
-                    evaluate_float_expr(&scale.y, player_data, None),
-                    evaluate_float_expr(&scale.z, player_data, None),
+                    evaluate_float_expr(&scale.0, player_data, None),
+                    evaluate_float_expr(&scale.1, player_data, None),
+                    evaluate_float_expr(&scale.2, player_data, None),
                 );
             }
             if let Some(rot) = text_def.transform.rotation {
@@ -244,16 +248,18 @@ pub fn spawn_ui_node(
             let sprite_def = node_def.sprite.as_ref().unwrap();
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
-                transform.translation = Vec3::new(
-                    evaluate_float_expr(&t_def.translation.x, player_data, None),
-                    evaluate_float_expr(&t_def.translation.y, player_data, None),
-                    evaluate_float_expr(&t_def.translation.z, player_data, None),
-                );
+                if let Some(trans) = &t_def.translation {
+                    transform.translation = Vec3::new(
+                        evaluate_float_expr(&trans.0, player_data, None),
+                        evaluate_float_expr(&trans.1, player_data, None),
+                        evaluate_float_expr(&trans.2, player_data, None),
+                    );
+                }
                 if let Some(scale) = &t_def.scale {
                     transform.scale = Vec3::new(
-                        evaluate_float_expr(&scale.x, player_data, None),
-                        evaluate_float_expr(&scale.y, player_data, None),
-                        evaluate_float_expr(&scale.z, player_data, None),
+                        evaluate_float_expr(&scale.0, player_data, None),
+                        evaluate_float_expr(&scale.1, player_data, None),
+                        evaluate_float_expr(&scale.2, player_data, None),
                     );
                 }
                 if let Some(rot) = t_def.rotation {
@@ -329,7 +335,7 @@ pub fn spawn_ui_node(
                             shader_params: sprite_def
                                 .shader_params
                                 .as_ref()
-                                .map(|c| c.to_static_color())
+                                .map(|c| dynamic_color_to_static(c))
                                 .unwrap_or(Color::WHITE),
                         },
                     ));
@@ -432,15 +438,15 @@ pub fn spawn_ui_node(
                 })
                 .collect::<Vec<_>>();
 
-            let offset = ui_shape_logic.offset.to_static_vec3();
-            let dynamic_anchor = if ui_shape_logic.offset.x.as_expr().is_some()
-                || ui_shape_logic.offset.y.as_expr().is_some()
-                || ui_shape_logic.offset.z.as_expr().is_some()
+            let offset = serializable_vec3_to_static(&ui_shape_logic.offset);
+            let dynamic_anchor = if ui_shape_logic.offset.0.as_expr().is_some()
+                || ui_shape_logic.offset.1.as_expr().is_some()
+                || ui_shape_logic.offset.2.as_expr().is_some()
             {
                 Some(CameraAnchoredDynamic {
-                    x_expression: ui_shape_logic.offset.x.as_expr().cloned(),
-                    y_expression: ui_shape_logic.offset.y.as_expr().cloned(),
-                    z_expression: ui_shape_logic.offset.z.as_expr().cloned(),
+                    x_expression: ui_shape_logic.offset.0.as_expr().map(|s| s.to_string()),
+                    y_expression: ui_shape_logic.offset.1.as_expr().map(|s| s.to_string()),
+                    z_expression: ui_shape_logic.offset.2.as_expr().map(|s| s.to_string()),
                 })
             } else {
                 None
@@ -557,21 +563,21 @@ pub fn spawn_ui_node(
                 let cursor_position = if let Some(default_pos) = &cursor_def.default_translation {
                     match default_pos {
                         BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(vec.to_static_vec3())
+                            BoxCursorPosition::Static(serializable_vec3_to_static(vec))
                         }
                         BoxCursorPositionDef::Linear { origin, step } => {
                             BoxCursorPosition::Linear {
-                                origin: origin.to_static_vec3(),
-                                step: step.to_static_vec3(),
+                                origin: serializable_vec3_to_static(origin),
+                                step: serializable_vec3_to_static(step),
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| v.to_static_vec3()).collect(),
+                            positions.iter().map(|v| serializable_vec3_to_static(v)).collect(),
                         ),
                     }
                 } else if let Some(transform) = &cursor_def.transform {
                     if let Some(translation) = &transform.translation {
-                        BoxCursorPosition::Static(translation.to_static_vec3())
+                        BoxCursorPosition::Static(serializable_vec3_to_static(translation))
                     } else {
                         BoxCursorPosition::Static(Vec3::ZERO)
                     }
@@ -593,16 +599,16 @@ pub fn spawn_ui_node(
                     let layer = UILayer::new(layer_name.clone());
                     let position = match position_def {
                         BoxCursorPositionDef::Static(vec) => {
-                            BoxCursorPosition::Static(vec.to_static_vec3())
+                            BoxCursorPosition::Static(serializable_vec3_to_static(vec))
                         }
-                        BoxCursorPositionDef::Linear { origin, step } => {
+                        BoxCursorPositionDef::Linear { origin, step} => {
                             BoxCursorPosition::Linear {
-                                origin: origin.to_static_vec3(),
-                                step: step.to_static_vec3(),
+                                origin: serializable_vec3_to_static(origin),
+                                step: serializable_vec3_to_static(step),
                             }
                         }
                         BoxCursorPositionDef::Custom { positions } => BoxCursorPosition::Custom(
-                            positions.iter().map(|v| v.to_static_vec3()).collect(),
+                            positions.iter().map(|v| serializable_vec3_to_static(v)).collect(),
                         ),
                     };
                     placement = placement.with_override(layer, position);
@@ -611,7 +617,7 @@ pub fn spawn_ui_node(
                 let cursor_transform = if let Some(transform_def) = &cursor_def.transform {
                     let mut transform = Transform::default();
                     if let Some(scale) = &transform_def.scale {
-                        transform.scale = scale.to_static_vec3();
+                        transform.scale = serializable_vec3_to_static(scale);
                     } else {
                         transform.scale = Vec3::splat(1.0);
                     }
@@ -704,19 +710,21 @@ pub fn spawn_ui_node(
 
             let mut has_dynamic = false;
             if let Some(t) = &sprite_def.transform {
-                let tx = t.translation.x.is_dynamic();
-                let ty = t.translation.y.is_dynamic();
-                let tz = t.translation.z.is_dynamic();
-                info!(
-                    "Checking dynamics for {}: x={}, y={}, z={}",
-                    node_def.name, tx, ty, tz
-                );
+                if let Some(trans) = &t.translation {
+                    let tx = trans.0.is_dynamic();
+                    let ty = trans.1.is_dynamic();
+                    let tz = trans.2.is_dynamic();
+                    info!(
+                        "Checking dynamics for {}: x={}, y={}, z={}",
+                        node_def.name, tx, ty, tz
+                    );
 
-                if tx || ty || tz {
-                    has_dynamic = true;
+                    if tx || ty || tz {
+                        has_dynamic = true;
+                    }
                 }
                 if let Some(s) = &t.scale
-                    && (s.x.is_dynamic() || s.y.is_dynamic() || s.z.is_dynamic())
+                    && (s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic())
                 {
                     has_dynamic = true;
                 }
@@ -724,7 +732,7 @@ pub fn spawn_ui_node(
             if sprite_def
                 .shader_params
                 .as_ref()
-                .is_some_and(|p| p.is_dynamic())
+                .is_some_and(|p| is_dynamic_color(p))
             {
                 has_dynamic = true;
             }
@@ -823,12 +831,16 @@ pub(crate) fn spawn_container_texts(
         }
 
         // Add DynamicUIElement if transform has dynamic expressions
-        let has_dynamic = text_def.transform.translation.is_dynamic()
+        let has_dynamic = text_def
+            .transform
+            .translation
+            .as_ref()
+            .is_some_and(|t| is_dynamic_vec3(t))
             || text_def
                 .transform
                 .scale
                 .as_ref()
-                .is_some_and(|s| s.is_dynamic());
+                .is_some_and(|s| is_dynamic_vec3(s));
 
         if has_dynamic {
             cmd.insert(super::super::components::DynamicUIElement {
@@ -850,16 +862,18 @@ fn spawn_ui_sprite(
 ) {
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {
-        transform.translation = Vec3::new(
-            evaluate_float_expr(&t_def.translation.x, player_data, None),
-            evaluate_float_expr(&t_def.translation.y, player_data, None),
-            evaluate_float_expr(&t_def.translation.z, player_data, None),
-        );
+        if let Some(trans) = &t_def.translation {
+            transform.translation = Vec3::new(
+                evaluate_float_expr(&trans.0, player_data, None),
+                evaluate_float_expr(&trans.1, player_data, None),
+                evaluate_float_expr(&trans.2, player_data, None),
+            );
+        }
         if let Some(scale) = &t_def.scale {
             transform.scale = Vec3::new(
-                evaluate_float_expr(&scale.x, player_data, None),
-                evaluate_float_expr(&scale.y, player_data, None),
-                evaluate_float_expr(&scale.z, player_data, None),
+                evaluate_float_expr(&scale.0, player_data, None),
+                evaluate_float_expr(&scale.1, player_data, None),
+                evaluate_float_expr(&scale.2, player_data, None),
             );
         }
         if let Some(rot) = t_def.rotation {

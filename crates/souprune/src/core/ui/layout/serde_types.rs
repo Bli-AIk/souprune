@@ -14,8 +14,13 @@
 //! 本模块处理简单 RON 数据类型（如 `SerializableColor`）与 Bevy 运行时类型（如 `Color`, `Val`）之间的转换。
 
 use bevy::prelude::*;
-use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType, Val};
+use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
+use bevy::ui::Val as BevyVal;
 use serde::Deserialize;
+
+pub use crate::app_state::battle::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};
+
+pub type FloatOrExpr = Val<f32>;
 
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UiFlexDirection {
@@ -46,14 +51,14 @@ pub enum SerializableVal {
     Vh(f32),
 }
 
-impl From<SerializableVal> for Val {
+impl From<SerializableVal> for BevyVal {
     fn from(val: SerializableVal) -> Self {
         match val {
-            SerializableVal::Auto => Val::Auto,
-            SerializableVal::Px(v) => Val::Px(v),
-            SerializableVal::Percent(v) => Val::Percent(v),
-            SerializableVal::Vw(v) => Val::Vw(v),
-            SerializableVal::Vh(v) => Val::Vh(v),
+            SerializableVal::Auto => BevyVal::Auto,
+            SerializableVal::Px(v) => BevyVal::Px(v),
+            SerializableVal::Percent(v) => BevyVal::Percent(v),
+            SerializableVal::Vw(v) => BevyVal::Vw(v),
+            SerializableVal::Vh(v) => BevyVal::Vh(v),
         }
     }
 }
@@ -131,71 +136,53 @@ impl From<SerializableColor> for Color {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum FloatOrExpr {
-    Static(f32),
-    Dynamic(String),
+pub type DynamicColor = ColorTuple;
+pub type SerializableVec3 = Vec3Tuple;
+
+pub fn dynamic_color_to_static(color: &DynamicColor) -> Color {
+    Color::srgba(
+        match &color.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.2 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &color.3 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+    )
 }
 
-impl FloatOrExpr {
-    pub fn as_float(&self) -> f32 {
-        match self {
-            FloatOrExpr::Static(v) => *v,
-            FloatOrExpr::Dynamic(_) => 0.0,
-        }
-    }
-
-    pub fn as_expr(&self) -> Option<&String> {
-        match self {
-            FloatOrExpr::Dynamic(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    pub fn is_dynamic(&self) -> bool {
-        matches!(self, FloatOrExpr::Dynamic(_))
-    }
+pub fn is_dynamic_color(color: &DynamicColor) -> bool {
+    color.0.is_expr() || color.1.is_expr() || color.2.is_expr() || color.3.is_expr()
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct DynamicColor {
-    pub r: FloatOrExpr,
-    pub g: FloatOrExpr,
-    pub b: FloatOrExpr,
-    pub a: FloatOrExpr,
+pub fn serializable_vec3_to_static(vec: &SerializableVec3) -> Vec3 {
+    Vec3::new(
+        match &vec.0 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &vec.1 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+        match &vec.2 {
+            Val::Static(v) => *v,
+            Val::Expr(_) => 0.0,
+        },
+    )
 }
 
-impl DynamicColor {
-    pub fn to_static_color(&self) -> Color {
-        Color::srgba(
-            self.r.as_float(),
-            self.g.as_float(),
-            self.b.as_float(),
-            self.a.as_float(),
-        )
-    }
-
-    pub fn is_dynamic(&self) -> bool {
-        self.r.is_dynamic() || self.g.is_dynamic() || self.b.is_dynamic() || self.a.is_dynamic()
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SerializableVec3 {
-    pub x: FloatOrExpr,
-    pub y: FloatOrExpr,
-    pub z: FloatOrExpr,
-}
-
-impl SerializableVec3 {
-    pub fn to_static_vec3(&self) -> Vec3 {
-        Vec3::new(self.x.as_float(), self.y.as_float(), self.z.as_float())
-    }
-
-    pub fn is_dynamic(&self) -> bool {
-        self.x.is_dynamic() || self.y.is_dynamic() || self.z.is_dynamic()
-    }
+pub fn is_dynamic_vec3(vec: &SerializableVec3) -> bool {
+    vec.0.is_expr() || vec.1.is_expr() || vec.2.is_expr()
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -212,7 +199,8 @@ impl From<SerializableVec2> for Vec2 {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SerializableTransform {
-    pub translation: SerializableVec3,
+    #[serde(default)]
+    pub translation: Option<SerializableVec3>,
     #[serde(default)]
     pub rotation: Option<f32>,
     #[serde(default)]

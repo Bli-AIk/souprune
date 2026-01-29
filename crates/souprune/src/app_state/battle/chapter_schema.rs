@@ -27,6 +27,21 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// 3D vector tuple type for coordinates like translation and scale.
+///
+/// 三维向量元组类型，用于表示位置和缩放等坐标。
+pub type Vec3Tuple = (Val<f32>, Val<f32>, Val<f32>);
+
+/// 2D vector tuple type for coordinates.
+///
+/// 二维向量元组类型，用于表示坐标。
+pub type Vec2Tuple = (Val<f32>, Val<f32>);
+
+/// Color tuple type with RGBA components.
+///
+/// RGBA 颜色元组类型。
+pub type ColorTuple = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+
 /// Generic value that can be either static or computed from an expression.
 ///
 /// 泛型值，可以是静态值或从表达式计算得出。
@@ -49,6 +64,13 @@ impl<T> Val<T> {
     /// 如果是动态表达式则返回 true。
     pub fn is_expr(&self) -> bool {
         matches!(self, Val::Expr(_))
+    }
+
+    /// Alias for `is_expr()` for backward compatibility.
+    ///
+    /// 为保持向后兼容的 `is_expr()` 别名。
+    pub fn is_dynamic(&self) -> bool {
+        self.is_expr()
     }
 
     /// Get the static value if available.
@@ -95,9 +117,9 @@ pub enum Chapter {
     DanmakuPerformance {
         /// Path to the performance file (e.g., "battle/performances/boss_attack.performance.ron")
         performance: String,
-        /// Optional spawn position override (defaults to center of battle box)
+        /// Optional spawn translation override (defaults to center of battle box)
         #[serde(default)]
-        position: Option<(f32, f32)>,
+        translation: Option<(f32, f32)>,
     },
 
     /// Alight Motion Animation Performance Chapter.

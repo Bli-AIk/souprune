@@ -1,5 +1,6 @@
 use super::super::components::IndexBound;
 use super::super::layout::FloatOrExpr;
+use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldState;
 use crate::core::input::Action;
 use bevy::prelude::*;
@@ -84,8 +85,8 @@ pub fn evaluate_float_expr(
     time: Option<f64>,
 ) -> f32 {
     match expr {
-        FloatOrExpr::Static(v) => *v,
-        FloatOrExpr::Dynamic(expr_str) => {
+        Val::Static(v) => *v,
+        Val::Expr(expr_str) => {
             use evalexpr::{
                 ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
                 HashMapContext,
@@ -427,14 +428,12 @@ pub fn resolve_val_f32(
     match val {
         crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
         crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
-            // Special case: "@current" keyword
             if expr_str == "@current" {
                 return current_value.unwrap_or(0.0);
             }
 
-            // Otherwise, evaluate as expression
             use crate::core::ui::layout::FloatOrExpr;
-            evaluate_float_expr(&FloatOrExpr::Dynamic(expr_str.clone()), player_data, time)
+            evaluate_float_expr(&FloatOrExpr::Expr(expr_str.clone()), player_data, time)
         }
     }
 }
