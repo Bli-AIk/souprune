@@ -6,9 +6,9 @@
 //!
 //! ## 模块概述
 //!
-//! This module loads WGSL shader code from external files for use with bevy_smud.
+//! This module loads WGSL shader code from external files for use with SdfMaterial.
 //!
-//! 本模块从外部文件加载 WGSL 着色器代码供 bevy_smud 使用。
+//! 本模块从外部文件加载 WGSL 着色器代码供 SdfMaterial 使用。
 //!
 //! ## Source File Overview
 //!

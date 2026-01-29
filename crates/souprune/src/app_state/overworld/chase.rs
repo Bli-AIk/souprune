@@ -24,7 +24,7 @@ use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::image::TextureAtlasLayout;
 use bevy::prelude::*;
 use bevy::sprite_render::MeshMaterial2d;
-use bevy_smud::prelude::*;
+use bevy_alight_motion::sdf_material::SdfMaterial;
 use serde::Deserialize;
 use std::fs;
 
@@ -32,6 +32,7 @@ use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::{OverworldEntity, OverworldState, OverworldUpdate};
 use crate::config;
 use crate::core::view::PixelOutlineMaterial;
+use crate::core::view::sdf_shape::ViewSdfShape;
 
 /// Marker component for entities that should be highlighted during chase state.
 ///
@@ -435,7 +436,8 @@ fn update_chase_transition_system(
 /// 进入追逐战状态时生成黑色覆盖层。
 fn spawn_chase_dark_overlay_system(
     mut commands: Commands,
-    mut shaders: ResMut<Assets<Shader>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     transition: Res<ChaseTransition>,
     chase_config: Res<ChaseConfig>,
     chase_root: Query<Entity, With<ChaseEffectRoot>>,
@@ -452,11 +454,9 @@ fn spawn_chase_dark_overlay_system(
 
     // Create a very large box to cover the screen
     let overlay_size = 10000.0;
-    let sdf = shaders.add_sdf_expr(format!(
-        "smud::sd_box(p, vec2<f32>({}, {}))",
-        overlay_size / 2.0,
-        overlay_size / 2.0
-    ));
+    let shape = ViewSdfShape::new(overlay_size, overlay_size, Color::srgba(0.0, 0.0, 0.0, 0.0));
+    let mesh = meshes.add(shape.create_mesh());
+    let material = sdf_materials.add(shape.to_material());
 
     commands.entity(root_entity).with_children(|parent| {
         parent.spawn((
@@ -464,13 +464,9 @@ fn spawn_chase_dark_overlay_system(
             ChaseEffect {
                 target_alpha: chase_config.dark_overlay.target_alpha,
             },
-            SmudShape {
-                color: Color::srgba(0.0, 0.0, 0.0, 0.0),
-                sdf,
-                frame: Frame::Quad(overlay_size),
-                fill: SIMPLE_FILL_HANDLE,
-                ..default()
-            },
+            shape,
+            Mesh2d(mesh),
+            MeshMaterial2d(material),
             Transform::from_xyz(0.0, 0.0, 50.0), // High Z to be on top
             Name::new("ChaseDarkOverlay"),
         ));
@@ -729,7 +725,8 @@ fn update_player_outline_system(
 fn update_chase_effect_alpha_system(
     transition: Res<ChaseTransition>,
     chase_config: Res<ChaseConfig>,
-    mut smud_effects: Query<(&mut SmudShape, &ChaseEffect)>,
+    sdf_effects: Query<(&ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &ChaseEffect)>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut outline_query: Query<&MeshMaterial2d<PixelOutlineMaterial>, With<ChasePlayerOutline>>,
     mut materials: ResMut<Assets<PixelOutlineMaterial>>,
 ) {
@@ -740,12 +737,17 @@ fn update_chase_effect_alpha_system(
         1.0
     };
 
-    // Update SmudShape effects (dark overlay)
-    for (mut shape, effect) in smud_effects.iter_mut() {
+    // Update SDF shape effects (dark overlay)
+    for (shape, mat_handle, effect) in sdf_effects.iter() {
         let target_alpha = effect.target_alpha * progress;
-        let mut color = shape.color.to_srgba();
-        color.alpha = target_alpha;
-        shape.color = color.into();
+        if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
+            // Update the material color with new alpha
+            let mut new_shape = shape.clone();
+            let mut color = shape.color.to_srgba();
+            color.alpha = target_alpha;
+            new_shape.color = color.into();
+            *material = new_shape.to_material();
+        }
     }
 
     // Update outline material alpha

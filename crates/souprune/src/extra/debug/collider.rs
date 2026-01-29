@@ -26,8 +26,10 @@ pub mod debug_collider {
     use crate::app_state::overworld::tilemap::*;
     use crate::app_state::overworld::trigger::TriggerZone;
     use crate::core::collision::{PhysicsCollider, Rect2DCollider, TriggerCollider};
+    use crate::core::view::sdf_shape::ViewSdfShape;
     use bevy::prelude::*;
-    use bevy_smud::prelude::*;
+    use bevy::sprite_render::MeshMaterial2d;
+    use bevy_alight_motion::sdf_material::SdfMaterial;
 
     /// Marker component for collision visualizer entities.
     ///
@@ -50,6 +52,92 @@ pub mod debug_collider {
     pub struct AmMaskVisualizer {
         /// The mask layer id this visualizer is tracking
         pub mask_layer_id: u64,
+    }
+
+    /// Helper function to create debug collider visualization using SdfMaterial.
+    /// Creates a stroke-only rectangle to show collider bounds.
+    ///
+    /// 使用 SdfMaterial 创建调试碰撞体可视化的辅助函数。
+    /// 创建一个仅边框的矩形来显示碰撞体边界。
+    fn spawn_debug_visualizer(
+        commands: &mut Commands,
+        meshes: &mut ResMut<Assets<Mesh>>,
+        sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+        debug_root: Entity,
+        parent: Entity,
+        half_width: f32,
+        half_height: f32,
+        color: Color,
+        position: Vec3,
+        name: String,
+    ) {
+        let shape = ViewSdfShape {
+            color: Color::NONE,
+            half_width,
+            half_height,
+        };
+
+        let material = SdfMaterial::new(
+            bevy_alight_motion::sdf_material::SdfShapeType::BoxMiter,
+            half_width,
+            half_height,
+            Color::NONE,
+            0.5,
+            color,
+        );
+
+        let frame_size = (half_width.max(half_height) * 2.0) + 4.0;
+        let mesh = meshes.add(Rectangle::new(frame_size, frame_size));
+        let mat_handle = sdf_materials.add(material);
+
+        commands.entity(debug_root).with_children(|parent_builder| {
+            parent_builder.spawn((
+                ColliderVisualizer { parent },
+                shape,
+                Mesh2d(mesh),
+                MeshMaterial2d(mat_handle),
+                Transform::from_translation(position),
+                Name::new(name),
+            ));
+        });
+    }
+
+    /// Helper function to create a circle debug visualizer.
+    ///
+    /// 创建圆形调试可视化器的辅助函数。
+    fn spawn_circle_debug_visualizer(
+        commands: &mut Commands,
+        meshes: &mut ResMut<Assets<Mesh>>,
+        sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+        debug_root: Entity,
+        parent: Entity,
+        radius: f32,
+        color: Color,
+        position: Vec3,
+        name: String,
+    ) {
+        let material = SdfMaterial::new(
+            bevy_alight_motion::sdf_material::SdfShapeType::Circle,
+            radius,
+            radius,
+            Color::NONE,
+            0.5,
+            color,
+        );
+
+        let frame_size = radius * 2.0 + 4.0;
+        let mesh = meshes.add(Rectangle::new(frame_size, frame_size));
+        let mat_handle = sdf_materials.add(material);
+
+        commands.entity(debug_root).with_children(|parent_builder| {
+            parent_builder.spawn((
+                ColliderVisualizer { parent },
+                Mesh2d(mesh),
+                MeshMaterial2d(mat_handle),
+                Transform::from_translation(position),
+                Name::new(name),
+            ));
+        });
     }
 
     /// Root entity for organizing all debug visualizers.
@@ -115,21 +203,22 @@ pub mod debug_collider {
         }
     }
 
-    /// System to render rectangular colliders using bevy_smud SDF (debug only).
+    /// System to render rectangular colliders using SdfMaterial (debug only).
     ///
-    /// 使用bevy_smud SDF渲染矩形碰撞体的系统（仅调试模式）。
+    /// 使用 SdfMaterial 渲染矩形碰撞体的系统（仅调试模式）。
     #[allow(clippy::type_complexity)]
     #[allow(clippy::too_many_arguments)]
     fn render_rect_colliders_system(
         mut commands: Commands,
-        mut shaders: ResMut<Assets<Shader>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut sdf_materials: ResMut<Assets<SdfMaterial>>,
         settings: Res<ColliderDebugSettings>,
         debug_root: Query<Entity, With<DebugVisualizerRoot>>,
         player_colliders: Query<
             (Entity, &Transform, &Rect2DCollider),
             (
                 With<PlayerControlled>,
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
             ),
         >,
@@ -138,7 +227,7 @@ pub mod debug_collider {
             (
                 With<TilemapCollider>,
                 Without<PlayerControlled>,
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
             ),
         >,
@@ -147,7 +236,7 @@ pub mod debug_collider {
             (
                 With<ObjectCollider>,
                 Without<PlayerControlled>,
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
             ),
         >,
@@ -208,20 +297,32 @@ pub mod debug_collider {
                 return;
             }
 
-            // Build a thin-border SDF via a distance field outline.
-            //
-            // 用距离场轮廓构建细边框 SDF。
-            let border_sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
+            // Create a stroke-only shape (no fill, just outline)
+            // Use transparent fill with colored stroke
+            // 创建仅边框的形状（无填充，仅轮廓）
+            // 使用透明填充和彩色边框
+            let shape = ViewSdfShape {
+                color: Color::NONE, // Transparent fill
+                half_width: collider.size.x / 2.0,
+                half_height: collider.size.y / 2.0,
+            };
+
+            // Create material with stroke
+            let material = SdfMaterial::new(
+                bevy_alight_motion::sdf_material::SdfShapeType::BoxMiter,
                 collider.size.x / 2.0,
                 collider.size.y / 2.0,
-                0.125
-            ));
+                Color::NONE, // Transparent fill
+                0.5,         // Stroke width
+                color,       // Stroke color
+            );
 
             // Calculate the frame size from the collider dimensions.
             //
             // 根据碰撞体尺寸计算框架大小。
-            let frame_size = (collider.size.x.max(collider.size.y) / 2.0) + 2.0;
+            let frame_size = collider.size.x.max(collider.size.y) + 4.0;
+            let mesh = meshes.add(Rectangle::new(frame_size, frame_size));
+            let mat_handle = sdf_materials.add(material);
 
             // Combine the transform and offset to get the final position.
             //
@@ -234,13 +335,9 @@ pub mod debug_collider {
             commands.entity(debug_root_entity).with_children(|parent| {
                 parent.spawn((
                     ColliderVisualizer { parent: entity },
-                    SmudShape {
-                        color,
-                        sdf: border_sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
+                    shape,
+                    Mesh2d(mesh),
+                    MeshMaterial2d(mat_handle),
                     Transform::from_translation(final_position),
                     Name::new(name),
                 ));
@@ -293,12 +390,13 @@ pub mod debug_collider {
     #[allow(clippy::type_complexity)]
     fn render_trigger_zones_system(
         mut commands: Commands,
-        mut shaders: ResMut<Assets<Shader>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut sdf_materials: ResMut<Assets<SdfMaterial>>,
         settings: Res<ColliderDebugSettings>,
         debug_root: Query<Entity, With<DebugVisualizerRoot>>,
         trigger_zones: Query<
             (Entity, &Transform, &Rect2DCollider, &TriggerZone),
-            (Without<SmudShape>, Without<ColliderVisualizer>),
+            (Without<ViewSdfShape>, Without<ColliderVisualizer>),
         >,
         existing_visualizers: Query<(Entity, &ColliderVisualizer)>,
     ) {
@@ -319,15 +417,6 @@ pub mod debug_collider {
                 continue;
             }
 
-            // Build a thin-border SDF (cyan color for trigger zones)
-            let border_sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - {}",
-                collider.size.x / 2.0,
-                collider.size.y / 2.0,
-                0.125
-            ));
-
-            let frame_size = (collider.size.x.max(collider.size.y) / 2.0) + 2.0;
             let final_position = transform.translation + collider.offset.extend(0.1);
 
             // Use cyan color for trigger zones to distinguish from colliders
@@ -337,20 +426,18 @@ pub mod debug_collider {
                 Color::hsl(180.0, 1.0, 0.5) // Normal cyan
             };
 
-            commands.entity(debug_root_entity).with_children(|parent| {
-                parent.spawn((
-                    ColliderVisualizer { parent: entity },
-                    SmudShape {
-                        color,
-                        sdf: border_sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
-                    Transform::from_translation(final_position),
-                    Name::new(format!("TriggerZone_{}", trigger_zone.id)),
-                ));
-            });
+            spawn_debug_visualizer(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                debug_root_entity,
+                entity,
+                collider.size.x / 2.0,
+                collider.size.y / 2.0,
+                color,
+                final_position,
+                format!("TriggerZone_{}", trigger_zone.id),
+            );
         }
     }
 
@@ -380,13 +467,14 @@ pub mod debug_collider {
     #[allow(clippy::type_complexity)]
     fn render_battle_colliders_system(
         mut commands: Commands,
-        mut shaders: ResMut<Assets<Shader>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut sdf_materials: ResMut<Assets<SdfMaterial>>,
         settings: Res<ColliderDebugSettings>,
         debug_root: Query<Entity, With<DebugVisualizerRoot>>,
         physics_colliders: Query<
             (Entity, &Transform, &crate::core::collision::PhysicsCollider),
             (
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
             ),
@@ -399,7 +487,7 @@ pub mod debug_collider {
                 Option<&crate::core::collision::HitboxOffset>,
             ),
             (
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
             ),
@@ -413,7 +501,7 @@ pub mod debug_collider {
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
                 Without<crate::core::collision::PhysicsCollider>,
@@ -429,7 +517,7 @@ pub mod debug_collider {
             (
                 With<crate::app_state::battle::collision::BattleBox>,
                 Without<crate::core::view::components::UIBox>,
-                Without<SmudShape>,
+                Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
                 Without<crate::core::collision::PhysicsCollider>,
@@ -449,7 +537,6 @@ pub mod debug_collider {
 
         // Visualize physics colliders (green)
         for (entity, transform, physics_collider) in physics_colliders.iter() {
-            // Check if visualizer already exists
             let has_visualizer = existing_visualizers
                 .iter()
                 .any(|(_, vis)| vis.parent == entity);
@@ -458,40 +545,41 @@ pub mod debug_collider {
                 continue;
             }
 
-            let (sdf, frame_size, name) = match physics_collider {
+            let position = transform.translation + Vec3::new(0.0, 0.0, 20.0);
+            let color = Color::hsl(120.0, 1.0, 0.5);
+
+            match physics_collider {
                 PhysicsCollider::Circle { radius } => {
-                    let sdf = shaders
-                        .add_sdf_expr(format!("abs(smud::sd_circle(p, {})) - 0.125", radius));
-                    (sdf, radius + 2.0, "Physics Collider (Circle)")
+                    spawn_circle_debug_visualizer(
+                        &mut commands,
+                        &mut meshes,
+                        &mut sdf_materials,
+                        debug_root_entity,
+                        entity,
+                        *radius,
+                        color,
+                        position,
+                        "Physics Collider (Circle)".to_string(),
+                    );
                 }
                 PhysicsCollider::Box { half_size } => {
-                    let sdf = shaders.add_sdf_expr(format!(
-                        "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
-                        half_size.x, half_size.y
-                    ));
-                    let max_dim = half_size.x.max(half_size.y) + 2.0;
-                    (sdf, max_dim, "Physics Collider (Box)")
+                    spawn_debug_visualizer(
+                        &mut commands,
+                        &mut meshes,
+                        &mut sdf_materials,
+                        debug_root_entity,
+                        entity,
+                        half_size.x,
+                        half_size.y,
+                        color,
+                        position,
+                        "Physics Collider (Box)".to_string(),
+                    );
                 }
             };
-
-            commands.entity(debug_root_entity).with_children(|parent| {
-                parent.spawn((
-                    SmudShape {
-                        color: Color::hsl(120.0, 1.0, 0.5),
-                        sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
-                    Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, 20.0)),
-                    ColliderVisualizer { parent: entity },
-                    Name::new(name.to_string()),
-                ));
-            });
         }
 
         // Visualize trigger colliders (green for battle, red for chase hitbox)
-        // 可视化触发器碰撞体（战斗为绿色，追逐战判定框为红色）
         for (entity, transform, trigger_collider, hitbox_offset) in trigger_colliders.iter() {
             let has_visualizer = existing_visualizers
                 .iter()
@@ -501,68 +589,58 @@ pub mod debug_collider {
                 continue;
             }
 
-            // Determine if this is a chase hitbox (red) or battle collider (green)
             let is_chase_hitbox = chase_hitboxes.get(entity).is_ok();
-
             let color = if is_chase_hitbox {
                 Color::hsl(0.0, 1.0, 0.5) // Red for chase hitbox
             } else {
                 Color::hsl(120.0, 1.0, 0.5) // Green for battle
             };
 
-            let (sdf, frame_size, name) = match trigger_collider {
-                TriggerCollider::Circle { radius } => {
-                    let sdf = shaders
-                        .add_sdf_expr(format!("abs(smud::sd_circle(p, {})) - 0.125", radius));
-                    (
-                        sdf,
-                        radius + 2.0,
-                        if is_chase_hitbox {
-                            "Chase Hitbox (Circle)"
-                        } else {
-                            "Trigger Collider (Circle)"
-                        },
-                    )
-                }
-                TriggerCollider::Box { half_size } => {
-                    let sdf = shaders.add_sdf_expr(format!(
-                        "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
-                        half_size.x, half_size.y
-                    ));
-                    let max_dim = half_size.x.max(half_size.y) + 2.0;
-                    (
-                        sdf,
-                        max_dim,
-                        if is_chase_hitbox {
-                            "Chase Hitbox (Box)"
-                        } else {
-                            "Trigger Collider (Box)"
-                        },
-                    )
-                }
-            };
-
-            // Apply hitbox offset if present
             let offset = hitbox_offset.map(|o| o.0).unwrap_or(Vec2::ZERO);
             let position = transform.translation() + offset.extend(20.0);
 
-            commands.entity(debug_root_entity).with_children(|parent| {
-                parent.spawn((
-                    SmudShape {
+            match trigger_collider {
+                TriggerCollider::Circle { radius } => {
+                    let name = if is_chase_hitbox {
+                        "Chase Hitbox (Circle)"
+                    } else {
+                        "Trigger Collider (Circle)"
+                    };
+                    spawn_circle_debug_visualizer(
+                        &mut commands,
+                        &mut meshes,
+                        &mut sdf_materials,
+                        debug_root_entity,
+                        entity,
+                        *radius,
                         color,
-                        sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
-                    Transform::from_translation(position),
-                    ColliderVisualizer { parent: entity },
-                    Name::new(name.to_string()),
-                ));
-            });
+                        position,
+                        name.to_string(),
+                    );
+                }
+                TriggerCollider::Box { half_size } => {
+                    let name = if is_chase_hitbox {
+                        "Chase Hitbox (Box)"
+                    } else {
+                        "Trigger Collider (Box)"
+                    };
+                    spawn_debug_visualizer(
+                        &mut commands,
+                        &mut meshes,
+                        &mut sdf_materials,
+                        debug_root_entity,
+                        entity,
+                        half_size.x,
+                        half_size.y,
+                        color,
+                        position,
+                        name.to_string(),
+                    );
+                }
+            };
         }
 
-        // Visualize Battle Box (White)
+        // Visualize Battle Box (Green)
         for (entity, global_transform, ui_box) in battle_boxes.iter() {
             let has_visualizer = existing_visualizers
                 .iter()
@@ -574,30 +652,20 @@ pub mod debug_collider {
 
             let half_width = ui_box.width() / 2.0;
             let half_height = ui_box.height() / 2.0;
+            let position = global_transform.translation() + Vec3::new(0.0, 0.0, 50.0);
 
-            let sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
-                half_width, half_height
-            ));
-
-            let frame_size = half_width.max(half_height) + 2.0;
-
-            commands.entity(debug_root_entity).with_children(|parent| {
-                parent.spawn((
-                    SmudShape {
-                        color: Color::hsl(120.0, 1.0, 0.5),
-                        sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
-                    Transform::from_translation(
-                        global_transform.translation() + Vec3::new(0.0, 0.0, 50.0),
-                    ),
-                    ColliderVisualizer { parent: entity },
-                    Name::new("Battle Box Debug"),
-                ));
-            });
+            spawn_debug_visualizer(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                debug_root_entity,
+                entity,
+                half_width,
+                half_height,
+                Color::hsl(120.0, 1.0, 0.5),
+                position,
+                "Battle Box Debug".to_string(),
+            );
         }
 
         // Visualize AM Battle Box (Cyan to distinguish from UI battle box)
@@ -612,32 +680,21 @@ pub mod debug_collider {
 
             let half_width = am_bounds.width / 2.0;
             let half_height = am_bounds.height / 2.0;
-
-            let sdf = shaders.add_sdf_expr(format!(
-                "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.125",
-                half_width, half_height
-            ));
-
-            let frame_size = half_width.max(half_height) + 2.0;
-
-            // Apply center_offset to get the actual geometric center
             let center_pos = global_transform.translation()
                 + Vec3::new(am_bounds.center_offset.x, am_bounds.center_offset.y, 50.0);
 
-            commands.entity(debug_root_entity).with_children(|parent| {
-                parent.spawn((
-                    SmudShape {
-                        color: Color::hsl(180.0, 1.0, 0.5), // Cyan for AM battle box
-                        sdf,
-                        frame: Frame::Quad(frame_size),
-                        fill: SIMPLE_FILL_HANDLE,
-                        ..default()
-                    },
-                    Transform::from_translation(center_pos),
-                    ColliderVisualizer { parent: entity },
-                    Name::new("AM Battle Box Debug"),
-                ));
-            });
+            spawn_debug_visualizer(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                debug_root_entity,
+                entity,
+                half_width,
+                half_height,
+                Color::hsl(180.0, 1.0, 0.5), // Cyan
+                center_pos,
+                "AM Battle Box Debug".to_string(),
+            );
         }
     }
 
@@ -722,7 +779,8 @@ pub mod debug_collider {
     #[allow(clippy::type_complexity)]
     fn render_am_masks_system(
         mut commands: Commands,
-        mut shaders: ResMut<Assets<Shader>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut sdf_materials: ResMut<Assets<SdfMaterial>>,
         settings: Res<ColliderDebugSettings>,
         debug_root: Query<Entity, With<DebugVisualizerRoot>>,
         // Query SDF shapes that have masks to get actual mask_params
@@ -730,7 +788,6 @@ pub mod debug_collider {
             Entity,
             &MeshMaterial2d<bevy_alight_motion::sdf_material::SdfMaterial>,
         )>,
-        sdf_materials: Res<Assets<bevy_alight_motion::sdf_material::SdfMaterial>>,
         existing_visualizers: Query<(Entity, &AmMaskVisualizer)>,
     ) {
         // Debug log every frame when F3 is on
@@ -752,6 +809,7 @@ pub mod debug_collider {
         }
 
         // Find the first SDF shape with an active mask and read its mask_params
+        // Collect mask params first, then use sdf_materials for adding new material
         let mut found_mask_params: Option<(f32, f32, f32, f32)> = None;
         let mut total_sdf_shapes = 0;
         let mut masked_shapes = 0;
@@ -776,21 +834,12 @@ pub mod debug_collider {
         // Only create if we don't have one yet
         if let Some((center_x, center_y, half_width, half_height)) = found_mask_params {
             if !has_existing_visualizer {
-                // Create an outline SDF (same style as other collider visualizers)
-                let outline_sdf = shaders.add_sdf_expr(format!(
-                    "abs(smud::sd_box(p, vec2<f32>({}, {}))) - 0.5",
-                    half_width, half_height
-                ));
-
-                let frame_size = half_width.max(half_height) + 5.0;
-
                 bevy::log::info!(
-                    "[MaskDebug] Creating visualizer: center=({:.1},{:.1}), half_size=({:.1},{:.1}), frame={:.1}",
+                    "[MaskDebug] Creating visualizer: center=({:.1},{:.1}), half_size=({:.1},{:.1})",
                     center_x,
                     center_y,
                     half_width,
-                    half_height,
-                    frame_size
+                    half_height
                 );
                 bevy::log::info!(
                     "[MaskDebug] Stats: total_sdf_shapes={}, masked_shapes={}",
@@ -798,16 +847,25 @@ pub mod debug_collider {
                     masked_shapes
                 );
 
+                // Create outline using SdfMaterial with stroke
+                let material = SdfMaterial::new(
+                    bevy_alight_motion::sdf_material::SdfShapeType::BoxMiter,
+                    half_width,
+                    half_height,
+                    Color::NONE,
+                    0.5,
+                    Color::hsl(0.0, 1.0, 0.5), // Red
+                );
+
+                let frame_size = (half_width.max(half_height) * 2.0) + 10.0;
+                let mesh = meshes.add(Rectangle::new(frame_size, frame_size));
+                let mat_handle = sdf_materials.add(material);
+
                 commands.entity(debug_root_entity).with_children(|parent| {
                     parent.spawn((
                         AmMaskVisualizer { mask_layer_id: 0 },
-                        SmudShape {
-                            color: Color::hsl(0.0, 1.0, 0.5), // Solid red (same as chase hitbox)
-                            sdf: outline_sdf,
-                            frame: Frame::Quad(frame_size),
-                            fill: SIMPLE_FILL_HANDLE,
-                            ..default()
-                        },
+                        Mesh2d(mesh),
+                        MeshMaterial2d(mat_handle),
                         Transform::from_translation(Vec3::new(center_x, center_y, 100.0)),
                         Name::new("AM Mask Debug (from shader params)"),
                     ));

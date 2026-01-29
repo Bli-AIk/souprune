@@ -1,6 +1,6 @@
 use super::super::components::{DynamicUIElement, HPBarLag, HPBarSprite, UITextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
-use super::super::smud_shape::parse_text_preserving_whitespace;
+use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_float_expr, resolve_text_content};
 use crate::core::data::PlayerData;
 use bevy::prelude::*;
@@ -67,7 +67,7 @@ pub fn update_dynamic_ui_elements(
 ) {
     *frame_count += 1;
     if !query.is_empty() && (*frame_count).is_multiple_of(60) {
-        info!(
+        debug!(
             "update_dynamic_ui_elements: processing {} entities. Time: {}",
             query.iter().len(),
             time.elapsed_secs_f64()
