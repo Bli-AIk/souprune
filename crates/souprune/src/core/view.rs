@@ -2,7 +2,7 @@
 //!
 //! ## Module Overview
 //! This module manages the RON-driven UI system for the Overworld game state.
-//! The UI is implemented using SDF rendering provided by bevy_smud and mesh-based text rendering
+//! The UI is implemented using SDF rendering provided by bevy_alight_motion SdfMaterial and mesh-based text rendering
 //! provided by bevy_rich_text3d.
 //!
 //! ## Source File Overview
@@ -11,7 +11,7 @@
 //! without changing the code.
 //!
 //! ## 模块概述
-//! 该模块管理着 Overworld 游戏状态的 RON 驱动 UI 系统。此 UI 是基于 bevy_smud 提供的 SDF 渲染
+//! 该模块管理着 Overworld 游戏状态的 RON 驱动 UI 系统。此 UI 是基于 bevy_alight_motion SdfMaterial 提供的 SDF 渲染
 //! 与 bevy_rich_text3d 提供的基于 Mesh 的文本渲染实现的。
 //!
 //! ## 源文件概述
@@ -37,8 +37,9 @@ pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
 pub(crate) mod ron_view;
+pub mod sdf_shape;
+mod sdf_view_shape;
 mod shaders;
-mod smud_shape;
 mod state;
 mod text;
 
@@ -53,7 +54,7 @@ pub use components::{
 };
 use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};
 use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
-pub(crate) use layout::SmudStructureAsset;
+pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 pub use ron_view::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
@@ -61,8 +62,8 @@ use ron_view::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
-use smud_shape::{
-    update_smud_shape_system, update_ui_box_visibility_system,
+use sdf_view_shape::{
+    update_sdf_view_shape_system, update_ui_box_visibility_system,
     update_ui_container_visibility_system,
 };
 use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
@@ -97,8 +98,8 @@ impl Plugin for CoreViewPlugin {
                 "view_layout.ron",
                 "ui_layout.ron", // Keep compatibility with old filename / 保持与旧文件名的兼容性
             ]))
-            .init_asset::<SmudStructureAsset>()
-            .register_asset_loader(RonAssetLoader::<SmudStructureAsset>::new(&["smud.ron"]))
+            .init_asset::<SdfStructureAsset>()
+            .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["smud.ron"]))
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
             >::default())
@@ -139,7 +140,7 @@ impl Plugin for CoreViewPlugin {
                     ui_animation_init_system,
                     ron_view::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
-                    update_smud_shape_system,
+                    update_sdf_view_shape_system,
                     update_ui_box_visibility_system,
                     update_ui_container_visibility_system,
                     assign_text_material_system,

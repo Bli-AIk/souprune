@@ -279,27 +279,27 @@ pub enum TransitionActionDef {
 }
 
 // ============================================================================
-// SmudStructure Asset Definition
+// SdfStructure Asset Definition
 // ============================================================================
 
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
-pub struct SmudStructureAsset {
+pub struct SdfStructureAsset {
     pub layer_count: usize,
-    pub root: SmudLayerDef,
+    pub root: SdfLayerDef,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct SmudLayerDef {
+pub struct SdfLayerDef {
     pub name: String,
-    pub sdf_type: SmudSdfType,
+    pub sdf_type: SdfShapeKind,
     #[serde(default)]
-    pub color_source: SmudColorSource,
+    pub color_source: SdfColorSource,
     #[serde(default = "default_z_offset")]
     pub z_offset: f32,
     #[serde(default)]
     pub is_filler: bool,
     #[serde(default)]
-    pub children: Vec<SmudLayerDef>,
+    pub children: Vec<SdfLayerDef>,
 }
 
 fn default_z_offset() -> f32 {
@@ -307,13 +307,13 @@ fn default_z_offset() -> f32 {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub enum SmudSdfType {
+pub enum SdfShapeKind {
     Outer,
     Inner,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub enum SmudColorSource {
+pub enum SdfColorSource {
     #[default]
     FillColor,
     White,

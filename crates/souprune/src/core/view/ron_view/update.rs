@@ -1,6 +1,6 @@
 use super::super::components::{DynamicUIElement, HPBarLag, HPBarSprite, UITextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
-use super::super::smud_shape::parse_text_preserving_whitespace;
+use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_float_expr, resolve_text_content};
 use crate::core::data::PlayerData;
 use bevy::prelude::*;
