@@ -38,11 +38,11 @@ fn load_view_layouts() -> HashMap<String, UILayoutAsset> {
         .collect()
 }
 
-/// Ensure every `.ui.ron` file loads.
+/// Ensure every `.view_layout.ron` file loads.
 ///
-/// 确保所有 `.ui.ron` 文件均可加载。
+/// 确保所有 `.view_layout.ron` 文件均可加载。
 #[test]
-fn ui_layouts_deserialize() {
+fn view_layouts_deserialize() {
     for (relative, layout) in load_view_layouts() {
         assert!(
             layout.version > 0,
@@ -92,7 +92,7 @@ const OVERWORLD_STATES: &[&str] = &["Normal", "Backpack", "Cutscene"];
 ///
 /// 验证导航、跳转与触发引用的层或状态均有效。
 #[test]
-fn ui_layout_reference_integrity() {
+fn view_layout_reference_integrity() {
     for (relative, layout) in load_view_layouts() {
         let mut defined_layers = HashSet::new();
         collect_node_names(&layout.roots, &mut defined_layers);
@@ -244,7 +244,7 @@ fn check_vec_expr(vec: &SerializableVec3) {
 ///
 /// 评估动态表达式（锚点或导航范围）以确保其有效。
 #[test]
-fn ui_layout_dynamic_expressions_evaluate() {
+fn view_layout_dynamic_expressions_evaluate() {
     for (relative, layout) in load_view_layouts() {
         for node in all_nodes(&layout) {
             if let Some(cursor) = &node.cursor {

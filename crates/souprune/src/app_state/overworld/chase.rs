@@ -264,7 +264,7 @@ impl Default for HitboxConfig {
 /// 受伤UI配置。
 #[derive(Debug, Clone, Deserialize)]
 pub struct DamageUIConfig {
-    /// UI layout file path
+    /// View layout file path
     pub layout_path: String,
     /// Display duration in seconds
     pub display_duration: f32,
@@ -1339,11 +1339,11 @@ pub struct ChaseHUDRoot;
 fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD UI layout / 加载追逐战 HUD 视图布局
+    // Load the chase HUD View layout / 加载追逐战 HUD 视图布局
     let ui_path = "overworld/view/damage_flash.view_layout.ron";
     let handle = asset_server.load(ui_path);
 
-    // Insert the UI layout handle resource
+    // Insert the View layout handle resource
     commands.insert_resource(crate::core::view::UILayoutHandle {
         handle,
         last_modified: None,
@@ -1395,7 +1395,7 @@ fn cleanup_chase_hud_system(
         commands.entity(entity).despawn();
     }
 
-    // Remove the UI layout handle resource
+    // Remove the View layout handle resource
     commands.remove_resource::<crate::core::view::UILayoutHandle>();
     commands.remove_resource::<crate::core::view::UILayoutWatcher>();
 

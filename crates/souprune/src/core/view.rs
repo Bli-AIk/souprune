@@ -6,7 +6,7 @@
 //! provided by bevy_rich_text3d.
 //!
 //! ## Source File Overview
-//! This file defines the `OverworldUIPlugin` which loads UI layouts from RON files.
+//! This file defines the `OverworldViewPlugin` which loads View layouts from RON files.
 //! Different UI styles (Undertale, Deltarune, etc.) can be achieved by simply modifying the RON files
 //! without changing the code.
 //!
@@ -15,7 +15,7 @@
 //! 与 bevy_rich_text3d 提供的基于 Mesh 的文本渲染实现的。
 //!
 //! ## 源文件概述
-//! 该文件定义了从 RON 文件加载 UI 布局的 `OverworldUIPlugin`。
+//! 该文件定义了从 RON 文件加载 View 布局的 `OverworldViewPlugin`。
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
 use crate::app_state::overworld::OverworldState;
