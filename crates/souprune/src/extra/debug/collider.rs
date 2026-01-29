@@ -409,7 +409,7 @@ pub mod debug_collider {
             (
                 Entity,
                 &GlobalTransform,
-                &crate::core::ui::components::UIBox,
+                &crate::core::view::components::UIBox,
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
@@ -428,7 +428,7 @@ pub mod debug_collider {
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
-                Without<crate::core::ui::components::UIBox>,
+                Without<crate::core::view::components::UIBox>,
                 Without<SmudShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
@@ -673,7 +673,7 @@ pub mod debug_collider {
         battle_boxes: Query<
             &GlobalTransform,
             (
-                With<crate::core::ui::components::UIBox>,
+                With<crate::core::view::components::UIBox>,
                 With<crate::app_state::battle::collision::BattleBox>,
                 Without<ColliderVisualizer>,
             ),
@@ -685,7 +685,7 @@ pub mod debug_collider {
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
-                Without<crate::core::ui::components::UIBox>,
+                Without<crate::core::view::components::UIBox>,
                 Without<ColliderVisualizer>,
             ),
         >,

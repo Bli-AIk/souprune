@@ -27,18 +27,85 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// 3D vector tuple type for coordinates like translation and scale.
+///
+/// 三维向量元组类型，用于表示位置和缩放等坐标。
+pub type Vec3Tuple = (Val<f32>, Val<f32>, Val<f32>);
+
+/// 2D vector tuple type for coordinates.
+///
+/// 二维向量元组类型，用于表示坐标。
+pub type Vec2Tuple = (Val<f32>, Val<f32>);
+
+/// Color tuple type with RGBA components.
+///
+/// RGBA 颜色元组类型。
+pub type ColorTuple = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+
+/// Generic value that can be either static or computed from an expression.
+///
+/// 泛型值，可以是静态值或从表达式计算得出。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Val<T> {
+    /// Static value.
+    ///
+    /// 静态值。
+    Static(T),
+    /// Dynamic expression string.
+    ///
+    /// 动态表达式字符串。
+    Expr(String),
+}
+
+impl<T> Val<T> {
+    /// Returns true if this is a dynamic expression.
+    ///
+    /// 如果是动态表达式则返回 true。
+    pub fn is_expr(&self) -> bool {
+        matches!(self, Val::Expr(_))
+    }
+
+    /// Alias for `is_expr()` for backward compatibility.
+    ///
+    /// 为保持向后兼容的 `is_expr()` 别名。
+    pub fn is_dynamic(&self) -> bool {
+        self.is_expr()
+    }
+
+    /// Get the static value if available.
+    ///
+    /// 获取静态值（如果可用）。
+    pub fn as_static(&self) -> Option<&T> {
+        match self {
+            Val::Static(v) => Some(v),
+            Val::Expr(_) => None,
+        }
+    }
+
+    /// Get the expression string if this is an expression.
+    ///
+    /// 获取表达式字符串（如果是表达式）。
+    pub fn as_expr(&self) -> Option<&str> {
+        match self {
+            Val::Expr(s) => Some(s),
+            Val::Static(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
-    /// UI Interaction Chapter.
+    /// View Interaction Chapter.
     ///
-    /// The Chapter allows players to interact with the UI.
-    /// Chapters involving UI interaction should apply this, such as player choices, dialogues, etc.
+    /// This chapter allows players to interact with the view.
+    /// It loads a view layout file for View interaction scenarios, such as player choices or dialogues.
     ///
-    /// UI 交互章节。
+    /// 视图交互章节。
     ///
-    /// 此章节允许玩家与 UI 交互。
-    /// 涉及 UI 交互的章节都应应用此项，如 玩家选择、对话 等。
-    UIInteraction { ui_layout: String },
+    /// 此章节允许玩家与视图交互。
+    /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
+    ViewInteraction { view_layout: String },
 
     /// Danmaku Performance Chapter.
     ///
@@ -50,9 +117,9 @@ pub enum Chapter {
     DanmakuPerformance {
         /// Path to the performance file (e.g., "battle/performances/boss_attack.performance.ron")
         performance: String,
-        /// Optional spawn position override (defaults to center of battle box)
+        /// Optional spawn translation override (defaults to center of battle box)
         #[serde(default)]
-        position: Option<(f32, f32)>,
+        translation: Option<(f32, f32)>,
     },
 
     /// Alight Motion Animation Performance Chapter.
@@ -109,6 +176,19 @@ pub enum Chapter {
     ///
     /// 设置 UI 状态的章节。
     SetUI(UIAction),
+
+    /// Modify View Element Chapter.
+    ///
+    /// Modify properties of view elements at runtime by selector.
+    ///
+    /// 修改视图元素章节。
+    ///
+    /// 通过选择器在运行时修改视图元素的属性。
+    ModifyViewElement {
+        selector: ElementSelector,
+        modification: ElementModification,
+    },
+
     /// Set Camera State Chapter.
     ///
     /// 设置 摄像机 状态的章节。
@@ -193,4 +273,91 @@ pub enum PlayerAction {
     ///
     /// 销毁玩家实体。
     Despawn,
+}
+
+/// Element Selector - specifies which elements to target.
+///
+/// 元素选择器 - 指定目标元素。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ElementSelector {
+    /// Select by fully qualified name (namespace::name).
+    ///
+    /// 通过完全限定名（namespace::name）选择。
+    FullName(String),
+
+    /// Select by local name within the current layout's namespace.
+    ///
+    /// 在当前布局的命名空间内通过局部名称选择。
+    LocalName(String),
+
+    /// Select all elements with a specific tag.
+    ///
+    /// 选择所有具有特定标签的元素。
+    Tag(String),
+}
+
+/// Element Modification - property changes to apply.
+///
+/// 元素修改 - 要应用的属性更改。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ElementModification {
+    /// Set sprite texture path.
+    ///
+    /// 设置精灵贴图路径。
+    SetTexture(String),
+
+    /// Set position (x, y, z).
+    ///
+    /// Each coordinate can be either a static float or a dynamic expression string.
+    /// Expressions support sin/cos/snap and random() functions.
+    /// Use "@current" to keep the existing coordinate value.
+    ///
+    /// 设置位置 (x, y, z)。
+    ///
+    /// 每个坐标可以是静态浮点数或动态表达式字符串。
+    /// 表达式支持 sin/cos/snap 和 random() 函数。
+    /// 使用 "@current" 保持现有坐标值。
+    SetPosition(Val<f32>, Val<f32>, Val<f32>),
+
+    /// Set scale (x, y, z).
+    ///
+    /// Each coordinate can be either a static float or a dynamic expression string.
+    ///
+    /// 设置缩放 (x, y, z)。
+    ///
+    /// 每个坐标可以是静态浮点数或动态表达式字符串。
+    SetScale(Val<f32>, Val<f32>, Val<f32>),
+
+    /// Set color (r, g, b, a) - values 0.0 to 1.0.
+    ///
+    /// Each channel can be either a static float or a dynamic expression string.
+    ///
+    /// 设置颜色 (r, g, b, a) - 值范围 0.0 至 1.0。
+    ///
+    /// 每个通道可以是静态浮点数或动态表达式字符串。
+    SetColor(Val<f32>, Val<f32>, Val<f32>, Val<f32>),
+
+    /// Set visibility (true = visible, false = hidden).
+    ///
+    /// Can be either a static bool or a dynamic expression string.
+    ///
+    /// 设置可见性（true = 可见，false = 隐藏）。
+    ///
+    /// 可以是静态布尔值或动态表达式字符串。
+    SetVisibility(Val<bool>),
+
+    /// Undo last modification for this element.
+    ///
+    /// 撤销此元素的最后一次修改。
+    Undo,
+
+    /// Redo last undone modification for this element.
+    ///
+    /// 重做此元素最后撤销的修改。
+    Redo,
+
+    /// Reset element to its original spawn state.
+    ///
+    /// 将元素重置为其原始生成状态。
+    Reset,
 }

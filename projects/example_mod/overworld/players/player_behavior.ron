@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 (
     character_asset: "overworld/characters/frisk.character.ron",
     spawn_position: (x: 0.0, y: 0.0),

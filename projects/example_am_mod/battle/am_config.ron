@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 // AM Battle Configuration / AM 战斗配置
 // 
 // scale: Scale multiplier for AM project (default: 1.0)

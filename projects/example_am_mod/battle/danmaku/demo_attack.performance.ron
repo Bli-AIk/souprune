@@ -1,3 +1,4 @@
+#![enable(implicit_some)]
 // Demo Battle Performance
 // Demonstrates various attack patterns including custom mod behaviors:
 // 1. Spear linear attack
