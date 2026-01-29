@@ -2,60 +2,63 @@ use super::super::components::*;
 use super::super::layout::*;
 use super::super::smud_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
-use super::resources::{RonDrivenUI, UIGenerated, UILayoutHandle, UILayoutWatcher};
+use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
 
+/// System to spawn view elements from RON layout.
+///
+/// 从 RON 布局生成视图元素的系统。
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_ron_ui_system(
+pub fn spawn_ron_view_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    ui_layout_handle: Option<Res<UILayoutHandle>>,
-    ui_layouts: Res<Assets<ViewLayoutAsset>>,
+    view_layout_handle: Option<Res<ViewLayoutHandle>>,
+    view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_ui_query: Query<(Entity, &RonUI), (Without<UIGenerated>, Without<UIBox>)>,
+    overworld_view_query: Query<(Entity, &RonUI), (Without<ViewGenerated>, Without<UIBox>)>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     player_data: Res<crate::core::data::PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
-    mut watcher: Option<ResMut<UILayoutWatcher>>,
+    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
 ) {
-    let Some(ui_layout_handle) = ui_layout_handle else {
+    let Some(view_layout_handle) = view_layout_handle else {
         return;
     };
 
-    let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
+    let Some(view_layout) = view_layouts.get(&view_layout_handle.handle) else {
         return;
     };
 
     let mut spawned_any = false;
-    for (ui_entity, _ron_ui) in overworld_ui_query.iter() {
-        info!("Spawning UI from RON layout");
+    for (view_entity, _ron_ui) in overworld_view_query.iter() {
+        info!("Spawning view from RON layout");
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
             Err(_) => {
-                warn!("No Camera2d found for UI spawning!");
+                warn!("No Camera2d found for view spawning!");
                 return;
             }
         };
 
-        spawn_ron_ui_for_entity(
+        spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
-            ui_entity,
-            ui_layout,
+            view_entity,
+            view_layout,
             camera_transform,
             &mut sprite_params,
             &animation_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
-            &ui_layout_handle.path,
+            &view_layout_handle.path,
         );
-        commands.entity(ui_entity).insert(UIGenerated);
+        commands.entity(view_entity).insert(ViewGenerated);
         spawned_any = true;
     }
 
@@ -64,12 +67,20 @@ pub fn spawn_ron_ui_system(
     }
 }
 
+/// Backwards compatibility alias
+///
+/// 向后兼容别名
+pub use spawn_ron_view_system as spawn_ron_ui_system;
+
+/// Spawn view elements for a specific entity.
+///
+/// 为特定实体生成视图元素。
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_ron_ui_for_entity(
+pub fn spawn_ron_view_for_entity(
     commands: &mut Commands,
     asset_server: &AssetServer,
-    ui_entity: Entity,
-    ui_layout: &ViewLayoutAsset,
+    view_entity: Entity,
+    view_layout: &ViewLayoutAsset,
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
@@ -82,19 +93,19 @@ pub fn spawn_ron_ui_for_entity(
     // 从布局路径生成命名空间
     let namespace = crate::core::ui::components::ViewRoot::namespace_from_path(layout_path);
 
-    // Attach ViewRoot to the UI entity
-    // 为 UI 实体附加 ViewRoot 组件
+    // Attach ViewRoot to the view entity
+    // 为视图实体附加 ViewRoot 组件
     commands
-        .entity(ui_entity)
+        .entity(view_entity)
         .insert(crate::core::ui::components::ViewRoot::new(
             layout_path.to_string(),
         ));
 
-    for root in &ui_layout.roots {
-        spawn_ui_node(
+    for root in &view_layout.roots {
+        spawn_view_node(
             commands,
             asset_server,
-            ui_entity,
+            view_entity,
             root,
             camera_transform,
             sprite_params,
@@ -190,8 +201,11 @@ pub fn build_text_config(
     }
 }
 
+/// Spawn a single view node and its children.
+///
+/// 生成单个视图节点及其子节点。
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_ui_node(
+pub fn spawn_view_node(
     commands: &mut Commands,
     asset_server: &AssetServer,
     parent_entity: Entity,
@@ -281,7 +295,7 @@ pub fn spawn_ui_node(
                     transform,
                     Visibility::default(),
                     Name::new(node_def.name.clone()),
-                    RonDrivenUI,
+                    RonDrivenView,
                 ));
                 // Attach ViewElement if the node has a name
                 // 如果节点有名称，则附加 ViewElement
@@ -322,7 +336,7 @@ pub fn spawn_ui_node(
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
                         Name::new(node_def.name.clone()),
-                        RonDrivenUI,
+                        RonDrivenView,
                         HPBarSprite {
                             shader_params: sprite_def
                                 .shader_params
@@ -385,7 +399,7 @@ pub fn spawn_ui_node(
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
                         Name::new(node_def.name.clone()),
-                        RonDrivenUI,
+                        RonDrivenView,
                     ));
                     // Attach ViewElement if the node has a name
                     // 如果节点有名称，则附加 ViewElement
@@ -477,7 +491,7 @@ pub fn spawn_ui_node(
                     ViewVisibility::default(),
                     CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
                     Name::new(node_def.name.clone()),
-                    RonDrivenUI,
+                    RonDrivenView,
                 ));
                 // Attach ViewElement if the node has a name
                 // 如果节点有名称，则附加 ViewElement
@@ -504,7 +518,7 @@ pub fn spawn_ui_node(
                     InheritedVisibility::default(),
                     ViewVisibility::default(),
                     Name::new(node_def.name.clone()),
-                    RonDrivenUI,
+                    RonDrivenView,
                 ));
                 // Attach ViewElement if the node has a name
                 // 如果节点有名称，则附加 ViewElement
@@ -672,7 +686,7 @@ pub fn spawn_ui_node(
                 ViewVisibility::default(),
                 CameraAnchored::new(Vec3::ZERO),
                 Name::new(node_def.name.clone()),
-                RonDrivenUI,
+                RonDrivenView,
             ));
             // Attach ViewElement if the node has a name
             // 如果节点有名称，则附加 ViewElement
@@ -753,7 +767,7 @@ pub fn spawn_ui_node(
         }
 
         for child_def in &node_def.children {
-            spawn_ui_node(
+            spawn_view_node(
                 commands,
                 asset_server,
                 entity_id,
@@ -822,7 +836,7 @@ pub(crate) fn spawn_container_texts(
             ViewVisibility::default(),
             CameraAnchored::new(text_config.transform.translation),
             super::super::text::NeedsGlyphRefresh,
-            RonDrivenUI,
+            RonDrivenView,
         ));
 
         if let Some(template) = &text_config.template {

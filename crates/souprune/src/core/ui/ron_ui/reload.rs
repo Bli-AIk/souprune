@@ -5,29 +5,32 @@ use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
 use super::super::components::RonUI;
 use super::super::layout::ViewLayoutAsset;
-use super::resources::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
+use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
 
-pub fn update_ui_from_map_system(
+/// Load view layout from Tiled map properties.
+///
+/// 从 Tiled 地图属性加载视图布局。
+pub fn update_view_from_map_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     tiled_maps_query: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    mut watcher: Option<ResMut<UILayoutWatcher>>,
-    mut current_ui_path: Local<Option<String>>,
+    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
+    mut current_view_path: Local<Option<String>>,
 ) {
     for tiled_map in tiled_maps_query.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
             && let Some(property_value) = map_asset.map.properties.get("backpack_ui")
             && let tiled::PropertyValue::StringValue(path) = property_value
-            && current_ui_path.as_deref() != Some(path)
+            && current_view_path.as_deref() != Some(path)
         {
-            info!("Switching backpack UI to: {}", path);
-            *current_ui_path = Some(path.clone());
+            info!("Switching backpack view to: {}", path);
+            *current_view_path = Some(path.clone());
 
             let handle = asset_server.load(path.clone());
 
-            commands.insert_resource(UILayoutHandle {
+            commands.insert_resource(ViewLayoutHandle {
                 handle,
                 last_modified: None,
                 path: path.clone(),
@@ -36,7 +39,7 @@ pub fn update_ui_from_map_system(
             if let Some(ref mut w) = watcher {
                 w.pending_reload = true;
             } else {
-                let mut w = UILayoutWatcher::new();
+                let mut w = ViewLayoutWatcher::new();
                 w.pending_reload = true;
                 commands.insert_resource(w);
             }
@@ -44,25 +47,33 @@ pub fn update_ui_from_map_system(
     }
 }
 
-pub fn watch_ui_layout_changes_system(
+/// Backwards compatibility alias
+///
+/// 向后兼容别名
+pub use update_view_from_map_system as update_ui_from_map_system;
+
+/// Watch for view layout asset changes for hot reload.
+///
+/// 监视视图布局资源变化以支持热重载。
+pub fn watch_view_layout_changes_system(
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
-    ui_layout_handle: Option<Res<UILayoutHandle>>,
-    mut watcher: Option<ResMut<UILayoutWatcher>>,
+    view_layout_handle: Option<Res<ViewLayoutHandle>>,
+    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
     mut commands: Commands,
 ) {
-    let Some(ui_layout_handle) = ui_layout_handle else {
+    let Some(view_layout_handle) = view_layout_handle else {
         return;
     };
 
     for event in events.read() {
         if let AssetEvent::Modified { id } = event
-            && *id == ui_layout_handle.handle.id()
+            && *id == view_layout_handle.handle.id()
         {
-            info!("[Hot Reload] RON UI asset modified, triggering reload...");
+            info!("[Hot Reload] RON view asset modified, triggering reload...");
             if let Some(ref mut w) = watcher {
                 w.pending_reload = true;
             } else {
-                let mut w = UILayoutWatcher::new();
+                let mut w = ViewLayoutWatcher::new();
                 w.pending_reload = true;
                 commands.insert_resource(w);
             }
@@ -70,21 +81,29 @@ pub fn watch_ui_layout_changes_system(
     }
 }
 
+/// Backwards compatibility alias
+///
+/// 向后兼容别名
+pub use watch_view_layout_changes_system as watch_ui_layout_changes_system;
+
+/// Rebuild view layout when hot reload is triggered.
+///
+/// 热重载触发时重建视图布局。
 #[allow(clippy::too_many_arguments)]
-pub fn rebuild_reloaded_ui_system(
+pub fn rebuild_reloaded_view_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    ui_layout_handle: Option<Res<UILayoutHandle>>,
-    mut watcher: Option<ResMut<UILayoutWatcher>>,
-    ui_layouts: Res<Assets<ViewLayoutAsset>>,
+    view_layout_handle: Option<Res<ViewLayoutHandle>>,
+    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
+    view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_ui_query: Query<(Entity, &RonUI), Without<RonDrivenUI>>,
+    overworld_view_query: Query<(Entity, &RonUI), Without<RonDrivenView>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     player_data: Res<crate::core::data::PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
-    ron_ui_query: Query<Entity, With<RonDrivenUI>>,
+    ron_view_query: Query<Entity, With<RonDrivenView>>,
 ) {
     let Some(ref mut watcher) = watcher else {
         return;
@@ -94,50 +113,50 @@ pub fn rebuild_reloaded_ui_system(
         return;
     }
 
-    let Some(handle) = ui_layout_handle else {
+    let Some(handle) = view_layout_handle else {
         return;
     };
 
-    let Some(ui_layout) = ui_layouts.get(&handle.handle) else {
+    let Some(view_layout) = view_layouts.get(&handle.handle) else {
         return;
     };
 
-    let has_target = overworld_ui_query.iter().any(|_| true);
+    let has_target = overworld_view_query.iter().any(|_| true);
 
     if !has_target {
-        debug!("RON UI hot reload pending - no UI entity active, will retry rebuild");
+        debug!("RON view hot reload pending - no view entity active, will retry rebuild");
         return;
     }
 
-    info!("Asset loaded! Rebuilding UI...");
+    info!("Asset loaded! Rebuilding view...");
 
     let Ok(camera_transform) = camera_query.single() else {
-        warn!("No Camera2d found for UI rebuild!");
+        warn!("No Camera2d found for view rebuild!");
         watcher.pending_reload = false;
         return;
     };
 
-    // Despawn old UI first (only now that we know we're rebuilding)
+    // Despawn old view first (only now that we know we're rebuilding)
     //
-    // 首先 despawn 旧 UI（仅当我们知道正在重建时）
-    let despawn_count = ron_ui_query.iter().count();
+    // 首先 despawn 旧视图（仅当我们知道正在重建时）
+    let despawn_count = ron_view_query.iter().count();
     if despawn_count > 0 {
         info!(
-            "Despawning {} old UI entities before rebuild",
+            "Despawning {} old view entities before rebuild",
             despawn_count
         );
-        for entity in ron_ui_query.iter() {
+        for entity in ron_view_query.iter() {
             despawn_entity_tree(&mut commands, entity);
         }
     }
 
     let mut rebuilt_count = 0;
-    for (ui_entity, _ron_ui) in overworld_ui_query.iter() {
-        super::spawn::spawn_ron_ui_for_entity(
+    for (view_entity, _ron_ui) in overworld_view_query.iter() {
+        super::spawn::spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
-            ui_entity,
-            ui_layout,
+            view_entity,
+            view_layout,
             camera_transform,
             &mut sprite_params,
             &animation_assets,
@@ -151,10 +170,15 @@ pub fn rebuild_reloaded_ui_system(
 
     watcher.pending_reload = rebuilt_count == 0;
     info!(
-        "RON UI hot reload complete! Rebuilt {} UI entities",
+        "RON view hot reload complete! Rebuilt {} view entities",
         rebuilt_count
     );
 }
+
+/// Backwards compatibility alias
+///
+/// 向后兼容别名
+pub use rebuild_reloaded_view_system as rebuild_reloaded_ui_system;
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     // Schedule recursive despawn to avoid borrowing the world inside the system.

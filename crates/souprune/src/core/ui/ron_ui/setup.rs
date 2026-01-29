@@ -9,19 +9,22 @@ use super::super::components::{
 };
 use super::super::layout::{IndexBoundDef, TransitionActionDef, ViewLayoutAsset};
 use super::parsing::{parse_action, parse_overworld_state};
-use super::resources::{GlobalTriggerRule, UIGlobalTriggerConfig, UILayoutHandle};
+use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
 use crate::core::sprite::params::SpriteParams;
 
+/// Load navigation and transition configuration from view layout.
+///
+/// 从视图布局加载导航和转换配置。
 pub fn load_navigation_and_transitions_system(
-    ui_layout_handle: Option<Res<UILayoutHandle>>,
-    ui_layouts: Res<Assets<ViewLayoutAsset>>,
+    view_layout_handle: Option<Res<ViewLayoutHandle>>,
+    view_layouts: Res<Assets<ViewLayoutAsset>>,
     mut navigation_config: ResMut<UILayerNavigationConfig>,
     mut transition_config: ResMut<UILayerTransitionConfig>,
-    mut global_trigger_config: ResMut<UIGlobalTriggerConfig>,
+    mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
     mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
 ) {
-    let Some(ui_layout_handle) = ui_layout_handle else {
+    let Some(view_layout_handle) = view_layout_handle else {
         return;
     };
 
@@ -30,24 +33,24 @@ pub fn load_navigation_and_transitions_system(
     // 检查资产是否被修改 - 重置 last_processed_handle 以强制重新加载
     for event in events.read() {
         if let AssetEvent::Modified { id } = event
-            && *id == ui_layout_handle.handle.id()
+            && *id == view_layout_handle.handle.id()
         {
             info!("[Hot Reload] Reloading navigation and transitions config...");
             *last_processed_handle = None;
         }
     }
 
-    if last_processed_handle.as_ref() == Some(&ui_layout_handle.handle.id()) {
+    if last_processed_handle.as_ref() == Some(&view_layout_handle.handle.id()) {
         return;
     }
 
-    let Some(ui_layout) = ui_layouts.get(&ui_layout_handle.handle) else {
+    let Some(view_layout) = view_layouts.get(&view_layout_handle.handle) else {
         return;
     };
 
-    *last_processed_handle = Some(ui_layout_handle.handle.id());
+    *last_processed_handle = Some(view_layout_handle.handle.id());
 
-    if let Some(global_triggers) = &ui_layout.global_triggers {
+    if let Some(global_triggers) = &view_layout.global_triggers {
         for (action_str, rules_def) in global_triggers {
             if let Some(action) = parse_action(action_str) {
                 let mut rules = Vec::new();
@@ -92,7 +95,7 @@ pub fn load_navigation_and_transitions_system(
         );
     }
 
-    if let Some(navigation) = &ui_layout.navigation {
+    if let Some(navigation) = &view_layout.navigation {
         for (layer_name, nav_rule_def) in navigation.iter() {
             let mut adjustments = HashMap::new();
 
@@ -134,7 +137,7 @@ pub fn load_navigation_and_transitions_system(
         );
     }
 
-    if let Some(transitions) = &ui_layout.transitions {
+    if let Some(transitions) = &view_layout.transitions {
         for (layer_name, transitions_def) in transitions.iter() {
             let on_confirm = transitions_def
                 .on_confirm
