@@ -1,0 +1,106 @@
+#![enable(implicit_some)]
+// Chase mode damage HUD UI (HP bar and HP text)
+// 追逐战模式受伤 HUD UI（血条和血量文字）
+// Adjusted for Overworld resolution (smaller visible area than Battle)
+// 针对 Overworld 分辨率调整（可见区域比 Battle 小）
+// With resolution_scale=2, visible area is ±160x±120
+// 当 resolution_scale=2 时，可见区域为 ±160x±120
+(
+    version: 1,
+    roots: [
+        // HUD Info - Pure container node with HP bar and HP text
+        // HUD 信息 - 带有血条和血量文字的纯容器节点
+        (
+            name: "ChaseHUD",
+            camera_anchored: true,
+            texts: [
+                (
+                    id: "PlayerName",
+                    content: "{@player.name}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-145.0, -97.0, 501.0),
+                    ),
+                ),
+                (
+                    id: "PlayerLevelLabel",
+                    content: "{{battle/ui:LV}}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-93.0, -97.0, 501.0),
+                    ),
+                ),
+                (
+                    id: "PlayerLevelValue",
+                    content: "{@player.lv}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-74.0, -97.0, 501.0),
+                    ),
+                ),
+                (
+                    id: "HPValueCurrent",
+                    content: "{@player.hp}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("-3.0 + (@player.hp_max - 20) * 47.0 / 79", -97.0, 501.0),
+                    ),
+                ),
+                (
+                    id: "HPSeparator",
+                    content: "/",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("17.0 + (@player.hp_max - 20) * 47.0 / 79", -97.0, 501.0),
+                    ),
+                ),
+                (
+                    id: "HPValueMax",
+                    content: "{@player.hp_max}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("29.0 + (@player.hp_max - 20) * 47.0 / 79", -97.0, 501.0),
+                    ),
+                ),
+            ],
+            children: [
+                (
+                    name: "HPSprite",
+                    sprite: (
+                        path: "textures/battle/ui/hpname.png",
+                        is_animation: false,
+                        transform: Some((
+                            translation: (-32.0, -105.0, 501.0),
+                        )),
+                    ),
+                ),
+                (
+                    name: "HPBar",
+                    sprite: (
+                        path: "procedural://white_pixel",
+                        is_animation: false,
+                        transform: Some((
+                            translation: (-22.0, -105.0, 501.0),
+                            scale: ("12.5 + (@player.hp_max - 20) * 47.5 / 79", 10.0, 1.0),
+                        )),
+                        custom_shader: "shaders/hp_bar_sprite.wgsl",
+                        shader_params: (0.8, 0.8, "20.0 + (@player.hp_max - 20) * 47.5 / 79 / 2", 1.0),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+            ],
+        ),
+    ]
+)

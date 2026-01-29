@@ -1,0 +1,169 @@
+#![enable(implicit_some)]
+(
+    version: 1,
+    roots: [
+        // Battle Box (Dialog/Bullet Box)
+        (
+            name: "BattleBox",
+            tags: ["BattleBox"],
+            ui_shape_logic: (
+                width: 566.0,
+                height: 130.0,
+                border_width: 5.0,
+                offset: (0.0, -80.0, 0.0),
+                // Use classic UIBox structure (Border + Filler)
+                structure_file: "shared/ui_structures/ui_box.smud.ron",
+            ),
+            // Optional: Add HP bar or text here later
+            children: [],
+        ),
+
+        // Fight Button
+        (
+            name: "BtnFight",
+            sprite: (
+                path: "textures/battle/ui/fight/false.png",
+                is_animation: false,
+                transform: (
+                    translation: (-233.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+
+        // Act Button
+        (
+            name: "BtnAct",
+            sprite: (
+                path: "textures/battle/ui/act/false.png",
+                is_animation: false,
+                transform: (
+                    translation: (-80.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+
+        // Item Button
+        (
+            name: "BtnItem",
+            sprite: (
+                path: "textures/battle/ui/item/false.png",
+                is_animation: false,
+                transform: (
+                    translation: (80.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+
+        // Mercy Button
+        (
+            name: "BtnMercy",
+            sprite: (
+                path: "textures/battle/ui/mercy/false.png",
+                is_animation: false,
+                transform: (
+                    translation: (235.0, -213.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+
+        // HUD Info - Pure container node (no visible box, just texts and children)
+        // HUD 信息 - 纯容器节点（无可见框，只有文本和子节点）
+        (
+            name: "BattleHUD",
+            // 重构后不再需要 0x0 的 ui_shape_logic hack
+            // After refactoring, the 0x0 ui_shape_logic hack is no longer needed
+            texts: [
+                (
+                    id: "PlayerName",
+                    content: "{@player.name}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-290.0, -155.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "PlayerLevelLabel",
+                    content: "{{battle/ui:LV}}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-187.5, -155.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "PlayerLevelValue",
+                    content: "{@player.lv}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-148.5, -155.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "HPValueCurrent",
+                    content: "{@player.hp}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("-5.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "HPSeparator",
+                    content: "/",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("33.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "HPValueMax",
+                    content: "{@player.hp_max}",
+                    font: BattleHud,
+                    world_scale: (24.0, 24.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: ("57.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                    ),
+                ),
+            ],
+            children: [
+                (
+                    name: "HPSprite",
+                    sprite: (
+                        path: "textures/battle/ui/hpname.png",
+                        is_animation: false,
+                        transform: (
+                            translation: (-64.5, -170.0, 1.0),
+                        ),
+                    ),
+                ),
+                (
+                    name: "HPBar",
+                    sprite: (
+                        path: "procedural://white_pixel",  // Use procedural texture
+                        is_animation: false,
+                        transform: (
+                            translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
+                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),  // Dynamic width based on hp_max
+                        ),
+                        custom_shader: "shaders/hp_bar_sprite.wgsl",
+                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0),  // HP%, lag%, half_width (dynamic), alpha
+                        pivot: (0.0, 0.5),
+                    ),
+                )
+            ],
+        ),
+    ]
+)

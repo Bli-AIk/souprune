@@ -26,11 +26,14 @@ pub use crate::core::save::{
     LoadCompleteEvent, LoadGameEvent, SaveCompleteEvent, SaveConfig, SaveData, SaveGameEvent,
     SaveMetadata, SaveSlot, Saveable,
 };
-pub use crate::core::ui::layout::{
+pub use crate::core::view::layout::{
     BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, UILayoutAsset,
-    UINodeDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
+    ViewNodeDef,
 };
+// Backwards compatibility aliases
+pub use ViewLayoutAsset as UILayoutAsset;
+pub use ViewNodeDef as UINodeDef;
 
 use std::default::Default;
 
@@ -313,7 +316,7 @@ pub fn run() {
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,
-            ui::UIUpdate.run_if(
+            view::UIUpdate.run_if(
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )
