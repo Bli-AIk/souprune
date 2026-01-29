@@ -482,7 +482,8 @@ impl InteractiveLayerDef {
 }
 
 // ============================================================================
-// AwaitingInteraction Component (Phase 6)
+// AwaitingInteraction Component
+// 等待交互组件
 // ============================================================================
 
 /// Component marking an entity that is waiting for player interaction.

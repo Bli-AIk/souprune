@@ -570,8 +570,8 @@ fn process_am_wait_chapter_system(
 }
 
 // ============================================================================
-// Phase 3 & 4: Process ModifyViewElement and TweenViewElement
-// Phase 3 & 4: 处理 ModifyViewElement 和 TweenViewElement
+// ModifyViewElement and TweenViewElement Systems
+// ModifyViewElement 和 TweenViewElement 系统
 // ============================================================================
 
 fn process_modify_view_element_system(
@@ -1532,7 +1532,8 @@ fn process_tween_wait_chapter_system(
 }
 
 // ============================================================================
-// Phase 6: AwaitViewInteraction Systems
+// AwaitViewInteraction Systems
+// AwaitViewInteraction 系统
 // ============================================================================
 
 /// Marker component to track that this chapter is waiting for interaction.
@@ -1663,14 +1664,18 @@ fn check_await_interaction_completion_system(
             }
         }
 
-        // Deactivate the layer and remove AwaitingInteraction
+        // Deactivate the layer, reset selection, and remove AwaitingInteraction
         for (layer_entity, mut layer) in layer_query.iter_mut() {
             if layer.layer_id == event.layer_id {
                 layer.is_active = false;
+                layer.set_selection(0); // Reset to initial selection
                 commands
                     .entity(layer_entity)
                     .remove::<AwaitingInteraction>();
-                info!("[Battle] Deactivated InteractiveLayer '{}'", event.layer_id);
+                info!(
+                    "[Battle] Deactivated InteractiveLayer '{}', reset selection to 0",
+                    event.layer_id
+                );
             }
         }
     }
@@ -1681,9 +1686,11 @@ fn check_await_interaction_completion_system(
 /// 根据 InteractiveLayer 选择更新精灵的系统。
 ///
 /// This system changes the texture of selectable elements to show which one is
-/// currently selected (highlighted).
+/// currently selected (highlighted). When the layer is deactivated, all elements
+/// revert to their unselected state.
 ///
 /// 此系统更改可选元素的纹理以显示当前选中（高亮）的项目。
+/// 当层被停用时，所有元素恢复到未选中状态。
 ///
 /// # Convention / 约定
 ///
@@ -1700,13 +1707,11 @@ fn update_interactive_layer_sprites_system(
     mut sprite_query: Query<(&Name, &mut Sprite)>,
 ) {
     for layer in layer_query.iter() {
-        if !layer.is_active {
-            continue;
-        }
-
         // Update each selectable element's sprite
+        // If layer is inactive, all elements show unselected state
         for (idx, element_name) in layer.selectable_elements.iter().enumerate() {
-            let is_selected = idx == layer.current_selection;
+            // Only selected if layer is active AND this is the selected index
+            let is_selected = layer.is_active && idx == layer.current_selection;
 
             // Find the entity with this name
             for (name, mut sprite) in sprite_query.iter_mut() {

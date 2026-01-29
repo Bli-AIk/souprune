@@ -167,8 +167,8 @@
         ),
     ],
     
-    // Phase 5: Interactive layer definitions for battle menu navigation
-    // Phase 5: 战斗菜单导航的交互层定义
+    // Interactive layer definitions for battle menu navigation
+    // 战斗菜单导航的交互层定义
     interactive_layers: {
         "BattleMainMenu": (
             // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons

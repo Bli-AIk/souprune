@@ -147,8 +147,8 @@ impl Plugin for CoreViewPlugin {
                     load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
-                    // Phase 5: Unified InteractiveLayer systems
-                    // Phase 5: 统一的 InteractiveLayer 系统
+                    // Unified InteractiveLayer systems (for both OW and Battle)
+                    // 统一的 InteractiveLayer 系统（同时用于 OW 和 Battle）
                     handle_interactive_layer_navigation_system,
                     handle_interactive_layer_confirm_cancel_system,
                     spawn_ron_ui_system,

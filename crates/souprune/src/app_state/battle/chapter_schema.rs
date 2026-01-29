@@ -107,12 +107,12 @@ pub enum Chapter {
     /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
     ViewInteraction { view_layout: String },
 
-    /// Await View Interaction Chapter (Phase 6).
+    /// Await View Interaction Chapter.
     ///
     /// Blocks the battle sequencer until player confirms a selection in the specified
     /// interactive layer. This is used for player choice menus like FIGHT/ACT/ITEM/MERCY.
     ///
-    /// 等待视图交互章节（Phase 6）。
+    /// 等待视图交互章节。
     ///
     /// 阻塞战斗 sequencer 直到玩家在指定的交互层中确认选择。
     /// 用于玩家选择菜单，如 FIGHT/ACT/ITEM/MERCY。

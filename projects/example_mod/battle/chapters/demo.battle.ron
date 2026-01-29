@@ -2,15 +2,11 @@
 [
     SetCamera(SetZoom(2.0)),
     ViewInteraction(view_layout: "battle/view/undertale.view_layout.ron"),
-    SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
-    Wait(0.5),
-
-    // Phase 6: Test AwaitViewInteraction - wait for player to select a button
-    // Phase 6: 测试 AwaitViewInteraction - 等待玩家选择一个按钮
     AwaitViewInteraction(
         layer_id: "BattleMainMenu",
         initial_selection: 0,
     ),
+    SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
     TweenViewElement(
         selector: LocalName("BattleBox"),

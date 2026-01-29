@@ -499,7 +499,8 @@ pub(crate) fn update_overworld_ui_navigation_system(
 }
 
 // ============================================================================
-// Unified Interactive Layer Systems (Phase 5)
+// Unified Interactive Layer Systems
+// 统一的交互层系统
 // ============================================================================
 
 /// System that handles navigation input for all active InteractiveLayers.
@@ -627,6 +628,9 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
         };
 
         if confirm_pressed {
+            // Play confirm sound
+            audio::play_sound(&audio, &asset_server, "confirm.wav");
+
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",
                 layer.layer_id, layer.current_selection
@@ -724,8 +728,8 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 
 #[cfg(feature = "firewheel")]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
-    _commands: Commands,
-    _asset_server: Res<AssetServer>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
     keyboard: Res<ButtonInput<KeyCode>>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
     player_query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
@@ -752,6 +756,9 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
         };
 
         if confirm_pressed {
+            // Play confirm sound
+            audio::play_sound(&mut commands, &asset_server, "confirm.wav");
+
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",
                 layer.layer_id, layer.current_selection
