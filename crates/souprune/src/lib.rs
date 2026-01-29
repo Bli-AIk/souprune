@@ -31,6 +31,9 @@ pub use crate::core::view::layout::{
     SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
     ViewNodeDef,
 };
+// Backwards compatibility aliases
+pub use ViewLayoutAsset as UILayoutAsset;
+pub use ViewNodeDef as UINodeDef;
 
 use std::default::Default;
 

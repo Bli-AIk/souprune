@@ -1,6 +1,6 @@
-//! UI `.ui.ron` layout tests.
+//! View `.view_layout.ron` layout tests.
 //!
-//! `.ui.ron` 布局测试。
+//! `.view_layout.ron` 布局测试。
 
 #[path = "test_support.rs"]
 mod test_support;
@@ -10,23 +10,26 @@ use std::collections::{HashMap, HashSet};
 
 use souprune::{IndexBoundDef, SerializableVec3, TransitionActionDef, UILayoutAsset, UINodeDef};
 
-const UI_DIRS: &[&str] = &["overworld/ui", "battle/ui"];
-const UI_SUFFIX: &str = ".ui_layout.ron";
+const VIEW_DIRS: &[&str] = &["overworld/view", "battle/view"];
+const VIEW_SUFFIX: &str = ".view_layout.ron";
 
-fn ui_files() -> Vec<String> {
+fn view_files() -> Vec<String> {
     let mut files = Vec::new();
-    for dir in UI_DIRS {
-        files.extend(test_support::list_project_files_with_suffix(dir, UI_SUFFIX));
+    for dir in VIEW_DIRS {
+        files.extend(test_support::list_project_files_with_suffix(
+            dir,
+            VIEW_SUFFIX,
+        ));
     }
     assert!(
         !files.is_empty(),
-        "No .ui_layout.ron files found under projects/example_mod"
+        "No .view_layout.ron files found under projects/example_mod"
     );
     files
 }
 
-fn load_ui_layouts() -> HashMap<String, UILayoutAsset> {
-    ui_files()
+fn load_view_layouts() -> HashMap<String, UILayoutAsset> {
+    view_files()
         .into_iter()
         .map(|relative| {
             let asset: UILayoutAsset = test_support::parse_project_ron(&relative);
@@ -40,7 +43,7 @@ fn load_ui_layouts() -> HashMap<String, UILayoutAsset> {
 /// 确保所有 `.ui.ron` 文件均可加载。
 #[test]
 fn ui_layouts_deserialize() {
-    for (relative, layout) in load_ui_layouts() {
+    for (relative, layout) in load_view_layouts() {
         assert!(
             layout.version > 0,
             "{} should define a schema version",
@@ -90,7 +93,7 @@ const OVERWORLD_STATES: &[&str] = &["Normal", "Backpack", "Cutscene"];
 /// 验证导航、跳转与触发引用的层或状态均有效。
 #[test]
 fn ui_layout_reference_integrity() {
-    for (relative, layout) in load_ui_layouts() {
+    for (relative, layout) in load_view_layouts() {
         let mut defined_layers = HashSet::new();
         collect_node_names(&layout.roots, &mut defined_layers);
         if let Some(nav) = &layout.navigation {
@@ -226,7 +229,7 @@ fn evaluate_inventory_expr(expr: &str, inventory_len: usize, capacity: usize) ->
 }
 
 fn check_vec_expr(vec: &SerializableVec3) {
-    for expr in [vec.x.as_expr(), vec.y.as_expr(), vec.z.as_expr()] {
+    for expr in [vec.0.as_expr(), vec.1.as_expr(), vec.2.as_expr()] {
         if let Some(expr) = expr {
             let value = evaluate_offset_expr(expr);
             assert!(
@@ -242,7 +245,7 @@ fn check_vec_expr(vec: &SerializableVec3) {
 /// 评估动态表达式（锚点或导航范围）以确保其有效。
 #[test]
 fn ui_layout_dynamic_expressions_evaluate() {
-    for (relative, layout) in load_ui_layouts() {
+    for (relative, layout) in load_view_layouts() {
         for node in all_nodes(&layout) {
             if let Some(cursor) = &node.cursor {
                 if let Some(pos) = &cursor.default_translation {
