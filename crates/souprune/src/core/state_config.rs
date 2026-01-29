@@ -123,9 +123,9 @@ pub struct StateConfigPlugin;
 impl Plugin for StateConfigPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<StateConfig>()
-            .register_asset_loader(
-                crate::core::ron_loader::RonAssetLoader::<StateConfig>::new(&["states.ron"]),
-            )
+            .register_asset_loader(crate::core::ron_loader::RonAssetLoader::<StateConfig>::new(
+                &["states.ron"],
+            ))
             .init_resource::<LoadedStateConfig>()
             .add_systems(Startup, load_state_config_system)
             .add_systems(Update, process_loaded_state_config_system);
@@ -157,9 +157,12 @@ fn process_loaded_state_config_system(
         return;
     }
 
-    if let Some(handle) = &loaded_config.handle {
-        if let Some(config) = state_configs.get(handle) {
-            info!("State configuration loaded with {} states", config.states.len());
+    if let Some(handle) = &loaded_config.handle
+        && let Some(config) = state_configs.get(handle) {
+            info!(
+                "State configuration loaded with {} states",
+                config.states.len()
+            );
             for (name, def) in &config.states {
                 debug!(
                     "  State '{}': ui_interactive={}, player_movable={}, view_layout={:?}",
@@ -168,5 +171,4 @@ fn process_loaded_state_config_system(
             }
             loaded_config.config = Some(config.clone());
         }
-    }
 }

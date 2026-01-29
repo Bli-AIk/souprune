@@ -306,10 +306,7 @@ pub fn run() {
         ))
         .insert_resource(config.clone())
         .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec![format!(
-                "projects/{}/assets/fonts",
-                config.project.mod_name
-            )],
+            font_directories: vec![format!("projects/{}/assets/fonts", config.project.mod_name)],
             ..Default::default()
         })
         .init_resource::<input::PlayerInputSettings>()

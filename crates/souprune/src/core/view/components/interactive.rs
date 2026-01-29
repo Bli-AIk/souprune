@@ -472,12 +472,11 @@ impl InteractiveLayer {
     ///
     /// 如果选择发生变化，返回 `true`。
     pub fn navigate(&mut self, action: &Action) -> bool {
-        if let Some(new_index) = self.navigator.handle_input(self.current_selection, action) {
-            if new_index != self.current_selection {
+        if let Some(new_index) = self.navigator.handle_input(self.current_selection, action)
+            && new_index != self.current_selection {
                 self.current_selection = new_index;
                 return true;
             }
-        }
         false
     }
 

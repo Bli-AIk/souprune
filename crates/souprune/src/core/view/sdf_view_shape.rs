@@ -627,7 +627,7 @@ pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
     interactive_layer_query: Query<&InteractiveLayer>,
-    parent_query: Query<&ChildOf>,
+    _parent_query: Query<&ChildOf>,
     mut box_query: Query<(Entity, &UIBoxVisibility, &mut Visibility), With<UIBox>>,
 ) {
     // Check if we should process UI visibility (Battle or Overworld Backpack)
@@ -643,7 +643,7 @@ pub(crate) fn update_ui_box_visibility_system(
     // Find active InteractiveLayer for Backpack state
     let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
 
-    for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
+    for (_entity, layer_visibility, mut visibility) in box_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
@@ -704,7 +704,7 @@ pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
     interactive_layer_query: Query<&InteractiveLayer>,
-    parent_query: Query<&ChildOf>,
+    _parent_query: Query<&ChildOf>,
     mut container_query: Query<
         (
             Entity,
@@ -727,7 +727,7 @@ pub(crate) fn update_ui_container_visibility_system(
     // Find active InteractiveLayer for Backpack state
     let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
 
-    for (entity, container_visibility, mut visibility) in container_query.iter_mut() {
+    for (_entity, container_visibility, mut visibility) in container_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;

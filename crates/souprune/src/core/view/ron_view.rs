@@ -10,7 +10,6 @@ pub mod update;
 // Backwards compatibility aliases
 pub use resources::{RonDrivenUI, UIGlobalTriggerConfig, UILayoutHandle, UILayoutWatcher};
 
-pub use parsing::*;
 pub use reload::*;
 pub use setup::*;
 pub use spawn::*;
