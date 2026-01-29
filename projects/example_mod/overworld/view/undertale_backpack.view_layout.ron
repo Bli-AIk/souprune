@@ -70,9 +70,7 @@
                 width: 65.0,
                 height: 49.0,
                 border_width: 3.0,
-                    offset: (-108.5, "if(player.y > camera.y, -68.5, 66.5)",
-                        z: 0.0
-                ),
+                offset: (-108.5, "if(player.y > camera.y, -68.5, 66.5)", 0.0),
                 structure_file: "shared/ui_structures/ui_box.smud.ron",
             ),
             visibility_rule: (
