@@ -224,10 +224,4 @@
         
     // === End Test ===
     // === 结束测试 ===
-    Wait(1.0),
-    DanmakuPerformance(
-        performance: "battle/danmaku/demo_attack.performance.ron",
-        position: (0.0, 50.0),
-    ),
-    Wait(10.0),
 ]

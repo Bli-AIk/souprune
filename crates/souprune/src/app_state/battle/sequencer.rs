@@ -30,10 +30,12 @@ impl Plugin for SequencerPlugin {
                     process_camera_action_system,
                     process_ui_action_system,
                     process_modify_view_element_system,
+                    process_tween_view_element_system,
                     process_danmaku_performance_system,
                     process_am_performance_system,
                     process_player_spawn_requests,
                     process_wait_chapter_system,
+                    process_tween_wait_chapter_system,
                     process_am_wait_chapter_system,
                     process_parallel_chapter_system,
                     cleanup_finished_chapters_system,
@@ -46,7 +48,7 @@ impl Plugin for SequencerPlugin {
 }
 
 use super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
-use super::chapter_schema::{Chapter, PlayerAction};
+use super::chapter_schema::{Chapter, EasingFunction, PlayerAction, TweenTarget, Val};
 use super::danmaku::PlayPerformanceEvent;
 use crate::app_state::AppState;
 use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
@@ -54,6 +56,7 @@ use crate::app_state::battle::{BattleAsset, BattleUpdate};
 use crate::core::collision::PhysicsCollider;
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
+use crate::core::view::components::UIBox;
 use bevy::prelude::*;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -578,6 +581,7 @@ fn process_modify_view_element_system(
     mut sprites: Query<&mut Sprite>,
     mut visibilities: Query<&mut Visibility>,
     mut histories: Query<&mut crate::core::view::ViewElementHistory>,
+    mut ui_boxes: Query<&mut UIBox>,
 ) {
     for (chapter_entity, active_chapter) in active_chapters.iter() {
         if let Chapter::ModifyViewElement {
@@ -765,6 +769,18 @@ fn process_modify_view_element_system(
                             info!("Set visibility for entity {:?}: {}", entity, is_visible);
                         }
                     }
+                    super::chapter_schema::ElementModification::SetBoxSize(width, height) => {
+                        if let Ok(mut ui_box) = ui_boxes.get_mut(entity) {
+                            use crate::core::view::ron_view::parsing::resolve_val_f32;
+                            let player_data = crate::core::data::PlayerData::default();
+
+                            let w = resolve_val_f32(width, None, &player_data, None);
+                            let h = resolve_val_f32(height, None, &player_data, None);
+                            ui_box.width = w;
+                            ui_box.height = h;
+                            info!("Set box size for entity {:?}: {}x{}", entity, w, h);
+                        }
+                    }
                     super::chapter_schema::ElementModification::Undo => {
                         if let Ok(mut history) = histories.get_mut(entity)
                             && let Some(previous_state) = history.undo()
@@ -845,6 +861,667 @@ fn process_modify_view_element_system(
             // Mark chapter as finished
             // 标记章节为完成
             commands.entity(chapter_entity).insert(ChapterFinished);
+        }
+    }
+}
+
+// =============================================================================
+// Tween View Element System
+// 补间视图元素系统
+// =============================================================================
+
+/// Component to track an active tween animation.
+///
+/// 跟踪活动补间动画的组件。
+#[derive(Component)]
+struct ActiveTween {
+    /// Target entity being animated.
+    target_entity: Entity,
+    /// Start values for interpolation.
+    start_value: TweenValue,
+    /// End values for interpolation.
+    end_value: TweenValue,
+    /// Animation timer.
+    timer: Timer,
+    /// Easing function.
+    easing: EasingFunction,
+    /// Whether to wait for completion.
+    wait_for_completion: bool,
+}
+
+/// Interpolatable value types for tween animations.
+///
+/// 用于补间动画的可插值值类型。
+#[derive(Debug, Clone)]
+enum TweenValue {
+    /// Box size (width, height).
+    BoxSize(f32, f32),
+    /// Position (x, y, z).
+    Position(Vec3),
+    /// Scale (x, y, z).
+    Scale(Vec3),
+    /// Color (r, g, b, a).
+    Color(Vec4),
+    /// Rotation (radians).
+    Rotation(f32),
+    /// Alpha only.
+    Alpha(f32),
+}
+
+impl TweenValue {
+    /// Interpolate between two values.
+    fn lerp(&self, other: &TweenValue, t: f32) -> TweenValue {
+        match (self, other) {
+            (TweenValue::BoxSize(w1, h1), TweenValue::BoxSize(w2, h2)) => {
+                TweenValue::BoxSize(w1 + (w2 - w1) * t, h1 + (h2 - h1) * t)
+            }
+            (TweenValue::Position(v1), TweenValue::Position(v2)) => {
+                TweenValue::Position(v1.lerp(*v2, t))
+            }
+            (TweenValue::Scale(v1), TweenValue::Scale(v2)) => TweenValue::Scale(v1.lerp(*v2, t)),
+            (TweenValue::Color(v1), TweenValue::Color(v2)) => TweenValue::Color(v1.lerp(*v2, t)),
+            (TweenValue::Rotation(r1), TweenValue::Rotation(r2)) => {
+                TweenValue::Rotation(r1 + (r2 - r1) * t)
+            }
+            (TweenValue::Alpha(a1), TweenValue::Alpha(a2)) => TweenValue::Alpha(a1 + (a2 - a1) * t),
+            _ => self.clone(), // Mismatched types, return start value
+        }
+    }
+}
+
+/// Apply easing function to a linear progress value (0.0 to 1.0).
+///
+/// 对线性进度值（0.0 到 1.0）应用缓动函数。
+fn apply_easing(t: f32, easing: EasingFunction) -> f32 {
+    match easing {
+        EasingFunction::Linear => t,
+        EasingFunction::QuadIn => t * t,
+        EasingFunction::QuadOut => 1.0 - (1.0 - t) * (1.0 - t),
+        EasingFunction::QuadInOut => {
+            if t < 0.5 {
+                2.0 * t * t
+            } else {
+                1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+            }
+        }
+        EasingFunction::CubicIn => t * t * t,
+        EasingFunction::CubicOut => 1.0 - (1.0 - t).powi(3),
+        EasingFunction::CubicInOut => {
+            if t < 0.5 {
+                4.0 * t * t * t
+            } else {
+                1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+            }
+        }
+        EasingFunction::SineIn => 1.0 - (t * std::f32::consts::FRAC_PI_2).cos(),
+        EasingFunction::SineOut => (t * std::f32::consts::FRAC_PI_2).sin(),
+        EasingFunction::SineInOut => -(((t * std::f32::consts::PI).cos() - 1.0) / 2.0),
+        EasingFunction::ExpoIn => {
+            if t == 0.0 {
+                0.0
+            } else {
+                2.0_f32.powf(10.0 * t - 10.0)
+            }
+        }
+        EasingFunction::ExpoOut => {
+            if t == 1.0 {
+                1.0
+            } else {
+                1.0 - 2.0_f32.powf(-10.0 * t)
+            }
+        }
+        EasingFunction::ExpoInOut => {
+            if t == 0.0 {
+                0.0
+            } else if t == 1.0 {
+                1.0
+            } else if t < 0.5 {
+                2.0_f32.powf(20.0 * t - 10.0) / 2.0
+            } else {
+                (2.0 - 2.0_f32.powf(-20.0 * t + 10.0)) / 2.0
+            }
+        }
+        EasingFunction::ElasticIn => {
+            let c4 = (2.0 * std::f32::consts::PI) / 3.0;
+            if t == 0.0 {
+                0.0
+            } else if t == 1.0 {
+                1.0
+            } else {
+                -2.0_f32.powf(10.0 * t - 10.0) * ((t * 10.0 - 10.75) * c4).sin()
+            }
+        }
+        EasingFunction::ElasticOut => {
+            let c4 = (2.0 * std::f32::consts::PI) / 3.0;
+            if t == 0.0 {
+                0.0
+            } else if t == 1.0 {
+                1.0
+            } else {
+                2.0_f32.powf(-10.0 * t) * ((t * 10.0 - 0.75) * c4).sin() + 1.0
+            }
+        }
+        EasingFunction::ElasticInOut => {
+            let c5 = (2.0 * std::f32::consts::PI) / 4.5;
+            if t == 0.0 {
+                0.0
+            } else if t == 1.0 {
+                1.0
+            } else if t < 0.5 {
+                -(2.0_f32.powf(20.0 * t - 10.0) * ((20.0 * t - 11.125) * c5).sin()) / 2.0
+            } else {
+                (2.0_f32.powf(-20.0 * t + 10.0) * ((20.0 * t - 11.125) * c5).sin()) / 2.0 + 1.0
+            }
+        }
+        EasingFunction::BounceIn => 1.0 - apply_easing(1.0 - t, EasingFunction::BounceOut),
+        EasingFunction::BounceOut => {
+            let n1 = 7.5625;
+            let d1 = 2.75;
+            if t < 1.0 / d1 {
+                n1 * t * t
+            } else if t < 2.0 / d1 {
+                let t = t - 1.5 / d1;
+                n1 * t * t + 0.75
+            } else if t < 2.5 / d1 {
+                let t = t - 2.25 / d1;
+                n1 * t * t + 0.9375
+            } else {
+                let t = t - 2.625 / d1;
+                n1 * t * t + 0.984375
+            }
+        }
+        EasingFunction::BounceInOut => {
+            if t < 0.5 {
+                (1.0 - apply_easing(1.0 - 2.0 * t, EasingFunction::BounceOut)) / 2.0
+            } else {
+                (1.0 + apply_easing(2.0 * t - 1.0, EasingFunction::BounceOut)) / 2.0
+            }
+        }
+        EasingFunction::BackIn => {
+            let c1 = 1.70158;
+            let c3 = c1 + 1.0;
+            c3 * t * t * t - c1 * t * t
+        }
+        EasingFunction::BackOut => {
+            let c1 = 1.70158;
+            let c3 = c1 + 1.0;
+            1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
+        }
+        EasingFunction::BackInOut => {
+            let c1 = 1.70158;
+            let c2 = c1 * 1.525;
+            if t < 0.5 {
+                ((2.0 * t).powi(2) * ((c2 + 1.0) * 2.0 * t - c2)) / 2.0
+            } else {
+                ((2.0 * t - 2.0).powi(2) * ((c2 + 1.0) * (t * 2.0 - 2.0) + c2) + 2.0) / 2.0
+            }
+        }
+    }
+}
+
+/// Helper to resolve a Val<f32> to an f32 value using the unified expression system.
+/// Uses the `resolve_val_f32` function from `parsing.rs` for full expression support.
+///
+/// 使用统一的表达式系统解析 Val<f32> 为 f32 值。
+/// 使用 `parsing.rs` 中的 `resolve_val_f32` 函数以支持完整的表达式功能。
+fn resolve_tween_val_f32(
+    val: &Val<f32>,
+    current: f32,
+    player_data: &crate::core::data::PlayerData,
+    time: Option<f64>,
+) -> f32 {
+    crate::core::view::ron_view::parsing::resolve_val_f32(val, Some(current), player_data, time)
+}
+
+/// System to process TweenViewElement chapters.
+///
+/// 处理 TweenViewElement 章节的系统。
+#[allow(clippy::type_complexity)]
+fn process_tween_view_element_system(
+    mut commands: Commands,
+    active_chapters: Query<
+        (Entity, &ActiveChapter),
+        (
+            Without<ActiveTween>,
+            Without<WaitTimer>,
+            Without<ChapterFinished>,
+        ),
+    >,
+    view_elements: Query<(Entity, &crate::core::view::components::ViewElement)>,
+    transforms: Query<&Transform>,
+    sprites: Query<&Sprite>,
+    ui_boxes: Query<&UIBox>,
+    player_data: Res<crate::core::data::PlayerData>,
+    time: Res<Time>,
+) {
+    // Get current elapsed time for expression evaluation
+    let current_time = time.elapsed_secs_f64();
+
+    for (chapter_entity, active_chapter) in active_chapters.iter() {
+        if let Chapter::TweenViewElement {
+            selector,
+            target,
+            duration,
+            easing,
+            wait_for_completion,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "[TweenViewElement] Processing: selector={:?}, target={:?}, duration={}s",
+                selector, target, duration
+            );
+
+            // Resolve the selector to get target entity
+            let target_entity = match selector {
+                super::chapter_schema::ElementSelector::FullName(full_name) => {
+                    crate::core::view::find_element_by_full_name(&view_elements, full_name)
+                }
+                super::chapter_schema::ElementSelector::LocalName(local_name) => view_elements
+                    .iter()
+                    .find(|(_, elem)| elem.local_name == *local_name)
+                    .map(|(entity, _)| entity),
+                super::chapter_schema::ElementSelector::Tag(tag) => {
+                    crate::core::view::find_elements_by_tag(&view_elements, tag)
+                        .into_iter()
+                        .next()
+                }
+            };
+
+            let Some(target_entity) = target_entity else {
+                warn!(
+                    "[TweenViewElement] Target element not found: {:?}",
+                    selector
+                );
+                commands.entity(chapter_entity).insert(ChapterFinished);
+                continue;
+            };
+
+            // Get start and end values based on target type
+            let (start_value, end_value) = match target {
+                TweenTarget::BoxSize { from, to } => {
+                    if let Ok(ui_box) = ui_boxes.get(target_entity) {
+                        let current_w = ui_box.width();
+                        let current_h = ui_box.height();
+
+                        // Handle optional from value
+                        let start = if let Some(from) = from {
+                            TweenValue::BoxSize(
+                                resolve_tween_val_f32(
+                                    &from.0,
+                                    current_w,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.1,
+                                    current_h,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                            )
+                        } else {
+                            TweenValue::BoxSize(current_w, current_h)
+                        };
+
+                        let end = TweenValue::BoxSize(
+                            resolve_tween_val_f32(
+                                &to.0,
+                                current_w,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.1,
+                                current_h,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                        );
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no UIBox component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+                TweenTarget::Position { from, to } => {
+                    if let Ok(transform) = transforms.get(target_entity) {
+                        let current = transform.translation;
+
+                        let start = if let Some(from) = from {
+                            TweenValue::Position(Vec3::new(
+                                resolve_tween_val_f32(
+                                    &from.0,
+                                    current.x,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.1,
+                                    current.y,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.2,
+                                    current.z,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                            ))
+                        } else {
+                            TweenValue::Position(current)
+                        };
+
+                        let end = TweenValue::Position(Vec3::new(
+                            resolve_tween_val_f32(
+                                &to.0,
+                                current.x,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.1,
+                                current.y,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.2,
+                                current.z,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                        ));
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no Transform component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+                TweenTarget::Scale { from, to } => {
+                    if let Ok(transform) = transforms.get(target_entity) {
+                        let current = transform.scale;
+
+                        let start = if let Some(from) = from {
+                            TweenValue::Scale(Vec3::new(
+                                resolve_tween_val_f32(
+                                    &from.0,
+                                    current.x,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.1,
+                                    current.y,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.2,
+                                    current.z,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                            ))
+                        } else {
+                            TweenValue::Scale(current)
+                        };
+
+                        let end = TweenValue::Scale(Vec3::new(
+                            resolve_tween_val_f32(
+                                &to.0,
+                                current.x,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.1,
+                                current.y,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.2,
+                                current.z,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                        ));
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no Transform component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+                TweenTarget::Color { from, to } => {
+                    if let Ok(sprite) = sprites.get(target_entity) {
+                        let c = sprite.color.to_linear();
+                        let current = Vec4::new(c.red, c.green, c.blue, c.alpha);
+
+                        let start = if let Some(from) = from {
+                            TweenValue::Color(Vec4::new(
+                                resolve_tween_val_f32(
+                                    &from.0,
+                                    current.x,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.1,
+                                    current.y,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.2,
+                                    current.z,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                                resolve_tween_val_f32(
+                                    &from.3,
+                                    current.w,
+                                    &player_data,
+                                    Some(current_time),
+                                ),
+                            ))
+                        } else {
+                            TweenValue::Color(current)
+                        };
+
+                        let end = TweenValue::Color(Vec4::new(
+                            resolve_tween_val_f32(
+                                &to.0,
+                                current.x,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.1,
+                                current.y,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.2,
+                                current.z,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                            resolve_tween_val_f32(
+                                &to.3,
+                                current.w,
+                                &player_data,
+                                Some(current_time),
+                            ),
+                        ));
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no Sprite component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+                TweenTarget::Rotation { from, to } => {
+                    if let Ok(transform) = transforms.get(target_entity) {
+                        let (_, _, z) = transform.rotation.to_euler(EulerRot::XYZ);
+
+                        let start = if let Some(from) = from {
+                            TweenValue::Rotation(resolve_tween_val_f32(
+                                from,
+                                z,
+                                &player_data,
+                                Some(current_time),
+                            ))
+                        } else {
+                            TweenValue::Rotation(z)
+                        };
+
+                        let end = TweenValue::Rotation(resolve_tween_val_f32(
+                            to,
+                            z,
+                            &player_data,
+                            Some(current_time),
+                        ));
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no Transform component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+                TweenTarget::Alpha { from, to } => {
+                    if let Ok(sprite) = sprites.get(target_entity) {
+                        let current_alpha = sprite.color.alpha();
+
+                        let start = if let Some(from) = from {
+                            TweenValue::Alpha(resolve_tween_val_f32(
+                                from,
+                                current_alpha,
+                                &player_data,
+                                Some(current_time),
+                            ))
+                        } else {
+                            TweenValue::Alpha(current_alpha)
+                        };
+
+                        let end = TweenValue::Alpha(resolve_tween_val_f32(
+                            to,
+                            current_alpha,
+                            &player_data,
+                            Some(current_time),
+                        ));
+                        (start, end)
+                    } else {
+                        warn!("[TweenViewElement] Target has no Sprite component");
+                        commands.entity(chapter_entity).insert(ChapterFinished);
+                        continue;
+                    }
+                }
+            };
+
+            info!(
+                "[TweenViewElement] Starting tween: {:?} -> {:?}",
+                start_value, end_value
+            );
+
+            // Create the tween component
+            // If not waiting for completion, spawn a separate entity for the tween
+            // so it can continue running after the chapter is marked as finished
+            if *wait_for_completion {
+                commands.entity(chapter_entity).insert(ActiveTween {
+                    target_entity,
+                    start_value,
+                    end_value,
+                    timer: Timer::from_seconds(*duration, TimerMode::Once),
+                    easing: *easing,
+                    wait_for_completion: *wait_for_completion,
+                });
+            } else {
+                // Spawn a detached tween entity that will clean itself up when done
+                commands.spawn(ActiveTween {
+                    target_entity,
+                    start_value,
+                    end_value,
+                    timer: Timer::from_seconds(*duration, TimerMode::Once),
+                    easing: *easing,
+                    wait_for_completion: false,
+                });
+                // Mark chapter as finished immediately
+                commands.entity(chapter_entity).insert(ChapterFinished);
+            }
+        }
+    }
+}
+
+/// System to update active tween animations.
+///
+/// 更新活动补间动画的系统。
+#[allow(clippy::type_complexity)]
+fn process_tween_wait_chapter_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut tween_query: Query<(Entity, &mut ActiveTween), Without<ChapterFinished>>,
+    mut transforms: Query<&mut Transform>,
+    mut sprites: Query<&mut Sprite>,
+    mut ui_boxes: Query<&mut UIBox>,
+) {
+    for (entity, mut tween) in tween_query.iter_mut() {
+        tween.timer.tick(time.delta());
+
+        let linear_t = tween.timer.elapsed_secs() / tween.timer.duration().as_secs_f32();
+        let eased_t = apply_easing(linear_t.min(1.0), tween.easing);
+
+        // Interpolate and apply the value
+        let current = tween.start_value.lerp(&tween.end_value, eased_t);
+
+        match current {
+            TweenValue::BoxSize(width, height) => {
+                if let Ok(mut ui_box) = ui_boxes.get_mut(tween.target_entity) {
+                    ui_box.width = width;
+                    ui_box.height = height;
+                }
+            }
+            TweenValue::Position(pos) => {
+                if let Ok(mut transform) = transforms.get_mut(tween.target_entity) {
+                    transform.translation = pos;
+                }
+            }
+            TweenValue::Scale(scale) => {
+                if let Ok(mut transform) = transforms.get_mut(tween.target_entity) {
+                    transform.scale = scale;
+                }
+            }
+            TweenValue::Color(color) => {
+                if let Ok(mut sprite) = sprites.get_mut(tween.target_entity) {
+                    sprite.color = Color::linear_rgba(color.x, color.y, color.z, color.w);
+                }
+            }
+            TweenValue::Rotation(angle) => {
+                if let Ok(mut transform) = transforms.get_mut(tween.target_entity) {
+                    transform.rotation = Quat::from_rotation_z(angle);
+                }
+            }
+            TweenValue::Alpha(alpha) => {
+                if let Ok(mut sprite) = sprites.get_mut(tween.target_entity) {
+                    sprite.color = sprite.color.with_alpha(alpha);
+                }
+            }
+        }
+
+        if tween.timer.finished() {
+            info!("[TweenViewElement] Tween completed");
+            // If this tween is on a chapter entity (wait_for_completion: true),
+            // mark the chapter as finished. Otherwise, just despawn the tween entity.
+            if tween.wait_for_completion {
+                commands.entity(entity).insert(ChapterFinished);
+            } else {
+                // This is a detached tween entity, despawn it
+                commands.entity(entity).despawn();
+            }
         }
     }
 }

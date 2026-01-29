@@ -491,13 +491,18 @@ pub(crate) fn update_sdf_view_shape_system(
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     ui_box_query: UIBoxQuery,
-    mut sdf_shape_query: Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>)>,
+    mut sdf_shape_query: Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &Mesh2d)>,
     children_query: Query<&Children>,
 ) {
     for (entity, ui_box, transform, children_opt) in ui_box_query.iter() {
         let box_width = ui_box.width();
         let box_height = ui_box.height();
         let border_width = ui_box.border_width();
+
+        info!(
+            "[update_sdf_view_shape_system] UIBox changed: entity={:?}, width={}, height={}",
+            entity, box_width, box_height
+        );
 
         // Determine expected SDF shape count based on structure_file
         // 根据 structure_file 确定预期的 SDF 形状数量
@@ -534,7 +539,7 @@ pub(crate) fn update_sdf_view_shape_system(
 
                     if expected_shapes == 1 {
                         // Update single shape
-                        if let Ok((mut shape, mat_handle)) =
+                        if let Ok((mut shape, mat_handle, mesh_handle)) =
                             sdf_shape_query.get_mut(sdf_shape_entities[0])
                         {
                             shape.half_width = box_width / 2.0;
@@ -543,10 +548,14 @@ pub(crate) fn update_sdf_view_shape_system(
                             if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
                                 *material = shape.to_material();
                             }
+                            // Update mesh to match new frame size
+                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+                                *mesh = shape.create_mesh();
+                            }
                         }
                     } else {
                         // Update outer (border) and inner (filler) shapes
-                        if let Ok((mut outer_shape, mat_handle)) =
+                        if let Ok((mut outer_shape, mat_handle, mesh_handle)) =
                             sdf_shape_query.get_mut(sdf_shape_entities[0])
                         {
                             outer_shape.half_width = (box_width + border_width * 2.0) / 2.0;
@@ -554,15 +563,23 @@ pub(crate) fn update_sdf_view_shape_system(
                             if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
                                 *material = outer_shape.to_material();
                             }
+                            // Update mesh to match new frame size
+                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+                                *mesh = outer_shape.create_mesh();
+                            }
                         }
 
-                        if let Ok((mut inner_shape, mat_handle)) =
+                        if let Ok((mut inner_shape, mat_handle, mesh_handle)) =
                             sdf_shape_query.get_mut(sdf_shape_entities[1])
                         {
                             inner_shape.half_width = box_width / 2.0;
                             inner_shape.half_height = box_height / 2.0;
                             if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
                                 *material = inner_shape.to_material();
+                            }
+                            // Update mesh to match new frame size
+                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+                                *mesh = inner_shape.create_mesh();
                             }
                         }
                     }
