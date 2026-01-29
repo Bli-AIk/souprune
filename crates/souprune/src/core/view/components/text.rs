@@ -9,7 +9,6 @@ use bevy_rich_text3d::{TextAlign, TextAnchor};
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-
 /// Component that records the UI layer and the current selection index within that layer.
 ///
 /// Access pattern:

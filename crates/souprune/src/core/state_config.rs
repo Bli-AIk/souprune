@@ -158,17 +158,18 @@ fn process_loaded_state_config_system(
     }
 
     if let Some(handle) = &loaded_config.handle
-        && let Some(config) = state_configs.get(handle) {
-            info!(
-                "State configuration loaded with {} states",
-                config.states.len()
+        && let Some(config) = state_configs.get(handle)
+    {
+        info!(
+            "State configuration loaded with {} states",
+            config.states.len()
+        );
+        for (name, def) in &config.states {
+            debug!(
+                "  State '{}': ui_interactive={}, player_movable={}, view_layout={:?}",
+                name, def.ui_interactive, def.player_movable, def.view_layout
             );
-            for (name, def) in &config.states {
-                debug!(
-                    "  State '{}': ui_interactive={}, player_movable={}, view_layout={:?}",
-                    name, def.ui_interactive, def.player_movable, def.view_layout
-                );
-            }
-            loaded_config.config = Some(config.clone());
         }
+        loaded_config.config = Some(config.clone());
+    }
 }

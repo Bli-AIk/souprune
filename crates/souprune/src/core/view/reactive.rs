@@ -129,9 +129,10 @@ pub(crate) fn update_reactive_indicator_system(
 
             // Update indicator position
             if let Some(translation) = indicator.translation_for_index(&ui_layer, event.new_index)
-                && transform.translation != translation {
-                    transform.translation = translation;
-                }
+                && transform.translation != translation
+            {
+                transform.translation = translation;
+            }
 
             // Ensure indicator is visible (if not hidden and in correct state)
             let should_show =

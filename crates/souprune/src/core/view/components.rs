@@ -26,8 +26,8 @@ pub(crate) use box_components::{
 pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDynamic};
 pub(crate) use interactive::{
     AwaitingInteraction, InteractionResult, InteractiveLayer, InteractiveLayerDef,
-    LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, NavigatorType, SelectionCancelledEvent,
-    SelectionChangedEvent, SelectionConfirmedEvent,
+    LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, NavigatorType,
+    SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent,
 };
 pub(crate) use layer::UILayer;
 pub(crate) use navigation::{
