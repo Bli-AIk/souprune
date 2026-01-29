@@ -414,3 +414,44 @@ pub fn resolve_data_path(
         _ => format!("<unknown:{}>", path),
     }
 }
+
+/// Resolve a Val<f32> to an actual f32 value.
+///
+/// 将 Val<f32> 解析为实际的 f32 值。
+pub fn resolve_val_f32(
+    val: &crate::app_state::battle::chapter_schema::Val<f32>,
+    current_value: Option<f32>,
+    player_data: &crate::core::data::PlayerData,
+    time: Option<f64>,
+) -> f32 {
+    match val {
+        crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
+        crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
+            // Special case: "current" keyword
+            if expr_str == "current" {
+                return current_value.unwrap_or(0.0);
+            }
+
+            // Otherwise, evaluate as expression
+            use crate::core::ui::layout::FloatOrExpr;
+            evaluate_float_expr(&FloatOrExpr::Dynamic(expr_str.clone()), player_data, time)
+        }
+    }
+}
+
+/// Resolve a Val<bool> to an actual bool value.
+///
+/// 将 Val<bool> 解析为实际的 bool 值。
+pub fn resolve_val_bool(
+    val: &crate::app_state::battle::chapter_schema::Val<bool>,
+    player_data: &crate::core::data::PlayerData,
+) -> bool {
+    match val {
+        crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
+        crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
+            // Evaluate condition expression
+            evaluate_condition(expr_str, player_data)
+        }
+    }
+}
+

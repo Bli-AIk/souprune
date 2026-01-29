@@ -152,26 +152,18 @@
         ),
         Wait(0.8),
         
-        // === Test 5: SetPositionExpr (with random) ===
-        // === 测试 5: 表达式位置设置（带随机数） ===
+        // === Test 5: SetPosition (with expressions and random) ===
+        // === 测试 5: 设置位置（带表达式和随机数） ===
         
         ModifyViewElement(
             selector: LocalName("BattleBox"),
-            modification: SetPositionExpr(
-                x: "current",
-                y: "random(50.0)",  // Y random in range [-50, 50]
-                z: "0.0",
-            ),
+            modification: SetPosition("current", "random(50.0)", 0.0),  // Static X (current), Random Y in [-50, 50]
         ),
         Wait(0.8),
         
         ModifyViewElement(
             selector: LocalName("BattleBox"),
-            modification: SetPositionExpr(
-                x: "current",
-                y: "random(-30.0, 30.0)",  // Y random in range [-30, 30]
-                z: "0.0",
-            ),
+            modification: SetPosition("current", "random(-30.0, 30.0)", 0.0),  // Random Y in [-30, 30]
         ),
         Wait(0.8),
         

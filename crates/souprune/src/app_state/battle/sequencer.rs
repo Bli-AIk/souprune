@@ -646,111 +646,12 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
                         if let Ok(mut transform) = transforms.get_mut(entity) {
-                            // Ensure history exists or create it
-                            // 确保历史存在或创建它
-                            let history_exists = histories.get_mut(entity).is_ok();
-                            if !history_exists {
-                                let original_state = crate::core::ui::ElementState::capture(
-                                    Some(&*transform),
-                                    sprites.get(entity).ok(),
-                                    visibilities.get(entity).ok(),
-                                );
-                                commands.entity(entity).insert(
-                                    crate::core::ui::ViewElementHistory::new(original_state),
-                                );
-                            }
+                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            let player_data = crate::core::data::PlayerData::default();
 
-                            // Apply modification
-                            // 应用修改
-                            transform.translation = Vec3::new(*x, *y, *z);
-
-                            // Push NEW state to history AFTER modification
-                            // 在修改后将新状态推送到历史
-                            if let Ok(mut history) = histories.get_mut(entity) {
-                                let new_state = crate::core::ui::ElementState::capture(
-                                    Some(&*transform),
-                                    sprites.get(entity).ok(),
-                                    visibilities.get(entity).ok(),
-                                );
-                                history.push(new_state);
-                            }
-                        }
-                    }
-                    super::chapter_schema::ElementModification::SetScale(x, y, z) => {
-                        if let Ok(mut transform) = transforms.get_mut(entity) {
-                            transform.scale = Vec3::new(*x, *y, *z);
-                            info!("Set scale for entity {:?}: ({}, {}, {})", entity, x, y, z);
-                        }
-                    }
-                    super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
-                        if let Ok(mut sprite) = sprites.get_mut(entity) {
-                            sprite.color = Color::srgba(*r, *g, *b, *a);
-                            info!(
-                                "Set color for entity {:?}: ({}, {}, {}, {})",
-                                entity, r, g, b, a
-                            );
-                        }
-                    }
-                    super::chapter_schema::ElementModification::SetVisibility(visible) => {
-                        if let Ok(mut visibility) = visibilities.get_mut(entity) {
-                            *visibility = if *visible {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Hidden
-                            };
-                            info!("Set visibility for entity {:?}: {}", entity, visible);
-                        }
-                    }
-                    super::chapter_schema::ElementModification::SetPositionExpr { x, y, z } => {
-                        if let Ok(mut transform) = transforms.get_mut(entity) {
-                            // Parse and evaluate each coordinate expression
-                            // 解析并评估每个坐标表达式
-                            let final_x = if x == "current" {
-                                transform.translation.x
-                            } else if let Ok(val) = x.parse::<f32>() {
-                                val
-                            } else {
-                                // Treat as expression
-                                // 作为表达式处理
-                                use crate::core::ui::layout::FloatOrExpr;
-                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
-                                let player_data = crate::core::data::PlayerData::default();
-                                evaluate_float_expr(
-                                    &FloatOrExpr::Dynamic(x.clone()),
-                                    &player_data,
-                                    None,
-                                )
-                            };
-
-                            let final_y = if y == "current" {
-                                transform.translation.y
-                            } else if let Ok(val) = y.parse::<f32>() {
-                                val
-                            } else {
-                                use crate::core::ui::layout::FloatOrExpr;
-                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
-                                let player_data = crate::core::data::PlayerData::default();
-                                evaluate_float_expr(
-                                    &FloatOrExpr::Dynamic(y.clone()),
-                                    &player_data,
-                                    None,
-                                )
-                            };
-
-                            let final_z = if z == "current" {
-                                transform.translation.z
-                            } else if let Ok(val) = z.parse::<f32>() {
-                                val
-                            } else {
-                                use crate::core::ui::layout::FloatOrExpr;
-                                use crate::core::ui::ron_ui::parsing::evaluate_float_expr;
-                                let player_data = crate::core::data::PlayerData::default();
-                                evaluate_float_expr(
-                                    &FloatOrExpr::Dynamic(z.clone()),
-                                    &player_data,
-                                    None,
-                                )
-                            };
+                            let final_x = resolve_val_f32(x, Some(transform.translation.x), &player_data, None);
+                            let final_y = resolve_val_f32(y, Some(transform.translation.y), &player_data, None);
+                            let final_z = resolve_val_f32(z, Some(transform.translation.z), &player_data, None);
 
                             // Ensure history exists or create it
                             // 确保历史存在或创建它
@@ -769,10 +670,7 @@ fn process_modify_view_element_system(
                             // Apply modification
                             // 应用修改
                             transform.translation = Vec3::new(final_x, final_y, final_z);
-                            info!(
-                                "Set position (expr) for entity {:?}: ({}, {}, {})",
-                                entity, final_x, final_y, final_z
-                            );
+                            info!("Set position for entity {:?}: ({}, {}, {})", entity, final_x, final_y, final_z);
 
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史
@@ -784,6 +682,51 @@ fn process_modify_view_element_system(
                                 );
                                 history.push(new_state);
                             }
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetScale(x, y, z) => {
+                        if let Ok(mut transform) = transforms.get_mut(entity) {
+                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            let player_data = crate::core::data::PlayerData::default();
+
+                            let final_x = resolve_val_f32(x, Some(transform.scale.x), &player_data, None);
+                            let final_y = resolve_val_f32(y, Some(transform.scale.y), &player_data, None);
+                            let final_z = resolve_val_f32(z, Some(transform.scale.z), &player_data, None);
+
+                            transform.scale = Vec3::new(final_x, final_y, final_z);
+                            info!("Set scale for entity {:?}: ({}, {}, {})", entity, final_x, final_y, final_z);
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
+                        if let Ok(mut sprite) = sprites.get_mut(entity) {
+                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            let player_data = crate::core::data::PlayerData::default();
+                            let color = sprite.color;
+
+                            let final_r = resolve_val_f32(r, Some(color.to_srgba().red), &player_data, None);
+                            let final_g = resolve_val_f32(g, Some(color.to_srgba().green), &player_data, None);
+                            let final_b = resolve_val_f32(b, Some(color.to_srgba().blue), &player_data, None);
+                            let final_a = resolve_val_f32(a, Some(color.to_srgba().alpha), &player_data, None);
+
+                            sprite.color = Color::srgba(final_r, final_g, final_b, final_a);
+                            info!(
+                                "Set color for entity {:?}: ({}, {}, {}, {})",
+                                entity, final_r, final_g, final_b, final_a
+                            );
+                        }
+                    }
+                    super::chapter_schema::ElementModification::SetVisibility(visible) => {
+                        if let Ok(mut visibility) = visibilities.get_mut(entity) {
+                            use crate::core::ui::ron_ui::parsing::resolve_val_bool;
+                            let player_data = crate::core::data::PlayerData::default();
+
+                            let is_visible = resolve_val_bool(visible, &player_data);
+                            *visibility = if is_visible {
+                                Visibility::Visible
+                            } else {
+                                Visibility::Hidden
+                            };
+                            info!("Set visibility for entity {:?}: {}", entity, is_visible);
                         }
                     }
                     super::chapter_schema::ElementModification::Undo => {

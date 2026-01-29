@@ -27,6 +27,51 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// Generic value that can be either static or computed from an expression.
+///
+/// 泛型值，可以是静态值或从表达式计算得出。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Val<T> {
+    /// Static value.
+    ///
+    /// 静态值。
+    Static(T),
+    /// Dynamic expression string.
+    ///
+    /// 动态表达式字符串。
+    Expr(String),
+}
+
+impl<T> Val<T> {
+    /// Returns true if this is a dynamic expression.
+    ///
+    /// 如果是动态表达式则返回 true。
+    pub fn is_expr(&self) -> bool {
+        matches!(self, Val::Expr(_))
+    }
+
+    /// Get the static value if available.
+    ///
+    /// 获取静态值（如果可用）。
+    pub fn as_static(&self) -> Option<&T> {
+        match self {
+            Val::Static(v) => Some(v),
+            Val::Expr(_) => None,
+        }
+    }
+
+    /// Get the expression string if this is an expression.
+    ///
+    /// 获取表达式字符串（如果是表达式）。
+    pub fn as_expr(&self) -> Option<&str> {
+        match self {
+            Val::Expr(s) => Some(s),
+            Val::Static(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
     /// View Interaction Chapter.
@@ -241,36 +286,43 @@ pub enum ElementModification {
 
     /// Set position (x, y, z).
     ///
-    /// 设置位置 (x, y, z)。
-    SetPosition(f32, f32, f32),
-
-    /// Set position with expression support (including random()).
-    ///
     /// Each coordinate can be either a static float or a dynamic expression string.
-    /// Expressions support sin/cos/snap and random() function.
+    /// Expressions support sin/cos/snap and random() functions.
     /// Use "current" to keep the existing coordinate value.
     ///
-    /// 使用表达式支持设置位置（包括 random()）。
+    /// 设置位置 (x, y, z)。
     ///
     /// 每个坐标可以是静态浮点数或动态表达式字符串。
     /// 表达式支持 sin/cos/snap 和 random() 函数。
     /// 使用 "current" 保持现有坐标值。
-    SetPositionExpr { x: String, y: String, z: String },
+    SetPosition(Val<f32>, Val<f32>, Val<f32>),
 
     /// Set scale (x, y, z).
     ///
+    /// Each coordinate can be either a static float or a dynamic expression string.
+    ///
     /// 设置缩放 (x, y, z)。
-    SetScale(f32, f32, f32),
+    ///
+    /// 每个坐标可以是静态浮点数或动态表达式字符串。
+    SetScale(Val<f32>, Val<f32>, Val<f32>),
 
     /// Set color (r, g, b, a) - values 0.0 to 1.0.
     ///
+    /// Each channel can be either a static float or a dynamic expression string.
+    ///
     /// 设置颜色 (r, g, b, a) - 值范围 0.0 至 1.0。
-    SetColor(f32, f32, f32, f32),
+    ///
+    /// 每个通道可以是静态浮点数或动态表达式字符串。
+    SetColor(Val<f32>, Val<f32>, Val<f32>, Val<f32>),
 
     /// Set visibility (true = visible, false = hidden).
     ///
+    /// Can be either a static bool or a dynamic expression string.
+    ///
     /// 设置可见性（true = 可见，false = 隐藏）。
-    SetVisibility(bool),
+    ///
+    /// 可以是静态布尔值或动态表达式字符串。
+    SetVisibility(Val<bool>),
 
     /// Undo last modification for this element.
     ///
