@@ -20,8 +20,8 @@ pub struct HPBarSprite {
 /// 存储原始定义以便重新求值。
 #[derive(Component, Clone)]
 pub struct DynamicUIElement {
-    pub sprite_def: Option<crate::core::ui::layout::SpriteDef>,
-    pub text_def: Option<crate::core::ui::layout::TextDef>,
+    pub sprite_def: Option<crate::core::view::layout::SpriteDef>,
+    pub text_def: Option<crate::core::view::layout::TextDef>,
 }
 
 /// HP bar lag effect state.

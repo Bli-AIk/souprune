@@ -432,7 +432,7 @@ pub fn resolve_val_f32(
                 return current_value.unwrap_or(0.0);
             }
 
-            use crate::core::ui::layout::FloatOrExpr;
+            use crate::core::view::layout::FloatOrExpr;
             evaluate_float_expr(&FloatOrExpr::Expr(expr_str.clone()), player_data, time)
         }
     }

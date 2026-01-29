@@ -46,7 +46,7 @@ pub mod render_layers;
 pub mod ron_loader;
 pub mod save;
 pub mod sprite;
-pub(crate) mod ui;
+pub(crate) mod view;
 
 use crate::extra;
 use bevy::app::*;

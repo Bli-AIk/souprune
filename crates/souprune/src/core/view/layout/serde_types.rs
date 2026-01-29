@@ -259,13 +259,17 @@ pub enum UIFontDef {
     BattleHud,
 }
 
-impl From<UIFontDef> for crate::core::ui::components::UIFont {
+impl From<UIFontDef> for crate::core::view::components::UIFont {
     fn from(val: UIFontDef) -> Self {
         match val {
-            UIFontDef::DeterminationMono => crate::core::ui::components::UIFont::DeterminationMono,
-            UIFontDef::DeterminationSans => crate::core::ui::components::UIFont::DeterminationSans,
-            UIFontDef::Hud => crate::core::ui::components::UIFont::Hud,
-            UIFontDef::BattleHud => crate::core::ui::components::UIFont::BattleHud,
+            UIFontDef::DeterminationMono => {
+                crate::core::view::components::UIFont::DeterminationMono
+            }
+            UIFontDef::DeterminationSans => {
+                crate::core::view::components::UIFont::DeterminationSans
+            }
+            UIFontDef::Hud => crate::core::view::components::UIFont::Hud,
+            UIFontDef::BattleHud => crate::core::view::components::UIFont::BattleHud,
         }
     }
 }

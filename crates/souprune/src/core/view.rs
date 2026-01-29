@@ -36,7 +36,7 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
-pub(crate) mod ron_ui;
+pub(crate) mod ron_view;
 mod shaders;
 mod smud_shape;
 mod state;
@@ -56,8 +56,8 @@ use cursor::{spawn_box_cursor_visual_system, update_box_cursor_state_system};
 pub(crate) use layout::SmudStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
-pub use ron_ui::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
-use ron_ui::{
+pub use ron_view::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
+use ron_view::{
     load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
     update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
 };
@@ -77,17 +77,20 @@ use components::{
 
 use bevy::sprite_render::Material2dPlugin;
 
-/// RON-driven UI plugin for both Overworld and Battle scenes.
+/// RON-driven View plugin for both Overworld and Battle scenes.
 ///
-/// This plugin loads UI layouts from RON files and renders them using SDF shapes and 3D text.
-/// Different UI styles can be achieved by modifying the RON files without code changes.
+/// This plugin loads View layouts from RON files and renders them using SDF shapes and 3D text.
+/// Different View styles can be achieved by modifying the RON files without code changes.
 ///
-/// RON 驱动的 UI 插件，支持 Overworld 和 Battle 场景。
-/// 该插件从 RON 文件加载 UI 布局，并使用 SDF 形状和 3D 文本进行渲染。
-/// 通过修改 RON 文件可以实现不同的 UI 风格，而无需更改代码。
-pub(crate) struct CoreUIPlugin;
+/// RON 驱动的 View 插件，支持 Overworld 和 Battle 场景。
+/// 该插件从 RON 文件加载 View 布局，并使用 SDF 形状和 3D 文本进行渲染。
+/// 通过修改 RON 文件可以实现不同的 View 风格，而无需更改代码。
+pub(crate) struct CoreViewPlugin;
 
-impl Plugin for CoreUIPlugin {
+/// Backwards compatibility alias
+pub(crate) type CoreUIPlugin = CoreViewPlugin;
+
+impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<ViewLayoutAsset>()
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&[
@@ -104,7 +107,7 @@ impl Plugin for CoreUIPlugin {
             >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
-            .init_resource::<ron_ui::UIGlobalTriggerConfig>()
+            .init_resource::<ron_view::UIGlobalTriggerConfig>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
                 Update,
@@ -115,12 +118,12 @@ impl Plugin for CoreUIPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                ron_ui::update_hp_bar_shader_params
+                ron_view::update_hp_bar_shader_params
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
             .add_systems(
                 Update,
-                ron_ui::update_dynamic_ui_elements
+                ron_view::update_dynamic_ui_elements
                     .run_if(resource_exists::<crate::core::data::PlayerData>),
             )
             .add_systems(
@@ -128,13 +131,13 @@ impl Plugin for CoreUIPlugin {
                 (
                     update_ui_from_map_system,
                     watch_ui_layout_changes_system,
-                    crate::core::ui::ron_ui::reload::rebuild_reloaded_ui_system,
+                    crate::core::view::ron_view::reload::rebuild_reloaded_ui_system,
                     load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
-                    ron_ui::setup_hp_bar_sprites
+                    ron_view::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_smud_shape_system,
                     update_ui_box_visibility_system,

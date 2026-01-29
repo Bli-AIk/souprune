@@ -302,14 +302,14 @@ fn process_ui_action_system(
             match action {
                 super::chapter_schema::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
-                    commands.insert_resource(crate::core::ui::UILayoutHandle {
+                    commands.insert_resource(crate::core::view::UILayoutHandle {
                         handle,
                         last_modified: None,
                         path: path.clone(),
                     });
                     commands.spawn((
-                        crate::core::ui::components::RonUI::new(
-                            crate::core::ui::components::UILayer::BACKPACK_MENU,
+                        crate::core::view::components::RonUI::new(
+                            crate::core::view::components::UILayer::BACKPACK_MENU,
                             0,
                         ),
                         Transform::default(),
@@ -320,7 +320,7 @@ fn process_ui_action_system(
                         crate::app_state::battle::BattleEntity,
                         Name::new("BattleUI Root"),
                     ));
-                    commands.init_resource::<crate::core::ui::UILayoutWatcher>();
+                    commands.init_resource::<crate::core::view::UILayoutWatcher>();
                 }
                 _ => {
                     warn!("UI action {:?} not fully implemented yet", action);
@@ -332,14 +332,14 @@ fn process_ui_action_system(
         {
             info!("[Battle] Loading view layout for battle: {}", view_layout);
             let handle = asset_server.load(view_layout);
-            commands.insert_resource(crate::core::ui::UILayoutHandle {
+            commands.insert_resource(crate::core::view::UILayoutHandle {
                 handle,
                 last_modified: None,
                 path: view_layout.clone(),
             });
             commands.spawn((
-                crate::core::ui::components::RonUI::new(
-                    crate::core::ui::components::UILayer::BACKPACK_MENU,
+                crate::core::view::components::RonUI::new(
+                    crate::core::view::components::UILayer::BACKPACK_MENU,
                     0,
                 ),
                 Transform::default(),
@@ -573,11 +573,11 @@ fn process_modify_view_element_system(
         (Entity, &ActiveChapter),
         (Without<WaitTimer>, Without<ChapterFinished>),
     >,
-    view_elements: Query<(Entity, &crate::core::ui::components::ViewElement)>,
+    view_elements: Query<(Entity, &crate::core::view::components::ViewElement)>,
     mut transforms: Query<&mut Transform>,
     mut sprites: Query<&mut Sprite>,
     mut visibilities: Query<&mut Visibility>,
-    mut histories: Query<&mut crate::core::ui::ViewElementHistory>,
+    mut histories: Query<&mut crate::core::view::ViewElementHistory>,
 ) {
     for (chapter_entity, active_chapter) in active_chapters.iter() {
         if let Chapter::ModifyViewElement {
@@ -595,7 +595,7 @@ fn process_modify_view_element_system(
             let target_entities = match selector {
                 super::chapter_schema::ElementSelector::FullName(full_name) => {
                     if let Some(entity) =
-                        crate::core::ui::find_element_by_full_name(&view_elements, full_name)
+                        crate::core::view::find_element_by_full_name(&view_elements, full_name)
                     {
                         info!(
                             "[ModifyViewElement] Found element: {:?} (full_name={})",
@@ -620,7 +620,7 @@ fn process_modify_view_element_system(
                         .collect()
                 }
                 super::chapter_schema::ElementSelector::Tag(tag) => {
-                    crate::core::ui::find_elements_by_tag(&view_elements, tag)
+                    crate::core::view::find_elements_by_tag(&view_elements, tag)
                 }
             };
 
@@ -646,7 +646,7 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
                         if let Ok(mut transform) = transforms.get_mut(entity) {
-                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            use crate::core::view::ron_view::parsing::resolve_val_f32;
                             let player_data = crate::core::data::PlayerData::default();
 
                             let final_x = resolve_val_f32(
@@ -672,13 +672,13 @@ fn process_modify_view_element_system(
                             // 确保历史存在或创建它
                             let history_exists = histories.get_mut(entity).is_ok();
                             if !history_exists {
-                                let original_state = crate::core::ui::ElementState::capture(
+                                let original_state = crate::core::view::ElementState::capture(
                                     Some(&*transform),
                                     sprites.get(entity).ok(),
                                     visibilities.get(entity).ok(),
                                 );
                                 commands.entity(entity).insert(
-                                    crate::core::ui::ViewElementHistory::new(original_state),
+                                    crate::core::view::ViewElementHistory::new(original_state),
                                 );
                             }
 
@@ -693,7 +693,7 @@ fn process_modify_view_element_system(
                             // Push NEW state to history AFTER modification
                             // 在修改后将新状态推送到历史
                             if let Ok(mut history) = histories.get_mut(entity) {
-                                let new_state = crate::core::ui::ElementState::capture(
+                                let new_state = crate::core::view::ElementState::capture(
                                     Some(&*transform),
                                     sprites.get(entity).ok(),
                                     visibilities.get(entity).ok(),
@@ -704,7 +704,7 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::SetScale(x, y, z) => {
                         if let Ok(mut transform) = transforms.get_mut(entity) {
-                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            use crate::core::view::ron_view::parsing::resolve_val_f32;
                             let player_data = crate::core::data::PlayerData::default();
 
                             let final_x =
@@ -723,7 +723,7 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
                         if let Ok(mut sprite) = sprites.get_mut(entity) {
-                            use crate::core::ui::ron_ui::parsing::resolve_val_f32;
+                            use crate::core::view::ron_view::parsing::resolve_val_f32;
                             let player_data = crate::core::data::PlayerData::default();
                             let color = sprite.color;
 
@@ -753,7 +753,7 @@ fn process_modify_view_element_system(
                     }
                     super::chapter_schema::ElementModification::SetVisibility(visible) => {
                         if let Ok(mut visibility) = visibilities.get_mut(entity) {
-                            use crate::core::ui::ron_ui::parsing::resolve_val_bool;
+                            use crate::core::view::ron_view::parsing::resolve_val_bool;
                             let player_data = crate::core::data::PlayerData::default();
 
                             let is_visible = resolve_val_bool(visible, &player_data);

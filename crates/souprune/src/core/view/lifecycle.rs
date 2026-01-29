@@ -52,7 +52,7 @@ pub(crate) fn spawn_backpack_ui_system(
         .and_then(|rule| {
             rule.max_index()
                 .as_ref()
-                .map(|bound| super::ron_ui::evaluate_index_bound(bound, &player_data))
+                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
         })
         .unwrap_or_else(|| UILayer::BACKPACK_MENU_OPTIONS.len());
 

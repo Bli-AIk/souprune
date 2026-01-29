@@ -21,7 +21,7 @@
 use super::components::{
     RonUI, TransitionAction, UILayer, UILayerNavigationConfig, UILayerTransitionConfig,
 };
-use super::ron_ui::UIGlobalTriggerConfig;
+use super::ron_view::UIGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
 use crate::core::input::Action;
@@ -196,7 +196,7 @@ fn execute_transition_action(
                 .and_then(|rule| {
                     rule.max_index()
                         .as_ref()
-                        .map(|bound| super::ron_ui::evaluate_index_bound(bound, player_data))
+                        .map(|bound| super::ron_view::evaluate_index_bound(bound, player_data))
                 })
                 .unwrap_or_else(|| calculate_max_index_for_layer(target_layer, player_data));
             info!(
@@ -265,13 +265,13 @@ pub(crate) fn update_overworld_ui_navigation_system(
             let min_index = rule
                 .min_index()
                 .as_ref()
-                .map(|bound| super::ron_ui::evaluate_index_bound(bound, &player_data))
+                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
                 .unwrap_or(0);
 
             let max_index = rule
                 .max_index()
                 .as_ref()
-                .map(|bound| super::ron_ui::evaluate_index_bound(bound, &player_data))
+                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
                 .unwrap_or_else(|| {
                     calculate_max_index_for_layer(overworld_ui.layer(), &player_data)
                 });
@@ -463,13 +463,13 @@ pub(crate) fn update_overworld_ui_navigation_system(
             let min_index = rule
                 .min_index()
                 .as_ref()
-                .map(|bound| super::ron_ui::evaluate_index_bound(bound, &player_data))
+                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
                 .unwrap_or(0);
 
             let max_index = rule
                 .max_index()
                 .as_ref()
-                .map(|bound| super::ron_ui::evaluate_index_bound(bound, &player_data))
+                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
                 .unwrap_or_else(|| {
                     calculate_max_index_for_layer(overworld_ui.layer(), &player_data)
                 });

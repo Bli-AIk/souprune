@@ -91,13 +91,13 @@ pub fn spawn_ron_view_for_entity(
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
-    let namespace = crate::core::ui::components::ViewRoot::namespace_from_path(layout_path);
+    let namespace = crate::core::view::components::ViewRoot::namespace_from_path(layout_path);
 
     // Attach ViewRoot to the view entity
     // 为视图实体附加 ViewRoot 组件
     commands
         .entity(view_entity)
-        .insert(crate::core::ui::components::ViewRoot::new(
+        .insert(crate::core::view::components::ViewRoot::new(
             layout_path.to_string(),
         ));
 
@@ -231,7 +231,7 @@ pub fn spawn_view_node(
     // Create ViewElement for named nodes
     // 为具名节点创建 ViewElement
     let view_element = if !node_def.name.is_empty() {
-        Some(crate::core::ui::components::ViewElement::new(
+        Some(crate::core::view::components::ViewElement::new(
             namespace.to_string(),
             node_def.name.clone(),
             node_def.tags.clone(),
