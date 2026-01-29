@@ -13,7 +13,7 @@
                 height: 68.0,
                 border_width: 3.0,
                 offset: (-108.5, -1.0, 0.0),
-                structure_file: "shared/ui_structures/ui_box.smud.ron",
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
             visibility_rule: (
                 rule_type: "Always",
@@ -71,7 +71,7 @@
                 height: 49.0,
                 border_width: 3.0,
                 offset: (-108.5, "if(player.y > camera.y, -68.5, 66.5)", 0.0),
-                structure_file: "shared/ui_structures/ui_box.smud.ron",
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
             visibility_rule: (
                 rule_type: "Always",
@@ -111,7 +111,7 @@
                 height: 175.0,
                 border_width: 3.0,
                 offset: (20.5, 3.5, 0.0),
-                structure_file: "shared/ui_structures/ui_box.smud.ron",
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
             visibility_rule: (
                 rule_type: "OnlyIn",
@@ -197,7 +197,7 @@
                 height: 202.5,
                 border_width: 3.0,
                 offset: (20.5, -10.5, 0.0),
-                structure_file: "shared/ui_structures/ui_box.smud.ron",
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
             visibility_rule: (
                 rule_type: "OnlyIn",

@@ -99,7 +99,7 @@ impl Plugin for CoreViewPlugin {
                 "ui_layout.ron", // Keep compatibility with old filename / 保持与旧文件名的兼容性
             ]))
             .init_asset::<SdfStructureAsset>()
-            .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["smud.ron"]))
+            .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
             >::default())

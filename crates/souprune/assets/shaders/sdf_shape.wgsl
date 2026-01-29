@@ -1,4 +1,4 @@
-// SDF Shape Shader - Custom implementation replacing bevy_smud
+// SDF Shape Shader - Custom implementation for Bevy
 //
 // Renders rectangles (round/miter/bevel corners) and circles/ellipses
 // with optional strokes using signed distance field techniques.

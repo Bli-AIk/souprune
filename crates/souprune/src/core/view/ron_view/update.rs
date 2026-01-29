@@ -67,7 +67,7 @@ pub fn update_dynamic_ui_elements(
 ) {
     *frame_count += 1;
     if !query.is_empty() && (*frame_count).is_multiple_of(60) {
-        info!(
+        debug!(
             "update_dynamic_ui_elements: processing {} entities. Time: {}",
             query.iter().len(),
             time.elapsed_secs_f64()

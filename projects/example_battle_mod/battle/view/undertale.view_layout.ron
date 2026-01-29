@@ -12,7 +12,7 @@
                 border_width: 5.0,
                 offset: (0.0, -80.0, 0.0),
                 // Use classic UIBox structure (Border + Filler)
-                structure_file: "shared/ui_structures/ui_box.smud.ron",
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
             // Optional: Add HP bar or text here later
             children: [],

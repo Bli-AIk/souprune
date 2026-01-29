@@ -31,8 +31,8 @@ use std::fs;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::{OverworldEntity, OverworldState, OverworldUpdate};
 use crate::config;
-use crate::core::view::sdf_shape::ViewSdfShape;
 use crate::core::view::PixelOutlineMaterial;
+use crate::core::view::sdf_shape::ViewSdfShape;
 
 /// Marker component for entities that should be highlighted during chase state.
 ///

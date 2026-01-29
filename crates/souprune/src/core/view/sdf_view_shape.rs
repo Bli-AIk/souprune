@@ -309,7 +309,10 @@ fn spawn_layer_recursive(
     // Determine shape dimensions based on layer definition
     // 根据层定义确定形状尺寸
     let (shape_width, shape_height) = match layer_def.sdf_type {
-        SdfShapeKind::Outer => (box_width + border_width * 2.0, box_height + border_width * 2.0),
+        SdfShapeKind::Outer => (
+            box_width + border_width * 2.0,
+            box_height + border_width * 2.0,
+        ),
         SdfShapeKind::Inner => (box_width, box_height),
     };
 

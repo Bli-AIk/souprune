@@ -7,19 +7,15 @@
 //! ## 模块概述
 //!
 //! This module provides SDF shape rendering using bevy_alight_motion's SdfMaterial.
-//! It replaces the bevy_smud-based implementation with a more controllable system.
 //!
 //! 本模块使用 bevy_alight_motion 的 SdfMaterial 提供 SDF 形状渲染。
-//! 它用更可控的系统替换基于 bevy_smud 的实现。
 
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::{SdfMaterial, SdfShapeType};
 
 /// Component for SDF shape rendering in View system.
-/// Replaces bevy_smud's SmudShape with SdfMaterial-based rendering.
 ///
 /// 用于 View 系统的 SDF 形状渲染组件。
-/// 使用基于 SdfMaterial 的渲染替代 bevy_smud 的 SmudShape。
 #[derive(Component, Debug, Clone)]
 pub struct ViewSdfShape {
     /// Fill color
@@ -161,7 +157,8 @@ impl SdfBoxShape {
     /// Create a quad mesh for this shape.
     pub fn create_mesh(&self) -> Mesh {
         // The mesh size should be large enough to contain the shape plus stroke
-        let frame_half = self.half_width.max(self.half_height) * 2.0 + self.stroke_width * 2.0 + 10.0;
+        let frame_half =
+            self.half_width.max(self.half_height) * 2.0 + self.stroke_width * 2.0 + 10.0;
         Rectangle::new(frame_half * 2.0, frame_half * 2.0).into()
     }
 }
@@ -214,7 +211,12 @@ pub fn spawn_sdf_box(
     position: Vec3,
 ) -> Entity {
     let shape = SdfBoxShape::new(width, height, fill_color);
-    let bundle = SdfBoxBundle::new(shape, meshes, materials, Transform::from_translation(position));
+    let bundle = SdfBoxBundle::new(
+        shape,
+        meshes,
+        materials,
+        Transform::from_translation(position),
+    );
     commands.spawn(bundle).id()
 }
 
@@ -232,7 +234,12 @@ pub fn spawn_sdf_box_with_border(
     position: Vec3,
 ) -> Entity {
     let shape = SdfBoxShape::new(width, height, fill_color).with_stroke(border_width, border_color);
-    let bundle = SdfBoxBundle::new(shape, meshes, materials, Transform::from_translation(position));
+    let bundle = SdfBoxBundle::new(
+        shape,
+        meshes,
+        materials,
+        Transform::from_translation(position),
+    );
     commands.spawn(bundle).id()
 }
 
