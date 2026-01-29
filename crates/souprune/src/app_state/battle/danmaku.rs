@@ -16,7 +16,6 @@ pub use crate::core::danmaku::*;
 use crate::app_state::AppState;
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::DanmakuSpawnContext;
-use crate::core::danmaku::DanmakuUpdate;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
 

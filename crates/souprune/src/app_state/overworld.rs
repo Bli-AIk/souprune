@@ -14,7 +14,7 @@
 //!
 //! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
 
-use crate::app_state::{AppState, cleanup_entities_system};
+use crate::app_state::cleanup_entities_system;
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -27,7 +27,7 @@ mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
 pub mod trigger;
-pub(crate) mod ui;
+pub(crate) mod view;
 
 /// Marker component for overworld entities
 ///
@@ -76,7 +76,7 @@ impl Plugin for OverworldPlugin {
             tilemap::TilemapPlugin,
             player::PlayerPlugin,
             character::CharacterPlugin,
-            crate::core::ui::CoreUIPlugin,
+            crate::core::view::CoreViewPlugin,
         ))
         .add_systems(
             OnEnter(AppState::Overworld),

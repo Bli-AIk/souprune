@@ -31,7 +31,7 @@ use std::fs;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::{OverworldEntity, OverworldState, OverworldUpdate};
 use crate::config;
-use crate::core::ui::PixelOutlineMaterial;
+use crate::core::view::PixelOutlineMaterial;
 
 /// Marker component for entities that should be highlighted during chase state.
 ///
@@ -264,7 +264,7 @@ impl Default for HitboxConfig {
 /// 受伤UI配置。
 #[derive(Debug, Clone, Deserialize)]
 pub struct DamageUIConfig {
-    /// UI layout file path
+    /// View layout file path
     pub layout_path: String,
     /// Display duration in seconds
     pub display_duration: f32,
@@ -273,7 +273,7 @@ pub struct DamageUIConfig {
 impl Default for DamageUIConfig {
     fn default() -> Self {
         Self {
-            layout_path: "overworld/ui/damage_flash.ui_layout.ron".to_string(),
+            layout_path: "overworld/view/damage_flash.view_layout.ron".to_string(),
             display_duration: 0.5,
         }
     }
@@ -282,7 +282,7 @@ impl Default for DamageUIConfig {
 /// Complete chase configuration loaded from RON file.
 ///
 /// 从 RON 文件加载的完整追逐战配置。
-#[derive(Debug, Clone, Deserialize, Resource)]
+#[derive(Debug, Clone, Deserialize, Resource, Default)]
 pub struct ChaseConfig {
     pub heart_marker: HeartMarkerConfig,
     pub outline: OutlineConfig,
@@ -293,34 +293,22 @@ pub struct ChaseConfig {
     pub damage_ui: DamageUIConfig,
 }
 
-impl Default for ChaseConfig {
-    fn default() -> Self {
-        Self {
-            heart_marker: HeartMarkerConfig::default(),
-            outline: OutlineConfig::default(),
-            dark_overlay: DarkOverlayConfig::default(),
-            hitbox: HitboxConfig::default(),
-            damage_ui: DamageUIConfig::default(),
-        }
-    }
-}
-
 impl ChaseConfig {
     /// Load chase configuration from RON file.
     ///
     /// 从 RON 文件加载追逐战配置。
     pub fn load() -> Self {
-        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH) {
-            if let Ok(contents) = fs::read_to_string(&path) {
-                if let Ok(config) = ron::de::from_str(&contents) {
-                    info!("Chase: Loaded config from {}", path.display());
-                    return config;
-                } else {
-                    warn!(
-                        "Chase: Failed to parse config at {}, using defaults",
-                        path.display()
-                    );
-                }
+        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH)
+            && let Ok(contents) = fs::read_to_string(&path)
+        {
+            if let Ok(config) = ron::de::from_str(&contents) {
+                info!("Chase: Loaded config from {}", path.display());
+                return config;
+            } else {
+                warn!(
+                    "Chase: Failed to parse config at {}, using defaults",
+                    path.display()
+                );
             }
         }
         info!("Chase: Using default config");
@@ -1344,26 +1332,28 @@ pub struct DamageUIMarker;
 pub struct ChaseHUDRoot;
 
 /// System to setup Chase HUD when entering chase state.
-/// Loads the damage_flash.ui_layout.ron which contains HP bar and HP text.
+/// Loads the damage_flash.view_layout.ron which contains HP bar and HP text.
 ///
 /// 进入追逐战状态时设置 HUD 的系统。
-/// 加载包含血条和血量文字的 damage_flash.ui_layout.ron。
+/// 加载包含血条和血量文字的 damage_flash.view_layout.ron。
 fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD UI layout
-    let handle = asset_server.load("overworld/ui/damage_flash.ui_layout.ron");
+    // Load the chase HUD View layout / 加载追逐战 HUD 视图布局
+    let ui_path = "overworld/view/damage_flash.view_layout.ron";
+    let handle = asset_server.load(ui_path);
 
-    // Insert the UI layout handle resource
-    commands.insert_resource(crate::core::ui::UILayoutHandle {
+    // Insert the View layout handle resource
+    commands.insert_resource(crate::core::view::UILayoutHandle {
         handle,
         last_modified: None,
+        path: ui_path.to_string(),
     });
 
     // Spawn a root entity for the RON UI system to attach to
     commands.spawn((
-        crate::core::ui::components::RonUI::new(
-            crate::core::ui::components::UILayer::new("ChaseHUD"),
+        crate::core::view::components::RonUI::new(
+            crate::core::view::components::UILayer::new("ChaseHUD"),
             0,
         ),
         Transform::default(),
@@ -1380,7 +1370,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
     // This prevents double UI spawning from rebuild_reloaded_ui_system
     // 插入 pending_reload = false 的 UILayoutWatcher 以确保干净的状态
     // 这可以防止 rebuild_reloaded_ui_system 导致的双重 UI 生成
-    commands.insert_resource(crate::core::ui::UILayoutWatcher::new());
+    commands.insert_resource(crate::core::view::UILayoutWatcher::new());
 
     info!("Chase: Chase HUD setup complete");
 }
@@ -1391,7 +1381,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
 fn cleanup_chase_hud_system(
     mut commands: Commands,
     chase_hud_query: Query<Entity, With<ChaseHUDRoot>>,
-    ron_driven_ui_query: Query<Entity, With<crate::core::ui::RonDrivenUI>>,
+    ron_driven_ui_query: Query<Entity, With<crate::core::view::RonDrivenUI>>,
 ) {
     info!("Chase: Cleaning up Chase HUD");
 
@@ -1405,9 +1395,9 @@ fn cleanup_chase_hud_system(
         commands.entity(entity).despawn();
     }
 
-    // Remove the UI layout handle resource
-    commands.remove_resource::<crate::core::ui::UILayoutHandle>();
-    commands.remove_resource::<crate::core::ui::UILayoutWatcher>();
+    // Remove the View layout handle resource
+    commands.remove_resource::<crate::core::view::UILayoutHandle>();
+    commands.remove_resource::<crate::core::view::UILayoutWatcher>();
 
     info!("Chase: Chase HUD cleanup complete");
 }

@@ -340,12 +340,10 @@ fn spawn_single_bullet(
     index: usize,
     container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
-    spawn_context: &DanmakuSpawnContext,
+    _spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
-    use super::DanmakuActiveState;
-
     // Get scale from prototype
     let scale = prototype.scale;
 

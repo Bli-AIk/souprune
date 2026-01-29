@@ -7,7 +7,7 @@
 use crate::app_state::battle::{BattleMovementSet, BattleUpdate};
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::mod_system::BehaviorParams;
-use crate::core::ui::components::UIBox;
+use crate::core::view::components::UIBox;
 use bevy::prelude::*;
 
 /// Plugin for battle collision systems
