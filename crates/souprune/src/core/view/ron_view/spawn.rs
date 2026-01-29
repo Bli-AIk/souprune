@@ -101,6 +101,19 @@ pub fn spawn_ron_view_for_entity(
             layout_path.to_string(),
         ));
 
+    // Spawn InteractiveLayers if defined
+    // 如果定义了交互层则生成
+    if let Some(interactive_layers) = &view_layout.interactive_layers {
+        for (layer_id, layer_def) in interactive_layers {
+            let interactive_layer = layer_def.build(layer_id);
+            info!(
+                "Creating InteractiveLayer '{}' with navigator: {:?}",
+                layer_id, interactive_layer.navigator
+            );
+            commands.spawn(interactive_layer);
+        }
+    }
+
     for root in &view_layout.roots {
         spawn_view_node(
             commands,

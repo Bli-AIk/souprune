@@ -15,6 +15,7 @@
 //! 它依赖 `serde_types` 进行类型转换。
 
 use super::serde_types::*;
+use crate::core::view::components::InteractiveLayerDef;
 use bevy::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -35,6 +36,17 @@ pub struct ViewLayoutAsset {
     pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
     #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
+    /// Interactive layer definitions for unified navigation.
+    ///
+    /// 用于统一导航的交互层定义。
+    ///
+    /// This is the new unified system that works for both OW and Battle.
+    /// Format: { "layer_id": InteractiveLayerDef }
+    ///
+    /// 这是新的统一系统，适用于 OW 和 Battle。
+    /// 格式: { "层ID": InteractiveLayerDef }
+    #[serde(default)]
+    pub interactive_layers: Option<HashMap<String, InteractiveLayerDef>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

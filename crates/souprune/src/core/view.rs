@@ -66,15 +66,19 @@ use sdf_view_shape::{
     update_sdf_view_shape_system, update_ui_box_visibility_system,
     update_ui_container_visibility_system,
 };
-use state::{menu_overworld_state_transitions_system, update_overworld_ui_navigation_system};
+use state::{
+    handle_interactive_layer_confirm_cancel_system, handle_interactive_layer_navigation_system,
+    menu_overworld_state_transitions_system, update_overworld_ui_navigation_system,
+};
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
 
 use crate::app_state::AppState;
 #[cfg(feature = "debug")]
 use components::{
-    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, RonUI, UIBox,
-    UIBoxVisibility, UILayer,
+    BoxCursor, BoxCursorPosition, BoxCursorVisibility, CameraAnchored, InteractiveLayer,
+    NavigatorType, RonUI, UIBox, UIBoxVisibility, UILayer,
 };
+use components::{SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent};
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -93,6 +97,12 @@ pub(crate) type CoreUIPlugin = CoreViewPlugin;
 
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
+        // Register InteractiveLayer messages
+        // 注册 InteractiveLayer 消息
+        app.add_message::<SelectionChangedEvent>()
+            .add_message::<SelectionConfirmedEvent>()
+            .add_message::<SelectionCancelledEvent>();
+
         app.init_asset::<ViewLayoutAsset>()
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&[
                 "view_layout.ron",
@@ -127,6 +137,7 @@ impl Plugin for CoreViewPlugin {
                 ron_view::update_dynamic_ui_elements
                     .run_if(resource_exists::<crate::core::data::PlayerData>),
             )
+            // First group of UI systems
             .add_systems(
                 Update,
                 (
@@ -136,8 +147,19 @@ impl Plugin for CoreViewPlugin {
                     load_navigation_and_transitions_system,
                     menu_overworld_state_transitions_system,
                     update_overworld_ui_navigation_system,
+                    // Phase 5: Unified InteractiveLayer systems
+                    // Phase 5: 统一的 InteractiveLayer 系统
+                    handle_interactive_layer_navigation_system,
+                    handle_interactive_layer_confirm_cancel_system,
                     spawn_ron_ui_system,
                     ui_animation_init_system,
+                )
+                    .in_set(UIUpdate),
+            )
+            // Second group of UI systems (rendering/display)
+            .add_systems(
+                Update,
+                (
                     ron_view::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_sdf_view_shape_system,
@@ -168,7 +190,9 @@ impl Plugin for CoreViewPlugin {
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()
-                .register_type::<ElementState>();
+                .register_type::<ElementState>()
+                .register_type::<InteractiveLayer>()
+                .register_type::<NavigatorType>();
         }
     }
 }

@@ -25,6 +25,7 @@ use super::ron_view::UIGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
 use crate::core::input::Action;
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
 
@@ -493,6 +494,284 @@ pub(crate) fn update_overworld_ui_navigation_system(
 
                 overworld_ui.set_index(next_index as usize);
             }
+        }
+    }
+}
+
+// ============================================================================
+// Unified Interactive Layer Systems (Phase 5)
+// ============================================================================
+
+/// System that handles navigation input for all active InteractiveLayers.
+///
+/// 处理所有活跃 InteractiveLayer 导航输入的系统。
+///
+/// This is the unified navigation handler that works for both OW and Battle.
+/// It tries to use ActionState from PlayerControlled entity first, then falls
+/// back to raw keyboard input for Battle mode where no PlayerControlled exists.
+///
+/// 这是统一的导航处理器，适用于 OW 和 Battle。
+/// 它首先尝试使用 PlayerControlled 实体的 ActionState，
+/// 如果不存在则回退到原始键盘输入（用于 Battle 模式）。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub(crate) fn handle_interactive_layer_navigation_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    player_query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
+) {
+    // Determine which input method to use
+    let action_state = player_query.single().ok();
+
+    for (entity, mut layer) in layer_query.iter_mut() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let previous_index = layer.current_selection;
+        let mut changed = false;
+
+        // Check all navigation actions using ActionState or keyboard fallback
+        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
+            let pressed = if let Some(state) = action_state {
+                state.just_pressed(&action)
+            } else {
+                // Fallback to raw keyboard input for Battle mode
+                match action {
+                    Action::Up => {
+                        keyboard.just_pressed(KeyCode::ArrowUp)
+                            || keyboard.just_pressed(KeyCode::KeyW)
+                    }
+                    Action::Down => {
+                        keyboard.just_pressed(KeyCode::ArrowDown)
+                            || keyboard.just_pressed(KeyCode::KeyS)
+                    }
+                    Action::Left => {
+                        keyboard.just_pressed(KeyCode::ArrowLeft)
+                            || keyboard.just_pressed(KeyCode::KeyA)
+                    }
+                    Action::Right => {
+                        keyboard.just_pressed(KeyCode::ArrowRight)
+                            || keyboard.just_pressed(KeyCode::KeyD)
+                    }
+                    _ => false,
+                }
+            };
+
+            if pressed && layer.navigate(&action) {
+                changed = true;
+                break;
+            }
+        }
+
+        if changed {
+            // Play navigation sound if configured
+            if let Some(sound_path) = &layer.sound_on_navigate {
+                audio::play_sound(&audio, &asset_server, sound_path);
+            }
+
+            // Fire selection changed message
+            selection_changed_events.write(super::components::SelectionChangedEvent {
+                layer_id: layer.layer_id.clone(),
+                previous_index,
+                new_index: layer.current_selection,
+                entity,
+            });
+
+            info!(
+                "InteractiveLayer '{}' selection changed: {} -> {}",
+                layer.layer_id, previous_index, layer.current_selection
+            );
+        }
+    }
+}
+
+/// System that handles confirm/cancel input for active InteractiveLayers.
+///
+/// 处理活跃 InteractiveLayer 确认/取消输入的系统。
+///
+/// Supports both ActionState (OW mode) and raw keyboard input (Battle mode).
+///
+/// 支持 ActionState（OW 模式）和原始键盘输入（Battle 模式）。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub(crate) fn handle_interactive_layer_confirm_cancel_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
+    player_query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
+    mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
+) {
+    let action_state = player_query.single().ok();
+
+    for (entity, layer) in layer_query.iter() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let confirm_pressed = if let Some(state) = action_state {
+            state.just_pressed(&Action::Confirm)
+        } else {
+            // Fallback to raw keyboard input (Z or Enter for Confirm)
+            keyboard.just_pressed(KeyCode::KeyZ) || keyboard.just_pressed(KeyCode::Enter)
+        };
+
+        let cancel_pressed = if let Some(state) = action_state {
+            state.just_pressed(&Action::Cancel)
+        } else {
+            // Fallback to raw keyboard input (X or Escape for Cancel)
+            keyboard.just_pressed(KeyCode::KeyX) || keyboard.just_pressed(KeyCode::Escape)
+        };
+
+        if confirm_pressed {
+            info!(
+                "InteractiveLayer '{}' confirmed at index {}",
+                layer.layer_id, layer.current_selection
+            );
+
+            confirm_events.write(super::components::SelectionConfirmedEvent {
+                layer_id: layer.layer_id.clone(),
+                selected_index: layer.current_selection,
+                selected_element: layer.current_element_name().map(|s| s.to_string()),
+                entity,
+            });
+        }
+
+        if cancel_pressed {
+            info!("InteractiveLayer '{}' cancelled", layer.layer_id);
+
+            cancel_events.write(super::components::SelectionCancelledEvent {
+                layer_id: layer.layer_id.clone(),
+                entity,
+            });
+        }
+    }
+}
+
+// Firewheel audio backend variants
+#[cfg(feature = "firewheel")]
+pub(crate) fn handle_interactive_layer_navigation_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    player_query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
+) {
+    let action_state = player_query.single().ok();
+
+    for (entity, mut layer) in layer_query.iter_mut() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let previous_index = layer.current_selection;
+        let mut changed = false;
+
+        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
+            let pressed = if let Some(state) = action_state {
+                state.just_pressed(&action)
+            } else {
+                match action {
+                    Action::Up => {
+                        keyboard.just_pressed(KeyCode::ArrowUp)
+                            || keyboard.just_pressed(KeyCode::KeyW)
+                    }
+                    Action::Down => {
+                        keyboard.just_pressed(KeyCode::ArrowDown)
+                            || keyboard.just_pressed(KeyCode::KeyS)
+                    }
+                    Action::Left => {
+                        keyboard.just_pressed(KeyCode::ArrowLeft)
+                            || keyboard.just_pressed(KeyCode::KeyA)
+                    }
+                    Action::Right => {
+                        keyboard.just_pressed(KeyCode::ArrowRight)
+                            || keyboard.just_pressed(KeyCode::KeyD)
+                    }
+                    _ => false,
+                }
+            };
+
+            if pressed && layer.navigate(&action) {
+                changed = true;
+                break;
+            }
+        }
+
+        if changed {
+            if let Some(sound_path) = &layer.sound_on_navigate {
+                audio::play_sound(&mut commands, &asset_server, sound_path);
+            }
+
+            selection_changed_events.write(super::components::SelectionChangedEvent {
+                layer_id: layer.layer_id.clone(),
+                previous_index,
+                new_index: layer.current_selection,
+                entity,
+            });
+
+            info!(
+                "InteractiveLayer '{}' selection changed: {} -> {}",
+                layer.layer_id, previous_index, layer.current_selection
+            );
+        }
+    }
+}
+
+#[cfg(feature = "firewheel")]
+pub(crate) fn handle_interactive_layer_confirm_cancel_system(
+    _commands: Commands,
+    _asset_server: Res<AssetServer>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
+    player_query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
+    mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
+) {
+    let action_state = player_query.single().ok();
+
+    for (entity, layer) in layer_query.iter() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let confirm_pressed = if let Some(state) = action_state {
+            state.just_pressed(&Action::Confirm)
+        } else {
+            keyboard.just_pressed(KeyCode::KeyZ) || keyboard.just_pressed(KeyCode::Enter)
+        };
+
+        let cancel_pressed = if let Some(state) = action_state {
+            state.just_pressed(&Action::Cancel)
+        } else {
+            keyboard.just_pressed(KeyCode::KeyX) || keyboard.just_pressed(KeyCode::Escape)
+        };
+
+        if confirm_pressed {
+            info!(
+                "InteractiveLayer '{}' confirmed at index {}",
+                layer.layer_id, layer.current_selection
+            );
+
+            confirm_events.write(super::components::SelectionConfirmedEvent {
+                layer_id: layer.layer_id.clone(),
+                selected_index: layer.current_selection,
+                selected_element: layer.current_element_name().map(|s| s.to_string()),
+                entity,
+            });
+        }
+
+        if cancel_pressed {
+            info!("InteractiveLayer '{}' cancelled", layer.layer_id);
+
+            cancel_events.write(super::components::SelectionCancelledEvent {
+                layer_id: layer.layer_id.clone(),
+                entity,
+            });
         }
     }
 }

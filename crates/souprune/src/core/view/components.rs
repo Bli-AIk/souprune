@@ -12,6 +12,7 @@ pub(crate) mod box_components;
 pub(crate) mod camera;
 pub(crate) mod cursor;
 pub(crate) mod hpbar;
+pub(crate) mod interactive;
 pub(crate) mod layer;
 pub(crate) mod navigation;
 pub(crate) mod text;
@@ -26,6 +27,11 @@ pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDyna
 pub(crate) use cursor::{
     BoxCursor, BoxCursorOwner, BoxCursorPlacement, BoxCursorPosition, BoxCursorReady,
     BoxCursorSprite, BoxCursorVisibility,
+};
+pub(crate) use interactive::{
+    AwaitingInteraction, InteractionResult, InteractiveLayer, InteractiveLayerDef, LinearDirection,
+    NavigatorType, NavigatorTypeDef, SelectionCancelledEvent, SelectionChangedEvent,
+    SelectionConfirmedEvent,
 };
 pub(crate) use layer::UILayer;
 pub(crate) use navigation::{

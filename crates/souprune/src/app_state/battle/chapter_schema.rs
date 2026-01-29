@@ -107,6 +107,36 @@ pub enum Chapter {
     /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
     ViewInteraction { view_layout: String },
 
+    /// Await View Interaction Chapter (Phase 6).
+    ///
+    /// Blocks the battle sequencer until player confirms a selection in the specified
+    /// interactive layer. This is used for player choice menus like FIGHT/ACT/ITEM/MERCY.
+    ///
+    /// 等待视图交互章节（Phase 6）。
+    ///
+    /// 阻塞战斗 sequencer 直到玩家在指定的交互层中确认选择。
+    /// 用于玩家选择菜单，如 FIGHT/ACT/ITEM/MERCY。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// AwaitViewInteraction(
+    ///     layer_id: "BattleMainMenu",
+    ///     initial_selection: 0,
+    /// ),
+    /// ```
+    AwaitViewInteraction {
+        /// The ID of the interactive layer to activate.
+        ///
+        /// 要激活的交互层的 ID。
+        layer_id: String,
+
+        /// Initial selection index (default: 0).
+        ///
+        /// 初始选择索引（默认：0）。
+        #[serde(default)]
+        initial_selection: usize,
+    },
+
     /// Danmaku Performance Chapter.
     ///
     /// The Chapter is responsible for playing a complete danmaku performance (timeline-based).

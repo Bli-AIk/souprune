@@ -29,6 +29,7 @@ impl Plugin for SequencerPlugin {
                     process_player_action_system,
                     process_camera_action_system,
                     process_ui_action_system,
+                    process_await_view_interaction_system,
                     process_modify_view_element_system,
                     process_tween_view_element_system,
                     process_danmaku_performance_system,
@@ -38,6 +39,8 @@ impl Plugin for SequencerPlugin {
                     process_tween_wait_chapter_system,
                     process_am_wait_chapter_system,
                     process_parallel_chapter_system,
+                    check_await_interaction_completion_system,
+                    update_interactive_layer_sprites_system,
                     cleanup_finished_chapters_system,
                     sync_battle_flow_system,
                 )
@@ -56,7 +59,9 @@ use crate::app_state::battle::{BattleAsset, BattleUpdate};
 use crate::core::collision::PhysicsCollider;
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
-use crate::core::view::components::UIBox;
+use crate::core::view::components::{
+    AwaitingInteraction, InteractionResult, InteractiveLayer, UIBox,
+};
 use bevy::prelude::*;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -1521,6 +1526,205 @@ fn process_tween_wait_chapter_system(
             } else {
                 // This is a detached tween entity, despawn it
                 commands.entity(entity).despawn();
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Phase 6: AwaitViewInteraction Systems
+// ============================================================================
+
+/// Marker component to track that this chapter is waiting for interaction.
+///
+/// 标记组件，用于追踪此 Chapter 正在等待交互。
+#[derive(Component)]
+struct AwaitingInteractionChapter {
+    /// The layer ID we're waiting on.
+    layer_id: String,
+}
+
+/// System to process AwaitViewInteraction chapters.
+///
+/// 处理 AwaitViewInteraction 章节的系统。
+///
+/// This system activates the specified interactive layer and marks the chapter
+/// as waiting for player input. The chapter won't finish until the player
+/// confirms a selection.
+///
+/// 此系统激活指定的交互层，并将章节标记为等待玩家输入。
+/// 章节不会结束，直到玩家确认选择。
+#[allow(clippy::type_complexity)]
+fn process_await_view_interaction_system(
+    mut commands: Commands,
+    query: Query<
+        (Entity, &ActiveChapter),
+        (
+            Without<WaitTimer>,
+            Without<ChapterFinished>,
+            Without<AwaitingInteractionChapter>,
+        ),
+    >,
+    mut layer_query: Query<(Entity, &mut InteractiveLayer)>,
+) {
+    for (chapter_entity, active_chapter) in query.iter() {
+        if let Chapter::AwaitViewInteraction {
+            layer_id,
+            initial_selection,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "[Battle] Starting AwaitViewInteraction for layer '{}' at index {}",
+                layer_id, initial_selection
+            );
+
+            // Find and activate the interactive layer
+            let mut found = false;
+            for (layer_entity, mut layer) in layer_query.iter_mut() {
+                if layer.layer_id == *layer_id {
+                    // Activate the layer
+                    layer.is_active = true;
+                    layer.set_selection(*initial_selection);
+
+                    // Attach AwaitingInteraction component to the layer
+                    commands.entity(layer_entity).insert(AwaitingInteraction {
+                        chapter_entity: Some(chapter_entity),
+                    });
+
+                    found = true;
+                    info!(
+                        "[Battle] Activated InteractiveLayer '{}', waiting for player input",
+                        layer_id
+                    );
+                    break;
+                }
+            }
+
+            if !found {
+                warn!(
+                    "[Battle] InteractiveLayer '{}' not found! Chapter will complete immediately.",
+                    layer_id
+                );
+                commands.entity(chapter_entity).insert(ChapterFinished);
+            } else {
+                // Mark this chapter as waiting
+                commands
+                    .entity(chapter_entity)
+                    .insert(AwaitingInteractionChapter {
+                        layer_id: layer_id.clone(),
+                    });
+            }
+        }
+    }
+}
+
+/// System to check for interaction completion and finish the AwaitViewInteraction chapter.
+///
+/// 检查交互完成情况并结束 AwaitViewInteraction 章节的系统。
+///
+/// Listens for SelectionConfirmedEvent and marks the corresponding chapter as finished.
+///
+/// 监听 SelectionConfirmedEvent 并将相应的章节标记为完成。
+#[allow(clippy::type_complexity)]
+fn check_await_interaction_completion_system(
+    mut commands: Commands,
+    mut confirm_events: MessageReader<crate::core::view::components::SelectionConfirmedEvent>,
+    awaiting_query: Query<(Entity, &AwaitingInteractionChapter)>,
+    mut layer_query: Query<(Entity, &mut InteractiveLayer), With<AwaitingInteraction>>,
+) {
+    for event in confirm_events.read() {
+        info!(
+            "[Battle] Received SelectionConfirmedEvent for layer '{}', index {}",
+            event.layer_id, event.selected_index
+        );
+
+        // Find the chapter that is waiting for this layer
+        for (chapter_entity, awaiting) in awaiting_query.iter() {
+            if awaiting.layer_id == event.layer_id {
+                // Store the result on the chapter entity for later use
+                commands
+                    .entity(chapter_entity)
+                    .insert(InteractionResult::new(
+                        event.selected_index,
+                        event.selected_element.clone(),
+                        &event.layer_id,
+                    ));
+
+                // Mark the chapter as finished
+                commands.entity(chapter_entity).insert(ChapterFinished);
+                commands
+                    .entity(chapter_entity)
+                    .remove::<AwaitingInteractionChapter>();
+
+                info!(
+                    "[Battle] AwaitViewInteraction for '{}' completed with selection {}",
+                    event.layer_id, event.selected_index
+                );
+            }
+        }
+
+        // Deactivate the layer and remove AwaitingInteraction
+        for (layer_entity, mut layer) in layer_query.iter_mut() {
+            if layer.layer_id == event.layer_id {
+                layer.is_active = false;
+                commands
+                    .entity(layer_entity)
+                    .remove::<AwaitingInteraction>();
+                info!("[Battle] Deactivated InteractiveLayer '{}'", event.layer_id);
+            }
+        }
+    }
+}
+
+/// System to update sprites based on InteractiveLayer selection.
+///
+/// 根据 InteractiveLayer 选择更新精灵的系统。
+///
+/// This system changes the texture of selectable elements to show which one is
+/// currently selected (highlighted).
+///
+/// 此系统更改可选元素的纹理以显示当前选中（高亮）的项目。
+///
+/// # Convention / 约定
+///
+/// Button sprites follow the naming convention:
+/// - `textures/battle/ui/{button_name}/false.png` - Unselected state
+/// - `textures/battle/ui/{button_name}/true.png` - Selected state
+///
+/// 按钮精灵遵循以下命名约定：
+/// - `textures/battle/ui/{按钮名}/false.png` - 未选中状态
+/// - `textures/battle/ui/{按钮名}/true.png` - 选中状态
+fn update_interactive_layer_sprites_system(
+    asset_server: Res<AssetServer>,
+    layer_query: Query<&InteractiveLayer, Changed<InteractiveLayer>>,
+    mut sprite_query: Query<(&Name, &mut Sprite)>,
+) {
+    for layer in layer_query.iter() {
+        if !layer.is_active {
+            continue;
+        }
+
+        // Update each selectable element's sprite
+        for (idx, element_name) in layer.selectable_elements.iter().enumerate() {
+            let is_selected = idx == layer.current_selection;
+
+            // Find the entity with this name
+            for (name, mut sprite) in sprite_query.iter_mut() {
+                if name.as_str() == element_name {
+                    // Determine the button type from the element name (e.g., "BtnFight" -> "fight")
+                    let button_type = element_name
+                        .strip_prefix("Btn")
+                        .map(|s| s.to_lowercase())
+                        .unwrap_or_else(|| element_name.to_lowercase());
+
+                    // Build the texture path based on selection state
+                    let state = if is_selected { "true" } else { "false" };
+                    let texture_path = format!("textures/battle/ui/{}/{}.png", button_type, state);
+
+                    // Load and set the new texture
+                    let new_texture: Handle<Image> = asset_server.load(&texture_path);
+                    sprite.image = new_texture;
+                }
             }
         }
     }

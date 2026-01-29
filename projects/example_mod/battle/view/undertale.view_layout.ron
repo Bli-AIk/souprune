@@ -165,5 +165,21 @@
                 )
             ],
         ),
-    ]
+    ],
+    
+    // Phase 5: Interactive layer definitions for battle menu navigation
+    // Phase 5: 战斗菜单导航的交互层定义
+    interactive_layers: {
+        "BattleMainMenu": (
+            // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons
+            // 1 行 4 列的 FIGHT/ACT/ITEM/MERCY 按钮
+            navigator_type: Grid(
+                rows: 1,
+                cols: 4,
+                looping: true,
+            ),
+            selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
+            sound_on_navigate: "choice.wav",
+        ),
+    },
 )
