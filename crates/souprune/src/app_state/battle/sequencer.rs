@@ -24,7 +24,6 @@ mod ui;
 mod view_element;
 
 // Re-export public types
-pub use context::{BattleContext, BattleExecutionState};
 
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
