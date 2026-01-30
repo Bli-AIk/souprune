@@ -11,21 +11,12 @@
 //!
 //! 本模块使用统一的 InteractiveLayer 系统处理 OW 和 Battle 场景下
 //! UI 层级转换和导航。
-//!
-//! ## Source File Overview
-//!
-//! ## 源文件概述
-//!
-//! It manages state changes triggered by user input such as confirm and cancel actions,
-//! providing a unified experience for both Overworld and Battle modes.
-//!
-//! 管理由用户输入触发的状态变化（如确认和取消操作），
-//! 为 Overworld 和 Battle 模式提供统一的体验。
 
+use super::components::interactive::NavDirection;
 use super::ron_view::ViewGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -38,12 +29,6 @@ use leafwing_input_manager::action_state::ActionState;
 /// Handle global triggers that can activate from any overworld state.
 ///
 /// 处理可以从任何 Overworld 状态激活的全局触发器。
-///
-/// This system checks for global input triggers (like opening the backpack menu)
-/// that should work regardless of the current state.
-///
-/// 该系统检查全局输入触发器（如打开背包菜单），
-/// 这些触发器应该在任何当前状态下都能工作。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn global_trigger_system(
     audio: Res<bevy_kira_audio::Audio>,
@@ -145,23 +130,15 @@ pub(crate) fn global_trigger_system(
 /// System that handles navigation input for all active InteractiveLayers.
 ///
 /// 处理所有活跃 InteractiveLayer 导航输入的系统。
-///
-/// This is the unified navigation handler that works for both OW and Battle.
-/// It queries any entity with ActionState<Action> (either PlayerControlled
-/// or BattleInputManager) for input handling.
-///
-/// 这是统一的导航处理器，适用于 OW 和 Battle。
-/// 该系统查询任何带有 ActionState<Action> 的实体（PlayerControlled 或 BattleInputManager）
-/// 进行输入处理。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn handle_interactive_layer_navigation_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
     mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
 ) {
-    // Get any available ActionState (from PlayerControlled or BattleInputManager)
     let Some(action_state) = input_query.iter().next() else {
         return;
     };
@@ -174,21 +151,20 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         let previous_index = layer.current_selection;
         let mut changed = false;
 
-        // Check all navigation actions using ActionState
-        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
-            if action_state.just_pressed(&action) && layer.navigate(&action) {
+        // Check all navigation directions
+        for direction in NavDirection::all() {
+            let action = direction.to_action(&registry);
+            if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
                 changed = true;
                 break;
             }
         }
 
         if changed {
-            // Play navigation sound if configured
             if let Some(sound_path) = &layer.sound_on_navigate {
                 audio::play_sound(&audio, &asset_server, sound_path);
             }
 
-            // Fire selection changed message
             selection_changed_events.write(super::components::SelectionChangedEvent {
                 layer_id: layer.layer_id.clone(),
                 previous_index,
@@ -209,11 +185,11 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 pub(crate) fn handle_interactive_layer_navigation_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
     mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
 ) {
-    // Get any available ActionState (from PlayerControlled or BattleInputManager)
     let Some(action_state) = input_query.iter().next() else {
         return;
     };
@@ -226,8 +202,9 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         let previous_index = layer.current_selection;
         let mut changed = false;
 
-        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
-            if action_state.just_pressed(&action) && layer.navigate(&action) {
+        for direction in NavDirection::all() {
+            let action = direction.to_action(&registry);
+            if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
                 changed = true;
                 break;
             }
@@ -261,22 +238,16 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 /// System that handles confirm/cancel input for active InteractiveLayers.
 ///
 /// 处理活跃 InteractiveLayer 确认/取消输入的系统。
-///
-/// This system queries any entity with ActionState<Action> (either PlayerControlled
-/// or BattleInputManager) for input handling.
-///
-/// 该系统查询任何带有 ActionState<Action> 的实体（PlayerControlled 或 BattleInputManager）
-/// 进行输入处理。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
     mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
 ) {
-    // Get any available ActionState (from PlayerControlled or BattleInputManager)
     let Some(action_state) = input_query.iter().next() else {
         return;
     };
@@ -286,11 +257,10 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.just_pressed(&Action::Confirm);
-        let cancel_pressed = action_state.just_pressed(&Action::Cancel);
+        let confirm_pressed = action_state.just_pressed(&registry.confirm());
+        let cancel_pressed = action_state.just_pressed(&registry.cancel());
 
         if confirm_pressed {
-            // Play confirm sound
             audio::play_sound(&audio, &asset_server, "confirm.wav");
 
             info!(
@@ -322,12 +292,12 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
     mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
 ) {
-    // Get any available ActionState (from PlayerControlled or BattleInputManager)
     let Some(action_state) = input_query.iter().next() else {
         return;
     };
@@ -337,8 +307,8 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.just_pressed(&Action::Confirm);
-        let cancel_pressed = action_state.just_pressed(&Action::Cancel);
+        let confirm_pressed = action_state.just_pressed(&registry.confirm());
+        let cancel_pressed = action_state.just_pressed(&registry.cancel());
 
         if confirm_pressed {
             audio::play_sound(&mut commands, &asset_server, "confirm.wav");
@@ -377,10 +347,6 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
 ///
 /// 处理 SelectionConfirmedEvent 和 SelectionCancelledEvent
 /// 以执行 InteractiveLayer 中定义的层级转换。
-///
-/// This system enables OW and Battle to share the same transition logic.
-///
-/// 该系统使 OW 和 Battle 可以共享相同的转换逻辑。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn handle_interactive_layer_transitions_system(
     audio: Res<bevy_kira_audio::Audio>,
@@ -401,7 +367,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
 
     // Process confirm events
     for event in confirm_events.read() {
-        // Find the layer that was confirmed
         let Some((_, layer)) = layer_query
             .iter()
             .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
@@ -409,7 +374,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
-        // Find matching transition rule
         let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
         for rule in &layer.on_confirm {
@@ -426,11 +390,9 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
 
         if let Some(action) = matched_action {
-            // Clone sound path before mutable borrow
             let sound_path = layer.sound_on_confirm.clone();
             let layer_id = event.layer_id.clone();
 
-            // Play confirm sound if configured
             if let Some(sound) = &sound_path {
                 audio::play_sound(&audio, &asset_server, sound);
             }
@@ -448,7 +410,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
 
     // Process cancel events
     for event in cancel_events.read() {
-        // Find the layer that was cancelled
         let Some((_, layer)) = layer_query
             .iter()
             .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
@@ -457,12 +418,10 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         };
 
         if let Some(action) = &layer.on_cancel {
-            // Clone sound path and action before mutable borrow
             let sound_path = layer.sound_on_cancel.clone();
             let action = action.clone();
             let layer_id = event.layer_id.clone();
 
-            // Play cancel sound if configured
             if let Some(sound) = &sound_path {
                 audio::play_sound(&audio, &asset_server, sound);
             }
@@ -480,8 +439,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
 }
 
 /// Execute a layer transition action.
-///
-/// 执行层级转换动作。
 fn execute_layer_transition(
     action: super::components::LayerTransitionAction,
     current_layer_id: &str,
@@ -497,7 +454,6 @@ fn execute_layer_transition(
                 current_layer_id, target_layer_id
             );
 
-            // Collect layer info before mutable iteration
             let mut deactivate_entity = None;
             let mut activate_entity = None;
             let mut activate_selection = 0;
@@ -510,24 +466,21 @@ fn execute_layer_transition(
                 }
             }
 
-            // Deactivate current layer, activate target layer
             for (_, mut layer) in layer_query.iter_mut() {
                 if layer.layer_id == current_layer_id {
                     layer.is_active = false;
                 } else if layer.layer_id == target_layer_id {
                     layer.is_active = true;
-                    layer.current_selection = 0; // Reset selection
+                    layer.current_selection = 0;
                     activate_selection = 0;
                 }
             }
 
-            // Send deactivated event
             if let Some((entity, layer_id)) = deactivate_entity {
                 deactivated_events
                     .write(super::components::LayerDeactivatedEvent { layer_id, entity });
             }
 
-            // Send activated event
             if let Some((entity, layer_id)) = activate_entity {
                 activated_events.write(super::components::LayerActivatedEvent {
                     layer_id,
@@ -539,7 +492,6 @@ fn execute_layer_transition(
         super::components::LayerTransitionAction::PopState => {
             info!("Layer transition: PopState from '{}'", current_layer_id);
 
-            // Collect layer info before mutable iteration
             let mut deactivate_entity = None;
 
             for (entity, layer) in layer_query.iter() {
@@ -548,14 +500,12 @@ fn execute_layer_transition(
                 }
             }
 
-            // Deactivate current layer and return to Normal state
             for (_, mut layer) in layer_query.iter_mut() {
                 if layer.layer_id == current_layer_id {
                     layer.is_active = false;
                 }
             }
 
-            // Send deactivated event
             if let Some((entity, layer_id)) = deactivate_entity {
                 deactivated_events
                     .write(super::components::LayerDeactivatedEvent { layer_id, entity });
@@ -592,7 +542,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
 ) {
     use super::ron_view::parsing::evaluate_transition_condition_unified;
 
-    // Process confirm events
     for event in confirm_events.read() {
         let Some((_, layer)) = layer_query
             .iter()
@@ -635,7 +584,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
     }
 
-    // Process cancel events
     for event in cancel_events.read() {
         let Some((_, layer)) = layer_query
             .iter()

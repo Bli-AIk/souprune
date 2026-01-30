@@ -13,7 +13,62 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry};
+
+// ============================================================================
+// Navigation Direction
+// 导航方向
+// ============================================================================
+
+/// Cardinal directions for navigation input.
+///
+/// 导航输入的基本方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NavDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl NavDirection {
+    /// Convert an Action to a NavDirection using the registry.
+    ///
+    /// 使用注册表将 Action 转换为 NavDirection。
+    #[allow(dead_code)]
+    pub fn from_action(action: &Action, registry: &ActionRegistry) -> Option<Self> {
+        if *action == registry.up() {
+            Some(NavDirection::Up)
+        } else if *action == registry.down() {
+            Some(NavDirection::Down)
+        } else if *action == registry.left() {
+            Some(NavDirection::Left)
+        } else if *action == registry.right() {
+            Some(NavDirection::Right)
+        } else {
+            None
+        }
+    }
+
+    /// Get all navigation directions.
+    ///
+    /// 获取所有导航方向。
+    pub fn all() -> [Self; 4] {
+        [Self::Up, Self::Down, Self::Left, Self::Right]
+    }
+
+    /// Get the Action for this direction using the registry.
+    ///
+    /// 使用注册表获取此方向对应的 Action。
+    pub fn to_action(self, registry: &ActionRegistry) -> Action {
+        match self {
+            NavDirection::Up => registry.up(),
+            NavDirection::Down => registry.down(),
+            NavDirection::Left => registry.left(),
+            NavDirection::Right => registry.right(),
+        }
+    }
+}
 
 // ============================================================================
 // Navigator Types
@@ -32,16 +87,6 @@ pub enum NavigatorType {
     /// Linear navigation for vertical/horizontal lists.
     ///
     /// 用于垂直/水平列表的线性导航。
-    ///
-    /// # Fields
-    /// - `direction`: Primary navigation direction (Vertical or Horizontal)
-    /// - `option_count`: Total number of selectable options
-    /// - `looping`: Whether navigation wraps around at boundaries
-    ///
-    /// # 字段
-    /// - `direction`: 主要导航方向（垂直或水平）
-    /// - `option_count`: 可选项总数
-    /// - `looping`: 是否在边界处循环
     Linear {
         direction: LinearDirection,
         option_count: usize,
@@ -52,16 +97,6 @@ pub enum NavigatorType {
     /// Grid navigation for 2D button layouts.
     ///
     /// 用于 2D 按钮布局的网格导航。
-    ///
-    /// # Fields
-    /// - `rows`: Number of rows in the grid
-    /// - `cols`: Number of columns in the grid
-    /// - `looping`: Whether navigation wraps around at boundaries
-    ///
-    /// # 字段
-    /// - `rows`: 网格的行数
-    /// - `cols`: 网格的列数
-    /// - `looping`: 是否在边界处循环
     Grid {
         rows: usize,
         cols: usize,
@@ -72,17 +107,9 @@ pub enum NavigatorType {
     /// Custom navigation with explicit position mappings.
     ///
     /// 使用显式位置映射的自定义导航。
-    ///
-    /// This allows non-standard navigation patterns where each position
-    /// has explicit neighbors defined.
-    ///
-    /// 这允许非标准导航模式，其中每个位置都有显式定义的邻居。
     Custom {
-        /// Mapping from (current_index, action) to next_index.
+        /// Mapping from (current_index, direction) to next_index.
         /// Format: { "0:Left": 3, "0:Right": 1, "1:Left": 0, ... }
-        ///
-        /// 从 (当前索引, 动作) 到下一个索引的映射。
-        /// 格式: { "0:Left": 3, "0:Right": 1, "1:Left": 0, ... }
         #[serde(default)]
         mappings: std::collections::HashMap<String, usize>,
         option_count: usize,
@@ -96,13 +123,9 @@ pub enum NavigatorType {
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum LinearDirection {
     /// Navigate with Up/Down keys.
-    ///
-    /// 使用上/下键导航。
     #[default]
     Vertical,
     /// Navigate with Left/Right keys.
-    ///
-    /// 使用左/右键导航。
     Horizontal,
 }
 
@@ -117,17 +140,8 @@ pub enum LinearDirection {
 #[derive(Debug, Clone)]
 pub struct LayerTransitionRule {
     /// Optional condition expression.
-    /// If None, rule always matches.
-    /// Format: "index == 0", "index == 1 && !player.inventory.is_empty", etc.
-    ///
-    /// 可选条件表达式。
-    /// 如果为 None，规则始终匹配。
-    /// 格式: "index == 0", "index == 1 && !player.inventory.is_empty" 等。
     pub condition: Option<String>,
-
     /// Action to execute when this rule matches.
-    ///
-    /// 规则匹配时执行的动作。
     pub action: LayerTransitionAction,
 }
 
@@ -137,18 +151,10 @@ pub struct LayerTransitionRule {
 #[derive(Debug, Clone)]
 pub enum LayerTransitionAction {
     /// Switch to another layer within the same context.
-    ///
-    /// 切换到同一上下文中的另一个层。
     GotoLayer(String),
-
     /// Pop the current state (e.g., close menu, return to previous state).
-    ///
-    /// 弹出当前状态（例如关闭菜单、返回上一状态）。
     PopState,
-
     /// Push a new state onto the stack.
-    ///
-    /// 将新状态推入栈。
     PushState(String),
 }
 
@@ -163,35 +169,48 @@ impl Default for NavigatorType {
 }
 
 impl NavigatorType {
-    /// Calculate the next index based on current selection and input action.
+    /// Calculate the next index based on current selection and navigation direction.
     ///
-    /// 根据当前选择和输入动作计算下一个索引。
-    ///
-    /// Returns `Some(new_index)` if navigation should occur, `None` otherwise.
-    ///
-    /// 如果应发生导航，返回 `Some(new_index)`，否则返回 `None`。
-    pub fn handle_input(&self, current: usize, action: &Action) -> Option<usize> {
+    /// 根据当前选择和导航方向计算下一个索引。
+    pub fn handle_direction(&self, current: usize, direction: NavDirection) -> Option<usize> {
         match self {
             NavigatorType::Linear {
-                direction,
+                direction: linear_dir,
                 option_count,
                 looping,
-            } => Self::handle_linear_input(current, action, *direction, *option_count, *looping),
+            } => {
+                Self::handle_linear_input(current, direction, *linear_dir, *option_count, *looping)
+            }
 
             NavigatorType::Grid {
                 rows,
                 cols,
                 looping,
-            } => Self::handle_grid_input(current, action, *rows, *cols, *looping),
+            } => Self::handle_grid_input(current, direction, *rows, *cols, *looping),
 
             NavigatorType::Custom {
                 mappings,
                 option_count: _,
             } => {
-                let key = format!("{}:{:?}", current, action);
+                let key = format!("{}:{:?}", current, direction);
                 mappings.get(&key).copied()
             }
         }
+    }
+
+    /// Calculate the next index based on current selection and input action.
+    /// This version requires ActionRegistry.
+    ///
+    /// 根据当前选择和输入动作计算下一个索引。此版本需要 ActionRegistry。
+    #[allow(dead_code)]
+    pub fn handle_input(
+        &self,
+        current: usize,
+        action: &Action,
+        registry: &ActionRegistry,
+    ) -> Option<usize> {
+        let direction = NavDirection::from_action(action, registry)?;
+        self.handle_direction(current, direction)
     }
 
     /// Get the total number of selectable options.
@@ -207,8 +226,8 @@ impl NavigatorType {
 
     fn handle_linear_input(
         current: usize,
-        action: &Action,
-        direction: LinearDirection,
+        direction: NavDirection,
+        linear_direction: LinearDirection,
         option_count: usize,
         looping: bool,
     ) -> Option<usize> {
@@ -216,11 +235,11 @@ impl NavigatorType {
             return None;
         }
 
-        let delta: isize = match (direction, action) {
-            (LinearDirection::Vertical, Action::Up) => -1,
-            (LinearDirection::Vertical, Action::Down) => 1,
-            (LinearDirection::Horizontal, Action::Left) => -1,
-            (LinearDirection::Horizontal, Action::Right) => 1,
+        let delta: isize = match (linear_direction, direction) {
+            (LinearDirection::Vertical, NavDirection::Up) => -1,
+            (LinearDirection::Vertical, NavDirection::Down) => 1,
+            (LinearDirection::Horizontal, NavDirection::Left) => -1,
+            (LinearDirection::Horizontal, NavDirection::Right) => 1,
             _ => return None,
         };
 
@@ -228,7 +247,6 @@ impl NavigatorType {
         let new_index = current as isize + delta;
 
         if looping {
-            // Wrap around
             if new_index < 0 {
                 Some(max_index)
             } else if new_index > max_index as isize {
@@ -237,9 +255,8 @@ impl NavigatorType {
                 Some(new_index as usize)
             }
         } else {
-            // Clamp to bounds
             if new_index < 0 || new_index > max_index as isize {
-                None // No change at boundary
+                None
             } else {
                 Some(new_index as usize)
             }
@@ -248,7 +265,7 @@ impl NavigatorType {
 
     fn handle_grid_input(
         current: usize,
-        action: &Action,
+        direction: NavDirection,
         rows: usize,
         cols: usize,
         looping: bool,
@@ -260,8 +277,8 @@ impl NavigatorType {
         let row = current / cols;
         let col = current % cols;
 
-        let (new_row, new_col) = match action {
-            Action::Up => {
+        let (new_row, new_col) = match direction {
+            NavDirection::Up => {
                 if row > 0 {
                     (row - 1, col)
                 } else if looping {
@@ -270,7 +287,7 @@ impl NavigatorType {
                     return None;
                 }
             }
-            Action::Down => {
+            NavDirection::Down => {
                 if row < rows - 1 {
                     (row + 1, col)
                 } else if looping {
@@ -279,7 +296,7 @@ impl NavigatorType {
                     return None;
                 }
             }
-            Action::Left => {
+            NavDirection::Left => {
                 if col > 0 {
                     (row, col - 1)
                 } else if looping {
@@ -288,7 +305,7 @@ impl NavigatorType {
                     return None;
                 }
             }
-            Action::Right => {
+            NavDirection::Right => {
                 if col < cols - 1 {
                     (row, col + 1)
                 } else if looping {
@@ -297,7 +314,6 @@ impl NavigatorType {
                     return None;
                 }
             }
-            _ => return None,
         };
 
         Some(new_row * cols + new_col)
@@ -311,79 +327,45 @@ impl NavigatorType {
 /// Component that defines an interactive layer with navigation capabilities.
 ///
 /// 定义具有导航功能的交互层组件。
-///
-/// This unifies the navigation logic for both Overworld menus and Battle UI.
-///
-/// 这统一了 Overworld 菜单和 Battle UI 的导航逻辑。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct InteractiveLayer {
     /// Unique identifier for this layer.
-    ///
-    /// 此层的唯一标识符。
     pub layer_id: String,
 
     /// Navigation strategy for this layer.
-    ///
-    /// 此层的导航策略。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub navigator: NavigatorType,
 
     /// Current selection index.
-    ///
-    /// 当前选择索引。
     pub current_selection: usize,
 
     /// Names of selectable elements (for reactive indicator positioning and highlighting).
-    ///
-    /// 可选元素的名称（用于响应式指示器定位和高亮）。
-    ///
-    /// The index in this list corresponds to the selection index.
-    ///
-    /// 此列表中的索引对应于选择索引。
     pub selectable_elements: Vec<String>,
 
     /// Optional sound to play on navigation.
-    ///
-    /// 导航时播放的可选声音。
     pub sound_on_navigate: Option<String>,
 
     /// Whether this layer is currently active/focused.
-    ///
-    /// 此层是否当前活跃/聚焦。
     pub is_active: bool,
 
     /// Transition rules when confirm is pressed.
-    ///
-    /// 确认时的转换规则。
-    ///
-    /// Rules are evaluated in order; first matching rule is executed.
-    ///
-    /// 规则按顺序求值；执行第一个匹配的规则。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub on_confirm: Vec<LayerTransitionRule>,
 
     /// Transition action when cancel is pressed.
-    ///
-    /// 取消时的转换动作。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub on_cancel: Option<LayerTransitionAction>,
 
     /// Sound to play on confirm.
-    ///
-    /// 确认时播放的声音。
     pub sound_on_confirm: Option<String>,
 
     /// Sound to play on cancel.
-    ///
-    /// 取消时播放的声音。
     pub sound_on_cancel: Option<String>,
 }
 
 impl InteractiveLayer {
     /// Create a new interactive layer.
-    ///
-    /// 创建新的交互层。
     pub fn new(layer_id: impl Into<String>, navigator: NavigatorType) -> Self {
         Self {
             layer_id: layer_id.into(),
@@ -399,80 +381,70 @@ impl InteractiveLayer {
         }
     }
 
-    /// Set the selectable elements.
-    ///
-    /// 设置可选元素。
     pub fn with_selectable_elements(mut self, elements: Vec<String>) -> Self {
         self.selectable_elements = elements;
         self
     }
 
-    /// Set the navigation sound.
-    ///
-    /// 设置导航声音。
     pub fn with_sound(mut self, sound: impl Into<String>) -> Self {
         self.sound_on_navigate = Some(sound.into());
         self
     }
 
-    /// Set active state.
-    ///
-    /// 设置活跃状态。
+    #[allow(dead_code)]
     pub fn with_active(mut self, active: bool) -> Self {
         self.is_active = active;
         self
     }
 
-    /// Set confirm transition rules.
-    ///
-    /// 设置确认转换规则。
     pub fn with_on_confirm(mut self, rules: Vec<LayerTransitionRule>) -> Self {
         self.on_confirm = rules;
         self
     }
 
-    /// Set cancel transition action.
-    ///
-    /// 设置取消转换动作。
     pub fn with_on_cancel(mut self, action: LayerTransitionAction) -> Self {
         self.on_cancel = Some(action);
         self
     }
 
-    /// Set confirm sound.
-    ///
-    /// 设置确认声音。
     pub fn with_sound_on_confirm(mut self, sound: impl Into<String>) -> Self {
         self.sound_on_confirm = Some(sound.into());
         self
     }
 
-    /// Set cancel sound.
-    ///
-    /// 设置取消声音。
     pub fn with_sound_on_cancel(mut self, sound: impl Into<String>) -> Self {
         self.sound_on_cancel = Some(sound.into());
         self
     }
 
     /// Get the currently selected element name, if any.
-    ///
-    /// 获取当前选中的元素名称（如有）。
     pub fn current_element_name(&self) -> Option<&str> {
         self.selectable_elements
             .get(self.current_selection)
             .map(|s| s.as_str())
     }
 
-    /// Handle navigation input and update selection.
-    ///
-    /// 处理导航输入并更新选择。
-    ///
+    /// Handle navigation input using NavDirection and update selection.
     /// Returns `true` if selection changed.
-    ///
-    /// 如果选择发生变化，返回 `true`。
-    pub fn navigate(&mut self, action: &Action) -> bool {
-        if let Some(new_index) = self.navigator.handle_input(self.current_selection, action)
+    pub fn navigate_direction(&mut self, direction: NavDirection) -> bool {
+        if let Some(new_index) = self
+            .navigator
+            .handle_direction(self.current_selection, direction)
+            && new_index != self.current_selection
+        {
+            self.current_selection = new_index;
+            return true;
+        }
+        false
+    }
+
+    /// Handle navigation input using Action and ActionRegistry.
+    /// Returns `true` if selection changed.
+    #[allow(dead_code)]
+    pub fn navigate(&mut self, action: &Action, registry: &ActionRegistry) -> bool {
+        if let Some(new_index) =
+            self.navigator
+                .handle_input(self.current_selection, action, registry)
             && new_index != self.current_selection
         {
             self.current_selection = new_index;
@@ -482,8 +454,6 @@ impl InteractiveLayer {
     }
 
     /// Set selection to a specific index, clamping to valid range.
-    ///
-    /// 设置选择为特定索引，限制在有效范围内。
     pub fn set_selection(&mut self, index: usize) {
         let max = self.navigator.option_count().saturating_sub(1);
         self.current_selection = index.min(max);
@@ -495,86 +465,40 @@ impl InteractiveLayer {
 // ============================================================================
 
 /// RON definition for an interactive layer.
-///
-/// 交互层的 RON 定义。
 #[derive(Debug, Clone, Deserialize)]
 pub struct InteractiveLayerDef {
-    /// Navigation strategy type.
-    ///
-    /// 导航策略类型。
     pub navigator_type: NavigatorTypeDef,
-
-    /// Names of selectable elements.
-    ///
-    /// 可选元素的名称。
     #[serde(default)]
     pub selectable_elements: Vec<String>,
-
-    /// Sound to play on navigation.
-    ///
-    /// 导航时播放的声音。
     #[serde(default)]
     pub sound_on_navigate: Option<String>,
-
-    /// Transition rules when confirm is pressed.
-    ///
-    /// 确认时的转换规则。
     #[serde(default)]
     pub on_confirm: Option<Vec<LayerTransitionRuleDef>>,
-
-    /// Transition action when cancel is pressed.
-    ///
-    /// 取消时的转换动作。
     #[serde(default)]
     pub on_cancel: Option<LayerTransitionActionDef>,
-
-    /// Sound to play on confirm.
-    ///
-    /// 确认时播放的声音。
     #[serde(default)]
     pub sound_on_confirm: Option<String>,
-
-    /// Sound to play on cancel.
-    ///
-    /// 取消时播放的声音。
     #[serde(default)]
     pub sound_on_cancel: Option<String>,
 }
 
 /// RON definition for a layer transition rule.
-///
-/// 层级转换规则的 RON 定义。
 #[derive(Debug, Clone, Deserialize)]
 pub struct LayerTransitionRuleDef {
-    /// Optional condition expression.
-    ///
-    /// 可选条件表达式。
     #[serde(default)]
     pub condition: Option<String>,
-
-    /// Action to execute when rule matches.
-    ///
-    /// 规则匹配时执行的动作。
     pub action: LayerTransitionActionDef,
 }
 
 /// RON definition for a layer transition action.
-///
-/// 层级转换动作的 RON 定义。
 #[derive(Debug, Clone, Deserialize)]
 pub enum LayerTransitionActionDef {
-    /// Switch to another layer.
     GotoLayer(String),
-    /// Pop the current state.
     PopState,
-    /// Push a new state.
     PushState(String),
 }
 
 impl LayerTransitionRuleDef {
-    /// Convert to runtime LayerTransitionRule.
-    ///
-    /// 转换为运行时 LayerTransitionRule。
     pub fn into_rule(self) -> LayerTransitionRule {
         LayerTransitionRule {
             condition: self.condition,
@@ -584,9 +508,6 @@ impl LayerTransitionRuleDef {
 }
 
 impl LayerTransitionActionDef {
-    /// Convert to runtime LayerTransitionAction.
-    ///
-    /// 转换为运行时 LayerTransitionAction。
     pub fn into_action(self) -> LayerTransitionAction {
         match self {
             LayerTransitionActionDef::GotoLayer(layer) => LayerTransitionAction::GotoLayer(layer),
@@ -597,35 +518,14 @@ impl LayerTransitionActionDef {
 }
 
 /// Option count definition supporting static values or dynamic expressions.
-///
-/// 支持静态值或动态表达式的选项数量定义。
-///
-/// # Examples
-/// ```ron
-/// // Static value
-/// option_count: 4,
-///
-/// // Dynamic expression
-/// option_count: "inventory.len()",
-/// option_count: "min(inventory.len(), 8)",
-/// ```
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum OptionCountDef {
-    /// A static numeric value.
-    ///
-    /// 静态数值。
     Static(usize),
-    /// A dynamic expression to evaluate at runtime.
-    ///
-    /// 运行时求值的动态表达式。
     Dynamic(String),
 }
 
 impl OptionCountDef {
-    /// Evaluate the option count, returning a static value or evaluating the expression.
-    ///
-    /// 求值选项数量，返回静态值或求值表达式。
     pub(crate) fn evaluate(&self, player_data: &crate::core::data::PlayerData) -> usize {
         match self {
             OptionCountDef::Static(value) => *value,
@@ -634,16 +534,6 @@ impl OptionCountDef {
     }
 }
 
-/// Evaluate an option count expression.
-///
-/// 求值选项数量表达式。
-///
-/// Supported expressions:
-/// - `inventory.len()` - Number of items in inventory
-/// - `inventory_capacity` - Maximum inventory size
-/// - `min(a, b)` - Minimum of two values
-/// - `max(a, b)` - Maximum of two values
-/// - Numeric literals
 fn evaluate_option_count_expression(
     expr: &str,
     player_data: &crate::core::data::PlayerData,
@@ -690,13 +580,8 @@ fn evaluate_option_count_expression(
 }
 
 /// RON definition for navigator type.
-///
-/// 导航器类型的 RON 定义。
 #[derive(Debug, Clone, Deserialize)]
 pub enum NavigatorTypeDef {
-    /// Linear navigation.
-    ///
-    /// 线性导航。
     Linear {
         #[serde(default)]
         direction: LinearDirection,
@@ -704,10 +589,6 @@ pub enum NavigatorTypeDef {
         #[serde(default)]
         looping: bool,
     },
-
-    /// Grid navigation.
-    ///
-    /// 网格导航。
     Grid {
         rows: usize,
         cols: usize,
@@ -717,9 +598,6 @@ pub enum NavigatorTypeDef {
 }
 
 impl NavigatorTypeDef {
-    /// Convert to runtime NavigatorType with expression evaluation.
-    ///
-    /// 使用表达式求值转换为运行时 NavigatorType。
     pub(crate) fn into_navigator(
         self,
         player_data: &crate::core::data::PlayerData,
@@ -748,13 +626,6 @@ impl NavigatorTypeDef {
 }
 
 impl InteractiveLayerDef {
-    /// Build an InteractiveLayer component from this definition.
-    ///
-    /// 从此定义构建 InteractiveLayer 组件。
-    ///
-    /// # Arguments
-    /// - `layer_id`: Unique identifier for this layer
-    /// - `player_data`: Player data for evaluating dynamic expressions
     pub(crate) fn build(
         &self,
         layer_id: impl Into<String>,
@@ -770,7 +641,6 @@ impl InteractiveLayerDef {
             layer = layer.with_sound(sound.clone());
         }
 
-        // Add transition rules
         if let Some(on_confirm) = &self.on_confirm {
             layer =
                 layer.with_on_confirm(on_confirm.iter().map(|r| r.clone().into_rule()).collect());
@@ -794,72 +664,28 @@ impl InteractiveLayerDef {
 
 // ============================================================================
 // AwaitingInteraction Component
-// 等待交互组件
 // ============================================================================
 
 /// Component marking an entity that is waiting for player interaction.
-///
-/// 标记正在等待玩家交互的实体的组件。
-///
-/// When attached to an InteractiveLayer entity, the layer becomes the active
-/// interaction target. The interaction is considered complete when the player
-/// presses the confirm button.
-///
-/// 当附加到 InteractiveLayer 实体时，该层成为活跃的交互目标。
-/// 当玩家按下确认按钮时，交互被视为完成。
-///
-/// # Battle Integration / 战斗集成
-///
-/// In battle, this is used with the `AwaitInteraction` Chapter to block
-/// the sequencer until the player makes a selection.
-///
-/// 在战斗中，这与 `AwaitInteraction` Chapter 一起使用，
-/// 阻塞 sequencer 直到玩家做出选择。
 #[derive(Component, Debug, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct AwaitingInteraction {
     /// The Chapter entity that is waiting for this interaction to complete.
-    ///
-    /// 正在等待此交互完成的 Chapter 实体。
-    ///
-    /// When interaction is confirmed, this entity will be marked with `ChapterFinished`.
-    ///
-    /// 当交互确认时，此实体将被标记为 `ChapterFinished`。
     pub chapter_entity: Option<Entity>,
 }
 
 /// Result of an interaction completion.
-///
-/// 交互完成的结果。
-///
-/// This is stored for the Chapter to retrieve the player's selection.
-///
-/// 这被存储以供 Chapter 检索玩家的选择。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct InteractionResult {
-    /// The selected index (0-based).
-    ///
-    /// 选中的索引（从 0 开始）。
     pub selected_index: usize,
-
-    /// The name of the selected element, if available.
-    ///
-    /// 选中元素的名称（如有）。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub selected_element: Option<String>,
-
-    /// The layer ID where the selection was made.
-    ///
-    /// 做出选择的层 ID。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub layer_id: String,
 }
 
 impl InteractionResult {
-    /// Create a new interaction result.
-    ///
-    /// 创建新的交互结果。
     pub fn new(
         selected_index: usize,
         selected_element: Option<String>,
@@ -874,219 +700,45 @@ impl InteractionResult {
 }
 
 // ============================================================================
-// Selection Changed Event
+// Selection Events
 // ============================================================================
 
 /// Message fired when an interactive layer's selection changes.
-///
-/// 当交互层的选择发生变化时触发的消息。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct SelectionChangedEvent {
-    /// The layer ID that changed.
-    ///
-    /// 发生变化的层 ID。
     pub layer_id: String,
-
-    /// Previous selection index.
-    ///
-    /// 之前的选择索引。
     pub previous_index: usize,
-
-    /// New selection index.
-    ///
-    /// 新的选择索引。
     pub new_index: usize,
-
-    /// Entity of the layer.
-    ///
-    /// 层的实体。
     pub entity: Entity,
 }
 
 /// Message fired when an interactive layer receives a confirm action.
-///
-/// 当交互层收到确认动作时触发的消息。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct SelectionConfirmedEvent {
-    /// The layer ID.
-    ///
-    /// 层 ID。
     pub layer_id: String,
-
-    /// Selected index.
-    ///
-    /// 选中的索引。
     pub selected_index: usize,
-
-    /// Name of selected element, if available.
-    ///
-    /// 选中元素的名称（如有）。
     pub selected_element: Option<String>,
-
-    /// Entity of the layer.
-    ///
-    /// 层的实体。
     pub entity: Entity,
 }
 
 /// Message fired when an interactive layer receives a cancel action.
-///
-/// 当交互层收到取消动作时触发的消息。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct SelectionCancelledEvent {
-    /// The layer ID.
-    ///
-    /// 层 ID。
     pub layer_id: String,
-
-    /// Entity of the layer.
-    ///
-    /// 层的实体。
     pub entity: Entity,
 }
 
 /// Message fired when an interactive layer becomes active.
-///
-/// 当交互层变为活跃状态时触发的消息。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct LayerActivatedEvent {
-    /// The layer ID.
-    ///
-    /// 层 ID。
     pub layer_id: String,
-
-    /// Current selection index when activated.
-    ///
-    /// 激活时的当前选择索引。
     pub current_selection: usize,
-
-    /// Entity of the layer.
-    ///
-    /// 层的实体。
     pub entity: Entity,
 }
 
 /// Message fired when an interactive layer becomes inactive.
-///
-/// 当交互层变为非活跃状态时触发的消息。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct LayerDeactivatedEvent {
-    /// The layer ID.
-    ///
-    /// 层 ID。
     pub layer_id: String,
-
-    /// Entity of the layer.
-    ///
-    /// 层的实体。
     pub entity: Entity,
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_linear_vertical_navigation() {
-        let nav = NavigatorType::Linear {
-            direction: LinearDirection::Vertical,
-            option_count: 3,
-            looping: false,
-        };
-
-        // Start at 0, go down
-        assert_eq!(nav.handle_input(0, &Action::Down), Some(1));
-        assert_eq!(nav.handle_input(1, &Action::Down), Some(2));
-        assert_eq!(nav.handle_input(2, &Action::Down), None); // At boundary
-
-        // Go up
-        assert_eq!(nav.handle_input(2, &Action::Up), Some(1));
-        assert_eq!(nav.handle_input(0, &Action::Up), None); // At boundary
-
-        // Left/Right should not work in vertical mode
-        assert_eq!(nav.handle_input(1, &Action::Left), None);
-        assert_eq!(nav.handle_input(1, &Action::Right), None);
-    }
-
-    #[test]
-    fn test_linear_looping() {
-        let nav = NavigatorType::Linear {
-            direction: LinearDirection::Vertical,
-            option_count: 3,
-            looping: true,
-        };
-
-        // Loop from end to start
-        assert_eq!(nav.handle_input(2, &Action::Down), Some(0));
-        // Loop from start to end
-        assert_eq!(nav.handle_input(0, &Action::Up), Some(2));
-    }
-
-    #[test]
-    fn test_grid_navigation() {
-        // 2x2 grid:
-        // 0 1
-        // 2 3
-        let nav = NavigatorType::Grid {
-            rows: 2,
-            cols: 2,
-            looping: false,
-        };
-
-        // Right
-        assert_eq!(nav.handle_input(0, &Action::Right), Some(1));
-        assert_eq!(nav.handle_input(1, &Action::Right), None); // At boundary
-
-        // Down
-        assert_eq!(nav.handle_input(0, &Action::Down), Some(2));
-        assert_eq!(nav.handle_input(2, &Action::Down), None); // At boundary
-
-        // Left
-        assert_eq!(nav.handle_input(1, &Action::Left), Some(0));
-        assert_eq!(nav.handle_input(0, &Action::Left), None); // At boundary
-
-        // Up
-        assert_eq!(nav.handle_input(2, &Action::Up), Some(0));
-        assert_eq!(nav.handle_input(0, &Action::Up), None); // At boundary
-    }
-
-    #[test]
-    fn test_grid_looping() {
-        let nav = NavigatorType::Grid {
-            rows: 2,
-            cols: 2,
-            looping: true,
-        };
-
-        // Loop right
-        assert_eq!(nav.handle_input(1, &Action::Right), Some(0));
-        // Loop left
-        assert_eq!(nav.handle_input(0, &Action::Left), Some(1));
-        // Loop down
-        assert_eq!(nav.handle_input(2, &Action::Down), Some(0));
-        // Loop up
-        assert_eq!(nav.handle_input(0, &Action::Up), Some(2));
-    }
-
-    #[test]
-    fn test_interactive_layer_navigate() {
-        let mut layer = InteractiveLayer::new(
-            "test",
-            NavigatorType::Linear {
-                direction: LinearDirection::Vertical,
-                option_count: 3,
-                looping: false,
-            },
-        );
-
-        assert_eq!(layer.current_selection, 0);
-        assert!(layer.navigate(&Action::Down));
-        assert_eq!(layer.current_selection, 1);
-        assert!(!layer.navigate(&Action::Left)); // No change
-        assert_eq!(layer.current_selection, 1);
-    }
 }

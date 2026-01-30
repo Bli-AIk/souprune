@@ -37,7 +37,7 @@ use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
-use crate::core::input::{Action, InputConfig};
+use crate::core::input::{Action, ActionRegistry, InputConfig};
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::*;
@@ -142,9 +142,9 @@ fn setup_battle_camera(
 ///
 /// 设置 Battle 输入管理器实体，用于处理 UI 导航的 ActionState。
 /// 使用来自 `InputConfig::default()` 的默认输入配置。
-fn setup_battle_input_manager(mut commands: Commands) {
+fn setup_battle_input_manager(mut commands: Commands, registry: Res<ActionRegistry>) {
     let config = InputConfig::default();
-    let input_map = config.build_input_map();
+    let input_map = config.build_input_map(&registry);
 
     commands.spawn((
         BattleInputManager,

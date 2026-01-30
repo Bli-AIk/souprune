@@ -28,7 +28,6 @@ use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset
 use super::sdf_shape::ViewSdfShape;
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
-use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;

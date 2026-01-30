@@ -8,8 +8,9 @@ use super::super::components::{
     ViewLayerNavigationConfig, ViewLayerNavigationRule, ViewLayerTransitionConfig,
 };
 use super::super::layout::{IndexBoundDef, TransitionActionDef, ViewLayoutAsset};
-use super::parsing::{parse_action, parse_overworld_state};
+use super::parsing::parse_overworld_state;
 use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
+use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
 
 /// Load navigation and transition configuration from view layout.
@@ -21,6 +22,7 @@ pub fn load_navigation_and_transitions_system(
     mut navigation_config: ResMut<ViewLayerNavigationConfig>,
     mut transition_config: ResMut<ViewLayerTransitionConfig>,
     mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
+    action_registry: Res<ActionRegistry>,
     mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
 ) {
@@ -52,7 +54,7 @@ pub fn load_navigation_and_transitions_system(
 
     if let Some(global_triggers) = &view_layout.global_triggers {
         for (action_str, rules_def) in global_triggers {
-            if let Some(action) = parse_action(action_str) {
+            if let Some(action) = action_registry.get(action_str) {
                 let mut rules = Vec::new();
 
                 for rule_def in rules_def {
@@ -100,7 +102,7 @@ pub fn load_navigation_and_transitions_system(
             let mut adjustments = HashMap::new();
 
             for (action_str, delta) in &nav_rule_def.mappings {
-                if let Some(action) = parse_action(action_str) {
+                if let Some(action) = action_registry.get(action_str) {
                     adjustments.insert(action, *delta);
                 }
             }

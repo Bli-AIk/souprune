@@ -41,7 +41,9 @@ use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
+#[cfg(feature = "unsafe_gpu")]
 use bevy::render::RenderPlugin;
+#[cfg(feature = "unsafe_gpu")]
 use bevy::render::settings::{InstanceFlags, RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
@@ -307,6 +309,7 @@ pub fn run() {
             font_directories: vec![format!("projects/{}/assets/fonts", config.project.mod_name)],
             ..Default::default()
         })
+        .init_resource::<input::ActionRegistry>()
         .init_resource::<input::PlayerInputSettings>()
         .init_state::<app_state::AppState>()
         .configure_sets(

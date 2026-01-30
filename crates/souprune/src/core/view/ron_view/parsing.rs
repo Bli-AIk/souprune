@@ -2,21 +2,7 @@ use super::super::components::IndexBound;
 use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldState;
-use crate::core::input::Action;
 use bevy::prelude::*;
-
-pub fn parse_action(action_str: &str) -> Option<Action> {
-    match action_str {
-        "Up" => Some(Action::Up),
-        "Down" => Some(Action::Down),
-        "Left" => Some(Action::Left),
-        "Right" => Some(Action::Right),
-        "Confirm" => Some(Action::Confirm),
-        "Cancel" => Some(Action::Cancel),
-        "Menu" => Some(Action::Menu),
-        _ => None,
-    }
-}
 
 pub fn parse_overworld_state(state_str: &str) -> Option<OverworldState> {
     match state_str {

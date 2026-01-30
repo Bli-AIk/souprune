@@ -10,7 +10,8 @@
 //!
 //! 定义 `PlayerInputSettings`，该资源管理玩家动作的输入映射（键盘、手柄），支持多种控制方案。
 
-use super::actions::Action;
+use super::actions::{Action, ActionRegistry};
+use super::config::InputConfig;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -20,6 +21,15 @@ pub(crate) struct PlayerInputSettings {
 }
 
 impl PlayerInputSettings {
+    /// Create new settings from an InputConfig and ActionRegistry.
+    ///
+    /// 从 InputConfig 和 ActionRegistry 创建新设置。
+    pub fn from_config(config: &InputConfig, registry: &ActionRegistry) -> Self {
+        Self {
+            maps: vec![config.build_input_map(registry)],
+        }
+    }
+
     #[allow(dead_code)]
     pub fn get_map(&self, index: usize) -> Option<&InputMap<Action>> {
         self.maps.get(index)
@@ -38,50 +48,9 @@ impl PlayerInputSettings {
 
 impl Default for PlayerInputSettings {
     fn default() -> Self {
-        use Action::*;
-        use KeyCode::*;
-        let mut map_key_default = InputMap::default();
-
-        map_key_default.insert(Up, ArrowUp);
-        map_key_default.insert(Down, ArrowDown);
-        map_key_default.insert(Left, ArrowLeft);
-        map_key_default.insert(Right, ArrowRight);
-        map_key_default.insert(Confirm, KeyZ);
-        map_key_default.insert(Cancel, KeyX);
-        map_key_default.insert(Menu, KeyC);
-
-        let mut map_key_alternate_0 = InputMap::default();
-
-        map_key_alternate_0.insert(Up, KeyW);
-        map_key_alternate_0.insert(Down, KeyS);
-        map_key_alternate_0.insert(Left, KeyA);
-        map_key_alternate_0.insert(Right, KeyD);
-        map_key_alternate_0.insert(Confirm, Enter);
-        map_key_alternate_0.insert(Cancel, ShiftLeft);
-        map_key_alternate_0.insert(Menu, ControlLeft);
-
-        let mut map_key_alternate_1 = InputMap::default();
-
-        map_key_alternate_1.insert(Cancel, ShiftRight);
-        map_key_alternate_1.insert(Menu, ControlRight);
-
-        let mut map_gamepad_default = InputMap::default();
-        use GamepadButton::*;
-        map_gamepad_default.insert(Up, DPadUp);
-        map_gamepad_default.insert(Down, DPadDown);
-        map_gamepad_default.insert(Left, DPadLeft);
-        map_gamepad_default.insert(Right, DPadRight);
-        map_gamepad_default.insert(Confirm, South);
-        map_gamepad_default.insert(Cancel, East);
-        map_gamepad_default.insert(Menu, North);
-
-        Self {
-            maps: vec![
-                map_key_default,
-                map_key_alternate_0,
-                map_key_alternate_1,
-                map_gamepad_default,
-            ],
-        }
+        // Use default registry and config
+        let registry = ActionRegistry::default();
+        let config = InputConfig::default();
+        Self::from_config(&config, &registry)
     }
 }

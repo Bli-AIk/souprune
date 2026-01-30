@@ -21,12 +21,13 @@
 use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::basic_components::{Facing, Speed};
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 
 pub(crate) fn update_walking_system(
     time: Res<Time>,
+    registry: Res<ActionRegistry>,
     mut query: Query<
         (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
         With<StateWalking>,
@@ -38,12 +39,14 @@ pub(crate) fn update_walking_system(
             facing,
             speed.value,
             action_state,
+            &registry,
             time.delta_secs(),
         );
     }
 }
 pub(crate) fn update_running_system(
     time: Res<Time>,
+    registry: Res<ActionRegistry>,
     behavior: Res<PlayerBehavior>,
     mut query: Query<
         (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
@@ -56,6 +59,7 @@ pub(crate) fn update_running_system(
             facing,
             speed.value * behavior.run_speed_multiplier,
             action_state,
+            &registry,
             time.delta_secs(),
         );
     }
@@ -66,16 +70,17 @@ fn apply_walking_step(
     mut facing: Mut<Facing>,
     speed: f32,
     action_state: &ActionState<Action>,
+    registry: &ActionRegistry,
     delta_secs: f32,
 ) {
     use crate::core::basic_components::*;
 
     let mut direction_vec = Vec2::ZERO;
 
-    let up_pressed = action_state.pressed(&Action::Up);
-    let down_pressed = action_state.pressed(&Action::Down);
-    let left_pressed = action_state.pressed(&Action::Left);
-    let right_pressed = action_state.pressed(&Action::Right);
+    let up_pressed = action_state.pressed(&registry.up());
+    let down_pressed = action_state.pressed(&registry.down());
+    let left_pressed = action_state.pressed(&registry.left());
+    let right_pressed = action_state.pressed(&registry.right());
 
     if up_pressed && !down_pressed {
         direction_vec.y += 1.0;

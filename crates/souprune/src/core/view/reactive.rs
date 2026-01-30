@@ -28,7 +28,6 @@ use super::components::{
 };
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::message::MessageReader;
-use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use std::collections::VecDeque;
 

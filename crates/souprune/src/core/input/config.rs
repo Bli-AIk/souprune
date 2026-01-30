@@ -7,12 +7,12 @@
 //! ## 模块概述
 //!
 //! Defines `InputConfig`, a data-driven input configuration asset that allows
-//! all key bindings to be defined in RON files instead of hardcoded in source.
+//! all key bindings and action definitions to be configured in RON files.
 //!
-//! 定义 `InputConfig`，一种数据驱动的输入配置资产，允许所有键位绑定通过 RON 文件定义，
-//! 而非硬编码在源代码中。
+//! 定义 `InputConfig`，一种数据驱动的输入配置资产，允许所有键位绑定和动作定义
+//! 通过 RON 文件配置。
 
-use super::actions::Action;
+use super::actions::{Action, ActionRegistry};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -38,33 +38,66 @@ pub enum InputBinding {
 ///
 /// 从 RON 文件加载的输入配置资产。
 ///
-/// Example RON format:
+/// Example RON format (actions directly contain bindings):
 /// ```ron
 /// (
 ///     actions: {
 ///         "Up": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
 ///         "Down": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
 ///         "Confirm": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
+///         "Sprint": [Key("ShiftLeft"), Gamepad("LeftTrigger")],
 ///     },
 /// )
 /// ```
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 pub struct InputConfig {
-    /// Mapping from action names to their input bindings.
+    /// Action definitions with their bindings.
+    /// Keys are action names, values are binding lists.
     ///
-    /// 动作名称到输入绑定的映射。
+    /// 动作定义及其绑定。
+    /// 键是动作名称，值是绑定列表。
     pub actions: HashMap<String, Vec<InputBinding>>,
 }
 
 impl InputConfig {
-    /// Build an `InputMap<Action>` from this configuration.
+    /// Build an ActionRegistry from this configuration.
     ///
-    /// 从此配置构建 `InputMap<Action>`。
-    pub fn build_input_map(&self) -> InputMap<Action> {
+    /// 从此配置构建 ActionRegistry。
+    #[allow(dead_code)]
+    pub fn build_registry(&self) -> ActionRegistry {
+        let mut registry = ActionRegistry::default();
+
+        // Register any additional actions not in the default set
+        // 注册默认集合之外的其他动作
+        for action_name in &self.actions {
+            if !registry.is_registered(action_name) {
+                if let Err(e) = registry.register(action_name.clone()) {
+                    warn!("Failed to register action '{}': {}", action_name, e);
+                }
+            }
+        }
+
+        // Also register any actions that appear in bindings but not in actions list
+        // 同时注册出现在 bindings 但不在 actions 列表中的动作
+        for action_name in self.bindings.keys() {
+            if !registry.is_registered(action_name) {
+                if let Err(e) = registry.register(action_name.clone()) {
+                    warn!("Failed to register action '{}': {}", action_name, e);
+                }
+            }
+        }
+
+        registry
+    }
+
+    /// Build an `InputMap<Action>` from this configuration using the given registry.
+    ///
+    /// 使用给定的注册表从此配置构建 `InputMap<Action>`。
+    pub fn build_input_map(&self, registry: &ActionRegistry) -> InputMap<Action> {
         let mut map = InputMap::default();
 
-        for (action_name, bindings) in &self.actions {
-            let Some(action) = Self::parse_action(action_name) else {
+        for (action_name, bindings) in &self.bindings {
+            let Some(slot) = registry.get(action_name) else {
                 warn!("Unknown action name in input config: {}", action_name);
                 continue;
             };
@@ -73,14 +106,14 @@ impl InputConfig {
                 match binding {
                     InputBinding::Key(key_str) => {
                         if let Some(keycode) = Self::parse_keycode(key_str) {
-                            map.insert(action, keycode);
+                            map.insert(slot, keycode);
                         } else {
                             warn!("Unknown key code in input config: {}", key_str);
                         }
                     }
                     InputBinding::Gamepad(button_str) => {
                         if let Some(button) = Self::parse_gamepad_button(button_str) {
-                            map.insert(action, button);
+                            map.insert(slot, button);
                         } else {
                             warn!("Unknown gamepad button in input config: {}", button_str);
                         }
@@ -90,22 +123,6 @@ impl InputConfig {
         }
 
         map
-    }
-
-    /// Parse action name string to Action enum.
-    ///
-    /// 将动作名称字符串解析为 Action 枚举。
-    fn parse_action(name: &str) -> Option<Action> {
-        match name {
-            "Up" => Some(Action::Up),
-            "Down" => Some(Action::Down),
-            "Left" => Some(Action::Left),
-            "Right" => Some(Action::Right),
-            "Confirm" => Some(Action::Confirm),
-            "Cancel" => Some(Action::Cancel),
-            "Menu" => Some(Action::Menu),
-            _ => None,
-        }
     }
 
     /// Parse key code string to KeyCode enum.
@@ -216,10 +233,10 @@ impl InputConfig {
 
 impl Default for InputConfig {
     fn default() -> Self {
-        let mut actions = HashMap::new();
+        let mut bindings = HashMap::new();
 
-        // Default bindings matching the existing PlayerInputSettings
-        actions.insert(
+        // Default bindings
+        bindings.insert(
             "Up".to_string(),
             vec![
                 InputBinding::Key("ArrowUp".to_string()),
@@ -227,7 +244,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("DPadUp".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Down".to_string(),
             vec![
                 InputBinding::Key("ArrowDown".to_string()),
@@ -235,7 +252,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("DPadDown".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Left".to_string(),
             vec![
                 InputBinding::Key("ArrowLeft".to_string()),
@@ -243,7 +260,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("DPadLeft".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Right".to_string(),
             vec![
                 InputBinding::Key("ArrowRight".to_string()),
@@ -251,7 +268,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("DPadRight".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Confirm".to_string(),
             vec![
                 InputBinding::Key("KeyZ".to_string()),
@@ -259,7 +276,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("South".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Cancel".to_string(),
             vec![
                 InputBinding::Key("KeyX".to_string()),
@@ -268,7 +285,7 @@ impl Default for InputConfig {
                 InputBinding::Gamepad("East".to_string()),
             ],
         );
-        actions.insert(
+        bindings.insert(
             "Menu".to_string(),
             vec![
                 InputBinding::Key("KeyC".to_string()),
@@ -278,6 +295,17 @@ impl Default for InputConfig {
             ],
         );
 
-        Self { actions }
+        Self {
+            actions: vec![
+                "Up".to_string(),
+                "Down".to_string(),
+                "Left".to_string(),
+                "Right".to_string(),
+                "Confirm".to_string(),
+                "Cancel".to_string(),
+                "Menu".to_string(),
+            ],
+            bindings,
+        }
     }
 }

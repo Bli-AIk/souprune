@@ -21,13 +21,14 @@
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::player::config::PlayerBehavior;
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry};
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
 pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    registry: Res<ActionRegistry>,
     overworld_state: Res<State<OverworldState>>,
 ) -> prelude::Result<(), ()> {
     // Allow player movement in Normal and Chase states.
@@ -40,10 +41,10 @@ pub fn is_player_walking(
 
     let action_state = query.single().map_err(|_| ())?;
 
-    let up_pressed = action_state.pressed(&Action::Up);
-    let down_pressed = action_state.pressed(&Action::Down);
-    let left_pressed = action_state.pressed(&Action::Left);
-    let right_pressed = action_state.pressed(&Action::Right);
+    let up_pressed = action_state.pressed(&registry.up());
+    let down_pressed = action_state.pressed(&registry.down());
+    let left_pressed = action_state.pressed(&registry.left());
+    let right_pressed = action_state.pressed(&registry.right());
 
     let has_vertical_input = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
     let has_horizontal_input = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);
@@ -57,6 +58,7 @@ pub fn is_player_walking(
 
 pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    registry: Res<ActionRegistry>,
     overworld_state: Res<State<OverworldState>>,
     player_behavior: Res<PlayerBehavior>,
 ) -> prelude::Result<(), ()> {
@@ -68,7 +70,11 @@ pub fn is_player_running(
         _ => return Err(()),
     }
 
-    let Some(run_action) = player_behavior.run_action else {
+    let Some(run_action_name) = &player_behavior.run_action else {
+        return Err(());
+    };
+
+    let Some(run_action) = registry.get(run_action_name) else {
         return Err(());
     };
 

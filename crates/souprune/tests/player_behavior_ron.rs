@@ -7,7 +7,7 @@ mod test_support;
 
 use ron::de::from_str;
 use serde::Deserialize;
-use souprune::{Action, AnimationConfigAsset, CharacterAsset, Direction, PlayerBehavior};
+use souprune::{AnimationConfigAsset, CharacterAsset, Direction, PlayerBehavior};
 use std::path::PathBuf;
 use std::sync::Once;
 
@@ -22,7 +22,7 @@ fn player_behavior_asset_references_are_valid() {
     assert_eq!(raw.initial_state, "Walk");
     assert_eq!(raw.initial_facing, Direction::Down);
     if let Some(run) = &raw.run {
-        assert_eq!(run.action, Action::Cancel);
+        assert_eq!(run.action, "Cancel");
         assert!((run.speed_multiplier - 2.0).abs() < f32::EPSILON);
     } else {
         panic!("run configuration should exist");
@@ -49,7 +49,8 @@ struct RawPlayerBehavior {
 
 #[derive(Debug, Deserialize)]
 struct RawRunConfig {
-    action: Action,
+    /// Action name as string
+    action: String,
     #[serde(default = "default_run_speed_multiplier")]
     speed_multiplier: f32,
 }
