@@ -67,9 +67,9 @@ impl<T> Val<T> {
         matches!(self, Val::Expr(_))
     }
 
-    /// Alias for `is_expr()` for backward compatibility.
+    /// Alias for `is_expr()`.
     ///
-    /// 为保持向后兼容的 `is_expr()` 别名。
+    /// `is_expr()` 的别名。
     pub fn is_dynamic(&self) -> bool {
         self.is_expr()
     }

@@ -57,10 +57,11 @@ pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
 use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
-pub use ron_view::{RonDrivenUI, UILayoutHandle, UILayoutWatcher};
+pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use ron_view::{
-    load_navigation_and_transitions_system, spawn_ron_ui_system, ui_animation_init_system,
-    update_dynamic_text_system, update_ui_from_map_system, watch_ui_layout_changes_system,
+    load_navigation_and_transitions_system, rebuild_reloaded_view_system, spawn_ron_view_system,
+    ui_animation_init_system, update_dynamic_text_system, update_view_from_map_system,
+    watch_view_layout_changes_system,
 };
 use sdf_view_shape::{
     update_sdf_view_shape_system, update_ui_box_visibility_system,
@@ -99,9 +100,6 @@ use bevy::sprite_render::Material2dPlugin;
 /// 通过修改 RON 文件可以实现不同的 View 风格，而无需更改代码。
 pub(crate) struct CoreViewPlugin;
 
-/// Backwards compatibility alias
-pub(crate) type CoreUIPlugin = CoreViewPlugin;
-
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
         // Register InteractiveLayer messages
@@ -113,10 +111,7 @@ impl Plugin for CoreViewPlugin {
             .add_message::<LayerDeactivatedEvent>();
 
         app.init_asset::<ViewLayoutAsset>()
-            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&[
-                "view_layout.ron",
-                "ui_layout.ron", // Keep compatibility with old filename / 保持与旧文件名的兼容性
-            ]))
+            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             .add_plugins(Material2dPlugin::<
@@ -127,7 +122,7 @@ impl Plugin for CoreViewPlugin {
             >::default())
             .init_resource::<UILayerNavigationConfig>()
             .init_resource::<UILayerTransitionConfig>()
-            .init_resource::<ron_view::UIGlobalTriggerConfig>()
+            .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
                 Update,
@@ -150,9 +145,9 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 Update,
                 (
-                    update_ui_from_map_system,
-                    watch_ui_layout_changes_system,
-                    crate::core::view::ron_view::reload::rebuild_reloaded_ui_system,
+                    update_view_from_map_system,
+                    watch_view_layout_changes_system,
+                    rebuild_reloaded_view_system,
                     load_navigation_and_transitions_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
@@ -162,7 +157,7 @@ impl Plugin for CoreViewPlugin {
                     handle_interactive_layer_navigation_system,
                     handle_interactive_layer_confirm_cancel_system,
                     handle_interactive_layer_transitions_system,
-                    spawn_ron_ui_system,
+                    spawn_ron_view_system,
                     ui_animation_init_system,
                 )
                     .in_set(UIUpdate),

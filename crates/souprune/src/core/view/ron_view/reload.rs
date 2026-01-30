@@ -48,11 +48,6 @@ pub fn update_view_from_map_system(
     }
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use update_view_from_map_system as update_ui_from_map_system;
-
 /// Watch for view layout asset changes for hot reload.
 ///
 /// 监视视图布局资源变化以支持热重载。
@@ -81,11 +76,6 @@ pub fn watch_view_layout_changes_system(
         }
     }
 }
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use watch_view_layout_changes_system as watch_ui_layout_changes_system;
 
 /// Rebuild view layout when hot reload is triggered.
 ///
@@ -179,11 +169,6 @@ pub fn rebuild_reloaded_view_system(
         rebuilt_count
     );
 }
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use rebuild_reloaded_view_system as rebuild_reloaded_ui_system;
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     // Schedule recursive despawn to avoid borrowing the world inside the system.

@@ -24,7 +24,7 @@ pub fn process_view_action_system(
             match action {
                 super::super::chapter_schema::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
-                    commands.insert_resource(crate::core::view::UILayoutHandle {
+                    commands.insert_resource(crate::core::view::ViewLayoutHandle {
                         handle,
                         last_modified: None,
                         path: path.clone(),
@@ -39,7 +39,7 @@ pub fn process_view_action_system(
                         crate::app_state::battle::BattleEntity,
                         Name::new("BattleView Root"),
                     ));
-                    commands.init_resource::<crate::core::view::UILayoutWatcher>();
+                    commands.init_resource::<crate::core::view::ViewLayoutWatcher>();
                 }
                 _ => {
                     warn!("View action {:?} not fully implemented yet", action);
@@ -49,7 +49,7 @@ pub fn process_view_action_system(
         } else if let Chapter::SpawnView { view_layout } = &active_chapter.chapter {
             info!("[Battle] Loading view layout for battle: {}", view_layout);
             let handle = asset_server.load(view_layout);
-            commands.insert_resource(crate::core::view::UILayoutHandle {
+            commands.insert_resource(crate::core::view::ViewLayoutHandle {
                 handle,
                 last_modified: None,
                 path: view_layout.clone(),

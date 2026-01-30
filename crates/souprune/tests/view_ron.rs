@@ -9,8 +9,8 @@ use evalexpr::{ContextWithMutableVariables, HashMapContext, Value, eval_with_con
 use std::collections::{HashMap, HashSet};
 
 use souprune::{
-    IndexBoundDef, ReactivePositionDef, SerializableVec3, TransitionActionDef, UILayoutAsset,
-    UINodeDef,
+    IndexBoundDef, ReactivePositionDef, SerializableVec3, TransitionActionDef, ViewLayoutAsset,
+    ViewNodeDef,
 };
 
 const VIEW_DIRS: &[&str] = &["overworld/view", "battle/view"];
@@ -31,11 +31,11 @@ fn view_files() -> Vec<String> {
     files
 }
 
-fn load_view_layouts() -> HashMap<String, UILayoutAsset> {
+fn load_view_layouts() -> HashMap<String, ViewLayoutAsset> {
     view_files()
         .into_iter()
         .map(|relative| {
-            let asset: UILayoutAsset = test_support::parse_project_ron(&relative);
+            let asset: ViewLayoutAsset = test_support::parse_project_ron(&relative);
             (relative, asset)
         })
         .collect()
@@ -60,21 +60,21 @@ fn view_layouts_deserialize() {
     }
 }
 
-fn collect_node_names(nodes: &[UINodeDef], acc: &mut HashSet<String>) {
+fn collect_node_names(nodes: &[ViewNodeDef], acc: &mut HashSet<String>) {
     for node in nodes {
         acc.insert(node.name.clone());
         collect_node_names(&node.children, acc);
     }
 }
 
-fn flatten_nodes<'a>(node: &'a UINodeDef, nodes: &mut Vec<&'a UINodeDef>) {
+fn flatten_nodes<'a>(node: &'a ViewNodeDef, nodes: &mut Vec<&'a ViewNodeDef>) {
     nodes.push(node);
     for child in &node.children {
         flatten_nodes(child, nodes);
     }
 }
 
-fn all_nodes(layout: &UILayoutAsset) -> Vec<&UINodeDef> {
+fn all_nodes(layout: &ViewLayoutAsset) -> Vec<&ViewNodeDef> {
     let mut nodes = Vec::new();
     for node in &layout.roots {
         flatten_nodes(node, &mut nodes);

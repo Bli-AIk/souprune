@@ -23,7 +23,7 @@
 
 use super::components::InteractiveLayer;
 use super::layout::ViewLayoutAsset;
-use super::ron_view::UILayoutHandle;
+use super::ron_view::ViewLayoutHandle;
 use crate::app_state::overworld::OverworldEntity;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
@@ -47,7 +47,7 @@ pub(crate) fn spawn_backpack_ui_system(
     mut commands: Commands,
     interactive_layer_query: Query<&InteractiveLayer>,
     locale_loaded: Option<Res<LocaleLoaded>>,
-    view_layout_handle: Option<Res<UILayoutHandle>>,
+    view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     player_data: Res<crate::core::data::PlayerData>,
 ) {

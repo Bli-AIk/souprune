@@ -22,7 +22,7 @@
 //! 管理由用户输入触发的状态变化（如确认和取消操作），
 //! 为 Overworld 和 Battle 模式提供统一的体验。
 
-use super::ron_view::UIGlobalTriggerConfig;
+use super::ron_view::ViewGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
 use crate::core::input::Action;
@@ -51,7 +51,7 @@ pub(crate) fn global_trigger_system(
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
-    global_trigger_config: Res<UIGlobalTriggerConfig>,
+    global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
     let Ok(action_state) = query.single() else {
         return;
@@ -98,7 +98,7 @@ pub(crate) fn global_trigger_system(
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
-    global_trigger_config: Res<UIGlobalTriggerConfig>,
+    global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
     let Ok(action_state) = query.single() else {
         return;

@@ -6,11 +6,10 @@
 //!
 //! ## 模块概述
 //!
-//! This module defines ECS components for player data, replacing the monolithic `PlayerData` resource
-//! with fine-grained components for better parallelism and extensibility.
+//! This module defines ECS components for player data, using fine-grained components
+//! for better parallelism and extensibility.
 //!
-//! 本模块定义玩家数据的 ECS 组件，用细粒度组件替代单一的 `PlayerData` 资源，
-//! 以提高并行性和可扩展性。
+//! 本模块定义玩家数据的 ECS 组件，使用细粒度组件以提高并行性和可扩展性。
 
 use bevy::prelude::*;
 

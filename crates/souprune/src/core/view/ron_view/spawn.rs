@@ -111,11 +111,6 @@ pub fn spawn_ron_view_system(
     }
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use spawn_ron_view_system as spawn_ron_ui_system;
-
 /// Spawn view elements for a specific entity.
 ///
 /// 为特定实体生成视图元素。

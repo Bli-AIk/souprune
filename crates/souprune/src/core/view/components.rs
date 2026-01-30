@@ -3,10 +3,8 @@
 //! 用于 overworld 应用状态的 UI 组件。
 //!
 //! This module has been refactored into submodules for better organization.
-//! All original exports are preserved for backwards compatibility.
 //!
 //! 该模块已重构为子模块以更好地组织。
-//! 所有原始导出都保留以保持向后兼容性。
 
 pub(crate) mod box_components;
 pub(crate) mod camera;

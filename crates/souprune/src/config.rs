@@ -154,8 +154,8 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     // 主要：项目的 assets 目录
     roots.push(project_path.join("assets"));
 
-    // Also check the project root for compatibility
-    // 同时检查项目根目录以保持兼容性
+    // Also check the project root as a fallback location
+    // 同时检查项目根目录作为备选位置
     roots.push(project_path.clone());
 
     // Fallback to absolute path to ensure assets are found
