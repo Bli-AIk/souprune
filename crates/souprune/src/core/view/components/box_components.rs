@@ -7,17 +7,17 @@ use bevy::prelude::*;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use super::layer::UILayer;
-use super::text::UITextConfig;
-use super::visibility::UILayerVisibilityRule;
+use super::layer::ViewLayer;
+use super::text::ViewTextConfig;
+use super::visibility::ViewLayerVisibilityRule;
 
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UIBox {
+pub(crate) struct ViewBox {
     pub(crate) width: f32,
     pub(crate) height: f32,
     pub(crate) border_width: f32,
-    pub(crate) texts: Vec<UITextConfig>,
+    pub(crate) texts: Vec<ViewTextConfig>,
     /// Optional custom fill shader path for data-driven shader loading.
     ///
     /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
@@ -36,10 +36,10 @@ pub(crate) struct UIBox {
     pub(crate) fill_color: Color,
 }
 
-impl UIBox {
-    /// Create a new `UIBox` component with the given dimensions and border width.
+impl ViewBox {
+    /// Create a new `ViewBox` component with the given dimensions and border width.
     ///
-    /// 创建一个新的 `UIBox` 组件，指定尺寸和边框宽度。
+    /// 创建一个新的 `ViewBox` 组件，指定尺寸和边框宽度。
     #[allow(dead_code)]
     pub(crate) fn new(width: f32, height: f32, border_width: f32) -> Self {
         Self {
@@ -53,15 +53,15 @@ impl UIBox {
         }
     }
 
-    /// Create a new `UIBox` component with text configurations.
+    /// Create a new `ViewBox` component with text configurations.
     ///
-    /// 创建一个带有文本配置的新 `UIBox` 组件。
+    /// 创建一个带有文本配置的新 `ViewBox` 组件。
     #[allow(dead_code)]
     pub(crate) fn new_with_texts(
         width: f32,
         height: f32,
         border_width: f32,
-        texts: Vec<UITextConfig>,
+        texts: Vec<ViewTextConfig>,
     ) -> Self {
         Self {
             width,
@@ -74,14 +74,14 @@ impl UIBox {
         }
     }
 
-    /// Create a new `UIBox` component with full configuration.
+    /// Create a new `ViewBox` component with full configuration.
     ///
-    /// 创建一个带有完整配置的新 `UIBox` 组件。
+    /// 创建一个带有完整配置的新 `ViewBox` 组件。
     pub(crate) fn new_full(
         width: f32,
         height: f32,
         border_width: f32,
-        texts: Vec<UITextConfig>,
+        texts: Vec<ViewTextConfig>,
         fill_shader: Option<String>,
         structure_file: Option<String>,
         fill_color: Color,
@@ -160,25 +160,25 @@ impl UIBox {
     }
 }
 
-/// Controls which [`UILayer`]s should render a given [`UIBox`].
+/// Controls which [`ViewLayer`]s should render a given [`ViewBox`].
 ///
-/// 控制指定 [`UIBox`] 在哪些 [`UILayer`] 中可见。
+/// 控制指定 [`ViewBox`] 在哪些 [`ViewLayer`] 中可见。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UIBoxVisibility {
-    rule: UILayerVisibilityRule,
+pub(crate) struct ViewBoxVisibility {
+    rule: ViewLayerVisibilityRule,
 }
 
-impl UIBoxVisibility {
-    pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
+impl ViewBoxVisibility {
+    pub(crate) fn new(rule: ViewLayerVisibilityRule) -> Self {
         Self { rule }
     }
 
-    pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
+    pub(crate) fn rule(&self) -> &ViewLayerVisibilityRule {
         &self.rule
     }
 
-    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+    pub(crate) fn is_visible_for(&self, layer: &ViewLayer) -> bool {
         self.rule.is_visible_for(layer)
     }
 }
@@ -187,36 +187,36 @@ impl UIBoxVisibility {
 ///
 /// 标记承载 UI 文本与指示器精灵的填充实体。
 #[derive(Component)]
-pub(crate) struct UIBoxFiller;
+pub(crate) struct ViewBoxFiller;
 
 /// Marker component for a UI container node that can hold texts and children
-/// without requiring a visual UIBox (background box).
+/// without requiring a visual ViewBox (background box).
 ///
 /// 用于标记 UI 容器节点的组件，该节点可以承载文本和子节点，
-/// 而无需视觉上的 UIBox（背景框）。
+/// 而无需视觉上的 ViewBox（背景框）。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UIContainer;
+pub(crate) struct ViewContainer;
 
-/// Controls which [`UILayer`]s should render a given UI container (without UIBox).
+/// Controls which [`ViewLayer`]s should render a given UI container (without ViewBox).
 ///
-/// 控制指定 UI 容器（无 UIBox）在哪些 [`UILayer`] 中可见。
+/// 控制指定 UI 容器（无 ViewBox）在哪些 [`ViewLayer`] 中可见。
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UIContainerVisibility {
-    rule: UILayerVisibilityRule,
+pub(crate) struct ViewContainerVisibility {
+    rule: ViewLayerVisibilityRule,
 }
 
-impl UIContainerVisibility {
-    pub(crate) fn new(rule: UILayerVisibilityRule) -> Self {
+impl ViewContainerVisibility {
+    pub(crate) fn new(rule: ViewLayerVisibilityRule) -> Self {
         Self { rule }
     }
 
-    pub(crate) fn rule(&self) -> &UILayerVisibilityRule {
+    pub(crate) fn rule(&self) -> &ViewLayerVisibilityRule {
         &self.rule
     }
 
-    pub(crate) fn is_visible_for(&self, layer: &UILayer) -> bool {
+    pub(crate) fn is_visible_for(&self, layer: &ViewLayer) -> bool {
         self.rule.is_visible_for(layer)
     }
 }

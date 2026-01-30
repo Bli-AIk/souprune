@@ -30,7 +30,7 @@ pub fn process_view_action_system(
                         path: path.clone(),
                     });
                     commands.spawn((
-                        crate::app_state::battle::BattleUIRoot,
+                        crate::app_state::battle::BattleViewRoot,
                         Transform::default(),
                         GlobalTransform::default(),
                         Visibility::default(),
@@ -55,7 +55,7 @@ pub fn process_view_action_system(
                 path: view_layout.clone(),
             });
             commands.spawn((
-                crate::app_state::battle::BattleUIRoot,
+                crate::app_state::battle::BattleViewRoot,
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),

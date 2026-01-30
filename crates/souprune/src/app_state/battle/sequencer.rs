@@ -40,7 +40,7 @@ impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<context::BattleContext>()
             // Register custom interpolator systems for bevy_tween
-            .add_tween_systems(component_tween_system::<tween::UIBoxSizeInterpolator>())
+            .add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
             .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
             .add_systems(OnEnter(AppState::Battle), flow::load_default_chapter_system)
             .add_systems(

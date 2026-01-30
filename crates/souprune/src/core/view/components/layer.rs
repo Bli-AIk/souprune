@@ -15,14 +15,14 @@ use bevy::reflect::Reflect;
 /// 层是数据驱动的，在 `.view_layout.ron` 文件中定义。
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub struct UILayer(Cow<'static, str>);
+pub struct ViewLayer(Cow<'static, str>);
 
-impl UILayer {
+impl ViewLayer {
     /// Dynamically construct a layer from a name.
     ///
     /// 从名称动态构造层。
-    pub fn new(name: impl Into<Cow<'static, str>>) -> UILayer {
-        UILayer(name.into())
+    pub fn new(name: impl Into<Cow<'static, str>>) -> ViewLayer {
+        ViewLayer(name.into())
     }
 
     /// Get the layer name.
@@ -33,7 +33,7 @@ impl UILayer {
     }
 }
 
-impl fmt::Display for UILayer {
+impl fmt::Display for ViewLayer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }

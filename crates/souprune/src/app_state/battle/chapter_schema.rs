@@ -410,9 +410,9 @@ pub enum ElementModification {
     /// 可以是静态布尔值或动态表达式字符串。
     SetVisibility(Val<bool>),
 
-    /// Set UIBox dimensions (width, height).
+    /// Set ViewBox dimensions (width, height).
     ///
-    /// 设置 UIBox 尺寸（宽度，高度）。
+    /// 设置 ViewBox 尺寸（宽度，高度）。
     SetBoxSize(Val<f32>, Val<f32>),
 
     /// Undo last modification for this element.
@@ -595,10 +595,10 @@ pub enum TweenTarget {
         from: Option<ColorTuple>,
         to: ColorTuple,
     },
-    /// Animate UIBox size (width, height).
+    /// Animate ViewBox size (width, height).
     /// Syntax: `BoxSize(to: (w, h))` or `BoxSize(from: (w1, h1), to: (w2, h2))`
     ///
-    /// 动画 UIBox 尺寸 (宽度, 高度)。
+    /// 动画 ViewBox 尺寸 (宽度, 高度)。
     BoxSize {
         #[serde(default)]
         from: Option<Vec2Tuple>,

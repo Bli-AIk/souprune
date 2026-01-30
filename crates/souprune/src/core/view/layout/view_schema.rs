@@ -103,7 +103,7 @@ pub struct ViewNodeDef {
     pub reactive_indicator: Option<ReactiveIndicatorDef>,
     #[serde(default)]
     #[serde(alias = "ui_box_logic")]
-    pub ui_shape_logic: Option<UIBoxLogicDef>,
+    pub ui_shape_logic: Option<ViewBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<ViewNodeDef>,
@@ -191,7 +191,7 @@ pub struct TextDef {
     pub id: String,
     #[serde(default)]
     pub content: Option<String>,
-    pub font: UIFontDef,
+    pub font: ViewFontDef,
     pub world_scale: SerializableVec2,
     pub color: SerializableColor,
     pub transform: SerializableTransform,
@@ -264,7 +264,7 @@ pub struct ReactiveTransformDef {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct UIBoxLogicDef {
+pub struct ViewBoxLogicDef {
     pub width: f32,
     pub height: f32,
     #[serde(default)]

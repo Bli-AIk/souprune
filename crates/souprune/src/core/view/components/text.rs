@@ -24,7 +24,7 @@ use bevy::reflect::Reflect;
 /// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UIAnimationState {
+pub(crate) struct ViewAnimationState {
     pub(crate) state_name: String,
 }
 
@@ -33,23 +33,23 @@ pub(crate) struct UIAnimationState {
 /// UI 文本的字体配置
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) enum UIFont {
+pub(crate) enum ViewFont {
     DeterminationMono,
     DeterminationSans,
     Hud,
     BattleHud,
 }
 
-impl UIFont {
+impl ViewFont {
     /// Get font name and default size
     ///
     /// 获取字体名称和默认大小
     pub(crate) fn font_name(&self) -> &'static str {
         match self {
-            UIFont::DeterminationMono => "Determination Mono SimSun",
-            UIFont::DeterminationSans => "Determination Sans SimSun",
-            UIFont::Hud => "Crypt of Tomorrow Fusion",
-            UIFont::BattleHud => "Mars Needs Cunnilingus",
+            ViewFont::DeterminationMono => "Determination Mono SimSun",
+            ViewFont::DeterminationSans => "Determination Sans SimSun",
+            ViewFont::Hud => "Crypt of Tomorrow Fusion",
+            ViewFont::BattleHud => "Mars Needs Cunnilingus",
         }
     }
 
@@ -66,11 +66,11 @@ impl UIFont {
 /// 单个文本元素的配置
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UITextConfig {
+pub(crate) struct ViewTextConfig {
     pub(crate) name: Name,
     pub(crate) content: String,
     pub(crate) template: Option<String>,
-    pub(crate) font: UIFont,
+    pub(crate) font: ViewFont,
     pub(crate) world_scale: Vec2,
     pub(crate) color: Srgba,
     pub(crate) transform: Transform,
@@ -79,13 +79,13 @@ pub(crate) struct UITextConfig {
     pub(crate) line_height: f32,
 }
 
-impl Default for UITextConfig {
+impl Default for ViewTextConfig {
     fn default() -> Self {
         Self {
             name: Name::new("Text"),
             content: "Text".to_string(),
             template: None,
-            font: UIFont::DeterminationMono,
+            font: ViewFont::DeterminationMono,
             world_scale: Vec2::splat(13.),
             color: Srgba::WHITE,
             transform: Transform::default(),
@@ -101,4 +101,4 @@ impl Default for UITextConfig {
 /// 存储原始模板字符串以用于动态文本更新。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct UITextTemplate(pub(crate) String);
+pub(crate) struct ViewTextTemplate(pub(crate) String);

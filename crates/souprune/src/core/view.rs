@@ -27,7 +27,7 @@ use bevy::prelude::*;
 ///
 /// 通用 UI 更新系统集
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UIUpdate;
+pub struct ViewUpdate;
 
 mod camera;
 pub(crate) mod components;
@@ -52,7 +52,7 @@ use camera::{
 pub use components::{
     ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
-use components::{UILayerNavigationConfig, UILayerTransitionConfig, ViewElement, ViewRoot};
+use components::{ViewElement, ViewLayerNavigationConfig, ViewLayerTransitionConfig, ViewRoot};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
@@ -81,7 +81,7 @@ use components::state_sprite::{
 #[cfg(feature = "debug")]
 use components::{
     CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
-    ReactiveIndicatorVisibility, ReactivePosition, UIBox, UIBoxVisibility, UILayer,
+    ReactiveIndicatorVisibility, ReactivePosition, ViewBox, ViewBoxVisibility, ViewLayer,
 };
 use components::{
     LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,
@@ -120,8 +120,8 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
-            .init_resource::<UILayerNavigationConfig>()
-            .init_resource::<UILayerTransitionConfig>()
+            .init_resource::<ViewLayerNavigationConfig>()
+            .init_resource::<ViewLayerTransitionConfig>()
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             .add_systems(
@@ -160,7 +160,7 @@ impl Plugin for CoreViewPlugin {
                     spawn_ron_view_system,
                     ui_animation_init_system,
                 )
-                    .in_set(UIUpdate),
+                    .in_set(ViewUpdate),
             )
             // Second group of UI systems (rendering/display)
             .add_systems(
@@ -185,15 +185,15 @@ impl Plugin for CoreViewPlugin {
                     evaluate_new_state_sprites_system,
                     update_state_sprite_textures_system,
                 )
-                    .in_set(UIUpdate),
+                    .in_set(ViewUpdate),
             );
 
         #[cfg(feature = "debug")]
         {
-            app.register_type::<UIBox>()
-                .register_type::<UILayer>()
+            app.register_type::<ViewBox>()
+                .register_type::<ViewLayer>()
                 .register_type::<CameraAnchored>()
-                .register_type::<UIBoxVisibility>()
+                .register_type::<ViewBoxVisibility>()
                 .register_type::<ReactiveIndicator>()
                 .register_type::<ReactivePosition>()
                 .register_type::<ReactiveIndicatorVisibility>()

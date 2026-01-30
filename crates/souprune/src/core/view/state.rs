@@ -196,7 +196,7 @@ pub(crate) fn handle_interactive_layer_navigation_system(
                 entity,
             });
 
-            info!(
+            debug!(
                 "InteractiveLayer '{}' selection changed: {} -> {}",
                 layer.layer_id, previous_index, layer.current_selection
             );
@@ -245,7 +245,7 @@ pub(crate) fn handle_interactive_layer_navigation_system(
                 entity,
             });
 
-            info!(
+            debug!(
                 "InteractiveLayer '{}' selection changed: {} -> {}",
                 layer.layer_id, previous_index, layer.current_selection
             );

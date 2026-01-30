@@ -17,8 +17,8 @@ use std::collections::HashMap;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use super::layer::UILayer;
-use super::visibility::UILayerVisibilityRule;
+use super::layer::ViewLayer;
+use super::visibility::ViewLayerVisibilityRule;
 
 /// Marker component attached to the reactive indicator sprite entity.
 ///
@@ -26,9 +26,9 @@ use super::visibility::UILayerVisibilityRule;
 #[derive(Component)]
 pub(crate) struct ReactiveIndicatorSprite;
 
-/// Records which `UIBox` owns a reactive indicator sprite entity.
+/// Records which `ViewBox` owns a reactive indicator sprite entity.
 ///
-/// 记录哪个 `UIBox` 拥有响应式指示器精灵实体。
+/// 记录哪个 `ViewBox` 拥有响应式指示器精灵实体。
 #[derive(Component, Copy, Clone)]
 pub(crate) struct ReactiveIndicatorOwner(pub Entity);
 
@@ -41,7 +41,7 @@ pub(crate) struct ReactiveIndicatorReady;
 /// Type alias for reactive indicator visibility rules.
 ///
 /// 响应式指示器可见性规则的类型别名。
-pub(crate) type ReactiveIndicatorVisibility = UILayerVisibilityRule;
+pub(crate) type ReactiveIndicatorVisibility = ViewLayerVisibilityRule;
 
 /// Defines position calculation for reactive indicators based on selection index.
 ///
@@ -110,7 +110,7 @@ impl ReactivePosition {
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct ReactivePlacement {
     pub(crate) default: ReactivePosition,
-    pub(crate) overrides: HashMap<UILayer, ReactivePosition>,
+    pub(crate) overrides: HashMap<ViewLayer, ReactivePosition>,
 }
 
 impl ReactivePlacement {
@@ -121,12 +121,12 @@ impl ReactivePlacement {
         }
     }
 
-    pub(crate) fn with_override(mut self, layer: UILayer, position: ReactivePosition) -> Self {
+    pub(crate) fn with_override(mut self, layer: ViewLayer, position: ReactivePosition) -> Self {
         self.overrides.insert(layer, position);
         self
     }
 
-    pub(crate) fn get(&self, layer: &UILayer) -> &ReactivePosition {
+    pub(crate) fn get(&self, layer: &ViewLayer) -> &ReactivePosition {
         self.overrides.get(layer).unwrap_or(&self.default)
     }
 }
@@ -138,14 +138,14 @@ impl From<ReactivePosition> for ReactivePlacement {
 }
 
 /// A reactive indicator element that responds to UI events such as selection changes
-/// and layer activations. Can be attached to any [`UIBox`].
+/// and layer activations. Can be attached to any [`ViewBox`].
 ///
 /// This component is the core of the reactive UI system. While commonly used as a
 /// selection indicator (like the Undertale heart), it can represent any visual element
 /// that needs to react to UI state changes.
 ///
 /// 一个响应式指示器元素，响应选择变更和层激活等 UI 事件。
-/// 可附着在任意 [`UIBox`] 上。
+/// 可附着在任意 [`ViewBox`] 上。
 ///
 /// 该组件是响应式 UI 系统的核心。虽然常用作选择指示器（如 Undertale 的心形），
 /// 但它可以表示任何需要响应 UI 状态变化的视觉元素。
@@ -158,7 +158,7 @@ pub(crate) struct ReactiveIndicator {
     pub(crate) transform: Transform,
     hidden: bool,
     last_index: Option<usize>,
-    last_layer: Option<UILayer>,
+    last_layer: Option<ViewLayer>,
 }
 
 impl ReactiveIndicator {
@@ -187,7 +187,7 @@ impl ReactiveIndicator {
         &self.visibility
     }
 
-    pub(crate) fn desired_translation(&self, layer: &UILayer, index: usize) -> Vec3 {
+    pub(crate) fn desired_translation(&self, layer: &ViewLayer, index: usize) -> Vec3 {
         let position_rule = self.placement.get(layer);
         self.transform.translation + position_rule.position_for_index(index)
     }
@@ -196,7 +196,11 @@ impl ReactiveIndicator {
         self.transform
     }
 
-    pub(crate) fn translation_for_index(&mut self, layer: &UILayer, index: usize) -> Option<Vec3> {
+    pub(crate) fn translation_for_index(
+        &mut self,
+        layer: &ViewLayer,
+        index: usize,
+    ) -> Option<Vec3> {
         if self.last_index == Some(index) && self.last_layer.as_ref() == Some(layer) {
             return None;
         }

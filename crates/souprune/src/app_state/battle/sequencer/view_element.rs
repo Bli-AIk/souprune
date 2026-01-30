@@ -8,7 +8,7 @@
 
 use super::super::chapter_schema::Chapter;
 use super::context::*;
-use crate::core::view::components::UIBox;
+use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
 
 /// System to process ModifyViewElement chapters.
@@ -27,7 +27,7 @@ pub fn process_modify_view_element_system(
     mut sprites: Query<&mut Sprite>,
     mut visibilities: Query<&mut Visibility>,
     mut histories: Query<&mut crate::core::view::ViewElementHistory>,
-    mut ui_boxes: Query<&mut UIBox>,
+    mut ui_boxes: Query<&mut ViewBox>,
 ) {
     for (chapter_entity, active_chapter) in active_chapters.iter() {
         if let Chapter::ModifyViewElement {
@@ -115,7 +115,7 @@ fn apply_modification(
     sprites: &mut Query<&mut Sprite>,
     visibilities: &mut Query<&mut Visibility>,
     histories: &mut Query<&mut crate::core::view::ViewElementHistory>,
-    ui_boxes: &mut Query<&mut UIBox>,
+    ui_boxes: &mut Query<&mut ViewBox>,
 ) {
     use crate::core::view::ron_view::parsing::resolve_val_f32;
     let player_data = crate::core::data::PlayerData::default();

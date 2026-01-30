@@ -8,30 +8,30 @@
 
 use super::super::chapter_schema::{Chapter, TweenTarget, Val};
 use super::context::*;
-use crate::core::view::components::UIBox;
+use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
 use bevy_tween::interpolate::Interpolator;
 use bevy_tween::prelude::*;
 use std::time::Duration;
 
 // ============================================================================
-// Custom Interpolators for UIBox
-// UIBox 的自定义插值器
+// Custom Interpolators for ViewBox
+// ViewBox 的自定义插值器
 // ============================================================================
 
-/// Interpolator for UIBox size.
+/// Interpolator for ViewBox size.
 ///
-/// UIBox 尺寸的插值器。
+/// ViewBox 尺寸的插值器。
 #[derive(Debug, Clone, PartialEq, Reflect)]
-pub(crate) struct UIBoxSizeInterpolator {
+pub(crate) struct ViewBoxSizeInterpolator {
     pub start_width: f32,
     pub start_height: f32,
     pub end_width: f32,
     pub end_height: f32,
 }
 
-impl Interpolator for UIBoxSizeInterpolator {
-    type Item = UIBox;
+impl Interpolator for ViewBoxSizeInterpolator {
+    type Item = ViewBox;
 
     fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
         item.width = self.start_width + (self.end_width - self.start_width) * value;
@@ -107,7 +107,7 @@ pub fn process_tween_view_element_system(
     view_elements: Query<(Entity, &crate::core::view::components::ViewElement)>,
     transforms: Query<&Transform>,
     sprites: Query<&Sprite>,
-    ui_boxes: Query<&UIBox>,
+    ui_boxes: Query<&ViewBox>,
     player_data: Res<crate::core::data::PlayerData>,
     time: Res<Time>,
 ) {
@@ -408,7 +408,7 @@ pub fn process_tween_view_element_system(
                 }
                 TweenTarget::BoxSize { from, to } => {
                     let Ok(ui_box) = ui_boxes.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no UIBox component");
+                        warn!("[TweenViewElement] Target has no ViewBox component");
                         commands.entity(chapter_entity).insert(ChapterFinished);
                         continue;
                     };
@@ -445,7 +445,7 @@ pub fn process_tween_view_element_system(
                         .insert(tween(
                             duration,
                             ease_kind,
-                            target_component.with(UIBoxSizeInterpolator {
+                            target_component.with(ViewBoxSizeInterpolator {
                                 start_width: start_w,
                                 start_height: start_h,
                                 end_width: end_w,

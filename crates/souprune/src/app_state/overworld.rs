@@ -68,9 +68,9 @@ impl Plugin for OverworldPlugin {
             Update,
             OverworldUpdate.run_if(in_state(AppState::Overworld)),
         )
-        // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
+        // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
         //
-        // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
+        // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
         .init_state::<OverworldState>()
         .add_plugins((
             tilemap::TilemapPlugin,

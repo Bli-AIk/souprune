@@ -20,7 +20,7 @@ pub(crate) mod visibility;
 
 // Re-export all public types
 pub(crate) use box_components::{
-    UIBox, UIBoxFiller, UIBoxVisibility, UIContainer, UIContainerVisibility,
+    ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewContainer, ViewContainerVisibility,
 };
 pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDynamic};
 pub(crate) use interactive::{
@@ -28,21 +28,21 @@ pub(crate) use interactive::{
     LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, NavigatorType,
     SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent,
 };
-pub(crate) use layer::UILayer;
+pub(crate) use layer::ViewLayer;
 pub(crate) use navigation::{
-    IndexBound, LayerTransitions, TransitionAction, TransitionRule, UILayerNavigationConfig,
-    UILayerNavigationRule, UILayerTransitionConfig,
+    IndexBound, LayerTransitions, TransitionAction, TransitionRule, ViewLayerNavigationConfig,
+    ViewLayerNavigationRule, ViewLayerTransitionConfig,
 };
 pub(crate) use reactive::{
     ReactiveIndicator, ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite,
     ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
 };
 pub(crate) use state_sprite::StateSpriteState;
-pub(crate) use text::{UIAnimationState, UIFont, UITextConfig, UITextTemplate};
-pub(crate) use visibility::UILayerVisibilityRule;
+pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
+pub(crate) use visibility::ViewLayerVisibilityRule;
 
 // Public exports (used outside core::ui)
-pub use hpbar::{DynamicUIElement, HPBarLag, HPBarSprite};
+pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite};
 pub use view_element::{
     ElementState, ViewElement, ViewElementHistory, ViewRoot, find_element_by_full_name,
     find_elements_by_tag,

@@ -1,10 +1,10 @@
 use super::super::components::*;
 use super::super::layout::*;
-use super::super::lifecycle::BackpackUIRoot;
+use super::super::lifecycle::BackpackViewRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
-use crate::app_state::battle::BattleUIRoot;
+use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
@@ -14,13 +14,13 @@ use bevy::prelude::*;
 /// 从 RON 布局生成视图元素的系统。
 ///
 /// This system handles all UI root types:
-/// - BackpackUIRoot: OW Backpack
-/// - BattleUIRoot: Battle UI
+/// - BackpackViewRoot: OW Backpack
+/// - BattleViewRoot: Battle UI
 /// - ChaseHUDRoot: Chase HUD
 ///
 /// 该系统处理所有 UI 根类型：
-/// - BackpackUIRoot：OW 背包
-/// - BattleUIRoot：Battle UI
+/// - BackpackViewRoot：OW 背包
+/// - BattleViewRoot：Battle UI
 /// - ChaseHUDRoot：Chase HUD
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
@@ -32,10 +32,21 @@ pub fn spawn_ron_view_system(
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     backpack_root_query: Query<
         Entity,
-        (With<BackpackUIRoot>, Without<ViewGenerated>, Without<UIBox>),
+        (
+            With<BackpackViewRoot>,
+            Without<ViewGenerated>,
+            Without<ViewBox>,
+        ),
     >,
-    battle_root_query: Query<Entity, (With<BattleUIRoot>, Without<ViewGenerated>, Without<UIBox>)>,
-    chase_root_query: Query<Entity, (With<ChaseHUDRoot>, Without<ViewGenerated>, Without<UIBox>)>,
+    battle_root_query: Query<
+        Entity,
+        (
+            With<BattleViewRoot>,
+            Without<ViewGenerated>,
+            Without<ViewBox>,
+        ),
+    >,
+    chase_root_query: Query<Entity, (With<ChaseHUDRoot>, Without<ViewGenerated>, Without<ViewBox>)>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -82,18 +93,18 @@ pub fn spawn_ron_view_system(
         true
     };
 
-    // Handle BackpackUIRoot entities (OW Backpack)
-    // 处理 BackpackUIRoot 实体（OW 背包）
+    // Handle BackpackViewRoot entities (OW Backpack)
+    // 处理 BackpackViewRoot 实体（OW 背包）
     for view_entity in backpack_root_query.iter() {
-        if spawn_for_entity(view_entity, "BackpackUIRoot") {
+        if spawn_for_entity(view_entity, "BackpackViewRoot") {
             spawned_any = true;
         }
     }
 
-    // Handle BattleUIRoot entities (Battle UI)
-    // 处理 BattleUIRoot 实体（Battle UI）
+    // Handle BattleViewRoot entities (Battle UI)
+    // 处理 BattleViewRoot 实体（Battle UI）
     for view_entity in battle_root_query.iter() {
-        if spawn_for_entity(view_entity, "BattleUIRoot") {
+        if spawn_for_entity(view_entity, "BattleViewRoot") {
             spawned_any = true;
         }
     }
@@ -176,15 +187,15 @@ pub fn spawn_ron_view_for_entity(
     }
 }
 
-/// Helper function to build UITextConfig from TextDef.
+/// Helper function to build ViewTextConfig from TextDef.
 ///
-/// 从 TextDef 构建 UITextConfig 的辅助函数。
+/// 从 TextDef 构建 ViewTextConfig 的辅助函数。
 pub fn build_text_config(
     text_def: &TextDef,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &crate::core::data::PlayerData,
     item_registry: &crate::core::item::ItemRegistry,
-) -> UITextConfig {
+) -> ViewTextConfig {
     let raw_content = text_def.content.as_deref().unwrap_or("");
     info!(
         "[build_text_config] Building text config for '{}' with raw_content: '{}'",
@@ -220,7 +231,7 @@ pub fn build_text_config(
         Srgba::new(r, g, b, a)
     };
 
-    UITextConfig {
+    ViewTextConfig {
         name: Name::new(text_def.id.clone()),
         content,
         template: Some(raw_content.to_string()),
@@ -276,13 +287,13 @@ pub fn spawn_view_node(
     is_top_level: bool,
     namespace: &str, // New parameter: namespace for ViewElement
 ) {
-    // Determine if this node has a UIBox (ui_shape_logic)
+    // Determine if this node has a ViewBox (ui_shape_logic)
     let has_ui_box = node_def.ui_shape_logic.is_some();
-    // Determine if this is a standalone sprite node (sprite without UIBox)
+    // Determine if this is a standalone sprite node (sprite without ViewBox)
     let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
     // Determine if this is a state sprite node
     let is_state_sprite = !has_ui_box && node_def.state_sprite.is_some();
-    // Determine if this is a pure container (no UIBox, no standalone sprite, but may have texts/children)
+    // Determine if this is a pure container (no ViewBox, no standalone sprite, but may have texts/children)
     let is_pure_container = !has_ui_box
         && !is_standalone_sprite
         && !is_state_sprite
@@ -374,8 +385,8 @@ pub fn spawn_view_node(
         }
 
         // =====================================================================
-        // Case 1: Standalone Sprite Node (no UIBox, has sprite)
-        // 情况 1: 独立精灵节点（无 UIBox，有 sprite）
+        // Case 1: Standalone Sprite Node (no ViewBox, has sprite)
+        // 情况 1: 独立精灵节点（无 ViewBox，有 sprite）
         // =====================================================================
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
@@ -414,7 +425,7 @@ pub fn spawn_view_node(
                     crate::core::character_asset::CharacterAnimator {
                         config: config_handle,
                     },
-                    UIAnimationState {
+                    ViewAnimationState {
                         state_name: sprite_def
                             .initial_state
                             .clone()
@@ -481,7 +492,7 @@ pub fn spawn_view_node(
 
                     let entity_id = entity_cmd.id();
 
-                    // Store entity ID to add DynamicUIElement later outside closure
+                    // Store entity ID to add DynamicViewElement later outside closure
                     spawned_entity_id = Some(entity_id);
 
                     info!(
@@ -549,13 +560,13 @@ pub fn spawn_view_node(
         }
 
         // =====================================================================
-        // Case 2: UIBox Node (has ui_shape_logic)
-        // 情况 2: UIBox 节点（有 ui_shape_logic）
+        // Case 2: ViewBox Node (has ui_shape_logic)
+        // 情况 2: ViewBox 节点（有 ui_shape_logic）
         // =====================================================================
         if has_ui_box {
             let ui_shape_logic = node_def.ui_shape_logic.as_ref().unwrap();
             info!(
-                "[UI Box] Creating UIBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
+                "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
                 ui_shape_logic.width,
                 ui_shape_logic.height,
@@ -566,7 +577,7 @@ pub fn spawn_view_node(
                 .visibility_rule
                 .as_ref()
                 .map(parse_visibility_rule)
-                .unwrap_or(UILayerVisibilityRule::Always);
+                .unwrap_or(ViewLayerVisibilityRule::Always);
 
             let texts = node_def
                 .texts
@@ -604,7 +615,7 @@ pub fn spawn_view_node(
             let mut box_entity = if is_top_level {
                 // Top-level nodes use CameraAnchored
                 let mut entity_cmd = parent.spawn((
-                    UIBox::new_full(
+                    ViewBox::new_full(
                         ui_shape_logic.width,
                         ui_shape_logic.height,
                         ui_shape_logic.border_width,
@@ -613,7 +624,7 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    UIBoxVisibility::new(visibility_rule.clone()),
+                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Visibility::default(),
                     InheritedVisibility::default(),
                     ViewVisibility::default(),
@@ -630,7 +641,7 @@ pub fn spawn_view_node(
             } else {
                 // Child nodes use regular Transform relative to parent
                 let mut entity_cmd = parent.spawn((
-                    UIBox::new_full(
+                    ViewBox::new_full(
                         ui_shape_logic.width,
                         ui_shape_logic.height,
                         ui_shape_logic.border_width,
@@ -639,7 +650,7 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    UIBoxVisibility::new(visibility_rule.clone()),
+                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Transform::from_translation(offset),
                     GlobalTransform::default(),
                     Visibility::default(),
@@ -662,7 +673,7 @@ pub fn spawn_view_node(
             }
 
             info!(
-                "[UI Box] Spawned UIBox '{}' at camera offset: {:?} with structure_file: {:?}",
+                "[UI Box] Spawned ViewBox '{}' at camera offset: {:?} with structure_file: {:?}",
                 node_def.name, offset, ui_shape_logic.structure_file
             );
 
@@ -673,7 +684,7 @@ pub fn spawn_view_node(
 
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
-                    "[UI Box] Adding child sprite to UIBox '{}': {:?}",
+                    "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
                     node_def.name, sprite_def.path
                 );
                 spawn_ui_sprite(
@@ -730,7 +741,7 @@ pub fn spawn_view_node(
 
                 let indicator_visibility = if let Some(vis_rule) = &indicator_def.visibility_rule {
                     parse_visibility_rule(vis_rule)
-                } else if let UILayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
+                } else if let ViewLayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
                     ReactiveIndicatorVisibility::OnlyIn(layers.clone())
                 } else {
                     // Default to always visible if no visibility rule is specified
@@ -741,7 +752,7 @@ pub fn spawn_view_node(
                 let mut placement = ReactivePlacement::new(indicator_position);
 
                 for (layer_name, position_def) in &indicator_def.overrides {
-                    let layer = UILayer::new(layer_name.clone());
+                    let layer = ViewLayer::new(layer_name.clone());
                     let position = match position_def {
                         ReactivePositionDef::Static(vec) => {
                             ReactivePosition::Static(serializable_vec3_to_static(vec))
@@ -789,8 +800,8 @@ pub fn spawn_view_node(
         }
 
         // =====================================================================
-        // Case 3: Pure Container Node (no UIBox, no sprite, but has texts/children)
-        // 情况 3: 纯容器节点（无 UIBox，无 sprite，但有 texts 或 children）
+        // Case 3: Pure Container Node (no ViewBox, no sprite, but has texts/children)
+        // 情况 3: 纯容器节点（无 ViewBox，无 sprite，但有 texts 或 children）
         // =====================================================================
         if is_pure_container {
             info!(
@@ -804,13 +815,13 @@ pub fn spawn_view_node(
                 .visibility_rule
                 .as_ref()
                 .map(parse_visibility_rule)
-                .unwrap_or(UILayerVisibilityRule::Always);
+                .unwrap_or(ViewLayerVisibilityRule::Always);
 
-            // Spawn container entity with UIContainer marker
-            // 使用 UIContainer 标记生成容器实体
+            // Spawn container entity with ViewContainer marker
+            // 使用 ViewContainer 标记生成容器实体
             let mut container_entity = parent.spawn((
-                UIContainer,
-                UIContainerVisibility::new(visibility_rule),
+                ViewContainer,
+                ViewContainerVisibility::new(visibility_rule),
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -849,7 +860,7 @@ pub fn spawn_view_node(
     // 在闭包结束后递归处理子节点，以避免借用冲突
     info!("After closure, spawned_entity_id: {:?}", spawned_entity_id);
     if let Some(entity_id) = spawned_entity_id {
-        // Add DynamicUIElement component if needed
+        // Add DynamicViewElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
 
@@ -884,12 +895,12 @@ pub fn spawn_view_node(
 
             if has_dynamic {
                 info!(
-                    "Adding DynamicUIElement to entity {:?} ({})",
+                    "Adding DynamicViewElement to entity {:?} ({})",
                     entity_id, node_def.name
                 );
                 commands
                     .entity(entity_id)
-                    .insert(super::super::components::DynamicUIElement {
+                    .insert(super::super::components::DynamicViewElement {
                         sprite_def: Some(sprite_def.clone()),
                         text_def: None,
                     });
@@ -972,10 +983,10 @@ pub(crate) fn spawn_container_texts(
         ));
 
         if let Some(template) = &text_config.template {
-            cmd.insert(UITextTemplate(template.clone()));
+            cmd.insert(ViewTextTemplate(template.clone()));
         }
 
-        // Add DynamicUIElement if transform has dynamic expressions
+        // Add DynamicViewElement if transform has dynamic expressions
         let has_dynamic = text_def
             .transform
             .translation
@@ -988,7 +999,7 @@ pub(crate) fn spawn_container_texts(
                 .is_some_and(is_dynamic_vec3);
 
         if has_dynamic {
-            cmd.insert(super::super::components::DynamicUIElement {
+            cmd.insert(super::super::components::DynamicViewElement {
                 sprite_def: None,
                 text_def: Some(text_def.clone()),
             });
@@ -1035,7 +1046,7 @@ fn spawn_ui_sprite(
                 crate::core::character_asset::CharacterAnimator {
                     config: config_handle,
                 },
-                UIAnimationState {
+                ViewAnimationState {
                     state_name: sprite_def
                         .initial_state
                         .clone()
@@ -1082,32 +1093,32 @@ fn spawn_ui_sprite(
     }
 }
 
-fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> UILayerVisibilityRule {
+fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> ViewLayerVisibilityRule {
     match rule_def.rule_type.as_str() {
-        "Always" => UILayerVisibilityRule::Always,
-        "AlwaysHidden" => UILayerVisibilityRule::AlwaysHidden,
+        "Always" => ViewLayerVisibilityRule::Always,
+        "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
         "OnlyIn" => {
             if let Some(layers) = &rule_def.layers {
                 let ui_layers = layers
                     .iter()
-                    .map(|name| UILayer::new(name.clone()))
+                    .map(|name| ViewLayer::new(name.clone()))
                     .collect();
-                UILayerVisibilityRule::OnlyIn(ui_layers)
+                ViewLayerVisibilityRule::OnlyIn(ui_layers)
             } else {
-                UILayerVisibilityRule::Always
+                ViewLayerVisibilityRule::Always
             }
         }
         "Except" => {
             if let Some(layers) = &rule_def.layers {
                 let ui_layers = layers
                     .iter()
-                    .map(|name| UILayer::new(name.clone()))
+                    .map(|name| ViewLayer::new(name.clone()))
                     .collect();
-                UILayerVisibilityRule::Except(ui_layers)
+                ViewLayerVisibilityRule::Except(ui_layers)
             } else {
-                UILayerVisibilityRule::Always
+                ViewLayerVisibilityRule::Always
             }
         }
-        _ => UILayerVisibilityRule::Always,
+        _ => ViewLayerVisibilityRule::Always,
     }
 }

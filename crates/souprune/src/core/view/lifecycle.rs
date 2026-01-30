@@ -32,7 +32,7 @@ use bevy::prelude::*;
 ///
 /// 背包 UI 根实体的标记组件。
 #[derive(Component)]
-pub struct BackpackUIRoot;
+pub struct BackpackViewRoot;
 
 /// Spawn the UI entities using the unified InteractiveLayer system.
 ///
@@ -104,7 +104,7 @@ pub(crate) fn spawn_backpack_ui_system(
     // 生成 UI 根标记实体
     commands.spawn((
         OverworldEntity(),
-        BackpackUIRoot,
+        BackpackViewRoot,
         Transform::from_translation(Vec3::ZERO),
         Name::new("Backpack Menu UI Root"),
     ));
@@ -140,7 +140,7 @@ pub(crate) fn spawn_backpack_ui_system(
 /// 销毁根 UI 实体及所有关联的 InteractiveLayer。
 pub(crate) fn despawn_backpack_ui_system(
     mut commands: Commands,
-    root_query: Query<Entity, With<BackpackUIRoot>>,
+    root_query: Query<Entity, With<BackpackViewRoot>>,
     interactive_layer_query: Query<Entity, With<InteractiveLayer>>,
 ) {
     // Despawn InteractiveLayers
@@ -150,8 +150,8 @@ pub(crate) fn despawn_backpack_ui_system(
         debug!("Despawned InteractiveLayer entity {:?}", entity);
     }
 
-    // Despawn BackpackUIRoot and its children
-    // 销毁 BackpackUIRoot 及其子实体
+    // Despawn BackpackViewRoot and its children
+    // 销毁 BackpackViewRoot 及其子实体
     for entity in &root_query {
         let root = entity;
         commands.queue(move |world: &mut World| {

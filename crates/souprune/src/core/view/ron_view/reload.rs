@@ -5,7 +5,7 @@ use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
 use super::super::components::InteractiveLayer;
 use super::super::layout::ViewLayoutAsset;
-use super::super::lifecycle::BackpackUIRoot;
+use super::super::lifecycle::BackpackViewRoot;
 use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
 
@@ -88,7 +88,7 @@ pub fn rebuild_reloaded_view_system(
     mut watcher: Option<ResMut<ViewLayoutWatcher>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    backpack_root_query: Query<Entity, With<BackpackUIRoot>>,
+    backpack_root_query: Query<Entity, With<BackpackViewRoot>>,
     interactive_layer_query: Query<Entity, With<InteractiveLayer>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,

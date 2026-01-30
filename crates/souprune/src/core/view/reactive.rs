@@ -24,7 +24,7 @@
 use super::components::{
     InteractiveLayer, LayerActivatedEvent, LayerDeactivatedEvent, ReactiveIndicator,
     ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite, SelectionChangedEvent,
-    UIBox, UIBoxFiller, UILayer,
+    ViewBox, ViewBoxFiller, ViewLayer,
 };
 use crate::app_state::overworld::OverworldState;
 use bevy::ecs::message::MessageReader;
@@ -35,7 +35,7 @@ use std::collections::VecDeque;
 fn find_ui_box_filler_entity(
     root: Entity,
     children_query: &Query<&Children>,
-    filler_query: &Query<(), With<UIBoxFiller>>,
+    filler_query: &Query<(), With<ViewBoxFiller>>,
 ) -> Option<Entity> {
     let mut queue: VecDeque<Entity> = VecDeque::new();
     if let Ok(children) = children_query.get(root) {
@@ -65,9 +65,9 @@ fn find_ui_box_filler_entity(
 #[allow(clippy::type_complexity)]
 pub(crate) fn spawn_reactive_indicator_system(
     mut commands: Commands,
-    query: Query<(Entity, &ReactiveIndicator), (With<UIBox>, Without<ReactiveIndicatorReady>)>,
+    query: Query<(Entity, &ReactiveIndicator), (With<ViewBox>, Without<ReactiveIndicatorReady>)>,
     children_query: Query<&Children>,
-    filler_query: Query<(), With<UIBoxFiller>>,
+    filler_query: Query<(), With<ViewBoxFiller>>,
 ) {
     for (entity, indicator) in query.iter() {
         let Some(filler_entity) = find_ui_box_filler_entity(entity, &children_query, &filler_query)
@@ -104,7 +104,7 @@ pub(crate) fn update_reactive_indicator_system(
     mut selection_changed: MessageReader<SelectionChangedEvent>,
     mut layer_activated: MessageReader<LayerActivatedEvent>,
     mut layer_deactivated: MessageReader<LayerDeactivatedEvent>,
-    mut indicator_query: Query<&mut ReactiveIndicator, With<UIBox>>,
+    mut indicator_query: Query<&mut ReactiveIndicator, With<ViewBox>>,
     parent_query: Query<&ChildOf>,
     mut sprite_query: Query<
         (&ReactiveIndicatorOwner, &mut Transform, &mut Visibility),
@@ -115,7 +115,7 @@ pub(crate) fn update_reactive_indicator_system(
 
     // Handle selection changed events (indicator position update)
     for event in selection_changed.read() {
-        let ui_layer = UILayer::new(event.layer_id.clone());
+        let ui_layer = ViewLayer::new(event.layer_id.clone());
 
         for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
             let Ok(mut indicator) = indicator_query.get_mut(owner.0) else {
@@ -145,7 +145,7 @@ pub(crate) fn update_reactive_indicator_system(
 
     // Handle layer activated events (show indicator and set initial position)
     for event in layer_activated.read() {
-        let ui_layer = UILayer::new(event.layer_id.clone());
+        let ui_layer = ViewLayer::new(event.layer_id.clone());
 
         for (owner, mut transform, mut visibility) in sprite_query.iter_mut() {
             let Ok(mut indicator) = indicator_query.get_mut(owner.0) else {
@@ -175,7 +175,7 @@ pub(crate) fn update_reactive_indicator_system(
 
     // Handle layer deactivated events (hide indicator)
     for event in layer_deactivated.read() {
-        let ui_layer = UILayer::new(event.layer_id.clone());
+        let ui_layer = ViewLayer::new(event.layer_id.clone());
 
         for (owner, _transform, mut visibility) in sprite_query.iter_mut() {
             let Ok(indicator) = indicator_query.get_mut(owner.0) else {
@@ -212,8 +212,8 @@ pub(crate) fn update_reactive_indicator_system(
             continue;
         };
 
-        // Create UILayer from layer_id for visibility check
-        let ui_layer = UILayer::new(layer.layer_id.clone());
+        // Create ViewLayer from layer_id for visibility check
+        let ui_layer = ViewLayer::new(layer.layer_id.clone());
 
         let mut should_show = overworld_state.get() == &OverworldState::Backpack;
         should_show &= !indicator.is_hidden();

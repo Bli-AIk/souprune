@@ -56,7 +56,7 @@ pub(crate) struct BattleEntity;
 ///
 
 #[derive(Component)]
-pub struct BattleUIRoot;
+pub struct BattleViewRoot;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
@@ -86,9 +86,9 @@ impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
             .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
-            // Note: UIUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
+            // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
-            // 注意：UIUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
+            // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
             .init_asset::<BattleAsset>()
             .register_asset_loader(RonAssetLoader::<BattleAsset>::new(&["battle.ron"]))
             .init_asset::<BattlePlayerConfig>()

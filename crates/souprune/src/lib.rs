@@ -28,7 +28,7 @@ pub use crate::core::save::{
 };
 pub use crate::core::view::layout::{
     FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef, ReactivePositionDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, ViewBoxLogicDef, ViewLayoutAsset,
     ViewNodeDef,
 };
 
@@ -311,7 +311,7 @@ pub fn run() {
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,
-            view::UIUpdate.run_if(
+            view::ViewUpdate.run_if(
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )
