@@ -21,7 +21,7 @@
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::player::config::PlayerBehavior;
-use crate::core::input::{Action, ActionRegistry};
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
@@ -41,10 +41,10 @@ pub fn is_player_walking(
 
     let action_state = query.single().map_err(|_| ())?;
 
-    let up_pressed = action_state.pressed(&registry.up());
-    let down_pressed = action_state.pressed(&registry.down());
-    let left_pressed = action_state.pressed(&registry.left());
-    let right_pressed = action_state.pressed(&registry.right());
+    let up_pressed = action_state.action_pressed(&registry, "Up");
+    let down_pressed = action_state.action_pressed(&registry, "Down");
+    let left_pressed = action_state.action_pressed(&registry, "Left");
+    let right_pressed = action_state.action_pressed(&registry, "Right");
 
     let has_vertical_input = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
     let has_horizontal_input = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);

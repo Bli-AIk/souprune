@@ -16,7 +16,7 @@ use super::components::interactive::NavDirection;
 use super::ron_view::ViewGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
-use crate::core::input::{Action, ActionRegistry};
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -153,10 +153,11 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 
         // Check all navigation directions
         for direction in NavDirection::all() {
-            let action = direction.to_action(&registry);
-            if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
-                changed = true;
-                break;
+            if let Some(action) = direction.to_action(&registry) {
+                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
+                    changed = true;
+                    break;
+                }
             }
         }
 
@@ -203,10 +204,11 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         let mut changed = false;
 
         for direction in NavDirection::all() {
-            let action = direction.to_action(&registry);
-            if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
-                changed = true;
-                break;
+            if let Some(action) = direction.to_action(&registry) {
+                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
+                    changed = true;
+                    break;
+                }
             }
         }
 
@@ -257,8 +259,8 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.just_pressed(&registry.confirm());
-        let cancel_pressed = action_state.just_pressed(&registry.cancel());
+        let confirm_pressed = action_state.action_just_pressed(&registry, "Confirm");
+        let cancel_pressed = action_state.action_just_pressed(&registry, "Cancel");
 
         if confirm_pressed {
             audio::play_sound(&audio, &asset_server, "confirm.wav");
@@ -307,8 +309,8 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.just_pressed(&registry.confirm());
-        let cancel_pressed = action_state.just_pressed(&registry.cancel());
+        let confirm_pressed = action_state.action_just_pressed(&registry, "Confirm");
+        let cancel_pressed = action_state.action_just_pressed(&registry, "Cancel");
 
         if confirm_pressed {
             audio::play_sound(&mut commands, &asset_server, "confirm.wav");

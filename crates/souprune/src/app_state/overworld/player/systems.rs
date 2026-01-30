@@ -21,7 +21,7 @@
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
-use crate::core::input::{Action, ActionRegistry};
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
@@ -39,10 +39,10 @@ pub(crate) fn player_direction_control_system(
     }
 
     for (mut facing, action_state) in query.iter_mut() {
-        let up_pressed = action_state.pressed(&registry.up());
-        let down_pressed = action_state.pressed(&registry.down());
-        let left_pressed = action_state.pressed(&registry.left());
-        let right_pressed = action_state.pressed(&registry.right());
+        let up_pressed = action_state.action_pressed(&registry, "Up");
+        let down_pressed = action_state.action_pressed(&registry, "Down");
+        let left_pressed = action_state.action_pressed(&registry, "Left");
+        let right_pressed = action_state.action_pressed(&registry, "Right");
 
         // Only update the facing direction when opposite inputs are not pressed simultaneously.
         //

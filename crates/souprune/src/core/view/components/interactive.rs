@@ -37,13 +37,13 @@ impl NavDirection {
     /// 使用注册表将 Action 转换为 NavDirection。
     #[allow(dead_code)]
     pub fn from_action(action: &Action, registry: &ActionRegistry) -> Option<Self> {
-        if *action == registry.up() {
+        if registry.get("Up") == Some(*action) {
             Some(NavDirection::Up)
-        } else if *action == registry.down() {
+        } else if registry.get("Down") == Some(*action) {
             Some(NavDirection::Down)
-        } else if *action == registry.left() {
+        } else if registry.get("Left") == Some(*action) {
             Some(NavDirection::Left)
-        } else if *action == registry.right() {
+        } else if registry.get("Right") == Some(*action) {
             Some(NavDirection::Right)
         } else {
             None
@@ -58,14 +58,16 @@ impl NavDirection {
     }
 
     /// Get the Action for this direction using the registry.
+    /// Returns None if the corresponding action is not registered.
     ///
     /// 使用注册表获取此方向对应的 Action。
-    pub fn to_action(self, registry: &ActionRegistry) -> Action {
+    /// 如果对应的动作未注册则返回 None。
+    pub fn to_action(self, registry: &ActionRegistry) -> Option<Action> {
         match self {
-            NavDirection::Up => registry.up(),
-            NavDirection::Down => registry.down(),
-            NavDirection::Left => registry.left(),
-            NavDirection::Right => registry.right(),
+            NavDirection::Up => registry.get("Up"),
+            NavDirection::Down => registry.get("Down"),
+            NavDirection::Left => registry.get("Left"),
+            NavDirection::Right => registry.get("Right"),
         }
     }
 }

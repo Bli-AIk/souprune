@@ -223,16 +223,6 @@ impl Default for ActionRegistry {
 }
 
 impl ActionRegistry {
-    /// Standard action name constants
-    /// 标准动作名称常量
-    pub const UP: &'static str = "Up";
-    pub const DOWN: &'static str = "Down";
-    pub const LEFT: &'static str = "Left";
-    pub const RIGHT: &'static str = "Right";
-    pub const CONFIRM: &'static str = "Confirm";
-    pub const CANCEL: &'static str = "Cancel";
-    pub const MENU: &'static str = "Menu";
-
     /// Create a new empty ActionRegistry.
     /// Use this when building a registry from configuration.
     ///
@@ -304,43 +294,6 @@ impl ActionRegistry {
     #[allow(dead_code)]
     pub fn is_registered(&self, name: &str) -> bool {
         self.name_to_slot.contains_key(name)
-    }
-
-    // Helper methods to get standard actions
-    // 获取标准动作的辅助方法
-
-    pub fn up(&self) -> Action {
-        self.get(Self::UP).expect("Up action not registered")
-    }
-
-    pub fn down(&self) -> Action {
-        self.get(Self::DOWN).expect("Down action not registered")
-    }
-
-    pub fn left(&self) -> Action {
-        self.get(Self::LEFT).expect("Left action not registered")
-    }
-
-    pub fn right(&self) -> Action {
-        self.get(Self::RIGHT).expect("Right action not registered")
-    }
-
-    pub fn confirm(&self) -> Action {
-        self.get(Self::CONFIRM)
-            .expect("Confirm action not registered")
-    }
-
-    pub fn cancel(&self) -> Action {
-        self.get(Self::CANCEL)
-            .expect("Cancel action not registered")
-    }
-
-    /// Get the Menu action slot.
-    ///
-    /// 获取 Menu 动作槽位。
-    #[allow(dead_code)]
-    pub fn menu(&self) -> Action {
-        self.get(Self::MENU).expect("Menu action not registered")
     }
 }
 

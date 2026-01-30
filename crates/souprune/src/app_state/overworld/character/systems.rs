@@ -21,7 +21,7 @@
 use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::basic_components::{Facing, Speed};
-use crate::core::input::{Action, ActionRegistry};
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 
@@ -77,10 +77,10 @@ fn apply_walking_step(
 
     let mut direction_vec = Vec2::ZERO;
 
-    let up_pressed = action_state.pressed(&registry.up());
-    let down_pressed = action_state.pressed(&registry.down());
-    let left_pressed = action_state.pressed(&registry.left());
-    let right_pressed = action_state.pressed(&registry.right());
+    let up_pressed = action_state.action_pressed(registry, "Up");
+    let down_pressed = action_state.action_pressed(registry, "Down");
+    let left_pressed = action_state.action_pressed(registry, "Left");
+    let right_pressed = action_state.action_pressed(registry, "Right");
 
     if up_pressed && !down_pressed {
         direction_vec.y += 1.0;
