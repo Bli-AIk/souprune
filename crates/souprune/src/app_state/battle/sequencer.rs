@@ -20,7 +20,7 @@ mod interaction;
 mod performance;
 mod player;
 mod tween;
-mod ui;
+mod view_action;
 mod view_element;
 
 // Re-export public types
@@ -49,7 +49,7 @@ impl Plugin for SequencerPlugin {
                     flow::advance_battle_flow_system,
                     player::process_player_action_system,
                     camera::process_camera_action_system,
-                    ui::process_ui_action_system,
+                    view_action::process_view_action_system,
                     interaction::process_await_selection_system,
                     view_element::process_modify_view_element_system,
                     tween::process_tween_view_element_system,

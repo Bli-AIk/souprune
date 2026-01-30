@@ -170,6 +170,7 @@ pub fn check_await_selection_completion_system(
 /// 此系统更改可选元素的纹理以显示当前选中（高亮）的项目。
 /// 当层被停用时，所有元素恢复到未选中状态。
 ///
+/// TODO: 移除硬编码约定，改为配置化。
 /// # Convention / 约定
 ///
 /// Button sprites follow the naming convention:

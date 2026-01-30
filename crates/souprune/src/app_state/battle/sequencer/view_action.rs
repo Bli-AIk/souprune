@@ -1,20 +1,20 @@
-//! # sequencer/ui.rs
+//! # sequencer/view_action.rs
 //!
 //! ## Module Overview
 //!
-//! UI control systems for the battle sequencer.
+//! View control systems for the battle sequencer.
 //!
-//! 战斗序列管理器的 UI 控制系统。
+//! 战斗序列管理器的视图控制系统。
 
 use super::super::chapter_schema::Chapter;
 use super::context::*;
 use bevy::prelude::*;
 
-/// System to process UI actions.
+/// System to process view actions.
 ///
-/// 处理 UI 动作的系统。
+/// 处理视图动作的系统。
 #[allow(clippy::type_complexity)]
-pub fn process_ui_action_system(
+pub fn process_view_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
@@ -37,12 +37,12 @@ pub fn process_ui_action_system(
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
                         crate::app_state::battle::BattleEntity,
-                        Name::new("BattleUI Root"),
+                        Name::new("BattleView Root"),
                     ));
                     commands.init_resource::<crate::core::view::UILayoutWatcher>();
                 }
                 _ => {
-                    warn!("UI action {:?} not fully implemented yet", action);
+                    warn!("View action {:?} not fully implemented yet", action);
                 }
             }
             commands.entity(entity).insert(ChapterFinished);
@@ -62,7 +62,7 @@ pub fn process_ui_action_system(
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
                 crate::app_state::battle::BattleEntity,
-                Name::new("BattleUI Root"),
+                Name::new("BattleView Root"),
             ));
             commands.entity(entity).insert(ChapterFinished);
         }
