@@ -15,8 +15,11 @@
 use super::actions::{Action, ActionRegistry};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
+use ron::de::from_str;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 /// Input binding types supported by the configuration system.
 ///
@@ -60,30 +63,45 @@ pub struct InputConfig {
 }
 
 impl InputConfig {
-    /// Build an ActionRegistry from this configuration.
+    /// Load InputConfig from a RON file path.
+    /// Panics if the file doesn't exist or cannot be parsed.
+    /// Actions MUST be defined in the MOD configuration file.
     ///
-    /// 从此配置构建 ActionRegistry。
-    #[allow(dead_code)]
-    pub fn build_registry(&self) -> ActionRegistry {
-        let mut registry = ActionRegistry::default();
+    /// 从 RON 文件路径加载 InputConfig。
+    /// 如果文件不存在或无法解析则 panic。
+    /// Actions 必须在 MOD 配置文件中定义。
+    pub fn load_from_file(path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
 
-        // Register any additional actions not in the default set
-        // 注册默认集合之外的其他动作
-        for action_name in &self.actions {
-            if !registry.is_registered(action_name) {
-                if let Err(e) = registry.register(action_name.clone()) {
-                    warn!("Failed to register action '{}': {}", action_name, e);
-                }
-            }
+        if !path.exists() {
+            panic!(
+                "Input config file not found: {:?}\n\
+                 Actions must be defined in the MOD configuration file.\n\
+                 Please create the file with your action definitions.",
+                path
+            );
         }
 
-        // Also register any actions that appear in bindings but not in actions list
-        // 同时注册出现在 bindings 但不在 actions 列表中的动作
-        for action_name in self.bindings.keys() {
-            if !registry.is_registered(action_name) {
-                if let Err(e) = registry.register(action_name.clone()) {
-                    warn!("Failed to register action '{}': {}", action_name, e);
-                }
+        let contents = fs::read_to_string(path)
+            .unwrap_or_else(|e| panic!("Failed to read input config from {:?}: {}", path, e));
+
+        from_str::<Self>(&contents)
+            .unwrap_or_else(|e| panic!("Failed to parse input config from {:?}: {}", path, e))
+    }
+
+    /// Build an ActionRegistry from this configuration.
+    /// Creates a new registry and registers all actions defined in the config.
+    ///
+    /// 从此配置构建 ActionRegistry。
+    /// 创建新的注册表并注册配置中定义的所有动作。
+    pub fn build_registry(&self) -> ActionRegistry {
+        let mut registry = ActionRegistry::new();
+
+        // Register all actions from the config
+        // 从配置中注册所有动作
+        for action_name in self.actions.keys() {
+            if let Err(e) = registry.register(action_name.clone()) {
+                warn!("Failed to register action '{}': {}", action_name, e);
             }
         }
 
@@ -96,7 +114,7 @@ impl InputConfig {
     pub fn build_input_map(&self, registry: &ActionRegistry) -> InputMap<Action> {
         let mut map = InputMap::default();
 
-        for (action_name, bindings) in &self.bindings {
+        for (action_name, bindings) in &self.actions {
             let Some(slot) = registry.get(action_name) else {
                 warn!("Unknown action name in input config: {}", action_name);
                 continue;
@@ -230,82 +248,7 @@ impl InputConfig {
         }
     }
 }
-
-impl Default for InputConfig {
-    fn default() -> Self {
-        let mut bindings = HashMap::new();
-
-        // Default bindings
-        bindings.insert(
-            "Up".to_string(),
-            vec![
-                InputBinding::Key("ArrowUp".to_string()),
-                InputBinding::Key("KeyW".to_string()),
-                InputBinding::Gamepad("DPadUp".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Down".to_string(),
-            vec![
-                InputBinding::Key("ArrowDown".to_string()),
-                InputBinding::Key("KeyS".to_string()),
-                InputBinding::Gamepad("DPadDown".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Left".to_string(),
-            vec![
-                InputBinding::Key("ArrowLeft".to_string()),
-                InputBinding::Key("KeyA".to_string()),
-                InputBinding::Gamepad("DPadLeft".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Right".to_string(),
-            vec![
-                InputBinding::Key("ArrowRight".to_string()),
-                InputBinding::Key("KeyD".to_string()),
-                InputBinding::Gamepad("DPadRight".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Confirm".to_string(),
-            vec![
-                InputBinding::Key("KeyZ".to_string()),
-                InputBinding::Key("Enter".to_string()),
-                InputBinding::Gamepad("South".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Cancel".to_string(),
-            vec![
-                InputBinding::Key("KeyX".to_string()),
-                InputBinding::Key("ShiftLeft".to_string()),
-                InputBinding::Key("ShiftRight".to_string()),
-                InputBinding::Gamepad("East".to_string()),
-            ],
-        );
-        bindings.insert(
-            "Menu".to_string(),
-            vec![
-                InputBinding::Key("KeyC".to_string()),
-                InputBinding::Key("ControlLeft".to_string()),
-                InputBinding::Key("ControlRight".to_string()),
-                InputBinding::Gamepad("North".to_string()),
-            ],
-        );
-
-        Self {
-            actions: vec![
-                "Up".to_string(),
-                "Down".to_string(),
-                "Left".to_string(),
-                "Right".to_string(),
-                "Confirm".to_string(),
-                "Cancel".to_string(),
-                "Menu".to_string(),
-            ],
-            bindings,
-        }
-    }
-}
+// Note: No Default implementation for InputConfig.
+// Actions MUST be defined in the MOD configuration file (config/input.ron).
+// 注意：InputConfig 没有 Default 实现。
+// Actions 必须在 MOD 配置文件 (config/input.ron) 中定义。

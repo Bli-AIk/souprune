@@ -213,29 +213,12 @@ pub struct ActionRegistry {
 
 impl Default for ActionRegistry {
     fn default() -> Self {
-        let mut registry = Self {
-            name_to_slot: HashMap::new(),
-            slot_to_name: HashMap::new(),
-            next_slot: 0,
-        };
-
-        // Register default actions
-        // 注册默认动作
-        registry.register("Up").expect("Failed to register Up");
-        registry.register("Down").expect("Failed to register Down");
-        registry.register("Left").expect("Failed to register Left");
-        registry
-            .register("Right")
-            .expect("Failed to register Right");
-        registry
-            .register("Confirm")
-            .expect("Failed to register Confirm");
-        registry
-            .register("Cancel")
-            .expect("Failed to register Cancel");
-        registry.register("Menu").expect("Failed to register Menu");
-
-        registry
+        // Default creates an empty registry.
+        // Actions should be loaded from MOD configuration files.
+        //
+        // 默认创建空注册表。
+        // Actions 应该从 MOD 配置文件加载。
+        Self::new()
     }
 }
 
@@ -249,6 +232,19 @@ impl ActionRegistry {
     pub const CONFIRM: &'static str = "Confirm";
     pub const CANCEL: &'static str = "Cancel";
     pub const MENU: &'static str = "Menu";
+
+    /// Create a new empty ActionRegistry.
+    /// Use this when building a registry from configuration.
+    ///
+    /// 创建一个新的空 ActionRegistry。
+    /// 从配置构建注册表时使用此方法。
+    pub fn new() -> Self {
+        Self {
+            name_to_slot: HashMap::new(),
+            slot_to_name: HashMap::new(),
+            next_slot: 0,
+        }
+    }
 
     /// Register a new action. Returns the assigned slot.
     /// Returns an error if no more slots are available or if the action is already registered.

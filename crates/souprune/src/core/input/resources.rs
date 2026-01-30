@@ -46,11 +46,7 @@ impl PlayerInputSettings {
     }
 }
 
-impl Default for PlayerInputSettings {
-    fn default() -> Self {
-        // Use default registry and config
-        let registry = ActionRegistry::default();
-        let config = InputConfig::default();
-        Self::from_config(&config, &registry)
-    }
-}
+// Note: No Default implementation for PlayerInputSettings.
+// It must be created from InputConfig and ActionRegistry loaded from MOD configuration.
+// 注意：PlayerInputSettings 没有 Default 实现。
+// 它必须从 MOD 配置加载的 InputConfig 和 ActionRegistry 创建。

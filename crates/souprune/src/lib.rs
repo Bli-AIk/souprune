@@ -247,6 +247,17 @@ pub fn run() {
     // Config
     let render_config = config.render.clone();
 
+    // Load input configuration from RON file
+    // 从 RON 文件加载输入配置
+    let input_config_path = format!(
+        "projects/{}/{}",
+        config.project.mod_name, config.game.input_config_path
+    );
+    let input_config = input::InputConfig::load_from_file(&input_config_path);
+    let action_registry = input_config.build_registry();
+    let player_input_settings =
+        input::PlayerInputSettings::from_config(&input_config, &action_registry);
+
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
@@ -309,8 +320,8 @@ pub fn run() {
             font_directories: vec![format!("projects/{}/assets/fonts", config.project.mod_name)],
             ..Default::default()
         })
-        .init_resource::<input::ActionRegistry>()
-        .init_resource::<input::PlayerInputSettings>()
+        .insert_resource(action_registry)
+        .insert_resource(player_input_settings)
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,

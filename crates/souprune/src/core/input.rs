@@ -14,9 +14,9 @@
 //!
 //! ## 源文件概述
 //!
-//! It implements `InputPlugin`, which initializes and manages `PlayerInputSettings` plus related configuration.
+//! It implements `InputPlugin`, which initializes and manages input configuration.
 //!
-//! 本文件实现了 `InputPlugin`，用于初始化并管理 `PlayerInputSettings` 与相关配置。
+//! 本文件实现了 `InputPlugin`，用于初始化并管理输入配置。
 
 pub(crate) mod actions;
 pub(crate) mod config;
@@ -34,8 +34,12 @@ pub(crate) struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerInputSettings>()
-            .init_asset::<InputConfig>()
+        // Note: ActionRegistry and PlayerInputSettings are initialized in lib.rs
+        // from the RON configuration file before this plugin is added.
+        //
+        // 注意：ActionRegistry 和 PlayerInputSettings 在此插件添加之前
+        // 已在 lib.rs 中从 RON 配置文件初始化。
+        app.init_asset::<InputConfig>()
             .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]));
     }
 }
