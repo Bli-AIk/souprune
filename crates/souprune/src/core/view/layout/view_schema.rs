@@ -89,6 +89,13 @@ pub struct ViewNodeDef {
     pub image: Option<ImageDef>,
     #[serde(default)]
     pub sprite: Option<SpriteDef>,
+    /// Data-driven state sprite configuration.
+    /// Allows sprite textures to change based on rules and triggers.
+    ///
+    /// 数据驱动的状态精灵配置。
+    /// 允许精灵纹理根据规则和触发器变化。
+    #[serde(default)]
+    pub state_sprite: Option<StateSpriteConfig>,
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
@@ -358,4 +365,91 @@ pub enum SdfColorSource {
     FillColor,
     White,
     Custom(SerializableColor),
+}
+
+// ============================================================================
+// State Sprite Configuration (Data-Driven State Management)
+// 状态精灵配置（数据驱动的状态管理）
+// ============================================================================
+
+/// State-based sprite configuration.
+/// Allows sprite textures to change based on rules (e.g., selection state).
+///
+/// 基于状态的精灵配置。
+/// 允许精灵纹理根据规则（如选中状态）变化。
+#[derive(Debug, Deserialize, Clone)]
+pub struct StateSpriteConfig {
+    /// Default texture path (used when no state rule matches).
+    ///
+    /// 默认纹理路径（当没有状态规则匹配时使用）。
+    pub default: String,
+
+    /// Map of state names to texture paths.
+    ///
+    /// 状态名称到纹理路径的映射。
+    #[serde(default)]
+    pub variants: HashMap<String, String>,
+
+    /// Rules that determine when to switch states.
+    /// Evaluated in order; first matching rule wins.
+    ///
+    /// 决定何时切换状态的规则。
+    /// 按顺序评估；第一个匹配的规则生效。
+    #[serde(default)]
+    pub rules: Vec<StateRuleDef>,
+
+    /// Sugar syntax: shorthand for subscribing to interactive layer selection.
+    /// Format: (layer_id, index)
+    /// Equivalent to: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
+    ///
+    /// 语法糖：订阅交互层选中状态的简写。
+    /// 格式: (层ID, 索引)
+    /// 等同于: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
+    #[serde(default)]
+    pub subscribe_selection: Option<(String, usize)>,
+
+    /// Transform configuration for the sprite.
+    ///
+    /// 精灵的变换配置。
+    #[serde(default)]
+    pub transform: Option<SerializableTransform>,
+}
+
+/// A rule that triggers a state change.
+///
+/// 触发状态变化的规则。
+#[derive(Debug, Deserialize, Clone)]
+pub struct StateRuleDef {
+    /// The trigger condition.
+    ///
+    /// 触发条件。
+    pub trigger: StateTriggerDef,
+
+    /// The state to switch to when triggered.
+    ///
+    /// 触发时要切换到的状态。
+    pub state: String,
+}
+
+/// Trigger types for state changes.
+///
+/// 状态变化的触发器类型。
+#[derive(Debug, Deserialize, Clone)]
+pub enum StateTriggerDef {
+    /// Triggered when this element is selected in an interactive layer.
+    /// Parameters: layer_id, index in selectable_elements
+    ///
+    /// 当此元素在交互层中被选中时触发。
+    /// 参数：层ID, selectable_elements中的索引
+    InteractiveLayerSelected {
+        /// The layer ID to subscribe to.
+        layer_id: String,
+        /// The index in the layer's selectable_elements list.
+        index: usize,
+    },
+    // Future extensions / 未来扩展:
+    // PlayerHPBelow(u32),
+    // PlayerHPAbove(u32),
+    // GameEvent(String),
+    // FactCondition { fact: String, value: String },
 }

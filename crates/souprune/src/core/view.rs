@@ -73,6 +73,10 @@ use state::{
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
 
 use crate::app_state::AppState;
+use components::state_sprite::{
+    evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
+    update_state_sprite_textures_system,
+};
 #[cfg(feature = "debug")]
 use components::{
     CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
@@ -180,6 +184,11 @@ impl Plugin for CoreViewPlugin {
                     update_camera_anchored_ui_on_change_system,
                     update_dynamic_camera_anchors_system,
                     update_dynamic_text_system,
+                    // State sprite systems (data-driven state management)
+                    // 状态精灵系统（数据驱动的状态管理）
+                    evaluate_state_sprite_rules_system,
+                    evaluate_new_state_sprites_system,
+                    update_state_sprite_textures_system,
                 )
                     .in_set(UIUpdate),
             );

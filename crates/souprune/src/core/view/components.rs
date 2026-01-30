@@ -15,6 +15,7 @@ pub(crate) mod interactive;
 pub(crate) mod layer;
 pub(crate) mod navigation;
 pub(crate) mod reactive;
+pub(crate) mod state_sprite;
 pub(crate) mod text;
 pub(crate) mod view_element;
 pub(crate) mod visibility;
@@ -38,6 +39,7 @@ pub(crate) use reactive::{
     ReactiveIndicator, ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite,
     ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
 };
+pub(crate) use state_sprite::{StateRule, StateSpriteState, StateTrigger};
 pub(crate) use text::{UIAnimationState, UIFont, UITextConfig, UITextTemplate};
 pub(crate) use visibility::UILayerVisibilityRule;
 

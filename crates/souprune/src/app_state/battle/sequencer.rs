@@ -61,7 +61,10 @@ impl Plugin for SequencerPlugin {
                     performance::process_am_wait_chapter_system,
                     flow::process_parallel_chapter_system,
                     interaction::check_await_selection_completion_system,
-                    interaction::update_interactive_layer_sprites_system,
+                    // Note: update_interactive_layer_sprites_system is now replaced by
+                    // the data-driven state_sprite system in CoreViewPlugin.
+                    // 注意：update_interactive_layer_sprites_system 现在已被
+                    // CoreViewPlugin 中的数据驱动 state_sprite 系统取代。
                     flow::cleanup_finished_chapters_system,
                     flow::sync_battle_flow_system,
                 )

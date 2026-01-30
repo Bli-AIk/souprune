@@ -18,12 +18,18 @@
             children: [],
         ),
 
-        // Fight Button
+        // Fight Button - using data-driven state_sprite
+        // 战斗按钮 - 使用数据驱动的 state_sprite
         (
             name: "BtnFight",
-            sprite: (
-                path: "textures/battle/ui/fight/false.png",
-                is_animation: false,
+            state_sprite: (
+                default: "textures/battle/ui/fight/false.png",
+                variants: {
+                    "selected": "textures/battle/ui/fight/true.png",
+                },
+                // Sugar syntax: subscribe to BattleMainMenu selection at index 0
+                // 语法糖：订阅 BattleMainMenu 选中状态，索引 0
+                subscribe_selection: ("BattleMainMenu", 0),
                 transform: (
                     translation: (-233.0, -213.0, 1.0),
                     scale: (1.0, 1.0, 1.0),
@@ -31,12 +37,16 @@
             ),
         ),
 
-        // Act Button
+        // Act Button - using data-driven state_sprite
+        // 行动按钮 - 使用数据驱动的 state_sprite
         (
             name: "BtnAct",
-            sprite: (
-                path: "textures/battle/ui/act/false.png",
-                is_animation: false,
+            state_sprite: (
+                default: "textures/battle/ui/act/false.png",
+                variants: {
+                    "selected": "textures/battle/ui/act/true.png",
+                },
+                subscribe_selection: ("BattleMainMenu", 1),
                 transform: (
                     translation: (-80.0, -213.0, 1.0),
                     scale: (1.0, 1.0, 1.0),
@@ -44,12 +54,16 @@
             ),
         ),
 
-        // Item Button
+        // Item Button - using data-driven state_sprite
+        // 物品按钮 - 使用数据驱动的 state_sprite
         (
             name: "BtnItem",
-            sprite: (
-                path: "textures/battle/ui/item/false.png",
-                is_animation: false,
+            state_sprite: (
+                default: "textures/battle/ui/item/false.png",
+                variants: {
+                    "selected": "textures/battle/ui/item/true.png",
+                },
+                subscribe_selection: ("BattleMainMenu", 2),
                 transform: (
                     translation: (80.0, -213.0, 1.0),
                     scale: (1.0, 1.0, 1.0),
@@ -57,12 +71,16 @@
             ),
         ),
 
-        // Mercy Button
+        // Mercy Button - using data-driven state_sprite
+        // 慈悲按钮 - 使用数据驱动的 state_sprite
         (
             name: "BtnMercy",
-            sprite: (
-                path: "textures/battle/ui/mercy/false.png",
-                is_animation: false,
+            state_sprite: (
+                default: "textures/battle/ui/mercy/false.png",
+                variants: {
+                    "selected": "textures/battle/ui/mercy/true.png",
+                },
+                subscribe_selection: ("BattleMainMenu", 3),
                 transform: (
                     translation: (235.0, -213.0, 1.0),
                     scale: (1.0, 1.0, 1.0),

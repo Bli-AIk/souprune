@@ -159,6 +159,12 @@ pub fn check_await_selection_completion_system(
     }
 }
 
+/// DEPRECATED: This system has been replaced by data-driven state_sprite system.
+/// Kept for backwards compatibility reference only.
+///
+/// 已弃用：此系统已被数据驱动的 state_sprite 系统取代。
+/// 仅保留供向后兼容参考。
+///
 /// System to update sprites based on InteractiveLayer selection.
 ///
 /// 根据 InteractiveLayer 选择更新精灵的系统。
@@ -170,16 +176,20 @@ pub fn check_await_selection_completion_system(
 /// 此系统更改可选元素的纹理以显示当前选中（高亮）的项目。
 /// 当层被停用时，所有元素恢复到未选中状态。
 ///
-/// TODO: 移除硬编码约定，改为配置化。
-/// # Convention / 约定
+/// # Note / 注意
 ///
-/// Button sprites follow the naming convention:
-/// - `textures/battle/ui/{button_name}/false.png` - Unselected state
-/// - `textures/battle/ui/{button_name}/true.png` - Selected state
+/// This functionality is now handled by:
+/// 1. `state_sprite` field in ViewNodeDef (RON configuration)
+/// 2. `StateSpriteState` component and associated systems in CoreViewPlugin
 ///
-/// 按钮精灵遵循以下命名约定：
-/// - `textures/battle/ui/{按钮名}/false.png` - 未选中状态
-/// - `textures/battle/ui/{按钮名}/true.png` - 选中状态
+/// 此功能现在由以下部分处理：
+/// 1. ViewNodeDef 中的 `state_sprite` 字段（RON 配置）
+/// 2. CoreViewPlugin 中的 `StateSpriteState` 组件和相关系统
+#[deprecated(
+    since = "0.6.0",
+    note = "Use state_sprite configuration in RON instead"
+)]
+#[allow(dead_code)]
 pub fn update_interactive_layer_sprites_system(
     asset_server: Res<AssetServer>,
     layer_query: Query<&InteractiveLayer, Changed<InteractiveLayer>>,

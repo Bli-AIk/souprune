@@ -154,7 +154,12 @@ pub fn spawn_ron_view_for_entity(
                 "Creating InteractiveLayer '{}' with navigator: {:?}",
                 layer_id, interactive_layer.navigator
             );
-            commands.spawn(interactive_layer);
+            // Add Name component so state_sprite system can identify this layer
+            // 添加 Name 组件以便 state_sprite 系统能识别此层
+            commands.spawn((
+                interactive_layer,
+                Name::new(format!("InteractiveLayer:{}", layer_id)),
+            ));
         }
     }
 
@@ -280,9 +285,12 @@ pub fn spawn_view_node(
     let has_ui_box = node_def.ui_shape_logic.is_some();
     // Determine if this is a standalone sprite node (sprite without UIBox)
     let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
+    // Determine if this is a state sprite node
+    let is_state_sprite = !has_ui_box && node_def.state_sprite.is_some();
     // Determine if this is a pure container (no UIBox, no standalone sprite, but may have texts/children)
     let is_pure_container = !has_ui_box
         && !is_standalone_sprite
+        && !is_state_sprite
         && (!node_def.texts.is_empty() || !node_def.children.is_empty());
 
     // Create ViewElement for named nodes
@@ -302,6 +310,74 @@ pub fn spawn_view_node(
     let mut spawned_entity_id: Option<Entity> = None;
 
     commands.entity(parent_entity).with_children(|parent| {
+        // =====================================================================
+        // Case 0: State Sprite Node (data-driven state-based sprite)
+        // 情况 0: 状态精灵节点（数据驱动的状态切换精灵）
+        // =====================================================================
+        if is_state_sprite {
+            let state_sprite_config = node_def.state_sprite.as_ref().unwrap();
+            let mut transform = Transform::default();
+            if let Some(t_def) = &state_sprite_config.transform {
+                if let Some(trans) = &t_def.translation {
+                    transform.translation = Vec3::new(
+                        evaluate_float_expr(&trans.0, player_data, None),
+                        evaluate_float_expr(&trans.1, player_data, None),
+                        evaluate_float_expr(&trans.2, player_data, None),
+                    );
+                }
+                if let Some(scale) = &t_def.scale {
+                    transform.scale = Vec3::new(
+                        evaluate_float_expr(&scale.0, player_data, None),
+                        evaluate_float_expr(&scale.1, player_data, None),
+                        evaluate_float_expr(&scale.2, player_data, None),
+                    );
+                }
+                if let Some(rot) = t_def.rotation {
+                    transform.rotation = Quat::from_rotation_z(rot.to_radians());
+                }
+            }
+
+            info!(
+                "[State Sprite] Spawning state sprite '{}' at position: {:?}",
+                node_def.name, transform.translation
+            );
+
+            // Create StateSpriteState from config
+            let state_sprite_state = StateSpriteState::from_config(state_sprite_config);
+
+            // Load default texture
+            let texture_handle: Handle<Image> = asset_server.load(&state_sprite_config.default);
+
+            let mut entity_cmd = parent.spawn((
+                Sprite {
+                    image: texture_handle,
+                    ..Default::default()
+                },
+                transform,
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                Name::new(node_def.name.clone()),
+                RonDrivenView,
+                state_sprite_state,
+            ));
+
+            // Attach ViewElement if the node has a name
+            if let Some(ref ve) = view_element {
+                entity_cmd.insert(ve.clone());
+            }
+
+            let entity_id = entity_cmd.id();
+            spawned_entity_id = Some(entity_id);
+
+            info!(
+                "[State Sprite] Spawned state sprite '{}' (Entity {:?})",
+                node_def.name, entity_id
+            );
+            return;
+        }
+
         // =====================================================================
         // Case 1: Standalone Sprite Node (no UIBox, has sprite)
         // 情况 1: 独立精灵节点（无 UIBox，有 sprite）
