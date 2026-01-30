@@ -39,11 +39,13 @@ pub enum InputBinding {
 
 /// Navigation behavior configuration.
 /// Maps direction names to action names.
+/// All fields are optional - if not configured, the corresponding functionality is disabled.
 ///
 /// 导航行为配置。
 /// 将方向名称映射到动作名称。
+/// 所有字段都是可选的 - 如果未配置，对应的功能将被禁用。
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct NavigationBehavior {
+pub struct NavigationConfig {
     /// Action name for moving/navigating up
     /// 向上移动/导航的动作名称
     #[serde(default)]
@@ -67,11 +69,13 @@ pub struct NavigationBehavior {
 
 /// UI interaction behavior configuration.
 /// Maps UI actions to action names.
+/// All fields are optional - if not configured, the corresponding functionality is disabled.
 ///
 /// UI 交互行为配置。
 /// 将 UI 动作映射到动作名称。
+/// 所有字段都是可选的 - 如果未配置，对应的功能将被禁用。
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct UIBehavior {
+pub struct UIConfig {
     /// Action name for confirm/select
     /// 确认/选择的动作名称
     #[serde(default)]
@@ -88,22 +92,6 @@ pub struct UIBehavior {
     pub menu: Option<String>,
 }
 
-/// Behavior configuration that maps framework behaviors to MOD-defined actions.
-///
-/// 行为配置，将框架行为映射到 MOD 定义的动作。
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct BehaviorConfig {
-    /// Navigation behavior configuration
-    /// 导航行为配置
-    #[serde(default)]
-    pub navigation: NavigationBehavior,
-
-    /// UI interaction behavior configuration
-    /// UI 交互行为配置
-    #[serde(default)]
-    pub ui: UIBehavior,
-}
-
 /// Input configuration asset loaded from RON files.
 ///
 /// 从 RON 文件加载的输入配置资产。
@@ -112,26 +100,26 @@ pub struct BehaviorConfig {
 /// ```ron
 /// (
 ///     actions: {
-///         "MoveUp": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
-///         "MoveDown": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
-///         "MoveLeft": [Key("ArrowLeft"), Key("KeyA"), Gamepad("DPadLeft")],
-///         "MoveRight": [Key("ArrowRight"), Key("KeyD"), Gamepad("DPadRight")],
-///         "Accept": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
-///         "Back": [Key("KeyX"), Key("ShiftLeft"), Gamepad("East")],
-///         "OpenMenu": [Key("KeyC"), Gamepad("North")],
+///         "Up": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
+///         "Down": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
+///         "Left": [Key("ArrowLeft"), Key("KeyA"), Gamepad("DPadLeft")],
+///         "Right": [Key("ArrowRight"), Key("KeyD"), Gamepad("DPadRight")],
+///         "Confirm": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
+///         "Cancel": [Key("KeyX"), Key("ShiftLeft"), Gamepad("East")],
 ///     },
-///     behaviors: (
-///         navigation: (
-///             up: "MoveUp",
-///             down: "MoveDown",
-///             left: "MoveLeft",
-///             right: "MoveRight",
-///         ),
-///         ui: (
-///             confirm: "Accept",
-///             cancel: "Back",
-///             menu: "OpenMenu",
-///         ),
+///
+///     // Optional: Navigation configuration (flat, not nested)
+///     navigation: (
+///         up: "Up",
+///         down: "Down",
+///         left: "Left",
+///         right: "Right",
+///     ),
+///
+///     // Optional: UI configuration (flat, not nested)
+///     ui: (
+///         confirm: "Confirm",
+///         cancel: "Cancel",
 ///     ),
 /// )
 /// ```
@@ -144,13 +132,21 @@ pub struct InputConfig {
     /// 键是动作名称，值是绑定列表。
     pub actions: HashMap<String, Vec<InputBinding>>,
 
-    /// Behavior configuration that maps framework behaviors to action names.
-    /// This allows MOD authors to use any action names they want.
+    /// Navigation configuration (optional).
+    /// If not provided, navigation features will be disabled with a warning.
     ///
-    /// 行为配置，将框架行为映射到动作名称。
-    /// 这允许 MOD 作者使用任何他们想要的动作名称。
+    /// 导航配置（可选）。
+    /// 如果未提供，导航功能将被禁用并发出警告。
     #[serde(default)]
-    pub behaviors: BehaviorConfig,
+    pub navigation: NavigationConfig,
+
+    /// UI configuration (optional).
+    /// If not provided, UI interaction features will be disabled with a warning.
+    ///
+    /// UI 配置（可选）。
+    /// 如果未提供，UI 交互功能将被禁用并发出警告。
+    #[serde(default)]
+    pub ui: UIConfig,
 }
 
 impl InputConfig {

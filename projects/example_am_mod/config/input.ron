@@ -48,19 +48,20 @@
         ],
     },
 
-    // Behavior mappings - connect framework behaviors to your action names
-    // 行为映射 - 将框架行为连接到你的动作名称
-    behaviors: (
-        navigation: (
-            up: "Up",
-            down: "Down",
-            left: "Left",
-            right: "Right",
-        ),
-        ui: (
-            confirm: "Confirm",
-            cancel: "Cancel",
-            menu: "Menu",
-        ),
+    // Navigation configuration (optional, flat)
+    // 导航配置（可选，扁平结构）
+    navigation: (
+        up: "Up",
+        down: "Down",
+        left: "Left",
+        right: "Right",
+    ),
+
+    // UI configuration (optional, flat)
+    // UI 配置（可选，扁平结构）
+    ui: (
+        confirm: "Confirm",
+        cancel: "Cancel",
+        menu: "Menu",
     ),
 )
