@@ -501,7 +501,7 @@ pub(crate) fn update_sdf_view_shape_system(
         let box_height = ui_box.height();
         let border_width = ui_box.border_width();
 
-        info!(
+        debug!(
             "[update_sdf_view_shape_system] UIBox changed: entity={:?}, width={}, height={}",
             entity, box_width, box_height
         );

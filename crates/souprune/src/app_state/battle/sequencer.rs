@@ -15,7 +15,6 @@
 
 mod camera;
 mod context;
-mod easing;
 mod flow;
 mod interaction;
 mod performance;
@@ -30,6 +29,8 @@ pub use context::{BattleContext, BattleExecutionState};
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
 use bevy::prelude::*;
+use bevy_tween::BevyTweenRegisterSystems;
+use bevy_tween::tween::component_tween_system;
 
 /// Module for the battle sequencer.
 ///
@@ -39,6 +40,9 @@ pub(crate) struct SequencerPlugin;
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<context::BattleContext>()
+            // Register custom interpolator systems for bevy_tween
+            .add_tween_systems(component_tween_system::<tween::UIBoxSizeInterpolator>())
+            .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
             .add_systems(OnEnter(AppState::Battle), flow::load_default_chapter_system)
             .add_systems(
                 Update,
