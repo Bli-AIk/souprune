@@ -52,7 +52,7 @@ use camera::{
 pub use components::{
     ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
-use components::{ViewElement, ViewLayerNavigationConfig, ViewLayerTransitionConfig, ViewRoot};
+use components::{ViewLayerNavigationConfig, ViewLayerTransitionConfig};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
@@ -81,7 +81,8 @@ use components::state_sprite::{
 #[cfg(feature = "debug")]
 use components::{
     CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
-    ReactiveIndicatorVisibility, ReactivePosition, ViewBox, ViewBoxVisibility, ViewLayer,
+    ReactiveIndicatorVisibility, ReactivePosition, ViewBox, ViewBoxVisibility, ViewElement,
+    ViewLayer, ViewRoot,
 };
 use components::{
     LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,

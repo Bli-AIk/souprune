@@ -127,6 +127,7 @@ fn get_bevy_default_plugins(
     let base_width = render_config.base_resolution_width;
     let base_height = render_config.base_resolution_height;
 
+    #[allow(unused_mut)]
     let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
