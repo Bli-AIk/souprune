@@ -39,7 +39,7 @@ pub(crate) use reactive::{
     ReactiveIndicator, ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite,
     ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
 };
-pub(crate) use state_sprite::{StateRule, StateSpriteState, StateTrigger};
+pub(crate) use state_sprite::StateSpriteState;
 pub(crate) use text::{UIAnimationState, UIFont, UITextConfig, UITextTemplate};
 pub(crate) use visibility::UILayerVisibilityRule;
 
