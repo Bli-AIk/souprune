@@ -92,6 +92,25 @@ impl NavDirection {
     }
 }
 
+impl TryFrom<&str> for NavDirection {
+    type Error = ();
+
+    /// Convert a string to NavDirection.
+    /// Accepts: "up", "Up", "UP", "down", "Down", "DOWN", etc.
+    ///
+    /// 将字符串转换为 NavDirection。
+    /// 接受："up"、"Up"、"UP"、"down"、"Down"、"DOWN" 等。
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "up" => Ok(Self::Up),
+            "down" => Ok(Self::Down),
+            "left" => Ok(Self::Left),
+            "right" => Ok(Self::Right),
+            _ => Err(()),
+        }
+    }
+}
+
 // ============================================================================
 // Navigator Types
 // ============================================================================

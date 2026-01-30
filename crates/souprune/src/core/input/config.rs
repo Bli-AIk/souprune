@@ -18,8 +18,49 @@ use leafwing_input_manager::prelude::*;
 use ron::de::from_str;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Error type for input configuration loading.
+///
+/// 输入配置加载的错误类型。
+#[derive(Debug)]
+pub enum ConfigError {
+    /// Configuration file not found.
+    /// 配置文件未找到。
+    FileNotFound(PathBuf),
+
+    /// Failed to read the configuration file.
+    /// 读取配置文件失败。
+    ReadError(PathBuf, String),
+
+    /// Failed to parse the configuration file.
+    /// 解析配置文件失败。
+    ParseError(PathBuf, String),
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigError::FileNotFound(path) => write!(
+                f,
+                "Input config file not found: {:?}\n\
+                 Actions must be defined in the MOD configuration file.\n\
+                 Please create the file with your action definitions.",
+                path
+            ),
+            ConfigError::ReadError(path, err) => {
+                write!(f, "Failed to read input config from {:?}: {}", path, err)
+            }
+            ConfigError::ParseError(path, err) => {
+                write!(f, "Failed to parse input config from {:?}: {}", path, err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for ConfigError {}
 
 /// Input binding types supported by the configuration system.
 ///
@@ -158,22 +199,26 @@ impl InputConfig {
     /// 如果文件不存在或无法解析则 panic。
     /// Actions 必须在 MOD 配置文件中定义。
     pub fn load_from_file(path: impl AsRef<Path>) -> Self {
+        Self::try_load_from_file(path.as_ref()).unwrap_or_else(|e| panic!("{}", e))
+    }
+
+    /// Try to load InputConfig from a RON file path.
+    /// Returns an error if the file doesn't exist or cannot be parsed.
+    ///
+    /// 尝试从 RON 文件路径加载 InputConfig。
+    /// 如果文件不存在或无法解析则返回错误。
+    pub fn try_load_from_file(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
         let path = path.as_ref();
 
         if !path.exists() {
-            panic!(
-                "Input config file not found: {:?}\n\
-                 Actions must be defined in the MOD configuration file.\n\
-                 Please create the file with your action definitions.",
-                path
-            );
+            return Err(ConfigError::FileNotFound(path.to_path_buf()));
         }
 
         let contents = fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("Failed to read input config from {:?}: {}", path, e));
+            .map_err(|e| ConfigError::ReadError(path.to_path_buf(), e.to_string()))?;
 
         from_str::<Self>(&contents)
-            .unwrap_or_else(|e| panic!("Failed to parse input config from {:?}: {}", path, e))
+            .map_err(|e| ConfigError::ParseError(path.to_path_buf(), e.to_string()))
     }
 
     /// Build an ActionRegistry from this configuration.
@@ -236,12 +281,14 @@ impl InputConfig {
     fn parse_keycode(key: &str) -> Option<KeyCode> {
         match key {
             // Arrow keys
+            // 方向键
             "ArrowUp" => Some(KeyCode::ArrowUp),
             "ArrowDown" => Some(KeyCode::ArrowDown),
             "ArrowLeft" => Some(KeyCode::ArrowLeft),
             "ArrowRight" => Some(KeyCode::ArrowRight),
 
             // Letter keys
+            // 字母键
             "KeyA" => Some(KeyCode::KeyA),
             "KeyB" => Some(KeyCode::KeyB),
             "KeyC" => Some(KeyCode::KeyC),
@@ -269,7 +316,8 @@ impl InputConfig {
             "KeyY" => Some(KeyCode::KeyY),
             "KeyZ" => Some(KeyCode::KeyZ),
 
-            // Number keys
+            // Number keys (main keyboard)
+            // 数字键（主键盘）
             "Digit0" => Some(KeyCode::Digit0),
             "Digit1" => Some(KeyCode::Digit1),
             "Digit2" => Some(KeyCode::Digit2),
@@ -281,20 +329,86 @@ impl InputConfig {
             "Digit8" => Some(KeyCode::Digit8),
             "Digit9" => Some(KeyCode::Digit9),
 
+            // Numpad keys
+            // 小键盘
+            "Numpad0" => Some(KeyCode::Numpad0),
+            "Numpad1" => Some(KeyCode::Numpad1),
+            "Numpad2" => Some(KeyCode::Numpad2),
+            "Numpad3" => Some(KeyCode::Numpad3),
+            "Numpad4" => Some(KeyCode::Numpad4),
+            "Numpad5" => Some(KeyCode::Numpad5),
+            "Numpad6" => Some(KeyCode::Numpad6),
+            "Numpad7" => Some(KeyCode::Numpad7),
+            "Numpad8" => Some(KeyCode::Numpad8),
+            "Numpad9" => Some(KeyCode::Numpad9),
+            "NumpadAdd" => Some(KeyCode::NumpadAdd),
+            "NumpadSubtract" => Some(KeyCode::NumpadSubtract),
+            "NumpadMultiply" => Some(KeyCode::NumpadMultiply),
+            "NumpadDivide" => Some(KeyCode::NumpadDivide),
+            "NumpadDecimal" => Some(KeyCode::NumpadDecimal),
+            "NumpadEnter" => Some(KeyCode::NumpadEnter),
+
+            // Function keys
+            // 功能键
+            "F1" => Some(KeyCode::F1),
+            "F2" => Some(KeyCode::F2),
+            "F3" => Some(KeyCode::F3),
+            "F4" => Some(KeyCode::F4),
+            "F5" => Some(KeyCode::F5),
+            "F6" => Some(KeyCode::F6),
+            "F7" => Some(KeyCode::F7),
+            "F8" => Some(KeyCode::F8),
+            "F9" => Some(KeyCode::F9),
+            "F10" => Some(KeyCode::F10),
+            "F11" => Some(KeyCode::F11),
+            "F12" => Some(KeyCode::F12),
+
+            // Navigation keys
+            // 导航键
+            "Insert" => Some(KeyCode::Insert),
+            "Delete" => Some(KeyCode::Delete),
+            "Home" => Some(KeyCode::Home),
+            "End" => Some(KeyCode::End),
+            "PageUp" => Some(KeyCode::PageUp),
+            "PageDown" => Some(KeyCode::PageDown),
+
             // Special keys
+            // 特殊键
             "Enter" => Some(KeyCode::Enter),
             "Escape" => Some(KeyCode::Escape),
             "Space" => Some(KeyCode::Space),
             "Tab" => Some(KeyCode::Tab),
             "Backspace" => Some(KeyCode::Backspace),
+            "CapsLock" => Some(KeyCode::CapsLock),
+            "NumLock" => Some(KeyCode::NumLock),
+            "ScrollLock" => Some(KeyCode::ScrollLock),
+            "Pause" => Some(KeyCode::Pause),
+            "PrintScreen" => Some(KeyCode::PrintScreen),
 
             // Modifier keys
+            // 修饰键
             "ShiftLeft" => Some(KeyCode::ShiftLeft),
             "ShiftRight" => Some(KeyCode::ShiftRight),
             "ControlLeft" => Some(KeyCode::ControlLeft),
             "ControlRight" => Some(KeyCode::ControlRight),
             "AltLeft" => Some(KeyCode::AltLeft),
             "AltRight" => Some(KeyCode::AltRight),
+            "SuperLeft" => Some(KeyCode::SuperLeft),
+            "SuperRight" => Some(KeyCode::SuperRight),
+
+            // Punctuation and symbols
+            // 标点符号
+            "Minus" => Some(KeyCode::Minus),
+            "Equal" => Some(KeyCode::Equal),
+            "BracketLeft" => Some(KeyCode::BracketLeft),
+            "BracketRight" => Some(KeyCode::BracketRight),
+            "Backslash" => Some(KeyCode::Backslash),
+            "Semicolon" => Some(KeyCode::Semicolon),
+            "Quote" => Some(KeyCode::Quote),
+            "Backquote" => Some(KeyCode::Backquote),
+            "Comma" => Some(KeyCode::Comma),
+            "Period" => Some(KeyCode::Period),
+            "Slash" => Some(KeyCode::Slash),
 
             _ => None,
         }
@@ -339,3 +453,117 @@ impl InputConfig {
 // Actions MUST be defined in the MOD configuration file (config/input.ron).
 // 注意：InputConfig 没有 Default 实现。
 // Actions 必须在 MOD 配置文件 (config/input.ron) 中定义。
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_input_config_parsing() {
+        let ron = r#"
+            #![enable(implicit_some)]
+            (
+                actions: {
+                    "TestUp": [Key("ArrowUp"), Key("KeyW")],
+                    "TestConfirm": [Key("Enter"), Gamepad("South")],
+                },
+                navigation: (
+                    up: "TestUp",
+                ),
+                ui: (
+                    confirm: "TestConfirm",
+                ),
+            )
+        "#;
+
+        let config: InputConfig = ron::de::from_str(ron).unwrap();
+
+        // Check actions
+        assert!(config.actions.contains_key("TestUp"));
+        assert!(config.actions.contains_key("TestConfirm"));
+        assert_eq!(config.actions["TestUp"].len(), 2);
+
+        // Check navigation
+        assert_eq!(config.navigation.up, Some("TestUp".to_string()));
+        assert_eq!(config.navigation.down, None);
+
+        // Check UI
+        assert_eq!(config.ui.confirm, Some("TestConfirm".to_string()));
+        assert_eq!(config.ui.cancel, None);
+    }
+
+    #[test]
+    fn test_input_config_build_registry() {
+        let config = InputConfig {
+            actions: [
+                ("Action1".to_string(), vec![]),
+                ("Action2".to_string(), vec![]),
+            ]
+            .into_iter()
+            .collect(),
+            navigation: NavigationConfig::default(),
+            ui: UIConfig::default(),
+        };
+
+        let registry = config.build_registry();
+
+        assert!(registry.is_registered("Action1"));
+        assert!(registry.is_registered("Action2"));
+        assert!(!registry.is_registered("Action3"));
+    }
+
+    #[test]
+    fn test_parse_keycode_extended() {
+        // Function keys
+        assert_eq!(InputConfig::parse_keycode("F1"), Some(KeyCode::F1));
+        assert_eq!(InputConfig::parse_keycode("F12"), Some(KeyCode::F12));
+
+        // Numpad
+        assert_eq!(
+            InputConfig::parse_keycode("Numpad0"),
+            Some(KeyCode::Numpad0)
+        );
+        assert_eq!(
+            InputConfig::parse_keycode("NumpadEnter"),
+            Some(KeyCode::NumpadEnter)
+        );
+
+        // Navigation
+        assert_eq!(InputConfig::parse_keycode("Insert"), Some(KeyCode::Insert));
+        assert_eq!(InputConfig::parse_keycode("Delete"), Some(KeyCode::Delete));
+        assert_eq!(InputConfig::parse_keycode("Home"), Some(KeyCode::Home));
+        assert_eq!(InputConfig::parse_keycode("End"), Some(KeyCode::End));
+        assert_eq!(InputConfig::parse_keycode("PageUp"), Some(KeyCode::PageUp));
+        assert_eq!(
+            InputConfig::parse_keycode("PageDown"),
+            Some(KeyCode::PageDown)
+        );
+
+        // Unknown key
+        assert_eq!(InputConfig::parse_keycode("UnknownKey"), None);
+    }
+
+    #[test]
+    fn test_parse_gamepad_button() {
+        assert_eq!(
+            InputConfig::parse_gamepad_button("South"),
+            Some(GamepadButton::South)
+        );
+        assert_eq!(
+            InputConfig::parse_gamepad_button("DPadUp"),
+            Some(GamepadButton::DPadUp)
+        );
+        assert_eq!(InputConfig::parse_gamepad_button("Unknown"), None);
+    }
+
+    #[test]
+    fn test_config_error_display() {
+        let err = ConfigError::FileNotFound("/path/to/file.ron".into());
+        let msg = format!("{}", err);
+        assert!(msg.contains("not found"));
+
+        let err = ConfigError::ParseError("/path/to/file.ron".into(), "syntax error".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("parse"));
+    }
+}

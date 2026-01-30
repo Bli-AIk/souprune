@@ -119,4 +119,54 @@ impl InputBehaviorConfig {
     pub fn ui_menu(&self) -> Option<&str> {
         self.ui.menu.as_deref()
     }
+
+    /// Validate that all referenced actions exist in the registry.
+    /// Returns a list of validation errors if any action is not registered.
+    ///
+    /// 验证所有引用的动作是否存在于注册表中。
+    /// 如果有任何动作未注册，则返回验证错误列表。
+    pub fn validate(&self, registry: &ActionRegistry) -> Result<(), Vec<String>> {
+        let mut errors = Vec::new();
+
+        // Helper to check optional action name
+        let check_action = |name: Option<&String>, field: &str, errors: &mut Vec<String>| {
+            if let Some(action_name) = name {
+                if !registry.is_registered(action_name) {
+                    errors.push(format!(
+                        "{} action '{}' is not registered in ActionRegistry",
+                        field, action_name
+                    ));
+                }
+            }
+        };
+
+        // Validate navigation actions
+        check_action(self.navigation.up.as_ref(), "navigation.up", &mut errors);
+        check_action(
+            self.navigation.down.as_ref(),
+            "navigation.down",
+            &mut errors,
+        );
+        check_action(
+            self.navigation.left.as_ref(),
+            "navigation.left",
+            &mut errors,
+        );
+        check_action(
+            self.navigation.right.as_ref(),
+            "navigation.right",
+            &mut errors,
+        );
+
+        // Validate UI actions
+        check_action(self.ui.confirm.as_ref(), "ui.confirm", &mut errors);
+        check_action(self.ui.cancel.as_ref(), "ui.cancel", &mut errors);
+        check_action(self.ui.menu.as_ref(), "ui.menu", &mut errors);
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }

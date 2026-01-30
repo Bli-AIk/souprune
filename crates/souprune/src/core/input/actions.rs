@@ -300,7 +300,6 @@ impl ActionRegistry {
 /// Extension trait for ActionState to work with named actions.
 ///
 /// ActionState 的扩展 trait，用于处理命名动作。
-#[allow(dead_code)]
 pub trait ActionStateExt {
     /// Check if a named action is pressed.
     ///
@@ -338,5 +337,88 @@ impl ActionStateExt for ActionState<Action> {
             .get(action)
             .map(|slot| self.just_released(&slot))
             .unwrap_or(false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_action_registry_registration() {
+        let mut registry = ActionRegistry::new();
+
+        // First registration should succeed
+        let result = registry.register("TestAction");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), Action::Slot0);
+
+        // Second registration of same name should fail
+        let result = registry.register("TestAction");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already registered"));
+
+        // Get should return the correct slot
+        assert_eq!(registry.get("TestAction"), Some(Action::Slot0));
+        assert_eq!(registry.get("NonExistent"), None);
+    }
+
+    #[test]
+    fn test_action_registry_multiple_actions() {
+        let mut registry = ActionRegistry::new();
+
+        registry.register("Action1").unwrap();
+        registry.register("Action2").unwrap();
+        registry.register("Action3").unwrap();
+
+        assert_eq!(registry.get("Action1"), Some(Action::Slot0));
+        assert_eq!(registry.get("Action2"), Some(Action::Slot1));
+        assert_eq!(registry.get("Action3"), Some(Action::Slot2));
+    }
+
+    #[test]
+    fn test_action_registry_max_slots() {
+        let mut registry = ActionRegistry::new();
+
+        // Register maximum number of actions
+        for i in 0..MAX_ACTION_SLOTS {
+            let result = registry.register(format!("Action{}", i));
+            assert!(result.is_ok(), "Failed to register Action{}", i);
+        }
+
+        // Next registration should fail
+        let result = registry.register("TooMany");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("maximum"));
+    }
+
+    #[test]
+    fn test_action_index_roundtrip() {
+        for i in 0..MAX_ACTION_SLOTS {
+            let action = Action::from_index(i).unwrap();
+            assert_eq!(action.index(), i);
+        }
+
+        // Out of range should return None
+        assert_eq!(Action::from_index(32), None);
+        assert_eq!(Action::from_index(100), None);
+    }
+
+    #[test]
+    fn test_action_registry_get_name() {
+        let mut registry = ActionRegistry::new();
+        registry.register("MyAction").unwrap();
+
+        assert_eq!(registry.get_name(Action::Slot0), Some("MyAction"));
+        assert_eq!(registry.get_name(Action::Slot1), None);
+    }
+
+    #[test]
+    fn test_action_registry_is_registered() {
+        let mut registry = ActionRegistry::new();
+        registry.register("Registered").unwrap();
+
+        assert!(registry.is_registered("Registered"));
+        assert!(!registry.is_registered("NotRegistered"));
     }
 }
