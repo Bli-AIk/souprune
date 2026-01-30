@@ -11,7 +11,7 @@
 //! 定义 `PlayerInputSettings`，该资源管理玩家动作的输入映射（键盘、手柄），支持多种控制方案。
 
 use super::actions::{Action, ActionRegistry};
-use super::config::InputConfig;
+use super::config::{BehaviorConfig, InputConfig};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -50,3 +50,67 @@ impl PlayerInputSettings {
 // It must be created from InputConfig and ActionRegistry loaded from MOD configuration.
 // 注意：PlayerInputSettings 没有 Default 实现。
 // 它必须从 MOD 配置加载的 InputConfig 和 ActionRegistry 创建。
+
+/// Resource containing behavior configuration loaded from MOD.
+/// This maps framework behaviors (navigation, UI) to MOD-defined action names.
+///
+/// 包含从 MOD 加载的行为配置的资源。
+/// 这将框架行为（导航、UI）映射到 MOD 定义的动作名称。
+#[derive(Resource, Debug, Clone)]
+pub struct InputBehaviorConfig {
+    pub behaviors: BehaviorConfig,
+}
+
+impl InputBehaviorConfig {
+    /// Create from InputConfig's behavior configuration.
+    ///
+    /// 从 InputConfig 的行为配置创建。
+    pub fn from_config(config: &InputConfig) -> Self {
+        Self {
+            behaviors: config.behaviors.clone(),
+        }
+    }
+
+    /// Get the action name for navigation up.
+    /// 获取向上导航的动作名称。
+    pub fn nav_up(&self) -> Option<&str> {
+        self.behaviors.navigation.up.as_deref()
+    }
+
+    /// Get the action name for navigation down.
+    /// 获取向下导航的动作名称。
+    pub fn nav_down(&self) -> Option<&str> {
+        self.behaviors.navigation.down.as_deref()
+    }
+
+    /// Get the action name for navigation left.
+    /// 获取向左导航的动作名称。
+    pub fn nav_left(&self) -> Option<&str> {
+        self.behaviors.navigation.left.as_deref()
+    }
+
+    /// Get the action name for navigation right.
+    /// 获取向右导航的动作名称。
+    pub fn nav_right(&self) -> Option<&str> {
+        self.behaviors.navigation.right.as_deref()
+    }
+
+    /// Get the action name for UI confirm.
+    /// 获取 UI 确认的动作名称。
+    pub fn ui_confirm(&self) -> Option<&str> {
+        self.behaviors.ui.confirm.as_deref()
+    }
+
+    /// Get the action name for UI cancel.
+    /// 获取 UI 取消的动作名称。
+    pub fn ui_cancel(&self) -> Option<&str> {
+        self.behaviors.ui.cancel.as_deref()
+    }
+
+    /// Get the action name for opening menu.
+    /// 获取打开菜单的动作名称。
+    #[allow(dead_code)]
+    pub fn ui_menu(&self) -> Option<&str> {
+        self.behaviors.ui.menu.as_deref()
+    }
+}

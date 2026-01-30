@@ -47,4 +47,20 @@
             Gamepad("North"),
         ],
     },
+
+    // Behavior mappings - connect framework behaviors to your action names
+    // 行为映射 - 将框架行为连接到你的动作名称
+    behaviors: (
+        navigation: (
+            up: "Up",
+            down: "Down",
+            left: "Left",
+            right: "Right",
+        ),
+        ui: (
+            confirm: "Confirm",
+            cancel: "Cancel",
+            menu: "Menu",
+        ),
+    ),
 )

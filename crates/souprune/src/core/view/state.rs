@@ -16,7 +16,7 @@ use super::components::interactive::NavDirection;
 use super::ron_view::ViewGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
-use crate::core::input::{Action, ActionRegistry, ActionStateExt};
+use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -135,6 +135,7 @@ pub(crate) fn handle_interactive_layer_navigation_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
@@ -151,9 +152,10 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         let previous_index = layer.current_selection;
         let mut changed = false;
 
-        // Check all navigation directions
+        // Check all navigation directions using behavior config
+        // 使用行为配置检查所有导航方向
         for direction in NavDirection::all() {
-            if let Some(action) = direction.to_action(&registry) {
+            if let Some(action) = direction.to_action(&registry, &behavior_config) {
                 if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
                     changed = true;
                     break;
@@ -187,6 +189,7 @@ pub(crate) fn handle_interactive_layer_navigation_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
@@ -203,8 +206,10 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         let previous_index = layer.current_selection;
         let mut changed = false;
 
+        // Check all navigation directions using behavior config
+        // 使用行为配置检查所有导航方向
         for direction in NavDirection::all() {
-            if let Some(action) = direction.to_action(&registry) {
+            if let Some(action) = direction.to_action(&registry, &behavior_config) {
                 if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
                     changed = true;
                     break;
@@ -245,6 +250,7 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
@@ -259,8 +265,16 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.action_just_pressed(&registry, "Confirm");
-        let cancel_pressed = action_state.action_just_pressed(&registry, "Cancel");
+        // Use behavior config to get action names for UI interactions
+        // 使用行为配置获取 UI 交互的动作名称
+        let confirm_pressed = behavior_config
+            .ui_confirm()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+        let cancel_pressed = behavior_config
+            .ui_cancel()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
 
         if confirm_pressed {
             audio::play_sound(&audio, &asset_server, "confirm.wav");
@@ -295,6 +309,7 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
     input_query: Query<&ActionState<Action>>,
     mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
@@ -309,8 +324,16 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             continue;
         }
 
-        let confirm_pressed = action_state.action_just_pressed(&registry, "Confirm");
-        let cancel_pressed = action_state.action_just_pressed(&registry, "Cancel");
+        // Use behavior config to get action names for UI interactions
+        // 使用行为配置获取 UI 交互的动作名称
+        let confirm_pressed = behavior_config
+            .ui_confirm()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+        let cancel_pressed = behavior_config
+            .ui_cancel()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
 
         if confirm_pressed {
             audio::play_sound(&mut commands, &asset_server, "confirm.wav");

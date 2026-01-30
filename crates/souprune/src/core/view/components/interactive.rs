@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use crate::core::input::{Action, ActionRegistry};
+use crate::core::input::{Action, ActionRegistry, InputBehaviorConfig};
 
 // ============================================================================
 // Navigation Direction
@@ -32,18 +32,35 @@ pub enum NavDirection {
 }
 
 impl NavDirection {
-    /// Convert an Action to a NavDirection using the registry.
+    /// Convert an Action to a NavDirection using the behavior config and registry.
     ///
-    /// 使用注册表将 Action 转换为 NavDirection。
+    /// 使用行为配置和注册表将 Action 转换为 NavDirection。
     #[allow(dead_code)]
-    pub fn from_action(action: &Action, registry: &ActionRegistry) -> Option<Self> {
-        if registry.get("Up") == Some(*action) {
+    pub fn from_action(
+        action: &Action,
+        registry: &ActionRegistry,
+        behavior_config: &InputBehaviorConfig,
+    ) -> Option<Self> {
+        let up_action = behavior_config
+            .nav_up()
+            .and_then(|name| registry.get(name));
+        let down_action = behavior_config
+            .nav_down()
+            .and_then(|name| registry.get(name));
+        let left_action = behavior_config
+            .nav_left()
+            .and_then(|name| registry.get(name));
+        let right_action = behavior_config
+            .nav_right()
+            .and_then(|name| registry.get(name));
+
+        if up_action == Some(*action) {
             Some(NavDirection::Up)
-        } else if registry.get("Down") == Some(*action) {
+        } else if down_action == Some(*action) {
             Some(NavDirection::Down)
-        } else if registry.get("Left") == Some(*action) {
+        } else if left_action == Some(*action) {
             Some(NavDirection::Left)
-        } else if registry.get("Right") == Some(*action) {
+        } else if right_action == Some(*action) {
             Some(NavDirection::Right)
         } else {
             None
@@ -57,18 +74,23 @@ impl NavDirection {
         [Self::Up, Self::Down, Self::Left, Self::Right]
     }
 
-    /// Get the Action for this direction using the registry.
-    /// Returns None if the corresponding action is not registered.
+    /// Get the Action for this direction using the behavior config and registry.
+    /// Returns None if the corresponding action is not configured or registered.
     ///
-    /// 使用注册表获取此方向对应的 Action。
-    /// 如果对应的动作未注册则返回 None。
-    pub fn to_action(self, registry: &ActionRegistry) -> Option<Action> {
-        match self {
-            NavDirection::Up => registry.get("Up"),
-            NavDirection::Down => registry.get("Down"),
-            NavDirection::Left => registry.get("Left"),
-            NavDirection::Right => registry.get("Right"),
-        }
+    /// 使用行为配置和注册表获取此方向对应的 Action。
+    /// 如果对应的动作未配置或未注册则返回 None。
+    pub fn to_action(
+        self,
+        registry: &ActionRegistry,
+        behavior_config: &InputBehaviorConfig,
+    ) -> Option<Action> {
+        let action_name = match self {
+            NavDirection::Up => behavior_config.nav_up(),
+            NavDirection::Down => behavior_config.nav_down(),
+            NavDirection::Left => behavior_config.nav_left(),
+            NavDirection::Right => behavior_config.nav_right(),
+        };
+        action_name.and_then(|name| registry.get(name))
     }
 }
 
@@ -201,17 +223,18 @@ impl NavigatorType {
     }
 
     /// Calculate the next index based on current selection and input action.
-    /// This version requires ActionRegistry.
+    /// This version requires ActionRegistry and InputBehaviorConfig.
     ///
-    /// 根据当前选择和输入动作计算下一个索引。此版本需要 ActionRegistry。
+    /// 根据当前选择和输入动作计算下一个索引。此版本需要 ActionRegistry 和 InputBehaviorConfig。
     #[allow(dead_code)]
     pub fn handle_input(
         &self,
         current: usize,
         action: &Action,
         registry: &ActionRegistry,
+        behavior_config: &InputBehaviorConfig,
     ) -> Option<usize> {
-        let direction = NavDirection::from_action(action, registry)?;
+        let direction = NavDirection::from_action(action, registry, behavior_config)?;
         self.handle_direction(current, direction)
     }
 
@@ -443,10 +466,15 @@ impl InteractiveLayer {
     /// Handle navigation input using Action and ActionRegistry.
     /// Returns `true` if selection changed.
     #[allow(dead_code)]
-    pub fn navigate(&mut self, action: &Action, registry: &ActionRegistry) -> bool {
-        if let Some(new_index) =
-            self.navigator
-                .handle_input(self.current_selection, action, registry)
+    pub fn navigate(
+        &mut self,
+        action: &Action,
+        registry: &ActionRegistry,
+        behavior_config: &InputBehaviorConfig,
+    ) -> bool {
+        if let Some(new_index) = self
+            .navigator
+            .handle_input(self.current_selection, action, registry, behavior_config)
             && new_index != self.current_selection
         {
             self.current_selection = new_index;

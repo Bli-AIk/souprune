@@ -257,6 +257,7 @@ pub fn run() {
     let action_registry = input_config.build_registry();
     let player_input_settings =
         input::PlayerInputSettings::from_config(&input_config, &action_registry);
+    let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
 
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
@@ -322,6 +323,7 @@ pub fn run() {
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)
+        .insert_resource(input_behavior_config)
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,

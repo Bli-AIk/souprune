@@ -37,19 +37,102 @@ pub enum InputBinding {
     Gamepad(String),
 }
 
+/// Navigation behavior configuration.
+/// Maps direction names to action names.
+///
+/// 导航行为配置。
+/// 将方向名称映射到动作名称。
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct NavigationBehavior {
+    /// Action name for moving/navigating up
+    /// 向上移动/导航的动作名称
+    #[serde(default)]
+    pub up: Option<String>,
+
+    /// Action name for moving/navigating down
+    /// 向下移动/导航的动作名称
+    #[serde(default)]
+    pub down: Option<String>,
+
+    /// Action name for moving/navigating left
+    /// 向左移动/导航的动作名称
+    #[serde(default)]
+    pub left: Option<String>,
+
+    /// Action name for moving/navigating right
+    /// 向右移动/导航的动作名称
+    #[serde(default)]
+    pub right: Option<String>,
+}
+
+/// UI interaction behavior configuration.
+/// Maps UI actions to action names.
+///
+/// UI 交互行为配置。
+/// 将 UI 动作映射到动作名称。
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct UIBehavior {
+    /// Action name for confirm/select
+    /// 确认/选择的动作名称
+    #[serde(default)]
+    pub confirm: Option<String>,
+
+    /// Action name for cancel/back
+    /// 取消/返回的动作名称
+    #[serde(default)]
+    pub cancel: Option<String>,
+
+    /// Action name for opening menu
+    /// 打开菜单的动作名称
+    #[serde(default)]
+    pub menu: Option<String>,
+}
+
+/// Behavior configuration that maps framework behaviors to MOD-defined actions.
+///
+/// 行为配置，将框架行为映射到 MOD 定义的动作。
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct BehaviorConfig {
+    /// Navigation behavior configuration
+    /// 导航行为配置
+    #[serde(default)]
+    pub navigation: NavigationBehavior,
+
+    /// UI interaction behavior configuration
+    /// UI 交互行为配置
+    #[serde(default)]
+    pub ui: UIBehavior,
+}
+
 /// Input configuration asset loaded from RON files.
 ///
 /// 从 RON 文件加载的输入配置资产。
 ///
-/// Example RON format (actions directly contain bindings):
+/// Example RON format:
 /// ```ron
 /// (
 ///     actions: {
-///         "Up": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
-///         "Down": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
-///         "Confirm": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
-///         "Sprint": [Key("ShiftLeft"), Gamepad("LeftTrigger")],
+///         "MoveUp": [Key("ArrowUp"), Key("KeyW"), Gamepad("DPadUp")],
+///         "MoveDown": [Key("ArrowDown"), Key("KeyS"), Gamepad("DPadDown")],
+///         "MoveLeft": [Key("ArrowLeft"), Key("KeyA"), Gamepad("DPadLeft")],
+///         "MoveRight": [Key("ArrowRight"), Key("KeyD"), Gamepad("DPadRight")],
+///         "Accept": [Key("KeyZ"), Key("Enter"), Gamepad("South")],
+///         "Back": [Key("KeyX"), Key("ShiftLeft"), Gamepad("East")],
+///         "OpenMenu": [Key("KeyC"), Gamepad("North")],
 ///     },
+///     behaviors: (
+///         navigation: (
+///             up: "MoveUp",
+///             down: "MoveDown",
+///             left: "MoveLeft",
+///             right: "MoveRight",
+///         ),
+///         ui: (
+///             confirm: "Accept",
+///             cancel: "Back",
+///             menu: "OpenMenu",
+///         ),
+///     ),
 /// )
 /// ```
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
@@ -60,6 +143,14 @@ pub struct InputConfig {
     /// 动作定义及其绑定。
     /// 键是动作名称，值是绑定列表。
     pub actions: HashMap<String, Vec<InputBinding>>,
+
+    /// Behavior configuration that maps framework behaviors to action names.
+    /// This allows MOD authors to use any action names they want.
+    ///
+    /// 行为配置，将框架行为映射到动作名称。
+    /// 这允许 MOD 作者使用任何他们想要的动作名称。
+    #[serde(default)]
+    pub behaviors: BehaviorConfig,
 }
 
 impl InputConfig {
