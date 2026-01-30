@@ -41,9 +41,7 @@ impl NavDirection {
         registry: &ActionRegistry,
         behavior_config: &InputBehaviorConfig,
     ) -> Option<Self> {
-        let up_action = behavior_config
-            .nav_up()
-            .and_then(|name| registry.get(name));
+        let up_action = behavior_config.nav_up().and_then(|name| registry.get(name));
         let down_action = behavior_config
             .nav_down()
             .and_then(|name| registry.get(name));
@@ -472,9 +470,9 @@ impl InteractiveLayer {
         registry: &ActionRegistry,
         behavior_config: &InputBehaviorConfig,
     ) -> bool {
-        if let Some(new_index) = self
-            .navigator
-            .handle_input(self.current_selection, action, registry, behavior_config)
+        if let Some(new_index) =
+            self.navigator
+                .handle_input(self.current_selection, action, registry, behavior_config)
             && new_index != self.current_selection
         {
             self.current_selection = new_index;
