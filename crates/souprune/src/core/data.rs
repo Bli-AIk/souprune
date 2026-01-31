@@ -18,24 +18,27 @@
 //!
 //! ## 源文件概述
 //!
-//! It defines `DataPlugin`, which loads player facts from a .rules.ron file
-//! into the global layer at startup.
+//! It defines `DataPlugin`, which loads global facts from a .rules.ron file
+//! (configured in mod.toml as `global_rules`) into the global layer at startup.
 //!
-//! 本文件定义了 `DataPlugin`，在启动时从 .rules.ron 文件加载玩家事实到全局层。
+//! 本文件定义了 `DataPlugin`，在启动时从 .rules.ron 文件
+//! （在 mod.toml 中配置为 `global_rules`）加载全局事实到全局层。
 //!
 //! ## Data Flow
 //!
 //! ## 数据流
 //!
-//! 1. At startup, load `player/player_data.rules.ron` from assets
-//! 2. Apply `initial_facts` to the Global layer of LayeredFactDatabase
-//! 3. All systems read/write player data directly via LayeredFactDatabase
-//! 4. For save/load, serialize/deserialize the facts directly
+//! 1. At startup, read `global_rules` path from config (e.g., "global.rules.ron")
+//! 2. Load the RuleSetAsset from that path
+//! 3. Apply `initial_facts` to the Global layer of LayeredFactDatabase
+//! 4. All systems read/write player data directly via LayeredFactDatabase
+//! 5. For save/load, serialize/deserialize the facts directly
 //!
-//! 1. 启动时，从 assets 加载 `player/player_data.rules.ron`
-//! 2. 将 `initial_facts` 应用到 LayeredFactDatabase 的全局层
-//! 3. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
-//! 4. 存档/读档时，直接序列化/反序列化事实
+//! 1. 启动时，从配置读取 `global_rules` 路径（如 "global.rules.ron"）
+//! 2. 从该路径加载 RuleSetAsset
+//! 3. 将 `initial_facts` 应用到 LayeredFactDatabase 的全局层
+//! 4. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
+//! 5. 存档/读档时，直接序列化/反序列化事实
 
 use bevy::app::{App, Plugin, Startup, Update};
 use bevy::asset::{AssetServer, Assets, Handle};
@@ -46,12 +49,12 @@ pub(crate) struct DataPlugin;
 
 impl Plugin for DataPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GlobalPlayerDataHandle>()
+        app.init_resource::<GlobalRulesHandle>()
             .add_systems(
                 Startup,
-                (spawn_player_entity_system, load_player_data_system),
+                (spawn_player_entity_system, load_global_rules_system),
             )
-            .add_systems(Update, apply_player_data_system);
+            .add_systems(Update, apply_global_rules_system);
     }
 }
 
@@ -63,11 +66,11 @@ impl Plugin for DataPlugin {
 #[derive(Component)]
 pub struct MainPlayer;
 
-/// Resource to hold the handle for the player data rules file.
+/// Resource to hold the handle for the global rules file.
 ///
-/// 保存玩家数据规则文件句柄的资源。
+/// 保存全局规则文件句柄的资源。
 #[derive(Resource, Default)]
-pub struct GlobalPlayerDataHandle {
+pub struct GlobalRulesHandle {
     pub handle: Option<Handle<RuleSetAsset>>,
     pub loaded: bool,
 }
@@ -81,37 +84,54 @@ fn spawn_player_entity_system(mut commands: Commands) {
     commands.spawn((MainPlayer, Name::new("Player")));
 }
 
-/// System to load player data from the rules file.
+/// System to load global rules from the configured path.
+/// The path is read from `config.game.global_rules` (set in mod.toml).
 ///
-/// 从规则文件加载玩家数据的系统。
-fn load_player_data_system(
+/// 从配置的路径加载全局规则的系统。
+/// 路径从 `config.game.global_rules`（在 mod.toml 中设置）读取。
+fn load_global_rules_system(
     asset_server: Res<AssetServer>,
-    mut player_data_handle: ResMut<GlobalPlayerDataHandle>,
+    config: Res<crate::config::SoupruneConfig>,
+    mut global_rules_handle: ResMut<GlobalRulesHandle>,
 ) {
-    if player_data_handle.handle.is_some() {
+    if global_rules_handle.handle.is_some() {
         return;
     }
 
-    let handle: Handle<RuleSetAsset> = asset_server.load("player/player_data.rules.ron");
-    player_data_handle.handle = Some(handle);
+    if config.game.global_rules.is_empty() {
+        bevy::log::warn!(
+            "DataPlugin: No global_rules path configured in mod.toml. Player data will not be initialized."
+        );
+        return;
+    }
 
-    bevy::log::info!("DataPlugin: Loading player data from player/player_data.rules.ron");
+    // Clone the path to avoid lifetime issues with asset_server.load()
+    let path: String = config.game.global_rules.clone();
+    let handle: Handle<RuleSetAsset> = asset_server.load(path);
+    global_rules_handle.handle = Some(handle);
+
+    bevy::log::info!(
+        "DataPlugin: Loading global rules from '{}'",
+        config.game.global_rules
+    );
 }
 
-/// System to apply loaded player data to the global layer.
+/// System to apply loaded global rules to the global layer.
+/// This runs once after the asset is loaded.
 ///
-/// 将加载的玩家数据应用到全局层的系统。
-fn apply_player_data_system(
-    player_data_handle: Res<GlobalPlayerDataHandle>,
+/// 将加载的全局规则应用到全局层的系统。
+/// 在资产加载后运行一次。
+fn apply_global_rules_system(
+    global_rules_handle: Res<GlobalRulesHandle>,
     rule_set_assets: Res<Assets<RuleSetAsset>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
     mut applied: Local<bool>,
 ) {
-    if *applied || player_data_handle.loaded {
+    if *applied || global_rules_handle.loaded {
         return;
     }
 
-    let Some(handle) = &player_data_handle.handle else {
+    let Some(handle) = &global_rules_handle.handle else {
         return;
     };
 
@@ -119,7 +139,7 @@ fn apply_player_data_system(
         return;
     };
 
-    // Apply initial facts to Global layer
+    // Apply initial facts to Global layer (these are game-wide persistent facts)
     for (key, value) in rule_set.get_initial_facts() {
         let fact_value: FactValue = match value {
             FactValueDef::Int(v) => FactValue::Int(*v),
@@ -128,12 +148,15 @@ fn apply_player_data_system(
             FactValueDef::String(v) => FactValue::String(v.clone()),
         };
         layered_db.set_global(key.as_str(), fact_value);
-        bevy::log::debug!("DataPlugin: Set global fact '{}' from RON", key);
+        bevy::log::debug!(
+            "DataPlugin: Set global fact '{}' from global.rules.ron",
+            key
+        );
     }
 
     *applied = true;
     bevy::log::info!(
-        "DataPlugin: Applied {} player facts to global layer",
+        "DataPlugin: Applied {} global facts from global.rules.ron",
         rule_set.get_initial_facts().len()
     );
 }
