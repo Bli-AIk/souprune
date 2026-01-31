@@ -20,7 +20,7 @@ use bevy_fact_rule_event::{ActionHandlerRegistry, LayeredFactDatabase, RuleActio
 /// 在进入 Battle 状态时调用。
 pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
     // DealDamage - Apply damage to an entity
-    handler_registry.register("DealDamage", |action, db, _commands| {
+    handler_registry.register("DealDamage", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action {
             let target = params.get("target").map(String::as_str).unwrap_or("player");
             let amount_str = params.get("amount").map(String::as_str).unwrap_or("0");
@@ -38,7 +38,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
     });
 
     // Heal - Apply healing to an entity
-    handler_registry.register("Heal", |action, db, _commands| {
+    handler_registry.register("Heal", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action {
             let target = params.get("target").map(String::as_str).unwrap_or("player");
             let amount_str = params.get("amount").map(String::as_str).unwrap_or("0");
@@ -102,7 +102,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
     });
 
     // IncrementTurn - Increment the turn counter
-    handler_registry.register("IncrementTurn", |action, _db, _commands| {
+    handler_registry.register("IncrementTurn", |_action, _db, _commands| {
         info!("Battle FRE Action: IncrementTurn");
         // Note: Turn increment should be done through fact modifications in rules,
         // not through custom actions
@@ -157,34 +157,34 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 /// 此系统读取伤害事实并将其应用于实体 HP。
 pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) {
     // Check for pending player damage
-    if let Some(pending_damage) = layered_db.get_int("pending_player_damage") {
-        if pending_damage != 0 {
-            let current_hp = layered_db.get_int_or("player_hp", 100);
-            let new_hp = (current_hp - pending_damage).max(0);
+    if let Some(pending_damage) = layered_db.get_int("pending_player_damage")
+        && pending_damage != 0
+    {
+        let current_hp = layered_db.get_int_or("player_hp", 100);
+        let new_hp = (current_hp - pending_damage).max(0);
 
-            layered_db.set("player_hp", new_hp);
-            layered_db.remove("pending_player_damage");
+        layered_db.set("player_hp", new_hp);
+        layered_db.remove("pending_player_damage");
 
-            info!(
-                "Battle FRE: Applied {} damage to player (HP: {} -> {})",
-                pending_damage, current_hp, new_hp
-            );
-        }
+        info!(
+            "Battle FRE: Applied {} damage to player (HP: {} -> {})",
+            pending_damage, current_hp, new_hp
+        );
     }
 
     // Check for pending enemy damage (enemy_0 as example)
-    if let Some(pending_damage) = layered_db.get_int("pending_enemy_0_damage") {
-        if pending_damage != 0 {
-            let current_hp = layered_db.get_int_or("enemy_0_hp", 100);
-            let new_hp = (current_hp - pending_damage).max(0);
+    if let Some(pending_damage) = layered_db.get_int("pending_enemy_0_damage")
+        && pending_damage != 0
+    {
+        let current_hp = layered_db.get_int_or("enemy_0_hp", 100);
+        let new_hp = (current_hp - pending_damage).max(0);
 
-            layered_db.set("enemy_0_hp", new_hp);
-            layered_db.remove("pending_enemy_0_damage");
+        layered_db.set("enemy_0_hp", new_hp);
+        layered_db.remove("pending_enemy_0_damage");
 
-            info!(
-                "Battle FRE: Applied {} damage to enemy_0 (HP: {} -> {})",
-                pending_damage, current_hp, new_hp
-            );
-        }
+        info!(
+            "Battle FRE: Applied {} damage to enemy_0 (HP: {} -> {})",
+            pending_damage, current_hp, new_hp
+        );
     }
 }

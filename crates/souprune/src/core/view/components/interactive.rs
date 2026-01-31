@@ -296,12 +296,10 @@ impl NavigatorType {
             } else {
                 Some(new_index as usize)
             }
+        } else if new_index < 0 || new_index > max_index as isize {
+            None
         } else {
-            if new_index < 0 || new_index > max_index as isize {
-                None
-            } else {
-                Some(new_index as usize)
-            }
+            Some(new_index as usize)
         }
     }
 

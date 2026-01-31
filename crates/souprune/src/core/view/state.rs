@@ -209,11 +209,12 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         // Check all navigation directions using behavior config
         // 使用行为配置检查所有导航方向
         for direction in NavDirection::all() {
-            if let Some(action) = direction.to_action(&registry, &behavior_config) {
-                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
-                    changed = true;
-                    break;
-                }
+            if let Some(action) = direction.to_action(&registry, &behavior_config)
+                && action_state.just_pressed(&action)
+                && layer.navigate_direction(direction)
+            {
+                changed = true;
+                break;
             }
         }
 

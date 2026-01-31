@@ -151,7 +151,7 @@ pub fn emit_selection_confirmed_events_system(
         // Emit selection confirmed event
         let mut fact_event = FactEvent::new("selection_confirmed")
             .with_data("layer_id", &event.layer_id)
-            .with_data("selection_index", &event.selection_index.to_string());
+            .with_data("selection_index", event.selection_index.to_string());
 
         if let Some(ref selection_id) = event.selection_id {
             fact_event = fact_event.with_data("selection_id", selection_id);
