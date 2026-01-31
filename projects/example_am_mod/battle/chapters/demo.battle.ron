@@ -1,8 +1,8 @@
 #![enable(implicit_some)]
 [
     SetCamera(SetZoom(2.0)),
-    ViewInteraction(ui_layout: "battle/view/sans_idle.view_layout.ron"),
-    ViewInteraction(ui_layout: "battle/view/undertale_no_box.view_layout.ron"),
+    SpawnView(view_layout: "battle/view/sans_idle.view_layout.ron"),
+    SpawnView(view_layout: "battle/view/undertale_no_box.view_layout.ron"),
     SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
     // AM 动画演出（包含战斗框和弹幕）

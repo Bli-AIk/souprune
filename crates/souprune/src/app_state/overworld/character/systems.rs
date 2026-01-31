@@ -21,12 +21,14 @@
 use crate::app_state::overworld::character::components::{StateRunning, StateWalking};
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::basic_components::{Facing, Speed};
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 
 pub(crate) fn update_walking_system(
     time: Res<Time>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     mut query: Query<
         (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
         With<StateWalking>,
@@ -38,12 +40,16 @@ pub(crate) fn update_walking_system(
             facing,
             speed.value,
             action_state,
+            &registry,
+            &behavior_config,
             time.delta_secs(),
         );
     }
 }
 pub(crate) fn update_running_system(
     time: Res<Time>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     behavior: Res<PlayerBehavior>,
     mut query: Query<
         (&mut Transform, &mut Facing, &Speed, &ActionState<Action>),
@@ -56,6 +62,8 @@ pub(crate) fn update_running_system(
             facing,
             speed.value * behavior.run_speed_multiplier,
             action_state,
+            &registry,
+            &behavior_config,
             time.delta_secs(),
         );
     }
@@ -66,16 +74,32 @@ fn apply_walking_step(
     mut facing: Mut<Facing>,
     speed: f32,
     action_state: &ActionState<Action>,
+    registry: &ActionRegistry,
+    behavior_config: &InputBehaviorConfig,
     delta_secs: f32,
 ) {
     use crate::core::basic_components::*;
 
     let mut direction_vec = Vec2::ZERO;
 
-    let up_pressed = action_state.pressed(&Action::Up);
-    let down_pressed = action_state.pressed(&Action::Down);
-    let left_pressed = action_state.pressed(&Action::Left);
-    let right_pressed = action_state.pressed(&Action::Right);
+    // Use behavior config to get action names for navigation
+    // 使用行为配置获取导航的动作名称
+    let up_pressed = behavior_config
+        .nav_up()
+        .map(|name| action_state.action_pressed(registry, name))
+        .unwrap_or(false);
+    let down_pressed = behavior_config
+        .nav_down()
+        .map(|name| action_state.action_pressed(registry, name))
+        .unwrap_or(false);
+    let left_pressed = behavior_config
+        .nav_left()
+        .map(|name| action_state.action_pressed(registry, name))
+        .unwrap_or(false);
+    let right_pressed = behavior_config
+        .nav_right()
+        .map(|name| action_state.action_pressed(registry, name))
+        .unwrap_or(false);
 
     if up_pressed && !down_pressed {
         direction_vec.y += 1.0;

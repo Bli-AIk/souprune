@@ -77,6 +77,11 @@ pub struct GameConfig {
     /// 玩家行为配置文件路径。
     pub player_behavior_path: String,
 
+    /// Path to input configuration file (RON format).
+    ///
+    /// 输入配置文件路径（RON 格式）。
+    pub input_config_path: String,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -94,6 +99,7 @@ impl Default for GameConfig {
             initial_map_path: String::new(),
             initial_battle_path: String::new(),
             player_behavior_path: String::new(),
+            input_config_path: String::new(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }
@@ -150,10 +156,18 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     let mut roots = Vec::new();
     let project_path = Path::new("projects").join(mod_name);
 
+    // Primary: project's assets directory
+    // 主要：项目的 assets 目录
+    roots.push(project_path.join("assets"));
+
+    // Also check the project root as a fallback location
+    // 同时检查项目根目录作为备选位置
     roots.push(project_path.clone());
 
     // Fallback to absolute path to ensure assets are found
+    // 回退到绝对路径以确保找到资源
     if let Ok(abs_path) = dunce::canonicalize(&project_path) {
+        roots.push(abs_path.join("assets"));
         roots.push(abs_path);
     }
 
@@ -162,12 +176,15 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
         roots.push(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("../../")
+                .join(&project_path)
+                .join("assets"),
+        );
+        roots.push(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../")
                 .join(&project_path),
         );
     }
-
-    roots.push(PathBuf::from("assets"));
-    roots.push(PathBuf::from("crates/souprune/assets"));
 
     roots
 }
@@ -195,6 +212,7 @@ struct GameConfigPartial {
     initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
     player_behavior_path: Option<String>,
+    input_config_path: Option<String>,
     required_modules: Option<Vec<String>>,
 }
 
@@ -243,6 +261,9 @@ Falling back to default configuration (example_mod)",
                             }
                             if let Some(val) = game_partial.player_behavior_path {
                                 config.game.player_behavior_path = val;
+                            }
+                            if let Some(val) = game_partial.input_config_path {
+                                config.game.input_config_path = val;
                             }
                             if let Some(val) = game_partial.required_modules {
                                 config.game.required_modules = val;

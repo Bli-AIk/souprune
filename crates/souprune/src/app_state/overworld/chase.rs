@@ -1346,33 +1346,30 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
     let handle = asset_server.load(ui_path);
 
     // Insert the View layout handle resource
-    commands.insert_resource(crate::core::view::UILayoutHandle {
+    commands.insert_resource(crate::core::view::ViewLayoutHandle {
         handle,
         last_modified: None,
         path: ui_path.to_string(),
     });
 
-    // Spawn a root entity for the RON UI system to attach to
+    // Spawn a root entity for the View system to attach to
+    // 生成一个根实体供 View 系统附加
     commands.spawn((
-        crate::core::view::components::RonUI::new(
-            crate::core::view::components::UILayer::new("ChaseHUD"),
-            0,
-        ),
+        ChaseHUDRoot,
         Transform::default(),
         GlobalTransform::default(),
         Visibility::default(),
         InheritedVisibility::default(),
         ViewVisibility::default(),
         OverworldEntity(),
-        ChaseHUDRoot,
         Name::new("ChaseHUD Root"),
     ));
 
-    // Insert UILayoutWatcher with pending_reload = false to ensure clean state
-    // This prevents double UI spawning from rebuild_reloaded_ui_system
-    // 插入 pending_reload = false 的 UILayoutWatcher 以确保干净的状态
-    // 这可以防止 rebuild_reloaded_ui_system 导致的双重 UI 生成
-    commands.insert_resource(crate::core::view::UILayoutWatcher::new());
+    // Insert ViewLayoutWatcher with pending_reload = false to ensure clean state
+    // This prevents double UI spawning from rebuild_reloaded_view_system
+    // 插入 pending_reload = false 的 ViewLayoutWatcher 以确保干净的状态
+    // 这可以防止 rebuild_reloaded_view_system 导致的双重 UI 生成
+    commands.insert_resource(crate::core::view::ViewLayoutWatcher::new());
 
     info!("Chase: Chase HUD setup complete");
 }
@@ -1383,7 +1380,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
 fn cleanup_chase_hud_system(
     mut commands: Commands,
     chase_hud_query: Query<Entity, With<ChaseHUDRoot>>,
-    ron_driven_ui_query: Query<Entity, With<crate::core::view::RonDrivenUI>>,
+    ron_driven_ui_query: Query<Entity, With<crate::core::view::RonDrivenView>>,
 ) {
     info!("Chase: Cleaning up Chase HUD");
 
@@ -1398,8 +1395,8 @@ fn cleanup_chase_hud_system(
     }
 
     // Remove the View layout handle resource
-    commands.remove_resource::<crate::core::view::UILayoutHandle>();
-    commands.remove_resource::<crate::core::view::UILayoutWatcher>();
+    commands.remove_resource::<crate::core::view::ViewLayoutHandle>();
+    commands.remove_resource::<crate::core::view::ViewLayoutWatcher>();
 
     info!("Chase: Chase HUD cleanup complete");
 }

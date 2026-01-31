@@ -7,7 +7,7 @@
 use crate::app_state::battle::{BattleMovementSet, BattleUpdate};
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::mod_system::BehaviorParams;
-use crate::core::view::components::UIBox;
+use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
 
 /// Plugin for battle collision systems
@@ -33,10 +33,10 @@ impl Plugin for BattleCollisionPlugin {
 pub struct BattleBox;
 
 /// Component storing battle box dimensions for AM-animated battle boxes.
-/// Used when the battle box doesn't use UIBox (e.g., AM animations).
+/// Used when the battle box doesn't use ViewBox (e.g., AM animations).
 ///
 /// 存储 AM 动画战斗框尺寸的组件。
-/// 用于不使用 UIBox 的战斗框（如 AM 动画）。
+/// 用于不使用 ViewBox 的战斗框（如 AM 动画）。
 #[derive(Component, Debug, Clone)]
 pub struct AmBattleBoxBounds {
     pub width: f32,
@@ -56,17 +56,17 @@ pub struct AmBattleBoxBounds {
 pub(crate) fn constrain_player_to_battle_box_system(
     mut player_query: Query<
         (&mut Transform, &PhysicsCollider),
-        (With<BehaviorParams>, Without<UIBox>),
+        (With<BehaviorParams>, Without<ViewBox>),
     >,
     // Traditional UI-based battle box
     ui_battle_box_query: Query<
-        (&GlobalTransform, &UIBox),
+        (&GlobalTransform, &ViewBox),
         (With<BattleBox>, Without<PhysicsCollider>),
     >,
     // AM-animated battle box
     am_battle_box_query: Query<
         (&GlobalTransform, &AmBattleBoxBounds),
-        (With<BattleBox>, Without<UIBox>, Without<PhysicsCollider>),
+        (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
 ) {
     // Try to find boundary from UI box first, then fall back to AM battle box

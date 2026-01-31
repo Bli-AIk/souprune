@@ -497,7 +497,7 @@ pub mod debug_collider {
             (
                 Entity,
                 &GlobalTransform,
-                &crate::core::view::components::UIBox,
+                &crate::core::view::components::ViewBox,
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
@@ -507,7 +507,7 @@ pub mod debug_collider {
                 Without<crate::core::collision::PhysicsCollider>,
             ),
         >,
-        // AM animated battle boxes (no UIBox, use AmBattleBoxBounds instead)
+        // AM animated battle boxes (no ViewBox, use AmBattleBoxBounds instead)
         am_battle_boxes: Query<
             (
                 Entity,
@@ -516,7 +516,7 @@ pub mod debug_collider {
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
-                Without<crate::core::view::components::UIBox>,
+                Without<crate::core::view::components::ViewBox>,
                 Without<ViewSdfShape>,
                 Without<ColliderVisualizer>,
                 Without<BattleColliderVisualized>,
@@ -730,7 +730,7 @@ pub mod debug_collider {
         battle_boxes: Query<
             &GlobalTransform,
             (
-                With<crate::core::view::components::UIBox>,
+                With<crate::core::view::components::ViewBox>,
                 With<crate::app_state::battle::collision::BattleBox>,
                 Without<ColliderVisualizer>,
             ),
@@ -742,7 +742,7 @@ pub mod debug_collider {
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
-                Without<crate::core::view::components::UIBox>,
+                Without<crate::core::view::components::ViewBox>,
                 Without<ColliderVisualizer>,
             ),
         >,

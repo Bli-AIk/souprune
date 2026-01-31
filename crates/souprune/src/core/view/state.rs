@@ -6,493 +6,634 @@
 //!
 //! ## 模块概述
 //!
-//! This module handles UI layer transitions and navigation between menu items.
+//! This module handles UI layer transitions and navigation using the unified
+//! InteractiveLayer system for both OW and Battle contexts.
 //!
-//! 本模块处理 UI 层级转换和菜单项之间的导航。
-//!
-//! ## Source File Overview
-//!
-//! ## 源文件概述
-//!
-//! It manages state changes triggered by user input such as confirm and cancel actions.
-//!
-//! 管理由用户输入触发的状态变化，例如确认和取消操作。
+//! 本模块使用统一的 InteractiveLayer 系统处理 OW 和 Battle 场景下
+//! UI 层级转换和导航。
 
-use super::components::{
-    RonUI, TransitionAction, UILayer, UILayerNavigationConfig, UILayerTransitionConfig,
-};
-use super::ron_view::UIGlobalTriggerConfig;
+use super::components::interactive::NavDirection;
+use super::ron_view::ViewGlobalTriggerConfig;
 use crate::app_state::overworld::{OverworldState, character};
 use crate::core::audio;
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
 
-/// Handle transitions between overworld sub-states driven by menu actions.
+// ============================================================================
+// Global Trigger System
+// 全局触发器系统
+// ============================================================================
+
+/// Handle global triggers that can activate from any overworld state.
 ///
-/// 处理菜单输入驱动的 Overworld 子状态间转换。
+/// 处理可以从任何 Overworld 状态激活的全局触发器。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-pub(crate) fn menu_overworld_state_transitions_system(
+pub(crate) fn global_trigger_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<OverworldState>>,
     current_state: Res<State<OverworldState>>,
-    mut overworld_ui_query: Query<&mut RonUI>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
-    player_data: Res<crate::core::data::PlayerData>,
-    transition_config: Res<UILayerTransitionConfig>,
-    navigation_config: Res<UILayerNavigationConfig>,
-    global_trigger_config: Res<UIGlobalTriggerConfig>,
+    global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
-    if let Ok(action_state) = query.single() {
-        // Check global triggers first
-        //
-        // 首先检查全局触发器
-        for (action, rules) in &global_trigger_config.triggers {
-            if action_state.just_pressed(action) {
+    let Ok(action_state) = query.single() else {
+        return;
+    };
+
+    for (action, rules) in &global_trigger_config.triggers {
+        if action_state.just_pressed(action) {
+            debug!(
+                "Action pressed: {:?}, current state: {:?}, rules count: {}",
+                action,
+                current_state.get(),
+                rules.len()
+            );
+            for rule in rules {
                 debug!(
-                    "Action pressed: {:?}, current state: {:?}, rules count: {}",
-                    action,
-                    current_state.get(),
-                    rules.len()
+                    "Checking rule: target={:?}, allowed={:?}",
+                    rule.target_state, rule.allowed_states
                 );
-                for rule in rules {
-                    debug!(
-                        "Checking rule: target={:?}, allowed={:?}",
-                        rule.target_state, rule.allowed_states
+                if rule.allowed_states.contains(current_state.get()) {
+                    info!(
+                        "Global trigger activated: {:?} -> {:?} via {:?}",
+                        current_state.get(),
+                        rule.target_state,
+                        action
                     );
-                    if rule.allowed_states.contains(current_state.get()) {
-                        info!(
-                            "Global trigger activated: {:?} -> {:?} via {:?}",
-                            current_state.get(),
-                            rule.target_state,
-                            action
-                        );
 
-                        if let Some(sound_path) = &rule.sound {
-                            audio::play_sound(&audio, &asset_server, sound_path);
-                        }
-
-                        next_state.set(rule.target_state);
-                        return;
+                    if let Some(sound_path) = &rule.sound {
+                        audio::play_sound(&audio, &asset_server, sound_path);
                     }
-                }
-            }
-        }
 
-        match current_state.get() {
-            OverworldState::Normal => {
-                // Logic moved to global triggers
-            }
-            OverworldState::Backpack => {
-                let Ok(mut overworld_ui) = overworld_ui_query.single_mut() else {
-                    warn!("Backpack menu open but no RonUI entity found");
+                    next_state.set(rule.target_state);
                     return;
-                };
-
-                let current_layer = overworld_ui.layer().clone();
-
-                if let Some(transitions) = transition_config.get(&current_layer) {
-                    if action_state.just_pressed(&Action::Confirm) {
-                        for rule in &transitions.on_confirm {
-                            if let Some(condition) = &rule.condition
-                                && !evaluate_transition_condition(
-                                    condition,
-                                    overworld_ui.index(),
-                                    &player_data,
-                                )
-                            {
-                                continue;
-                            }
-
-                            // Play confirm sound if configured
-                            //
-                            // 如果已配置，播放确认声音
-                            if let Some(sound_path) = &transitions.sound_on_confirm {
-                                audio::play_sound(&audio, &asset_server, sound_path);
-                            }
-
-                            execute_transition_action(
-                                &rule.action,
-                                &mut overworld_ui,
-                                &mut next_state,
-                                &player_data,
-                                &navigation_config,
-                            );
-                            return;
-                        }
-                    }
-
-                    if action_state.just_pressed(&Action::Cancel)
-                        && let Some(cancel_action) = &transitions.on_cancel
-                    {
-                        // Play cancel sound if configured
-                        //
-                        // 如果已配置，播放取消声音
-                        if let Some(sound_path) = &transitions.sound_on_cancel {
-                            audio::play_sound(&audio, &asset_server, sound_path);
-                        }
-
-                        execute_transition_action(
-                            cancel_action,
-                            &mut overworld_ui,
-                            &mut next_state,
-                            &player_data,
-                            &navigation_config,
-                        );
-                    }
                 }
-            }
-            OverworldState::Cutscene => {
-                info!("Menu key pressed during cutscene, ignoring");
-            }
-            OverworldState::Chase => {
-                // Chase state - menu input is disabled during chase
-                // 追逐战状态 - 追逐战期间禁用菜单输入
             }
         }
     }
 }
 
-fn evaluate_transition_condition(
-    condition: &str,
-    index: usize,
-    player_data: &crate::core::data::PlayerData,
-) -> bool {
-    let condition = condition.trim();
+/// Firewheel audio backend variant of global trigger system.
+#[cfg(feature = "firewheel")]
+pub(crate) fn global_trigger_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut next_state: ResMut<NextState<OverworldState>>,
+    current_state: Res<State<OverworldState>>,
+    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    global_trigger_config: Res<ViewGlobalTriggerConfig>,
+) {
+    let Ok(action_state) = query.single() else {
+        return;
+    };
 
-    if condition.starts_with("index == ")
-        && let Some(num_str) = condition.strip_prefix("index == ")
-    {
-        let parts: Vec<&str> = num_str.split("&&").map(|s| s.trim()).collect();
-        let index_part = parts[0];
-        if let Ok(target_index) = index_part.parse::<usize>() {
-            if index != target_index {
-                return false;
-            }
-            for part in parts.iter().skip(1) {
-                if *part == "!player.inventory.is_empty" && player_data.inventory.is_empty() {
-                    return false;
+    for (action, rules) in &global_trigger_config.triggers {
+        if action_state.just_pressed(action) {
+            debug!(
+                "Action pressed: {:?}, current state: {:?}, rules count: {}",
+                action,
+                current_state.get(),
+                rules.len()
+            );
+            for rule in rules {
+                debug!(
+                    "Checking rule: target={:?}, allowed={:?}",
+                    rule.target_state, rule.allowed_states
+                );
+                if rule.allowed_states.contains(current_state.get()) {
+                    info!(
+                        "Global trigger activated: {:?} -> {:?} via {:?}",
+                        current_state.get(),
+                        rule.target_state,
+                        action
+                    );
+
+                    if let Some(sound_path) = &rule.sound {
+                        audio::play_sound(&mut commands, &asset_server, sound_path);
+                    }
+
+                    next_state.set(rule.target_state);
+                    return;
                 }
             }
-            return true;
+        }
+    }
+}
+
+// ============================================================================
+// Unified Interactive Layer Navigation System
+// 统一的交互层导航系统
+// ============================================================================
+
+/// System that handles navigation input for all active InteractiveLayers.
+///
+/// 处理所有活跃 InteractiveLayer 导航输入的系统。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub(crate) fn handle_interactive_layer_navigation_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    input_query: Query<&ActionState<Action>>,
+    mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
+) {
+    let Some(action_state) = input_query.iter().next() else {
+        return;
+    };
+
+    for (entity, mut layer) in layer_query.iter_mut() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let previous_index = layer.current_selection;
+        let mut changed = false;
+
+        // Check all navigation directions using behavior config
+        // 使用行为配置检查所有导航方向
+        for direction in NavDirection::all() {
+            if let Some(action) = direction.to_action(&registry, &behavior_config) {
+                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if changed {
+            if let Some(sound_path) = &layer.sound_on_navigate {
+                audio::play_sound(&audio, &asset_server, sound_path);
+            }
+
+            selection_changed_events.write(super::components::SelectionChangedEvent {
+                layer_id: layer.layer_id.clone(),
+                previous_index,
+                new_index: layer.current_selection,
+                entity,
+            });
+
+            debug!(
+                "InteractiveLayer '{}' selection changed: {} -> {}",
+                layer.layer_id, previous_index, layer.current_selection
+            );
+        }
+    }
+}
+
+/// Firewheel audio backend variant
+#[cfg(feature = "firewheel")]
+pub(crate) fn handle_interactive_layer_navigation_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    input_query: Query<&ActionState<Action>>,
+    mut selection_changed_events: MessageWriter<super::components::SelectionChangedEvent>,
+) {
+    let Some(action_state) = input_query.iter().next() else {
+        return;
+    };
+
+    for (entity, mut layer) in layer_query.iter_mut() {
+        if !layer.is_active {
+            continue;
+        }
+
+        let previous_index = layer.current_selection;
+        let mut changed = false;
+
+        // Check all navigation directions using behavior config
+        // 使用行为配置检查所有导航方向
+        for direction in NavDirection::all() {
+            if let Some(action) = direction.to_action(&registry, &behavior_config) {
+                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if changed {
+            if let Some(sound_path) = &layer.sound_on_navigate {
+                audio::play_sound(&mut commands, &asset_server, sound_path);
+            }
+
+            selection_changed_events.write(super::components::SelectionChangedEvent {
+                layer_id: layer.layer_id.clone(),
+                previous_index,
+                new_index: layer.current_selection,
+                entity,
+            });
+
+            debug!(
+                "InteractiveLayer '{}' selection changed: {} -> {}",
+                layer.layer_id, previous_index, layer.current_selection
+            );
+        }
+    }
+}
+
+// ============================================================================
+// Unified Interactive Layer Confirm/Cancel System
+// 统一的交互层确认/取消系统
+// ============================================================================
+
+/// System that handles confirm/cancel input for active InteractiveLayers.
+///
+/// 处理活跃 InteractiveLayer 确认/取消输入的系统。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub(crate) fn handle_interactive_layer_confirm_cancel_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
+    layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
+    input_query: Query<&ActionState<Action>>,
+    mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
+    mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
+) {
+    let Some(action_state) = input_query.iter().next() else {
+        return;
+    };
+
+    for (entity, layer) in layer_query.iter() {
+        if !layer.is_active {
+            continue;
+        }
+
+        // Use behavior config to get action names for UI interactions
+        // 使用行为配置获取 UI 交互的动作名称
+        let confirm_pressed = behavior_config
+            .ui_confirm()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+        let cancel_pressed = behavior_config
+            .ui_cancel()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+
+        if confirm_pressed {
+            audio::play_sound(&audio, &asset_server, "confirm.wav");
+
+            info!(
+                "InteractiveLayer '{}' confirmed at index {}",
+                layer.layer_id, layer.current_selection
+            );
+
+            confirm_events.write(super::components::SelectionConfirmedEvent {
+                layer_id: layer.layer_id.clone(),
+                selected_index: layer.current_selection,
+                selected_element: layer.current_element_name().map(|s| s.to_string()),
+                entity,
+            });
+        }
+
+        if cancel_pressed {
+            info!("InteractiveLayer '{}' cancelled", layer.layer_id);
+
+            cancel_events.write(super::components::SelectionCancelledEvent {
+                layer_id: layer.layer_id.clone(),
+                entity,
+            });
+        }
+    }
+}
+
+/// Firewheel audio backend variant
+#[cfg(feature = "firewheel")]
+pub(crate) fn handle_interactive_layer_confirm_cancel_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
+    layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
+    input_query: Query<&ActionState<Action>>,
+    mut confirm_events: MessageWriter<super::components::SelectionConfirmedEvent>,
+    mut cancel_events: MessageWriter<super::components::SelectionCancelledEvent>,
+) {
+    let Some(action_state) = input_query.iter().next() else {
+        return;
+    };
+
+    for (entity, layer) in layer_query.iter() {
+        if !layer.is_active {
+            continue;
+        }
+
+        // Use behavior config to get action names for UI interactions
+        // 使用行为配置获取 UI 交互的动作名称
+        let confirm_pressed = behavior_config
+            .ui_confirm()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+        let cancel_pressed = behavior_config
+            .ui_cancel()
+            .map(|name| action_state.action_just_pressed(&registry, name))
+            .unwrap_or(false);
+
+        if confirm_pressed {
+            audio::play_sound(&mut commands, &asset_server, "confirm.wav");
+
+            info!(
+                "InteractiveLayer '{}' confirmed at index {}",
+                layer.layer_id, layer.current_selection
+            );
+
+            confirm_events.write(super::components::SelectionConfirmedEvent {
+                layer_id: layer.layer_id.clone(),
+                selected_index: layer.current_selection,
+                selected_element: layer.current_element_name().map(|s| s.to_string()),
+                entity,
+            });
+        }
+
+        if cancel_pressed {
+            info!("InteractiveLayer '{}' cancelled", layer.layer_id);
+
+            cancel_events.write(super::components::SelectionCancelledEvent {
+                layer_id: layer.layer_id.clone(),
+                entity,
+            });
+        }
+    }
+}
+
+// ============================================================================
+// Interactive Layer Transition System
+// 交互层转换系统
+// ============================================================================
+
+/// System that processes SelectionConfirmedEvent and SelectionCancelledEvent
+/// to perform layer transitions defined in InteractiveLayer.
+///
+/// 处理 SelectionConfirmedEvent 和 SelectionCancelledEvent
+/// 以执行 InteractiveLayer 中定义的层级转换。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub(crate) fn handle_interactive_layer_transitions_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    mut confirm_events: bevy::ecs::message::MessageReader<
+        super::components::SelectionConfirmedEvent,
+    >,
+    mut cancel_events: bevy::ecs::message::MessageReader<
+        super::components::SelectionCancelledEvent,
+    >,
+    mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
+    mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
+    mut next_ow_state: ResMut<NextState<OverworldState>>,
+    player_data: Res<crate::core::data::PlayerData>,
+) {
+    use super::ron_view::parsing::evaluate_transition_condition_unified;
+
+    // Process confirm events
+    for event in confirm_events.read() {
+        let Some((_, layer)) = layer_query
+            .iter()
+            .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
+        else {
+            continue;
+        };
+
+        let mut matched_action: Option<super::components::LayerTransitionAction> = None;
+
+        for rule in &layer.on_confirm {
+            let condition_met = if let Some(condition) = &rule.condition {
+                evaluate_transition_condition_unified(condition, event.selected_index, &player_data)
+            } else {
+                true
+            };
+
+            if condition_met {
+                matched_action = Some(rule.action.clone());
+                break;
+            }
+        }
+
+        if let Some(action) = matched_action {
+            let sound_path = layer.sound_on_confirm.clone();
+            let layer_id = event.layer_id.clone();
+
+            if let Some(sound) = &sound_path {
+                audio::play_sound(&audio, &asset_server, sound);
+            }
+
+            execute_layer_transition(
+                action,
+                &layer_id,
+                &mut layer_query,
+                &mut next_ow_state,
+                &mut activated_events,
+                &mut deactivated_events,
+            );
         }
     }
 
-    true
+    // Process cancel events
+    for event in cancel_events.read() {
+        let Some((_, layer)) = layer_query
+            .iter()
+            .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
+        else {
+            continue;
+        };
+
+        if let Some(action) = &layer.on_cancel {
+            let sound_path = layer.sound_on_cancel.clone();
+            let action = action.clone();
+            let layer_id = event.layer_id.clone();
+
+            if let Some(sound) = &sound_path {
+                audio::play_sound(&audio, &asset_server, sound);
+            }
+
+            execute_layer_transition(
+                action,
+                &layer_id,
+                &mut layer_query,
+                &mut next_ow_state,
+                &mut activated_events,
+                &mut deactivated_events,
+            );
+        }
+    }
 }
 
-fn execute_transition_action(
-    action: &TransitionAction,
-    overworld_ui: &mut RonUI,
-    next_state: &mut ResMut<NextState<OverworldState>>,
-    player_data: &crate::core::data::PlayerData,
-    navigation_config: &UILayerNavigationConfig,
+/// Execute a layer transition action.
+fn execute_layer_transition(
+    action: super::components::LayerTransitionAction,
+    current_layer_id: &str,
+    layer_query: &mut Query<(Entity, &mut super::components::InteractiveLayer)>,
+    next_ow_state: &mut ResMut<NextState<OverworldState>>,
+    activated_events: &mut MessageWriter<super::components::LayerActivatedEvent>,
+    deactivated_events: &mut MessageWriter<super::components::LayerDeactivatedEvent>,
 ) {
     match action {
-        TransitionAction::GotoLayer(target_layer) => {
-            let max_index = navigation_config
-                .get(target_layer)
-                .and_then(|rule| {
-                    rule.max_index()
-                        .as_ref()
-                        .map(|bound| super::ron_view::evaluate_index_bound(bound, player_data))
-                })
-                .unwrap_or_else(|| calculate_max_index_for_layer(target_layer, player_data));
+        super::components::LayerTransitionAction::GotoLayer(target_layer_id) => {
             info!(
-                "Transitioning to layer {} with max_index {}",
-                target_layer, max_index
+                "Layer transition: '{}' -> '{}'",
+                current_layer_id, target_layer_id
             );
-            overworld_ui.set_layer(target_layer.clone(), max_index);
+
+            let mut deactivate_entity = None;
+            let mut activate_entity = None;
+            let mut activate_selection = 0;
+
+            for (entity, layer) in layer_query.iter() {
+                if layer.layer_id == current_layer_id {
+                    deactivate_entity = Some((entity, layer.layer_id.clone()));
+                } else if layer.layer_id == target_layer_id {
+                    activate_entity = Some((entity, layer.layer_id.clone()));
+                }
+            }
+
+            for (_, mut layer) in layer_query.iter_mut() {
+                if layer.layer_id == current_layer_id {
+                    layer.is_active = false;
+                } else if layer.layer_id == target_layer_id {
+                    layer.is_active = true;
+                    layer.current_selection = 0;
+                    activate_selection = 0;
+                }
+            }
+
+            if let Some((entity, layer_id)) = deactivate_entity {
+                deactivated_events
+                    .write(super::components::LayerDeactivatedEvent { layer_id, entity });
+            }
+
+            if let Some((entity, layer_id)) = activate_entity {
+                activated_events.write(super::components::LayerActivatedEvent {
+                    layer_id,
+                    current_selection: activate_selection,
+                    entity,
+                });
+            }
         }
-        TransitionAction::PopState => {
-            info!("Popping state, returning to Normal");
-            next_state.set(OverworldState::Normal);
+        super::components::LayerTransitionAction::PopState => {
+            info!("Layer transition: PopState from '{}'", current_layer_id);
+
+            let mut deactivate_entity = None;
+
+            for (entity, layer) in layer_query.iter() {
+                if layer.layer_id == current_layer_id {
+                    deactivate_entity = Some((entity, layer.layer_id.clone()));
+                }
+            }
+
+            for (_, mut layer) in layer_query.iter_mut() {
+                if layer.layer_id == current_layer_id {
+                    layer.is_active = false;
+                }
+            }
+
+            if let Some((entity, layer_id)) = deactivate_entity {
+                deactivated_events
+                    .write(super::components::LayerDeactivatedEvent { layer_id, entity });
+            }
+
+            next_ow_state.set(OverworldState::Normal);
         }
-        TransitionAction::PushState(state_name) => {
-            info!("TODO: Push state {}", state_name);
+        super::components::LayerTransitionAction::PushState(state_name) => {
+            info!(
+                "Layer transition: PushState({}) from '{}'",
+                state_name, current_layer_id
+            );
+            // TODO: Implement state push if needed
         }
     }
 }
 
-fn calculate_max_index_for_layer(
-    layer: &UILayer,
-    _player_data: &crate::core::data::PlayerData,
-) -> usize {
-    warn!(
-        "Max index for layer {:?} not found in RON configuration! Defaulting to 1.",
-        layer
-    );
-    1
-}
-
-/// Update UI focus navigation while the overworld backpack is active.
-///
-/// 在背包界面激活时更新 UI 焦点导航。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-pub(crate) fn update_overworld_ui_navigation_system(
-    audio: Res<bevy_kira_audio::Audio>,
+/// Firewheel audio backend variant of the transition system.
+#[cfg(feature = "firewheel")]
+pub(crate) fn handle_interactive_layer_transitions_system(
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
-    overworld_state: Res<State<OverworldState>>,
-    navigation: Res<UILayerNavigationConfig>,
-    mut ui_query: Query<&mut RonUI>,
-    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    mut layer_query: Query<(Entity, &mut super::components::InteractiveLayer)>,
+    mut confirm_events: bevy::ecs::message::MessageReader<
+        super::components::SelectionConfirmedEvent,
+    >,
+    mut cancel_events: bevy::ecs::message::MessageReader<
+        super::components::SelectionCancelledEvent,
+    >,
+    mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
+    mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
+    mut next_ow_state: ResMut<NextState<OverworldState>>,
     player_data: Res<crate::core::data::PlayerData>,
 ) {
-    if overworld_state.get() != &OverworldState::Backpack {
-        return;
-    }
+    use super::ron_view::parsing::evaluate_transition_condition_unified;
 
-    let Ok(action_state) = query.single() else {
-        return;
-    };
-
-    for mut overworld_ui in ui_query.iter_mut() {
-        let Some(rule) = navigation.get(overworld_ui.layer()) else {
+    for event in confirm_events.read() {
+        let Some((_, layer)) = layer_query
+            .iter()
+            .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
+        else {
             continue;
         };
 
-        let mut delta: isize = 0;
-        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
-            if action_state.just_pressed(&action)
-                && let Some(change) = rule.delta_for(action)
-            {
-                delta += change;
-            }
-        }
+        let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
-        if delta != 0 {
-            let min_index = rule
-                .min_index()
-                .as_ref()
-                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
-                .unwrap_or(0);
-
-            let max_index = rule
-                .max_index()
-                .as_ref()
-                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
-                .unwrap_or_else(|| {
-                    calculate_max_index_for_layer(overworld_ui.layer(), &player_data)
-                });
-
-            let mut next_index = overworld_ui.index() as isize + delta;
-
-            if rule.looping() {
-                // With looping enabled, wrap around
-                //
-                // 启用循环时,进行环绕
-                if next_index < min_index as isize {
-                    next_index = max_index as isize - 1;
-                } else if next_index >= max_index as isize {
-                    next_index = min_index as isize;
-                }
+        for rule in &layer.on_confirm {
+            let condition_met = if let Some(condition) = &rule.condition {
+                evaluate_transition_condition_unified(condition, event.selected_index, &player_data)
             } else {
-                // Without looping, clamp to bounds
-                //
-                // 未启用循环时,限制在边界内
-                next_index = next_index.clamp(min_index as isize, (max_index - 1) as isize);
-            }
+                true
+            };
 
-            // Only update and play sound if index actually changed
-            //
-            // 仅当索引实际改变时更新并播放声音
-            if overworld_ui.index() != next_index as usize {
-                // Play navigation sound if configured
-                //
-                // 如果已配置,播放导航声音
-                if let Some(sound_path) = rule.sound_on_navigate() {
-                    audio::play_sound(&audio, &asset_server, sound_path);
-                }
-
-                overworld_ui.set_index(next_index as usize);
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Experimental Seedling Audio Backend Systems
-// ============================================================================
-
-#[cfg(feature = "firewheel")]
-pub(crate) fn menu_overworld_state_transitions_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<OverworldState>>,
-    current_state: Res<State<OverworldState>>,
-    mut overworld_ui_query: Query<&mut RonUI>,
-    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
-    player_data: Res<crate::core::data::PlayerData>,
-    transition_config: Res<UILayerTransitionConfig>,
-    navigation_config: Res<UILayerNavigationConfig>,
-    global_trigger_config: Res<UIGlobalTriggerConfig>,
-) {
-    if let Ok(action_state) = query.single() {
-        // Check global triggers first
-        for (action, rules) in &global_trigger_config.triggers {
-            if action_state.just_pressed(action) {
-                debug!(
-                    "Action pressed: {:?}, current state: {:?}, rules count: {}",
-                    action,
-                    current_state.get(),
-                    rules.len()
-                );
-                for rule in rules {
-                    debug!(
-                        "Checking rule: target={:?}, allowed={:?}",
-                        rule.target_state, rule.allowed_states
-                    );
-                    if rule.allowed_states.contains(current_state.get()) {
-                        info!(
-                            "Global trigger activated: {:?} -> {:?} via {:?}",
-                            current_state.get(),
-                            rule.target_state,
-                            action
-                        );
-
-                        if let Some(sound_path) = &rule.sound {
-                            audio::play_sound(&mut commands, &asset_server, sound_path);
-                        }
-
-                        next_state.set(rule.target_state);
-                        return;
-                    }
-                }
+            if condition_met {
+                matched_action = Some(rule.action.clone());
+                break;
             }
         }
 
-        match current_state.get() {
-            OverworldState::Normal => {
-                // Logic moved to global triggers
+        if let Some(action) = matched_action {
+            let sound_path = layer.sound_on_confirm.clone();
+            let layer_id = event.layer_id.clone();
+
+            if let Some(sound) = &sound_path {
+                audio::play_sound(&mut commands, &asset_server, sound);
             }
-            OverworldState::Backpack => {
-                let Ok(mut overworld_ui) = overworld_ui_query.single_mut() else {
-                    warn!("Backpack menu open but no RonUI entity found");
-                    return;
-                };
 
-                let current_layer = overworld_ui.layer().clone();
-
-                if let Some(transitions) = transition_config.get(&current_layer) {
-                    if action_state.just_pressed(&Action::Confirm) {
-                        for rule in &transitions.on_confirm {
-                            if let Some(condition) = &rule.condition
-                                && !evaluate_transition_condition(
-                                    condition,
-                                    overworld_ui.index(),
-                                    &player_data,
-                                )
-                            {
-                                continue;
-                            }
-
-                            if let Some(sound_path) = &transitions.sound_on_confirm {
-                                audio::play_sound(&mut commands, &asset_server, sound_path);
-                            }
-
-                            execute_transition_action(
-                                &rule.action,
-                                &mut overworld_ui,
-                                &mut next_state,
-                                &player_data,
-                                &navigation_config,
-                            );
-                            return;
-                        }
-                    }
-
-                    if action_state.just_pressed(&Action::Cancel)
-                        && let Some(cancel_action) = &transitions.on_cancel
-                    {
-                        if let Some(sound_path) = &transitions.sound_on_cancel {
-                            audio::play_sound(&mut commands, &asset_server, sound_path);
-                        }
-
-                        execute_transition_action(
-                            cancel_action,
-                            &mut overworld_ui,
-                            &mut next_state,
-                            &player_data,
-                            &navigation_config,
-                        );
-                    }
-                }
-            }
-            OverworldState::Cutscene => {
-                info!("Menu key pressed during cutscene, ignoring");
-            }
-            _ => {}
+            execute_layer_transition(
+                action,
+                &layer_id,
+                &mut layer_query,
+                &mut next_ow_state,
+                &mut activated_events,
+                &mut deactivated_events,
+            );
         }
     }
-}
 
-#[cfg(feature = "firewheel")]
-pub(crate) fn update_overworld_ui_navigation_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    overworld_state: Res<State<OverworldState>>,
-    navigation: Res<UILayerNavigationConfig>,
-    mut ui_query: Query<&mut RonUI>,
-    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
-    player_data: Res<crate::core::data::PlayerData>,
-) {
-    if overworld_state.get() != &OverworldState::Backpack {
-        return;
-    }
-
-    let Ok(action_state) = query.single() else {
-        return;
-    };
-
-    for mut overworld_ui in ui_query.iter_mut() {
-        let Some(rule) = navigation.get(overworld_ui.layer()) else {
+    for event in cancel_events.read() {
+        let Some((_, layer)) = layer_query
+            .iter()
+            .find(|(_, l)| l.layer_id == event.layer_id && l.is_active)
+        else {
             continue;
         };
 
-        let mut delta: isize = 0;
-        for action in [Action::Up, Action::Down, Action::Left, Action::Right] {
-            if action_state.just_pressed(&action)
-                && let Some(change) = rule.delta_for(action)
-            {
-                delta += change;
-            }
-        }
+        if let Some(action) = &layer.on_cancel {
+            let sound_path = layer.sound_on_cancel.clone();
+            let action = action.clone();
+            let layer_id = event.layer_id.clone();
 
-        if delta != 0 {
-            let min_index = rule
-                .min_index()
-                .as_ref()
-                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
-                .unwrap_or(0);
-
-            let max_index = rule
-                .max_index()
-                .as_ref()
-                .map(|bound| super::ron_view::evaluate_index_bound(bound, &player_data))
-                .unwrap_or_else(|| {
-                    calculate_max_index_for_layer(overworld_ui.layer(), &player_data)
-                });
-
-            let mut next_index = overworld_ui.index() as isize + delta;
-
-            if rule.looping() {
-                if next_index < min_index as isize {
-                    next_index = max_index as isize - 1;
-                } else if next_index >= max_index as isize {
-                    next_index = min_index as isize;
-                }
-            } else {
-                next_index = next_index.clamp(min_index as isize, (max_index - 1) as isize);
+            if let Some(sound) = &sound_path {
+                audio::play_sound(&mut commands, &asset_server, sound);
             }
 
-            if overworld_ui.index() != next_index as usize {
-                if let Some(sound_path) = rule.sound_on_navigate() {
-                    audio::play_sound(&mut commands, &asset_server, sound_path);
-                }
-
-                overworld_ui.set_index(next_index as usize);
-            }
+            execute_layer_transition(
+                action,
+                &layer_id,
+                &mut layer_query,
+                &mut next_ow_state,
+                &mut activated_events,
+                &mut deactivated_events,
+            );
         }
     }
 }

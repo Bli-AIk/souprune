@@ -47,7 +47,7 @@
                     line_height: 1.375,
                 ),
             ],
-            cursor: (
+            reactive_indicator: (
                 sprite_path: "common/heartsmall",
                 default_translation: Some(Linear(
                     origin: (-19.0, 18.5, 2.0),
@@ -163,7 +163,7 @@
                     line_height: 1.2,
                 ),
             ],
-            cursor: (
+            reactive_indicator: (
                 sprite_path: "common/heartsmall",
                 default_translation: Some(Linear(
                     origin: (-72.0, 68.0, 2.0),
@@ -328,7 +328,7 @@
                 ),
             ]),
             on_cancel: PopState,
-            sound_on_confirm: "selected.wav",
+            sound_on_confirm: "confirm.wav",
             sound_on_cancel: None,
         ),
         "BackpackItem": (
@@ -339,20 +339,85 @@
                 ),
             ]),
             on_cancel: Some(GotoLayer("BackpackMenu")),
-            sound_on_confirm: "selected.wav",
+            sound_on_confirm: "confirm.wav",
             sound_on_cancel: None,
         ),
         "BackpackItemOptions": (
             on_confirm: None,
             on_cancel: Some(GotoLayer("BackpackItem")),
-            sound_on_confirm: "selected.wav",
+            sound_on_confirm: "confirm.wav",
             sound_on_cancel: None,
         ),
         "BackpackStatus": (
             on_confirm: None,
             on_cancel: Some(GotoLayer("BackpackMenu")),
-            sound_on_confirm: "selected.wav",
+            sound_on_confirm: "confirm.wav",
             sound_on_cancel: None,
         ),
     },
+    // Unified interactive layer system
+    // 统一交互层系统
+    interactive_layers: {
+        "BackpackMenu": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 2,
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    condition: "index == 0 && !player.inventory.is_empty",
+                    action: GotoLayer("BackpackItem"),
+                ),
+                (
+                    condition: "index == 1",
+                    action: GotoLayer("BackpackStatus"),
+                ),
+            ],
+            on_cancel: PopState,
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItem": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: "max(inventory.len(), 1)",
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    action: GotoLayer("BackpackItemOptions"),
+                ),
+            ],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItemOptions": (
+            navigator_type: Linear(
+                direction: Horizontal,
+                option_count: 3,
+                looping: false,
+            ),
+            selectable_elements: ["ItemLayerOptionUse", "ItemLayerOptionInfo", "ItemLayerOptionDrop"],
+            sound_on_navigate: "choice.wav",
+            on_cancel: GotoLayer("BackpackItem"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackStatus": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 1,
+                looping: false,
+            ),
+            selectable_elements: [],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+    },
+    // The initial layer to activate when this layout is loaded
+    // 加载此布局时要激活的初始层
+    initial_layer: "BackpackMenu",
 )
