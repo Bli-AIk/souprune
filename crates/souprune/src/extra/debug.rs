@@ -23,6 +23,8 @@ mod battle_test;
 #[cfg(feature = "debug")]
 mod collider;
 #[cfg(feature = "debug")]
+mod fre_panel;
+#[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
 #[cfg(feature = "debug")]
@@ -65,6 +67,11 @@ impl Plugin for DebugPlugin {
             //
             // 设置战斗测试调试功能。
             battle_test::debug_battle_test::setup_battle_test_debug(_app);
+
+            // Set up FRE debug panel.
+            //
+            // 设置 FRE 调试面板。
+            fre_panel::debug_fre_panel::setup_fre_panel_debug(_app);
         }
     }
 }

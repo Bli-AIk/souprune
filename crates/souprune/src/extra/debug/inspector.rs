@@ -131,7 +131,8 @@ pub mod debug_inspector {
                     "Debug image overlay: [F4]",
                     "Cycle Player HP (Full/Half/1): [F5]",
                     "Switch to Battle: [F6]",
-                    "Toggle Player Level/HP (LV 20/99HP): [F7]",
+                    "FRE Debug Panel: [F7]",
+                    "Toggle Player Level/HP (LV 20/99HP): [F8]",
                     "Toggle debug help: [F12]",
                 ];
 
