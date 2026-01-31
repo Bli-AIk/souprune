@@ -259,9 +259,9 @@ fn update_beat_tracker_system(
 // 不再需要时删除或注释掉此系统。
 
 /// Test metronome system that plays sound effects on beats.
-/// Uses "selected.wav" on the first beat of each bar (4 beats), and "choice.wav" on beats 2-4.
+/// Uses "confirm.wav" on the first beat of each bar (4 beats), and "choice.wav" on beats 2-4.
 /// 测试用节拍器系统，在节拍时播放音效。
-/// 每小节（4拍）的第1拍播放 "selected.wav"，第2-4拍播放 "choice.wav"。
+/// 每小节（4拍）的第1拍播放 "confirm.wav"，第2-4拍播放 "choice.wav"。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 fn test_metronome_system(
     mut beat_events: MessageReader<BeatEvent>,
@@ -276,9 +276,9 @@ fn test_metronome_system(
             let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
 
             if beat_in_bar == 0 {
-                // First beat of the bar: play "selected.wav"
-                // 小节的第一拍：播放 "selected.wav"
-                crate::core::audio::play_sound(&audio, &asset_server, "selected.wav");
+                // First beat of the bar: play "confirm.wav"
+                // 小节的第一拍：播放 "confirm.wav"
+                crate::core::audio::play_sound(&audio, &asset_server, "confirm.wav");
             } else {
                 // Beats 2-4: play "choice.wav"
                 // 第2-4拍：播放 "choice.wav"
@@ -302,9 +302,9 @@ fn test_metronome_system(
             let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
 
             if beat_in_bar == 0 {
-                // First beat of the bar: play "selected.wav"
-                // 小节的第一拍：播放 "selected.wav"
-                crate::core::audio::play_sound(&mut commands, &asset_server, "selected.wav");
+                // First beat of the bar: play "confirm.wav"
+                // 小节的第一拍：播放 "confirm.wav"
+                crate::core::audio::play_sound(&mut commands, &asset_server, "confirm.wav");
             } else {
                 // Beats 2-4: play "choice.wav"
                 // 第2-4拍：播放 "choice.wav"

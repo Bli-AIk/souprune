@@ -5,14 +5,14 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::layer::UILayer;
+use super::layer::ViewLayer;
 use crate::core::input::Action;
 
-/// Describes how directional inputs should modify the index of a [`UILayer`].
+/// Describes how directional inputs should modify the index of a [`ViewLayer`].
 ///
-/// 描述方向输入应如何修改 [`UILayer`] 的索引。
+/// 描述方向输入应如何修改 [`ViewLayer`] 的索引。
 #[derive(Debug, Clone)]
-pub(crate) struct UILayerNavigationRule {
+pub(crate) struct ViewLayerNavigationRule {
     adjustments: HashMap<Action, isize>,
     looping: bool,
     min_index: Option<IndexBound>,
@@ -26,7 +26,7 @@ pub(crate) enum IndexBound {
     Dynamic(String),
 }
 
-impl UILayerNavigationRule {
+impl ViewLayerNavigationRule {
     pub(crate) fn new(pairs: impl IntoIterator<Item = (Action, isize)>) -> Self {
         Self {
             adjustments: pairs.into_iter().collect::<HashMap<_, _>>(),
@@ -74,25 +74,25 @@ impl UILayerNavigationRule {
     }
 }
 
-/// Registry that stores the navigation rules for every [`UILayer`].
+/// Registry that stores the navigation rules for every [`ViewLayer`].
 ///
-/// 存储每个 [`UILayer`] 导航规则的注册表。
+/// 存储每个 [`ViewLayer`] 导航规则的注册表。
 #[derive(Resource, Debug, Default)]
-pub(crate) struct UILayerNavigationConfig {
-    rules: HashMap<UILayer, UILayerNavigationRule>,
+pub(crate) struct ViewLayerNavigationConfig {
+    rules: HashMap<ViewLayer, ViewLayerNavigationRule>,
 }
 
-impl UILayerNavigationConfig {
-    pub(crate) fn get(&self, layer: &UILayer) -> Option<&UILayerNavigationRule> {
+impl ViewLayerNavigationConfig {
+    pub(crate) fn get(&self, layer: &ViewLayer) -> Option<&ViewLayerNavigationRule> {
         self.rules.get(layer)
     }
 
-    pub(crate) fn set_rule(&mut self, layer: UILayer, rule: UILayerNavigationRule) {
+    pub(crate) fn set_rule(&mut self, layer: ViewLayer, rule: ViewLayerNavigationRule) {
         self.rules.insert(layer, rule);
     }
 }
 
-impl Default for UILayerNavigationRule {
+impl Default for ViewLayerNavigationRule {
     fn default() -> Self {
         Self::new([])
     }
@@ -102,8 +102,8 @@ impl Default for UILayerNavigationRule {
 ///
 /// 存储 UI 层的状态转换逻辑，从 RON 配置中加载。
 #[derive(Resource, Debug, Default)]
-pub(crate) struct UILayerTransitionConfig {
-    transitions: HashMap<UILayer, LayerTransitions>,
+pub(crate) struct ViewLayerTransitionConfig {
+    transitions: HashMap<ViewLayer, LayerTransitions>,
 }
 
 #[derive(Debug, Clone)]
@@ -122,12 +122,12 @@ pub(crate) struct TransitionRule {
 
 #[derive(Debug, Clone)]
 pub(crate) enum TransitionAction {
-    GotoLayer(UILayer),
+    GotoLayer(ViewLayer),
     PopState,
     PushState(String),
 }
 
-impl UILayerTransitionConfig {
+impl ViewLayerTransitionConfig {
     #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self {
@@ -135,11 +135,11 @@ impl UILayerTransitionConfig {
         }
     }
 
-    pub(crate) fn set_transitions(&mut self, layer: UILayer, transitions: LayerTransitions) {
+    pub(crate) fn set_transitions(&mut self, layer: ViewLayer, transitions: LayerTransitions) {
         self.transitions.insert(layer, transitions);
     }
 
-    pub(crate) fn get(&self, layer: &UILayer) -> Option<&LayerTransitions> {
+    pub(crate) fn get(&self, layer: &ViewLayer) -> Option<&LayerTransitions> {
         self.transitions.get(layer)
     }
 }

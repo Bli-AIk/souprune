@@ -21,12 +21,14 @@
 use crate::app_state::overworld::OverworldState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
-use crate::core::input::Action;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
 pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
+    registry: Res<ActionRegistry>,
+    behavior_config: Res<InputBehaviorConfig>,
     overworld_state: Res<State<OverworldState>>,
 ) {
     // Allow direction control in Normal and Chase states.
@@ -38,10 +40,24 @@ pub(crate) fn player_direction_control_system(
     }
 
     for (mut facing, action_state) in query.iter_mut() {
-        let up_pressed = action_state.pressed(&Action::Up);
-        let down_pressed = action_state.pressed(&Action::Down);
-        let left_pressed = action_state.pressed(&Action::Left);
-        let right_pressed = action_state.pressed(&Action::Right);
+        // Use behavior config to get action names for navigation
+        // 使用行为配置获取导航的动作名称
+        let up_pressed = behavior_config
+            .nav_up()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let down_pressed = behavior_config
+            .nav_down()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let left_pressed = behavior_config
+            .nav_left()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let right_pressed = behavior_config
+            .nav_right()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
 
         // Only update the facing direction when opposite inputs are not pressed simultaneously.
         //

@@ -25,6 +25,7 @@
 //! Chapter 本身不包含 弹幕 或 UI 的定义与具体实现。
 
 use bevy::prelude::*;
+use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 
 /// 3D vector tuple type for coordinates like translation and scale.
@@ -66,9 +67,9 @@ impl<T> Val<T> {
         matches!(self, Val::Expr(_))
     }
 
-    /// Alias for `is_expr()` for backward compatibility.
+    /// Alias for `is_expr()`.
     ///
-    /// 为保持向后兼容的 `is_expr()` 别名。
+    /// `is_expr()` 的别名。
     pub fn is_dynamic(&self) -> bool {
         self.is_expr()
     }
@@ -96,16 +97,45 @@ impl<T> Val<T> {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
-    /// View Interaction Chapter.
+    /// Spawn View Chapter.
     ///
-    /// This chapter allows players to interact with the view.
-    /// It loads a view layout file for View interaction scenarios, such as player choices or dialogues.
+    /// Loads and spawns a view layout file. This creates the visual elements
+    /// defined in the .view_layout.ron file.
     ///
-    /// 视图交互章节。
+    /// 生成视图章节。
     ///
-    /// 此章节允许玩家与视图交互。
-    /// 它加载视图布局文件用于 View 交互场景，如玩家选择、对话等。
-    ViewInteraction { view_layout: String },
+    /// 加载并生成视图布局文件。这会创建 .view_layout.ron 文件中定义的可视元素。
+    SpawnView { view_layout: String },
+
+    /// Await Selection Chapter.
+    ///
+    /// Blocks the battle sequencer until player confirms a selection in the specified
+    /// interactive layer. This is used for player choice menus like FIGHT/ACT/ITEM/MERCY.
+    ///
+    /// 等待选择章节。
+    ///
+    /// 阻塞战斗 sequencer 直到玩家在指定的交互层中确认选择。
+    /// 用于玩家选择菜单，如 FIGHT/ACT/ITEM/MERCY。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// AwaitInteraction(
+    ///     layer_id: "BattleMainMenu",
+    ///     initial_selection: 0,
+    /// ),
+    /// ```
+    AwaitInteraction {
+        /// The ID of the interactive layer to activate.
+        ///
+        /// 要激活的交互层的 ID。
+        layer_id: String,
+
+        /// Initial selection index (default: 0).
+        ///
+        /// 初始选择索引（默认：0）。
+        #[serde(default)]
+        initial_selection: usize,
+    },
 
     /// Danmaku Performance Chapter.
     ///
@@ -166,8 +196,8 @@ pub enum Chapter {
         /// Easing function for the animation.
         ///
         /// 动画的缓动函数。
-        #[serde(default)]
-        easing: EasingFunction,
+        #[serde(default = "default_easing", with = "ease_kind_serde")]
+        easing: EaseKind,
         /// Whether to wait for the tween to complete before continuing.
         ///
         /// 是否在继续之前等待补间完成。
@@ -380,9 +410,9 @@ pub enum ElementModification {
     /// 可以是静态布尔值或动态表达式字符串。
     SetVisibility(Val<bool>),
 
-    /// Set UIBox dimensions (width, height).
+    /// Set ViewBox dimensions (width, height).
     ///
-    /// 设置 UIBox 尺寸（宽度，高度）。
+    /// 设置 ViewBox 尺寸（宽度，高度）。
     SetBoxSize(Val<f32>, Val<f32>),
 
     /// Undo last modification for this element.
@@ -401,100 +431,129 @@ pub enum ElementModification {
     Reset,
 }
 
-/// Easing function for tween animations.
+/// Serde module for EaseKind serialization/deserialization.
 ///
-/// 缓动函数用于补间动画。
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
-pub enum EasingFunction {
-    /// Linear interpolation (no easing).
-    ///
-    /// 线性插值（无缓动）。
-    #[default]
-    Linear,
-    /// Quadratic ease in.
-    ///
-    /// 二次缓入。
-    QuadIn,
-    /// Quadratic ease out.
-    ///
-    /// 二次缓出。
-    QuadOut,
-    /// Quadratic ease in-out.
-    ///
-    /// 二次缓入缓出。
-    QuadInOut,
-    /// Cubic ease in.
-    ///
-    /// 三次缓入。
-    CubicIn,
-    /// Cubic ease out.
-    ///
-    /// 三次缓出。
-    CubicOut,
-    /// Cubic ease in-out.
-    ///
-    /// 三次缓入缓出。
-    CubicInOut,
-    /// Sine ease in.
-    ///
-    /// 正弦缓入。
-    SineIn,
-    /// Sine ease out.
-    ///
-    /// 正弦缓出。
-    SineOut,
-    /// Sine ease in-out.
-    ///
-    /// 正弦缓入缓出。
-    SineInOut,
-    /// Exponential ease in.
-    ///
-    /// 指数缓入。
-    ExpoIn,
-    /// Exponential ease out.
-    ///
-    /// 指数缓出。
-    ExpoOut,
-    /// Exponential ease in-out.
-    ///
-    /// 指数缓入缓出。
-    ExpoInOut,
-    /// Elastic ease in.
-    ///
-    /// 弹性缓入。
-    ElasticIn,
-    /// Elastic ease out.
-    ///
-    /// 弹性缓出。
-    ElasticOut,
-    /// Elastic ease in-out.
-    ///
-    /// 弹性缓入缓出。
-    ElasticInOut,
-    /// Bounce ease in.
-    ///
-    /// 弹跳缓入。
-    BounceIn,
-    /// Bounce ease out.
-    ///
-    /// 弹跳缓出。
-    BounceOut,
-    /// Bounce ease in-out.
-    ///
-    /// 弹跳缓入缓出。
-    BounceInOut,
-    /// Back ease in.
-    ///
-    /// 回退缓入。
-    BackIn,
-    /// Back ease out.
-    ///
-    /// 回退缓出。
-    BackOut,
-    /// Back ease in-out.
-    ///
-    /// 回退缓入缓出。
-    BackInOut,
+/// This module provides custom serialization support for bevy_tween's EaseKind,
+/// allowing it to be used in RON configuration files with readable names.
+///
+/// EaseKind 序列化/反序列化的 Serde 模块。
+///
+/// 此模块为 bevy_tween 的 EaseKind 提供自定义序列化支持，
+/// 允许在 RON 配置文件中使用可读的名称。
+/// Default easing function for tweens (Linear).
+///
+/// 补间动画的默认缓动函数（线性）。
+fn default_easing() -> EaseKind {
+    EaseKind::Linear
+}
+
+mod ease_kind_serde {
+    use bevy_tween::interpolation::EaseKind;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    /// String representation for RON serialization.
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    enum EaseKindRepr {
+        Linear,
+        QuadIn,
+        QuadOut,
+        QuadInOut,
+        CubicIn,
+        CubicOut,
+        CubicInOut,
+        SineIn,
+        SineOut,
+        SineInOut,
+        ExpoIn,
+        ExpoOut,
+        ExpoInOut,
+        ElasticIn,
+        ElasticOut,
+        ElasticInOut,
+        BounceIn,
+        BounceOut,
+        BounceInOut,
+        BackIn,
+        BackOut,
+        BackInOut,
+    }
+
+    impl From<EaseKindRepr> for EaseKind {
+        fn from(repr: EaseKindRepr) -> Self {
+            match repr {
+                EaseKindRepr::Linear => EaseKind::Linear,
+                EaseKindRepr::QuadIn => EaseKind::QuadraticIn,
+                EaseKindRepr::QuadOut => EaseKind::QuadraticOut,
+                EaseKindRepr::QuadInOut => EaseKind::QuadraticInOut,
+                EaseKindRepr::CubicIn => EaseKind::CubicIn,
+                EaseKindRepr::CubicOut => EaseKind::CubicOut,
+                EaseKindRepr::CubicInOut => EaseKind::CubicInOut,
+                EaseKindRepr::SineIn => EaseKind::SineIn,
+                EaseKindRepr::SineOut => EaseKind::SineOut,
+                EaseKindRepr::SineInOut => EaseKind::SineInOut,
+                EaseKindRepr::ExpoIn => EaseKind::ExponentialIn,
+                EaseKindRepr::ExpoOut => EaseKind::ExponentialOut,
+                EaseKindRepr::ExpoInOut => EaseKind::ExponentialInOut,
+                EaseKindRepr::ElasticIn => EaseKind::ElasticIn,
+                EaseKindRepr::ElasticOut => EaseKind::ElasticOut,
+                EaseKindRepr::ElasticInOut => EaseKind::ElasticInOut,
+                EaseKindRepr::BounceIn => EaseKind::BounceIn,
+                EaseKindRepr::BounceOut => EaseKind::BounceOut,
+                EaseKindRepr::BounceInOut => EaseKind::BounceInOut,
+                EaseKindRepr::BackIn => EaseKind::BackIn,
+                EaseKindRepr::BackOut => EaseKind::BackOut,
+                EaseKindRepr::BackInOut => EaseKind::BackInOut,
+            }
+        }
+    }
+
+    impl From<EaseKind> for EaseKindRepr {
+        fn from(kind: EaseKind) -> Self {
+            match kind {
+                EaseKind::Linear => EaseKindRepr::Linear,
+                EaseKind::QuadraticIn => EaseKindRepr::QuadIn,
+                EaseKind::QuadraticOut => EaseKindRepr::QuadOut,
+                EaseKind::QuadraticInOut => EaseKindRepr::QuadInOut,
+                EaseKind::CubicIn => EaseKindRepr::CubicIn,
+                EaseKind::CubicOut => EaseKindRepr::CubicOut,
+                EaseKind::CubicInOut => EaseKindRepr::CubicInOut,
+                EaseKind::SineIn => EaseKindRepr::SineIn,
+                EaseKind::SineOut => EaseKindRepr::SineOut,
+                EaseKind::SineInOut => EaseKindRepr::SineInOut,
+                EaseKind::ExponentialIn => EaseKindRepr::ExpoIn,
+                EaseKind::ExponentialOut => EaseKindRepr::ExpoOut,
+                EaseKind::ExponentialInOut => EaseKindRepr::ExpoInOut,
+                EaseKind::ElasticIn => EaseKindRepr::ElasticIn,
+                EaseKind::ElasticOut => EaseKindRepr::ElasticOut,
+                EaseKind::ElasticInOut => EaseKindRepr::ElasticInOut,
+                EaseKind::BounceIn => EaseKindRepr::BounceIn,
+                EaseKind::BounceOut => EaseKindRepr::BounceOut,
+                EaseKind::BounceInOut => EaseKindRepr::BounceInOut,
+                EaseKind::BackIn => EaseKindRepr::BackIn,
+                EaseKind::BackOut => EaseKindRepr::BackOut,
+                EaseKind::BackInOut => EaseKindRepr::BackInOut,
+                // Map other variants to Linear as fallback
+                _ => EaseKindRepr::Linear,
+            }
+        }
+    }
+
+    pub fn serialize<S>(kind: &EaseKind, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let repr: EaseKindRepr = (*kind).into();
+        repr.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<EaseKind, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let repr = EaseKindRepr::deserialize(deserializer)?;
+        Ok(repr.into())
+    }
 }
 
 /// Tween target property to animate.
@@ -536,10 +595,10 @@ pub enum TweenTarget {
         from: Option<ColorTuple>,
         to: ColorTuple,
     },
-    /// Animate UIBox size (width, height).
+    /// Animate ViewBox size (width, height).
     /// Syntax: `BoxSize(to: (w, h))` or `BoxSize(from: (w1, h1), to: (w2, h2))`
     ///
-    /// 动画 UIBox 尺寸 (宽度, 高度)。
+    /// 动画 ViewBox 尺寸 (宽度, 高度)。
     BoxSize {
         #[serde(default)]
         from: Option<Vec2Tuple>,

@@ -5,7 +5,7 @@
     initial_facing: Down,
     initial_state: "Walk",
     run: Some((
-        action: Cancel,
+        action: "Cancel",
         speed_multiplier: 2.0,
     )),
     // Player invincibility configuration

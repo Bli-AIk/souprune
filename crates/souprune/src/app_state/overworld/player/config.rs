@@ -13,7 +13,6 @@
 use crate::config;
 use crate::core::basic_components::Direction;
 use crate::core::character_asset::{AnimationConfigAsset, CharacterAsset};
-use crate::core::input::Action;
 use anyhow::{Context, Result, anyhow};
 use bevy::math::Vec2;
 use bevy::prelude::Resource;
@@ -34,7 +33,8 @@ pub struct PlayerBehavior {
     pub collider_offset: Vec2,
     pub base_speed: f32,
     pub animation_config_path: String,
-    pub run_action: Option<Action>,
+    /// Run action name (for looking up via ActionRegistry)
+    pub run_action: Option<String>,
     pub run_speed_multiplier: f32,
     /// Player invincibility configuration
     pub invincibility: InvincibilityConfig,
@@ -167,7 +167,8 @@ impl PlayerBehaviorFile {
 
 #[derive(Debug, Clone, Deserialize)]
 struct RunConfig {
-    action: Action,
+    /// Action name as a string (e.g., "Cancel" for shift key)
+    action: String,
     #[serde(default = "default_run_speed_multiplier")]
     speed_multiplier: f32,
 }

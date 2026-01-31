@@ -13,4 +13,5 @@ description = "An example mod for SoupRune with Alight Motion integration."
 
 [game]
 initial_battle_path = "battle/chapters/demo.battle.ron"
+input_config_path = "config/input.ron"
 required_modules = ["common", "battle"]

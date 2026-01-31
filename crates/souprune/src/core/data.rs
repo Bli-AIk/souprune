@@ -15,11 +15,11 @@
 //! ## 源文件概述
 //!
 //! It defines `DataPlugin`, which initializes and manages those data-related configurations.
-//! The plugin now uses an ECS-based approach with fine-grained components while maintaining
-//! backward compatibility through the legacy `PlayerData` resource.
+//! The plugin uses an ECS-based approach with fine-grained components and also maintains
+//! a `PlayerData` resource for convenient global access.
 //!
 //! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
-//! 该插件现在采用基于 ECS 的方式使用细粒度组件，同时通过遗留的 `PlayerData` 资源保持向后兼容。
+//! 该插件采用基于 ECS 的方式使用细粒度组件，同时维护一个 `PlayerData` 资源以便全局访问。
 
 use crate::core::item::ItemId;
 use crate::core::player_components::{
@@ -100,11 +100,9 @@ type PlayerComponentsQuery<'w, 's> = Query<
     With<MainPlayer>,
 >;
 
-/// System to sync player entity components back to the legacy PlayerData resource.
-/// This maintains backward compatibility with existing systems that read PlayerData.
+/// System to sync player entity components to the PlayerData resource.
 ///
-/// 将玩家实体组件同步回遗留 PlayerData 资源的系统。
-/// 这保持了与读取 PlayerData 的现有系统的向后兼容性。
+/// 将玩家实体组件同步到 PlayerData 资源的系统。
 fn sync_player_entity_to_resource_system(
     query: PlayerComponentsQuery,
     mut player_data: ResMut<PlayerData>,
@@ -130,15 +128,13 @@ fn sync_player_entity_to_resource_system(
 
 /// Resource to store basic player data, such as health, attack, defense, etc.
 ///
-/// **DEPRECATED**: This resource is maintained for backward compatibility.
-/// New code should query the player entity components directly:
-/// `Query<(&Health, &Stats, ...), With<Player>>`
-///
 /// 保存玩家基本数据的资源，例如血量、攻击、防御等。
 ///
-/// **已弃用**：此资源为向后兼容而保留。
-/// 新代码应直接查询玩家实体组件：
-/// `Query<(&Health, &Stats, ...), With<Player>>`
+/// This resource provides convenient global access to player data.
+/// For direct ECS queries, use `Query<(&Health, &Stats, ...), With<MainPlayer>>` instead.
+///
+/// 此资源提供对玩家数据的便捷全局访问。
+/// 如需直接 ECS 查询，请使用 `Query<(&Health, &Stats, ...), With<MainPlayer>>`。
 #[derive(Resource)]
 pub(crate) struct PlayerData {
     pub(crate) name: String,

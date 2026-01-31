@@ -20,13 +20,14 @@
 //! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
-use super::components::{RonUI, UIBox, UIBoxFiller, UIBoxVisibility, UITextTemplate};
+use super::components::{
+    InteractiveLayer, ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewLayer, ViewTextTemplate,
+};
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
 use super::text::NeedsGlyphRefresh;
 use crate::app_state::overworld::OverworldState;
-use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
@@ -123,16 +124,16 @@ pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
     Text3d { segments }
 }
 
-type UIBoxQuery<'w, 's> = Query<
+type ViewBoxQuery<'w, 's> = Query<
     'w,
     's,
     (
         Entity,
-        &'static UIBox,
+        &'static ViewBox,
         &'static Transform,
         Option<&'static Children>,
     ),
-    Or<(Added<UIBox>, Changed<UIBox>, Changed<Transform>)>,
+    Or<(Added<ViewBox>, Changed<ViewBox>, Changed<Transform>)>,
 >;
 
 /// Create SDF shape child entities for each UI box.
@@ -143,7 +144,7 @@ type UIBoxQuery<'w, 's> = Query<
 fn spawn_ui_box_children(
     commands: &mut Commands,
     entity: Entity,
-    ui_box: &UIBox,
+    ui_box: &ViewBox,
     meshes: &mut ResMut<Assets<Mesh>>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
@@ -191,8 +192,8 @@ fn spawn_ui_box_children(
                     Visibility::default(),
                     InheritedVisibility::default(),
                     ViewVisibility::default(),
-                    Name::new("UIBoxFiller"),
-                    UIBoxFiller,
+                    Name::new("ViewBoxFiller"),
+                    ViewBoxFiller,
                 ))
                 .id();
             filler_entity = Some(filler);
@@ -212,7 +213,7 @@ fn spawn_ui_box_children(
 fn spawn_structure_from_file(
     commands: &mut Commands,
     entity: Entity,
-    ui_box: &UIBox,
+    ui_box: &ViewBox,
     structure_file: &str,
     meshes: &mut ResMut<Assets<Mesh>>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
@@ -298,7 +299,7 @@ fn spawn_layer_recursive(
     commands: &mut Commands,
     parent: Entity,
     layer_def: &SdfLayerDef,
-    ui_box: &UIBox,
+    ui_box: &ViewBox,
     meshes: &mut ResMut<Assets<Mesh>>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
 ) -> Option<Entity> {
@@ -347,10 +348,10 @@ fn spawn_layer_recursive(
             Name::new(layer_def.name.clone()),
         ));
 
-        // Add UIBoxFiller marker if this is the filler layer
-        // 如果这是 filler 层，添加 UIBoxFiller 标记
+        // Add ViewBoxFiller marker if this is the filler layer
+        // 如果这是 filler 层，添加 ViewBoxFiller 标记
         if layer_def.is_filler {
-            entity_cmd.insert(UIBoxFiller);
+            entity_cmd.insert(ViewBoxFiller);
         }
 
         spawned_entity = Some(entity_cmd.id());
@@ -386,7 +387,7 @@ fn spawn_layer_recursive(
 fn spawn_single_layer_fallback(
     commands: &mut Commands,
     entity: Entity,
-    ui_box: &UIBox,
+    ui_box: &ViewBox,
     meshes: &mut ResMut<Assets<Mesh>>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
@@ -410,8 +411,8 @@ fn spawn_single_layer_fallback(
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
-                Name::new("UIBoxFiller"),
-                UIBoxFiller,
+                Name::new("ViewBoxFiller"),
+                ViewBoxFiller,
             ))
             .id();
         filler_entity = Some(filler);
@@ -428,7 +429,7 @@ fn spawn_single_layer_fallback(
 fn spawn_texts_for_filler(
     commands: &mut Commands,
     filler_entity: Entity,
-    ui_box: &UIBox,
+    ui_box: &ViewBox,
     color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     if ui_box.texts.is_empty() {
@@ -476,7 +477,7 @@ fn spawn_texts_for_filler(
                 ));
 
                 if let Some(template) = &text_config.template {
-                    cmd.insert(UITextTemplate(template.clone()));
+                    cmd.insert(ViewTextTemplate(template.clone()));
                 }
             }
         });
@@ -490,7 +491,7 @@ pub(crate) fn update_sdf_view_shape_system(
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
-    ui_box_query: UIBoxQuery,
+    ui_box_query: ViewBoxQuery,
     mut sdf_shape_query: Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &Mesh2d)>,
     children_query: Query<&Children>,
 ) {
@@ -499,8 +500,8 @@ pub(crate) fn update_sdf_view_shape_system(
         let box_height = ui_box.height();
         let border_width = ui_box.border_width();
 
-        info!(
-            "[update_sdf_view_shape_system] UIBox changed: entity={:?}, width={}, height={}",
+        debug!(
+            "[update_sdf_view_shape_system] ViewBox changed: entity={:?}, width={}, height={}",
             entity, box_width, box_height
         );
 
@@ -618,15 +619,15 @@ pub(crate) fn update_sdf_view_shape_system(
     }
 }
 
-/// Toggle UI box visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
+/// Toggle UI box visibility according to the active [`ViewLayer`] (supports both Overworld Backpack and Battle states).
 ///
-/// 根据当前激活的 [`UILayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
+/// 根据当前激活的 [`ViewLayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
 pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    ui_query: Query<&RonUI>,
-    parent_query: Query<&ChildOf>,
-    mut box_query: Query<(Entity, &UIBoxVisibility, &mut Visibility), With<UIBox>>,
+    interactive_layer_query: Query<&InteractiveLayer>,
+    _parent_query: Query<&ChildOf>,
+    mut box_query: Query<(Entity, &ViewBoxVisibility, &mut Visibility), With<ViewBox>>,
 ) {
     // Check if we should process UI visibility (Battle or Overworld Backpack)
     // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
@@ -638,7 +639,10 @@ pub(crate) fn update_ui_box_visibility_system(
 
     let should_process_ui = is_battle || is_backpack;
 
-    for (entity, layer_visibility, mut visibility) in box_query.iter_mut() {
+    // Find active InteractiveLayer for Backpack state
+    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
+
+    for (_entity, layer_visibility, mut visibility) in box_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
@@ -646,8 +650,8 @@ pub(crate) fn update_ui_box_visibility_system(
             continue;
         }
 
-        // For Battle state, use visibility rule directly without requiring RonUI parent
-        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        // For Battle state, use visibility rule directly without requiring InteractiveLayer
+        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
         if is_battle {
             // In Battle mode, check if the visibility rule allows showing
             // (typically Always or specific battle layers)
@@ -655,9 +659,9 @@ pub(crate) fn update_ui_box_visibility_system(
             // （通常是 Always 或特定的战斗层）
             let should_show = matches!(
                 layer_visibility.rule(),
-                super::components::UILayerVisibilityRule::Always
+                super::components::ViewLayerVisibilityRule::Always
             ) || layer_visibility
-                .is_visible_for(&super::components::UILayer::new("Battle"));
+                .is_visible_for(&super::components::ViewLayer::new("Battle"));
 
             if should_show {
                 if *visibility != Visibility::Inherited {
@@ -669,23 +673,17 @@ pub(crate) fn update_ui_box_visibility_system(
             continue;
         }
 
-        // For Backpack state, use the original layer-based visibility logic
-        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
-        let Ok(parent) = parent_query.get(entity) else {
+        // For Backpack state, use InteractiveLayer for visibility
+        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
+        let Some(layer) = active_layer else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
             continue;
         };
 
-        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let should_show = layer_visibility.is_visible_for(overworld_ui.layer());
+        let ui_layer = ViewLayer::new(layer.layer_id.clone());
+        let should_show = layer_visibility.is_visible_for(&ui_layer);
         if should_show {
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;
@@ -696,23 +694,23 @@ pub(crate) fn update_ui_box_visibility_system(
     }
 }
 
-/// Toggle UI container visibility according to the active [`UILayer`] (supports both Overworld Backpack and Battle states).
-/// This system handles pure container nodes that don't have a UIBox but need visibility control.
+/// Toggle UI container visibility according to the active [`ViewLayer`] (supports both Overworld Backpack and Battle states).
+/// This system handles pure container nodes that don't have a ViewBox but need visibility control.
 ///
-/// 根据当前激活的 [`UILayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
-/// 此系统处理没有 UIBox 但需要可见性控制的纯容器节点。
+/// 根据当前激活的 [`ViewLayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
+/// 此系统处理没有 ViewBox 但需要可见性控制的纯容器节点。
 pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    ui_query: Query<&RonUI>,
-    parent_query: Query<&ChildOf>,
+    interactive_layer_query: Query<&InteractiveLayer>,
+    _parent_query: Query<&ChildOf>,
     mut container_query: Query<
         (
             Entity,
-            &super::components::UIContainerVisibility,
+            &super::components::ViewContainerVisibility,
             &mut Visibility,
         ),
-        With<super::components::UIContainer>,
+        With<super::components::ViewContainer>,
     >,
 ) {
     // Check if we should process UI visibility (Battle or Overworld Backpack)
@@ -725,7 +723,10 @@ pub(crate) fn update_ui_container_visibility_system(
 
     let should_process_ui = is_battle || is_backpack;
 
-    for (entity, container_visibility, mut visibility) in container_query.iter_mut() {
+    // Find active InteractiveLayer for Backpack state
+    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
+
+    for (_entity, container_visibility, mut visibility) in container_query.iter_mut() {
         if !should_process_ui {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
@@ -733,14 +734,14 @@ pub(crate) fn update_ui_container_visibility_system(
             continue;
         }
 
-        // For Battle state, use visibility rule directly without requiring RonUI parent
-        // 对于 Battle 状态，直接使用可见性规则，不需要 RonUI 父节点
+        // For Battle state, use visibility rule directly without requiring InteractiveLayer
+        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
         if is_battle {
             let should_show = matches!(
                 container_visibility.rule(),
-                super::components::UILayerVisibilityRule::Always
+                super::components::ViewLayerVisibilityRule::Always
             ) || container_visibility
-                .is_visible_for(&super::components::UILayer::new("Battle"));
+                .is_visible_for(&super::components::ViewLayer::new("Battle"));
 
             if should_show {
                 if *visibility != Visibility::Inherited {
@@ -752,23 +753,17 @@ pub(crate) fn update_ui_container_visibility_system(
             continue;
         }
 
-        // For Backpack state, use the original layer-based visibility logic
-        // 对于 Backpack 状态，使用原始的基于层的可见性逻辑
-        let Ok(parent) = parent_query.get(entity) else {
+        // For Backpack state, use InteractiveLayer for visibility
+        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
+        let Some(layer) = active_layer else {
             if *visibility != Visibility::Hidden {
                 *visibility = Visibility::Hidden;
             }
             continue;
         };
 
-        let Ok(overworld_ui) = ui_query.get(parent.get()) else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let should_show = container_visibility.is_visible_for(overworld_ui.layer());
+        let ui_layer = ViewLayer::new(layer.layer_id.clone());
+        let should_show = container_visibility.is_visible_for(&ui_layer);
         if should_show {
             if *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;

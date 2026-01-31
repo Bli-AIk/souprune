@@ -8,46 +8,32 @@ use std::fmt;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
+/// Represents a UI layer identified by its name.
+/// Layers are data-driven and defined in `.view_layout.ron` files.
+///
+/// 表示由名称标识的 UI 层。
+/// 层是数据驱动的，在 `.view_layout.ron` 文件中定义。
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub struct UILayer(Cow<'static, str>);
+pub struct ViewLayer(Cow<'static, str>);
 
-impl UILayer {
-    pub const BACKPACK_MENU: UILayer = UILayer::new_static("BackpackMenu");
-    pub const BACKPACK_ITEM: UILayer = UILayer::new_static("BackpackItem");
-    pub const BACKPACK_ITEM_CHOOSES: UILayer = UILayer::new_static("BackpackItemOptions");
-    pub const BACKPACK_STATUS: UILayer = UILayer::new_static("BackpackStatus");
-
-    /// Defined options for the backpack menu, determining order and count.
+impl ViewLayer {
+    /// Dynamically construct a layer from a name.
     ///
-    /// 背包菜单的定义选项，决定顺序和数量。
-    pub const BACKPACK_MENU_OPTIONS: &'static [UILayer] =
-        &[Self::BACKPACK_ITEM, Self::BACKPACK_STATUS];
-
-    /// Const constructor for static constants
-    ///
-    /// Const 构造函数，用于静态常量初始化
-    const fn new_static(name: &'static str) -> UILayer {
-        UILayer(Cow::Borrowed(name))
+    /// 从名称动态构造层。
+    pub fn new(name: impl Into<Cow<'static, str>>) -> ViewLayer {
+        ViewLayer(name.into())
     }
 
-    /// Dynamically construct a layer (flexible for mods or expansions)
+    /// Get the layer name.
     ///
-    /// 动态构造层（灵活扩展）
-    pub fn new(name: impl Into<Cow<'static, str>>) -> UILayer {
-        UILayer(name.into())
-    }
-
-    /// Get the layer name
-    ///
-    /// 获取层名称
-    #[allow(dead_code)]
+    /// 获取层名称。
     pub fn name(&self) -> &str {
         &self.0
     }
 }
 
-impl fmt::Display for UILayer {
+impl fmt::Display for ViewLayer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }

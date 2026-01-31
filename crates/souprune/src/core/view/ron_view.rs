@@ -6,11 +6,8 @@ pub mod spawn;
 pub mod update;
 
 // Re-export common types and systems
-// New names
-// Backwards compatibility aliases
-pub use resources::{RonDrivenUI, UIGlobalTriggerConfig, UILayoutHandle, UILayoutWatcher};
+pub use resources::{RonDrivenView, ViewGlobalTriggerConfig, ViewLayoutHandle, ViewLayoutWatcher};
 
-pub use parsing::*;
 pub use reload::*;
 pub use setup::*;
 pub use spawn::*;

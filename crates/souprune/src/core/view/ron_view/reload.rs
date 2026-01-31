@@ -3,8 +3,9 @@ use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
-use super::super::components::RonUI;
+use super::super::components::InteractiveLayer;
 use super::super::layout::ViewLayoutAsset;
+use super::super::lifecycle::BackpackViewRoot;
 use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
 
@@ -47,11 +48,6 @@ pub fn update_view_from_map_system(
     }
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use update_view_from_map_system as update_ui_from_map_system;
-
 /// Watch for view layout asset changes for hot reload.
 ///
 /// 监视视图布局资源变化以支持热重载。
@@ -81,11 +77,6 @@ pub fn watch_view_layout_changes_system(
     }
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use watch_view_layout_changes_system as watch_ui_layout_changes_system;
-
 /// Rebuild view layout when hot reload is triggered.
 ///
 /// 热重载触发时重建视图布局。
@@ -97,7 +88,8 @@ pub fn rebuild_reloaded_view_system(
     mut watcher: Option<ResMut<ViewLayoutWatcher>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    overworld_view_query: Query<(Entity, &RonUI), Without<RonDrivenView>>,
+    backpack_root_query: Query<Entity, With<BackpackViewRoot>>,
+    interactive_layer_query: Query<Entity, With<InteractiveLayer>>,
     camera_query: Query<&Transform, With<Camera2d>>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -121,7 +113,8 @@ pub fn rebuild_reloaded_view_system(
         return;
     };
 
-    let has_target = overworld_view_query.iter().any(|_| true);
+    // Check if we have a backpack root or interactive layers as our target
+    let has_target = !backpack_root_query.is_empty() || !interactive_layer_query.is_empty();
 
     if !has_target {
         debug!("RON view hot reload pending - no view entity active, will retry rebuild");
@@ -151,7 +144,9 @@ pub fn rebuild_reloaded_view_system(
     }
 
     let mut rebuilt_count = 0;
-    for (view_entity, _ron_ui) in overworld_view_query.iter() {
+
+    // Find backpack root to use as parent for the rebuilt view
+    if let Ok(view_entity) = backpack_root_query.single() {
         super::spawn::spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
@@ -174,11 +169,6 @@ pub fn rebuild_reloaded_view_system(
         rebuilt_count
     );
 }
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub use rebuild_reloaded_view_system as rebuild_reloaded_ui_system;
 
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
     // Schedule recursive despawn to avoid borrowing the world inside the system.

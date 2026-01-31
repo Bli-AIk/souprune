@@ -10,7 +10,6 @@
 //! 战斗特定的弹幕配置。
 //! 此模块为战斗状态配置核心弹幕系统。
 
-// Re-export core danmaku types for backwards compatibility
 pub use crate::core::danmaku::*;
 
 use crate::app_state::AppState;
