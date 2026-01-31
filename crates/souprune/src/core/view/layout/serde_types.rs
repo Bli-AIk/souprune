@@ -252,24 +252,24 @@ pub struct SerializableTransform {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub enum UIFontDef {
+pub enum ViewFontDef {
     DeterminationMono,
     DeterminationSans,
     Hud,
     BattleHud,
 }
 
-impl From<UIFontDef> for crate::core::view::components::UIFont {
-    fn from(val: UIFontDef) -> Self {
+impl From<ViewFontDef> for crate::core::view::components::ViewFont {
+    fn from(val: ViewFontDef) -> Self {
         match val {
-            UIFontDef::DeterminationMono => {
-                crate::core::view::components::UIFont::DeterminationMono
+            ViewFontDef::DeterminationMono => {
+                crate::core::view::components::ViewFont::DeterminationMono
             }
-            UIFontDef::DeterminationSans => {
-                crate::core::view::components::UIFont::DeterminationSans
+            ViewFontDef::DeterminationSans => {
+                crate::core::view::components::ViewFont::DeterminationSans
             }
-            UIFontDef::Hud => crate::core::view::components::UIFont::Hud,
-            UIFontDef::BattleHud => crate::core::view::components::UIFont::BattleHud,
+            ViewFontDef::Hud => crate::core::view::components::ViewFont::Hud,
+            ViewFontDef::BattleHud => crate::core::view::components::ViewFont::BattleHud,
         }
     }
 }

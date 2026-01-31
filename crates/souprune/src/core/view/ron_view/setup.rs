@@ -4,12 +4,13 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::super::components::{
-    HPBarLag, HPBarSprite, IndexBound, LayerTransitions, UIAnimationState, UILayer,
-    UILayerNavigationConfig, UILayerNavigationRule, UILayerTransitionConfig,
+    HPBarLag, HPBarSprite, IndexBound, LayerTransitions, ViewAnimationState, ViewLayer,
+    ViewLayerNavigationConfig, ViewLayerNavigationRule, ViewLayerTransitionConfig,
 };
 use super::super::layout::{IndexBoundDef, TransitionActionDef, ViewLayoutAsset};
-use super::parsing::{parse_action, parse_overworld_state};
+use super::parsing::parse_overworld_state;
 use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
+use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
 
 /// Load navigation and transition configuration from view layout.
@@ -18,9 +19,10 @@ use crate::core::sprite::params::SpriteParams;
 pub fn load_navigation_and_transitions_system(
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
-    mut navigation_config: ResMut<UILayerNavigationConfig>,
-    mut transition_config: ResMut<UILayerTransitionConfig>,
+    mut navigation_config: ResMut<ViewLayerNavigationConfig>,
+    mut transition_config: ResMut<ViewLayerTransitionConfig>,
     mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
+    action_registry: Res<ActionRegistry>,
     mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
 ) {
@@ -52,7 +54,7 @@ pub fn load_navigation_and_transitions_system(
 
     if let Some(global_triggers) = &view_layout.global_triggers {
         for (action_str, rules_def) in global_triggers {
-            if let Some(action) = parse_action(action_str) {
+            if let Some(action) = action_registry.get(action_str) {
                 let mut rules = Vec::new();
 
                 for rule_def in rules_def {
@@ -100,7 +102,7 @@ pub fn load_navigation_and_transitions_system(
             let mut adjustments = HashMap::new();
 
             for (action_str, delta) in &nav_rule_def.mappings {
-                if let Some(action) = parse_action(action_str) {
+                if let Some(action) = action_registry.get(action_str) {
                     adjustments.insert(action, *delta);
                 }
             }
@@ -121,8 +123,8 @@ pub fn load_navigation_and_transitions_system(
                     IndexBoundDef::Dynamic(expr) => IndexBound::Dynamic(expr.clone()),
                 });
 
-            let layer = UILayer::new(layer_name.clone());
-            let rule = UILayerNavigationRule::new_with_bounds(
+            let layer = ViewLayer::new(layer_name.clone());
+            let rule = ViewLayerNavigationRule::new_with_bounds(
                 adjustments.into_iter(),
                 nav_rule_def.looping,
                 min_index,
@@ -151,7 +153,7 @@ pub fn load_navigation_and_transitions_system(
                                 condition: rule_def.condition.clone(),
                                 action: match &rule_def.action {
                                     TransitionActionDef::GotoLayer(layer) => {
-                                        TransitionAction::GotoLayer(UILayer::new(layer.clone()))
+                                        TransitionAction::GotoLayer(ViewLayer::new(layer.clone()))
                                     }
                                     TransitionActionDef::PopState => TransitionAction::PopState,
                                     TransitionActionDef::PushState(state) => {
@@ -168,7 +170,7 @@ pub fn load_navigation_and_transitions_system(
                 use super::super::components::TransitionAction;
                 match action_def {
                     TransitionActionDef::GotoLayer(layer) => {
-                        TransitionAction::GotoLayer(UILayer::new(layer.clone()))
+                        TransitionAction::GotoLayer(ViewLayer::new(layer.clone()))
                     }
                     TransitionActionDef::PopState => TransitionAction::PopState,
                     TransitionActionDef::PushState(state) => {
@@ -177,7 +179,7 @@ pub fn load_navigation_and_transitions_system(
                 }
             });
 
-            let layer = UILayer::new(layer_name.clone());
+            let layer = ViewLayer::new(layer_name.clone());
             transition_config.set_transitions(
                 layer,
                 LayerTransitions {
@@ -201,7 +203,7 @@ pub fn ui_animation_init_system(
         (
             Entity,
             &crate::core::character_asset::CharacterAnimator,
-            &UIAnimationState,
+            &ViewAnimationState,
         ),
         Without<Sprite>,
     >,

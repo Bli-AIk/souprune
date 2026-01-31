@@ -1,4 +1,4 @@
-use super::super::components::{DynamicUIElement, HPBarLag, HPBarSprite, UITextTemplate};
+use super::super::components::{DynamicViewElement, HPBarLag, HPBarSprite, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{evaluate_float_expr, resolve_text_content};
@@ -62,7 +62,11 @@ pub fn update_hp_bar_shader_params(
 pub fn update_dynamic_ui_elements(
     time: Res<Time>,
     player_data: Res<PlayerData>,
-    mut query: Query<(&DynamicUIElement, &mut Transform, Option<&mut HPBarSprite>)>,
+    mut query: Query<(
+        &DynamicViewElement,
+        &mut Transform,
+        Option<&mut HPBarSprite>,
+    )>,
     mut frame_count: Local<usize>,
 ) {
     *frame_count += 1;
@@ -184,7 +188,7 @@ pub fn update_dynamic_ui_elements(
 
 pub fn update_dynamic_text_system(
     mut commands: Commands,
-    mut text_query: Query<(Entity, &UITextTemplate, &mut Text3d, &Name)>,
+    mut text_query: Query<(Entity, &ViewTextTemplate, &mut Text3d, &Name)>,
     player_data: Res<PlayerData>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,

@@ -19,7 +19,7 @@ pub struct HPBarSprite {
 /// 标记需要根据玩家数据动态更新的UI元素的组件。
 /// 存储原始定义以便重新求值。
 #[derive(Component, Clone)]
-pub struct DynamicUIElement {
+pub struct DynamicViewElement {
     pub sprite_def: Option<crate::core::view::layout::SpriteDef>,
     pub text_def: Option<crate::core::view::layout::TextDef>,
 }

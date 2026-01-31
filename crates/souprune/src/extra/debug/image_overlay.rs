@@ -158,10 +158,12 @@ pub mod debug_image_overlay {
     ///
     /// 查找 debug 文件夹中最近修改的图像。
     fn find_latest_debug_image() -> Option<String> {
-        // Check multiple potential debug folder locations.
+        // Use project-relative debug folder paths.
         //
-        // 检查多个可能的 debug 文件夹位置。
-        let possible_paths = ["crates/souprune/assets/debug", "assets/debug"];
+        // 使用项目相对的 debug 文件夹路径。
+        let config = crate::config::load_config();
+        let project_debug_path = format!("projects/{}/assets/debug", config.project.mod_name);
+        let possible_paths = [project_debug_path.as_str(), "assets/debug"];
         let extensions = ["png", "jpg", "jpeg", "gif", "bmp", "tiff"];
 
         let mut latest_file: Option<(String, SystemTime)> = None;

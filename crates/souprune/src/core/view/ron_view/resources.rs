@@ -15,18 +15,8 @@ pub struct ViewLayoutHandle {
     pub path: String,
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub type UILayoutHandle = ViewLayoutHandle;
-
 #[derive(Component)]
 pub struct RonDrivenView;
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub type RonDrivenUI = RonDrivenView;
 
 #[derive(Resource, Default)]
 pub struct ViewLayoutWatcher {
@@ -43,20 +33,10 @@ impl ViewLayoutWatcher {
     }
 }
 
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub type UILayoutWatcher = ViewLayoutWatcher;
-
 #[derive(Resource, Default)]
 pub struct ViewGlobalTriggerConfig {
     pub triggers: HashMap<Action, Vec<GlobalTriggerRule>>,
 }
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub type UIGlobalTriggerConfig = ViewGlobalTriggerConfig;
 
 #[derive(Clone)]
 pub struct GlobalTriggerRule {
@@ -67,8 +47,3 @@ pub struct GlobalTriggerRule {
 
 #[derive(Component)]
 pub struct ViewGenerated;
-
-/// Backwards compatibility alias
-///
-/// 向后兼容别名
-pub type UIGenerated = ViewGenerated;

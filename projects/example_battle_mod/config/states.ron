@@ -1,0 +1,17 @@
+#![enable(implicit_some)]
+
+// State configuration for battle-only mod.
+// 战斗专用 mod 的状态配置。
+
+StateConfig(
+    states: {
+        // Battle state - main gameplay state
+        // 战斗状态 - 主游戏状态
+        "Battle": (
+            ui_interactive: true,
+            player_movable: false,
+            view_layout: "battle/view/undertale.view_layout.ron",
+            initial_layer: None,
+        ),
+    },
+)

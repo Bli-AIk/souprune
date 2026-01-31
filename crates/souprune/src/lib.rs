@@ -27,13 +27,10 @@ pub use crate::core::save::{
     SaveMetadata, SaveSlot, Saveable,
 };
 pub use crate::core::view::layout::{
-    BoxCursorPositionDef, FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, UIBoxLogicDef, ViewLayoutAsset,
+    FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef, ReactivePositionDef,
+    SerializableVec3, TransitionActionDef, TransitionRuleDef, ViewBoxLogicDef, ViewLayoutAsset,
     ViewNodeDef,
 };
-// Backwards compatibility aliases
-pub use ViewLayoutAsset as UILayoutAsset;
-pub use ViewNodeDef as UINodeDef;
 
 use std::default::Default;
 
@@ -44,7 +41,9 @@ use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSource, AssetSourceId};
 use bevy::prelude::*;
+#[cfg(feature = "unsafe_gpu")]
 use bevy::render::RenderPlugin;
+#[cfg(feature = "unsafe_gpu")]
 use bevy::render::settings::{InstanceFlags, RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
@@ -128,6 +127,7 @@ fn get_bevy_default_plugins(
     let base_width = render_config.base_resolution_width;
     let base_height = render_config.base_resolution_height;
 
+    #[allow(unused_mut)]
     let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
         .set(WindowPlugin {
@@ -248,6 +248,18 @@ pub fn run() {
     // Config
     let render_config = config.render.clone();
 
+    // Load input configuration from RON file
+    // 从 RON 文件加载输入配置
+    let input_config_path = format!(
+        "projects/{}/{}",
+        config.project.mod_name, config.game.input_config_path
+    );
+    let input_config = input::InputConfig::load_from_file(&input_config_path);
+    let action_registry = input_config.build_registry();
+    let player_input_settings =
+        input::PlayerInputSettings::from_config(&input_config, &action_registry);
+    let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
+
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
@@ -305,16 +317,18 @@ pub fn run() {
             #[cfg(feature = "debug")]
             bevy_brp_extras::BrpExtrasPlugin,
         ))
-        .insert_resource(config)
+        .insert_resource(config.clone())
         .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec!["crates/souprune/assets/fonts".to_owned()],
+            font_directories: vec![format!("projects/{}/assets/fonts", config.project.mod_name)],
             ..Default::default()
         })
-        .init_resource::<input::PlayerInputSettings>()
+        .insert_resource(action_registry)
+        .insert_resource(player_input_settings)
+        .insert_resource(input_behavior_config)
         .init_state::<app_state::AppState>()
         .configure_sets(
             Update,
-            view::UIUpdate.run_if(
+            view::ViewUpdate.run_if(
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )

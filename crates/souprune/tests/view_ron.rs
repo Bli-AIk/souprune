@@ -8,7 +8,10 @@ mod test_support;
 use evalexpr::{ContextWithMutableVariables, HashMapContext, Value, eval_with_context};
 use std::collections::{HashMap, HashSet};
 
-use souprune::{IndexBoundDef, SerializableVec3, TransitionActionDef, UILayoutAsset, UINodeDef};
+use souprune::{
+    IndexBoundDef, ReactivePositionDef, SerializableVec3, TransitionActionDef, ViewLayoutAsset,
+    ViewNodeDef,
+};
 
 const VIEW_DIRS: &[&str] = &["overworld/view", "battle/view"];
 const VIEW_SUFFIX: &str = ".view_layout.ron";
@@ -28,11 +31,11 @@ fn view_files() -> Vec<String> {
     files
 }
 
-fn load_view_layouts() -> HashMap<String, UILayoutAsset> {
+fn load_view_layouts() -> HashMap<String, ViewLayoutAsset> {
     view_files()
         .into_iter()
         .map(|relative| {
-            let asset: UILayoutAsset = test_support::parse_project_ron(&relative);
+            let asset: ViewLayoutAsset = test_support::parse_project_ron(&relative);
             (relative, asset)
         })
         .collect()
@@ -57,21 +60,21 @@ fn view_layouts_deserialize() {
     }
 }
 
-fn collect_node_names(nodes: &[UINodeDef], acc: &mut HashSet<String>) {
+fn collect_node_names(nodes: &[ViewNodeDef], acc: &mut HashSet<String>) {
     for node in nodes {
         acc.insert(node.name.clone());
         collect_node_names(&node.children, acc);
     }
 }
 
-fn flatten_nodes<'a>(node: &'a UINodeDef, nodes: &mut Vec<&'a UINodeDef>) {
+fn flatten_nodes<'a>(node: &'a ViewNodeDef, nodes: &mut Vec<&'a ViewNodeDef>) {
     nodes.push(node);
     for child in &node.children {
         flatten_nodes(child, nodes);
     }
 }
 
-fn all_nodes(layout: &UILayoutAsset) -> Vec<&UINodeDef> {
+fn all_nodes(layout: &ViewLayoutAsset) -> Vec<&ViewNodeDef> {
     let mut nodes = Vec::new();
     for node in &layout.roots {
         flatten_nodes(node, &mut nodes);
@@ -247,15 +250,15 @@ fn check_vec_expr(vec: &SerializableVec3) {
 fn view_layout_dynamic_expressions_evaluate() {
     for (relative, layout) in load_view_layouts() {
         for node in all_nodes(&layout) {
-            if let Some(cursor) = &node.cursor {
-                if let Some(pos) = &cursor.default_translation {
+            if let Some(indicator) = &node.reactive_indicator {
+                if let Some(pos) = &indicator.default_translation {
                     match pos {
-                        souprune::BoxCursorPositionDef::Static(vec) => check_vec_expr(vec),
-                        souprune::BoxCursorPositionDef::Linear { origin, step } => {
+                        ReactivePositionDef::Static(vec) => check_vec_expr(vec),
+                        ReactivePositionDef::Linear { origin, step } => {
                             check_vec_expr(origin);
                             check_vec_expr(step);
                         }
-                        souprune::BoxCursorPositionDef::Custom { positions } => {
+                        ReactivePositionDef::Custom { positions } => {
                             for pos in positions {
                                 check_vec_expr(pos);
                             }
