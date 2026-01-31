@@ -22,7 +22,7 @@ pub mod debug_fre_panel {
     use bevy::window::{
         PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
     };
-    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
+    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, RuleRegistry};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
     use bevy_inspector_egui::egui;
     use leafwing_input_manager::action_state::ActionState;
@@ -607,15 +607,113 @@ pub mod debug_fre_panel {
     }
 
     /// Render the Rules tab.
-    fn render_rules_tab(ui: &mut egui::Ui, _world: &mut World) {
+    fn render_rules_tab(ui: &mut egui::Ui, world: &mut World) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.label("📜 Registered Rules");
             ui.separator();
 
-            // Get all registered rules by checking if the registry has any
-            // Note: RuleRegistry doesn't expose an iterator, so we show stats
-            ui.label("Rules are managed through .rules.ron files.");
-            ui.label("Load rules via FRE asset system.");
+            let rule_registry = world.get_resource::<RuleRegistry>();
+
+            match rule_registry {
+                Some(registry) => {
+                    let rule_count = registry.iter().count();
+                    ui.label(format!("Total rules: {}", rule_count));
+                    ui.separator();
+
+                    if rule_count == 0 {
+                        ui.label("No rules registered.");
+                        ui.label("Rules are loaded from .rules.ron files.");
+                    } else {
+                        // Collect rules into a Vec for sorting
+                        let mut rules: Vec<_> = registry.iter().collect();
+                        rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+                        for rule in rules {
+                            let status_icon = if rule.enabled { "✅" } else { "❌" };
+                            let header_text = format!(
+                                "{} {} [Priority: {}]",
+                                status_icon, rule.id, rule.priority
+                            );
+
+                            egui::CollapsingHeader::new(header_text)
+                                .default_open(false)
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label("Trigger:");
+                                        ui.monospace(&rule.trigger.0);
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.label("Enabled:");
+                                        ui.label(if rule.enabled { "Yes" } else { "No" });
+                                    });
+
+                                    // Condition
+                                    egui::CollapsingHeader::new("Condition")
+                                        .default_open(false)
+                                        .show(ui, |ui| {
+                                            ui.monospace(format!("{:?}", rule.condition));
+                                        });
+
+                                    // Modifications
+                                    if !rule.modifications.is_empty() {
+                                        egui::CollapsingHeader::new(format!(
+                                            "Modifications ({})",
+                                            rule.modifications.len()
+                                        ))
+                                        .default_open(false)
+                                        .show(ui, |ui| {
+                                            for (i, modification) in
+                                                rule.modifications.iter().enumerate()
+                                            {
+                                                ui.monospace(format!(
+                                                    "{}: {:?}",
+                                                    i + 1,
+                                                    modification
+                                                ));
+                                            }
+                                        });
+                                    }
+
+                                    // Actions
+                                    if !rule.actions.is_empty() {
+                                        egui::CollapsingHeader::new(format!(
+                                            "Actions ({})",
+                                            rule.actions.len()
+                                        ))
+                                        .default_open(false)
+                                        .show(ui, |ui| {
+                                            for i in 0..rule.actions.len() {
+                                                ui.monospace(format!(
+                                                    "{}: <action function>",
+                                                    i + 1
+                                                ));
+                                            }
+                                        });
+                                    }
+
+                                    // Outputs
+                                    if !rule.outputs.is_empty() {
+                                        egui::CollapsingHeader::new(format!(
+                                            "Outputs ({})",
+                                            rule.outputs.len()
+                                        ))
+                                        .default_open(false)
+                                        .show(ui, |ui| {
+                                            for output in &rule.outputs {
+                                                ui.monospace(&output.0);
+                                            }
+                                        });
+                                    }
+                                });
+                        }
+                    }
+                }
+                None => {
+                    ui.label("RuleRegistry not available.");
+                    ui.label("Make sure FREPlugin is installed.");
+                }
+            }
 
             ui.separator();
 
@@ -626,11 +724,6 @@ pub mod debug_fre_panel {
                 ui.label("• Rules are evaluated when their trigger event fires");
                 ui.label("• Conditions use facts from the LayeredFactDatabase");
             });
-
-            // Note: To properly display rules, we would need to add an iter() method to RuleRegistry
-            // For now, this serves as a placeholder
-            ui.label("");
-            ui.label("(Rule inspection requires RuleRegistry.iter() - to be added)");
         });
     }
 
