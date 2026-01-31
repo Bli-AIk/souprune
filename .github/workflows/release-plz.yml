@@ -14,14 +14,14 @@ jobs:
     steps:
       - &checkout
         name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           submodules: true
           persist-credentials: false
 
       - name: Checkout mortar
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Bli-AIk/mortar
           path: temp-mortar
@@ -63,7 +63,7 @@ jobs:
       - *checkout
 
       - name: Checkout mortar
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Bli-AIk/mortar
           path: temp-mortar
