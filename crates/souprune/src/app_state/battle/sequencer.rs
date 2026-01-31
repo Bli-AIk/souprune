@@ -15,6 +15,7 @@
 
 mod camera;
 mod context;
+mod fact_chapter;
 mod flow;
 mod interaction;
 mod performance;
@@ -43,6 +44,7 @@ impl Plugin for SequencerPlugin {
             .add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
             .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
             .add_systems(OnEnter(AppState::Battle), flow::load_default_chapter_system)
+            // Chapter processing systems - split into two groups to avoid tuple size limit
             .add_systems(
                 Update,
                 (
@@ -56,16 +58,29 @@ impl Plugin for SequencerPlugin {
                     performance::process_danmaku_performance_system,
                     performance::process_am_performance_system,
                     player::process_player_spawn_requests,
+                )
+                    .chain()
+                    .in_set(BattleUpdate),
+            )
+            // More chapter processing systems (continuation)
+            .add_systems(
+                Update,
+                (
                     flow::process_wait_chapter_system,
                     tween::process_tween_wait_chapter_system,
                     performance::process_am_wait_chapter_system,
                     flow::process_parallel_chapter_system,
+                    fact_chapter::process_conditional_chapter_system,
+                    fact_chapter::process_fact_switch_chapter_system,
+                    fact_chapter::process_emit_fact_event_chapter_system,
+                    fact_chapter::process_modify_fact_chapter_system,
                     interaction::check_await_selection_completion_system,
                     flow::cleanup_finished_chapters_system,
                     flow::sync_battle_flow_system,
                 )
                     .chain()
-                    .in_set(BattleUpdate),
+                    .in_set(BattleUpdate)
+                    .after(flow::advance_battle_flow_system),
             );
     }
 }

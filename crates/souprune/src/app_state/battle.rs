@@ -27,6 +27,7 @@ pub mod am_integration;
 pub mod chapter_schema;
 pub mod collision;
 pub mod danmaku;
+pub mod fre;
 pub mod player_config_schema;
 mod sequencer;
 
@@ -35,6 +36,7 @@ use crate::app_state::battle::am_integration::AmBattlePlugin;
 use crate::app_state::battle::chapter_schema::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
+use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::battle::sequencer::SequencerPlugin;
 use crate::core::input::{Action, PlayerInputSettings};
@@ -100,6 +102,7 @@ impl Plugin for BattlePlugin {
                 BattleCollisionPlugin,
                 DanmakuPlugin,
                 AmBattlePlugin,
+                BattleFREPlugin,
             ))
             .add_systems(
                 OnEnter(AppState::Battle),
