@@ -981,7 +981,7 @@ pub fn chase_damage_detection_system(
     overworld_state: Res<State<OverworldState>>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
-    mut player_data: ResMut<crate::core::data::PlayerData>,
+    mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
         bevy_kira_audio::Audio,
     >,
@@ -1096,11 +1096,14 @@ pub fn chase_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            if player_data.hp > damage {
-                player_data.hp -= damage;
+            let current_hp = layered_db.get_int("player_hp").unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
+            let new_hp = if current_hp > damage {
+                current_hp - damage
             } else {
-                player_data.hp = 0;
-            }
+                0
+            };
+            layered_db.set_global("player_hp", new_hp as i64);
 
             // Fire damage event
             damage_events.write(ChasePlayerDamageEvent {
@@ -1118,7 +1121,7 @@ pub fn chase_damage_detection_system(
 
             info!(
                 "Chase: Player hit! Damage: {}, HP: {}/{}",
-                damage, player_data.hp, player_data.hp_max
+                damage, new_hp, hp_max
             );
 
             // Handle despawn behavior

@@ -94,10 +94,13 @@ pub fn rebuild_reloaded_view_system(
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     ron_view_query: Query<Entity, With<RonDrivenView>>,
 ) {
+    use super::parsing::PlayerDataView;
+    let player_data = PlayerDataView::new(&layered_db);
+
     let Some(ref mut watcher) = watcher else {
         return;
     };

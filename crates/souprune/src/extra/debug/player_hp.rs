@@ -12,8 +12,8 @@
 
 #[cfg(feature = "debug")]
 pub mod debug_player_hp {
-    use crate::core::data::PlayerData;
     use bevy::prelude::*;
+    use bevy_fact_rule_event::LayeredFactDatabase;
 
     pub(crate) fn setup_player_hp_debug(app: &mut App) {
         app.add_systems(Update, debug_player_hp_system);
@@ -21,11 +21,11 @@ pub mod debug_player_hp {
 
     fn debug_player_hp_system(
         input: Res<ButtonInput<KeyCode>>,
-        mut player_data: ResMut<PlayerData>,
+        mut layered_db: ResMut<LayeredFactDatabase>,
     ) {
         if input.just_pressed(KeyCode::F5) {
-            let max = player_data.hp_max;
-            let current = player_data.hp;
+            let max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
+            let current = layered_db.get_int("player_hp").unwrap_or(20) as usize;
 
             // Logic: Max -> Max/2 -> 1 -> Max
             // 逻辑：满血 -> 半血 -> 1 -> 满血
@@ -37,7 +37,7 @@ pub mod debug_player_hp {
                 max
             };
 
-            player_data.hp = new_hp;
+            layered_db.set_global("player_hp", new_hp as i64);
             info!("Debug: Player HP set to {}/{}", new_hp, max);
         }
     }

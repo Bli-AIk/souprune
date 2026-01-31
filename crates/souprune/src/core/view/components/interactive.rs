@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use bevy::reflect::Reflect;
 
 use crate::core::input::{Action, ActionRegistry, InputBehaviorConfig};
+use crate::core::view::ron_view::parsing::PlayerDataView;
 
 // ============================================================================
 // Navigation Direction
@@ -571,7 +572,7 @@ pub enum OptionCountDef {
 }
 
 impl OptionCountDef {
-    pub(crate) fn evaluate(&self, player_data: &crate::core::data::PlayerData) -> usize {
+    pub(crate) fn evaluate(&self, player_data: &PlayerDataView<'_>) -> usize {
         match self {
             OptionCountDef::Static(value) => *value,
             OptionCountDef::Dynamic(expr) => evaluate_option_count_expression(expr, player_data),
@@ -579,18 +580,15 @@ impl OptionCountDef {
     }
 }
 
-fn evaluate_option_count_expression(
-    expr: &str,
-    player_data: &crate::core::data::PlayerData,
-) -> usize {
+fn evaluate_option_count_expression(expr: &str, player_data: &PlayerDataView<'_>) -> usize {
     let expr = expr.trim();
 
     if expr == "inventory.len()" {
-        return player_data.inventory.len();
+        return player_data.inventory().len();
     }
 
     if expr == "inventory_capacity" {
-        return player_data.inventory_capacity;
+        return player_data.inventory_capacity();
     }
 
     if expr.starts_with("min(") && expr.ends_with(")") {
@@ -643,10 +641,7 @@ pub enum NavigatorTypeDef {
 }
 
 impl NavigatorTypeDef {
-    pub(crate) fn into_navigator(
-        self,
-        player_data: &crate::core::data::PlayerData,
-    ) -> NavigatorType {
+    pub(crate) fn into_navigator(self, player_data: &PlayerDataView<'_>) -> NavigatorType {
         match self {
             NavigatorTypeDef::Linear {
                 direction,
@@ -674,7 +669,7 @@ impl InteractiveLayerDef {
     pub(crate) fn build(
         &self,
         layer_id: impl Into<String>,
-        player_data: &crate::core::data::PlayerData,
+        player_data: &PlayerDataView<'_>,
     ) -> InteractiveLayer {
         let mut layer = InteractiveLayer::new(
             layer_id,

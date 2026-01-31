@@ -6,20 +6,21 @@
 //!
 //! ## 模块概述
 //!
-//! This module manages core game data such as player saves and configuration values.
+//! This module manages core game data through the FRE (Fact-Rule-Event) system.
+//! Player data is stored in the LayeredFactDatabase and synced with ECS components.
 //!
-//! 该模块管理玩家存档及配置值等核心游戏数据。
+//! 该模块通过 FRE（事实-规则-事件）系统管理核心游戏数据。
+//! 玩家数据存储在 LayeredFactDatabase 中并与 ECS 组件同步。
 //!
 //! ## Source File Overview
 //!
 //! ## 源文件概述
 //!
-//! It defines `DataPlugin`, which initializes and manages those data-related configurations.
-//! The plugin uses an ECS-based approach with fine-grained components and also maintains
-//! a `PlayerData` resource for convenient global access.
+//! It defines `DataPlugin`, which initializes player facts in the global layer
+//! and provides bidirectional sync between FRE facts and ECS components.
 //!
-//! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
-//! 该插件采用基于 ECS 的方式使用细粒度组件，同时维护一个 `PlayerData` 资源以便全局访问。
+//! 本文件定义了 `DataPlugin`，用于在全局层初始化玩家事实，
+//! 并提供 FRE 事实与 ECS 组件之间的双向同步。
 
 use crate::core::item::ItemId;
 use crate::core::player_components::{
@@ -27,22 +28,26 @@ use crate::core::player_components::{
 };
 use bevy::app::{App, Plugin, Startup, Update};
 use bevy::prelude::{
-    Added, Changed, Commands, Component, IntoScheduleConfigs, Name, Or, Query, ResMut, Resource,
-    With,
+    Added, Changed, Commands, Component, IntoScheduleConfigs, Name, Or, Query, Res, ResMut, With,
 };
+use bevy_fact_rule_event::LayeredFactDatabase;
 
 pub(crate) struct DataPlugin;
 
 impl Plugin for DataPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerData>()
-            .add_systems(Startup, spawn_player_entity_system)
-            .add_systems(
-                Update,
-                sync_player_entity_to_resource_system.run_if(player_entity_changed),
-            );
+        app.add_systems(
+            Startup,
+            (spawn_player_entity_system, init_player_facts_system),
+        )
+        .add_systems(
+            Update,
+            (
+                sync_ecs_to_fre_system.run_if(player_ecs_changed),
+                sync_fre_to_ecs_system,
+            ),
+        );
     }
-    //TODO: 存档系统的序列化与反序列化。计划使用TOML格式进行存储。
 }
 
 /// Marker component indicating this is the main player entity (for queries).
@@ -58,10 +63,38 @@ fn spawn_player_entity_system(mut commands: Commands) {
     commands.spawn((PlayerBundle::new(), MainPlayer, Name::new("Player")));
 }
 
-/// Filter type for detecting changes to any player component.
+/// System to initialize player facts in the global layer at startup.
 ///
-/// 用于检测任何玩家组件变化的过滤器类型。
-type PlayerChangedFilter = (
+/// 在启动时在全局层初始化玩家事实的系统。
+fn init_player_facts_system(mut layered_db: ResMut<LayeredFactDatabase>) {
+    // Initialize all player facts in the global layer with default values
+    // These will be overwritten by the first ECS sync
+    layered_db.set_global("player_name", "Chara".to_string());
+    layered_db.set_global("player_lv", 1i64);
+    layered_db.set_global("player_exp", 0i64);
+    layered_db.set_global("player_next_exp", 10i64);
+    layered_db.set_global("player_hp", 20i64);
+    layered_db.set_global("player_hp_max", 20i64);
+    layered_db.set_global("player_atk", 0i64);
+    layered_db.set_global("player_def", 0i64);
+    layered_db.set_global("player_gold", 42i64);
+    layered_db.set_global("player_weapon", "stick".to_string());
+    layered_db.set_global("player_armor", "bandage".to_string());
+    // Inventory as comma-separated string for now
+    layered_db.set_global(
+        "player_inventory",
+        "monster_candy,monster_candy,monster_candy,monster_candy,monster_candy,UNDEFITEM"
+            .to_string(),
+    );
+    layered_db.set_global("player_inventory_capacity", 8i64);
+
+    bevy::log::info!("DataPlugin: Initialized player facts in global layer");
+}
+
+/// Filter type for detecting changes to any player ECS component.
+///
+/// 用于检测任何玩家 ECS 组件变化的过滤器类型。
+type PlayerEcsChangedFilter = (
     With<MainPlayer>,
     Or<(
         Changed<PlayerName>,
@@ -75,10 +108,10 @@ type PlayerChangedFilter = (
     )>,
 );
 
-/// Run condition: check if any player component has changed.
+/// Run condition: check if any player ECS component has changed.
 ///
-/// 运行条件：检查是否有任何玩家组件发生变化。
-fn player_entity_changed(query: Query<(), PlayerChangedFilter>) -> bool {
+/// 运行条件：检查是否有任何玩家 ECS 组件发生变化。
+fn player_ecs_changed(query: Query<(), PlayerEcsChangedFilter>) -> bool {
     !query.is_empty()
 }
 
@@ -100,81 +133,174 @@ type PlayerComponentsQuery<'w, 's> = Query<
     With<MainPlayer>,
 >;
 
-/// System to sync player entity components to the PlayerData resource.
+/// System to sync ECS components to FRE facts when ECS changes.
 ///
-/// 将玩家实体组件同步到 PlayerData 资源的系统。
-fn sync_player_entity_to_resource_system(
+/// 当 ECS 组件变化时同步到 FRE 事实的系统。
+fn sync_ecs_to_fre_system(
     query: PlayerComponentsQuery,
-    mut player_data: ResMut<PlayerData>,
+    mut layered_db: ResMut<LayeredFactDatabase>,
 ) {
     let Ok((name, level, health, stats, gold, equipment, inventory)) = query.single() else {
         return;
     };
 
-    player_data.name = name.0.clone();
-    player_data.lv = level.lv;
-    player_data.exp = level.exp;
-    player_data.next_exp = level.next_exp;
-    player_data.hp = health.current;
-    player_data.hp_max = health.max;
-    player_data.attack = stats.attack;
-    player_data.defense = stats.defense;
-    player_data.gold = gold.0;
-    player_data.weapon = equipment.weapon.clone();
-    player_data.armor = equipment.armor.clone();
-    player_data.inventory = inventory.items.clone();
-    player_data.inventory_capacity = inventory.capacity;
+    // Sync all player data to global facts
+    layered_db.set_global("player_name", name.0.clone());
+    layered_db.set_global("player_lv", level.lv as i64);
+    layered_db.set_global("player_exp", level.exp as i64);
+    layered_db.set_global("player_next_exp", level.next_exp as i64);
+    layered_db.set_global("player_hp", health.current as i64);
+    layered_db.set_global("player_hp_max", health.max as i64);
+    layered_db.set_global("player_atk", stats.attack as i64);
+    layered_db.set_global("player_def", stats.defense as i64);
+    layered_db.set_global("player_gold", gold.0 as i64);
+    layered_db.set_global("player_weapon", equipment.weapon.0.clone());
+    layered_db.set_global("player_armor", equipment.armor.0.clone());
+
+    // Serialize inventory as comma-separated string
+    let inventory_str = inventory
+        .items
+        .iter()
+        .map(|item| item.0.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    layered_db.set_global("player_inventory", inventory_str);
+    layered_db.set_global("player_inventory_capacity", inventory.capacity as i64);
+
+    bevy::log::trace!("DataPlugin: Synced ECS to FRE facts");
 }
 
-/// Resource to store basic player data, such as health, attack, defense, etc.
+/// Query type for writing to player components.
 ///
-/// 保存玩家基本数据的资源，例如血量、攻击、防御等。
-///
-/// This resource provides convenient global access to player data.
-/// For direct ECS queries, use `Query<(&Health, &Stats, ...), With<MainPlayer>>` instead.
-///
-/// 此资源提供对玩家数据的便捷全局访问。
-/// 如需直接 ECS 查询，请使用 `Query<(&Health, &Stats, ...), With<MainPlayer>>`。
-#[derive(Resource)]
-pub(crate) struct PlayerData {
-    pub(crate) name: String,
-    pub(crate) lv: usize,
-    pub(crate) exp: usize,
-    pub(crate) next_exp: usize,
-    pub(crate) hp: usize,
-    pub(crate) hp_max: usize,
-    pub(crate) attack: usize,
-    pub(crate) defense: usize,
-    pub(crate) gold: usize,
-    pub(crate) weapon: ItemId,
-    pub(crate) armor: ItemId,
-    pub(crate) inventory: Vec<ItemId>,
-    pub(crate) inventory_capacity: usize,
-}
+/// 用于写入玩家组件的查询类型。
+type PlayerComponentsMutQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut PlayerName,
+        &'static mut Level,
+        &'static mut Health,
+        &'static mut Stats,
+        &'static mut Gold,
+        &'static mut Equipment,
+        &'static mut Inventory,
+    ),
+    With<MainPlayer>,
+>;
 
-impl Default for PlayerData {
-    fn default() -> Self {
-        PlayerData {
-            name: "Chara".to_string(),
-            lv: 1,
-            exp: 0,
-            next_exp: 10,
-            hp: 20,
-            hp_max: 20,
-            attack: 0,
-            defense: 0,
-            gold: 42,
-            weapon: ItemId("stick".to_string()),
-            armor: ItemId("bandage".to_string()),
-            inventory: vec![
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("UNDEFITEM".to_string()),
-            ],
-            inventory_capacity: 8,
+/// System to sync FRE facts to ECS components when facts change.
+/// This is a pull-based approach that checks if facts differ from ECS.
+///
+/// 当 FRE 事实变化时同步到 ECS 组件的系统。
+/// 这是一种拉取式方法，检查事实是否与 ECS 不同。
+fn sync_fre_to_ecs_system(
+    mut query: PlayerComponentsMutQuery,
+    layered_db: Res<LayeredFactDatabase>,
+) {
+    use bevy::prelude::DetectChanges;
+
+    // Only run if the database is changed
+    if !layered_db.is_changed() {
+        return;
+    }
+
+    let Ok((mut name, mut level, mut health, mut stats, mut gold, mut equipment, mut inventory)) =
+        query.single_mut()
+    else {
+        return;
+    };
+
+    // Sync from facts to ECS (only if different to avoid triggering Changed)
+    if let Some(fact_name) = layered_db.get_string("player_name") {
+        if name.0 != fact_name {
+            name.0 = fact_name.to_string();
+        }
+    }
+
+    if let Some(fact_lv) = layered_db.get_int("player_lv") {
+        let lv = fact_lv as usize;
+        if level.lv != lv {
+            level.lv = lv;
+        }
+    }
+
+    if let Some(fact_exp) = layered_db.get_int("player_exp") {
+        let exp = fact_exp as usize;
+        if level.exp != exp {
+            level.exp = exp;
+        }
+    }
+
+    if let Some(fact_next_exp) = layered_db.get_int("player_next_exp") {
+        let next_exp = fact_next_exp as usize;
+        if level.next_exp != next_exp {
+            level.next_exp = next_exp;
+        }
+    }
+
+    if let Some(fact_hp) = layered_db.get_int("player_hp") {
+        let hp = fact_hp as usize;
+        if health.current != hp {
+            health.current = hp;
+        }
+    }
+
+    if let Some(fact_hp_max) = layered_db.get_int("player_hp_max") {
+        let hp_max = fact_hp_max as usize;
+        if health.max != hp_max {
+            health.max = hp_max;
+        }
+    }
+
+    if let Some(fact_atk) = layered_db.get_int("player_atk") {
+        let atk = fact_atk as usize;
+        if stats.attack != atk {
+            stats.attack = atk;
+        }
+    }
+
+    if let Some(fact_def) = layered_db.get_int("player_def") {
+        let def = fact_def as usize;
+        if stats.defense != def {
+            stats.defense = def;
+        }
+    }
+
+    if let Some(fact_gold) = layered_db.get_int("player_gold") {
+        let g = fact_gold as usize;
+        if gold.0 != g {
+            gold.0 = g;
+        }
+    }
+
+    if let Some(fact_weapon) = layered_db.get_string("player_weapon") {
+        if equipment.weapon.0 != fact_weapon {
+            equipment.weapon = ItemId(fact_weapon.to_string());
+        }
+    }
+
+    if let Some(fact_armor) = layered_db.get_string("player_armor") {
+        if equipment.armor.0 != fact_armor {
+            equipment.armor = ItemId(fact_armor.to_string());
+        }
+    }
+
+    // Deserialize inventory from comma-separated string
+    if let Some(fact_inventory) = layered_db.get_string("player_inventory") {
+        let items: Vec<ItemId> = fact_inventory
+            .split(',')
+            .filter(|s| !s.is_empty())
+            .map(|s| ItemId(s.to_string()))
+            .collect();
+        if inventory.items != items {
+            inventory.items = items;
+        }
+    }
+
+    if let Some(fact_capacity) = layered_db.get_int("player_inventory_capacity") {
+        let cap = fact_capacity as usize;
+        if inventory.capacity != cap {
+            inventory.capacity = cap;
         }
     }
 }

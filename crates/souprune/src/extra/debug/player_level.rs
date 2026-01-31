@@ -12,8 +12,8 @@
 
 #[cfg(feature = "debug")]
 pub mod debug_player_level {
-    use crate::core::data::PlayerData;
     use bevy::prelude::*;
+    use bevy_fact_rule_event::LayeredFactDatabase;
 
     pub(crate) fn setup_player_level_debug(app: &mut App) {
         app.add_systems(Update, debug_player_level_system);
@@ -21,29 +21,25 @@ pub mod debug_player_level {
 
     fn debug_player_level_system(
         input: Res<ButtonInput<KeyCode>>,
-        mut player_data: ResMut<PlayerData>,
+        mut layered_db: ResMut<LayeredFactDatabase>,
     ) {
         if input.just_pressed(KeyCode::F8) {
-            if player_data.lv == 20 {
+            let current_lv = layered_db.get_int("player_lv").unwrap_or(1);
+
+            if current_lv == 20 {
                 // Switch back to LV 1
                 // 切回 LV 1
-                player_data.lv = 1;
-                player_data.hp_max = 20;
-                player_data.hp = 20;
-                info!(
-                    "[F8 DEBUG] Player Reset to LV 1, HP 20/20 | hp_max={}",
-                    player_data.hp_max
-                );
+                layered_db.set_global("player_lv", 1i64);
+                layered_db.set_global("player_hp_max", 20i64);
+                layered_db.set_global("player_hp", 20i64);
+                info!("[F8 DEBUG] Player Reset to LV 1, HP 20/20");
             } else {
                 // Switch to LV 20
                 // 切换到 LV 20
-                player_data.lv = 20;
-                player_data.hp_max = 99;
-                player_data.hp = 99;
-                info!(
-                    "[F8 DEBUG] Player Boosted to LV 20, HP 99/99 | hp_max={}",
-                    player_data.hp_max
-                );
+                layered_db.set_global("player_lv", 20i64);
+                layered_db.set_global("player_hp_max", 99i64);
+                layered_db.set_global("player_hp", 99i64);
+                info!("[F8 DEBUG] Player Boosted to LV 20, HP 99/99");
             }
         }
     }

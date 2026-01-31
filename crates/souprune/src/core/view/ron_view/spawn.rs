@@ -2,13 +2,16 @@ use super::super::components::*;
 use super::super::layout::*;
 use super::super::lifecycle::BackpackViewRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
-use super::parsing::{evaluate_condition, evaluate_float_expr, resolve_text_content};
+use super::parsing::{
+    PlayerDataView, evaluate_condition, evaluate_float_expr, resolve_text_content,
+};
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
+use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// System to spawn view elements from RON layout.
 ///
@@ -51,10 +54,12 @@ pub fn spawn_ron_view_system(
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mut watcher: Option<ResMut<ViewLayoutWatcher>>,
 ) {
+    let player_data = PlayerDataView::new(&layered_db);
+
     let Some(view_layout_handle) = view_layout_handle else {
         return;
     };
@@ -136,7 +141,7 @@ pub fn spawn_ron_view_for_entity(
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
     layout_path: &str,
 ) {
@@ -194,7 +199,7 @@ pub fn spawn_ron_view_for_entity(
 pub fn build_text_config(
     text_def: &TextDef,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
 ) -> ViewTextConfig {
     let raw_content = text_def.content.as_deref().unwrap_or("");
@@ -283,7 +288,7 @@ pub fn spawn_view_node(
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
     is_top_level: bool,
     namespace: &str, // New parameter: namespace for ViewElement
@@ -933,7 +938,7 @@ pub(crate) fn spawn_container_texts(
     parent: &mut ChildSpawnerCommands,
     texts: &[TextDef],
     mortar_strings: &crate::extra::mortar::MortarStringTable,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
     camera_transform: &Transform,
 ) {
@@ -1015,7 +1020,7 @@ fn spawn_ui_sprite(
     _sprite_params: &mut SpriteParams,
     node_name: &str,
     _animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &PlayerDataView<'_>,
 ) {
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {

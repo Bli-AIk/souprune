@@ -14,7 +14,6 @@ mod bridge;
 
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
-use crate::core::data::PlayerData;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 
@@ -51,7 +50,6 @@ impl Plugin for BattleFREPlugin {
                     emit_chapter_completed_events_system,
                     emit_selection_confirmed_events_system,
                     apply_pending_damage_system,
-                    sync_player_data_to_fre_system,
                 )
                     .in_set(BattleFRESet),
             );
@@ -59,14 +57,13 @@ impl Plugin for BattleFREPlugin {
 }
 
 /// System to initialize FRE state when entering battle.
-/// Clears local layer and sets up initial battle facts from PlayerData.
+/// Clears local layer and sets up initial battle facts.
+/// Player data is already stored in the global layer by the data.rs module.
 ///
 /// 进入战斗时初始化 FRE 状态的系统。
-/// 清空局部层并从 PlayerData 设置初始战斗事实。
-fn setup_battle_fre_system(
-    mut layered_db: ResMut<LayeredFactDatabase>,
-    player_data: Res<PlayerData>,
-) {
+/// 清空局部层并设置初始战斗事实。
+/// 玩家数据已由 data.rs 模块存储在全局层中。
+fn setup_battle_fre_system(mut layered_db: ResMut<LayeredFactDatabase>) {
     // Clear local layer from any previous state
     layered_db.clear_local();
 
@@ -75,43 +72,12 @@ fn setup_battle_fre_system(
     layered_db.set("battle_turn_count", 0i64);
     layered_db.set("battle_phase", "initializing");
 
-    // Sync player data to facts (global layer - these persist across states)
-    layered_db.set_global("player_name", player_data.name.clone());
-    layered_db.set_global("player_lv", player_data.lv as i64);
-    layered_db.set_global("player_hp", player_data.hp as i64);
-    layered_db.set_global("player_hp_max", player_data.hp_max as i64);
-    layered_db.set_global("player_atk", player_data.attack as i64);
-    layered_db.set_global("player_def", player_data.defense as i64);
-    layered_db.set_global("player_gold", player_data.gold as i64);
+    // Player data is already in global layer (managed by core::data module)
+    // No need to sync here
 
-    info!(
-        "Battle FRE: Initialized with player HP {}/{}",
-        player_data.hp, player_data.hp_max
-    );
-}
-
-/// System to sync PlayerData changes to FRE during battle.
-/// This keeps the global facts in sync with the ECS PlayerData resource.
-///
-/// 战斗中同步 PlayerData 变化到 FRE 的系统。
-/// 这使全局事实与 ECS PlayerData 资源保持同步。
-fn sync_player_data_to_fre_system(
-    player_data: Res<PlayerData>,
-    mut layered_db: ResMut<LayeredFactDatabase>,
-) {
-    if !player_data.is_changed() {
-        return;
-    }
-
-    // Update global facts when PlayerData changes
-    layered_db.set_global("player_hp", player_data.hp as i64);
-    layered_db.set_global("player_hp_max", player_data.hp_max as i64);
-    layered_db.set_global("player_atk", player_data.attack as i64);
-    layered_db.set_global("player_def", player_data.defense as i64);
-    layered_db.set_global("player_gold", player_data.gold as i64);
-    layered_db.set_global("player_lv", player_data.lv as i64);
-
-    trace!("Battle FRE: Synced PlayerData to FRE facts");
+    let hp = layered_db.get_int("player_hp").unwrap_or(20);
+    let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20);
+    info!("Battle FRE: Initialized with player HP {}/{}", hp, hp_max);
 }
 
 /// System to clean up FRE state when exiting battle.

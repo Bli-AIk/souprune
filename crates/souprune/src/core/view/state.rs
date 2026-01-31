@@ -387,9 +387,10 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
     mut next_ow_state: ResMut<NextState<OverworldState>>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    use super::ron_view::parsing::evaluate_transition_condition_unified;
+    use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
+    let player_data = PlayerDataView::new(&layered_db);
 
     // Process confirm events
     for event in confirm_events.read() {
@@ -564,9 +565,10 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
     mut next_ow_state: ResMut<NextState<OverworldState>>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    use super::ron_view::parsing::evaluate_transition_condition_unified;
+    use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
+    let player_data = PlayerDataView::new(&layered_db);
 
     for event in confirm_events.read() {
         let Some((_, layer)) = layer_query
