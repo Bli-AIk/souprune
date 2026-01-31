@@ -8,6 +8,7 @@ use super::super::layout::ViewLayoutAsset;
 use super::super::lifecycle::BackpackViewRoot;
 use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::core::sprite::params::SpriteParams;
+use crate::extra::debug::DebugCamera;
 
 /// Load view layout from Tiled map properties.
 ///
@@ -90,7 +91,7 @@ pub fn rebuild_reloaded_view_system(
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     backpack_root_query: Query<Entity, With<BackpackViewRoot>>,
     interactive_layer_query: Query<Entity, With<InteractiveLayer>>,
-    camera_query: Query<&Transform, With<Camera2d>>,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     player_data: Res<crate::core::data::PlayerData>,

@@ -14,13 +14,19 @@
 
 #[cfg(feature = "debug")]
 pub mod debug_fre_panel {
+    use crate::app_state::overworld::character::components::PlayerControlled;
+    use crate::core::input::Action;
     use bevy::camera::RenderTarget;
     use bevy::ecs::schedule::ScheduleLabel;
     use bevy::prelude::*;
-    use bevy::window::{Window, WindowClosed, WindowRef, WindowResolution};
+    use bevy::window::{
+        PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
+    };
     use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
     use bevy_inspector_egui::egui;
+    use leafwing_input_manager::action_state::ActionState;
+    use leafwing_input_manager::plugin::InputManagerSystem;
     use std::collections::VecDeque;
 
     /// Maximum number of events to keep in history.
@@ -38,11 +44,26 @@ pub mod debug_fre_panel {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct FREPanelContextPass;
 
+    /// Refresh phase for two-frame refresh process.
+    #[derive(Default, Clone, Copy, PartialEq, Eq)]
+    enum RefreshPhase {
+        #[default]
+        None,
+        /// Window should be closed this frame.
+        CloseWindow,
+        /// Window should be reopened this frame.
+        ReopenWindow,
+    }
+
     /// UI state resource for the FRE debug panel.
     #[derive(Resource, Default)]
     struct FREPanelState {
         window_entity: Option<Entity>,
         camera_entity: Option<Entity>,
+        /// Whether the FRE panel window is focused.
+        window_focused: bool,
+        /// Two-phase refresh state for state change handling.
+        refresh_phase: RefreshPhase,
         /// Currently selected tab.
         current_tab: FREPanelTab,
         /// New fact input state.
@@ -102,8 +123,17 @@ pub mod debug_fre_panel {
                 (
                     handle_fre_panel_hotkeys_system,
                     fre_panel_window_closed_system,
+                    fre_panel_window_focus_system,
+                    primary_window_closed_system,
+                    app_state_changed_refresh_fre_panel_system,
+                    fre_panel_refresh_system,
                     track_fact_events_system,
                 ),
+            )
+            .add_systems(
+                PreUpdate,
+                block_player_actions_when_fre_panel_focused_system
+                    .after(InputManagerSystem::ManualControl),
             )
             .add_systems(FREPanelContextPass, fre_panel_ui_system);
     }
@@ -155,11 +185,13 @@ pub mod debug_fre_panel {
                 },
                 EguiMultipassSchedule::new(FREPanelContextPass),
                 FREPanelCamera,
+                super::super::DebugCamera,
             ))
             .id();
 
         state.window_entity = Some(window_entity);
         state.camera_entity = Some(camera_entity);
+        state.window_focused = false;
         info!("FRE Debug Panel opened");
     }
 
@@ -171,6 +203,7 @@ pub mod debug_fre_panel {
         if let Some(window_entity) = state.window_entity.take() {
             commands.entity(window_entity).despawn();
         }
+        state.window_focused = false;
         info!("FRE Debug Panel closed");
     }
 
@@ -190,8 +223,98 @@ pub mod debug_fre_panel {
                 if let Some(camera_entity) = state.camera_entity.take() {
                     commands.entity(camera_entity).despawn();
                 }
+                state.window_focused = false;
                 info!("FRE Debug Panel closed");
                 break;
+            }
+        }
+    }
+
+    /// System to close FRE panel when primary window is closed.
+    /// Uses RemovedComponents to detect when PrimaryWindow component is removed.
+    fn primary_window_closed_system(
+        mut commands: Commands,
+        mut state: ResMut<FREPanelState>,
+        mut removed: RemovedComponents<PrimaryWindow>,
+    ) {
+        // If PrimaryWindow component was removed from any entity, close FRE panel
+        if removed.read().next().is_some() && state.window_entity.is_some() {
+            close_fre_panel(&mut commands, &mut state);
+            info!("FRE Debug Panel closed (primary window closed)");
+        }
+    }
+
+    /// System to track FRE panel window focus state.
+    fn fre_panel_window_focus_system(
+        mut focus_events: MessageReader<WindowFocused>,
+        mut state: ResMut<FREPanelState>,
+    ) {
+        let Some(window_entity) = state.window_entity else {
+            state.window_focused = false;
+            return;
+        };
+
+        for event in focus_events.read() {
+            if event.window == window_entity {
+                state.window_focused = event.focused;
+                break;
+            }
+        }
+    }
+
+    /// System to detect AppState changes and trigger FRE panel refresh.
+    fn app_state_changed_refresh_fre_panel_system(
+        mut state: ResMut<FREPanelState>,
+        app_state: Res<State<crate::app_state::AppState>>,
+    ) {
+        // Only trigger refresh if FRE panel window is open and state just changed
+        if state.window_entity.is_some()
+            && app_state.is_changed()
+            && state.refresh_phase == RefreshPhase::None
+        {
+            state.refresh_phase = RefreshPhase::CloseWindow;
+            info!("AppState changed, scheduling FRE panel window refresh (phase 1: close)");
+        }
+    }
+
+    /// System to perform FRE panel window refresh in two phases.
+    /// Phase 1: Close the window.
+    /// Phase 2: Reopen the window.
+    fn fre_panel_refresh_system(mut commands: Commands, mut state: ResMut<FREPanelState>) {
+        match state.refresh_phase {
+            RefreshPhase::None => {}
+            RefreshPhase::CloseWindow => {
+                if state.window_entity.is_some() {
+                    close_fre_panel(&mut commands, &mut state);
+                    info!("FRE panel window closed for refresh (phase 1 complete)");
+                }
+                state.refresh_phase = RefreshPhase::ReopenWindow;
+            }
+            RefreshPhase::ReopenWindow => {
+                if state.window_entity.is_none() {
+                    spawn_fre_panel(&mut commands, &mut state);
+                    info!("FRE panel window reopened after refresh (phase 2 complete)");
+                }
+                state.refresh_phase = RefreshPhase::None;
+            }
+        }
+    }
+
+    /// System to block player actions when FRE panel window is focused.
+    fn block_player_actions_when_fre_panel_focused_system(
+        state: Option<Res<FREPanelState>>,
+        mut query: Query<&mut ActionState<Action>, With<PlayerControlled>>,
+    ) {
+        let should_disable = state.map(|s| s.window_focused).unwrap_or(false);
+
+        for mut action_state in query.iter_mut() {
+            if should_disable {
+                if !action_state.disabled() {
+                    action_state.disable();
+                }
+            } else if action_state.disabled() {
+                // Note: Don't enable here if other systems might have disabled it
+                // We rely on the Inspector's system to re-enable
             }
         }
     }

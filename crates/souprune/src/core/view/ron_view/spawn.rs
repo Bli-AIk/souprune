@@ -7,6 +7,7 @@ use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayou
 use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
+use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
 
 /// System to spawn view elements from RON layout.
@@ -47,7 +48,7 @@ pub fn spawn_ron_view_system(
         ),
     >,
     chase_root_query: Query<Entity, (With<ChaseHUDRoot>, Without<ViewGenerated>, Without<ViewBox>)>,
-    camera_query: Query<&Transform, With<Camera2d>>,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     player_data: Res<crate::core::data::PlayerData>,

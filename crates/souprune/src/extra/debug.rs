@@ -33,6 +33,15 @@ mod player_hp;
 mod player_level;
 
 use bevy::app::{App, Plugin};
+use bevy::prelude::Component;
+
+/// Marker component for debug cameras (inspector, FRE panel, etc.).
+/// This is used to exclude debug cameras from game systems that query Camera2d.
+///
+/// 调试相机的标记组件（检查器、FRE 面板等）。
+/// 用于将调试相机排除在查询 Camera2d 的游戏系统之外。
+#[derive(Component)]
+pub struct DebugCamera;
 
 pub struct DebugPlugin;
 
