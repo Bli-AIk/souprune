@@ -15,6 +15,7 @@ use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
 use bevy::prelude::*;
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
     RuleActionDef, RuleRegistry, RuleSetAsset,
@@ -153,23 +154,49 @@ pub fn trigger_zone_detection_system(
     }
 }
 
-/// System to load FRE rules from RON files.
+/// System to load FRE rules from map's `rules_file` property.
+/// The rules file path is read from the Tiled map's custom properties.
+/// If no `rules_file` property exists, no rules are loaded for this map.
 ///
-/// 从 RON 文件加载 FRE 规则的系统。
+/// 从地图的 `rules_file` 属性加载 FRE 规则的系统。
+/// 规则文件路径从 Tiled 地图的自定义属性中读取。
+/// 如果不存在 `rules_file` 属性，则不为此地图加载任何规则。
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
+    tiled_maps: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
 ) {
     if loaded_rule_sets.initialized {
         return;
     }
 
-    // Load the demo rules from the asset folder
-    let handle: Handle<RuleSetAsset> = asset_server.load("overworld/rules/demo.rules.ron");
-    loaded_rule_sets.handles.push(handle);
-    loaded_rule_sets.initialized = true;
+    // Try to find rules_file property in loaded maps
+    for tiled_map in tiled_maps.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
+            if let Some(rules_prop) = map_asset.map.properties.get("rules_file") {
+                if let tiled::PropertyValue::StringValue(rules_path) = rules_prop {
+                    let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
+                    loaded_rule_sets.handles.push(handle);
+                    loaded_rule_sets.initialized = true;
+                    info!("FRE: Loading rules from map property: {}", rules_path);
+                    return;
+                }
+            }
+        }
+    }
 
-    info!("FRE: Loading rules from overworld/rules/demo.rules.ron");
+    // No rules_file property found - mark as initialized but with no rules
+    // This allows maps without FRE rules to work without warnings
+    if !tiled_maps.is_empty() {
+        for tiled_map in tiled_maps.iter() {
+            if tiled_map_assets.get(&tiled_map.0).is_some() {
+                loaded_rule_sets.initialized = true;
+                info!("FRE: No rules_file property found in map, skipping local rules loading");
+                return;
+            }
+        }
+    }
 }
 
 /// System to register rules from loaded assets.

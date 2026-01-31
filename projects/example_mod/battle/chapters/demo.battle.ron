@@ -1,45 +1,55 @@
 #![enable(implicit_some)]
-[
-    SetCamera(SetZoom(2.0)),
-    SpawnView(view_layout: "battle/view/undertale.view_layout.ron"),
-    AwaitInteraction(
-        layer_id: "BattleMainMenu",
-        initial_selection: 0,
-    ),
-    SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+// Battle configuration with optional FRE rules
+// 带有可选 FRE 规则的战斗配置
+(
+    // Optional: Path to FRE rules file for this battle
+    // 可选：此战斗的 FRE 规则文件路径
+    // rules_file: "battle/rules/demo_battle.rules.ron",
 
-    TweenViewElement(
-        selector: LocalName("BattleBox"),
-        target: BoxSize(to: (130, "@current")),
-        duration: 0.85,
-        easing: QuadInOut,
-        wait_for_completion: false,
-    ),
-    Wait(0.15),
+    // The sequence of chapters to execute
+    // 要执行的章节序列
+    chapters: [
+        SetCamera(SetZoom(2.0)),
+        SpawnView(view_layout: "battle/view/undertale.view_layout.ron"),
+        AwaitInteraction(
+            layer_id: "BattleMainMenu",
+            initial_selection: 0,
+        ),
+        SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
-    TweenViewElement(
-        selector: LocalName("BattleBox"),
-        target: Position(to: ("@current", "@current + 80", "@current")),
-        duration: 1.0,
-        easing: CubicOut,
-        wait_for_completion: true,
-    ),
-    Wait(1.0),
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(to: (130, "@current")),
+            duration: 0.85,
+            easing: QuadInOut,
+            wait_for_completion: false,
+        ),
+        Wait(0.15),
 
-    DanmakuPerformance(
-        performance: "battle/danmaku/demo_attack.performance.ron",
-        translation: Some((0.0, 50.0)),
-    ),
-    Wait(10.0),
-    Sequence([
-        Wait(0.5),
-        SetPlayer(Despawn),// TODO: 实现这个功能
-    ]),
-    TweenViewElement(
-        selector: LocalName("BattleBox"),
-        target: BoxSize(from: (300.0, 100.0), to: (566.0, 130.0)),
-        duration: 0.8,
-        easing: ElasticOut,
-        wait_for_completion: true,
-    ),
-]
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: Position(to: ("@current", "@current + 80", "@current")),
+            duration: 1.0,
+            easing: CubicOut,
+            wait_for_completion: true,
+        ),
+        Wait(1.0),
+
+        DanmakuPerformance(
+            performance: "battle/danmaku/demo_attack.performance.ron",
+            translation: Some((0.0, 50.0)),
+        ),
+        Wait(10.0),
+        Sequence([
+            Wait(0.5),
+            SetPlayer(Despawn),// TODO: 实现这个功能
+        ]),
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(from: (300.0, 100.0), to: (566.0, 130.0)),
+            duration: 0.8,
+            easing: ElasticOut,
+            wait_for_completion: true,
+        ),
+    ],
+)
