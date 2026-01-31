@@ -484,7 +484,7 @@ pub mod debug_fre_panel {
     }
 
     /// Render the Rules tab.
-    fn render_rules_tab(ui: &mut egui::Ui, world: &mut World) {
+    fn render_rules_tab(ui: &mut egui::Ui, _world: &mut World) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.label("📜 Registered Rules");
             ui.separator();
