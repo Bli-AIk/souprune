@@ -1,16 +1,26 @@
 //! # visual.rs
 //!
-//! # 视觉描述符模块
+//! # 视觉资源定位模块
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
 //!
-//! Provides a unified visual descriptor system for sprites and animations.
-//! Supports shorthand path references that are automatically resolved.
+//! Provides a unified visual resource locator for sprites and animations.
+//! Supports shorthand path references that are automatically resolved and type-detected.
 //!
-//! 提供统一的视觉描述符系统，用于精灵和动画。
-//! 支持自动解析的简写路径引用。
+//! 提供统一的视觉资源定位器，用于精灵和动画。
+//! 支持自动解析和类型检测的简写路径引用。
+//!
+//! ## Design Philosophy
+//!
+//! ## 设计哲学
+//!
+//! Visual is a "source file locator" - it only handles finding and classifying resources.
+//! Rendering properties (color, flip, shader, etc.) belong to the consuming systems.
+//!
+//! Visual 是一个"源文件定位器" - 它只处理资源的查找和分类。
+//! 渲染属性（颜色、翻转、着色器等）属于使用它的系统。
 //!
 //! ## Path Resolution
 //!
@@ -25,151 +35,90 @@
 //! - 文件扩展名可选：自动检测
 
 use crate::config::{ResourcePaths, load_config};
-use bevy::color::Color;
-use bevy::math::Vec2;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tracing::warn;
 
-/// Unified visual reference.
+/// Unified visual resource path reference.
 ///
-/// 统一的视觉引用。
+/// 统一的视觉资源路径引用。
+///
+/// This is a simple wrapper around a path string that supports:
+/// - Automatic type detection (sprite/frame animation/character animation)
+/// - Shorthand names with recursive search
+/// - Relative paths from the textures directory
+///
+/// 这是一个路径字符串的简单封装，支持：
+/// - 自动类型检测（精灵/帧动画/角色动画）
+/// - 支持递归搜索的简写名称
+/// - 相对于纹理目录的相对路径
 ///
 /// ## Examples
 ///
 /// ```ron
-/// // Simple path (most common)
-/// visual: "heart"
+/// // In bullet configs:
+/// visual: "spear"                    // Simple name
+/// visual: "battle/bullets/spear"     // Relative path
+/// visual: "flowey_pellet"            // Directory = frame animation
+/// visual: "boss.character.ron"       // Character animation
 ///
-/// // With extra configuration
-/// visual: (
-///     visual: "heart",
-///     color: Rgba(r: 1.0, g: 0.0, b: 0.0, a: 1.0),
-///     flip_x: true,
+/// // In view configs:
+/// sprite: (
+///     visual: "battle/ui/hpname",
+///     transform: (...),
 /// )
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-#[serde(untagged)]
-pub enum Visual {
-    /// Path reference (recommended for most cases).
-    ///
-    /// 路径引用（大多数情况下推荐）。
-    Path(String),
-
-    /// Full configuration with additional properties.
-    ///
-    /// 带有额外属性的完整配置。
-    Config(VisualConfig),
-}
-
-impl Default for Visual {
-    fn default() -> Self {
-        Self::Path(String::new())
-    }
-}
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+#[serde(transparent)]
+pub struct Visual(pub String);
 
 impl Visual {
-    /// Get the visual path string.
+    /// Create a new Visual from a path string.
     ///
-    /// 获取视觉路径字符串。
+    /// 从路径字符串创建新的 Visual。
+    pub fn new(path: impl Into<String>) -> Self {
+        Self(path.into())
+    }
+
+    /// Get the path string.
+    ///
+    /// 获取路径字符串。
     pub fn path(&self) -> &str {
-        match self {
-            Visual::Path(p) => p,
-            Visual::Config(c) => &c.visual,
-        }
+        &self.0
     }
 
-    /// Get color override if specified.
+    /// Resolve this visual path to a typed resource location.
     ///
-    /// 获取颜色覆盖（如果指定）。
-    pub fn color(&self) -> Option<Color> {
-        match self {
-            Visual::Path(_) => None,
-            Visual::Config(c) => c.color,
-        }
+    /// 将此视觉路径解析为类型化的资源位置。
+    pub fn resolve(&self, mod_name: &str) -> Option<ResolvedVisual> {
+        resolve_visual_path(&self.0, mod_name)
     }
 
-    /// Get flip_x setting.
+    /// Check if the path is empty.
     ///
-    /// 获取 flip_x 设置。
-    pub fn flip_x(&self) -> bool {
-        match self {
-            Visual::Path(_) => false,
-            Visual::Config(c) => c.flip_x,
-        }
-    }
-
-    /// Get flip_y setting.
-    ///
-    /// 获取 flip_y 设置。
-    pub fn flip_y(&self) -> bool {
-        match self {
-            Visual::Path(_) => false,
-            Visual::Config(c) => c.flip_y,
-        }
-    }
-
-    /// Get pivot override if specified.
-    ///
-    /// 获取锚点覆盖（如果指定）。
-    pub fn pivot(&self) -> Option<Vec2> {
-        match self {
-            Visual::Path(_) => None,
-            Visual::Config(c) => c.pivot,
-        }
-    }
-
-    /// Get frame duration override for animations.
-    ///
-    /// 获取动画的帧持续时间覆盖。
-    pub fn frame_duration(&self) -> Option<f32> {
-        match self {
-            Visual::Path(_) => None,
-            Visual::Config(c) => c.frame_duration,
-        }
+    /// 检查路径是否为空。
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
-/// Visual configuration with additional properties.
-///
-/// 带有额外属性的视觉配置。
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct VisualConfig {
-    /// Path to the visual resource.
-    ///
-    /// 视觉资源的路径。
-    pub visual: String,
+impl From<&str> for Visual {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
 
-    /// Color tint override.
-    ///
-    /// 颜色叠加覆盖。
-    #[serde(default)]
-    pub color: Option<Color>,
+impl From<String> for Visual {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 
-    /// Horizontal flip.
-    ///
-    /// 水平翻转。
-    #[serde(default)]
-    pub flip_x: bool,
-
-    /// Vertical flip.
-    ///
-    /// 垂直翻转。
-    #[serde(default)]
-    pub flip_y: bool,
-
-    /// Pivot point override.
-    ///
-    /// 锚点覆盖。
-    #[serde(default)]
-    pub pivot: Option<Vec2>,
-
-    /// Frame duration override for animations (seconds).
-    ///
-    /// 动画的帧持续时间覆盖（秒）。
-    #[serde(default)]
-    pub frame_duration: Option<f32>,
+impl AsRef<str> for Visual {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Result of resolving a visual path.
@@ -182,9 +131,9 @@ pub enum ResolvedVisual {
     /// 静态精灵图片。
     Sprite(PathBuf),
 
-    /// Frame animation (directory containing numbered images).
+    /// Frame animation (directory containing multiple images).
     ///
-    /// 帧动画（包含编号图片的目录）。
+    /// 帧动画（包含多个图片的目录）。
     FrameAnimation(PathBuf),
 
     /// Character animation state machine (*.character.ron).
@@ -212,13 +161,13 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp"];
 /// ## 解析顺序
 ///
 /// 1. If path ends with `.character.ron` → CharacterAnimation
-/// 2. If path points to a directory → FrameAnimation
-/// 3. If path points to a file → Sprite
+/// 2. If path points to a file → Sprite
+/// 3. If path points to a directory with 2+ images → FrameAnimation
 /// 4. If no extension, search for matching file/directory
 ///
 /// 1. 如果路径以 `.character.ron` 结尾 → CharacterAnimation
-/// 2. 如果路径指向目录 → FrameAnimation
-/// 3. 如果路径指向文件 → Sprite
+/// 2. 如果路径指向文件 → Sprite
+/// 3. 如果路径指向包含2+图片的目录 → FrameAnimation
 /// 4. 如果没有扩展名，搜索匹配的文件/目录
 pub fn resolve_visual_path(input: &str, mod_name: &str) -> Option<ResolvedVisual> {
     let config = load_config();
@@ -262,7 +211,7 @@ pub fn resolve_visual_path_with_resources(
 
     // Try to find as a directory (frame animation)
     let dir_path = build_texture_path(mod_name, resources, input);
-    if dir_path.is_dir() {
+    if dir_path.is_dir() && is_frame_animation_directory(&dir_path) {
         return Some(ResolvedVisual::FrameAnimation(dir_path));
     }
 
@@ -278,9 +227,9 @@ pub fn resolve_visual_path_with_resources(
     // If simple name (no path separator), search recursively
     if !input.contains('/') && !input.contains('\\') {
         if let Some(found) = search_texture_recursive(mod_name, resources, input) {
-            if found.is_dir() {
+            if found.is_dir() && is_frame_animation_directory(&found) {
                 return Some(ResolvedVisual::FrameAnimation(found));
-            } else {
+            } else if found.is_file() {
                 return Some(ResolvedVisual::Sprite(found));
             }
         }
@@ -322,7 +271,6 @@ fn search_texture_recursive(
     search_recursive_inner(&textures_root, name, &mut file_matches, &mut dir_matches);
 
     // Prioritize file matches over directory matches
-    // This avoids mistaking "spear/" directory with "spear.png" inside as frame animation
     if !file_matches.is_empty() {
         if file_matches.len() > 1 {
             warn!(
@@ -334,7 +282,6 @@ fn search_texture_recursive(
     }
 
     // Only use directory match if it's a valid frame animation directory
-    // (contains multiple numbered images like 0.png, 1.png, etc.)
     for dir in dir_matches {
         if is_frame_animation_directory(&dir) {
             return Some(dir);
@@ -345,10 +292,10 @@ fn search_texture_recursive(
 }
 
 /// Check if a directory looks like a frame animation directory.
-/// Frame animation directories should contain multiple images.
+/// Frame animation directories should contain multiple images (2 or more).
 ///
 /// 检查目录是否看起来像帧动画目录。
-/// 帧动画目录应包含多个图片。
+/// 帧动画目录应包含多个图片（2个或更多）。
 fn is_frame_animation_directory(dir: &Path) -> bool {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;
@@ -430,36 +377,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_visual_path_extraction() {
-        let v1 = Visual::Path("heart".to_string());
+    fn test_visual_basic() {
+        let v1 = Visual::new("heart");
         assert_eq!(v1.path(), "heart");
-        assert!(!v1.flip_x());
+        assert!(!v1.is_empty());
 
-        let v2 = Visual::Config(VisualConfig {
-            visual: "spear".to_string(),
-            color: Some(Color::srgba(1.0, 0.0, 0.0, 1.0)),
-            flip_x: true,
-            flip_y: false,
-            pivot: None,
-            frame_duration: Some(0.1),
-        });
+        let v2: Visual = "spear".into();
         assert_eq!(v2.path(), "spear");
-        assert!(v2.flip_x());
-        assert_eq!(v2.frame_duration(), Some(0.1));
+
+        let v3 = Visual::default();
+        assert!(v3.is_empty());
     }
 
     #[test]
-    fn test_visual_deserialize_path() {
+    fn test_visual_deserialize() {
         let ron_str = r#""heart""#;
         let v: Visual = ron::from_str(ron_str).unwrap();
         assert_eq!(v.path(), "heart");
-    }
-
-    #[test]
-    fn test_visual_deserialize_config() {
-        let ron_str = r#"(visual: "heart", flip_x: true)"#;
-        let v: Visual = ron::from_str(ron_str).unwrap();
-        assert_eq!(v.path(), "heart");
-        assert!(v.flip_x());
     }
 }

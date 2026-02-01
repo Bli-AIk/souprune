@@ -79,8 +79,7 @@
                 (
                     name: "HPSprite",
                     sprite: (
-                        path: "textures/battle/ui/hpname.png",
-                        is_animation: false,
+                        visual: "textures/battle/ui/hpname.png",
                         transform: Some((
                             translation: (-32.0, -105.0, 501.0),
                         )),
@@ -89,8 +88,7 @@
                 (
                     name: "HPBar",
                     sprite: (
-                        path: "procedural://white_pixel",
-                        is_animation: false,
+                        visual: "procedural://white_pixel",
                         transform: Some((
                             translation: (-22.0, -105.0, 501.0),
                             scale: ("12.5 + (@player.hp_max - 20) * 47.5 / 79", 10.0, 1.0),

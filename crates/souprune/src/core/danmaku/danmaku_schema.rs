@@ -158,7 +158,7 @@ fn parse_hex_color(hex: &str) -> Option<Color> {
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 #[serde(default)]
 pub struct BulletPrototype {
-    /// Visual representation (path or config)
+    /// Visual resource path (supports shorthand resolution)
     pub visual: Visual,
 
     /// Collision shape
@@ -182,6 +182,18 @@ pub struct BulletPrototype {
     /// Color tint overlay (for blue/orange soul bullets)
     /// Empty hex string means no tint
     pub color_tint: ColorTint,
+
+    /// Horizontal flip for sprite rendering
+    #[serde(default)]
+    pub flip_x: bool,
+
+    /// Vertical flip for sprite rendering
+    #[serde(default)]
+    pub flip_y: bool,
+
+    /// Frame duration for frame animations (seconds, default: 0.05)
+    #[serde(default)]
+    pub frame_duration: Option<f32>,
 }
 
 impl Default for BulletPrototype {
@@ -195,6 +207,9 @@ impl Default for BulletPrototype {
             scale: 1.0,
             hit_behavior: HitBehaviorPreset::Default,
             color_tint: ColorTint::default(),
+            flip_x: false,
+            flip_y: false,
+            frame_duration: None,
         }
     }
 }

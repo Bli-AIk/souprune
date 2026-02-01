@@ -158,32 +158,77 @@ pub struct ImageDef {
     pub color: Option<SerializableColor>,
 }
 
+/// Sprite definition for view layouts.
+///
+/// 视图布局中的精灵定义。
+///
+/// Uses `Visual` for automatic path resolution and type detection.
+/// Rendering properties (color, flip, shader, etc.) are defined here.
+///
+/// 使用 `Visual` 进行自动路径解析和类型检测。
+/// 渲染属性（颜色、翻转、着色器等）在此定义。
 #[derive(Debug, Deserialize, Clone)]
 pub struct SpriteDef {
-    /// Path to texture or animation config file.
-    pub path: String,
-    /// If true, the path is treated as a character animation config (.character.ron).
-    /// If false, it's treated as a static image.
-    #[serde(default)]
-    pub is_animation: bool,
+    /// Visual resource path (supports shorthand and auto type detection).
+    /// Replaces the old `path` + `is_animation` pattern.
+    ///
+    /// 视觉资源路径（支持简写和自动类型检测）。
+    /// 替代旧的 `path` + `is_animation` 模式。
+    pub visual: crate::core::visual::Visual,
+
+    /// Initial animation state for character animations.
+    ///
+    /// 角色动画的初始状态。
     #[serde(default)]
     pub initial_state: Option<String>,
+
+    /// Color tint.
+    ///
+    /// 颜色叠加。
     #[serde(default)]
     pub color: Option<SerializableColor>,
+
+    /// Horizontal flip.
+    ///
+    /// 水平翻转。
     #[serde(default)]
     pub flip_x: bool,
+
+    /// Vertical flip.
+    ///
+    /// 垂直翻转。
     #[serde(default)]
     pub flip_y: bool,
+
+    /// Transform (translation, scale, rotation).
+    ///
+    /// 变换（位移、缩放、旋转）。
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
+
     /// Optional custom shader path for sprite material.
+    ///
+    /// 精灵材质的可选自定义着色器路径。
     #[serde(default)]
     pub custom_shader: Option<String>,
+
     /// Shader parameters passed via uniform data.
+    ///
+    /// 通过 uniform 数据传递的着色器参数。
     #[serde(default)]
     pub shader_params: Option<DynamicColor>,
+
+    /// Pivot point (anchor).
+    ///
+    /// 锚点。
     #[serde(default)]
     pub pivot: Option<SerializableVec2>,
+
+    /// Frame duration for frame animations (seconds).
+    ///
+    /// 帧动画的帧持续时间（秒）。
+    #[serde(default)]
+    pub frame_duration: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

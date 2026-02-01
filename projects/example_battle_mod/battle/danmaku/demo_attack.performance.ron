@@ -41,10 +41,8 @@
         "pellet": (
             // Directory reference = frame animation
             // 目录引用 = 帧动画
-            visual: (
-                visual: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,
@@ -53,10 +51,8 @@
         // Orange pellet: damage only when player is stationary
         // 橙色花颗粒：仅当玩家静止时造成伤害
         "pellet_orange": (
-            visual: (
-                visual: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,
@@ -67,10 +63,8 @@
         // Blue pellet: damage only when player is moving
         // 蓝色花颗粒：仅当玩家移动时造成伤害
         "pellet_blue": (
-            visual: (
-                visual: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,

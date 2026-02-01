@@ -20,7 +20,7 @@ use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::DanmakuRegistry;
 use crate::core::sprite::params::SpriteParams;
 use crate::core::visual::{
-    DEFAULT_FRAME_DURATION, ResolvedVisual, Visual, get_asset_path, resolve_visual_path,
+    DEFAULT_FRAME_DURATION, ResolvedVisual, get_asset_path, resolve_visual_path,
 };
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
@@ -449,13 +449,11 @@ fn spawn_single_bullet(
     let config = load_config();
     let visual_path = prototype.visual.path();
 
-    // Determine effective color (from Visual config or from prototype color_tint)
-    let effective_color = prototype
-        .visual
-        .color()
-        .or_else(|| prototype.color_tint.to_color());
-    let flip_x = prototype.visual.flip_x();
-    let flip_y = prototype.visual.flip_y();
+    // Get rendering properties from prototype
+    let effective_color = prototype.color_tint.to_color();
+    let flip_x = prototype.flip_x;
+    let flip_y = prototype.flip_y;
+    let frame_duration = prototype.frame_duration.unwrap_or(DEFAULT_FRAME_DURATION);
 
     // Try to resolve the visual path
     if let Some(resolved) = resolve_visual_path(visual_path, &config.project.mod_name) {
@@ -477,11 +475,6 @@ fn spawn_single_bullet(
             }
             ResolvedVisual::FrameAnimation(_dir_path) => {
                 // For frame animations, we need to use the existing animation system
-                // Load all images in the directory and create a frame animation
-                let frame_duration = prototype
-                    .visual
-                    .frame_duration()
-                    .unwrap_or(DEFAULT_FRAME_DURATION);
                 let mut sprite = Sprite {
                     flip_x,
                     flip_y,
@@ -545,10 +538,6 @@ fn spawn_single_bullet(
                 }
                 entity_commands.insert(sprite);
             } else if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
-                let frame_duration = prototype
-                    .visual
-                    .frame_duration()
-                    .unwrap_or(DEFAULT_FRAME_DURATION);
                 let mut sprite = Sprite::default();
                 if let Some(color) = effective_color {
                     sprite.color = color;

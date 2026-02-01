@@ -160,8 +160,7 @@
                 (
                     name: "HPSprite",
                     sprite: (
-                        path: "textures/battle/ui/hpname.png",
-                        is_animation: false,
+                        visual: "textures/battle/ui/hpname.png",
                         transform: (
                             translation: (-64.5, -170.0, 1.0),
                         ),
@@ -170,8 +169,7 @@
                 (
                     name: "HPBar",
                     sprite: (
-                        path: "procedural://white_pixel",  // Use procedural texture
-                        is_animation: false,
+                        visual: "procedural://white_pixel",  // Use procedural texture
                         transform: (
                             translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
                             scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),  // Dynamic width based on hp_max
