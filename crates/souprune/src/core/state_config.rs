@@ -186,6 +186,14 @@ impl LoadedStateConfig {
 #[derive(Resource, Default)]
 pub struct StateConfigHandle(pub Option<Handle<StateConfig>>);
 
+/// Resource indicating whether state configuration has been loaded from file.
+/// This prevents chase system from using default values.
+///
+/// 指示状态配置是否已从文件加载的资源。
+/// 这可以防止追逐战系统使用默认值。
+#[derive(Resource, Default)]
+pub struct StateConfigLoaded(pub bool);
+
 /// Plugin for state configuration system.
 ///
 /// 状态配置系统的插件。
@@ -199,6 +207,7 @@ impl Plugin for StateConfigPlugin {
             ))
             .init_resource::<LoadedStateConfig>()
             .init_resource::<StateConfigHandle>()
+            .init_resource::<StateConfigLoaded>()
             .add_systems(Startup, load_state_config_system)
             .add_systems(Update, process_loaded_state_config_system);
     }
@@ -231,6 +240,7 @@ fn load_state_config_system(
 /// 处理已加载的状态配置。
 fn process_loaded_state_config_system(
     mut loaded_config: ResMut<LoadedStateConfig>,
+    mut config_loaded: ResMut<StateConfigLoaded>,
     config_handle: Res<StateConfigHandle>,
     state_configs: Res<Assets<StateConfig>>,
     mut processed: Local<bool>,
@@ -253,6 +263,7 @@ fn process_loaded_state_config_system(
             );
         }
         *loaded_config = LoadedStateConfig(config.clone());
+        config_loaded.0 = true;
         *processed = true;
     }
 }

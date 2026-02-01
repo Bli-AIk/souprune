@@ -34,7 +34,7 @@ StateConfig(
             view_layout: "overworld/view/undertale_backpack.view_layout.ron",
             initial_layer: "BackpackMenu",
             on_enter_sound: "audios/sfx/confirm.wav",
-            on_exit_sound: "audios/sfx/cancel.wav",
+            //on_exit_sound: "audios/sfx/choice.wav",
         ),
 
         // Cutscene state - player cannot move, UI is inactive

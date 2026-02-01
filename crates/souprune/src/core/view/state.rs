@@ -244,12 +244,14 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 // ============================================================================
 
 /// System that handles confirm/cancel input for active InteractiveLayers.
+/// Sound effects are now handled by handle_interactive_layer_transitions_system
+/// based on layer configuration (sound_on_confirm, sound_on_cancel).
 ///
 /// 处理活跃 InteractiveLayer 确认/取消输入的系统。
+/// 音效现在由 handle_interactive_layer_transitions_system 根据层配置
+/// (sound_on_confirm, sound_on_cancel) 处理。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
@@ -278,7 +280,10 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             .unwrap_or(false);
 
         if confirm_pressed {
-            audio::play_sound(&audio, &asset_server, "confirm.wav");
+            // Note: Sound effect is handled by handle_interactive_layer_transitions_system
+            // based on layer's sound_on_confirm configuration
+            // 注意：音效由 handle_interactive_layer_transitions_system 根据层的
+            // sound_on_confirm 配置处理
 
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",
@@ -305,10 +310,13 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
 }
 
 /// Firewheel audio backend variant
+/// Sound effects are now handled by handle_interactive_layer_transitions_system
+/// based on layer configuration (sound_on_confirm, sound_on_cancel).
+///
+/// Firewheel 音频后端变体
+/// 音效现在由 handle_interactive_layer_transitions_system 根据层配置处理。
 #[cfg(feature = "firewheel")]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
@@ -337,7 +345,10 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             .unwrap_or(false);
 
         if confirm_pressed {
-            audio::play_sound(&mut commands, &asset_server, "confirm.wav");
+            // Note: Sound effect is handled by handle_interactive_layer_transitions_system
+            // based on layer's sound_on_confirm configuration
+            // 注意：音效由 handle_interactive_layer_transitions_system 根据层的
+            // sound_on_confirm 配置处理
 
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",

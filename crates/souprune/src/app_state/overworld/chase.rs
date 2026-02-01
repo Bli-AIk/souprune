@@ -362,9 +362,12 @@ impl Plugin for ChasePlugin {
             .init_resource::<ChaseConfigLoaded>()
             .add_message::<ChasePlayerDamageEvent>()
             // Load chase config dynamically when state config becomes available
+            // Must run before FRETriggerSet so chase state actions can work
             .add_systems(
                 Update,
-                load_chase_config_system.run_if(|loaded: Res<ChaseConfigLoaded>| !loaded.0),
+                load_chase_config_system
+                    .run_if(|loaded: Res<ChaseConfigLoaded>| !loaded.0)
+                    .before(super::FRETriggerSet),
             )
             // Dynamic state change detection (replaces OnEnter/OnExit)
             .add_systems(
@@ -493,13 +496,14 @@ fn detect_chase_state_exit_system(
 fn load_chase_config_system(
     mut commands: Commands,
     souprune_config: Res<config::SoupruneConfig>,
-    state_config: Option<Res<LoadedStateConfig>>,
+    state_config: Res<LoadedStateConfig>,
+    state_config_loaded: Res<crate::core::state_config::StateConfigLoaded>,
     mut chase_enabled: ResMut<ChaseEnabled>,
     mut chase_state_name: ResMut<ChaseStateName>,
     mut chase_loaded: ResMut<ChaseConfigLoaded>,
 ) {
-    // Wait for state config to be loaded before processing
-    if state_config.is_none() {
+    // Wait for state config to be actually loaded from file (not just default)
+    if !state_config_loaded.0 {
         return;
     }
 
@@ -507,21 +511,19 @@ fn load_chase_config_system(
     chase_loaded.0 = true;
 
     // First try to find chase state from states.ron
-    if let Some(ref config) = state_config {
-        for (state_name, state_def) in &config.0.states {
-            if state_def.chase_config.is_some() {
-                chase_state_name.0 = Some(state_name.clone());
-                info!("Chase: Found chase state '{}' in states.ron", state_name);
+    for (state_name, state_def) in &state_config.0.states {
+        if state_def.chase_config.is_some() {
+            chase_state_name.0 = Some(state_name.clone());
+            info!("Chase: Found chase state '{}' in states.ron", state_name);
 
-                // Load config from the path specified in state definition
-                if let Some(path) = &state_def.chase_config
-                    && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
-                {
-                    info!("Chase: Enabled with config from {}", path);
-                    commands.insert_resource(config);
-                    chase_enabled.0 = true;
-                    return;
-                }
+            // Load config from the path specified in state definition
+            if let Some(path) = &state_def.chase_config
+                && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
+            {
+                info!("Chase: Enabled with config from {}", path);
+                commands.insert_resource(config);
+                chase_enabled.0 = true;
+                return;
             }
         }
     }
