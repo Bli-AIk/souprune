@@ -94,6 +94,13 @@ pub struct GameConfig {
     /// 状态配置文件路径（RON 格式）。
     pub states_config: String,
 
+    /// Path to chase state configuration file (RON format).
+    /// If None, chase state functionality is disabled.
+    ///
+    /// 追逐战状态配置文件路径（RON 格式）。
+    /// 如果为 None，则禁用追逐战功能。
+    pub chase_config: Option<String>,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -114,6 +121,7 @@ impl Default for GameConfig {
             player_behavior_path: String::new(),
             input_config_path: String::new(),
             states_config: "config/states.ron".to_string(),
+            chase_config: None,
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }

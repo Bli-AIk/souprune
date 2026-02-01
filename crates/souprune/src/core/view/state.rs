@@ -14,7 +14,7 @@
 
 use super::components::interactive::NavDirection;
 use super::ron_view::ViewGlobalTriggerConfig;
-use crate::app_state::overworld::{OverworldState, character};
+use crate::app_state::overworld::{OverworldSubState, character};
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
 use bevy::ecs::message::MessageWriter;
@@ -33,8 +33,8 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) fn global_trigger_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<OverworldState>>,
-    current_state: Res<State<OverworldState>>,
+    mut next_state: ResMut<NextState<OverworldSubState>>,
+    current_state: Res<State<OverworldSubState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
@@ -55,7 +55,7 @@ pub(crate) fn global_trigger_system(
                     "Checking rule: target={:?}, allowed={:?}",
                     rule.target_state, rule.allowed_states
                 );
-                if rule.allowed_states.contains(current_state.get()) {
+                if rule.allowed_states.iter().any(|s| s == current_state.get()) {
                     info!(
                         "Global trigger activated: {:?} -> {:?} via {:?}",
                         current_state.get(),
@@ -67,7 +67,7 @@ pub(crate) fn global_trigger_system(
                         audio::play_sound(&audio, &asset_server, sound_path);
                     }
 
-                    next_state.set(rule.target_state);
+                    next_state.set(rule.target_state.clone());
                     return;
                 }
             }
@@ -80,8 +80,8 @@ pub(crate) fn global_trigger_system(
 pub(crate) fn global_trigger_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<OverworldState>>,
-    current_state: Res<State<OverworldState>>,
+    mut next_state: ResMut<NextState<OverworldSubState>>,
+    current_state: Res<State<OverworldSubState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
@@ -102,7 +102,7 @@ pub(crate) fn global_trigger_system(
                     "Checking rule: target={:?}, allowed={:?}",
                     rule.target_state, rule.allowed_states
                 );
-                if rule.allowed_states.contains(current_state.get()) {
+                if rule.allowed_states.iter().any(|s| s == current_state.get()) {
                     info!(
                         "Global trigger activated: {:?} -> {:?} via {:?}",
                         current_state.get(),
@@ -114,7 +114,7 @@ pub(crate) fn global_trigger_system(
                         audio::play_sound(&mut commands, &asset_server, sound_path);
                     }
 
-                    next_state.set(rule.target_state);
+                    next_state.set(rule.target_state.clone());
                     return;
                 }
             }
@@ -386,7 +386,7 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     >,
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
-    mut next_ow_state: ResMut<NextState<OverworldState>>,
+    mut next_ow_state: ResMut<NextState<OverworldSubState>>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
@@ -470,7 +470,7 @@ fn execute_layer_transition(
     action: super::components::LayerTransitionAction,
     current_layer_id: &str,
     layer_query: &mut Query<(Entity, &mut super::components::InteractiveLayer)>,
-    next_ow_state: &mut ResMut<NextState<OverworldState>>,
+    next_ow_state: &mut ResMut<NextState<OverworldSubState>>,
     activated_events: &mut MessageWriter<super::components::LayerActivatedEvent>,
     deactivated_events: &mut MessageWriter<super::components::LayerDeactivatedEvent>,
 ) {
@@ -538,7 +538,7 @@ fn execute_layer_transition(
                     .write(super::components::LayerDeactivatedEvent { layer_id, entity });
             }
 
-            next_ow_state.set(OverworldState::Normal);
+            next_ow_state.set(OverworldSubState::default());
         }
         super::components::LayerTransitionAction::PushState(state_name) => {
             info!(
@@ -564,7 +564,7 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     >,
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
-    mut next_ow_state: ResMut<NextState<OverworldState>>,
+    mut next_ow_state: ResMut<NextState<OverworldSubState>>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};

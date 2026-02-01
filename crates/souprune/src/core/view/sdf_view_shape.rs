@@ -27,7 +27,7 @@ use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
 use super::text::NeedsGlyphRefresh;
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
@@ -624,22 +624,29 @@ pub(crate) fn update_sdf_view_shape_system(
 /// 根据当前激活的 [`ViewLayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
 pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
-    overworld_state: Option<Res<State<OverworldState>>>,
+    overworld_state: Option<Res<State<OverworldSubState>>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     interactive_layer_query: Query<&InteractiveLayer>,
     _parent_query: Query<&ChildOf>,
     mut box_query: Query<(Entity, &ViewBoxVisibility, &mut Visibility), With<ViewBox>>,
 ) {
-    // Check if we should process UI visibility (Battle or Overworld Backpack)
-    // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
+    // Check if we should process UI visibility (Battle or Overworld with ui_interactive)
+    // 检查是否应该处理 UI 可见性（Battle 或具有 ui_interactive 的 Overworld 状态）
     let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
-    let is_backpack = matches!(app_state.get(), crate::app_state::AppState::Overworld)
+    let is_ui_interactive = matches!(app_state.get(), crate::app_state::AppState::Overworld)
         && overworld_state
-            .map(|s| s.get() == &OverworldState::Backpack)
+            .as_ref()
+            .map(|s| {
+                state_config
+                    .as_ref()
+                    .map(|config| config.is_ui_interactive(s.name()))
+                    .unwrap_or(false)
+            })
             .unwrap_or(false);
 
-    let should_process_ui = is_battle || is_backpack;
+    let should_process_ui = is_battle || is_ui_interactive;
 
-    // Find active InteractiveLayer for Backpack state
+    // Find active InteractiveLayer for UI state
     let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
 
     for (_entity, layer_visibility, mut visibility) in box_query.iter_mut() {
@@ -694,14 +701,15 @@ pub(crate) fn update_ui_box_visibility_system(
     }
 }
 
-/// Toggle UI container visibility according to the active [`ViewLayer`] (supports both Overworld Backpack and Battle states).
+/// Toggle UI container visibility according to the active [`ViewLayer`] (supports states with ui_interactive and Battle states).
 /// This system handles pure container nodes that don't have a ViewBox but need visibility control.
 ///
-/// 根据当前激活的 [`ViewLayer`] 切换 UI 容器可见性（支持 Overworld 背包和 Battle 场景）。
+/// 根据当前激活的 [`ViewLayer`] 切换 UI 容器可见性（支持具有 ui_interactive 的状态和 Battle 场景）。
 /// 此系统处理没有 ViewBox 但需要可见性控制的纯容器节点。
 pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
-    overworld_state: Option<Res<State<OverworldState>>>,
+    overworld_state: Option<Res<State<OverworldSubState>>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     interactive_layer_query: Query<&InteractiveLayer>,
     _parent_query: Query<&ChildOf>,
     mut container_query: Query<
@@ -713,17 +721,23 @@ pub(crate) fn update_ui_container_visibility_system(
         With<super::components::ViewContainer>,
     >,
 ) {
-    // Check if we should process UI visibility (Battle or Overworld Backpack)
-    // 检查是否应该处理 UI 可见性（Battle 或 Overworld 背包）
+    // Check if we should process UI visibility (Battle or Overworld with ui_interactive)
+    // 检查是否应该处理 UI 可见性（Battle 或具有 ui_interactive 的 Overworld 状态）
     let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
-    let is_backpack = matches!(app_state.get(), crate::app_state::AppState::Overworld)
+    let is_ui_interactive = matches!(app_state.get(), crate::app_state::AppState::Overworld)
         && overworld_state
-            .map(|s| s.get() == &OverworldState::Backpack)
+            .as_ref()
+            .map(|s| {
+                state_config
+                    .as_ref()
+                    .map(|config| config.is_ui_interactive(s.name()))
+                    .unwrap_or(false)
+            })
             .unwrap_or(false);
 
-    let should_process_ui = is_battle || is_backpack;
+    let should_process_ui = is_battle || is_ui_interactive;
 
-    // Find active InteractiveLayer for Backpack state
+    // Find active InteractiveLayer for UI state
     let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
 
     for (_entity, container_visibility, mut visibility) in container_query.iter_mut() {

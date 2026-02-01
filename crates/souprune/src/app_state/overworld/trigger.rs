@@ -380,27 +380,74 @@ pub fn log_fact_changes_system(
     }
 }
 
-/// System to handle chase state transitions based on FRE events.
+/// System to handle chase state transitions based on FRE actions.
+/// Reads EnterChaseState and ExitChaseState actions from rule definitions.
 ///
-/// 根据 FRE 事件处理追逐战状态转换的系统。
+/// 根据 FRE action 处理追逐战状态转换的系统。
+/// 从规则定义中读取 EnterChaseState 和 ExitChaseState action。
 pub fn handle_chase_state_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldState>>,
+    mut rule_registry: ResMut<RuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
+    action_defs: Res<RuleActionDefs>,
+    chase_enabled: Res<super::chase::ChaseEnabled>,
+    chase_state_name: Res<super::chase::ChaseStateName>,
+    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
     for event in events.read() {
-        if event.id == FactEventId::new("demo_visit_updated") {
-            let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+        // Get all matching rules for this event
+        let matching_rules = rule_registry.get_matching_rules(event);
 
-            // Enter chase state on 2nd visit
-            if visit_count == 2 {
-                info!("FRE: Entering Chase state (2nd visit)");
-                next_state.set(crate::app_state::overworld::OverworldState::Chase);
-            }
-            // Exit chase state on 5th visit
-            else if visit_count == 5 {
-                info!("FRE: Exiting Chase state (5th visit)");
-                next_state.set(crate::app_state::overworld::OverworldState::Normal);
+        for rule in matching_rules {
+            // Check if rule's condition is met
+            if rule.condition.evaluate(&*fact_db) {
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom { action_type, .. } = action {
+                            match action_type.as_str() {
+                                "EnterChaseState" => {
+                                    if chase_enabled.0 {
+                                        if let Some(ref state_name) = chase_state_name.0 {
+                                            info!(
+                                                "FRE: Entering chase state '{}' via action",
+                                                state_name
+                                            );
+                                            next_state.set(
+                                                crate::app_state::overworld::OverworldSubState::new(
+                                                    state_name.clone(),
+                                                ),
+                                            );
+                                        } else {
+                                            warn!(
+                                                "FRE: EnterChaseState action ignored - no chase state name configured"
+                                            );
+                                        }
+                                    } else {
+                                        warn!(
+                                            "FRE: EnterChaseState action ignored - chase not enabled"
+                                        );
+                                    }
+                                }
+                                "ExitChaseState" => {
+                                    if chase_enabled.0 {
+                                        info!("FRE: Exiting chase state via action");
+                                        // Return to default state (empty string means default)
+                                        next_state.set(
+                                            crate::app_state::overworld::OverworldSubState::default(
+                                            ),
+                                        );
+                                    } else {
+                                        warn!(
+                                            "FRE: ExitChaseState action ignored - chase not enabled"
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
             }
         }
     }
