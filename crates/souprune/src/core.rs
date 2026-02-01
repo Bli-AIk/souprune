@@ -48,6 +48,7 @@ pub mod ron_loader;
 pub mod sprite;
 pub(crate) mod state_config;
 pub(crate) mod view;
+pub mod visual;
 
 use crate::extra;
 use bevy::app::*;
@@ -74,7 +75,7 @@ impl Plugin for CorePlugin {
             )
             .register_asset_loader(ron_loader::RonAssetLoader::<
                 character_asset::AnimationConfigAsset,
-            >::new(&["animation.ron"]))
+            >::new(&["character.ron"]))
             .add_plugins((
                 animation::AnimationPlugin,
                 audio::AudioPlugin,

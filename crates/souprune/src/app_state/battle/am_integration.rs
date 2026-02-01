@@ -764,10 +764,7 @@ fn handle_play_am_performance_event(
                 "projects/{}/{}",
                 project_config.project.mod_name, custom_config_path
             );
-            info!(
-                "[AM Battle] Using custom config: {}",
-                full_path
-            );
+            info!("[AM Battle] Using custom config: {}", full_path);
             let (config, bullet_regex, battle_box_regex, hidden_regex) =
                 load_am_config_from_path(&full_path);
             *am_config = config;

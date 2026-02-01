@@ -14,10 +14,14 @@ use super::danmaku_schema::*;
 use super::target::BulletTarget;
 use crate::app_state::battle::BattleEntity;
 use crate::app_state::overworld::OverworldEntity;
+use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::DanmakuRegistry;
 use crate::core::sprite::params::SpriteParams;
+use crate::core::visual::{
+    DEFAULT_FRAME_DURATION, ResolvedVisual, Visual, get_asset_path, resolve_visual_path,
+};
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use souprune_api::BulletContextC;
@@ -441,58 +445,122 @@ fn spawn_single_bullet(
         }
     }
 
-    match &prototype.visual {
-        BulletVisual::Sprite { path } => {
-            let mut sprite = Sprite {
-                image: asset_server.load(path),
-                ..default()
-            };
-            // Apply color tint if specified
-            if let Some(color) = prototype.color_tint.to_color() {
-                sprite.color = color;
-            }
-            entity_commands.insert(sprite);
-        }
-        BulletVisual::SpriteRef { module, name } => {
-            let mut sprite_context = sprite_params.create_sprite_context();
-            match sprite_context.get_sprite(module, name) {
-                Ok(mut sprite) => {
-                    // Apply color tint if specified
-                    if let Some(color) = prototype.color_tint.to_color() {
-                        sprite.color = color;
-                    }
-                    entity_commands.insert(sprite);
+    // Instantiate visual using the unified Visual type
+    let config = load_config();
+    let visual_path = prototype.visual.path();
+
+    // Determine effective color (from Visual config or from prototype color_tint)
+    let effective_color = prototype
+        .visual
+        .color()
+        .or_else(|| prototype.color_tint.to_color());
+    let flip_x = prototype.visual.flip_x();
+    let flip_y = prototype.visual.flip_y();
+
+    // Try to resolve the visual path
+    if let Some(resolved) = resolve_visual_path(visual_path, &config.project.mod_name) {
+        // Convert full path to asset-relative path
+        let asset_path = get_asset_path(&resolved, &config.project.mod_name);
+
+        match resolved {
+            ResolvedVisual::Sprite(_) => {
+                let mut sprite = Sprite {
+                    image: asset_server.load(&asset_path),
+                    flip_x,
+                    flip_y,
+                    ..default()
+                };
+                if let Some(color) = effective_color {
+                    sprite.color = color;
                 }
-                Err(e) => {
-                    warn!("Failed to load sprite '{}': {}", name, e);
-                    entity_commands.insert(Sprite::default());
-                }
+                entity_commands.insert(sprite);
             }
-        }
-        BulletVisual::Animation {
-            module,
-            name,
-            frame_duration,
-        } => {
-            let mut sprite_context = sprite_params.create_sprite_context();
-            match SpriteAnimationClip::new(&mut sprite_context, module, name) {
-                Ok(clip) => {
-                    let mut sprite = Sprite::default();
-                    // Apply color tint if specified
-                    if let Some(color) = prototype.color_tint.to_color() {
-                        sprite.color = color;
-                    }
+            ResolvedVisual::FrameAnimation(_dir_path) => {
+                // For frame animations, we need to use the existing animation system
+                // Load all images in the directory and create a frame animation
+                let frame_duration = prototype
+                    .visual
+                    .frame_duration()
+                    .unwrap_or(DEFAULT_FRAME_DURATION);
+                let mut sprite = Sprite {
+                    flip_x,
+                    flip_y,
+                    ..default()
+                };
+                if let Some(color) = effective_color {
+                    sprite.color = color;
+                }
+
+                // Extract directory name from asset path for registry lookup
+                let dir_name = std::path::Path::new(&asset_path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+
+                let mut sprite_context = sprite_params.create_sprite_context();
+                // Try to find animation by directory name in any module
+                if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, "battle", dir_name)
+                    .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "common", dir_name))
+                    .or_else(|_| {
+                        SpriteAnimationClip::new(&mut sprite_context, "overworld", dir_name)
+                    })
+                {
                     entity_commands.insert((
                         sprite,
                         clip,
-                        SpriteAnimationTimer::new(*frame_duration),
+                        SpriteAnimationTimer::new(frame_duration),
                     ));
-                }
-                Err(e) => {
-                    warn!("Failed to create animation '{}': {}", name, e);
-                    entity_commands.insert(Sprite::default());
+                } else {
+                    // Fallback: load first image from directory using asset-relative path
+                    let fallback_path = format!("{}/0.png", asset_path);
+                    sprite.image = asset_server.load(&fallback_path);
+                    warn!(
+                        "Animation '{}' not found in registry, using static fallback",
+                        dir_name
+                    );
+                    entity_commands.insert(sprite);
                 }
             }
+            ResolvedVisual::CharacterAnimation(_path) => {
+                // Character animations are not typically used for bullets
+                warn!(
+                    "Character animations not supported for bullets: {}",
+                    visual_path
+                );
+                entity_commands.insert(Sprite::default());
+            }
+        }
+    } else {
+        // Fallback: try legacy module/name lookup for backwards compatibility
+        // This handles cases like "battle/bullets/spear" that might reference config.toml
+        let parts: Vec<&str> = visual_path.split('/').collect();
+        if parts.len() >= 2 {
+            let module = parts[0];
+            let name = parts.last().unwrap_or(&"");
+
+            let mut sprite_context = sprite_params.create_sprite_context();
+            if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
+                if let Some(color) = effective_color {
+                    sprite.color = color;
+                }
+                entity_commands.insert(sprite);
+            } else if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
+                let frame_duration = prototype
+                    .visual
+                    .frame_duration()
+                    .unwrap_or(DEFAULT_FRAME_DURATION);
+                let mut sprite = Sprite::default();
+                if let Some(color) = effective_color {
+                    sprite.color = color;
+                }
+                entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
+            } else {
+                warn!("Failed to resolve visual: {}", visual_path);
+                entity_commands.insert(Sprite::default());
+            }
+        } else {
+            warn!("Failed to resolve visual: {}", visual_path);
+            entity_commands.insert(Sprite::default());
         }
     }
 }

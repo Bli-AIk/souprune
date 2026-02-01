@@ -112,7 +112,6 @@ impl Plugin for DanmakuPlugin {
         // Register reflect types for inspector
         app.register_type::<DanmakuPerformance>()
             .register_type::<BulletPrototype>()
-            .register_type::<BulletVisual>()
             .register_type::<ColliderShape>()
             .register_type::<BulletBehavior>()
             .register_type::<LinearConfig>()

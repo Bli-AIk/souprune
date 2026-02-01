@@ -162,7 +162,7 @@ pub struct ImageDef {
 pub struct SpriteDef {
     /// Path to texture or animation config file.
     pub path: String,
-    /// If true, the path is treated as an animation config (.animation.ron).
+    /// If true, the path is treated as a character animation config (.character.ron).
     /// If false, it's treated as a static image.
     #[serde(default)]
     pub is_animation: bool,

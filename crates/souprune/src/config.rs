@@ -41,6 +41,12 @@ pub struct SoupruneConfig {
     /// 渲染配置设置。
     #[serde(default)]
     pub render: RenderConfig,
+
+    /// Resource paths configuration.
+    ///
+    /// 资源路径配置。
+    #[serde(skip)]
+    pub resources: ResourcePaths,
 }
 
 #[derive(Clone, Deserialize)]
@@ -224,9 +230,43 @@ pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
     None
 }
 
+/// Resource paths configuration from mod.toml [resources] section.
+///
+/// mod.toml 中 [resources] 节的资源路径配置。
+#[derive(Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct ResourcePaths {
+    /// Path to textures directory relative to mod root.
+    ///
+    /// 纹理目录路径，相对于 mod 根目录。
+    pub textures: String,
+
+    /// Path to audio directory relative to mod root.
+    ///
+    /// 音频目录路径，相对于 mod 根目录。
+    pub audios: String,
+}
+
+impl ResourcePaths {
+    fn with_defaults() -> Self {
+        Self {
+            textures: "textures".to_string(),
+            audios: "audios".to_string(),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct ModConfigFile {
     game: Option<GameConfigPartial>,
+    #[serde(default)]
+    resources: Option<ResourcePathsPartial>,
+}
+
+#[derive(Deserialize, Default)]
+struct ResourcePathsPartial {
+    textures: Option<String>,
+    audios: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -269,6 +309,9 @@ Falling back to default configuration (example_mod)",
                 default_config()
             });
 
+            // Initialize resources with defaults
+            config.resources = ResourcePaths::with_defaults();
+
             let mod_name = &config.project.mod_name;
             let mod_config_path = Path::new("projects").join(mod_name).join("mod.toml");
 
@@ -295,6 +338,15 @@ Falling back to default configuration (example_mod)",
                                 config.game.required_modules = val;
                             }
                         }
+                        // Load resource paths from [resources] section
+                        if let Some(res_partial) = mod_cfg.resources {
+                            if let Some(val) = res_partial.textures {
+                                config.resources.textures = val;
+                            }
+                            if let Some(val) = res_partial.audios {
+                                config.resources.audios = val;
+                            }
+                        }
                     }
                     Err(e) => error!("Failed to load mod.toml: {}", e),
                 }
@@ -316,5 +368,6 @@ fn default_config() -> SoupruneConfig {
         },
         game: GameConfig::default(),
         render: RenderConfig::default(),
+        resources: ResourcePaths::with_defaults(),
     }
 }
