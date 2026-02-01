@@ -16,7 +16,7 @@ use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
 use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
     RuleActionDef, RuleRegistry, RuleSetAsset,

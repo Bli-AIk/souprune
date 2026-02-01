@@ -18,7 +18,6 @@
 //! 该文件定义了从 RON 文件加载 View 布局的 `OverworldViewPlugin`。
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
-use crate::app_state::overworld::OverworldSubState;
 use crate::core::ron_loader::RonAssetLoader;
 
 use bevy::prelude::*;
@@ -55,10 +54,7 @@ pub use components::{
 use components::{ViewLayerNavigationConfig, ViewLayerTransitionConfig};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
-use lifecycle::{
-    UIInteractiveStateTracker, backpack_state_transition_system, despawn_backpack_ui_system,
-    spawn_backpack_ui_system,
-};
+use lifecycle::{UIInteractiveStateTracker, backpack_state_transition_system};
 use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
 pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use ron_view::{

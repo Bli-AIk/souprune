@@ -514,13 +514,13 @@ fn load_chase_config_system(
                 info!("Chase: Found chase state '{}' in states.ron", state_name);
 
                 // Load config from the path specified in state definition
-                if let Some(path) = &state_def.chase_config {
-                    if let Some(config) = ChaseConfig::load_from_path(Some(path.as_str())) {
-                        info!("Chase: Enabled with config from {}", path);
-                        commands.insert_resource(config);
-                        chase_enabled.0 = true;
-                        return;
-                    }
+                if let Some(path) = &state_def.chase_config
+                    && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
+                {
+                    info!("Chase: Enabled with config from {}", path);
+                    commands.insert_resource(config);
+                    chase_enabled.0 = true;
+                    return;
                 }
             }
         }

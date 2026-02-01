@@ -252,22 +252,22 @@ pub(crate) fn backpack_state_transition_system(
     }
 
     // Try to spawn UI if we have a pending layout handle
-    if is_ui_interactive && tracker.current_layout_handle.is_some() {
-        if let Some(ref handle) = tracker.current_layout_handle {
-            if let Some(layout) = view_layouts.get(handle) {
-                debug!("View layout loaded, spawning UI for state '{}'", state_name);
-                spawn_backpack_ui_with_layout(
-                    &mut commands,
-                    &interactive_layer_query,
-                    locale_loaded.as_deref(),
-                    layout,
-                    tracker.current_initial_layer.as_deref(),
-                    &layered_db,
-                );
-                // Clear handle after spawning (we've used it)
-                // Keep initial_layer for reference
-            }
-        }
+    if is_ui_interactive
+        && tracker.current_layout_handle.is_some()
+        && let Some(ref handle) = tracker.current_layout_handle
+        && let Some(layout) = view_layouts.get(handle)
+    {
+        debug!("View layout loaded, spawning UI for state '{}'", state_name);
+        spawn_backpack_ui_with_layout(
+            &mut commands,
+            &interactive_layer_query,
+            locale_loaded.as_deref(),
+            layout,
+            tracker.current_initial_layer.as_deref(),
+            &layered_db,
+        );
+        // Clear handle after spawning (we've used it)
+        // Keep initial_layer for reference
     }
 
     // Detect exiting UI interactive state

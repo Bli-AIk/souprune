@@ -1,7 +1,7 @@
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
 use super::super::components::InteractiveLayer;
 use super::super::layout::ViewLayoutAsset;
