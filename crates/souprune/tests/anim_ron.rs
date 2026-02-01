@@ -13,7 +13,8 @@ const ANIM_DIR: &str = "overworld/characters";
 const ANIM_SUFFIX: &str = ".character.ron";
 
 fn animation_files() -> Vec<String> {
-    // Filter to only include state machine animation configs (exclude .character.ron that define characters)
+    // Filter to include only animation config files (contains "animations" in path)
+    // 过滤只包含动画配置文件（路径包含 "animations"）
     test_support::list_project_files_with_suffix(ANIM_DIR, ANIM_SUFFIX)
         .into_iter()
         .filter(|f| f.contains("animations"))
