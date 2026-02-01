@@ -6,175 +6,157 @@
 //!
 //! ## 模块概述
 //!
-//! This module manages core game data such as player saves and configuration values.
+//! This module manages core game data through the FRE (Fact-Rule-Event) system.
+//! Player data is stored exclusively in the LayeredFactDatabase - there are NO
+//! ECS components for player stats. This is the single source of truth.
 //!
-//! 该模块管理玩家存档及配置值等核心游戏数据。
+//! 该模块通过 FRE（事实-规则-事件）系统管理核心游戏数据。
+//! 玩家数据完全存储在 LayeredFactDatabase 中 - 没有用于玩家属性的 ECS 组件。
+//! 这是唯一的数据来源。
 //!
 //! ## Source File Overview
 //!
 //! ## 源文件概述
 //!
-//! It defines `DataPlugin`, which initializes and manages those data-related configurations.
-//! The plugin uses an ECS-based approach with fine-grained components and also maintains
-//! a `PlayerData` resource for convenient global access.
+//! It defines `DataPlugin`, which loads global facts from a .rules.ron file
+//! (configured in mod.toml as `global_rules`) into the global layer at startup.
 //!
-//! 本文件定义了 `DataPlugin`，用于初始化并管理这些数据相关配置。
-//! 该插件采用基于 ECS 的方式使用细粒度组件，同时维护一个 `PlayerData` 资源以便全局访问。
+//! 本文件定义了 `DataPlugin`，在启动时从 .rules.ron 文件
+//! （在 mod.toml 中配置为 `global_rules`）加载全局事实到全局层。
+//!
+//! ## Data Flow
+//!
+//! ## 数据流
+//!
+//! 1. At startup, read `global_rules` path from config (e.g., "global.rules.ron")
+//! 2. Load the RuleSetAsset from that path
+//! 3. Apply `initial_facts` to the Global layer of LayeredFactDatabase
+//! 4. All systems read/write player data directly via LayeredFactDatabase
+//! 5. For save/load, serialize/deserialize the facts directly
+//!
+//! 1. 启动时，从配置读取 `global_rules` 路径（如 "global.rules.ron"）
+//! 2. 从该路径加载 RuleSetAsset
+//! 3. 将 `initial_facts` 应用到 LayeredFactDatabase 的全局层
+//! 4. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
+//! 5. 存档/读档时，直接序列化/反序列化事实
 
-use crate::core::item::ItemId;
-use crate::core::player_components::{
-    Equipment, Gold, Health, Inventory, Level, PlayerBundle, PlayerName, Stats,
-};
 use bevy::app::{App, Plugin, Startup, Update};
-use bevy::prelude::{
-    Added, Changed, Commands, Component, IntoScheduleConfigs, Name, Or, Query, ResMut, Resource,
-    With,
-};
+use bevy::asset::{AssetServer, Assets, Handle};
+use bevy::prelude::{Commands, Component, Local, Name, Res, ResMut, Resource};
+use bevy_fact_rule_event::{FactValue, FactValueDef, LayeredFactDatabase, RuleSetAsset};
 
 pub(crate) struct DataPlugin;
 
 impl Plugin for DataPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerData>()
-            .add_systems(Startup, spawn_player_entity_system)
+        app.init_resource::<GlobalRulesHandle>()
             .add_systems(
-                Update,
-                sync_player_entity_to_resource_system.run_if(player_entity_changed),
-            );
+                Startup,
+                (spawn_player_entity_system, load_global_rules_system),
+            )
+            .add_systems(Update, apply_global_rules_system);
     }
-    //TODO: 存档系统的序列化与反序列化。计划使用TOML格式进行存储。
 }
 
 /// Marker component indicating this is the main player entity (for queries).
+/// This entity has NO data components - all player data is in LayeredFactDatabase.
 ///
 /// 标记组件，表示这是主玩家实体（用于查询）。
+/// 此实体没有数据组件 - 所有玩家数据都在 LayeredFactDatabase 中。
 #[derive(Component)]
 pub struct MainPlayer;
 
-/// System to spawn the player entity at startup with all ECS components.
+/// Resource to hold the handle for the global rules file.
 ///
-/// 在启动时生成带有所有 ECS 组件的玩家实体的系统。
+/// 保存全局规则文件句柄的资源。
+#[derive(Resource, Default)]
+pub struct GlobalRulesHandle {
+    pub handle: Option<Handle<RuleSetAsset>>,
+    pub loaded: bool,
+}
+
+/// System to spawn the player entity at startup.
+/// Note: This entity only has a marker component - no data components.
+///
+/// 在启动时生成玩家实体的系统。
+/// 注意：此实体只有标记组件 - 没有数据组件。
 fn spawn_player_entity_system(mut commands: Commands) {
-    commands.spawn((PlayerBundle::new(), MainPlayer, Name::new("Player")));
+    commands.spawn((MainPlayer, Name::new("Player")));
 }
 
-/// Filter type for detecting changes to any player component.
+/// System to load global rules from the configured path.
+/// The path is read from `config.game.global_rules` (set in mod.toml).
 ///
-/// 用于检测任何玩家组件变化的过滤器类型。
-type PlayerChangedFilter = (
-    With<MainPlayer>,
-    Or<(
-        Changed<PlayerName>,
-        Changed<Level>,
-        Changed<Health>,
-        Changed<Stats>,
-        Changed<Gold>,
-        Changed<Equipment>,
-        Changed<Inventory>,
-        Added<MainPlayer>,
-    )>,
-);
-
-/// Run condition: check if any player component has changed.
-///
-/// 运行条件：检查是否有任何玩家组件发生变化。
-fn player_entity_changed(query: Query<(), PlayerChangedFilter>) -> bool {
-    !query.is_empty()
-}
-
-/// Query type for reading all player components.
-///
-/// 用于读取所有玩家组件的查询类型。
-type PlayerComponentsQuery<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static PlayerName,
-        &'static Level,
-        &'static Health,
-        &'static Stats,
-        &'static Gold,
-        &'static Equipment,
-        &'static Inventory,
-    ),
-    With<MainPlayer>,
->;
-
-/// System to sync player entity components to the PlayerData resource.
-///
-/// 将玩家实体组件同步到 PlayerData 资源的系统。
-fn sync_player_entity_to_resource_system(
-    query: PlayerComponentsQuery,
-    mut player_data: ResMut<PlayerData>,
+/// 从配置的路径加载全局规则的系统。
+/// 路径从 `config.game.global_rules`（在 mod.toml 中设置）读取。
+fn load_global_rules_system(
+    asset_server: Res<AssetServer>,
+    config: Res<crate::config::SoupruneConfig>,
+    mut global_rules_handle: ResMut<GlobalRulesHandle>,
 ) {
-    let Ok((name, level, health, stats, gold, equipment, inventory)) = query.single() else {
+    if global_rules_handle.handle.is_some() {
+        return;
+    }
+
+    if config.game.global_rules.is_empty() {
+        bevy::log::warn!(
+            "DataPlugin: No global_rules path configured in mod.toml. Player data will not be initialized."
+        );
+        return;
+    }
+
+    // Clone the path to avoid lifetime issues with asset_server.load()
+    let path: String = config.game.global_rules.clone();
+    let handle: Handle<RuleSetAsset> = asset_server.load(path);
+    global_rules_handle.handle = Some(handle);
+
+    bevy::log::info!(
+        "DataPlugin: Loading global rules from '{}'",
+        config.game.global_rules
+    );
+}
+
+/// System to apply loaded global rules to the global layer.
+/// This runs once after the asset is loaded.
+///
+/// 将加载的全局规则应用到全局层的系统。
+/// 在资产加载后运行一次。
+fn apply_global_rules_system(
+    global_rules_handle: Res<GlobalRulesHandle>,
+    rule_set_assets: Res<Assets<RuleSetAsset>>,
+    mut layered_db: ResMut<LayeredFactDatabase>,
+    mut applied: Local<bool>,
+) {
+    if *applied || global_rules_handle.loaded {
+        return;
+    }
+
+    let Some(handle) = &global_rules_handle.handle else {
         return;
     };
 
-    player_data.name = name.0.clone();
-    player_data.lv = level.lv;
-    player_data.exp = level.exp;
-    player_data.next_exp = level.next_exp;
-    player_data.hp = health.current;
-    player_data.hp_max = health.max;
-    player_data.attack = stats.attack;
-    player_data.defense = stats.defense;
-    player_data.gold = gold.0;
-    player_data.weapon = equipment.weapon.clone();
-    player_data.armor = equipment.armor.clone();
-    player_data.inventory = inventory.items.clone();
-    player_data.inventory_capacity = inventory.capacity;
-}
+    let Some(rule_set) = rule_set_assets.get(handle) else {
+        return;
+    };
 
-/// Resource to store basic player data, such as health, attack, defense, etc.
-///
-/// 保存玩家基本数据的资源，例如血量、攻击、防御等。
-///
-/// This resource provides convenient global access to player data.
-/// For direct ECS queries, use `Query<(&Health, &Stats, ...), With<MainPlayer>>` instead.
-///
-/// 此资源提供对玩家数据的便捷全局访问。
-/// 如需直接 ECS 查询，请使用 `Query<(&Health, &Stats, ...), With<MainPlayer>>`。
-#[derive(Resource)]
-pub(crate) struct PlayerData {
-    pub(crate) name: String,
-    pub(crate) lv: usize,
-    pub(crate) exp: usize,
-    pub(crate) next_exp: usize,
-    pub(crate) hp: usize,
-    pub(crate) hp_max: usize,
-    pub(crate) attack: usize,
-    pub(crate) defense: usize,
-    pub(crate) gold: usize,
-    pub(crate) weapon: ItemId,
-    pub(crate) armor: ItemId,
-    pub(crate) inventory: Vec<ItemId>,
-    pub(crate) inventory_capacity: usize,
-}
-
-impl Default for PlayerData {
-    fn default() -> Self {
-        PlayerData {
-            name: "Chara".to_string(),
-            lv: 1,
-            exp: 0,
-            next_exp: 10,
-            hp: 20,
-            hp_max: 20,
-            attack: 0,
-            defense: 0,
-            gold: 42,
-            weapon: ItemId("stick".to_string()),
-            armor: ItemId("bandage".to_string()),
-            inventory: vec![
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("monster_candy".to_string()),
-                ItemId("UNDEFITEM".to_string()),
-            ],
-            inventory_capacity: 8,
-        }
+    // Apply initial facts to Global layer (these are game-wide persistent facts)
+    for (key, value) in rule_set.get_initial_facts() {
+        let fact_value: FactValue = match value {
+            FactValueDef::Int(v) => FactValue::Int(*v),
+            FactValueDef::Float(v) => FactValue::Float(*v),
+            FactValueDef::Bool(v) => FactValue::Bool(*v),
+            FactValueDef::String(v) => FactValue::String(v.clone()),
+        };
+        layered_db.set_global(key.as_str(), fact_value);
+        bevy::log::debug!(
+            "DataPlugin: Set global fact '{}' from global.rules.ron",
+            key
+        );
     }
+
+    *applied = true;
+    bevy::log::info!(
+        "DataPlugin: Applied {} global facts from global.rules.ron",
+        rule_set.get_initial_facts().len()
+    );
 }

@@ -49,8 +49,11 @@ pub(crate) fn spawn_backpack_ui_system(
     locale_loaded: Option<Res<LocaleLoaded>>,
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
+    use super::ron_view::parsing::PlayerDataView;
+    let player_data = PlayerDataView::new(&layered_db);
+
     if locale_loaded.is_none() {
         return;
     }

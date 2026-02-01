@@ -84,7 +84,7 @@ pub struct TweenInProgress {
 fn resolve_tween_val_f32(
     val: &Val<f32>,
     current: f32,
-    player_data: &crate::core::data::PlayerData,
+    player_data: &crate::core::view::ron_view::parsing::PlayerDataView<'_>,
     time: Option<f64>,
 ) -> f32 {
     crate::core::view::ron_view::parsing::resolve_val_f32(val, Some(current), player_data, time)
@@ -108,12 +108,14 @@ pub fn process_tween_view_element_system(
     transforms: Query<&Transform>,
     sprites: Query<&Sprite>,
     ui_boxes: Query<&ViewBox>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     time: Res<Time>,
 ) {
+    use crate::core::view::ron_view::parsing::PlayerDataView;
     use bevy_tween::combinator::tween;
     use bevy_tween::interpolate::{angle_z, scale, sprite_color, translation};
 
+    let player_data = PlayerDataView::new(&layered_db);
     let current_time = time.elapsed_secs_f64();
 
     for (chapter_entity, active_chapter) in active_chapters.iter() {

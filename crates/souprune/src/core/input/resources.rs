@@ -130,13 +130,13 @@ impl InputBehaviorConfig {
 
         // Helper to check optional action name
         let check_action = |name: Option<&String>, field: &str, errors: &mut Vec<String>| {
-            if let Some(action_name) = name {
-                if !registry.is_registered(action_name) {
-                    errors.push(format!(
-                        "{} action '{}' is not registered in ActionRegistry",
-                        field, action_name
-                    ));
-                }
+            if let Some(action_name) = name
+                && !registry.is_registered(action_name)
+            {
+                errors.push(format!(
+                    "{} action '{}' is not registered in ActionRegistry",
+                    field, action_name
+                ));
             }
         };
 

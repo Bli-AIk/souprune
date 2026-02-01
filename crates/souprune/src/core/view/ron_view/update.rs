@@ -1,21 +1,22 @@
 use super::super::components::{DynamicViewElement, HPBarLag, HPBarSprite, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
-use super::parsing::{evaluate_float_expr, resolve_text_content};
-use crate::core::data::PlayerData;
+use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
 use bevy::prelude::*;
+use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_rich_text3d::Text3d;
 
 pub fn update_hp_bar_shader_params(
     time: Res<Time>,
-    player_data: Res<PlayerData>,
+    layered_db: Res<LayeredFactDatabase>,
     mut materials: ResMut<Assets<super::super::custom_sprite_material::CustomSpriteMaterial>>,
     mut query: Query<(
         &MeshMaterial2d<super::super::custom_sprite_material::CustomSpriteMaterial>,
         &mut HPBarLag,
     )>,
 ) {
-    let hp_ratio = player_data.hp as f32 / player_data.hp_max as f32;
+    let player_data = PlayerDataView::new(&layered_db);
+    let hp_ratio = player_data.hp() as f32 / player_data.hp_max() as f32;
 
     for (material_handle, mut lag) in query.iter_mut() {
         // Detect significant HP drop (Damage taken)
@@ -50,7 +51,7 @@ pub fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
         }
 
-        let half_width = 40.0 + (player_data.hp_max as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
+        let half_width = 40.0 + (player_data.hp_max() as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
         let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
 
         if let Some(material) = materials.get_mut(material_handle) {
@@ -61,7 +62,7 @@ pub fn update_hp_bar_shader_params(
 
 pub fn update_dynamic_ui_elements(
     time: Res<Time>,
-    player_data: Res<PlayerData>,
+    layered_db: Res<LayeredFactDatabase>,
     mut query: Query<(
         &DynamicViewElement,
         &mut Transform,
@@ -69,6 +70,7 @@ pub fn update_dynamic_ui_elements(
     )>,
     mut frame_count: Local<usize>,
 ) {
+    let player_data = PlayerDataView::new(&layered_db);
     *frame_count += 1;
     if !query.is_empty() && (*frame_count).is_multiple_of(60) {
         debug!(
@@ -189,17 +191,22 @@ pub fn update_dynamic_ui_elements(
 pub fn update_dynamic_text_system(
     mut commands: Commands,
     mut text_query: Query<(Entity, &ViewTextTemplate, &mut Text3d, &Name)>,
-    player_data: Res<PlayerData>,
+    layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
 ) {
-    if !player_data.is_changed() {
+    use bevy::prelude::DetectChanges;
+
+    if !layered_db.is_changed() {
         return;
     }
 
+    let player_data = PlayerDataView::new(&layered_db);
+
     info!(
-        "[update_dynamic_text_system] PlayerData changed! hp={}, hp_max={}",
-        player_data.hp, player_data.hp_max
+        "[update_dynamic_text_system] LayeredFactDatabase changed! hp={}, hp_max={}",
+        player_data.hp(),
+        player_data.hp_max()
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {

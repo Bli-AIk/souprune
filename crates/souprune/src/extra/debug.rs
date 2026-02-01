@@ -23,6 +23,8 @@ mod battle_test;
 #[cfg(feature = "debug")]
 mod collider;
 #[cfg(feature = "debug")]
+mod fre_panel;
+#[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
 #[cfg(feature = "debug")]
@@ -31,6 +33,15 @@ mod player_hp;
 mod player_level;
 
 use bevy::app::{App, Plugin};
+use bevy::prelude::Component;
+
+/// Marker component for debug cameras (inspector, FRE panel, etc.).
+/// This is used to exclude debug cameras from game systems that query Camera2d.
+///
+/// 调试相机的标记组件（检查器、FRE 面板等）。
+/// 用于将调试相机排除在查询 Camera2d 的游戏系统之外。
+#[derive(Component)]
+pub struct DebugCamera;
 
 pub struct DebugPlugin;
 
@@ -65,6 +76,11 @@ impl Plugin for DebugPlugin {
             //
             // 设置战斗测试调试功能。
             battle_test::debug_battle_test::setup_battle_test_debug(_app);
+
+            // Set up FRE debug panel.
+            //
+            // 设置 FRE 调试面板。
+            fre_panel::debug_fre_panel::setup_fre_panel_debug(_app);
         }
     }
 }

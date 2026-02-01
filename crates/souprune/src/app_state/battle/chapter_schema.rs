@@ -257,10 +257,227 @@ pub enum Chapter {
     ///
     /// 设置 摄像机 状态的章节。
     SetCamera(CameraAction),
+
+    // =========================================================================
+    // FRE-based Conditional Chapters
+    // 基于 FRE 的条件章节
+    // =========================================================================
+    /// Conditional Chapter based on Fact values.
+    ///
+    /// Evaluates a condition expression and executes one of two branches.
+    /// This allows battle flow to branch based on FRE fact state.
+    ///
+    /// 基于 Fact 值的条件章节。
+    ///
+    /// 评估条件表达式并执行两个分支之一。
+    /// 这允许战斗流程根据 FRE fact 状态进行分支。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// Conditional(
+    ///     condition: GreaterThan(key: "turn_count", value: 3),
+    ///     then_branch: DanmakuPerformance(performance: "hard_pattern.ron"),
+    ///     else_branch: Some(DanmakuPerformance(performance: "easy_pattern.ron")),
+    /// ),
+    /// ```
+    Conditional {
+        /// The condition to evaluate.
+        ///
+        /// 要评估的条件。
+        condition: FactCondition,
+
+        /// Chapter to execute if condition is true.
+        ///
+        /// 条件为真时执行的章节。
+        then_branch: Box<Chapter>,
+
+        /// Chapter to execute if condition is false (optional).
+        ///
+        /// 条件为假时执行的章节（可选）。
+        #[serde(default)]
+        else_branch: Option<Box<Chapter>>,
+    },
+
+    /// Switch Chapter based on Fact value.
+    ///
+    /// Matches a fact value against multiple cases and executes the matching branch.
+    /// Similar to a switch/match statement.
+    ///
+    /// 基于 Fact 值的 Switch 章节。
+    ///
+    /// 将 fact 值与多个 case 匹配并执行匹配的分支。
+    /// 类似于 switch/match 语句。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// FactSwitch(
+    ///     fact_key: "player_last_action",
+    ///     cases: [
+    ///         (String("fight"), DanmakuPerformance(performance: "counter_attack.ron")),
+    ///         (String("act"), Sequence([/* talk response */])),
+    ///         (String("mercy"), Sequence([/* spare check */])),
+    ///     ],
+    ///     default: Some(Wait(1.0)),
+    /// ),
+    /// ```
+    FactSwitch {
+        /// The fact key to read and match against.
+        ///
+        /// 要读取并匹配的 fact 键。
+        fact_key: String,
+
+        /// List of (value, chapter) pairs to match.
+        ///
+        /// 要匹配的 (值, 章节) 对列表。
+        cases: Vec<(FactValueMatch, Chapter)>,
+
+        /// Default chapter if no case matches (optional).
+        ///
+        /// 没有 case 匹配时的默认章节（可选）。
+        #[serde(default)]
+        default: Option<Box<Chapter>>,
+    },
+
+    /// Emit a FRE event from the sequencer.
+    ///
+    /// Allows battle sequences to trigger FRE rules by emitting events.
+    ///
+    /// 从 sequencer 发出 FRE 事件。
+    ///
+    /// 允许战斗序列通过发出事件来触发 FRE 规则。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// EmitFactEvent(
+    ///     event_id: "turn_started",
+    ///     data: {"turn_number": "3"},
+    /// ),
+    /// ```
+    EmitFactEvent {
+        /// The event ID to emit.
+        ///
+        /// 要发出的事件 ID。
+        event_id: String,
+
+        /// Optional key-value data to include with the event.
+        ///
+        /// 要包含在事件中的可选键值数据。
+        #[serde(default)]
+        data: std::collections::HashMap<String, String>,
+    },
+
+    /// Modify Fact values from the sequencer.
+    ///
+    /// Allows direct modification of FRE facts from battle sequences.
+    ///
+    /// 从 sequencer 修改 Fact 值。
+    ///
+    /// 允许从战斗序列直接修改 FRE facts。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// ModifyFact(
+    ///     modifications: [
+    ///         Set(key: "phase", value: String("enemy_turn")),
+    ///         Increment(key: "turn_count", amount: 1),
+    ///     ],
+    /// ),
+    /// ```
+    ModifyFact {
+        /// List of modifications to apply.
+        ///
+        /// 要应用的修改列表。
+        modifications: Vec<FactModificationDef>,
+    },
 }
 
 fn default_true() -> bool {
     true
+}
+
+// =============================================================================
+// FRE Condition and Value Types for Chapter Schema
+// 用于 Chapter Schema 的 FRE 条件和值类型
+// =============================================================================
+
+/// Fact condition for conditional chapters.
+/// Mirrors `RuleConditionDef` from bevy_fact_rule_event for RON serialization.
+///
+/// 条件章节的 Fact 条件。
+/// 镜像 bevy_fact_rule_event 中的 `RuleConditionDef` 以支持 RON 序列化。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum FactCondition {
+    /// Check if a fact equals a specific value.
+    Equals { key: String, value: FactValueMatch },
+
+    /// Check if an integer fact is greater than a value.
+    GreaterThan { key: String, value: i64 },
+
+    /// Check if an integer fact is less than a value.
+    LessThan { key: String, value: i64 },
+
+    /// Check if an integer fact is greater than or equal to a value.
+    GreaterOrEqual { key: String, value: i64 },
+
+    /// Check if an integer fact is less than or equal to a value.
+    LessOrEqual { key: String, value: i64 },
+
+    /// Check if a fact exists.
+    Exists(String),
+
+    /// Check if a fact does not exist.
+    NotExists(String),
+
+    /// Check if a boolean fact is true.
+    IsTrue(String),
+
+    /// Check if a boolean fact is false.
+    IsFalse(String),
+
+    /// Logical AND of multiple conditions.
+    And(Vec<FactCondition>),
+
+    /// Logical OR of multiple conditions.
+    Or(Vec<FactCondition>),
+
+    /// Logical NOT of a condition.
+    Not(Box<FactCondition>),
+
+    /// Always true (no condition).
+    Always,
+}
+
+/// Fact value for matching in FactSwitch and conditions.
+/// Mirrors `FactValueDef` from bevy_fact_rule_event.
+///
+/// 用于 FactSwitch 和条件匹配的 Fact 值。
+/// 镜像 bevy_fact_rule_event 中的 `FactValueDef`。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum FactValueMatch {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+}
+
+/// Fact modification for ModifyFact chapter.
+/// Mirrors `FactModificationDef` from bevy_fact_rule_event.
+///
+/// 用于 ModifyFact 章节的 Fact 修改。
+/// 镜像 bevy_fact_rule_event 中的 `FactModificationDef`。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum FactModificationDef {
+    /// Set a fact to a specific value.
+    Set { key: String, value: FactValueMatch },
+
+    /// Increment an integer fact by a value.
+    Increment { key: String, amount: i64 },
+
+    /// Remove a fact.
+    Remove(String),
+
+    /// Toggle a boolean fact.
+    Toggle(String),
 }
 
 /// Camera Action Enum.
