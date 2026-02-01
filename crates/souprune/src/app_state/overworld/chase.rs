@@ -130,7 +130,9 @@ fn default_heart_scale() -> f32 {
 impl Default for HeartMarkerConfig {
     fn default() -> Self {
         Self {
-            texture_path: "textures/common/ui/dr_heart.png".to_string(),
+            // Empty path - requires explicit configuration in chase.ron
+            // 空路径 - 需要在 chase.ron 中显式配置
+            texture_path: String::new(),
             offset: Vec2Config { x: 0.0, y: -2.0 },
             z_offset: 101.0,
             scale: 0.5,
@@ -280,9 +282,11 @@ pub struct DamageUIConfig {
 impl Default for DamageUIConfig {
     fn default() -> Self {
         Self {
-            layout_path: "overworld/view/damage_flash.view_layout.ron".to_string(),
+            // Empty path - requires explicit configuration in chase.ron
+            // 空路径 - 需要在 chase.ron 中显式配置
+            layout_path: String::new(),
             display_duration: 0.5,
-            damage_sound: Some("audios/sfx/hurtsound.wav".to_string()),
+            damage_sound: None,
         }
     }
 }
@@ -465,11 +469,16 @@ fn detect_chase_state_enter_system(
 
         // Setup HUD
         if let Some(config) = chase_config {
-            // Load HUD layout
+            // Load HUD layout only if path is specified
+            // 仅当路径指定时才加载 HUD 布局
             let layout_path = &config.damage_ui.layout_path;
-            let _handle: Handle<crate::core::view::layout::ViewLayoutAsset> =
-                asset_server.load(layout_path.clone());
-            info!("Chase: Setup HUD from {}", layout_path);
+            if !layout_path.is_empty() {
+                let _handle: Handle<crate::core::view::layout::ViewLayoutAsset> =
+                    asset_server.load(layout_path.clone());
+                info!("Chase: Setup HUD from {}", layout_path);
+            } else {
+                warn!("Chase: No damage UI layout path configured");
+            }
         }
     }
 }
@@ -793,6 +802,14 @@ fn spawn_heart_marker_system(
     };
 
     let config = &chase_config.heart_marker;
+
+    // Skip if no texture path configured
+    // 如果未配置纹理路径则跳过
+    if config.texture_path.is_empty() {
+        warn!("Chase: No heart marker texture path configured");
+        return;
+    }
+
     let offset = config.offset.to_vec2();
 
     // Load the heart texture

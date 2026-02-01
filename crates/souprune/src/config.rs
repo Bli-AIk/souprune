@@ -276,7 +276,10 @@ struct GameConfigPartial {
     initial_battle_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
+    states_config: Option<String>,
+    chase_config: Option<String>,
     required_modules: Option<Vec<String>>,
+    hidden_layer_keywords: Option<Vec<String>>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -334,8 +337,17 @@ Falling back to default configuration (example_mod)",
                             if let Some(val) = game_partial.input_config_path {
                                 config.game.input_config_path = val;
                             }
+                            if let Some(val) = game_partial.states_config {
+                                config.game.states_config = val;
+                            }
+                            if let Some(val) = game_partial.chase_config {
+                                config.game.chase_config = Some(val);
+                            }
                             if let Some(val) = game_partial.required_modules {
                                 config.game.required_modules = val;
+                            }
+                            if let Some(val) = game_partial.hidden_layer_keywords {
+                                config.game.hidden_layer_keywords = val;
                             }
                         }
                         // Load resource paths from [resources] section
