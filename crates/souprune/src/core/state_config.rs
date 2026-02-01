@@ -138,8 +138,16 @@ impl Plugin for StateConfigPlugin {
 fn load_state_config_system(
     mut loaded_config: ResMut<LoadedStateConfig>,
     asset_server: Res<AssetServer>,
+    config: Res<crate::config::SoupruneConfig>,
 ) {
-    let config_path = "config/states.ron";
+    // Read states_config path from project configuration
+    // 从项目配置中读取 states_config 路径
+    let config_path = if config.game.states_config.is_empty() {
+        "config/states.ron".to_string()
+    } else {
+        config.game.states_config.clone()
+    };
+
     info!("Loading state configuration from: {}", config_path);
 
     let handle: Handle<StateConfig> = asset_server.load(config_path);

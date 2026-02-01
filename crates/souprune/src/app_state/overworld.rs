@@ -121,6 +121,8 @@ impl Plugin for OverworldPlugin {
                     .after(FRETriggerSet),
             )
             .init_resource::<trigger::LoadedRuleSets>()
+            .init_resource::<trigger::RuleActionDefs>()
+            .init_resource::<trigger::PendingDanmakuActions>()
             .add_systems(
                 OnEnter(AppState::Overworld),
                 (
@@ -135,7 +137,8 @@ impl Plugin for OverworldPlugin {
                     trigger::register_loaded_rules_system,
                     trigger::spawn_demo_trigger_zone_system,
                     trigger::trigger_zone_detection_system,
-                    trigger::play_danmaku_on_trigger_system,
+                    trigger::collect_danmaku_actions_system,
+                    trigger::play_danmaku_from_actions_system,
                     trigger::handle_chase_state_actions_system,
                     trigger::log_fact_changes_system,
                 )

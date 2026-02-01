@@ -89,6 +89,11 @@ pub struct GameConfig {
     /// 输入配置文件路径（RON 格式）。
     pub input_config_path: String,
 
+    /// Path to state configuration file (RON format).
+    ///
+    /// 状态配置文件路径（RON 格式）。
+    pub states_config: String,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -108,6 +113,7 @@ impl Default for GameConfig {
             initial_battle_path: String::new(),
             player_behavior_path: String::new(),
             input_config_path: String::new(),
+            states_config: "config/states.ron".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }

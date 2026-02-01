@@ -20,6 +20,7 @@ use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
     RuleActionDef, RuleRegistry, RuleSetAsset,
 };
+use std::collections::HashMap;
 
 /// Marker component for trigger zones.
 ///
@@ -67,6 +68,17 @@ pub struct DemoTriggerSpawned;
 pub struct LoadedRuleSets {
     pub handles: Vec<Handle<RuleSetAsset>>,
     pub initialized: bool,
+}
+
+/// Resource to store the mapping from rule IDs to their action definitions.
+/// This is populated when rules are registered and used for custom action handling.
+///
+/// 存储规则 ID 到其 action 定义的映射的资源。
+/// 在规则注册时填充，用于自定义 action 处理。
+#[derive(Resource, Default)]
+pub struct RuleActionDefs {
+    /// Maps rule ID to its action definitions
+    pub actions_by_rule: HashMap<String, Vec<RuleActionDef>>,
 }
 
 /// System to spawn a demo trigger zone for testing FRE.
@@ -206,6 +218,7 @@ pub fn register_loaded_rules_system(
     rule_set_assets: Res<Assets<RuleSetAsset>>,
     mut registry: ResMut<RuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
+    mut action_defs: ResMut<RuleActionDefs>,
     mut registered: Local<bool>,
 ) {
     if *registered || !loaded_rule_sets.initialized {
@@ -226,6 +239,13 @@ pub fn register_loaded_rules_system(
                 info!("FRE: Set initial fact '{}' to Local layer from RON", key);
             }
 
+            // Store action definitions for each rule (for custom action handling)
+            for rule_def in rule_set.get_rule_defs() {
+                action_defs
+                    .actions_by_rule
+                    .insert(rule_def.id.clone(), rule_def.actions.clone());
+            }
+
             // Register all rules
             rule_set.register_rules(&mut registry);
             *registered = true;
@@ -237,7 +257,12 @@ pub fn register_loaded_rules_system(
 /// System to setup custom action handlers for game-specific actions.
 ///
 /// 设置游戏特定动作的自定义动作处理程序的系统。
-pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
+pub fn setup_action_handlers_system(world: &mut World) {
+    // Initialize the pending danmaku resource
+    world.init_resource::<PendingDanmakuActions>();
+
+    let mut handler_registry = world.resource_mut::<ActionHandlerRegistry>();
+
     // Register the SetPlayerHP action handler
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action
@@ -250,51 +275,93 @@ pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRe
         }
     });
 
+    // Note: PlayDanmaku is handled via PendingDanmakuActions resource
+    // The actual registration happens below
+    handler_registry.register("PlayDanmaku", |action, _db, _commands| {
+        if let RuleActionDef::Custom { params, .. } = action {
+            if let Some(path) = params.get("path") {
+                info!("FRE Action: PlayDanmaku registered with path: {}", path);
+                // Actual playback is handled by play_danmaku_from_actions_system
+                // which reads from PendingDanmakuActions
+            } else {
+                warn!("FRE Action: PlayDanmaku missing 'path' parameter");
+            }
+        }
+    });
+
     info!("FRE: Custom action handlers registered");
 }
 
-/// System to play danmaku performance when player enters trigger zone.
-/// Only triggers on the 3rd visit.
+/// Resource to store pending danmaku play requests from FRE actions.
 ///
-/// 当玩家进入触发区域时播放弹幕演出的系统。
-/// 仅在第三次访问时触发。
-pub fn play_danmaku_on_trigger_system(
+/// 存储来自 FRE action 的待播放弹幕请求的资源。
+#[derive(Resource, Default)]
+pub struct PendingDanmakuActions {
+    pub requests: Vec<String>,
+}
+
+/// System to collect PlayDanmaku actions from executed rules.
+/// This runs after rule evaluation and checks which rules were triggered.
+///
+/// 从已执行规则中收集 PlayDanmaku action 的系统。
+/// 在规则评估后运行，检查哪些规则被触发。
+pub fn collect_danmaku_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut performance_writer: MessageWriter<PlayPerformanceEvent>,
-    player_query: Query<&Transform, With<PlayerControlled>>,
+    mut rule_registry: ResMut<RuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
+    action_defs: Res<RuleActionDefs>,
+    mut pending: ResMut<PendingDanmakuActions>,
 ) {
     for event in events.read() {
-        // Only trigger on the 3rd entry
-        if event.id == FactEventId::new("demo_visit_updated") {
-            let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+        // Get all matching rules for this event
+        let matching_rules = rule_registry.get_matching_rules(event);
 
-            // Only play danmaku on exactly the 3rd visit
-            if visit_count == 3 {
-                // Get player position for spawning performance
-                let spawn_pos = player_query
-                    .iter()
-                    .next()
-                    .map(|t| t.translation.truncate())
-                    .unwrap_or(Vec2::ZERO);
-
-                info!(
-                    "FRE: Playing danmaku performance at {:?} (3rd visit)",
-                    spawn_pos
-                );
-
-                // Play Overworld-specific danmaku performance with 0.5x scale
-                performance_writer.write(
-                    PlayPerformanceEvent::new("overworld/danmaku/demo_attack_ow.performance.ron")
-                        .at_position(spawn_pos),
-                );
-            } else {
-                info!(
-                    "FRE: Trigger entered (visit count: {}), waiting for 3rd visit",
-                    visit_count
-                );
+        for rule in matching_rules {
+            // Check if rule's condition is met
+            if rule.condition.evaluate(&*fact_db) {
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom {
+                            action_type,
+                            params,
+                        } = action
+                            && action_type == "PlayDanmaku"
+                            && let Some(path) = params.get("path")
+                        {
+                            pending.requests.push(path.clone());
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+/// System to play danmaku from pending FRE PlayDanmaku actions.
+///
+/// 播放来自 FRE PlayDanmaku action 的弹幕。
+pub fn play_danmaku_from_actions_system(
+    mut performance_writer: MessageWriter<PlayPerformanceEvent>,
+    player_query: Query<&Transform, With<PlayerControlled>>,
+    mut pending: ResMut<PendingDanmakuActions>,
+) {
+    if pending.requests.is_empty() {
+        return;
+    }
+
+    let spawn_pos = player_query
+        .iter()
+        .next()
+        .map(|t| t.translation.truncate())
+        .unwrap_or(Vec2::ZERO);
+
+    for path in pending.requests.drain(..) {
+        info!(
+            "FRE: Playing danmaku performance: {} at {:?}",
+            path, spawn_pos
+        );
+        performance_writer.write(PlayPerformanceEvent::new(&path).at_position(spawn_pos));
     }
 }
 
