@@ -173,16 +173,15 @@ pub fn load_fre_rules_system(
 
     // Try to find rules_file property in loaded maps
     for tiled_map in tiled_maps.iter() {
-        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
-            if let Some(rules_prop) = map_asset.map.properties.get("rules_file") {
-                if let tiled::PropertyValue::StringValue(rules_path) = rules_prop {
-                    let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
-                    loaded_rule_sets.handles.push(handle);
-                    loaded_rule_sets.initialized = true;
-                    info!("FRE: Loading rules from map property: {}", rules_path);
-                    return;
-                }
-            }
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
+            && let Some(rules_prop) = map_asset.map.properties.get("rules_file")
+            && let tiled::PropertyValue::StringValue(rules_path) = rules_prop
+        {
+            let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
+            loaded_rule_sets.handles.push(handle);
+            loaded_rule_sets.initialized = true;
+            info!("FRE: Loading rules from map property: {}", rules_path);
+            return;
         }
     }
 
