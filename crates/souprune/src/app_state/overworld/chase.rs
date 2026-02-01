@@ -268,6 +268,13 @@ pub struct DamageUIConfig {
     pub layout_path: String,
     /// Display duration in seconds
     pub display_duration: f32,
+    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// If None, no sound is played.
+    ///
+    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 如果为 None，则不播放音效。
+    #[serde(default)]
+    pub damage_sound: Option<String>,
 }
 
 impl Default for DamageUIConfig {
@@ -275,6 +282,7 @@ impl Default for DamageUIConfig {
         Self {
             layout_path: "overworld/view/damage_flash.view_layout.ron".to_string(),
             display_duration: 0.5,
+            damage_sound: Some("audios/sfx/hurtsound.wav".to_string()),
         }
     }
 }
@@ -1294,11 +1302,13 @@ pub fn chase_damage_detection_system(
             // Start player invincibility
             player_invincibility.start(player_behavior.invincibility.duration);
 
-            // Play hurt sound
-            #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-            crate::core::audio::play_sound(&audio, &asset_server, "hurtsound.wav");
-            #[cfg(feature = "firewheel")]
-            crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
+            // Play hurt sound from config
+            if let Some(sound_path) = &chase_config.damage_ui.damage_sound {
+                #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+                crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
+                #[cfg(feature = "firewheel")]
+                crate::core::audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
+            }
 
             info!(
                 "Chase: Player hit! Damage: {}, HP: {}/{}",

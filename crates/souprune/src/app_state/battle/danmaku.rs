@@ -34,6 +34,12 @@ pub struct BattleInvincibilityConfig {
     pub normal_color: Color,
     /// Flash heart color (dark red)
     pub flash_color: Color,
+    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// If None, no sound is played.
+    ///
+    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 如果为 None，则不播放音效。
+    pub damage_sound: Option<String>,
 }
 
 impl Default for BattleInvincibilityConfig {
@@ -43,6 +49,7 @@ impl Default for BattleInvincibilityConfig {
             flash_interval: 0.25,
             normal_color: Color::srgb(1.0, 0.0, 0.0), // #FF0000
             flash_color: Color::srgb(0.5, 0.0, 0.0),  // #800000
+            damage_sound: Some("audios/sfx/hurtsound.wav".to_string()),
         }
     }
 }
@@ -264,11 +271,13 @@ fn battle_damage_detection_system(
             // Start player invincibility
             player_invincibility.start(invincibility_config.duration);
 
-            // Play hurt sound
-            #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-            crate::core::audio::play_sound(&audio, &asset_server, "hurtsound.wav");
-            #[cfg(feature = "firewheel")]
-            crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
+            // Play hurt sound from config
+            if let Some(sound_path) = &invincibility_config.damage_sound {
+                #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+                crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
+                #[cfg(feature = "firewheel")]
+                crate::core::audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
+            }
 
             info!(
                 "Battle: Player hit! Damage: {}, HP: {}/{}",

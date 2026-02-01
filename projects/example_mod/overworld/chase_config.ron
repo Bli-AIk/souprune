@@ -76,5 +76,9 @@
         // Duration to show the damage UI (seconds)
         // 显示受伤UI的持续时间（秒）
         display_duration: 2.5,
+        
+        // Sound to play when taking damage
+        // 受伤时播放的音效
+        damage_sound: "audios/sfx/hurtsound.wav",
     ),
 )
