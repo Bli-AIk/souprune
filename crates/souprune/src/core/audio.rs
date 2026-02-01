@@ -204,6 +204,48 @@ pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_pat
     play_sound_impl(commands, asset_server, sound_path);
 }
 
+/// Play a sound effect using a full asset path (no prefix added).
+///
+/// 使用完整资源路径播放音效（不添加前缀）。
+///
+/// Use this for configuration-driven sounds where the full path is specified.
+///
+/// 用于配置驱动的音效，其中已指定完整路径。
+///
+/// # Example with Kira
+/// ```ignore
+/// play_sound_full_path(&audio, &asset_server, "audios/sfx/confirm.wav");
+/// ```
+///
+/// # Example with Seedling
+/// ```ignore
+/// play_sound_full_path(&mut commands, &asset_server, "audios/sfx/confirm.wav");
+/// ```
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub fn play_sound_full_path(
+    audio: &bevy_kira_audio::Audio,
+    asset_server: &AssetServer,
+    sound_path: &str,
+) {
+    use bevy_kira_audio::prelude::*;
+    let sound_handle = asset_server.load(sound_path.to_string());
+    audio.play(sound_handle);
+}
+
+#[cfg(feature = "firewheel")]
+pub fn play_sound_full_path(commands: &mut Commands, asset_server: &AssetServer, sound_path: &str) {
+    use bevy_seedling::prelude::*;
+    use bevy_seedling::sample::SampleQueueLifetime;
+
+    let sound_handle = asset_server.load(sound_path.to_string());
+    commands.spawn((
+        Name::new(format!("SFX: {}", sound_path)),
+        SamplePlayer::new(sound_handle).with_volume(Volume::Decibels(0.0)),
+        SfxPool,
+        SampleQueueLifetime(std::time::Duration::from_secs(10)),
+    ));
+}
+
 /// Play background music from the assets/audios/music directory with looping.
 ///
 /// 从 assets/audios/music 目录播放循环的背景音乐。

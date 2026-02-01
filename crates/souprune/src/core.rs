@@ -40,14 +40,15 @@ pub mod danmaku;
 pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
+pub mod map_property_schema;
 pub mod mod_system;
 pub mod player_components;
 pub mod render_layers;
 pub mod ron_loader;
-pub mod save;
 pub mod sprite;
 pub(crate) mod state_config;
 pub(crate) mod view;
+pub mod visual;
 
 use crate::extra;
 use bevy::app::*;
@@ -74,7 +75,7 @@ impl Plugin for CorePlugin {
             )
             .register_asset_loader(ron_loader::RonAssetLoader::<
                 character_asset::AnimationConfigAsset,
-            >::new(&["animation.ron"]))
+            >::new(&["character.ron"]))
             .add_plugins((
                 animation::AnimationPlugin,
                 audio::AudioPlugin,
@@ -84,7 +85,6 @@ impl Plugin for CorePlugin {
                 data::DataPlugin,
                 input::InputPlugin,
                 item::ItemPlugin,
-                save::SavePlugin,
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
             ));

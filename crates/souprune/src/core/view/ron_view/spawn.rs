@@ -395,6 +395,9 @@ pub fn spawn_view_node(
         // 情况 1: 独立精灵节点（无 ViewBox，有 sprite）
         // =====================================================================
         if is_standalone_sprite {
+            use crate::config::load_config;
+            use crate::core::visual::{ResolvedVisual, get_asset_path, resolve_visual_path};
+
             let sprite_def = node_def.sprite.as_ref().unwrap();
             let mut transform = Transform::default();
             if let Some(t_def) = &sprite_def.transform {
@@ -417,150 +420,113 @@ pub fn spawn_view_node(
                 }
             }
 
-
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
                 node_def.name, transform.translation, transform.scale
             );
 
-            if sprite_def.is_animation {
-                let config_handle = asset_server
-                    .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
+            let config = load_config();
+            let visual_path = sprite_def.visual.path().to_owned();
+
+            // Check if using custom shader (HP bar)
+            let use_custom_material = sprite_def.custom_shader.is_some();
+
+            if use_custom_material {
+                // Use Material2d with custom shader (HP bar)
+                let mut final_transform = Transform::from_translation(transform.translation)
+                    .with_scale(transform.scale)
+                    .with_rotation(transform.rotation);
+
+                if let Some(pivot) = &sprite_def.pivot {
+                    let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                    let shift_x = (0.5 - pivot_x) * transform.scale.x;
+                    let shift_y = (0.5 - pivot_y) * transform.scale.y;
+                    let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                    final_transform.translation += shift;
+                }
 
                 let mut entity_cmd = parent.spawn((
-                    crate::core::character_asset::CharacterAnimator {
-                        config: config_handle,
-                    },
-                    ViewAnimationState {
-                        state_name: sprite_def
-                            .initial_state
-                            .clone()
-                            .unwrap_or("Idle".to_string()),
-                    },
-                    transform,
+                    final_transform,
+                    GlobalTransform::default(),
                     Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
                     Name::new(node_def.name.clone()),
                     RonDrivenView,
+                    HPBarSprite {
+                        shader_params: sprite_def
+                            .shader_params
+                            .as_ref()
+                            .map(dynamic_color_to_static)
+                            .unwrap_or(Color::WHITE),
+                    },
                 ));
-                // Attach ViewElement if the node has a name
-                // 如果节点有名称，则附加 ViewElement
                 if let Some(ref ve) = view_element {
                     entity_cmd.insert(ve.clone());
                 }
-                info!("[UI Sprite] Spawned animated sprite '{}'", node_def.name);
-            } else {
-                // Check if using procedural texture or custom shader
-                let use_custom_material = sprite_def.custom_shader.is_some();
 
-                if use_custom_material {
-                    // Use Material2d with custom shader (HP bar)
-                    // Requires procedural textures resource
-                    // 使用自定义着色器的 Material2d（HP 条）
-                    // 需要程序生成纹理资源
+                let entity_id = entity_cmd.id();
+                spawned_entity_id = Some(entity_id);
 
-                    // This will be handled by a separate system after ProceduralTextures is available
-                    // For now, mark with a special component to be processed later
-                    // 这将由单独的系统在 ProceduralTextures 可用后处理
-                    // 现在用特殊组件标记以便稍后处理
-                    let mut final_transform = Transform::from_translation(transform.translation)
-                        .with_scale(transform.scale)
-                        .with_rotation(transform.rotation);
-
-                    if let Some(pivot) = &sprite_def.pivot {
-                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
-                        let shift_x = (0.5 - pivot_x) * transform.scale.x;
-                        let shift_y = (0.5 - pivot_y) * transform.scale.y;
-                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
-                        final_transform.translation += shift;
-                    }
-
-                    let mut entity_cmd = parent.spawn((
-                        final_transform,
-                        GlobalTransform::default(),
-                        Visibility::default(),
-                        InheritedVisibility::default(),
-                        ViewVisibility::default(),
-                        Name::new(node_def.name.clone()),
-                        RonDrivenView,
-                        HPBarSprite {
-                            shader_params: sprite_def
-                                .shader_params
-                                .as_ref()
-                                .map(dynamic_color_to_static)
-                                .unwrap_or(Color::WHITE),
-                        },
-                    ));
-                    // Attach ViewElement if the node has a name
-                    // 如果节点有名称，则附加 ViewElement
-                    if let Some(ref ve) = view_element {
-                        entity_cmd.insert(ve.clone());
-                    }
-
-                    let entity_id = entity_cmd.id();
-
-                    // Store entity ID to add DynamicViewElement later outside closure
-                    spawned_entity_id = Some(entity_id);
-
-                    info!(
-                        "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
-                        node_def.name, entity_id
-                    );
+                info!(
+                    "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
+                    node_def.name, entity_id
+                );
+            } else if visual_path.contains("://") {
+                // Handle special protocol paths (e.g., "procedural://white_pixel")
+                let texture_handle = if visual_path.starts_with("procedural://") {
+                    Handle::default() // Will be replaced by setup system
                 } else {
-                    // Standard sprite
-                    let texture_handle = if sprite_def.path.starts_with("procedural://") {
-                        // This will be replaced by setup system
-                        // For now use default handle
-                        Handle::default()
-                    } else {
-                        asset_server.load(&sprite_def.path)
-                    };
+                    asset_server.load(&visual_path)
+                };
+                spawn_standalone_static_sprite(
+                    parent, sprite_def, &view_element, texture_handle, transform,
+                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                );
+            } else if let Some(resolved) = resolve_visual_path(&visual_path, &config.project.mod_name) {
+                let asset_path = get_asset_path(&resolved, &config.project.mod_name);
 
-                    let anchor_component = if let Some(pivot) = &sprite_def.pivot {
-                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
-                        bevy::sprite::Anchor(Vec2::new(pivot_x - 0.5, pivot_y - 0.5))
-                    } else {
-                        bevy::sprite::Anchor(Vec2::ZERO)
-                    };
+                match resolved {
+                    ResolvedVisual::CharacterAnimation(_) => {
+                        // Character animation (.character.ron)
+                        let config_handle = asset_server
+                            .load::<crate::core::character_asset::AnimationConfigAsset>(&asset_path);
 
-                    let mut entity_cmd = parent.spawn((
-                        Sprite {
-                            image: texture_handle.clone(),
-                            flip_x: sprite_def.flip_x,
-                            flip_y: sprite_def.flip_y,
-                            color: sprite_def
-                                .color
-                                .as_ref()
-                                .map(|c| {
-                                    let (r, g, b, a) = color_tuple_to_static(c);
-                                    Color::srgba(r, g, b, a)
-                                })
-                                .unwrap_or(Color::WHITE),
-                            ..Default::default()
-                        },
-                        anchor_component,
-                        transform,
-                        GlobalTransform::default(),
-                        Visibility::default(),
-                        InheritedVisibility::default(),
-                        ViewVisibility::default(),
-                        Name::new(node_def.name.clone()),
-                        RonDrivenView,
-                    ));
-                    // Attach ViewElement if the node has a name
-                    // 如果节点有名称，则附加 ViewElement
-                    if let Some(ref ve) = view_element {
-                        entity_cmd.insert(ve.clone());
+                        let mut entity_cmd = parent.spawn((
+                            crate::core::character_asset::CharacterAnimator {
+                                config: config_handle,
+                            },
+                            ViewAnimationState {
+                                state_name: sprite_def
+                                    .initial_state
+                                    .clone()
+                                    .unwrap_or("Idle".to_string()),
+                            },
+                            transform,
+                            Visibility::default(),
+                            Name::new(node_def.name.clone()),
+                            RonDrivenView,
+                        ));
+                        if let Some(ref ve) = view_element {
+                            entity_cmd.insert(ve.clone());
+                        }
+                        info!("[UI Sprite] Spawned animated sprite '{}'", node_def.name);
                     }
-
-                    let entity_id = entity_cmd.id();
-
-                    spawned_entity_id = Some(entity_id);
-
-                    info!(
-                        "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
-                        node_def.name, entity_id, sprite_def.path
-                    );
+                    ResolvedVisual::Sprite(_) | ResolvedVisual::FrameAnimation(_) => {
+                        let texture_handle = asset_server.load(&asset_path);
+                        spawn_standalone_static_sprite(
+                            parent, sprite_def, &view_element, texture_handle, transform,
+                            &node_def.name, &mut spawned_entity_id, &asset_path,
+                        );
+                    }
                 }
+            } else {
+                // Fallback: try direct load
+                let texture_handle = asset_server.load(&visual_path);
+                spawn_standalone_static_sprite(
+                    parent, sprite_def, &view_element, texture_handle, transform,
+                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                );
             }
             return;
         }
@@ -691,7 +657,7 @@ pub fn spawn_view_node(
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
                     "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
-                    node_def.name, sprite_def.path
+                    node_def.name, sprite_def.visual.path()
                 );
                 spawn_ui_sprite(
                     &mut box_entity,
@@ -1022,6 +988,9 @@ fn spawn_ui_sprite(
     _animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     player_data: &PlayerDataView<'_>,
 ) {
+    use crate::config::load_config;
+    use crate::core::visual::{ResolvedVisual, get_asset_path, resolve_visual_path};
+
     let mut transform = Transform::default();
     if let Some(t_def) = &sprite_def.transform {
         if let Some(trans) = &t_def.translation {
@@ -1043,60 +1012,150 @@ fn spawn_ui_sprite(
         }
     }
 
-    if sprite_def.is_animation {
-        let config_handle = asset_server
-            .load::<crate::core::character_asset::AnimationConfigAsset>(&sprite_def.path);
+    let config = load_config();
+    let visual_path = sprite_def.visual.path().to_owned();
 
-        parent.with_children(|p| {
-            p.spawn((
-                crate::core::character_asset::CharacterAnimator {
-                    config: config_handle,
-                },
-                ViewAnimationState {
-                    state_name: sprite_def
-                        .initial_state
-                        .clone()
-                        .unwrap_or("Idle".to_string()),
-                },
-                transform,
-                Visibility::default(),
-                Name::new(format!("{}_sprite", node_name)),
-            ));
-        });
-    } else {
-        // Static sprite
-        let texture_handle = asset_server.load(&sprite_def.path);
-
-        let anchor_component = if let Some(pivot) = &sprite_def.pivot {
-            let (x, y) = vec2_tuple_to_static(pivot);
-            bevy::sprite::Anchor(Vec2::new(x - 0.5, y - 0.5))
-        } else {
-            bevy::sprite::Anchor(Vec2::ZERO)
-        };
-
-        parent.with_children(|p| {
-            p.spawn((
-                Sprite {
-                    image: texture_handle,
-                    flip_x: sprite_def.flip_x,
-                    flip_y: sprite_def.flip_y,
-                    color: sprite_def
-                        .color
-                        .as_ref()
-                        .map(|c| {
-                            let (r, g, b, a) = color_tuple_to_static(c);
-                            Color::srgba(r, g, b, a)
-                        })
-                        .unwrap_or(Color::WHITE),
-                    ..Default::default()
-                },
-                anchor_component,
-                transform,
-                Visibility::default(),
-                Name::new(format!("{}_sprite", node_name)),
-            ));
-        });
+    // Handle special protocol paths (e.g., "procedural://white_pixel")
+    if visual_path.contains("://") {
+        // Direct load for special protocols
+        let texture_handle = asset_server.load(&visual_path);
+        spawn_static_sprite(parent, sprite_def, texture_handle, transform, node_name);
+        return;
     }
+
+    // Use Visual's automatic type detection
+    if let Some(resolved) = resolve_visual_path(&visual_path, &config.project.mod_name) {
+        let asset_path = get_asset_path(&resolved, &config.project.mod_name);
+
+        match resolved {
+            ResolvedVisual::CharacterAnimation(_) => {
+                // Character animation (.character.ron)
+                let config_handle = asset_server
+                    .load::<crate::core::character_asset::AnimationConfigAsset>(&asset_path);
+
+                parent.with_children(|p| {
+                    p.spawn((
+                        crate::core::character_asset::CharacterAnimator {
+                            config: config_handle,
+                        },
+                        ViewAnimationState {
+                            state_name: sprite_def
+                                .initial_state
+                                .clone()
+                                .unwrap_or("Idle".to_string()),
+                        },
+                        transform,
+                        Visibility::default(),
+                        Name::new(format!("{}_sprite", node_name)),
+                    ));
+                });
+            }
+            ResolvedVisual::Sprite(_) | ResolvedVisual::FrameAnimation(_) => {
+                // Static sprite or frame animation (treat as static for now)
+                let texture_handle = asset_server.load(&asset_path);
+                spawn_static_sprite(parent, sprite_def, texture_handle, transform, node_name);
+            }
+        }
+    } else {
+        // Fallback: try direct load (for backwards compatibility with full paths)
+        let texture_handle = asset_server.load(&visual_path);
+        spawn_static_sprite(parent, sprite_def, texture_handle, transform, node_name);
+    }
+}
+
+/// Helper function to spawn a static sprite with all properties.
+fn spawn_static_sprite(
+    parent: &mut EntityCommands,
+    sprite_def: &SpriteDef,
+    texture_handle: Handle<Image>,
+    transform: Transform,
+    node_name: &str,
+) {
+    let anchor_component = if let Some(pivot) = &sprite_def.pivot {
+        let (x, y) = vec2_tuple_to_static(pivot);
+        bevy::sprite::Anchor(Vec2::new(x - 0.5, y - 0.5))
+    } else {
+        bevy::sprite::Anchor(Vec2::ZERO)
+    };
+
+    parent.with_children(|p| {
+        p.spawn((
+            Sprite {
+                image: texture_handle,
+                flip_x: sprite_def.flip_x,
+                flip_y: sprite_def.flip_y,
+                color: sprite_def
+                    .color
+                    .as_ref()
+                    .map(|c| {
+                        let (r, g, b, a) = color_tuple_to_static(c);
+                        Color::srgba(r, g, b, a)
+                    })
+                    .unwrap_or(Color::WHITE),
+                ..Default::default()
+            },
+            anchor_component,
+            transform,
+            Visibility::default(),
+            Name::new(format!("{}_sprite", node_name)),
+        ));
+    });
+}
+
+/// Helper function to spawn a standalone static sprite (not nested under a parent).
+#[allow(clippy::too_many_arguments)]
+fn spawn_standalone_static_sprite(
+    parent: &mut ChildSpawnerCommands,
+    sprite_def: &SpriteDef,
+    view_element: &Option<ViewElement>,
+    texture_handle: Handle<Image>,
+    transform: Transform,
+    node_name: &str,
+    spawned_entity_id: &mut Option<Entity>,
+    debug_path: &str,
+) {
+    let anchor_component = if let Some(pivot) = &sprite_def.pivot {
+        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+        bevy::sprite::Anchor(Vec2::new(pivot_x - 0.5, pivot_y - 0.5))
+    } else {
+        bevy::sprite::Anchor(Vec2::ZERO)
+    };
+
+    let mut entity_cmd = parent.spawn((
+        Sprite {
+            image: texture_handle,
+            flip_x: sprite_def.flip_x,
+            flip_y: sprite_def.flip_y,
+            color: sprite_def
+                .color
+                .as_ref()
+                .map(|c| {
+                    let (r, g, b, a) = color_tuple_to_static(c);
+                    Color::srgba(r, g, b, a)
+                })
+                .unwrap_or(Color::WHITE),
+            ..Default::default()
+        },
+        anchor_component,
+        transform,
+        GlobalTransform::default(),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
+        Name::new(node_name.to_string()),
+        RonDrivenView,
+    ));
+    if let Some(ve) = view_element {
+        entity_cmd.insert(ve.clone());
+    }
+
+    let entity_id = entity_cmd.id();
+    *spawned_entity_id = Some(entity_id);
+
+    info!(
+        "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
+        node_name, entity_id, debug_path
+    );
 }
 
 fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> ViewLayerVisibilityRule {

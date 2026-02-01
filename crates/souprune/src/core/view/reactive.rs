@@ -26,7 +26,7 @@ use super::components::{
     ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite, SelectionChangedEvent,
     ViewBox, ViewBoxFiller, ViewLayer,
 };
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use std::collections::VecDeque;
@@ -98,7 +98,8 @@ pub(crate) fn spawn_reactive_indicator_system(
 /// 基于层和选择事件更新响应式指示器的位置和可见性。
 /// 该系统响应事件而非每帧轮询状态。
 pub(crate) fn update_reactive_indicator_system(
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     interactive_layer_query: Query<&InteractiveLayer>,
     mut selection_changed: MessageReader<SelectionChangedEvent>,
     mut layer_activated: MessageReader<LayerActivatedEvent>,
@@ -111,6 +112,12 @@ pub(crate) fn update_reactive_indicator_system(
     >,
 ) {
     let _ = &parent_query; // Suppress unused warning
+
+    // Check if current state has UI interaction enabled
+    let is_ui_interactive = state_config
+        .as_ref()
+        .map(|config| config.is_ui_interactive(overworld_state.name()))
+        .unwrap_or(false);
 
     // Handle selection changed events (indicator position update)
     for event in selection_changed.read() {
@@ -134,8 +141,7 @@ pub(crate) fn update_reactive_indicator_system(
             }
 
             // Ensure indicator is visible (if not hidden and in correct state)
-            let should_show =
-                overworld_state.get() == &OverworldState::Backpack && !indicator.is_hidden();
+            let should_show = is_ui_interactive && !indicator.is_hidden();
             if should_show && *visibility != Visibility::Inherited {
                 *visibility = Visibility::Inherited;
             }
@@ -164,8 +170,7 @@ pub(crate) fn update_reactive_indicator_system(
             }
 
             // Show indicator if in correct state
-            let should_show =
-                overworld_state.get() == &OverworldState::Backpack && !indicator.is_hidden();
+            let should_show = is_ui_interactive && !indicator.is_hidden();
             if should_show {
                 *visibility = Visibility::Inherited;
             }
@@ -214,7 +219,7 @@ pub(crate) fn update_reactive_indicator_system(
         // Create ViewLayer from layer_id for visibility check
         let ui_layer = ViewLayer::new(layer.layer_id.clone());
 
-        let mut should_show = overworld_state.get() == &OverworldState::Backpack;
+        let mut should_show = is_ui_interactive;
         should_show &= !indicator.is_hidden();
         should_show &= indicator.visibility().is_visible_for(&ui_layer);
 

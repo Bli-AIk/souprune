@@ -71,13 +71,17 @@ pub fn process_am_performance_system(
     for (entity, active_chapter) in query.iter() {
         if let Chapter::AmPerformance {
             amproj_path,
+            am_config,
             wait_for_completion,
         } = &active_chapter.chapter
         {
             info!("[Battle] Starting AM performance from: {}", amproj_path);
 
             // Send event to start the AM performance
-            performance_events.write(PlayAmPerformanceEvent::new(amproj_path.clone()));
+            performance_events.write(PlayAmPerformanceEvent::with_config(
+                amproj_path.clone(),
+                am_config.clone(),
+            ));
 
             if *wait_for_completion {
                 // Add tracker component to wait for completion

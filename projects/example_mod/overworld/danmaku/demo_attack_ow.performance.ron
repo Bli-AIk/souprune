@@ -12,9 +12,9 @@
     // 我们在这里定义弹幕的"预制体"，包括它们的视觉表现、碰撞体、伤害值和生命周期。
     prototypes: {
         "spear": (
-            // Use SpriteRef to reference sprite by name from config.toml
-            // 使用 SpriteRef 通过 config.toml 中的名称引用精灵
-            visual: SpriteRef(module: "battle", name: "spear"),
+            // Simple shorthand path - searches textures/ directory
+            // 简写路径 - 在 textures/ 目录中搜索
+            visual: "spear",
             collider: BoxCollider(3.0, 12.0),
             damage: 2.0,
             lifetime: 4.0,
@@ -29,11 +29,10 @@
             hit_behavior: Persistent,
         ),
         "pellet": (
-            visual: Animation(
-                module: "battle",
-                name: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            // Directory reference = frame animation
+            // 目录引用 = 帧动画
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,
@@ -47,11 +46,8 @@
         // Orange pellet: damage only when player is stationary
         // 橙色花颗粒：仅当玩家静止时造成伤害
         "pellet_orange": (
-            visual: Animation(
-                module: "battle",
-                name: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,
@@ -63,11 +59,8 @@
         // Blue pellet: damage only when player is moving
         // 蓝色花颗粒：仅当玩家移动时造成伤害
         "pellet_blue": (
-            visual: Animation(
-                module: "battle",
-                name: "flowey_pellet",
-                frame_duration: 0.05,
-            ),
+            visual: "flowey_pellet",
+            frame_duration: 0.05,
             collider: BoxCollider(6.0, 6.0),
             damage: 1.0,
             lifetime: 3.0,

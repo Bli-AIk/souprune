@@ -263,11 +263,16 @@
             children: [],
         ),
     ],
+    // Global triggers for state transitions.
+    // Sound effects are now configured in states.ron using on_enter_sound/on_exit_sound.
+    //
+    // 状态转换的全局触发器。
+    // 音效现在在 states.ron 中使用 on_enter_sound/on_exit_sound 配置。
     global_triggers: {
         "Menu": [
             (
                 target_state: "Backpack",
-                sound: "choice.wav",
+                sound: None,
                 allowed_states: ["Normal"],
             ),
             (
