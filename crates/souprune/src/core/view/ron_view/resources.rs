@@ -1,5 +1,5 @@
 use super::super::layout::ViewLayoutAsset;
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use crate::core::input::Action;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -40,9 +40,9 @@ pub struct ViewGlobalTriggerConfig {
 
 #[derive(Clone)]
 pub struct GlobalTriggerRule {
-    pub target_state: OverworldState,
+    pub target_state: OverworldSubState,
     pub sound: Option<String>,
-    pub allowed_states: Vec<OverworldState>,
+    pub allowed_states: Vec<OverworldSubState>,
 }
 
 #[derive(Component)]

@@ -10,6 +10,7 @@
 
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
 use crate::core::collision::Rect2DCollider;
+use crate::core::map_property_schema::{get_object_bool_property, object_keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
@@ -81,50 +82,50 @@ pub fn process_map_object_properties_system(
                         // Check if this object has collision property set to true
                         //
                         // 检查此对象是否将碰撞属性设置为 true
-                        if let Some(collision_value) = object_data.properties.get("collision") {
-                            trace!("Found collision property: {:?}", collision_value);
+                        if get_object_bool_property(&object_data.properties, object_keys::COLLISION)
+                            != Some(true)
+                        {
+                            trace!(
+                                "Object '{}' has no collision property or collision=false",
+                                object_data.name
+                            );
+                            continue;
+                        }
 
-                            if let tiled::PropertyValue::BoolValue(true) = collision_value {
-                                trace!(
-                                    "Found collision object '{}' with collision=true",
-                                    object_data.name
-                                );
+                        trace!(
+                            "Found collision object '{}' with collision=true",
+                            object_data.name
+                        );
 
-                                if let tiled::ObjectShape::Rect { width, height } =
-                                    object_data.shape
-                                {
-                                    // Calculate world position (same coordinate system as tilemap)
-                                    // Tiled uses top-left origin, convert to center-based
-                                    //
-                                    // 计算世界位置（与瓦片地图坐标系相同）
-                                    // Tiled 使用左上角原点，转换为基于中心
-                                    let world_x = center_offset_x + object_data.x + width / 2.0;
-                                    let world_y = center_offset_y
-                                        + (tiled_map_asset.map.height as f32 * tile_height
-                                            - object_data.y
-                                            - height / 2.0);
+                        if let tiled::ObjectShape::Rect { width, height } = object_data.shape {
+                            // Calculate world position (same coordinate system as tilemap)
+                            // Tiled uses top-left origin, convert to center-based
+                            //
+                            // 计算世界位置（与瓦片地图坐标系相同）
+                            // Tiled 使用左上角原点，转换为基于中心
+                            let world_x = center_offset_x + object_data.x + width / 2.0;
+                            let world_y = center_offset_y
+                                + (tiled_map_asset.map.height as f32 * tile_height
+                                    - object_data.y
+                                    - height / 2.0);
 
-                                    let size = Vec2::new(width, height);
+                            let size = Vec2::new(width, height);
 
-                                    trace!(
-                                        "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
-                                        object_data.name, world_x, world_y, width, height
-                                    );
+                            trace!(
+                                "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
+                                object_data.name, world_x, world_y, width, height
+                            );
 
-                                    commands.spawn((
-                                        ObjectCollider,
-                                        TilemapCollider,
-                                        Rect2DCollider::new(size, Vec2::ZERO),
-                                        Transform::from_xyz(world_x, world_y, 0.0),
-                                        Visibility::Hidden, // Hide the object entity itself
-                                        Name::new(format!("ObjectCollision_{}", object_data.name)),
-                                    ));
-                                } else {
-                                    trace!("Object '{}' is not a rectangle", object_data.name);
-                                }
-                            }
+                            commands.spawn((
+                                ObjectCollider,
+                                TilemapCollider,
+                                Rect2DCollider::new(size, Vec2::ZERO),
+                                Transform::from_xyz(world_x, world_y, 0.0),
+                                Visibility::Hidden, // Hide the object entity itself
+                                Name::new(format!("ObjectCollision_{}", object_data.name)),
+                            ));
                         } else {
-                            trace!("Object '{}' has no collision property", object_data.name);
+                            trace!("Object '{}' is not a rectangle", object_data.name);
                         }
                     }
                 } else {

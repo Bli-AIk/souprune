@@ -18,7 +18,6 @@
 //! 该文件定义了从 RON 文件加载 View 布局的 `OverworldViewPlugin`。
 //! 不同的 UI 风格（Undertale、Deltarune 等）只需修改 RON 文件即可实现，无需更改代码。
 
-use crate::app_state::overworld::OverworldState;
 use crate::core::ron_loader::RonAssetLoader;
 
 use bevy::prelude::*;
@@ -55,7 +54,10 @@ pub use components::{
 use components::{ViewLayerNavigationConfig, ViewLayerTransitionConfig};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
-use lifecycle::{despawn_backpack_ui_system, spawn_backpack_ui_system};
+use lifecycle::{
+    StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
+    state_transition_sound_system,
+};
 use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
 pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use ron_view::{
@@ -124,13 +126,20 @@ impl Plugin for CoreViewPlugin {
             .init_resource::<ViewLayerNavigationConfig>()
             .init_resource::<ViewLayerTransitionConfig>()
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
+            .init_resource::<UIInteractiveStateTracker>()
+            .init_resource::<StateTransitionTracker>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
+            // Use dynamic state transition detection instead of OnEnter/OnExit
+            // since OverworldSubState is now string-based and dynamic
+            // 使用动态状态转换检测替代 OnEnter/OnExit，因为 OverworldSubState 现在是基于字符串的动态状态
             .add_systems(
                 Update,
-                spawn_backpack_ui_system
-                    .run_if(in_state(OverworldState::Backpack).and(in_state(AppState::Overworld))),
+                (
+                    backpack_state_transition_system,
+                    state_transition_sound_system,
+                )
+                    .run_if(in_state(AppState::Overworld)),
             )
-            .add_systems(OnExit(OverworldState::Backpack), despawn_backpack_ui_system)
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,

@@ -166,6 +166,13 @@ pub enum Chapter {
     AmPerformance {
         /// Path to the .amproj file (e.g., "demo_turn.amproj")
         amproj_path: String,
+        /// Optional path to am_config.ron for this performance.
+        /// If not specified, uses the default path: "battle/am_config.ron"
+        ///
+        /// 此演出使用的可选 am_config.ron 路径。
+        /// 如果未指定，使用默认路径："battle/am_config.ron"
+        #[serde(default)]
+        am_config: Option<String>,
         /// Wait for animation to complete before continuing (default: true)
         #[serde(default = "default_true")]
         wait_for_completion: bool,

@@ -3,17 +3,19 @@
 // 演示 Overworld 的 FRE 规则（实验性功能）
 //
 // This file demonstrates the data-driven rule system with danmaku integration.
-// Walk into the trigger zone to trigger a danmaku performance immediately.
+// Walk into the trigger zone to trigger a danmaku performance on the 3rd visit.
 //
 // 此文件演示数据驱动的规则系统与弹幕系统的整合。
-// 走进触发区域将立即触发弹幕演出。
+// 走进触发区域将在第3次访问时触发弹幕演出。
 //
 // Chase state behavior:
 // - 2nd entry: Enter chase state (screen darkens, highlights appear)
+// - 3rd entry: Play danmaku performance
 // - 5th entry: Exit chase state (effects fade out)
 //
 // 追逐战状态行为：
 // - 第2次进入：进入追逐战状态（屏幕变暗，高亮出现）
+// - 第3次进入：播放弹幕演出
 // - 第5次进入：退出追逐战状态（效果淡出）
 
 (
@@ -56,8 +58,24 @@
             priority: 5,
         ),
 
-        // Rule 3: Exit chase state on 5th visit
-        // 规则 3：第5次进入时退出追逐战状态
+        // Rule 3: Play danmaku on 3rd visit
+        // 规则 3：第3次进入时播放弹幕
+        (
+            id: "demo_play_danmaku",
+            trigger: "demo_visit_updated",
+            condition: Equals(key: "demo_area_visit_count", value: Int(3)),
+            actions: [
+                Log(message: "Playing danmaku performance!"),
+                Custom(action_type: "PlayDanmaku", params: {
+                    "path": "overworld/danmaku/demo_attack_ow.performance.ron",
+                }),
+            ],
+            outputs: ["danmaku_played"],
+            priority: 5,
+        ),
+
+        // Rule 4: Exit chase state on 5th visit
+        // 规则 4：第5次进入时退出追逐战状态
         (
             id: "demo_exit_chase",
             trigger: "demo_visit_updated",

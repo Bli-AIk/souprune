@@ -82,6 +82,7 @@ pub mod debug_fre_panel {
         Facts,
         Rules,
         EventHistory,
+        States,
     }
 
     /// Fact type selection for adding new facts.
@@ -384,6 +385,12 @@ pub mod debug_fre_panel {
                 {
                     world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::EventHistory;
                 }
+                if ui
+                    .selectable_label(current_tab == FREPanelTab::States, "🎮 States")
+                    .clicked()
+                {
+                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::States;
+                }
             });
 
             ui.separator();
@@ -393,6 +400,7 @@ pub mod debug_fre_panel {
                 FREPanelTab::Facts => render_facts_tab(ui, world),
                 FREPanelTab::Rules => render_rules_tab(ui, world),
                 FREPanelTab::EventHistory => render_events_tab(ui, world),
+                FREPanelTab::States => render_states_tab(ui, world),
             }
         });
     }
@@ -760,6 +768,179 @@ pub mod debug_fre_panel {
                         ui.label(format!("(data: {})", record.data_keys.join(", ")));
                     }
                 });
+            }
+        });
+    }
+
+    /// Render the States tab.
+    ///
+    /// 渲染状态标签页，显示 AppState 和 OverworldSubState。
+    fn render_states_tab(ui: &mut egui::Ui, world: &mut World) {
+        use crate::app_state::AppState;
+        use crate::app_state::overworld::OverworldSubState;
+
+        ui.heading("Game States");
+        ui.separator();
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            // AppState section
+            egui::CollapsingHeader::new("AppState")
+                .default_open(true)
+                .show(ui, |ui| {
+                    let current_app_state =
+                        world.get_resource::<State<AppState>>().map(|s| *s.get());
+
+                    // List all AppState variants
+                    let all_states = [
+                        (AppState::AppSetup, "App initialization"),
+                        (AppState::Menu, "Main menu"),
+                        (AppState::Overworld, "Overworld exploration"),
+                        (AppState::Battle, "Battle mode"),
+                    ];
+
+                    for (state, description) in all_states {
+                        let is_current = current_app_state == Some(state);
+                        let state_name = format!("{:?}", state);
+
+                        ui.horizontal(|ui| {
+                            if is_current {
+                                ui.colored_label(egui::Color32::GREEN, "> ");
+                                ui.colored_label(egui::Color32::GREEN, &state_name);
+                                ui.small(description);
+                            } else {
+                                ui.label("  ");
+                                ui.colored_label(egui::Color32::GRAY, &state_name);
+                            }
+                        });
+                    }
+                });
+
+            ui.add_space(10.0);
+
+            // OverworldSubState section - only show when in Overworld
+            let is_in_overworld = world
+                .get_resource::<State<AppState>>()
+                .map(|s| *s.get() == AppState::Overworld)
+                .unwrap_or(false);
+
+            if is_in_overworld {
+                egui::CollapsingHeader::new("OverworldSubState")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let current_sub_state = world
+                            .get_resource::<State<OverworldSubState>>()
+                            .map(|s| s.name().to_string());
+
+                        // Get all available states from LoadedStateConfig
+                        let state_config =
+                            world.get_resource::<crate::core::state_config::LoadedStateConfig>();
+
+                        if let Some(config) = state_config {
+                            // Get all state names and sort them
+                            let mut state_names: Vec<&String> = config.0.states.keys().collect();
+                            state_names.sort();
+
+                            for state_name in state_names {
+                                let is_current =
+                                    current_sub_state.as_deref() == Some(state_name.as_str());
+
+                                ui.horizontal(|ui| {
+                                    if is_current {
+                                        ui.colored_label(egui::Color32::GREEN, "> ");
+                                        ui.colored_label(egui::Color32::GREEN, state_name);
+                                    } else {
+                                        ui.label("  ");
+                                        ui.colored_label(egui::Color32::GRAY, state_name);
+                                    }
+                                });
+
+                                // Show details only for current state
+                                if is_current {
+                                    let is_ui_interactive = config.is_ui_interactive(state_name);
+                                    let is_player_movable = config.is_player_movable(state_name);
+                                    let view_layout = config.get_view_layout(state_name);
+                                    let chase_config = config.get_chase_config_path(state_name);
+
+                                    ui.indent(state_name, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.label("UI Interactive:");
+                                            if is_ui_interactive {
+                                                ui.colored_label(egui::Color32::GREEN, "Yes");
+                                            } else {
+                                                ui.colored_label(egui::Color32::GRAY, "No");
+                                            }
+                                        });
+
+                                        ui.horizontal(|ui| {
+                                            ui.label("Player Movable:");
+                                            if is_player_movable {
+                                                ui.colored_label(egui::Color32::GREEN, "Yes");
+                                            } else {
+                                                ui.colored_label(egui::Color32::GRAY, "No");
+                                            }
+                                        });
+
+                                        ui.horizontal(|ui| {
+                                            ui.label("View Layout:");
+                                            if let Some(layout) = view_layout {
+                                                ui.small(layout);
+                                            } else {
+                                                ui.colored_label(egui::Color32::GRAY, "None");
+                                            }
+                                        });
+
+                                        if let Some(chase_path) = chase_config {
+                                            ui.horizontal(|ui| {
+                                                ui.label("Chase Config:");
+                                                ui.small(chase_path);
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+                        } else {
+                            ui.label("StateConfig not loaded");
+                        }
+                    });
+            }
+
+            // Chase state info - only show when in Overworld
+            if is_in_overworld {
+                ui.add_space(10.0);
+
+                egui::CollapsingHeader::new("Chase State Info")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        // ChaseEnabled
+                        if let Some(chase_enabled) =
+                            world.get_resource::<crate::app_state::overworld::chase::ChaseEnabled>()
+                        {
+                            ui.horizontal(|ui| {
+                                ui.label("Chase Enabled:");
+                                if chase_enabled.0 {
+                                    ui.colored_label(egui::Color32::GREEN, "Yes");
+                                } else {
+                                    ui.colored_label(egui::Color32::GRAY, "No");
+                                }
+                            });
+                        }
+
+                        // ChaseStateName
+                        if let Some(chase_state_name) =
+                            world
+                                .get_resource::<crate::app_state::overworld::chase::ChaseStateName>(
+                                )
+                        {
+                            ui.horizontal(|ui| {
+                                ui.label("Chase State Name:");
+                                if let Some(name) = &chase_state_name.0 {
+                                    ui.strong(name);
+                                } else {
+                                    ui.colored_label(egui::Color32::GRAY, "Not configured");
+                                }
+                            });
+                        }
+                    });
             }
         });
     }

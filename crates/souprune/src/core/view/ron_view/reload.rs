@@ -1,18 +1,21 @@
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
 use super::super::components::InteractiveLayer;
 use super::super::layout::ViewLayoutAsset;
 use super::super::lifecycle::BackpackViewRoot;
 use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
+use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 
-/// Load view layout from Tiled map properties.
+/// Load view layout from Tiled map properties (fallback for states.ron view_layout).
+/// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
 ///
-/// 从 Tiled 地图属性加载视图布局。
+/// 从 Tiled 地图属性加载视图布局（作为 states.ron view_layout 的回退）。
+/// 此系统仅在 states.ron 未定义 view_layout 时设置 ViewLayoutHandle。
 pub fn update_view_from_map_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -20,30 +23,44 @@ pub fn update_view_from_map_system(
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     mut watcher: Option<ResMut<ViewLayoutWatcher>>,
     mut current_view_path: Local<Option<String>>,
+    mut validated_maps: Local<std::collections::HashSet<bevy::asset::AssetId<TiledMapAsset>>>,
 ) {
     for tiled_map in tiled_maps_query.iter() {
-        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
-            && let Some(property_value) = map_asset.map.properties.get("backpack_ui")
-            && let tiled::PropertyValue::StringValue(path) = property_value
-            && current_view_path.as_deref() != Some(path)
-        {
-            info!("Switching backpack view to: {}", path);
-            *current_view_path = Some(path.clone());
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
+            // Validate map properties once per map load
+            let map_id = tiled_map.0.id();
+            if !validated_maps.contains(&map_id) {
+                validate_map_properties(&map_asset.map.properties);
+                validated_maps.insert(map_id);
+            }
 
-            let handle = asset_server.load(path.clone());
+            // Load view layout from map property (using schema key constant)
+            if let Some(path) = get_string_property(&map_asset.map.properties, keys::BACKPACK_UI)
+                && current_view_path.as_deref() != Some(path)
+            {
+                let path_owned = path.to_string();
+                info!(
+                    "Map property '{}': loading view layout from '{}'",
+                    keys::BACKPACK_UI,
+                    path_owned
+                );
+                *current_view_path = Some(path_owned.clone());
 
-            commands.insert_resource(ViewLayoutHandle {
-                handle,
-                last_modified: None,
-                path: path.clone(),
-            });
+                let handle = asset_server.load(&path_owned);
 
-            if let Some(ref mut w) = watcher {
-                w.pending_reload = true;
-            } else {
-                let mut w = ViewLayoutWatcher::new();
-                w.pending_reload = true;
-                commands.insert_resource(w);
+                commands.insert_resource(ViewLayoutHandle {
+                    handle,
+                    last_modified: None,
+                    path: path_owned,
+                });
+
+                if let Some(ref mut w) = watcher {
+                    w.pending_reload = true;
+                } else {
+                    let mut w = ViewLayoutWatcher::new();
+                    w.pending_reload = true;
+                    commands.insert_resource(w);
+                }
             }
         }
     }

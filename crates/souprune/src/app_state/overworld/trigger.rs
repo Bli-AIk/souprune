@@ -14,12 +14,14 @@ use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
+use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
     RuleActionDef, RuleRegistry, RuleSetAsset,
 };
+use std::collections::HashMap;
 
 /// Marker component for trigger zones.
 ///
@@ -67,6 +69,17 @@ pub struct DemoTriggerSpawned;
 pub struct LoadedRuleSets {
     pub handles: Vec<Handle<RuleSetAsset>>,
     pub initialized: bool,
+}
+
+/// Resource to store the mapping from rule IDs to their action definitions.
+/// This is populated when rules are registered and used for custom action handling.
+///
+/// 存储规则 ID 到其 action 定义的映射的资源。
+/// 在规则注册时填充，用于自定义 action 处理。
+#[derive(Resource, Default)]
+pub struct RuleActionDefs {
+    /// Maps rule ID to its action definitions
+    pub actions_by_rule: HashMap<String, Vec<RuleActionDef>>,
 }
 
 /// System to spawn a demo trigger zone for testing FRE.
@@ -171,16 +184,21 @@ pub fn load_fre_rules_system(
         return;
     }
 
-    // Try to find rules_file property in loaded maps
+    // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
-            && let Some(rules_prop) = map_asset.map.properties.get("rules_file")
-            && let tiled::PropertyValue::StringValue(rules_path) = rules_prop
+            && let Some(rules_path) =
+                get_string_property(&map_asset.map.properties, keys::RULES_FILE)
         {
-            let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
+            let rules_path_owned = rules_path.to_string();
+            let handle: Handle<RuleSetAsset> = asset_server.load(&rules_path_owned);
             loaded_rule_sets.handles.push(handle);
             loaded_rule_sets.initialized = true;
-            info!("FRE: Loading rules from map property: {}", rules_path);
+            info!(
+                "FRE: Loading rules from map property '{}': {}",
+                keys::RULES_FILE,
+                rules_path_owned
+            );
             return;
         }
     }
@@ -206,6 +224,7 @@ pub fn register_loaded_rules_system(
     rule_set_assets: Res<Assets<RuleSetAsset>>,
     mut registry: ResMut<RuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
+    mut action_defs: ResMut<RuleActionDefs>,
     mut registered: Local<bool>,
 ) {
     if *registered || !loaded_rule_sets.initialized {
@@ -226,6 +245,13 @@ pub fn register_loaded_rules_system(
                 info!("FRE: Set initial fact '{}' to Local layer from RON", key);
             }
 
+            // Store action definitions for each rule (for custom action handling)
+            for rule_def in rule_set.get_rule_defs() {
+                action_defs
+                    .actions_by_rule
+                    .insert(rule_def.id.clone(), rule_def.actions.clone());
+            }
+
             // Register all rules
             rule_set.register_rules(&mut registry);
             *registered = true;
@@ -237,7 +263,12 @@ pub fn register_loaded_rules_system(
 /// System to setup custom action handlers for game-specific actions.
 ///
 /// 设置游戏特定动作的自定义动作处理程序的系统。
-pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
+pub fn setup_action_handlers_system(world: &mut World) {
+    // Initialize the pending danmaku resource
+    world.init_resource::<PendingDanmakuActions>();
+
+    let mut handler_registry = world.resource_mut::<ActionHandlerRegistry>();
+
     // Register the SetPlayerHP action handler
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action
@@ -250,51 +281,93 @@ pub fn setup_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRe
         }
     });
 
+    // Note: PlayDanmaku is handled via PendingDanmakuActions resource
+    // The actual registration happens below
+    handler_registry.register("PlayDanmaku", |action, _db, _commands| {
+        if let RuleActionDef::Custom { params, .. } = action {
+            if let Some(path) = params.get("path") {
+                info!("FRE Action: PlayDanmaku registered with path: {}", path);
+                // Actual playback is handled by play_danmaku_from_actions_system
+                // which reads from PendingDanmakuActions
+            } else {
+                warn!("FRE Action: PlayDanmaku missing 'path' parameter");
+            }
+        }
+    });
+
     info!("FRE: Custom action handlers registered");
 }
 
-/// System to play danmaku performance when player enters trigger zone.
-/// Only triggers on the 3rd visit.
+/// Resource to store pending danmaku play requests from FRE actions.
 ///
-/// 当玩家进入触发区域时播放弹幕演出的系统。
-/// 仅在第三次访问时触发。
-pub fn play_danmaku_on_trigger_system(
+/// 存储来自 FRE action 的待播放弹幕请求的资源。
+#[derive(Resource, Default)]
+pub struct PendingDanmakuActions {
+    pub requests: Vec<String>,
+}
+
+/// System to collect PlayDanmaku actions from executed rules.
+/// This runs after rule evaluation and checks which rules were triggered.
+///
+/// 从已执行规则中收集 PlayDanmaku action 的系统。
+/// 在规则评估后运行，检查哪些规则被触发。
+pub fn collect_danmaku_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut performance_writer: MessageWriter<PlayPerformanceEvent>,
-    player_query: Query<&Transform, With<PlayerControlled>>,
+    mut rule_registry: ResMut<RuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
+    action_defs: Res<RuleActionDefs>,
+    mut pending: ResMut<PendingDanmakuActions>,
 ) {
     for event in events.read() {
-        // Only trigger on the 3rd entry
-        if event.id == FactEventId::new("demo_visit_updated") {
-            let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+        // Get all matching rules for this event
+        let matching_rules = rule_registry.get_matching_rules(event);
 
-            // Only play danmaku on exactly the 3rd visit
-            if visit_count == 3 {
-                // Get player position for spawning performance
-                let spawn_pos = player_query
-                    .iter()
-                    .next()
-                    .map(|t| t.translation.truncate())
-                    .unwrap_or(Vec2::ZERO);
-
-                info!(
-                    "FRE: Playing danmaku performance at {:?} (3rd visit)",
-                    spawn_pos
-                );
-
-                // Play Overworld-specific danmaku performance with 0.5x scale
-                performance_writer.write(
-                    PlayPerformanceEvent::new("overworld/danmaku/demo_attack_ow.performance.ron")
-                        .at_position(spawn_pos),
-                );
-            } else {
-                info!(
-                    "FRE: Trigger entered (visit count: {}), waiting for 3rd visit",
-                    visit_count
-                );
+        for rule in matching_rules {
+            // Check if rule's condition is met
+            if rule.condition.evaluate(&*fact_db) {
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom {
+                            action_type,
+                            params,
+                        } = action
+                            && action_type == "PlayDanmaku"
+                            && let Some(path) = params.get("path")
+                        {
+                            pending.requests.push(path.clone());
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+/// System to play danmaku from pending FRE PlayDanmaku actions.
+///
+/// 播放来自 FRE PlayDanmaku action 的弹幕。
+pub fn play_danmaku_from_actions_system(
+    mut performance_writer: MessageWriter<PlayPerformanceEvent>,
+    player_query: Query<&Transform, With<PlayerControlled>>,
+    mut pending: ResMut<PendingDanmakuActions>,
+) {
+    if pending.requests.is_empty() {
+        return;
+    }
+
+    let spawn_pos = player_query
+        .iter()
+        .next()
+        .map(|t| t.translation.truncate())
+        .unwrap_or(Vec2::ZERO);
+
+    for path in pending.requests.drain(..) {
+        info!(
+            "FRE: Playing danmaku performance: {} at {:?}",
+            path, spawn_pos
+        );
+        performance_writer.write(PlayPerformanceEvent::new(&path).at_position(spawn_pos));
     }
 }
 
@@ -313,27 +386,74 @@ pub fn log_fact_changes_system(
     }
 }
 
-/// System to handle chase state transitions based on FRE events.
+/// System to handle chase state transitions based on FRE actions.
+/// Reads EnterChaseState and ExitChaseState actions from rule definitions.
 ///
-/// 根据 FRE 事件处理追逐战状态转换的系统。
+/// 根据 FRE action 处理追逐战状态转换的系统。
+/// 从规则定义中读取 EnterChaseState 和 ExitChaseState action。
 pub fn handle_chase_state_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldState>>,
+    mut rule_registry: ResMut<RuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
+    action_defs: Res<RuleActionDefs>,
+    chase_enabled: Res<super::chase::ChaseEnabled>,
+    chase_state_name: Res<super::chase::ChaseStateName>,
+    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
     for event in events.read() {
-        if event.id == FactEventId::new("demo_visit_updated") {
-            let visit_count = fact_db.get_int_or("demo_area_visit_count", 0);
+        // Get all matching rules for this event
+        let matching_rules = rule_registry.get_matching_rules(event);
 
-            // Enter chase state on 2nd visit
-            if visit_count == 2 {
-                info!("FRE: Entering Chase state (2nd visit)");
-                next_state.set(crate::app_state::overworld::OverworldState::Chase);
-            }
-            // Exit chase state on 5th visit
-            else if visit_count == 5 {
-                info!("FRE: Exiting Chase state (5th visit)");
-                next_state.set(crate::app_state::overworld::OverworldState::Normal);
+        for rule in matching_rules {
+            // Check if rule's condition is met
+            if rule.condition.evaluate(&*fact_db) {
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom { action_type, .. } = action {
+                            match action_type.as_str() {
+                                "EnterChaseState" => {
+                                    if chase_enabled.0 {
+                                        if let Some(ref state_name) = chase_state_name.0 {
+                                            info!(
+                                                "FRE: Entering chase state '{}' via action",
+                                                state_name
+                                            );
+                                            next_state.set(
+                                                crate::app_state::overworld::OverworldSubState::new(
+                                                    state_name.clone(),
+                                                ),
+                                            );
+                                        } else {
+                                            warn!(
+                                                "FRE: EnterChaseState action ignored - no chase state name configured"
+                                            );
+                                        }
+                                    } else {
+                                        warn!(
+                                            "FRE: EnterChaseState action ignored - chase not enabled"
+                                        );
+                                    }
+                                }
+                                "ExitChaseState" => {
+                                    if chase_enabled.0 {
+                                        info!("FRE: Exiting chase state via action");
+                                        // Return to default state (empty string means default)
+                                        next_state.set(
+                                            crate::app_state::overworld::OverworldSubState::default(
+                                            ),
+                                        );
+                                    } else {
+                                        warn!(
+                                            "FRE: ExitChaseState action ignored - chase not enabled"
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
             }
         }
     }
