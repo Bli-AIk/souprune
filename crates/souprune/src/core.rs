@@ -40,6 +40,7 @@ pub mod danmaku;
 pub(crate) mod data;
 pub(crate) mod input;
 pub mod item;
+pub mod map_property_schema;
 pub mod mod_system;
 pub mod player_components;
 pub mod render_layers;

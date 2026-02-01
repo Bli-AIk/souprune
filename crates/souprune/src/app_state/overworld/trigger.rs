@@ -14,6 +14,7 @@ use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
+use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use bevy_fact_rule_event::{
@@ -183,16 +184,21 @@ pub fn load_fre_rules_system(
         return;
     }
 
-    // Try to find rules_file property in loaded maps
+    // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
-            && let Some(rules_prop) = map_asset.map.properties.get("rules_file")
-            && let tiled::PropertyValue::StringValue(rules_path) = rules_prop
+            && let Some(rules_path) =
+                get_string_property(&map_asset.map.properties, keys::RULES_FILE)
         {
-            let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
+            let rules_path_owned = rules_path.to_string();
+            let handle: Handle<RuleSetAsset> = asset_server.load(&rules_path_owned);
             loaded_rule_sets.handles.push(handle);
             loaded_rule_sets.initialized = true;
-            info!("FRE: Loading rules from map property: {}", rules_path);
+            info!(
+                "FRE: Loading rules from map property '{}': {}",
+                keys::RULES_FILE,
+                rules_path_owned
+            );
             return;
         }
     }
