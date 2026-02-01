@@ -89,12 +89,25 @@ pub fn spawn_performance_players(
             let mut player = PerformancePlayer::new(event.position);
             player.container_entity = Some(container_entity);
 
-            commands.spawn((
+            let mut player_commands = commands.spawn((
                 player,
                 PerformanceHandle(handle.clone()),
                 PerformancePlayerMarker,
                 Name::new("PerformancePlayer"),
             ));
+
+            // Add context-specific marker to PerformancePlayer too
+            // This ensures it gets cleaned up when exiting the state
+            // 给 PerformancePlayer 也添加状态标记
+            // 这确保在退出状态时它也会被清理
+            match spawn_context.state {
+                DanmakuActiveState::Battle => {
+                    player_commands.insert(BattleEntity);
+                }
+                DanmakuActiveState::Overworld => {
+                    player_commands.insert(OverworldEntity());
+                }
+            }
 
             info!(
                 "Started performance: {} with container {:?}",

@@ -225,13 +225,14 @@ pub fn resolve_visual_path_with_resources(
     }
 
     // If simple name (no path separator), search recursively
-    if !input.contains('/') && !input.contains('\\') {
-        if let Some(found) = search_texture_recursive(mod_name, resources, input) {
-            if found.is_dir() && is_frame_animation_directory(&found) {
-                return Some(ResolvedVisual::FrameAnimation(found));
-            } else if found.is_file() {
-                return Some(ResolvedVisual::Sprite(found));
-            }
+    if !input.contains('/')
+        && !input.contains('\\')
+        && let Some(found) = search_texture_recursive(mod_name, resources, input)
+    {
+        if found.is_dir() && is_frame_animation_directory(&found) {
+            return Some(ResolvedVisual::FrameAnimation(found));
+        } else if found.is_file() {
+            return Some(ResolvedVisual::Sprite(found));
         }
     }
 
@@ -305,12 +306,11 @@ fn is_frame_animation_directory(dir: &Path) -> bool {
 
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if IMAGE_EXTENSIONS.contains(&ext) {
-                    image_count += 1;
-                }
-            }
+        if path.is_file()
+            && let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && IMAGE_EXTENSIONS.contains(&ext)
+        {
+            image_count += 1;
         }
     }
 
