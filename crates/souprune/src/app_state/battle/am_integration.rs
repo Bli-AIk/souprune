@@ -179,6 +179,12 @@ pub struct AmPerformanceState {
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
 pub struct PlayAmPerformanceEvent {
     pub amproj_path: String,
+    /// Optional path to am_config.ron for this performance.
+    /// If None, the default config (battle/am_config.ron) is used.
+    ///
+    /// 此演出使用的可选 am_config.ron 路径。
+    /// 如果为 None，使用默认配置（battle/am_config.ron）。
+    pub am_config_path: Option<String>,
     pub wait_for_completion: bool,
 }
 
@@ -186,6 +192,15 @@ impl PlayAmPerformanceEvent {
     pub fn new(amproj_path: String) -> Self {
         Self {
             amproj_path,
+            am_config_path: None,
+            wait_for_completion: true,
+        }
+    }
+
+    pub fn with_config(amproj_path: String, am_config_path: Option<String>) -> Self {
+        Self {
+            amproj_path,
+            am_config_path,
             wait_for_completion: true,
         }
     }
@@ -232,23 +247,20 @@ impl Plugin for AmBattlePlugin {
     }
 }
 
-/// System to load AM battle config from the mod's battle directory.
+/// Load and parse AM battle config from a path.
+/// Returns the loaded config and compiled regex patterns.
 ///
-/// 从 mod 的 battle 目录加载 AM 战斗配置。
-fn load_am_battle_config(
-    mut commands: Commands,
-    mut am_config: ResMut<AmBattleConfig>,
-    project_config: Res<crate::config::SoupruneConfig>,
-) {
-    let config_path = format!(
-        "projects/{}/battle/am_config.ron",
-        project_config.project.mod_name
-    );
+/// 从路径加载并解析 AM 战斗配置。
+/// 返回加载的配置和编译的正则表达式模式。
+fn load_am_config_from_path(
+    config_path: &str,
+) -> (AmBattleConfig, Option<Regex>, Option<Regex>, Option<Regex>) {
+    let mut am_config = AmBattleConfig::default();
 
-    match std::fs::read_to_string(&config_path) {
+    match std::fs::read_to_string(config_path) {
         Ok(content) => match ron::from_str::<AmBattleConfig>(&content) {
             Ok(config) => {
-                *am_config = config;
+                am_config = config;
                 info!(
                     "[AM Battle] Loaded config from {}: scale={}, offset={:?}, bullet_pattern='{}', battle_box_pattern='{}', damage={}",
                     config_path,
@@ -329,6 +341,26 @@ fn load_am_battle_config(
             }
         }
     };
+
+    (am_config, bullet_regex, battle_box_regex, hidden_regex)
+}
+
+/// System to load AM battle config from the mod's battle directory.
+///
+/// 从 mod 的 battle 目录加载 AM 战斗配置。
+fn load_am_battle_config(
+    mut commands: Commands,
+    mut am_config: ResMut<AmBattleConfig>,
+    project_config: Res<crate::config::SoupruneConfig>,
+) {
+    let config_path = format!(
+        "projects/{}/battle/am_config.ron",
+        project_config.project.mod_name
+    );
+
+    let (config, bullet_regex, battle_box_regex, hidden_regex) =
+        load_am_config_from_path(&config_path);
+    *am_config = config;
 
     commands.insert_resource(AmBattlePatterns {
         bullet_regex,
@@ -718,11 +750,30 @@ fn handle_play_am_performance_event(
     mut commands: Commands,
     mut events: MessageReader<PlayAmPerformanceEvent>,
     mut am_state: ResMut<AmPerformanceState>,
+    mut am_config: ResMut<AmBattleConfig>,
     asset_server: Res<AssetServer>,
-    am_config: Res<AmBattleConfig>,
+    project_config: Res<crate::config::SoupruneConfig>,
 ) {
     for event in events.read() {
         info!("[AM Battle] Starting performance: {}", event.amproj_path);
+
+        // If a custom am_config path is provided, reload the config
+        // Otherwise, use the default config loaded at battle start
+        if let Some(custom_config_path) = &event.am_config_path {
+            let full_path = format!(
+                "projects/{}/{}",
+                project_config.project.mod_name, custom_config_path
+            );
+            info!("[AM Battle] Using custom config: {}", full_path);
+            let (config, bullet_regex, battle_box_regex, hidden_regex) =
+                load_am_config_from_path(&full_path);
+            *am_config = config;
+            commands.insert_resource(AmBattlePatterns {
+                bullet_regex,
+                battle_box_regex,
+                hidden_regex,
+            });
+        }
 
         // Load the AM project
         let entity = load_am_project(&mut commands, &asset_server, &event.amproj_path);

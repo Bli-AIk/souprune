@@ -29,8 +29,9 @@ use serde::Deserialize;
 use std::fs;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::{OverworldEntity, OverworldState, OverworldUpdate};
+use crate::app_state::overworld::{OverworldEntity, OverworldSubState, OverworldUpdate};
 use crate::config;
+use crate::core::state_config::LoadedStateConfig;
 use crate::core::view::PixelOutlineMaterial;
 use crate::core::view::sdf_shape::ViewSdfShape;
 
@@ -102,8 +103,6 @@ pub struct ChaseTransition {
 // 追逐战配置结构（从 RON 文件加载）
 // ============================================================================
 
-const CHASE_CONFIG_PATH: &str = "overworld/chase_config.ron";
-
 /// Configuration for the heart marker effect.
 ///
 /// 心形判定标记效果配置。
@@ -131,7 +130,9 @@ fn default_heart_scale() -> f32 {
 impl Default for HeartMarkerConfig {
     fn default() -> Self {
         Self {
-            texture_path: "textures/common/ui/dr_heart.png".to_string(),
+            // Empty path - requires explicit configuration in chase.ron
+            // 空路径 - 需要在 chase.ron 中显式配置
+            texture_path: String::new(),
             offset: Vec2Config { x: 0.0, y: -2.0 },
             z_offset: 101.0,
             scale: 0.5,
@@ -269,13 +270,23 @@ pub struct DamageUIConfig {
     pub layout_path: String,
     /// Display duration in seconds
     pub display_duration: f32,
+    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// If None, no sound is played.
+    ///
+    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 如果为 None，则不播放音效。
+    #[serde(default)]
+    pub damage_sound: Option<String>,
 }
 
 impl Default for DamageUIConfig {
     fn default() -> Self {
         Self {
-            layout_path: "overworld/view/damage_flash.view_layout.ron".to_string(),
+            // Empty path - requires explicit configuration in chase.ron
+            // 空路径 - 需要在 chase.ron 中显式配置
+            layout_path: String::new(),
             display_duration: 0.5,
+            damage_sound: None,
         }
     }
 }
@@ -295,25 +306,31 @@ pub struct ChaseConfig {
 }
 
 impl ChaseConfig {
-    /// Load chase configuration from RON file.
+    /// Load chase configuration from RON file at the given path.
+    /// Returns None if the path is None or the file cannot be loaded.
     ///
-    /// 从 RON 文件加载追逐战配置。
-    pub fn load() -> Self {
-        if let Some(path) = config::resolve_path(CHASE_CONFIG_PATH)
+    /// 从给定路径的 RON 文件加载追逐战配置。
+    /// 如果路径为 None 或文件无法加载，则返回 None。
+    pub fn load_from_path(chase_config_path: Option<&str>) -> Option<Self> {
+        let path_str = chase_config_path?;
+
+        if let Some(path) = config::resolve_path(path_str)
             && let Ok(contents) = fs::read_to_string(&path)
         {
-            if let Ok(config) = ron::de::from_str(&contents) {
-                info!("Chase: Loaded config from {}", path.display());
-                return config;
-            } else {
-                warn!(
-                    "Chase: Failed to parse config at {}, using defaults",
-                    path.display()
-                );
+            match ron::de::from_str(&contents) {
+                Ok(config) => {
+                    info!("Chase: Loaded config from {}", path.display());
+                    return Some(config);
+                }
+                Err(e) => {
+                    warn!("Chase: Failed to parse config at {}: {}", path.display(), e);
+                    return None;
+                }
             }
         }
-        info!("Chase: Using default config");
-        Self::default()
+
+        warn!("Chase: Config file not found at {}", path_str);
+        None
     }
 
     /// Get transition duration (uses heart marker fade duration as reference).
@@ -324,29 +341,57 @@ impl ChaseConfig {
     }
 }
 
+/// Resource indicating whether chase functionality is enabled.
+/// This is set based on whether a valid chase_config path exists in mod.toml.
+///
+/// 指示追逐战功能是否启用的资源。
+/// 基于 mod.toml 中是否存在有效的 chase_config 路径来设置。
+#[derive(Resource, Default)]
+pub struct ChaseEnabled(pub bool);
+
+/// Resource to track the chase state name (configured in states.ron).
+/// This allows the chase system to work with any state name that has chase_config.
+#[derive(Resource, Default)]
+pub struct ChaseStateName(pub Option<String>);
+
+/// Resource to track if we've entered/exited chase state.
+#[derive(Resource, Default)]
+pub struct ChaseStateTracker {
+    pub was_in_chase: bool,
+}
+
 pub struct ChasePlugin;
 
 impl Plugin for ChasePlugin {
     fn build(&self, app: &mut App) {
-        // Load chase config at plugin build time
-        let chase_config = ChaseConfig::load();
-
-        app.insert_resource(chase_config)
+        // Initialize chase resources (config will be loaded dynamically)
+        app.init_resource::<ChaseEnabled>()
+            .init_resource::<ChaseStateName>()
+            .init_resource::<ChaseStateTracker>()
             .init_resource::<ChaseTransition>()
             .init_resource::<DamageUIState>()
             .init_resource::<PlayerInvincibility>()
+            .init_resource::<ChaseConfigLoaded>()
             .add_message::<ChasePlayerDamageEvent>()
+            // Load chase config dynamically when state config becomes available
+            // Must run before FRETriggerSet so chase state actions can work
             .add_systems(
-                OnEnter(OverworldState::Chase),
-                (
-                    setup_chase_effect_root_system,
-                    start_chase_transition_in_system,
-                    setup_chase_hud_system,
-                ),
+                Update,
+                load_chase_config_system
+                    .run_if(|loaded: Res<ChaseConfigLoaded>| !loaded.0)
+                    .before(super::FRETriggerSet),
             )
+            // Dynamic state change detection (replaces OnEnter/OnExit)
             .add_systems(
-                OnExit(OverworldState::Chase),
-                (start_chase_transition_out_system, cleanup_chase_hud_system),
+                Update,
+                (
+                    detect_chase_state_enter_system,
+                    detect_chase_state_exit_system,
+                )
+                    .chain()
+                    .before(update_chase_transition_system)
+                    .in_set(OverworldUpdate)
+                    .run_if(chase_enabled),
             )
             .add_systems(
                 Update,
@@ -366,8 +411,164 @@ impl Plugin for ChasePlugin {
                     cleanup_player_hitbox_system,
                 )
                     .chain()
-                    .in_set(OverworldUpdate),
+                    .in_set(OverworldUpdate)
+                    .run_if(chase_enabled),
             );
+    }
+}
+
+/// Resource to track if chase config has been loaded (to avoid repeated loading attempts).
+#[derive(Resource, Default)]
+pub struct ChaseConfigLoaded(pub bool);
+
+/// Run condition: check if chase is enabled
+fn chase_enabled(enabled: Res<ChaseEnabled>) -> bool {
+    enabled.0
+}
+
+/// Check if current state is a chase state (has chase_config in its definition).
+fn is_in_chase_state(current_state: &OverworldSubState, chase_state_name: &ChaseStateName) -> bool {
+    chase_state_name
+        .0
+        .as_ref()
+        .is_some_and(|name| current_state.0 == *name)
+}
+
+/// System to detect when entering chase state.
+fn detect_chase_state_enter_system(
+    mut commands: Commands,
+    current_state: Res<State<OverworldSubState>>,
+    chase_state_name: Res<ChaseStateName>,
+    mut tracker: ResMut<ChaseStateTracker>,
+    mut transition: ResMut<ChaseTransition>,
+    chase_config: Option<Res<ChaseConfig>>,
+    asset_server: Res<AssetServer>,
+) {
+    let in_chase = is_in_chase_state(&current_state, &chase_state_name);
+
+    if in_chase && !tracker.was_in_chase {
+        // Just entered chase state
+        tracker.was_in_chase = true;
+
+        // Setup chase effect root
+        commands.spawn((
+            OverworldEntity(),
+            ChaseEffectRoot,
+            Name::new("ChaseEffectRoot"),
+            Transform::default(),
+            Visibility::default(),
+        ));
+        info!("Chase: Created effect root entity");
+
+        // Start transition in
+        transition.active = true;
+        transition.timer = 0.0;
+        transition.transitioning_in = true;
+        transition.cleanup_done = false;
+        info!("Chase: Starting transition IN");
+
+        // Setup HUD
+        if let Some(config) = chase_config {
+            // Load HUD layout only if path is specified
+            // 仅当路径指定时才加载 HUD 布局
+            let layout_path = &config.damage_ui.layout_path;
+            if !layout_path.is_empty() {
+                let _handle: Handle<crate::core::view::layout::ViewLayoutAsset> =
+                    asset_server.load(layout_path.clone());
+                info!("Chase: Setup HUD from {}", layout_path);
+            } else {
+                warn!("Chase: No damage UI layout path configured");
+            }
+        }
+    }
+}
+
+/// System to detect when exiting chase state.
+fn detect_chase_state_exit_system(
+    current_state: Res<State<OverworldSubState>>,
+    chase_state_name: Res<ChaseStateName>,
+    mut tracker: ResMut<ChaseStateTracker>,
+    mut transition: ResMut<ChaseTransition>,
+) {
+    let in_chase = is_in_chase_state(&current_state, &chase_state_name);
+
+    if !in_chase && tracker.was_in_chase {
+        // Just exited chase state
+        tracker.was_in_chase = false;
+
+        // Start transition out
+        transition.transitioning_in = false;
+        transition.timer = 0.0;
+        info!("Chase: Starting transition OUT");
+    }
+}
+
+/// System to load chase configuration from SoupruneConfig.
+/// This reads the chase_config path from mod.toml and loads the config.
+/// Also finds which state has chase_config in states.ron.
+///
+/// 从 SoupruneConfig 加载追逐战配置的系统。
+/// 从 mod.toml 读取 chase_config 路径并加载配置。
+/// 同时查找 states.ron 中哪个状态有 chase_config。
+fn load_chase_config_system(
+    mut commands: Commands,
+    souprune_config: Res<config::SoupruneConfig>,
+    state_config: Res<LoadedStateConfig>,
+    state_config_loaded: Res<crate::core::state_config::StateConfigLoaded>,
+    mut chase_enabled: ResMut<ChaseEnabled>,
+    mut chase_state_name: ResMut<ChaseStateName>,
+    mut chase_loaded: ResMut<ChaseConfigLoaded>,
+) {
+    // Wait for state config to be actually loaded from file (not just default)
+    if !state_config_loaded.0 {
+        return;
+    }
+
+    // Mark as loaded to prevent repeated attempts
+    chase_loaded.0 = true;
+
+    // First try to find chase state from states.ron
+    for (state_name, state_def) in &state_config.0.states {
+        if state_def.chase_config.is_some() {
+            chase_state_name.0 = Some(state_name.clone());
+            info!("Chase: Found chase state '{}' in states.ron", state_name);
+
+            // Load config from the path specified in state definition
+            if let Some(path) = &state_def.chase_config
+                && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
+            {
+                info!("Chase: Enabled with config from {}", path);
+                commands.insert_resource(config);
+                chase_enabled.0 = true;
+                return;
+            }
+        }
+    }
+
+    // Fallback: try chase_config from mod.toml (legacy support)
+    let chase_config_path = souprune_config.game.chase_config.as_deref();
+
+    if let Some(config) = ChaseConfig::load_from_path(chase_config_path) {
+        info!(
+            "Chase: Enabled with config from mod.toml: {:?}",
+            chase_config_path
+        );
+        commands.insert_resource(config);
+        chase_enabled.0 = true;
+        // Assume "Chase" state name for legacy config
+        if chase_state_name.0.is_none() {
+            chase_state_name.0 = Some("Chase".to_string());
+        }
+    } else if chase_config_path.is_some() {
+        // Path was specified but config couldn't be loaded
+        warn!("Chase: Disabled - config file could not be loaded");
+        commands.insert_resource(ChaseConfig::default());
+        chase_enabled.0 = false;
+    } else {
+        // No path specified - chase is intentionally disabled
+        info!("Chase: Disabled - no chase_config specified");
+        commands.insert_resource(ChaseConfig::default());
+        chase_enabled.0 = false;
     }
 }
 
@@ -601,6 +802,14 @@ fn spawn_heart_marker_system(
     };
 
     let config = &chase_config.heart_marker;
+
+    // Skip if no texture path configured
+    // 如果未配置纹理路径则跳过
+    if config.texture_path.is_empty() {
+        warn!("Chase: No heart marker texture path configured");
+        return;
+    }
+
     let offset = config.offset.to_vec2();
 
     // Load the heart texture
@@ -978,7 +1187,8 @@ pub fn chase_damage_detection_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
+    chase_state_name: Res<ChaseStateName>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
@@ -1009,7 +1219,7 @@ pub fn chase_damage_detection_system(
     mut last_player_state: Local<Option<(Vec2, f64)>>,
 ) {
     // Only run in chase state
-    if *overworld_state.get() != OverworldState::Chase {
+    if !is_in_chase_state(&overworld_state, &chase_state_name) {
         *last_player_state = None; // Reset when not in chase
         return;
     }
@@ -1109,11 +1319,13 @@ pub fn chase_damage_detection_system(
             // Start player invincibility
             player_invincibility.start(player_behavior.invincibility.duration);
 
-            // Play hurt sound
-            #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-            crate::core::audio::play_sound(&audio, &asset_server, "hurtsound.wav");
-            #[cfg(feature = "firewheel")]
-            crate::core::audio::play_sound(&mut commands, &asset_server, "hurtsound.wav");
+            // Play hurt sound from config
+            if let Some(sound_path) = &chase_config.damage_ui.damage_sound {
+                #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+                crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
+                #[cfg(feature = "firewheel")]
+                crate::core::audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
+            }
 
             info!(
                 "Chase: Player hit! Damage: {}, HP: {}/{}",
@@ -1182,12 +1394,13 @@ pub fn update_player_invincibility_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
+    chase_state_name: Res<ChaseStateName>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
 ) {
     // Only run in chase state
-    if *overworld_state.get() != OverworldState::Chase {
+    if !is_in_chase_state(&overworld_state, &chase_state_name) {
         return;
     }
 

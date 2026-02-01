@@ -18,10 +18,11 @@
 //!
 //! 包括检查玩家是否在行走或执行操作的函数。
 
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::core::state_config::LoadedStateConfig;
 use bevy::prelude;
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
@@ -30,14 +31,18 @@ pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
+    state_config: Option<Res<LoadedStateConfig>>,
 ) -> prelude::Result<(), ()> {
-    // Allow player movement in Normal and Chase states.
-    //
-    // 在 Normal 和 Chase 状态下允许玩家移动。
-    match *overworld_state.get() {
-        OverworldState::Normal | OverworldState::Chase => {}
-        _ => return Err(()),
+    // Check if current state allows player movement via config
+    // 通过配置检查当前状态是否允许玩家移动
+    let player_movable = state_config
+        .as_ref()
+        .map(|c| c.is_player_movable(overworld_state.name()))
+        .unwrap_or(true);
+
+    if !player_movable {
+        return Err(());
     }
 
     let action_state = query.single().map_err(|_| ())?;
@@ -74,15 +79,19 @@ pub fn is_player_walking(
 pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
     player_behavior: Res<PlayerBehavior>,
+    state_config: Option<Res<LoadedStateConfig>>,
 ) -> prelude::Result<(), ()> {
-    // Allow player sprinting in Normal and Chase states.
-    //
-    // 在 Normal 和 Chase 状态下允许玩家跑步。
-    match *overworld_state.get() {
-        OverworldState::Normal | OverworldState::Chase => {}
-        _ => return Err(()),
+    // Check if current state allows player movement via config
+    // 通过配置检查当前状态是否允许玩家移动
+    let player_movable = state_config
+        .as_ref()
+        .map(|c| c.is_player_movable(overworld_state.name()))
+        .unwrap_or(true);
+
+    if !player_movable {
+        return Err(());
     }
 
     let Some(run_action_name) = &player_behavior.run_action else {

@@ -163,17 +163,7 @@ impl Plugin for BeatPlugin {
             .add_message::<BeatEvent>()
             .add_systems(
                 Update,
-                (
-                    activate_beat_tracker_system,
-                    update_beat_tracker_system,
-                    // ========== TEST METRONOME SYSTEM ==========
-                    // This system plays sound effects as a metronome for testing.
-                    // DELETE OR DISABLE THIS SYSTEM when no longer needed.
-                    // 此系统播放音效作为测试用节拍器。
-                    // 不再需要时删除或禁用此系统。
-                    //test_metronome_system,
-                    // ========== END TEST METRONOME SYSTEM ==========
-                )
+                (activate_beat_tracker_system, update_beat_tracker_system)
                     .chain()
                     .in_set(super::super::OverworldUpdate),
             );
@@ -251,67 +241,3 @@ fn update_beat_tracker_system(
         beat_events.write(BeatEvent::ThirtySecondNote);
     }
 }
-
-// ========== TEST METRONOME SYSTEM ==========
-// This entire system is for testing purposes only.
-// DELETE OR COMMENT OUT THIS SYSTEM when no longer needed.
-// 此系统仅用于测试目的。
-// 不再需要时删除或注释掉此系统。
-
-/// Test metronome system that plays sound effects on beats.
-/// Uses "confirm.wav" on the first beat of each bar (4 beats), and "choice.wav" on beats 2-4.
-/// 测试用节拍器系统，在节拍时播放音效。
-/// 每小节（4拍）的第1拍播放 "confirm.wav"，第2-4拍播放 "choice.wav"。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-fn test_metronome_system(
-    mut beat_events: MessageReader<BeatEvent>,
-    beat_tracker: Res<BeatTracker>,
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
-) {
-    for event in beat_events.read() {
-        if matches!(event, BeatEvent::QuarterNote) {
-            // Get the current quarter note count (which beat we're on)
-            // 获取当前四分音符计数（我们在第几拍）
-            let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
-
-            if beat_in_bar == 0 {
-                // First beat of the bar: play "confirm.wav"
-                // 小节的第一拍：播放 "confirm.wav"
-                crate::core::audio::play_sound(&audio, &asset_server, "confirm.wav");
-            } else {
-                // Beats 2-4: play "choice.wav"
-                // 第2-4拍：播放 "choice.wav"
-                crate::core::audio::play_sound(&audio, &asset_server, "choice.wav");
-            }
-        }
-    }
-}
-
-#[cfg(feature = "firewheel")]
-fn test_metronome_system(
-    mut commands: Commands,
-    mut beat_events: MessageReader<BeatEvent>,
-    beat_tracker: Res<BeatTracker>,
-    asset_server: Res<AssetServer>,
-) {
-    for event in beat_events.read() {
-        if matches!(event, BeatEvent::QuarterNote) {
-            // Get the current quarter note count (which beat we're on)
-            // 获取当前四分音符计数（我们在第几拍）
-            let beat_in_bar = (beat_tracker.counts.quarter - 1) % 4;
-
-            if beat_in_bar == 0 {
-                // First beat of the bar: play "confirm.wav"
-                // 小节的第一拍：播放 "confirm.wav"
-                crate::core::audio::play_sound(&mut commands, &asset_server, "confirm.wav");
-            } else {
-                // Beats 2-4: play "choice.wav"
-                // 第2-4拍：播放 "choice.wav"
-                crate::core::audio::play_sound(&mut commands, &asset_server, "choice.wav");
-            }
-        }
-    }
-}
-
-// ========== END TEST METRONOME SYSTEM ==========

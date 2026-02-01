@@ -18,10 +18,11 @@
 //!
 //! 根据玩家操作管理角色动画状态。
 
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::core::state_config::LoadedStateConfig;
 use bevy::prelude::{Query, Res, State, With};
 use leafwing_input_manager::action_state::ActionState;
 
@@ -29,14 +30,18 @@ pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
-    overworld_state: Res<State<OverworldState>>,
+    overworld_state: Res<State<OverworldSubState>>,
+    state_config: Option<Res<LoadedStateConfig>>,
 ) {
-    // Allow direction control in Normal and Chase states.
-    //
-    // 在 Normal 和 Chase 状态下允许方向控制。
-    match *overworld_state.get() {
-        OverworldState::Normal | OverworldState::Chase => {}
-        _ => return,
+    // Check if current state allows player movement via config
+    // 通过配置检查当前状态是否允许玩家移动
+    let player_movable = state_config
+        .as_ref()
+        .map(|c| c.is_player_movable(overworld_state.name()))
+        .unwrap_or(true);
+
+    if !player_movable {
+        return;
     }
 
     for (mut facing, action_state) in query.iter_mut() {

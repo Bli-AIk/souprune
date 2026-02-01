@@ -14,7 +14,7 @@
 
 use super::components::interactive::NavDirection;
 use super::ron_view::ViewGlobalTriggerConfig;
-use crate::app_state::overworld::{OverworldState, character};
+use crate::app_state::overworld::{OverworldSubState, character};
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
 use bevy::ecs::message::MessageWriter;
@@ -33,8 +33,8 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) fn global_trigger_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<OverworldState>>,
-    current_state: Res<State<OverworldState>>,
+    mut next_state: ResMut<NextState<OverworldSubState>>,
+    current_state: Res<State<OverworldSubState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
@@ -55,7 +55,7 @@ pub(crate) fn global_trigger_system(
                     "Checking rule: target={:?}, allowed={:?}",
                     rule.target_state, rule.allowed_states
                 );
-                if rule.allowed_states.contains(current_state.get()) {
+                if rule.allowed_states.iter().any(|s| s == current_state.get()) {
                     info!(
                         "Global trigger activated: {:?} -> {:?} via {:?}",
                         current_state.get(),
@@ -67,7 +67,7 @@ pub(crate) fn global_trigger_system(
                         audio::play_sound(&audio, &asset_server, sound_path);
                     }
 
-                    next_state.set(rule.target_state);
+                    next_state.set(rule.target_state.clone());
                     return;
                 }
             }
@@ -80,8 +80,8 @@ pub(crate) fn global_trigger_system(
 pub(crate) fn global_trigger_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<OverworldState>>,
-    current_state: Res<State<OverworldState>>,
+    mut next_state: ResMut<NextState<OverworldSubState>>,
+    current_state: Res<State<OverworldSubState>>,
     query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
     global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
@@ -102,7 +102,7 @@ pub(crate) fn global_trigger_system(
                     "Checking rule: target={:?}, allowed={:?}",
                     rule.target_state, rule.allowed_states
                 );
-                if rule.allowed_states.contains(current_state.get()) {
+                if rule.allowed_states.iter().any(|s| s == current_state.get()) {
                     info!(
                         "Global trigger activated: {:?} -> {:?} via {:?}",
                         current_state.get(),
@@ -114,7 +114,7 @@ pub(crate) fn global_trigger_system(
                         audio::play_sound(&mut commands, &asset_server, sound_path);
                     }
 
-                    next_state.set(rule.target_state);
+                    next_state.set(rule.target_state.clone());
                     return;
                 }
             }
@@ -244,12 +244,14 @@ pub(crate) fn handle_interactive_layer_navigation_system(
 // ============================================================================
 
 /// System that handles confirm/cancel input for active InteractiveLayers.
+/// Sound effects are now handled by handle_interactive_layer_transitions_system
+/// based on layer configuration (sound_on_confirm, sound_on_cancel).
 ///
 /// 处理活跃 InteractiveLayer 确认/取消输入的系统。
+/// 音效现在由 handle_interactive_layer_transitions_system 根据层配置
+/// (sound_on_confirm, sound_on_cancel) 处理。
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
@@ -278,7 +280,10 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             .unwrap_or(false);
 
         if confirm_pressed {
-            audio::play_sound(&audio, &asset_server, "confirm.wav");
+            // Note: Sound effect is handled by handle_interactive_layer_transitions_system
+            // based on layer's sound_on_confirm configuration
+            // 注意：音效由 handle_interactive_layer_transitions_system 根据层的
+            // sound_on_confirm 配置处理
 
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",
@@ -305,10 +310,13 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
 }
 
 /// Firewheel audio backend variant
+/// Sound effects are now handled by handle_interactive_layer_transitions_system
+/// based on layer configuration (sound_on_confirm, sound_on_cancel).
+///
+/// Firewheel 音频后端变体
+/// 音效现在由 handle_interactive_layer_transitions_system 根据层配置处理。
 #[cfg(feature = "firewheel")]
 pub(crate) fn handle_interactive_layer_confirm_cancel_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
     layer_query: Query<(Entity, &super::components::InteractiveLayer)>,
@@ -337,7 +345,10 @@ pub(crate) fn handle_interactive_layer_confirm_cancel_system(
             .unwrap_or(false);
 
         if confirm_pressed {
-            audio::play_sound(&mut commands, &asset_server, "confirm.wav");
+            // Note: Sound effect is handled by handle_interactive_layer_transitions_system
+            // based on layer's sound_on_confirm configuration
+            // 注意：音效由 handle_interactive_layer_transitions_system 根据层的
+            // sound_on_confirm 配置处理
 
             info!(
                 "InteractiveLayer '{}' confirmed at index {}",
@@ -386,7 +397,7 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     >,
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
-    mut next_ow_state: ResMut<NextState<OverworldState>>,
+    mut next_ow_state: ResMut<NextState<OverworldSubState>>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
@@ -401,6 +412,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
+        // 无论是否有匹配的转换规则，都先播放确认音效
+        // Play confirm sound regardless of whether there's a matching transition rule
+        let sound_path = layer.sound_on_confirm.clone();
+        let layer_id = event.layer_id.clone();
+
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&audio, &asset_server, sound);
+        }
+
+        // 然后检查是否有需要执行的转换规则
+        // Then check if there's a transition rule to execute
         let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
         for rule in &layer.on_confirm {
@@ -417,13 +439,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
 
         if let Some(action) = matched_action {
-            let sound_path = layer.sound_on_confirm.clone();
-            let layer_id = event.layer_id.clone();
-
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&audio, &asset_server, sound);
-            }
-
             execute_layer_transition(
                 action,
                 &layer_id,
@@ -444,14 +459,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
-        if let Some(action) = &layer.on_cancel {
-            let sound_path = layer.sound_on_cancel.clone();
-            let action = action.clone();
-            let layer_id = event.layer_id.clone();
+        // 无论是否有配置的取消动作，都先播放取消音效
+        // Play cancel sound regardless of whether there's a configured cancel action
+        let sound_path = layer.sound_on_cancel.clone();
+        let layer_id = event.layer_id.clone();
 
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&audio, &asset_server, sound);
-            }
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&audio, &asset_server, sound);
+        }
+
+        if let Some(action) = &layer.on_cancel {
+            let action = action.clone();
 
             execute_layer_transition(
                 action,
@@ -470,7 +488,7 @@ fn execute_layer_transition(
     action: super::components::LayerTransitionAction,
     current_layer_id: &str,
     layer_query: &mut Query<(Entity, &mut super::components::InteractiveLayer)>,
-    next_ow_state: &mut ResMut<NextState<OverworldState>>,
+    next_ow_state: &mut ResMut<NextState<OverworldSubState>>,
     activated_events: &mut MessageWriter<super::components::LayerActivatedEvent>,
     deactivated_events: &mut MessageWriter<super::components::LayerDeactivatedEvent>,
 ) {
@@ -538,7 +556,7 @@ fn execute_layer_transition(
                     .write(super::components::LayerDeactivatedEvent { layer_id, entity });
             }
 
-            next_ow_state.set(OverworldState::Normal);
+            next_ow_state.set(OverworldSubState::default());
         }
         super::components::LayerTransitionAction::PushState(state_name) => {
             info!(
@@ -564,7 +582,7 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     >,
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
-    mut next_ow_state: ResMut<NextState<OverworldState>>,
+    mut next_ow_state: ResMut<NextState<OverworldSubState>>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
@@ -578,6 +596,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
+        // 无论是否有匹配的转换规则，都先播放确认音效
+        // Play confirm sound regardless of whether there's a matching transition rule
+        let sound_path = layer.sound_on_confirm.clone();
+        let layer_id = event.layer_id.clone();
+
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&mut commands, &asset_server, sound);
+        }
+
+        // 然后检查是否有需要执行的转换规则
+        // Then check if there's a transition rule to execute
         let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
         for rule in &layer.on_confirm {
@@ -594,13 +623,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
 
         if let Some(action) = matched_action {
-            let sound_path = layer.sound_on_confirm.clone();
-            let layer_id = event.layer_id.clone();
-
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&mut commands, &asset_server, sound);
-            }
-
             execute_layer_transition(
                 action,
                 &layer_id,
@@ -620,14 +642,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
-        if let Some(action) = &layer.on_cancel {
-            let sound_path = layer.sound_on_cancel.clone();
-            let action = action.clone();
-            let layer_id = event.layer_id.clone();
+        // 无论是否有配置的取消动作，都先播放取消音效
+        // Play cancel sound regardless of whether there's a configured cancel action
+        let sound_path = layer.sound_on_cancel.clone();
+        let layer_id = event.layer_id.clone();
 
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&mut commands, &asset_server, sound);
-            }
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&mut commands, &asset_server, sound);
+        }
+
+        if let Some(action) = &layer.on_cancel {
+            let action = action.clone();
 
             execute_layer_transition(
                 action,

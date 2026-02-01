@@ -22,6 +22,7 @@ use crate::app_state::overworld::{OverworldEntity, character};
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
+use crate::core::map_property_schema::{get_string_property, keys, object_keys};
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
@@ -325,11 +326,13 @@ fn generate_object_colliders(
 
                 let size = Vec2::new(width, height);
 
-                // Check if this object has collision property set to true
+                // Check if this object has collision property set to true (using schema key constant)
                 //
-                // 检查此对象是否将碰撞属性设置为 true
-                if let Some(collision_value) = object_data.properties.get("collision")
-                    && let tiled::PropertyValue::BoolValue(true) = collision_value
+                // 检查此对象是否将碰撞属性设置为 true（使用 schema 键常量）
+                if crate::core::map_property_schema::get_object_bool_property(
+                    &object_data.properties,
+                    object_keys::COLLISION,
+                ) == Some(true)
                 {
                     info!(
                         "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
@@ -355,20 +358,25 @@ fn generate_object_colliders(
                 //
                 // 检查此对象是否将触发器属性设置为 true（实验性功能）
                 #[cfg(feature = "experimental")]
-                if let Some(trigger_value) = object_data.properties.get("trigger")
-                    && let tiled::PropertyValue::BoolValue(true) = trigger_value
+                if crate::core::map_property_schema::get_object_bool_property(
+                    &object_data.properties,
+                    object_keys::TRIGGER,
+                ) == Some(true)
                 {
-                    // Get trigger ID from name or id property
-                    let trigger_id = if let Some(id_value) =
-                        object_data.properties.get("trigger_id")
-                        && let tiled::PropertyValue::StringValue(id) = id_value
-                    {
-                        id.clone()
-                    } else if !object_data.name.is_empty() {
-                        object_data.name.clone()
-                    } else {
-                        format!("trigger_{}", object_data.id())
-                    };
+                    // Get trigger ID from name or id property (using schema key constant)
+                    let trigger_id = crate::core::map_property_schema::get_object_string_property(
+                        &object_data.properties,
+                        object_keys::TRIGGER_ID,
+                    )
+                    .map(|s| s.to_string())
+                    .or_else(|| {
+                        if !object_data.name.is_empty() {
+                            Some(object_data.name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_else(|| format!("trigger_{}", object_data.id()));
 
                     info!(
                         "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
@@ -576,8 +584,7 @@ pub fn update_map_bgm_system(
 ) {
     for tiled_map in tiled_maps.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
-            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
-            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && let Some(bgm_path) = get_string_property(&map_asset.map.properties, keys::BGM)
             && current_bgm.0.as_deref() != Some(bgm_path)
         {
             if let Some(handle) = &bgm_handle.0
@@ -588,7 +595,7 @@ pub fn update_map_bgm_system(
 
             info!("Switching BGM to: {}", bgm_path);
             let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
-            current_bgm.0 = Some(bgm_path.clone());
+            current_bgm.0 = Some(bgm_path.to_string());
             bgm_handle.0 = Some(handle);
         }
     }
@@ -605,8 +612,7 @@ pub fn update_map_bgm_system(
 ) {
     for tiled_map in tiled_maps.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
-            && let Some(bgm_prop) = map_asset.map.properties.get("bgm")
-            && let tiled::PropertyValue::StringValue(bgm_path) = bgm_prop
+            && let Some(bgm_path) = get_string_property(&map_asset.map.properties, keys::BGM)
             && current_bgm.0.as_deref() != Some(bgm_path)
         {
             // Stop previous BGM by despawning entity
@@ -616,7 +622,7 @@ pub fn update_map_bgm_system(
 
             info!("Switching BGM to: {}", bgm_path);
             let entity = crate::core::audio::play_bgm(&mut commands, &asset_server, bgm_path);
-            current_bgm.0 = Some(bgm_path.clone());
+            current_bgm.0 = Some(bgm_path.to_string());
             bgm_handle.0 = Some(entity);
         }
     }

@@ -1,7 +1,7 @@
 use super::super::components::IndexBound;
 use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
-use crate::app_state::overworld::OverworldState;
+use crate::app_state::overworld::OverworldSubState;
 use crate::core::item::ItemId;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
@@ -94,12 +94,10 @@ impl<'a> PlayerDataView<'a> {
     }
 }
 
-pub fn parse_overworld_state(state_str: &str) -> Option<OverworldState> {
+pub fn parse_overworld_state(state_str: &str) -> Option<OverworldSubState> {
     match state_str {
-        "Normal" => Some(OverworldState::Normal),
-        "Backpack" => Some(OverworldState::Backpack),
-        "Cutscene" => Some(OverworldState::Cutscene),
-        _ => None,
+        "" | "None" => None,
+        name => Some(OverworldSubState::new(name)),
     }
 }
 

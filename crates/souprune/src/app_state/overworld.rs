@@ -35,19 +35,42 @@ pub(crate) mod view;
 #[derive(Component)]
 pub(crate) struct OverworldEntity();
 
-/// Overworld substates
+/// Dynamic overworld sub-state identified by string name.
+/// Behavior is defined in states.ron configuration file.
+/// This allows mods to define arbitrary sub-states without modifying engine code.
 ///
-/// Overworld 子状态
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
-pub(crate) enum OverworldState {
-    #[default]
-    Normal,
-    Backpack,
-    Cutscene,
-    /// Chase state - screen darkened with highlighted entities and tilemap edges
-    ///
-    /// 追逐战状态 - 屏幕变暗，高亮实体和瓦片地图边缘
-    Chase,
+/// 基于字符串名称的动态 Overworld 子状态。
+/// 行为在 states.ron 配置文件中定义。
+/// 这允许 mod 定义任意子状态而无需修改引擎代码。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, States)]
+pub struct OverworldSubState(pub String);
+
+impl Default for OverworldSubState {
+    fn default() -> Self {
+        // Default to "Normal" state to match configuration expectations.
+        // This is the expected initial state in most game configurations.
+        //
+        // 默认为 "Normal" 状态以匹配配置预期。
+        // 这是大多数游戏配置中的预期初始状态。
+        Self("Normal".to_string())
+    }
+}
+
+impl OverworldSubState {
+    /// Create a new sub-state with the given name.
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(name.into())
+    }
+
+    /// Check if this state matches the given name.
+    pub fn is(&self, name: &str) -> bool {
+        self.0 == name
+    }
+
+    /// Get the state name.
+    pub fn name(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,7 +94,7 @@ impl Plugin for OverworldPlugin {
         // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
         //
         // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
-        .init_state::<OverworldState>()
+        .init_state::<OverworldSubState>()
         .add_plugins((
             tilemap::TilemapPlugin,
             player::PlayerPlugin,
@@ -97,15 +120,12 @@ impl Plugin for OverworldPlugin {
                 .before(crate::core::camera::CameraUpdateSet)
                 .in_set(OverworldUpdate),
         )
+        // Dynamic state change handler - forces player idle when entering non-movable states
         .add_systems(
-            OnEnter(OverworldState::Backpack),
-            player::force_player_idle_on_state_change_system,
-        )
-        .add_systems(
-            OnEnter(OverworldState::Cutscene),
-            player::force_player_idle_on_state_change_system,
+            Update,
+            force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
         );
-        // Note: Chase state allows player movement, so we don't force idle
+        // Note: Specific state behaviors (like Chase) are now configured via states.ron
 
         // FRE + Danmaku integration + Chase
         app.add_plugins(bevy_fact_rule_event::FREPlugin)
@@ -121,6 +141,8 @@ impl Plugin for OverworldPlugin {
                     .after(FRETriggerSet),
             )
             .init_resource::<trigger::LoadedRuleSets>()
+            .init_resource::<trigger::RuleActionDefs>()
+            .init_resource::<trigger::PendingDanmakuActions>()
             .add_systems(
                 OnEnter(AppState::Overworld),
                 (
@@ -135,7 +157,8 @@ impl Plugin for OverworldPlugin {
                     trigger::register_loaded_rules_system,
                     trigger::spawn_demo_trigger_zone_system,
                     trigger::trigger_zone_detection_system,
-                    trigger::play_danmaku_on_trigger_system,
+                    trigger::collect_danmaku_actions_system,
+                    trigger::play_danmaku_from_actions_system,
                     trigger::handle_chase_state_actions_system,
                     trigger::log_fact_changes_system,
                 )
@@ -191,5 +214,55 @@ fn bind_camera_target_system(
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
+    }
+}
+
+/// System to force player idle when entering a non-movable state.
+/// Reads player_movable from StateConfig.
+///
+/// 当进入不允许移动的状态时强制玩家空闲的系统。
+/// 从 StateConfig 读取 player_movable。
+fn force_player_idle_on_non_movable_state_system(
+    mut commands: Commands,
+    current_state: Res<State<OverworldSubState>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
+    player_query: Query<
+        Entity,
+        (
+            With<character::components::PlayerControlled>,
+            Or<(
+                With<character::components::StateWalking>,
+                With<character::components::StateRunning>,
+            )>,
+        ),
+    >,
+    mut last_state: Local<String>,
+) {
+    // Only trigger when state changes
+    if current_state.0 == *last_state {
+        return;
+    }
+    *last_state = current_state.0.clone();
+
+    // Check if current state allows movement
+    let player_movable = state_config
+        .as_ref()
+        .and_then(|config| config.0.states.get(&current_state.0))
+        .map(|def| def.player_movable)
+        .unwrap_or(true); // Default to movable if no config
+
+    // Force idle if movement is not allowed - remove walking/running components
+    if !player_movable {
+        for entity in player_query.iter() {
+            commands
+                .entity(entity)
+                .remove::<character::components::StateWalking>()
+                .remove::<character::components::StateRunning>()
+                .insert(character::components::StateIdle);
+        }
+        info!(
+            "Overworld: Forced player idle on entering non-movable state '{}'",
+            current_state.0
+        );
     }
 }

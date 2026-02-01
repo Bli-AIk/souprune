@@ -17,6 +17,7 @@
 //!
 //! 定义基于时间轴的弹幕系统的 DanmakuPerformance 资产和相关数据结构。
 
+use crate::core::visual::Visual;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -157,8 +158,8 @@ fn parse_hex_color(hex: &str) -> Option<Color> {
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 #[serde(default)]
 pub struct BulletPrototype {
-    /// Visual representation
-    pub visual: BulletVisual,
+    /// Visual resource path (supports shorthand resolution)
+    pub visual: Visual,
 
     /// Collision shape
     pub collider: ColliderShape,
@@ -181,12 +182,24 @@ pub struct BulletPrototype {
     /// Color tint overlay (for blue/orange soul bullets)
     /// Empty hex string means no tint
     pub color_tint: ColorTint,
+
+    /// Horizontal flip for sprite rendering
+    #[serde(default)]
+    pub flip_x: bool,
+
+    /// Vertical flip for sprite rendering
+    #[serde(default)]
+    pub flip_y: bool,
+
+    /// Frame duration for frame animations (seconds, default: 0.05)
+    #[serde(default)]
+    pub frame_duration: Option<f32>,
 }
 
 impl Default for BulletPrototype {
     fn default() -> Self {
         Self {
-            visual: BulletVisual::default(),
+            visual: Visual::default(),
             collider: ColliderShape::default(),
             damage: 1.0,
             lifetime: 5.0,
@@ -194,48 +207,19 @@ impl Default for BulletPrototype {
             scale: 1.0,
             hit_behavior: HitBehaviorPreset::Default,
             color_tint: ColorTint::default(),
+            flip_x: false,
+            flip_y: false,
+            frame_duration: None,
         }
     }
 }
 
 impl BulletPrototype {
-    pub fn new(visual: BulletVisual) -> Self {
+    pub fn new(visual: Visual) -> Self {
         Self {
             visual,
             ..Default::default()
         }
-    }
-}
-
-/// Visual representation of a bullet.
-///
-/// 弹幕的视觉表现。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub enum BulletVisual {
-    /// Static sprite image by direct path (legacy)
-    Sprite { path: String },
-    /// Static sprite by reference to config.toml sprite name
-    SpriteRef { module: String, name: String },
-    /// Animated sprite (references animation name in config.toml)
-    Animation {
-        module: String,
-        name: String,
-        #[serde(default = "BulletVisual::default_frame_duration")]
-        frame_duration: f32,
-    },
-}
-
-impl Default for BulletVisual {
-    fn default() -> Self {
-        Self::Sprite {
-            path: String::new(),
-        }
-    }
-}
-
-impl BulletVisual {
-    fn default_frame_duration() -> f32 {
-        0.05
     }
 }
 

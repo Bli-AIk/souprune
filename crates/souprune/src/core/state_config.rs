@@ -41,6 +41,12 @@ pub struct StateDefinition {
     #[serde(default)]
     pub player_movable: bool,
 
+    /// Whether the camera should follow the player in this state.
+    ///
+    /// 此状态下相机是否跟随玩家。
+    #[serde(default = "default_true")]
+    pub camera_follow_player: bool,
+
     /// View layout to load when entering this state.
     ///
     /// 进入此状态时加载的视图布局。
@@ -64,6 +70,18 @@ pub struct StateDefinition {
     /// 退出此状态时播放的声音。
     #[serde(default)]
     pub on_exit_sound: Option<String>,
+
+    /// Optional path to chase configuration (only for chase-like states).
+    /// If present, enables chase-specific systems for this state.
+    ///
+    /// 可选的追逐战配置路径（仅用于类似追逐战的状态）。
+    /// 如果存在，则为此状态启用追逐战特定系统。
+    #[serde(default)]
+    pub chase_config: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for StateDefinition {
@@ -71,21 +89,38 @@ impl Default for StateDefinition {
         Self {
             ui_interactive: false,
             player_movable: true,
+            camera_follow_player: true,
             view_layout: None,
             initial_layer: None,
             on_enter_sound: None,
             on_exit_sound: None,
+            chase_config: None,
         }
     }
 }
 
 /// Resource that holds the loaded state configuration.
+/// When loaded, provides direct access to StateConfig.
 ///
 /// 保存已加载状态配置的资源。
-#[derive(Resource, Default)]
-pub struct LoadedStateConfig {
-    pub config: Option<StateConfig>,
-    pub handle: Option<Handle<StateConfig>>,
+/// 加载后，提供对 StateConfig 的直接访问。
+#[derive(Resource)]
+pub struct LoadedStateConfig(pub StateConfig);
+
+impl Default for LoadedStateConfig {
+    fn default() -> Self {
+        // Default with a Normal state that allows movement
+        let mut states = HashMap::new();
+        states.insert(
+            "Normal".to_string(),
+            StateDefinition {
+                player_movable: true,
+                camera_follow_player: true,
+                ..Default::default()
+            },
+        );
+        Self(StateConfig { states })
+    }
 }
 
 impl LoadedStateConfig {
@@ -93,7 +128,7 @@ impl LoadedStateConfig {
     ///
     /// 获取特定状态的配置。
     pub fn get(&self, state_name: &str) -> Option<&StateDefinition> {
-        self.config.as_ref()?.states.get(state_name)
+        self.0.states.get(state_name)
     }
 
     /// Check if UI is interactive for the given state.
@@ -113,7 +148,51 @@ impl LoadedStateConfig {
             .map(|s| s.player_movable)
             .unwrap_or(true)
     }
+
+    /// Check if camera should follow player in the given state.
+    ///
+    /// 检查给定状态下相机是否跟随玩家。
+    pub fn is_camera_follow_player(&self, state_name: &str) -> bool {
+        self.get(state_name)
+            .map(|s| s.camera_follow_player)
+            .unwrap_or(true)
+    }
+
+    /// Get the chase config path for the given state (if any).
+    /// States with chase_config enable chase-specific behaviors.
+    ///
+    /// 获取给定状态的追逐战配置路径（如果有）。
+    /// 具有 chase_config 的状态启用追逐战特定行为。
+    pub fn get_chase_config_path(&self, state_name: &str) -> Option<&str> {
+        self.get(state_name).and_then(|s| s.chase_config.as_deref())
+    }
+
+    /// Check if the given state is a chase-like state (has chase_config).
+    ///
+    /// 检查给定状态是否为追逐战类状态（具有 chase_config）。
+    pub fn is_chase_state(&self, state_name: &str) -> bool {
+        self.get_chase_config_path(state_name).is_some()
+    }
+
+    /// Get the view layout path for the given state (if any).
+    ///
+    /// 获取给定状态的视图布局路径（如果有）。
+    pub fn get_view_layout(&self, state_name: &str) -> Option<&str> {
+        self.get(state_name).and_then(|s| s.view_layout.as_deref())
+    }
 }
+
+/// Handle for tracking state config asset loading.
+#[derive(Resource, Default)]
+pub struct StateConfigHandle(pub Option<Handle<StateConfig>>);
+
+/// Resource indicating whether state configuration has been loaded from file.
+/// This prevents chase system from using default values.
+///
+/// 指示状态配置是否已从文件加载的资源。
+/// 这可以防止追逐战系统使用默认值。
+#[derive(Resource, Default)]
+pub struct StateConfigLoaded(pub bool);
 
 /// Plugin for state configuration system.
 ///
@@ -127,6 +206,8 @@ impl Plugin for StateConfigPlugin {
                 &["states.ron"],
             ))
             .init_resource::<LoadedStateConfig>()
+            .init_resource::<StateConfigHandle>()
+            .init_resource::<StateConfigLoaded>()
             .add_systems(Startup, load_state_config_system)
             .add_systems(Update, process_loaded_state_config_system);
     }
@@ -136,14 +217,22 @@ impl Plugin for StateConfigPlugin {
 ///
 /// 启动时加载状态配置。
 fn load_state_config_system(
-    mut loaded_config: ResMut<LoadedStateConfig>,
+    mut config_handle: ResMut<StateConfigHandle>,
     asset_server: Res<AssetServer>,
+    config: Res<crate::config::SoupruneConfig>,
 ) {
-    let config_path = "config/states.ron";
+    // Read states_config path from project configuration
+    // 从项目配置中读取 states_config 路径
+    let config_path = if config.game.states_config.is_empty() {
+        "config/states.ron".to_string()
+    } else {
+        config.game.states_config.clone()
+    };
+
     info!("Loading state configuration from: {}", config_path);
 
     let handle: Handle<StateConfig> = asset_server.load(config_path);
-    loaded_config.handle = Some(handle);
+    config_handle.0 = Some(handle);
 }
 
 /// Process loaded state configuration.
@@ -151,13 +240,16 @@ fn load_state_config_system(
 /// 处理已加载的状态配置。
 fn process_loaded_state_config_system(
     mut loaded_config: ResMut<LoadedStateConfig>,
+    mut config_loaded: ResMut<StateConfigLoaded>,
+    config_handle: Res<StateConfigHandle>,
     state_configs: Res<Assets<StateConfig>>,
+    mut processed: Local<bool>,
 ) {
-    if loaded_config.config.is_some() {
+    if *processed {
         return;
     }
 
-    if let Some(handle) = &loaded_config.handle
+    if let Some(handle) = &config_handle.0
         && let Some(config) = state_configs.get(handle)
     {
         info!(
@@ -166,10 +258,12 @@ fn process_loaded_state_config_system(
         );
         for (name, def) in &config.states {
             debug!(
-                "  State '{}': ui_interactive={}, player_movable={}, view_layout={:?}",
-                name, def.ui_interactive, def.player_movable, def.view_layout
+                "  State '{}': ui_interactive={}, player_movable={}, camera_follow={}",
+                name, def.ui_interactive, def.player_movable, def.camera_follow_player
             );
         }
-        loaded_config.config = Some(config.clone());
+        *loaded_config = LoadedStateConfig(config.clone());
+        config_loaded.0 = true;
+        *processed = true;
     }
 }

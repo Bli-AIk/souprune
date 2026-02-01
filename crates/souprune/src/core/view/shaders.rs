@@ -6,21 +6,27 @@
 //!
 //! ## 模块概述
 //!
-//! This module loads WGSL shader code from external files for use with SdfMaterial.
+//! This module provides utilities for loading WGSL shader code from external files.
+//! Currently unused but kept for future custom shader support.
 //!
-//! 本模块从外部文件加载 WGSL 着色器代码供 SdfMaterial 使用。
+//! 本模块提供从外部文件加载 WGSL 着色器代码的工具函数。
+//! 目前未使用，保留以支持未来的自定义着色器功能。
 //!
-//! ## Source File Overview
+//! ## Note
 //!
-//! ## 源文件概述
+//! ## 注意
 //!
-//! Shaders are stored as separate .wgsl files for easier modification.
+//! These functions are not currently called but are reserved for future use
+//! when supporting user-defined SDF shaders becomes necessary.
 //!
-//! 着色器存储为独立的 .wgsl 文件以便于修改。
+//! 这些函数目前未被调用，但保留以备将来支持用户自定义 SDF 着色器时使用。
 
 /// Load UI solid fill shader body from external file.
 ///
 /// 从外部文件加载 UI 实体填充着色器主体。
+///
+/// Note: Currently unused. Reserved for future custom shader support.
+#[allow(dead_code)]
 pub fn load_ui_solid_fill_body() -> String {
     let config = crate::config::load_config();
     let shader_path = format!(
@@ -46,6 +52,9 @@ pub fn load_ui_solid_fill_body() -> String {
 ///
 /// # Returns
 /// The shader source code as a String, or a fallback magenta shader on error.
+///
+/// Note: Currently unused. Reserved for future custom shader support.
+#[allow(dead_code)]
 pub fn load_custom_shader_body(path: &str) -> String {
     let config = crate::config::load_config();
     let full_path = format!("projects/{}/{}", config.project.mod_name, path);
