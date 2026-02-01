@@ -196,6 +196,7 @@
             ),
             selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
             sound_on_navigate: "choice.wav",
+            sound_on_confirm: "confirm.wav",
         ),
     },
 )

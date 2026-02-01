@@ -412,6 +412,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
+        // 无论是否有匹配的转换规则，都先播放确认音效
+        // Play confirm sound regardless of whether there's a matching transition rule
+        let sound_path = layer.sound_on_confirm.clone();
+        let layer_id = event.layer_id.clone();
+
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&audio, &asset_server, sound);
+        }
+
+        // 然后检查是否有需要执行的转换规则
+        // Then check if there's a transition rule to execute
         let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
         for rule in &layer.on_confirm {
@@ -428,13 +439,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
 
         if let Some(action) = matched_action {
-            let sound_path = layer.sound_on_confirm.clone();
-            let layer_id = event.layer_id.clone();
-
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&audio, &asset_server, sound);
-            }
-
             execute_layer_transition(
                 action,
                 &layer_id,
@@ -455,14 +459,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
-        if let Some(action) = &layer.on_cancel {
-            let sound_path = layer.sound_on_cancel.clone();
-            let action = action.clone();
-            let layer_id = event.layer_id.clone();
+        // 无论是否有配置的取消动作，都先播放取消音效
+        // Play cancel sound regardless of whether there's a configured cancel action
+        let sound_path = layer.sound_on_cancel.clone();
+        let layer_id = event.layer_id.clone();
 
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&audio, &asset_server, sound);
-            }
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&audio, &asset_server, sound);
+        }
+
+        if let Some(action) = &layer.on_cancel {
+            let action = action.clone();
 
             execute_layer_transition(
                 action,
@@ -589,6 +596,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
+        // 无论是否有匹配的转换规则，都先播放确认音效
+        // Play confirm sound regardless of whether there's a matching transition rule
+        let sound_path = layer.sound_on_confirm.clone();
+        let layer_id = event.layer_id.clone();
+
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&mut commands, &asset_server, sound);
+        }
+
+        // 然后检查是否有需要执行的转换规则
+        // Then check if there's a transition rule to execute
         let mut matched_action: Option<super::components::LayerTransitionAction> = None;
 
         for rule in &layer.on_confirm {
@@ -605,13 +623,6 @@ pub(crate) fn handle_interactive_layer_transitions_system(
         }
 
         if let Some(action) = matched_action {
-            let sound_path = layer.sound_on_confirm.clone();
-            let layer_id = event.layer_id.clone();
-
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&mut commands, &asset_server, sound);
-            }
-
             execute_layer_transition(
                 action,
                 &layer_id,
@@ -631,14 +642,17 @@ pub(crate) fn handle_interactive_layer_transitions_system(
             continue;
         };
 
-        if let Some(action) = &layer.on_cancel {
-            let sound_path = layer.sound_on_cancel.clone();
-            let action = action.clone();
-            let layer_id = event.layer_id.clone();
+        // 无论是否有配置的取消动作，都先播放取消音效
+        // Play cancel sound regardless of whether there's a configured cancel action
+        let sound_path = layer.sound_on_cancel.clone();
+        let layer_id = event.layer_id.clone();
 
-            if let Some(sound) = &sound_path {
-                audio::play_sound(&mut commands, &asset_server, sound);
-            }
+        if let Some(sound) = &sound_path {
+            audio::play_sound(&mut commands, &asset_server, sound);
+        }
+
+        if let Some(action) = &layer.on_cancel {
+            let action = action.clone();
 
             execute_layer_transition(
                 action,

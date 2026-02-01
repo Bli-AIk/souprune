@@ -163,10 +163,7 @@ impl Plugin for BeatPlugin {
             .add_message::<BeatEvent>()
             .add_systems(
                 Update,
-                (
-                    activate_beat_tracker_system,
-                    update_beat_tracker_system,
-                )
+                (activate_beat_tracker_system, update_beat_tracker_system)
                     .chain()
                     .in_set(super::super::OverworldUpdate),
             );
