@@ -135,7 +135,7 @@ fn battle_damage_detection_system(
     time: Res<Time>,
     invincibility_config: Res<BattleInvincibilityConfig>,
     mut player_invincibility: ResMut<BattlePlayerInvincibility>,
-    mut player_data: ResMut<crate::core::data::PlayerData>,
+    mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     player_query: Query<(&GlobalTransform, &TriggerCollider), With<BehaviorParams>>,
     mut bullet_query: Query<
         (
@@ -256,11 +256,14 @@ fn battle_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            if player_data.hp > damage {
-                player_data.hp -= damage;
+            let current_hp = layered_db.get_int("player_hp").unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
+            let new_hp = if current_hp > damage {
+                current_hp - damage
             } else {
-                player_data.hp = 0;
-            }
+                0
+            };
+            layered_db.set_global("player_hp", new_hp as i64);
 
             // Start player invincibility
             player_invincibility.start(invincibility_config.duration);
@@ -273,7 +276,7 @@ fn battle_damage_detection_system(
 
             info!(
                 "Battle: Player hit! Damage: {}, HP: {}/{}",
-                damage, player_data.hp, player_data.hp_max
+                damage, new_hp, hp_max
             );
 
             // Handle despawn behavior

@@ -60,6 +60,13 @@ pub struct WindowConfig {
 #[derive(Clone, Deserialize)]
 #[serde(default)]
 pub struct GameConfig {
+    /// Path to the global rules file (loaded into FRE Global layer at startup).
+    /// This contains initial player data and game-wide facts.
+    ///
+    /// 全局规则文件路径（启动时加载到 FRE 全局层）。
+    /// 包含初始玩家数据和游戏全局事实。
+    pub global_rules: String,
+
     /// Initial map path to load when entering Overworld.
     /// If empty and `initial_battle_path` is set, the game will start in Battle mode.
     ///
@@ -96,6 +103,7 @@ pub struct GameConfig {
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
+            global_rules: String::new(),
             initial_map_path: String::new(),
             initial_battle_path: String::new(),
             player_behavior_path: String::new(),
@@ -209,6 +217,7 @@ struct ModConfigFile {
 
 #[derive(Deserialize)]
 struct GameConfigPartial {
+    global_rules: Option<String>,
     initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
     player_behavior_path: Option<String>,
@@ -253,6 +262,9 @@ Falling back to default configuration (example_mod)",
                 match read_mod_config(&mod_config_path) {
                     Ok(mod_cfg) => {
                         if let Some(game_partial) = mod_cfg.game {
+                            if let Some(val) = game_partial.global_rules {
+                                config.game.global_rules = val;
+                            }
                             if let Some(val) = game_partial.initial_map_path {
                                 config.game.initial_map_path = val;
                             }

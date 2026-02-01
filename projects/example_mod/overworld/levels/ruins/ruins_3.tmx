@@ -3,6 +3,7 @@
  <properties>
   <property name="backpack_ui" value="overworld/view/undertale_backpack.view_layout.ron"/>
   <property name="bgm" value="ignore_music.wav"/>
+  <property name="rules_file" value="overworld/rules/demo.rules.ron"/>
  </properties>
  <tileset firstgid="1" source="ruins.tsx"/>
  <tileset firstgid="241" source="ruins_objects.tsx"/>

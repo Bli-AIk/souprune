@@ -140,7 +140,7 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 Update,
                 ron_view::update_dynamic_ui_elements
-                    .run_if(resource_exists::<crate::core::data::PlayerData>),
+                    .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
             )
             // First group of UI systems
             .add_systems(

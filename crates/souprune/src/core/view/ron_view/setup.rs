@@ -262,7 +262,7 @@ pub fn ui_animation_init_system(
 pub fn setup_hp_bar_sprites(
     mut commands: Commands,
     procedural_textures: Option<Res<super::super::procedural_textures::ProceduralTextures>>,
-    player_data: Option<Res<crate::core::data::PlayerData>>,
+    layered_db: Option<Res<bevy_fact_rule_event::LayeredFactDatabase>>,
     mut materials: ResMut<Assets<super::super::custom_sprite_material::CustomSpriteMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     // Add Without<Mesh2d> to prevent running every frame
@@ -273,8 +273,10 @@ pub fn setup_hp_bar_sprites(
     };
 
     // Use actual player HP if available, otherwise default to full
-    let hp_ratio = if let Some(pd) = player_data {
-        pd.hp as f32 / pd.hp_max as f32
+    let hp_ratio = if let Some(db) = layered_db {
+        let hp = db.get_int("player_hp").unwrap_or(20) as f32;
+        let hp_max = db.get_int("player_hp_max").unwrap_or(20) as f32;
+        hp / hp_max
     } else {
         1.0
     };

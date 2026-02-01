@@ -15,9 +15,10 @@ use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
 use bevy::prelude::*;
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use bevy_fact_rule_event::{
-    ActionHandlerRegistry, FactDatabase, FactEvent, FactEventId, FactValueDef, RuleActionDef,
-    RuleRegistry, RuleSetAsset,
+    ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
+    RuleActionDef, RuleRegistry, RuleSetAsset,
 };
 
 /// Marker component for trigger zones.
@@ -153,23 +154,49 @@ pub fn trigger_zone_detection_system(
     }
 }
 
-/// System to load FRE rules from RON files.
+/// System to load FRE rules from map's `rules_file` property.
+/// The rules file path is read from the Tiled map's custom properties.
+/// If no `rules_file` property exists, no rules are loaded for this map.
 ///
-/// 从 RON 文件加载 FRE 规则的系统。
+/// 从地图的 `rules_file` 属性加载 FRE 规则的系统。
+/// 规则文件路径从 Tiled 地图的自定义属性中读取。
+/// 如果不存在 `rules_file` 属性，则不为此地图加载任何规则。
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
+    tiled_maps: Query<&TiledMap>,
+    tiled_map_assets: Res<Assets<TiledMapAsset>>,
 ) {
     if loaded_rule_sets.initialized {
         return;
     }
 
-    // Load the demo rules from the asset folder
-    let handle: Handle<RuleSetAsset> = asset_server.load("overworld/rules/demo.rules.ron");
-    loaded_rule_sets.handles.push(handle);
-    loaded_rule_sets.initialized = true;
+    // Try to find rules_file property in loaded maps
+    for tiled_map in tiled_maps.iter() {
+        if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
+            if let Some(rules_prop) = map_asset.map.properties.get("rules_file") {
+                if let tiled::PropertyValue::StringValue(rules_path) = rules_prop {
+                    let handle: Handle<RuleSetAsset> = asset_server.load(rules_path.clone());
+                    loaded_rule_sets.handles.push(handle);
+                    loaded_rule_sets.initialized = true;
+                    info!("FRE: Loading rules from map property: {}", rules_path);
+                    return;
+                }
+            }
+        }
+    }
 
-    info!("FRE: Loading rules from overworld/rules/demo.rules.ron");
+    // No rules_file property found - mark as initialized but with no rules
+    // This allows maps without FRE rules to work without warnings
+    if !tiled_maps.is_empty() {
+        for tiled_map in tiled_maps.iter() {
+            if tiled_map_assets.get(&tiled_map.0).is_some() {
+                loaded_rule_sets.initialized = true;
+                info!("FRE: No rules_file property found in map, skipping local rules loading");
+                return;
+            }
+        }
+    }
 }
 
 /// System to register rules from loaded assets.
@@ -179,7 +206,7 @@ pub fn register_loaded_rules_system(
     loaded_rule_sets: Res<LoadedRuleSets>,
     rule_set_assets: Res<Assets<RuleSetAsset>>,
     mut registry: ResMut<RuleRegistry>,
-    mut fact_db: ResMut<FactDatabase>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
     mut registered: Local<bool>,
 ) {
     if *registered || !loaded_rule_sets.initialized {
@@ -188,7 +215,7 @@ pub fn register_loaded_rules_system(
 
     for handle in &loaded_rule_sets.handles {
         if let Some(rule_set) = rule_set_assets.get(handle) {
-            // Apply initial facts
+            // Apply initial facts to Local layer (room/scene specific)
             for (key, value) in rule_set.get_initial_facts() {
                 let fact_value = match value {
                     FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
@@ -196,8 +223,8 @@ pub fn register_loaded_rules_system(
                     FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
                     FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
                 };
-                fact_db.set(key.as_str(), fact_value);
-                info!("FRE: Set initial fact '{}' from RON", key);
+                fact_db.set_local(key.as_str(), fact_value);
+                info!("FRE: Set initial fact '{}' to Local layer from RON", key);
             }
 
             // Register all rules
@@ -236,7 +263,7 @@ pub fn play_danmaku_on_trigger_system(
     mut events: MessageReader<FactEvent>,
     mut performance_writer: MessageWriter<PlayPerformanceEvent>,
     player_query: Query<&Transform, With<PlayerControlled>>,
-    fact_db: Res<FactDatabase>,
+    fact_db: Res<LayeredFactDatabase>,
 ) {
     for event in events.read() {
         // Only trigger on the 3rd entry
@@ -275,7 +302,10 @@ pub fn play_danmaku_on_trigger_system(
 /// System to log fact database changes (debug).
 ///
 /// 记录事实数据库变化的系统（调试用）。
-pub fn log_fact_changes_system(mut events: MessageReader<FactEvent>, fact_db: Res<FactDatabase>) {
+pub fn log_fact_changes_system(
+    mut events: MessageReader<FactEvent>,
+    fact_db: Res<LayeredFactDatabase>,
+) {
     for event in events.read() {
         if event.id == FactEventId::new("demo_visit_updated") {
             let count = fact_db.get_int_or("demo_area_visit_count", 0);
@@ -290,7 +320,7 @@ pub fn log_fact_changes_system(mut events: MessageReader<FactEvent>, fact_db: Re
 pub fn handle_chase_state_actions_system(
     mut events: MessageReader<FactEvent>,
     mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldState>>,
-    fact_db: Res<FactDatabase>,
+    fact_db: Res<LayeredFactDatabase>,
 ) {
     for event in events.read() {
         if event.id == FactEventId::new("demo_visit_updated") {
