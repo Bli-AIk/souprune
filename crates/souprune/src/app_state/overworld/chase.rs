@@ -1098,11 +1098,7 @@ pub fn chase_damage_detection_system(
             let damage = bullet_damage.0 as usize;
             let current_hp = layered_db.get_int("player_hp").unwrap_or(20) as usize;
             let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
-            let new_hp = if current_hp > damage {
-                current_hp - damage
-            } else {
-                0
-            };
+            let new_hp = current_hp.saturating_sub(damage);
             layered_db.set_global("player_hp", new_hp as i64);
 
             // Fire damage event

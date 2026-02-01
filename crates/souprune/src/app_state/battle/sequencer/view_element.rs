@@ -140,9 +140,9 @@ fn apply_modification(
         }
         super::super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
             if let Ok(mut transform) = transforms.get_mut(entity) {
-                let final_x = resolve_val_f32(x, Some(transform.translation.x), &player_data, None);
-                let final_y = resolve_val_f32(y, Some(transform.translation.y), &player_data, None);
-                let final_z = resolve_val_f32(z, Some(transform.translation.z), &player_data, None);
+                let final_x = resolve_val_f32(x, Some(transform.translation.x), player_data, None);
+                let final_y = resolve_val_f32(y, Some(transform.translation.y), player_data, None);
+                let final_z = resolve_val_f32(z, Some(transform.translation.z), player_data, None);
 
                 // Ensure history exists or create it
                 // 确保历史存在或创建它
@@ -180,9 +180,9 @@ fn apply_modification(
         }
         super::super::chapter_schema::ElementModification::SetScale(x, y, z) => {
             if let Ok(mut transform) = transforms.get_mut(entity) {
-                let final_x = resolve_val_f32(x, Some(transform.scale.x), &player_data, None);
-                let final_y = resolve_val_f32(y, Some(transform.scale.y), &player_data, None);
-                let final_z = resolve_val_f32(z, Some(transform.scale.z), &player_data, None);
+                let final_x = resolve_val_f32(x, Some(transform.scale.x), player_data, None);
+                let final_y = resolve_val_f32(y, Some(transform.scale.y), player_data, None);
+                let final_z = resolve_val_f32(z, Some(transform.scale.z), player_data, None);
 
                 transform.scale = Vec3::new(final_x, final_y, final_z);
                 info!(
@@ -195,10 +195,10 @@ fn apply_modification(
             if let Ok(mut sprite) = sprites.get_mut(entity) {
                 let color = sprite.color;
 
-                let final_r = resolve_val_f32(r, Some(color.to_srgba().red), &player_data, None);
-                let final_g = resolve_val_f32(g, Some(color.to_srgba().green), &player_data, None);
-                let final_b = resolve_val_f32(b, Some(color.to_srgba().blue), &player_data, None);
-                let final_a = resolve_val_f32(a, Some(color.to_srgba().alpha), &player_data, None);
+                let final_r = resolve_val_f32(r, Some(color.to_srgba().red), player_data, None);
+                let final_g = resolve_val_f32(g, Some(color.to_srgba().green), player_data, None);
+                let final_b = resolve_val_f32(b, Some(color.to_srgba().blue), player_data, None);
+                let final_a = resolve_val_f32(a, Some(color.to_srgba().alpha), player_data, None);
 
                 sprite.color = Color::srgba(final_r, final_g, final_b, final_a);
                 info!(
@@ -211,7 +211,7 @@ fn apply_modification(
             if let Ok(mut visibility) = visibilities.get_mut(entity) {
                 use crate::core::view::ron_view::parsing::resolve_val_bool;
 
-                let is_visible = resolve_val_bool(visible, &player_data);
+                let is_visible = resolve_val_bool(visible, player_data);
                 *visibility = if is_visible {
                     Visibility::Visible
                 } else {
@@ -222,8 +222,8 @@ fn apply_modification(
         }
         super::super::chapter_schema::ElementModification::SetBoxSize(width, height) => {
             if let Ok(mut ui_box) = ui_boxes.get_mut(entity) {
-                let w = resolve_val_f32(width, None, &player_data, None);
-                let h = resolve_val_f32(height, None, &player_data, None);
+                let w = resolve_val_f32(width, None, player_data, None);
+                let h = resolve_val_f32(height, None, player_data, None);
                 ui_box.width = w;
                 ui_box.height = h;
                 info!("Set box size for entity {:?}: {}x{}", entity, w, h);
