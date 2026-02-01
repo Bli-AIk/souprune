@@ -49,7 +49,7 @@ impl Default for BattleInvincibilityConfig {
             flash_interval: 0.25,
             normal_color: Color::srgb(1.0, 0.0, 0.0), // #FF0000
             flash_color: Color::srgb(0.5, 0.0, 0.0),  // #800000
-            damage_sound: Some("audios/sfx/hurtsound.wav".to_string()),
+            damage_sound: None,
         }
     }
 }
