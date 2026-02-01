@@ -7,21 +7,17 @@
 //! ## 模块概述
 //!
 //! This module implements the save/load system for the game. It uses TOML serialization
-//! to persist game state, including player data and world state.
+//! to persist game state directly from/to the LayeredFactDatabase.
 //!
-//! 本模块实现游戏的存档/读取系统。使用 TOML 序列化持久化游戏状态，
-//! 包括玩家数据和世界状态。
+//! 本模块实现游戏的存档/读取系统。使用 TOML 序列化直接从/到 LayeredFactDatabase
+//! 持久化游戏状态。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::LayeredFactDatabase;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-
-use crate::core::item::ItemId;
-use crate::core::player_components::{
-    Equipment, Gold, Health, Inventory, Level, PlayerName, Stats,
-};
 
 pub struct SavePlugin;
 
@@ -149,8 +145,10 @@ impl Default for SaveConfig {
 pub struct Saveable;
 
 /// The main save data structure containing all persistent game state.
+/// Data is read directly from LayeredFactDatabase.
 ///
 /// 主存档数据结构，包含所有需要持久化的游戏状态。
+/// 数据直接从 LayeredFactDatabase 读取。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaveData {
     /// Save file version for migration support.
@@ -187,9 +185,9 @@ impl Default for SaveData {
 /// 当前存档文件版本。
 pub const SAVE_VERSION: u32 = 1;
 
-/// Player-specific save data, mirroring the ECS components.
+/// Player-specific save data, read from LayeredFactDatabase.
 ///
-/// 玩家特定存档数据，镜像 ECS 组件。
+/// 玩家特定存档数据，从 LayeredFactDatabase 读取。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PlayerSaveData {
     /// Player name.
@@ -282,57 +280,26 @@ impl Default for ProgressSaveData {
     }
 }
 
-// === Query Types ===
-// === 查询类型 ===
-
-type MainPlayerQuery<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static PlayerName,
-        &'static Level,
-        &'static Health,
-        &'static Stats,
-        &'static Gold,
-        &'static Equipment,
-        &'static Inventory,
-        &'static Transform,
-    ),
-    With<crate::core::data::MainPlayer>,
->;
-
-type MainPlayerMutQuery<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static mut PlayerName,
-        &'static mut Level,
-        &'static mut Health,
-        &'static mut Stats,
-        &'static mut Gold,
-        &'static mut Equipment,
-        &'static mut Inventory,
-        &'static mut Transform,
-    ),
-    With<crate::core::data::MainPlayer>,
->;
-
 // === Systems ===
 // === 系统 ===
 
 /// System to handle save game events.
+/// Reads player data directly from LayeredFactDatabase.
 ///
 /// 处理保存游戏事件的系统。
+/// 直接从 LayeredFactDatabase 读取玩家数据。
 fn handle_save_game_system(
     mut events: MessageReader<SaveGameEvent>,
     mut complete_events: MessageWriter<SaveCompleteEvent>,
     save_config: Res<SaveConfig>,
-    player_query: MainPlayerQuery,
+    layered_db: Res<LayeredFactDatabase>,
+    player_query: Query<&Transform, With<crate::core::data::MainPlayer>>,
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     for event in events.read() {
         let result = save_game(
             &save_config,
+            &layered_db,
             &player_query,
             &souprune_config.game,
             &event.slot,
@@ -360,16 +327,24 @@ fn handle_save_game_system(
 }
 
 /// System to handle load game events.
+/// Writes player data directly to LayeredFactDatabase.
 ///
 /// 处理加载游戏事件的系统。
+/// 直接将玩家数据写入 LayeredFactDatabase。
 fn handle_load_game_system(
     mut events: MessageReader<LoadGameEvent>,
     mut complete_events: MessageWriter<LoadCompleteEvent>,
     save_config: Res<SaveConfig>,
-    mut player_query: MainPlayerMutQuery,
+    mut layered_db: ResMut<LayeredFactDatabase>,
+    mut player_query: Query<&mut Transform, With<crate::core::data::MainPlayer>>,
 ) {
     for event in events.read() {
-        let result = load_game(&save_config, &mut player_query, &event.slot);
+        let result = load_game(
+            &save_config,
+            &mut layered_db,
+            &mut player_query,
+            &event.slot,
+        );
 
         match result {
             Ok(()) => {
@@ -396,71 +371,90 @@ fn handle_load_game_system(
 // === 核心存档/读取函数 ===
 
 /// Save the game to the specified slot.
+/// Reads all player data from LayeredFactDatabase.
 ///
 /// 将游戏保存到指定槽位。
+/// 从 LayeredFactDatabase 读取所有玩家数据。
 fn save_game(
     config: &SaveConfig,
-    player_query: &MainPlayerQuery,
+    layered_db: &LayeredFactDatabase,
+    player_query: &Query<&Transform, With<crate::core::data::MainPlayer>>,
     game_config: &crate::config::GameConfig,
     slot: &SaveSlot,
 ) -> anyhow::Result<()> {
     // Ensure save directory exists
-    //
-    // 确保存档目录存在
     fs::create_dir_all(&config.save_directory)?;
 
-    // Collect player data from ECS
-    //
-    // 从 ECS 收集玩家数据
-    let Ok((name, level, health, stats, gold, equipment, inventory, transform)) =
-        player_query.single()
-    else {
-        anyhow::bail!("No player entity found");
-    };
+    // Get player position
+    let position = player_query
+        .single()
+        .map(|t| (t.translation.x, t.translation.y))
+        .unwrap_or((0.0, 0.0));
+
+    // Read player data from FRE
+    let name = layered_db
+        .get_string("player_name")
+        .unwrap_or("Unknown")
+        .to_string();
+    let lv = layered_db.get_int_or("player_lv", 1) as usize;
+    let exp = layered_db.get_int_or("player_exp", 0) as usize;
+    let next_exp = layered_db.get_int_or("player_next_exp", 10) as usize;
+    let hp = layered_db.get_int_or("player_hp", 20) as usize;
+    let hp_max = layered_db.get_int_or("player_hp_max", 20) as usize;
+    let atk = layered_db.get_int_or("player_atk", 0) as usize;
+    let def = layered_db.get_int_or("player_def", 0) as usize;
+    let gold = layered_db.get_int_or("player_gold", 0) as usize;
+    let weapon = layered_db
+        .get_string("player_weapon")
+        .unwrap_or("stick")
+        .to_string();
+    let armor = layered_db
+        .get_string("player_armor")
+        .unwrap_or("bandage")
+        .to_string();
+    let inventory_str = layered_db
+        .get_string("player_inventory")
+        .unwrap_or("")
+        .to_string();
+    let inventory_items: Vec<String> = inventory_str
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    let inventory_capacity = layered_db.get_int_or("player_inventory_capacity", 8) as usize;
 
     let save_data = SaveData {
         version: SAVE_VERSION,
         timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         player: PlayerSaveData {
-            name: name.0.clone(),
-            level: LevelData {
-                lv: level.lv,
-                exp: level.exp,
-                next_exp: level.next_exp,
-            },
+            name,
+            level: LevelData { lv, exp, next_exp },
             health: HealthData {
-                current: health.current,
-                max: health.max,
+                current: hp,
+                max: hp_max,
             },
             stats: StatsData {
-                attack: stats.attack,
-                defense: stats.defense,
+                attack: atk,
+                defense: def,
             },
-            gold: gold.0,
-            equipment: EquipmentData {
-                weapon: equipment.weapon.0.clone(),
-                armor: equipment.armor.0.clone(),
-            },
+            gold,
+            equipment: EquipmentData { weapon, armor },
             inventory: InventoryData {
-                items: inventory.items.iter().map(|id| id.0.clone()).collect(),
-                capacity: inventory.capacity,
+                items: inventory_items,
+                capacity: inventory_capacity,
             },
         },
         progress: ProgressSaveData {
             current_map: game_config.initial_map_path.clone(),
-            position: (transform.translation.x, transform.translation.y),
+            position,
             flags: std::collections::HashMap::new(),
         },
     };
 
     // Serialize to TOML
-    //
-    // 序列化为 TOML
     let toml_string = toml::to_string_pretty(&save_data)?;
 
     // Write to file
-    //
-    // 写入文件
     let save_path = config.save_directory.join(slot.filename());
     let mut file = fs::File::create(&save_path)?;
     file.write_all(toml_string.as_bytes())?;
@@ -470,11 +464,14 @@ fn save_game(
 }
 
 /// Load the game from the specified slot.
+/// Writes all player data to LayeredFactDatabase.
 ///
 /// 从指定槽位加载游戏。
+/// 将所有玩家数据写入 LayeredFactDatabase。
 fn load_game(
     config: &SaveConfig,
-    player_query: &mut MainPlayerMutQuery,
+    layered_db: &mut LayeredFactDatabase,
+    player_query: &mut Query<&mut Transform, With<crate::core::data::MainPlayer>>,
     slot: &SaveSlot,
 ) -> anyhow::Result<()> {
     let save_path = config.save_directory.join(slot.filename());
@@ -484,14 +481,10 @@ fn load_game(
     }
 
     // Read and parse save file
-    //
-    // 读取并解析存档文件
     let contents = fs::read_to_string(&save_path)?;
     let save_data: SaveData = toml::from_str(&contents)?;
 
     // Check version compatibility
-    //
-    // 检查版本兼容性
     if save_data.version > SAVE_VERSION {
         anyhow::bail!(
             "Save file version {} is newer than supported version {}",
@@ -500,52 +493,31 @@ fn load_game(
         );
     }
 
-    // Apply data to player entity
-    //
-    // 将数据应用到玩家实体
-    let Ok((
-        mut name,
-        mut level,
-        mut health,
-        mut stats,
-        mut gold,
-        mut equipment,
-        mut inventory,
-        mut transform,
-    )) = player_query.single_mut()
-    else {
-        anyhow::bail!("No player entity found");
-    };
-
     let player_data = &save_data.player;
 
-    name.0 = player_data.name.clone();
+    // Write player data to FRE global layer
+    layered_db.set_global("player_name", player_data.name.clone());
+    layered_db.set_global("player_lv", player_data.level.lv as i64);
+    layered_db.set_global("player_exp", player_data.level.exp as i64);
+    layered_db.set_global("player_next_exp", player_data.level.next_exp as i64);
+    layered_db.set_global("player_hp", player_data.health.current as i64);
+    layered_db.set_global("player_hp_max", player_data.health.max as i64);
+    layered_db.set_global("player_atk", player_data.stats.attack as i64);
+    layered_db.set_global("player_def", player_data.stats.defense as i64);
+    layered_db.set_global("player_gold", player_data.gold as i64);
+    layered_db.set_global("player_weapon", player_data.equipment.weapon.clone());
+    layered_db.set_global("player_armor", player_data.equipment.armor.clone());
+    layered_db.set_global("player_inventory", player_data.inventory.items.join(","));
+    layered_db.set_global(
+        "player_inventory_capacity",
+        player_data.inventory.capacity as i64,
+    );
 
-    level.lv = player_data.level.lv;
-    level.exp = player_data.level.exp;
-    level.next_exp = player_data.level.next_exp;
-
-    health.current = player_data.health.current;
-    health.max = player_data.health.max;
-
-    stats.attack = player_data.stats.attack;
-    stats.defense = player_data.stats.defense;
-
-    gold.0 = player_data.gold;
-
-    equipment.weapon = ItemId(player_data.equipment.weapon.clone());
-    equipment.armor = ItemId(player_data.equipment.armor.clone());
-
-    inventory.items = player_data
-        .inventory
-        .items
-        .iter()
-        .map(|s| ItemId(s.clone()))
-        .collect();
-    inventory.capacity = player_data.inventory.capacity;
-
-    transform.translation.x = save_data.progress.position.0;
-    transform.translation.y = save_data.progress.position.1;
+    // Update player position
+    if let Ok(mut transform) = player_query.single_mut() {
+        transform.translation.x = save_data.progress.position.0;
+        transform.translation.y = save_data.progress.position.1;
+    }
 
     info!("Loaded game from: {:?}", save_path);
     Ok(())

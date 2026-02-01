@@ -20,6 +20,7 @@
 
 use super::components::{CameraAnchored, CameraAnchoredDynamic};
 use crate::app_state::overworld::OverworldState;
+use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
 use evalexpr::{
     ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes, EvalexprError,
@@ -32,8 +33,11 @@ use evalexpr::{
 pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    camera_query: Query<&Transform, (With<Camera2d>, Changed<Transform>)>,
-    mut anchored_ui_query: Query<(&CameraAnchored, &mut Transform), Without<Camera2d>>,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>, Changed<Transform>)>,
+    mut anchored_ui_query: Query<
+        (&CameraAnchored, &mut Transform),
+        (Without<Camera2d>, Without<DebugCamera>),
+    >,
 ) {
     // Only run in Battle state or Overworld Backpack/Chase state
     // 仅在 Battle 状态或 Overworld 背包/追逐战状态下运行
@@ -68,7 +72,7 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
 pub(crate) fn update_dynamic_camera_anchors_system(
     mut anchored_query: Query<
         (&mut CameraAnchored, &CameraAnchoredDynamic, &mut Transform),
-        Without<Camera2d>,
+        (Without<Camera2d>, Without<DebugCamera>),
     >,
     player_query: Query<
         &Transform,
@@ -76,12 +80,14 @@ pub(crate) fn update_dynamic_camera_anchors_system(
             With<crate::app_state::overworld::character::components::PlayerControlled>,
             Without<CameraAnchored>,
             Without<Camera2d>,
+            Without<DebugCamera>,
         ),
     >,
     camera_query: Query<
         &Transform,
         (
             With<Camera2d>,
+            Without<DebugCamera>,
             Without<CameraAnchored>,
             Without<crate::app_state::overworld::character::components::PlayerControlled>,
         ),
@@ -189,11 +195,12 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 pub(crate) fn update_camera_anchored_ui_on_change_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldState>>>,
-    camera_query: Query<&Transform, With<Camera2d>>,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut anchored_ui_query: Query<
         (&CameraAnchored, &mut Transform),
         (
             Without<Camera2d>,
+            Without<DebugCamera>,
             Or<(Added<CameraAnchored>, Changed<CameraAnchored>)>,
         ),
     >,

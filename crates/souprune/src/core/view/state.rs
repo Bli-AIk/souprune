@@ -209,11 +209,12 @@ pub(crate) fn handle_interactive_layer_navigation_system(
         // Check all navigation directions using behavior config
         // 使用行为配置检查所有导航方向
         for direction in NavDirection::all() {
-            if let Some(action) = direction.to_action(&registry, &behavior_config) {
-                if action_state.just_pressed(&action) && layer.navigate_direction(direction) {
-                    changed = true;
-                    break;
-                }
+            if let Some(action) = direction.to_action(&registry, &behavior_config)
+                && action_state.just_pressed(&action)
+                && layer.navigate_direction(direction)
+            {
+                changed = true;
+                break;
             }
         }
 
@@ -386,9 +387,10 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
     mut next_ow_state: ResMut<NextState<OverworldState>>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    use super::ron_view::parsing::evaluate_transition_condition_unified;
+    use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
+    let player_data = PlayerDataView::new(&layered_db);
 
     // Process confirm events
     for event in confirm_events.read() {
@@ -563,9 +565,10 @@ pub(crate) fn handle_interactive_layer_transitions_system(
     mut activated_events: MessageWriter<super::components::LayerActivatedEvent>,
     mut deactivated_events: MessageWriter<super::components::LayerDeactivatedEvent>,
     mut next_ow_state: ResMut<NextState<OverworldState>>,
-    player_data: Res<crate::core::data::PlayerData>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    use super::ron_view::parsing::evaluate_transition_condition_unified;
+    use super::ron_view::parsing::{PlayerDataView, evaluate_transition_condition_unified};
+    let player_data = PlayerDataView::new(&layered_db);
 
     for event in confirm_events.read() {
         let Some((_, layer)) = layer_query

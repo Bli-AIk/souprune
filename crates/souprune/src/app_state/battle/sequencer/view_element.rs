@@ -10,6 +10,7 @@ use super::super::chapter_schema::Chapter;
 use super::context::*;
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
+use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// System to process ModifyViewElement chapters.
 ///
@@ -28,7 +29,11 @@ pub fn process_modify_view_element_system(
     mut visibilities: Query<&mut Visibility>,
     mut histories: Query<&mut crate::core::view::ViewElementHistory>,
     mut ui_boxes: Query<&mut ViewBox>,
+    layered_db: Res<LayeredFactDatabase>,
 ) {
+    use crate::core::view::ron_view::parsing::PlayerDataView;
+    let player_data = PlayerDataView::new(&layered_db);
+
     for (chapter_entity, active_chapter) in active_chapters.iter() {
         if let Chapter::ModifyViewElement {
             selector,
@@ -92,6 +97,7 @@ pub fn process_modify_view_element_system(
                     &mut visibilities,
                     &mut histories,
                     &mut ui_boxes,
+                    &player_data,
                 );
             }
 
@@ -116,9 +122,9 @@ fn apply_modification(
     visibilities: &mut Query<&mut Visibility>,
     histories: &mut Query<&mut crate::core::view::ViewElementHistory>,
     ui_boxes: &mut Query<&mut ViewBox>,
+    player_data: &crate::core::view::ron_view::parsing::PlayerDataView<'_>,
 ) {
     use crate::core::view::ron_view::parsing::resolve_val_f32;
-    let player_data = crate::core::data::PlayerData::default();
 
     match modification {
         super::super::chapter_schema::ElementModification::SetTexture(path) => {

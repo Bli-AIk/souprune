@@ -18,7 +18,9 @@ pub mod debug_inspector {
     use bevy::camera::RenderTarget;
     use bevy::ecs::schedule::ScheduleLabel;
     use bevy::prelude::*;
-    use bevy::window::{Window, WindowClosed, WindowFocused, WindowRef, WindowResolution};
+    use bevy::window::{
+        PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
+    };
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
     use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_inspector, egui};
     use bevy_tween::interpolate::Interpolator;
@@ -37,11 +39,24 @@ pub mod debug_inspector {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct InspectorWindowContextPass;
 
+    /// Refresh phase for two-frame refresh process.
+    #[derive(Default, Clone, Copy, PartialEq, Eq)]
+    enum RefreshPhase {
+        #[default]
+        None,
+        /// Window should be closed this frame.
+        CloseWindow,
+        /// Window should be reopened this frame.
+        ReopenWindow,
+    }
+
     #[derive(Resource, Default)]
     pub(in crate::extra::debug) struct InspectorUiState {
         inspector_window: Option<Entity>,
         inspector_camera: Option<Entity>,
         window_focused: bool,
+        /// Two-phase refresh state for state change handling.
+        refresh_phase: RefreshPhase,
     }
 
     #[derive(Component)]
@@ -96,6 +111,9 @@ pub mod debug_inspector {
                 handle_inspector_hotkeys_system,
                 inspector_window_closed_system,
                 inspector_window_focus_system,
+                primary_window_closed_system,
+                app_state_changed_refresh_inspector_system,
+                inspector_refresh_system,
                 toggle_perf_ui_system.before(iyes_perf_ui::PerfUiSet::Setup),
                 toggle_debug_help_text_system,
                 fade_debug_help_text_system,
@@ -131,7 +149,8 @@ pub mod debug_inspector {
                     "Debug image overlay: [F4]",
                     "Cycle Player HP (Full/Half/1): [F5]",
                     "Switch to Battle: [F6]",
-                    "Toggle Player Level/HP (LV 20/99HP): [F7]",
+                    "FRE Debug Panel: [F7]",
+                    "Toggle Player Level/HP (LV 20/99HP): [F8]",
                     "Toggle debug help: [F12]",
                 ];
 
@@ -286,6 +305,7 @@ pub mod debug_inspector {
                 },
                 EguiMultipassSchedule::new(InspectorWindowContextPass),
                 StandaloneInspectorCamera,
+                super::super::DebugCamera,
             ))
             .id();
 
@@ -328,6 +348,20 @@ pub mod debug_inspector {
         }
     }
 
+    /// System to close inspector when primary window is closed.
+    /// Uses RemovedComponents to detect when PrimaryWindow component is removed.
+    fn primary_window_closed_system(
+        mut commands: Commands,
+        mut ui_state: ResMut<InspectorUiState>,
+        mut removed: RemovedComponents<PrimaryWindow>,
+    ) {
+        // If PrimaryWindow component was removed from any entity, close inspector
+        if removed.read().next().is_some() && ui_state.inspector_window.is_some() {
+            close_inspector_window(&mut commands, &mut ui_state);
+            info!("Standalone inspector window closed (primary window closed)");
+        }
+    }
+
     fn inspector_window_focus_system(
         mut focus_events: MessageReader<WindowFocused>,
         mut ui_state: ResMut<InspectorUiState>,
@@ -341,6 +375,44 @@ pub mod debug_inspector {
             if event.window == window_entity {
                 ui_state.window_focused = event.focused;
                 break;
+            }
+        }
+    }
+
+    /// System to detect AppState changes and trigger inspector refresh.
+    fn app_state_changed_refresh_inspector_system(
+        mut ui_state: ResMut<InspectorUiState>,
+        app_state: Res<State<crate::app_state::AppState>>,
+    ) {
+        // Only trigger refresh if inspector window is open and state just changed
+        if ui_state.inspector_window.is_some()
+            && app_state.is_changed()
+            && ui_state.refresh_phase == RefreshPhase::None
+        {
+            ui_state.refresh_phase = RefreshPhase::CloseWindow;
+            info!("AppState changed, scheduling inspector window refresh (phase 1: close)");
+        }
+    }
+
+    /// System to perform inspector window refresh in two phases.
+    /// Phase 1: Close the window.
+    /// Phase 2: Reopen the window.
+    fn inspector_refresh_system(mut commands: Commands, mut ui_state: ResMut<InspectorUiState>) {
+        match ui_state.refresh_phase {
+            RefreshPhase::None => {}
+            RefreshPhase::CloseWindow => {
+                if ui_state.inspector_window.is_some() {
+                    close_inspector_window(&mut commands, &mut ui_state);
+                    info!("Inspector window closed for refresh (phase 1 complete)");
+                }
+                ui_state.refresh_phase = RefreshPhase::ReopenWindow;
+            }
+            RefreshPhase::ReopenWindow => {
+                if ui_state.inspector_window.is_none() {
+                    spawn_inspector_window(&mut commands, &mut ui_state);
+                    info!("Inspector window reopened after refresh (phase 2 complete)");
+                }
+                ui_state.refresh_phase = RefreshPhase::None;
             }
         }
     }
