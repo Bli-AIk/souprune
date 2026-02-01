@@ -364,31 +364,30 @@ pub(crate) fn state_transition_sound_system(
     // Detect state change
     if tracker.previous_state.as_deref() != Some(current_state) {
         // Play exit sound for previous state
-        if let Some(ref prev_state) = tracker.previous_state {
-            if let Some(state_def) = state_config.get(prev_state) {
-                if let Some(ref sound_path) = state_def.on_exit_sound {
-                    // Use full path function since config contains complete asset path
-                    // 使用完整路径函数，因为配置包含完整的资源路径
-                    audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
-                    debug!(
-                        "Playing on_exit_sound for state '{}': {}",
-                        prev_state, sound_path
-                    );
-                }
-            }
+        if let Some(ref prev_state) = tracker.previous_state
+            && let Some(state_def) = state_config.get(prev_state)
+            && let Some(ref sound_path) = state_def.on_exit_sound
+        {
+            // Use full path function since config contains complete asset path
+            // 使用完整路径函数，因为配置包含完整的资源路径
+            audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
+            debug!(
+                "Playing on_exit_sound for state '{}': {}",
+                prev_state, sound_path
+            );
         }
 
         // Play enter sound for current state
-        if let Some(state_def) = state_config.get(current_state) {
-            if let Some(ref sound_path) = state_def.on_enter_sound {
-                // Use full path function since config contains complete asset path
-                // 使用完整路径函数，因为配置包含完整的资源路径
-                audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
-                debug!(
-                    "Playing on_enter_sound for state '{}': {}",
-                    current_state, sound_path
-                );
-            }
+        if let Some(state_def) = state_config.get(current_state)
+            && let Some(ref sound_path) = state_def.on_enter_sound
+        {
+            // Use full path function since config contains complete asset path
+            // 使用完整路径函数，因为配置包含完整的资源路径
+            audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
+            debug!(
+                "Playing on_enter_sound for state '{}': {}",
+                current_state, sound_path
+            );
         }
 
         tracker.previous_state = Some(current_state.to_string());
