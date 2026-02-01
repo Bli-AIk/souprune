@@ -232,15 +232,15 @@ pub mod debug_collider {
     ) {
         // Find SDF shapes with active masks and draw their bounds
         for material_handle in sdf_query.iter() {
-            if let Some(material) = sdf_materials.get(&material_handle.0) {
-                if material.uniform_data.mask_type > 0.5 {
-                    let params = material.uniform_data.mask_params;
-                    let center = Vec2::new(params.x, params.y);
-                    let size = Vec2::new(params.z * 2.0, params.w * 2.0);
-                    gizmos.rect_2d(Isometry2d::from_translation(center), size, css::RED);
-                    // Only draw the first mask found
-                    break;
-                }
+            if let Some(material) = sdf_materials.get(&material_handle.0)
+                && material.uniform_data.mask_type > 0.5
+            {
+                let params = material.uniform_data.mask_params;
+                let center = Vec2::new(params.x, params.y);
+                let size = Vec2::new(params.z * 2.0, params.w * 2.0);
+                gizmos.rect_2d(Isometry2d::from_translation(center), size, css::RED);
+                // Only draw the first mask found
+                break;
             }
         }
     }
