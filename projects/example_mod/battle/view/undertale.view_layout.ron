@@ -14,6 +14,43 @@
                 // Use classic UIBox structure (Border + Filler)
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
+            // Battle dialogue text
+            texts: [
+                (
+                    id: "BattleDialogue",
+                    content: "{{battle/ui:ENEMY_APPEARED}}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.2,
+                ),
+            ],
+            // Reactive indicator (heart cursor) for main menu selection
+            reactive_indicator: (
+                sprite_path: "common/heart",
+                default_translation: Some(Custom(
+                    positions: [
+                        // FIGHT position (button center -233, cursor offset ~25px left)
+                        (-258.0, -213.0, 2.0),
+                        // ACT position (button center -80)
+                        (-105.0, -213.0, 2.0),
+                        // ITEM position (button center 80)
+                        (55.0, -213.0, 2.0),
+                        // MERCY position (button center 235)
+                        (210.0, -213.0, 2.0),
+                    ],
+                )),
+                visibility_rule: (
+                    rule_type: "OnlyIn",
+                    layers: ["BattleMainMenu"],
+                ),
+                transform: (
+                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
             // Optional: Add HP bar or text here later
             children: [],
         ),

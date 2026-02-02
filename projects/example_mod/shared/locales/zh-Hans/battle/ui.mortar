@@ -1,2 +1,5 @@
 pub const LV: String = "LV"
 pub const HP: String = "HP"
+
+// 战斗对话文本
+pub const ENEMY_APPEARED: String = "* 敌人出现了！"
