@@ -1,8 +1,33 @@
 #![enable(implicit_some)]
+// Undertale Battle View Layout - NEW FRE-BASED VERSION
+// Undertale 战斗视图布局 - 新版基于 FRE 的版本
+//
+// This is a modernized version using the new FRE-based visibility system:
+// - Uses `visible_when` instead of `visibility_rule`
+// - Uses `initial_facts` for navigation state
+// - Button highlighting driven by facts instead of `subscribe_selection`
+//
+// 这是使用新的基于 FRE 的可见性系统的现代化版本：
+// - 使用 `visible_when` 代替 `visibility_rule`
+// - 使用 `initial_facts` 进行导航状态管理
+// - 按钮高亮由 fact 驱动而非 `subscribe_selection`
+
 (
-    version: 1,
+    version: 2,
+
+    // View-local facts for battle menu state
+    // 战斗菜单状态的 View 局部事实
+    initial_facts: {
+        "depth": 0,           // 0=main menu, 1=submenu
+        "selection": 0,       // Current selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+        "active": true,       // Whether menu is active (vs bullet hell)
+    },
+
     roots: [
-        // Battle Box (Dialog/Bullet Box)
+        // ========================================
+        // BATTLE BOX (Dialog/Bullet Box)
+        // 战斗框（对话/弹幕框）
+        // ========================================
         (
             name: "BattleBox",
             tags: ["BattleBox"],
@@ -11,10 +36,8 @@
                 height: 130.0,
                 border_width: 5.0,
                 offset: (0.0, -80.0, 0.0),
-                // Use classic UIBox structure (Border + Filler)
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
-            // Battle dialogue text
             texts: [
                 (
                     id: "BattleDialogue",
@@ -26,117 +49,147 @@
                         translation: (-267.0, 50.0, 1.0),
                     ),
                     line_height: 1.2,
-                    // Only show this text when BattleMainMenu layer is active
-                    // 仅当 BattleMainMenu 层激活时显示此文本
-                    visibility_rule: (
-                        rule_type: "OnlyIn",
-                        layers: ["BattleMainMenu"],
-                    ),
+                    // Only show in main menu (depth 0)
+                    // 仅在主菜单（深度 0）时显示
+                    visible_when: "$depth == 0",
                 ),
             ],
-            // Reactive indicator (heart cursor) for main menu selection
-            reactive_indicator: (
-                sprite_path: "common/heart",
-                default_translation: Some(Custom(
-                    positions: [
-                        // FIGHT position (button center -233, cursor offset ~25px left)
-                        (-258.0, -213.0, 2.0),
-                        // ACT position (button center -80)
-                        (-105.0, -213.0, 2.0),
-                        // ITEM position (button center 80)
-                        (55.0, -213.0, 2.0),
-                        // MERCY position (button center 235)
-                        (210.0, -213.0, 2.0),
-                    ],
-                )),
-                visibility_rule: (
-                    rule_type: "OnlyIn",
-                    layers: ["BattleMainMenu"],
-                ),
-                transform: (
-                    scale: (1.0, 1.0, 1.0),
-                ),
-            ),
-            // Optional: Add HP bar or text here later
             children: [],
         ),
 
-        // Fight Button - using data-driven state_sprite
-        // 战斗按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // BATTLE MENU CURSOR
+        // 战斗菜单光标
+        // ========================================
+        (
+            name: "MenuCursor",
+            visible_when: "$depth == 0 && $active",
+            sprite: (
+                visual: (path: "common/heart"),
+                // Position based on selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+                // 位置基于选择：0=战斗，1=行动，2=物品，3=慈悲
+                transform: (
+                    translation: (
+                        // X positions: -258, -105, 55, 210 for indices 0, 1, 2, 3
+                        "if($selection == 0, -258.0, if($selection == 1, -105.0, if($selection == 2, 55.0, 210.0)))",
+                        "-213.0",
+                        "2.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // FIGHT BUTTON
+        // 战斗按钮
+        // ========================================
         (
             name: "BtnFight",
-            state_sprite: (
-                default: "textures/battle/ui/fight/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/fight/true.png",
-                },
-                // Sugar syntax: subscribe to BattleMainMenu selection at index 0
-                // 语法糖：订阅 BattleMainMenu 选中状态，索引 0
-                subscribe_selection: ("BattleMainMenu", 0),
+            // Use conditional sprite based on selection
+            // 根据选择使用条件精灵
+            sprite: (
+                // Note: In v2, we'd ideally have a conditional visual system
+                // For now, this shows the default; a proper implementation would
+                // need visible_when on separate sprites or a new conditional_visual field
+                // 注意：在 v2 中，我们理想地需要一个条件视觉系统
+                // 目前这显示默认值；正确的实现需要在单独的精灵上使用 visible_when
+                // 或一个新的 conditional_visual 字段
+                visual: "textures/battle/ui/fight/false.png",
                 transform: (
                     translation: (-233.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        // FIGHT button selected state
+        (
+            name: "BtnFightSelected",
+            visible_when: "$selection == 0",
+            sprite: (
+                visual: "textures/battle/ui/fight/true.png",
+                transform: (
+                    translation: (-233.0, -213.0, 1.5),  // Slightly higher z to overlay
                 ),
             ),
         ),
 
-        // Act Button - using data-driven state_sprite
-        // 行动按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // ACT BUTTON
+        // 行动按钮
+        // ========================================
         (
             name: "BtnAct",
-            state_sprite: (
-                default: "textures/battle/ui/act/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/act/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 1),
+            sprite: (
+                visual: "textures/battle/ui/act/false.png",
                 transform: (
                     translation: (-80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnActSelected",
+            visible_when: "$selection == 1",
+            sprite: (
+                visual: "textures/battle/ui/act/true.png",
+                transform: (
+                    translation: (-80.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // Item Button - using data-driven state_sprite
-        // 物品按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // ITEM BUTTON
+        // 物品按钮
+        // ========================================
         (
             name: "BtnItem",
-            state_sprite: (
-                default: "textures/battle/ui/item/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/item/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 2),
+            sprite: (
+                visual: "textures/battle/ui/item/false.png",
                 transform: (
                     translation: (80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnItemSelected",
+            visible_when: "$selection == 2",
+            sprite: (
+                visual: "textures/battle/ui/item/true.png",
+                transform: (
+                    translation: (80.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // Mercy Button - using data-driven state_sprite
-        // 慈悲按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // MERCY BUTTON
+        // 慈悲按钮
+        // ========================================
         (
             name: "BtnMercy",
-            state_sprite: (
-                default: "textures/battle/ui/mercy/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/mercy/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 3),
+            sprite: (
+                visual: "textures/battle/ui/mercy/false.png",
                 transform: (
                     translation: (235.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnMercySelected",
+            visible_when: "$selection == 3",
+            sprite: (
+                visual: "textures/battle/ui/mercy/true.png",
+                transform: (
+                    translation: (235.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // HUD Info - Pure container node (no visible box, just texts and children)
-        // HUD 信息 - 纯容器节点（无可见框，只有文本和子节点）
+        // ========================================
+        // HUD INFO
+        // HUD 信息
+        // ========================================
         (
             name: "BattleHUD",
-            // 重构后不再需要 0x0 的 ui_shape_logic hack
-            // After refactoring, the 0x0 ui_shape_logic hack is no longer needed
             texts: [
                 (
                     id: "PlayerName",
@@ -212,34 +265,17 @@
                 (
                     name: "HPBar",
                     sprite: (
-                        visual: "procedural://white_pixel",  // Use procedural texture
+                        visual: "procedural://white_pixel",
                         transform: (
-                            translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
-                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),  // Dynamic width based on hp_max
+                            translation: (-45.0, -170.5, 1.0),
+                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),
                         ),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
-                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0),  // HP%, lag%, half_width (dynamic), alpha
+                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0),
                         pivot: (0.0, 0.5),
                     ),
                 )
             ],
         ),
     ],
-    
-    // Interactive layer definitions for battle menu navigation
-    // 战斗菜单导航的交互层定义
-    interactive_layers: {
-        "BattleMainMenu": (
-            // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons
-            // 1 行 4 列的 FIGHT/ACT/ITEM/MERCY 按钮
-            navigator_type: Grid(
-                rows: 1,
-                cols: 4,
-                looping: true,
-            ),
-            selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
-            sound_on_navigate: "choice.wav",
-            sound_on_confirm: "confirm.wav",
-        ),
-    },
 )

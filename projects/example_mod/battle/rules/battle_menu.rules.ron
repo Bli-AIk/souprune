@@ -1,0 +1,201 @@
+#![enable(implicit_some)]
+// Battle Menu Navigation Rules (FRE-based)
+// 战斗菜单导航规则（基于 FRE）
+//
+// This file demonstrates how to implement battle menu navigation using
+// the new FRE-based system with View local facts.
+//
+// 此文件演示如何使用基于 FRE 的新系统和 View 局部事实实现战斗菜单导航。
+//
+// Battle Menu Structure / 战斗菜单结构:
+// - depth 0: Main menu (FIGHT/ACT/ITEM/MERCY)
+// - depth 1: Submenu (enemy list, action list, item list, mercy options)
+// - depth 2: Action confirmation / details
+
+(
+    version: 1,
+
+    // VIEW-LOCAL initial facts
+    // View 局部初始事实
+    initial_facts: {
+        // Navigation depth
+        // 导航深度
+        "depth": Int(0),
+
+        // Selection at each depth
+        // 每个深度的选择
+        "selection": Int(0),     // Current selection at current depth
+        "selection_0": Int(0),   // Main menu: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+        "selection_1": Int(0),   // Submenu selection
+
+        // Which main menu option was selected (for context in submenus)
+        // 选择了哪个主菜单选项（用于子菜单上下文）
+        "menu_context": Int(0),  // 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+
+        // Whether the menu is active (vs bullet hell phase)
+        // 菜单是否活跃（相对于弹幕阶段）
+        "active": Bool(true),
+    },
+
+    rules: [
+        // === MAIN MENU NAVIGATION (depth 0) / 主菜单导航（深度 0）===
+
+        // Navigate left in main menu
+        // 在主菜单中向左导航
+        (
+            id: "battle_nav_left",
+            trigger: "input_nav_left",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(0)),
+                GreaterThan(key: "selection", value: Int(0)),
+            ]),
+            modifications: [
+                Decrement(key: "selection", amount: 1),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "choice.wav" }),
+            ],
+            priority: 10,
+        ),
+
+        // Navigate right in main menu
+        // 在主菜单中向右导航
+        (
+            id: "battle_nav_right",
+            trigger: "input_nav_right",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(0)),
+                LessThan(key: "selection", value: Int(3)),
+            ]),
+            modifications: [
+                Increment(key: "selection", amount: 1),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "choice.wav" }),
+            ],
+            priority: 10,
+        ),
+
+        // === SUBMENU NAVIGATION (depth 1) / 子菜单导航（深度 1）===
+
+        // Navigate up in submenu
+        // 在子菜单中向上导航
+        (
+            id: "battle_submenu_nav_up",
+            trigger: "input_nav_up",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(1)),
+                GreaterThan(key: "selection", value: Int(0)),
+            ]),
+            modifications: [
+                Decrement(key: "selection", amount: 1),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "choice.wav" }),
+            ],
+            priority: 10,
+        ),
+
+        // Navigate down in submenu
+        // 在子菜单中向下导航
+        (
+            id: "battle_submenu_nav_down",
+            trigger: "input_nav_down",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(1)),
+                // Max bound depends on menu_context
+            ]),
+            modifications: [
+                Increment(key: "selection", amount: 1),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "choice.wav" }),
+            ],
+            priority: 10,
+        ),
+
+        // === CONFIRM/CANCEL RULES / 确认/取消规则 ===
+
+        // Confirm on main menu - enter submenu (depth 0 -> 1)
+        // 在主菜单确认 - 进入子菜单（深度 0 -> 1）
+        (
+            id: "battle_confirm_main_menu",
+            trigger: "input_confirm",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(0)),
+            ]),
+            modifications: [
+                // Save current selection as menu context
+                // 保存当前选择作为菜单上下文
+                Copy(from: "selection", to: "menu_context"),
+                Set(key: "depth", value: Int(1)),
+                Set(key: "selection", value: Int(0)),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "confirm.wav" }),
+            ],
+            outputs: ["submenu_entered"],
+            priority: 10,
+        ),
+
+        // Cancel from submenu - back to main menu (depth 1 -> 0)
+        // 从子菜单取消 - 返回主菜单（深度 1 -> 0）
+        (
+            id: "battle_cancel_submenu",
+            trigger: "input_cancel",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(1)),
+            ]),
+            modifications: [
+                Set(key: "depth", value: Int(0)),
+                // Restore main menu selection
+                Copy(from: "selection_0", to: "selection"),
+            ],
+            outputs: ["submenu_exited"],
+            priority: 10,
+        ),
+
+        // === BATTLE STATE TRANSITIONS / 战斗状态转换 ===
+
+        // Confirm action in submenu - execute and transition to bullet phase
+        // 在子菜单确认行动 - 执行并转换到弹幕阶段
+        (
+            id: "battle_execute_action",
+            trigger: "input_confirm",
+            condition: And([
+                Equals(key: "active", value: Bool(true)),
+                Equals(key: "depth", value: Int(1)),
+            ]),
+            modifications: [
+                Set(key: "active", value: Bool(false)),
+            ],
+            actions: [
+                Custom(action_type: "PlaySound", params: { "path": "confirm.wav" }),
+                Custom(action_type: "ExecuteBattleAction", params: {}),
+            ],
+            outputs: ["action_executed"],
+            priority: 5, // Lower priority than cancel
+        ),
+
+        // Re-enable menu after bullet phase
+        // 弹幕阶段后重新启用菜单
+        (
+            id: "battle_reactivate_menu",
+            trigger: "bullet_phase_ended",
+            condition: Equals(key: "active", value: Bool(false)),
+            modifications: [
+                Set(key: "active", value: Bool(true)),
+                Set(key: "depth", value: Int(0)),
+                Set(key: "selection", value: Int(0)),
+            ],
+            outputs: ["menu_reactivated"],
+            priority: 10,
+        ),
+    ],
+)

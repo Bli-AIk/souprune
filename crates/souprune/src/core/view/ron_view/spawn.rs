@@ -874,6 +874,27 @@ pub fn spawn_view_node(
     // 在闭包结束后递归处理子节点，以避免借用冲突
     info!("After closure, spawned_entity_id: {:?}", spawned_entity_id);
     if let Some(entity_id) = spawned_entity_id {
+        // Add VisibleWhen component if node has visible_when expression
+        // 如果节点有 visible_when 表达式则添加 VisibleWhen 组件
+        if let Some(visible_when_expr) = &node_def.visible_when {
+            let expr = visible_when_expr.trim();
+            if !expr.is_empty() {
+                info!(
+                    "Adding VisibleWhen to entity {:?} ({}): '{}'",
+                    entity_id, node_def.name, expr
+                );
+                commands.entity(entity_id).insert(VisibleWhen {
+                    expression: expr.to_string(),
+                });
+
+                // Evaluate initial visibility
+                let is_visible = evaluate_visible_when(expr, player_data);
+                if !is_visible {
+                    commands.entity(entity_id).insert(Visibility::Hidden);
+                }
+            }
+        }
+
         // Add DynamicViewElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();

@@ -46,6 +46,6 @@ pub(crate) use visibility::ViewLayerVisibilityRule;
 // Public exports (used outside core::ui)
 pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite};
 pub use view_element::{
-    ElementState, ViewElement, ViewElementHistory, ViewRoot, find_element_by_full_name,
-    find_elements_by_tag,
+    ElementState, ViewElement, ViewElementHistory, ViewRoot, VisibleWhen,
+    find_element_by_full_name, find_elements_by_tag,
 };
