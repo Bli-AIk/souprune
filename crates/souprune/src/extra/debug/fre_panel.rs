@@ -502,7 +502,7 @@ pub mod debug_fre_panel {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             if view_roots.is_empty() {
-                ui.label("⚠️ No active View instances found.");
+                ui.label("⚠ No active View instances found.");
                 ui.label("Views with local_facts will appear here when loaded.");
                 return;
             }

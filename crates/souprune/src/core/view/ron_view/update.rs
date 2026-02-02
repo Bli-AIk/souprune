@@ -1,3 +1,4 @@
+use super::super::components::ViewRoot;
 use super::super::components::{DynamicViewElement, HPBarLag, HPBarSprite, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
@@ -64,13 +65,15 @@ pub fn update_dynamic_ui_elements(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
     mut query: Query<(
+        Entity,
         &DynamicViewElement,
         &mut Transform,
         Option<&mut HPBarSprite>,
     )>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<&ViewRoot>,
     mut frame_count: Local<usize>,
 ) {
-    let player_data = PlayerDataView::new(&layered_db);
     *frame_count += 1;
     if !query.is_empty() && (*frame_count).is_multiple_of(60) {
         debug!(
@@ -80,15 +83,21 @@ pub fn update_dynamic_ui_elements(
         );
     }
 
-    for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
+    for (entity, dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
+        // Find ViewRoot ancestor to get local_facts
+        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
+            .map(|root| &root.local_facts);
+
+        // Create PlayerDataView with local facts if available
+        let player_data = if let Some(local) = local_facts {
+            PlayerDataView::with_local_facts(&layered_db, local)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
         // Update sprite transform and shader params if present
         if let Some(sprite_def) = &dynamic_elem.sprite_def {
             if let Some(t_def) = &sprite_def.transform {
-                // Debug log for specific entity
-                // if let Some(expr) = t_def.translation.x.as_expr() {
-                //    debug!("Evaluating expr: {}", expr);
-                // }
-
                 let new_translation = if let Some(trans) = &t_def.translation {
                     Vec3::new(
                         evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
@@ -248,4 +257,36 @@ pub fn update_dynamic_text_system(
         // To support that, we would need to store the `conditional_style` in a component too.
         // For HP update, it is usually just text change, so this might be enough for the bug report.
     }
+}
+
+/// Find the ViewRoot ancestor of an entity by traversing up the hierarchy.
+/// Returns a reference to the ViewRoot if found, None otherwise.
+///
+/// 通过向上遍历层级结构查找实体的 ViewRoot 祖先。
+/// 如果找到则返回 ViewRoot 的引用，否则返回 None。
+fn find_view_root_ancestor<'a>(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    view_root_query: &'a Query<&ViewRoot>,
+) -> Option<&'a ViewRoot> {
+    let mut current = entity;
+
+    // First check if the entity itself is a ViewRoot
+    if let Ok(view_root) = view_root_query.get(current) {
+        return Some(view_root);
+    }
+
+    // Traverse up the parent hierarchy
+    while let Ok(child_of) = parent_query.get(current) {
+        let parent = child_of.parent();
+
+        // Check if parent is a ViewRoot
+        if let Ok(view_root) = view_root_query.get(parent) {
+            return Some(view_root);
+        }
+
+        current = parent;
+    }
+
+    None
 }

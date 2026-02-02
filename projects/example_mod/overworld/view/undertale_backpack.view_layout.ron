@@ -134,29 +134,29 @@
                     line_height: 1.375,
                 ),
             ],
-            children: [],
-        ),
-
-        // ========================================
-        // MENU CURSOR - Visible only at depth 0
-        // 菜单光标 - 仅在深度 0 时可见
-        // ========================================
-        (
-            name: "MenuCursor",
-            visible_when: "$depth == 0",
-            sprite: (
-                visual: "common/ui/heartsmall",
-                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
-                // Position calculated by expression: origin + step * selection
-                // 位置由表达式计算：origin + step * selection
-                transform: (
-                    translation: (
-                        "-19.0",                          // X: fixed
-                        "18.5 + (-18.0 * $selection)",   // Y: origin + step * selection
-                        "2.0",                            // Z: fixed
+            // Menu cursor as child of MenuBox for proper positioning
+            // 菜单光标作为 MenuBox 的子物体以正确定位
+            children: [
+                (
+                    name: "MenuCursor",
+                    visible_when: "$depth == 0",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to MenuBox center
+                        // 相对于 MenuBox 中心的位置
+                        // ITEM text at Y=28.25, cursor 10px left of text at X=-19.5
+                        // Step between options: 18.0 pixels
+                        transform: (
+                            translation: (
+                                "-19.5",                          // X: left of text
+                                "28.25 + (-18.0 * $selection)",   // Y: ITEM position + step * selection
+                                "2.0",                            // Z: above box
+                            ),
+                        ),
                     ),
                 ),
-            ),
+            ],
         ),
 
         // ========================================
@@ -263,50 +263,51 @@
                     visible_when: "$depth == 2",
                 ),
             ],
-            children: [],
-        ),
-
-        // ========================================
-        // ITEM LIST CURSOR - Visible at depth 1
-        // 物品列表光标 - 在深度 1 时可见
-        // ========================================
-        (
-            name: "ItemCursor",
-            visible_when: "$depth == 1",
-            sprite: (
-                visual: "common/ui/heartsmall",
-                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
-                transform: (
-                    translation: (
-                        "-72.0",                          // X: fixed
-                        "68.0 + (-16.0 * $selection)",   // Y: origin + step * selection
-                        "2.0",                            // Z: fixed
+            // Item cursors as children of ItemBox for proper positioning
+            // 物品光标作为 ItemBox 的子物体以正确定位
+            children: [
+                // Item list cursor - visible at depth 1
+                // 物品列表光标 - 在深度 1 时可见
+                (
+                    name: "ItemCursor",
+                    visible_when: "$depth == 1",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to ItemBox center
+                        // First item text at Y=76.5, cursor 10px left of text at X=-74.25
+                        // Step between items: 16 pixels
+                        transform: (
+                            translation: (
+                                "-74.25",                          // X: left of item list text
+                                "76.5 + (-16.0 * $selection)",    // Y: First item position + step * selection
+                                "2.0",                             // Z: above box
+                            ),
+                        ),
                     ),
                 ),
-            ),
-        ),
-
-        // ========================================
-        // ITEM OPTIONS CURSOR - Visible at depth 2
-        // 物品选项光标 - 在深度 2 时可见
-        // ========================================
-        (
-            name: "OptionsCursor",
-            visible_when: "$depth == 2",
-            sprite: (
-                visual: "common/ui/heartsmall",
-                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
-                // Position based on selection: 0=USE, 1=INFO, 2=DROP
-                // 位置基于选择：0=使用，1=信息，2=丢弃
-                transform: (
-                    translation: (
-                        // X positions: -72, -24, 33 for indices 0, 1, 2
-                        "if($selection == 0, -72.0, if($selection == 1, -24.0, 33.0))",
-                        "-72.0",                          // Y: fixed
-                        "2.0",                            // Z: fixed
+                // Item options cursor - visible at depth 2
+                // 物品选项光标 - 在深度 2 时可见
+                (
+                    name: "OptionsCursor",
+                    visible_when: "$depth == 2",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to ItemBox center based on selection: 0=USE, 1=INFO, 2=DROP
+                        // USE at X=-64.25, INFO at X=-12.25, DROP at X=40.75
+                        // Cursor 10px left of each text
+                        transform: (
+                            translation: (
+                                // X positions: -74.25, -22.25, 30.75 for indices 0, 1, 2
+                                "if($selection == 0, -74.25, if($selection == 1, -22.25, 30.75))",
+                                "-63.5",                          // Y: same as option texts
+                                "2.0",                            // Z: above box
+                            ),
+                        ),
                     ),
                 ),
-            ),
+            ],
         ),
 
         // ========================================
