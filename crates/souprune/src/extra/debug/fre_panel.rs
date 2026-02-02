@@ -80,6 +80,7 @@ pub mod debug_fre_panel {
     enum FREPanelTab {
         #[default]
         Facts,
+        ViewFacts,
         Rules,
         EventHistory,
         States,
@@ -374,6 +375,12 @@ pub mod debug_fre_panel {
                     world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::Facts;
                 }
                 if ui
+                    .selectable_label(current_tab == FREPanelTab::ViewFacts, "🖼 View")
+                    .clicked()
+                {
+                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::ViewFacts;
+                }
+                if ui
                     .selectable_label(current_tab == FREPanelTab::Rules, "📜 Rules")
                     .clicked()
                 {
@@ -398,6 +405,7 @@ pub mod debug_fre_panel {
             // Content based on selected tab
             match current_tab {
                 FREPanelTab::Facts => render_facts_tab(ui, world),
+                FREPanelTab::ViewFacts => render_view_facts_tab(ui, world),
                 FREPanelTab::Rules => render_rules_tab(ui, world),
                 FREPanelTab::EventHistory => render_events_tab(ui, world),
                 FREPanelTab::States => render_states_tab(ui, world),
@@ -447,6 +455,147 @@ pub mod debug_fre_panel {
             egui::CollapsingHeader::new("➕ Add New Fact").show(ui, |ui| {
                 render_add_fact_form(ui, world, true);
             });
+        });
+    }
+
+    /// Render the View Local Facts tab.
+    /// Shows local facts from all active ViewRoot components.
+    ///
+    /// 渲染 View 局部事实选项卡。
+    /// 显示所有活跃 ViewRoot 组件的局部事实。
+    fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
+        use crate::core::view::components::ViewRoot;
+
+        // Search filter
+        let search_filter = world.resource::<FREPanelState>().search_filter.clone();
+        let mut new_filter = search_filter.clone();
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            if ui.text_edit_singleline(&mut new_filter).changed() {
+                world.resource_mut::<FREPanelState>().search_filter = new_filter.clone();
+            }
+        });
+
+        ui.separator();
+
+        // Query all ViewRoot components
+        let mut view_roots: Vec<(Entity, String, String, Vec<(String, FactValue)>)> = Vec::new();
+
+        // Use a scope to avoid borrowing world mutably while iterating
+        {
+            let mut query = world.query::<(Entity, &ViewRoot, Option<&Name>)>();
+            for (entity, view_root, name) in query.iter(world) {
+                let display_name = name
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| format!("Entity {:?}", entity));
+
+                let facts: Vec<_> = view_root
+                    .local_facts
+                    .iter()
+                    .filter(|(k, _)| search_filter.is_empty() || k.0.contains(&search_filter))
+                    .map(|(k, v)| (k.0.clone(), v.clone()))
+                    .collect();
+
+                view_roots.push((entity, display_name, view_root.namespace.clone(), facts));
+            }
+        }
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            if view_roots.is_empty() {
+                ui.label("⚠️ No active View instances found.");
+                ui.label("Views with local_facts will appear here when loaded.");
+                return;
+            }
+
+            ui.label(format!("📊 {} active View instance(s)", view_roots.len()));
+            ui.separator();
+
+            // Collect modifications to apply after iteration
+            let mut modifications: Vec<(Entity, String, FactValue)> = Vec::new();
+
+            for (entity, display_name, namespace, facts) in &view_roots {
+                let header_text = format!("🖼 {} ({})", display_name, namespace);
+                egui::CollapsingHeader::new(header_text)
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        if facts.is_empty() {
+                            ui.label("(no local facts)");
+                            return;
+                        }
+
+                        for (key, value) in facts {
+                            ui.horizontal(|ui| {
+                                // Key label with namespace prefix indicator
+                                let key_label = if key.starts_with("view.") {
+                                    format!("  {}", key)
+                                } else {
+                                    format!("  ${}", key)
+                                };
+                                ui.label(&key_label);
+
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| match value {
+                                        FactValue::Int(v) => {
+                                            let mut val = *v;
+                                            if ui.add(egui::DragValue::new(&mut val)).changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Int(val),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::Float(v) => {
+                                            let mut val = *v;
+                                            if ui
+                                                .add(egui::DragValue::new(&mut val).speed(0.1))
+                                                .changed()
+                                            {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Float(val),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::Bool(v) => {
+                                            let mut checked = *v;
+                                            if ui.checkbox(&mut checked, "").changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Bool(checked),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::String(s) => {
+                                            let mut text = s.clone();
+                                            let response = ui.add(
+                                                egui::TextEdit::singleline(&mut text)
+                                                    .desired_width(150.0),
+                                            );
+                                            if response.changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::String(text.clone()),
+                                                ));
+                                            }
+                                        }
+                                    },
+                                );
+                            });
+                        }
+                    });
+            }
+
+            // Apply modifications to ViewRoot local_facts
+            for (entity, key, value) in modifications {
+                if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
+                    view_root.local_facts.set(key.as_str(), value);
+                }
+            }
         });
     }
 
@@ -726,7 +875,7 @@ pub mod debug_fre_panel {
             ui.separator();
 
             // Show some helpful info
-            egui::CollapsingHeader::new("ℹ️ How Rules Work").show(ui, |ui| {
+            egui::CollapsingHeader::new("How Rules Work").show(ui, |ui| {
                 ui.label("• Rules are defined in .rules.ron files");
                 ui.label("• Each rule has: trigger, condition, modifications, actions, outputs");
                 ui.label("• Rules are evaluated when their trigger event fires");
