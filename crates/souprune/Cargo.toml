@@ -62,7 +62,7 @@ bevy_seedling = { version = "0.6.1", features = ["wav", "ogg", "flac", "mp3"], o
 anyhow = "1.0.100"
 tracing-appender = "0.2.4"
 tracing-subscriber = "0.3.22"
-tracing = "0.1.43"
+tracing = "0.1.44"
 chrono = "0.4.42"
 evalexpr = "13.1.0"
 proptest = "1.9.0"
