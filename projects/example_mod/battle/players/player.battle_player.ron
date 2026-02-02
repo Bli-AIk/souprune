@@ -14,4 +14,11 @@
     default_mode_id: "soul_red",
     speed: 150.0,
     focus_speed_ratio: 0.5,
+    invincibility: (
+        duration: 1.0,
+        flash_interval: 0.1,
+        normal_color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
+        flash_color: Srgba((red: 0.5, green: 0.0, blue: 0.0, alpha: 1.0)),
+        damage_sound: "audios/sfx/hurtsound.wav",
+    ),
 )

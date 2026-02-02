@@ -271,6 +271,28 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
+        visibility_rule: text_def.visibility_rule.as_ref().map(|rule_def| {
+            match rule_def.rule_type.as_str() {
+                "OnlyIn" => {
+                    let layers = rule_def
+                        .layers
+                        .as_ref()
+                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
+                        .unwrap_or_default();
+                    ViewLayerVisibilityRule::OnlyIn(layers)
+                }
+                "Except" => {
+                    let layers = rule_def
+                        .layers
+                        .as_ref()
+                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
+                        .unwrap_or_default();
+                    ViewLayerVisibilityRule::Except(layers)
+                }
+                "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
+                _ => ViewLayerVisibilityRule::Always,
+            }
+        }),
         ..Default::default()
     }
 }
@@ -956,6 +978,32 @@ pub(crate) fn spawn_container_texts(
 
         if let Some(template) = &text_config.template {
             cmd.insert(ViewTextTemplate(template.clone()));
+        }
+
+        // Add TextVisibilityRule if defined
+        // 如果定义了可见性规则则添加 TextVisibilityRule
+        if let Some(visibility_rule_def) = &text_def.visibility_rule {
+            let visibility_rule = match visibility_rule_def.rule_type.as_str() {
+                "OnlyIn" => {
+                    let layers = visibility_rule_def
+                        .layers
+                        .as_ref()
+                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
+                        .unwrap_or_default();
+                    ViewLayerVisibilityRule::OnlyIn(layers)
+                }
+                "Except" => {
+                    let layers = visibility_rule_def
+                        .layers
+                        .as_ref()
+                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
+                        .unwrap_or_default();
+                    ViewLayerVisibilityRule::Except(layers)
+                }
+                "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
+                _ => ViewLayerVisibilityRule::Always,
+            };
+            cmd.insert(TextVisibilityRule(visibility_rule));
         }
 
         // Add DynamicViewElement if transform has dynamic expressions

@@ -26,6 +26,12 @@
                         translation: (-267.0, 50.0, 1.0),
                     ),
                     line_height: 1.2,
+                    // Only show this text when BattleMainMenu layer is active
+                    // 仅当 BattleMainMenu 层激活时显示此文本
+                    visibility_rule: (
+                        rule_type: "OnlyIn",
+                        layers: ["BattleMainMenu"],
+                    ),
                 ),
             ],
             // Reactive indicator (heart cursor) for main menu selection

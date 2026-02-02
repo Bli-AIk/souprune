@@ -73,7 +73,10 @@ use state::{
     global_trigger_system, handle_interactive_layer_confirm_cancel_system,
     handle_interactive_layer_navigation_system, handle_interactive_layer_transitions_system,
 };
-use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
+use text::{
+    assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system,
+    update_text_visibility_system,
+};
 
 use crate::app_state::AppState;
 use components::state_sprite::{
@@ -185,6 +188,7 @@ impl Plugin for CoreViewPlugin {
                     spawn_reactive_indicator_system,
                     update_reactive_indicator_system,
                     show_text_when_ready_system,
+                    update_text_visibility_system,
                     update_camera_anchored_ui_on_camera_move_system,
                     update_camera_anchored_ui_on_change_system,
                     update_dynamic_camera_anchors_system,

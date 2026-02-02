@@ -38,7 +38,9 @@ pub(crate) use reactive::{
     ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
 };
 pub(crate) use state_sprite::StateSpriteState;
-pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
+pub(crate) use text::{
+    TextVisibilityRule, ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate,
+};
 pub(crate) use visibility::ViewLayerVisibilityRule;
 
 // Public exports (used outside core::ui)

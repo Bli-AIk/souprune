@@ -21,7 +21,8 @@
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
 use super::components::{
-    InteractiveLayer, ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewLayer, ViewTextTemplate,
+    InteractiveLayer, TextVisibilityRule, ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewLayer,
+    ViewTextTemplate,
 };
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
@@ -478,6 +479,12 @@ fn spawn_texts_for_filler(
 
                 if let Some(template) = &text_config.template {
                     cmd.insert(ViewTextTemplate(template.clone()));
+                }
+
+                // Add TextVisibilityRule if defined
+                // 如果定义了可见性规则则添加 TextVisibilityRule
+                if let Some(visibility_rule) = &text_config.visibility_rule {
+                    cmd.insert(TextVisibilityRule(visibility_rule.clone()));
                 }
             }
         });

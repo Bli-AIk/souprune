@@ -229,6 +229,14 @@ pub struct SpriteDef {
     /// 帧动画的帧持续时间（秒）。
     #[serde(default)]
     pub frame_duration: Option<f32>,
+
+    /// Visibility rule for this sprite element.
+    /// Controls visibility based on active interactive layers.
+    ///
+    /// 此精灵元素的可见性规则。
+    /// 根据活跃的交互层控制可见性。
+    #[serde(default)]
+    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -244,6 +252,13 @@ pub struct TextDef {
     pub line_height: Option<f32>,
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
+    /// Visibility rule for this text element.
+    /// Controls visibility based on active interactive layers.
+    ///
+    /// 此文本元素的可见性规则。
+    /// 根据活跃的交互层控制可见性。
+    #[serde(default)]
+    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -458,6 +473,14 @@ pub struct StateSpriteConfig {
     /// 精灵的变换配置。
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
+
+    /// Visibility rule for this state sprite element.
+    /// Controls visibility based on active interactive layers.
+    ///
+    /// 此状态精灵元素的可见性规则。
+    /// 根据活跃的交互层控制可见性。
+    #[serde(default)]
+    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 /// A rule that triggers a state change.

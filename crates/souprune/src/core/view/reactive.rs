@@ -26,6 +26,7 @@ use super::components::{
     ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite, SelectionChangedEvent,
     ViewBox, ViewBoxFiller, ViewLayer,
 };
+use crate::app_state::AppState;
 use crate::app_state::overworld::OverworldSubState;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
@@ -98,6 +99,7 @@ pub(crate) fn spawn_reactive_indicator_system(
 /// 基于层和选择事件更新响应式指示器的位置和可见性。
 /// 该系统响应事件而非每帧轮询状态。
 pub(crate) fn update_reactive_indicator_system(
+    app_state: Res<State<AppState>>,
     overworld_state: Res<State<OverworldSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     interactive_layer_query: Query<&InteractiveLayer>,
@@ -114,10 +116,28 @@ pub(crate) fn update_reactive_indicator_system(
     let _ = &parent_query; // Suppress unused warning
 
     // Check if current state has UI interaction enabled
-    let is_ui_interactive = state_config
-        .as_ref()
-        .map(|config| config.is_ui_interactive(overworld_state.name()))
-        .unwrap_or(false);
+    // In Battle state, UI is interactive if there's an active InteractiveLayer
+    // In Overworld state, check the state config
+    //
+    // 检查当前状态是否启用了 UI 交互
+    // 在 Battle 状态下，如果有活跃的 InteractiveLayer 则 UI 可交互
+    // 在 Overworld 状态下，检查状态配置
+    let is_ui_interactive = match app_state.get() {
+        AppState::Battle => {
+            // In Battle, UI is interactive if any InteractiveLayer is active
+            // 在 Battle 中，如果任何 InteractiveLayer 是活跃的则 UI 可交互
+            interactive_layer_query.iter().any(|layer| layer.is_active)
+        }
+        AppState::Overworld => {
+            // In Overworld, use state config
+            // 在 Overworld 中，使用状态配置
+            state_config
+                .as_ref()
+                .map(|config| config.is_ui_interactive(overworld_state.name()))
+                .unwrap_or(false)
+        }
+        _ => false,
+    };
 
     // Handle selection changed events (indicator position update)
     for event in selection_changed.read() {

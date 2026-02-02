@@ -28,6 +28,67 @@ pub struct ColliderConfig {
     pub debug_z_offset: f32,
 }
 
+/// Configuration for player invincibility behavior after taking damage.
+///
+/// 玩家受伤后的无敌行为配置。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct InvincibilityConfig {
+    /// Duration of invincibility in seconds after taking damage
+    ///
+    /// 受伤后无敌持续时间（秒）
+    #[serde(default = "default_invincibility_duration")]
+    pub duration: f32,
+
+    /// Interval for heart color flash during invincibility (in seconds)
+    ///
+    /// 无敌期间心形颜色闪烁间隔（秒）
+    #[serde(default = "default_flash_interval")]
+    pub flash_interval: f32,
+
+    /// Normal heart color (pure red by default)
+    ///
+    /// 正常心形颜色（默认纯红色）
+    #[serde(default = "default_normal_color")]
+    pub normal_color: Color,
+
+    /// Flash heart color (dark red by default)
+    ///
+    /// 闪烁心形颜色（默认暗红色）
+    #[serde(default = "default_flash_color")]
+    pub flash_color: Color,
+
+    /// Sound to play when taking damage (full asset path)
+    ///
+    /// 受伤时播放的音效（完整资源路径）
+    #[serde(default)]
+    pub damage_sound: Option<String>,
+}
+
+fn default_invincibility_duration() -> f32 {
+    1.0
+}
+fn default_flash_interval() -> f32 {
+    0.25
+}
+fn default_normal_color() -> Color {
+    Color::srgb(1.0, 0.0, 0.0)
+}
+fn default_flash_color() -> Color {
+    Color::srgb(0.5, 0.0, 0.0)
+}
+
+impl Default for InvincibilityConfig {
+    fn default() -> Self {
+        Self {
+            duration: default_invincibility_duration(),
+            flash_interval: default_flash_interval(),
+            normal_color: default_normal_color(),
+            flash_color: default_flash_color(),
+            damage_sound: None,
+        }
+    }
+}
+
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 pub struct BattlePlayerConfig {
     pub sprite_path: String,
@@ -47,4 +108,11 @@ pub struct BattlePlayerConfig {
     pub default_mode_id: String,
     pub speed: f32,
     pub focus_speed_ratio: f32,
+    /// Invincibility configuration for damage behavior.
+    /// If not specified, defaults are used.
+    ///
+    /// 伤害行为的无敌配置。
+    /// 如果未指定，则使用默认值。
+    #[serde(default)]
+    pub invincibility: InvincibilityConfig,
 }
