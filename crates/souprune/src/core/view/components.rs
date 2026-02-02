@@ -9,39 +9,15 @@
 pub(crate) mod box_components;
 pub(crate) mod camera;
 pub(crate) mod hpbar;
-pub(crate) mod interactive;
-pub(crate) mod layer;
-pub(crate) mod navigation;
-pub(crate) mod reactive;
 pub(crate) mod state_sprite;
 pub(crate) mod text;
 pub(crate) mod view_element;
-pub(crate) mod visibility;
 
 // Re-export all public types
-pub(crate) use box_components::{
-    ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewContainer, ViewContainerVisibility,
-};
+pub(crate) use box_components::{ViewBox, ViewBoxFiller, ViewContainer};
 pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDynamic};
-pub(crate) use interactive::{
-    AwaitingInteraction, InteractionResult, InteractiveLayer, InteractiveLayerDef,
-    LayerActivatedEvent, LayerDeactivatedEvent, LayerTransitionAction, NavigatorType,
-    SelectionCancelledEvent, SelectionChangedEvent, SelectionConfirmedEvent,
-};
-pub(crate) use layer::ViewLayer;
-pub(crate) use navigation::{
-    IndexBound, LayerTransitions, TransitionAction, TransitionRule, ViewLayerNavigationConfig,
-    ViewLayerNavigationRule, ViewLayerTransitionConfig,
-};
-pub(crate) use reactive::{
-    ReactiveIndicator, ReactiveIndicatorOwner, ReactiveIndicatorReady, ReactiveIndicatorSprite,
-    ReactiveIndicatorVisibility, ReactivePlacement, ReactivePosition,
-};
 pub(crate) use state_sprite::StateSpriteState;
-pub(crate) use text::{
-    TextVisibilityRule, ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate,
-};
-pub(crate) use visibility::ViewLayerVisibilityRule;
+pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
 
 // Public exports (used outside core::ui)
 pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite};

@@ -17,7 +17,6 @@ mod camera;
 mod context;
 mod fact_chapter;
 mod flow;
-mod interaction;
 mod performance;
 mod player;
 mod tween;
@@ -52,7 +51,8 @@ impl Plugin for SequencerPlugin {
                     player::process_player_action_system,
                     camera::process_camera_action_system,
                     view_action::process_view_action_system,
-                    interaction::process_await_selection_system,
+                    // TODO: Reimplement with FRE system
+                    // interaction::process_await_selection_system,
                     view_element::process_modify_view_element_system,
                     tween::process_tween_view_element_system,
                     performance::process_danmaku_performance_system,
@@ -74,7 +74,8 @@ impl Plugin for SequencerPlugin {
                     fact_chapter::process_fact_switch_chapter_system,
                     fact_chapter::process_emit_fact_event_chapter_system,
                     fact_chapter::process_modify_fact_chapter_system,
-                    interaction::check_await_selection_completion_system,
+                    // TODO: Reimplement with FRE system
+                    // interaction::check_await_selection_completion_system,
                     flow::cleanup_finished_chapters_system,
                     flow::sync_battle_flow_system,
                 )

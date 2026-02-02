@@ -1,4 +1,3 @@
-use super::super::components::IndexBound;
 use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
@@ -11,13 +10,6 @@ pub fn parse_overworld_state(state_str: &str) -> Option<OverworldSubState> {
     match state_str {
         "" | "None" => None,
         name => Some(OverworldSubState::new(name)),
-    }
-}
-
-pub fn evaluate_index_bound(bound: &IndexBound, player_data: &PlayerDataView) -> usize {
-    match bound {
-        IndexBound::Static(value) => *value,
-        IndexBound::Dynamic(expr) => evaluate_index_expression(expr, player_data),
     }
 }
 

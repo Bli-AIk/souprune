@@ -1,17 +1,23 @@
 //! # bridge.rs
 //!
-//! Bridge between Sequencer and FRE systems.
+//! Bridge between Sequencer and FRE systems, plus input handling for Battle UI.
 //!
-//! Sequencer 和 FRE 系统之间的桥接。
+//! Sequencer 和 FRE 系统之间的桥接，以及战斗 UI 的输入处理。
 //!
 //! This module provides systems that emit FRE events when specific
-//! sequencer events occur (Chapter completion, selection confirmation, etc.).
+//! sequencer events occur (Chapter completion, selection confirmation, etc.),
+//! and handles input for Battle UI navigation.
 //!
 //! 本模块提供系统，在特定 Sequencer 事件发生时发出 FRE 事件
-//! （Chapter 完成、选择确认等）。
+//! （Chapter 完成、选择确认等），并处理战斗 UI 导航的输入。
 
+use crate::app_state::battle::BattleInputManager;
+use crate::core::audio;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
+use crate::core::view::components::ViewRoot;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
+use leafwing_input_manager::action_state::ActionState;
 
 /// Event emitted when a Chapter completes.
 /// This is an internal Bevy event used to bridge Sequencer → FRE.
@@ -177,5 +183,145 @@ pub fn emit_selection_confirmed_events_system(
             "Battle FRE Bridge: Selection confirmed in layer '{}', index {}",
             event.layer_id, event.selection_index
         );
+    }
+}
+
+// ============================================================================
+// Battle UI Navigation System
+// 战斗 UI 导航系统
+// ============================================================================
+
+/// System that directly handles navigation input and updates ViewRoot.local_facts
+/// in Battle mode. This enables menu navigation during AwaitInteraction chapters.
+///
+/// 在 Battle 模式下直接处理导航输入并更新 ViewRoot.local_facts 的系统。
+/// 这使得在 AwaitInteraction 章节期间可以进行菜单导航。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub fn battle_view_navigation_system(
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    input_query: Query<&ActionState<Action>, With<BattleInputManager>>,
+    mut view_root_query: Query<&mut ViewRoot>,
+    mut selection_events: MessageWriter<SelectionConfirmedEvent>,
+) {
+    let Ok(action_state) = input_query.single() else {
+        return;
+    };
+
+    for mut view_root in view_root_query.iter_mut() {
+        // Check if the view is active (menu is visible)
+        let active = view_root.local_facts.get_bool("active").unwrap_or(false);
+
+        if !active {
+            continue;
+        }
+
+        let depth = view_root.local_facts.get_int("depth").unwrap_or(0);
+        let selection = view_root.local_facts.get_int("selection").unwrap_or(0);
+
+        // Battle main menu has 4 options: FIGHT, ACT, ITEM, MERCY
+        let max_selection = if depth == 0 { 3 } else { 0 };
+
+        // Handle horizontal navigation (Left/Right)
+        if action_state.action_just_pressed(&registry, "Left") && selection > 0 {
+            view_root
+                .local_facts
+                .set("selection", FactValue::Int(selection - 1));
+            audio::play_sound(&audio, &asset_server, "choice.wav");
+            debug!(
+                "Battle navigation: selection {} -> {}",
+                selection,
+                selection - 1
+            );
+        }
+
+        if action_state.action_just_pressed(&registry, "Right") && selection < max_selection {
+            view_root
+                .local_facts
+                .set("selection", FactValue::Int(selection + 1));
+            audio::play_sound(&audio, &asset_server, "choice.wav");
+            debug!(
+                "Battle navigation: selection {} -> {}",
+                selection,
+                selection + 1
+            );
+        }
+
+        // Handle confirm
+        if action_state.action_just_pressed(&registry, "Confirm") {
+            audio::play_sound(&audio, &asset_server, "confirm.wav");
+
+            // Emit selection confirmed event
+            selection_events.write(SelectionConfirmedEvent::new(
+                "BattleMainMenu",
+                selection as usize,
+            ));
+
+            debug!("Battle confirm: depth {} selection {}", depth, selection);
+        }
+    }
+}
+
+/// Firewheel audio backend variant
+#[cfg(feature = "firewheel")]
+pub fn battle_view_navigation_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    registry: Res<ActionRegistry>,
+    input_query: Query<&ActionState<Action>, With<BattleInputManager>>,
+    mut view_root_query: Query<&mut ViewRoot>,
+    mut selection_events: MessageWriter<SelectionConfirmedEvent>,
+) {
+    let Ok(action_state) = input_query.single() else {
+        return;
+    };
+
+    for mut view_root in view_root_query.iter_mut() {
+        let active = view_root.local_facts.get_bool("active").unwrap_or(false);
+
+        if !active {
+            continue;
+        }
+
+        let depth = view_root.local_facts.get_int("depth").unwrap_or(0);
+        let selection = view_root.local_facts.get_int("selection").unwrap_or(0);
+
+        let max_selection = if depth == 0 { 3 } else { 0 };
+
+        if action_state.action_just_pressed(&registry, "Left") && selection > 0 {
+            view_root
+                .local_facts
+                .set("selection", FactValue::Int(selection - 1));
+            audio::play_sound(&mut commands, &asset_server, "choice.wav");
+            debug!(
+                "Battle navigation: selection {} -> {}",
+                selection,
+                selection - 1
+            );
+        }
+
+        if action_state.action_just_pressed(&registry, "Right") && selection < max_selection {
+            view_root
+                .local_facts
+                .set("selection", FactValue::Int(selection + 1));
+            audio::play_sound(&mut commands, &asset_server, "choice.wav");
+            debug!(
+                "Battle navigation: selection {} -> {}",
+                selection,
+                selection + 1
+            );
+        }
+
+        if action_state.action_just_pressed(&registry, "Confirm") {
+            audio::play_sound(&mut commands, &asset_server, "confirm.wav");
+
+            selection_events.write(SelectionConfirmedEvent::new(
+                "BattleMainMenu",
+                selection as usize,
+            ));
+
+            debug!("Battle confirm: depth {} selection {}", depth, selection);
+        }
     }
 }

@@ -19,8 +19,8 @@ use bevy_fact_rule_event::{FactValueDef, LayeredFactDatabase, RuleRegistry, Rule
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
 pub use bridge::{
-    ChapterCompletedEvent, SelectionConfirmedEvent, emit_chapter_completed_events_system,
-    emit_selection_confirmed_events_system,
+    ChapterCompletedEvent, SelectionConfirmedEvent, battle_view_navigation_system,
+    emit_chapter_completed_events_system, emit_selection_confirmed_events_system,
 };
 
 /// System set for Battle FRE processing.
@@ -61,6 +61,9 @@ impl Plugin for BattleFREPlugin {
                     emit_chapter_completed_events_system,
                     emit_selection_confirmed_events_system,
                     apply_pending_damage_system,
+                    // Battle UI navigation - handles input and updates ViewRoot.local_facts
+                    // 战斗 UI 导航 - 处理输入并更新 ViewRoot.local_facts
+                    battle_view_navigation_system,
                 )
                     .in_set(BattleFRESet),
             );

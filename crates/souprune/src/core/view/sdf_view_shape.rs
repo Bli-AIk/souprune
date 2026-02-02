@@ -20,15 +20,11 @@
 //! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
-use super::components::{
-    InteractiveLayer, TextVisibilityRule, ViewBox, ViewBoxFiller, ViewBoxVisibility, ViewLayer,
-    ViewTextTemplate,
-};
+use super::components::{ViewBox, ViewBoxFiller, ViewTextTemplate};
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
 use super::text::NeedsGlyphRefresh;
-use crate::app_state::overworld::OverworldSubState;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
@@ -480,12 +476,6 @@ fn spawn_texts_for_filler(
                 if let Some(template) = &text_config.template {
                     cmd.insert(ViewTextTemplate(template.clone()));
                 }
-
-                // Add TextVisibilityRule if defined
-                // 如果定义了可见性规则则添加 TextVisibilityRule
-                if let Some(visibility_rule) = &text_config.visibility_rule {
-                    cmd.insert(TextVisibilityRule(visibility_rule.clone()));
-                }
             }
         });
 }
@@ -622,193 +612,6 @@ pub(crate) fn update_sdf_view_shape_system(
                     &mut color_materials,
                 );
             }
-        }
-    }
-}
-
-/// Toggle UI box visibility according to the active [`ViewLayer`] (supports both Overworld Backpack and Battle states).
-///
-/// NOTE: This system skips entities that have `VisibleWhen` component, as those are
-/// controlled by `evaluate_visible_when_system` instead.
-///
-/// 根据当前激活的 [`ViewLayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
-///
-/// 注意：此系统跳过具有 `VisibleWhen` 组件的实体，因为它们由
-/// `evaluate_visible_when_system` 控制。
-pub(crate) fn update_ui_box_visibility_system(
-    app_state: Res<State<crate::app_state::AppState>>,
-    overworld_state: Option<Res<State<OverworldSubState>>>,
-    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    interactive_layer_query: Query<&InteractiveLayer>,
-    _parent_query: Query<&ChildOf>,
-    mut box_query: Query<
-        (Entity, &ViewBoxVisibility, &mut Visibility),
-        (With<ViewBox>, Without<super::components::VisibleWhen>),
-    >,
-) {
-    // Check if we should process UI visibility (Battle or Overworld with ui_interactive)
-    // 检查是否应该处理 UI 可见性（Battle 或具有 ui_interactive 的 Overworld 状态）
-    let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
-    let is_ui_interactive = matches!(app_state.get(), crate::app_state::AppState::Overworld)
-        && overworld_state
-            .as_ref()
-            .map(|s| {
-                state_config
-                    .as_ref()
-                    .map(|config| config.is_ui_interactive(s.name()))
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false);
-
-    let should_process_ui = is_battle || is_ui_interactive;
-
-    // Find active InteractiveLayer for UI state
-    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
-
-    for (_entity, layer_visibility, mut visibility) in box_query.iter_mut() {
-        if !should_process_ui {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        }
-
-        // For Battle state, use visibility rule directly without requiring InteractiveLayer
-        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
-        if is_battle {
-            // In Battle mode, check if the visibility rule allows showing
-            // (typically Always or specific battle layers)
-            // 在 Battle 模式下，检查可见性规则是否允许显示
-            // （通常是 Always 或特定的战斗层）
-            let should_show = matches!(
-                layer_visibility.rule(),
-                super::components::ViewLayerVisibilityRule::Always
-            ) || layer_visibility
-                .is_visible_for(&super::components::ViewLayer::new("Battle"));
-
-            if should_show {
-                if *visibility != Visibility::Inherited {
-                    *visibility = Visibility::Inherited;
-                }
-            } else if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        }
-
-        // For Backpack state, use InteractiveLayer for visibility
-        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
-        let Some(layer) = active_layer else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let ui_layer = ViewLayer::new(layer.layer_id.clone());
-        let should_show = layer_visibility.is_visible_for(&ui_layer);
-        if should_show {
-            if *visibility != Visibility::Inherited {
-                *visibility = Visibility::Inherited;
-            }
-        } else if *visibility != Visibility::Hidden {
-            *visibility = Visibility::Hidden;
-        }
-    }
-}
-
-/// Toggle UI container visibility according to the active [`ViewLayer`] (supports states with ui_interactive and Battle states).
-/// This system handles pure container nodes that don't have a ViewBox but need visibility control.
-///
-/// NOTE: This system skips entities that have `VisibleWhen` component, as those are
-/// controlled by `evaluate_visible_when_system` instead.
-///
-/// 根据当前激活的 [`ViewLayer`] 切换 UI 容器可见性（支持具有 ui_interactive 的状态和 Battle 场景）。
-/// 此系统处理没有 ViewBox 但需要可见性控制的纯容器节点。
-///
-/// 注意：此系统跳过具有 `VisibleWhen` 组件的实体，因为它们由
-/// `evaluate_visible_when_system` 控制。
-pub(crate) fn update_ui_container_visibility_system(
-    app_state: Res<State<crate::app_state::AppState>>,
-    overworld_state: Option<Res<State<OverworldSubState>>>,
-    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    interactive_layer_query: Query<&InteractiveLayer>,
-    _parent_query: Query<&ChildOf>,
-    mut container_query: Query<
-        (
-            Entity,
-            &super::components::ViewContainerVisibility,
-            &mut Visibility,
-        ),
-        (
-            With<super::components::ViewContainer>,
-            Without<super::components::VisibleWhen>,
-        ),
-    >,
-) {
-    // Check if we should process UI visibility (Battle or Overworld with ui_interactive)
-    // 检查是否应该处理 UI 可见性（Battle 或具有 ui_interactive 的 Overworld 状态）
-    let is_battle = matches!(app_state.get(), crate::app_state::AppState::Battle);
-    let is_ui_interactive = matches!(app_state.get(), crate::app_state::AppState::Overworld)
-        && overworld_state
-            .as_ref()
-            .map(|s| {
-                state_config
-                    .as_ref()
-                    .map(|config| config.is_ui_interactive(s.name()))
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false);
-
-    let should_process_ui = is_battle || is_ui_interactive;
-
-    // Find active InteractiveLayer for UI state
-    let active_layer = interactive_layer_query.iter().find(|layer| layer.is_active);
-
-    for (_entity, container_visibility, mut visibility) in container_query.iter_mut() {
-        if !should_process_ui {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        }
-
-        // For Battle state, use visibility rule directly without requiring InteractiveLayer
-        // 对于 Battle 状态，直接使用可见性规则，不需要 InteractiveLayer
-        if is_battle {
-            let should_show = matches!(
-                container_visibility.rule(),
-                super::components::ViewLayerVisibilityRule::Always
-            ) || container_visibility
-                .is_visible_for(&super::components::ViewLayer::new("Battle"));
-
-            if should_show {
-                if *visibility != Visibility::Inherited {
-                    *visibility = Visibility::Inherited;
-                }
-            } else if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        }
-
-        // For Backpack state, use InteractiveLayer for visibility
-        // 对于 Backpack 状态，使用 InteractiveLayer 决定可见性
-        let Some(layer) = active_layer else {
-            if *visibility != Visibility::Hidden {
-                *visibility = Visibility::Hidden;
-            }
-            continue;
-        };
-
-        let ui_layer = ViewLayer::new(layer.layer_id.clone());
-        let should_show = container_visibility.is_visible_for(&ui_layer);
-        if should_show {
-            if *visibility != Visibility::Inherited {
-                *visibility = Visibility::Inherited;
-            }
-        } else if *visibility != Visibility::Hidden {
-            *visibility = Visibility::Hidden;
         }
     }
 }

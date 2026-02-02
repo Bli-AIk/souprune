@@ -14,12 +14,10 @@
 //!
 //! ## 源文件概述
 //!
-//! It manages glyph refreshing and visibility control for UI text elements.
+//! It manages glyph refreshing for UI text elements.
 //!
-//! 管理 UI 文本元素的字形刷新和可见性控制。
+//! 管理 UI 文本元素的字形刷新。
 
-use super::components::{InteractiveLayer, TextVisibilityRule, ViewLayer};
-use crate::app_state::AppState;
 use bevy::prelude::*;
 use bevy::sprite_render::AlphaMode2d;
 use bevy_rich_text3d::{Text3d, TextAtlas};
@@ -91,53 +89,6 @@ pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
     for (mesh, mut visibility) in text_query.iter_mut() {
         if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
             *visibility = Visibility::Inherited;
-        }
-    }
-}
-
-/// System to update text visibility based on active interactive layers.
-/// Texts with `TextVisibilityRule` will be shown/hidden based on which layer is active.
-///
-/// 根据活跃的交互层更新文本可见性的系统。
-/// 带有 `TextVisibilityRule` 的文本将根据哪个层处于活跃状态来显示/隐藏。
-pub(crate) fn update_text_visibility_system(
-    app_state: Res<State<AppState>>,
-    interactive_layer_query: Query<&InteractiveLayer>,
-    mut text_query: Query<(&TextVisibilityRule, &mut Visibility), With<Text3d>>,
-) {
-    // Only run for Overworld or Battle states
-    // 仅在 Overworld 或 Battle 状态下运行
-    if !matches!(app_state.get(), AppState::Overworld | AppState::Battle) {
-        return;
-    }
-
-    // Find active layer
-    // 查找活跃层
-    let active_layer = interactive_layer_query
-        .iter()
-        .find(|layer| layer.is_active)
-        .map(|layer| ViewLayer::new(layer.layer_id.clone()));
-
-    for (visibility_rule, mut visibility) in text_query.iter_mut() {
-        let should_show = if let Some(ref layer) = active_layer {
-            visibility_rule.0.is_visible_for(layer)
-        } else {
-            // No active layer - use AlwaysHidden behavior for OnlyIn rules
-            // 没有活跃层 - 对 OnlyIn 规则使用 AlwaysHidden 行为
-            matches!(
-                visibility_rule.0,
-                super::components::ViewLayerVisibilityRule::Always
-            )
-        };
-
-        let target_visibility = if should_show {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
-        };
-
-        if *visibility != target_visibility {
-            *visibility = target_visibility;
         }
     }
 }

@@ -3,7 +3,6 @@ use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
-use super::super::components::InteractiveLayer;
 use super::super::layout::ViewLayoutAsset;
 use super::super::lifecycle::BackpackViewRoot;
 use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
@@ -120,7 +119,6 @@ pub fn rebuild_reloaded_view_system(
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     backpack_root_query: Query<Entity, With<BackpackViewRoot>>,
-    interactive_layer_query: Query<Entity, With<InteractiveLayer>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -141,11 +139,10 @@ pub fn rebuild_reloaded_view_system(
 
     let has_handle = view_layout_handle.is_some();
     let backpack_root_count = backpack_root_query.iter().count();
-    let layer_count = interactive_layer_query.iter().count();
 
     info!(
-        "[rebuild_reloaded_view] pending_reload=TRUE, has_handle={}, backpack_roots={}, layers={}",
-        has_handle, backpack_root_count, layer_count
+        "[rebuild_reloaded_view] pending_reload=TRUE, has_handle={}, backpack_roots={}",
+        has_handle, backpack_root_count
     );
 
     let Some(handle) = view_layout_handle else {
@@ -162,8 +159,8 @@ pub fn rebuild_reloaded_view_system(
         return;
     };
 
-    // Check if we have a backpack root or interactive layers as our target
-    let has_target = !backpack_root_query.is_empty() || !interactive_layer_query.is_empty();
+    // Check if we have a backpack root as our target
+    let has_target = !backpack_root_query.is_empty();
 
     if !has_target {
         debug!(

@@ -7,9 +7,7 @@ use bevy::prelude::*;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use super::layer::ViewLayer;
 use super::text::ViewTextConfig;
-use super::visibility::ViewLayerVisibilityRule;
 
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
@@ -160,29 +158,6 @@ impl ViewBox {
     }
 }
 
-/// Controls which [`ViewLayer`]s should render a given [`ViewBox`].
-///
-/// 控制指定 [`ViewBox`] 在哪些 [`ViewLayer`] 中可见。
-#[derive(Component, Debug)]
-#[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewBoxVisibility {
-    rule: ViewLayerVisibilityRule,
-}
-
-impl ViewBoxVisibility {
-    pub(crate) fn new(rule: ViewLayerVisibilityRule) -> Self {
-        Self { rule }
-    }
-
-    pub(crate) fn rule(&self) -> &ViewLayerVisibilityRule {
-        &self.rule
-    }
-
-    pub(crate) fn is_visible_for(&self, layer: &ViewLayer) -> bool {
-        self.rule.is_visible_for(layer)
-    }
-}
-
 /// Marker placed on the filler entity that contains UI text and indicator sprites.
 ///
 /// 标记承载 UI 文本与指示器精灵的填充实体。
@@ -197,26 +172,3 @@ pub(crate) struct ViewBoxFiller;
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct ViewContainer;
-
-/// Controls which [`ViewLayer`]s should render a given UI container (without ViewBox).
-///
-/// 控制指定 UI 容器（无 ViewBox）在哪些 [`ViewLayer`] 中可见。
-#[derive(Component, Debug)]
-#[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewContainerVisibility {
-    rule: ViewLayerVisibilityRule,
-}
-
-impl ViewContainerVisibility {
-    pub(crate) fn new(rule: ViewLayerVisibilityRule) -> Self {
-        Self { rule }
-    }
-
-    pub(crate) fn rule(&self) -> &ViewLayerVisibilityRule {
-        &self.rule
-    }
-
-    pub(crate) fn is_visible_for(&self, layer: &ViewLayer) -> bool {
-        self.rule.is_visible_for(layer)
-    }
-}

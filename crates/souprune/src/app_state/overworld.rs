@@ -124,6 +124,12 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             Update,
             force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
+        )
+        // View local_facts navigation system - handles UI input directly
+        // View local_facts 导航系统 - 直接处理 UI 输入
+        .add_systems(
+            Update,
+            view::view_local_facts_navigation_system.in_set(crate::core::view::ViewUpdate),
         );
         // Note: Specific state behaviors (like Chase) are now configured via states.ron
 
@@ -153,6 +159,9 @@ impl Plugin for OverworldPlugin {
             .add_systems(
                 Update,
                 (
+                    // Input-to-FRE bridge must run before FRE rules processing
+                    // 输入到 FRE 桥接必须在 FRE 规则处理之前运行
+                    view::input_to_fre_event_bridge_system,
                     trigger::load_fre_rules_system,
                     trigger::register_loaded_rules_system,
                     trigger::spawn_demo_trigger_zone_system,

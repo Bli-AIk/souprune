@@ -15,7 +15,6 @@
 //! 它依赖 `serde_types` 进行类型转换。
 
 use super::serde_types::*;
-use crate::core::view::components::InteractiveLayerDef;
 use bevy::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -30,40 +29,8 @@ pub struct ViewLayoutAsset {
     /// Root view nodes
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
-    /// **DEPRECATED**: Use FRE rules instead.
-    ///
-    /// **已弃用**：请使用 FRE 规则替代。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use FRE rules for navigation logic")]
-    pub navigation: Option<HashMap<String, NavigationRuleDef>>,
-    /// **DEPRECATED**: Use FRE rules instead.
-    ///
-    /// **已弃用**：请使用 FRE 规则替代。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use FRE rules for transition logic")]
-    pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
     #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
-    /// **DEPRECATED**: Use `initial_facts` and FRE rules instead.
-    ///
-    /// Interactive layer definitions for unified navigation.
-    ///
-    /// **已弃用**：请使用 `initial_facts` 和 FRE 规则替代。
-    ///
-    /// 用于统一导航的交互层定义。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use initial_facts and FRE rules instead")]
-    pub interactive_layers: Option<HashMap<String, InteractiveLayerDef>>,
-    /// **DEPRECATED**: Use `initial_facts` to set initial state.
-    ///
-    /// The initial layer to activate when this layout is loaded.
-    ///
-    /// **已弃用**：请使用 `initial_facts` 设置初始状态。
-    ///
-    /// 加载此布局时要激活的初始层。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use initial_facts to set initial state")]
-    pub initial_layer: Option<String>,
     /// Initial facts to set when this View is loaded.
     /// These facts are stored in the ViewRoot's local_facts database.
     /// Format: { "key": value } where value can be int, float, bool, or string.
@@ -110,22 +77,12 @@ pub struct ViewNodeDef {
     #[allow(dead_code)]
     pub style: StyleDef,
     /// Expression-based visibility control.
-    /// Replaces the old `visibility_rule` system with a simpler expression.
     /// Examples: "fact('depth') == 1", "$selection == 0", "true"
     ///
     /// 基于表达式的可见性控制。
-    /// 用更简洁的表达式替代旧的 `visibility_rule` 系统。
     /// 示例: "fact('depth') == 1", "$selection == 0", "true"
     #[serde(default)]
     pub visible_when: Option<String>,
-    /// **DEPRECATED**: Use `visible_when` instead.
-    /// Controls visibility based on active interactive layers.
-    ///
-    /// **已弃用**：请使用 `visible_when`。
-    /// 根据活跃的交互层控制可见性。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
     #[serde(default)]
     #[allow(dead_code)]
     pub background_color: Option<SerializableColor>,
@@ -146,9 +103,6 @@ pub struct ViewNodeDef {
     pub state_sprite: Option<StateSpriteConfig>,
     #[serde(default)]
     pub texts: Vec<TextDef>,
-    #[serde(default)]
-    #[serde(alias = "cursor")]
-    pub reactive_indicator: Option<ReactiveIndicatorDef>,
     #[serde(default)]
     #[serde(alias = "ui_box_logic")]
     pub ui_shape_logic: Option<ViewBoxLogicDef>,
@@ -285,15 +239,6 @@ pub struct SpriteDef {
     /// 示例: "fact('depth') == 1", "$selection == 0"
     #[serde(default)]
     pub visible_when: Option<String>,
-
-    /// **DEPRECATED**: Use `visible_when` instead.
-    /// Controls visibility based on active interactive layers.
-    ///
-    /// **已弃用**：请使用 `visible_when`。
-    /// 根据活跃的交互层控制可见性。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -316,84 +261,12 @@ pub struct TextDef {
     /// 示例: "fact('depth') == 1", "$selection == 0"
     #[serde(default)]
     pub visible_when: Option<String>,
-    /// **DEPRECATED**: Use `visible_when` instead.
-    /// Controls visibility based on active interactive layers.
-    ///
-    /// **已弃用**：请使用 `visible_when`。
-    /// 根据活跃的交互层控制可见性。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConditionalStyleDef {
     pub condition: String,
     pub color: SerializableColor,
-}
-
-/// **DEPRECATED**: Use a regular sprite node with `visible_when` and expression-driven transform instead.
-///
-/// Definition for a reactive indicator element in RON configuration.
-/// This configures visual elements that respond to UI events such as selection changes.
-///
-/// **已弃用**：请使用带有 `visible_when` 和表达式驱动变换的普通精灵节点替代。
-///
-/// RON 配置中响应式指示器元素的定义。
-/// 配置响应选择变更等 UI 事件的视觉元素。
-#[deprecated(
-    since = "0.6.0",
-    note = "Use a regular sprite node with `visible_when` and expression-driven transform instead"
-)]
-#[derive(Debug, Deserialize, Clone)]
-pub struct ReactiveIndicatorDef {
-    #[allow(dead_code)]
-    pub sprite_path: String,
-    #[serde(default)]
-    pub default_translation: Option<ReactivePositionDef>,
-    #[serde(default)]
-    pub overrides: HashMap<String, ReactivePositionDef>,
-    #[serde(default)]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
-    #[serde(default)]
-    pub transform: Option<ReactiveTransformDef>,
-}
-
-/// Position calculation mode for reactive indicators.
-///
-/// 响应式指示器的位置计算模式。
-#[derive(Debug, Deserialize, Clone)]
-pub enum ReactivePositionDef {
-    /// Fixed position regardless of selection index.
-    ///
-    /// 固定位置，不随选择索引变化。
-    Static(SerializableVec3),
-
-    /// Linear interpolation: origin + step * index.
-    ///
-    /// 线性插值：origin + step * index。
-    Linear {
-        origin: SerializableVec3,
-        step: SerializableVec3,
-    },
-
-    /// Custom positions for each index.
-    ///
-    /// 每个索引的自定义位置。
-    Custom { positions: Vec<SerializableVec3> },
-}
-
-/// Transform definition for reactive indicators.
-///
-/// 响应式指示器的变换定义。
-#[derive(Debug, Deserialize, Clone)]
-pub struct ReactiveTransformDef {
-    #[serde(default)]
-    pub translation: Option<SerializableVec3>,
-    #[serde(default)]
-    pub scale: Option<SerializableVec3>,
-    #[serde(default)]
-    pub rotation: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -409,53 +282,6 @@ pub struct ViewBoxLogicDef {
     pub structure_file: Option<String>,
     #[serde(default)]
     pub fill_color: Option<SerializableColor>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct NavigationRuleDef {
-    #[serde(default)]
-    pub mappings: HashMap<String, isize>,
-    #[serde(default)]
-    pub looping: bool,
-    #[serde(default)]
-    pub min_index: Option<IndexBoundDef>,
-    #[serde(default)]
-    pub max_index: Option<IndexBoundDef>,
-    #[serde(default)]
-    pub sound_on_navigate: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum IndexBoundDef {
-    Static(usize),
-    Dynamic(String),
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct LayerTransitionsDef {
-    #[serde(default)]
-    pub on_confirm: Option<Vec<TransitionRuleDef>>,
-    #[serde(default)]
-    pub on_cancel: Option<TransitionActionDef>,
-    #[serde(default)]
-    pub sound_on_confirm: Option<String>,
-    #[serde(default)]
-    pub sound_on_cancel: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TransitionRuleDef {
-    #[serde(default)]
-    pub condition: Option<String>,
-    pub action: TransitionActionDef,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub enum TransitionActionDef {
-    GotoLayer(String),
-    PopState,
-    PushState(String),
 }
 
 // ============================================================================
@@ -531,16 +357,6 @@ pub struct StateSpriteConfig {
     #[serde(default)]
     pub rules: Vec<StateRuleDef>,
 
-    /// Sugar syntax: shorthand for subscribing to interactive layer selection.
-    /// Format: (layer_id, index)
-    /// Equivalent to: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
-    ///
-    /// 语法糖：订阅交互层选中状态的简写。
-    /// 格式: (层ID, 索引)
-    /// 等同于: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
-    #[serde(default)]
-    pub subscribe_selection: Option<(String, usize)>,
-
     /// Transform configuration for the sprite.
     ///
     /// 精灵的变换配置。
@@ -554,15 +370,6 @@ pub struct StateSpriteConfig {
     /// 示例: "fact('depth') == 1", "$selection == 0"
     #[serde(default)]
     pub visible_when: Option<String>,
-
-    /// **DEPRECATED**: Use `visible_when` instead.
-    /// Controls visibility based on active interactive layers.
-    ///
-    /// **已弃用**：请使用 `visible_when`。
-    /// 根据活跃的交互层控制可见性。
-    #[serde(default)]
-    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
 /// A rule that triggers a state change.

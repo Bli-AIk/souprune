@@ -151,7 +151,7 @@
                             translation: (
                                 "-19.5",                          // X: left of text
                                 "28.25 + (-18.0 * $selection)",   // Y: ITEM position + step * selection
-                                "2.0",                            // Z: above box
+                                "7.0",                            // Z: above box
                             ),
                         ),
                     ),

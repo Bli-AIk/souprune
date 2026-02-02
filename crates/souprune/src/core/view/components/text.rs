@@ -2,7 +2,6 @@
 //!
 //! 文本相关的 UI 组件。
 
-use super::visibility::ViewLayerVisibilityRule;
 use bevy::color::Srgba;
 use bevy::prelude::*;
 use bevy_rich_text3d::{TextAlign, TextAnchor};
@@ -78,10 +77,6 @@ pub(crate) struct ViewTextConfig {
     pub(crate) align: TextAlign,
     pub(crate) anchor: TextAnchor,
     pub(crate) line_height: f32,
-    /// Visibility rule for this text element based on active layers.
-    ///
-    /// 基于活跃层的文本元素可见性规则。
-    pub(crate) visibility_rule: Option<ViewLayerVisibilityRule>,
 }
 
 impl Default for ViewTextConfig {
@@ -97,7 +92,6 @@ impl Default for ViewTextConfig {
             align: TextAlign::Left,
             anchor: TextAnchor::BOTTOM_RIGHT,
             line_height: 1.0,
-            visibility_rule: None,
         }
     }
 }
@@ -108,10 +102,3 @@ impl Default for ViewTextConfig {
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub(crate) struct ViewTextTemplate(pub(crate) String);
-
-/// Controls the visibility of text elements based on active interactive layers.
-///
-/// 根据活跃的交互层控制文本元素的可见性。
-#[derive(Component, Debug, Clone)]
-#[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct TextVisibilityRule(pub(crate) ViewLayerVisibilityRule);

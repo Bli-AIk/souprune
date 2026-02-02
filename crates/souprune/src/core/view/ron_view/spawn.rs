@@ -193,24 +193,6 @@ pub fn spawn_ron_view_for_entity(
     // 为视图实体附加 ViewRoot 组件
     commands.entity(view_entity).insert(view_root);
 
-    // Spawn InteractiveLayers if defined
-    // 如果定义了交互层则生成
-    if let Some(interactive_layers) = &view_layout.interactive_layers {
-        for (layer_id, layer_def) in interactive_layers {
-            let interactive_layer = layer_def.build(layer_id, player_data);
-            info!(
-                "Creating InteractiveLayer '{}' with navigator: {:?}",
-                layer_id, interactive_layer.navigator
-            );
-            // Add Name component so state_sprite system can identify this layer
-            // 添加 Name 组件以便 state_sprite 系统能识别此层
-            commands.spawn((
-                interactive_layer,
-                Name::new(format!("InteractiveLayer:{}", layer_id)),
-            ));
-        }
-    }
-
     for root in &view_layout.roots {
         spawn_view_node(
             commands,
@@ -307,28 +289,6 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
-        visibility_rule: text_def.visibility_rule.as_ref().map(|rule_def| {
-            match rule_def.rule_type.as_str() {
-                "OnlyIn" => {
-                    let layers = rule_def
-                        .layers
-                        .as_ref()
-                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
-                        .unwrap_or_default();
-                    ViewLayerVisibilityRule::OnlyIn(layers)
-                }
-                "Except" => {
-                    let layers = rule_def
-                        .layers
-                        .as_ref()
-                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
-                        .unwrap_or_default();
-                    ViewLayerVisibilityRule::Except(layers)
-                }
-                "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
-                _ => ViewLayerVisibilityRule::Always,
-            }
-        }),
         ..Default::default()
     }
 }
@@ -603,11 +563,6 @@ pub fn spawn_view_node(
                 ui_shape_logic.border_width,
                 ui_shape_logic.offset
             );
-            let visibility_rule = node_def
-                .visibility_rule
-                .as_ref()
-                .map(parse_visibility_rule)
-                .unwrap_or(ViewLayerVisibilityRule::Always);
 
             let texts = node_def
                 .texts
@@ -654,7 +609,6 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Visibility::default(),
                     InheritedVisibility::default(),
                     ViewVisibility::default(),
@@ -680,7 +634,6 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Transform::from_translation(offset),
                     GlobalTransform::default(),
                     Visibility::default(),
@@ -728,101 +681,6 @@ pub fn spawn_view_node(
                 );
             }
 
-            // Process reactive indicator definition (selection indicator, etc.)
-            // 处理响应式指示器定义（选择指示器等）
-            if let Some(indicator_def) = &node_def.reactive_indicator {
-                let mut sprite_context = sprite_params.create_sprite_context();
-                let mut sprite = match sprite_context.get_sprite("common", "heartsmall") {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                            "Failed to load indicator sprite 'common/heartsmall': {}. using default.",
-                            e
-                        );
-                        sprite_context.get_missing_sprite()
-                    }
-                };
-                sprite.color = Color::srgb(1.0, 0.0, 0.0);
-
-                let indicator_position = if let Some(default_pos) = &indicator_def.default_translation {
-                    match default_pos {
-                        ReactivePositionDef::Static(vec) => {
-                            ReactivePosition::Static(serializable_vec3_to_static(vec))
-                        }
-                        ReactivePositionDef::Linear { origin, step } => {
-                            ReactivePosition::Linear {
-                                origin: serializable_vec3_to_static(origin),
-                                step: serializable_vec3_to_static(step),
-                            }
-                        }
-                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
-                            positions.iter().map(serializable_vec3_to_static).collect(),
-                        ),
-                    }
-                } else if let Some(transform) = &indicator_def.transform {
-                    if let Some(translation) = &transform.translation {
-                        ReactivePosition::Static(serializable_vec3_to_static(translation))
-                    } else {
-                        ReactivePosition::Static(Vec3::ZERO)
-                    }
-                } else {
-                    ReactivePosition::Static(Vec3::ZERO)
-                };
-
-                let indicator_visibility = if let Some(vis_rule) = &indicator_def.visibility_rule {
-                    parse_visibility_rule(vis_rule)
-                } else if let ViewLayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
-                    ReactiveIndicatorVisibility::OnlyIn(layers.clone())
-                } else {
-                    // Default to always visible if no visibility rule is specified
-                    // 如果未指定可见性规则，默认始终可见
-                    ReactiveIndicatorVisibility::Always
-                };
-
-                let mut placement = ReactivePlacement::new(indicator_position);
-
-                for (layer_name, position_def) in &indicator_def.overrides {
-                    let layer = ViewLayer::new(layer_name.clone());
-                    let position = match position_def {
-                        ReactivePositionDef::Static(vec) => {
-                            ReactivePosition::Static(serializable_vec3_to_static(vec))
-                        }
-                        ReactivePositionDef::Linear { origin, step} => {
-                            ReactivePosition::Linear {
-                                origin: serializable_vec3_to_static(origin),
-                                step: serializable_vec3_to_static(step),
-                            }
-                        }
-                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
-                            positions.iter().map(serializable_vec3_to_static).collect(),
-                        ),
-                    };
-                    placement = placement.with_override(layer, position);
-                }
-
-                let indicator_transform = if let Some(transform_def) = &indicator_def.transform {
-                    let mut transform = Transform::default();
-                    if let Some(scale) = &transform_def.scale {
-                        transform.scale = serializable_vec3_to_static(scale);
-                    } else {
-                        transform.scale = Vec3::splat(1.0);
-                    }
-                    if let Some(rotation) = transform_def.rotation {
-                        transform.rotation = Quat::from_rotation_z(rotation.to_radians());
-                    }
-                    transform
-                } else {
-                    Transform::from_scale(Vec3::splat(1.0))
-                };
-
-                box_entity.insert(ReactiveIndicator::new(
-                    sprite,
-                    indicator_visibility,
-                    placement,
-                    indicator_transform,
-                ));
-            }
-
             // Store entity ID for recursive child processing after closure ends
             // 存储实体 ID 以便在闭包结束后进行递归子节点处理
             spawned_entity_id = Some(box_entity.id());
@@ -841,17 +699,10 @@ pub fn spawn_view_node(
                 node_def.children.len()
             );
 
-            let visibility_rule = node_def
-                .visibility_rule
-                .as_ref()
-                .map(parse_visibility_rule)
-                .unwrap_or(ViewLayerVisibilityRule::Always);
-
             // Spawn container entity with ViewContainer marker
             // 使用 ViewContainer 标记生成容器实体
             let mut container_entity = parent.spawn((
                 ViewContainer,
-                ViewContainerVisibility::new(visibility_rule),
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -1035,32 +886,6 @@ pub(crate) fn spawn_container_texts(
 
         if let Some(template) = &text_config.template {
             cmd.insert(ViewTextTemplate(template.clone()));
-        }
-
-        // Add TextVisibilityRule if defined
-        // 如果定义了可见性规则则添加 TextVisibilityRule
-        if let Some(visibility_rule_def) = &text_def.visibility_rule {
-            let visibility_rule = match visibility_rule_def.rule_type.as_str() {
-                "OnlyIn" => {
-                    let layers = visibility_rule_def
-                        .layers
-                        .as_ref()
-                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
-                        .unwrap_or_default();
-                    ViewLayerVisibilityRule::OnlyIn(layers)
-                }
-                "Except" => {
-                    let layers = visibility_rule_def
-                        .layers
-                        .as_ref()
-                        .map(|l| l.iter().map(|s| ViewLayer::new(s.clone())).collect())
-                        .unwrap_or_default();
-                    ViewLayerVisibilityRule::Except(layers)
-                }
-                "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
-                _ => ViewLayerVisibilityRule::Always,
-            };
-            cmd.insert(TextVisibilityRule(visibility_rule));
         }
 
         // Add DynamicViewElement if transform has dynamic expressions
@@ -1261,34 +1086,4 @@ fn spawn_standalone_static_sprite(
         "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
         node_name, entity_id, debug_path
     );
-}
-
-fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> ViewLayerVisibilityRule {
-    match rule_def.rule_type.as_str() {
-        "Always" => ViewLayerVisibilityRule::Always,
-        "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
-        "OnlyIn" => {
-            if let Some(layers) = &rule_def.layers {
-                let ui_layers = layers
-                    .iter()
-                    .map(|name| ViewLayer::new(name.clone()))
-                    .collect();
-                ViewLayerVisibilityRule::OnlyIn(ui_layers)
-            } else {
-                ViewLayerVisibilityRule::Always
-            }
-        }
-        "Except" => {
-            if let Some(layers) = &rule_def.layers {
-                let ui_layers = layers
-                    .iter()
-                    .map(|name| ViewLayer::new(name.clone()))
-                    .collect();
-                ViewLayerVisibilityRule::Except(ui_layers)
-            } else {
-                ViewLayerVisibilityRule::Always
-            }
-        }
-        _ => ViewLayerVisibilityRule::Always,
-    }
 }

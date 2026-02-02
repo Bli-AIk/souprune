@@ -1,26 +1,20 @@
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
-use std::collections::HashMap;
 
-use super::super::components::{
-    HPBarLag, HPBarSprite, IndexBound, LayerTransitions, ViewAnimationState, ViewLayer,
-    ViewLayerNavigationConfig, ViewLayerNavigationRule, ViewLayerTransitionConfig,
-};
-use super::super::layout::{IndexBoundDef, TransitionActionDef, ViewLayoutAsset};
+use super::super::components::{HPBarLag, HPBarSprite, ViewAnimationState};
+use super::super::layout::ViewLayoutAsset;
 use super::parsing::parse_overworld_state;
 use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
 use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
 
-/// Load navigation and transition configuration from view layout.
+/// Load global trigger configuration from view layout.
 ///
-/// 从视图布局加载导航和转换配置。
-pub fn load_navigation_and_transitions_system(
+/// 从视图布局加载全局触发器配置。
+pub fn load_global_triggers_system(
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
-    mut navigation_config: ResMut<ViewLayerNavigationConfig>,
-    mut transition_config: ResMut<ViewLayerTransitionConfig>,
     mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
     action_registry: Res<ActionRegistry>,
     mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
@@ -37,7 +31,7 @@ pub fn load_navigation_and_transitions_system(
         if let AssetEvent::Modified { id } = event
             && *id == view_layout_handle.handle.id()
         {
-            info!("[Hot Reload] Reloading navigation and transitions config...");
+            info!("[Hot Reload] Reloading global triggers config...");
             *last_processed_handle = None;
         }
     }
@@ -94,105 +88,6 @@ pub fn load_navigation_and_transitions_system(
         info!(
             "Loaded global trigger config from RON with {} triggers",
             global_triggers.len()
-        );
-    }
-
-    if let Some(navigation) = &view_layout.navigation {
-        for (layer_name, nav_rule_def) in navigation.iter() {
-            let mut adjustments = HashMap::new();
-
-            for (action_str, delta) in &nav_rule_def.mappings {
-                if let Some(action) = action_registry.get(action_str) {
-                    adjustments.insert(action, *delta);
-                }
-            }
-
-            let min_index = nav_rule_def
-                .min_index
-                .as_ref()
-                .map(|bound_def| match bound_def {
-                    IndexBoundDef::Static(value) => IndexBound::Static(*value),
-                    IndexBoundDef::Dynamic(expr) => IndexBound::Dynamic(expr.clone()),
-                });
-
-            let max_index = nav_rule_def
-                .max_index
-                .as_ref()
-                .map(|bound_def| match bound_def {
-                    IndexBoundDef::Static(value) => IndexBound::Static(*value),
-                    IndexBoundDef::Dynamic(expr) => IndexBound::Dynamic(expr.clone()),
-                });
-
-            let layer = ViewLayer::new(layer_name.clone());
-            let rule = ViewLayerNavigationRule::new_with_bounds(
-                adjustments.into_iter(),
-                nav_rule_def.looping,
-                min_index,
-                max_index,
-                nav_rule_def.sound_on_navigate.clone(),
-            );
-            navigation_config.set_rule(layer, rule);
-        }
-        info!(
-            "Loaded navigation config from RON with {} layers",
-            navigation.len()
-        );
-    }
-
-    if let Some(transitions) = &view_layout.transitions {
-        for (layer_name, transitions_def) in transitions.iter() {
-            let on_confirm = transitions_def
-                .on_confirm
-                .as_ref()
-                .map(|rules| {
-                    rules
-                        .iter()
-                        .map(|rule_def| {
-                            use super::super::components::{TransitionAction, TransitionRule};
-                            TransitionRule {
-                                condition: rule_def.condition.clone(),
-                                action: match &rule_def.action {
-                                    TransitionActionDef::GotoLayer(layer) => {
-                                        TransitionAction::GotoLayer(ViewLayer::new(layer.clone()))
-                                    }
-                                    TransitionActionDef::PopState => TransitionAction::PopState,
-                                    TransitionActionDef::PushState(state) => {
-                                        TransitionAction::PushState(state.clone())
-                                    }
-                                },
-                            }
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            let on_cancel = transitions_def.on_cancel.as_ref().map(|action_def| {
-                use super::super::components::TransitionAction;
-                match action_def {
-                    TransitionActionDef::GotoLayer(layer) => {
-                        TransitionAction::GotoLayer(ViewLayer::new(layer.clone()))
-                    }
-                    TransitionActionDef::PopState => TransitionAction::PopState,
-                    TransitionActionDef::PushState(state) => {
-                        TransitionAction::PushState(state.clone())
-                    }
-                }
-            });
-
-            let layer = ViewLayer::new(layer_name.clone());
-            transition_config.set_transitions(
-                layer,
-                LayerTransitions {
-                    on_confirm,
-                    on_cancel,
-                    sound_on_confirm: transitions_def.sound_on_confirm.clone(),
-                    sound_on_cancel: transitions_def.sound_on_cancel.clone(),
-                },
-            );
-        }
-        info!(
-            "Loaded transition config from RON with {} layers",
-            transitions.len()
         );
     }
 }

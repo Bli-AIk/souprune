@@ -34,7 +34,6 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
-mod reactive;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
@@ -52,33 +51,22 @@ use camera::{
 pub use components::{
     ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
-use components::{ViewLayerNavigationConfig, ViewLayerTransitionConfig};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{
     StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
     state_transition_sound_system,
 };
-use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
 pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
 use ron_view::{
-    load_navigation_and_transitions_system, rebuild_reloaded_view_system, spawn_ron_view_system,
+    load_global_triggers_system, rebuild_reloaded_view_system, spawn_ron_view_system,
     ui_animation_init_system, update_dynamic_text_system, update_view_from_map_system,
     watch_view_layout_changes_system,
 };
-use sdf_view_shape::{
-    update_sdf_view_shape_system, update_ui_box_visibility_system,
-    update_ui_container_visibility_system,
-};
-use state::{
-    global_trigger_system, handle_interactive_layer_confirm_cancel_system,
-    handle_interactive_layer_navigation_system, handle_interactive_layer_transitions_system,
-};
-use text::{
-    assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system,
-    update_text_visibility_system,
-};
-use visible_when::{evaluate_visible_when_system, sync_interactive_layer_to_view_root_system};
+use sdf_view_shape::update_sdf_view_shape_system;
+use state::global_trigger_system;
+use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
+use visible_when::evaluate_visible_when_system;
 
 use crate::app_state::AppState;
 use components::state_sprite::{
@@ -86,15 +74,7 @@ use components::state_sprite::{
     update_state_sprite_textures_system,
 };
 #[cfg(feature = "debug")]
-use components::{
-    CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
-    ReactiveIndicatorVisibility, ReactivePosition, ViewBox, ViewBoxVisibility, ViewElement,
-    ViewLayer, ViewRoot,
-};
-use components::{
-    LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,
-    SelectionConfirmedEvent,
-};
+use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -110,14 +90,6 @@ pub(crate) struct CoreViewPlugin;
 
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
-        // Register InteractiveLayer messages
-        // 注册 InteractiveLayer 消息
-        app.add_message::<SelectionChangedEvent>()
-            .add_message::<SelectionConfirmedEvent>()
-            .add_message::<SelectionCancelledEvent>()
-            .add_message::<LayerActivatedEvent>()
-            .add_message::<LayerDeactivatedEvent>();
-
         app.init_asset::<ViewLayoutAsset>()
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
             .init_asset::<SdfStructureAsset>()
@@ -128,8 +100,6 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
-            .init_resource::<ViewLayerNavigationConfig>()
-            .init_resource::<ViewLayerTransitionConfig>()
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
@@ -163,15 +133,10 @@ impl Plugin for CoreViewPlugin {
                     update_view_from_map_system,
                     watch_view_layout_changes_system,
                     rebuild_reloaded_view_system,
-                    load_navigation_and_transitions_system,
+                    load_global_triggers_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
                     global_trigger_system,
-                    // Unified InteractiveLayer systems (for both OW and Battle)
-                    // 统一的 InteractiveLayer 系统（同时用于 OW 和 Battle）
-                    handle_interactive_layer_navigation_system,
-                    handle_interactive_layer_confirm_cancel_system,
-                    handle_interactive_layer_transitions_system,
                     spawn_ron_view_system,
                     ui_animation_init_system,
                 )
@@ -184,13 +149,8 @@ impl Plugin for CoreViewPlugin {
                     ron_view::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_sdf_view_shape_system,
-                    update_ui_box_visibility_system,
-                    update_ui_container_visibility_system,
                     assign_text_material_system,
-                    spawn_reactive_indicator_system,
-                    update_reactive_indicator_system,
                     show_text_when_ready_system,
-                    update_text_visibility_system,
                     update_camera_anchored_ui_on_camera_move_system,
                     update_camera_anchored_ui_on_change_system,
                     update_dynamic_camera_anchors_system,
@@ -200,9 +160,6 @@ impl Plugin for CoreViewPlugin {
                     evaluate_state_sprite_rules_system,
                     evaluate_new_state_sprites_system,
                     update_state_sprite_textures_system,
-                    // Sync InteractiveLayer state to ViewRoot local_facts
-                    // 同步 InteractiveLayer 状态到 ViewRoot local_facts
-                    sync_interactive_layer_to_view_root_system,
                     // visible_when expression evaluation system
                     // visible_when 表达式评估系统
                     evaluate_visible_when_system
@@ -214,18 +171,11 @@ impl Plugin for CoreViewPlugin {
         #[cfg(feature = "debug")]
         {
             app.register_type::<ViewBox>()
-                .register_type::<ViewLayer>()
                 .register_type::<CameraAnchored>()
-                .register_type::<ViewBoxVisibility>()
-                .register_type::<ReactiveIndicator>()
-                .register_type::<ReactivePosition>()
-                .register_type::<ReactiveIndicatorVisibility>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()
-                .register_type::<ElementState>()
-                .register_type::<InteractiveLayer>()
-                .register_type::<NavigatorType>();
+                .register_type::<ElementState>();
         }
     }
 }
