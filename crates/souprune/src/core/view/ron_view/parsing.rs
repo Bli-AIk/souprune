@@ -252,6 +252,100 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
     result
 }
 
+/// Evaluate a `visible_when` expression to determine visibility.
+/// Returns true if the element should be visible, false otherwise.
+///
+/// Supports:
+/// - `$name` syntax (replaced with fact value)
+/// - `fact('name')` function
+/// - `fact_or('name', default)` function
+/// - Comparison operators: ==, !=, <, >, <=, >=
+/// - Boolean operators: &&, ||, !
+/// - Numeric literals and boolean literals (true, false)
+///
+/// Examples:
+/// - "fact('depth') == 1"
+/// - "$selection == 0"
+/// - "fact_or('active', true)"
+/// - "$depth >= 1 && $depth <= 2"
+///
+/// 计算 `visible_when` 表达式以确定可见性。
+/// 如果元素应该可见则返回 true，否则返回 false。
+pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
+    use evalexpr::{
+        ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
+        HashMapContext,
+    };
+
+    // Handle empty expression as always visible
+    let expr = expr.trim();
+    if expr.is_empty() || expr == "true" {
+        return true;
+    }
+    if expr == "false" {
+        return false;
+    }
+
+    // Preprocess fact expressions
+    let processed_expr = preprocess_fact_expressions(expr, player_data);
+
+    let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+
+    // Register player data variables
+    let _ = context.set_value(
+        "@player.hp".to_string(),
+        evalexpr::Value::Int(player_data.hp() as i64),
+    );
+    let _ = context.set_value(
+        "@player.hp_max".to_string(),
+        evalexpr::Value::Int(player_data.hp_max() as i64),
+    );
+    let _ = context.set_value(
+        "@player.lv".to_string(),
+        evalexpr::Value::Int(player_data.lv() as i64),
+    );
+
+    // Register helper functions
+    let _ = context.set_function(
+        "inventory_is_empty".to_string(),
+        evalexpr::Function::new({
+            let is_empty = player_data.inventory().is_empty();
+            move |_arg| Ok(evalexpr::Value::Boolean(is_empty))
+        }),
+    );
+
+    match evalexpr::eval_boolean_with_context(&processed_expr, &context) {
+        Ok(result) => result,
+        Err(e) => {
+            // Try evaluating as a number and convert to bool (non-zero = true)
+            match evalexpr::eval_with_context(&processed_expr, &context) {
+                Ok(val) => {
+                    if let Ok(f) = val.as_float() {
+                        f != 0.0
+                    } else if let Ok(i) = val.as_int() {
+                        i != 0
+                    } else if let Ok(b) = val.as_boolean() {
+                        b
+                    } else {
+                        warn!(
+                            "Failed to evaluate visible_when expression '{}' (processed: '{}'): {}",
+                            expr, processed_expr, e
+                        );
+                        true // Default to visible on error
+                    }
+                }
+                Err(e2) => {
+                    warn!(
+                        "Failed to evaluate visible_when expression '{}' (processed: '{}'): {} / {}",
+                        expr, processed_expr, e, e2
+                    );
+                    true // Default to visible on error
+                }
+            }
+        }
+    }
+}
+
 pub fn evaluate_float_expr(
     expr: &FloatOrExpr,
     player_data: &PlayerDataView,

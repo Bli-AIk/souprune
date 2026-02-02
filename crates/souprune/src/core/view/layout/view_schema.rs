@@ -30,29 +30,39 @@ pub struct ViewLayoutAsset {
     /// Root view nodes
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
+    /// **DEPRECATED**: Use FRE rules instead.
+    ///
+    /// **已弃用**：请使用 FRE 规则替代。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use FRE rules for navigation logic")]
     pub navigation: Option<HashMap<String, NavigationRuleDef>>,
+    /// **DEPRECATED**: Use FRE rules instead.
+    ///
+    /// **已弃用**：请使用 FRE 规则替代。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use FRE rules for transition logic")]
     pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
     #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
+    /// **DEPRECATED**: Use `initial_facts` and FRE rules instead.
+    ///
     /// Interactive layer definitions for unified navigation.
     ///
+    /// **已弃用**：请使用 `initial_facts` 和 FRE 规则替代。
+    ///
     /// 用于统一导航的交互层定义。
-    ///
-    /// This is the new unified system that works for both OW and Battle.
-    /// Format: { "layer_id": InteractiveLayerDef }
-    ///
-    /// 这是新的统一系统，适用于 OW 和 Battle。
-    /// 格式: { "层ID": InteractiveLayerDef }
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use initial_facts and FRE rules instead")]
     pub interactive_layers: Option<HashMap<String, InteractiveLayerDef>>,
+    /// **DEPRECATED**: Use `initial_facts` to set initial state.
+    ///
     /// The initial layer to activate when this layout is loaded.
-    /// If not specified, the first key in interactive_layers will be used.
+    ///
+    /// **已弃用**：请使用 `initial_facts` 设置初始状态。
     ///
     /// 加载此布局时要激活的初始层。
-    /// 如果未指定，将使用 interactive_layers 中的第一个键。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use initial_facts to set initial state")]
     pub initial_layer: Option<String>,
     /// Initial facts to set when this View is loaded.
     /// These facts are stored in the ViewRoot's local_facts database.
@@ -99,7 +109,22 @@ pub struct ViewNodeDef {
     #[serde(default)]
     #[allow(dead_code)]
     pub style: StyleDef,
+    /// Expression-based visibility control.
+    /// Replaces the old `visibility_rule` system with a simpler expression.
+    /// Examples: "fact('depth') == 1", "$selection == 0", "true"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 用更简洁的表达式替代旧的 `visibility_rule` 系统。
+    /// 示例: "fact('depth') == 1", "$selection == 0", "true"
     #[serde(default)]
+    pub visible_when: Option<String>,
+    /// **DEPRECATED**: Use `visible_when` instead.
+    /// Controls visibility based on active interactive layers.
+    ///
+    /// **已弃用**：请使用 `visible_when`。
+    /// 根据活跃的交互层控制可见性。
+    #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
     #[serde(default)]
     #[allow(dead_code)]
@@ -253,12 +278,21 @@ pub struct SpriteDef {
     #[serde(default)]
     pub frame_duration: Option<f32>,
 
-    /// Visibility rule for this sprite element.
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
+
+    /// **DEPRECATED**: Use `visible_when` instead.
     /// Controls visibility based on active interactive layers.
     ///
-    /// 此精灵元素的可见性规则。
+    /// **已弃用**：请使用 `visible_when`。
     /// 根据活跃的交互层控制可见性。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
@@ -275,12 +309,20 @@ pub struct TextDef {
     pub line_height: Option<f32>,
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
-    /// Visibility rule for this text element.
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
+    /// **DEPRECATED**: Use `visible_when` instead.
     /// Controls visibility based on active interactive layers.
     ///
-    /// 此文本元素的可见性规则。
+    /// **已弃用**：请使用 `visible_when`。
     /// 根据活跃的交互层控制可见性。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
@@ -290,11 +332,19 @@ pub struct ConditionalStyleDef {
     pub color: SerializableColor,
 }
 
+/// **DEPRECATED**: Use a regular sprite node with `visible_when` and expression-driven transform instead.
+///
 /// Definition for a reactive indicator element in RON configuration.
 /// This configures visual elements that respond to UI events such as selection changes.
 ///
+/// **已弃用**：请使用带有 `visible_when` 和表达式驱动变换的普通精灵节点替代。
+///
 /// RON 配置中响应式指示器元素的定义。
 /// 配置响应选择变更等 UI 事件的视觉元素。
+#[deprecated(
+    since = "0.6.0",
+    note = "Use a regular sprite node with `visible_when` and expression-driven transform instead"
+)]
 #[derive(Debug, Deserialize, Clone)]
 pub struct ReactiveIndicatorDef {
     #[allow(dead_code)]
@@ -497,12 +547,21 @@ pub struct StateSpriteConfig {
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
 
-    /// Visibility rule for this state sprite element.
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
+
+    /// **DEPRECATED**: Use `visible_when` instead.
     /// Controls visibility based on active interactive layers.
     ///
-    /// 此状态精灵元素的可见性规则。
+    /// **已弃用**：请使用 `visible_when`。
     /// 根据活跃的交互层控制可见性。
     #[serde(default)]
+    #[deprecated(since = "0.6.0", note = "Use `visible_when` expression instead")]
     pub visibility_rule: Option<UIVisibilityRuleDef>,
 }
 
