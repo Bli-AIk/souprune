@@ -84,7 +84,9 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
         .unwrap_or(false);
 
     // Search for the file
-    if let Some(found) = search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name)) {
+    if let Some(found) =
+        search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
+    {
         // Convert to asset path relative to assets directory
         let asset_path = found
             .strip_prefix(format!("projects/{}/assets/", mod_name))
@@ -92,7 +94,10 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
         return Some(asset_path.to_string_lossy().to_string());
     }
 
-    warn!("Sound file not found: {} (searched in {:?})", sound_name, audios_root);
+    warn!(
+        "Sound file not found: {} (searched in {:?})",
+        sound_name, audios_root
+    );
     None
 }
 

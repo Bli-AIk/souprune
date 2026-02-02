@@ -42,11 +42,10 @@ impl<'a> PlayerDataView<'a> {
     /// 支持 `fact('key')` 和 `$key` 语法。
     pub fn get_fact(&self, key: &str) -> Option<&FactValue> {
         // First check local facts
-        if let Some(local) = self.local_facts {
-            if let Some(value) = local.get_by_str(key) {
+        if let Some(local) = self.local_facts
+            && let Some(value) = local.get_by_str(key) {
                 return Some(value);
             }
-        }
         // Then check layered database (scene -> global)
         self.db.get_by_str(key)
     }
