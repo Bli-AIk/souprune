@@ -63,6 +63,40 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
     1
 }
 
+/// Format a fact value for use in expressions.
+/// - Integers are output as is
+/// - Floats are output with decimal point
+/// - Booleans are output as "true" or "false"
+/// - Strings are output as quoted strings
+///
+/// 格式化 fact 值以在表达式中使用。
+/// - 整数直接输出
+/// - 浮点数带小数点输出
+/// - 布尔值输出为 "true" 或 "false"
+/// - 字符串作为带引号的字符串输出
+fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
+    use bevy_fact_rule_event::FactValue;
+    match value {
+        FactValue::Int(i) => i.to_string(),
+        FactValue::Float(f) => format!("{}", f),
+        FactValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
+        FactValue::String(s) => format!("\"{}\"", s),
+    }
+}
+
+/// Get a fact value formatted for expression evaluation.
+/// Returns the default value string if fact not found.
+///
+/// 获取格式化用于表达式求值的 fact 值。
+/// 如果找不到 fact 则返回默认值字符串。
+fn get_fact_for_expr(player_data: &PlayerDataView, key: &str, default: &str) -> String {
+    if let Some(value) = player_data.get_fact(key) {
+        format_fact_for_expr(value)
+    } else {
+        default.to_string()
+    }
+}
+
 /// Preprocess expression string to handle `$name` and `fact('name')` syntax.
 /// - `$name` is converted to the actual fact value
 /// - `fact('name')` is converted to the actual fact value
@@ -75,13 +109,13 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
 fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> String {
     let mut result = expr.to_string();
 
-    // Handle $name syntax: replace $word with the fact value
-    // 处理 $name 语法：将 $word 替换为 fact 值
+    // Handle $name syntax: replace $word with the fact value (preserving type)
+    // 处理 $name 语法：将 $word 替换为 fact 值（保留类型）
     let dollar_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
     result = dollar_regex
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
-            format!("{}", player_data.get_fact_float(key, Some(0.0)))
+            get_fact_for_expr(player_data, key, "0")
         })
         .to_string();
 
@@ -93,8 +127,7 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
             let default_str = caps[2].trim();
-            let default_val = default_str.parse::<f64>().unwrap_or(0.0);
-            format!("{}", player_data.get_fact_float(key, Some(default_val)))
+            get_fact_for_expr(player_data, key, default_str)
         })
         .to_string();
 
@@ -104,7 +137,7 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
     result = fact_regex
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
-            format!("{}", player_data.get_fact_float(key, Some(0.0)))
+            get_fact_for_expr(player_data, key, "0")
         })
         .to_string();
 

@@ -23,6 +23,23 @@
         "active": true,       // Whether menu is active (vs bullet hell)
     },
 
+    // Interactive layers for battle menu navigation (required for AwaitInteraction chapters)
+    // 战斗菜单导航的交互层（AwaitInteraction 章节需要）
+    interactive_layers: {
+        "BattleMainMenu": (
+            // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons
+            // 1 行 4 列的 FIGHT/ACT/ITEM/MERCY 按钮
+            navigator_type: Grid(
+                rows: 1,
+                cols: 4,
+                looping: true,
+            ),
+            selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
+            sound_on_navigate: "choice.wav",
+            sound_on_confirm: "confirm.wav",
+        ),
+    },
+
     roots: [
         // ========================================
         // BATTLE BOX (Dialog/Bullet Box)
@@ -65,7 +82,7 @@
             name: "MenuCursor",
             visible_when: "$depth == 0 && $active",
             sprite: (
-                visual: (path: "common/heart"),
+                visual: "common/ui/heart",
                 // Position based on selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
                 // 位置基于选择：0=战斗，1=行动，2=物品，3=慈悲
                 transform: (

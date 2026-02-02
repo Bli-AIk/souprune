@@ -138,6 +138,9 @@ pub(crate) fn spawn_backpack_ui_system(
         OverworldEntity(),
         BackpackViewRoot,
         Transform::from_translation(Vec3::ZERO),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
         Name::new("Backpack Menu UI Root"),
     ));
 
@@ -278,8 +281,9 @@ pub(crate) fn backpack_state_transition_system(
             tracker.current_initial_layer.as_deref(),
             &layered_db,
         );
-        // Clear handle after spawning (we've used it)
-        // Keep initial_layer for reference
+        // Clear handle after spawning to prevent repeated spawning
+        // 生成后清除 handle 以防止重复生成
+        tracker.current_layout_handle = None;
     }
 
     // Detect exiting UI interactive state
@@ -396,6 +400,11 @@ pub(crate) fn state_transition_sound_system(
 
 /// Spawn UI using a loaded view layout asset.
 /// Used by the state transition system after the layout is loaded.
+///
+/// In v2 (FRE-based) layouts:
+/// - `interactive_layers` is optional (deprecated)
+/// - `initial_facts` is used for navigation state
+/// - UI is spawned regardless of interactive_layers presence
 fn spawn_backpack_ui_with_layout(
     commands: &mut Commands,
     interactive_layer_query: &Query<&InteractiveLayer>,
@@ -416,60 +425,61 @@ fn spawn_backpack_ui_with_layout(
         return;
     }
 
-    let Some(interactive_layers) = layout.interactive_layers.as_ref() else {
-        warn!("No interactive_layers defined in view layout, skipping UI spawn");
-        return;
-    };
-
-    // Use override initial layer from state config, fall back to layout's initial_layer
-    let initial_layer = override_initial_layer
-        .map(|s| s.to_string())
-        .or_else(|| layout.initial_layer.clone());
-
-    let Some(ref initial_layer_name) = initial_layer else {
-        warn!("No initial_layer configured in state config or view layout, skipping UI spawn");
-        return;
-    };
-
-    if !interactive_layers.contains_key(initial_layer_name) {
-        warn!(
-            "initial_layer '{}' not found in interactive_layers. Available: {:?}",
-            initial_layer_name,
-            interactive_layers.keys().collect::<Vec<_>>()
-        );
-        return;
-    }
-
+    // Spawn the BackpackViewRoot entity
+    // The actual view elements will be spawned by spawn_ron_view_system
+    // 生成 BackpackViewRoot 实体
+    // 实际的视图元素将由 spawn_ron_view_system 生成
     commands.spawn((
         OverworldEntity(),
         BackpackViewRoot,
         Transform::from_translation(Vec3::ZERO),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
         Name::new("UI Interactive Root"),
     ));
 
-    for (layer_id, layer_def) in interactive_layers {
-        let mut layer = layer_def.build(layer_id, &player_data);
+    // Spawn InteractiveLayers if defined (legacy/backwards compatibility)
+    // 如果定义了 InteractiveLayers 则生成（旧版/向后兼容）
+    if let Some(interactive_layers) = layout.interactive_layers.as_ref() {
+        // Use override initial layer from state config, fall back to layout's initial_layer
+        let initial_layer = override_initial_layer
+            .map(|s| s.to_string())
+            .or_else(|| layout.initial_layer.clone());
 
-        if layer_id == initial_layer_name {
-            layer.is_active = true;
+        for (layer_id, layer_def) in interactive_layers {
+            let mut layer = layer_def.build(layer_id, &player_data);
+
+            // Activate the initial layer if specified
+            if let Some(ref initial_layer_name) = initial_layer {
+                if layer_id == initial_layer_name {
+                    layer.is_active = true;
+                }
+            }
+
+            commands.spawn((
+                OverworldEntity(),
+                layer,
+                Name::new(format!("InteractiveLayer:{}", layer_id)),
+            ));
+
+            info!(
+                "Spawned InteractiveLayer '{}' for UI interactive state",
+                layer_id
+            );
         }
 
-        commands.spawn((
-            OverworldEntity(),
-            layer,
-            Name::new(format!("InteractiveLayer:{}", layer_id)),
-        ));
-
-        info!(
-            "Spawned InteractiveLayer '{}' for UI interactive state",
-            layer_id
-        );
+        if let Some(ref initial_layer_name) = initial_layer {
+            info!(
+                "Spawned UI with InteractiveLayer system, initial layer: '{}'",
+                initial_layer_name
+            );
+        }
+    } else {
+        // v2 mode: No interactive_layers, UI uses initial_facts + FRE rules
+        // v2 模式：没有 interactive_layers，UI 使用 initial_facts + FRE 规则
+        info!("Spawned UI in v2 mode (FRE-based, no interactive_layers)");
     }
-
-    info!(
-        "Spawned UI with InteractiveLayer system, initial layer: '{}'",
-        initial_layer_name
-    );
 }
 
 /// Internal helper function for spawning backpack UI (legacy, uses ViewLayoutHandle).
@@ -523,6 +533,9 @@ fn spawn_backpack_ui_internal(
         OverworldEntity(),
         BackpackViewRoot,
         Transform::from_translation(Vec3::ZERO),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
         Name::new("Backpack Menu UI Root"),
     ));
 

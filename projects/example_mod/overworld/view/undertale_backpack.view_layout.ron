@@ -29,6 +29,72 @@
         "active": true,
     },
 
+    // Interactive layers for backpack menu navigation
+    // 背包菜单导航的交互层
+    interactive_layers: {
+        "BackpackMenu": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 2,
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    condition: "index == 0 && !player.inventory.is_empty",
+                    action: GotoLayer("BackpackItem"),
+                ),
+                (
+                    condition: "index == 1",
+                    action: GotoLayer("BackpackStatus"),
+                ),
+            ],
+            on_cancel: PopState,
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItem": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: "max(inventory.len(), 1)",
+                looping: false,
+            ),
+            selectable_elements: [],
+            sound_on_navigate: "choice.wav",
+            on_confirm: [
+                (
+                    action: GotoLayer("BackpackItemOptions"),
+                ),
+            ],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackItemOptions": (
+            navigator_type: Linear(
+                direction: Horizontal,
+                option_count: 3,
+                looping: false,
+            ),
+            selectable_elements: ["ItemLayerOptionUse", "ItemLayerOptionInfo", "ItemLayerOptionDrop"],
+            sound_on_navigate: "choice.wav",
+            on_cancel: GotoLayer("BackpackItem"),
+            sound_on_confirm: "confirm.wav",
+        ),
+        "BackpackStatus": (
+            navigator_type: Linear(
+                direction: Vertical,
+                option_count: 1,
+                looping: false,
+            ),
+            selectable_elements: [],
+            on_cancel: GotoLayer("BackpackMenu"),
+            sound_on_confirm: "confirm.wav",
+        ),
+    },
+    // The initial layer to activate when this layout is loaded
+    // 加载此布局时激活的初始层
+    initial_layer: "BackpackMenu",
+
     roots: [
         // ========================================
         // MENU BOX (ITEM/STAT) - Always visible
@@ -83,7 +149,7 @@
             name: "MenuCursor",
             visible_when: "$depth == 0",
             sprite: (
-                visual: (path: "common/heartsmall"),
+                visual: "common/ui/heartsmall",
                 // Position calculated by expression: origin + step * selection
                 // 位置由表达式计算：origin + step * selection
                 transform: (
@@ -211,7 +277,7 @@
             name: "ItemCursor",
             visible_when: "$depth == 1",
             sprite: (
-                visual: (path: "common/heartsmall"),
+                visual: "common/ui/heartsmall",
                 transform: (
                     translation: (
                         "-72.0",                          // X: fixed
@@ -230,7 +296,7 @@
             name: "OptionsCursor",
             visible_when: "$depth == 2",
             sprite: (
-                visual: (path: "common/heartsmall"),
+                visual: "common/ui/heartsmall",
                 // Position based on selection: 0=USE, 1=INFO, 2=DROP
                 // 位置基于选择：0=使用，1=信息，2=丢弃
                 transform: (
