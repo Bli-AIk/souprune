@@ -149,13 +149,32 @@ pub fn spawn_ron_view_for_entity(
     // 从布局路径生成命名空间
     let namespace = crate::core::view::components::ViewRoot::namespace_from_path(layout_path);
 
+    // Create ViewRoot with local facts initialized from layout
+    // 创建带有从布局初始化的局部事实的 ViewRoot
+    let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
+
+    // Initialize local_facts from initial_facts in layout
+    // 从布局中的 initial_facts 初始化 local_facts
+    if let Some(initial_facts) = &view_layout.initial_facts {
+        for (key, value) in initial_facts {
+            use crate::core::view::layout::InitialFactValue;
+            match value {
+                InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
+                InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
+                InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
+                InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+            }
+        }
+        info!(
+            "[ViewRoot] Initialized {} local facts for '{}'",
+            initial_facts.len(),
+            layout_path
+        );
+    }
+
     // Attach ViewRoot to the view entity
     // 为视图实体附加 ViewRoot 组件
-    commands
-        .entity(view_entity)
-        .insert(crate::core::view::components::ViewRoot::new(
-            layout_path.to_string(),
-        ));
+    commands.entity(view_entity).insert(view_root);
 
     // Spawn InteractiveLayers if defined
     // 如果定义了交互层则生成

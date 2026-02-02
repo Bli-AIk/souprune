@@ -4,7 +4,7 @@ use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
 use crate::core::item::ItemId;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
 /// Helper struct to read player data from LayeredFactDatabase.
 /// This provides a view into player facts for the View system.
@@ -13,11 +13,65 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 /// 为 View 系统提供玩家事实的视图。
 pub struct PlayerDataView<'a> {
     db: &'a LayeredFactDatabase,
+    /// Optional local facts from ViewRoot (View-specific facts)
+    /// 来自 ViewRoot 的可选局部事实（View 特定的事实）
+    local_facts: Option<&'a FactDatabase>,
 }
 
 impl<'a> PlayerDataView<'a> {
     pub fn new(db: &'a LayeredFactDatabase) -> Self {
-        Self { db }
+        Self {
+            db,
+            local_facts: None,
+        }
+    }
+
+    /// Create a PlayerDataView with local facts from a ViewRoot.
+    ///
+    /// 创建一个带有来自 ViewRoot 局部事实的 PlayerDataView。
+    pub fn with_local_facts(db: &'a LayeredFactDatabase, local_facts: &'a FactDatabase) -> Self {
+        Self {
+            db,
+            local_facts: Some(local_facts),
+        }
+    }
+
+    /// Get a fact value with priority: local_facts -> scene -> global.
+    /// Supports `fact('key')` and `$key` syntax.
+    ///
+    /// 获取事实值，优先级为：local_facts -> scene -> global。
+    /// 支持 `fact('key')` 和 `$key` 语法。
+    pub fn get_fact(&self, key: &str) -> Option<&FactValue> {
+        // First check local facts
+        if let Some(local) = self.local_facts {
+            if let Some(value) = local.get_by_str(key) {
+                return Some(value);
+            }
+        }
+        // Then check layered database (scene -> global)
+        self.db.get_by_str(key)
+    }
+
+    /// Get a fact value as f64, with optional default.
+    ///
+    /// 获取事实值为 f64，带可选默认值。
+    pub fn get_fact_float(&self, key: &str, default: Option<f64>) -> f64 {
+        if let Some(value) = self.get_fact(key) {
+            match value {
+                FactValue::Float(f) => *f,
+                FactValue::Int(i) => *i as f64,
+                FactValue::Bool(b) => {
+                    if *b {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                FactValue::String(_) => default.unwrap_or(0.0),
+            }
+        } else {
+            default.unwrap_or(0.0)
+        }
     }
 
     pub fn name(&self) -> String {
@@ -150,6 +204,54 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
     1
 }
 
+/// Preprocess expression string to handle `$name` and `fact('name')` syntax.
+/// - `$name` is converted to the actual fact value
+/// - `fact('name')` is converted to the actual fact value
+/// - `fact_or('name', default)` is converted to the actual fact value or default
+///
+/// 预处理表达式字符串以处理 `$name` 和 `fact('name')` 语法。
+/// - `$name` 会被转换为实际的 fact 值
+/// - `fact('name')` 会被转换为实际的 fact 值
+/// - `fact_or('name', default)` 会被转换为实际的 fact 值或默认值
+fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> String {
+    let mut result = expr.to_string();
+
+    // Handle $name syntax: replace $word with the fact value
+    // 处理 $name 语法：将 $word 替换为 fact 值
+    let dollar_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+    result = dollar_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let key = &caps[1];
+            format!("{}", player_data.get_fact_float(key, Some(0.0)))
+        })
+        .to_string();
+
+    // Handle fact_or('name', default) syntax
+    // 处理 fact_or('name', default) 语法
+    let fact_or_regex =
+        regex::Regex::new(r#"fact_or\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\s*\)"#).unwrap();
+    result = fact_or_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let key = &caps[1];
+            let default_str = caps[2].trim();
+            let default_val = default_str.parse::<f64>().unwrap_or(0.0);
+            format!("{}", player_data.get_fact_float(key, Some(default_val)))
+        })
+        .to_string();
+
+    // Handle fact('name') syntax
+    // 处理 fact('name') 语法
+    let fact_regex = regex::Regex::new(r#"fact\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+    result = fact_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let key = &caps[1];
+            format!("{}", player_data.get_fact_float(key, Some(0.0)))
+        })
+        .to_string();
+
+    result
+}
+
 pub fn evaluate_float_expr(
     expr: &FloatOrExpr,
     player_data: &PlayerDataView,
@@ -162,6 +264,10 @@ pub fn evaluate_float_expr(
                 ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
                 HashMapContext,
             };
+
+            // Preprocess fact expressions before evaluation
+            // 在求值前预处理 fact 表达式
+            let processed_expr = preprocess_fact_expressions(expr_str, player_data);
 
             let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
 
@@ -269,7 +375,7 @@ pub fn evaluate_float_expr(
                 let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
             }
 
-            match evalexpr::eval_with_context(expr_str, &context) {
+            match evalexpr::eval_with_context(&processed_expr, &context) {
                 Ok(val) => {
                     if let Ok(f) = val.as_float() {
                         let f_f64: f64 = f;

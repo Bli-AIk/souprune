@@ -3,6 +3,7 @@
 //! 视图元素系统，带有撤销/重做/重置的历史跟踪。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::FactDatabase;
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
@@ -61,6 +62,14 @@ pub struct ViewRoot {
     /// 命名空间（从布局路径自动生成）。
     /// 示例: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
     pub namespace: String,
+
+    /// Local fact storage for this View instance.
+    /// Automatically cleared when the View is despawned.
+    ///
+    /// 此 View 实例的局部事实存储。
+    /// 当 View 被销毁时自动清空。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub local_facts: FactDatabase,
 }
 
 impl ViewRoot {
@@ -72,6 +81,7 @@ impl ViewRoot {
         Self {
             layout_path,
             namespace,
+            local_facts: FactDatabase::new(),
         }
     }
 

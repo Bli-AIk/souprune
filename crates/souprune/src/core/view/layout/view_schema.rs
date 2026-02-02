@@ -54,6 +54,29 @@ pub struct ViewLayoutAsset {
     /// 如果未指定，将使用 interactive_layers 中的第一个键。
     #[serde(default)]
     pub initial_layer: Option<String>,
+    /// Initial facts to set when this View is loaded.
+    /// These facts are stored in the ViewRoot's local_facts database.
+    /// Format: { "key": value } where value can be int, float, bool, or string.
+    ///
+    /// 加载此 View 时要设置的初始事实。
+    /// 这些事实存储在 ViewRoot 的 local_facts 数据库中。
+    /// 格式: { "key": value }，其中 value 可以是 int、float、bool 或 string。
+    #[serde(default)]
+    pub initial_facts: Option<HashMap<String, InitialFactValue>>,
+}
+
+/// Value type for initial facts in View Schema.
+/// Supports int, float, bool, and string values.
+///
+/// View Schema 中初始事实的值类型。
+/// 支持 int、float、bool 和 string 值。
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum InitialFactValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
 }
 
 #[derive(Debug, Deserialize, Clone)]
