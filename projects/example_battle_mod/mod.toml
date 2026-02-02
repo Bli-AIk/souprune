@@ -3,6 +3,12 @@ version = "0.1.0"
 authors = ["Your Name"]
 description = "An example mod for SoupRune (Battle Only)."
 
+# Resource directories configuration
+# 资源目录配置
+[resources]
+textures = "textures"      # Texture/sprite resources / 图片资源目录
+audios = "audios"          # Audio resources / 音频资源目录
+
 [dependencies]
 # List dependencies here
 
