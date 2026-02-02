@@ -7,6 +7,9 @@
 // - `visible_when`: Expression-based visibility control
 // - `initial_facts`: View-local state initialization
 // - `state_sprite`: Data-driven button highlighting
+//
+// NOTE: Navigation is handled by battle_view_navigation_system in battle/fre/bridge.rs
+// 注意：导航由 battle/fre/bridge.rs 中的 battle_view_navigation_system 处理
 
 (
     version: 2,
@@ -17,23 +20,6 @@
         "depth": 0,           // 0=main menu, 1=submenu
         "selection": 0,       // Current selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
         "active": true,       // Whether menu is active (vs bullet hell)
-    },
-
-    // Interactive layers for battle menu navigation (required for AwaitInteraction chapters)
-    // 战斗菜单导航的交互层（AwaitInteraction 章节需要）
-    interactive_layers: {
-        "BattleMainMenu": (
-            // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons
-            // 1 行 4 列的 FIGHT/ACT/ITEM/MERCY 按钮
-            navigator_type: Grid(
-                rows: 1,
-                cols: 4,
-                looping: true,
-            ),
-            selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
-            sound_on_navigate: "choice.wav",
-            sound_on_confirm: "confirm.wav",
-        ),
     },
 
     roots: [

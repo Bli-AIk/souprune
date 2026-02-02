@@ -13,6 +13,9 @@
 // - depth 1: Item list
 // - depth 2: Item options (USE/INFO/DROP)
 // - depth 3: Status page
+//
+// NOTE: Navigation is handled by view_local_facts_navigation_system in overworld/view.rs
+// 注意：导航由 overworld/view.rs 中的 view_local_facts_navigation_system 处理
 
 (
     version: 2,
@@ -24,72 +27,6 @@
         "selection": 0,
         "active": true,
     },
-
-    // Interactive layers for backpack menu navigation
-    // 背包菜单导航的交互层
-    interactive_layers: {
-        "BackpackMenu": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: 2,
-                looping: false,
-            ),
-            selectable_elements: [],
-            sound_on_navigate: "choice.wav",
-            on_confirm: [
-                (
-                    condition: "index == 0 && !player.inventory.is_empty",
-                    action: GotoLayer("BackpackItem"),
-                ),
-                (
-                    condition: "index == 1",
-                    action: GotoLayer("BackpackStatus"),
-                ),
-            ],
-            on_cancel: PopState,
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackItem": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: "max(inventory.len(), 1)",
-                looping: false,
-            ),
-            selectable_elements: [],
-            sound_on_navigate: "choice.wav",
-            on_confirm: [
-                (
-                    action: GotoLayer("BackpackItemOptions"),
-                ),
-            ],
-            on_cancel: GotoLayer("BackpackMenu"),
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackItemOptions": (
-            navigator_type: Linear(
-                direction: Horizontal,
-                option_count: 3,
-                looping: false,
-            ),
-            selectable_elements: ["ItemLayerOptionUse", "ItemLayerOptionInfo", "ItemLayerOptionDrop"],
-            sound_on_navigate: "choice.wav",
-            on_cancel: GotoLayer("BackpackItem"),
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackStatus": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: 1,
-                looping: false,
-            ),
-            selectable_elements: [],
-            on_cancel: GotoLayer("BackpackMenu"),
-            sound_on_confirm: "confirm.wav",
-        ),
-    },
-    // The initial layer to activate when this layout is loaded
-    // 加载此布局时激活的初始层
-    initial_layer: "BackpackMenu",
 
     roots: [
         // ========================================
