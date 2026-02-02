@@ -235,10 +235,20 @@ pub(crate) fn backpack_state_transition_system(
     let state_name = overworld_state.name();
     let is_ui_interactive = state_config.is_ui_interactive(state_name);
 
+    // Log state every frame for debugging
+    trace!(
+        "[lifecycle] state='{}', is_ui_interactive={}, was_ui_interactive={}, has_handle={}, root_count={}",
+        state_name,
+        is_ui_interactive,
+        tracker.was_ui_interactive,
+        tracker.current_layout_handle.is_some(),
+        root_query.iter().count()
+    );
+
     // Detect entering UI interactive state
     if is_ui_interactive && !tracker.was_ui_interactive {
         info!(
-            "Entering UI interactive state '{}' - loading view layout",
+            "[lifecycle] Entering UI interactive state '{}' - loading view layout",
             state_name
         );
 
@@ -253,14 +263,14 @@ pub(crate) fn backpack_state_transition_system(
                 .and_then(|s| s.initial_layer.clone());
 
             info!(
-                "Loading view layout: '{}', initial_layer: {:?}",
+                "[lifecycle] Loading view layout: '{}', initial_layer: {:?}",
                 view_layout_path, initial_layer
             );
             tracker.current_layout_handle = Some(handle);
             tracker.current_initial_layer = initial_layer;
         } else {
             warn!(
-                "UI interactive state '{}' has no view_layout configured",
+                "[lifecycle] UI interactive state '{}' has no view_layout configured",
                 state_name
             );
         }
@@ -272,7 +282,30 @@ pub(crate) fn backpack_state_transition_system(
         && let Some(ref handle) = tracker.current_layout_handle
         && let Some(layout) = view_layouts.get(handle)
     {
-        debug!("View layout loaded, spawning UI for state '{}'", state_name);
+        info!(
+            "[lifecycle] View layout loaded, spawning UI for state '{}'",
+            state_name
+        );
+
+        // Get the view_layout path for the ViewLayoutHandle resource
+        // 获取 ViewLayoutHandle 资源的 view_layout 路径
+        let view_layout_path = state_config
+            .get_view_layout(state_name)
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        // Insert ViewLayoutHandle resource so spawn_ron_view_system can find it
+        // 插入 ViewLayoutHandle 资源以便 spawn_ron_view_system 可以找到它
+        info!(
+            "[lifecycle] Inserting ViewLayoutHandle resource: '{}'",
+            view_layout_path
+        );
+        commands.insert_resource(ViewLayoutHandle {
+            handle: handle.clone(),
+            last_modified: None,
+            path: view_layout_path,
+        });
+
         spawn_backpack_ui_with_layout(
             &mut commands,
             &interactive_layer_query,
@@ -283,13 +316,18 @@ pub(crate) fn backpack_state_transition_system(
         );
         // Clear handle after spawning to prevent repeated spawning
         // 生成后清除 handle 以防止重复生成
+        info!("[lifecycle] Clearing tracker.current_layout_handle after spawn");
         tracker.current_layout_handle = None;
     }
 
     // Detect exiting UI interactive state
     if !is_ui_interactive && tracker.was_ui_interactive {
-        info!("Exiting UI interactive state - despawning UI");
+        info!("[lifecycle] Exiting UI interactive state - despawning UI");
         despawn_backpack_ui_internal(&mut commands, &root_query, &interactive_layer_entities);
+        // Remove ViewLayoutHandle resource when exiting UI state
+        // 退出 UI 状态时移除 ViewLayoutHandle 资源
+        info!("[lifecycle] Removing ViewLayoutHandle resource");
+        commands.remove_resource::<ViewLayoutHandle>();
         tracker.current_layout_handle = None;
         tracker.current_initial_layer = None;
     }

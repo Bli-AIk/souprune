@@ -628,14 +628,23 @@ pub(crate) fn update_sdf_view_shape_system(
 
 /// Toggle UI box visibility according to the active [`ViewLayer`] (supports both Overworld Backpack and Battle states).
 ///
+/// NOTE: This system skips entities that have `VisibleWhen` component, as those are
+/// controlled by `evaluate_visible_when_system` instead.
+///
 /// 根据当前激活的 [`ViewLayer`] 切换 UI 框可见性（支持 Overworld 背包和 Battle 场景）。
+///
+/// 注意：此系统跳过具有 `VisibleWhen` 组件的实体，因为它们由
+/// `evaluate_visible_when_system` 控制。
 pub(crate) fn update_ui_box_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     interactive_layer_query: Query<&InteractiveLayer>,
     _parent_query: Query<&ChildOf>,
-    mut box_query: Query<(Entity, &ViewBoxVisibility, &mut Visibility), With<ViewBox>>,
+    mut box_query: Query<
+        (Entity, &ViewBoxVisibility, &mut Visibility),
+        (With<ViewBox>, Without<super::components::VisibleWhen>),
+    >,
 ) {
     // Check if we should process UI visibility (Battle or Overworld with ui_interactive)
     // 检查是否应该处理 UI 可见性（Battle 或具有 ui_interactive 的 Overworld 状态）
@@ -711,8 +720,14 @@ pub(crate) fn update_ui_box_visibility_system(
 /// Toggle UI container visibility according to the active [`ViewLayer`] (supports states with ui_interactive and Battle states).
 /// This system handles pure container nodes that don't have a ViewBox but need visibility control.
 ///
+/// NOTE: This system skips entities that have `VisibleWhen` component, as those are
+/// controlled by `evaluate_visible_when_system` instead.
+///
 /// 根据当前激活的 [`ViewLayer`] 切换 UI 容器可见性（支持具有 ui_interactive 的状态和 Battle 场景）。
 /// 此系统处理没有 ViewBox 但需要可见性控制的纯容器节点。
+///
+/// 注意：此系统跳过具有 `VisibleWhen` 组件的实体，因为它们由
+/// `evaluate_visible_when_system` 控制。
 pub(crate) fn update_ui_container_visibility_system(
     app_state: Res<State<crate::app_state::AppState>>,
     overworld_state: Option<Res<State<OverworldSubState>>>,
@@ -725,7 +740,10 @@ pub(crate) fn update_ui_container_visibility_system(
             &super::components::ViewContainerVisibility,
             &mut Visibility,
         ),
-        With<super::components::ViewContainer>,
+        (
+            With<super::components::ViewContainer>,
+            Without<super::components::VisibleWhen>,
+        ),
     >,
 ) {
     // Check if we should process UI visibility (Battle or Overworld with ui_interactive)

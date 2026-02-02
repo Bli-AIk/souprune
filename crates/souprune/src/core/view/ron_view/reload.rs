@@ -14,17 +14,29 @@ use crate::extra::debug::DebugCamera;
 /// Load view layout from Tiled map properties (fallback for states.ron view_layout).
 /// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
 ///
+/// NOTE: This system does NOT trigger hot reload (pending_reload). It only preloads
+/// the ViewLayoutHandle so it's ready when the UI state is entered.
+///
 /// 从 Tiled 地图属性加载视图布局（作为 states.ron view_layout 的回退）。
 /// 此系统仅在 states.ron 未定义 view_layout 时设置 ViewLayoutHandle。
+///
+/// 注意：此系统不触发热重载（pending_reload）。它仅预加载
+/// ViewLayoutHandle 以便在进入 UI 状态时准备就绪。
 pub fn update_view_from_map_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     tiled_maps_query: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
+    existing_layout_handle: Option<Res<ViewLayoutHandle>>,
     mut current_view_path: Local<Option<String>>,
     mut validated_maps: Local<std::collections::HashSet<bevy::asset::AssetId<TiledMapAsset>>>,
 ) {
+    // Skip if ViewLayoutHandle already exists (set by backpack_state_transition_system)
+    // 如果 ViewLayoutHandle 已存在（由 backpack_state_transition_system 设置），则跳过
+    if existing_layout_handle.is_some() {
+        return;
+    }
+
     for tiled_map in tiled_maps_query.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
             // Validate map properties once per map load
@@ -35,12 +47,14 @@ pub fn update_view_from_map_system(
             }
 
             // Load view layout from map property (using schema key constant)
+            // This is a PRELOAD, not a hot reload trigger
+            // 这是预加载，不是热重载触发
             if let Some(path) = get_string_property(&map_asset.map.properties, keys::BACKPACK_UI)
                 && current_view_path.as_deref() != Some(path)
             {
                 let path_owned = path.to_string();
                 info!(
-                    "Map property '{}': loading view layout from '{}'",
+                    "[update_view_from_map] Map property '{}': preloading view layout from '{}'",
                     keys::BACKPACK_UI,
                     path_owned
                 );
@@ -54,13 +68,12 @@ pub fn update_view_from_map_system(
                     path: path_owned,
                 });
 
-                if let Some(ref mut w) = watcher {
-                    w.pending_reload = true;
-                } else {
-                    let mut w = ViewLayoutWatcher::new();
-                    w.pending_reload = true;
-                    commands.insert_resource(w);
-                }
+                // NOTE: Do NOT set pending_reload here!
+                // pending_reload is for hot-reloading already visible views.
+                // Initial spawning is handled by backpack_state_transition_system.
+                // 注意：不要在这里设置 pending_reload！
+                // pending_reload 是用于热重载已显示的视图的。
+                // 初始生成由 backpack_state_transition_system 处理。
             }
         }
     }
@@ -126,11 +139,26 @@ pub fn rebuild_reloaded_view_system(
         return;
     }
 
+    let has_handle = view_layout_handle.is_some();
+    let backpack_root_count = backpack_root_query.iter().count();
+    let layer_count = interactive_layer_query.iter().count();
+
+    info!(
+        "[rebuild_reloaded_view] pending_reload=TRUE, has_handle={}, backpack_roots={}, layers={}",
+        has_handle, backpack_root_count, layer_count
+    );
+
     let Some(handle) = view_layout_handle else {
+        debug!(
+            "[rebuild_reloaded_view] No ViewLayoutHandle resource, skipping but KEEPING pending_reload=true"
+        );
         return;
     };
 
     let Some(view_layout) = view_layouts.get(&handle.handle) else {
+        debug!(
+            "[rebuild_reloaded_view] ViewLayout not yet loaded, skipping but KEEPING pending_reload=true"
+        );
         return;
     };
 
@@ -138,14 +166,16 @@ pub fn rebuild_reloaded_view_system(
     let has_target = !backpack_root_query.is_empty() || !interactive_layer_query.is_empty();
 
     if !has_target {
-        debug!("RON view hot reload pending - no view entity active, will retry rebuild");
+        debug!(
+            "[rebuild_reloaded_view] RON view hot reload pending - no view entity active, will retry rebuild (KEEPING pending_reload=true)"
+        );
         return;
     }
 
-    info!("Asset loaded! Rebuilding view...");
+    info!("[rebuild_reloaded_view] All conditions met! Rebuilding view...");
 
     let Ok(camera_transform) = camera_query.single() else {
-        warn!("No Camera2d found for view rebuild!");
+        warn!("[rebuild_reloaded_view] No Camera2d found for view rebuild!");
         watcher.pending_reload = false;
         return;
     };
@@ -156,7 +186,7 @@ pub fn rebuild_reloaded_view_system(
     let despawn_count = ron_view_query.iter().count();
     if despawn_count > 0 {
         info!(
-            "Despawning {} old view entities before rebuild",
+            "[rebuild_reloaded_view] Despawning {} old view entities before rebuild",
             despawn_count
         );
         for entity in ron_view_query.iter() {

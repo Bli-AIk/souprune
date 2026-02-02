@@ -69,16 +69,28 @@ pub fn spawn_ron_view_system(
         return;
     };
 
+    // Log query counts for debugging
+    let backpack_count = backpack_root_query.iter().count();
+    let battle_count = battle_root_query.iter().count();
+    let chase_count = chase_root_query.iter().count();
+    trace!(
+        "[spawn_ron_view] backpack_roots={}, battle_roots={}, chase_roots={}, layout_path='{}'",
+        backpack_count, battle_count, chase_count, view_layout_handle.path
+    );
+
     let mut spawned_any = false;
 
     // Helper closure to spawn view for an entity
     let mut spawn_for_entity = |view_entity: Entity, label: &str| {
-        info!("Spawning view from RON layout ({})", label);
+        info!(
+            "[spawn_ron_view] Spawning view from RON layout ({}), entity={:?}",
+            label, view_entity
+        );
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
             Err(_) => {
-                warn!("No Camera2d found for view spawning!");
+                warn!("[spawn_ron_view] No Camera2d found for view spawning!");
                 return false;
             }
         };
@@ -97,6 +109,10 @@ pub fn spawn_ron_view_system(
             &view_layout_handle.path,
         );
         commands.entity(view_entity).insert(ViewGenerated);
+        info!(
+            "[spawn_ron_view] Added ViewGenerated to entity {:?}",
+            view_entity
+        );
         true
     };
 

@@ -78,7 +78,7 @@ use text::{
     assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system,
     update_text_visibility_system,
 };
-use visible_when::evaluate_visible_when_system;
+use visible_when::{evaluate_visible_when_system, sync_interactive_layer_to_view_root_system};
 
 use crate::app_state::AppState;
 use components::state_sprite::{
@@ -200,6 +200,9 @@ impl Plugin for CoreViewPlugin {
                     evaluate_state_sprite_rules_system,
                     evaluate_new_state_sprites_system,
                     update_state_sprite_textures_system,
+                    // Sync InteractiveLayer state to ViewRoot local_facts
+                    // 同步 InteractiveLayer 状态到 ViewRoot local_facts
+                    sync_interactive_layer_to_view_root_system,
                     // visible_when expression evaluation system
                     // visible_when 表达式评估系统
                     evaluate_visible_when_system
