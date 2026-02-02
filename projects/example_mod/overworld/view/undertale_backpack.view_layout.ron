@@ -1,16 +1,12 @@
 #![enable(implicit_some)]
-// Undertale Backpack View Layout - NEW FRE-BASED VERSION
-// Undertale 背包视图布局 - 新版基于 FRE 的版本
+// Undertale Backpack View Layout
+// Undertale 背包视图布局
 //
-// This is a modernized version using the new FRE-based visibility system:
-// - Uses `visible_when` instead of `visibility_rule`
-// - Uses `initial_facts` instead of `interactive_layers`
-// - Cursor position driven by facts instead of `reactive_indicator`
-//
-// 这是使用新的基于 FRE 的可见性系统的现代化版本：
-// - 使用 `visible_when` 代替 `visibility_rule`
-// - 使用 `initial_facts` 代替 `interactive_layers`
-// - 光标位置由 fact 驱动而非 `reactive_indicator`
+// View system features used in this layout:
+// 此布局使用的视图系统特性：
+// - `visible_when`: Expression-based visibility control
+// - `initial_facts`: View-local state initialization
+// - Dynamic transforms: Expression-driven cursor positioning
 //
 // DEPTH MAPPING / 深度映射:
 // - depth 0: Main menu (ITEM/STAT)
@@ -19,7 +15,7 @@
 // - depth 3: Status page
 
 (
-    version: 2,  // New version for FRE-based system
+    version: 2,
 
     // View-local facts initialized when this layout is spawned
     // View 局部事实，在此布局生成时初始化
@@ -150,6 +146,7 @@
             visible_when: "$depth == 0",
             sprite: (
                 visual: "common/ui/heartsmall",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 // Position calculated by expression: origin + step * selection
                 // 位置由表达式计算：origin + step * selection
                 transform: (
@@ -278,6 +275,7 @@
             visible_when: "$depth == 1",
             sprite: (
                 visual: "common/ui/heartsmall",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 transform: (
                     translation: (
                         "-72.0",                          // X: fixed
@@ -297,6 +295,7 @@
             visible_when: "$depth == 2",
             sprite: (
                 visual: "common/ui/heartsmall",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 // Position based on selection: 0=USE, 1=INFO, 2=DROP
                 // 位置基于选择：0=使用，1=信息，2=丢弃
                 transform: (
