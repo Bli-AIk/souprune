@@ -17,28 +17,157 @@
 //! It handles playing sound effects and music with support for multiple formats.
 //!
 //! 处理音效和音乐播放，支持多种音频格式。
+//!
+//! ## Path Resolution
+//!
+//! ## 路径解析
+//!
+//! Sound names are resolved using the audios directory from mod.toml:
+//! - Simple name: `"choice.wav"` → searches in entire `{audios}` directory recursively
+//! - Extension optional: `"choice"` or `"choice.wav"` both work
+//!
+//! 音效名称使用 mod.toml 中的 audios 目录解析：
+//! - 简单名称：`"choice.wav"` → 在整个 `{audios}` 目录中递归搜索
+//! - 扩展名可选：`"choice"` 或 `"choice.wav"` 都可以
 
+use crate::config::load_config;
 use bevy::prelude::*;
+use std::path::Path;
+use tracing::warn;
+
+/// Supported audio extensions for automatic detection.
+///
+/// 自动检测支持的音频扩展名。
+const AUDIO_EXTENSIONS: &[&str] = &["wav", "ogg", "mp3", "flac"];
+
+/// Resolve a sound name to its asset path by searching in the audios directory.
+///
+/// 通过搜索 audios 目录将音效名称解析为资源路径。
+///
+/// # Path Resolution
+///
+/// 1. Check if the name already has an extension → search for exact match
+/// 2. Try adding common audio extensions
+/// 3. Search recursively in the entire audios directory
+///
+/// # 路径解析
+///
+/// 1. 检查名称是否已有扩展名 → 搜索精确匹配
+/// 2. 尝试添加常见音频扩展名
+/// 3. 在整个 audios 目录中递归搜索
+fn resolve_sound_path(sound_name: &str) -> Option<String> {
+    let config = load_config();
+    let mod_name = &config.project.mod_name;
+    let audios_dir = &config.resources.audios;
+
+    // Build the audios directory path
+    let audios_root = Path::new("projects")
+        .join(mod_name)
+        .join("assets")
+        .join(audios_dir);
+
+    if !audios_root.exists() {
+        warn!("Audios directory does not exist: {:?}", audios_root);
+        return None;
+    }
+
+    // Get the stem (filename without extension) for searching
+    let stem = Path::new(sound_name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(sound_name);
+
+    // Check if the name already has an audio extension
+    let has_extension = Path::new(sound_name)
+        .extension()
+        .map(|e| AUDIO_EXTENSIONS.contains(&e.to_str().unwrap_or("")))
+        .unwrap_or(false);
+
+    // Search for the file
+    if let Some(found) = search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name)) {
+        // Convert to asset path relative to assets directory
+        let asset_path = found
+            .strip_prefix(format!("projects/{}/assets/", mod_name))
+            .unwrap_or(&found);
+        return Some(asset_path.to_string_lossy().to_string());
+    }
+
+    warn!("Sound file not found: {} (searched in {:?})", sound_name, audios_root);
+    None
+}
+
+/// Recursively search for an audio file in a directory.
+///
+/// 在目录中递归搜索音频文件。
+fn search_audio_recursive(
+    dir: &Path,
+    stem: &str,
+    exact_name: Option<&str>,
+) -> Option<std::path::PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return None;
+    };
+
+    let mut results = Vec::new();
+
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+        if path.is_file() {
+            // If we have an exact name to match
+            if let Some(exact) = exact_name {
+                if file_name == exact {
+                    return Some(path);
+                }
+            } else {
+                // Match by stem with any audio extension
+                let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                let file_ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+                if file_stem == stem && AUDIO_EXTENSIONS.contains(&file_ext) {
+                    results.push(path.clone());
+                }
+            }
+        } else if path.is_dir() && !file_name.starts_with('.') {
+            // Recurse into subdirectories
+            if let Some(found) = search_audio_recursive(&path, stem, exact_name) {
+                return Some(found);
+            }
+        }
+    }
+
+    if results.len() > 1 {
+        warn!(
+            "Multiple audio files found for '{}': {:?}. Using first match.",
+            stem, results
+        );
+    }
+
+    results.into_iter().next()
+}
 
 // ============================================================================
 // Kira Audio Backend (default)
 // ============================================================================
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 mod kira_backend {
-    use bevy::prelude::*;
+    use super::*;
     use bevy_kira_audio::prelude::*;
 
     pub(crate) struct AudioPluginImpl;
 
     impl Plugin for AudioPluginImpl {
         fn build(&self, app: &mut App) {
-            app.add_plugins(AudioPlugin);
+            app.add_plugins(bevy_kira_audio::prelude::AudioPlugin);
         }
     }
 
-    pub fn play_sound_impl(audio: &Audio, asset_server: &AssetServer, sound_path: &str) {
-        let sound_handle = asset_server.load(format!("audios/sfx/{}", sound_path));
-        audio.play(sound_handle);
+    pub fn play_sound_impl(audio: &Audio, asset_server: &AssetServer, sound_name: &str) {
+        if let Some(path) = super::resolve_sound_path(sound_name) {
+            let sound_handle = asset_server.load(path);
+            audio.play(sound_handle);
+        }
     }
 
     pub fn play_bgm_impl(
@@ -129,18 +258,20 @@ mod seedling_backend {
         ));
     }
 
-    pub fn play_sound_impl(commands: &mut Commands, asset_server: &AssetServer, sound_path: &str) {
-        let sound_handle = asset_server.load(format!("audios/sfx/{}", sound_path));
-        // One-shot sounds go to SFX pool with full volume
-        // 一次性音效进入 SFX 池，使用全音量
-        commands.spawn((
-            Name::new(format!("SFX: {}", sound_path)),
-            SamplePlayer::new(sound_handle).with_volume(Volume::Decibels(0.0)), // Full volume (0dB = no attenuation)
-            SfxPool,
-            // Extend queue lifetime to prevent sounds from being skipped during resource loading
-            // 延长队列生命周期，防止音效在资源加载期间被跳过
-            SampleQueueLifetime(std::time::Duration::from_secs(10)),
-        ));
+    pub fn play_sound_impl(commands: &mut Commands, asset_server: &AssetServer, sound_name: &str) {
+        if let Some(path) = super::resolve_sound_path(sound_name) {
+            let sound_handle = asset_server.load(path);
+            // One-shot sounds go to SFX pool with full volume
+            // 一次性音效进入 SFX 池，使用全音量
+            commands.spawn((
+                Name::new(format!("SFX: {}", sound_name)),
+                SamplePlayer::new(sound_handle).with_volume(Volume::Decibels(0.0)), // Full volume (0dB = no attenuation)
+                SfxPool,
+                // Extend queue lifetime to prevent sounds from being skipped during resource loading
+                // 延长队列生命周期，防止音效在资源加载期间被跳过
+                SampleQueueLifetime(std::time::Duration::from_secs(10)),
+            ));
+        }
     }
 
     pub fn play_bgm_impl(
@@ -181,27 +312,37 @@ impl Plugin for AudioPlugin {
     }
 }
 
-/// Play a sound effect from the assets/audios/sfx directory.
+/// Play a sound effect by searching for it in the audios directory.
 ///
-/// 从 assets/audios/sfx 目录播放音效。
+/// 通过在 audios 目录中搜索来播放音效。
+///
+/// Sound names are resolved using the audios path from mod.toml.
+/// The file is searched recursively in the entire `{audios}` directory.
+/// Extension is optional - "choice" or "choice.wav" both work.
+///
+/// 音效名称使用 mod.toml 中的 audios 路径解析。
+/// 文件在整个 `{audios}` 目录中递归搜索。
+/// 扩展名可选 - "choice" 或 "choice.wav" 都可以。
 ///
 /// # Example with Kira
 /// ```ignore
+/// play_sound(&audio, &asset_server, "choice");
 /// play_sound(&audio, &asset_server, "choice.wav");
 /// ```
 ///
 /// # Example with Seedling
 /// ```ignore
+/// play_sound(&mut commands, &asset_server, "choice");
 /// play_sound(&mut commands, &asset_server, "choice.wav");
 /// ```
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-pub fn play_sound(audio: &bevy_kira_audio::Audio, asset_server: &AssetServer, sound_path: &str) {
-    play_sound_impl(audio, asset_server, sound_path);
+pub fn play_sound(audio: &bevy_kira_audio::Audio, asset_server: &AssetServer, sound_name: &str) {
+    play_sound_impl(audio, asset_server, sound_name);
 }
 
 #[cfg(feature = "firewheel")]
-pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_path: &str) {
-    play_sound_impl(commands, asset_server, sound_path);
+pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_name: &str) {
+    play_sound_impl(commands, asset_server, sound_name);
 }
 
 /// Play a sound effect using a full asset path (no prefix added).
