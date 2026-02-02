@@ -1,4 +1,5 @@
 pub mod parsing;
+pub mod player_data;
 pub mod reload;
 pub mod resources;
 pub mod setup;
