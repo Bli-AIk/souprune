@@ -18,7 +18,9 @@ pub fn update_hp_bar_shader_params(
     )>,
 ) {
     let player_data = PlayerDataView::new(&layered_db);
-    let hp_ratio = player_data.hp() as f32 / player_data.hp_max() as f32;
+    let hp = player_data.get_fact_int("player_hp").unwrap_or(0) as f32;
+    let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(1) as f32;
+    let hp_ratio = hp / hp_max;
 
     for (material_handle, mut lag, hp_bar) in query.iter_mut() {
         // Detect significant HP drop (Damage taken)
@@ -53,13 +55,13 @@ pub fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
         }
 
-        // Evaluate half_width from config expression, or use default formula
+        // Evaluate half_width from config expression - config is required
         let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
             // Get the third component (half_width) from the expression tuple
             evaluate_float_expr(&params.2, &player_data, None)
         } else {
-            // Default formula (kept for backward compatibility)
-            40.0 + (player_data.hp_max() as f32 - 20.0) * 95.0 / 79.0 / 2.0
+            // No config provided - use simple fallback, NOT game-specific formula
+            40.0
         };
 
         // Evaluate alpha from config if available
@@ -200,8 +202,8 @@ pub fn update_dynamic_text_system(
 
     info!(
         "[update_dynamic_text_system] LayeredFactDatabase changed! hp={}, hp_max={}",
-        player_data.hp(),
-        player_data.hp_max()
+        player_data.get_fact_int("player_hp").unwrap_or(0),
+        player_data.get_fact_int("player_hp_max").unwrap_or(0)
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {

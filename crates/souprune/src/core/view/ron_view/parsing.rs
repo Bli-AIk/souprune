@@ -17,11 +17,16 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
     let expr = expr.trim();
 
     if expr == "inventory.len()" {
-        return player_data.inventory().len();
+        return player_data
+            .get_fact_string_list("player_inventory")
+            .map(|list| list.len())
+            .unwrap_or(0);
     }
 
     if expr == "inventory_capacity" {
-        return player_data.inventory_capacity();
+        return player_data
+            .get_fact_int("player_inventory_capacity")
+            .unwrap_or(8) as usize;
     }
 
     if expr.starts_with("min(") && expr.ends_with(")") {
@@ -158,10 +163,7 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
 /// 计算 `visible_when` 表达式以确定可见性。
 /// 如果元素应该可见则返回 true，否则返回 false。
 pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
-    use evalexpr::{
-        ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
-        HashMapContext,
-    };
+    use evalexpr::{ContextWithMutableFunctions, DefaultNumericTypes, HashMapContext};
 
     // Handle empty expression as always visible
     let expr = expr.trim();
@@ -172,30 +174,24 @@ pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
         return false;
     }
 
-    // Preprocess fact expressions
+    // Preprocess fact expressions - this handles $var syntax
+    // 预处理事实表达式 - 处理 $var 语法
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
     let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
 
-    // Register player data variables
-    let _ = context.set_value(
-        "@player.hp".to_string(),
-        evalexpr::Value::Int(player_data.hp() as i64),
-    );
-    let _ = context.set_value(
-        "@player.hp_max".to_string(),
-        evalexpr::Value::Int(player_data.hp_max() as i64),
-    );
-    let _ = context.set_value(
-        "@player.lv".to_string(),
-        evalexpr::Value::Int(player_data.lv() as i64),
-    );
+    // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
+    // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
 
-    // Register helper functions
+    // Register helper functions that work with FRE data
+    // 注册与 FRE 数据配合使用的辅助函数
     let _ = context.set_function(
         "inventory_is_empty".to_string(),
         evalexpr::Function::new({
-            let is_empty = player_data.inventory().is_empty();
+            let is_empty = player_data
+                .get_fact_string_list("player_inventory")
+                .map(|list| list.is_empty())
+                .unwrap_or(true);
             move |_arg| Ok(evalexpr::Value::Boolean(is_empty))
         }),
     );
@@ -335,18 +331,8 @@ pub fn evaluate_float_expr(
                 }),
             );
 
-            let _ = context.set_value(
-                "@player.hp".to_string(),
-                evalexpr::Value::Int(player_data.hp() as i64),
-            );
-            let _ = context.set_value(
-                "@player.hp_max".to_string(),
-                evalexpr::Value::Int(player_data.hp_max() as i64),
-            );
-            let _ = context.set_value(
-                "@player.lv".to_string(),
-                evalexpr::Value::Int(player_data.lv() as i64),
-            );
+            // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
+            // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
 
             if let Some(t) = time {
                 // debug!("Setting @time to {}", t);
@@ -388,7 +374,7 @@ pub fn evaluate_float_expr(
 pub fn evaluate_float_expr_with_current(
     expr_str: &str,
     current_value: Option<f32>,
-    player_data: &PlayerDataView,
+    _player_data: &PlayerDataView,
     time: Option<f64>,
 ) -> f32 {
     use evalexpr::{
@@ -496,19 +482,8 @@ pub fn evaluate_float_expr_with_current(
         }),
     );
 
-    // Set player data variables
-    let _ = context.set_value(
-        "@player.hp".to_string(),
-        evalexpr::Value::Int(player_data.hp() as i64),
-    );
-    let _ = context.set_value(
-        "@player.hp_max".to_string(),
-        evalexpr::Value::Int(player_data.hp_max() as i64),
-    );
-    let _ = context.set_value(
-        "@player.lv".to_string(),
-        evalexpr::Value::Int(player_data.lv() as i64),
-    );
+    // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
+    // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
 
     if let Some(t) = time {
         let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
@@ -586,7 +561,44 @@ pub fn resolve_text_content(
                     result.push_str(&key);
                 }
                 continue;
+            } else if next_ch == '$' {
+                // New syntax: {$var} - direct FRE fact access
+                // 新语法：{$var} - 直接访问 FRE 事实
+                chars.next();
+                let mut key = String::new();
+                let mut found_closing = false;
+
+                for ch in chars.by_ref() {
+                    if ch == '}' {
+                        found_closing = true;
+                        break;
+                    }
+                    key.push(ch);
+                }
+
+                if found_closing {
+                    // Try to get the fact value and convert to string
+                    let value = if let Some(fact) = player_data.get_fact(&key) {
+                        match fact {
+                            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+                            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+                            bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+                            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+                            bevy_fact_rule_event::FactValue::StringList(list) => list.join(", "),
+                        }
+                    } else {
+                        warn!("Fact '{}' not found for template substitution", key);
+                        format!("<{}>", key)
+                    };
+                    result.push_str(&value);
+                } else {
+                    result.push_str("{$");
+                    result.push_str(&key);
+                }
+                continue;
             } else if next_ch == '@' {
+                // Legacy syntax: {@path} - uses resolve_data_path
+                // 旧语法：{@path} - 使用 resolve_data_path
                 chars.next();
                 let mut path = String::new();
                 let mut found_closing = false;
@@ -617,17 +629,33 @@ pub fn resolve_text_content(
 }
 
 pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool {
+    // Helper closure to get inventory
+    let get_inventory = || {
+        player_data
+            .get_fact_string_list("player_inventory")
+            .unwrap_or_default()
+    };
+
     match condition {
-        "player.inventory.is_empty" => player_data.inventory().is_empty(),
-        "player.inventory.is_not_empty" => !player_data.inventory().is_empty(),
+        "player.inventory.is_empty" => get_inventory().is_empty(),
+        "player.inventory.is_not_empty" => !get_inventory().is_empty(),
         _ => {
             if condition.starts_with("player.") {
                 let parts: Vec<&str> = condition.split('.').collect();
                 if parts.len() >= 3 {
                     match (parts[1], parts[2]) {
-                        ("hp", "is_low") => player_data.hp() < player_data.hp_max() / 4,
-                        ("hp", "is_critical") => player_data.hp() <= 1,
-                        ("gold", "is_zero") => player_data.gold() == 0,
+                        ("hp", "is_low") => {
+                            let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
+                            let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(1);
+                            hp < hp_max / 4
+                        }
+                        ("hp", "is_critical") => {
+                            let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
+                            hp <= 1
+                        }
+                        ("gold", "is_zero") => {
+                            player_data.get_fact_int("player_gold").unwrap_or(0) == 0
+                        }
                         _ => false,
                     }
                 } else {
@@ -648,51 +676,59 @@ pub fn resolve_data_path(
 ) -> String {
     use crate::core::item::ItemType;
 
+    // Helper closures for common patterns
+    let get_string = |key: &str| player_data.get_fact_string(key).unwrap_or_default();
+    let get_int = |key: &str| player_data.get_fact_int(key).unwrap_or(0);
+
     match path {
-        "player.name" => player_data.name(),
-        "player.lv" => player_data.lv().to_string(),
+        "player.name" => get_string("player_name"),
+        "player.lv" => get_int("player_lv").to_string(),
         "player.hp" => {
-            let result = player_data.hp().to_string();
+            let result = get_int("player_hp").to_string();
             info!("[resolve_data_path] player.hp = {}", result);
             result
         }
         "player.hp_max" => {
-            let result = player_data.hp_max().to_string();
+            let result = get_int("player_hp_max").to_string();
             info!("[resolve_data_path] player.hp_max = {}", result);
             result
         }
-        "player.gold" => player_data.gold().to_string(),
-        "player.exp" => player_data.exp().to_string(),
-        "player.next_exp" => player_data.next_exp().to_string(),
-        "player.attack" => player_data.attack().to_string(),
-        "player.defense" => player_data.defense().to_string(),
-        "player.inventory" => player_data
-            .inventory()
-            .iter()
-            .take(8)
-            .map(|item_id| {
-                if let Some(item) = item_registry.get(&item_id.0) {
-                    let key = format!("{}:{}", item.locate_file, item.locate_name);
-                    mortar_strings.resolve(&key).to_string()
-                } else {
-                    warn!("Item ID '{}' not found in registry!", item_id.0);
-                    format!("UNDEFINED ({})", item_id.0)
-                }
-            })
-            .collect::<Vec<String>>()
-            .join("\n"),
+        "player.gold" => get_int("player_gold").to_string(),
+        "player.exp" => get_int("player_exp").to_string(),
+        "player.next_exp" => get_int("player_next_exp").to_string(),
+        "player.attack" => get_int("player_attack").to_string(),
+        "player.defense" => get_int("player_defense").to_string(),
+        "player.inventory" => {
+            let inventory = player_data
+                .get_fact_string_list("player_inventory")
+                .unwrap_or_default();
+            inventory
+                .iter()
+                .take(8)
+                .map(|item_id| {
+                    if let Some(item) = item_registry.get(item_id) {
+                        let key = format!("{}:{}", item.locate_file, item.locate_name);
+                        mortar_strings.resolve(&key).to_string()
+                    } else {
+                        warn!("Item ID '{}' not found in registry!", item_id);
+                        format!("UNDEFINED ({})", item_id)
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("\n")
+        }
         "player.weapon" => {
-            let weapon = player_data.weapon();
-            if let Some(item) = item_registry.get(&weapon.0) {
+            let weapon = get_string("player_weapon");
+            if let Some(item) = item_registry.get(&weapon) {
                 let key = format!("{}:{}", item.locate_file, item.locate_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
-                weapon.0
+                weapon
             }
         }
         "player.weapon_atk" => {
-            let weapon = player_data.weapon();
-            if let Some(item) = item_registry.get(&weapon.0)
+            let weapon = get_string("player_weapon");
+            if let Some(item) = item_registry.get(&weapon)
                 && let ItemType::Weapon { damage, .. } = item.item_type
             {
                 return damage.to_string();
@@ -700,30 +736,30 @@ pub fn resolve_data_path(
             "0".to_string()
         }
         "player.total_attack" => {
-            let weapon = player_data.weapon();
-            let weapon_atk = if let Some(item) = item_registry.get(&weapon.0) {
+            let weapon = get_string("player_weapon");
+            let weapon_atk = if let Some(item) = item_registry.get(&weapon) {
                 if let ItemType::Weapon { damage, .. } = item.item_type {
-                    damage as usize
+                    damage as i64
                 } else {
                     0
                 }
             } else {
                 0
             };
-            (player_data.attack() + weapon_atk).to_string()
+            (get_int("player_attack") + weapon_atk).to_string()
         }
         "player.armor" => {
-            let armor = player_data.armor();
-            if let Some(item) = item_registry.get(&armor.0) {
+            let armor = get_string("player_armor");
+            if let Some(item) = item_registry.get(&armor) {
                 let key = format!("{}:{}", item.locate_file, item.locate_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
-                armor.0
+                armor
             }
         }
         "player.armor_def" => {
-            let armor = player_data.armor();
-            if let Some(item) = item_registry.get(&armor.0)
+            let armor = get_string("player_armor");
+            if let Some(item) = item_registry.get(&armor)
                 && let ItemType::Armor { defense } = item.item_type
             {
                 return defense.to_string();
@@ -731,17 +767,17 @@ pub fn resolve_data_path(
             "0".to_string()
         }
         "player.total_defense" => {
-            let armor = player_data.armor();
-            let armor_def = if let Some(item) = item_registry.get(&armor.0) {
+            let armor = get_string("player_armor");
+            let armor_def = if let Some(item) = item_registry.get(&armor) {
                 if let ItemType::Armor { defense } = item.item_type {
-                    defense as usize
+                    defense as i64
                 } else {
                     0
                 }
             } else {
                 0
             };
-            (player_data.defense() + armor_def).to_string()
+            (get_int("player_defense") + armor_def).to_string()
         }
         _ => format!("<unknown:{}>", path),
     }
@@ -807,6 +843,13 @@ pub fn evaluate_transition_condition_unified(
 ) -> bool {
     let condition = condition.trim();
 
+    // Helper to get inventory
+    let get_inventory = || {
+        player_data
+            .get_fact_string_list("player_inventory")
+            .unwrap_or_default()
+    };
+
     // Handle "index == N" pattern with optional additional conditions
     if condition.starts_with("index == ")
         && let Some(rest) = condition.strip_prefix("index == ")
@@ -825,12 +868,10 @@ pub fn evaluate_transition_condition_unified(
             // Check additional conditions
             for part in parts.iter().skip(1) {
                 if *part == "!player.inventory.is_empty" {
-                    if player_data.inventory().is_empty() {
+                    if get_inventory().is_empty() {
                         return false;
                     }
-                } else if *part == "player.inventory.is_empty"
-                    && !player_data.inventory().is_empty()
-                {
+                } else if *part == "player.inventory.is_empty" && !get_inventory().is_empty() {
                     return false;
                 }
                 // Add more conditions as needed

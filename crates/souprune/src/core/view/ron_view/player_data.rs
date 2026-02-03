@@ -1,15 +1,43 @@
-//! Player data view for accessing player facts from LayeredFactDatabase.
+//! Fact data view for accessing facts from LayeredFactDatabase.
 //!
-//! 玩家数据视图，用于从 LayeredFactDatabase 访问玩家事实。
+//! 事实数据视图，用于从 LayeredFactDatabase 访问事实。
+//!
+//! This module provides a unified view that checks local facts first, then layered database.
+//! All fact keys and default values should be defined in Mod configuration files.
+//!
+//! 本模块提供统一视图，先检查局部事实，再检查分层数据库。
+//! 所有事实键名和默认值应在 Mod 配置文件中定义。
 
-use crate::core::item::ItemId;
-use bevy_fact_rule_event::{FactDatabase, FactReader, FactValue, LayeredFactDatabase};
+use bevy::prelude::*;
+use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
-/// Helper struct to read player data from LayeredFactDatabase.
-/// This provides a view into player facts for the View system.
+/// Helper struct to read facts from LayeredFactDatabase with optional local facts.
+/// This provides a unified view for the expression evaluation system.
 ///
-/// 从 LayeredFactDatabase 读取玩家数据的辅助结构体。
-/// 为 View 系统提供玩家事实的视图。
+/// 从 LayeredFactDatabase 读取事实的辅助结构体，支持可选的局部事实。
+/// 为表达式求值系统提供统一视图。
+///
+/// ## Fact Resolution Priority
+/// 1. local_facts (View-specific facts from ViewRoot)
+/// 2. scene facts (from LayeredFactDatabase)
+/// 3. global facts (from LayeredFactDatabase)
+///
+/// ## 事实解析优先级
+/// 1. local_facts（来自 ViewRoot 的 View 特定事实）
+/// 2. scene 事实（来自 LayeredFactDatabase）
+/// 3. global 事实（来自 LayeredFactDatabase）
+///
+/// ## Usage Example / 使用示例
+/// ```ignore
+/// let player_data = PlayerDataView::new(&layered_db);
+///
+/// // Get fact value directly / 直接获取事实值
+/// let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
+/// let name = player_data.get_fact_string("player_name").unwrap_or_default();
+///
+/// // Get fact with fallback and warning / 获取事实值，缺失时发出警告
+/// let hp = player_data.get_fact_int_or("player_hp", 0);
+/// ```
 pub struct PlayerDataView<'a> {
     db: &'a LayeredFactDatabase,
     /// Optional local facts from ViewRoot (View-specific facts)
@@ -25,9 +53,9 @@ impl<'a> PlayerDataView<'a> {
         }
     }
 
-    /// Create a PlayerDataView with local facts from a ViewRoot.
+    /// Create a view with local facts from a ViewRoot.
     ///
-    /// 创建一个带有来自 ViewRoot 局部事实的 PlayerDataView。
+    /// 创建一个带有来自 ViewRoot 局部事实的视图。
     pub fn with_local_facts(db: &'a LayeredFactDatabase, local_facts: &'a FactDatabase) -> Self {
         Self {
             db,
@@ -35,11 +63,23 @@ impl<'a> PlayerDataView<'a> {
         }
     }
 
+    /// Get the underlying LayeredFactDatabase reference.
+    ///
+    /// 获取底层 LayeredFactDatabase 引用。
+    pub fn db(&self) -> &'a LayeredFactDatabase {
+        self.db
+    }
+
+    /// Get optional local facts reference.
+    ///
+    /// 获取可选的局部事实引用。
+    pub fn local_facts(&self) -> Option<&'a FactDatabase> {
+        self.local_facts
+    }
+
     /// Get a fact value with priority: local_facts -> scene -> global.
-    /// Supports `fact('key')` and `$key` syntax.
     ///
     /// 获取事实值，优先级为：local_facts -> scene -> global。
-    /// 支持 `fact('key')` 和 `$key` 语法。
     pub fn get_fact(&self, key: &str) -> Option<&FactValue> {
         // First check local facts
         if let Some(local) = self.local_facts
@@ -51,94 +91,87 @@ impl<'a> PlayerDataView<'a> {
         self.db.get_by_str(key)
     }
 
-    /// Get a fact value as f64, with optional default.
+    /// Get a fact value as f64. Returns None if fact doesn't exist.
     ///
-    /// 获取事实值为 f64，带可选默认值。
-    pub fn get_fact_float(&self, key: &str, default: Option<f64>) -> f64 {
-        if let Some(value) = self.get_fact(key) {
-            match value {
-                FactValue::Float(f) => *f,
-                FactValue::Int(i) => *i as f64,
-                FactValue::Bool(b) => {
-                    if *b {
-                        1.0
-                    } else {
-                        0.0
-                    }
+    /// 获取事实值为 f64。如果事实不存在则返回 None。
+    pub fn get_fact_float(&self, key: &str) -> Option<f64> {
+        self.get_fact(key).map(|value| match value {
+            FactValue::Float(f) => *f,
+            FactValue::Int(i) => *i as f64,
+            FactValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
                 }
-                FactValue::String(_) => default.unwrap_or(0.0),
-                FactValue::StringList(list) => list.len() as f64,
             }
-        } else {
-            default.unwrap_or(0.0)
+            FactValue::String(_) => 0.0,
+            FactValue::StringList(list) => list.len() as f64,
+        })
+    }
+
+    /// Get a fact value as f64 with fallback default.
+    /// Logs a warning if fact doesn't exist.
+    ///
+    /// 获取事实值为 f64，带有回退默认值。
+    /// 如果事实不存在则记录警告。
+    pub fn get_fact_float_or(&self, key: &str, default: f64) -> f64 {
+        match self.get_fact_float(key) {
+            Some(v) => v,
+            None => {
+                warn!("Fact '{}' not found, using fallback value {}", key, default);
+                default
+            }
         }
     }
 
-    pub fn name(&self) -> String {
-        self.db
-            .get_string("player_name")
-            .unwrap_or("???")
-            .to_string()
+    /// Get a fact value as i64. Returns None if fact doesn't exist.
+    ///
+    /// 获取事实值为 i64。如果事实不存在则返回 None。
+    pub fn get_fact_int(&self, key: &str) -> Option<i64> {
+        self.get_fact(key).and_then(|value| match value {
+            FactValue::Int(i) => Some(*i),
+            FactValue::Float(f) => Some(*f as i64),
+            FactValue::Bool(b) => Some(if *b { 1 } else { 0 }),
+            _ => None,
+        })
     }
 
-    pub fn lv(&self) -> usize {
-        self.db.get_int("player_lv").unwrap_or(1) as usize
+    /// Get a fact value as i64 with fallback default.
+    /// Logs a warning if fact doesn't exist.
+    ///
+    /// 获取事实值为 i64，带有回退默认值。
+    /// 如果事实不存在则记录警告。
+    pub fn get_fact_int_or(&self, key: &str, default: i64) -> i64 {
+        match self.get_fact_int(key) {
+            Some(v) => v,
+            None => {
+                warn!("Fact '{}' not found, using fallback value {}", key, default);
+                default
+            }
+        }
     }
 
-    pub fn exp(&self) -> usize {
-        self.db.get_int("player_exp").unwrap_or(0) as usize
+    /// Get a fact value as String. Returns None if fact doesn't exist.
+    ///
+    /// 获取事实值为 String。如果事实不存在则返回 None。
+    pub fn get_fact_string(&self, key: &str) -> Option<String> {
+        self.get_fact(key).and_then(|value| match value {
+            FactValue::String(s) => Some(s.clone()),
+            FactValue::Int(i) => Some(i.to_string()),
+            FactValue::Float(f) => Some(f.to_string()),
+            FactValue::Bool(b) => Some(b.to_string()),
+            FactValue::StringList(_) => None,
+        })
     }
 
-    pub fn next_exp(&self) -> usize {
-        self.db.get_int("player_next_exp").unwrap_or(10) as usize
-    }
-
-    pub fn hp(&self) -> usize {
-        self.db.get_int("player_hp").unwrap_or(20) as usize
-    }
-
-    pub fn hp_max(&self) -> usize {
-        self.db.get_int("player_hp_max").unwrap_or(20) as usize
-    }
-
-    pub fn attack(&self) -> usize {
-        self.db.get_int("player_atk").unwrap_or(0) as usize
-    }
-
-    pub fn defense(&self) -> usize {
-        self.db.get_int("player_def").unwrap_or(0) as usize
-    }
-
-    pub fn gold(&self) -> usize {
-        self.db.get_int("player_gold").unwrap_or(0) as usize
-    }
-
-    pub fn weapon(&self) -> ItemId {
-        ItemId(
-            self.db
-                .get_string("player_weapon")
-                .unwrap_or("stick")
-                .to_string(),
-        )
-    }
-
-    pub fn armor(&self) -> ItemId {
-        ItemId(
-            self.db
-                .get_string("player_armor")
-                .unwrap_or("bandage")
-                .to_string(),
-        )
-    }
-
-    pub fn inventory(&self) -> Vec<ItemId> {
-        self.db
-            .get_string_list("player_inventory")
-            .map(|list| list.iter().map(|s| ItemId(s.clone())).collect())
-            .unwrap_or_default()
-    }
-
-    pub fn inventory_capacity(&self) -> usize {
-        self.db.get_int("player_inventory_capacity").unwrap_or(8) as usize
+    /// Get a fact value as Vec<String>. Returns None if fact doesn't exist.
+    ///
+    /// 获取事实值为 Vec<String>。如果事实不存在则返回 None。
+    pub fn get_fact_string_list(&self, key: &str) -> Option<Vec<String>> {
+        self.get_fact(key).and_then(|value| match value {
+            FactValue::StringList(list) => Some(list.clone()),
+            _ => None,
+        })
     }
 }

@@ -180,19 +180,20 @@ pub fn setup_hp_bar_sprites(
         .unwrap_or(&default_db);
 
     for (entity, hp_bar, _transform) in query.iter() {
-        // Evaluate shader_params from config expressions, or use defaults
+        // Evaluate shader_params from config expressions - config is required
         let (hp_ratio, lag_ratio, half_width, alpha) =
             if let Some(ref params) = hp_bar.shader_params_expr {
                 let player_data = PlayerDataView::new(db_ref);
                 evaluate_dynamic_color(params, &player_data, None)
             } else {
-                // Default: hp_ratio based on player data
-                let hp = db_ref.get_int("player_hp").unwrap_or(20) as f32;
-                let hp_max = db_ref.get_int("player_hp_max").unwrap_or(20) as f32;
-                let hp_ratio = hp / hp_max;
-                // Default half_width formula (kept for backward compat if no config)
-                let half_width = 40.0 + (hp_max - 20.0) * 95.0 / 79.0 / 2.0;
-                (hp_ratio, hp_ratio, half_width, 1.0)
+                // No config provided - log warning and use minimal fallback
+                warn!(
+                    "[HP Bar Setup] Entity {:?} missing shader_params config. \
+                    Please add shader_params expression in view_layout.ron",
+                    entity
+                );
+                // Use simple fallback values, NOT game-specific formulas
+                (1.0, 1.0, 40.0, 1.0)
             };
 
         let material = materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {

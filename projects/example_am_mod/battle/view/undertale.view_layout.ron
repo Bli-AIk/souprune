@@ -71,7 +71,7 @@
             texts: [
                 (
                     id: "PlayerName",
-                    content: "{@player.name}",
+                    content: "{$player_name}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -91,7 +91,7 @@
                 ),
                 (
                     id: "PlayerLevelValue",
-                    content: "{@player.lv}",
+                    content: "{$player_lv}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -101,12 +101,12 @@
                 ),
                 (
                     id: "HPValueCurrent",
-                    content: "{@player.hp}",
+                    content: "{$player_hp}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("-5.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("-5.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
@@ -116,17 +116,17 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("33.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("33.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPValueMax",
-                    content: "{@player.hp_max}",
+                    content: "{$player_hp_max}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("57.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("57.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
             ],
@@ -148,10 +148,10 @@
                         is_animation: false,
                         transform: Some((
                             translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
-                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0)),  // Dynamic width based on hp_max
+                            scale: ("25.0 + ($player_hp_max - 20) * 95.0 / 79", 20.5, 1.0)),  // Dynamic width based on hp_max
                         )),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
-                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0)),  // HP%, lag%, half_width (dynamic), alpha
+                        shader_params: (0.8, 0.8, "40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2", 1.0)),  // HP%, lag%, half_width (dynamic), alpha
                         pivot: (0.0, 0.5),
                     ),
                 )

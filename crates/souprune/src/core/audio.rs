@@ -180,7 +180,13 @@ mod kira_backend {
         asset_server: &AssetServer,
         music_path: &str,
     ) -> Handle<AudioInstance> {
-        let music_handle = asset_server.load(format!("audios/music/{}", music_path));
+        // Use the same path resolution as sound effects
+        // 使用与音效相同的路径解析
+        let resolved_path = super::resolve_sound_path(music_path).unwrap_or_else(|| {
+            warn!("BGM file not found: {}, using path as-is", music_path);
+            music_path.to_string()
+        });
+        let music_handle = asset_server.load(resolved_path);
         audio.play(music_handle).looped().handle()
     }
 }
@@ -284,7 +290,13 @@ mod seedling_backend {
         asset_server: &AssetServer,
         music_path: &str,
     ) -> Entity {
-        let music_handle = asset_server.load(format!("audios/music/{}", music_path));
+        // Use the same path resolution as sound effects
+        // 使用与音效相同的路径解析
+        let resolved_path = super::resolve_sound_path(music_path).unwrap_or_else(|| {
+            warn!("BGM file not found: {}, using path as-is", music_path);
+            music_path.to_string()
+        });
+        let music_handle = asset_server.load(resolved_path);
         // BGM with looping enabled, goes to BGM pool
         // 带循环的 BGM，进入 BGM 池
         commands
