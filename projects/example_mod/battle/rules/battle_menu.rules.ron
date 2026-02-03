@@ -9,9 +9,14 @@
 // 并使用 View 局部事实进行状态跟踪。
 //
 // Battle Menu Structure / 战斗菜单结构:
-// - depth 0: Main menu (FIGHT/ACT/ITEM/MERCY) - horizontal navigation
-// - depth 1: Submenu (enemy list, action list, item list, mercy options) - vertical navigation
+// - depth 0: Main menu (FIGHT/ACT/ITEM/MERCY) - horizontal navigation using button_selection
+// - depth 1: Submenu (enemy list, action list, item list, mercy options) - vertical navigation using enemy_selection
 // - depth 2: Action confirmation / details
+//
+// Selection Variables / 选择变量:
+// - button_selection: Main menu button (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY), persists across depths
+// - enemy_selection: Enemy index in depth 1 (FIGHT/ACT/MERCY mode)
+// - item_selection: Item index in depth 1 (ITEM mode)
 
 (
     version: 1,
@@ -20,8 +25,10 @@
     // View 局部初始事实
     initial_facts: {
         "depth": Int(0),
-        "selection": Int(0),
-        "menu_context": Int(0),
+        "button_selection": Int(0),   // Main menu selection (persists across depths)
+        "enemy_selection": Int(0),     // Enemy selection in depth 1
+        "item_selection": Int(0),      // Item selection in depth 1
+        "menu_context": Int(0),        // Which menu we entered depth 1 from (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY)
         "active": Bool(true),
 
         // Enemy data for battle - using arrays for unlimited enemies
@@ -38,9 +45,9 @@
         // 在主菜单中向左导航
         (
             event: ActionEvent(action: "Left", kind: JustPressed),
-            conditions: ["$active == true", "$depth == 0", "$selection > 0"],
+            conditions: ["$active == true", "$depth == 0", "$button_selection > 0"],
             actions: [
-                SetLocalFact("selection", Expr("$selection - 1")),
+                SetLocalFact("button_selection", Expr("$button_selection - 1")),
                 PlaySound("choice"),
             ],
         ),
@@ -49,54 +56,65 @@
         // 在主菜单中向右导航
         (
             event: ActionEvent(action: "Right", kind: JustPressed),
-            conditions: ["$active == true", "$depth == 0", "$selection < 3"],
+            conditions: ["$active == true", "$depth == 0", "$button_selection < 3"],
             actions: [
-                SetLocalFact("selection", Expr("$selection + 1")),
+                SetLocalFact("button_selection", Expr("$button_selection + 1")),
                 PlaySound("choice"),
             ],
         ),
 
         // === SUBMENU NAVIGATION (depth 1) - VERTICAL / 子菜单导航（深度 1）- 纵向 ===
 
-        // Navigate up in submenu
-        // 在子菜单中向上导航
+        // Navigate up in submenu (enemy list) - FIGHT/ACT/MERCY
+        // 在子菜单中向上导航（敌人列表）- 战斗/行动/慈悲
         (
             event: ActionEvent(action: "Up", kind: JustPressed),
-            conditions: ["$active == true", "$depth == 1", "$selection > 0"],
+            conditions: ["$active == true", "$depth == 1", "$menu_context != 2", "$enemy_selection > 0"],
             actions: [
-                SetLocalFact("selection", Expr("$selection - 1")),
+                SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")),
                 PlaySound("choice"),
             ],
         ),
 
-        // Navigate down in submenu - FIGHT/ACT/MERCY (enemy list, max = enemy_names.len - 1)
-        // 在子菜单中向下导航 - 战斗/行动/慈悲（敌人列表，最大值 = 敌人名称数组长度 - 1）
+        // Navigate down in submenu (enemy list) - FIGHT/ACT/MERCY
+        // 在子菜单中向下导航（敌人列表）- 战斗/行动/慈悲
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
             conditions: [
                 "$active == true",
                 "$depth == 1",
                 "$menu_context != 2",  // Not ITEM menu
-                "$selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+                "$enemy_selection < $enemy_names - 1",  // $enemy_names evaluates to array length
             ],
             actions: [
-                SetLocalFact("selection", Expr("$selection + 1")),
+                SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")),
                 PlaySound("choice"),
             ],
         ),
 
-        // Navigate down in submenu - ITEM (simplified max 8 items)
-        // 在子菜单中向下导航 - 物品（简化最大 8 个物品）
+        // Navigate up in submenu (item list) - ITEM
+        // 在子菜单中向上导航（物品列表）- 物品
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 1", "$menu_context == 2", "$item_selection > 0"],
+            actions: [
+                SetLocalFact("item_selection", Expr("$item_selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu (item list) - ITEM (simplified max 8 items)
+        // 在子菜单中向下导航（物品列表）- 物品（简化最大 8 个物品）
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
             conditions: [
                 "$active == true",
                 "$depth == 1",
                 "$menu_context == 2",  // ITEM menu
-                "$selection < 7",       // Max 8 items (0-7)
+                "$item_selection < 7",  // Max 8 items (0-7)
             ],
             actions: [
-                SetLocalFact("selection", Expr("$selection + 1")),
+                SetLocalFact("item_selection", Expr("$item_selection + 1")),
                 PlaySound("choice"),
             ],
         ),
@@ -109,9 +127,10 @@
             event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: ["$active == true", "$depth == 0"],
             actions: [
-                SetLocalFact("menu_context", Expr("$selection")),
+                SetLocalFact("menu_context", Expr("$button_selection")),
                 SetLocalFact("depth", Int(1)),
-                SetLocalFact("selection", Int(0)),
+                SetLocalFact("enemy_selection", Int(0)),
+                SetLocalFact("item_selection", Int(0)),
                 PlaySound("confirm"),
             ],
         ),
@@ -137,7 +156,7 @@
             conditions: ["$active == true", "$depth == 1"],
             actions: [
                 SetLocalFact("depth", Int(0)),
-                SetLocalFact("selection", Expr("$menu_context")),
+                // button_selection is preserved, no need to restore
             ],
         ),
 

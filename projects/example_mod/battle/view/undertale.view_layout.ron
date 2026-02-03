@@ -17,10 +17,12 @@
     // View-local facts for battle menu state
     // 战斗菜单状态的 View 局部事实
     initial_facts: {
-        "depth": 0,           // 0=main menu, 1=submenu
-        "selection": 0,       // Current selection (context-dependent)
-        "menu_context": 0,    // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
-        "active": true,       // Whether menu is active (vs bullet hell)
+        "depth": 0,                // 0=main menu, 1=submenu
+        "button_selection": 0,     // Main menu button (persists across depths)
+        "enemy_selection": 0,      // Enemy selection in depth 1
+        "item_selection": 0,       // Item selection in depth 1
+        "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+        "active": true,            // Whether menu is active (vs bullet hell)
 
         // Enemy data for battle - using arrays for unlimited enemies
         // 战斗敌人数据 - 使用数组支持无限数量的敌人
@@ -200,7 +202,7 @@
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
                 transform: (
                     translation: (
-                        "if($selection == 0, -272.0, if($selection == 1, -119.0, if($selection == 2, 41.0, 196.0)))",
+                        "if($button_selection == 0, -272.0, if($button_selection == 1, -119.0, if($button_selection == 2, 41.0, 196.0)))",
                         "-214.0",
                         "2.0",
                     ),
@@ -225,9 +227,9 @@
                         // X position: left of enemy names, inside BattleBox
                         // X 位置：敌人名称左侧，在战斗框内
                         "-290.0",
-                        // Y position: based on selection (50, 18, -14, -46)
-                        // Y 位置：基于选择（50, 18, -14, -46）
-                        "if($selection == 0, -30.0, if($selection == 1, -62.0, if($selection == 2, -94.0, -126.0)))",
+                        // Y position: based on enemy_selection (50, 18, -14, -46)
+                        // Y 位置：基于敌人选择（50, 18, -14, -46）
+                        "if($enemy_selection == 0, -30.0, if($enemy_selection == 1, -62.0, if($enemy_selection == 2, -94.0, -126.0)))",
                         "2.0",
                     ),
                 ),
@@ -255,10 +257,11 @@
                 ),
             ),
         ),
-        // FIGHT button selected state
+        // FIGHT button selected state (only show when depth == 0)
+        // 战斗按钮选中状态（仅在深度 == 0 时显示）
         (
             name: "BtnFightSelected",
-            visible_when: "$selection == 0",
+            visible_when: "$depth == 0 && $button_selection == 0",
             sprite: (
                 visual: "textures/battle/ui/fight/true.png",
                 transform: (
@@ -282,7 +285,7 @@
         ),
         (
             name: "BtnActSelected",
-            visible_when: "$selection == 1",
+            visible_when: "$depth == 0 && $button_selection == 1",
             sprite: (
                 visual: "textures/battle/ui/act/true.png",
                 transform: (
@@ -306,7 +309,7 @@
         ),
         (
             name: "BtnItemSelected",
-            visible_when: "$selection == 2",
+            visible_when: "$depth == 0 && $button_selection == 2",
             sprite: (
                 visual: "textures/battle/ui/item/true.png",
                 transform: (
@@ -330,7 +333,7 @@
         ),
         (
             name: "BtnMercySelected",
-            visible_when: "$selection == 3",
+            visible_when: "$depth == 0 && $button_selection == 3",
             sprite: (
                 visual: "textures/battle/ui/mercy/true.png",
                 transform: (
