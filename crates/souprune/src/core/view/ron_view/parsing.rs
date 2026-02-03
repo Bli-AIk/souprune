@@ -169,16 +169,16 @@ fn get_array_element_for_expr(
     default: &str,
 ) -> String {
     // Try IntList first
-    if let Some(list) = player_data.get_fact_int_list(array_name) {
-        if let Some(value) = list.get(index) {
-            return value.to_string();
-        }
+    if let Some(list) = player_data.get_fact_int_list(array_name)
+        && let Some(value) = list.get(index)
+    {
+        return value.to_string();
     }
     // Then try StringList
-    if let Some(list) = player_data.get_fact_string_list(array_name) {
-        if let Some(value) = list.get(index) {
-            return value.clone();
-        }
+    if let Some(list) = player_data.get_fact_string_list(array_name)
+        && let Some(value) = list.get(index)
+    {
+        return value.clone();
     }
     // Debug level since out-of-bounds access is common for template elements
     // that are conditionally visible based on array length
