@@ -146,7 +146,7 @@ pub mod debug_fre_panel {
         mut state: ResMut<FREPanelState>,
         mut commands: Commands,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::F7) {
+        if !keyboard_input.just_pressed(KeyCode::F2) {
             return;
         }
 

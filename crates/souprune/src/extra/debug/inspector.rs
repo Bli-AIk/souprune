@@ -178,7 +178,7 @@ pub mod debug_inspector {
         q_perf_ui: Query<Entity, With<PerfUiRoot>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
-        if keyboard_input.just_pressed(KeyCode::F2) {
+        if keyboard_input.just_pressed(KeyCode::F3) {
             let message = if let Ok(e) = q_perf_ui.single() {
                 commands.entity(e).despawn();
                 "OFF"
