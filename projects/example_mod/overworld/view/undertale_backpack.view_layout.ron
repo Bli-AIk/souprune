@@ -85,11 +85,7 @@
                         // ITEM text at Y=28.25, cursor 10px left of text at X=-19.5
                         // Step between options: 18.0 pixels
                         transform: (
-                            translation: (
-                                "-19.5",                          // X: left of text
-                                "28.25 + (-18.0 * $selection)",   // Y: ITEM position + step * selection
-                                "7.0",                            // Z: above box
-                            ),
+                            translation: ("-19.0", "18.5 + (-18.0 * $selection)", "6.0"),
                         ),
                     ),
                 ),
@@ -182,7 +178,7 @@
                     world_scale: (13.25, 13.25),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-12.25, -63.5, 1.0),
+                        translation: (-16.25, -63.5, 1.0),
                     ),
                     line_height: 1.2,
                     visible_when: "$depth == 2",
@@ -216,9 +212,9 @@
                         // Step between items: 16 pixels
                         transform: (
                             translation: (
-                                "-74.25",                          // X: left of item list text
-                                "76.5 + (-16.0 * $selection)",    // Y: First item position + step * selection
-                                "2.0",                             // Z: above box
+                                "-72.0",                          // X: left of item list text
+                                "68 + (-16.0 * $selection)",    // Y: First item position + step * selection
+                                "6.0",                             // Z: above box
                             ),
                         ),
                     ),

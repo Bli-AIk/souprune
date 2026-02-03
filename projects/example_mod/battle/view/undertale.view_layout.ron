@@ -66,13 +66,10 @@
             sprite: (
                 visual: "common/ui/heart",
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
-                // Position based on selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
-                // 位置基于选择：0=战斗，1=行动，2=物品，3=慈悲
                 transform: (
                     translation: (
-                        // X positions: -258, -105, 55, 210 for indices 0, 1, 2, 3
-                        "if($selection == 0, -258.0, if($selection == 1, -105.0, if($selection == 2, 55.0, 210.0)))",
-                        "-213.0",
+                        "if($selection == 0, -272.0, if($selection == 1, -119.0, if($selection == 2, 41.0, 196.0)))",
+                        "-214.0",
                         "2.0",
                     ),
                 ),
