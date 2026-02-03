@@ -3,7 +3,7 @@
 //! This module provides the bridge between game systems and the FRE rule engine.
 //! It handles:
 //! - Converting input actions to FRE events (ActionEvent)
-//! - Processing FRE actions (PlaySound, SetLocalFact, CloseView, etc.)
+//! - Processing FRE actions (PlaySound, SetLocalFact, CloseView, etc.) on ViewRoot
 //! - Managing ActiveView markers
 //!
 //! FRE（Fact-Rule-Event）桥接模块
@@ -11,15 +11,15 @@
 //! 此模块提供游戏系统和 FRE 规则引擎之间的桥接。
 //! 它处理：
 //! - 将输入动作转换为 FRE 事件（ActionEvent）
-//! - 处理 FRE 动作（PlaySound、SetLocalFact、CloseView 等）
+//! - 在 ViewRoot 上处理 FRE 动作（PlaySound、SetLocalFact、CloseView 等）
 //! - 管理 ActiveView 标记
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{
-    ActionHandlerRegistry, FactEvent, FactValue, LocalFactValue, RuleActionDef,
-};
+use bevy_fact_rule_event::{FactEvent, FactValue, LocalFactValue, RuleActionDef, RuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
+use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::view::components::{ActiveView, ViewRoot};
@@ -41,7 +41,7 @@ use crate::core::view::components::{ActiveView, ViewRoot};
 /// - `just_released`
 pub fn action_to_fre_event_system(
     registry: Res<ActionRegistry>,
-    query: Query<&ActionState<Action>>,
+    query: Query<&ActionState<Action>, With<PlayerControlled>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {
     let Ok(action_state) = query.single() else {
@@ -60,12 +60,10 @@ pub fn action_to_fre_event_system(
             event_writer.write(FactEvent::new(event_id));
         }
 
-        // Pressed (held) events
-        if action_state.action_pressed(&registry, action_name) {
-            let event_id = format!("action:{}:pressed", action_name);
-            // Note: This fires every frame while held, may need throttling
-            event_writer.write(FactEvent::new(event_id));
-        }
+        // Note: We skip 'pressed' events to avoid spamming every frame
+        // Enable if needed for hold-based mechanics
+        // 注意：我们跳过 'pressed' 事件以避免每帧发送垃圾信息
+        // 如果需要基于按住的机制，可以启用
 
         // JustReleased events
         if action_state.action_just_released(&registry, action_name) {
@@ -79,130 +77,512 @@ pub fn action_to_fre_event_system(
     }
 }
 
-/// Register FRE action handlers for View-related actions.
+/// System that processes FRE actions that affect ViewRoot.local_facts.
 ///
-/// This function registers handlers for:
-/// - PlaySound: Play audio using fuzzy search
-/// - PlaySoundFullPath: Play audio using full path
-/// - SetLocalFact: Set a fact on the active ViewRoot
-/// - CloseView: Close the active View
-/// - SwitchState: Switch game state
+/// This system listens for FRE events, checks which rules match,
+/// and executes View-related actions (SetLocalFact, PlaySound, etc.)
+/// on the ActiveView's ViewRoot.
 ///
-/// 为 View 相关动作注册 FRE 动作处理器。
+/// 处理影响 ViewRoot.local_facts 的 FRE 动作的系统。
 ///
-/// 此函数注册以下处理器：
-/// - PlaySound：使用模糊搜索播放音频
-/// - PlaySoundFullPath：使用完整路径播放音频
-/// - SetLocalFact：在活跃的 ViewRoot 上设置 fact
-/// - CloseView：关闭活跃的 View
-/// - SwitchState：切换游戏状态
-pub fn register_view_action_handlers(registry: &mut ActionHandlerRegistry) {
-    // Note: These handlers are minimal placeholders.
-    // Actual implementation requires access to more resources
-    // which need to be handled via Commands or events.
-
-    registry.register("PlaySound", |action, _db, _commands| {
-        if let RuleActionDef::PlaySound(sound_name) = action {
-            info!("FRE Action: PlaySound({})", sound_name);
-            // Actual audio playback is handled by a dedicated system
-            // that processes PlaySoundRequest events
-        }
-    });
-
-    registry.register("PlaySoundFullPath", |action, _db, _commands| {
-        if let RuleActionDef::PlaySoundFullPath(path) = action {
-            info!("FRE Action: PlaySoundFullPath({})", path);
-        }
-    });
-
-    registry.register("SetLocalFact", |action, _db, _commands| {
-        if let RuleActionDef::SetLocalFact(key, value) = action {
-            info!("FRE Action: SetLocalFact({}, {:?})", key, value);
-            // Actual fact setting is handled by process_fre_actions_system
-        }
-    });
-
-    registry.register("CloseView", |_action, _db, _commands| {
-        info!("FRE Action: CloseView");
-    });
-
-    registry.register("SwitchState", |action, _db, _commands| {
-        if let RuleActionDef::SwitchState(state_name) = action {
-            info!("FRE Action: SwitchState({})", state_name);
-        }
-    });
-}
-
-/// Message for requesting sound playback from FRE actions.
-///
-/// 从 FRE 动作请求音效播放的消息。
-#[derive(Message, Debug, Clone)]
-pub struct PlaySoundRequest {
-    /// Sound name (for fuzzy search) or full path.
-    pub sound: String,
-    /// Whether this is a full path or fuzzy search name.
-    pub is_full_path: bool,
-}
-
-/// Message for requesting state change from FRE actions.
-///
-/// 从 FRE 动作请求状态变更的消息。
-#[derive(Message, Debug, Clone)]
-pub struct SwitchStateRequest {
-    /// Target state name.
-    pub state_name: String,
-}
-
-/// Message for requesting local fact update from FRE actions.
-///
-/// 从 FRE 动作请求更新局部 fact 的消息。
-#[derive(Message, Debug, Clone)]
-pub struct SetLocalFactRequest {
-    /// Fact key.
-    pub key: String,
-    /// Fact value (or expression).
-    pub value: LocalFactValue,
-}
-
-/// Message for requesting View close from FRE actions.
-///
-/// 从 FRE 动作请求关闭 View 的消息。
-#[derive(Message, Debug, Clone)]
-pub struct CloseViewRequest;
-
-/// System that processes SetLocalFact requests on the active ViewRoot.
-///
-/// 处理活跃 ViewRoot 上 SetLocalFact 请求的系统。
-pub fn process_set_local_fact_system(
-    mut events: MessageReader<SetLocalFactRequest>,
+/// 此系统监听 FRE 事件，检查匹配的规则，
+/// 并在 ActiveView 的 ViewRoot 上执行 View 相关动作
+/// （SetLocalFact、PlaySound 等）。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub fn process_view_actions_system(
+    mut events: MessageReader<FactEvent>,
+    mut rule_registry: ResMut<RuleRegistry>,
+    action_defs: Option<Res<RuleActionDefs>>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    for request in events.read() {
-        if let Ok(mut view_root) = active_view_query.single_mut() {
-            let value = match &request.value {
-                LocalFactValue::Int(v) => FactValue::Int(*v),
-                LocalFactValue::Float(v) => FactValue::Float(*v),
-                LocalFactValue::Bool(v) => FactValue::Bool(*v),
-                LocalFactValue::String(v) => FactValue::String(v.clone()),
-                LocalFactValue::Expr(expr) => {
-                    // Expression evaluation - for now, just try to parse as int
-                    // TODO: Implement proper expression evaluator using core/view/ron_view/parsing.rs
-                    if let Some(result) = evaluate_simple_expression(expr, &view_root.local_facts) {
-                        result
-                    } else {
-                        warn!("FRE: Failed to evaluate expression '{}', using 0", expr);
-                        FactValue::Int(0)
-                    }
-                }
+    let Some(action_defs) = action_defs else {
+        return;
+    };
+
+    // Collect all events first to avoid borrow issues
+    let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
+
+    for event in &events_to_process {
+        // Get all matching rules for this event
+        let matching_rules = rule_registry.get_matching_rules(event);
+
+        if matching_rules.is_empty() {
+            continue;
+        }
+
+        // Only execute one rule per event to avoid cascading state changes
+        // 每个事件只执行一个规则，避免级联状态变化
+        let mut executed = false;
+
+        for rule in matching_rules {
+            if executed {
+                break;
+            }
+
+            // Get the active ViewRoot to check conditions
+            let Ok(mut view_root) = active_view_query.single_mut() else {
+                info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
+                continue;
             };
 
-            debug!(
-                "FRE: SetLocalFact on ActiveView: {} = {:?}",
-                request.key, value
+            // Sync dynamic facts from global database before condition evaluation
+            // 在条件评估前同步动态 facts
+            sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
+
+            // Check condition expressions against local_facts
+            if !evaluate_conditions(&rule.condition_expressions, &view_root.local_facts) {
+                debug!(
+                    "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                    rule.id,
+                    view_root.local_facts.get_int("depth"),
+                    view_root.local_facts.get_int("selection")
+                );
+                continue;
+            }
+
+            info!(
+                "FRE Bridge: Rule '{}' matched event '{}', executing actions",
+                rule.id, event.id.0
             );
-            view_root.local_facts.set(request.key.as_str(), value);
-        } else {
-            warn!("FRE: SetLocalFact called but no ActiveView found");
+
+            // Look up the original action definitions for this rule
+            let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                warn!(
+                    "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
+                    rule.id,
+                    action_defs
+                        .actions_by_rule
+                        .keys()
+                        .take(5)
+                        .collect::<Vec<_>>()
+                );
+                continue;
+            };
+
+            // Execute each action (view_root is already mutable)
+            for action in actions {
+                execute_action(action, &mut view_root.local_facts, &audio, &asset_server);
+            }
+
+            executed = true;
+        }
+    }
+}
+
+/// System that processes FRE actions that affect ViewRoot.local_facts (Firewheel variant).
+///
+/// 处理影响 ViewRoot.local_facts 的 FRE 动作的系统（Firewheel 变体）。
+#[cfg(feature = "firewheel")]
+pub fn process_view_actions_system(
+    mut events: MessageReader<FactEvent>,
+    mut rule_registry: ResMut<RuleRegistry>,
+    action_defs: Option<Res<RuleActionDefs>>,
+    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+) {
+    let Some(action_defs) = action_defs else {
+        return;
+    };
+
+    let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
+
+    for event in &events_to_process {
+        let matching_rules = rule_registry.get_matching_rules(event);
+
+        if matching_rules.is_empty() {
+            continue;
+        }
+
+        // Only execute one rule per event to avoid cascading state changes
+        // 每个事件只执行一个规则，避免级联状态变化
+        let mut executed = false;
+
+        for rule in matching_rules {
+            if executed {
+                break;
+            }
+
+            let Ok(mut view_root) = active_view_query.single_mut() else {
+                info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
+                continue;
+            };
+
+            // Sync dynamic facts from global database before condition evaluation
+            sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
+
+            if !evaluate_conditions(&rule.condition_expressions, &view_root.local_facts) {
+                debug!(
+                    "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                    rule.id,
+                    view_root.local_facts.get_int("depth"),
+                    view_root.local_facts.get_int("selection")
+                );
+                continue;
+            }
+
+            info!(
+                "FRE Bridge: Rule '{}' matched event '{}', executing actions",
+                rule.id, event.id.0
+            );
+
+            let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                warn!(
+                    "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
+                    rule.id,
+                    action_defs
+                        .actions_by_rule
+                        .keys()
+                        .take(5)
+                        .collect::<Vec<_>>()
+                );
+                continue;
+            };
+
+            for action in actions {
+                execute_action_firewheel(
+                    action,
+                    &mut view_root.local_facts,
+                    &mut commands,
+                    &asset_server,
+                );
+            }
+
+            executed = true;
+        }
+    }
+}
+
+/// Syncs dynamic facts from global database to local_facts.
+/// This allows rules to reference global data (like item count) in conditions.
+///
+/// 将动态 facts 从全局数据库同步到 local_facts。
+/// 这允许规则在条件中引用全局数据（如物品数量）。
+fn sync_dynamic_facts(
+    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) {
+    // Sync item count from player_inventory
+    // player_inventory is a comma-separated string of item IDs
+    let item_count = global_facts
+        .get_string("player_inventory")
+        .map(|s| {
+            if s.is_empty() {
+                0i64
+            } else {
+                s.split(',').filter(|x| !x.is_empty()).count() as i64
+            }
+        })
+        .unwrap_or(0);
+    local_facts.set("item_count", FactValue::Int(item_count));
+}
+
+/// Evaluate condition expressions against a FactDatabase.
+/// Returns true if all conditions pass.
+///
+/// 根据 FactDatabase 评估条件表达式。
+/// 如果所有条件都通过则返回 true。
+fn evaluate_conditions(conditions: &[String], facts: &bevy_fact_rule_event::FactDatabase) -> bool {
+    for condition in conditions {
+        if !evaluate_single_condition(condition, facts) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Evaluate a single condition expression.
+///
+/// Supports:
+/// - `$name == N` - equality check
+/// - `$name > N`, `$name >= N` - greater than
+/// - `$name < N`, `$name <= N` - less than
+/// - `$name == true`, `$name == false` - boolean check
+///
+/// 评估单个条件表达式。
+///
+/// 支持：
+/// - `$name == N` - 相等检查
+/// - `$name > N`, `$name >= N` - 大于
+/// - `$name < N`, `$name <= N` - 小于
+/// - `$name == true`, `$name == false` - 布尔检查
+fn evaluate_single_condition(condition: &str, facts: &bevy_fact_rule_event::FactDatabase) -> bool {
+    let condition = condition.trim();
+
+    // Try to parse comparison operators
+    if let Some(idx) = condition.find(" == ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 4..].trim();
+        return compare_values(left, right, facts, |a, b| a == b);
+    }
+
+    if let Some(idx) = condition.find(" != ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 4..].trim();
+        return compare_values(left, right, facts, |a, b| a != b);
+    }
+
+    if let Some(idx) = condition.find(" >= ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 4..].trim();
+        return compare_ints(left, right, facts, |a, b| a >= b);
+    }
+
+    if let Some(idx) = condition.find(" <= ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 4..].trim();
+        return compare_ints(left, right, facts, |a, b| a <= b);
+    }
+
+    if let Some(idx) = condition.find(" > ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 3..].trim();
+        return compare_ints(left, right, facts, |a, b| a > b);
+    }
+
+    if let Some(idx) = condition.find(" < ") {
+        let left = condition[..idx].trim();
+        let right = condition[idx + 3..].trim();
+        return compare_ints(left, right, facts, |a, b| a < b);
+    }
+
+    // Default: assume it's a boolean variable that should be true
+    if let Some(var_name) = condition.strip_prefix('$') {
+        return facts.get_bool(var_name).unwrap_or(false);
+    }
+
+    warn!("FRE Bridge: Unknown condition format: {}", condition);
+    false
+}
+
+fn compare_values<F>(
+    left: &str,
+    right: &str,
+    facts: &bevy_fact_rule_event::FactDatabase,
+    cmp: F,
+) -> bool
+where
+    F: Fn(&FactValue, &FactValue) -> bool,
+{
+    let left_val = resolve_value(left, facts);
+    let right_val = resolve_value(right, facts);
+
+    match (left_val, right_val) {
+        (Some(l), Some(r)) => cmp(&l, &r),
+        _ => false,
+    }
+}
+
+fn compare_ints<F>(
+    left: &str,
+    right: &str,
+    facts: &bevy_fact_rule_event::FactDatabase,
+    cmp: F,
+) -> bool
+where
+    F: Fn(i64, i64) -> bool,
+{
+    let left_val = resolve_int(left, facts);
+    let right_val = resolve_int(right, facts);
+
+    match (left_val, right_val) {
+        (Some(l), Some(r)) => cmp(l, r),
+        _ => false,
+    }
+}
+
+fn resolve_value(expr: &str, facts: &bevy_fact_rule_event::FactDatabase) -> Option<FactValue> {
+    if let Some(var_name) = expr.strip_prefix('$') {
+        return facts.get_by_str(var_name).cloned();
+    }
+
+    // Try parsing as integer
+    if let Ok(v) = expr.parse::<i64>() {
+        return Some(FactValue::Int(v));
+    }
+
+    // Try parsing as boolean
+    if expr == "true" {
+        return Some(FactValue::Bool(true));
+    }
+    if expr == "false" {
+        return Some(FactValue::Bool(false));
+    }
+
+    // Try parsing as float
+    if let Ok(v) = expr.parse::<f64>() {
+        return Some(FactValue::Float(v));
+    }
+
+    None
+}
+
+fn resolve_int(expr: &str, facts: &bevy_fact_rule_event::FactDatabase) -> Option<i64> {
+    let expr = expr.trim();
+
+    // Check for expression patterns: $var + N, $var - N
+    if let Some(idx) = expr.find(" + ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        let left_val = resolve_int(left, facts)?;
+        let right_val = resolve_int(right, facts)?;
+        return Some(left_val + right_val);
+    }
+
+    if let Some(idx) = expr.find(" - ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        let left_val = resolve_int(left, facts)?;
+        let right_val = resolve_int(right, facts)?;
+        return Some(left_val - right_val);
+    }
+
+    // Simple variable reference
+    if let Some(var_name) = expr.strip_prefix('$') {
+        return facts.get_int(var_name);
+    }
+
+    expr.parse::<i64>().ok()
+}
+
+/// Execute a single FRE action on the ViewRoot's local_facts.
+///
+/// 在 ViewRoot 的 local_facts 上执行单个 FRE 动作。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+fn execute_action(
+    action: &RuleActionDef,
+    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    audio: &bevy_kira_audio::Audio,
+    asset_server: &AssetServer,
+) {
+    match action {
+        RuleActionDef::PlaySound(sound_name) => {
+            debug!("FRE Bridge: PlaySound({})", sound_name);
+            audio::play_sound(audio, asset_server, sound_name);
+        }
+        RuleActionDef::PlaySoundFullPath(path) => {
+            debug!("FRE Bridge: PlaySoundFullPath({})", path);
+            audio::play_sound_full_path(audio, asset_server, path);
+        }
+        RuleActionDef::SetLocalFact(key, value) => {
+            let fact_value = evaluate_local_fact_value(value, local_facts);
+            debug!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
+            local_facts.set(key.as_str(), fact_value);
+        }
+        RuleActionDef::CloseView => {
+            debug!("FRE Bridge: CloseView");
+            // Set a fact that the View system can react to
+            local_facts.set("_close_requested", FactValue::Bool(true));
+        }
+        RuleActionDef::SwitchState(state_name) => {
+            debug!("FRE Bridge: SwitchState({})", state_name);
+            // Set a fact that the state transition system can react to
+            local_facts.set("_switch_state", FactValue::String(state_name.clone()));
+        }
+        RuleActionDef::EmitEvent(event_id) => {
+            debug!("FRE Bridge: EmitEvent({})", event_id);
+            // Events are handled by the rule outputs, not here
+        }
+        RuleActionDef::Custom {
+            action_type,
+            params,
+        } => {
+            debug!(
+                "FRE Bridge: Custom action {} with params {:?}",
+                action_type, params
+            );
+            // Custom actions are handled by other systems (e.g., PlayDanmaku)
+        }
+        // Actions not relevant for View local_facts - handled by global FRE system
+        RuleActionDef::Log { message } => {
+            info!("FRE Bridge: Log: {}", message);
+        }
+        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
+            // These are handled by the global FRE system, not View-specific
+        }
+    }
+}
+
+/// Execute a single FRE action on the ViewRoot's local_facts (Firewheel variant).
+///
+/// 在 ViewRoot 的 local_facts 上执行单个 FRE 动作（Firewheel 变体）。
+#[cfg(feature = "firewheel")]
+fn execute_action_firewheel(
+    action: &RuleActionDef,
+    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+) {
+    match action {
+        RuleActionDef::PlaySound(sound_name) => {
+            debug!("FRE Bridge: PlaySound({})", sound_name);
+            audio::play_sound(commands, asset_server, sound_name);
+        }
+        RuleActionDef::PlaySoundFullPath(path) => {
+            debug!("FRE Bridge: PlaySoundFullPath({})", path);
+            audio::play_sound_full_path(commands, asset_server, path);
+        }
+        RuleActionDef::SetLocalFact(key, value) => {
+            let fact_value = evaluate_local_fact_value(value, local_facts);
+            debug!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
+            local_facts.set(key.as_str(), fact_value);
+        }
+        RuleActionDef::CloseView => {
+            debug!("FRE Bridge: CloseView");
+            local_facts.set("_close_requested", FactValue::Bool(true));
+        }
+        RuleActionDef::SwitchState(state_name) => {
+            debug!("FRE Bridge: SwitchState({})", state_name);
+            local_facts.set("_switch_state", FactValue::String(state_name.clone()));
+        }
+        RuleActionDef::EmitEvent(event_id) => {
+            debug!("FRE Bridge: EmitEvent({})", event_id);
+        }
+        RuleActionDef::Custom {
+            action_type,
+            params,
+        } => {
+            debug!(
+                "FRE Bridge: Custom action {} with params {:?}",
+                action_type, params
+            );
+        }
+        // Actions not relevant for View local_facts - handled by global FRE system
+        RuleActionDef::Log { message } => {
+            info!("FRE Bridge: Log: {}", message);
+        }
+        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
+            // These are handled by the global FRE system, not View-specific
+        }
+    }
+}
+
+/// Evaluate a LocalFactValue to a FactValue.
+///
+/// 将 LocalFactValue 评估为 FactValue。
+fn evaluate_local_fact_value(
+    value: &LocalFactValue,
+    facts: &bevy_fact_rule_event::FactDatabase,
+) -> FactValue {
+    match value {
+        LocalFactValue::Int(v) => FactValue::Int(*v),
+        LocalFactValue::Float(v) => FactValue::Float(*v),
+        LocalFactValue::Bool(v) => FactValue::Bool(*v),
+        LocalFactValue::String(v) => FactValue::String(v.clone()),
+        LocalFactValue::Expr(expr) => {
+            if let Some(result) = evaluate_simple_expression(expr, facts) {
+                result
+            } else {
+                warn!(
+                    "FRE Bridge: Failed to evaluate expression '{}', using 0",
+                    expr
+                );
+                FactValue::Int(0)
+            }
         }
     }
 }
@@ -266,38 +646,23 @@ fn evaluate_simple_expression(
     None
 }
 
-/// System that processes PlaySound requests.
+/// System to handle SwitchState requests from ViewRoot.local_facts.
 ///
-/// 处理 PlaySound 请求的系统。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
-pub fn process_play_sound_system(
-    mut events: MessageReader<PlaySoundRequest>,
-    audio: Res<bevy_kira_audio::Audio>,
-    asset_server: Res<AssetServer>,
+/// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
+pub fn handle_switch_state_system(
+    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
+    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
-    for request in events.read() {
-        if request.is_full_path {
-            audio::play_sound_full_path(&audio, &asset_server, &request.sound);
-        } else {
-            audio::play_sound(&audio, &asset_server, &request.sound);
-        }
-    }
-}
-
-/// System that processes PlaySound requests (Firewheel variant).
-///
-/// 处理 PlaySound 请求的系统（Firewheel 变体）。
-#[cfg(feature = "firewheel")]
-pub fn process_play_sound_system(
-    mut events: MessageReader<PlaySoundRequest>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    for request in events.read() {
-        if request.is_full_path {
-            audio::play_sound_full_path(&mut commands, &asset_server, &request.sound);
-        } else {
-            audio::play_sound(&mut commands, &asset_server, &request.sound);
+    for mut view_root in active_view_query.iter_mut() {
+        if let Some(FactValue::String(state_name)) =
+            view_root.local_facts.get_by_str("_switch_state")
+        {
+            let state_name = state_name.clone();
+            info!("FRE Bridge: Switching to state '{}'", state_name);
+            next_state.set(crate::app_state::overworld::OverworldSubState::new(
+                &state_name,
+            ));
+            view_root.local_facts.remove("_switch_state");
         }
     }
 }
@@ -309,14 +674,15 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<PlaySoundRequest>()
-            .add_message::<SwitchStateRequest>()
-            .add_message::<SetLocalFactRequest>()
-            .add_message::<CloseViewRequest>()
-            .add_systems(
-                Update,
-                (process_set_local_fact_system, process_play_sound_system),
-            );
+        app.add_systems(
+            Update,
+            (
+                action_to_fre_event_system,
+                process_view_actions_system,
+                handle_switch_state_system,
+            )
+                .chain(),
+        );
     }
 }
 
@@ -361,10 +727,54 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate_simple_expression_missing_variable() {
-        let facts = FactDatabase::new();
+    fn test_evaluate_single_condition_equals() {
+        let mut facts = FactDatabase::new();
+        facts.set("depth", FactValue::Int(0));
 
-        let result = evaluate_simple_expression("$missing", &facts);
-        assert_eq!(result, None);
+        assert!(evaluate_single_condition("$depth == 0", &facts));
+        assert!(!evaluate_single_condition("$depth == 1", &facts));
+    }
+
+    #[test]
+    fn test_evaluate_single_condition_greater_than() {
+        let mut facts = FactDatabase::new();
+        facts.set("selection", FactValue::Int(3));
+
+        assert!(evaluate_single_condition("$selection > 0", &facts));
+        assert!(!evaluate_single_condition("$selection > 3", &facts));
+    }
+
+    #[test]
+    fn test_evaluate_single_condition_less_than() {
+        let mut facts = FactDatabase::new();
+        facts.set("selection", FactValue::Int(3));
+
+        assert!(evaluate_single_condition("$selection < 5", &facts));
+        assert!(!evaluate_single_condition("$selection < 3", &facts));
+    }
+
+    #[test]
+    fn test_evaluate_conditions_all_pass() {
+        let mut facts = FactDatabase::new();
+        facts.set("depth", FactValue::Int(0));
+        facts.set("selection", FactValue::Int(1));
+
+        let conditions = vec!["$depth == 0".to_string(), "$selection < 5".to_string()];
+
+        assert!(evaluate_conditions(&conditions, &facts));
+    }
+
+    #[test]
+    fn test_evaluate_conditions_one_fails() {
+        let mut facts = FactDatabase::new();
+        facts.set("depth", FactValue::Int(0));
+        facts.set("selection", FactValue::Int(1));
+
+        let conditions = vec![
+            "$depth == 1".to_string(), // This fails
+            "$selection < 5".to_string(),
+        ];
+
+        assert!(!evaluate_conditions(&conditions, &facts));
     }
 }

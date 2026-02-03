@@ -31,6 +31,7 @@ pub fn process_view_action_system(
                     });
                     commands.spawn((
                         crate::app_state::battle::BattleViewRoot,
+                        crate::core::view::components::ActiveView, // For FRE input handling
                         Transform::default(),
                         GlobalTransform::default(),
                         Visibility::default(),
@@ -56,6 +57,7 @@ pub fn process_view_action_system(
             });
             commands.spawn((
                 crate::app_state::battle::BattleViewRoot,
+                crate::core::view::components::ActiveView, // For FRE input handling
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),

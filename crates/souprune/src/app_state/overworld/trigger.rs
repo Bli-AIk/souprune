@@ -174,6 +174,7 @@ pub fn trigger_zone_detection_system(
 /// 从地图的 `rules_file` 属性加载 FRE 规则的系统。
 /// 规则文件路径从 Tiled 地图的自定义属性中读取。
 /// 如果不存在 `rules_file` 属性，则不为此地图加载任何规则。
+/// 同时加载 UI 导航规则（backpack.rules.ron）。
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
@@ -183,6 +184,12 @@ pub fn load_fre_rules_system(
     if loaded_rule_sets.initialized {
         return;
     }
+
+    // Always load UI navigation rules
+    let backpack_rules_path = "overworld/rules/backpack.rules.ron";
+    let backpack_handle: Handle<RuleSetAsset> = asset_server.load(backpack_rules_path);
+    loaded_rule_sets.handles.push(backpack_handle);
+    info!("FRE: Loading UI navigation rules: {}", backpack_rules_path);
 
     // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {
@@ -203,13 +210,13 @@ pub fn load_fre_rules_system(
         }
     }
 
-    // No rules_file property found - mark as initialized but with no rules
-    // This allows maps without FRE rules to work without warnings
+    // No rules_file property found - mark as initialized but with no map-specific rules
+    // UI rules are still loaded
     if !tiled_maps.is_empty() {
         for tiled_map in tiled_maps.iter() {
             if tiled_map_assets.get(&tiled_map.0).is_some() {
                 loaded_rule_sets.initialized = true;
-                info!("FRE: No rules_file property found in map, skipping local rules loading");
+                info!("FRE: No rules_file property found in map, only UI rules loaded");
                 return;
             }
         }
@@ -231,6 +238,16 @@ pub fn register_loaded_rules_system(
         return;
     }
 
+    // Wait until all rule sets are loaded
+    let all_loaded = loaded_rule_sets
+        .handles
+        .iter()
+        .all(|h| rule_set_assets.get(h).is_some());
+
+    if !all_loaded {
+        return;
+    }
+
     for handle in &loaded_rule_sets.handles {
         if let Some(rule_set) = rule_set_assets.get(handle) {
             // Apply initial facts to Local layer (room/scene specific)
@@ -246,18 +263,25 @@ pub fn register_loaded_rules_system(
             }
 
             // Store action definitions for each rule (for custom action handling)
-            for rule_def in rule_set.get_rule_defs() {
+            // Use the same ID generation logic as to_rule_with_index()
+            for (idx, rule_def) in rule_set.get_rule_defs().iter().enumerate() {
+                let rule_id = rule_def.generate_id(idx);
                 action_defs
                     .actions_by_rule
-                    .insert(rule_def.id.clone(), rule_def.actions.clone());
+                    .insert(rule_id, rule_def.actions.clone());
             }
 
             // Register all rules
             rule_set.register_rules(&mut registry);
-            *registered = true;
             info!("FRE: Rules registered from RON asset");
         }
     }
+
+    *registered = true;
+    info!(
+        "FRE: All {} rule sets registered",
+        loaded_rule_sets.handles.len()
+    );
 }
 
 /// System to setup custom action handlers for game-specific actions.

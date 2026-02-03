@@ -52,11 +52,11 @@
             ],
         ),
 
-        // Rule: Navigate down at depth 1 (item list, simplified max 7)
-        // 规则：在深度 1 向下导航（物品列表，简化最大 7）
+        // Rule: Navigate down at depth 1 (item list, max = item_count - 1)
+        // 规则：在深度 1 向下导航（物品列表，最大 = 物品数量 - 1）
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
-            conditions: ["$depth == 1", "$selection < 7"],
+            conditions: ["$depth == 1", "$selection < $item_count - 1"],
             actions: [
                 SetLocalFact("selection", Expr("$selection + 1")),
                 PlaySound("choice"),

@@ -165,6 +165,8 @@ pub(crate) fn backpack_state_transition_system(
 /// 生成 UI 根实体。
 /// 实际的视图元素将由 spawn_ron_view_system 生成。
 fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) {
+    use crate::core::view::components::ActiveView;
+
     if locale_loaded.is_none() {
         return;
     }
@@ -172,6 +174,7 @@ fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) 
     commands.spawn((
         OverworldEntity(),
         BackpackViewRoot,
+        ActiveView, // Mark as active for FRE system input handling
         Transform::from_translation(Vec3::ZERO),
         Visibility::default(),
         InheritedVisibility::default(),
@@ -179,7 +182,9 @@ fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) 
         Name::new("UI Interactive Root"),
     ));
 
-    info!("Spawned UI root (elements will be spawned by spawn_ron_view_system)");
+    info!(
+        "Spawned UI root with ActiveView marker (elements will be spawned by spawn_ron_view_system)"
+    );
 }
 
 /// Despawn the UI root entity and its children.

@@ -124,14 +124,14 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             Update,
             force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
-        )
-        // View local_facts navigation system - handles UI input directly
-        // View local_facts 导航系统 - 直接处理 UI 输入
-        .add_systems(
-            Update,
-            view::view_local_facts_navigation_system.in_set(crate::core::view::ViewUpdate),
         );
-        // Note: Specific state behaviors (like Chase) are now configured via states.ron
+        // Note: The hardcoded view_local_facts_navigation_system has been removed.
+        // Navigation is now handled by FRE rules in backpack.rules.ron.
+        // The input_to_fre_event_bridge_system is kept for backward compatibility
+        // with legacy string events.
+        // 注意：硬编码的 view_local_facts_navigation_system 已被移除。
+        // 导航现在由 backpack.rules.ron 中的 FRE 规则处理。
+        // input_to_fre_event_bridge_system 保留用于与旧式字符串事件的向后兼容。
 
         // FRE + Danmaku integration + Chase
         app.add_plugins(bevy_fact_rule_event::FREPlugin)
