@@ -8,6 +8,25 @@ use bevy_fact_rule_event::FactDatabase;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
+/// Marker component for the currently active View.
+///
+/// When a View enters an interactive state (e.g., menu opened),
+/// it receives this marker. FRE actions like `SetLocalFact` and
+/// `CloseView` only affect ViewRoots with this marker.
+///
+/// This prevents "crosstalk" when multiple Views exist simultaneously.
+///
+/// 当前活跃 View 的标记组件。
+///
+/// 当 View 进入交互状态（例如菜单打开）时，
+/// 它会获得此标记。`SetLocalFact` 和 `CloseView` 等 FRE 动作
+/// 仅影响带有此标记的 ViewRoot。
+///
+/// 这可以防止多个 View 同时存在时的"串台"问题。
+#[derive(Component, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ActiveView;
+
 /// View Element - represents a referenceable element in a view layout.
 ///
 /// Each element spawned from a `.view_layout.ron` file receives this component,

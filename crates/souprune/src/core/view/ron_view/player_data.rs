@@ -43,9 +43,10 @@ impl<'a> PlayerDataView<'a> {
     pub fn get_fact(&self, key: &str) -> Option<&FactValue> {
         // First check local facts
         if let Some(local) = self.local_facts
-            && let Some(value) = local.get_by_str(key) {
-                return Some(value);
-            }
+            && let Some(value) = local.get_by_str(key)
+        {
+            return Some(value);
+        }
         // Then check layered database (scene -> global)
         self.db.get_by_str(key)
     }
