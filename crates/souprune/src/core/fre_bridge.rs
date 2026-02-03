@@ -135,8 +135,12 @@ pub fn process_view_actions_system(
             // 在条件评估前同步动态 facts
             sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
 
-            // Check condition expressions against local_facts
-            if !evaluate_conditions(&rule.condition_expressions, &view_root.local_facts) {
+            // Check condition expressions against local_facts and global_facts
+            if !evaluate_conditions(
+                &rule.condition_expressions,
+                &view_root.local_facts,
+                &global_facts,
+            ) {
                 debug!(
                     "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
                     rule.id,
@@ -218,7 +222,11 @@ pub fn process_view_actions_system(
             // Sync dynamic facts from global database before condition evaluation
             sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
 
-            if !evaluate_conditions(&rule.condition_expressions, &view_root.local_facts) {
+            if !evaluate_conditions(
+                &rule.condition_expressions,
+                &view_root.local_facts,
+                &global_facts,
+            ) {
                 debug!(
                     "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
                     rule.id,
@@ -260,31 +268,37 @@ pub fn process_view_actions_system(
     }
 }
 
-/// Syncs dynamic facts from global database to local_facts.
-/// This allows rules to reference global data (like item count) in conditions.
+/// Syncs derived facts from global database to local_facts.
+/// This allows rules to reference global data in conditions.
 ///
-/// 将动态 facts 从全局数据库同步到 local_facts。
-/// 这允许规则在条件中引用全局数据（如物品数量）。
+/// 将派生 facts 从全局数据库同步到 local_facts。
+/// 这允许规则在条件中引用全局数据。
+///
+/// NOTE: This function is now minimal - StringList.len() is evaluated
+/// directly via $var.len() syntax in conditions.
+///
+/// 注意：此函数现在是最小化的 - StringList.len() 通过条件中的
+/// $var.len() 语法直接评估。
 fn sync_dynamic_facts(
-    local_facts: &mut bevy_fact_rule_event::FactDatabase,
-    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+    _local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    _global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) {
-    // Sync item count from player_inventory (StringList)
-    let item_count = global_facts
-        .get_string_list("player_inventory")
-        .map(|list| list.len() as i64)
-        .unwrap_or(0);
-    local_facts.set("item_count", FactValue::Int(item_count));
+    // Currently no facts need to be synced.
+    // StringList.len() is evaluated directly via $var.len() syntax.
 }
 
-/// Evaluate condition expressions against a FactDatabase.
+/// Evaluate condition expressions against local and global facts.
 /// Returns true if all conditions pass.
 ///
-/// 根据 FactDatabase 评估条件表达式。
+/// 根据本地和全局 FactDatabase 评估条件表达式。
 /// 如果所有条件都通过则返回 true。
-fn evaluate_conditions(conditions: &[String], facts: &bevy_fact_rule_event::FactDatabase) -> bool {
+fn evaluate_conditions(
+    conditions: &[String],
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> bool {
     for condition in conditions {
-        if !evaluate_single_condition(condition, facts) {
+        if !evaluate_single_condition(condition, local_facts, global_facts) {
             return false;
         }
     }
@@ -298,6 +312,9 @@ fn evaluate_conditions(conditions: &[String], facts: &bevy_fact_rule_event::Fact
 /// - `$name > N`, `$name >= N` - greater than
 /// - `$name < N`, `$name <= N` - less than
 /// - `$name == true`, `$name == false` - boolean check
+/// - `$name.len()` - get length of StringList
+///
+/// Variable resolution priority: local_facts -> global_facts
 ///
 /// 评估单个条件表达式。
 ///
@@ -306,49 +323,60 @@ fn evaluate_conditions(conditions: &[String], facts: &bevy_fact_rule_event::Fact
 /// - `$name > N`, `$name >= N` - 大于
 /// - `$name < N`, `$name <= N` - 小于
 /// - `$name == true`, `$name == false` - 布尔检查
-fn evaluate_single_condition(condition: &str, facts: &bevy_fact_rule_event::FactDatabase) -> bool {
+/// - `$name.len()` - 获取 StringList 的长度
+///
+/// 变量解析优先级：local_facts -> global_facts
+fn evaluate_single_condition(
+    condition: &str,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> bool {
     let condition = condition.trim();
 
     // Try to parse comparison operators
     if let Some(idx) = condition.find(" == ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_values(left, right, facts, |a, b| a == b);
+        return compare_values(left, right, local_facts, global_facts, |a, b| a == b);
     }
 
     if let Some(idx) = condition.find(" != ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_values(left, right, facts, |a, b| a != b);
+        return compare_values(left, right, local_facts, global_facts, |a, b| a != b);
     }
 
     if let Some(idx) = condition.find(" >= ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_ints(left, right, facts, |a, b| a >= b);
+        return compare_ints(left, right, local_facts, global_facts, |a, b| a >= b);
     }
 
     if let Some(idx) = condition.find(" <= ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
-        return compare_ints(left, right, facts, |a, b| a <= b);
+        return compare_ints(left, right, local_facts, global_facts, |a, b| a <= b);
     }
 
     if let Some(idx) = condition.find(" > ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 3..].trim();
-        return compare_ints(left, right, facts, |a, b| a > b);
+        return compare_ints(left, right, local_facts, global_facts, |a, b| a > b);
     }
 
     if let Some(idx) = condition.find(" < ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 3..].trim();
-        return compare_ints(left, right, facts, |a, b| a < b);
+        return compare_ints(left, right, local_facts, global_facts, |a, b| a < b);
     }
 
     // Default: assume it's a boolean variable that should be true
     if let Some(var_name) = condition.strip_prefix('$') {
-        return facts.get_bool(var_name).unwrap_or(false);
+        // Check local_facts first, then global_facts
+        if let Some(val) = local_facts.get_bool(var_name) {
+            return val;
+        }
+        return global_facts.get_bool(var_name).unwrap_or(false);
     }
 
     warn!("FRE Bridge: Unknown condition format: {}", condition);
@@ -358,14 +386,15 @@ fn evaluate_single_condition(condition: &str, facts: &bevy_fact_rule_event::Fact
 fn compare_values<F>(
     left: &str,
     right: &str,
-    facts: &bevy_fact_rule_event::FactDatabase,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
     cmp: F,
 ) -> bool
 where
     F: Fn(&FactValue, &FactValue) -> bool,
 {
-    let left_val = resolve_value(left, facts);
-    let right_val = resolve_value(right, facts);
+    let left_val = resolve_value(left, local_facts, global_facts);
+    let right_val = resolve_value(right, local_facts, global_facts);
 
     match (left_val, right_val) {
         (Some(l), Some(r)) => cmp(&l, &r),
@@ -376,14 +405,15 @@ where
 fn compare_ints<F>(
     left: &str,
     right: &str,
-    facts: &bevy_fact_rule_event::FactDatabase,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
     cmp: F,
 ) -> bool
 where
     F: Fn(i64, i64) -> bool,
 {
-    let left_val = resolve_int(left, facts);
-    let right_val = resolve_int(right, facts);
+    let left_val = resolve_int(left, local_facts, global_facts);
+    let right_val = resolve_int(right, local_facts, global_facts);
 
     match (left_val, right_val) {
         (Some(l), Some(r)) => cmp(l, r),
@@ -391,9 +421,37 @@ where
     }
 }
 
-fn resolve_value(expr: &str, facts: &bevy_fact_rule_event::FactDatabase) -> Option<FactValue> {
+fn resolve_value(
+    expr: &str,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> Option<FactValue> {
+    // Check for .len() suffix (e.g., $player_inventory.len())
+    if let Some(base) = expr.strip_suffix(".len()") {
+        if let Some(var_name) = base.strip_prefix('$') {
+            // Check local_facts first
+            if let Some(val) = local_facts.get_by_str(var_name) {
+                if let FactValue::StringList(list) = val {
+                    return Some(FactValue::Int(list.len() as i64));
+                }
+            }
+            // Check global_facts
+            if let Some(val) = global_facts.get_by_str(var_name) {
+                if let FactValue::StringList(list) = val {
+                    return Some(FactValue::Int(list.len() as i64));
+                }
+            }
+        }
+        return None;
+    }
+
     if let Some(var_name) = expr.strip_prefix('$') {
-        return facts.get_by_str(var_name).cloned();
+        // Check local_facts first
+        if let Some(val) = local_facts.get_by_str(var_name) {
+            return Some(val.clone());
+        }
+        // Check global_facts
+        return global_facts.get_by_str(var_name).cloned();
     }
 
     // Try parsing as integer
@@ -417,29 +475,57 @@ fn resolve_value(expr: &str, facts: &bevy_fact_rule_event::FactDatabase) -> Opti
     None
 }
 
-fn resolve_int(expr: &str, facts: &bevy_fact_rule_event::FactDatabase) -> Option<i64> {
+fn resolve_int(
+    expr: &str,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> Option<i64> {
     let expr = expr.trim();
 
     // Check for expression patterns: $var + N, $var - N
     if let Some(idx) = expr.find(" + ") {
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
-        let left_val = resolve_int(left, facts)?;
-        let right_val = resolve_int(right, facts)?;
+        let left_val = resolve_int(left, local_facts, global_facts)?;
+        let right_val = resolve_int(right, local_facts, global_facts)?;
         return Some(left_val + right_val);
     }
 
     if let Some(idx) = expr.find(" - ") {
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
-        let left_val = resolve_int(left, facts)?;
-        let right_val = resolve_int(right, facts)?;
+        let left_val = resolve_int(left, local_facts, global_facts)?;
+        let right_val = resolve_int(right, local_facts, global_facts)?;
         return Some(left_val - right_val);
+    }
+
+    // Check for .len() suffix (e.g., $player_inventory.len())
+    if let Some(base) = expr.strip_suffix(".len()") {
+        if let Some(var_name) = base.strip_prefix('$') {
+            // Check local_facts first
+            if let Some(val) = local_facts.get_by_str(var_name) {
+                if let FactValue::StringList(list) = val {
+                    return Some(list.len() as i64);
+                }
+            }
+            // Check global_facts
+            if let Some(val) = global_facts.get_by_str(var_name) {
+                if let FactValue::StringList(list) = val {
+                    return Some(list.len() as i64);
+                }
+            }
+        }
+        return None;
     }
 
     // Simple variable reference
     if let Some(var_name) = expr.strip_prefix('$') {
-        return facts.get_int(var_name);
+        // Check local_facts first
+        if let Some(val) = local_facts.get_int(var_name) {
+            return Some(val);
+        }
+        // Check global_facts
+        return global_facts.get_int(var_name);
     }
 
     expr.parse::<i64>().ok()
@@ -685,7 +771,7 @@ impl Plugin for FREBridgePlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy_fact_rule_event::FactDatabase;
+    use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
 
     #[test]
     fn test_evaluate_simple_expression_variable() {
@@ -725,44 +811,73 @@ mod tests {
     #[test]
     fn test_evaluate_single_condition_equals() {
         let mut facts = FactDatabase::new();
+        let global_facts = LayeredFactDatabase::default();
         facts.set("depth", FactValue::Int(0));
 
-        assert!(evaluate_single_condition("$depth == 0", &facts));
-        assert!(!evaluate_single_condition("$depth == 1", &facts));
+        assert!(evaluate_single_condition(
+            "$depth == 0",
+            &facts,
+            &global_facts
+        ));
+        assert!(!evaluate_single_condition(
+            "$depth == 1",
+            &facts,
+            &global_facts
+        ));
     }
 
     #[test]
     fn test_evaluate_single_condition_greater_than() {
         let mut facts = FactDatabase::new();
+        let global_facts = LayeredFactDatabase::default();
         facts.set("selection", FactValue::Int(3));
 
-        assert!(evaluate_single_condition("$selection > 0", &facts));
-        assert!(!evaluate_single_condition("$selection > 3", &facts));
+        assert!(evaluate_single_condition(
+            "$selection > 0",
+            &facts,
+            &global_facts
+        ));
+        assert!(!evaluate_single_condition(
+            "$selection > 3",
+            &facts,
+            &global_facts
+        ));
     }
 
     #[test]
     fn test_evaluate_single_condition_less_than() {
         let mut facts = FactDatabase::new();
+        let global_facts = LayeredFactDatabase::default();
         facts.set("selection", FactValue::Int(3));
 
-        assert!(evaluate_single_condition("$selection < 5", &facts));
-        assert!(!evaluate_single_condition("$selection < 3", &facts));
+        assert!(evaluate_single_condition(
+            "$selection < 5",
+            &facts,
+            &global_facts
+        ));
+        assert!(!evaluate_single_condition(
+            "$selection < 3",
+            &facts,
+            &global_facts
+        ));
     }
 
     #[test]
     fn test_evaluate_conditions_all_pass() {
         let mut facts = FactDatabase::new();
+        let global_facts = LayeredFactDatabase::default();
         facts.set("depth", FactValue::Int(0));
         facts.set("selection", FactValue::Int(1));
 
         let conditions = vec!["$depth == 0".to_string(), "$selection < 5".to_string()];
 
-        assert!(evaluate_conditions(&conditions, &facts));
+        assert!(evaluate_conditions(&conditions, &facts, &global_facts));
     }
 
     #[test]
     fn test_evaluate_conditions_one_fails() {
         let mut facts = FactDatabase::new();
+        let global_facts = LayeredFactDatabase::default();
         facts.set("depth", FactValue::Int(0));
         facts.set("selection", FactValue::Int(1));
 
@@ -771,6 +886,36 @@ mod tests {
             "$selection < 5".to_string(),
         ];
 
-        assert!(!evaluate_conditions(&conditions, &facts));
+        assert!(!evaluate_conditions(&conditions, &facts, &global_facts));
+    }
+
+    #[test]
+    fn test_evaluate_string_list_len() {
+        let local_facts = FactDatabase::new();
+        let mut global_facts = LayeredFactDatabase::default();
+        global_facts.set_global(
+            "player_inventory",
+            FactValue::StringList(vec![
+                "item1".to_string(),
+                "item2".to_string(),
+                "item3".to_string(),
+            ]),
+        );
+
+        // Test $player_inventory.len() resolves to 3
+        let conditions = vec!["$player_inventory.len() == 3".to_string()];
+        assert!(evaluate_conditions(
+            &conditions,
+            &local_facts,
+            &global_facts
+        ));
+
+        // Test comparison with arithmetic
+        let conditions2 = vec!["$player_inventory.len() > 2".to_string()];
+        assert!(evaluate_conditions(
+            &conditions2,
+            &local_facts,
+            &global_facts
+        ));
     }
 }

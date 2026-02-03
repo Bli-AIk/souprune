@@ -584,8 +584,12 @@ pub mod debug_fre_panel {
                                             }
                                         }
                                         FactValue::StringList(list) => {
-                                            // Show as read-only list with count
-                                            ui.label(format!("[{}]", list.len()));
+                                            // Show list with expandable elements
+                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                for (idx, item) in list.iter().enumerate() {
+                                                    ui.label(format!("  {}: {}", idx, item));
+                                                }
+                                            });
                                         }
                                     },
                                 );
@@ -670,8 +674,12 @@ pub mod debug_fre_panel {
                             }
                         }
                         FactValue::StringList(ref list) => {
-                            // Show as read-only list with count
-                            ui.label(format!("[{}]", list.len()));
+                            // Show list with expandable elements
+                            ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                for (idx, item) in list.iter().enumerate() {
+                                    ui.label(format!("  {}: {}", idx, item));
+                                }
+                            });
                         }
                     },
                 );
