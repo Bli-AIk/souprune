@@ -235,13 +235,11 @@ fn evaluate_simple_expression(
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
 
-        if left.starts_with('$') {
-            let var_name = &left[1..];
-            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name) {
-                if let Ok(right_val) = right.parse::<i64>() {
+        if let Some(var_name) = left.strip_prefix('$') {
+            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
+                && let Ok(right_val) = right.parse::<i64>() {
                     return Some(FactValue::Int(left_val + right_val));
                 }
-            }
         }
     }
 
@@ -250,13 +248,11 @@ fn evaluate_simple_expression(
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
 
-        if left.starts_with('$') {
-            let var_name = &left[1..];
-            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name) {
-                if let Ok(right_val) = right.parse::<i64>() {
+        if let Some(var_name) = left.strip_prefix('$') {
+            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
+                && let Ok(right_val) = right.parse::<i64>() {
                     return Some(FactValue::Int(left_val - right_val));
                 }
-            }
         }
     }
 
