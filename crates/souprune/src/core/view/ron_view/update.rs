@@ -110,55 +110,44 @@ pub fn update_dynamic_ui_elements(
 
         // Update sprite transform and shader params if present
         if let Some(sprite_def) = &dynamic_elem.sprite_def
-            && let Some(t_def) = &sprite_def.transform {
-                let new_translation = if let Some(trans) = &t_def.translation {
-                    Vec3::new(
-                        evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
-                        evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
-                        evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
-                    )
-                } else {
-                    Vec3::ZERO
-                };
+            && let Some(t_def) = &sprite_def.transform
+        {
+            let new_translation = if let Some(trans) = &t_def.translation {
+                Vec3::new(
+                    evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
+                )
+            } else {
+                Vec3::ZERO
+            };
 
-                if let Some(scale_def) = &t_def.scale {
-                    let new_scale = Vec3::new(
-                        evaluate_float_expr(
-                            &scale_def.0,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &scale_def.1,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &scale_def.2,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                    );
+            if let Some(scale_def) = &t_def.scale {
+                let new_scale = Vec3::new(
+                    evaluate_float_expr(&scale_def.0, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.1, &player_data, Some(time.elapsed_secs_f64())),
+                    evaluate_float_expr(&scale_def.2, &player_data, Some(time.elapsed_secs_f64())),
+                );
 
-                    // Apply pivot offset if present
-                    if let Some(pivot) = &sprite_def.pivot {
-                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
-                        let shift_x = (0.5 - pivot_x) * new_scale.x;
-                        let shift_y = (0.5 - pivot_y) * new_scale.y;
-                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
-                        transform.translation = new_translation + shift;
-                    } else {
-                        transform.translation = new_translation;
-                    }
-
-                    transform.scale = new_scale;
+                // Apply pivot offset if present
+                if let Some(pivot) = &sprite_def.pivot {
+                    let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                    let shift_x = (0.5 - pivot_x) * new_scale.x;
+                    let shift_y = (0.5 - pivot_y) * new_scale.y;
+                    let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                    transform.translation = new_translation + shift;
                 } else {
                     transform.translation = new_translation;
                 }
-            }
 
-            // Note: HP bar shader params are now handled by update_hp_bar_shader_params system
-            // using the stored expressions in HPBarSprite.shader_params_expr
+                transform.scale = new_scale;
+            } else {
+                transform.translation = new_translation;
+            }
+        }
+
+        // Note: HP bar shader params are now handled by update_hp_bar_shader_params system
+        // using the stored expressions in HPBarSprite.shader_params_expr
 
         // Update text transform if present
         if let Some(text_def) = &dynamic_elem.text_def {

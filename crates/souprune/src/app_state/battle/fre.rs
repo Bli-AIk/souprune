@@ -187,80 +187,82 @@ fn register_battle_rules_system(
 
     // Process menu rules
     if let Some(handle) = &battle_rules_handle.menu_handle
-        && let Some(rule_set) = rule_set_assets.get(handle) {
-            // Apply initial facts to View local facts (via ViewRoot in fre_bridge)
-            for (key, value) in rule_set.get_initial_facts() {
-                let fact_value = match value {
-                    FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
-                    FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
-                    FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
-                    FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
-                    FactValueDef::StringList(v) => {
-                        bevy_fact_rule_event::FactValue::StringList(v.clone())
-                    }
-                };
-                fact_db.set_local(key.as_str(), fact_value);
-                info!("Battle FRE: Set initial fact '{}' from menu rules", key);
-            }
-
-            // Register rules and populate action_defs
-            let rules_defs = rule_set.get_rule_defs();
-            for (idx, rule_def) in rules_defs.iter().enumerate() {
-                let rule = rule_def.to_rule_with_index(idx);
-                let rule_id = rule_def.generate_id(idx);
-
-                // Store actions by rule ID
-                if !rule_def.actions.is_empty() {
-                    action_defs
-                        .actions_by_rule
-                        .insert(rule_id.clone(), rule_def.actions.clone());
+        && let Some(rule_set) = rule_set_assets.get(handle)
+    {
+        // Apply initial facts to View local facts (via ViewRoot in fre_bridge)
+        for (key, value) in rule_set.get_initial_facts() {
+            let fact_value = match value {
+                FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
+                FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
+                FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
+                FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
+                FactValueDef::StringList(v) => {
+                    bevy_fact_rule_event::FactValue::StringList(v.clone())
                 }
-
-                registry.register(rule);
-            }
-            info!("Battle FRE: Registered {} menu rules", rules_defs.len());
+            };
+            fact_db.set_local(key.as_str(), fact_value);
+            info!("Battle FRE: Set initial fact '{}' from menu rules", key);
         }
+
+        // Register rules and populate action_defs
+        let rules_defs = rule_set.get_rule_defs();
+        for (idx, rule_def) in rules_defs.iter().enumerate() {
+            let rule = rule_def.to_rule_with_index(idx);
+            let rule_id = rule_def.generate_id(idx);
+
+            // Store actions by rule ID
+            if !rule_def.actions.is_empty() {
+                action_defs
+                    .actions_by_rule
+                    .insert(rule_id.clone(), rule_def.actions.clone());
+            }
+
+            registry.register(rule);
+        }
+        info!("Battle FRE: Registered {} menu rules", rules_defs.len());
+    }
 
     // Process custom battle rules (if any)
     if let Some(handle) = &battle_rules_handle.handle
-        && let Some(rule_set) = rule_set_assets.get(handle) {
-            for (key, value) in rule_set.get_initial_facts() {
-                let fact_value = match value {
-                    FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
-                    FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
-                    FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
-                    FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
-                    FactValueDef::StringList(v) => {
-                        bevy_fact_rule_event::FactValue::StringList(v.clone())
-                    }
-                };
-                fact_db.set_local(key.as_str(), fact_value);
-                info!("Battle FRE: Set initial fact '{}' from battle rules", key);
-            }
-
-            let rules_defs = rule_set.get_rule_defs();
-            let offset = battle_rules_handle
-                .menu_handle
-                .as_ref()
-                .and_then(|h| rule_set_assets.get(h))
-                .map(|rs| rs.get_rule_defs().len())
-                .unwrap_or(0);
-
-            for (idx, rule_def) in rules_defs.iter().enumerate() {
-                let global_idx = offset + idx;
-                let rule = rule_def.to_rule_with_index(global_idx);
-                let rule_id = rule_def.generate_id(global_idx);
-
-                if !rule_def.actions.is_empty() {
-                    action_defs
-                        .actions_by_rule
-                        .insert(rule_id.clone(), rule_def.actions.clone());
+        && let Some(rule_set) = rule_set_assets.get(handle)
+    {
+        for (key, value) in rule_set.get_initial_facts() {
+            let fact_value = match value {
+                FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
+                FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
+                FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
+                FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
+                FactValueDef::StringList(v) => {
+                    bevy_fact_rule_event::FactValue::StringList(v.clone())
                 }
-
-                registry.register(rule);
-            }
-            info!("Battle FRE: Registered {} custom rules", rules_defs.len());
+            };
+            fact_db.set_local(key.as_str(), fact_value);
+            info!("Battle FRE: Set initial fact '{}' from battle rules", key);
         }
+
+        let rules_defs = rule_set.get_rule_defs();
+        let offset = battle_rules_handle
+            .menu_handle
+            .as_ref()
+            .and_then(|h| rule_set_assets.get(h))
+            .map(|rs| rs.get_rule_defs().len())
+            .unwrap_or(0);
+
+        for (idx, rule_def) in rules_defs.iter().enumerate() {
+            let global_idx = offset + idx;
+            let rule = rule_def.to_rule_with_index(global_idx);
+            let rule_id = rule_def.generate_id(global_idx);
+
+            if !rule_def.actions.is_empty() {
+                action_defs
+                    .actions_by_rule
+                    .insert(rule_id.clone(), rule_def.actions.clone());
+            }
+
+            registry.register(rule);
+        }
+        info!("Battle FRE: Registered {} custom rules", rules_defs.len());
+    }
 
     battle_rules_handle.registered = true;
     info!("Battle FRE: All rules registered and action_defs populated");
