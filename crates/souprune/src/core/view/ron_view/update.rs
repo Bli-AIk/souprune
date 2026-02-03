@@ -109,8 +109,8 @@ pub fn update_dynamic_ui_elements(
         };
 
         // Update sprite transform and shader params if present
-        if let Some(sprite_def) = &dynamic_elem.sprite_def {
-            if let Some(t_def) = &sprite_def.transform {
+        if let Some(sprite_def) = &dynamic_elem.sprite_def
+            && let Some(t_def) = &sprite_def.transform {
                 let new_translation = if let Some(trans) = &t_def.translation {
                     Vec3::new(
                         evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
@@ -159,7 +159,6 @@ pub fn update_dynamic_ui_elements(
 
             // Note: HP bar shader params are now handled by update_hp_bar_shader_params system
             // using the stored expressions in HPBarSprite.shader_params_expr
-        }
 
         // Update text transform if present
         if let Some(text_def) = &dynamic_elem.text_def {

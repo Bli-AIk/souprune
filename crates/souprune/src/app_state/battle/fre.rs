@@ -186,8 +186,8 @@ fn register_battle_rules_system(
     };
 
     // Process menu rules
-    if let Some(handle) = &battle_rules_handle.menu_handle {
-        if let Some(rule_set) = rule_set_assets.get(handle) {
+    if let Some(handle) = &battle_rules_handle.menu_handle
+        && let Some(rule_set) = rule_set_assets.get(handle) {
             // Apply initial facts to View local facts (via ViewRoot in fre_bridge)
             for (key, value) in rule_set.get_initial_facts() {
                 let fact_value = match value {
@@ -220,11 +220,10 @@ fn register_battle_rules_system(
             }
             info!("Battle FRE: Registered {} menu rules", rules_defs.len());
         }
-    }
 
     // Process custom battle rules (if any)
-    if let Some(handle) = &battle_rules_handle.handle {
-        if let Some(rule_set) = rule_set_assets.get(handle) {
+    if let Some(handle) = &battle_rules_handle.handle
+        && let Some(rule_set) = rule_set_assets.get(handle) {
             for (key, value) in rule_set.get_initial_facts() {
                 let fact_value = match value {
                     FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
@@ -262,7 +261,6 @@ fn register_battle_rules_system(
             }
             info!("Battle FRE: Registered {} custom rules", rules_defs.len());
         }
-    }
 
     battle_rules_handle.registered = true;
     info!("Battle FRE: All rules registered and action_defs populated");

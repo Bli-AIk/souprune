@@ -430,17 +430,15 @@ fn resolve_value(
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
-            if let Some(val) = local_facts.get_by_str(var_name) {
-                if let FactValue::StringList(list) = val {
+            if let Some(val) = local_facts.get_by_str(var_name)
+                && let FactValue::StringList(list) = val {
                     return Some(FactValue::Int(list.len() as i64));
                 }
-            }
             // Check global_facts
-            if let Some(val) = global_facts.get_by_str(var_name) {
-                if let FactValue::StringList(list) = val {
+            if let Some(val) = global_facts.get_by_str(var_name)
+                && let FactValue::StringList(list) = val {
                     return Some(FactValue::Int(list.len() as i64));
                 }
-            }
         }
         return None;
     }
@@ -503,17 +501,15 @@ fn resolve_int(
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
-            if let Some(val) = local_facts.get_by_str(var_name) {
-                if let FactValue::StringList(list) = val {
+            if let Some(val) = local_facts.get_by_str(var_name)
+                && let FactValue::StringList(list) = val {
                     return Some(list.len() as i64);
                 }
-            }
             // Check global_facts
-            if let Some(val) = global_facts.get_by_str(var_name) {
-                if let FactValue::StringList(list) = val {
+            if let Some(val) = global_facts.get_by_str(var_name)
+                && let FactValue::StringList(list) = val {
                     return Some(list.len() as i64);
                 }
-            }
         }
         return None;
     }
@@ -697,13 +693,12 @@ fn evaluate_simple_expression(
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
 
-        if let Some(var_name) = left.strip_prefix('$') {
-            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
+        if let Some(var_name) = left.strip_prefix('$')
+            && let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
                 && let Ok(right_val) = right.parse::<i64>()
             {
                 return Some(FactValue::Int(left_val + right_val));
             }
-        }
     }
 
     // Handle simple subtraction: $name - N
@@ -711,13 +706,12 @@ fn evaluate_simple_expression(
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
 
-        if let Some(var_name) = left.strip_prefix('$') {
-            if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
+        if let Some(var_name) = left.strip_prefix('$')
+            && let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
                 && let Ok(right_val) = right.parse::<i64>()
             {
                 return Some(FactValue::Int(left_val - right_val));
             }
-        }
     }
 
     // Try parsing as literal integer
