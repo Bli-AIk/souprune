@@ -84,6 +84,7 @@ impl Plugin for CorePlugin {
                 collision::CollisionPlugin,
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
+                fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
                 item::ItemPlugin,
                 sprite::SpritePlugin,

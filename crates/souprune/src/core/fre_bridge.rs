@@ -237,9 +237,10 @@ fn evaluate_simple_expression(
 
         if let Some(var_name) = left.strip_prefix('$') {
             if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
-                && let Ok(right_val) = right.parse::<i64>() {
-                    return Some(FactValue::Int(left_val + right_val));
-                }
+                && let Ok(right_val) = right.parse::<i64>()
+            {
+                return Some(FactValue::Int(left_val + right_val));
+            }
         }
     }
 
@@ -250,9 +251,10 @@ fn evaluate_simple_expression(
 
         if let Some(var_name) = left.strip_prefix('$') {
             if let Some(FactValue::Int(left_val)) = facts.get_by_str(var_name)
-                && let Ok(right_val) = right.parse::<i64>() {
-                    return Some(FactValue::Int(left_val - right_val));
-                }
+                && let Ok(right_val) = right.parse::<i64>()
+            {
+                return Some(FactValue::Int(left_val - right_val));
+            }
         }
     }
 
