@@ -50,9 +50,16 @@
         "player_weapon": String("stick"),
         "player_armor": String("bandage"),
 
-        // Inventory (comma-separated item IDs)
-        // 物品栏（逗号分隔的物品 ID）
-        "player_inventory": String("monster_candy,monster_candy,monster_candy,monster_candy,monster_candy,UNDEFITEM"),
+        // Inventory (StringList of item IDs)
+        // 物品栏（物品 ID 的字符串列表）
+        "player_inventory": StringList([
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "UNDEFITEM",
+        ]),
         "player_inventory_capacity": Int(8),
     },
 

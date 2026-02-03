@@ -3,7 +3,7 @@
 //! 玩家数据视图，用于从 LayeredFactDatabase 访问玩家事实。
 
 use crate::core::item::ItemId;
-use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactDatabase, FactReader, FactValue, LayeredFactDatabase};
 
 /// Helper struct to read player data from LayeredFactDatabase.
 /// This provides a view into player facts for the View system.
@@ -67,6 +67,7 @@ impl<'a> PlayerDataView<'a> {
                     }
                 }
                 FactValue::String(_) => default.unwrap_or(0.0),
+                FactValue::StringList(list) => list.len() as f64,
             }
         } else {
             default.unwrap_or(0.0)
@@ -132,13 +133,8 @@ impl<'a> PlayerDataView<'a> {
 
     pub fn inventory(&self) -> Vec<ItemId> {
         self.db
-            .get_string("player_inventory")
-            .map(|s| {
-                s.split(',')
-                    .filter(|s| !s.is_empty())
-                    .map(|s| ItemId(s.to_string()))
-                    .collect()
-            })
+            .get_string_list("player_inventory")
+            .map(|list| list.iter().map(|s| ItemId(s.clone())).collect())
             .unwrap_or_default()
     }
 

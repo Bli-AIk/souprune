@@ -235,7 +235,7 @@
                                 // X positions: -74.25, -22.25, 30.75 for indices 0, 1, 2
                                 "if($selection == 0, -74.25, if($selection == 1, -22.25, 30.75))",
                                 "-63.5",                          // Y: same as option texts
-                                "2.0",                            // Z: above box
+                                "6.0",                            // Z: above box
                             ),
                         ),
                     ),

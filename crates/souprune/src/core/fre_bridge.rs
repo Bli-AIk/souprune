@@ -15,10 +15,11 @@
 //! - 管理 ActiveView 标记
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactValue, LocalFactValue, RuleActionDef, RuleRegistry};
+use bevy_fact_rule_event::{
+    FactEvent, FactReader, FactValue, LocalFactValue, RuleActionDef, RuleRegistry,
+};
 use leafwing_input_manager::action_state::ActionState;
 
-use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
@@ -41,10 +42,12 @@ use crate::core::view::components::{ActiveView, ViewRoot};
 /// - `just_released`
 pub fn action_to_fre_event_system(
     registry: Res<ActionRegistry>,
-    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    query: Query<&ActionState<Action>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {
-    let Ok(action_state) = query.single() else {
+    // Find any entity with ActionState - prioritize first found
+    // 查找任何带有 ActionState 的实体 - 优先使用第一个找到的
+    let Some(action_state) = query.iter().next() else {
         return;
     };
 
@@ -266,17 +269,10 @@ fn sync_dynamic_facts(
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) {
-    // Sync item count from player_inventory
-    // player_inventory is a comma-separated string of item IDs
+    // Sync item count from player_inventory (StringList)
     let item_count = global_facts
-        .get_string("player_inventory")
-        .map(|s| {
-            if s.is_empty() {
-                0i64
-            } else {
-                s.split(',').filter(|x| !x.is_empty()).count() as i64
-            }
-        })
+        .get_string_list("player_inventory")
+        .map(|list| list.len() as i64)
         .unwrap_or(0);
     local_facts.set("item_count", FactValue::Int(item_count));
 }

@@ -21,8 +21,10 @@ mod bridge;
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
+use crate::core::input::{Action, PlayerInputSettings};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValueDef, LayeredFactDatabase, RuleRegistry, RuleSetAsset};
+use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
 pub use bridge::{
@@ -35,6 +37,14 @@ pub use bridge::{
 /// 战斗 FRE 处理的系统集。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleFRESet;
+
+/// Marker component for the battle input entity.
+/// This entity carries ActionState for FRE input processing during battle.
+///
+/// 战斗输入实体的标记组件。
+/// 此实体在战斗期间携带 ActionState 用于 FRE 输入处理。
+#[derive(Component)]
+pub struct BattleInputEntity;
 
 /// Resource to track the battle-specific rules handle.
 ///
@@ -89,9 +99,11 @@ impl Plugin for BattleFREPlugin {
 /// 清空局部层并设置初始战斗事实。
 /// 玩家数据已由 data.rs 模块存储在全局层中。
 fn setup_battle_fre_system(
+    mut commands: Commands,
     mut layered_db: ResMut<LayeredFactDatabase>,
     mut battle_rules_handle: ResMut<BattleRulesHandle>,
     asset_server: Res<AssetServer>,
+    player_input: Res<PlayerInputSettings>,
 ) {
     // Clear local layer from any previous state
     layered_db.clear_local();
@@ -100,6 +112,17 @@ fn setup_battle_fre_system(
     layered_db.set("battle_is_active", true);
     layered_db.set("battle_turn_count", 0i64);
     layered_db.set("battle_phase", "initializing");
+
+    // Spawn input entity for FRE to receive ActionState events
+    // 生成输入实体，用于 FRE 接收 ActionState 事件
+    commands.spawn((
+        Name::new("BattleInputEntity"),
+        BattleInputEntity,
+        crate::app_state::battle::BattleEntity,
+        player_input.get_merged_map(),
+        ActionState::<Action>::default(),
+    ));
+    info!("Battle FRE: Spawned input entity for ActionState");
 
     // Always load battle menu rules
     let menu_path = "battle/rules/battle_menu.rules.ron";
@@ -172,6 +195,9 @@ fn register_battle_rules_system(
                     FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
                     FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
                     FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
+                    FactValueDef::StringList(v) => {
+                        bevy_fact_rule_event::FactValue::StringList(v.clone())
+                    }
                 };
                 fact_db.set_local(key.as_str(), fact_value);
                 info!("Battle FRE: Set initial fact '{}' from menu rules", key);
@@ -205,6 +231,9 @@ fn register_battle_rules_system(
                     FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
                     FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
                     FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
+                    FactValueDef::StringList(v) => {
+                        bevy_fact_rule_event::FactValue::StringList(v.clone())
+                    }
                 };
                 fact_db.set_local(key.as_str(), fact_value);
                 info!("Battle FRE: Set initial fact '{}' from battle rules", key);

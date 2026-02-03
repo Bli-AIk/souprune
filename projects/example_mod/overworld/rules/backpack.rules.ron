@@ -63,10 +63,21 @@
             ],
         ),
 
-        // Rule: Navigate down at depth 2 (USE/INFO/DROP, max 2)
-        // 规则：在深度 2 向下导航（USE/INFO/DROP，最大 2）
+        // Rule: Navigate down at depth 2 (USE/INFO/DROP, max 2) using LEFT KEY
+        // 规则：在深度 2 向下导航（USE/INFO/DROP，最大 2）使用左键
         (
-            event: ActionEvent(action: "Down", kind: JustPressed),
+            event: ActionEvent(action: "Left", kind: JustPressed),
+            conditions: ["$depth == 2", "$selection > 0"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Rule: Navigate at depth 2 (USE/INFO/DROP, max 2) using RIGHT KEY
+        // 规则：在深度 2 导航（USE/INFO/DROP，最大 2）使用右键
+        (
+            event: ActionEvent(action: "Right", kind: JustPressed),
             conditions: ["$depth == 2", "$selection < 2"],
             actions: [
                 SetLocalFact("selection", Expr("$selection + 1")),

@@ -583,6 +583,10 @@ pub mod debug_fre_panel {
                                                 ));
                                             }
                                         }
+                                        FactValue::StringList(list) => {
+                                            // Show as read-only list with count
+                                            ui.label(format!("[{}]", list.len()));
+                                        }
                                     },
                                 );
                             });
@@ -664,6 +668,10 @@ pub mod debug_fre_panel {
                                     layer,
                                 ));
                             }
+                        }
+                        FactValue::StringList(ref list) => {
+                            // Show as read-only list with count
+                            ui.label(format!("[{}]", list.len()));
                         }
                     },
                 );
