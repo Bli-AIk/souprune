@@ -195,26 +195,35 @@ pub fn spawn_ron_view_for_entity(
         );
     }
 
-    // Attach ViewRoot to the view entity
-    // 为视图实体附加 ViewRoot 组件
-    commands.entity(view_entity).insert(view_root);
+    // Spawn view nodes BEFORE attaching ViewRoot, using a player_data with local_facts
+    // 在附加 ViewRoot 之前生成视图节点，使用带有 local_facts 的 player_data
+    {
+        // Create player_data with local_facts for spawning children
+        // 使用 local_facts 创建 player_data 以生成子节点
+        let player_data_with_locals =
+            PlayerDataView::with_local_facts(player_data.db(), &view_root.local_facts);
 
-    for root in &view_layout.roots {
-        spawn_view_node(
-            commands,
-            asset_server,
-            view_entity,
-            root,
-            camera_transform,
-            sprite_params,
-            animation_assets,
-            mortar_strings,
-            player_data,
-            item_registry,
-            true,       // Top-level nodes
-            &namespace, // Pass namespace to children
-        );
+        for root in &view_layout.roots {
+            spawn_view_node(
+                commands,
+                asset_server,
+                view_entity,
+                root,
+                camera_transform,
+                sprite_params,
+                animation_assets,
+                mortar_strings,
+                &player_data_with_locals,
+                item_registry,
+                true,       // Top-level nodes
+                &namespace, // Pass namespace to children
+            );
+        }
     }
+
+    // Attach ViewRoot to the view entity AFTER spawning children
+    // 在生成子节点之后将 ViewRoot 附加到视图实体
+    commands.entity(view_entity).insert(view_root);
 }
 
 /// Helper function to build ViewTextConfig from TextDef.
@@ -295,6 +304,7 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
+        visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }
 }
@@ -895,12 +905,20 @@ pub(crate) fn spawn_container_texts(
         if let Some(visible_when_expr) = &text_def.visible_when {
             let expr = visible_when_expr.trim();
             if !expr.is_empty() {
-                info!(
-                    "Adding VisibleWhen to text '{}': '{}'",
-                    text_config.name, expr
-                );
                 // Evaluate initial visibility
                 let is_visible = evaluate_visible_when(expr, player_data);
+
+                // Debug: check if we can access local facts
+                let depth_value = player_data.get_fact_int("depth");
+                info!(
+                    "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
+                    text_config.name,
+                    expr,
+                    is_visible,
+                    depth_value,
+                    player_data.local_facts().is_some()
+                );
+
                 cmd.insert(VisibleWhen {
                     expression: expr.to_string(),
                 });

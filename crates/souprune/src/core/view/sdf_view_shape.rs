@@ -20,7 +20,7 @@
 //! 管理形状几何、文本内容和基于当前 UI 层级的可见性。
 //! 结构从外部 RON 文件加载以获得最大灵活性。
 
-use super::components::{ViewBox, ViewBoxFiller, ViewTextTemplate};
+use super::components::{ViewBox, ViewBoxFiller, ViewTextTemplate, VisibleWhen};
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
@@ -475,6 +475,23 @@ fn spawn_texts_for_filler(
 
                 if let Some(template) = &text_config.template {
                     cmd.insert(ViewTextTemplate(template.clone()));
+                }
+
+                // Add VisibleWhen component if text has visible_when expression
+                // 如果文本有 visible_when 表达式则添加 VisibleWhen 组件
+                // Initial visibility is Hidden, will be evaluated by evaluate_visible_when_system
+                // 初始可见性为 Hidden，将由 evaluate_visible_when_system 评估
+                if let Some(visible_when_expr) = &text_config.visible_when {
+                    let expr = visible_when_expr.trim();
+                    if !expr.is_empty() {
+                        info!(
+                            "Adding VisibleWhen to SDF text '{}': '{}'",
+                            text_config.name, expr
+                        );
+                        cmd.insert(VisibleWhen {
+                            expression: expr.to_string(),
+                        });
+                    }
                 }
             }
         });
