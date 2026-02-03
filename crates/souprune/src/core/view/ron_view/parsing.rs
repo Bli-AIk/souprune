@@ -72,6 +72,7 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
 /// - 布尔值输出为 "true" 或 "false"
 /// - 字符串作为带引号的字符串输出
 /// - 字符串列表输出其长度（用于表达式计算）
+/// - 整数列表输出其长度（用于表达式计算）
 fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
     use bevy_fact_rule_event::FactValue;
     match value {
@@ -80,6 +81,7 @@ fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
         FactValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
         FactValue::String(s) => format!("\"{}\"", s),
         FactValue::StringList(list) => list.len().to_string(),
+        FactValue::IntList(list) => list.len().to_string(),
     }
 }
 
@@ -103,10 +105,22 @@ fn get_fact_for_expr(player_data: &PlayerDataView, key: &str, default: &str) -> 
 ///
 /// 预处理表达式字符串以处理 `$name` 和 `fact('name')` 语法。
 /// - `$name` 会被转换为实际的 fact 值
+/// - `$array[index]` 会被转换为数组中对应索引的值
 /// - `fact('name')` 会被转换为实际的 fact 值
 /// - `fact_or('name', default)` 会被转换为实际的 fact 值或默认值
 fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> String {
     let mut result = expr.to_string();
+
+    // Handle $array[index] syntax first: replace $word[number] with the array element value
+    // 首先处理 $array[index] 语法：将 $word[number] 替换为数组元素值
+    let array_index_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]").unwrap();
+    result = array_index_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let array_name = &caps[1];
+            let index: usize = caps[2].parse().unwrap_or(0);
+            get_array_element_for_expr(player_data, array_name, index, "0")
+        })
+        .to_string();
 
     // Handle $name syntax: replace $word with the fact value (preserving type)
     // 处理 $name 语法：将 $word 替换为 fact 值（保留类型）
@@ -141,6 +155,38 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
         .to_string();
 
     result
+}
+
+/// Get an array element value for expression substitution.
+/// Returns the element at the given index, or the default if not found.
+///
+/// 获取数组元素值用于表达式替换。
+/// 返回给定索引处的元素，如果未找到则返回默认值。
+fn get_array_element_for_expr(
+    player_data: &PlayerDataView,
+    array_name: &str,
+    index: usize,
+    default: &str,
+) -> String {
+    // Try IntList first
+    if let Some(list) = player_data.get_fact_int_list(array_name) {
+        if let Some(value) = list.get(index) {
+            return value.to_string();
+        }
+    }
+    // Then try StringList
+    if let Some(list) = player_data.get_fact_string_list(array_name) {
+        if let Some(value) = list.get(index) {
+            return value.clone();
+        }
+    }
+    // Debug level since out-of-bounds access is common for template elements
+    // that are conditionally visible based on array length
+    debug!(
+        "Array element '{}[{}]' not found, using default '{}'",
+        array_name, index, default
+    );
+    default.to_string()
 }
 
 /// Evaluate a `visible_when` expression to determine visibility.
@@ -562,8 +608,8 @@ pub fn resolve_text_content(
                 }
                 continue;
             } else if next_ch == '$' {
-                // New syntax: {$var} - direct FRE fact access
-                // 新语法：{$var} - 直接访问 FRE 事实
+                // New syntax: {$var} or {$array[index]} - direct FRE fact access
+                // 新语法：{$var} 或 {$array[index]} - 直接访问 FRE 事实
                 chars.next();
                 let mut key = String::new();
                 let mut found_closing = false;
@@ -577,18 +623,68 @@ pub fn resolve_text_content(
                 }
 
                 if found_closing {
-                    // Try to get the fact value and convert to string
-                    let value = if let Some(fact) = player_data.get_fact(&key) {
-                        match fact {
-                            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
-                            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
-                            bevy_fact_rule_event::FactValue::String(s) => s.clone(),
-                            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
-                            bevy_fact_rule_event::FactValue::StringList(list) => list.join(", "),
+                    // Check for array index syntax: array[index]
+                    // 检查数组索引语法：array[index]
+                    let value = if let Some(bracket_pos) = key.find('[') {
+                        let array_name = &key[..bracket_pos];
+                        let index_part = &key[bracket_pos + 1..];
+                        if let Some(close_bracket) = index_part.find(']') {
+                            let index_str = &index_part[..close_bracket];
+                            // Parse index as integer
+                            if let Ok(index) = index_str.parse::<usize>() {
+                                // Try StringList first, then IntList
+                                if let Some(list) = player_data.get_fact_string_list(array_name) {
+                                    list.get(index).cloned().unwrap_or_else(|| {
+                                        warn!(
+                                            "Index {} out of bounds for StringList '{}'",
+                                            index, array_name
+                                        );
+                                        format!("<{}[{}]>", array_name, index)
+                                    })
+                                } else if let Some(list) = player_data.get_fact_int_list(array_name)
+                                {
+                                    list.get(index).map(|i| i.to_string()).unwrap_or_else(|| {
+                                        warn!(
+                                            "Index {} out of bounds for IntList '{}'",
+                                            index, array_name
+                                        );
+                                        format!("<{}[{}]>", array_name, index)
+                                    })
+                                } else {
+                                    warn!("Array fact '{}' not found for index access", array_name);
+                                    format!("<{}[{}]>", array_name, index)
+                                }
+                            } else {
+                                warn!("Invalid index '{}' in array access '{}'", index_str, key);
+                                format!("<{}>", key)
+                            }
+                        } else {
+                            // Malformed bracket syntax
+                            warn!("Malformed array access syntax: {}", key);
+                            format!("<{}>", key)
                         }
                     } else {
-                        warn!("Fact '{}' not found for template substitution", key);
-                        format!("<{}>", key)
+                        // Regular fact access (no array index)
+                        // 普通事实访问（无数组索引）
+                        if let Some(fact) = player_data.get_fact(&key) {
+                            match fact {
+                                bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+                                bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+                                bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+                                bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+                                bevy_fact_rule_event::FactValue::StringList(list) => {
+                                    list.join(", ")
+                                }
+                                bevy_fact_rule_event::FactValue::IntList(list) => list
+                                    .iter()
+                                    .map(|i| i.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                            }
+                        } else {
+                            warn!("Fact '{}' not found for template substitution", key);
+                            format!("<{}>", key)
+                        }
                     };
                     result.push_str(&value);
                 } else {

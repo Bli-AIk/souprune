@@ -107,6 +107,7 @@ impl<'a> PlayerDataView<'a> {
             }
             FactValue::String(_) => 0.0,
             FactValue::StringList(list) => list.len() as f64,
+            FactValue::IntList(list) => list.len() as f64,
         })
     }
 
@@ -161,7 +162,7 @@ impl<'a> PlayerDataView<'a> {
             FactValue::Int(i) => Some(i.to_string()),
             FactValue::Float(f) => Some(f.to_string()),
             FactValue::Bool(b) => Some(b.to_string()),
-            FactValue::StringList(_) => None,
+            FactValue::StringList(_) | FactValue::IntList(_) => None,
         })
     }
 
@@ -171,6 +172,16 @@ impl<'a> PlayerDataView<'a> {
     pub fn get_fact_string_list(&self, key: &str) -> Option<Vec<String>> {
         self.get_fact(key).and_then(|value| match value {
             FactValue::StringList(list) => Some(list.clone()),
+            _ => None,
+        })
+    }
+
+    /// Get a fact value as Vec<i64>. Returns None if fact doesn't exist.
+    ///
+    /// 获取事实值为 Vec<i64>。如果事实不存在则返回 None。
+    pub fn get_fact_int_list(&self, key: &str) -> Option<Vec<i64>> {
+        self.get_fact(key).and_then(|value| match value {
+            FactValue::IntList(list) => Some(list.clone()),
             _ => None,
         })
     }

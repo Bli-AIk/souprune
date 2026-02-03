@@ -80,10 +80,20 @@ pub(crate) fn assign_text_material_system(
 }
 
 /// Show text once mesh is generated.
+/// Skips entities that have VisibleWhen component (they're managed by visible_when system).
 ///
 /// 网格生成后显示文本。
-type TextMeshQuery<'w, 's> =
-    Query<'w, 's, (&'static Mesh2d, &'static mut Visibility), (With<Text3d>, Changed<Mesh2d>)>;
+/// 跳过具有 VisibleWhen 组件的实体（它们由 visible_when 系统管理）。
+type TextMeshQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Mesh2d, &'static mut Visibility),
+    (
+        With<Text3d>,
+        Changed<Mesh2d>,
+        Without<super::components::VisibleWhen>,
+    ),
+>;
 
 pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
     for (mesh, mut visibility) in text_query.iter_mut() {

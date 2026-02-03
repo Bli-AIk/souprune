@@ -260,6 +260,7 @@ pub fn register_loaded_rules_system(
                     FactValueDef::StringList(v) => {
                         bevy_fact_rule_event::FactValue::StringList(v.clone())
                     }
+                    FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
                 };
                 fact_db.set_local(key.as_str(), fact_value);
                 info!("FRE: Set initial fact '{}' to Local layer from RON", key);

@@ -199,6 +199,7 @@ fn register_battle_rules_system(
                 FactValueDef::StringList(v) => {
                     bevy_fact_rule_event::FactValue::StringList(v.clone())
                 }
+                FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
             };
             fact_db.set_local(key.as_str(), fact_value);
             info!("Battle FRE: Set initial fact '{}' from menu rules", key);
@@ -235,6 +236,7 @@ fn register_battle_rules_system(
                 FactValueDef::StringList(v) => {
                     bevy_fact_rule_event::FactValue::StringList(v.clone())
                 }
+                FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
             };
             fact_db.set_local(key.as_str(), fact_value);
             info!("Battle FRE: Set initial fact '{}' from battle rules", key);

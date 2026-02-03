@@ -147,6 +147,7 @@ fn apply_global_rules_system(
             FactValueDef::Bool(v) => FactValue::Bool(*v),
             FactValueDef::String(v) => FactValue::String(v.clone()),
             FactValueDef::StringList(v) => FactValue::StringList(v.clone()),
+            FactValueDef::IntList(v) => FactValue::IntList(v.clone()),
         };
         layered_db.set_global(key.as_str(), fact_value);
         bevy::log::debug!(

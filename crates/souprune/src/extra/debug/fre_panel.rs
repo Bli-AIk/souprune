@@ -584,11 +584,23 @@ pub mod debug_fre_panel {
                                             }
                                         }
                                         FactValue::StringList(list) => {
-                                            // Show list with expandable elements
-                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                for (idx, item) in list.iter().enumerate() {
-                                                    ui.label(format!("  {}: {}", idx, item));
-                                                }
+                                            // Show list with expandable elements - use key as unique id
+                                            ui.push_id(format!("strlist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    for (idx, item) in list.iter().enumerate() {
+                                                        ui.label(format!("  {}: {}", idx, item));
+                                                    }
+                                                });
+                                            });
+                                        }
+                                        FactValue::IntList(list) => {
+                                            // Show int list with expandable elements - use key as unique id
+                                            ui.push_id(format!("intlist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    for (idx, item) in list.iter().enumerate() {
+                                                        ui.label(format!("  {}: {}", idx, item));
+                                                    }
+                                                });
                                             });
                                         }
                                     },
@@ -674,11 +686,23 @@ pub mod debug_fre_panel {
                             }
                         }
                         FactValue::StringList(ref list) => {
-                            // Show list with expandable elements
-                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                for (idx, item) in list.iter().enumerate() {
-                                    ui.label(format!("  {}: {}", idx, item));
-                                }
+                            // Show list with expandable elements - use key as unique id
+                            ui.push_id(format!("layered_strlist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    for (idx, item) in list.iter().enumerate() {
+                                        ui.label(format!("  {}: {}", idx, item));
+                                    }
+                                });
+                            });
+                        }
+                        FactValue::IntList(ref list) => {
+                            // Show int list with expandable elements - use key as unique id
+                            ui.push_id(format!("layered_intlist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    for (idx, item) in list.iter().enumerate() {
+                                        ui.label(format!("  {}: {}", idx, item));
+                                    }
+                                });
                             });
                         }
                     },

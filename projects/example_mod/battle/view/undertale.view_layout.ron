@@ -18,8 +18,17 @@
     // 战斗菜单状态的 View 局部事实
     initial_facts: {
         "depth": 0,           // 0=main menu, 1=submenu
-        "selection": 0,       // Current selection: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+        "selection": 0,       // Current selection (context-dependent)
+        "menu_context": 0,    // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
         "active": true,       // Whether menu is active (vs bullet hell)
+
+        // Enemy data for battle - using arrays for unlimited enemies
+        // 战斗敌人数据 - 使用数组支持无限数量的敌人
+        // Note: String arrays and Int arrays are supported
+        // 注意：支持字符串数组和整数数组
+        "enemy_names": ["Dummy"],
+        "enemy_hps": [100],
+        "enemy_hp_maxs": [100],
     },
 
     roots: [
@@ -52,13 +61,136 @@
                     // 仅在主菜单（深度 0）时显示
                     visible_when: "$depth == 0",
                 ),
+
+                // ========================================
+                // ENEMY LIST (depth 1, FIGHT/ACT/MERCY)
+                // 敌人列表（深度 1，战斗/行动/慈悲模式）
+                // ========================================
+                // Enemy 0 name (uses array index syntax)
+                // 敌人 0 名称（使用数组索引语法）
+                (
+                    id: "EnemyName0",
+                    content: "* {$enemy_names[0]}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, 50.0, 1.0),
+                    ),
+                    // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemy exists
+                    // $enemy_names evaluates to array length
+                    // 在深度 1 时显示，仅限战斗(0)、行动(1)、慈悲(3)模式，且敌人存在
+                    // $enemy_names 会求值为数组长度
+                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 1",
+                ),
+                // Enemy 1 name
+                (
+                    id: "EnemyName1",
+                    content: "* {$enemy_names[1]}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, 18.0, 1.0),
+                    ),
+                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 2",
+                ),
+                // Enemy 2 name
+                (
+                    id: "EnemyName2",
+                    content: "* {$enemy_names[2]}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, -14.0, 1.0),
+                    ),
+                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 3",
+                ),
+                // Enemy 3 name
+                (
+                    id: "EnemyName3",
+                    content: "* {$enemy_names[3]}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, -46.0, 1.0),
+                    ),
+                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 4",
+                ),
             ],
-            children: [],
+            children: [
+                // ========================================
+                // ENEMY HP BARS (FIGHT mode only)
+                // 敌人 HP 条（仅限战斗模式）
+                // Uses array index syntax: $enemy_hps[0], etc.
+                // 使用数组索引语法：$enemy_hps[0] 等
+                // ========================================
+                // Enemy 0 HP bar (green rectangle)
+                (
+                    name: "EnemyHpBar0",
+                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 1",
+                    sprite: (
+                        visual: "procedural://white_pixel",
+                        color: (0.0, 1.0, 0.0, 1.0),  // Pure green
+                        transform: (
+                            // Position to the right of enemy name
+                            translation: (100.0, 50.0, 1.0),
+                            // Width based on HP ratio, height fixed
+                            scale: ("80.0 * $enemy_hps[0] / $enemy_hp_maxs[0]", 12.0, 1.0),
+                        ),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+                // Enemy 1 HP bar
+                (
+                    name: "EnemyHpBar1",
+                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 2",
+                    sprite: (
+                        visual: "procedural://white_pixel",
+                        color: (0.0, 1.0, 0.0, 1.0),
+                        transform: (
+                            translation: (100.0, 18.0, 1.0),
+                            scale: ("80.0 * $enemy_hps[1] / $enemy_hp_maxs[1]", 12.0, 1.0),
+                        ),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+                // Enemy 2 HP bar
+                (
+                    name: "EnemyHpBar2",
+                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 3",
+                    sprite: (
+                        visual: "procedural://white_pixel",
+                        color: (0.0, 1.0, 0.0, 1.0),
+                        transform: (
+                            translation: (100.0, -14.0, 1.0),
+                            scale: ("80.0 * $enemy_hps[2] / $enemy_hp_maxs[2]", 12.0, 1.0),
+                        ),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+                // Enemy 3 HP bar
+                (
+                    name: "EnemyHpBar3",
+                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 4",
+                    sprite: (
+                        visual: "procedural://white_pixel",
+                        color: (0.0, 1.0, 0.0, 1.0),
+                        transform: (
+                            translation: (100.0, -46.0, 1.0),
+                            scale: ("80.0 * $enemy_hps[3] / $enemy_hp_maxs[3]", 12.0, 1.0),
+                        ),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+            ],
         ),
 
         // ========================================
-        // BATTLE MENU CURSOR
-        // 战斗菜单光标
+        // BATTLE MENU CURSOR (Main Menu, depth 0)
+        // 战斗菜单光标（主菜单，深度 0）
         // ========================================
         (
             name: "MenuCursor",
@@ -70,6 +202,32 @@
                     translation: (
                         "if($selection == 0, -272.0, if($selection == 1, -119.0, if($selection == 2, 41.0, 196.0)))",
                         "-214.0",
+                        "2.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // ENEMY SELECTION CURSOR (Submenu, depth 1)
+        // 敌人选择光标（子菜单，深度 1）
+        // ========================================
+        (
+            name: "EnemySelectionCursor",
+            // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3)
+            // 在深度 1 时显示，仅限战斗(0)、行动(1)、慈悲(3)模式
+            visible_when: "$depth == 1 && $active && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3)",
+            sprite: (
+                visual: "common/ui/heart",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                transform: (
+                    translation: (
+                        // X position: left of enemy names, inside BattleBox
+                        // X 位置：敌人名称左侧，在战斗框内
+                        "-290.0",
+                        // Y position: based on selection (50, 18, -14, -46)
+                        // Y 位置：基于选择（50, 18, -14, -46）
+                        "if($selection == 0, -30.0, if($selection == 1, -62.0, if($selection == 2, -94.0, -126.0)))",
                         "2.0",
                     ),
                 ),

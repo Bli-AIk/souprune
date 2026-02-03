@@ -180,6 +180,12 @@ pub fn spawn_ron_view_for_entity(
                 InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
                 InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
                 InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+                InitialFactValue::StringList(list) => {
+                    view_root.local_facts.set(key.clone(), list.clone())
+                }
+                InitialFactValue::IntList(list) => {
+                    view_root.local_facts.set(key.clone(), list.clone())
+                }
             }
         }
         info!(
@@ -882,6 +888,29 @@ pub(crate) fn spawn_container_texts(
 
         if let Some(template) = &text_config.template {
             cmd.insert(ViewTextTemplate(template.clone()));
+        }
+
+        // Add VisibleWhen component if text has visible_when expression
+        // 如果文本有 visible_when 表达式则添加 VisibleWhen 组件
+        if let Some(visible_when_expr) = &text_def.visible_when {
+            let expr = visible_when_expr.trim();
+            if !expr.is_empty() {
+                info!(
+                    "Adding VisibleWhen to text '{}': '{}'",
+                    text_config.name, expr
+                );
+                // Evaluate initial visibility
+                let is_visible = evaluate_visible_when(expr, player_data);
+                cmd.insert(VisibleWhen {
+                    expression: expr.to_string(),
+                });
+                // Set initial visibility
+                if is_visible {
+                    cmd.insert(Visibility::Inherited);
+                } else {
+                    cmd.insert(Visibility::Hidden);
+                }
+            }
         }
 
         // Add DynamicViewElement if transform has dynamic expressions

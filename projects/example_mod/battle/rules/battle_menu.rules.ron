@@ -23,6 +23,12 @@
         "selection": Int(0),
         "menu_context": Int(0),
         "active": Bool(true),
+
+        // Enemy data for battle - using arrays for unlimited enemies
+        // 战斗敌人数据 - 使用数组支持无限数量的敌人
+        "enemy_names": StringList(["Dummy"]),
+        "enemy_hps": IntList([100]),
+        "enemy_hp_maxs": IntList([100]),
     },
 
     rules: [
@@ -63,11 +69,32 @@
             ],
         ),
 
-        // Navigate down in submenu (simplified max 5 options)
-        // 在子菜单中向下导航（简化最大 5 个选项）
+        // Navigate down in submenu - FIGHT/ACT/MERCY (enemy list, max = enemy_names.len - 1)
+        // 在子菜单中向下导航 - 战斗/行动/慈悲（敌人列表，最大值 = 敌人名称数组长度 - 1）
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
-            conditions: ["$active == true", "$depth == 1", "$selection < 5"],
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",  // Not ITEM menu
+                "$selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+            ],
+            actions: [
+                SetLocalFact("selection", Expr("$selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu - ITEM (simplified max 8 items)
+        // 在子菜单中向下导航 - 物品（简化最大 8 个物品）
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context == 2",  // ITEM menu
+                "$selection < 7",       // Max 8 items (0-7)
+            ],
             actions: [
                 SetLocalFact("selection", Expr("$selection + 1")),
                 PlaySound("choice"),

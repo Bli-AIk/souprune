@@ -43,10 +43,10 @@ pub struct ViewLayoutAsset {
 }
 
 /// Value type for initial facts in View Schema.
-/// Supports int, float, bool, and string values.
+/// Supports int, float, bool, string, and array values.
 ///
 /// View Schema 中初始事实的值类型。
-/// 支持 int、float、bool 和 string 值。
+/// 支持 int、float、bool、string 和数组值。
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum InitialFactValue {
@@ -54,6 +54,12 @@ pub enum InitialFactValue {
     Float(f64),
     Bool(bool),
     String(String),
+    /// List of strings - useful for enemy names, etc.
+    /// 字符串列表 - 用于敌人名称等。
+    StringList(Vec<String>),
+    /// List of integers - useful for HP values, etc.
+    /// 整数列表 - 用于 HP 值等。
+    IntList(Vec<i64>),
 }
 
 #[derive(Debug, Deserialize, Clone)]
