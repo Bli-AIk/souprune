@@ -7,11 +7,18 @@ use bevy::prelude::*;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
+use crate::core::view::layout::serde_types::DynamicColor;
+
 /// Marker component for HP bar sprites that need custom Material2d setup.
+/// Stores the original shader_params expressions for dynamic evaluation.
 /// 标记组件，用于需要自定义 Material2d 设置的 HP 条精灵。
-#[derive(Component)]
+/// 存储原始的 shader_params 表达式以便动态求值。
+#[derive(Component, Clone)]
 pub struct HPBarSprite {
-    pub shader_params: Color,
+    /// Original shader_params expressions from config. Used for dynamic evaluation.
+    /// Components: (hp_ratio_expr, lag_ratio_expr, half_width_expr, alpha_expr)
+    /// 来自配置的原始 shader_params 表达式。用于动态求值。
+    pub shader_params_expr: Option<DynamicColor>,
 }
 
 /// Marker component for UI elements that need dynamic updates based on player data.

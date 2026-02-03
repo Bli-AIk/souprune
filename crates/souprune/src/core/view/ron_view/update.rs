@@ -14,12 +14,13 @@ pub fn update_hp_bar_shader_params(
     mut query: Query<(
         &MeshMaterial2d<super::super::custom_sprite_material::CustomSpriteMaterial>,
         &mut HPBarLag,
+        &HPBarSprite,
     )>,
 ) {
     let player_data = PlayerDataView::new(&layered_db);
     let hp_ratio = player_data.hp() as f32 / player_data.hp_max() as f32;
 
-    for (material_handle, mut lag) in query.iter_mut() {
+    for (material_handle, mut lag, hp_bar) in query.iter_mut() {
         // Detect significant HP drop (Damage taken)
         if hp_ratio < lag.last_hp_ratio {
             // Start the sequence immediately
@@ -52,8 +53,23 @@ pub fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
         }
 
-        let half_width = 40.0 + (player_data.hp_max() as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
-        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
+        // Evaluate half_width from config expression, or use default formula
+        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
+            // Get the third component (half_width) from the expression tuple
+            evaluate_float_expr(&params.2, &player_data, None)
+        } else {
+            // Default formula (kept for backward compatibility)
+            40.0 + (player_data.hp_max() as f32 - 20.0) * 95.0 / 79.0 / 2.0
+        };
+
+        // Evaluate alpha from config if available
+        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
+            evaluate_float_expr(&params.3, &player_data, None)
+        } else {
+            1.0
+        };
+
+        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, alpha);
 
         if let Some(material) = materials.get_mut(material_handle) {
             material.color_params = target_params;
@@ -64,12 +80,7 @@ pub fn update_hp_bar_shader_params(
 pub fn update_dynamic_ui_elements(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
-    mut query: Query<(
-        Entity,
-        &DynamicViewElement,
-        &mut Transform,
-        Option<&mut HPBarSprite>,
-    )>,
+    mut query: Query<(Entity, &DynamicViewElement, &mut Transform)>,
     parent_query: Query<&ChildOf>,
     view_root_query: Query<&ViewRoot>,
     mut frame_count: Local<usize>,
@@ -83,7 +94,7 @@ pub fn update_dynamic_ui_elements(
         );
     }
 
-    for (entity, dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
+    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
         // Find ViewRoot ancestor to get local_facts
         let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
             .map(|root| &root.local_facts);
@@ -144,33 +155,8 @@ pub fn update_dynamic_ui_elements(
                 }
             }
 
-            // Update HP bar shader params if present
-            if let (Some(mut hp_bar_sprite), Some(shader_params)) =
-                (hp_bar, &sprite_def.shader_params)
-            {
-                hp_bar_sprite.shader_params = Color::srgba(
-                    evaluate_float_expr(
-                        &shader_params.0,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.1,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.2,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.3,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                );
-            }
+            // Note: HP bar shader params are now handled by update_hp_bar_shader_params system
+            // using the stored expressions in HPBarSprite.shader_params_expr
         }
 
         // Update text transform if present

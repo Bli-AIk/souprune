@@ -472,11 +472,7 @@ pub fn spawn_view_node(
                     Name::new(node_def.name.clone()),
                     RonDrivenView,
                     HPBarSprite {
-                        shader_params: sprite_def
-                            .shader_params
-                            .as_ref()
-                            .map(dynamic_color_to_static)
-                            .unwrap_or(Color::WHITE),
+                        shader_params_expr: sprite_def.shader_params.clone(),
                     },
                 ));
                 if let Some(ref ve) = view_element {

@@ -163,27 +163,40 @@ pub fn setup_hp_bar_sprites(
     // Add Without<Mesh2d> to prevent running every frame
     query: Query<(Entity, &HPBarSprite, &Transform), (Without<Sprite>, Without<Mesh2d>)>,
 ) {
+    use super::parsing::{PlayerDataView, evaluate_dynamic_color};
+
     let Some(textures) = procedural_textures else {
         return;
     };
 
-    // Use actual player HP if available, otherwise default to full
-    let hp_ratio = if let Some(db) = layered_db {
-        let hp = db.get_int("player_hp").unwrap_or(20) as f32;
-        let hp_max = db.get_int("player_hp_max").unwrap_or(20) as f32;
-        hp / hp_max
-    } else {
-        1.0
-    };
-
-    let half_width = 40.0;
-
     // Create quad mesh (unit square, will be scaled by Transform)
     let mesh = meshes.add(Rectangle::new(1.0, 1.0));
 
-    for (entity, _hp_bar, _transform) in query.iter() {
+    // Create a default database for fallback (kept alive for the entire function)
+    let default_db = bevy_fact_rule_event::LayeredFactDatabase::default();
+    let db_ref: &bevy_fact_rule_event::LayeredFactDatabase = layered_db
+        .as_ref()
+        .map(|r| r.as_ref())
+        .unwrap_or(&default_db);
+
+    for (entity, hp_bar, _transform) in query.iter() {
+        // Evaluate shader_params from config expressions, or use defaults
+        let (hp_ratio, lag_ratio, half_width, alpha) =
+            if let Some(ref params) = hp_bar.shader_params_expr {
+                let player_data = PlayerDataView::new(db_ref);
+                evaluate_dynamic_color(params, &player_data, None)
+            } else {
+                // Default: hp_ratio based on player data
+                let hp = db_ref.get_int("player_hp").unwrap_or(20) as f32;
+                let hp_max = db_ref.get_int("player_hp_max").unwrap_or(20) as f32;
+                let hp_ratio = hp / hp_max;
+                // Default half_width formula (kept for backward compat if no config)
+                let half_width = 40.0 + (hp_max - 20.0) * 95.0 / 79.0 / 2.0;
+                (hp_ratio, hp_ratio, half_width, 1.0)
+            };
+
         let material = materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {
-            color_params: LinearRgba::new(hp_ratio, hp_ratio, half_width, 1.0),
+            color_params: LinearRgba::new(hp_ratio, lag_ratio, half_width, alpha),
             texture: textures.white_pixel.clone(),
         });
 
@@ -194,8 +207,8 @@ pub fn setup_hp_bar_sprites(
         ));
 
         info!(
-            "[HP Bar Setup] Spawned HP bar for entity {:?}. Initial HP ratio: {:.2}",
-            entity, hp_ratio
+            "[HP Bar Setup] Spawned HP bar for entity {:?}. Initial HP ratio: {:.2}, half_width: {:.2}",
+            entity, hp_ratio, half_width
         );
     }
 }

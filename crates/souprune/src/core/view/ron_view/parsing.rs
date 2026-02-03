@@ -843,3 +843,21 @@ pub fn evaluate_transition_condition_unified(
     // For other conditions, delegate to the existing evaluate_condition
     evaluate_condition(condition, player_data)
 }
+
+/// Evaluate a DynamicColor tuple by evaluating each component expression.
+/// Returns (r, g, b, a) as f32 values.
+///
+/// 评估 DynamicColor 元组，对每个组件表达式求值。
+/// 返回 (r, g, b, a) 作为 f32 值。
+pub fn evaluate_dynamic_color(
+    color: &super::super::layout::serde_types::DynamicColor,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) -> (f32, f32, f32, f32) {
+    (
+        evaluate_float_expr(&color.0, player_data, time),
+        evaluate_float_expr(&color.1, player_data, time),
+        evaluate_float_expr(&color.2, player_data, time),
+        evaluate_float_expr(&color.3, player_data, time),
+    )
+}
