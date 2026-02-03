@@ -28,6 +28,7 @@
 //! | F4 | Toggle Collider Gizmos | 切换碰撞体显示 |
 //! | F5 | Toggle Image Overlay | 切换图像覆盖 |
 //! | F6 | Enter Battle Test | 进入战斗测试 |
+//! | F7 | Toggle Game Freeze | 切换游戏冻结状态 |
 //! | F12 | Toggle Debug Help Text | 切换调试帮助文本 |
 
 #[cfg(feature = "debug")]
@@ -36,6 +37,8 @@ mod battle_test;
 mod collider;
 #[cfg(feature = "debug")]
 mod fre_panel;
+#[cfg(feature = "debug")]
+mod freeze;
 #[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
@@ -77,6 +80,10 @@ impl Plugin for DebugPlugin {
             // F6: Set up battle test debugging features.
             // 设置战斗测试调试功能 (F6)。
             battle_test::debug_battle_test::setup_battle_test_debug(_app);
+
+            // F7: Set up game freeze debugging features.
+            // 设置游戏冻结调试功能 (F7)。
+            freeze::debug_freeze::setup_freeze_debug(_app);
         }
     }
 }
