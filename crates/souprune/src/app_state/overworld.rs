@@ -20,6 +20,7 @@ use bevy::app::{App, Plugin};
 use bevy::prelude::*;
 
 use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
+use bevy_fact_rule_event::{LayeredFactDatabase, LayeredRuleRegistry};
 
 pub(crate) mod character;
 pub mod chase;
@@ -110,6 +111,7 @@ impl Plugin for OverworldPlugin {
             (
                 cleanup_entities_system::<OverworldEntity>,
                 stop_bgm_on_exit_system,
+                cleanup_overworld_fre_system,
             ),
         )
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
@@ -274,4 +276,27 @@ fn force_player_idle_on_non_movable_state_system(
             current_state.0
         );
     }
+}
+
+/// System to clean up FRE state when exiting overworld.
+/// Clears local layer facts and rules.
+///
+/// 退出 Overworld 时清理 FRE 状态的系统。
+/// 清除局部层事实和规则。
+fn cleanup_overworld_fre_system(
+    mut layered_db: ResMut<LayeredFactDatabase>,
+    mut registry: ResMut<LayeredRuleRegistry>,
+    mut loaded_rule_sets: ResMut<trigger::LoadedRuleSets>,
+) {
+    // Clear local layer facts
+    layered_db.clear_local();
+
+    // Clear local layer rules
+    registry.clear_local();
+
+    // Reset loaded rule sets for next entry
+    loaded_rule_sets.handles.clear();
+    loaded_rule_sets.initialized = false;
+
+    info!("Overworld FRE: Cleaned up local layer (facts and rules)");
 }

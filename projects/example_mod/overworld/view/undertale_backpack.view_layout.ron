@@ -7,6 +7,7 @@
 // - `visible_when`: Expression-based visibility control
 // - `initial_facts`: View-local state initialization
 // - Dynamic transforms: Expression-driven cursor positioning
+// - `requires`: FRE rules loaded with View lifecycle
 //
 // DEPTH MAPPING / 深度映射:
 // - depth 0: Main menu (ITEM/STAT)
@@ -14,10 +15,15 @@
 // - depth 2: Item options focused (USE/INFO/DROP selection active)
 // - depth 3: Status page
 //
-// NOTE: Navigation is handled by view_local_facts_navigation_system in overworld/view.rs
-// 注意：导航由 overworld/view.rs 中的 view_local_facts_navigation_system 处理
+// NOTE: Navigation is now handled by FRE rules in backpack.fre.ron
+// 注意：导航现在由 backpack.fre.ron 中的 FRE 规则处理
 
 (
+    // Data requirements - FRE rules loaded when this View is spawned
+    // 数据需求 - 当此 View 生成时加载的 FRE 规则
+    requires: [
+        File("overworld/rules/backpack.fre.ron"),
+    ],
 
     // View-local facts initialized when this layout is spawned
     // View 局部事实，在此布局生成时初始化

@@ -23,7 +23,9 @@ use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, RuleRegistry};
+use bevy_fact_rule_event::{
+    FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope,
+};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
@@ -149,7 +151,7 @@ fn register_battle_rules_system(
     mut commands: Commands,
     mut battle_rules_handle: ResMut<BattleRulesHandle>,
     fre_assets: Res<Assets<FreAsset>>,
-    mut registry: ResMut<RuleRegistry>,
+    mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     existing_action_defs: Option<ResMut<RuleActionDefs>>,
 ) {
@@ -207,8 +209,9 @@ fn register_battle_rules_system(
 
         // Register rules and populate action_defs
         let rules_defs = fre_asset.get_rule_defs();
+        let scope = fre_asset.scope();
         for (idx, rule_def) in rules_defs.iter().enumerate() {
-            let rule = rule_def.to_rule_with_index(idx);
+            let rule = rule_def.to_rule_with_index(idx, scope);
             let rule_id = rule_def.generate_id(idx);
 
             // Store actions by rule ID
@@ -243,6 +246,7 @@ fn register_battle_rules_system(
         }
 
         let rules_defs = fre_asset.get_rule_defs();
+        let scope = fre_asset.scope();
         let offset = battle_rules_handle
             .menu_handle
             .as_ref()
@@ -252,7 +256,7 @@ fn register_battle_rules_system(
 
         for (idx, rule_def) in rules_defs.iter().enumerate() {
             let global_idx = offset + idx;
-            let rule = rule_def.to_rule_with_index(global_idx);
+            let rule = rule_def.to_rule_with_index(global_idx, scope);
             let rule_id = rule_def.generate_id(global_idx);
 
             if !rule_def.actions.is_empty() {
@@ -277,18 +281,22 @@ fn register_battle_rules_system(
 /// 可选地将重要事实提升到全局层。
 fn cleanup_battle_fre_system(
     mut layered_db: ResMut<LayeredFactDatabase>,
+    mut registry: ResMut<LayeredRuleRegistry>,
     mut battle_rules_handle: ResMut<BattleRulesHandle>,
 ) {
     // TODO: Optionally promote certain facts to global layer
     // (e.g., battle results, experience gained)
 
-    // Clear local layer
+    // Clear local layer facts
     layered_db.clear_local();
+
+    // Clear local layer rules
+    registry.clear_local();
 
     // Reset rules handle for next battle
     battle_rules_handle.handle = None;
     battle_rules_handle.menu_handle = None;
     battle_rules_handle.registered = false;
 
-    info!("Battle FRE: Cleaned up local layer and reset rules handle");
+    info!("Battle FRE: Cleaned up local layer (facts and rules) and reset rules handle");
 }

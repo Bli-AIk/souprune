@@ -16,7 +16,7 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
-    FactEvent, FactReader, FactValue, LocalFactValue, RuleActionDef, RuleRegistry,
+    FactEvent, FactValue, LayeredRuleRegistry, LocalFactValue, RuleActionDef,
 };
 use leafwing_input_manager::action_state::ActionState;
 
@@ -94,7 +94,7 @@ pub fn action_to_fre_event_system(
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn process_view_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut rule_registry: ResMut<RuleRegistry>,
+    rule_registry: Res<LayeredRuleRegistry>,
     action_defs: Option<Res<RuleActionDefs>>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     audio: Res<bevy_kira_audio::Audio>,
@@ -109,72 +109,76 @@ pub fn process_view_actions_system(
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
-        // Get all matching rules for this event
-        let matching_rules = rule_registry.get_matching_rules(event);
+        // Get all matching rules for this event, grouped by priority
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
-        if matching_rules.is_empty() {
+        if rule_groups.is_empty() {
             continue;
         }
 
-        // Only execute one rule per event to avoid cascading state changes
-        // 每个事件只执行一个规则，避免级联状态变化
-        let mut executed = false;
+        // Process rules by priority groups
+        // 按优先级分组处理规则
+        'outer: for group in rule_groups {
+            for rule in group {
+                // Get the active ViewRoot to check conditions
+                let Ok(mut view_root) = active_view_query.single_mut() else {
+                    info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
+                    continue;
+                };
 
-        for rule in matching_rules {
-            if executed {
-                break;
-            }
+                // Sync dynamic facts from global database before condition evaluation
+                // 在条件评估前同步动态 facts
+                sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
 
-            // Get the active ViewRoot to check conditions
-            let Ok(mut view_root) = active_view_query.single_mut() else {
-                info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
-                continue;
-            };
+                // Check condition expressions against local_facts and global_facts
+                if !evaluate_conditions(
+                    &rule.condition_expressions,
+                    &view_root.local_facts,
+                    &global_facts,
+                ) {
+                    debug!(
+                        "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                        rule.id,
+                        view_root.local_facts.get_int("depth"),
+                        view_root.local_facts.get_int("selection")
+                    );
+                    continue;
+                }
 
-            // Sync dynamic facts from global database before condition evaluation
-            // 在条件评估前同步动态 facts
-            sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
-
-            // Check condition expressions against local_facts and global_facts
-            if !evaluate_conditions(
-                &rule.condition_expressions,
-                &view_root.local_facts,
-                &global_facts,
-            ) {
-                debug!(
-                    "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                info!(
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
                     rule.id,
-                    view_root.local_facts.get_int("depth"),
-                    view_root.local_facts.get_int("selection")
+                    event.id.0,
+                    rule.priority,
+                    rule.condition_expressions.len()
                 );
-                continue;
+
+                // Look up the original action definitions for this rule
+                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                    warn!(
+                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
+                        rule.id,
+                        action_defs
+                            .actions_by_rule
+                            .keys()
+                            .take(5)
+                            .collect::<Vec<_>>()
+                    );
+                    continue;
+                };
+
+                // Execute each action (view_root is already mutable)
+                for action in actions {
+                    execute_action(action, &mut view_root.local_facts, &audio, &asset_server);
+                }
+
+                // If this rule consumes the event, stop all matching
+                // 如果此规则消费事件，停止所有匹配
+                if rule.consume_event {
+                    break 'outer;
+                }
+                // Otherwise, continue checking in this priority group
             }
-
-            info!(
-                "FRE Bridge: Rule '{}' matched event '{}', executing actions",
-                rule.id, event.id.0
-            );
-
-            // Look up the original action definitions for this rule
-            let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                warn!(
-                    "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                    rule.id,
-                    action_defs
-                        .actions_by_rule
-                        .keys()
-                        .take(5)
-                        .collect::<Vec<_>>()
-                );
-                continue;
-            };
-
-            // Execute each action (view_root is already mutable)
-            for action in actions {
-                execute_action(action, &mut view_root.local_facts, &audio, &asset_server);
-            }
-
-            executed = true;
         }
     }
 }
@@ -185,7 +189,7 @@ pub fn process_view_actions_system(
 #[cfg(feature = "firewheel")]
 pub fn process_view_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut rule_registry: ResMut<RuleRegistry>,
+    rule_registry: Res<LayeredRuleRegistry>,
     action_defs: Option<Res<RuleActionDefs>>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     mut commands: Commands,
@@ -199,71 +203,76 @@ pub fn process_view_actions_system(
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
-        let matching_rules = rule_registry.get_matching_rules(event);
+        // Get all matching rules for this event, grouped by priority
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
-        if matching_rules.is_empty() {
+        if rule_groups.is_empty() {
             continue;
         }
 
-        // Only execute one rule per event to avoid cascading state changes
-        // 每个事件只执行一个规则，避免级联状态变化
-        let mut executed = false;
+        // Process rules by priority groups
+        // 按优先级分组处理规则
+        'outer: for group in rule_groups {
+            for rule in group {
+                let Ok(mut view_root) = active_view_query.single_mut() else {
+                    info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
+                    continue;
+                };
 
-        for rule in matching_rules {
-            if executed {
-                break;
-            }
+                // Sync dynamic facts from global database before condition evaluation
+                sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
 
-            let Ok(mut view_root) = active_view_query.single_mut() else {
-                info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
-                continue;
-            };
+                if !evaluate_conditions(
+                    &rule.condition_expressions,
+                    &view_root.local_facts,
+                    &global_facts,
+                ) {
+                    debug!(
+                        "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                        rule.id,
+                        view_root.local_facts.get_int("depth"),
+                        view_root.local_facts.get_int("selection")
+                    );
+                    continue;
+                }
 
-            // Sync dynamic facts from global database before condition evaluation
-            sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
-
-            if !evaluate_conditions(
-                &rule.condition_expressions,
-                &view_root.local_facts,
-                &global_facts,
-            ) {
-                debug!(
-                    "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                info!(
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
                     rule.id,
-                    view_root.local_facts.get_int("depth"),
-                    view_root.local_facts.get_int("selection")
+                    event.id.0,
+                    rule.priority,
+                    rule.condition_expressions.len()
                 );
-                continue;
+
+                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                    warn!(
+                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
+                        rule.id,
+                        action_defs
+                            .actions_by_rule
+                            .keys()
+                            .take(5)
+                            .collect::<Vec<_>>()
+                    );
+                    continue;
+                };
+
+                for action in actions {
+                    execute_action_firewheel(
+                        action,
+                        &mut view_root.local_facts,
+                        &mut commands,
+                        &asset_server,
+                    );
+                }
+
+                // If this rule consumes the event, stop all matching
+                // 如果此规则消费事件，停止所有匹配
+                if rule.consume_event {
+                    break 'outer;
+                }
+                // Otherwise, continue checking in this priority group
             }
-
-            info!(
-                "FRE Bridge: Rule '{}' matched event '{}', executing actions",
-                rule.id, event.id.0
-            );
-
-            let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                warn!(
-                    "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                    rule.id,
-                    action_defs
-                        .actions_by_rule
-                        .keys()
-                        .take(5)
-                        .collect::<Vec<_>>()
-                );
-                continue;
-            };
-
-            for action in actions {
-                execute_action_firewheel(
-                    action,
-                    &mut view_root.local_facts,
-                    &mut commands,
-                    &asset_server,
-                );
-            }
-
-            executed = true;
         }
     }
 }

@@ -10,10 +10,23 @@ use super::parsing::{
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated, ViewLayoutHandle};
 use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
+use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase};
+use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
+
+/// System parameter bundle for FRE-related resources.
+/// Reduces system parameter count to stay within Bevy's 16-parameter limit.
+///
+/// FRE 相关资源的系统参数包。
+/// 减少系统参数数量以保持在 Bevy 的 16 参数限制内。
+#[derive(SystemParam)]
+pub struct FreSystemParams<'w> {
+    pub rule_registry: ResMut<'w, LayeredRuleRegistry>,
+    pub action_defs: ResMut<'w, RuleActionDefs>,
+}
 
 /// System to spawn view elements from RON layout.
 ///
@@ -62,6 +75,7 @@ pub fn spawn_ron_view_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
+    mut fre_params: FreSystemParams,
 ) {
     let player_data = PlayerDataView::new(&layered_db);
 
@@ -128,6 +142,8 @@ pub fn spawn_ron_view_system(
             &view_layout_handle.path,
             bindings,
             &layered_db,
+            &mut fre_params.rule_registry,
+            &mut fre_params.action_defs,
         );
 
         // Add ViewGenerated and HotReloadableViewRoot for hot reload support
@@ -187,6 +203,8 @@ pub fn spawn_ron_view_for_entity(
         &std::collections::HashMap<String, crate::app_state::battle::chapter_schema::DataBinding>,
     >,
     layered_db: &LayeredFactDatabase,
+    rule_registry: &mut LayeredRuleRegistry,
+    action_defs: &mut RuleActionDefs,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -206,6 +224,51 @@ pub fn spawn_ron_view_for_entity(
                 let handle: Handle<FreAsset> = asset_server.load(path.clone());
                 if let Some(fre_asset) = fre_assets.get(&handle) {
                     load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
+
+                    // Register View-scoped rules from this FRE file
+                    // 从此 FRE 文件注册 View 作用域的规则
+                    let rule_defs = fre_asset.get_rule_defs();
+                    let scope = fre_asset.scope();
+                    for (idx, rule_def) in rule_defs.iter().enumerate() {
+                        // Use the FRE file's declared scope, or default to View for FRE files loaded via requires
+                        // 使用 FRE 文件声明的作用域，或对于通过 requires 加载的文件默认为 View
+                        let effective_scope = if scope == RuleScope::Local {
+                            // If the file says Local but is loaded via View's requires, treat as View
+                            // 如果文件声明为 Local 但通过 View 的 requires 加载，则视为 View
+                            RuleScope::View
+                        } else {
+                            scope
+                        };
+
+                        let rule = rule_def.to_rule_with_index(idx, effective_scope);
+                        let rule_id = rule_def.generate_id(idx);
+
+                        // Store actions for this rule in action_defs
+                        // 将此规则的 actions 存储到 action_defs 中
+                        if !rule_def.actions.is_empty() {
+                            action_defs
+                                .actions_by_rule
+                                .insert(rule_id.clone(), rule_def.actions.clone());
+                        }
+
+                        if effective_scope == RuleScope::View {
+                            rule_registry.register_view_rule(view_entity, rule);
+                            info!(
+                                "[ViewRoot] Registered View rule '{}' for entity {:?} from '{}'",
+                                rule_id, view_entity, path
+                            );
+                        } else {
+                            rule_registry.register(rule);
+                        }
+                    }
+                    if !rule_defs.is_empty() {
+                        info!(
+                            "[ViewRoot] Registered {} rules from '{}' for View entity {:?}",
+                            rule_defs.len(),
+                            path,
+                            view_entity
+                        );
+                    }
                     info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
                 } else {
                     warn!("[ViewRoot] FRE file '{}' not yet loaded, skipping", path);
@@ -228,13 +291,45 @@ pub fn spawn_ron_view_for_entity(
                                         fre_asset,
                                         mortar_strings,
                                     );
+
+                                    // Register View-scoped rules from interface binding
+                                    // 从接口绑定注册 View 作用域的规则
+                                    let rule_defs = fre_asset.get_rule_defs();
+                                    let scope = fre_asset.scope();
+                                    for (idx, rule_def) in rule_defs.iter().enumerate() {
+                                        let effective_scope = if scope == RuleScope::Local {
+                                            RuleScope::View
+                                        } else {
+                                            scope
+                                        };
+                                        let rule =
+                                            rule_def.to_rule_with_index(idx, effective_scope);
+                                        let rule_id = rule_def.generate_id(idx);
+
+                                        // Store actions for this rule
+                                        if !rule_def.actions.is_empty() {
+                                            action_defs
+                                                .actions_by_rule
+                                                .insert(rule_id, rule_def.actions.clone());
+                                        }
+
+                                        if effective_scope == RuleScope::View {
+                                            rule_registry.register_view_rule(view_entity, rule);
+                                        } else {
+                                            rule_registry.register(rule);
+                                        }
+                                    }
+
                                     info!(
-                                        "[ViewRoot] Bound interface '{}' to file '{}'",
-                                        interface, path
+                                        "[ViewRoot] Bound interface '{}' to file '{}' ({} rules)",
+                                        interface,
+                                        path,
+                                        rule_defs.len()
                                     );
                                 }
                             }
                             crate::app_state::battle::chapter_schema::DataBinding::Files(paths) => {
+                                let mut total_rules = 0;
                                 for path in paths {
                                     let handle: Handle<FreAsset> = asset_server.load(path.clone());
                                     if let Some(fre_asset) = fre_assets.get(&handle) {
@@ -243,12 +338,42 @@ pub fn spawn_ron_view_for_entity(
                                             fre_asset,
                                             mortar_strings,
                                         );
+
+                                        // Register View-scoped rules from interface binding
+                                        // 从接口绑定注册 View 作用域的规则
+                                        let rule_defs = fre_asset.get_rule_defs();
+                                        let scope = fre_asset.scope();
+                                        for (idx, rule_def) in rule_defs.iter().enumerate() {
+                                            let effective_scope = if scope == RuleScope::Local {
+                                                RuleScope::View
+                                            } else {
+                                                scope
+                                            };
+                                            let rule =
+                                                rule_def.to_rule_with_index(idx, effective_scope);
+                                            let rule_id = rule_def.generate_id(idx);
+
+                                            // Store actions for this rule
+                                            if !rule_def.actions.is_empty() {
+                                                action_defs
+                                                    .actions_by_rule
+                                                    .insert(rule_id, rule_def.actions.clone());
+                                            }
+
+                                            if effective_scope == RuleScope::View {
+                                                rule_registry.register_view_rule(view_entity, rule);
+                                            } else {
+                                                rule_registry.register(rule);
+                                            }
+                                        }
+                                        total_rules += rule_defs.len();
                                     }
                                 }
                                 info!(
-                                    "[ViewRoot] Bound interface '{}' to {} files",
+                                    "[ViewRoot] Bound interface '{}' to {} files ({} rules)",
                                     interface,
-                                    paths.len()
+                                    paths.len(),
+                                    total_rules
                                 );
                             }
                             crate::app_state::battle::chapter_schema::DataBinding::LocalLayer => {

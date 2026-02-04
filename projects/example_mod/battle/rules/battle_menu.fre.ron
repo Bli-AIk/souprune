@@ -24,6 +24,10 @@
 //       敌人数据（enemy_names, enemy_hps, enemy_hp_maxs）通过 SpawnView 绑定加载。
 
 (
+    // Scope: View - rules are active only when the Battle View exists
+    // 作用域：View - 规则仅在 Battle View 存在时生效
+    scope: View,
+
     // No facts defined here - initial values are in View's facts field
     // 此处不定义 facts - 初始值在 View 的 facts 字段中
 

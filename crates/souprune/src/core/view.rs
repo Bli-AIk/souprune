@@ -76,6 +76,7 @@ use components::state_sprite::{
 };
 #[cfg(feature = "debug")]
 use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
+use lifecycle::cleanup_view_rules_system;
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -141,8 +142,19 @@ impl Plugin for CoreViewPlugin {
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
                     global_trigger_system,
-                    spawn_ron_view_system,
+                )
+                    .in_set(ViewUpdate),
+            )
+            // spawn_ron_view_system has many parameters, add separately
+            // spawn_ron_view_system 有很多参数，单独添加
+            .add_systems(Update, spawn_ron_view_system.in_set(ViewUpdate))
+            .add_systems(
+                Update,
+                (
                     ui_animation_init_system,
+                    // Cleanup View-layer rules when ViewRoot entities are despawned
+                    // 当 ViewRoot 实体销毁时清理 View 层规则
+                    cleanup_view_rules_system,
                 )
                     .in_set(ViewUpdate),
             )

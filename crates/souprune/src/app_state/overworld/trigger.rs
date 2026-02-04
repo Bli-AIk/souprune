@@ -19,7 +19,7 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
-    RuleActionDef, RuleRegistry,
+    LayeredRuleRegistry, RuleActionDef,
 };
 use std::collections::HashMap;
 
@@ -174,7 +174,11 @@ pub fn trigger_zone_detection_system(
 /// 从地图的 `rules_file` 属性加载 FRE 规则的系统。
 /// 规则文件路径从 Tiled 地图的自定义属性中读取。
 /// 如果不存在 `rules_file` 属性，则不为此地图加载任何规则。
-/// 同时加载 UI 导航规则（backpack.fre.ron）。
+///
+/// NOTE: UI navigation rules (backpack.fre.ron) are now loaded via View's `requires`
+/// when the View is spawned, not here.
+/// 注意：UI 导航规则（backpack.fre.ron）现在通过 View 的 `requires` 在 View 生成时加载，
+/// 而不是在这里。
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
@@ -185,11 +189,10 @@ pub fn load_fre_rules_system(
         return;
     }
 
-    // Always load UI navigation rules
-    let backpack_rules_path = "overworld/rules/backpack.fre.ron";
-    let backpack_handle: Handle<FreAsset> = asset_server.load(backpack_rules_path);
-    loaded_rule_sets.handles.push(backpack_handle);
-    info!("FRE: Loading UI navigation rules: {}", backpack_rules_path);
+    // NOTE: backpack.fre.ron is no longer loaded here.
+    // It's loaded via View's `requires` in undertale_backpack.view_layout.ron.
+    // 注意：backpack.fre.ron 不再在此处加载。
+    // 它通过 undertale_backpack.view_layout.ron 中 View 的 `requires` 加载。
 
     // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {
@@ -211,12 +214,12 @@ pub fn load_fre_rules_system(
     }
 
     // No rules_file property found - mark as initialized but with no map-specific rules
-    // UI rules are still loaded
+    // 没找到 rules_file 属性 - 标记为已初始化但没有地图特定规则
     if !tiled_maps.is_empty() {
         for tiled_map in tiled_maps.iter() {
             if tiled_map_assets.get(&tiled_map.0).is_some() {
                 loaded_rule_sets.initialized = true;
-                info!("FRE: No rules_file property found in map, only UI rules loaded");
+                info!("FRE: No rules_file property found in map");
                 return;
             }
         }
@@ -229,7 +232,7 @@ pub fn load_fre_rules_system(
 pub fn register_loaded_rules_system(
     loaded_rule_sets: Res<LoadedRuleSets>,
     fre_assets: Res<Assets<FreAsset>>,
-    mut registry: ResMut<RuleRegistry>,
+    mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut action_defs: ResMut<RuleActionDefs>,
     mut registered: Local<bool>,
@@ -275,8 +278,8 @@ pub fn register_loaded_rules_system(
                     .insert(rule_id, rule_def.actions.clone());
             }
 
-            // Register all rules
-            fre_asset.register_rules(&mut registry);
+            // Register all rules to layered registry
+            fre_asset.register_rules_layered(&mut registry);
             info!("FRE: Rules registered from FRE asset");
         }
     }
@@ -341,30 +344,37 @@ pub struct PendingDanmakuActions {
 /// 在规则评估后运行，检查哪些规则被触发。
 pub fn collect_danmaku_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut rule_registry: ResMut<RuleRegistry>,
+    rule_registry: Res<LayeredRuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
     action_defs: Res<RuleActionDefs>,
     mut pending: ResMut<PendingDanmakuActions>,
 ) {
     for event in events.read() {
-        // Get all matching rules for this event
-        let matching_rules = rule_registry.get_matching_rules(event);
+        // Get all matching rules for this event, grouped by priority
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
-        for rule in matching_rules {
-            // Check if rule's condition is met
-            if rule.condition.evaluate(&*fact_db) {
-                // Look up the original action definitions for this rule
-                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                    for action in actions {
-                        if let RuleActionDef::Custom {
-                            action_type,
-                            params,
-                        } = action
-                            && action_type == "PlayDanmaku"
-                            && let Some(path) = params.get("path")
-                        {
-                            pending.requests.push(path.clone());
+        'outer: for group in rule_groups {
+            for rule in group {
+                // Check if rule's condition is met
+                if rule.condition.evaluate(&*fact_db) {
+                    // Look up the original action definitions for this rule
+                    if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                        for action in actions {
+                            if let RuleActionDef::Custom {
+                                action_type,
+                                params,
+                            } = action
+                                && action_type == "PlayDanmaku"
+                                && let Some(path) = params.get("path")
+                            {
+                                pending.requests.push(path.clone());
+                            }
                         }
+                    }
+
+                    // Respect consume_event
+                    if rule.consume_event {
+                        break 'outer;
                     }
                 }
             }
@@ -421,7 +431,7 @@ pub fn log_fact_changes_system(
 /// 从规则定义中读取 EnterChaseState 和 ExitChaseState action。
 pub fn handle_chase_state_actions_system(
     mut events: MessageReader<FactEvent>,
-    mut rule_registry: ResMut<RuleRegistry>,
+    rule_registry: Res<LayeredRuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
@@ -429,57 +439,64 @@ pub fn handle_chase_state_actions_system(
     mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
     for event in events.read() {
-        // Get all matching rules for this event
-        let matching_rules = rule_registry.get_matching_rules(event);
+        // Get all matching rules for this event, grouped by priority
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
-        for rule in matching_rules {
-            // Check if rule's condition is met
-            if rule.condition.evaluate(&*fact_db) {
-                // Look up the original action definitions for this rule
-                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                    for action in actions {
-                        if let RuleActionDef::Custom { action_type, .. } = action {
-                            match action_type.as_str() {
-                                "EnterChaseState" => {
-                                    if chase_enabled.0 {
-                                        if let Some(ref state_name) = chase_state_name.0 {
-                                            info!(
-                                                "FRE: Entering chase state '{}' via action",
-                                                state_name
+        'outer: for group in rule_groups {
+            for rule in group {
+                // Check if rule's condition is met
+                if rule.condition.evaluate(&*fact_db) {
+                    // Look up the original action definitions for this rule
+                    if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                        for action in actions {
+                            if let RuleActionDef::Custom { action_type, .. } = action {
+                                match action_type.as_str() {
+                                    "EnterChaseState" => {
+                                        if chase_enabled.0 {
+                                            if let Some(ref state_name) = chase_state_name.0 {
+                                                info!(
+                                                    "FRE: Entering chase state '{}' via action",
+                                                    state_name
+                                                );
+                                                next_state.set(
+                                                    crate::app_state::overworld::OverworldSubState::new(
+                                                        state_name.clone(),
+                                                    ),
+                                                );
+                                            } else {
+                                                warn!(
+                                                    "FRE: EnterChaseState action ignored - no chase state name configured"
+                                                );
+                                            }
+                                        } else {
+                                            warn!(
+                                                "FRE: EnterChaseState action ignored - chase not enabled"
                                             );
+                                        }
+                                    }
+                                    "ExitChaseState" => {
+                                        if chase_enabled.0 {
+                                            info!("FRE: Exiting chase state via action");
+                                            // Return to default state (empty string means default)
                                             next_state.set(
-                                                crate::app_state::overworld::OverworldSubState::new(
-                                                    state_name.clone(),
+                                                crate::app_state::overworld::OverworldSubState::default(
                                                 ),
                                             );
                                         } else {
                                             warn!(
-                                                "FRE: EnterChaseState action ignored - no chase state name configured"
+                                                "FRE: ExitChaseState action ignored - chase not enabled"
                                             );
                                         }
-                                    } else {
-                                        warn!(
-                                            "FRE: EnterChaseState action ignored - chase not enabled"
-                                        );
                                     }
+                                    _ => {}
                                 }
-                                "ExitChaseState" => {
-                                    if chase_enabled.0 {
-                                        info!("FRE: Exiting chase state via action");
-                                        // Return to default state (empty string means default)
-                                        next_state.set(
-                                            crate::app_state::overworld::OverworldSubState::default(
-                                            ),
-                                        );
-                                    } else {
-                                        warn!(
-                                            "FRE: ExitChaseState action ignored - chase not enabled"
-                                        );
-                                    }
-                                }
-                                _ => {}
                             }
                         }
+                    }
+
+                    // Respect consume_event
+                    if rule.consume_event {
+                        break 'outer;
                     }
                 }
             }

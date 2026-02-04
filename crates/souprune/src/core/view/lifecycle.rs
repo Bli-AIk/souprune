@@ -16,6 +16,9 @@ use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
 use crate::core::audio;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
+use bevy_fact_rule_event::LayeredRuleRegistry;
+
+use super::components::ViewRoot;
 
 /// Resource to track state transitions for playing sounds.
 /// This monitors state changes and plays configured on_enter/on_exit sounds.
@@ -309,5 +312,25 @@ pub(crate) fn state_transition_sound_system(
         }
 
         tracker.previous_state = Some(current_state.to_string());
+    }
+}
+
+/// System to clean up View-layer rules when ViewRoot entities are despawned.
+/// Uses RemovedComponents to detect when ViewRoot entities are removed.
+///
+/// 当 ViewRoot 实体被销毁时清理 View 层规则的系统。
+/// 使用 RemovedComponents 来检测 ViewRoot 实体何时被移除。
+pub(crate) fn cleanup_view_rules_system(
+    mut removed_views: RemovedComponents<ViewRoot>,
+    mut rule_registry: ResMut<LayeredRuleRegistry>,
+) {
+    for entity in removed_views.read() {
+        // Clear View-layer rules for this entity
+        // 清除此实体的 View 层规则
+        rule_registry.clear_view(entity);
+        info!(
+            "[lifecycle] Cleared View-layer rules for despawned ViewRoot entity {:?}",
+            entity
+        );
     }
 }

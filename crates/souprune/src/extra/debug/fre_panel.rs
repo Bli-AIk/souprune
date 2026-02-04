@@ -22,7 +22,7 @@ pub mod debug_fre_panel {
     use bevy::window::{
         PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
     };
-    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, RuleRegistry};
+    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
     use bevy_inspector_egui::egui;
     use leafwing_input_manager::action_state::ActionState;
@@ -952,96 +952,80 @@ pub mod debug_fre_panel {
             ui.label("📜 Registered Rules");
             ui.separator();
 
-            let rule_registry = world.get_resource::<RuleRegistry>();
+            let rule_registry = world.get_resource::<LayeredRuleRegistry>();
 
             match rule_registry {
                 Some(registry) => {
-                    let rule_count = registry.iter().count();
-                    ui.label(format!("Total rules: {}", rule_count));
+                    // Count rules across all layers
+                    let global_count = registry.global_iter().count();
+                    let local_count = registry.local_iter().count();
+                    let view_count: usize =
+                        registry.view_iter().map(|(_, r)| r.iter().count()).sum();
+                    let total_count = global_count + local_count + view_count;
+
+                    ui.label(format!(
+                        "Total rules: {} (Global: {}, Local: {}, View: {})",
+                        total_count, global_count, local_count, view_count
+                    ));
                     ui.separator();
 
-                    if rule_count == 0 {
+                    if total_count == 0 {
                         ui.label("No rules registered.");
                         ui.label("Rules are loaded from .fre.ron files.");
                     } else {
-                        // Collect rules into a Vec for sorting
-                        let mut rules: Vec<_> = registry.iter().collect();
-                        rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                        // Show rules grouped by scope
+                        // 按作用域分组显示规则
 
-                        for rule in rules {
-                            let status_icon = if rule.enabled { "✅" } else { "❌" };
-                            let header_text = format!(
-                                "{} {} [Priority: {}]",
-                                status_icon, rule.id, rule.priority
-                            );
+                        // Global rules
+                        if global_count > 0 {
+                            egui::CollapsingHeader::new(format!(
+                                "🌍 Global Rules ({})",
+                                global_count
+                            ))
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                let mut global_rules: Vec<_> = registry.global_iter().collect();
+                                global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                for rule in global_rules {
+                                    show_rule_entry(ui, rule);
+                                }
+                            });
+                        }
 
-                            egui::CollapsingHeader::new(header_text)
-                                .default_open(false)
+                        // Local rules
+                        if local_count > 0 {
+                            egui::CollapsingHeader::new(format!(
+                                "📍 Local Rules ({})",
+                                local_count
+                            ))
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                let mut local_rules: Vec<_> = registry.local_iter().collect();
+                                local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                for rule in local_rules {
+                                    show_rule_entry(ui, rule);
+                                }
+                            });
+                        }
+
+                        // View rules
+                        if view_count > 0 {
+                            egui::CollapsingHeader::new(format!("👁 View Rules ({})", view_count))
+                                .default_open(true)
                                 .show(ui, |ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Trigger:");
-                                        ui.monospace(&rule.trigger.0);
-                                    });
-
-                                    ui.horizontal(|ui| {
-                                        ui.label("Enabled:");
-                                        ui.label(if rule.enabled { "Yes" } else { "No" });
-                                    });
-
-                                    // Condition
-                                    egui::CollapsingHeader::new("Condition")
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            ui.monospace(format!("{:?}", rule.condition));
-                                        });
-
-                                    // Modifications
-                                    if !rule.modifications.is_empty() {
+                                    for (entity, view_registry) in registry.view_iter() {
+                                        let view_rule_count = view_registry.iter().count();
                                         egui::CollapsingHeader::new(format!(
-                                            "Modifications ({})",
-                                            rule.modifications.len()
+                                            "Entity {:?} ({} rules)",
+                                            entity, view_rule_count
                                         ))
-                                        .default_open(false)
+                                        .default_open(true)
                                         .show(ui, |ui| {
-                                            for (i, modification) in
-                                                rule.modifications.iter().enumerate()
-                                            {
-                                                ui.monospace(format!(
-                                                    "{}: {:?}",
-                                                    i + 1,
-                                                    modification
-                                                ));
-                                            }
-                                        });
-                                    }
-
-                                    // Actions
-                                    if !rule.actions.is_empty() {
-                                        egui::CollapsingHeader::new(format!(
-                                            "Actions ({})",
-                                            rule.actions.len()
-                                        ))
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            for i in 0..rule.actions.len() {
-                                                ui.monospace(format!(
-                                                    "{}: <action function>",
-                                                    i + 1
-                                                ));
-                                            }
-                                        });
-                                    }
-
-                                    // Outputs
-                                    if !rule.outputs.is_empty() {
-                                        egui::CollapsingHeader::new(format!(
-                                            "Outputs ({})",
-                                            rule.outputs.len()
-                                        ))
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            for output in &rule.outputs {
-                                                ui.monospace(&output.0);
+                                            let mut view_rules: Vec<_> =
+                                                view_registry.iter().collect();
+                                            view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                            for rule in view_rules {
+                                                show_rule_entry(ui, rule);
                                             }
                                         });
                                     }
@@ -1050,7 +1034,7 @@ pub mod debug_fre_panel {
                     }
                 }
                 None => {
-                    ui.label("RuleRegistry not available.");
+                    ui.label("LayeredRuleRegistry not available.");
                     ui.label("Make sure FREPlugin is installed.");
                 }
             }
@@ -1065,6 +1049,75 @@ pub mod debug_fre_panel {
                 ui.label("• Conditions use facts from the LayeredFactDatabase");
             });
         });
+    }
+
+    /// Helper function to display a single rule entry.
+    /// 显示单个规则条目的辅助函数。
+    fn show_rule_entry(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+        let status_icon = if rule.enabled { "✅" } else { "❌" };
+        let header_text = format!("{} {} [Priority: {}]", status_icon, rule.id, rule.priority);
+
+        egui::CollapsingHeader::new(header_text)
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Trigger:");
+                    ui.monospace(&rule.trigger.0);
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Enabled:");
+                    ui.label(if rule.enabled { "Yes" } else { "No" });
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Consume Event:");
+                    ui.label(if rule.consume_event { "Yes" } else { "No" });
+                });
+
+                // Condition
+                egui::CollapsingHeader::new("Condition")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.monospace(format!("{:?}", rule.condition));
+                    });
+
+                // Modifications
+                if !rule.modifications.is_empty() {
+                    egui::CollapsingHeader::new(format!(
+                        "Modifications ({})",
+                        rule.modifications.len()
+                    ))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for (i, modification) in rule.modifications.iter().enumerate() {
+                            ui.monospace(format!("{}: {:?}", i + 1, modification));
+                        }
+                    });
+                }
+
+                // Actions
+                if !rule.actions.is_empty() {
+                    egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
+                        .default_open(false)
+                        .show(ui, |ui| {
+                            for i in 0..rule.actions.len() {
+                                ui.monospace(format!("{}: <action function>", i + 1));
+                            }
+                        });
+                }
+
+                // Outputs
+                if !rule.outputs.is_empty() {
+                    egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len()))
+                        .default_open(false)
+                        .show(ui, |ui| {
+                            for output in &rule.outputs {
+                                ui.monospace(&output.0);
+                            }
+                        });
+                }
+            });
     }
 
     /// Render the Event History tab.

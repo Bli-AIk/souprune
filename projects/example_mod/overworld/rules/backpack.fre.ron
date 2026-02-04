@@ -17,6 +17,9 @@
 //   3 = BackpackStatus (player stats)
 
 (
+    // Scope: View - rules are active only when the View exists
+    // 作用域：View - 规则仅在 View 存在时生效
+    scope: View,
 
     // Initial facts - these are VIEW-LOCAL facts
     // 初始事实 - 这些是 VIEW-LOCAL 事实
