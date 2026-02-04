@@ -121,9 +121,14 @@ impl Plugin for CoreViewPlugin {
                 ron_view::update_hp_bar_shader_params
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
+            // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)
+            // 将动态 UI 元素更新分为时间依赖（每帧）和 fact 依赖（变化时）
             .add_systems(
                 Update,
-                ron_view::update_dynamic_ui_elements
+                (
+                    ron_view::update_time_dependent_ui_elements,
+                    ron_view::update_fact_dependent_ui_elements,
+                )
                     .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
             )
             // First group of UI systems

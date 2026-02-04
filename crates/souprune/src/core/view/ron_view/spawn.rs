@@ -4,7 +4,7 @@ use super::super::lifecycle::BackpackViewRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{
     PlayerDataView, evaluate_condition, evaluate_float_expr, evaluate_visible_when,
-    resolve_text_content,
+    resolve_text_content, vec3_tuple_depends_on_time,
 };
 use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
 use crate::app_state::battle::BattleViewRoot;
@@ -779,6 +779,7 @@ pub fn spawn_view_node(
             let sprite_def = node_def.sprite.as_ref().unwrap();
 
             let mut has_dynamic = false;
+            let mut has_time_dependency = false;
             if let Some(t) = &sprite_def.transform {
                 if let Some(trans) = &t.translation {
                     let tx = trans.0.is_dynamic();
@@ -792,11 +793,22 @@ pub fn spawn_view_node(
                     if tx || ty || tz {
                         has_dynamic = true;
                     }
+
+                    // Check for time dependency
+                    // 检查时间依赖
+                    if vec3_tuple_depends_on_time(trans) {
+                        has_time_dependency = true;
+                    }
                 }
-                if let Some(s) = &t.scale
-                    && (s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic())
-                {
-                    has_dynamic = true;
+                if let Some(s) = &t.scale {
+                    if s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic() {
+                        has_dynamic = true;
+                    }
+                    // Check scale for time dependency
+                    // 检查 scale 的时间依赖
+                    if vec3_tuple_depends_on_time(s) {
+                        has_time_dependency = true;
+                    }
                 }
             }
             if sprite_def
@@ -809,8 +821,8 @@ pub fn spawn_view_node(
 
             if has_dynamic {
                 info!(
-                    "Adding DynamicViewElement to entity {:?} ({})",
-                    entity_id, node_def.name
+                    "Adding DynamicViewElement to entity {:?} ({}) [time_dependent={}]",
+                    entity_id, node_def.name, has_time_dependency
                 );
                 commands
                     .entity(entity_id)
@@ -818,6 +830,14 @@ pub fn spawn_view_node(
                         sprite_def: Some(sprite_def.clone()),
                         text_def: None,
                     });
+
+                // Add TimeDependentTransform marker if expression uses @time
+                // 如果表达式使用 @time 则添加 TimeDependentTransform 标记
+                if has_time_dependency {
+                    commands
+                        .entity(entity_id)
+                        .insert(super::super::components::TimeDependentTransform);
+                }
             } else {
                 info!("No dynamic properties found for {}", node_def.name);
             }
@@ -943,11 +963,30 @@ pub(crate) fn spawn_container_texts(
                 .as_ref()
                 .is_some_and(is_dynamic_vec3);
 
+        // Check for time dependency in text transform
+        // 检查文本变换中的时间依赖
+        let has_time_dependency = text_def
+            .transform
+            .translation
+            .as_ref()
+            .is_some_and(vec3_tuple_depends_on_time)
+            || text_def
+                .transform
+                .scale
+                .as_ref()
+                .is_some_and(vec3_tuple_depends_on_time);
+
         if has_dynamic {
             cmd.insert(super::super::components::DynamicViewElement {
                 sprite_def: None,
                 text_def: Some(text_def.clone()),
             });
+
+            // Add TimeDependentTransform marker if expression uses @time
+            // 如果表达式使用 @time 则添加 TimeDependentTransform 标记
+            if has_time_dependency {
+                cmd.insert(super::super::components::TimeDependentTransform);
+            }
         }
     }
 }

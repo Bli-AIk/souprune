@@ -10,8 +10,8 @@
 //
 // DEPTH MAPPING / 深度映射:
 // - depth 0: Main menu (ITEM/STAT)
-// - depth 1: Item list
-// - depth 2: Item options (USE/INFO/DROP)
+// - depth 1: Item list (with USE/INFO/DROP options shown)
+// - depth 2: Item options focused (USE/INFO/DROP selection active)
 // - depth 3: Status page
 //
 // NOTE: Navigation is handled by view_local_facts_navigation_system in overworld/view.rs
@@ -169,7 +169,7 @@
                         translation: (-64.25, -63.5, 1.0),
                     ),
                     line_height: 1.2,
-                    visible_when: "$depth == 2",
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
                 (
                     id: "ItemLayerOptionInfo",
@@ -181,7 +181,7 @@
                         translation: (-16.25, -63.5, 1.0),
                     ),
                     line_height: 1.2,
-                    visible_when: "$depth == 2",
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
                 (
                     id: "ItemLayerOptionDrop",
@@ -193,7 +193,7 @@
                         translation: (40.75, -63.5, 1.0),
                     ),
                     line_height: 1.2,
-                    visible_when: "$depth == 2",
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
             ],
             // Item cursors as children of ItemBox for proper positioning

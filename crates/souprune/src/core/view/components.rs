@@ -20,7 +20,7 @@ pub(crate) use state_sprite::StateSpriteState;
 pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
 
 // Public exports (used outside core::ui)
-pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite};
+pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite, TimeDependentTransform};
 pub use view_element::{
     ActiveView, ElementState, ViewElement, ViewElementHistory, ViewRoot, VisibleWhen,
     find_element_by_full_name, find_elements_by_tag,

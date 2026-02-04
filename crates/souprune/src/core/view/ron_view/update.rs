@@ -1,5 +1,7 @@
 use super::super::components::ViewRoot;
-use super::super::components::{DynamicViewElement, HPBarLag, HPBarSprite, ViewTextTemplate};
+use super::super::components::{
+    DynamicViewElement, HPBarLag, HPBarSprite, TimeDependentTransform, ViewTextTemplate,
+};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
@@ -17,6 +19,22 @@ pub fn update_hp_bar_shader_params(
         &HPBarSprite,
     )>,
 ) {
+    // Early exit: skip if no HP bars exist
+    // 提前退出：如果没有 HP 条则跳过
+    if query.is_empty() {
+        return;
+    }
+
+    // Check if any HP bar needs animation update (lag animation in progress)
+    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
+    let needs_animation_update = query.iter().any(|(_, lag, _)| lag.anim_progress < 0.5);
+
+    // Only proceed if database changed OR animation is in progress
+    // 仅在数据库变化或动画进行中时继续
+    if !layered_db.is_changed() && !needs_animation_update {
+        return;
+    }
+
     let player_data = PlayerDataView::new(&layered_db);
     let hp = player_data.get_fact_int("player_hp").unwrap_or(0) as f32;
     let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(1) as f32;
@@ -79,6 +97,87 @@ pub fn update_hp_bar_shader_params(
     }
 }
 
+/// Update time-dependent UI elements (elements with @time in expressions).
+/// Runs every frame for animation effects.
+///
+/// 更新时间依赖的 UI 元素（表达式中包含 @time 的元素）。
+/// 每帧运行以实现动画效果。
+pub fn update_time_dependent_ui_elements(
+    time: Res<Time>,
+    layered_db: Res<LayeredFactDatabase>,
+    mut query: Query<(Entity, &DynamicViewElement, &mut Transform), With<TimeDependentTransform>>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<&ViewRoot>,
+) {
+    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
+        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
+            .map(|root| &root.local_facts);
+
+        let player_data = if let Some(local) = local_facts {
+            PlayerDataView::with_local_facts(&layered_db, local)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
+        update_element_transform(
+            dynamic_elem,
+            &mut transform,
+            &player_data,
+            Some(time.elapsed_secs_f64()),
+        );
+    }
+}
+
+/// Update fact-dependent UI elements (elements without @time).
+/// Only runs when LayeredFactDatabase or ViewRoot changes.
+///
+/// 更新 fact 依赖的 UI 元素（不包含 @time 的元素）。
+/// 仅在 LayeredFactDatabase 或 ViewRoot 变化时运行。
+pub fn update_fact_dependent_ui_elements(
+    layered_db: Res<LayeredFactDatabase>,
+    mut query: Query<
+        (Entity, &DynamicViewElement, &mut Transform),
+        Without<TimeDependentTransform>,
+    >,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<&ViewRoot, Changed<ViewRoot>>,
+    all_view_root_query: Query<&ViewRoot>,
+) {
+    // Check if any ViewRoot changed (local_facts modification)
+    // 检查是否有任何 ViewRoot 变化（local_facts 修改）
+    let any_view_root_changed = !view_root_query.is_empty();
+
+    // Only update when fact database changes OR any ViewRoot's local_facts changed
+    // 仅在 fact 数据库变化或任何 ViewRoot 的 local_facts 变化时更新
+    if !layered_db.is_changed() && !any_view_root_changed {
+        return;
+    }
+
+    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
+        let local_facts = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
+            .map(|root| &root.local_facts);
+
+        let player_data = if let Some(local) = local_facts {
+            PlayerDataView::with_local_facts(&layered_db, local)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
+        // Pass None for time since these elements don't depend on it
+        // 传入 None 作为时间，因为这些元素不依赖时间
+        update_element_transform(dynamic_elem, &mut transform, &player_data, None);
+    }
+}
+
+/// Legacy function for backward compatibility - will be deprecated
+/// Delegates to both time-dependent and fact-dependent update logic.
+///
+/// 向后兼容的旧函数 - 将被废弃
+/// 委托给时间依赖和 fact 依赖的更新逻辑。
+#[deprecated(
+    since = "0.1.0",
+    note = "Use update_time_dependent_ui_elements and update_fact_dependent_ui_elements instead"
+)]
 pub fn update_dynamic_ui_elements(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
@@ -97,78 +196,93 @@ pub fn update_dynamic_ui_elements(
     }
 
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        // Find ViewRoot ancestor to get local_facts
         let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
             .map(|root| &root.local_facts);
 
-        // Create PlayerDataView with local facts if available
         let player_data = if let Some(local) = local_facts {
             PlayerDataView::with_local_facts(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
 
-        // Update sprite transform and shader params if present
-        if let Some(sprite_def) = &dynamic_elem.sprite_def
-            && let Some(t_def) = &sprite_def.transform
-        {
-            let new_translation = if let Some(trans) = &t_def.translation {
-                Vec3::new(
-                    evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
-                )
-            } else {
-                Vec3::ZERO
-            };
+        update_element_transform(
+            dynamic_elem,
+            &mut transform,
+            &player_data,
+            Some(time.elapsed_secs_f64()),
+        );
+    }
+}
 
-            if let Some(scale_def) = &t_def.scale {
-                let new_scale = Vec3::new(
-                    evaluate_float_expr(&scale_def.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.2, &player_data, Some(time.elapsed_secs_f64())),
-                );
+/// Shared helper to update element transform from definition.
+///
+/// 共享的辅助函数，用于从定义更新元素变换。
+fn update_element_transform(
+    dynamic_elem: &DynamicViewElement,
+    transform: &mut Transform,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) {
+    // Update sprite transform if present
+    // 如果存在精灵定义则更新变换
+    if let Some(sprite_def) = &dynamic_elem.sprite_def
+        && let Some(t_def) = &sprite_def.transform
+    {
+        let new_translation = if let Some(trans) = &t_def.translation {
+            Vec3::new(
+                evaluate_float_expr(&trans.0, player_data, time),
+                evaluate_float_expr(&trans.1, player_data, time),
+                evaluate_float_expr(&trans.2, player_data, time),
+            )
+        } else {
+            Vec3::ZERO
+        };
 
-                // Apply pivot offset if present
-                if let Some(pivot) = &sprite_def.pivot {
-                    let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
-                    let shift_x = (0.5 - pivot_x) * new_scale.x;
-                    let shift_y = (0.5 - pivot_y) * new_scale.y;
-                    let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
-                    transform.translation = new_translation + shift;
-                } else {
-                    transform.translation = new_translation;
-                }
+        if let Some(scale_def) = &t_def.scale {
+            let new_scale = Vec3::new(
+                evaluate_float_expr(&scale_def.0, player_data, time),
+                evaluate_float_expr(&scale_def.1, player_data, time),
+                evaluate_float_expr(&scale_def.2, player_data, time),
+            );
 
-                transform.scale = new_scale;
+            // Apply pivot offset if present
+            // 如果存在 pivot 则应用偏移
+            if let Some(pivot) = &sprite_def.pivot {
+                let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                let shift_x = (0.5 - pivot_x) * new_scale.x;
+                let shift_y = (0.5 - pivot_y) * new_scale.y;
+                let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                transform.translation = new_translation + shift;
             } else {
                 transform.translation = new_translation;
             }
-        }
 
-        // Note: HP bar shader params are now handled by update_hp_bar_shader_params system
-        // using the stored expressions in HPBarSprite.shader_params_expr
-
-        // Update text transform if present
-        if let Some(text_def) = &dynamic_elem.text_def {
-            let new_translation = if let Some(trans) = &text_def.transform.translation {
-                Vec3::new(
-                    evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
-                )
-            } else {
-                Vec3::ZERO
-            };
+            transform.scale = new_scale;
+        } else {
             transform.translation = new_translation;
+        }
+    }
 
-            if let Some(scale_def) = &text_def.transform.scale {
-                transform.scale = Vec3::new(
-                    evaluate_float_expr(&scale_def.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.2, &player_data, Some(time.elapsed_secs_f64())),
-                );
-            }
+    // Update text transform if present
+    // 如果存在文本定义则更新变换
+    if let Some(text_def) = &dynamic_elem.text_def {
+        let new_translation = if let Some(trans) = &text_def.transform.translation {
+            Vec3::new(
+                evaluate_float_expr(&trans.0, player_data, time),
+                evaluate_float_expr(&trans.1, player_data, time),
+                evaluate_float_expr(&trans.2, player_data, time),
+            )
+        } else {
+            Vec3::ZERO
+        };
+        transform.translation = new_translation;
+
+        if let Some(scale_def) = &text_def.transform.scale {
+            transform.scale = Vec3::new(
+                evaluate_float_expr(&scale_def.0, player_data, time),
+                evaluate_float_expr(&scale_def.1, player_data, time),
+                evaluate_float_expr(&scale_def.2, player_data, time),
+            );
         }
     }
 }

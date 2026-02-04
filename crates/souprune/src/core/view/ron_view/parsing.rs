@@ -6,6 +6,31 @@ use bevy::prelude::*;
 // Re-export PlayerDataView for backward compatibility
 pub use super::player_data::PlayerDataView;
 
+/// Analyze whether an expression depends on time (@time).
+/// Returns true if the expression contains time-dependent elements.
+///
+/// 分析表达式是否依赖时间 (@time)。
+/// 如果表达式包含时间依赖的元素则返回 true。
+pub fn expression_depends_on_time(expr: &FloatOrExpr) -> bool {
+    match expr {
+        Val::Static(_) => false,
+        Val::Expr(expr_str) => {
+            // Check for @time variable usage
+            // 检查 @time 变量的使用
+            expr_str.contains("@time")
+        }
+    }
+}
+
+/// Check if a Vec3Tuple (translation or scale) contains time-dependent expressions.
+///
+/// 检查 Vec3Tuple（translation 或 scale）是否包含时间依赖的表达式。
+pub fn vec3_tuple_depends_on_time(tuple: &super::super::layout::serde_types::Vec3Tuple) -> bool {
+    expression_depends_on_time(&tuple.0)
+        || expression_depends_on_time(&tuple.1)
+        || expression_depends_on_time(&tuple.2)
+}
+
 pub fn parse_overworld_state(state_str: &str) -> Option<OverworldSubState> {
     match state_str {
         "" | "None" => None,

@@ -31,6 +31,14 @@ pub struct DynamicViewElement {
     pub text_def: Option<crate::core::view::layout::TextDef>,
 }
 
+/// Marker component for UI elements whose transform depends on time (@time).
+/// These elements need per-frame updates for animation.
+///
+/// 标记 Transform 依赖时间 (@time) 的 UI 元素的组件。
+/// 这些元素需要逐帧更新以实现动画。
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct TimeDependentTransform;
+
 /// HP bar lag effect state.
 /// Tracks delayed HP percentage for smooth decrease animation.
 #[derive(Component, Debug, Clone)]
