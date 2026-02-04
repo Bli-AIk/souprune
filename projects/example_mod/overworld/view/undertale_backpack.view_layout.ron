@@ -231,12 +231,7 @@
                         // USE at X=-64.25, INFO at X=-12.25, DROP at X=40.75
                         // Cursor 10px left of each text
                         transform: (
-                            translation: (
-                                // X positions: -74.25, -22.25, 30.75 for indices 0, 1, 2
-                                "if($selection == 0, -74.25, if($selection == 1, -22.25, 30.75))",
-                                "-63.5",                          // Y: same as option texts
-                                "6.0",                            // Z: above box
-                            ),
+                            translation: ("if($selection == 0, -72.0, if($selection == 1, -24.25, 33.0))", "-72.0", "6.0"),
                         ),
                     ),
                 ),
