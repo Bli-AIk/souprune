@@ -355,8 +355,23 @@ pub fn incremental_reload_system(
                     }
                 }
 
-                // Update Sprite flip properties
+                // Update Sprite properties (color, flip)
                 if let Ok(mut sprite) = sprite_query.get_mut(entity) {
+                    // Update color
+                    if let Some(color_def) = &sprite_def.color {
+                        let (r, g, b, a) =
+                            super::super::layout::serde_types::color_tuple_to_static(color_def);
+                        let new_color = Color::srgba(r, g, b, a);
+                        if sprite.color != new_color {
+                            info!(
+                                "[Hot Reload] Updating color for '{}': {:?} -> {:?}",
+                                view_element.full_name, sprite.color, new_color
+                            );
+                            sprite.color = new_color;
+                            updated_count += 1;
+                        }
+                    }
+                    // Update flip_x
                     if sprite.flip_x != sprite_def.flip_x {
                         info!(
                             "[Hot Reload] Updating flip_x for '{}': {} -> {}",
@@ -365,6 +380,7 @@ pub fn incremental_reload_system(
                         sprite.flip_x = sprite_def.flip_x;
                         updated_count += 1;
                     }
+                    // Update flip_y
                     if sprite.flip_y != sprite_def.flip_y {
                         info!(
                             "[Hot Reload] Updating flip_y for '{}': {} -> {}",
