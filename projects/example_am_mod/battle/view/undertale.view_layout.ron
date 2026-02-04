@@ -1,5 +1,19 @@
 #![enable(implicit_some)]
+// Battle View Layout for example_am_mod (standard Undertale UI)
+// 示例 AM mod 的战斗视图布局（标准 Undertale UI）
+//
+// NOTE: This mod uses AM animation system for battle box.
+// For full FRE navigation example, see example_mod.
+// 注意：此 mod 使用 AM 动画系统来处理战斗框。
+// 完整的 FRE 导航示例请参考 example_mod。
+
 (
+    // View-local facts for basic state
+    // 基础状态的 View 局部事实
+    facts: {
+        "button_selection": 0,
+    },
+
     roots: [
         // Battle Box (Dialog/Bullet Box)
         (
@@ -10,63 +24,98 @@
                 height: 130.0,
                 border_width: 5.0,
                 offset: (0.0, -80.0, 0.0),
-                // Use classic UIBox structure (Border + Filler)
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
-            // Optional: Add HP bar or text here later
             children: [],
         ),
 
-        // Fight Button - using data-driven state_sprite
+        // Fight Button
         (
             name: "BtnFight",
-            state_sprite: (
-                default: "textures/battle/ui/fight/false.png",
-                variants: { "selected": "textures/battle/ui/fight/true.png" },
-                subscribe_selection: ("BattleMainMenu", 0),
-                transform: (translation: (-233.0, -213.0, 1.0), scale: (1.0, 1.0, 1.0)),
+            sprite: (
+                visual: "textures/battle/ui/fight/false.png",
+                transform: (
+                    translation: (-233.0, -213.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnFightSelected",
+            visible_when: "$button_selection == 0",
+            sprite: (
+                visual: "textures/battle/ui/fight/true.png",
+                transform: (
+                    translation: (-233.0, -213.0, 1.5),
+                ),
             ),
         ),
 
         // Act Button
         (
             name: "BtnAct",
-            state_sprite: (
-                default: "textures/battle/ui/act/false.png",
-                variants: { "selected": "textures/battle/ui/act/true.png" },
-                subscribe_selection: ("BattleMainMenu", 1),
-                transform: (translation: (-80.0, -213.0, 1.0), scale: (1.0, 1.0, 1.0)),
+            sprite: (
+                visual: "textures/battle/ui/act/false.png",
+                transform: (
+                    translation: (-80.0, -213.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnActSelected",
+            visible_when: "$button_selection == 1",
+            sprite: (
+                visual: "textures/battle/ui/act/true.png",
+                transform: (
+                    translation: (-80.0, -213.0, 1.5),
+                ),
             ),
         ),
 
         // Item Button
         (
             name: "BtnItem",
-            state_sprite: (
-                default: "textures/battle/ui/item/false.png",
-                variants: { "selected": "textures/battle/ui/item/true.png" },
-                subscribe_selection: ("BattleMainMenu", 2),
-                transform: (translation: (80.0, -213.0, 1.0), scale: (1.0, 1.0, 1.0)),
+            sprite: (
+                visual: "textures/battle/ui/item/false.png",
+                transform: (
+                    translation: (80.0, -213.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnItemSelected",
+            visible_when: "$button_selection == 2",
+            sprite: (
+                visual: "textures/battle/ui/item/true.png",
+                transform: (
+                    translation: (80.0, -213.0, 1.5),
+                ),
             ),
         ),
 
         // Mercy Button
         (
             name: "BtnMercy",
-            state_sprite: (
-                default: "textures/battle/ui/mercy/false.png",
-                variants: { "selected": "textures/battle/ui/mercy/true.png" },
-                subscribe_selection: ("BattleMainMenu", 3),
-                transform: (translation: (235.0, -213.0, 1.0), scale: (1.0, 1.0, 1.0)),
+            sprite: (
+                visual: "textures/battle/ui/mercy/false.png",
+                transform: (
+                    translation: (235.0, -213.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnMercySelected",
+            visible_when: "$button_selection == 3",
+            sprite: (
+                visual: "textures/battle/ui/mercy/true.png",
+                transform: (
+                    translation: (235.0, -213.0, 1.5),
+                ),
             ),
         ),
 
-        // HUD Info - Pure container node (no visible box, just texts and children)
-        // HUD 信息 - 纯容器节点（无可见框，只有文本和子节点）
+        // HUD Info
         (
             name: "BattleHUD",
-            // 重构后不再需要 0x0 的 ui_shape_logic hack
-            // After refactoring, the 0x0 ui_shape_logic hack is no longer needed
             texts: [
                 (
                     id: "PlayerName",
@@ -133,24 +182,22 @@
                 (
                     name: "HPSprite",
                     sprite: (
-                        path: "textures/battle/ui/hpname.png",
-                        is_animation: false,
-                        transform: Some((
+                        visual: "textures/battle/ui/hpname.png",
+                        transform: (
                             translation: (-64.5, -170.0, 1.0),
-                        )),
+                        ),
                     ),
                 ),
                 (
                     name: "HPBar",
                     sprite: (
-                        path: "procedural://white_pixel",  // Use procedural texture
-                        is_animation: false,
-                        transform: Some((
-                            translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
-                            scale: ("25.0 + ($player_hp_max - 20) * 95.0 / 79", 20.5, 1.0)),  // Dynamic width based on hp_max
-                        )),
+                        visual: "procedural://white_pixel",
+                        transform: (
+                            translation: (-45.0, -170.5, 1.0),
+                            scale: ("25.0 + ($player_hp_max - 20) * 95.0 / 79", 20.5, 1.0),
+                        ),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
-                        shader_params: (0.8, 0.8, "40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2", 1.0)),  // HP%, lag%, half_width (dynamic), alpha
+                        shader_params: (0.8, 0.8, "40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2", 1.0),
                         pivot: (0.0, 0.5),
                     ),
                 )

@@ -79,19 +79,19 @@
                     name: "HPSprite",
                     sprite: (
                         visual: "textures/battle/ui/hpname.png",
-                        transform: Some((
+                        transform: (
                             translation: (-32.0, -105.0, 501.0),
-                        )),
+                        ),
                     ),
                 ),
                 (
                     name: "HPBar",
                     sprite: (
                         visual: "procedural://white_pixel",
-                        transform: Some((
+                        transform: (
                             translation: (-22.0, -105.0, 501.0),
                             scale: ("12.5 + ($player_hp_max - 20) * 47.5 / 79", 10.0, 1.0),
-                        )),
+                        ),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
                         shader_params: (0.8, 0.8, "20.0 + ($player_hp_max - 20) * 47.5 / 79 / 2", 1.0),
                         pivot: (0.0, 0.5),

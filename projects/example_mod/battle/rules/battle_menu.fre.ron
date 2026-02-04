@@ -17,11 +17,14 @@
 // - button_selection: Main menu button (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY), persists across depths
 // - enemy_selection: Enemy index in depth 1 (FIGHT/ACT/MERCY mode)
 // - item_selection: Item index in depth 1 (ITEM mode)
+//
+// NOTE: Enemy data (enemy_names, enemy_hps, enemy_hp_maxs) is now loaded via SpawnView bindings.
+// 注意：敌人数据（enemy_names, enemy_hps, enemy_hp_maxs）现在通过 SpawnView 绑定加载。
 
 (
 
-    // VIEW-LOCAL initial facts
-    // View 局部初始事实
+    // VIEW-LOCAL initial facts for menu navigation state only
+    // View 局部初始事实 - 仅用于菜单导航状态
     facts: {
         "depth": Int(0),
         "button_selection": Int(0),   // Main menu selection (persists across depths)
@@ -29,12 +32,6 @@
         "item_selection": Int(0),      // Item selection in depth 1
         "menu_context": Int(0),        // Which menu we entered depth 1 from (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY)
         "active": Bool(true),
-
-        // Enemy data for battle - using arrays for unlimited enemies
-        // 战斗敌人数据 - 使用数组支持无限数量的敌人
-        "enemy_names": StringList(["Dummy"]),
-        "enemy_hps": IntList([100]),
-        "enemy_hp_maxs": IntList([100]),
     },
 
     rules: [

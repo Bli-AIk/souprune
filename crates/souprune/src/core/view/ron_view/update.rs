@@ -169,51 +169,6 @@ pub fn update_fact_dependent_ui_elements(
     }
 }
 
-/// Legacy function for backward compatibility - will be deprecated
-/// Delegates to both time-dependent and fact-dependent update logic.
-///
-/// 向后兼容的旧函数 - 将被废弃
-/// 委托给时间依赖和 fact 依赖的更新逻辑。
-#[deprecated(
-    since = "0.1.0",
-    note = "Use update_time_dependent_ui_elements and update_fact_dependent_ui_elements instead"
-)]
-pub fn update_dynamic_ui_elements(
-    time: Res<Time>,
-    layered_db: Res<LayeredFactDatabase>,
-    mut query: Query<(Entity, &DynamicViewElement, &mut Transform)>,
-    parent_query: Query<&ChildOf>,
-    view_root_query: Query<&ViewRoot>,
-    mut frame_count: Local<usize>,
-) {
-    *frame_count += 1;
-    if !query.is_empty() && (*frame_count).is_multiple_of(60) {
-        debug!(
-            "update_dynamic_ui_elements: processing {} entities. Time: {}",
-            query.iter().len(),
-            time.elapsed_secs_f64()
-        );
-    }
-
-    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
-        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
-            .map(|root| &root.local_facts);
-
-        let player_data = if let Some(local) = local_facts {
-            PlayerDataView::with_local_facts(&layered_db, local)
-        } else {
-            PlayerDataView::new(&layered_db)
-        };
-
-        update_element_transform(
-            dynamic_elem,
-            &mut transform,
-            &player_data,
-            Some(time.elapsed_secs_f64()),
-        );
-    }
-}
-
 /// Shared helper to update element transform from definition.
 ///
 /// 共享的辅助函数，用于从定义更新元素变换。

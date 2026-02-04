@@ -29,14 +29,14 @@
 //! ## 数据流
 //!
 //! 1. At startup, read `global_rules` path from config (e.g., "global.fre.ron")
-//! 2. Load the RuleSetAsset from that path
-//! 3. Apply `initial_facts` to the Global layer of LayeredFactDatabase
+//! 2. Load the FreAsset from that path
+//! 3. Apply `facts` to the Global layer of LayeredFactDatabase
 //! 4. All systems read/write player data directly via LayeredFactDatabase
 //! 5. For save/load, serialize/deserialize the facts directly
 //!
 //! 1. 启动时，从配置读取 `global_rules` 路径（如 "global.fre.ron"）
-//! 2. 从该路径加载 RuleSetAsset
-//! 3. 将 `initial_facts` 应用到 LayeredFactDatabase 的全局层
+//! 2. 从该路径加载 FreAsset
+//! 3. 将 `facts` 应用到 LayeredFactDatabase 的全局层
 //! 4. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
 //! 5. 存档/读档时，直接序列化/反序列化事实
 
