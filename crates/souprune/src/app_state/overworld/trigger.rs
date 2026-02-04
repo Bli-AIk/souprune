@@ -18,8 +18,8 @@ use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
-    ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, LayeredFactDatabase,
-    RuleActionDef, RuleRegistry, RuleSetAsset,
+    ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
+    RuleActionDef, RuleRegistry,
 };
 use std::collections::HashMap;
 
@@ -67,7 +67,7 @@ pub struct DemoTriggerSpawned;
 /// 跟踪已加载规则集句柄的资源。
 #[derive(Resource, Default)]
 pub struct LoadedRuleSets {
-    pub handles: Vec<Handle<RuleSetAsset>>,
+    pub handles: Vec<Handle<FreAsset>>,
     pub initialized: bool,
 }
 
@@ -174,7 +174,7 @@ pub fn trigger_zone_detection_system(
 /// 从地图的 `rules_file` 属性加载 FRE 规则的系统。
 /// 规则文件路径从 Tiled 地图的自定义属性中读取。
 /// 如果不存在 `rules_file` 属性，则不为此地图加载任何规则。
-/// 同时加载 UI 导航规则（backpack.rules.ron）。
+/// 同时加载 UI 导航规则（backpack.fre.ron）。
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
@@ -186,8 +186,8 @@ pub fn load_fre_rules_system(
     }
 
     // Always load UI navigation rules
-    let backpack_rules_path = "overworld/rules/backpack.rules.ron";
-    let backpack_handle: Handle<RuleSetAsset> = asset_server.load(backpack_rules_path);
+    let backpack_rules_path = "overworld/rules/backpack.fre.ron";
+    let backpack_handle: Handle<FreAsset> = asset_server.load(backpack_rules_path);
     loaded_rule_sets.handles.push(backpack_handle);
     info!("FRE: Loading UI navigation rules: {}", backpack_rules_path);
 
@@ -198,7 +198,7 @@ pub fn load_fre_rules_system(
                 get_string_property(&map_asset.map.properties, keys::RULES_FILE)
         {
             let rules_path_owned = rules_path.to_string();
-            let handle: Handle<RuleSetAsset> = asset_server.load(&rules_path_owned);
+            let handle: Handle<FreAsset> = asset_server.load(&rules_path_owned);
             loaded_rule_sets.handles.push(handle);
             loaded_rule_sets.initialized = true;
             info!(
@@ -228,7 +228,7 @@ pub fn load_fre_rules_system(
 /// 从已加载的资产注册规则的系统。
 pub fn register_loaded_rules_system(
     loaded_rule_sets: Res<LoadedRuleSets>,
-    rule_set_assets: Res<Assets<RuleSetAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<RuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut action_defs: ResMut<RuleActionDefs>,
@@ -242,16 +242,16 @@ pub fn register_loaded_rules_system(
     let all_loaded = loaded_rule_sets
         .handles
         .iter()
-        .all(|h| rule_set_assets.get(h).is_some());
+        .all(|h| fre_assets.get(h).is_some());
 
     if !all_loaded {
         return;
     }
 
     for handle in &loaded_rule_sets.handles {
-        if let Some(rule_set) = rule_set_assets.get(handle) {
-            // Apply initial facts to Local layer (room/scene specific)
-            for (key, value) in rule_set.get_initial_facts() {
+        if let Some(fre_asset) = fre_assets.get(handle) {
+            // Apply facts to Local layer (room/scene specific)
+            for (key, value) in fre_asset.get_facts() {
                 let fact_value = match value {
                     FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
                     FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
@@ -263,12 +263,12 @@ pub fn register_loaded_rules_system(
                     FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
                 };
                 fact_db.set_local(key.as_str(), fact_value);
-                info!("FRE: Set initial fact '{}' to Local layer from RON", key);
+                info!("FRE: Set fact '{}' to Local layer from FRE file", key);
             }
 
             // Store action definitions for each rule (for custom action handling)
             // Use the same ID generation logic as to_rule_with_index()
-            for (idx, rule_def) in rule_set.get_rule_defs().iter().enumerate() {
+            for (idx, rule_def) in fre_asset.get_rule_defs().iter().enumerate() {
                 let rule_id = rule_def.generate_id(idx);
                 action_defs
                     .actions_by_rule
@@ -276,8 +276,8 @@ pub fn register_loaded_rules_system(
             }
 
             // Register all rules
-            rule_set.register_rules(&mut registry);
-            info!("FRE: Rules registered from RON asset");
+            fre_asset.register_rules(&mut registry);
+            info!("FRE: Rules registered from FRE asset");
         }
     }
 

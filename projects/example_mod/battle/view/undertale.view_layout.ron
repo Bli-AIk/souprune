@@ -12,11 +12,10 @@
 // 注意：导航由 battle/fre/bridge.rs 中的 battle_view_navigation_system 处理
 
 (
-    version: 2,
 
     // View-local facts for battle menu state
     // 战斗菜单状态的 View 局部事实
-    initial_facts: {
+    facts: {
         "depth": 0,                // 0=main menu, 1=submenu
         "button_selection": 0,     // Main menu button (persists across depths)
         "enemy_selection": 0,      // Enemy selection in depth 1

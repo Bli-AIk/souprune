@@ -21,7 +21,7 @@ pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
 pub use crate::core::input::actions::Action;
-pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::item::{Item, ItemEffect, ItemRegistry, ItemType};
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };

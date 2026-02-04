@@ -18,7 +18,7 @@ audios = "audios"          # Audio resources / 音频资源目录
 "soul_blue" = "libmod_example.so"
 
 [game]
-global_rules = "global.rules.ron"
+global_rules = "global.fre.ron"
 initial_battle_path = "battle/chapters/demo.battle.ron"
 input_config_path = "config/input.ron"
 required_modules = ["common", "battle"]

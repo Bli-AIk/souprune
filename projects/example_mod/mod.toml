@@ -18,7 +18,7 @@ audios = "audios"          # Audio resources / 音频资源目录
 "soul_blue" = "libmod_example.so"
 
 [game]
-global_rules = "global.rules.ron"
+global_rules = "global.fre.ron"
 initial_map_path = "overworld/levels/ruins/ruins_3.tmx"
 initial_battle_path = "battle/chapters/demo.battle.ron"
 player_behavior_path = "overworld/players/player_behavior.ron"

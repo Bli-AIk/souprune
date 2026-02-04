@@ -21,10 +21,11 @@ mod interaction;
 mod performance;
 mod player;
 mod tween;
-mod view_action;
+pub mod view_action;
 mod view_element;
 
 // Re-export public types
+pub use view_action::PendingViewBindings;
 
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
@@ -75,6 +76,8 @@ impl Plugin for SequencerPlugin {
                     fact_chapter::process_fact_switch_chapter_system,
                     fact_chapter::process_emit_fact_event_chapter_system,
                     fact_chapter::process_modify_fact_chapter_system,
+                    fact_chapter::process_load_fre_chapter_system,
+                    fact_chapter::complete_load_fre_chapter_system,
                     // AwaitInteraction completion check
                     interaction::check_await_selection_completion_system,
                     flow::cleanup_finished_chapters_system,

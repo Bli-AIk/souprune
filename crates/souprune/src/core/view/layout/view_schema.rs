@@ -24,22 +24,59 @@ use std::collections::HashMap;
 /// 视图布局资产 - 表示完整的视图布局配置。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct ViewLayoutAsset {
-    #[allow(dead_code)]
-    pub version: u32,
     /// Root view nodes
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
     #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
-    /// Initial facts to set when this View is loaded.
-    /// These facts are stored in the ViewRoot's local_facts database.
-    /// Format: { "key": value } where value can be int, float, bool, or string.
+    /// Data requirements for this View.
+    /// Declares what FRE data files this View needs.
+    /// These facts are loaded and merged into the ViewRoot's local_facts database.
     ///
-    /// 加载此 View 时要设置的初始事实。
-    /// 这些事实存储在 ViewRoot 的 local_facts 数据库中。
-    /// 格式: { "key": value }，其中 value 可以是 int、float、bool 或 string。
+    /// 此 View 的数据需求声明。
+    /// 声明此 View 需要哪些 FRE 数据文件。
+    /// 这些事实会被加载并合并到 ViewRoot 的 local_facts 数据库中。
     #[serde(default)]
-    pub initial_facts: Option<HashMap<String, InitialFactValue>>,
+    pub requires: Vec<DataRequirement>,
+    /// Inline facts to set when this View is loaded.
+    /// These facts are stored in the ViewRoot's local_facts database.
+    /// Use `requires` for loading external FRE files; use this for simple inline values.
+    ///
+    /// 加载此 View 时要设置的内联事实。
+    /// 这些事实存储在 ViewRoot 的 local_facts 数据库中。
+    /// 加载外部 FRE 文件请使用 `requires`；这里用于简单的内联值。
+    #[serde(default)]
+    pub facts: Option<HashMap<String, InitialFactValue>>,
+}
+
+/// Data requirement declaration for Views.
+/// Specifies how to load external FRE data.
+///
+/// View 的数据需求声明。
+/// 指定如何加载外部 FRE 数据。
+#[derive(Debug, Deserialize, Clone)]
+pub enum DataRequirement {
+    /// Load facts and rules from a FRE file.
+    /// Example: `File("battle/fre/enemies/dummy.fre.ron")`
+    ///
+    /// 从 FRE 文件加载事实和规则。
+    /// 示例：`File("battle/fre/enemies/dummy.fre.ron")`
+    File(String),
+
+    /// Declare an interface that must be bound externally.
+    /// The binding is provided by SpawnView's `bindings` field.
+    ///
+    /// 声明必须由外部绑定的接口。
+    /// 绑定由 SpawnView 的 `bindings` 字段提供。
+    Interface {
+        /// Interface name (used as key in bindings)
+        /// 接口名称（在 bindings 中作为键使用）
+        interface: String,
+        /// Expected facts (for validation, optional)
+        /// 预期的事实（用于验证，可选）
+        #[serde(default)]
+        expects: Vec<String>,
+    },
 }
 
 /// Value type for initial facts in View Schema.

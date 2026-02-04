@@ -1,0 +1,12 @@
+// Test enemy 5 definition
+// 测试敌人 5 定义
+(
+    facts: {
+        "enemy.test5.name": "{{battle/ui:ENEMY_TEST5}}",
+        "enemy.test5.hp": Int(150),
+        "enemy.test5.hp_max": Int(200),
+        "enemy.test5.attack": Int(15),
+        "enemy.test5.defense": Int(8),
+    },
+    rules: [],
+)

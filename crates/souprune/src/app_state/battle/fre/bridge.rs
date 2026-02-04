@@ -10,10 +10,10 @@
 //! 本模块提供系统，在特定 Sequencer 事件发生时发出 FRE 事件
 //! （Chapter 完成、选择确认等）。
 //!
-//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.rules.ron.
+//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.fre.ron.
 //! The old hardcoded navigation system has been removed.
 //!
-//! 注意：战斗 UI 导航已移至 battle_menu.rules.ron 中的 FRE 规则。
+//! 注意：战斗 UI 导航已移至 battle_menu.fre.ron 中的 FRE 规则。
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;

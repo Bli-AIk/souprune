@@ -1,6 +1,5 @@
 #![enable(implicit_some)]
 (
-    version: 1,
     roots: [
         (
             name: "Sans_Legs",

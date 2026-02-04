@@ -19,11 +19,10 @@
 // - 第5次进入：退出追逐战状态（效果淡出）
 
 (
-    version: 1,
 
     // Initial facts to set when this rule set is loaded
     // 加载此规则集时设置的初始事实
-    initial_facts: {
+    facts: {
         "demo_area_visit_count": Int(0),
     },
 

@@ -1,6 +1,5 @@
 #![enable(implicit_some)]
 (
-    version: 1,
     roots: [
         // Battle Box (Dialog/Bullet Box)
         (

@@ -19,11 +19,10 @@
 // - item_selection: Item index in depth 1 (ITEM mode)
 
 (
-    version: 1,
 
     // VIEW-LOCAL initial facts
     // View 局部初始事实
-    initial_facts: {
+    facts: {
         "depth": Int(0),
         "button_selection": Int(0),   // Main menu selection (persists across depths)
         "enemy_selection": Int(0),     // Enemy selection in depth 1

@@ -9,10 +9,10 @@
 //!
 //! 本模块为战斗系统提供 FRE 集成，通过声明式规则实现数据驱动的战斗逻辑。
 //!
-//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.rules.ron.
+//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.fre.ron.
 //! The old hardcoded navigation system has been removed.
 //!
-//! 注意：战斗 UI 导航已移至 battle_menu.rules.ron 中的 FRE 规则。
+//! 注意：战斗 UI 导航已移至 battle_menu.fre.ron 中的 FRE 规则。
 //! 旧的硬编码导航系统已被移除。
 
 mod action_handlers;
@@ -23,7 +23,7 @@ use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactValueDef, LayeredFactDatabase, RuleRegistry, RuleSetAsset};
+use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, RuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
@@ -52,9 +52,9 @@ pub struct BattleInputEntity;
 #[derive(Resource, Default)]
 pub struct BattleRulesHandle {
     /// Handle for custom battle rules (from battle asset rules_file)
-    pub handle: Option<Handle<RuleSetAsset>>,
+    pub handle: Option<Handle<FreAsset>>,
     /// Handle for battle menu rules (always loaded)
-    pub menu_handle: Option<Handle<RuleSetAsset>>,
+    pub menu_handle: Option<Handle<FreAsset>>,
     pub registered: bool,
 }
 
@@ -81,9 +81,9 @@ impl Plugin for BattleFREPlugin {
                     emit_chapter_completed_events_system,
                     emit_selection_confirmed_events_system,
                     apply_pending_damage_system,
-                    // Note: Battle UI navigation is now handled by FRE rules in battle_menu.rules.ron
+                    // Note: Battle UI navigation is now handled by FRE rules in battle_menu.fre.ron
                     // The core::fre_bridge::FREBridgePlugin provides ActionEvent-to-FRE conversion
-                    // 注意：战斗 UI 导航现在由 battle_menu.rules.ron 中的 FRE 规则处理
+                    // 注意：战斗 UI 导航现在由 battle_menu.fre.ron 中的 FRE 规则处理
                     // core::fre_bridge::FREBridgePlugin 提供 ActionEvent 到 FRE 的转换
                 )
                     .in_set(BattleFRESet),
@@ -125,8 +125,8 @@ fn setup_battle_fre_system(
     info!("Battle FRE: Spawned input entity for ActionState");
 
     // Always load battle menu rules
-    let menu_path = "battle/rules/battle_menu.rules.ron";
-    let menu_handle = asset_server.load::<RuleSetAsset>(menu_path);
+    let menu_path = "battle/rules/battle_menu.fre.ron";
+    let menu_handle = asset_server.load::<FreAsset>(menu_path);
     battle_rules_handle.menu_handle = Some(menu_handle);
     info!("Battle FRE: Loading battle menu rules from {}", menu_path);
 
@@ -148,7 +148,7 @@ fn setup_battle_fre_system(
 fn register_battle_rules_system(
     mut commands: Commands,
     mut battle_rules_handle: ResMut<BattleRulesHandle>,
-    rule_set_assets: Res<Assets<RuleSetAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<RuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     existing_action_defs: Option<ResMut<RuleActionDefs>>,
@@ -162,14 +162,14 @@ fn register_battle_rules_system(
     let menu_loaded = battle_rules_handle
         .menu_handle
         .as_ref()
-        .map(|h| rule_set_assets.get(h).is_some())
+        .map(|h| fre_assets.get(h).is_some())
         .unwrap_or(false);
 
     // Wait for custom rules if specified
     let custom_loaded = battle_rules_handle
         .handle
         .as_ref()
-        .map(|h| rule_set_assets.get(h).is_some())
+        .map(|h| fre_assets.get(h).is_some())
         .unwrap_or(true); // true if no custom rules
 
     if !menu_loaded || !custom_loaded {
@@ -187,10 +187,10 @@ fn register_battle_rules_system(
 
     // Process menu rules
     if let Some(handle) = &battle_rules_handle.menu_handle
-        && let Some(rule_set) = rule_set_assets.get(handle)
+        && let Some(fre_asset) = fre_assets.get(handle)
     {
-        // Apply initial facts to View local facts (via ViewRoot in fre_bridge)
-        for (key, value) in rule_set.get_initial_facts() {
+        // Apply facts to View local facts (via ViewRoot in fre_bridge)
+        for (key, value) in fre_asset.get_facts() {
             let fact_value = match value {
                 FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
                 FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
@@ -202,11 +202,11 @@ fn register_battle_rules_system(
                 FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
             };
             fact_db.set_local(key.as_str(), fact_value);
-            info!("Battle FRE: Set initial fact '{}' from menu rules", key);
+            info!("Battle FRE: Set fact '{}' from menu rules", key);
         }
 
         // Register rules and populate action_defs
-        let rules_defs = rule_set.get_rule_defs();
+        let rules_defs = fre_asset.get_rule_defs();
         for (idx, rule_def) in rules_defs.iter().enumerate() {
             let rule = rule_def.to_rule_with_index(idx);
             let rule_id = rule_def.generate_id(idx);
@@ -225,9 +225,9 @@ fn register_battle_rules_system(
 
     // Process custom battle rules (if any)
     if let Some(handle) = &battle_rules_handle.handle
-        && let Some(rule_set) = rule_set_assets.get(handle)
+        && let Some(fre_asset) = fre_assets.get(handle)
     {
-        for (key, value) in rule_set.get_initial_facts() {
+        for (key, value) in fre_asset.get_facts() {
             let fact_value = match value {
                 FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
                 FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
@@ -239,14 +239,14 @@ fn register_battle_rules_system(
                 FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
             };
             fact_db.set_local(key.as_str(), fact_value);
-            info!("Battle FRE: Set initial fact '{}' from battle rules", key);
+            info!("Battle FRE: Set fact '{}' from battle rules", key);
         }
 
-        let rules_defs = rule_set.get_rule_defs();
+        let rules_defs = fre_asset.get_rule_defs();
         let offset = battle_rules_handle
             .menu_handle
             .as_ref()
-            .and_then(|h| rule_set_assets.get(h))
+            .and_then(|h| fre_assets.get(h))
             .map(|rs| rs.get_rule_defs().len())
             .unwrap_or(0);
 

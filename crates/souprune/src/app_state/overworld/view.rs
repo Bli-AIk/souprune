@@ -8,10 +8,10 @@
 //! 此模块包含特定于 Overworld 状态的 View 系统，
 //! 例如输入到 FRE 事件的桥接。
 //!
-//! NOTE: Navigation logic has been moved to FRE rules in backpack.rules.ron.
+//! NOTE: Navigation logic has been moved to FRE rules in backpack.fre.ron.
 //! The old hardcoded navigation systems have been removed.
 //!
-//! 注意：导航逻辑已移至 backpack.rules.ron 中的 FRE 规则。
+//! 注意：导航逻辑已移至 backpack.fre.ron 中的 FRE 规则。
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;
@@ -27,7 +27,7 @@ use super::OverworldSubState;
 /// System that bridges keyboard/gamepad input to FRE events.
 ///
 /// This system converts player input actions (Up, Down, Confirm, Cancel, etc.)
-/// into FRE FactEvents that can trigger rules defined in .rules.ron files.
+/// into FRE FactEvents that can trigger rules defined in .fre.ron files.
 ///
 /// The events are only sent when the player is in a state that has
 /// `player_movable: false` (i.e., UI/menu states).
@@ -35,15 +35,15 @@ use super::OverworldSubState;
 /// 将键盘/手柄输入桥接到 FRE 事件的系统。
 ///
 /// 此系统将玩家输入动作（上、下、确认、取消等）转换为
-/// 可以触发 .rules.ron 文件中定义的规则的 FRE FactEvent。
+/// 可以触发 .fre.ron 文件中定义的规则的 FRE FactEvent。
 ///
 /// 仅当玩家处于 `player_movable: false` 的状态（即 UI/菜单状态）时才发送事件。
 ///
 /// NOTE: This system emits legacy string events (input_nav_up, etc.) for
-/// backward compatibility with older .rules.ron files. New rules should use
+/// backward compatibility with older .fre.ron files. New rules should use
 /// ActionEvent format instead.
 ///
-/// 注意：此系统为了向后兼容旧的 .rules.ron 文件，会发出旧式字符串事件
+/// 注意：此系统为了向后兼容旧的 .fre.ron 文件，会发出旧式字符串事件
 /// （input_nav_up 等）。新规则应使用 ActionEvent 格式。
 pub(crate) fn input_to_fre_event_bridge_system(
     registry: Res<ActionRegistry>,

@@ -13,7 +13,7 @@ use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase};
 
 /// System to spawn view elements from RON layout.
 ///
@@ -36,6 +36,10 @@ pub fn spawn_ron_view_system(
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
+    pending_bindings: Option<
+        Res<crate::app_state::battle::sequencer::view_action::PendingViewBindings>,
+    >,
     backpack_root_query: Query<
         Entity,
         (
@@ -93,6 +97,9 @@ pub fn spawn_ron_view_system(
             }
         };
 
+        // Get bindings if available
+        let bindings = pending_bindings.as_ref().map(|b| &b.bindings);
+
         spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
@@ -101,10 +108,13 @@ pub fn spawn_ron_view_system(
             camera_transform,
             &mut sprite_params,
             &animation_assets,
+            &fre_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
             &view_layout_handle.path,
+            bindings,
+            &layered_db,
         );
 
         // Add ViewGenerated and HotReloadableViewRoot for hot reload support
@@ -155,10 +165,15 @@ pub fn spawn_ron_view_for_entity(
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+    fre_assets: &Assets<FreAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
     layout_path: &str,
+    bindings: Option<
+        &std::collections::HashMap<String, crate::app_state::battle::chapter_schema::DataBinding>,
+    >,
+    layered_db: &LayeredFactDatabase,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -168,10 +183,96 @@ pub fn spawn_ron_view_for_entity(
     // 创建带有从布局初始化的局部事实的 ViewRoot
     let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
-    // Initialize local_facts from initial_facts in layout
-    // 从布局中的 initial_facts 初始化 local_facts
-    if let Some(initial_facts) = &view_layout.initial_facts {
-        for (key, value) in initial_facts {
+    // Process requires declarations
+    // 处理 requires 声明
+    for requirement in &view_layout.requires {
+        match requirement {
+            DataRequirement::File(path) => {
+                // Load FRE file if already loaded
+                // 如果已加载则加载 FRE 文件
+                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                if let Some(fre_asset) = fre_assets.get(&handle) {
+                    load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
+                    info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
+                } else {
+                    warn!("[ViewRoot] FRE file '{}' not yet loaded, skipping", path);
+                }
+            }
+            DataRequirement::Interface {
+                interface,
+                expects: _,
+            } => {
+                // Look up binding for this interface
+                // 查找此接口的绑定
+                if let Some(bindings) = bindings {
+                    if let Some(binding) = bindings.get(interface) {
+                        match binding {
+                            crate::app_state::battle::chapter_schema::DataBinding::File(path) => {
+                                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                                if let Some(fre_asset) = fre_assets.get(&handle) {
+                                    load_fre_into_view_root(
+                                        &mut view_root,
+                                        fre_asset,
+                                        mortar_strings,
+                                    );
+                                    info!(
+                                        "[ViewRoot] Bound interface '{}' to file '{}'",
+                                        interface, path
+                                    );
+                                }
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::Files(paths) => {
+                                for path in paths {
+                                    let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                                    if let Some(fre_asset) = fre_assets.get(&handle) {
+                                        load_fre_into_view_root(
+                                            &mut view_root,
+                                            fre_asset,
+                                            mortar_strings,
+                                        );
+                                    }
+                                }
+                                info!(
+                                    "[ViewRoot] Bound interface '{}' to {} files",
+                                    interface,
+                                    paths.len()
+                                );
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::LocalLayer => {
+                                // Copy facts from LOCAL layer to view's local_facts
+                                // 从 LOCAL 层复制 facts 到 view 的 local_facts
+                                for (key, value) in layered_db.iter_local() {
+                                    view_root.local_facts.set(key.0.clone(), value.clone());
+                                }
+                                info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::Expr(_expr) => {
+                                warn!(
+                                    "[ViewRoot] Expr binding not yet implemented for interface '{}'",
+                                    interface
+                                );
+                            }
+                        }
+                    } else {
+                        warn!(
+                            "[ViewRoot] No binding provided for interface '{}'",
+                            interface
+                        );
+                    }
+                } else {
+                    warn!(
+                        "[ViewRoot] Interface '{}' requires binding but none provided",
+                        interface
+                    );
+                }
+            }
+        }
+    }
+
+    // Initialize local_facts from inline facts in layout
+    // 从布局中的内联 facts 初始化 local_facts
+    if let Some(facts) = &view_layout.facts {
+        for (key, value) in facts {
             use crate::core::view::layout::InitialFactValue;
             match value {
                 InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
@@ -194,7 +295,7 @@ pub fn spawn_ron_view_for_entity(
         }
         info!(
             "[ViewRoot] Initialized {} local facts for '{}'",
-            initial_facts.len(),
+            facts.len(),
             layout_path
         );
     }
@@ -1312,4 +1413,36 @@ fn resolve_simple_localization(
     }
     // Return original string if not a localization reference or not found
     s.to_string()
+}
+
+/// Load facts from a FreAsset into the ViewRoot's local_facts.
+///
+/// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
+fn load_fre_into_view_root(
+    view_root: &mut crate::core::view::components::ViewRoot,
+    fre_asset: &FreAsset,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) {
+    use bevy_fact_rule_event::FactValue;
+
+    for (key, value_def) in fre_asset.get_facts() {
+        let fact_value: FactValue = value_def.clone().into();
+        match fact_value {
+            FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
+            FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),
+            FactValue::Bool(b) => view_root.local_facts.set(key.clone(), b),
+            FactValue::String(s) => {
+                let resolved = resolve_simple_localization(&s, mortar_strings);
+                view_root.local_facts.set(key.clone(), resolved)
+            }
+            FactValue::StringList(list) => {
+                let resolved_list: Vec<String> = list
+                    .iter()
+                    .map(|s| resolve_simple_localization(s, mortar_strings))
+                    .collect();
+                view_root.local_facts.set(key.clone(), resolved_list)
+            }
+            FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
+        }
+    }
 }

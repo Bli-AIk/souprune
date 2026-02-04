@@ -135,6 +135,7 @@ pub fn rebuild_pending_views_system(
     mut pending_reloads: ResMut<PendingViewReloads>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
     hot_reload_roots: Query<(Entity, &HotReloadableViewRoot)>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
@@ -197,7 +198,7 @@ pub fn rebuild_pending_views_system(
             );
         }
 
-        // Spawn new view
+        // Spawn new view (no bindings on hot reload - uses inline facts and requires with File only)
         super::spawn::spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
@@ -206,10 +207,13 @@ pub fn rebuild_pending_views_system(
             camera_transform,
             &mut sprite_params,
             &animation_assets,
+            &fre_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
             &hot_reload_root.layout_path,
+            None,
+            &layered_db,
         );
 
         rebuilt_count += 1;

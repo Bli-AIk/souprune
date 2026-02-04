@@ -10,13 +10,12 @@
 // 规则处理敌人特定的动作和行为。
 
 (
-    version: 1,
 
     // Enemy data as initial facts
     // These are merged into the battle's fact database
     // 作为初始事实的敌人数据
     // 这些会被合并到战斗的事实数据库中
-    initial_facts: {
+    facts: {
         // Basic enemy stats
         // 基本敌人属性
         "enemy.dummy.name": "Dummy",

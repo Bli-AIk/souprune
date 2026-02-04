@@ -962,7 +962,7 @@ pub mod debug_fre_panel {
 
                     if rule_count == 0 {
                         ui.label("No rules registered.");
-                        ui.label("Rules are loaded from .rules.ron files.");
+                        ui.label("Rules are loaded from .fre.ron files.");
                     } else {
                         // Collect rules into a Vec for sorting
                         let mut rules: Vec<_> = registry.iter().collect();
@@ -1059,7 +1059,7 @@ pub mod debug_fre_panel {
 
             // Show some helpful info
             egui::CollapsingHeader::new("How Rules Work").show(ui, |ui| {
-                ui.label("• Rules are defined in .rules.ron files");
+                ui.label("• Rules are defined in .fre.ron files");
                 ui.label("• Each rule has: trigger, condition, modifications, actions, outputs");
                 ui.label("• Rules are evaluated when their trigger event fires");
                 ui.label("• Conditions use facts from the LayeredFactDatabase");

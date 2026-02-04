@@ -18,11 +18,10 @@
 // 注意：导航由 overworld/view.rs 中的 view_local_facts_navigation_system 处理
 
 (
-    version: 2,
 
     // View-local facts initialized when this layout is spawned
     // View 局部事实，在此布局生成时初始化
-    initial_facts: {
+    facts: {
         "depth": 0,
         "selection": 0,
         "active": true,
@@ -315,9 +314,9 @@
 
     // Global triggers remain for state machine integration
     // 全局触发器保留用于状态机集成
-    // NOTE: Menu key to close backpack is now handled by FRE rules in backpack.rules.ron
+    // NOTE: Menu key to close backpack is now handled by FRE rules in backpack.fre.ron
     // with depth condition check. Only opening the backpack is handled here.
-    // 注意：Menu 键关闭背包现在由 backpack.rules.ron 中的 FRE 规则处理，
+    // 注意：Menu 键关闭背包现在由 backpack.fre.ron 中的 FRE 规则处理，
     // 带有深度条件检查。这里只处理打开背包。
     global_triggers: {
         "Menu": [

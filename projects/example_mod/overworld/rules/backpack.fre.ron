@@ -17,11 +17,10 @@
 //   3 = BackpackStatus (player stats)
 
 (
-    version: 1,
 
     // Initial facts - these are VIEW-LOCAL facts
     // 初始事实 - 这些是 VIEW-LOCAL 事实
-    initial_facts: {
+    facts: {
         "depth": Int(0),
         "selection": Int(0),
         "active": Bool(true),
