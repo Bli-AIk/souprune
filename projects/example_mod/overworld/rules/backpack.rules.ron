@@ -146,6 +146,16 @@
             ],
         ),
 
+        // Rule: Menu at depth 0 -> close backpack (same as Cancel)
+        // 规则：在深度 0 按 Menu -> 关闭背包（与 Cancel 相同）
+        (
+            event: ActionEvent(action: "Menu", kind: JustPressed),
+            conditions: ["$depth == 0"],
+            actions: [
+                SwitchState("Normal"),
+            ],
+        ),
+
         // Rule: Cancel at depth 1 -> back to menu
         // 规则：在深度 1 取消 -> 返回菜单
         (

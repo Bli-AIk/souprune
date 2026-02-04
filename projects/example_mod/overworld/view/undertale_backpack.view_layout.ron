@@ -315,17 +315,16 @@
 
     // Global triggers remain for state machine integration
     // 全局触发器保留用于状态机集成
+    // NOTE: Menu key to close backpack is now handled by FRE rules in backpack.rules.ron
+    // with depth condition check. Only opening the backpack is handled here.
+    // 注意：Menu 键关闭背包现在由 backpack.rules.ron 中的 FRE 规则处理，
+    // 带有深度条件检查。这里只处理打开背包。
     global_triggers: {
         "Menu": [
             (
                 target_state: "Backpack",
                 sound: None,
                 allowed_states: ["Normal"],
-            ),
-            (
-                target_state: "Normal",
-                sound: None,
-                allowed_states: ["Backpack"],
             ),
         ],
     },

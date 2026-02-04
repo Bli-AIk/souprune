@@ -230,7 +230,7 @@
                         // Y position: based on enemy_selection (50, 18, -14, -46)
                         // Y 位置：基于敌人选择（50, 18, -14, -46）
                         "if($enemy_selection == 0, -30.0, if($enemy_selection == 1, -62.0, if($enemy_selection == 2, -94.0, -126.0)))",
-                        "2.0",
+                        "10.0",
                     ),
                 ),
             ),
@@ -261,7 +261,7 @@
         // 战斗按钮选中状态（仅在深度 == 0 时显示）
         (
             name: "BtnFightSelected",
-            visible_when: "$depth == 0 && $button_selection == 0",
+            visible_when: "$button_selection == 0",
             sprite: (
                 visual: "textures/battle/ui/fight/true.png",
                 transform: (
@@ -285,7 +285,7 @@
         ),
         (
             name: "BtnActSelected",
-            visible_when: "$depth == 0 && $button_selection == 1",
+            visible_when: "$button_selection == 1",
             sprite: (
                 visual: "textures/battle/ui/act/true.png",
                 transform: (
@@ -309,7 +309,7 @@
         ),
         (
             name: "BtnItemSelected",
-            visible_when: "$depth == 0 && $button_selection == 2",
+            visible_when: "$button_selection == 2",
             sprite: (
                 visual: "textures/battle/ui/item/true.png",
                 transform: (
@@ -333,7 +333,7 @@
         ),
         (
             name: "BtnMercySelected",
-            visible_when: "$depth == 0 && $button_selection == 3",
+            visible_when: "$button_selection == 3",
             sprite: (
                 visual: "textures/battle/ui/mercy/true.png",
                 transform: (
