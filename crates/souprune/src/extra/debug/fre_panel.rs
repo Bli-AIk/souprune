@@ -117,9 +117,50 @@ pub mod debug_fre_panel {
         data_keys: Vec<String>,
     }
 
+    /// Resource to track recently triggered rules for visual feedback.
+    /// 跟踪最近触发的规则以提供视觉反馈的资源。
+    #[derive(Resource, Default)]
+    pub struct RuleTriggerHistory {
+        /// Map from rule_id to last trigger timestamp (in seconds)
+        /// 规则ID到上次触发时间戳（秒）的映射
+        pub triggered_rules: std::collections::HashMap<String, f64>,
+    }
+
+    impl RuleTriggerHistory {
+        /// Record that a rule was triggered at the current time.
+        /// 记录规则在当前时间被触发。
+        pub fn record_trigger(&mut self, rule_id: &str, current_time: f64) {
+            self.triggered_rules
+                .insert(rule_id.to_string(), current_time);
+        }
+
+        /// Check if a rule was triggered within the last N seconds.
+        /// 检查规则是否在最近 N 秒内被触发。
+        pub fn was_recently_triggered(
+            &self,
+            rule_id: &str,
+            current_time: f64,
+            duration: f64,
+        ) -> bool {
+            if let Some(&trigger_time) = self.triggered_rules.get(rule_id) {
+                current_time - trigger_time < duration
+            } else {
+                false
+            }
+        }
+
+        /// Clean up old triggers (older than 5 seconds).
+        /// 清理旧的触发记录（超过5秒的）。
+        pub fn cleanup_old_triggers(&mut self, current_time: f64) {
+            self.triggered_rules
+                .retain(|_, &mut trigger_time| current_time - trigger_time < 5.0);
+        }
+    }
+
     pub(crate) fn setup_fre_panel_debug(app: &mut App) {
         app.init_resource::<FREPanelState>()
             .init_resource::<FactEventHistory>()
+            .init_resource::<RuleTriggerHistory>()
             .add_systems(
                 Update,
                 (
@@ -130,6 +171,7 @@ pub mod debug_fre_panel {
                     app_state_changed_refresh_fre_panel_system,
                     fre_panel_refresh_system,
                     track_fact_events_system,
+                    cleanup_rule_trigger_history_system,
                 ),
             )
             .add_systems(
@@ -138,6 +180,15 @@ pub mod debug_fre_panel {
                     .after(InputManagerSystem::ManualControl),
             )
             .add_systems(FREPanelContextPass, fre_panel_ui_system);
+    }
+
+    /// System to clean up old rule trigger history entries.
+    /// 清理旧的规则触发历史记录的系统。
+    fn cleanup_rule_trigger_history_system(
+        mut history: ResMut<RuleTriggerHistory>,
+        time: Res<Time>,
+    ) {
+        history.cleanup_old_triggers(time.elapsed_secs_f64());
     }
 
     /// System to handle F7 hotkey for opening/closing the FRE panel.
@@ -952,6 +1003,14 @@ pub mod debug_fre_panel {
             ui.label("📜 Registered Rules");
             ui.separator();
 
+            // Get time and trigger history for highlight calculation
+            // 获取时间和触发历史用于高亮计算
+            let current_time = world
+                .get_resource::<Time>()
+                .map(|t| t.elapsed_secs_f64())
+                .unwrap_or(0.0);
+            let trigger_history = world.get_resource::<RuleTriggerHistory>();
+
             let rule_registry = world.get_resource::<LayeredRuleRegistry>();
 
             match rule_registry {
@@ -987,7 +1046,12 @@ pub mod debug_fre_panel {
                                 let mut global_rules: Vec<_> = registry.global_iter().collect();
                                 global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in global_rules {
-                                    show_rule_entry(ui, rule);
+                                    let is_triggered = trigger_history
+                                        .map(|h| {
+                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
+                                        })
+                                        .unwrap_or(false);
+                                    show_rule_entry(ui, rule, is_triggered);
                                 }
                             });
                         }
@@ -1003,7 +1067,12 @@ pub mod debug_fre_panel {
                                 let mut local_rules: Vec<_> = registry.local_iter().collect();
                                 local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in local_rules {
-                                    show_rule_entry(ui, rule);
+                                    let is_triggered = trigger_history
+                                        .map(|h| {
+                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
+                                        })
+                                        .unwrap_or(false);
+                                    show_rule_entry(ui, rule, is_triggered);
                                 }
                             });
                         }
@@ -1025,7 +1094,16 @@ pub mod debug_fre_panel {
                                                 view_registry.iter().collect();
                                             view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                             for rule in view_rules {
-                                                show_rule_entry(ui, rule);
+                                                let is_triggered = trigger_history
+                                                    .map(|h| {
+                                                        h.was_recently_triggered(
+                                                            &rule.id,
+                                                            current_time,
+                                                            1.0,
+                                                        )
+                                                    })
+                                                    .unwrap_or(false);
+                                                show_rule_entry(ui, rule, is_triggered);
                                             }
                                         });
                                     }
@@ -1051,73 +1129,96 @@ pub mod debug_fre_panel {
         });
     }
 
-    /// Helper function to display a single rule entry.
-    /// 显示单个规则条目的辅助函数。
-    fn show_rule_entry(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+    /// Helper function to display a single rule entry with optional trigger highlight.
+    /// 显示单个规则条目的辅助函数，可选触发高亮。
+    ///
+    /// # Arguments
+    /// * `ui` - The egui UI context
+    /// * `rule` - The rule to display
+    /// * `is_recently_triggered` - Whether this rule was triggered in the last second
+    fn show_rule_entry(
+        ui: &mut egui::Ui,
+        rule: &bevy_fact_rule_event::Rule,
+        is_recently_triggered: bool,
+    ) {
         let status_icon = if rule.enabled { "✅" } else { "❌" };
-        let header_text = format!("{} {} [Priority: {}]", status_icon, rule.id, rule.priority);
+        let trigger_indicator = if is_recently_triggered { "🔥 " } else { "" };
+        let header_text = format!(
+            "{}{} {} [Priority: {}]",
+            trigger_indicator, status_icon, rule.id, rule.priority
+        );
 
-        egui::CollapsingHeader::new(header_text)
-            .default_open(false)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Trigger:");
-                    ui.monospace(&rule.trigger.0);
+        // Use green color for recently triggered rules
+        // 为最近触发的规则使用绿色
+        let header_color = if is_recently_triggered {
+            egui::Color32::from_rgb(100, 255, 100) // Bright green
+        } else {
+            ui.visuals().text_color()
+        };
+
+        let header =
+            egui::CollapsingHeader::new(egui::RichText::new(header_text).color(header_color))
+                .default_open(false);
+
+        header.show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Trigger:");
+                ui.monospace(&rule.trigger.0);
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Enabled:");
+                ui.label(if rule.enabled { "Yes" } else { "No" });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Consume Event:");
+                ui.label(if rule.consume_event { "Yes" } else { "No" });
+            });
+
+            // Condition
+            egui::CollapsingHeader::new("Condition")
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.monospace(format!("{:?}", rule.condition));
                 });
 
-                ui.horizontal(|ui| {
-                    ui.label("Enabled:");
-                    ui.label(if rule.enabled { "Yes" } else { "No" });
+            // Modifications
+            if !rule.modifications.is_empty() {
+                egui::CollapsingHeader::new(format!(
+                    "Modifications ({})",
+                    rule.modifications.len()
+                ))
+                .default_open(false)
+                .show(ui, |ui| {
+                    for (i, modification) in rule.modifications.iter().enumerate() {
+                        ui.monospace(format!("{}: {:?}", i + 1, modification));
+                    }
                 });
+            }
 
-                ui.horizontal(|ui| {
-                    ui.label("Consume Event:");
-                    ui.label(if rule.consume_event { "Yes" } else { "No" });
-                });
-
-                // Condition
-                egui::CollapsingHeader::new("Condition")
+            // Actions
+            if !rule.actions.is_empty() {
+                egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
                     .default_open(false)
                     .show(ui, |ui| {
-                        ui.monospace(format!("{:?}", rule.condition));
-                    });
-
-                // Modifications
-                if !rule.modifications.is_empty() {
-                    egui::CollapsingHeader::new(format!(
-                        "Modifications ({})",
-                        rule.modifications.len()
-                    ))
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        for (i, modification) in rule.modifications.iter().enumerate() {
-                            ui.monospace(format!("{}: {:?}", i + 1, modification));
+                        for i in 0..rule.actions.len() {
+                            ui.monospace(format!("{}: <action function>", i + 1));
                         }
                     });
-                }
+            }
 
-                // Actions
-                if !rule.actions.is_empty() {
-                    egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
-                        .default_open(false)
-                        .show(ui, |ui| {
-                            for i in 0..rule.actions.len() {
-                                ui.monospace(format!("{}: <action function>", i + 1));
-                            }
-                        });
-                }
-
-                // Outputs
-                if !rule.outputs.is_empty() {
-                    egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len()))
-                        .default_open(false)
-                        .show(ui, |ui| {
-                            for output in &rule.outputs {
-                                ui.monospace(&output.0);
-                            }
-                        });
-                }
-            });
+            // Outputs
+            if !rule.outputs.is_empty() {
+                egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len()))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for output in &rule.outputs {
+                            ui.monospace(&output.0);
+                        }
+                    });
+            }
+        });
     }
 
     /// Render the Event History tab.

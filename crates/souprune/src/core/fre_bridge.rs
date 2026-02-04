@@ -100,6 +100,10 @@ pub fn process_view_actions_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    #[cfg(feature = "debug")] mut trigger_history: Option<
+        ResMut<crate::extra::debug::RuleTriggerHistory>,
+    >,
+    #[cfg(feature = "debug")] time: Res<Time>,
 ) {
     let Some(action_defs) = action_defs else {
         return;
@@ -153,6 +157,13 @@ pub fn process_view_actions_system(
                     rule.condition_expressions.len()
                 );
 
+                // Record rule trigger for debug panel visualization
+                // 记录规则触发以供调试面板可视化
+                #[cfg(feature = "debug")]
+                if let Some(ref mut history) = trigger_history {
+                    history.record_trigger(&rule.id, time.elapsed_secs_f64());
+                }
+
                 // Look up the original action definitions for this rule
                 let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
                     warn!(
@@ -195,6 +206,10 @@ pub fn process_view_actions_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    #[cfg(feature = "debug")] mut trigger_history: Option<
+        ResMut<crate::extra::debug::RuleTriggerHistory>,
+    >,
+    #[cfg(feature = "debug")] time: Res<Time>,
 ) {
     let Some(action_defs) = action_defs else {
         return;
@@ -243,6 +258,13 @@ pub fn process_view_actions_system(
                     rule.priority,
                     rule.condition_expressions.len()
                 );
+
+                // Record rule trigger for debug panel visualization
+                // 记录规则触发以供调试面板可视化
+                #[cfg(feature = "debug")]
+                if let Some(ref mut history) = trigger_history {
+                    history.record_trigger(&rule.id, time.elapsed_secs_f64());
+                }
 
                 let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
                     warn!(

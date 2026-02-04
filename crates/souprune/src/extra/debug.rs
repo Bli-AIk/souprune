@@ -54,6 +54,11 @@ use bevy::prelude::Component;
 #[derive(Component)]
 pub struct DebugCamera;
 
+/// Re-export RuleTriggerHistory for use by fre_bridge when tracking rule triggers.
+/// 重新导出 RuleTriggerHistory 供 fre_bridge 跟踪规则触发时使用。
+#[cfg(feature = "debug")]
+pub use fre_panel::debug_fre_panel::RuleTriggerHistory;
+
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
