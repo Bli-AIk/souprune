@@ -109,9 +109,9 @@
                         color: (0.0, 1.0, 0.0, 1.0),  // Pure green
                         transform: (
                             // Position: Y offset based on index (50, 18, -14, -46 pattern = 50 - i * 32)
-                            translation: (-18.0, "30.0 - @i * 32.0", 10.0),
+                            translation: (-68.0, "31.25 - @i * 32.0", 10.0),
                             // Width based on HP ratio, height fixed
-                            scale: (100.0, 16.5, 1.0),
+                            scale: (100.75, 17.0, 1.0),
                         ),
                         pivot: (0.0, 0.5),
                     ),
@@ -155,10 +155,10 @@
                     translation: (
                         // X position: left of enemy names, inside BattleBox
                         // X 位置：敌人名称左侧，在战斗框内
-                        "-290.0",
+                        "-247.5",
                         // Y position: based on enemy_selection (50, 18, -14, -46)
                         // Y 位置：基于敌人选择（50, 18, -14, -46）
-                        "if($enemy_selection == 0, -30.0, if($enemy_selection == 1, -62.0, if($enemy_selection == 2, -94.0, -126.0)))",
+                        "if($enemy_selection == 0, -45.5, if($enemy_selection == 1, -62.0, if($enemy_selection == 2, -94.0, -126.0)))",
                         "10.0",
                     ),
                 ),

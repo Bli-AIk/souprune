@@ -121,6 +121,7 @@ pub fn watch_view_layout_changes_system(
 /// 2. Updates VisibleWhen expressions
 /// 3. Updates Transform properties
 /// 4. Updates Sprite color/flip properties
+/// 5. Updates DynamicViewElement stored definitions (to persist through fact changes)
 ///
 /// 增量重载系统 - 更新现有视图元素而不销毁它们（仅 debug 模式）。
 ///
@@ -129,6 +130,7 @@ pub fn watch_view_layout_changes_system(
 /// 2. 更新 VisibleWhen 表达式
 /// 3. 更新 Transform 属性
 /// 4. 更新 Sprite 颜色/翻转属性
+/// 5. 更新 DynamicViewElement 存储的定义（以在 fact 变化时保持）
 #[cfg(feature = "debug")]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
@@ -144,6 +146,8 @@ pub fn incremental_reload_system(
     mut visible_when_query: Query<&mut crate::core::view::components::VisibleWhen>,
     mut transform_query: Query<&mut Transform>,
     mut sprite_query: Query<&mut Sprite>,
+    mut dynamic_element_query: Query<&mut crate::core::view::components::DynamicViewElement>,
+    mut camera_anchored_query: Query<&mut super::super::components::CameraAnchored>,
     children_query: Query<&Children>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     view_root_query: Query<&crate::core::view::components::ViewRoot>,
@@ -241,83 +245,141 @@ pub fn incremental_reload_system(
                 }
             }
 
-            // Update Transform from sprite def
+            // Update CameraAnchored offset for ViewBox nodes
+            // ViewBox 节点的 CameraAnchored 偏移更新
+            if let Some(ui_logic) = &node_def.ui_shape_logic {
+                if let Ok(mut camera_anchored) = camera_anchored_query.get_mut(entity) {
+                    let new_offset = super::super::layout::serde_types::serializable_vec3_to_static(
+                        &ui_logic.offset,
+                    );
+                    if camera_anchored.offset != new_offset {
+                        debug!(
+                            "[Hot Reload] CameraAnchored offset '{}': {:?} -> {:?}",
+                            view_element.full_name, camera_anchored.offset, new_offset
+                        );
+                        camera_anchored.offset = new_offset;
+                        updated_count += 1;
+                    }
+                }
+            }
+
+            // Update Transform from sprite def (only for standalone sprites, not ViewBox)
+            // ViewBox entities use CameraAnchored + ui_shape_logic.offset, not sprite.transform
+            // 从 sprite def 更新 Transform（仅适用于独立 sprite，不适用于 ViewBox）
+            // ViewBox 实体使用 CameraAnchored + ui_shape_logic.offset，而不是 sprite.transform
             if let Some(sprite_def) = &node_def.sprite {
-                if let Some(t_def) = &sprite_def.transform {
-                    if let Ok(mut transform) = transform_query.get_mut(entity) {
-                        if let Some(trans) = &t_def.translation {
-                            let new_translation = Vec3::new(
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &trans.0,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &trans.1,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &trans.2,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                            );
-                            if transform.translation != new_translation {
-                                debug!(
-                                    "[Hot Reload] translation '{}': {:?} -> {:?}",
-                                    view_element.full_name, transform.translation, new_translation
+                // Skip Transform update if this node has ui_shape_logic (it's a ViewBox)
+                // ViewBox position is managed separately via CameraAnchored component
+                // 如果此节点有 ui_shape_logic（它是 ViewBox），则跳过 Transform 更新
+                // ViewBox 位置通过 CameraAnchored 组件单独管理
+                let is_viewbox = node_def.ui_shape_logic.is_some();
+                let mut sprite_updated = false;
+
+                if !is_viewbox {
+                    if let Some(t_def) = &sprite_def.transform {
+                        if let Ok(mut transform) = transform_query.get_mut(entity) {
+                            // First update scale if present (needed for pivot calculation)
+                            // 首先更新缩放（pivot计算需要）
+                            if let Some(scale) = &t_def.scale {
+                                let new_scale = Vec3::new(
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &scale.0,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &scale.1,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &scale.2,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
                                 );
-                                transform.translation = new_translation;
-                                updated_count += 1;
+                                if transform.scale != new_scale {
+                                    debug!(
+                                        "[Hot Reload] scale '{}': {:?} -> {:?}",
+                                        view_element.full_name, transform.scale, new_scale
+                                    );
+                                    transform.scale = new_scale;
+                                    updated_count += 1;
+                                    sprite_updated = true;
+                                }
                             }
-                        }
-                        if let Some(scale) = &t_def.scale {
-                            let new_scale = Vec3::new(
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &scale.0,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &scale.1,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                                super::parsing::evaluate_float_expr_with_repeat(
-                                    &scale.2,
-                                    &player_data,
-                                    None,
-                                    repeat_ctx.as_ref(),
-                                ),
-                            );
-                            if transform.scale != new_scale {
-                                debug!(
-                                    "[Hot Reload] scale '{}': {:?} -> {:?}",
-                                    view_element.full_name, transform.scale, new_scale
-                                );
-                                transform.scale = new_scale;
-                                updated_count += 1;
+                            // Update rotation if present (needed for pivot calculation)
+                            // 更新旋转（pivot计算需要）
+                            if let Some(rot) = t_def.rotation {
+                                let new_rotation = Quat::from_rotation_z(rot.to_radians());
+                                if transform.rotation != new_rotation {
+                                    debug!(
+                                        "[Hot Reload] rotation '{}': {:?} -> {:?}",
+                                        view_element.full_name, transform.rotation, new_rotation
+                                    );
+                                    transform.rotation = new_rotation;
+                                    updated_count += 1;
+                                    sprite_updated = true;
+                                }
                             }
-                        }
-                        if let Some(rot) = t_def.rotation {
-                            let new_rotation = Quat::from_rotation_z(rot.to_radians());
-                            if transform.rotation != new_rotation {
-                                debug!(
-                                    "[Hot Reload] rotation '{}': {:?} -> {:?}",
-                                    view_element.full_name, transform.rotation, new_rotation
+                            // Update translation with pivot offset applied
+                            // 更新translation并应用pivot偏移
+                            if let Some(trans) = &t_def.translation {
+                                let base_translation = Vec3::new(
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &trans.0,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &trans.1,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
+                                    super::parsing::evaluate_float_expr_with_repeat(
+                                        &trans.2,
+                                        &player_data,
+                                        None,
+                                        repeat_ctx.as_ref(),
+                                    ),
                                 );
-                                transform.rotation = new_rotation;
-                                updated_count += 1;
+                                // Apply pivot offset if sprite has pivot defined
+                                // (same logic as spawn.rs for HP bar and other sprites)
+                                // 如果sprite定义了pivot则应用偏移
+                                // （与spawn.rs中HP bar和其他sprite的逻辑相同）
+                                let new_translation = if let Some(pivot) = &sprite_def.pivot {
+                                    let (pivot_x, pivot_y) =
+                                        super::super::layout::serde_types::vec2_tuple_to_static(
+                                            pivot,
+                                        );
+                                    let shift_x = (0.5 - pivot_x) * transform.scale.x;
+                                    let shift_y = (0.5 - pivot_y) * transform.scale.y;
+                                    let shift =
+                                        transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                                    base_translation + shift
+                                } else {
+                                    base_translation
+                                };
+                                if transform.translation != new_translation {
+                                    debug!(
+                                        "[Hot Reload] translation '{}': {:?} -> {:?}",
+                                        view_element.full_name,
+                                        transform.translation,
+                                        new_translation
+                                    );
+                                    transform.translation = new_translation;
+                                    updated_count += 1;
+                                    sprite_updated = true;
+                                }
                             }
                         }
                     }
-                }
+                } // end if !is_viewbox
 
                 // Update Sprite properties (color, flip)
                 if let Ok(mut sprite) = sprite_query.get_mut(entity) {
@@ -333,6 +395,7 @@ pub fn incremental_reload_system(
                             );
                             sprite.color = new_color;
                             updated_count += 1;
+                            sprite_updated = true;
                         }
                     }
                     // Update flip_x
@@ -343,6 +406,7 @@ pub fn incremental_reload_system(
                         );
                         sprite.flip_x = sprite_def.flip_x;
                         updated_count += 1;
+                        sprite_updated = true;
                     }
                     // Update flip_y
                     if sprite.flip_y != sprite_def.flip_y {
@@ -352,6 +416,25 @@ pub fn incremental_reload_system(
                         );
                         sprite.flip_y = sprite_def.flip_y;
                         updated_count += 1;
+                        sprite_updated = true;
+                    }
+                }
+
+                // Update DynamicViewElement stored definition only if any property changed
+                // 只有当有属性变化时才更新 DynamicViewElement 存储的定义
+                if sprite_updated {
+                    if let Ok(mut dynamic_elem) = dynamic_element_query.get_mut(entity) {
+                        // Preprocess sprite_def if this is a repeat element
+                        let processed_sprite_def = if let Some(ctx) = &repeat_ctx {
+                            super::parsing::preprocess_sprite_def_for_repeat(sprite_def, ctx)
+                        } else {
+                            sprite_def.clone()
+                        };
+                        dynamic_elem.sprite_def = Some(processed_sprite_def);
+                        debug!(
+                            "[Hot Reload] Updated DynamicViewElement.sprite_def for '{}'",
+                            view_element.full_name
+                        );
                     }
                 }
             }
