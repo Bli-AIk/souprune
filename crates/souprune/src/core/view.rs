@@ -158,7 +158,9 @@ impl Plugin for CoreViewPlugin {
                     cleanup_view_rules_system,
                     // Process pending View rules when FRE assets finish loading
                     // 当 FRE 资产加载完成后处理待处理的 View 规则
-                    process_pending_view_rules_system,
+                    // This must run after spawn_ron_view_system to ensure PendingViewRules is ready
+                    // 必须在 spawn_ron_view_system 之后运行以确保 PendingViewRules 已准备好
+                    process_pending_view_rules_system.after(spawn_ron_view_system),
                 )
                     .in_set(ViewUpdate),
             )

@@ -360,11 +360,14 @@ pub struct VisibleWhen {
 #[derive(Component, Debug, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct PendingViewRules {
-    /// FRE file paths waiting for asset loading.
-    /// These are paths relative to the assets directory.
+    /// FRE file handles waiting for asset loading.
+    /// Storing handles (not paths) keeps the asset loading request alive.
     ///
-    /// 等待资产加载的 FRE 文件路径。
-    /// 这些是相对于 assets 目录的路径。
+    /// 等待资产加载的 FRE 文件句柄。
+    /// 存储句柄（而非路径）可保持资产加载请求不被取消。
     #[cfg_attr(feature = "debug", reflect(ignore))]
-    pub pending_paths: Vec<String>,
+    pub pending_handles: Vec<(
+        String,
+        bevy::prelude::Handle<bevy_fact_rule_event::FreAsset>,
+    )>,
 }

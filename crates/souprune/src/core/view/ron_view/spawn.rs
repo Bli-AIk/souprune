@@ -214,9 +214,9 @@ pub fn spawn_ron_view_for_entity(
     // 创建带有从布局初始化的局部事实的 ViewRoot
     let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
-    // Track pending FRE files that need delayed registration
-    // 跟踪需要延迟注册的待处理 FRE 文件
-    let mut pending_fre_paths: Vec<String> = Vec::new();
+    // Track pending FRE files that need delayed registration (store handles to keep loading alive)
+    // 跟踪需要延迟注册的待处理 FRE 文件（存储句柄以保持加载请求）
+    let mut pending_fre_handles: Vec<(String, Handle<FreAsset>)> = Vec::new();
 
     // Process requires declarations
     // 处理 requires 声明
@@ -276,12 +276,14 @@ pub fn spawn_ron_view_for_entity(
                     info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
                 } else {
                     // FRE file not yet loaded - add to pending for delayed registration
+                    // Store the handle to keep the loading request alive
                     // FRE 文件尚未加载 - 添加到待处理列表以延迟注册
+                    // 存储句柄以保持加载请求不被取消
                     info!(
                         "[ViewRoot] FRE file '{}' not yet loaded, adding to pending",
                         path
                     );
-                    pending_fre_paths.push(path.clone());
+                    pending_fre_handles.push((path.clone(), handle));
                 }
             }
             DataRequirement::Interface {
@@ -500,14 +502,14 @@ pub fn spawn_ron_view_for_entity(
 
     // If there are pending FRE files, add PendingViewRules component for delayed registration
     // 如果有待处理的 FRE 文件，添加 PendingViewRules 组件以延迟注册
-    if !pending_fre_paths.is_empty() {
+    if !pending_fre_handles.is_empty() {
         info!(
-            "[ViewRoot] Adding PendingViewRules with {} pending paths for entity {:?}",
-            pending_fre_paths.len(),
+            "[ViewRoot] Adding PendingViewRules with {} pending handles for entity {:?}",
+            pending_fre_handles.len(),
             view_entity
         );
         commands.entity(view_entity).insert(PendingViewRules {
-            pending_paths: pending_fre_paths,
+            pending_handles: pending_fre_handles,
         });
     }
 }

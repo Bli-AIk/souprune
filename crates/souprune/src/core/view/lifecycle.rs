@@ -342,7 +342,6 @@ pub(crate) fn cleanup_view_rules_system(
 /// 检查 PendingViewRules 组件并在资产可用时注册规则。
 pub(crate) fn process_pending_view_rules_system(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
     mut query: Query<(
         Entity,
@@ -357,13 +356,12 @@ pub(crate) fn process_pending_view_rules_system(
     use bevy_fact_rule_event::RuleScope;
 
     for (entity, mut pending, mut view_root) in query.iter_mut() {
-        // Collect paths that are now loaded
-        // 收集现在已加载的路径
+        // Collect handles that are now loaded
+        // 收集现在已加载的句柄
         let mut loaded_paths = Vec::new();
         let mut still_pending = Vec::new();
 
-        for path in pending.pending_paths.drain(..) {
-            let handle: Handle<bevy_fact_rule_event::FreAsset> = asset_server.load(path.clone());
+        for (path, handle) in pending.pending_handles.drain(..) {
             if let Some(fre_asset) = fre_assets.get(&handle) {
                 // Asset loaded! Register rules
                 // 资产已加载！注册规则
@@ -405,9 +403,9 @@ pub(crate) fn process_pending_view_rules_system(
 
                 loaded_paths.push((path, rule_defs.len()));
             } else {
-                // Still not loaded, keep in pending
-                // 仍未加载，保留在待处理列表中
-                still_pending.push(path);
+                // Still not loaded, keep in pending (with handle to keep loading alive)
+                // 仍未加载，保留在待处理列表中（保留句柄以保持加载请求）
+                still_pending.push((path, handle));
             }
         }
 
@@ -420,13 +418,13 @@ pub(crate) fn process_pending_view_rules_system(
             );
         }
 
-        // Update pending paths
-        // 更新待处理路径
-        pending.pending_paths = still_pending;
+        // Update pending handles
+        // 更新待处理句柄
+        pending.pending_handles = still_pending;
 
-        // Remove component if no more pending paths
-        // 如果没有更多待处理路径，移除组件
-        if pending.pending_paths.is_empty() {
+        // Remove component if no more pending handles
+        // 如果没有更多待处理句柄，移除组件
+        if pending.pending_handles.is_empty() {
             commands
                 .entity(entity)
                 .remove::<super::components::PendingViewRules>();
