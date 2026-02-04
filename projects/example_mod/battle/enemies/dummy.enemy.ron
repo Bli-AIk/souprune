@@ -1,0 +1,47 @@
+// Dummy enemy definition
+// Dummy 敌人定义
+//
+// This file defines the Dummy enemy using FRE format.
+// Facts are loaded when this enemy is added to a battle.
+// Rules handle enemy-specific actions and behaviors.
+//
+// 此文件使用 FRE 格式定义 Dummy 敌人。
+// 当此敌人被添加到战斗时，事实会被加载。
+// 规则处理敌人特定的动作和行为。
+
+(
+    version: 1,
+
+    // Enemy data as initial facts
+    // These are merged into the battle's fact database
+    // 作为初始事实的敌人数据
+    // 这些会被合并到战斗的事实数据库中
+    initial_facts: {
+        // Basic enemy stats
+        // 基本敌人属性
+        "enemy.dummy.name": "Dummy",
+        "enemy.dummy.hp": Int(100),
+        "enemy.dummy.hp_max": Int(100),
+        "enemy.dummy.attack": Int(0),
+        "enemy.dummy.defense": Int(0),
+
+        // Encounter description
+        // 遭遇描述
+        "enemy.dummy.description": "A cotton heart and a button eye.",
+    },
+
+    // Enemy-specific rules
+    // These handle ACT options, damage reactions, etc.
+    // 敌人特定规则
+    // 处理行动选项、受伤反应等
+    rules: [
+        // Check action - displays enemy info
+        // 查看行动 - 显示敌人信息
+        // (
+        //     event: BattleEvent(kind: ActSelected(enemy: "dummy", act: "Check")),
+        //     actions: [
+        //         SetFact("battle_dialogue", String("* DUMMY - ATK 0 DEF 0\n* A cotton heart and a button eye.\n* You are the apple of my eye.")),
+        //     ],
+        // ),
+    ],
+)

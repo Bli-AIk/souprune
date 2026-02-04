@@ -120,10 +120,77 @@ pub struct ViewNodeDef {
     /// Default is true for top-level nodes with ui_shape_logic.
     #[serde(default = "default_camera_anchored")]
     pub camera_anchored: bool,
+    /// Repeat configuration for generating multiple instances from an array.
+    /// When present, this node will be spawned multiple times based on the array.
+    ///
+    /// 用于从数组生成多个实例的重复配置。
+    /// 存在时，此节点将根据数组被多次生成。
+    #[serde(default)]
+    pub repeat: Option<RepeatDef>,
 }
 
 fn default_camera_anchored() -> bool {
     true
+}
+
+// ============================================================================
+// Repeat Configuration (Dynamic UI Element Generation)
+// 重复配置（动态 UI 元素生成）
+// ============================================================================
+
+/// Repeat configuration for generating multiple UI elements from an array.
+/// Used for things like HP bars where each enemy needs its own visual element.
+///
+/// 用于从数组生成多个 UI 元素的重复配置。
+/// 用于如血条这样每个敌人需要独立视觉元素的场景。
+///
+/// Example in RON:
+/// ```ron
+/// (
+///     name: "EnemyHpBars",
+///     repeat: (
+///         source: "enemy_names",
+///         index_var: "i",
+///     ),
+///     sprite: (
+///         visual: "procedural://white_pixel",
+///         transform: (
+///             translation: (100.0, "50.0 - @i * 32.0", 1.0),
+///             scale: ("80.0 * $enemy_hps[@i] / $enemy_hp_maxs[@i]", 12.0, 1.0),
+///         ),
+///     ),
+/// )
+/// ```
+#[derive(Debug, Deserialize, Clone)]
+pub struct RepeatDef {
+    /// Source array fact name (e.g., "enemy_names").
+    /// The length of this array determines how many instances are created.
+    ///
+    /// 源数组 fact 名称（如 "enemy_names"）。
+    /// 此数组的长度决定创建多少个实例。
+    pub source: String,
+
+    /// Optional limit on number of items to generate.
+    ///
+    /// 生成元素数量的可选限制。
+    #[serde(default)]
+    pub limit: Option<usize>,
+
+    /// Index variable name for templates (default: "i").
+    /// Use @i in expressions to reference current index.
+    ///
+    /// 模板中的索引变量名（默认："i"）。
+    /// 在表达式中使用 @i 引用当前索引。
+    #[serde(default)]
+    pub index_var: Option<String>,
+
+    /// Item variable name for templates (default: "item").
+    /// Use @item in expressions to reference current array element value.
+    ///
+    /// 模板中的元素变量名（默认："item"）。
+    /// 在表达式中使用 @item 引用当前数组元素值。
+    #[serde(default)]
+    pub item_var: Option<String>,
 }
 
 #[allow(dead_code)]

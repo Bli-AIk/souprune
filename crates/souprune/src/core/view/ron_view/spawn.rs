@@ -3,8 +3,9 @@ use super::super::layout::*;
 use super::super::lifecycle::BackpackViewRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{
-    PlayerDataView, evaluate_condition, evaluate_float_expr, evaluate_visible_when,
-    resolve_text_content, vec3_tuple_depends_on_time,
+    PlayerDataView, evaluate_condition, evaluate_float_expr, evaluate_float_expr_with_repeat,
+    evaluate_visible_when, preprocess_sprite_def_for_repeat, resolve_text_content,
+    vec3_tuple_depends_on_time,
 };
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated, ViewLayoutHandle};
 use crate::app_state::battle::BattleViewRoot;
@@ -324,6 +325,106 @@ pub fn spawn_view_node(
     is_top_level: bool,
     namespace: &str, // New parameter: namespace for ViewElement
 ) {
+    // Handle repeat configuration - spawn multiple instances from array
+    // 处理重复配置 - 从数组生成多个实例
+    if let Some(repeat) = &node_def.repeat {
+        // Get array length from source
+        let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+            list.len()
+        } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+            list.len()
+        } else {
+            warn!(
+                "[spawn_view_node] Repeat source '{}' not found for node '{}'",
+                repeat.source, node_def.name
+            );
+            0
+        };
+
+        let limit = repeat.limit.unwrap_or(usize::MAX);
+        let count = array_len.min(limit);
+
+        info!(
+            "[spawn_view_node] Repeating node '{}' {} times (source: '{}', len: {}, limit: {:?})",
+            node_def.name, count, repeat.source, array_len, repeat.limit
+        );
+
+        for i in 0..count {
+            // Create repeat context for this iteration
+            let mut ctx = super::parsing::RepeatContext::new(i);
+
+            // Get item value from array if item_var is specified
+            if let Some(item_var) = &repeat.item_var {
+                let item_value =
+                    if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+                        list.get(i).cloned()
+                    } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+                        list.get(i).map(|v| v.to_string())
+                    } else {
+                        None
+                    };
+                if let Some(value) = item_value {
+                    ctx = ctx.with_item(item_var, value);
+                }
+            }
+
+            // Spawn with context
+            spawn_view_node_with_repeat_context(
+                commands,
+                asset_server,
+                parent_entity,
+                node_def,
+                camera_transform,
+                sprite_params,
+                animation_assets,
+                mortar_strings,
+                player_data,
+                item_registry,
+                is_top_level,
+                namespace,
+                Some(&ctx),
+            );
+        }
+        return;
+    }
+
+    // No repeat - spawn normally without context
+    spawn_view_node_with_repeat_context(
+        commands,
+        asset_server,
+        parent_entity,
+        node_def,
+        camera_transform,
+        sprite_params,
+        animation_assets,
+        mortar_strings,
+        player_data,
+        item_registry,
+        is_top_level,
+        namespace,
+        None,
+    );
+}
+
+/// Internal function to spawn a single view node with optional repeat context.
+///
+/// 带可选重复上下文生成单个视图节点的内部函数。
+#[allow(clippy::too_many_arguments)]
+fn spawn_view_node_with_repeat_context(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    parent_entity: Entity,
+    node_def: &ViewNodeDef,
+    camera_transform: &Transform,
+    sprite_params: &mut SpriteParams,
+    animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView<'_>,
+    item_registry: &crate::core::item::ItemRegistry,
+    is_top_level: bool,
+    namespace: &str,
+    repeat_ctx: Option<&super::parsing::RepeatContext>,
+) {
     // Determine if this node has a ViewBox (ui_shape_logic)
     let has_ui_box = node_def.ui_shape_logic.is_some();
     // Determine if this is a standalone sprite node (sprite without ViewBox)
@@ -338,10 +439,21 @@ pub fn spawn_view_node(
 
     // Create ViewElement for named nodes
     // 为具名节点创建 ViewElement
-    let view_element = if !node_def.name.is_empty() {
+    // If repeat context exists, append index to name for uniqueness
+    let node_name = if let Some(ctx) = repeat_ctx {
+        if !node_def.name.is_empty() {
+            format!("{}_{}", node_def.name, ctx.index)
+        } else {
+            String::new()
+        }
+    } else {
+        node_def.name.clone()
+    };
+
+    let view_element = if !node_name.is_empty() {
         Some(crate::core::view::components::ViewElement::new(
             namespace.to_string(),
-            node_def.name.clone(),
+            node_name.clone(),
             node_def.tags.clone(),
         ))
     } else {
@@ -434,16 +546,16 @@ pub fn spawn_view_node(
             if let Some(t_def) = &sprite_def.transform {
                 if let Some(trans) = &t_def.translation {
                     transform.translation = Vec3::new(
-                        evaluate_float_expr(&trans.0, player_data, None),
-                        evaluate_float_expr(&trans.1, player_data, None),
-                        evaluate_float_expr(&trans.2, player_data, None),
+                        evaluate_float_expr_with_repeat(&trans.0, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&trans.1, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&trans.2, player_data, None, repeat_ctx),
                     );
                 }
                 if let Some(scale) = &t_def.scale {
                     transform.scale = Vec3::new(
-                        evaluate_float_expr(&scale.0, player_data, None),
-                        evaluate_float_expr(&scale.1, player_data, None),
-                        evaluate_float_expr(&scale.2, player_data, None),
+                        evaluate_float_expr_with_repeat(&scale.0, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&scale.1, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&scale.2, player_data, None, repeat_ctx),
                     );
                 }
                 if let Some(rot) = t_def.rotation {
@@ -453,7 +565,7 @@ pub fn spawn_view_node(
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
-                node_def.name, transform.translation, transform.scale
+                node_name, transform.translation, transform.scale
             );
 
             let config = load_config();
@@ -821,10 +933,19 @@ pub fn spawn_view_node(
                     "Adding DynamicViewElement to entity {:?} ({}) [time_dependent={}]",
                     entity_id, node_def.name, has_time_dependency
                 );
+
+                // Preprocess sprite_def to resolve repeat variables if repeat context exists
+                // 如果存在 repeat 上下文，预处理 sprite_def 以解析 repeat 变量
+                let processed_sprite_def = if let Some(ctx) = repeat_ctx {
+                    preprocess_sprite_def_for_repeat(sprite_def, player_data, ctx)
+                } else {
+                    sprite_def.clone()
+                };
+
                 commands
                     .entity(entity_id)
                     .insert(super::super::components::DynamicViewElement {
-                        sprite_def: Some(sprite_def.clone()),
+                        sprite_def: Some(processed_sprite_def),
                         text_def: None,
                     });
 

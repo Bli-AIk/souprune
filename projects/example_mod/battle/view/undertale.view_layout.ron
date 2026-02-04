@@ -28,9 +28,9 @@
         // 战斗敌人数据 - 使用数组支持无限数量的敌人
         // Note: String arrays and Int arrays are supported
         // 注意：支持字符串数组和整数数组
-        "enemy_names": ["Dummy"],
-        "enemy_hps": [100],
-        "enemy_hp_maxs": [100],
+        "enemy_names": ["测试1", "测试2", "测试3", "测试4", "测试5"],
+        "enemy_hps": [100, 80, 120, 60, 150],
+        "enemy_hp_maxs": [100, 100, 150, 80, 200],
     },
 
     roots: [
@@ -68,121 +68,45 @@
                 // ENEMY LIST (depth 1, FIGHT/ACT/MERCY)
                 // 敌人列表（深度 1，战斗/行动/慈悲模式）
                 // ========================================
-                // Enemy 0 name (uses array index syntax)
-                // 敌人 0 名称（使用数组索引语法）
+                // Using lambda syntax to dynamically generate enemy names from array
+                // 使用 lambda 语法从数组动态生成敌人名称
                 (
-                    id: "EnemyName0",
-                    content: "* {$enemy_names[0]}",
+                    id: "EnemyNames",
+                    content: "{|name| in $enemy_names => \"* {name}\"}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: (-267.0, 50.0, 1.0),
                     ),
-                    // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemy exists
-                    // $enemy_names evaluates to array length
+                    line_height: 1.25,
+                    // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemies exist
                     // 在深度 1 时显示，仅限战斗(0)、行动(1)、慈悲(3)模式，且敌人存在
-                    // $enemy_names 会求值为数组长度
                     visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 1",
-                ),
-                // Enemy 1 name
-                (
-                    id: "EnemyName1",
-                    content: "* {$enemy_names[1]}",
-                    font: DeterminationMono,
-                    world_scale: (26.0, 26.0),
-                    color: (1.0, 1.0, 1.0, 1.0),
-                    transform: (
-                        translation: (-267.0, 18.0, 1.0),
-                    ),
-                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 2",
-                ),
-                // Enemy 2 name
-                (
-                    id: "EnemyName2",
-                    content: "* {$enemy_names[2]}",
-                    font: DeterminationMono,
-                    world_scale: (26.0, 26.0),
-                    color: (1.0, 1.0, 1.0, 1.0),
-                    transform: (
-                        translation: (-267.0, -14.0, 1.0),
-                    ),
-                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 3",
-                ),
-                // Enemy 3 name
-                (
-                    id: "EnemyName3",
-                    content: "* {$enemy_names[3]}",
-                    font: DeterminationMono,
-                    world_scale: (26.0, 26.0),
-                    color: (1.0, 1.0, 1.0, 1.0),
-                    transform: (
-                        translation: (-267.0, -46.0, 1.0),
-                    ),
-                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 4",
                 ),
             ],
             children: [
                 // ========================================
                 // ENEMY HP BARS (FIGHT mode only)
                 // 敌人 HP 条（仅限战斗模式）
-                // Uses array index syntax: $enemy_hps[0], etc.
-                // 使用数组索引语法：$enemy_hps[0] 等
+                // Using repeat syntax to generate HP bars for each enemy
+                // 使用 repeat 语法为每个敌人生成 HP 条
                 // ========================================
-                // Enemy 0 HP bar (green rectangle)
                 (
-                    name: "EnemyHpBar0",
-                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 1",
+                    name: "EnemyHpBar",
+                    visible_when: "$depth == 1 && $menu_context == 0",
+                    repeat: (
+                        source: "enemy_names",
+                        index_var: "i",
+                    ),
                     sprite: (
                         visual: "procedural://white_pixel",
                         color: (0.0, 1.0, 0.0, 1.0),  // Pure green
                         transform: (
-                            // Position to the right of enemy name
-                            translation: (100.0, 50.0, 1.0),
+                            // Position: Y offset based on index (50, 18, -14, -46 pattern = 50 - i * 32)
+                            translation: (100.0, "50.0 - @i * 32.0", 1.0),
                             // Width based on HP ratio, height fixed
-                            scale: ("80.0 * $enemy_hps[0] / $enemy_hp_maxs[0]", 12.0, 1.0),
-                        ),
-                        pivot: (0.0, 0.5),
-                    ),
-                ),
-                // Enemy 1 HP bar
-                (
-                    name: "EnemyHpBar1",
-                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 2",
-                    sprite: (
-                        visual: "procedural://white_pixel",
-                        color: (0.0, 1.0, 0.0, 1.0),
-                        transform: (
-                            translation: (100.0, 18.0, 1.0),
-                            scale: ("80.0 * $enemy_hps[1] / $enemy_hp_maxs[1]", 12.0, 1.0),
-                        ),
-                        pivot: (0.0, 0.5),
-                    ),
-                ),
-                // Enemy 2 HP bar
-                (
-                    name: "EnemyHpBar2",
-                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 3",
-                    sprite: (
-                        visual: "procedural://white_pixel",
-                        color: (0.0, 1.0, 0.0, 1.0),
-                        transform: (
-                            translation: (100.0, -14.0, 1.0),
-                            scale: ("80.0 * $enemy_hps[2] / $enemy_hp_maxs[2]", 12.0, 1.0),
-                        ),
-                        pivot: (0.0, 0.5),
-                    ),
-                ),
-                // Enemy 3 HP bar
-                (
-                    name: "EnemyHpBar3",
-                    visible_when: "$depth == 1 && $menu_context == 0 && $enemy_names >= 4",
-                    sprite: (
-                        visual: "procedural://white_pixel",
-                        color: (0.0, 1.0, 0.0, 1.0),
-                        transform: (
-                            translation: (100.0, -46.0, 1.0),
-                            scale: ("80.0 * $enemy_hps[3] / $enemy_hp_maxs[3]", 12.0, 1.0),
+                            scale: ("80.0 * $enemy_hps[@i] / $enemy_hp_maxs[@i]", 12.0, 1.0),
                         ),
                         pivot: (0.0, 0.5),
                     ),

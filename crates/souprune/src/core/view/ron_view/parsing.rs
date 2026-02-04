@@ -2,9 +2,215 @@ use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
 use bevy::prelude::*;
+use std::collections::HashMap;
 
 // Re-export PlayerDataView for backward compatibility
 pub use super::player_data::PlayerDataView;
+
+// ============================================================================
+// Repeat Context - Used for repeat syntax in UI elements
+// ============================================================================
+
+/// Context for repeat variable substitution in UI elements.
+/// Used when spawning repeated UI elements like HP bars.
+///
+/// repeat 变量替换上下文。
+/// 用于生成重复的 UI 元素（如血条）时使用。
+#[derive(Clone, Debug, Default)]
+pub struct RepeatContext {
+    /// Current iteration index
+    pub index: usize,
+    /// Variable bindings: name -> value
+    pub variables: HashMap<String, String>,
+}
+
+impl RepeatContext {
+    pub fn new(index: usize) -> Self {
+        Self {
+            index,
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn with_item(mut self, name: &str, value: String) -> Self {
+        self.variables.insert(name.to_string(), value);
+        self
+    }
+
+    pub fn get_index(&self) -> usize {
+        self.index
+    }
+
+    pub fn get_variable(&self, name: &str) -> Option<&str> {
+        self.variables.get(name).map(|s| s.as_str())
+    }
+}
+
+// ============================================================================
+// SpriteDef Preprocessing - Resolve repeat variables for DynamicViewElement
+// ============================================================================
+
+/// Preprocess a SpriteDef to resolve repeat context variables (@i, $array[@i]).
+/// This creates a new SpriteDef where repeat variables are replaced with concrete values,
+/// allowing the update system to work without needing repeat context.
+///
+/// 预处理 SpriteDef 以解析 repeat 上下文变量（@i，$array[@i]）。
+/// 这会创建一个新的 SpriteDef，其中 repeat 变量被替换为具体值，
+/// 使更新系统无需 repeat 上下文即可工作。
+pub fn preprocess_sprite_def_for_repeat(
+    sprite_def: &super::super::layout::SpriteDef,
+    player_data: &PlayerDataView,
+    repeat_ctx: &RepeatContext,
+) -> super::super::layout::SpriteDef {
+    let mut result = sprite_def.clone();
+
+    // Preprocess transform expressions
+    if let Some(ref mut transform) = result.transform {
+        if let Some(ref mut translation) = transform.translation {
+            translation.0 = preprocess_val_for_repeat(&translation.0, player_data, repeat_ctx);
+            translation.1 = preprocess_val_for_repeat(&translation.1, player_data, repeat_ctx);
+            translation.2 = preprocess_val_for_repeat(&translation.2, player_data, repeat_ctx);
+        }
+        if let Some(ref mut scale) = transform.scale {
+            scale.0 = preprocess_val_for_repeat(&scale.0, player_data, repeat_ctx);
+            scale.1 = preprocess_val_for_repeat(&scale.1, player_data, repeat_ctx);
+            scale.2 = preprocess_val_for_repeat(&scale.2, player_data, repeat_ctx);
+        }
+    }
+
+    result
+}
+
+/// Preprocess a single Val<f32> to resolve repeat context variables.
+/// If the expression contains @i or $array[@i], they are replaced with concrete values.
+///
+/// 预处理单个 Val<f32> 以解析 repeat 上下文变量。
+/// 如果表达式包含 @i 或 $array[@i]，它们会被替换为具体值。
+fn preprocess_val_for_repeat(
+    val: &Val<f32>,
+    player_data: &PlayerDataView,
+    repeat_ctx: &RepeatContext,
+) -> Val<f32> {
+    match val {
+        Val::Static(v) => Val::Static(*v),
+        Val::Expr(expr_str) => {
+            // Check if expression contains repeat variables
+            if !expr_str.contains('@') && !expr_str.contains("[@") {
+                // No repeat variables, return as-is
+                return Val::Expr(expr_str.clone());
+            }
+
+            // Preprocess to replace @i and $array[@i]
+            let mut result = expr_str.clone();
+
+            // Step 1: Handle $array[@var] dynamic index syntax FIRST
+            let dynamic_index_regex =
+                regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]")
+                    .unwrap();
+
+            result = dynamic_index_regex
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let array_name = &caps[1];
+                    let index_var = &caps[2];
+                    let index = if index_var == "i" || index_var == "index" {
+                        repeat_ctx.index
+                    } else {
+                        repeat_ctx
+                            .variables
+                            .get(index_var)
+                            .and_then(|v| v.parse().ok())
+                            .unwrap_or(0)
+                    };
+                    get_array_element_for_expr(player_data, array_name, index, "0")
+                })
+                .to_string();
+
+            // Step 2: Handle @var repeat context variables (but not @time)
+            let repeat_var_regex = regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+            result = repeat_var_regex
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let var_name = &caps[1];
+                    if var_name == "i" || var_name == "index" {
+                        repeat_ctx.index.to_string()
+                    } else if var_name == "time" {
+                        // @time is handled by evalexpr context, keep as-is
+                        format!("@{}", var_name)
+                    } else {
+                        repeat_ctx
+                            .variables
+                            .get(var_name)
+                            .cloned()
+                            .unwrap_or_else(|| "0".to_string())
+                    }
+                })
+                .to_string();
+
+            Val::Expr(result)
+        }
+    }
+}
+
+// ============================================================================
+// Lambda Expression Evaluation - Used for text content generation
+// ============================================================================
+
+/// Parse and evaluate lambda expressions in text content.
+/// Format: {|item, index| in $array => "template" sep "separator"}
+///
+/// 解析并计算文本内容中的 lambda 表达式。
+/// 格式：{|item, index| in $array => "template" sep "separator"}
+///
+/// Examples:
+/// - `{|name| in $enemy_names => "* {name}"}` - simple item iteration
+/// - `{|name, i| in $enemy_names => "* {name}" sep "\n"}` - with index and separator
+fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Option<String> {
+    // Regex to parse lambda expression
+    // Format: |item, index| in $array => "template" sep "separator"
+    let lambda_regex = regex::Regex::new(
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+    ).ok()?;
+
+    let caps = lambda_regex.captures(expr)?;
+
+    let item_var = &caps[1];
+    let index_var = caps.get(2).map(|m| m.as_str());
+    let array_name = &caps[3];
+    let template = &caps[4];
+    let separator = caps.get(5).map(|m| m.as_str()).unwrap_or("\n");
+
+    // Get array from player data - try StringList first, then IntList
+    let array: Vec<String> = if let Some(list) = player_data.get_fact_string_list(array_name) {
+        list.clone()
+    } else if let Some(list) = player_data.get_fact_int_list(array_name) {
+        list.iter().map(|i| i.to_string()).collect()
+    } else {
+        debug!(
+            "Lambda array '{}' not found, returning empty string",
+            array_name
+        );
+        return Some(String::new());
+    };
+
+    // Generate output for each element
+    let lines: Vec<String> = array
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            let mut line = template.to_string();
+            // Replace item variable: {item_var}
+            line = line.replace(&format!("{{{}}}", item_var), item);
+            // Replace index variable if present: {index_var}
+            if let Some(idx_var) = index_var {
+                line = line.replace(&format!("{{{}}}", idx_var), &i.to_string());
+            }
+            // Handle escape sequences
+            line = line.replace("\\n", "\n");
+            line
+        })
+        .collect();
+
+    Some(lines.join(separator))
+}
 
 /// Analyze whether an expression depends on time (@time).
 /// Returns true if the expression contains time-dependent elements.
@@ -180,6 +386,72 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
         .to_string();
 
     result
+}
+
+/// Preprocess expression string with support for repeat context variables.
+/// Extends `preprocess_fact_expressions` with:
+/// - `@var` syntax for repeat context variables
+/// - `$array[@i]` dynamic index syntax
+///
+/// 预处理表达式字符串，支持重复上下文变量。
+/// 扩展 `preprocess_fact_expressions` 以支持：
+/// - `@var` 语法用于重复上下文变量
+/// - `$array[@i]` 动态索引语法
+pub fn preprocess_fact_expressions_with_repeat(
+    expr: &str,
+    player_data: &PlayerDataView,
+    repeat_ctx: Option<&RepeatContext>,
+) -> String {
+    let mut result = expr.to_string();
+
+    // Step 1: Handle $array[@var] dynamic index syntax FIRST (before @var replacement)
+    // 步骤 1: 首先处理 $array[@var] 动态索引语法（在 @var 替换之前）
+    if let Some(ctx) = repeat_ctx {
+        let dynamic_index_regex =
+            regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]").unwrap();
+
+        result = dynamic_index_regex
+            .replace_all(&result, |caps: &regex::Captures| {
+                let array_name = &caps[1];
+                let index_var = &caps[2];
+                let index = if index_var == "i" || index_var == "index" {
+                    ctx.index
+                } else {
+                    ctx.variables
+                        .get(index_var)
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(0)
+                };
+                get_array_element_for_expr(player_data, array_name, index, "0")
+            })
+            .to_string();
+    }
+
+    // Step 2: Handle @var repeat context variables
+    // 步骤 2: 处理 @var 重复上下文变量
+    if let Some(ctx) = repeat_ctx {
+        let repeat_var_regex = regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+        result = repeat_var_regex
+            .replace_all(&result, |caps: &regex::Captures| {
+                let var_name = &caps[1];
+                if var_name == "i" || var_name == "index" {
+                    ctx.index.to_string()
+                } else if var_name == "time" {
+                    // @time is handled separately by evalexpr context
+                    format!("@{}", var_name)
+                } else {
+                    ctx.variables
+                        .get(var_name)
+                        .cloned()
+                        .unwrap_or_else(|| "0".to_string())
+                }
+            })
+            .to_string();
+    }
+
+    // Step 3: Continue with existing processing
+    // 步骤 3: 继续现有处理
+    preprocess_fact_expressions(&result, player_data)
 }
 
 /// Get an array element value for expression substitution.
@@ -437,6 +709,108 @@ pub fn evaluate_float_expr(
     }
 }
 
+/// Evaluate a float expression with optional repeat context support.
+/// This handles @var and $array[@i] syntax when a repeat context is provided.
+///
+/// 计算支持可选重复上下文的浮点表达式。
+/// 当提供重复上下文时，处理 @var 和 $array[@i] 语法。
+pub fn evaluate_float_expr_with_repeat(
+    expr: &FloatOrExpr,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+    repeat_ctx: Option<&RepeatContext>,
+) -> f32 {
+    match expr {
+        Val::Static(v) => *v,
+        Val::Expr(expr_str) => {
+            use evalexpr::{
+                ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
+                HashMapContext,
+            };
+
+            // Preprocess with repeat context support
+            // 使用重复上下文支持进行预处理
+            let processed_expr =
+                preprocess_fact_expressions_with_repeat(expr_str, player_data, repeat_ctx);
+
+            let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+
+            // Register sin function
+            let _ = context.set_function(
+                "sin".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.sin()))
+                }),
+            );
+
+            // Register cos function
+            let _ = context.set_function(
+                "cos".to_string(),
+                evalexpr::Function::new(|arg| {
+                    let val: f64 = arg.as_float()?;
+                    Ok(evalexpr::Value::Float(val.cos()))
+                }),
+            );
+
+            // Register if function
+            let _ = context.set_function(
+                "if".to_string(),
+                evalexpr::Function::new(|arg| {
+                    if let Ok(tuple) = arg.as_tuple() {
+                        if tuple.len() == 3 {
+                            let condition: bool = tuple[0].as_boolean()?;
+                            if condition {
+                                Ok(tuple[1].clone())
+                            } else {
+                                Ok(tuple[2].clone())
+                            }
+                        } else {
+                            Err(evalexpr::EvalexprError::CustomMessage(
+                                "if expects 3 arguments".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(evalexpr::EvalexprError::CustomMessage(
+                            "if expects a tuple of 3 arguments".to_string(),
+                        ))
+                    }
+                }),
+            );
+
+            // Set @time variable
+            if let Some(t) = time {
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
+            } else {
+                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
+            }
+
+            match evalexpr::eval_with_context(&processed_expr, &context) {
+                Ok(val) => {
+                    if let Ok(f) = val.as_float() {
+                        f as f32
+                    } else if let Ok(i) = val.as_int() {
+                        i as f32
+                    } else {
+                        warn!(
+                            "Failed to convert expression result to number: {}",
+                            expr_str
+                        );
+                        0.0
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to evaluate expression '{}' (processed: '{}'): {}",
+                        expr_str, processed_expr, e
+                    );
+                    0.0
+                }
+            }
+        }
+    }
+}
+
 /// Evaluate a float expression string with support for @current variable.
 /// This is used by the tween system where @current represents the current value.
 ///
@@ -630,6 +1004,50 @@ pub fn resolve_text_content(
                 } else {
                     result.push_str("{{");
                     result.push_str(&key);
+                }
+                continue;
+            } else if next_ch == '|' {
+                // Lambda syntax: {|item, i| in $array => "template" sep "separator"}
+                // Lambda 语法：{|item, i| in $array => "template" sep "separator"}
+                chars.next(); // consume '|'
+                let mut expr = String::from("|");
+                let mut brace_depth = 1;
+                let mut found_closing = false;
+
+                // Parse until matching closing brace, handling nested quotes
+                let mut in_quotes = false;
+                for ch in chars.by_ref() {
+                    if ch == '"' && !in_quotes {
+                        in_quotes = true;
+                        expr.push(ch);
+                    } else if ch == '"' && in_quotes {
+                        in_quotes = false;
+                        expr.push(ch);
+                    } else if ch == '{' && !in_quotes {
+                        brace_depth += 1;
+                        expr.push(ch);
+                    } else if ch == '}' && !in_quotes {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            found_closing = true;
+                            break;
+                        }
+                        expr.push(ch);
+                    } else {
+                        expr.push(ch);
+                    }
+                }
+
+                if found_closing {
+                    if let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) {
+                        result.push_str(&evaluated);
+                    } else {
+                        warn!("Failed to evaluate lambda expression: {}", expr);
+                        result.push_str(&format!("{{{}}})", expr));
+                    }
+                } else {
+                    result.push_str("{|");
+                    result.push_str(&expr[1..]); // skip the '|' we already added
                 }
                 continue;
             } else if next_ch == '$' {

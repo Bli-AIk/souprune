@@ -12,6 +12,9 @@ pub use resources::{
     ViewLayoutHandle,
 };
 
+// Re-export RepeatContext for use in expression evaluation
+pub use parsing::RepeatContext;
+
 pub use reload::*;
 pub use setup::*;
 pub use spawn::*;

@@ -20,7 +20,9 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
 use super::super::layout::ViewLayoutAsset;
-use super::resources::{HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle};
+use super::resources::{
+    HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle,
+};
 use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
