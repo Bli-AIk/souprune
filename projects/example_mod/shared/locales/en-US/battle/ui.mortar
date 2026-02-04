@@ -5,7 +5,7 @@ pub const HP: String = "HP"
 pub const ENEMY_APPEARED: String = "* Whimsun approached meekly!"
 
 // Enemy names for battle
-pub const ENEMY_TEST1: String = "Test1"
+pub const ENEMY_TEST1: String = "Whimsun"
 pub const ENEMY_TEST2: String = "Test2"
 pub const ENEMY_TEST3: String = "Test3"
 pub const ENEMY_TEST4: String = "Test4"
