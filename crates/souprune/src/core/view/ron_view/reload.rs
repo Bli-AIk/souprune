@@ -96,55 +96,19 @@ pub fn watch_view_layout_changes_system(
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
     mut pending_reloads: ResMut<PendingViewReloads>,
     hot_reload_roots: Query<&HotReloadableViewRoot>,
-    mut frame_counter: Local<u64>,
 ) {
-    *frame_counter += 1;
-
-    // Log every 300 frames (~5 seconds at 60fps) to confirm system is running
-    if *frame_counter % 300 == 0 {
-        let root_count = hot_reload_roots.iter().count();
-        info!(
-            "[Hot Reload] System running (frame {}), monitoring {} hot reload roots",
-            *frame_counter, root_count
-        );
-    }
-
     for event in events.read() {
-        info!("[Hot Reload] Received AssetEvent: {:?}", event);
-
         if let AssetEvent::Modified { id } = event {
-            let root_count = hot_reload_roots.iter().count();
-            info!(
-                "[Hot Reload] ViewLayoutAsset {:?} modified, checking {} hot reload roots",
-                id, root_count
-            );
-
             // Check if any hot-reloadable root uses this asset
-            let mut has_matching_root = false;
             for root in hot_reload_roots.iter() {
-                info!(
-                    "[Hot Reload] Checking root: handle_id={:?}, path={}",
-                    root.layout_handle.id(),
-                    root.layout_path
-                );
                 if root.layout_handle.id() == *id {
-                    has_matching_root = true;
-                    info!("[Hot Reload] Found matching root!");
+                    debug!(
+                        "[Hot Reload] ViewLayoutAsset {:?} modified, marking for incremental update",
+                        id
+                    );
+                    pending_reloads.mark_for_reload(*id);
                     break;
                 }
-            }
-
-            if has_matching_root {
-                info!(
-                    "[Hot Reload] ViewLayoutAsset {:?} modified, marking for incremental update",
-                    id
-                );
-                pending_reloads.mark_for_reload(*id);
-            } else {
-                info!(
-                    "[Hot Reload] No matching hot reload root found for asset {:?}",
-                    id
-                );
             }
         }
     }
@@ -218,7 +182,7 @@ pub fn incremental_reload_system(
             .ok();
 
         info!(
-            "[Hot Reload] Incremental update for view '{}' (namespace: {})",
+            "[Hot Reload] Processing view '{}' (namespace: {})",
             hot_reload_root.layout_path, namespace
         );
 
@@ -267,8 +231,8 @@ pub fn incremental_reload_system(
             if let Some(new_visible_when) = &node_def.visible_when {
                 if let Ok(mut visible_when) = visible_when_query.get_mut(entity) {
                     if visible_when.expression != *new_visible_when {
-                        info!(
-                            "[Hot Reload] Updating visible_when for '{}': '{}' -> '{}'",
+                        debug!(
+                            "[Hot Reload] visible_when '{}': '{}' -> '{}'",
                             view_element.full_name, visible_when.expression, new_visible_when
                         );
                         visible_when.expression = new_visible_when.clone();
@@ -303,8 +267,8 @@ pub fn incremental_reload_system(
                                 ),
                             );
                             if transform.translation != new_translation {
-                                info!(
-                                    "[Hot Reload] Updating translation for '{}': {:?} -> {:?}",
+                                debug!(
+                                    "[Hot Reload] translation '{}': {:?} -> {:?}",
                                     view_element.full_name, transform.translation, new_translation
                                 );
                                 transform.translation = new_translation;
@@ -333,8 +297,8 @@ pub fn incremental_reload_system(
                                 ),
                             );
                             if transform.scale != new_scale {
-                                info!(
-                                    "[Hot Reload] Updating scale for '{}': {:?} -> {:?}",
+                                debug!(
+                                    "[Hot Reload] scale '{}': {:?} -> {:?}",
                                     view_element.full_name, transform.scale, new_scale
                                 );
                                 transform.scale = new_scale;
@@ -344,8 +308,8 @@ pub fn incremental_reload_system(
                         if let Some(rot) = t_def.rotation {
                             let new_rotation = Quat::from_rotation_z(rot.to_radians());
                             if transform.rotation != new_rotation {
-                                info!(
-                                    "[Hot Reload] Updating rotation for '{}': {:?} -> {:?}",
+                                debug!(
+                                    "[Hot Reload] rotation '{}': {:?} -> {:?}",
                                     view_element.full_name, transform.rotation, new_rotation
                                 );
                                 transform.rotation = new_rotation;
@@ -363,8 +327,8 @@ pub fn incremental_reload_system(
                             super::super::layout::serde_types::color_tuple_to_static(color_def);
                         let new_color = Color::srgba(r, g, b, a);
                         if sprite.color != new_color {
-                            info!(
-                                "[Hot Reload] Updating color for '{}': {:?} -> {:?}",
+                            debug!(
+                                "[Hot Reload] color '{}': {:?} -> {:?}",
                                 view_element.full_name, sprite.color, new_color
                             );
                             sprite.color = new_color;
@@ -373,8 +337,8 @@ pub fn incremental_reload_system(
                     }
                     // Update flip_x
                     if sprite.flip_x != sprite_def.flip_x {
-                        info!(
-                            "[Hot Reload] Updating flip_x for '{}': {} -> {}",
+                        debug!(
+                            "[Hot Reload] flip_x '{}': {} -> {}",
                             view_element.full_name, sprite.flip_x, sprite_def.flip_x
                         );
                         sprite.flip_x = sprite_def.flip_x;
@@ -382,8 +346,8 @@ pub fn incremental_reload_system(
                     }
                     // Update flip_y
                     if sprite.flip_y != sprite_def.flip_y {
-                        info!(
-                            "[Hot Reload] Updating flip_y for '{}': {} -> {}",
+                        debug!(
+                            "[Hot Reload] flip_y '{}': {} -> {}",
                             view_element.full_name, sprite.flip_y, sprite_def.flip_y
                         );
                         sprite.flip_y = sprite_def.flip_y;
@@ -395,10 +359,7 @@ pub fn incremental_reload_system(
     }
 
     if updated_count > 0 {
-        info!(
-            "[Hot Reload] Incremental update complete! Updated {} properties",
-            updated_count
-        );
+        info!("[Hot Reload] Updated {} properties", updated_count);
     }
 }
 
