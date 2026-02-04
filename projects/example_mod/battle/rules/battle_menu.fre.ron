@@ -2,11 +2,11 @@
 // Battle Menu Navigation Rules (FRE-based)
 // 战斗菜单导航规则（基于 FRE）
 //
-// This file uses the new FRE ActionEvent-based navigation system
-// with View local facts for state tracking.
+// This file contains navigation rules for the battle menu.
+// It uses ActionEvent-based navigation to update View local facts.
 //
-// 此文件使用新的基于 FRE ActionEvent 的导航系统，
-// 并使用 View 局部事实进行状态跟踪。
+// 此文件包含战斗菜单的导航规则。
+// 使用基于 ActionEvent 的导航来更新 View 局部事实。
 //
 // Battle Menu Structure / 战斗菜单结构:
 // - depth 0: Main menu (FIGHT/ACT/ITEM/MERCY) - horizontal navigation using button_selection
@@ -18,21 +18,14 @@
 // - enemy_selection: Enemy index in depth 1 (FIGHT/ACT/MERCY mode)
 // - item_selection: Item index in depth 1 (ITEM mode)
 //
-// NOTE: Enemy data (enemy_names, enemy_hps, enemy_hp_maxs) is now loaded via SpawnView bindings.
-// 注意：敌人数据（enemy_names, enemy_hps, enemy_hp_maxs）现在通过 SpawnView 绑定加载。
+// NOTE: Initial fact values (depth, button_selection, etc.) are defined in the View's facts field.
+//       Enemy data (enemy_names, enemy_hps, enemy_hp_maxs) is loaded via SpawnView bindings.
+// 注意：初始事实值（depth, button_selection 等）在 View 的 facts 字段中定义。
+//       敌人数据（enemy_names, enemy_hps, enemy_hp_maxs）通过 SpawnView 绑定加载。
 
 (
-
-    // VIEW-LOCAL initial facts for menu navigation state only
-    // View 局部初始事实 - 仅用于菜单导航状态
-    facts: {
-        "depth": Int(0),
-        "button_selection": Int(0),   // Main menu selection (persists across depths)
-        "enemy_selection": Int(0),     // Enemy selection in depth 1
-        "item_selection": Int(0),      // Item selection in depth 1
-        "menu_context": Int(0),        // Which menu we entered depth 1 from (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY)
-        "active": Bool(true),
-    },
+    // No facts defined here - initial values are in View's facts field
+    // 此处不定义 facts - 初始值在 View 的 facts 字段中
 
     rules: [
         // === MAIN MENU NAVIGATION (depth 0) - HORIZONTAL / 主菜单导航（深度 0）- 横向 ===

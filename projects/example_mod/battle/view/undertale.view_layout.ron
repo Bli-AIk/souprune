@@ -171,30 +171,22 @@
         // ========================================
         (
             name: "BtnFight",
-            // Use conditional sprite based on selection
-            // 根据选择使用条件精灵
             sprite: (
-                // Note: In v2, we'd ideally have a conditional visual system
-                // For now, this shows the default; a proper implementation would
-                // need visible_when on separate sprites or a new conditional_visual field
-                // 注意：在 v2 中，我们理想地需要一个条件视觉系统
-                // 目前这显示默认值；正确的实现需要在单独的精灵上使用 visible_when
-                // 或一个新的 conditional_visual 字段
                 visual: "textures/battle/ui/fight/false.png",
                 transform: (
                     translation: (-233.0, -213.0, 1.0),
                 ),
             ),
         ),
-        // FIGHT button selected state (only show when depth == 0)
-        // 战斗按钮选中状态（仅在深度 == 0 时显示）
+        // FIGHT button selected state
+        // 战斗按钮选中状态
         (
             name: "BtnFightSelected",
             visible_when: "$button_selection == 0",
             sprite: (
                 visual: "textures/battle/ui/fight/true.png",
                 transform: (
-                    translation: (-233.0, -213.0, 1.5),  // Slightly higher z to overlay
+                    translation: (-233.0, -213.0, 1.5),
                 ),
             ),
         ),

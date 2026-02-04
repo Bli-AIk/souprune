@@ -282,10 +282,8 @@ pub struct ImageDef {
 #[derive(Debug, Deserialize, Clone)]
 pub struct SpriteDef {
     /// Visual resource path (supports shorthand and auto type detection).
-    /// Replaces the old `path` + `is_animation` pattern.
     ///
     /// 视觉资源路径（支持简写和自动类型检测）。
-    /// 替代旧的 `path` + `is_animation` 模式。
     pub visual: crate::core::visual::Visual,
 
     /// Initial animation state for character animations.

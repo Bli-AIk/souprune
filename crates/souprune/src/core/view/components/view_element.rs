@@ -330,12 +330,10 @@ impl ElementState {
 
 /// Component that stores a `visible_when` expression for runtime visibility evaluation.
 ///
-/// This replaces the old `visibility_rule` system with a simpler expression-based approach.
 /// The expression is evaluated every frame against the current fact state.
 ///
 /// 存储 `visible_when` 表达式以进行运行时可见性评估的组件。
 ///
-/// 这用更简洁的基于表达式的方法替代了旧的 `visibility_rule` 系统。
 /// 表达式每帧根据当前 fact 状态进行评估。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
