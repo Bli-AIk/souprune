@@ -109,9 +109,9 @@
                         color: (0.0, 1.0, 0.0, 1.0),  // Pure green
                         transform: (
                             // Position: Y offset based on index (50, 18, -14, -46 pattern = 50 - i * 32)
-                            translation: (20.0, "50.0 - @i * 32.0", 1.0),
+                            translation: (10.0, "10.0 - @i * 32.0", 10.0),
                             // Width based on HP ratio, height fixed
-                            scale: ("80.0 * $enemy_hps[@i] / $enemy_hp_maxs[@i]", 12.0, 1.0),
+                            scale: (80.0, 12.0, 1.0),
                         ),
                         pivot: (0.0, 0.5),
                     ),

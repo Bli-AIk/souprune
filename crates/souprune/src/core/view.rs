@@ -58,10 +58,11 @@ use lifecycle::{
     state_transition_sound_system,
 };
 pub use ron_view::{HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle};
+#[cfg(feature = "debug")]
+use ron_view::{incremental_reload_system, watch_view_layout_changes_system};
 use ron_view::{
-    load_global_triggers_system, rebuild_pending_views_system, spawn_ron_view_system,
-    ui_animation_init_system, update_dynamic_text_system, update_view_from_map_system,
-    watch_view_layout_changes_system,
+    load_global_triggers_system, spawn_ron_view_system, ui_animation_init_system,
+    update_dynamic_text_system, update_view_from_map_system,
 };
 use sdf_view_shape::update_sdf_view_shape_system;
 use state::global_trigger_system;
@@ -101,7 +102,6 @@ impl Plugin for CoreViewPlugin {
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
-            .init_resource::<ron_view::PendingViewReloads>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
@@ -137,8 +137,6 @@ impl Plugin for CoreViewPlugin {
                 Update,
                 (
                     update_view_from_map_system,
-                    watch_view_layout_changes_system,
-                    rebuild_pending_views_system,
                     load_global_triggers_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
@@ -176,7 +174,16 @@ impl Plugin for CoreViewPlugin {
 
         #[cfg(feature = "debug")]
         {
-            app.register_type::<ViewBox>()
+            // Hot reload systems (debug only)
+            // 热重载系统（仅 debug 模式）
+            app.init_resource::<ron_view::PendingViewReloads>()
+                .add_systems(
+                    Update,
+                    (watch_view_layout_changes_system, incremental_reload_system)
+                        .chain()
+                        .in_set(ViewUpdate),
+                )
+                .register_type::<ViewBox>()
                 .register_type::<CameraAnchored>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()

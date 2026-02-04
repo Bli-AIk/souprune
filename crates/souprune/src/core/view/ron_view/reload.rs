@@ -7,25 +7,25 @@
 //! ## 模块概述
 //!
 //! This module provides hot-reload support for view_layout.ron files.
-//! It uses a component-based approach where any entity with `HotReloadableViewRoot`
-//! can have its view rebuilt when the corresponding asset is modified.
+//! Uses an incremental update approach where only modified properties are updated
+//! without destroying and rebuilding the entire view hierarchy.
 //!
 //! 本模块提供 view_layout.ron 文件的热重载支持。
-//! 采用基于组件的方式，任何带有 `HotReloadableViewRoot` 的实体
-//! 在对应资源被修改时都可以重建其视图。
+//! 采用增量更新方式，仅更新修改的属性，
+//! 不需要销毁并重建整个视图层级。
 
+#[cfg(feature = "debug")]
 use bevy::asset::AssetEvent;
+#[cfg(feature = "debug")]
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
 use super::super::layout::ViewLayoutAsset;
-use super::resources::{
-    HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle,
-};
+use super::resources::ViewLayoutHandle;
+#[cfg(feature = "debug")]
+use super::resources::{HotReloadableViewRoot, PendingViewReloads};
 use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
-use crate::core::sprite::params::SpriteParams;
-use crate::extra::debug::DebugCamera;
 
 /// Load view layout from Tiled map properties (fallback for states.ron view_layout).
 /// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
@@ -88,87 +88,116 @@ pub fn update_view_from_map_system(
     }
 }
 
-/// Watch for view layout asset changes and mark entities for reload.
-/// This system monitors all `ViewLayoutAsset` modifications and updates
-/// the `PendingViewReloads` resource accordingly.
+/// Watch for view layout asset changes and mark entities for reload (debug only).
 ///
-/// 监视视图布局资源变化并标记实体进行重载。
-/// 此系统监控所有 `ViewLayoutAsset` 的修改并相应更新
-/// `PendingViewReloads` 资源。
+/// 监视视图布局资源变化并标记实体进行重载（仅 debug 模式）。
+#[cfg(feature = "debug")]
 pub fn watch_view_layout_changes_system(
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
     mut pending_reloads: ResMut<PendingViewReloads>,
     hot_reload_roots: Query<&HotReloadableViewRoot>,
+    mut frame_counter: Local<u64>,
 ) {
+    *frame_counter += 1;
+
+    // Log every 300 frames (~5 seconds at 60fps) to confirm system is running
+    if *frame_counter % 300 == 0 {
+        let root_count = hot_reload_roots.iter().count();
+        info!(
+            "[Hot Reload] System running (frame {}), monitoring {} hot reload roots",
+            *frame_counter, root_count
+        );
+    }
+
     for event in events.read() {
+        info!("[Hot Reload] Received AssetEvent: {:?}", event);
+
         if let AssetEvent::Modified { id } = event {
+            let root_count = hot_reload_roots.iter().count();
+            info!(
+                "[Hot Reload] ViewLayoutAsset {:?} modified, checking {} hot reload roots",
+                id, root_count
+            );
+
             // Check if any hot-reloadable root uses this asset
             let mut has_matching_root = false;
             for root in hot_reload_roots.iter() {
+                info!(
+                    "[Hot Reload] Checking root: handle_id={:?}, path={}",
+                    root.layout_handle.id(),
+                    root.layout_path
+                );
                 if root.layout_handle.id() == *id {
                     has_matching_root = true;
+                    info!("[Hot Reload] Found matching root!");
                     break;
                 }
             }
 
             if has_matching_root {
                 info!(
-                    "[Hot Reload] ViewLayoutAsset {:?} modified, marking for reload",
+                    "[Hot Reload] ViewLayoutAsset {:?} modified, marking for incremental update",
                     id
                 );
                 pending_reloads.mark_for_reload(*id);
+            } else {
+                info!(
+                    "[Hot Reload] No matching hot reload root found for asset {:?}",
+                    id
+                );
             }
         }
     }
 }
 
-/// Rebuild views for entities whose layout assets have been modified.
-/// This system processes all pending reloads and rebuilds the view hierarchy
-/// for each affected entity.
+/// Incremental reload system - updates existing view elements without destroying them (debug only).
 ///
-/// 重建布局资源已被修改的实体的视图。
-/// 此系统处理所有待处理的重载并为每个受影响的实体重建视图层级。
+/// This system:
+/// 1. Matches existing entities to new definitions by ViewElement.full_name
+/// 2. Updates VisibleWhen expressions
+/// 3. Updates Transform properties
+/// 4. Updates Sprite color/flip properties
+///
+/// 增量重载系统 - 更新现有视图元素而不销毁它们（仅 debug 模式）。
+///
+/// 此系统：
+/// 1. 通过 ViewElement.full_name 匹配现有实体和新定义
+/// 2. 更新 VisibleWhen 表达式
+/// 3. 更新 Transform 属性
+/// 4. 更新 Sprite 颜色/翻转属性
+#[cfg(feature = "debug")]
 #[allow(clippy::too_many_arguments)]
-pub fn rebuild_pending_views_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
+#[allow(clippy::type_complexity)]
+pub fn incremental_reload_system(
     mut pending_reloads: ResMut<PendingViewReloads>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
-    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
     hot_reload_roots: Query<(Entity, &HotReloadableViewRoot)>,
-    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
-    mut sprite_params: SpriteParams,
-    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    view_element_query: Query<(
+        Entity,
+        &crate::core::view::components::ViewElement,
+        &ChildOf,
+    )>,
+    mut visible_when_query: Query<&mut crate::core::view::components::VisibleWhen>,
+    mut transform_query: Query<&mut Transform>,
+    mut sprite_query: Query<&mut Sprite>,
+    children_query: Query<&Children>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
-    ron_view_query: Query<(Entity, &ChildOf), With<RonDrivenView>>,
+    view_root_query: Query<&crate::core::view::components::ViewRoot>,
 ) {
     if !pending_reloads.has_pending() {
         return;
     }
 
-    use super::parsing::PlayerDataView;
-    let player_data = PlayerDataView::new(&layered_db);
-
-    let Ok(camera_transform) = camera_query.single() else {
-        warn!("[Hot Reload] No Camera2d found for view rebuild!");
-        return;
-    };
-
-    // Take all pending reloads
     let pending_ids = pending_reloads.take_all();
-    let mut rebuilt_count = 0;
+    let mut updated_count = 0;
 
     for (root_entity, hot_reload_root) in hot_reload_roots.iter() {
         let asset_id = hot_reload_root.layout_handle.id();
 
-        // Check if this root's asset was modified
         if !pending_ids.contains(&asset_id) {
             continue;
         }
 
-        // Get the layout asset
         let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
             warn!(
                 "[Hot Reload] ViewLayout not loaded for entity {:?}, path: {}",
@@ -177,72 +206,249 @@ pub fn rebuild_pending_views_system(
             continue;
         };
 
-        info!(
-            "[Hot Reload] Rebuilding view for entity {:?}, path: {}",
-            root_entity, hot_reload_root.layout_path
+        // Get namespace and local facts from ViewRoot
+        let namespace = crate::core::view::components::ViewRoot::namespace_from_path(
+            &hot_reload_root.layout_path,
         );
 
-        // Despawn old view children (RonDrivenView entities that are children of this root)
-        let mut despawn_count = 0;
-        for (ron_entity, parent) in ron_view_query.iter() {
-            if parent.parent() == root_entity {
-                despawn_entity_tree(&mut commands, ron_entity);
-                despawn_count += 1;
+        // Get local facts from ViewRoot if available
+        let local_facts = view_root_query
+            .get(root_entity)
+            .map(|vr| &vr.local_facts)
+            .ok();
+
+        info!(
+            "[Hot Reload] Incremental update for view '{}' (namespace: {})",
+            hot_reload_root.layout_path, namespace
+        );
+
+        // Build a map of node definitions by full_name (without repeat suffix)
+        let mut node_defs_by_name: std::collections::HashMap<
+            String,
+            &super::super::layout::ViewNodeDef,
+        > = std::collections::HashMap::new();
+        collect_node_defs(&namespace, &view_layout.roots, &mut node_defs_by_name);
+
+        // Create player data view for expression evaluation
+        let player_data = if let Some(local_facts) = local_facts {
+            super::parsing::PlayerDataView::with_local_facts(&layered_db, local_facts)
+        } else {
+            super::parsing::PlayerDataView::new(&layered_db)
+        };
+
+        // Find all ViewElement entities that are descendants of this root
+        let descendants = collect_descendants(root_entity, &children_query);
+
+        for descendant in descendants {
+            let Ok((entity, view_element, _)) = view_element_query.get(descendant) else {
+                continue;
+            };
+
+            // Look up the node definition and extract repeat index if applicable
+            // For repeat elements (e.g., "namespace::EnemyHpBar_0"), try base name and extract index
+            // 对于重复元素（如 "namespace::EnemyHpBar_0"），尝试基础名称并提取索引
+            let (node_def, repeat_ctx) =
+                if let Some(def) = node_defs_by_name.get(&view_element.full_name) {
+                    (Some(*def), None)
+                } else {
+                    // Try to find base name by stripping _N suffix and create repeat context
+                    // 尝试去掉 _N 后缀来查找基础名称并创建重复上下文
+                    find_node_def_for_repeat_element_with_context(
+                        &view_element.full_name,
+                        &node_defs_by_name,
+                    )
+                };
+
+            let Some(node_def) = node_def else {
+                continue;
+            };
+
+            // Update VisibleWhen expression
+            if let Some(new_visible_when) = &node_def.visible_when {
+                if let Ok(mut visible_when) = visible_when_query.get_mut(entity) {
+                    if visible_when.expression != *new_visible_when {
+                        info!(
+                            "[Hot Reload] Updating visible_when for '{}': '{}' -> '{}'",
+                            view_element.full_name, visible_when.expression, new_visible_when
+                        );
+                        visible_when.expression = new_visible_when.clone();
+                        updated_count += 1;
+                    }
+                }
+            }
+
+            // Update Transform from sprite def
+            if let Some(sprite_def) = &node_def.sprite {
+                if let Some(t_def) = &sprite_def.transform {
+                    if let Ok(mut transform) = transform_query.get_mut(entity) {
+                        if let Some(trans) = &t_def.translation {
+                            let new_translation = Vec3::new(
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &trans.0,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &trans.1,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &trans.2,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                            );
+                            if transform.translation != new_translation {
+                                info!(
+                                    "[Hot Reload] Updating translation for '{}': {:?} -> {:?}",
+                                    view_element.full_name, transform.translation, new_translation
+                                );
+                                transform.translation = new_translation;
+                                updated_count += 1;
+                            }
+                        }
+                        if let Some(scale) = &t_def.scale {
+                            let new_scale = Vec3::new(
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &scale.0,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &scale.1,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                                super::parsing::evaluate_float_expr_with_repeat(
+                                    &scale.2,
+                                    &player_data,
+                                    None,
+                                    repeat_ctx.as_ref(),
+                                ),
+                            );
+                            if transform.scale != new_scale {
+                                info!(
+                                    "[Hot Reload] Updating scale for '{}': {:?} -> {:?}",
+                                    view_element.full_name, transform.scale, new_scale
+                                );
+                                transform.scale = new_scale;
+                                updated_count += 1;
+                            }
+                        }
+                        if let Some(rot) = t_def.rotation {
+                            let new_rotation = Quat::from_rotation_z(rot.to_radians());
+                            if transform.rotation != new_rotation {
+                                info!(
+                                    "[Hot Reload] Updating rotation for '{}': {:?} -> {:?}",
+                                    view_element.full_name, transform.rotation, new_rotation
+                                );
+                                transform.rotation = new_rotation;
+                                updated_count += 1;
+                            }
+                        }
+                    }
+                }
+
+                // Update Sprite flip properties
+                if let Ok(mut sprite) = sprite_query.get_mut(entity) {
+                    if sprite.flip_x != sprite_def.flip_x {
+                        info!(
+                            "[Hot Reload] Updating flip_x for '{}': {} -> {}",
+                            view_element.full_name, sprite.flip_x, sprite_def.flip_x
+                        );
+                        sprite.flip_x = sprite_def.flip_x;
+                        updated_count += 1;
+                    }
+                    if sprite.flip_y != sprite_def.flip_y {
+                        info!(
+                            "[Hot Reload] Updating flip_y for '{}': {} -> {}",
+                            view_element.full_name, sprite.flip_y, sprite_def.flip_y
+                        );
+                        sprite.flip_y = sprite_def.flip_y;
+                        updated_count += 1;
+                    }
+                }
             }
         }
-
-        if despawn_count > 0 {
-            info!(
-                "[Hot Reload] Despawned {} old view entities for root {:?}",
-                despawn_count, root_entity
-            );
-        }
-
-        // Spawn new view (no bindings on hot reload - uses inline facts and requires with File only)
-        super::spawn::spawn_ron_view_for_entity(
-            &mut commands,
-            &asset_server,
-            root_entity,
-            view_layout,
-            camera_transform,
-            &mut sprite_params,
-            &animation_assets,
-            &fre_assets,
-            &mortar_strings,
-            &player_data,
-            &item_registry,
-            &hot_reload_root.layout_path,
-            None,
-            &layered_db,
-        );
-
-        rebuilt_count += 1;
     }
 
-    if rebuilt_count > 0 {
+    if updated_count > 0 {
         info!(
-            "[Hot Reload] View hot reload complete! Rebuilt {} views",
-            rebuilt_count
+            "[Hot Reload] Incremental update complete! Updated {} properties",
+            updated_count
         );
     }
 }
 
-/// Despawn an entity and all its children recursively.
+/// Collect all node definitions into a map keyed by full_name.
 ///
-/// 递归销毁实体及其所有子实体。
-fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
-    commands.queue(move |world: &mut World| {
-        let mut stack = vec![root];
-        while let Some(entity) = stack.pop() {
-            if let Ok(entity_ref) = world.get_entity(entity)
-                && let Some(children) = entity_ref.get::<Children>()
-            {
-                for child in children.iter() {
-                    stack.push(child);
-                }
-            }
-
-            let _ = world.despawn(entity);
+/// 将所有节点定义收集到以 full_name 为键的映射中。
+#[cfg(feature = "debug")]
+fn collect_node_defs<'a>(
+    namespace: &str,
+    nodes: &'a [super::super::layout::ViewNodeDef],
+    map: &mut std::collections::HashMap<String, &'a super::super::layout::ViewNodeDef>,
+) {
+    for node in nodes {
+        if !node.name.is_empty() {
+            let full_name = format!("{}::{}", namespace, node.name);
+            map.insert(full_name, node);
         }
-    });
+        // Recursively collect children
+        collect_node_defs(namespace, &node.children, map);
+    }
+}
+
+/// Find node definition for a repeat element by stripping _N suffix and return with repeat context.
+/// For example, "namespace::EnemyHpBar_0" -> looks up "namespace::EnemyHpBar" and returns context with index 0
+///
+/// 通过去掉 _N 后缀来查找重复元素的节点定义，并返回重复上下文。
+/// 例如，"namespace::EnemyHpBar_0" -> 查找 "namespace::EnemyHpBar" 并返回索引为 0 的上下文
+#[cfg(feature = "debug")]
+fn find_node_def_for_repeat_element_with_context<'a>(
+    full_name: &str,
+    map: &std::collections::HashMap<String, &'a super::super::layout::ViewNodeDef>,
+) -> (
+    Option<&'a super::super::layout::ViewNodeDef>,
+    Option<super::parsing::RepeatContext>,
+) {
+    // Try to strip _N suffix (where N is a number)
+    // 尝试去掉 _N 后缀（其中 N 是数字）
+    if let Some(last_underscore) = full_name.rfind('_') {
+        let suffix = &full_name[last_underscore + 1..];
+        if let Ok(index) = suffix.parse::<usize>() {
+            let base_name = &full_name[..last_underscore];
+            if let Some(def) = map.get(base_name) {
+                let ctx = super::parsing::RepeatContext::new(index);
+                return (Some(*def), Some(ctx));
+            }
+        }
+    }
+    (None, None)
+}
+
+/// Collect all descendant entities of a root entity.
+///
+/// 收集根实体的所有后代实体。
+#[cfg(feature = "debug")]
+fn collect_descendants(root: Entity, children_query: &Query<&Children>) -> Vec<Entity> {
+    let mut result = Vec::new();
+    let mut stack = vec![root];
+
+    while let Some(entity) = stack.pop() {
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                result.push(child);
+                stack.push(child);
+            }
+        }
+    }
+
+    result
 }
