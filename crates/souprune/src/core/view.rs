@@ -57,9 +57,9 @@ use lifecycle::{
     StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
     state_transition_sound_system,
 };
-pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
+pub use ron_view::{HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle};
 use ron_view::{
-    load_global_triggers_system, rebuild_reloaded_view_system, spawn_ron_view_system,
+    load_global_triggers_system, rebuild_pending_views_system, spawn_ron_view_system,
     ui_animation_init_system, update_dynamic_text_system, update_view_from_map_system,
     watch_view_layout_changes_system,
 };
@@ -101,6 +101,7 @@ impl Plugin for CoreViewPlugin {
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
+            .init_resource::<ron_view::PendingViewReloads>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
@@ -137,7 +138,7 @@ impl Plugin for CoreViewPlugin {
                 (
                     update_view_from_map_system,
                     watch_view_layout_changes_system,
-                    rebuild_reloaded_view_system,
+                    rebuild_pending_views_system,
                     load_global_triggers_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）

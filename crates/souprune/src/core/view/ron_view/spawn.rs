@@ -6,7 +6,7 @@ use super::parsing::{
     PlayerDataView, evaluate_condition, evaluate_float_expr, evaluate_visible_when,
     resolve_text_content, vec3_tuple_depends_on_time,
 };
-use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
+use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated, ViewLayoutHandle};
 use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::core::sprite::params::SpriteParams;
@@ -57,7 +57,6 @@ pub fn spawn_ron_view_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
-    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
 ) {
     let player_data = PlayerDataView::new(&layered_db);
 
@@ -77,8 +76,6 @@ pub fn spawn_ron_view_system(
         "[spawn_ron_view] backpack_roots={}, battle_roots={}, chase_roots={}, layout_path='{}'",
         backpack_count, battle_count, chase_count, view_layout_handle.path
     );
-
-    let mut spawned_any = false;
 
     // Helper closure to spawn view for an entity
     let mut spawn_for_entity = |view_entity: Entity, label: &str| {
@@ -108,9 +105,19 @@ pub fn spawn_ron_view_system(
             &item_registry,
             &view_layout_handle.path,
         );
-        commands.entity(view_entity).insert(ViewGenerated);
+
+        // Add ViewGenerated and HotReloadableViewRoot for hot reload support
+        // 添加 ViewGenerated 和 HotReloadableViewRoot 以支持热重载
+        commands.entity(view_entity).insert((
+            ViewGenerated,
+            HotReloadableViewRoot {
+                layout_path: view_layout_handle.path.clone(),
+                layout_handle: view_layout_handle.handle.clone(),
+            },
+        ));
+
         info!(
-            "[spawn_ron_view] Added ViewGenerated to entity {:?}",
+            "[spawn_ron_view] Added ViewGenerated and HotReloadableViewRoot to entity {:?}",
             view_entity
         );
         true
@@ -119,29 +126,19 @@ pub fn spawn_ron_view_system(
     // Handle BackpackViewRoot entities (OW Backpack)
     // 处理 BackpackViewRoot 实体（OW 背包）
     for view_entity in backpack_root_query.iter() {
-        if spawn_for_entity(view_entity, "BackpackViewRoot") {
-            spawned_any = true;
-        }
+        spawn_for_entity(view_entity, "BackpackViewRoot");
     }
 
     // Handle BattleViewRoot entities (Battle UI)
     // 处理 BattleViewRoot 实体（Battle UI）
     for view_entity in battle_root_query.iter() {
-        if spawn_for_entity(view_entity, "BattleViewRoot") {
-            spawned_any = true;
-        }
+        spawn_for_entity(view_entity, "BattleViewRoot");
     }
 
     // Handle ChaseHUDRoot entities (Chase HUD)
     // 处理 ChaseHUDRoot 实体（Chase HUD）
     for view_entity in chase_root_query.iter() {
-        if spawn_for_entity(view_entity, "ChaseHUDRoot") {
-            spawned_any = true;
-        }
-    }
-
-    if spawned_any && let Some(ref mut w) = watcher {
-        w.pending_reload = false;
+        spawn_for_entity(view_entity, "ChaseHUDRoot");
     }
 }
 

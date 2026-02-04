@@ -7,7 +7,10 @@ pub mod spawn;
 pub mod update;
 
 // Re-export common types and systems
-pub use resources::{RonDrivenView, ViewGlobalTriggerConfig, ViewLayoutHandle, ViewLayoutWatcher};
+pub use resources::{
+    HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewGlobalTriggerConfig,
+    ViewLayoutHandle,
+};
 
 pub use reload::*;
 pub use setup::*;

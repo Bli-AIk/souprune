@@ -180,10 +180,24 @@ pub fn setup_hp_bar_sprites(
         .unwrap_or(&default_db);
 
     for (entity, hp_bar, _transform) in query.iter() {
+        // Get actual HP ratio from database for HPBarLag initialization
+        // shader_params first two values are just initial material params,
+        // HPBarLag should use actual HP values from the database
+        // 从数据库获取实际 HP 比率用于 HPBarLag 初始化
+        // shader_params 的前两个值只是初始材质参数，
+        // HPBarLag 应使用数据库中的实际 HP 值
+        let player_data = PlayerDataView::new(db_ref);
+        let actual_hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
+        let actual_hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
+        let actual_hp_ratio = if actual_hp_max > 0.0 {
+            actual_hp / actual_hp_max
+        } else {
+            1.0
+        };
+
         // Evaluate shader_params from config expressions - config is required
-        let (hp_ratio, lag_ratio, half_width, alpha) =
+        let (_hp_ratio, _lag_ratio, half_width, alpha) =
             if let Some(ref params) = hp_bar.shader_params_expr {
-                let player_data = PlayerDataView::new(db_ref);
                 evaluate_dynamic_color(params, &player_data, None)
             } else {
                 // No config provided - log warning and use minimal fallback
@@ -196,20 +210,22 @@ pub fn setup_hp_bar_sprites(
                 (1.0, 1.0, 40.0, 1.0)
             };
 
+        // Use actual HP ratio for material initialization, not config values
+        // 使用实际 HP 比率进行材质初始化，而不是配置值
         let material = materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {
-            color_params: LinearRgba::new(hp_ratio, lag_ratio, half_width, alpha),
+            color_params: LinearRgba::new(actual_hp_ratio, actual_hp_ratio, half_width, alpha),
             texture: textures.white_pixel.clone(),
         });
 
         commands.entity(entity).insert((
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material),
-            HPBarLag::new(hp_ratio),
+            HPBarLag::new(actual_hp_ratio),
         ));
 
         info!(
-            "[HP Bar Setup] Spawned HP bar for entity {:?}. Initial HP ratio: {:.2}, half_width: {:.2}",
-            entity, hp_ratio, half_width
+            "[HP Bar Setup] Spawned HP bar for entity {:?}. Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
+            entity, actual_hp_ratio, actual_hp, actual_hp_max, half_width
         );
     }
 }

@@ -40,7 +40,6 @@ pub fn process_view_action_system(
                         crate::app_state::battle::BattleEntity,
                         Name::new("BattleView Root"),
                     ));
-                    commands.init_resource::<crate::core::view::ViewLayoutWatcher>();
                 }
                 _ => {
                     warn!("View action {:?} not fully implemented yet", action);

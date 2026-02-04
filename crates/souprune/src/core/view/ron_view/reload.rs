@@ -1,11 +1,26 @@
+//! # reload.rs
+//!
+//! # reload.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides hot-reload support for view_layout.ron files.
+//! It uses a component-based approach where any entity with `HotReloadableViewRoot`
+//! can have its view rebuilt when the corresponding asset is modified.
+//!
+//! 本模块提供 view_layout.ron 文件的热重载支持。
+//! 采用基于组件的方式，任何带有 `HotReloadableViewRoot` 的实体
+//! 在对应资源被修改时都可以重建其视图。
+
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
 use super::super::layout::ViewLayoutAsset;
-use super::super::lifecycle::BackpackViewRoot;
-use super::resources::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
+use super::resources::{HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle};
 use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
@@ -13,13 +28,13 @@ use crate::extra::debug::DebugCamera;
 /// Load view layout from Tiled map properties (fallback for states.ron view_layout).
 /// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
 ///
-/// NOTE: This system does NOT trigger hot reload (pending_reload). It only preloads
+/// NOTE: This system does NOT trigger hot reload. It only preloads
 /// the ViewLayoutHandle so it's ready when the UI state is entered.
 ///
 /// 从 Tiled 地图属性加载视图布局（作为 states.ron view_layout 的回退）。
 /// 此系统仅在 states.ron 未定义 view_layout 时设置 ViewLayoutHandle。
 ///
-/// 注意：此系统不触发热重载（pending_reload）。它仅预加载
+/// 注意：此系统不触发热重载。它仅预加载
 /// ViewLayoutHandle 以便在进入 UI 状态时准备就绪。
 pub fn update_view_from_map_system(
     mut commands: Commands,
@@ -66,139 +81,125 @@ pub fn update_view_from_map_system(
                     last_modified: None,
                     path: path_owned,
                 });
-
-                // NOTE: Do NOT set pending_reload here!
-                // pending_reload is for hot-reloading already visible views.
-                // Initial spawning is handled by backpack_state_transition_system.
-                // 注意：不要在这里设置 pending_reload！
-                // pending_reload 是用于热重载已显示的视图的。
-                // 初始生成由 backpack_state_transition_system 处理。
             }
         }
     }
 }
 
-/// Watch for view layout asset changes for hot reload.
+/// Watch for view layout asset changes and mark entities for reload.
+/// This system monitors all `ViewLayoutAsset` modifications and updates
+/// the `PendingViewReloads` resource accordingly.
 ///
-/// 监视视图布局资源变化以支持热重载。
+/// 监视视图布局资源变化并标记实体进行重载。
+/// 此系统监控所有 `ViewLayoutAsset` 的修改并相应更新
+/// `PendingViewReloads` 资源。
 pub fn watch_view_layout_changes_system(
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
-    view_layout_handle: Option<Res<ViewLayoutHandle>>,
-    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
-    mut commands: Commands,
+    mut pending_reloads: ResMut<PendingViewReloads>,
+    hot_reload_roots: Query<&HotReloadableViewRoot>,
 ) {
-    let Some(view_layout_handle) = view_layout_handle else {
-        return;
-    };
-
     for event in events.read() {
-        if let AssetEvent::Modified { id } = event
-            && *id == view_layout_handle.handle.id()
-        {
-            info!("[Hot Reload] RON view asset modified, triggering reload...");
-            if let Some(ref mut w) = watcher {
-                w.pending_reload = true;
-            } else {
-                let mut w = ViewLayoutWatcher::new();
-                w.pending_reload = true;
-                commands.insert_resource(w);
+        if let AssetEvent::Modified { id } = event {
+            // Check if any hot-reloadable root uses this asset
+            let mut has_matching_root = false;
+            for root in hot_reload_roots.iter() {
+                if root.layout_handle.id() == *id {
+                    has_matching_root = true;
+                    break;
+                }
+            }
+
+            if has_matching_root {
+                info!(
+                    "[Hot Reload] ViewLayoutAsset {:?} modified, marking for reload",
+                    id
+                );
+                pending_reloads.mark_for_reload(*id);
             }
         }
     }
 }
 
-/// Rebuild view layout when hot reload is triggered.
+/// Rebuild views for entities whose layout assets have been modified.
+/// This system processes all pending reloads and rebuilds the view hierarchy
+/// for each affected entity.
 ///
-/// 热重载触发时重建视图布局。
+/// 重建布局资源已被修改的实体的视图。
+/// 此系统处理所有待处理的重载并为每个受影响的实体重建视图层级。
 #[allow(clippy::too_many_arguments)]
-pub fn rebuild_reloaded_view_system(
+pub fn rebuild_pending_views_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    view_layout_handle: Option<Res<ViewLayoutHandle>>,
-    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
+    mut pending_reloads: ResMut<PendingViewReloads>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    backpack_root_query: Query<Entity, With<BackpackViewRoot>>,
+    hot_reload_roots: Query<(Entity, &HotReloadableViewRoot)>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
-    ron_view_query: Query<Entity, With<RonDrivenView>>,
+    ron_view_query: Query<(Entity, &ChildOf), With<RonDrivenView>>,
 ) {
+    if !pending_reloads.has_pending() {
+        return;
+    }
+
     use super::parsing::PlayerDataView;
     let player_data = PlayerDataView::new(&layered_db);
 
-    let Some(ref mut watcher) = watcher else {
-        return;
-    };
-
-    if !watcher.pending_reload {
-        return;
-    }
-
-    let has_handle = view_layout_handle.is_some();
-    let backpack_root_count = backpack_root_query.iter().count();
-
-    info!(
-        "[rebuild_reloaded_view] pending_reload=TRUE, has_handle={}, backpack_roots={}",
-        has_handle, backpack_root_count
-    );
-
-    let Some(handle) = view_layout_handle else {
-        debug!(
-            "[rebuild_reloaded_view] No ViewLayoutHandle resource, skipping but KEEPING pending_reload=true"
-        );
-        return;
-    };
-
-    let Some(view_layout) = view_layouts.get(&handle.handle) else {
-        debug!(
-            "[rebuild_reloaded_view] ViewLayout not yet loaded, skipping but KEEPING pending_reload=true"
-        );
-        return;
-    };
-
-    // Check if we have a backpack root as our target
-    let has_target = !backpack_root_query.is_empty();
-
-    if !has_target {
-        debug!(
-            "[rebuild_reloaded_view] RON view hot reload pending - no view entity active, will retry rebuild (KEEPING pending_reload=true)"
-        );
-        return;
-    }
-
-    info!("[rebuild_reloaded_view] All conditions met! Rebuilding view...");
-
     let Ok(camera_transform) = camera_query.single() else {
-        warn!("[rebuild_reloaded_view] No Camera2d found for view rebuild!");
-        watcher.pending_reload = false;
+        warn!("[Hot Reload] No Camera2d found for view rebuild!");
         return;
     };
 
-    // Despawn old view first (only now that we know we're rebuilding)
-    //
-    // 首先 despawn 旧视图（仅当我们知道正在重建时）
-    let despawn_count = ron_view_query.iter().count();
-    if despawn_count > 0 {
-        info!(
-            "[rebuild_reloaded_view] Despawning {} old view entities before rebuild",
-            despawn_count
-        );
-        for entity in ron_view_query.iter() {
-            despawn_entity_tree(&mut commands, entity);
-        }
-    }
-
+    // Take all pending reloads
+    let pending_ids = pending_reloads.take_all();
     let mut rebuilt_count = 0;
 
-    // Find backpack root to use as parent for the rebuilt view
-    if let Ok(view_entity) = backpack_root_query.single() {
+    for (root_entity, hot_reload_root) in hot_reload_roots.iter() {
+        let asset_id = hot_reload_root.layout_handle.id();
+
+        // Check if this root's asset was modified
+        if !pending_ids.contains(&asset_id) {
+            continue;
+        }
+
+        // Get the layout asset
+        let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
+            warn!(
+                "[Hot Reload] ViewLayout not loaded for entity {:?}, path: {}",
+                root_entity, hot_reload_root.layout_path
+            );
+            continue;
+        };
+
+        info!(
+            "[Hot Reload] Rebuilding view for entity {:?}, path: {}",
+            root_entity, hot_reload_root.layout_path
+        );
+
+        // Despawn old view children (RonDrivenView entities that are children of this root)
+        let mut despawn_count = 0;
+        for (ron_entity, parent) in ron_view_query.iter() {
+            if parent.parent() == root_entity {
+                despawn_entity_tree(&mut commands, ron_entity);
+                despawn_count += 1;
+            }
+        }
+
+        if despawn_count > 0 {
+            info!(
+                "[Hot Reload] Despawned {} old view entities for root {:?}",
+                despawn_count, root_entity
+            );
+        }
+
+        // Spawn new view
         super::spawn::spawn_ron_view_for_entity(
             &mut commands,
             &asset_server,
-            view_entity,
+            root_entity,
             view_layout,
             camera_transform,
             &mut sprite_params,
@@ -206,22 +207,24 @@ pub fn rebuild_reloaded_view_system(
             &mortar_strings,
             &player_data,
             &item_registry,
-            &handle.path,
+            &hot_reload_root.layout_path,
         );
+
         rebuilt_count += 1;
     }
 
-    watcher.pending_reload = rebuilt_count == 0;
-    info!(
-        "RON view hot reload complete! Rebuilt {} view entities",
-        rebuilt_count
-    );
+    if rebuilt_count > 0 {
+        info!(
+            "[Hot Reload] View hot reload complete! Rebuilt {} views",
+            rebuilt_count
+        );
+    }
 }
 
+/// Despawn an entity and all its children recursively.
+///
+/// 递归销毁实体及其所有子实体。
 fn despawn_entity_tree(commands: &mut Commands, root: Entity) {
-    // Schedule recursive despawn to avoid borrowing the world inside the system.
-    //
-    // 调度递归 despawn 以避免在系统内借用 world。
     commands.queue(move |world: &mut World| {
         let mut stack = vec![root];
         while let Some(entity) = stack.pop() {

@@ -1577,12 +1577,6 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
         Name::new("ChaseHUD Root"),
     ));
 
-    // Insert ViewLayoutWatcher with pending_reload = false to ensure clean state
-    // This prevents double UI spawning from rebuild_reloaded_view_system
-    // 插入 pending_reload = false 的 ViewLayoutWatcher 以确保干净的状态
-    // 这可以防止 rebuild_reloaded_view_system 导致的双重 UI 生成
-    commands.insert_resource(crate::core::view::ViewLayoutWatcher::new());
-
     info!("Chase: Chase HUD setup complete");
 }
 
@@ -1608,7 +1602,6 @@ fn cleanup_chase_hud_system(
 
     // Remove the View layout handle resource
     commands.remove_resource::<crate::core::view::ViewLayoutHandle>();
-    commands.remove_resource::<crate::core::view::ViewLayoutWatcher>();
 
     info!("Chase: Chase HUD cleanup complete");
 }
