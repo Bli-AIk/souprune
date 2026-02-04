@@ -25,7 +25,6 @@ pub mod view_action;
 mod view_element;
 
 // Re-export public types
-pub use view_action::PendingViewBindings;
 
 use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;

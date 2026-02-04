@@ -57,7 +57,7 @@ use lifecycle::{
     StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
     state_transition_sound_system,
 };
-pub use ron_view::{HotReloadableViewRoot, PendingViewReloads, RonDrivenView, ViewLayoutHandle};
+pub use ron_view::{RonDrivenView, ViewLayoutHandle};
 #[cfg(feature = "debug")]
 use ron_view::{incremental_reload_system, watch_view_layout_changes_system};
 use ron_view::{

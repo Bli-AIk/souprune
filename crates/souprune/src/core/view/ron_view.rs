@@ -13,7 +13,6 @@ pub use resources::{
 };
 
 // Re-export RepeatContext for use in expression evaluation
-pub use parsing::RepeatContext;
 
 pub use reload::update_view_from_map_system;
 #[cfg(feature = "debug")]
