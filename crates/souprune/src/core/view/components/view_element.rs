@@ -345,3 +345,26 @@ pub struct VisibleWhen {
     /// 示例: "true", "$depth == 0", "fact('selection') == 1"
     pub expression: String,
 }
+
+/// Component to track pending View rules that need to be registered
+/// when their FRE assets finish loading.
+///
+/// This enables delayed rule registration for View-scoped rules,
+/// handling the timing issue where FRE assets may not be loaded
+/// when the View is first spawned.
+///
+/// 跟踪待注册的 View 规则的组件，当 FRE 资产加载完成后注册。
+///
+/// 这实现了 View 作用域规则的延迟注册，
+/// 处理 View 首次生成时 FRE 资产可能还未加载的时序问题。
+#[derive(Component, Debug, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct PendingViewRules {
+    /// FRE file paths waiting for asset loading.
+    /// These are paths relative to the assets directory.
+    ///
+    /// 等待资产加载的 FRE 文件路径。
+    /// 这些是相对于 assets 目录的路径。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub pending_paths: Vec<String>,
+}

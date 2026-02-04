@@ -334,3 +334,106 @@ pub(crate) fn cleanup_view_rules_system(
         );
     }
 }
+
+/// System to process pending View rules that were waiting for FRE assets to load.
+/// Checks PendingViewRules components and registers rules when assets become available.
+///
+/// 处理等待 FRE 资产加载的待处理 View 规则的系统。
+/// 检查 PendingViewRules 组件并在资产可用时注册规则。
+pub(crate) fn process_pending_view_rules_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
+    mut query: Query<(
+        Entity,
+        &mut super::components::PendingViewRules,
+        &mut ViewRoot,
+    )>,
+    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    mut action_defs: ResMut<crate::app_state::overworld::trigger::RuleActionDefs>,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+) {
+    use super::ron_view::spawn::load_fre_into_view_root;
+    use bevy_fact_rule_event::RuleScope;
+
+    for (entity, mut pending, mut view_root) in query.iter_mut() {
+        // Collect paths that are now loaded
+        // 收集现在已加载的路径
+        let mut loaded_paths = Vec::new();
+        let mut still_pending = Vec::new();
+
+        for path in pending.pending_paths.drain(..) {
+            let handle: Handle<bevy_fact_rule_event::FreAsset> = asset_server.load(path.clone());
+            if let Some(fre_asset) = fre_assets.get(&handle) {
+                // Asset loaded! Register rules
+                // 资产已加载！注册规则
+                load_fre_into_view_root(&mut view_root, fre_asset, &mortar_strings);
+
+                let rule_defs = fre_asset.get_rule_defs();
+                let scope = fre_asset.scope();
+
+                for (idx, rule_def) in rule_defs.iter().enumerate() {
+                    // For FRE files loaded via View's requires, treat Local as View
+                    // 对于通过 View 的 requires 加载的文件，将 Local 视为 View
+                    let effective_scope = if scope == RuleScope::Local {
+                        RuleScope::View
+                    } else {
+                        scope
+                    };
+
+                    let rule = rule_def.to_rule_with_index(idx, effective_scope);
+                    let rule_id = rule_def.generate_id(idx);
+
+                    // Store actions for this rule
+                    // 存储此规则的 actions
+                    if !rule_def.actions.is_empty() {
+                        action_defs
+                            .actions_by_rule
+                            .insert(rule_id.clone(), rule_def.actions.clone());
+                    }
+
+                    if effective_scope == RuleScope::View {
+                        rule_registry.register_view_rule(entity, rule);
+                        info!(
+                            "[lifecycle] Registered pending View rule '{}' for entity {:?} from '{}'",
+                            rule_id, entity, path
+                        );
+                    } else {
+                        rule_registry.register(rule);
+                    }
+                }
+
+                loaded_paths.push((path, rule_defs.len()));
+            } else {
+                // Still not loaded, keep in pending
+                // 仍未加载，保留在待处理列表中
+                still_pending.push(path);
+            }
+        }
+
+        // Log what we loaded
+        // 记录我们加载的内容
+        for (path, count) in loaded_paths {
+            info!(
+                "[lifecycle] Processed pending FRE '{}': {} rules for entity {:?}",
+                path, count, entity
+            );
+        }
+
+        // Update pending paths
+        // 更新待处理路径
+        pending.pending_paths = still_pending;
+
+        // Remove component if no more pending paths
+        // 如果没有更多待处理路径，移除组件
+        if pending.pending_paths.is_empty() {
+            commands
+                .entity(entity)
+                .remove::<super::components::PendingViewRules>();
+            info!(
+                "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules",
+                entity
+            );
+        }
+    }
+}

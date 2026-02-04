@@ -214,6 +214,10 @@ pub fn spawn_ron_view_for_entity(
     // 创建带有从布局初始化的局部事实的 ViewRoot
     let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
+    // Track pending FRE files that need delayed registration
+    // 跟踪需要延迟注册的待处理 FRE 文件
+    let mut pending_fre_paths: Vec<String> = Vec::new();
+
     // Process requires declarations
     // 处理 requires 声明
     for requirement in &view_layout.requires {
@@ -271,7 +275,13 @@ pub fn spawn_ron_view_for_entity(
                     }
                     info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
                 } else {
-                    warn!("[ViewRoot] FRE file '{}' not yet loaded, skipping", path);
+                    // FRE file not yet loaded - add to pending for delayed registration
+                    // FRE 文件尚未加载 - 添加到待处理列表以延迟注册
+                    info!(
+                        "[ViewRoot] FRE file '{}' not yet loaded, adding to pending",
+                        path
+                    );
+                    pending_fre_paths.push(path.clone());
                 }
             }
             DataRequirement::Interface {
@@ -487,6 +497,19 @@ pub fn spawn_ron_view_for_entity(
     // Attach ViewRoot to the view entity AFTER spawning children
     // 在生成子节点之后将 ViewRoot 附加到视图实体
     commands.entity(view_entity).insert(view_root);
+
+    // If there are pending FRE files, add PendingViewRules component for delayed registration
+    // 如果有待处理的 FRE 文件，添加 PendingViewRules 组件以延迟注册
+    if !pending_fre_paths.is_empty() {
+        info!(
+            "[ViewRoot] Adding PendingViewRules with {} pending paths for entity {:?}",
+            pending_fre_paths.len(),
+            view_entity
+        );
+        commands.entity(view_entity).insert(PendingViewRules {
+            pending_paths: pending_fre_paths,
+        });
+    }
 }
 
 /// Helper function to build ViewTextConfig from TextDef.
@@ -1576,7 +1599,7 @@ fn resolve_simple_localization(
 /// Load facts from a FreAsset into the ViewRoot's local_facts.
 ///
 /// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
-fn load_fre_into_view_root(
+pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
     fre_asset: &FreAsset,
     mortar_strings: &crate::extra::mortar::MortarStringTable,

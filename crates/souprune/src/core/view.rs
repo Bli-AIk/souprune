@@ -77,6 +77,7 @@ use components::state_sprite::{
 #[cfg(feature = "debug")]
 use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
 use lifecycle::cleanup_view_rules_system;
+use lifecycle::process_pending_view_rules_system;
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -155,6 +156,9 @@ impl Plugin for CoreViewPlugin {
                     // Cleanup View-layer rules when ViewRoot entities are despawned
                     // 当 ViewRoot 实体销毁时清理 View 层规则
                     cleanup_view_rules_system,
+                    // Process pending View rules when FRE assets finish loading
+                    // 当 FRE 资产加载完成后处理待处理的 View 规则
+                    process_pending_view_rules_system,
                 )
                     .in_set(ViewUpdate),
             )

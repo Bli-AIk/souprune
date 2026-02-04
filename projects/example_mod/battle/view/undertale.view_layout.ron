@@ -15,6 +15,10 @@
     // Data dependencies declaration
     // 数据依赖声明
     requires: [
+        // Battle menu navigation rules - registered as View-scoped rules
+        // 战斗菜单导航规则 - 作为 View 作用域规则注册
+        File("battle/rules/battle_menu.fre.ron"),
+
         // Enemies interface - bound by SpawnView's bindings
         // 敌人接口 - 由 SpawnView 的 bindings 绑定
         Interface(

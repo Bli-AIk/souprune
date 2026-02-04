@@ -23,9 +23,7 @@ use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
 use bevy::prelude::*;
-use bevy_fact_rule_event::{
-    FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope,
-};
+use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
@@ -187,11 +185,16 @@ fn register_battle_rules_system(
         }
     };
 
-    // Process menu rules
+    // Process menu rules - facts only, rules are registered via View's requires mechanism
+    // 处理菜单规则 - 仅处理 facts，规则通过 View 的 requires 机制注册
     if let Some(handle) = &battle_rules_handle.menu_handle
         && let Some(fre_asset) = fre_assets.get(handle)
     {
-        // Apply facts to View local facts (via ViewRoot in fre_bridge)
+        // NOTE: Menu rules are now registered as View-scoped rules via the View layout's
+        // requires: [File("battle/rules/battle_menu.fre.ron")] declaration.
+        // We only apply facts here for backward compatibility with any direct Local layer access.
+        // 注意：菜单规则现在通过 View 布局的 requires 声明注册为 View 作用域规则。
+        // 此处仅应用 facts 以兼容任何直接访问 Local 层的情况。
         for (key, value) in fre_asset.get_facts() {
             let fact_value = match value {
                 FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
@@ -204,26 +207,15 @@ fn register_battle_rules_system(
                 FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
             };
             fact_db.set_local(key.as_str(), fact_value);
-            info!("Battle FRE: Set fact '{}' from menu rules", key);
+            trace!(
+                "Battle FRE: Set fact '{}' from menu rules to Local layer",
+                key
+            );
         }
-
-        // Register rules and populate action_defs
-        let rules_defs = fre_asset.get_rule_defs();
-        let scope = fre_asset.scope();
-        for (idx, rule_def) in rules_defs.iter().enumerate() {
-            let rule = rule_def.to_rule_with_index(idx, scope);
-            let rule_id = rule_def.generate_id(idx);
-
-            // Store actions by rule ID
-            if !rule_def.actions.is_empty() {
-                action_defs
-                    .actions_by_rule
-                    .insert(rule_id.clone(), rule_def.actions.clone());
-            }
-
-            registry.register(rule);
-        }
-        info!("Battle FRE: Registered {} menu rules", rules_defs.len());
+        info!(
+            "Battle FRE: Applied {} facts from menu rules (rules registered via View)",
+            fre_asset.get_facts().len()
+        );
     }
 
     // Process custom battle rules (if any)
