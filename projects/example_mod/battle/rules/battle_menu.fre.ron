@@ -55,7 +55,7 @@
         // === SUBMENU NAVIGATION (depth 1) - VERTICAL / 子菜单导航（深度 1）- 纵向 ===
 
         // Navigate up in submenu (enemy list) - FIGHT/ACT/MERCY
-        // 在子菜单中向上导航（敌人列表）- 战斗/行动/慈悲
+        // 在子菜单中向上导航（敌人列表）- 战斗/行动/仁慈
         (
             event: ActionEvent(action: "Up", kind: JustPressed),
             conditions: ["$active == true", "$depth == 1", "$menu_context != 2", "$enemy_selection > 0"],
@@ -66,7 +66,7 @@
         ),
 
         // Navigate down in submenu (enemy list) - FIGHT/ACT/MERCY
-        // 在子菜单中向下导航（敌人列表）- 战斗/行动/慈悲
+        // 在子菜单中向下导航（敌人列表）- 战斗/行动/仁慈
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
             conditions: [

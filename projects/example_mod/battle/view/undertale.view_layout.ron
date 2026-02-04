@@ -71,7 +71,7 @@
 
                 // ========================================
                 // ENEMY LIST (depth 1, FIGHT/ACT/MERCY)
-                // 敌人列表（深度 1，战斗/行动/慈悲模式）
+                // 敌人列表（深度 1，战斗/行动/仁慈模式）
                 // ========================================
                 // Using lambda syntax to dynamically generate enemy names from array
                 // 使用 lambda 语法从数组动态生成敌人名称
@@ -86,7 +86,7 @@
                     ),
                     line_height: 1.25,
                     // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemies exist
-                    // 在深度 1 时显示，仅限战斗(0)、行动(1)、慈悲(3)模式，且敌人存在
+                    // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式，且敌人存在
                     visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 1",
                 ),
             ],
@@ -146,7 +146,7 @@
         (
             name: "EnemySelectionCursor",
             // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3)
-            // 在深度 1 时显示，仅限战斗(0)、行动(1)、慈悲(3)模式
+            // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式
             visible_when: "$depth == 1 && $active && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3)",
             sprite: (
                 visual: "common/ui/heart",
@@ -241,7 +241,7 @@
 
         // ========================================
         // MERCY BUTTON
-        // 慈悲按钮
+        // 仁慈按钮
         // ========================================
         (
             name: "BtnMercy",
