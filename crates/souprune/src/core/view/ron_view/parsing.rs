@@ -59,7 +59,6 @@ impl RepeatContext {
 /// 使更新系统无需 repeat 上下文即可工作。
 pub fn preprocess_sprite_def_for_repeat(
     sprite_def: &super::super::layout::SpriteDef,
-    player_data: &PlayerDataView,
     repeat_ctx: &RepeatContext,
 ) -> super::super::layout::SpriteDef {
     let mut result = sprite_def.clone();
@@ -67,14 +66,14 @@ pub fn preprocess_sprite_def_for_repeat(
     // Preprocess transform expressions
     if let Some(ref mut transform) = result.transform {
         if let Some(ref mut translation) = transform.translation {
-            translation.0 = preprocess_val_for_repeat(&translation.0, player_data, repeat_ctx);
-            translation.1 = preprocess_val_for_repeat(&translation.1, player_data, repeat_ctx);
-            translation.2 = preprocess_val_for_repeat(&translation.2, player_data, repeat_ctx);
+            translation.0 = preprocess_val_for_repeat(&translation.0, repeat_ctx);
+            translation.1 = preprocess_val_for_repeat(&translation.1, repeat_ctx);
+            translation.2 = preprocess_val_for_repeat(&translation.2, repeat_ctx);
         }
         if let Some(ref mut scale) = transform.scale {
-            scale.0 = preprocess_val_for_repeat(&scale.0, player_data, repeat_ctx);
-            scale.1 = preprocess_val_for_repeat(&scale.1, player_data, repeat_ctx);
-            scale.2 = preprocess_val_for_repeat(&scale.2, player_data, repeat_ctx);
+            scale.0 = preprocess_val_for_repeat(&scale.0, repeat_ctx);
+            scale.1 = preprocess_val_for_repeat(&scale.1, repeat_ctx);
+            scale.2 = preprocess_val_for_repeat(&scale.2, repeat_ctx);
         }
     }
 
@@ -86,11 +85,7 @@ pub fn preprocess_sprite_def_for_repeat(
 ///
 /// 预处理单个 Val<f32> 以解析 repeat 上下文变量。
 /// 如果表达式包含 @i 或 $array[@i]，它们会被替换为具体值。
-fn preprocess_val_for_repeat(
-    val: &Val<f32>,
-    player_data: &PlayerDataView,
-    repeat_ctx: &RepeatContext,
-) -> Val<f32> {
+fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<f32> {
     match val {
         Val::Static(v) => Val::Static(*v),
         Val::Expr(expr_str) => {
@@ -100,10 +95,13 @@ fn preprocess_val_for_repeat(
                 return Val::Expr(expr_str.clone());
             }
 
-            // Preprocess to replace @i and $array[@i]
+            // Preprocess to replace @i and $array[@i] with concrete indices
+            // This converts $array[@i] to $array[0], $array[1], etc.
+            // so the update system can evaluate them without repeat context.
             let mut result = expr_str.clone();
 
             // Step 1: Handle $array[@var] dynamic index syntax FIRST
+            // Convert $array[@i] to $array[N] where N is the concrete index
             let dynamic_index_regex =
                 regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]")
                     .unwrap();
@@ -121,7 +119,9 @@ fn preprocess_val_for_repeat(
                             .and_then(|v| v.parse().ok())
                             .unwrap_or(0)
                     };
-                    get_array_element_for_expr(player_data, array_name, index, "0")
+                    // Return $array[N] format instead of the actual value
+                    // This preserves dynamic updates while resolving the repeat index
+                    format!("${}[{}]", array_name, index)
                 })
                 .to_string();
 

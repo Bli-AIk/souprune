@@ -179,7 +179,13 @@ pub fn spawn_ron_view_for_entity(
                 InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
                 InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
                 InitialFactValue::StringList(list) => {
-                    view_root.local_facts.set(key.clone(), list.clone())
+                    // Resolve localization references in string list items
+                    // 解析字符串列表项中的本地化引用
+                    let resolved_list: Vec<String> = list
+                        .iter()
+                        .map(|s| resolve_simple_localization(s, mortar_strings))
+                        .collect();
+                    view_root.local_facts.set(key.clone(), resolved_list)
                 }
                 InitialFactValue::IntList(list) => {
                     view_root.local_facts.set(key.clone(), list.clone())
@@ -937,7 +943,7 @@ fn spawn_view_node_with_repeat_context(
                 // Preprocess sprite_def to resolve repeat variables if repeat context exists
                 // 如果存在 repeat 上下文，预处理 sprite_def 以解析 repeat 变量
                 let processed_sprite_def = if let Some(ctx) = repeat_ctx {
-                    preprocess_sprite_def_for_repeat(sprite_def, player_data, ctx)
+                    preprocess_sprite_def_for_repeat(sprite_def, ctx)
                 } else {
                     sprite_def.clone()
                 };
@@ -1286,4 +1292,24 @@ fn spawn_standalone_static_sprite(
         "[UI Sprite] Spawned static sprite '{}' (Entity {:?}) with image: {:?}",
         node_name, entity_id, debug_path
     );
+}
+
+/// Resolve simple localization references in a string.
+/// Format: {{path:KEY}} -> looks up "path:KEY" in mortar_strings
+///
+/// 解析字符串中的简单本地化引用。
+/// 格式：{{path:KEY}} -> 在 mortar_strings 中查找 "path:KEY"
+fn resolve_simple_localization(
+    s: &str,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    // Check if the entire string is a localization reference
+    if s.starts_with("{{") && s.ends_with("}}") && s.len() > 4 {
+        let key = &s[2..s.len() - 2];
+        if let Some(value) = mortar_strings.get(key) {
+            return value.to_string();
+        }
+    }
+    // Return original string if not a localization reference or not found
+    s.to_string()
 }

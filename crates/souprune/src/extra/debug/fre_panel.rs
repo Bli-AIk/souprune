@@ -584,21 +584,96 @@ pub mod debug_fre_panel {
                                             }
                                         }
                                         FactValue::StringList(list) => {
-                                            // Show list with expandable elements - use key as unique id
+                                            // Show list with editable elements
                                             ui.push_id(format!("strlist_{}", key), |ui| {
                                                 ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                    for (idx, item) in list.iter().enumerate() {
-                                                        ui.label(format!("  {}: {}", idx, item));
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            let response = ui.add(
+                                                                egui::TextEdit::singleline(item)
+                                                                    .desired_width(120.0),
+                                                            );
+                                                            if response.changed() {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(String::new());
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::StringList(new_list),
+                                                        ));
                                                     }
                                                 });
                                             });
                                         }
                                         FactValue::IntList(list) => {
-                                            // Show int list with expandable elements - use key as unique id
+                                            // Show int list with editable elements
                                             ui.push_id(format!("intlist_{}", key), |ui| {
                                                 ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                    for (idx, item) in list.iter().enumerate() {
-                                                        ui.label(format!("  {}: {}", idx, item));
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            if ui
+                                                                .add(egui::DragValue::new(item))
+                                                                .changed()
+                                                            {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(0);
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::IntList(new_list),
+                                                        ));
                                                     }
                                                 });
                                             });
@@ -686,21 +761,89 @@ pub mod debug_fre_panel {
                             }
                         }
                         FactValue::StringList(ref list) => {
-                            // Show list with expandable elements - use key as unique id
+                            // Show list with editable elements
                             ui.push_id(format!("layered_strlist_{}", key), |ui| {
                                 ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    for (idx, item) in list.iter().enumerate() {
-                                        ui.label(format!("  {}: {}", idx, item));
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            let response = ui.add(
+                                                egui::TextEdit::singleline(item)
+                                                    .desired_width(120.0),
+                                            );
+                                            if response.changed() {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(String::new());
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::StringList(new_list),
+                                            layer,
+                                        ));
                                     }
                                 });
                             });
                         }
                         FactValue::IntList(ref list) => {
-                            // Show int list with expandable elements - use key as unique id
+                            // Show int list with editable elements
                             ui.push_id(format!("layered_intlist_{}", key), |ui| {
                                 ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    for (idx, item) in list.iter().enumerate() {
-                                        ui.label(format!("  {}: {}", idx, item));
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            if ui.add(egui::DragValue::new(item)).changed() {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(0);
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::IntList(new_list),
+                                            layer,
+                                        ));
                                     }
                                 });
                             });

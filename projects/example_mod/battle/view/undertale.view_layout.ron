@@ -28,7 +28,9 @@
         // 战斗敌人数据 - 使用数组支持无限数量的敌人
         // Note: String arrays and Int arrays are supported
         // 注意：支持字符串数组和整数数组
-        "enemy_names": ["测试1", "测试2", "测试3", "测试4", "测试5"],
+        // Use {{path:KEY}} syntax for localized names
+        // 使用 {{path:KEY}} 语法来获取本地化名称
+        "enemy_names": ["{{battle/ui:ENEMY_TEST1}}", "{{battle/ui:ENEMY_TEST2}}", "{{battle/ui:ENEMY_TEST3}}", "{{battle/ui:ENEMY_TEST4}}", "{{battle/ui:ENEMY_TEST5}}"],
         "enemy_hps": [100, 80, 120, 60, 150],
         "enemy_hp_maxs": [100, 100, 150, 80, 200],
     },
