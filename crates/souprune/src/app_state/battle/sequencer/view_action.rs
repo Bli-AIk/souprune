@@ -9,6 +9,7 @@
 use super::super::chapter_schema::{Chapter, DataBinding};
 use super::context::*;
 use bevy::prelude::*;
+use bevy_fact_rule_event::FreAsset;
 use std::collections::HashMap;
 
 /// Resource to store view bindings for the current view spawn.
@@ -19,6 +20,10 @@ use std::collections::HashMap;
 #[derive(Resource, Default)]
 pub struct PendingViewBindings {
     pub bindings: HashMap<String, DataBinding>,
+    /// Handles to FRE assets being loaded for bindings.
+    /// 正在为绑定加载的 FRE 资产句柄。
+    #[allow(dead_code)]
+    pub fre_handles: Vec<Handle<FreAsset>>,
 }
 
 /// System to process view actions.
@@ -70,11 +75,33 @@ pub fn process_view_action_system(
                 path: view_layout.clone(),
             });
 
+            // Pre-load FRE files referenced in bindings
+            // 预加载绑定中引用的 FRE 文件
+            let mut fre_handles = Vec::new();
+            for binding in bindings.values() {
+                match binding {
+                    DataBinding::File(path) => {
+                        let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                        info!("[Battle] Pre-loading FRE file for binding: {}", path);
+                        fre_handles.push(handle);
+                    }
+                    DataBinding::Files(paths) => {
+                        for path in paths {
+                            let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                            info!("[Battle] Pre-loading FRE file for binding: {}", path);
+                            fre_handles.push(handle);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
             // Store bindings for the view spawn system
             // 存储绑定供视图生成系统使用
             if !bindings.is_empty() {
                 commands.insert_resource(PendingViewBindings {
                     bindings: bindings.clone(),
+                    fre_handles,
                 });
                 info!("[Battle] SpawnView with {} bindings", bindings.len());
             }

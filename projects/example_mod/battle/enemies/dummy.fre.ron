@@ -18,15 +18,15 @@
     facts: {
         // Basic enemy stats
         // 基本敌人属性
-        "enemy.dummy.name": "Dummy",
-        "enemy.dummy.hp": Int(100),
-        "enemy.dummy.hp_max": Int(100),
-        "enemy.dummy.attack": Int(0),
-        "enemy.dummy.defense": Int(0),
+        "dummy.name": String("Dummy"),
+        "dummy.hp": Int(100),
+        "dummy.hp_max": Int(100),
+        "dummy.attack": Int(0),
+        "dummy.defense": Int(0),
 
         // Encounter description
         // 遭遇描述
-        "enemy.dummy.description": "A cotton heart and a button eye.",
+        "dummy.description": String("A cotton heart and a button eye."),
     },
 
     // Enemy-specific rules

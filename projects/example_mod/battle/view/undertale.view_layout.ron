@@ -5,13 +5,27 @@
 // View system features used in this layout:
 // 此布局使用的视图系统特性：
 // - `visible_when`: Expression-based visibility control
-// - `initial_facts`: View-local state initialization
-// - `state_sprite`: Data-driven button highlighting
+// - `requires`: Data dependency declaration with interface bindings
+// - `facts`: View-local state initialization
 //
 // NOTE: Navigation is handled by battle_view_navigation_system in battle/fre/bridge.rs
 // 注意：导航由 battle/fre/bridge.rs 中的 battle_view_navigation_system 处理
 
 (
+    // Data dependencies declaration
+    // 数据依赖声明
+    requires: [
+        // Enemies interface - bound by SpawnView's bindings
+        // 敌人接口 - 由 SpawnView 的 bindings 绑定
+        Interface(
+            interface: "enemies",
+            expects: [
+                "enemy_names: StringList",
+                "enemy_hps: IntList",
+                "enemy_hp_maxs: IntList",
+            ],
+        ),
+    ],
 
     // View-local facts for battle menu state
     // 战斗菜单状态的 View 局部事实
@@ -22,16 +36,6 @@
         "item_selection": 0,       // Item selection in depth 1
         "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
         "active": true,            // Whether menu is active (vs bullet hell)
-
-        // Enemy data for battle - using arrays for unlimited enemies
-        // 战斗敌人数据 - 使用数组支持无限数量的敌人
-        // Note: String arrays and Int arrays are supported
-        // 注意：支持字符串数组和整数数组
-        // Use {{path:KEY}} syntax for localized names
-        // 使用 {{path:KEY}} 语法来获取本地化名称
-        "enemy_names": ["{{battle/ui:ENEMY_TEST1}}", "{{battle/ui:ENEMY_TEST2}}", "{{battle/ui:ENEMY_TEST3}}", "{{battle/ui:ENEMY_TEST4}}", "{{battle/ui:ENEMY_TEST5}}"],
-        "enemy_hps": [100, 80, 120, 60, 150],
-        "enemy_hp_maxs": [100, 100, 150, 80, 200],
     },
 
     roots: [

@@ -73,6 +73,19 @@ pub fn spawn_ron_view_system(
         return;
     };
 
+    // Check if all FRE assets in pending bindings are loaded
+    // 检查所有待处理绑定中的 FRE 资产是否已加载
+    if let Some(ref bindings_res) = pending_bindings {
+        for handle in &bindings_res.fre_handles {
+            if fre_assets.get(handle).is_none() {
+                // FRE asset not yet loaded, wait for next frame
+                // FRE 资产尚未加载，等待下一帧
+                trace!("[spawn_ron_view] Waiting for FRE assets to load...");
+                return;
+            }
+        }
+    }
+
     // Log query counts for debugging
     let backpack_count = backpack_root_query.iter().count();
     let battle_count = battle_root_query.iter().count();
@@ -242,7 +255,27 @@ pub fn spawn_ron_view_for_entity(
                                 // Copy facts from LOCAL layer to view's local_facts
                                 // 从 LOCAL 层复制 facts 到 view 的 local_facts
                                 for (key, value) in layered_db.iter_local() {
-                                    view_root.local_facts.set(key.0.clone(), value.clone());
+                                    // Resolve localization for string values
+                                    // 解析字符串值的本地化
+                                    match value {
+                                        bevy_fact_rule_event::FactValue::String(s) => {
+                                            let resolved =
+                                                resolve_simple_localization(s, mortar_strings);
+                                            view_root.local_facts.set(key.0.clone(), resolved);
+                                        }
+                                        bevy_fact_rule_event::FactValue::StringList(list) => {
+                                            let resolved_list: Vec<String> = list
+                                                .iter()
+                                                .map(|s| {
+                                                    resolve_simple_localization(s, mortar_strings)
+                                                })
+                                                .collect();
+                                            view_root.local_facts.set(key.0.clone(), resolved_list);
+                                        }
+                                        _ => {
+                                            view_root.local_facts.set(key.0.clone(), value.clone());
+                                        }
+                                    }
                                 }
                                 info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
                             }

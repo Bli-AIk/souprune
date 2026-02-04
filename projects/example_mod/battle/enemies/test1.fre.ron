@@ -2,11 +2,11 @@
 // 测试敌人 1 定义
 (
     facts: {
-        "enemy.test1.name": "{{battle/ui:ENEMY_TEST1}}",
-        "enemy.test1.hp": Int(100),
-        "enemy.test1.hp_max": Int(100),
-        "enemy.test1.attack": Int(5),
-        "enemy.test1.defense": Int(3),
+        "test1.name": String("{{battle/ui:ENEMY_TEST1}}"),
+        "test1.hp": Int(100),
+        "test1.hp_max": Int(100),
+        "test1.attack": Int(5),
+        "test1.defense": Int(3),
     },
     rules: [],
 )
