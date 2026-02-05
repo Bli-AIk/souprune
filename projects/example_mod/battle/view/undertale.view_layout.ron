@@ -172,12 +172,12 @@
                     translation: (
                         // X position: left of enemy names, inside BattleBox
                         // X 位置：敌人名称左侧，在战斗框内
-                        "-247.5",
+                        "-248.0",
                         // Y position: based on visible position (enemy_selection - enemy_view_offset)
                         // Y 位置：基于可见位置（enemy_selection - enemy_view_offset）
                         // Pattern: 50 - (visible_index) * 32 for Y offset from top
                         // 模式：50 - (可见索引) * 32 用于从顶部的 Y 偏移
-                        "-45.5 - ($enemy_selection - $enemy_view_offset) * 16.5",
+                        "-45.5 - ($enemy_selection - $enemy_view_offset) * 32.0",
                         "10.0",
                     ),
                 ),
