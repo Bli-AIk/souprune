@@ -114,10 +114,14 @@ pub fn update_enemy_hp_bar_shader_params(
     layered_db: Res<LayeredFactDatabase>,
     mut materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
     mut query: Query<(
+        Entity,
         &MeshMaterial2d<super::super::custom_sprite_material::EnemyHpBarMaterial>,
         &mut HPBarLag,
         &HPBarSprite,
     )>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<(Entity, &ViewRoot)>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
 ) {
     // Early exit: skip if no enemy HP bars exist
     // 提前退出：如果没有敌人 HP 条则跳过
@@ -127,17 +131,30 @@ pub fn update_enemy_hp_bar_shader_params(
 
     // Check if any HP bar needs animation update (lag animation in progress)
     // 检查是否有 HP 条需要动画更新（lag 动画进行中）
-    let needs_animation_update = query.iter().any(|(_, lag, _)| lag.anim_progress < 0.5);
+    let needs_animation_update = query.iter().any(|(_, _, lag, _)| lag.anim_progress < 0.5);
+
+    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
+    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
 
     // Only proceed if database changed OR animation is in progress
     // 仅在数据库变化或动画进行中时继续
-    if !layered_db.is_changed() && !needs_animation_update {
+    if !global_changed && !any_view_root_changed && !needs_animation_update {
         return;
     }
 
-    let player_data = PlayerDataView::new(&layered_db);
+    for (entity, material_handle, mut lag, hp_bar) in query.iter_mut() {
+        // Find ViewRoot ancestor to access local facts (where enemy_hps is stored)
+        // 查找 ViewRoot 祖先以访问局部事实（enemy_hps 存储位置）
+        let view_root_result =
+            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+        let player_data = if let Some((_, view_root)) = view_root_result {
+            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
 
-    for (material_handle, mut lag, hp_bar) in query.iter_mut() {
         // Get HP values based on source type
         // 根据来源类型获取 HP 值
         let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
