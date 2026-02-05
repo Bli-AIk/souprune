@@ -288,25 +288,49 @@ pub fn update_dynamic_text_system(
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    view_root_query: Query<(Entity, &ViewRoot)>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
+    parent_query: Query<&ChildOf>,
 ) {
     use bevy::prelude::DetectChanges;
 
-    if !layered_db.is_changed() {
+    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
+    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
+
+    if !global_changed && !any_view_root_changed {
         return;
     }
 
-    let player_data = PlayerDataView::new(&layered_db);
+    // Base player data for logging and fallback
+    // 用于日志和回退的基础 player data
+    let base_player_data = PlayerDataView::new(&layered_db);
 
     info!(
-        "[update_dynamic_text_system] LayeredFactDatabase changed! hp={}, hp_max={}",
-        player_data.get_fact_int("player_hp").unwrap_or(0),
-        player_data.get_fact_int("player_hp_max").unwrap_or(0)
+        "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
+        global_changed,
+        any_view_root_changed,
+        base_player_data.get_fact_int("player_hp").unwrap_or(0),
+        base_player_data.get_fact_int("player_hp_max").unwrap_or(0)
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {
+        // Find ViewRoot ancestor to access local facts
+        // 查找 ViewRoot 祖先以访问局部事实
+        let view_root_result =
+            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+        let player_data = if let Some((_, view_root)) = view_root_result {
+            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
         info!(
-            "[update_dynamic_text_system] Updating text '{}' with template: '{}'",
-            name, template.0
+            "[update_dynamic_text_system] Updating text '{}' with template: '{}' (has_local_facts={})",
+            name,
+            template.0,
+            view_root_result.is_some()
         );
 
         let new_content =
@@ -342,6 +366,38 @@ pub fn update_dynamic_text_system(
         // To support that, we would need to store the `conditional_style` in a component too.
         // For HP update, it is usually just text change, so this might be enough for the bug report.
     }
+}
+
+/// Find the ViewRoot ancestor of an entity by traversing up the hierarchy.
+/// Returns a tuple of (Entity, &ViewRoot) if found, None otherwise.
+///
+/// 通过向上遍历层级结构查找实体的 ViewRoot 祖先。
+/// 如果找到则返回 (Entity, &ViewRoot) 元组，否则返回 None。
+fn find_view_root_ancestor_entity<'a>(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    view_root_query: &'a Query<(Entity, &ViewRoot)>,
+) -> Option<(Entity, &'a ViewRoot)> {
+    let mut current = entity;
+
+    // First check if the entity itself is a ViewRoot
+    if let Ok((e, view_root)) = view_root_query.get(current) {
+        return Some((e, view_root));
+    }
+
+    // Traverse up the parent hierarchy
+    while let Ok(child_of) = parent_query.get(current) {
+        let parent = child_of.parent();
+
+        // Check if parent is a ViewRoot
+        if let Ok((e, view_root)) = view_root_query.get(parent) {
+            return Some((e, view_root));
+        }
+
+        current = parent;
+    }
+
+    None
 }
 
 /// Find the ViewRoot ancestor of an entity by traversing up the hierarchy.
