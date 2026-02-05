@@ -144,6 +144,7 @@ pub fn incremental_reload_system(
         &ChildOf,
     )>,
     mut visible_when_query: Query<&mut crate::core::view::components::VisibleWhen>,
+    mut visibility_query: Query<&mut Visibility>,
     mut transform_query: Query<&mut Transform>,
     mut sprite_query: Query<&mut Sprite>,
     mut dynamic_element_query: Query<&mut crate::core::view::components::DynamicViewElement>,
@@ -231,17 +232,56 @@ pub fn incremental_reload_system(
                 continue;
             };
 
-            // Update VisibleWhen expression
-            if let Some(new_visible_when) = &node_def.visible_when
+            // Process visible_when expression - handle repeat element @i replacement
+            // 处理 visible_when 表达式 - 处理重复元素的 @i 替换
+            let processed_visible_when = if let Some(new_visible_when) = &node_def.visible_when {
+                if let Some(ref ctx) = repeat_ctx {
+                    // Replace @i or @index with the concrete index for repeat elements
+                    // 为重复元素将 @i 或 @index 替换为具体索引
+                    let processed = new_visible_when
+                        .replace("@i", &ctx.index.to_string())
+                        .replace("@index", &ctx.index.to_string());
+                    Some(processed)
+                } else {
+                    Some(new_visible_when.clone())
+                }
+            } else {
+                None
+            };
+
+            // Update VisibleWhen expression and immediately re-evaluate visibility
+            // 更新 VisibleWhen 表达式并立即重新评估可见性
+            if let Some(ref new_visible_when) = processed_visible_when
                 && let Ok(mut visible_when) = visible_when_query.get_mut(entity)
-                && visible_when.expression != *new_visible_when
             {
-                debug!(
-                    "[Hot Reload] visible_when '{}': '{}' -> '{}'",
-                    view_element.full_name, visible_when.expression, new_visible_when
-                );
-                visible_when.expression = new_visible_when.clone();
-                updated_count += 1;
+                if visible_when.expression != *new_visible_when {
+                    debug!(
+                        "[Hot Reload] visible_when '{}': '{}' -> '{}'",
+                        view_element.full_name, visible_when.expression, new_visible_when
+                    );
+                    visible_when.expression = new_visible_when.clone();
+                    updated_count += 1;
+                }
+
+                // Immediately re-evaluate visibility to apply the new expression
+                // 立即重新评估可见性以应用新表达式
+                let is_visible =
+                    super::parsing::evaluate_visible_when(&visible_when.expression, &player_data);
+                let desired_visibility = if is_visible {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+
+                if let Ok(mut visibility) = visibility_query.get_mut(entity) {
+                    if *visibility != desired_visibility {
+                        debug!(
+                            "[Hot Reload] visibility '{}': {:?} -> {:?}",
+                            view_element.full_name, *visibility, desired_visibility
+                        );
+                        *visibility = desired_visibility;
+                    }
+                }
             }
 
             // Update CameraAnchored offset for ViewBox nodes
