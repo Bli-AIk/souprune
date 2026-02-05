@@ -59,18 +59,48 @@
         // === SUBMENU NAVIGATION (depth 1) - VERTICAL / 子菜单导航（深度 1）- 纵向 ===
 
         // Navigate up in submenu (enemy list) - FIGHT/ACT/MERCY
+        // Without scrolling: just move selection up
         // 在子菜单中向上导航（敌人列表）- 战斗/行动/仁慈
+        // 无滚动：仅向上移动选择
         (
             event: ActionEvent(action: "Up", kind: JustPressed),
-            conditions: ["$active == true", "$depth == 1", "$menu_context != 2", "$enemy_selection > 0"],
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",
+                "$enemy_selection > 0",
+                "$enemy_selection > $enemy_view_offset",  // Not at top of view
+            ],
             actions: [
                 SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")),
                 PlaySound("choice"),
             ],
         ),
 
+        // Navigate up in submenu (enemy list) - with scroll up
+        // Scroll window up when at top of visible area
+        // 在子菜单中向上导航（敌人列表）- 带向上滚动
+        // 当在可见区域顶部时向上滚动窗口
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",
+                "$enemy_selection > 0",
+                "$enemy_selection <= $enemy_view_offset",  // At top of view, need to scroll
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")),
+                SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
         // Navigate down in submenu (enemy list) - FIGHT/ACT/MERCY
+        // Without scrolling: just move selection down
         // 在子菜单中向下导航（敌人列表）- 战斗/行动/仁慈
+        // 无滚动：仅向下移动选择
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
             conditions: [
@@ -78,9 +108,30 @@
                 "$depth == 1",
                 "$menu_context != 2",  // Not ITEM menu
                 "$enemy_selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+                "$enemy_selection < $enemy_view_offset + $enemy_display_limit - 1",  // Not at bottom of view
             ],
             actions: [
                 SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu (enemy list) - with scroll down
+        // Scroll window down when at bottom of visible area
+        // 在子菜单中向下导航（敌人列表）- 带向下滚动
+        // 当在可见区域底部时向下滚动窗口
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",  // Not ITEM menu
+                "$enemy_selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+                "$enemy_selection >= $enemy_view_offset + $enemy_display_limit - 1",  // At bottom of view, need to scroll
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")),
+                SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset + 1")),
                 PlaySound("choice"),
             ],
         ),

@@ -347,6 +347,36 @@ pub struct SpriteDef {
     /// 示例: "fact('depth') == 1", "$selection == 0"
     #[serde(default)]
     pub visible_when: Option<String>,
+
+    /// HP bar source configuration for HP bar sprites.
+    /// When set, this sprite is treated as an HP bar and its shader params
+    /// will be dynamically updated based on the specified HP source.
+    ///
+    /// HP 条来源配置。
+    /// 设置后，此精灵将被视为 HP 条，其 shader 参数
+    /// 将根据指定的 HP 来源动态更新。
+    #[serde(default)]
+    pub hp_bar_source: Option<HPBarSourceDef>,
+}
+
+/// HP bar source definition for configuring where HP values come from.
+/// HP 条来源定义，用于配置 HP 值的来源。
+#[derive(Debug, Deserialize, Clone)]
+pub enum HPBarSourceDef {
+    /// Player HP source - uses player_hp and player_hp_max facts.
+    /// 玩家 HP 来源 - 使用 player_hp 和 player_hp_max facts。
+    Player,
+    /// Enemy HP source - uses enemy_hps and enemy_hp_maxs arrays.
+    /// The index is resolved from the repeat context (@i variable).
+    /// 敌人 HP 来源 - 使用 enemy_hps 和 enemy_hp_maxs 数组。
+    /// 索引从 repeat 上下文（@i 变量）解析。
+    Enemy,
+    /// Custom HP source with expressions.
+    /// 自定义 HP 来源（使用表达式）。
+    Custom {
+        hp_expr: String,
+        hp_max_expr: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -1,6 +1,7 @@
 use super::super::components::ViewRoot;
 use super::super::components::{
-    DynamicViewElement, HPBarLag, HPBarSprite, TimeDependentTransform, ViewTextTemplate,
+    DynamicViewElement, HPBarLag, HPBarSprite, HPSourceType, TimeDependentTransform,
+    ViewTextTemplate,
 };
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
@@ -36,18 +37,24 @@ pub fn update_hp_bar_shader_params(
     }
 
     let player_data = PlayerDataView::new(&layered_db);
-    let hp = player_data.get_fact_int("player_hp").unwrap_or(0) as f32;
-    let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(1) as f32;
-    let hp_ratio = hp / hp_max;
 
     for (material_handle, mut lag, hp_bar) in query.iter_mut() {
+        // Get HP values based on source type
+        // 根据来源类型获取 HP 值
+        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
+        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
+
         // Detect significant HP drop (Damage taken)
-        if hp_ratio < lag.last_hp_ratio {
+        // 检测明显的 HP 下降（受到伤害）
+        if hp_ratio < lag.last_hp_ratio - 0.001 {
             // Start the sequence immediately
             lag.delay_timer = 0.0;
             lag.start_lag_ratio = lag.lag_hp_ratio;
             lag.anim_progress = 0.0;
-            info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
+            trace!(
+                "[HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
+                hp_ratio, lag.last_hp_ratio
+            );
         }
 
         lag.last_hp_ratio = hp_ratio;
@@ -93,6 +100,39 @@ pub fn update_hp_bar_shader_params(
 
         if let Some(material) = materials.get_mut(material_handle) {
             material.color_params = target_params;
+        }
+    }
+}
+
+/// Get HP values from the specified source.
+/// 从指定来源获取 HP 值。
+fn get_hp_values_from_source(hp_source: &HPSourceType, player_data: &PlayerDataView) -> (f32, f32) {
+    match hp_source {
+        HPSourceType::Player => {
+            let hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
+            let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
+            (hp, hp_max)
+        }
+        HPSourceType::Enemy { index } => {
+            let hp = player_data
+                .get_fact_int_list("enemy_hps")
+                .and_then(|list| list.get(*index).copied())
+                .unwrap_or(100) as f32;
+            let hp_max = player_data
+                .get_fact_int_list("enemy_hp_maxs")
+                .and_then(|list| list.get(*index).copied())
+                .unwrap_or(100) as f32;
+            (hp, hp_max)
+        }
+        HPSourceType::Custom {
+            hp_expr,
+            hp_max_expr,
+        } => {
+            let hp =
+                super::parsing::evaluate_fact_expression(hp_expr, player_data).unwrap_or(100.0);
+            let hp_max =
+                super::parsing::evaluate_fact_expression(hp_max_expr, player_data).unwrap_or(100.0);
+            (hp, hp_max)
         }
     }
 }

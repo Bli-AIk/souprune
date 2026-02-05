@@ -40,6 +40,8 @@
         "item_selection": 0,       // Item selection in depth 1
         "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
         "active": true,            // Whether menu is active (vs bullet hell)
+        "enemy_view_offset": 0,    // Scroll offset for enemy list (滚动偏移量)
+        "enemy_display_limit": 3,  // Max enemies to display at once (同时显示的最大敌人数)
     },
 
     roots: [
@@ -77,11 +79,11 @@
                 // ENEMY LIST (depth 1, FIGHT/ACT/MERCY)
                 // 敌人列表（深度 1，战斗/行动/仁慈模式）
                 // ========================================
-                // Using lambda syntax to dynamically generate enemy names from array
-                // 使用 lambda 语法从数组动态生成敌人名称
+                // Using lambda syntax with range to dynamically generate visible enemy names
+                // 使用带范围的 lambda 语法动态生成可见的敌人名称
                 (
                     id: "EnemyNames",
-                    content: "{|name| in $enemy_names => \"* {name}\"}",
+                    content: "{|name, i| in $enemy_names[$enemy_view_offset..$enemy_view_offset+$enemy_display_limit] => \"* {name}\"}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -103,18 +105,29 @@
                 // ========================================
                 (
                     name: "EnemyHpBar",
-                    visible_when: "$depth == 1 && $menu_context == 0",
+                    // Show when: depth 1, FIGHT mode, and within visible window
+                    // 显示条件：深度1，战斗模式，且在可见窗口内
+                    visible_when: "$depth == 1 && $menu_context == 0 && @i >= $enemy_view_offset && @i < $enemy_view_offset + $enemy_display_limit",
                     repeat: (
                         source: "enemy_names",
                         index_var: "i",
                     ),
                     sprite: (
                         visual: "procedural://white_pixel",
-                        color: (0.0, 1.0, 0.0, 1.0),  // Pure green
+                        // Use green enemy HP bar shader
+                        // 使用绿色敌人 HP 条 shader
+                        custom_shader: "shaders/enemy_hp_bar_sprite.wgsl",
+                        // HP bar source: Enemy - index from repeat context
+                        // HP 条来源：敌人 - 索引来自 repeat 上下文
+                        hp_bar_source: Enemy,
+                        // Shader params: (hp_ratio, lag_ratio, half_width, alpha)
+                        // Note: hp_ratio and lag_ratio will be dynamically updated by the system
+                        shader_params: (1.0, 1.0, 50.0, 1.0),
                         transform: (
-                            // Position: Y offset based on index (50, 18, -14, -46 pattern = 50 - i * 32)
-                            translation: (-68.0, "31.25 - @i * 32.0", 10.0),
-                            // Width based on HP ratio, height fixed
+                            // Position: Y offset based on visible index (relative to view_offset)
+                            // 位置：Y偏移基于可见索引（相对于view_offset）
+                            translation: (-68.0, "31.25 - (@i - $enemy_view_offset) * 32.0", 10.0),
+                            // Width fixed, height fixed
                             scale: (100.75, 17.0, 1.0),
                         ),
                         pivot: (0.0, 0.5),
@@ -160,9 +173,11 @@
                         // X position: left of enemy names, inside BattleBox
                         // X 位置：敌人名称左侧，在战斗框内
                         "-247.5",
-                        // Y position: based on enemy_selection (50, 18, -14, -46)
-                        // Y 位置：基于敌人选择（50, 18, -14, -46）
-                        "if($enemy_selection == 0, -45.5, if($enemy_selection == 1, -62.0, if($enemy_selection == 2, -94.0, -126.0)))",
+                        // Y position: based on visible position (enemy_selection - enemy_view_offset)
+                        // Y 位置：基于可见位置（enemy_selection - enemy_view_offset）
+                        // Pattern: 50 - (visible_index) * 32 for Y offset from top
+                        // 模式：50 - (可见索引) * 32 用于从顶部的 Y 偏移
+                        "-45.5 - ($enemy_selection - $enemy_view_offset) * 16.5",
                         "10.0",
                     ),
                 ),

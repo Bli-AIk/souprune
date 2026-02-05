@@ -555,8 +555,35 @@ fn resolve_int(
         if let Some(val) = local_facts.get_int(var_name) {
             return Some(val);
         }
+        // Check if it's a StringList - return its length
+        // This allows conditions like `$enemy_selection < $enemy_names - 1`
+        // where $enemy_names is a StringList
+        if let Some(val) = local_facts.get_by_str(var_name)
+            && let FactValue::StringList(list) = val
+        {
+            return Some(list.len() as i64);
+        }
+        if let Some(val) = local_facts.get_by_str(var_name)
+            && let FactValue::IntList(list) = val
+        {
+            return Some(list.len() as i64);
+        }
         // Check global_facts
-        return global_facts.get_int(var_name);
+        if let Some(val) = global_facts.get_int(var_name) {
+            return Some(val);
+        }
+        // Check if it's a StringList in global_facts
+        if let Some(val) = global_facts.get_by_str(var_name)
+            && let FactValue::StringList(list) = val
+        {
+            return Some(list.len() as i64);
+        }
+        if let Some(val) = global_facts.get_by_str(var_name)
+            && let FactValue::IntList(list) = val
+        {
+            return Some(list.len() as i64);
+        }
+        return None;
     }
 
     expr.parse::<i64>().ok()

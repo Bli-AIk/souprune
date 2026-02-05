@@ -2,6 +2,7 @@ use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
 use bevy::prelude::*;
+use evalexpr::HashMapContext;
 use std::collections::HashMap;
 
 // Re-export PlayerDataView for backward compatibility
@@ -156,27 +157,32 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
 
 /// Parse and evaluate lambda expressions in text content.
 /// Format: {|item, index| in $array => "template" sep "separator"}
+/// Or with range: {|item, index| in $array[$offset..$offset+$limit] => "template" sep "separator"}
 ///
 /// 解析并计算文本内容中的 lambda 表达式。
 /// 格式：{|item, index| in $array => "template" sep "separator"}
+/// 或带范围：{|item, index| in $array[$offset..$offset+$limit] => "template" sep "separator"}
 ///
 /// Examples:
 /// - `{|name| in $enemy_names => "* {name}"}` - simple item iteration
 /// - `{|name, i| in $enemy_names => "* {name}" sep "\n"}` - with index and separator
+/// - `{|name, i| in $enemy_names[$enemy_view_offset..$enemy_view_offset+$enemy_display_limit] => "* {name}"}` - with range
 fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Option<String> {
-    // Regex to parse lambda expression
-    // Format: |item, index| in $array => "template" sep "separator"
-    let lambda_regex = regex::Regex::new(
-        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+    // First, try the extended regex with optional range syntax
+    // Format: |item, index| in $array or $array[$start..$end] => "template" sep "separator"
+    let lambda_regex_with_range = regex::Regex::new(
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]]+)\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
     ).ok()?;
 
-    let caps = lambda_regex.captures(expr)?;
+    let caps = lambda_regex_with_range.captures(expr)?;
 
     let item_var = &caps[1];
     let index_var = caps.get(2).map(|m| m.as_str());
     let array_name = &caps[3];
-    let template = &caps[4];
-    let separator = caps.get(5).map(|m| m.as_str()).unwrap_or("\n");
+    let start_expr = caps.get(4).map(|m| m.as_str());
+    let end_expr = caps.get(5).map(|m| m.as_str());
+    let template = &caps[6];
+    let separator = caps.get(7).map(|m| m.as_str()).unwrap_or("\n");
 
     // Get array from player data - try StringList first, then IntList
     let array: Vec<String> = if let Some(list) = player_data.get_fact_string_list(array_name) {
@@ -191,10 +197,24 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
         return Some(String::new());
     };
 
-    // Generate output for each element
+    // Calculate range (start and end indices)
+    // 计算范围（起始和结束索引）
+    let (start_idx, end_idx) = if let (Some(start), Some(end)) = (start_expr, end_expr) {
+        // Evaluate start and end expressions
+        let start_val = evaluate_lambda_range_expr(start, player_data).unwrap_or(0);
+        let end_val = evaluate_lambda_range_expr(end, player_data).unwrap_or(array.len());
+        (start_val.max(0), end_val.min(array.len()))
+    } else {
+        // No range specified - use entire array
+        (0, array.len())
+    };
+
+    // Generate output for elements in range
+    // 为范围内的元素生成输出
     let lines: Vec<String> = array
         .iter()
         .enumerate()
+        .filter(|(i, _)| *i >= start_idx && *i < end_idx)
         .map(|(i, item)| {
             let mut line = template.to_string();
             // Replace item variable: {item_var}
@@ -210,6 +230,26 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
         .collect();
 
     Some(lines.join(separator))
+}
+
+/// Evaluate a range expression for lambda (supports $fact_name and simple arithmetic)
+/// 计算 lambda 的范围表达式（支持 $fact_name 和简单算术）
+fn evaluate_lambda_range_expr(expr: &str, player_data: &PlayerDataView) -> Option<usize> {
+    // Preprocess fact expressions
+    let processed_expr = preprocess_fact_expressions(expr, player_data);
+
+    let context: HashMapContext = HashMapContext::new();
+
+    match evalexpr::eval_number_with_context(&processed_expr, &context) {
+        Ok(val) => Some((val as i64).max(0) as usize),
+        Err(e) => {
+            warn!(
+                "[evaluate_lambda_range_expr] Failed to evaluate '{}' (processed: '{}'): {}",
+                expr, processed_expr, e
+            );
+            None
+        }
+    }
 }
 
 /// Analyze whether an expression depends on time (@time).
@@ -1440,4 +1480,27 @@ pub fn evaluate_dynamic_color(
         evaluate_float_expr(&color.2, player_data, time),
         evaluate_float_expr(&color.3, player_data, time),
     )
+}
+
+/// Evaluate a fact expression string and return the result as f32.
+/// Supports $fact_name syntax for reading from the fact database.
+///
+/// 评估一个 fact 表达式字符串并返回 f32 结果。
+/// 支持 $fact_name 语法从 fact 数据库读取。
+pub fn evaluate_fact_expression(expr: &str, player_data: &PlayerDataView) -> Option<f32> {
+    // Preprocess fact expressions before evaluation
+    let processed_expr = preprocess_fact_expressions(expr, player_data);
+
+    let context: HashMapContext = HashMapContext::new();
+
+    match evalexpr::eval_number_with_context(&processed_expr, &context) {
+        Ok(val) => Some(val as f32),
+        Err(e) => {
+            warn!(
+                "[evaluate_fact_expression] Failed to evaluate '{}' (processed: '{}'): {}",
+                expr, processed_expr, e
+            );
+            None
+        }
+    }
 }

@@ -878,6 +878,10 @@ fn spawn_view_node_with_repeat_context(
                     final_transform.translation += shift;
                 }
 
+                // Determine HP source type based on configuration and repeat context
+                // 根据配置和 repeat 上下文确定 HP 来源类型
+                let hp_source = determine_hp_source(&sprite_def.hp_bar_source, repeat_ctx);
+
                 let mut entity_cmd = parent.spawn((
                     final_transform,
                     GlobalTransform::default(),
@@ -888,6 +892,7 @@ fn spawn_view_node_with_repeat_context(
                     RonDrivenView,
                     HPBarSprite {
                         shader_params_expr: sprite_def.shader_params.clone(),
+                        hp_source,
                     },
                 ));
                 if let Some(ref ve) = view_element {
@@ -1157,16 +1162,33 @@ fn spawn_view_node_with_repeat_context(
         if let Some(visible_when_expr) = &node_def.visible_when {
             let expr = visible_when_expr.trim();
             if !expr.is_empty() {
+                // Replace @i and other repeat context variables in the expression
+                // 替换表达式中的 @i 和其他 repeat 上下文变量
+                let processed_expr = if let Some(ctx) = repeat_ctx {
+                    let mut result = expr.to_string();
+                    // Replace @i or @index with concrete index
+                    result = result.replace("@i", &ctx.index.to_string());
+                    result = result.replace("@index", &ctx.index.to_string());
+                    // Replace custom index variable if defined (e.g., $i when index_var: "i")
+                    for (var_name, var_value) in &ctx.variables {
+                        // For repeat context, variables are typically item values
+                        result = result.replace(&format!("@{}", var_name), var_value);
+                    }
+                    result
+                } else {
+                    expr.to_string()
+                };
+
                 info!(
-                    "Adding VisibleWhen to entity {:?} ({}): '{}'",
-                    entity_id, node_def.name, expr
+                    "Adding VisibleWhen to entity {:?} ({}): '{}' (original: '{}')",
+                    entity_id, node_def.name, processed_expr, expr
                 );
                 commands.entity(entity_id).insert(VisibleWhen {
-                    expression: expr.to_string(),
+                    expression: processed_expr.clone(),
                 });
 
                 // Evaluate initial visibility
-                let is_visible = evaluate_visible_when(expr, player_data);
+                let is_visible = evaluate_visible_when(&processed_expr, player_data);
                 if !is_visible {
                     commands.entity(entity_id).insert(Visibility::Hidden);
                 }
@@ -1626,6 +1648,41 @@ pub fn load_fre_into_view_root(
                 view_root.local_facts.set(key.clone(), resolved_list)
             }
             FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
+        }
+    }
+}
+
+/// Determine HP source type from configuration and repeat context.
+/// 根据配置和 repeat 上下文确定 HP 来源类型。
+fn determine_hp_source(
+    hp_bar_source: &Option<HPBarSourceDef>,
+    repeat_ctx: Option<&super::parsing::RepeatContext>,
+) -> HPSourceType {
+    match hp_bar_source {
+        Some(HPBarSourceDef::Player) => HPSourceType::Player,
+        Some(HPBarSourceDef::Enemy) => {
+            // Get index from repeat context if available
+            // 如果有 repeat 上下文则从中获取索引
+            let index = repeat_ctx.map(|ctx| ctx.index).unwrap_or(0);
+            HPSourceType::Enemy { index }
+        }
+        Some(HPBarSourceDef::Custom {
+            hp_expr,
+            hp_max_expr,
+        }) => HPSourceType::Custom {
+            hp_expr: hp_expr.clone(),
+            hp_max_expr: hp_max_expr.clone(),
+        },
+        None => {
+            // Default: if we have repeat context, assume it's an enemy HP bar
+            // Otherwise, assume player HP bar
+            // 默认：如果有 repeat 上下文，假设是敌人 HP 条
+            // 否则假设是玩家 HP 条
+            if let Some(ctx) = repeat_ctx {
+                HPSourceType::Enemy { index: ctx.index }
+            } else {
+                HPSourceType::Player
+            }
         }
     }
 }

@@ -1,13 +1,32 @@
 //! HP bar and dynamic UI element components.
 //!
 //! HP 条和动态 UI 元素组件。
-
+// TODO: 重构此文件。本文件包含过多的硬编码逻辑，应当通用化（如针对Sprite的Shader系统）
 use bevy::prelude::*;
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
 use crate::core::view::layout::serde_types::DynamicColor;
+
+/// HP data source type - determines where HP values are read from.
+/// HP 数据来源类型 - 决定从何处读取 HP 值。
+#[derive(Debug, Clone, Default)]
+pub enum HPSourceType {
+    /// Player HP (default) - reads from player_hp and player_hp_max facts.
+    /// 玩家 HP（默认）- 从 player_hp 和 player_hp_max facts 读取。
+    #[default]
+    Player,
+    /// Enemy HP with specific index - reads from enemy_hps[index] and enemy_hp_maxs[index].
+    /// 敌人 HP（指定索引）- 从 enemy_hps[index] 和 enemy_hp_maxs[index] 读取。
+    Enemy { index: usize },
+    /// Custom HP source using expressions.
+    /// 自定义 HP 来源（使用表达式）。
+    Custom {
+        hp_expr: String,
+        hp_max_expr: String,
+    },
+}
 
 /// Marker component for HP bar sprites that need custom Material2d setup.
 /// Stores the original shader_params expressions for dynamic evaluation.
@@ -19,6 +38,10 @@ pub struct HPBarSprite {
     /// Components: (hp_ratio_expr, lag_ratio_expr, half_width_expr, alpha_expr)
     /// 来自配置的原始 shader_params 表达式。用于动态求值。
     pub shader_params_expr: Option<DynamicColor>,
+
+    /// HP data source type - determines where HP values are read from.
+    /// HP 数据来源类型 - 决定从何处读取 HP 值。
+    pub hp_source: HPSourceType,
 }
 
 /// Marker component for UI elements that need dynamic updates based on player data.

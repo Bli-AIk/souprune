@@ -163,6 +163,7 @@ pub fn setup_hp_bar_sprites(
     // Add Without<Mesh2d> to prevent running every frame
     query: Query<(Entity, &HPBarSprite, &Transform), (Without<Sprite>, Without<Mesh2d>)>,
 ) {
+    use super::super::components::HPSourceType;
     use super::parsing::{PlayerDataView, evaluate_dynamic_color};
 
     let Some(textures) = procedural_textures else {
@@ -179,16 +180,42 @@ pub fn setup_hp_bar_sprites(
         .map(|r| r.as_ref())
         .unwrap_or(&default_db);
 
+    let player_data = PlayerDataView::new(db_ref);
+
     for (entity, hp_bar, _transform) in query.iter() {
-        // Get actual HP ratio from database for HPBarLag initialization
-        // shader_params first two values are just initial material params,
-        // HPBarLag should use actual HP values from the database
-        // 从数据库获取实际 HP 比率用于 HPBarLag 初始化
-        // shader_params 的前两个值只是初始材质参数，
-        // HPBarLag 应使用数据库中的实际 HP 值
-        let player_data = PlayerDataView::new(db_ref);
-        let actual_hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
-        let actual_hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
+        // Get actual HP ratio based on HP source type
+        // 根据 HP 来源类型获取实际 HP 比率
+        let (actual_hp, actual_hp_max) = match &hp_bar.hp_source {
+            HPSourceType::Player => {
+                let hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
+                let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
+                (hp, hp_max)
+            }
+            HPSourceType::Enemy { index } => {
+                let hp = player_data
+                    .get_fact_int_list("enemy_hps")
+                    .and_then(|list| list.get(*index).copied())
+                    .unwrap_or(100) as f32;
+                let hp_max = player_data
+                    .get_fact_int_list("enemy_hp_maxs")
+                    .and_then(|list| list.get(*index).copied())
+                    .unwrap_or(100) as f32;
+                (hp, hp_max)
+            }
+            HPSourceType::Custom {
+                hp_expr,
+                hp_max_expr,
+            } => {
+                // Evaluate custom expressions
+                // 计算自定义表达式
+                let hp = super::parsing::evaluate_fact_expression(hp_expr, &player_data)
+                    .unwrap_or(100.0);
+                let hp_max = super::parsing::evaluate_fact_expression(hp_max_expr, &player_data)
+                    .unwrap_or(100.0);
+                (hp, hp_max)
+            }
+        };
+
         let actual_hp_ratio = if actual_hp_max > 0.0 {
             actual_hp / actual_hp_max
         } else {
@@ -224,8 +251,8 @@ pub fn setup_hp_bar_sprites(
         ));
 
         info!(
-            "[HP Bar Setup] Spawned HP bar for entity {:?}. Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
-            entity, actual_hp_ratio, actual_hp, actual_hp_max, half_width
+            "[HP Bar Setup] Spawned HP bar for entity {:?} (source: {:?}). Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
+            entity, hp_bar.hp_source, actual_hp_ratio, actual_hp, actual_hp_max, half_width
         );
     }
 }
