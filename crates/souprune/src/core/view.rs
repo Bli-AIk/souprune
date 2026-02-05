@@ -100,6 +100,7 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
             >::default())
+            .add_plugins(Material2dPlugin::<custom_sprite_material::EnemyHpBarMaterial>::default())
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
@@ -121,7 +122,10 @@ impl Plugin for CoreViewPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                ron_view::update_hp_bar_shader_params
+                (
+                    ron_view::update_hp_bar_shader_params,
+                    ron_view::update_enemy_hp_bar_shader_params,
+                )
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
             // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)

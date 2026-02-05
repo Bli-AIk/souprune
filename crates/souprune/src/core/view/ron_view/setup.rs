@@ -158,7 +158,10 @@ pub fn setup_hp_bar_sprites(
     mut commands: Commands,
     procedural_textures: Option<Res<super::super::procedural_textures::ProceduralTextures>>,
     layered_db: Option<Res<bevy_fact_rule_event::LayeredFactDatabase>>,
-    mut materials: ResMut<Assets<super::super::custom_sprite_material::CustomSpriteMaterial>>,
+    mut player_materials: ResMut<
+        Assets<super::super::custom_sprite_material::CustomSpriteMaterial>,
+    >,
+    mut enemy_materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     // Add Without<Mesh2d> to prevent running every frame
     query: Query<(Entity, &HPBarSprite, &Transform), (Without<Sprite>, Without<Mesh2d>)>,
@@ -239,20 +242,57 @@ pub fn setup_hp_bar_sprites(
 
         // Use actual HP ratio for material initialization, not config values
         // 使用实际 HP 比率进行材质初始化，而不是配置值
-        let material = materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {
-            color_params: LinearRgba::new(actual_hp_ratio, actual_hp_ratio, half_width, alpha),
-            texture: textures.white_pixel.clone(),
-        });
+        // Choose material type based on HP source
+        // 根据 HP 来源选择材质类型
+        let is_enemy = matches!(hp_bar.hp_source, HPSourceType::Enemy { .. });
 
-        commands.entity(entity).insert((
-            Mesh2d(mesh.clone()),
-            MeshMaterial2d(material),
-            HPBarLag::new(actual_hp_ratio),
-        ));
+        if is_enemy {
+            // Use green enemy HP bar material
+            // 使用绿色敌人 HP 条材质
+            let material =
+                enemy_materials.add(super::super::custom_sprite_material::EnemyHpBarMaterial {
+                    color_params: LinearRgba::new(
+                        actual_hp_ratio,
+                        actual_hp_ratio,
+                        half_width,
+                        alpha,
+                    ),
+                    texture: textures.white_pixel.clone(),
+                });
+            commands.entity(entity).insert((
+                Mesh2d(mesh.clone()),
+                MeshMaterial2d(material),
+                HPBarLag::new(actual_hp_ratio),
+            ));
+        } else {
+            // Use yellow player HP bar material
+            // 使用黄色玩家 HP 条材质
+            let material =
+                player_materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {
+                    color_params: LinearRgba::new(
+                        actual_hp_ratio,
+                        actual_hp_ratio,
+                        half_width,
+                        alpha,
+                    ),
+                    texture: textures.white_pixel.clone(),
+                });
+            commands.entity(entity).insert((
+                Mesh2d(mesh.clone()),
+                MeshMaterial2d(material),
+                HPBarLag::new(actual_hp_ratio),
+            ));
+        }
 
         info!(
-            "[HP Bar Setup] Spawned HP bar for entity {:?} (source: {:?}). Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
-            entity, hp_bar.hp_source, actual_hp_ratio, actual_hp, actual_hp_max, half_width
+            "[HP Bar Setup] Spawned HP bar for entity {:?} (source: {:?}, is_enemy: {}). Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
+            entity,
+            hp_bar.hp_source,
+            is_enemy,
+            actual_hp_ratio,
+            actual_hp,
+            actual_hp_max,
+            half_width
         );
     }
 }

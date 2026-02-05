@@ -104,6 +104,107 @@ pub fn update_hp_bar_shader_params(
     }
 }
 
+/// Update enemy HP bar shader parameters (green material).
+/// Similar to update_hp_bar_shader_params but for EnemyHpBarMaterial.
+///
+/// 更新敌人 HP 条着色器参数（绿色材质）。
+/// 类似于 update_hp_bar_shader_params，但用于 EnemyHpBarMaterial。
+pub fn update_enemy_hp_bar_shader_params(
+    time: Res<Time>,
+    layered_db: Res<LayeredFactDatabase>,
+    mut materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
+    mut query: Query<(
+        &MeshMaterial2d<super::super::custom_sprite_material::EnemyHpBarMaterial>,
+        &mut HPBarLag,
+        &HPBarSprite,
+    )>,
+) {
+    // Early exit: skip if no enemy HP bars exist
+    // 提前退出：如果没有敌人 HP 条则跳过
+    if query.is_empty() {
+        return;
+    }
+
+    // Check if any HP bar needs animation update (lag animation in progress)
+    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
+    let needs_animation_update = query.iter().any(|(_, lag, _)| lag.anim_progress < 0.5);
+
+    // Only proceed if database changed OR animation is in progress
+    // 仅在数据库变化或动画进行中时继续
+    if !layered_db.is_changed() && !needs_animation_update {
+        return;
+    }
+
+    let player_data = PlayerDataView::new(&layered_db);
+
+    for (material_handle, mut lag, hp_bar) in query.iter_mut() {
+        // Get HP values based on source type
+        // 根据来源类型获取 HP 值
+        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
+        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
+
+        // Detect significant HP drop (Damage taken)
+        // 检测明显的 HP 下降（受到伤害）
+        if hp_ratio < lag.last_hp_ratio - 0.001 {
+            // Start the sequence immediately
+            lag.delay_timer = 0.0;
+            lag.start_lag_ratio = lag.lag_hp_ratio;
+            lag.anim_progress = 0.0;
+            trace!(
+                "[Enemy HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
+                hp_ratio, lag.last_hp_ratio
+            );
+        }
+
+        lag.last_hp_ratio = hp_ratio;
+
+        if hp_ratio > lag.lag_hp_ratio {
+            // HEALED: Instant sync
+            lag.lag_hp_ratio = hp_ratio;
+            lag.anim_progress = 0.5;
+            lag.delay_timer = 0.0;
+        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
+            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+
+            // OutCirc easing formula
+            // t: 0.0 -> 1.0
+            let t = lag.anim_progress / 0.5;
+            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+
+            // Interpolate between start and current actual HP
+            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+        }
+        // Final safety sync
+        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
+            lag.lag_hp_ratio = hp_ratio;
+        }
+
+        // Evaluate half_width from config expression - config is required
+        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
+            // Get the third component (half_width) from the expression tuple
+            evaluate_float_expr(&params.2, &player_data, None)
+        } else {
+            // No config provided - use simple fallback, NOT game-specific formula
+            40.0
+        };
+
+        // Evaluate alpha from config if available
+        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
+            evaluate_float_expr(&params.3, &player_data, None)
+        } else {
+            1.0
+        };
+
+        // Enemy HP bar doesn't use lag_ratio in shader (simple green bar)
+        // 敌人 HP 条在着色器中不使用 lag_ratio（简单的绿色条）
+        let target_params = LinearRgba::new(hp_ratio, hp_ratio, half_width, alpha);
+
+        if let Some(material) = materials.get_mut(material_handle) {
+            material.color_params = target_params;
+        }
+    }
+}
+
 /// Get HP values from the specified source.
 /// 从指定来源获取 HP 值。
 fn get_hp_values_from_source(hp_source: &HPSourceType, player_data: &PlayerDataView) -> (f32, f32) {

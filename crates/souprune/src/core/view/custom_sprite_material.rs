@@ -43,6 +43,40 @@ impl Material2d for CustomSpriteMaterial {
     }
 }
 
+/// Enemy HP bar material with green color scheme.
+/// Uses a separate shader from player HP bar.
+///
+/// 敌人 HP 条材质（绿色配色方案）。
+/// 使用与玩家 HP 条不同的着色器。
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct EnemyHpBarMaterial {
+    /// Shader uniform parameters (vec4).
+    /// (hp_ratio, unused, half_width, alpha)
+    ///
+    /// 着色器 uniform 参数 (vec4)。
+    /// (hp比率, 未使用, 半宽度, 透明度)
+    #[uniform(0)]
+    pub color_params: LinearRgba,
+
+    /// Base texture.
+    ///
+    /// 基础纹理。
+    #[texture(1)]
+    #[sampler(2)]
+    pub texture: Handle<Image>,
+}
+
+impl Material2d for EnemyHpBarMaterial {
+    fn fragment_shader() -> ShaderRef {
+        // Enemy HP bar shader with green color
+        "shared/shaders/enemy_hp_bar_sprite.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode2d {
+        AlphaMode2d::Blend
+    }
+}
+
 /// Pixel outline material for chase state highlight effect.
 /// Uses a shader that creates 1-pixel red outline around opaque pixels.
 ///
