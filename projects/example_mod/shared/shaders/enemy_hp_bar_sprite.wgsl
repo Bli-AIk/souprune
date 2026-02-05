@@ -29,10 +29,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let t = in.uv.x;
     
     // Enemy HP bar colors (green theme)
-    let col_bg = vec3<f32>(0.2, 0.0, 0.0);      // Dark red background (empty HP)
+    let col_bg = vec3<f32>(1.0, 0.0, 0.0);      // Pure red background (empty HP)
     let col_hp = vec3<f32>(0.0, 1.0, 0.0);      // Green current HP
     
-    // Layer logic: green > dark red
+    // Layer logic: green > red
     var final_color: vec3<f32>;
     if (t < hp_ratio) {
         final_color = col_hp;
