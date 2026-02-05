@@ -15,7 +15,7 @@ use crate::app_state::battle::chapter_schema::Val;
 use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};
-use bevy::prelude::Vec3;
+use bevy::prelude::{Transform, Vec3};
 use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
 
 /// Context for resolving expressions during desired state computation.
@@ -105,8 +105,25 @@ fn compute_element(
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
+    // Extract camera offset from ui_shape_logic if camera_anchored
+    // This needs to be done before transform resolution for proper handling
+    let camera_offset = if node_def.camera_anchored {
+        node_def
+            .ui_shape_logic
+            .as_ref()
+            .map(|logic| serializable_vec3_to_vec3(&logic.offset))
+    } else {
+        None
+    };
+
     // Resolve all properties
-    let transform = resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx);
+    // For camera_anchored elements with ui_shape_logic, the transform comes from offset
+    let transform = if let Some(offset) = camera_offset {
+        // Camera-anchored elements use offset as their transform position
+        Transform::from_translation(offset)
+    } else {
+        resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx)
+    };
 
     let visibility = resolve_visibility(
         &ctx.player_data,
@@ -123,16 +140,6 @@ fn compute_element(
     // Process visible_when expression for storage
     let visible_when_expr =
         process_visible_when_for_repeat(node_def.visible_when.as_deref(), repeat_ctx);
-
-    // Extract camera offset from ui_shape_logic if camera_anchored
-    let camera_offset = if node_def.camera_anchored {
-        node_def
-            .ui_shape_logic
-            .as_ref()
-            .map(|logic| serializable_vec3_to_vec3(&logic.offset))
-    } else {
-        None
-    };
 
     // Recursively compute children
     let children = node_def
@@ -187,12 +194,27 @@ fn expand_repeat(
         let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
+        // Extract camera offset from ui_shape_logic if camera_anchored
+        let camera_offset = if node_def.camera_anchored {
+            node_def
+                .ui_shape_logic
+                .as_ref()
+                .map(|logic| serializable_vec3_to_vec3(&logic.offset))
+        } else {
+            None
+        };
+
         // Resolve properties with repeat context
-        let transform = resolve_transform(
-            &ctx.player_data,
-            node_def.sprite.as_ref(),
-            Some(&repeat_ctx),
-        );
+        // For camera_anchored elements with ui_shape_logic, the transform comes from offset
+        let transform = if let Some(offset) = camera_offset {
+            Transform::from_translation(offset)
+        } else {
+            resolve_transform(
+                &ctx.player_data,
+                node_def.sprite.as_ref(),
+                Some(&repeat_ctx),
+            )
+        };
 
         let visibility = resolve_visibility(
             &ctx.player_data,
@@ -208,16 +230,6 @@ fn expand_repeat(
 
         let visible_when_expr =
             process_visible_when_for_repeat(node_def.visible_when.as_deref(), Some(&repeat_ctx));
-
-        // Extract camera offset from ui_shape_logic if camera_anchored
-        let camera_offset = if node_def.camera_anchored {
-            node_def
-                .ui_shape_logic
-                .as_ref()
-                .map(|logic| serializable_vec3_to_vec3(&logic.offset))
-        } else {
-            None
-        };
 
         // Children use the same repeat context
         let children = node_def
