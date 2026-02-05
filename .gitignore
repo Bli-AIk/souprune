@@ -46,3 +46,6 @@ reports/
 # Ignore .cargo/ except audit.toml (needed for CI security audit)
 .cargo/*
 !.cargo/audit.toml
+
+# Ignore .cargo/ in mod examples (local dev config for cross-compilation)
+projects/**/code/**/.cargo/
