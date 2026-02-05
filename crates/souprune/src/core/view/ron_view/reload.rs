@@ -6,26 +6,27 @@
 //!
 //! ## 模块概述
 //!
-//! This module provides hot-reload support for view_layout.ron files.
-//! Uses an incremental update approach where only modified properties are updated
-//! without destroying and rebuilding the entire view hierarchy.
+//! This module provides view layout loading from Tiled map properties.
+//! Hot reload is now handled by the unified reconciliation system in reconcile/system.rs.
 //!
-//! 本模块提供 view_layout.ron 文件的热重载支持。
-//! 采用增量更新方式，仅更新修改的属性，
-//! 不需要销毁并重建整个视图层级。
+//! 本模块提供从 Tiled 地图属性加载视图布局的功能。
+//! 热重载现在由 reconcile/system.rs 中的统一协调系统处理。
 
+use bevy::prelude::*;
+use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
+
+use super::resources::ViewLayoutHandle;
+use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
+
+// Debug-only imports for hot reload system
+#[cfg(feature = "debug")]
+use super::resources::{HotReloadableViewRoot, PendingViewReloads};
+#[cfg(feature = "debug")]
+use crate::core::view::layout::ViewLayoutAsset;
 #[cfg(feature = "debug")]
 use bevy::asset::AssetEvent;
 #[cfg(feature = "debug")]
 use bevy::ecs::prelude::MessageReader;
-use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
-
-use super::super::layout::ViewLayoutAsset;
-use super::resources::ViewLayoutHandle;
-#[cfg(feature = "debug")]
-use super::resources::{HotReloadableViewRoot, PendingViewReloads};
-use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
 
 /// Load view layout from Tiled map properties (fallback for states.ron view_layout).
 /// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
@@ -144,7 +145,6 @@ pub fn incremental_reload_system(
         &ChildOf,
     )>,
     mut visible_when_query: Query<&mut crate::core::view::components::VisibleWhen>,
-    mut visibility_query: Query<&mut Visibility>,
     mut transform_query: Query<&mut Transform>,
     mut sprite_query: Query<&mut Sprite>,
     mut dynamic_element_query: Query<&mut crate::core::view::components::DynamicViewElement>,
@@ -232,56 +232,17 @@ pub fn incremental_reload_system(
                 continue;
             };
 
-            // Process visible_when expression - handle repeat element @i replacement
-            // 处理 visible_when 表达式 - 处理重复元素的 @i 替换
-            let processed_visible_when = if let Some(new_visible_when) = &node_def.visible_when {
-                if let Some(ref ctx) = repeat_ctx {
-                    // Replace @i or @index with the concrete index for repeat elements
-                    // 为重复元素将 @i 或 @index 替换为具体索引
-                    let processed = new_visible_when
-                        .replace("@i", &ctx.index.to_string())
-                        .replace("@index", &ctx.index.to_string());
-                    Some(processed)
-                } else {
-                    Some(new_visible_when.clone())
-                }
-            } else {
-                None
-            };
-
-            // Update VisibleWhen expression and immediately re-evaluate visibility
-            // 更新 VisibleWhen 表达式并立即重新评估可见性
-            if let Some(ref new_visible_when) = processed_visible_when
+            // Update VisibleWhen expression
+            if let Some(new_visible_when) = &node_def.visible_when
                 && let Ok(mut visible_when) = visible_when_query.get_mut(entity)
+                && visible_when.expression != *new_visible_when
             {
-                if visible_when.expression != *new_visible_when {
-                    debug!(
-                        "[Hot Reload] visible_when '{}': '{}' -> '{}'",
-                        view_element.full_name, visible_when.expression, new_visible_when
-                    );
-                    visible_when.expression = new_visible_when.clone();
-                    updated_count += 1;
-                }
-
-                // Immediately re-evaluate visibility to apply the new expression
-                // 立即重新评估可见性以应用新表达式
-                let is_visible =
-                    super::parsing::evaluate_visible_when(&visible_when.expression, &player_data);
-                let desired_visibility = if is_visible {
-                    Visibility::Inherited
-                } else {
-                    Visibility::Hidden
-                };
-
-                if let Ok(mut visibility) = visibility_query.get_mut(entity) {
-                    if *visibility != desired_visibility {
-                        debug!(
-                            "[Hot Reload] visibility '{}': {:?} -> {:?}",
-                            view_element.full_name, *visibility, desired_visibility
-                        );
-                        *visibility = desired_visibility;
-                    }
-                }
+                debug!(
+                    "[Hot Reload] visible_when '{}': '{}' -> '{}'",
+                    view_element.full_name, visible_when.expression, new_visible_when
+                );
+                visible_when.expression = new_visible_when.clone();
+                updated_count += 1;
             }
 
             // Update CameraAnchored offset for ViewBox nodes

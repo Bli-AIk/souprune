@@ -148,12 +148,15 @@ pub fn spawn_ron_view_system(
 
         // Add ViewGenerated and HotReloadableViewRoot for hot reload support
         // 添加 ViewGenerated 和 HotReloadableViewRoot 以支持热重载
+        // Also add ReconciliationEnabled to let the reconciliation system handle updates
+        // 同时添加 ReconciliationEnabled 让协调系统处理更新
         commands.entity(view_entity).insert((
             ViewGenerated,
             HotReloadableViewRoot {
                 layout_path: view_layout_handle.path.clone(),
                 layout_handle: view_layout_handle.handle.clone(),
             },
+            crate::core::view::reconcile::ReconciliationEnabled,
         ));
 
         info!(
@@ -1654,7 +1657,7 @@ pub fn load_fre_into_view_root(
 
 /// Determine HP source type from configuration and repeat context.
 /// 根据配置和 repeat 上下文确定 HP 来源类型。
-fn determine_hp_source(
+pub fn determine_hp_source(
     hp_bar_source: &Option<HPBarSourceDef>,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) -> HPSourceType {

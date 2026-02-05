@@ -34,6 +34,7 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
+pub mod reconcile;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
@@ -58,8 +59,6 @@ use lifecycle::{
     state_transition_sound_system,
 };
 pub use ron_view::{RonDrivenView, ViewLayoutHandle};
-#[cfg(feature = "debug")]
-use ron_view::{incremental_reload_system, watch_view_layout_changes_system};
 use ron_view::{
     load_global_triggers_system, spawn_ron_view_system, ui_animation_init_system,
     update_dynamic_text_system, update_view_from_map_system,
@@ -78,6 +77,7 @@ use components::state_sprite::{
 use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
 use lifecycle::cleanup_view_rules_system;
 use lifecycle::process_pending_view_rules_system;
+use reconcile::ViewReconciliationPlugin;
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -104,6 +104,9 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
+            // Add reconciliation plugin for declarative view updates
+            // 添加协调插件用于声明式视图更新
+            .add_plugins(ViewReconciliationPlugin)
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
@@ -196,16 +199,11 @@ impl Plugin for CoreViewPlugin {
 
         #[cfg(feature = "debug")]
         {
-            // Hot reload systems (debug only)
-            // 热重载系统（仅 debug 模式）
-            app.init_resource::<ron_view::PendingViewReloads>()
-                .add_systems(
-                    Update,
-                    (watch_view_layout_changes_system, incremental_reload_system)
-                        .chain()
-                        .in_set(ViewUpdate),
-                )
-                .register_type::<ViewBox>()
+            // Debug-only type registration for inspector
+            // 仅 debug 模式下的类型注册（用于检查器）
+            // Hot reload is handled by ViewReconciliationPlugin
+            // 热重载由 ViewReconciliationPlugin 处理
+            app.register_type::<ViewBox>()
                 .register_type::<CameraAnchored>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()

@@ -185,4 +185,20 @@ impl<'a> PlayerDataView<'a> {
             _ => None,
         })
     }
+
+    /// Get the length of an array fact (StringList or IntList).
+    /// The key can be in the format "$name" or just "name".
+    ///
+    /// 获取数组事实的长度（StringList 或 IntList）。
+    /// 键可以是 "$name" 格式或仅 "name"。
+    pub fn get_array_length(&self, key: &str) -> Option<usize> {
+        // Strip leading $ if present
+        let clean_key = key.strip_prefix('$').unwrap_or(key);
+
+        self.get_fact(clean_key).and_then(|value| match value {
+            FactValue::StringList(list) => Some(list.len()),
+            FactValue::IntList(list) => Some(list.len()),
+            _ => None,
+        })
+    }
 }

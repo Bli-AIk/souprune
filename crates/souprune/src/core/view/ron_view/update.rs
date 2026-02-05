@@ -471,12 +471,18 @@ pub fn update_dynamic_text_system(
         *text3d = parse_text_preserving_whitespace(&new_content);
 
         // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
+        // Use queue_handled to avoid panic if entity is despawned during the same frame
         // 关键修复：添加 NeedsGlyphRefresh 以触发文本重新渲染
-        commands
-            .entity(entity)
-            .insert(super::super::text::NeedsGlyphRefresh);
+        // 使用 queue_handled 避免在同一帧中实体被销毁时 panic
+        commands.queue(move |world: &mut World| {
+            if world.get_entity(entity).is_ok() {
+                world
+                    .entity_mut(entity)
+                    .insert(super::super::text::NeedsGlyphRefresh);
+            }
+        });
         info!(
-            "[update_dynamic_text_system] Added NeedsGlyphRefresh to '{}'",
+            "[update_dynamic_text_system] Queued NeedsGlyphRefresh for '{}'",
             name
         );
 
