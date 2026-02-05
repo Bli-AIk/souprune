@@ -8,7 +8,7 @@
 
 use super::delta::ViewDelta;
 use super::tree::{
-    CurrentElement, CurrentSprite, CurrentViewTree, DesiredElement, DesiredViewTree, ViewElementKey,
+    CurrentElement, CurrentViewTree, DesiredElement, DesiredViewTree, ViewElementKey,
 };
 use bevy::prelude::*;
 use std::collections::HashSet;
@@ -132,13 +132,13 @@ fn reconcile_properties(
     }
 
     // visible_when expression comparison
-    if desired.visible_when_expr != current.visible_when_expr {
-        if let Some(new_expr) = &desired.visible_when_expr {
-            deltas.push(ViewDelta::UpdateVisibleWhen {
-                entity: current.entity,
-                new_expression: new_expr.clone(),
-            });
-        }
+    if desired.visible_when_expr != current.visible_when_expr
+        && let Some(new_expr) = &desired.visible_when_expr
+    {
+        deltas.push(ViewDelta::UpdateVisibleWhen {
+            entity: current.entity,
+            new_expression: new_expr.clone(),
+        });
     }
 
     // Camera offset comparison

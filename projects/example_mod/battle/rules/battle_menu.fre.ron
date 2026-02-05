@@ -200,6 +200,10 @@
             conditions: ["$active == true", "$depth == 1"],
             actions: [
                 SetLocalFact("depth", Int(0)),
+                // Reset enemy selection when going back to main menu
+                // 返回主菜单时重置敌人选择索引
+                SetLocalFact("enemy_selection", Int(0)),
+                SetLocalFact("enemy_view_offset", Int(0)),
                 // button_selection is preserved, no need to restore
             ],
         ),

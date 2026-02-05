@@ -8,7 +8,7 @@
 
 use super::compute::compute_desired_state;
 use super::delta::{DeltaStats, apply_deltas};
-use super::diff::{build_current_tree, reconcile};
+use super::diff::reconcile;
 use super::tree::CurrentViewTree;
 use crate::core::view::components::{CameraAnchored, ViewElement, ViewRoot};
 use crate::core::view::layout::ViewLayoutAsset;

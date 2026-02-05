@@ -107,7 +107,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 let color = new_value.color;
                 let flip_x = new_value.flip_x;
                 let flip_y = new_value.flip_y;
-                let anchor = new_value.anchor.clone();
+                let anchor = new_value.anchor;
                 let entity_id = *entity;
 
                 commands.queue(move |world: &mut World| {
@@ -162,12 +162,11 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 let entity_id = *entity;
 
                 commands.queue(move |world: &mut World| {
-                    if let Ok(mut entity_mut) = world.get_entity_mut(entity_id) {
-                        if let Some(mut camera_anchored) =
+                    if let Ok(mut entity_mut) = world.get_entity_mut(entity_id)
+                        && let Some(mut camera_anchored) =
                             entity_mut.get_mut::<crate::core::view::components::CameraAnchored>()
-                        {
-                            camera_anchored.offset = offset;
-                        }
+                    {
+                        camera_anchored.offset = offset;
                     }
                 });
             }
@@ -219,7 +218,7 @@ fn apply_spawn_delta(commands: &mut Commands, parent: Option<Entity>, spec: &Des
             ..default()
         });
         // Add anchor as separate component
-        entity_commands.insert(sprite_spec.anchor.clone());
+        entity_commands.insert(sprite_spec.anchor);
         // Note: Texture loading would need AssetServer which isn't available here
         // This is handled by a separate setup system
     }
