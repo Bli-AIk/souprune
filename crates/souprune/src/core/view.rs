@@ -31,6 +31,7 @@ pub struct ViewUpdate;
 mod camera;
 pub(crate) mod components;
 mod custom_sprite_material;
+pub(crate) mod expr_eval;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
