@@ -4846,8 +4846,6 @@ dependencies = [
 [[package]]
 name = "mortar_compiler"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97e97ff1ce9f464adf7b14d09080130e07ba99811ca536d37e3f7a0bcb8c70a9"
 dependencies = [
  "ariadne",
  "chrono",
