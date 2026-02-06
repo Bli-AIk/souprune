@@ -89,6 +89,8 @@ jobs:
         run: mv temp-mortar ../mortar
 
       - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          arguments: --all-features
 
   security:
     name: Security Audit
