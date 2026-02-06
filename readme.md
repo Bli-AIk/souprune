@@ -104,22 +104,28 @@ If you're interested in the design thinking behind SoupRune, here are more detai
 
 > To make a 2D pixel RPG, do you really need high-performance ECS engines like Rust and Bevy? Isn't that overkill?
 
-I think this is a question most people would ask—whether you are a systems developer or a creator who loves retro/doujin games.
+I think this is a question most people would ask—whether you are a systems developer or a creator who loves retro/doujin
+games.
 
 Yes, we are doing something that seems contradictory:
-Using **Rust**, a systems language so hardcore and performance-obsessed, to reconstruct a game genre that is most emotional, retro, and least concerned with graphics and technical prowess.
+Using **Rust**, a systems language so hardcore and performance-obsessed, to reconstruct a game genre that is most
+emotional, retro, and least concerned with graphics and technical prowess.
 
 Because—aesthetics can be retro, but technology should be cutting-edge.
 
-SoupRune is an exploration—we want to prove that ECS can run not only massive tech demos but also delicately handle a touching dialogue or a carefully choreographed performance. We turned Bevy into a paintbrush.
+SoupRune is an exploration—we want to prove that ECS can run not only massive tech demos but also delicately handle a
+touching dialogue or a carefully choreographed performance. We turned Bevy into a paintbrush.
 
-SoupRune is also a weapon—for those great community creators who yearn to unleash all their talents. You have amazing creativity, but are often trapped by the performance bottlenecks of outdated tools. Lagging danmaku, crashing saves, complex mechanisms that are hard to implement.
+SoupRune is also a weapon—for those great community creators who yearn to unleash all their talents. You have amazing
+creativity, but are often trapped by the performance bottlenecks of outdated tools. Lagging danmaku, crashing saves,
+complex mechanisms that are hard to implement.
 
 Before this, no one had ever envisioned the combination of the two—and now, it stands here.
 
 This is a map prepared for you; this is a weapon forged for you.
 
-We hope to use avant-garde rendering pipelines and architectural design to build an indestructible stage. Even if you don't know code, your work deserves industrial-grade performance.
+We hope to use avant-garde rendering pipelines and architectural design to build an indestructible stage. Even if you
+don't know code, your work deserves industrial-grade performance.
 
 This is the goal of this project, the original intention of its design: to build a bridge.
 
@@ -131,10 +137,12 @@ SoupRune is not just a framework; it is **technical equality**.
 
 * **Simplicity is not just simple**:
   In SoupRune, "simple" refers to your experience when creating, not the crudeness of the underlying layer.
-  We have shouldered all the underlying complexity (multi-threading, memory management, rendering pipelines) just so you can write logic as naturally as breathing.
+  We have shouldered all the underlying complexity (multi-threading, memory management, rendering pipelines) just so you
+  can write logic as naturally as breathing.
 * **Powered by Love, but also Explosive**:
   We believe that doujin works should not be synonymous with "making do".
-  Beauty and technical power should not be bound—even pixel games deserve 4K clarity, 144Hz smoothness, tens of thousands of particles and bullets, and a carnival of rendering effects.
+  Beauty and technical power should not be bound—even pixel games deserve 4K clarity, 144Hz smoothness, tens of
+  thousands of particles and bullets, and a carnival of rendering effects.
 
 ### 🏗️ Architecture: Why separate Core and Project? Why be "Language-Agnostic"?
 
@@ -183,9 +191,12 @@ classics or creating entirely original works, we hope SoupRune becomes the tool 
 This is an open-source **next-gen playground** belonging to the community.
 It may not be perfect yet, just like how every great adventure begins.
 
-* If you are a **Rustacean**, come help us forge this sword and challenge the limits of ECS architecture in narrative games.
-* If you are a **Renderer**, come help us polish this sword and create a stylized rendering pipeline that is both efficient and beautiful, unprecedented in retro RPG / STG.
-* If you are a **Creator**, try wielding this sword and tell us what kind of functions are needed to carry your imagination.
+* If you are a **Rustacean**, come help us forge this sword and challenge the limits of ECS architecture in narrative
+  games.
+* If you are a **Renderer**, come help us polish this sword and create a stylized rendering pipeline that is both
+  efficient and beautiful, unprecedented in retro RPG / STG.
+* If you are a **Creator**, try wielding this sword and tell us what kind of functions are needed to carry your
+  imagination.
 
 The prophecy of the RUNE should be written by us together.
 
@@ -205,7 +216,8 @@ The following individuals have contributed to the SoupRune project!
 
 * **71**: Provided many Alight Motion example projects (including Undertale bullet patterns and visual PVs) during
   testing. Great help with AM integration!
-* **陈皮**: Provided many Alight Motion example projects (mostly Undertale bullet patterns), providing great help for AM integration.
+* **陈皮**: Provided many Alight Motion example projects (mostly Undertale bullet patterns), providing great help for AM
+  integration.
 
 **Heartfelt thanks to each one of you! 🎔**
 
@@ -301,7 +313,7 @@ This project uses the following open-source projects as libraries, dependencies,
 | [bevy_mortar_bond](https://github.com/Bli-AIk/bevy_mortar_bond)           | 0.0.0                                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | A bridge library between Bevy and the Mortar language                                                  |
 | [leafwing-input-manager](https://crates.io/crates/leafwing-input-manager) | 0.19.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Manages game input, handling keyboard, mouse, and controller operation mappings                        |
 | [seldom_state](https://crates.io/crates/seldom_state)                     | 0.15.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Finite State Machine implementation                                                                    |
-| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | 0.10.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Integrates Bevy ECS and Tiled map editor for tile-based game levels                                    |
+| [bevy_ecs_tiled](https://crates.io/crates/bevy_ecs_tiled)                 | 0.10.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | Integrates Bevy ECS and Tiled map editor for tile-based game levels                                    |
 | [bevy_tween](https://crates.io/crates/bevy_tween)                         | 0.10.0                                                                                                                                | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Tweening animation library for Bevy, used for smooth animations and transitions                        |
 | [bevy_alight_motion](https://github.com/Bli-AIk/bevy_alight_motion)       | 0.0.0                                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Integration for Alight Motion animations, includes SDF shape rendering                                 |
 | [bevy_seedling](https://crates.io/crates/bevy_seedling)                   | 0.6.1                                                                                                                                 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Alternative audio backend                                                                              |
@@ -321,7 +333,7 @@ This project uses the following open-source projects as libraries, dependencies,
 | [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON serialization/deserialization                                                                             |
 | [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Regular expressions                                                                                            |
 | [evalexpr](https://crates.io/crates/evalexpr)         | 13.1.0          | ⚠️ **AGPL-3.0** *(pending removal)*                                                                                                                                                                           | Expression evaluation — *will be replaced with MIT/Apache licensed alternative*                                |
-| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | The polyglot binding generator                                                                                 |
+| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | The polyglot binding generator                                                                                 |
 | [mortar_compiler](https://github.com/Bli-AIk/mortar)  | 0.5.0           | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Compiler for the Mortar language                                                                               |
 
 ### Asset References
