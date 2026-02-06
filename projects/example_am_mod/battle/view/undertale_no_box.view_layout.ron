@@ -1,6 +1,17 @@
 #![enable(implicit_some)]
+// Battle View Layout without Battle Box for example_am_mod
+// 不包含战斗框的战斗视图布局（供 AM 动画使用）
+//
+// NOTE: Battle Box comes from AM animation, so this layout omits it.
+// 注意：战斗框由 AM 动画提供，所以此布局省略了它。
+
 (
-    version: 1,
+    // View-local facts for basic state
+    // 基础状态的 View 局部事实
+    facts: {
+        "button_selection": 0,
+    },
+
     roots: [
         // No BattleBox - it comes from AM animation
 
@@ -8,12 +19,20 @@
         (
             name: "BtnFight",
             sprite: (
-                path: "textures/battle/ui/fight/false.png",
-                is_animation: false,
-                transform: Some((
+                visual: "textures/battle/ui/fight/false.png",
+                transform: (
                     translation: (-233.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
-                )),
+                ),
+            ),
+        ),
+        (
+            name: "BtnFightSelected",
+            visible_when: "$button_selection == 0",
+            sprite: (
+                visual: "textures/battle/ui/fight/true.png",
+                transform: (
+                    translation: (-233.0, -213.0, 1.5),
+                ),
             ),
         ),
 
@@ -21,12 +40,20 @@
         (
             name: "BtnAct",
             sprite: (
-                path: "textures/battle/ui/act/false.png",
-                is_animation: false,
-                transform: Some((
+                visual: "textures/battle/ui/act/false.png",
+                transform: (
                     translation: (-80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
-                )),
+                ),
+            ),
+        ),
+        (
+            name: "BtnActSelected",
+            visible_when: "$button_selection == 1",
+            sprite: (
+                visual: "textures/battle/ui/act/true.png",
+                transform: (
+                    translation: (-80.0, -213.0, 1.5),
+                ),
             ),
         ),
 
@@ -34,12 +61,20 @@
         (
             name: "BtnItem",
             sprite: (
-                path: "textures/battle/ui/item/false.png",
-                is_animation: false,
-                transform: Some((
+                visual: "textures/battle/ui/item/false.png",
+                transform: (
                     translation: (80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
-                )),
+                ),
+            ),
+        ),
+        (
+            name: "BtnItemSelected",
+            visible_when: "$button_selection == 2",
+            sprite: (
+                visual: "textures/battle/ui/item/true.png",
+                transform: (
+                    translation: (80.0, -213.0, 1.5),
+                ),
             ),
         ),
 
@@ -47,12 +82,20 @@
         (
             name: "BtnMercy",
             sprite: (
-                path: "textures/battle/ui/mercy/false.png",
-                is_animation: false,
-                transform: Some((
+                visual: "textures/battle/ui/mercy/false.png",
+                transform: (
                     translation: (235.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
-                )),
+                ),
+            ),
+        ),
+        (
+            name: "BtnMercySelected",
+            visible_when: "$button_selection == 3",
+            sprite: (
+                visual: "textures/battle/ui/mercy/true.png",
+                transform: (
+                    translation: (235.0, -213.0, 1.5),
+                ),
             ),
         ),
 
@@ -62,7 +105,7 @@
             texts: [
                 (
                     id: "PlayerName",
-                    content: "{@player.name}",
+                    content: "{$player_name}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -82,7 +125,7 @@
                 ),
                 (
                     id: "PlayerLevelValue",
-                    content: "{@player.lv}",
+                    content: "{$player_lv}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -92,12 +135,12 @@
                 ),
                 (
                     id: "HPValueCurrent",
-                    content: "{@player.hp}",
+                    content: "{$player_hp}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("-5.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("-5.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
@@ -107,17 +150,17 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("33.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("33.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPValueMax",
-                    content: "{@player.hp_max}",
+                    content: "{$player_hp_max}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("57.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("57.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
             ],
@@ -125,24 +168,22 @@
                 (
                     name: "HPSprite",
                     sprite: (
-                        path: "textures/battle/ui/hpname.png",
-                        is_animation: false,
-                        transform: Some((
+                        visual: "textures/battle/ui/hpname.png",
+                        transform: (
                             translation: (-64.5, -170.0, 1.0),
-                        )),
+                        ),
                     ),
                 ),
                 (
                     name: "HPBar",
                     sprite: (
-                        path: "procedural://white_pixel",
-                        is_animation: false,
-                        transform: Some((
+                        visual: "procedural://white_pixel",
+                        transform: (
                             translation: (-45.0, -170.5, 1.0),
-                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0)),
-                        )),
+                            scale: ("25.0 + ($player_hp_max - 20) * 95.0 / 79", 20.5, 1.0),
+                        ),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
-                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0)),
+                        shader_params: (0.8, 0.8, "40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2", 1.0),
                         pivot: (0.0, 0.5),
                     ),
                 )

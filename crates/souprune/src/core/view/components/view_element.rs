@@ -3,9 +3,29 @@
 //! 视图元素系统，带有撤销/重做/重置的历史跟踪。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::FactDatabase;
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
+
+/// Marker component for the currently active View.
+///
+/// When a View enters an interactive state (e.g., menu opened),
+/// it receives this marker. FRE actions like `SetLocalFact` and
+/// `CloseView` only affect ViewRoots with this marker.
+///
+/// This prevents "crosstalk" when multiple Views exist simultaneously.
+///
+/// 当前活跃 View 的标记组件。
+///
+/// 当 View 进入交互状态（例如菜单打开）时，
+/// 它会获得此标记。`SetLocalFact` 和 `CloseView` 等 FRE 动作
+/// 仅影响带有此标记的 ViewRoot。
+///
+/// 这可以防止多个 View 同时存在时的"串台"问题。
+#[derive(Component, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ActiveView;
 
 /// View Element - represents a referenceable element in a view layout.
 ///
@@ -61,6 +81,14 @@ pub struct ViewRoot {
     /// 命名空间（从布局路径自动生成）。
     /// 示例: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
     pub namespace: String,
+
+    /// Local fact storage for this View instance.
+    /// Automatically cleared when the View is despawned.
+    ///
+    /// 此 View 实例的局部事实存储。
+    /// 当 View 被销毁时自动清空。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub local_facts: FactDatabase,
 }
 
 impl ViewRoot {
@@ -72,6 +100,7 @@ impl ViewRoot {
         Self {
             layout_path,
             namespace,
+            local_facts: FactDatabase::new(),
         }
     }
 
@@ -297,4 +326,48 @@ impl ElementState {
             texture: None,
         }
     }
+}
+
+/// Component that stores a `visible_when` expression for runtime visibility evaluation.
+///
+/// The expression is evaluated every frame against the current fact state.
+///
+/// 存储 `visible_when` 表达式以进行运行时可见性评估的组件。
+///
+/// 表达式每帧根据当前 fact 状态进行评估。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct VisibleWhen {
+    /// The expression to evaluate for visibility.
+    /// Examples: "true", "$depth == 0", "fact('selection') == 1"
+    ///
+    /// 用于评估可见性的表达式。
+    /// 示例: "true", "$depth == 0", "fact('selection') == 1"
+    pub expression: String,
+}
+
+/// Component to track pending View rules that need to be registered
+/// when their FRE assets finish loading.
+///
+/// This enables delayed rule registration for View-scoped rules,
+/// handling the timing issue where FRE assets may not be loaded
+/// when the View is first spawned.
+///
+/// 跟踪待注册的 View 规则的组件，当 FRE 资产加载完成后注册。
+///
+/// 这实现了 View 作用域规则的延迟注册，
+/// 处理 View 首次生成时 FRE 资产可能还未加载的时序问题。
+#[derive(Component, Debug, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct PendingViewRules {
+    /// FRE file handles waiting for asset loading.
+    /// Storing handles (not paths) keeps the asset loading request alive.
+    ///
+    /// 等待资产加载的 FRE 文件句柄。
+    /// 存储句柄（而非路径）可保持资产加载请求不被取消。
+    #[cfg_attr(feature = "debug", reflect(ignore))]
+    pub pending_handles: Vec<(
+        String,
+        bevy::prelude::Handle<bevy_fact_rule_event::FreAsset>,
+    )>,
 }

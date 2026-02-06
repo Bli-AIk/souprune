@@ -3,16 +3,18 @@
 //! ## Module Overview
 //!
 //! AwaitInteraction systems for the battle sequencer.
+//! This module has been reimplemented to use ViewRoot.local_facts instead of InteractiveLayer.
 //!
 //! 战斗序列管理器的 AwaitInteraction 系统。
+//! 此模块已重新实现，使用 ViewRoot.local_facts 替代 InteractiveLayer。
 
 use super::super::chapter_schema::Chapter;
+use super::super::fre::SelectionConfirmedEvent;
 use super::context::*;
-use crate::core::view::components::{
-    AwaitingInteraction, InteractionResult, InteractiveLayer, SelectionConfirmedEvent,
-};
+use crate::core::view::components::ViewRoot;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
+use bevy_fact_rule_event::FactValue;
 
 /// Marker component to track that this chapter is waiting for interaction.
 ///
@@ -27,12 +29,12 @@ pub struct AwaitingInteractionChapter {
 ///
 /// 处理 AwaitInteraction 章节的系统。
 ///
-/// This system activates the specified interactive layer and marks the chapter
-/// as waiting for player input. The chapter won't finish until the player
-/// confirms a selection.
+/// This system activates the menu by setting `active: true` in ViewRoot.local_facts
+/// and marks the chapter as waiting for player input. The chapter won't finish
+/// until the player confirms a selection.
 ///
-/// 此系统激活指定的交互层，并将章节标记为等待玩家输入。
-/// 章节不会结束，直到玩家确认选择。
+/// 此系统通过在 ViewRoot.local_facts 中设置 `active: true` 来激活菜单，
+/// 并将章节标记为等待玩家输入。章节不会结束，直到玩家确认选择。
 #[allow(clippy::type_complexity)]
 pub fn process_await_selection_system(
     mut commands: Commands,
@@ -44,7 +46,7 @@ pub fn process_await_selection_system(
             Without<AwaitingInteractionChapter>,
         ),
     >,
-    mut layer_query: Query<(Entity, &mut InteractiveLayer)>,
+    mut view_root_query: Query<&mut ViewRoot>,
 ) {
     for (chapter_entity, active_chapter) in query.iter() {
         if let Chapter::AwaitInteraction {
@@ -57,33 +59,26 @@ pub fn process_await_selection_system(
                 layer_id, initial_selection
             );
 
-            // Find and activate the interactive layer
+            // Activate the menu in ViewRoot.local_facts
             let mut found = false;
-            for (layer_entity, mut layer) in layer_query.iter_mut() {
-                if layer.layer_id == *layer_id {
-                    // Activate the layer
-                    layer.is_active = true;
-                    layer.set_selection(*initial_selection);
+            for mut view_root in view_root_query.iter_mut() {
+                // Set active to true to enable navigation
+                view_root.local_facts.set("active", FactValue::Bool(true));
+                view_root
+                    .local_facts
+                    .set("selection", FactValue::Int(*initial_selection as i64));
+                view_root.local_facts.set("depth", FactValue::Int(0));
 
-                    // Attach AwaitingInteraction component to the layer
-                    commands.entity(layer_entity).insert(AwaitingInteraction {
-                        chapter_entity: Some(chapter_entity),
-                    });
-
-                    found = true;
-                    info!(
-                        "[Battle] Activated InteractiveLayer '{}', waiting for player input",
-                        layer_id
-                    );
-                    break;
-                }
+                found = true;
+                info!(
+                    "[Battle] Activated view menu for layer '{}', waiting for player input",
+                    layer_id
+                );
+                break;
             }
 
             if !found {
-                warn!(
-                    "[Battle] InteractiveLayer '{}' not found! Chapter will complete immediately.",
-                    layer_id
-                );
+                warn!("[Battle] No ViewRoot found! Chapter will complete immediately.");
                 commands.entity(chapter_entity).insert(ChapterFinished);
             } else {
                 // Mark this chapter as waiting
@@ -109,26 +104,17 @@ pub fn check_await_selection_completion_system(
     mut commands: Commands,
     mut confirm_events: MessageReader<SelectionConfirmedEvent>,
     awaiting_query: Query<(Entity, &AwaitingInteractionChapter)>,
-    mut layer_query: Query<(Entity, &mut InteractiveLayer), With<AwaitingInteraction>>,
+    mut view_root_query: Query<&mut ViewRoot>,
 ) {
     for event in confirm_events.read() {
         info!(
             "[Battle] Received SelectionConfirmedEvent for layer '{}', index {}",
-            event.layer_id, event.selected_index
+            event.layer_id, event.selection_index
         );
 
         // Find the chapter that is waiting for this layer
         for (chapter_entity, awaiting) in awaiting_query.iter() {
             if awaiting.layer_id == event.layer_id {
-                // Store the result on the chapter entity for later use
-                commands
-                    .entity(chapter_entity)
-                    .insert(InteractionResult::new(
-                        event.selected_index,
-                        event.selected_element.clone(),
-                        &event.layer_id,
-                    ));
-
                 // Mark the chapter as finished
                 commands.entity(chapter_entity).insert(ChapterFinished);
                 commands
@@ -137,24 +123,16 @@ pub fn check_await_selection_completion_system(
 
                 info!(
                     "[Battle] AwaitInteraction for '{}' completed with selection {}",
-                    event.layer_id, event.selected_index
+                    event.layer_id, event.selection_index
                 );
             }
         }
 
-        // Deactivate the layer, reset selection, and remove AwaitingInteraction
-        for (layer_entity, mut layer) in layer_query.iter_mut() {
-            if layer.layer_id == event.layer_id {
-                layer.is_active = false;
-                layer.set_selection(0); // Reset to initial selection
-                commands
-                    .entity(layer_entity)
-                    .remove::<AwaitingInteraction>();
-                info!(
-                    "[Battle] Deactivated InteractiveLayer '{}', reset selection to 0",
-                    event.layer_id
-                );
-            }
+        // Deactivate the menu
+        for mut view_root in view_root_query.iter_mut() {
+            view_root.local_facts.set("active", FactValue::Bool(false));
+            view_root.local_facts.set("selection", FactValue::Int(0));
+            info!("[Battle] Deactivated view menu, reset selection to 0");
         }
     }
 }

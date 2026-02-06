@@ -28,11 +28,13 @@ StateConfig(
 
         // Backpack menu state - UI is active, player cannot move
         // 背包菜单状态 - UI 激活，玩家不能移动
+        // Note: Navigation is now handled by FRE rules and initial_facts in the view_layout
+        // 注意：导航现在由 FRE 规则和 view_layout 中的 initial_facts 处理
         "Backpack": (
             ui_interactive: true,
             player_movable: false,
             view_layout: "overworld/view/undertale_backpack.view_layout.ron",
-            initial_layer: "BackpackMenu",
+            initial_layer: None,  // No longer needed - using initial_facts in view_layout
             on_enter_sound: "audios/sfx/confirm.wav",
             //on_exit_sound: "audios/sfx/choice.wav",
         ),

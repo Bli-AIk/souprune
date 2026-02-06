@@ -3,11 +3,18 @@
 //! 状态精灵组件和系统
 //!
 //! This module provides data-driven sprite state management.
-//! Sprite textures can change based on configurable rules like
-//! interactive layer selection.
+//! Sprite textures can change based on configurable rules.
 //!
 //! 本模块提供数据驱动的精灵状态管理。
-//! 精灵纹理可以根据配置规则（如交互层选中状态）变化。
+//! 精灵纹理可以根据配置规则变化。
+//!
+//! NOTE: This module has been simplified during the View System refactor.
+//! The old InteractiveLayer-based triggers have been removed.
+//! Future implementation should use facts-based triggers.
+//!
+//! 注意：此模块在 View System 重构期间已简化。
+//! 旧的基于 InteractiveLayer 的触发器已被移除。
+//! 未来实现应使用基于 facts 的触发器。
 
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -15,7 +22,6 @@ use std::collections::HashMap;
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
 
-use super::interactive::InteractiveLayer;
 use crate::core::view::layout::view_schema::{StateRuleDef, StateSpriteConfig, StateTriggerDef};
 
 // ============================================================================
@@ -48,18 +54,18 @@ pub struct StateSpriteState {
 
     /// Currently active state (None = default).
     ///
-    /// 当前激活的状态（None = 默认）。
+    /// 当前激活状态（None = 默认）。
     pub current_state: Option<String>,
 
-    /// Whether the sprite texture needs to be updated.
+    /// Whether the texture needs updating.
     ///
-    /// 精灵纹理是否需要更新。
+    /// 纹理是否需要更新。
     pub dirty: bool,
 }
 
-/// Runtime representation of a state rule.
+/// A rule that maps a trigger condition to a state.
 ///
-/// 状态规则的运行时表示。
+/// 将触发条件映射到状态的规则。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct StateRule {
@@ -68,22 +74,26 @@ pub struct StateRule {
     /// 触发条件。
     pub trigger: StateTrigger,
 
-    /// The state to switch to when triggered.
+    /// The state to activate when triggered.
     ///
-    /// 触发时要切换到的状态。
+    /// 触发时激活的状态。
     pub state: String,
 }
 
 /// Runtime representation of a state trigger.
 ///
 /// 状态触发器的运行时表示。
+///
+/// TODO: Implement facts-based triggers (e.g., when fact('selection') == 0)
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub enum StateTrigger {
-    /// Triggered when this element is selected in an interactive layer.
+    /// Placeholder for future facts-based trigger.
+    /// Currently evaluates to false.
     ///
-    /// 当此元素在交互层中被选中时触发。
-    InteractiveLayerSelected { layer_id: String, index: usize },
+    /// 未来基于 facts 触发器的占位符。
+    /// 当前评估为 false。
+    FactCondition { expression: String },
 }
 
 impl StateSpriteState {
@@ -96,17 +106,6 @@ impl StateSpriteState {
         // Process explicit rules
         for rule_def in &config.rules {
             rules.push(StateRule::from_def(rule_def));
-        }
-
-        // Process sugar syntax: subscribe_selection
-        if let Some((layer_id, index)) = &config.subscribe_selection {
-            rules.push(StateRule {
-                trigger: StateTrigger::InteractiveLayerSelected {
-                    layer_id: layer_id.clone(),
-                    index: *index,
-                },
-                state: "selected".to_string(),
-            });
         }
 
         Self {
@@ -157,29 +156,24 @@ impl StateTrigger {
     /// 从定义转换为运行时表示。
     fn from_def(def: &StateTriggerDef) -> Self {
         match def {
+            // Convert old InteractiveLayerSelected to a fact condition placeholder
             StateTriggerDef::InteractiveLayerSelected { layer_id, index } => {
-                StateTrigger::InteractiveLayerSelected {
-                    layer_id: layer_id.clone(),
-                    index: *index,
+                StateTrigger::FactCondition {
+                    expression: format!("selection == {} && layer == '{}'", index, layer_id),
                 }
             }
         }
     }
 
-    /// Evaluate the trigger against the current interactive layer state.
+    /// Evaluate the trigger. Currently returns false as placeholder.
     ///
-    /// 根据当前交互层状态评估触发器。
-    pub fn evaluate(
-        &self,
-        layer_id: &str,
-        layer_is_active: bool,
-        current_selection: usize,
-    ) -> bool {
+    /// 评估触发器。当前作为占位符返回 false。
+    pub fn evaluate(&self) -> bool {
         match self {
-            StateTrigger::InteractiveLayerSelected {
-                layer_id: trigger_layer_id,
-                index,
-            } => layer_id == trigger_layer_id && layer_is_active && current_selection == *index,
+            StateTrigger::FactCondition { .. } => {
+                // TODO: Implement fact-based evaluation
+                false
+            }
         }
     }
 }
@@ -189,93 +183,26 @@ impl StateTrigger {
 // 系统
 // ============================================================================
 
-/// Marker resource to track if initial evaluation has happened.
-///
-/// 标记资源，用于跟踪初始评估是否已完成。
-#[derive(Resource, Default)]
-pub struct StateSpriteInitialized(pub bool);
-
 /// System to evaluate state sprite rules and update state.
 ///
 /// 评估状态精灵规则并更新状态的系统。
 ///
-/// This system runs whenever an InteractiveLayer changes or when a new StateSpriteState is added.
-/// It evaluates all StateSpriteState components and updates their state based on the configured rules.
-///
-/// 此系统在 InteractiveLayer 变化时或添加新的 StateSpriteState 时运行。
-/// 它评估所有 StateSpriteState 组件并根据配置的规则更新其状态。
-pub fn evaluate_state_sprite_rules_system(
-    layer_query: Query<&InteractiveLayer, Changed<InteractiveLayer>>,
-    mut state_query: Query<&mut StateSpriteState>,
-) {
-    // Early exit if no layers changed
-    if layer_query.is_empty() {
-        return;
-    }
-
-    // Collect all changed layer states
-    // 收集所有变化的层状态
-    let layers: Vec<&InteractiveLayer> = layer_query.iter().collect();
-
-    // Evaluate each state sprite
-    for mut state in state_query.iter_mut() {
-        let mut new_state: Option<String> = None;
-
-        // Evaluate rules in order; first matching rule wins
-        'rule_loop: for rule in &state.rules {
-            for layer in &layers {
-                if rule
-                    .trigger
-                    .evaluate(&layer.layer_id, layer.is_active, layer.current_selection)
-                {
-                    new_state = Some(rule.state.clone());
-                    break 'rule_loop;
-                }
-            }
-        }
-
-        state.set_state(new_state);
-    }
+/// TODO: Reimplement using facts-based triggers.
+pub fn evaluate_state_sprite_rules_system(mut _state_query: Query<&mut StateSpriteState>) {
+    // TODO: Implement facts-based evaluation
+    // For now, this is a no-op
 }
 
-/// System to evaluate newly added state sprites against all interactive layers.
+/// System to evaluate newly added state sprites.
 ///
-/// 针对所有交互层评估新添加的状态精灵的系统。
+/// 评估新添加的状态精灵的系统。
 ///
-/// This handles the case when a state sprite is spawned and needs immediate evaluation.
-///
-/// 处理状态精灵生成后需要立即评估的情况。
+/// TODO: Reimplement using facts-based triggers.
 pub fn evaluate_new_state_sprites_system(
-    layer_query: Query<&InteractiveLayer>,
-    mut state_query: Query<&mut StateSpriteState, Added<StateSpriteState>>,
+    mut _state_query: Query<&mut StateSpriteState, Added<StateSpriteState>>,
 ) {
-    // Early exit if no new state sprites
-    if state_query.is_empty() {
-        return;
-    }
-
-    // Collect all layer states
-    let layers: Vec<&InteractiveLayer> = layer_query.iter().collect();
-
-    // Evaluate each new state sprite
-    for mut state in state_query.iter_mut() {
-        let mut new_state: Option<String> = None;
-
-        // Evaluate rules in order; first matching rule wins
-        'rule_loop: for rule in &state.rules {
-            for layer in &layers {
-                if rule
-                    .trigger
-                    .evaluate(&layer.layer_id, layer.is_active, layer.current_selection)
-                {
-                    new_state = Some(rule.state.clone());
-                    break 'rule_loop;
-                }
-            }
-        }
-
-        state.set_state(new_state);
-    }
+    // TODO: Implement facts-based evaluation
+    // For now, this is a no-op
 }
 
 /// System to update sprite textures when state changes.
@@ -291,6 +218,8 @@ pub fn update_state_sprite_textures_system(
             let texture_path = state.current_texture_path().to_string();
             sprite.image = asset_server.load(&texture_path);
             state.dirty = false;
+
+            debug!("Updated sprite texture to: {}", texture_path);
         }
     }
 }

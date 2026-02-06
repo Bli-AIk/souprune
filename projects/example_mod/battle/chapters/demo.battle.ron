@@ -1,16 +1,22 @@
 #![enable(implicit_some)]
-// Battle configuration with optional FRE rules
-// 带有可选 FRE 规则的战斗配置
+// Battle configuration with FRE data loading
+// 带有 FRE 数据加载的战斗配置
 (
-    // Optional: Path to FRE rules file for this battle
-    // 可选：此战斗的 FRE 规则文件路径
-    // rules_file: "battle/rules/demo_battle.rules.ron",
-
     // The sequence of chapters to execute
     // 要执行的章节序列
     chapters: [
         SetCamera(SetZoom(2.0)),
-        SpawnView(view_layout: "battle/view/undertale.view_layout.ron"),
+
+        // Spawn battle UI view with enemy data bound directly from FRE file
+        // 生成战斗 UI 视图，敌人数据直接从 FRE 文件绑定
+        SpawnView(
+            view_layout: "battle/view/undertale.view_layout.ron",
+            bindings: {
+                // Directly bind enemy data from FRE file (no LoadFre needed)
+                // 直接从 FRE 文件绑定敌人数据（无需 LoadFre）
+                "enemies": File("battle/enemies/demo_enemies.fre.ron"),
+            },
+        ),
         AwaitInteraction(
             layer_id: "BattleMainMenu",
             initial_selection: 0,

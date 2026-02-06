@@ -1,0 +1,193 @@
+#![enable(implicit_some)]
+// Backpack Navigation Rules (FRE-based)
+// 背包导航规则（基于 FRE）
+//
+// This file demonstrates the new FRE-based navigation system that replaces
+// the old hardcoded view_local_facts_navigation_system in view.rs.
+// It uses ActionEvent as triggers and SetLocalFact as actions.
+//
+// 此文件演示新的基于 FRE 的导航系统，替代旧的硬编码的
+// view_local_facts_navigation_system 系统。
+// 它使用 ActionEvent 作为触发器，SetLocalFact 作为动作。
+//
+// DEPTH MAPPING / 深度映射:
+//   0 = BackpackMenu (ITEM/STAT selection)
+//   1 = BackpackItem (item list)
+//   2 = BackpackItemOptions (USE/INFO/DROP)
+//   3 = BackpackStatus (player stats)
+
+(
+    // Scope: View - rules are active only when the View exists
+    // 作用域：View - 规则仅在 View 存在时生效
+    scope: View,
+
+    // Initial facts - these are VIEW-LOCAL facts
+    // 初始事实 - 这些是 VIEW-LOCAL 事实
+    facts: {
+        "depth": Int(0),
+        "selection": Int(0),
+        "active": Bool(true),
+    },
+
+    rules: [
+        // === NAVIGATION RULES / 导航规则 ===
+
+        // Rule: Navigate up (selection > 0)
+        // 规则：向上导航（selection > 0）
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: ["$selection > 0"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Rule: Navigate down at depth 0 (max 1 = ITEM/STAT)
+        // 规则：在深度 0 向下导航（最大 1 = ITEM/STAT）
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: ["$depth == 0", "$selection < 1"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Rule: Navigate down at depth 1 (item list, max = inventory.len() - 1)
+        // 规则：在深度 1 向下导航（物品列表，最大 = 物品数量 - 1）
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: ["$depth == 1", "$selection < $player_inventory.len() - 1"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Rule: Navigate down at depth 2 (USE/INFO/DROP, max 2) using LEFT KEY
+        // 规则：在深度 2 向下导航（USE/INFO/DROP，最大 2）使用左键
+        (
+            event: ActionEvent(action: "Left", kind: JustPressed),
+            conditions: ["$depth == 2", "$selection > 0"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Rule: Navigate at depth 2 (USE/INFO/DROP, max 2) using RIGHT KEY
+        // 规则：在深度 2 导航（USE/INFO/DROP，最大 2）使用右键
+        (
+            event: ActionEvent(action: "Right", kind: JustPressed),
+            conditions: ["$depth == 2", "$selection < 2"],
+            actions: [
+                SetLocalFact("selection", Expr("$selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // === CONFIRM RULES / 确认规则 ===
+
+        // Rule: Confirm at depth 0, selection 0 -> ITEM list (depth 1)
+        // 规则：在深度 0，选择 0 时确认 -> 物品列表（深度 1）
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$depth == 0", "$selection == 0"],
+            actions: [
+                SetLocalFact("depth", Int(1)),
+                SetLocalFact("selection", Int(0)),
+                PlaySound("confirm"),
+            ],
+        ),
+
+        // Rule: Confirm at depth 0, selection 1 -> STATUS (depth 3)
+        // 规则：在深度 0，选择 1 时确认 -> 状态页（深度 3）
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$depth == 0", "$selection == 1"],
+            actions: [
+                SetLocalFact("depth", Int(3)),
+                SetLocalFact("selection", Int(0)),
+                PlaySound("confirm"),
+            ],
+        ),
+
+        // Rule: Confirm at depth 1 -> item options (depth 2)
+        // 规则：在深度 1 确认 -> 物品选项（深度 2）
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$depth == 1"],
+            actions: [
+                SetLocalFact("depth", Int(2)),
+                SetLocalFact("selection", Int(0)),
+                PlaySound("confirm"),
+            ],
+        ),
+
+        // Rule: Confirm at depth 2 -> execute action and return to item list
+        // 规则：在深度 2 确认 -> 执行动作并返回物品列表
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$depth == 2"],
+            actions: [
+                SetLocalFact("depth", Int(1)),
+                PlaySound("confirm"),
+            ],
+        ),
+
+        // === CANCEL RULES / 取消规则 ===
+
+        // Rule: Cancel at depth 0 -> close backpack
+        // 规则：在深度 0 取消 -> 关闭背包
+        (
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: ["$depth == 0"],
+            actions: [
+                SwitchState("Normal"),
+            ],
+        ),
+
+        // Rule: Menu at depth 0 -> close backpack (same as Cancel)
+        // 规则：在深度 0 按 Menu -> 关闭背包（与 Cancel 相同）
+        (
+            event: ActionEvent(action: "Menu", kind: JustPressed),
+            conditions: ["$depth == 0"],
+            actions: [
+                SwitchState("Normal"),
+            ],
+        ),
+
+        // Rule: Cancel at depth 1 -> back to menu
+        // 规则：在深度 1 取消 -> 返回菜单
+        (
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: ["$depth == 1"],
+            actions: [
+                SetLocalFact("depth", Int(0)),
+                SetLocalFact("selection", Int(0)),
+            ],
+        ),
+
+        // Rule: Cancel at depth 2 -> back to item list
+        // 规则：在深度 2 取消 -> 返回物品列表
+        (
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: ["$depth == 2"],
+            actions: [
+                SetLocalFact("depth", Int(1)),
+            ],
+        ),
+
+        // Rule: Cancel at depth 3 -> back to menu with selection=1 (STAT)
+        // 规则：在深度 3 取消 -> 返回菜单并设置 selection=1（STAT）
+        (
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: ["$depth == 3"],
+            actions: [
+                SetLocalFact("depth", Int(0)),
+                SetLocalFact("selection", Int(1)),
+            ],
+        ),
+    ],
+)

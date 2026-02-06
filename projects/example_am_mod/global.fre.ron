@@ -16,11 +16,13 @@
 // 对于存档/读档功能，只需序列化/反序列化这些事实即可。
 
 (
-    version: 1,
+    // Scope: Global - facts and rules persist for app lifetime
+    // 作用域：Global - 事实和规则在应用生命周期内持久化
+    scope: Global,
 
     // Initial player facts - these become the player's starting stats
     // 初始玩家事实 - 这些成为玩家的初始属性
-    initial_facts: {
+    facts: {
         // Basic identity
         // 基本身份
         "player_name": String("Chara"),
@@ -50,9 +52,16 @@
         "player_weapon": String("stick"),
         "player_armor": String("bandage"),
 
-        // Inventory (comma-separated item IDs)
-        // 物品栏（逗号分隔的物品 ID）
-        "player_inventory": String("monster_candy,monster_candy,monster_candy,monster_candy,monster_candy,UNDEFITEM"),
+        // Inventory (StringList of item IDs)
+        // 物品栏（物品 ID 的字符串列表）
+        "player_inventory": StringList([
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "monster_candy",
+            "UNDEFITEM",
+        ]),
         "player_inventory_capacity": Int(8),
     },
 

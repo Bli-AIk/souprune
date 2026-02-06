@@ -1,0 +1,216 @@
+#![enable(implicit_some)]
+// Battle Menu Navigation Rules (FRE-based)
+// 战斗菜单导航规则（基于 FRE）
+//
+// This file contains navigation rules for the battle menu.
+// It uses ActionEvent-based navigation to update View local facts.
+//
+// 此文件包含战斗菜单的导航规则。
+// 使用基于 ActionEvent 的导航来更新 View 局部事实。
+//
+// Battle Menu Structure / 战斗菜单结构:
+// - depth 0: Main menu (FIGHT/ACT/ITEM/MERCY) - horizontal navigation using button_selection
+// - depth 1: Submenu (enemy list, action list, item list, mercy options) - vertical navigation using enemy_selection
+// - depth 2: Action confirmation / details
+//
+// Selection Variables / 选择变量:
+// - button_selection: Main menu button (0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY), persists across depths
+// - enemy_selection: Enemy index in depth 1 (FIGHT/ACT/MERCY mode)
+// - item_selection: Item index in depth 1 (ITEM mode)
+//
+// NOTE: Initial fact values (depth, button_selection, etc.) are defined in the View's facts field.
+//       Enemy data (enemy_names, enemy_hps, enemy_hp_maxs) is loaded via SpawnView bindings.
+// 注意：初始事实值（depth, button_selection 等）在 View 的 facts 字段中定义。
+//       敌人数据（enemy_names, enemy_hps, enemy_hp_maxs）通过 SpawnView 绑定加载。
+
+(
+    // Scope: View - rules are active only when the Battle View exists
+    // 作用域：View - 规则仅在 Battle View 存在时生效
+    scope: View,
+
+    // No facts defined here - initial values are in View's facts field
+    // 此处不定义 facts - 初始值在 View 的 facts 字段中
+
+    rules: [
+        // === MAIN MENU NAVIGATION (depth 0) - HORIZONTAL / 主菜单导航（深度 0）- 横向 ===
+
+        // Navigate left in main menu
+        // 在主菜单中向左导航
+        (
+            event: ActionEvent(action: "Left", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 0", "$button_selection > 0"],
+            actions: [
+                SetLocalFact("button_selection", Expr("$button_selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate right in main menu
+        // 在主菜单中向右导航
+        (
+            event: ActionEvent(action: "Right", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 0", "$button_selection < 3"],
+            actions: [
+                SetLocalFact("button_selection", Expr("$button_selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // === SUBMENU NAVIGATION (depth 1) - VERTICAL / 子菜单导航（深度 1）- 纵向 ===
+
+        // Navigate up in submenu (enemy list) - FIGHT/ACT/MERCY
+        // Without scrolling: just move selection up
+        // 在子菜单中向上导航（敌人列表）- 战斗/行动/仁慈
+        // 无滚动：仅向上移动选择
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",
+                "$enemy_selection > 0",
+                "$enemy_selection > $enemy_view_offset",  // Not at top of view
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate up in submenu (enemy list) - with scroll up
+        // Scroll window up when at top of visible area
+        // 在子菜单中向上导航（敌人列表）- 带向上滚动
+        // 当在可见区域顶部时向上滚动窗口
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",
+                "$enemy_selection > 0",
+                "$enemy_selection <= $enemy_view_offset",  // At top of view, need to scroll
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection - 1")),
+                SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu (enemy list) - FIGHT/ACT/MERCY
+        // Without scrolling: just move selection down
+        // 在子菜单中向下导航（敌人列表）- 战斗/行动/仁慈
+        // 无滚动：仅向下移动选择
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",  // Not ITEM menu
+                "$enemy_selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+                "$enemy_selection < $enemy_view_offset + $enemy_display_limit - 1",  // Not at bottom of view
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu (enemy list) - with scroll down
+        // Scroll window down when at bottom of visible area
+        // 在子菜单中向下导航（敌人列表）- 带向下滚动
+        // 当在可见区域底部时向下滚动窗口
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context != 2",  // Not ITEM menu
+                "$enemy_selection < $enemy_names - 1",  // $enemy_names evaluates to array length
+                "$enemy_selection >= $enemy_view_offset + $enemy_display_limit - 1",  // At bottom of view, need to scroll
+            ],
+            actions: [
+                SetLocalFact("enemy_selection", Expr("$enemy_selection + 1")),
+                SetLocalFact("enemy_view_offset", Expr("$enemy_view_offset + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate up in submenu (item list) - ITEM
+        // 在子菜单中向上导航（物品列表）- 物品
+        (
+            event: ActionEvent(action: "Up", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 1", "$menu_context == 2", "$item_selection > 0"],
+            actions: [
+                SetLocalFact("item_selection", Expr("$item_selection - 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // Navigate down in submenu (item list) - ITEM (simplified max 8 items)
+        // 在子菜单中向下导航（物品列表）- 物品（简化最大 8 个物品）
+        (
+            event: ActionEvent(action: "Down", kind: JustPressed),
+            conditions: [
+                "$active == true",
+                "$depth == 1",
+                "$menu_context == 2",  // ITEM menu
+                "$item_selection < 7",  // Max 8 items (0-7)
+            ],
+            actions: [
+                SetLocalFact("item_selection", Expr("$item_selection + 1")),
+                PlaySound("choice"),
+            ],
+        ),
+
+        // === CONFIRM RULES / 确认规则 ===
+
+        // Confirm on main menu - enter submenu (depth 0 -> 1)
+        // 在主菜单确认 - 进入子菜单（深度 0 -> 1）
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 0"],
+            actions: [
+                SetLocalFact("menu_context", Expr("$button_selection")),
+                SetLocalFact("depth", Int(1)),
+                SetLocalFact("enemy_selection", Int(0)),
+                SetLocalFact("item_selection", Int(0)),
+                PlaySound("confirm"),
+            ],
+        ),
+
+        // Confirm in submenu - execute action (handled by battle system)
+        // 在子菜单确认 - 执行行动（由战斗系统处理）
+        (
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 1"],
+            actions: [
+                SetLocalFact("active", Bool(false)),
+                PlaySound("confirm"),
+                EmitEvent("battle_action_executed"),
+            ],
+        ),
+
+        // === CANCEL RULES / 取消规则 ===
+
+        // Cancel from submenu - back to main menu (depth 1 -> 0)
+        // 从子菜单取消 - 返回主菜单（深度 1 -> 0）
+        (
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: ["$active == true", "$depth == 1"],
+            actions: [
+                SetLocalFact("depth", Int(0)),
+                // Reset enemy selection when going back to main menu
+                // 返回主菜单时重置敌人选择索引
+                SetLocalFact("enemy_selection", Int(0)),
+                SetLocalFact("enemy_view_offset", Int(0)),
+                // button_selection is preserved, no need to restore
+            ],
+        ),
+
+        // Note: Cancel from main menu (depth 0) would typically not close
+        // the battle menu, as battles cannot be escaped in most Deltarune-style games.
+        // 注意：从主菜单取消（深度 0）通常不会关闭战斗菜单，
+        // 因为在大多数 Deltarune 风格游戏中无法逃脱战斗。
+    ],
+)

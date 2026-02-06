@@ -83,7 +83,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         (Without<Camera2d>, Without<DebugCamera>),
     >,
     player_query: Query<
-        &Transform,
+        (Ref<Transform>, ()),
         (
             With<crate::app_state::overworld::character::components::PlayerControlled>,
             Without<CameraAnchored>,
@@ -92,7 +92,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         ),
     >,
     camera_query: Query<
-        &Transform,
+        (Ref<Transform>, ()),
         (
             With<Camera2d>,
             Without<DebugCamera>,
@@ -101,12 +101,27 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         ),
     >,
 ) {
-    let Ok(player_transform) = player_query.single() else {
+    // Early exit if no dynamic anchors exist
+    // 如果没有动态锚点则提前退出
+    if anchored_query.is_empty() {
+        return;
+    }
+
+    let Ok((player_transform_ref, _)) = player_query.single() else {
         return;
     };
-    let Ok(camera_transform) = camera_query.single() else {
+    let Ok((camera_transform_ref, _)) = camera_query.single() else {
         return;
     };
+
+    // Only update when player or camera transform changed
+    // 仅在玩家或摄像机 Transform 变化时更新
+    if !player_transform_ref.is_changed() && !camera_transform_ref.is_changed() {
+        return;
+    }
+
+    let player_transform = &*player_transform_ref;
+    let camera_transform = &*camera_transform_ref;
 
     let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
     let _ = context.set_function(

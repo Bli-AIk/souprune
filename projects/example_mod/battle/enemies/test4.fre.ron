@@ -1,0 +1,12 @@
+// Test enemy 4 definition
+// 测试敌人 4 定义
+(
+    facts: {
+        "test4.name": String("{{battle/ui:ENEMY_TEST4}}"),
+        "test4.hp": Int(60),
+        "test4.hp_max": Int(80),
+        "test4.attack": Int(3),
+        "test4.defense": Int(1),
+    },
+    rules: [],
+)
