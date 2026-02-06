@@ -19,13 +19,11 @@
 //! 确保 UI 元素在世界摄像机移动时保持固定在屏幕上。
 
 use super::components::{CameraAnchored, CameraAnchoredDynamic};
+use super::expr_eval::eval_number;
 use crate::app_state::overworld::OverworldSubState;
 use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
-use evalexpr::{
-    ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes, EvalexprError,
-    Function, HashMapContext, Value,
-};
+use std::collections::BTreeMap;
 
 /// Apply camera offsets whenever the camera actually moves (works in states with UI interaction or chase config).
 ///
@@ -123,60 +121,42 @@ pub(crate) fn update_dynamic_camera_anchors_system(
     let player_transform = &*player_transform_ref;
     let camera_transform = &*camera_transform_ref;
 
-    let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
-    let _ = context.set_function(
-        "if".to_string(),
-        Function::new(|argument| {
-            if let Value::Tuple(args) = argument {
-                if args.len() != 3 {
-                    return Err(EvalexprError::wrong_function_argument_amount(3, args.len()));
-                }
-                if args[0].as_boolean()? {
-                    Ok(args[1].clone())
-                } else {
-                    Ok(args[2].clone())
-                }
-            } else {
-                Err(EvalexprError::wrong_function_argument_amount(3, 1))
-            }
-        }),
+    // Build variable map for expression evaluation
+    // 构建表达式求值所需的变量映射
+    let mut vars: BTreeMap<String, f64> = BTreeMap::new();
+    vars.insert(
+        "player_x".to_string(),
+        player_transform.translation.x as f64,
     );
-    let _ = context.set_value(
-        "player.x".to_string(),
-        evalexpr::Value::Float(player_transform.translation.x as f64),
+    vars.insert(
+        "player_y".to_string(),
+        player_transform.translation.y as f64,
     );
-    let _ = context.set_value(
-        "player.y".to_string(),
-        evalexpr::Value::Float(player_transform.translation.y as f64),
+    vars.insert(
+        "camera_x".to_string(),
+        camera_transform.translation.x as f64,
     );
-    let _ = context.set_value(
-        "camera.x".to_string(),
-        evalexpr::Value::Float(camera_transform.translation.x as f64),
-    );
-    let _ = context.set_value(
-        "camera.y".to_string(),
-        evalexpr::Value::Float(camera_transform.translation.y as f64),
+    vars.insert(
+        "camera_y".to_string(),
+        camera_transform.translation.y as f64,
     );
 
     for (mut anchor, dynamic, mut transform) in anchored_query.iter_mut() {
         if let Some(expr) = &dynamic.y_expression {
-            match evalexpr::eval_with_context(expr, &context) {
-                Ok(val) => {
-                    if let Ok(f) = val.as_float() {
-                        let f: f64 = f;
-                        let new_y = f as f32;
-                        if anchor.offset.y != new_y {
-                            trace!(
-                                "Updating dynamic anchor Y: expr='{}', result={}, old_y={}, new_y={}, player_y={}, camera_y={}",
-                                expr,
-                                f,
-                                anchor.offset.y,
-                                new_y,
-                                player_transform.translation.y,
-                                camera_transform.translation.y
-                            );
-                            anchor.offset.y = new_y;
-                        }
+            match eval_number(expr, &vars) {
+                Ok(f) => {
+                    let new_y = f as f32;
+                    if anchor.offset.y != new_y {
+                        trace!(
+                            "Updating dynamic anchor Y: expr='{}', result={}, old_y={}, new_y={}, player_y={}, camera_y={}",
+                            expr,
+                            f,
+                            anchor.offset.y,
+                            new_y,
+                            player_transform.translation.y,
+                            camera_transform.translation.y
+                        );
+                        anchor.offset.y = new_y;
                     }
                 }
                 Err(e) => {
@@ -190,17 +170,13 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 
         // Similar logic for X and Z if needed, but for now focusing on Y as per user report.
         if let Some(expr) = &dynamic.x_expression
-            && let Ok(val) = evalexpr::eval_with_context(expr, &context)
-            && let Ok(f) = val.as_float()
+            && let Ok(f) = eval_number(expr, &vars)
         {
-            let f: f64 = f;
             anchor.offset.x = f as f32;
         }
         if let Some(expr) = &dynamic.z_expression
-            && let Ok(val) = evalexpr::eval_with_context(expr, &context)
-            && let Ok(f) = val.as_float()
+            && let Ok(f) = eval_number(expr, &vars)
         {
-            let f: f64 = f;
             anchor.offset.z = f as f32;
         }
 
