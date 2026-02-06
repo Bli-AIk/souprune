@@ -1,9 +1,9 @@
 use super::super::layout::FloatOrExpr;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
+use crate::core::view::expr_eval::{create_eval_callback, preprocess_varname};
 use bevy::prelude::*;
-use evalexpr::HashMapContext;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 // Re-export PlayerDataView for backward compatibility
 pub use super::player_data::PlayerDataView;
@@ -134,7 +134,7 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
                     if var_name == "i" || var_name == "index" {
                         repeat_ctx.index.to_string()
                     } else if var_name == "time" {
-                        // @time is handled by evalexpr context, keep as-is
+                        // @time is handled by fasteval context, keep as-is
                         format!("@{}", var_name)
                     } else {
                         repeat_ctx
@@ -238,9 +238,10 @@ fn evaluate_lambda_range_expr(expr: &str, player_data: &PlayerDataView) -> Optio
     // Preprocess fact expressions
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
-    let context: HashMapContext = HashMapContext::new();
+    let vars: BTreeMap<String, f64> = BTreeMap::new();
+    let mut cb = create_eval_callback(&vars);
 
-    match evalexpr::eval_number_with_context(&processed_expr, &context) {
+    match fasteval::ez_eval(&processed_expr, &mut cb) {
         Ok(val) => Some((val as i64).max(0) as usize),
         Err(e) => {
             warn!(
@@ -477,7 +478,7 @@ pub fn preprocess_fact_expressions_with_repeat(
                 if var_name == "i" || var_name == "index" {
                     ctx.index.to_string()
                 } else if var_name == "time" {
-                    // @time is handled separately by evalexpr context
+                    // @time is handled separately by fasteval context
                     format!("@{}", var_name)
                 } else {
                     ctx.variables
@@ -546,8 +547,6 @@ fn get_array_element_for_expr(
 /// 计算 `visible_when` 表达式以确定可见性。
 /// 如果元素应该可见则返回 true，否则返回 false。
 pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
-    use evalexpr::{ContextWithMutableFunctions, DefaultNumericTypes, HashMapContext};
-
     // Handle empty expression as always visible
     let expr = expr.trim();
     if expr.is_empty() || expr == "true" {
@@ -561,52 +560,33 @@ pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
     // 预处理事实表达式 - 处理 $var 语法
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
-    let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+    // Preprocess special functions
+    // 预处理特殊函数
+    let is_empty = player_data
+        .get_fact_string_list("player_inventory")
+        .map(|list| list.is_empty())
+        .unwrap_or(true);
+    let processed_expr =
+        processed_expr.replace("inventory_is_empty()", if is_empty { "1" } else { "0" });
 
-    // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
-    // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
+    // Preprocess boolean literals for fasteval compatibility
+    // 预处理布尔字面量以兼容 fasteval
+    let processed_expr = processed_expr.replace("true", "1").replace("false", "0");
 
-    // Register helper functions that work with FRE data
-    // 注册与 FRE 数据配合使用的辅助函数
-    let _ = context.set_function(
-        "inventory_is_empty".to_string(),
-        evalexpr::Function::new({
-            let is_empty = player_data
-                .get_fact_string_list("player_inventory")
-                .map(|list| list.is_empty())
-                .unwrap_or(true);
-            move |_arg| Ok(evalexpr::Value::Boolean(is_empty))
-        }),
-    );
+    // Preprocess variable names for fasteval compatibility
+    let processed_expr = preprocess_varname(&processed_expr);
 
-    match evalexpr::eval_boolean_with_context(&processed_expr, &context) {
-        Ok(result) => result,
+    let vars: BTreeMap<String, f64> = BTreeMap::new();
+    let mut cb = create_eval_callback(&vars);
+
+    match fasteval::ez_eval(&processed_expr, &mut cb) {
+        Ok(val) => val != 0.0,
         Err(e) => {
-            // Try evaluating as a number and convert to bool (non-zero = true)
-            match evalexpr::eval_with_context(&processed_expr, &context) {
-                Ok(val) => {
-                    if let Ok(f) = val.as_float() {
-                        f != 0.0
-                    } else if let Ok(i) = val.as_int() {
-                        i != 0
-                    } else if let Ok(b) = val.as_boolean() {
-                        b
-                    } else {
-                        warn!(
-                            "Failed to evaluate visible_when expression '{}' (processed: '{}'): {}",
-                            expr, processed_expr, e
-                        );
-                        true // Default to visible on error
-                    }
-                }
-                Err(e2) => {
-                    warn!(
-                        "Failed to evaluate visible_when expression '{}' (processed: '{}'): {} / {}",
-                        expr, processed_expr, e, e2
-                    );
-                    true // Default to visible on error
-                }
-            }
+            warn!(
+                "Failed to evaluate visible_when expression '{}' (processed: '{}'): {}",
+                expr, processed_expr, e
+            );
+            true // Default to visible on error
         }
     }
 }
@@ -619,127 +599,22 @@ pub fn evaluate_float_expr(
     match expr {
         Val::Static(v) => *v,
         Val::Expr(expr_str) => {
-            use evalexpr::{
-                ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
-                HashMapContext,
-            };
-
             // Preprocess fact expressions before evaluation
             // 在求值前预处理 fact 表达式
             let processed_expr = preprocess_fact_expressions(expr_str, player_data);
 
-            let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+            // Preprocess variable names for fasteval compatibility
+            let processed_expr = preprocess_varname(&processed_expr);
 
-            // Register sin function
-            let _ = context.set_function(
-                "sin".to_string(),
-                evalexpr::Function::new(|arg| {
-                    let val: f64 = arg.as_float()?;
-                    Ok(evalexpr::Value::Float(val.sin()))
-                }),
-            );
+            let mut vars: BTreeMap<String, f64> = BTreeMap::new();
 
-            // Register cos function
-            let _ = context.set_function(
-                "cos".to_string(),
-                evalexpr::Function::new(|arg| {
-                    let val: f64 = arg.as_float()?;
-                    Ok(evalexpr::Value::Float(val.cos()))
-                }),
-            );
+            // Set @time variable
+            vars.insert("__at_time".to_string(), time.unwrap_or(0.0));
 
-            // Register snap function (snap(val, step))
-            let _ = context.set_function(
-                "snap".to_string(),
-                evalexpr::Function::new(|arg| {
-                    if let Ok(tuple) = arg.as_tuple() {
-                        if tuple.len() != 2 {
-                            return Err(evalexpr::EvalexprError::CustomMessage(
-                                "snap expects 2 arguments".to_string(),
-                            ));
-                        }
-                        let val: f64 = tuple[0].as_float()?;
-                        let step: f64 = tuple[1].as_float()?;
-                        if step == 0.0 {
-                            return Ok(evalexpr::Value::Float(val));
-                        }
-                        // Use floor to snap to the previous step (like 30fps update)
-                        let snapped: f64 = (val / step).floor() * step;
-                        Ok(evalexpr::Value::Float(snapped))
-                    } else {
-                        // If single argument, maybe return as is or error?
-                        // But snap needs step.
-                        Err(evalexpr::EvalexprError::CustomMessage(
-                            "snap expects 2 arguments (val, step)".to_string(),
-                        ))
-                    }
-                }),
-            );
+            let mut cb = create_eval_callback(&vars);
 
-            // Register random function (random() or random(min, max))
-            let _ = context.set_function(
-                "random".to_string(),
-                evalexpr::Function::new(|arg| {
-                    use std::time::{SystemTime, UNIX_EPOCH};
-                    // Use system time as seed for randomness
-                    let nanos = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .subsec_nanos();
-                    // Simple pseudo-random: -1.0 to 1.0
-                    let rand_val = ((nanos % 1000) as f64 / 1000.0) * 2.0 - 1.0;
-
-                    if let Ok(tuple) = arg.as_tuple() {
-                        if tuple.len() == 2 {
-                            // random(min, max) - return value in range [min, max]
-                            let min: f64 = tuple[0].as_float()?;
-                            let max: f64 = tuple[1].as_float()?;
-                            let range = max - min;
-                            let result = min + (rand_val + 1.0) * 0.5 * range;
-                            Ok(evalexpr::Value::Float(result))
-                        } else if tuple.len() == 1 {
-                            // random(range) - return value in range [-range, range]
-                            let range: f64 = tuple[0].as_float()?;
-                            Ok(evalexpr::Value::Float(rand_val * range))
-                        } else {
-                            Err(evalexpr::EvalexprError::CustomMessage(
-                                "random expects 0, 1, or 2 arguments".to_string(),
-                            ))
-                        }
-                    } else {
-                        // Single argument: random(range)
-                        let range: f64 = arg.as_float()?;
-                        Ok(evalexpr::Value::Float(rand_val * range))
-                    }
-                }),
-            );
-
-            // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
-            // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
-
-            if let Some(t) = time {
-                // debug!("Setting @time to {}", t);
-                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
-            } else {
-                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
-            }
-
-            match evalexpr::eval_with_context(&processed_expr, &context) {
-                Ok(val) => {
-                    if let Ok(f) = val.as_float() {
-                        let f_f64: f64 = f;
-                        f_f64 as f32
-                    } else if let Ok(i) = val.as_int() {
-                        let i_i64: i64 = i;
-                        i_i64 as f32
-                    } else {
-                        warn!(
-                            "Failed to convert expression result to number: {}",
-                            expr_str
-                        );
-                        0.0
-                    }
-                }
+            match fasteval::ez_eval(&processed_expr, &mut cb) {
+                Ok(val) => val as f32,
                 Err(e) => {
                     warn!("Failed to evaluate expression '{}': {}", expr_str, e);
                     0.0
@@ -763,82 +638,23 @@ pub fn evaluate_float_expr_with_repeat(
     match expr {
         Val::Static(v) => *v,
         Val::Expr(expr_str) => {
-            use evalexpr::{
-                ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
-                HashMapContext,
-            };
-
             // Preprocess with repeat context support
             // 使用重复上下文支持进行预处理
             let processed_expr =
                 preprocess_fact_expressions_with_repeat(expr_str, player_data, repeat_ctx);
 
-            let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+            // Preprocess variable names for fasteval compatibility
+            let processed_expr = preprocess_varname(&processed_expr);
 
-            // Register sin function
-            let _ = context.set_function(
-                "sin".to_string(),
-                evalexpr::Function::new(|arg| {
-                    let val: f64 = arg.as_float()?;
-                    Ok(evalexpr::Value::Float(val.sin()))
-                }),
-            );
-
-            // Register cos function
-            let _ = context.set_function(
-                "cos".to_string(),
-                evalexpr::Function::new(|arg| {
-                    let val: f64 = arg.as_float()?;
-                    Ok(evalexpr::Value::Float(val.cos()))
-                }),
-            );
-
-            // Register if function
-            let _ = context.set_function(
-                "if".to_string(),
-                evalexpr::Function::new(|arg| {
-                    if let Ok(tuple) = arg.as_tuple() {
-                        if tuple.len() == 3 {
-                            let condition: bool = tuple[0].as_boolean()?;
-                            if condition {
-                                Ok(tuple[1].clone())
-                            } else {
-                                Ok(tuple[2].clone())
-                            }
-                        } else {
-                            Err(evalexpr::EvalexprError::CustomMessage(
-                                "if expects 3 arguments".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(evalexpr::EvalexprError::CustomMessage(
-                            "if expects a tuple of 3 arguments".to_string(),
-                        ))
-                    }
-                }),
-            );
+            let mut vars: BTreeMap<String, f64> = BTreeMap::new();
 
             // Set @time variable
-            if let Some(t) = time {
-                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
-            } else {
-                let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
-            }
+            vars.insert("__at_time".to_string(), time.unwrap_or(0.0));
 
-            match evalexpr::eval_with_context(&processed_expr, &context) {
-                Ok(val) => {
-                    if let Ok(f) = val.as_float() {
-                        f as f32
-                    } else if let Ok(i) = val.as_int() {
-                        i as f32
-                    } else {
-                        warn!(
-                            "Failed to convert expression result to number: {}",
-                            expr_str
-                        );
-                        0.0
-                    }
-                }
+            let mut cb = create_eval_callback(&vars);
+
+            match fasteval::ez_eval(&processed_expr, &mut cb) {
+                Ok(val) => val as f32,
                 Err(e) => {
                     warn!(
                         "Failed to evaluate expression '{}' (processed: '{}'): {}",
@@ -862,12 +678,10 @@ pub fn evaluate_float_expr_with_current(
     _player_data: &PlayerDataView,
     time: Option<f64>,
 ) -> f32 {
-    use evalexpr::{
-        ContextWithMutableFunctions, ContextWithMutableVariables, DefaultNumericTypes,
-        HashMapContext,
-    };
+    // Preprocess variable names for fasteval compatibility
+    let processed_expr = preprocess_varname(expr_str);
 
-    let mut context: HashMapContext<DefaultNumericTypes> = HashMapContext::new();
+    let mut vars: BTreeMap<String, f64> = BTreeMap::new();
 
     // Register @current variable
     if let Some(current) = current_value {
@@ -875,131 +689,26 @@ pub fn evaluate_float_expr_with_current(
             "[evaluate_float_expr_with_current] Setting @current = {}",
             current
         );
-        let _ = context.set_value(
-            "@current".to_string(),
-            evalexpr::Value::Float(current as f64),
-        );
+        vars.insert("__at_current".to_string(), current as f64);
     } else {
         debug!("[evaluate_float_expr_with_current] Setting @current = 0.0 (no current value)");
-        let _ = context.set_value("@current".to_string(), evalexpr::Value::Float(0.0));
+        vars.insert("__at_current".to_string(), 0.0);
     }
 
-    // Register sin function
-    let _ = context.set_function(
-        "sin".to_string(),
-        evalexpr::Function::new(|arg| {
-            let val: f64 = arg.as_float()?;
-            Ok(evalexpr::Value::Float(val.sin()))
-        }),
-    );
-
-    // Register cos function
-    let _ = context.set_function(
-        "cos".to_string(),
-        evalexpr::Function::new(|arg| {
-            let val: f64 = arg.as_float()?;
-            Ok(evalexpr::Value::Float(val.cos()))
-        }),
-    );
-
-    // Register snap function (snap(val, step))
-    let _ = context.set_function(
-        "snap".to_string(),
-        evalexpr::Function::new(|arg| {
-            if let Ok(tuple) = arg.as_tuple() {
-                if tuple.len() != 2 {
-                    return Err(evalexpr::EvalexprError::CustomMessage(
-                        "snap expects 2 arguments".to_string(),
-                    ));
-                }
-                let val: f64 = tuple[0].as_float()?;
-                let step: f64 = tuple[1].as_float()?;
-                if step == 0.0 {
-                    return Ok(evalexpr::Value::Float(val));
-                }
-                // Use floor to snap to the previous step (like 30fps update)
-                let snapped: f64 = (val / step).floor() * step;
-                Ok(evalexpr::Value::Float(snapped))
-            } else {
-                Err(evalexpr::EvalexprError::CustomMessage(
-                    "snap expects 2 arguments (val, step)".to_string(),
-                ))
-            }
-        }),
-    );
-
-    // Register random function (random() or random(min, max))
-    let _ = context.set_function(
-        "random".to_string(),
-        evalexpr::Function::new(|arg| {
-            use std::time::{SystemTime, UNIX_EPOCH};
-            // Use system time as seed for randomness
-            let nanos = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .subsec_nanos();
-            let random = ((nanos as f64) / (u32::MAX as f64)) * 2.0 - 1.0;
-
-            if arg.is_empty() {
-                // random() returns value in [-1, 1]
-                Ok(evalexpr::Value::Float(random))
-            } else if let Ok(tuple) = arg.as_tuple() {
-                if tuple.len() == 1 {
-                    // random(max) returns value in [-max, max]
-                    let max: f64 = tuple[0].as_float()?;
-                    Ok(evalexpr::Value::Float(random * max))
-                } else if tuple.len() == 2 {
-                    // random(min, max) returns value in [min, max]
-                    let min: f64 = tuple[0].as_float()?;
-                    let max: f64 = tuple[1].as_float()?;
-                    let normalized = (random + 1.0) / 2.0;
-                    Ok(evalexpr::Value::Float(min + normalized * (max - min)))
-                } else {
-                    Err(evalexpr::EvalexprError::CustomMessage(
-                        "random expects 0, 1, or 2 arguments".to_string(),
-                    ))
-                }
-            } else {
-                // Single value, treat as max
-                let max: f64 = arg.as_float()?;
-                Ok(evalexpr::Value::Float(random * max))
-            }
-        }),
-    );
-
-    // Note: @player.* variables have been removed. Use $player_hp, $player_hp_max, etc.
-    // 注意：@player.* 变量已移除。请使用 $player_hp, $player_hp_max 等。
-
-    if let Some(t) = time {
-        let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(t));
-    } else {
-        let _ = context.set_value("@time".to_string(), evalexpr::Value::Float(0.0));
-    }
+    // Set @time variable
+    vars.insert("__at_time".to_string(), time.unwrap_or(0.0));
 
     debug!(
         "[evaluate_float_expr_with_current] Evaluating expression: '{}'",
         expr_str
     );
-    match evalexpr::eval_with_context(expr_str, &context) {
+
+    let mut cb = create_eval_callback(&vars);
+
+    match fasteval::ez_eval(&processed_expr, &mut cb) {
         Ok(val) => {
-            if let Ok(f) = val.as_float() {
-                let f_f64: f64 = f;
-                debug!(
-                    "[evaluate_float_expr_with_current] Result: {} (float)",
-                    f_f64
-                );
-                f_f64 as f32
-            } else if let Ok(i) = val.as_int() {
-                let i_i64: i64 = i;
-                debug!("[evaluate_float_expr_with_current] Result: {} (int)", i_i64);
-                i_i64 as f32
-            } else {
-                warn!(
-                    "Failed to convert expression result to number: {}",
-                    expr_str
-                );
-                0.0
-            }
+            debug!("[evaluate_float_expr_with_current] Result: {} (float)", val);
+            val as f32
         }
         Err(e) => {
             warn!("Failed to evaluate expression '{}': {}", expr_str, e);
@@ -1491,9 +1200,10 @@ pub fn evaluate_fact_expression(expr: &str, player_data: &PlayerDataView) -> Opt
     // Preprocess fact expressions before evaluation
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
-    let context: HashMapContext = HashMapContext::new();
+    let vars: BTreeMap<String, f64> = BTreeMap::new();
+    let mut cb = create_eval_callback(&vars);
 
-    match evalexpr::eval_number_with_context(&processed_expr, &context) {
+    match fasteval::ez_eval(&processed_expr, &mut cb) {
         Ok(val) => Some(val as f32),
         Err(e) => {
             warn!(
