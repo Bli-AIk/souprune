@@ -14,6 +14,21 @@ updates:
       - "@me"
     assignees:
       - "@me"
+    # 分组：将小的更新合并到一个 PR
+    groups:
+      rust-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # 忽略 bevy 的主要版本升级（需要手动处理）
+    ignore:
+      - dependency-name: "bevy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "bevy-inspector-egui"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -24,3 +39,8 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    # 分组：将 actions 更新合并到一个 PR
+    groups:
+      actions:
+        patterns:
+          - "*"

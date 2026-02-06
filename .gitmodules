@@ -10,3 +10,6 @@
 [submodule "crates/bevy_alight_motion"]
 	path = crates/bevy_alight_motion
 	url = https://github.com/Bli-AIk/bevy_alight_motion.git
+[submodule "crates/mortar"]
+	path = crates/mortar
+	url = https://github.com/Bli-AIk/mortar.git
