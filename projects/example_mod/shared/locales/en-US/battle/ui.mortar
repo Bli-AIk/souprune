@@ -1,2 +1,12 @@
 pub const LV: String = "LV"
 pub const HP: String = "HP"
+
+// Battle dialogue texts
+pub const ENEMY_APPEARED: String = "* Whimsun approached meekly!"
+
+// Enemy names for battle
+pub const ENEMY_TEST1: String = "Whimsun"
+pub const ENEMY_TEST2: String = "Test2"
+pub const ENEMY_TEST3: String = "Test3"
+pub const ENEMY_TEST4: String = "Test4"
+pub const ENEMY_TEST5: String = "Test5"

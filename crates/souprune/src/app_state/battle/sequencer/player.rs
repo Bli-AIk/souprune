@@ -7,6 +7,7 @@
 //! 战斗序列管理器的玩家相关系统。
 
 use super::super::chapter_schema::{Chapter, PlayerAction};
+use super::super::danmaku::BattleInvincibilityConfig;
 use super::super::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use super::context::*;
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
@@ -76,6 +77,7 @@ pub fn process_player_spawn_requests(
     query: Query<(Entity, &PlayerSpawnRequest)>,
     configs: Res<Assets<BattlePlayerConfig>>,
     asset_server: Res<AssetServer>,
+    mut invincibility_config: ResMut<BattleInvincibilityConfig>,
 ) {
     for (entity, req) in query.iter() {
         if let Some(config) = configs.get(&req.config_handle) {
@@ -94,6 +96,19 @@ pub fn process_player_spawn_requests(
                     half_size: *half_size,
                 },
             };
+
+            // Update invincibility config from player config
+            // 从玩家配置更新无敌配置
+            let inv_cfg = &config.invincibility;
+            invincibility_config.duration = inv_cfg.duration;
+            invincibility_config.flash_interval = inv_cfg.flash_interval;
+            invincibility_config.normal_color = inv_cfg.normal_color;
+            invincibility_config.flash_color = inv_cfg.flash_color;
+            invincibility_config.damage_sound = inv_cfg.damage_sound.clone();
+
+            if let Some(ref sound) = inv_cfg.damage_sound {
+                info!("Configured damage sound: {}", sound);
+            }
 
             commands.spawn((
                 Sprite {

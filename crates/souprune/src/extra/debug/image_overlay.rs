@@ -52,7 +52,7 @@ pub mod debug_image_overlay {
         overlay_query: Query<Entity, With<DebugImageOverlay>>,
         window_query: Query<&Window>,
     ) {
-        if keyboard.just_pressed(KeyCode::F4) {
+        if keyboard.just_pressed(KeyCode::F5) {
             settings.show_overlay = !settings.show_overlay;
 
             if settings.show_overlay {

@@ -18,32 +18,36 @@
 //!
 //! ## 源文件概述
 //!
-//! It defines `DataPlugin`, which loads global facts from a .rules.ron file
+//! It defines `DataPlugin`, which loads global facts and rules from a .fre.ron file
 //! (configured in mod.toml as `global_rules`) into the global layer at startup.
 //!
-//! 本文件定义了 `DataPlugin`，在启动时从 .rules.ron 文件
-//! （在 mod.toml 中配置为 `global_rules`）加载全局事实到全局层。
+//! 本文件定义了 `DataPlugin`，在启动时从 .fre.ron 文件
+//! （在 mod.toml 中配置为 `global_rules`）加载全局事实和规则到全局层。
 //!
 //! ## Data Flow
 //!
 //! ## 数据流
 //!
-//! 1. At startup, read `global_rules` path from config (e.g., "global.rules.ron")
-//! 2. Load the RuleSetAsset from that path
-//! 3. Apply `initial_facts` to the Global layer of LayeredFactDatabase
-//! 4. All systems read/write player data directly via LayeredFactDatabase
-//! 5. For save/load, serialize/deserialize the facts directly
+//! 1. At startup, read `global_rules` path from config (e.g., "global.fre.ron")
+//! 2. Load the FreAsset from that path
+//! 3. Apply `facts` to the Global layer of LayeredFactDatabase
+//! 4. Register `rules` with scope: Global to LayeredRuleRegistry
+//! 5. All systems read/write player data directly via LayeredFactDatabase
+//! 6. For save/load, serialize/deserialize the facts directly
 //!
-//! 1. 启动时，从配置读取 `global_rules` 路径（如 "global.rules.ron"）
-//! 2. 从该路径加载 RuleSetAsset
-//! 3. 将 `initial_facts` 应用到 LayeredFactDatabase 的全局层
-//! 4. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
-//! 5. 存档/读档时，直接序列化/反序列化事实
+//! 1. 启动时，从配置读取 `global_rules` 路径（如 "global.fre.ron"）
+//! 2. 从该路径加载 FreAsset
+//! 3. 将 `facts` 应用到 LayeredFactDatabase 的全局层
+//! 4. 将 `rules` 以 scope: Global 注册到 LayeredRuleRegistry
+//! 5. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
+//! 6. 存档/读档时，直接序列化/反序列化事实
 
 use bevy::app::{App, Plugin, Startup, Update};
 use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::prelude::{Commands, Component, Local, Name, Res, ResMut, Resource};
-use bevy_fact_rule_event::{FactValue, FactValueDef, LayeredFactDatabase, RuleSetAsset};
+use bevy_fact_rule_event::{
+    FactValue, FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope,
+};
 
 pub(crate) struct DataPlugin;
 
@@ -71,7 +75,7 @@ pub struct MainPlayer;
 /// 保存全局规则文件句柄的资源。
 #[derive(Resource, Default)]
 pub struct GlobalRulesHandle {
-    pub handle: Option<Handle<RuleSetAsset>>,
+    pub handle: Option<Handle<FreAsset>>,
     pub loaded: bool,
 }
 
@@ -107,7 +111,7 @@ fn load_global_rules_system(
 
     // Clone the path to avoid lifetime issues with asset_server.load()
     let path: String = config.game.global_rules.clone();
-    let handle: Handle<RuleSetAsset> = asset_server.load(path);
+    let handle: Handle<FreAsset> = asset_server.load(path);
     global_rules_handle.handle = Some(handle);
 
     bevy::log::info!(
@@ -118,13 +122,16 @@ fn load_global_rules_system(
 
 /// System to apply loaded global rules to the global layer.
 /// This runs once after the asset is loaded.
+/// Now also registers rules with Global scope.
 ///
 /// 将加载的全局规则应用到全局层的系统。
 /// 在资产加载后运行一次。
+/// 现在同时注册 Global 作用域的规则。
 fn apply_global_rules_system(
     global_rules_handle: Res<GlobalRulesHandle>,
-    rule_set_assets: Res<Assets<RuleSetAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
+    mut registry: ResMut<LayeredRuleRegistry>,
     mut applied: Local<bool>,
 ) {
     if *applied || global_rules_handle.loaded {
@@ -135,28 +142,41 @@ fn apply_global_rules_system(
         return;
     };
 
-    let Some(rule_set) = rule_set_assets.get(handle) else {
+    let Some(fre_asset) = fre_assets.get(handle) else {
         return;
     };
 
-    // Apply initial facts to Global layer (these are game-wide persistent facts)
-    for (key, value) in rule_set.get_initial_facts() {
+    // Apply facts to Global layer (these are game-wide persistent facts)
+    for (key, value) in fre_asset.get_facts() {
         let fact_value: FactValue = match value {
             FactValueDef::Int(v) => FactValue::Int(*v),
             FactValueDef::Float(v) => FactValue::Float(*v),
             FactValueDef::Bool(v) => FactValue::Bool(*v),
             FactValueDef::String(v) => FactValue::String(v.clone()),
+            FactValueDef::StringList(v) => FactValue::StringList(v.clone()),
+            FactValueDef::IntList(v) => FactValue::IntList(v.clone()),
         };
         layered_db.set_global(key.as_str(), fact_value);
+        bevy::log::debug!("DataPlugin: Set global fact '{}' from FRE file", key);
+    }
+
+    // Register rules with Global scope
+    // Rules from global.fre.ron should declare scope: Global, but we force Global here
+    // to ensure backwards compatibility
+    let rule_defs = fre_asset.get_rule_defs();
+    for (idx, rule_def) in rule_defs.iter().enumerate() {
+        let rule = rule_def.to_rule_with_index(idx, RuleScope::Global);
         bevy::log::debug!(
-            "DataPlugin: Set global fact '{}' from global.rules.ron",
-            key
+            "DataPlugin: Registering global rule '{}' from FRE file",
+            rule.id
         );
+        registry.register(rule);
     }
 
     *applied = true;
     bevy::log::info!(
-        "DataPlugin: Applied {} global facts from global.rules.ron",
-        rule_set.get_initial_facts().len()
+        "DataPlugin: Applied {} global facts and {} global rules from FRE file",
+        fre_asset.get_facts().len(),
+        rule_defs.len()
     );
 }

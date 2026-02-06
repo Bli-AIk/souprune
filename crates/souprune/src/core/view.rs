@@ -34,13 +34,14 @@ mod custom_sprite_material;
 pub(crate) mod layout;
 mod lifecycle;
 mod procedural_textures;
-mod reactive;
+pub mod reconcile;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
 mod shaders;
 mod state;
 mod text;
+mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
 
@@ -51,29 +52,21 @@ use camera::{
 pub use components::{
     ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
 };
-use components::{ViewLayerNavigationConfig, ViewLayerTransitionConfig};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{
     StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
     state_transition_sound_system,
 };
-use reactive::{spawn_reactive_indicator_system, update_reactive_indicator_system};
-pub use ron_view::{RonDrivenView, ViewLayoutHandle, ViewLayoutWatcher};
+pub use ron_view::{RonDrivenView, ViewLayoutHandle};
 use ron_view::{
-    load_navigation_and_transitions_system, rebuild_reloaded_view_system, spawn_ron_view_system,
-    ui_animation_init_system, update_dynamic_text_system, update_view_from_map_system,
-    watch_view_layout_changes_system,
+    load_global_triggers_system, spawn_ron_view_system, ui_animation_init_system,
+    update_dynamic_text_system, update_view_from_map_system,
 };
-use sdf_view_shape::{
-    update_sdf_view_shape_system, update_ui_box_visibility_system,
-    update_ui_container_visibility_system,
-};
-use state::{
-    global_trigger_system, handle_interactive_layer_confirm_cancel_system,
-    handle_interactive_layer_navigation_system, handle_interactive_layer_transitions_system,
-};
+use sdf_view_shape::update_sdf_view_shape_system;
+use state::global_trigger_system;
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
+use visible_when::evaluate_visible_when_system;
 
 use crate::app_state::AppState;
 use components::state_sprite::{
@@ -81,15 +74,10 @@ use components::state_sprite::{
     update_state_sprite_textures_system,
 };
 #[cfg(feature = "debug")]
-use components::{
-    CameraAnchored, InteractiveLayer, NavigatorType, ReactiveIndicator,
-    ReactiveIndicatorVisibility, ReactivePosition, ViewBox, ViewBoxVisibility, ViewElement,
-    ViewLayer, ViewRoot,
-};
-use components::{
-    LayerActivatedEvent, LayerDeactivatedEvent, SelectionCancelledEvent, SelectionChangedEvent,
-    SelectionConfirmedEvent,
-};
+use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
+use lifecycle::cleanup_view_rules_system;
+use lifecycle::process_pending_view_rules_system;
+use reconcile::ViewReconciliationPlugin;
 
 use bevy::sprite_render::Material2dPlugin;
 
@@ -105,14 +93,6 @@ pub(crate) struct CoreViewPlugin;
 
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
-        // Register InteractiveLayer messages
-        // 注册 InteractiveLayer 消息
-        app.add_message::<SelectionChangedEvent>()
-            .add_message::<SelectionConfirmedEvent>()
-            .add_message::<SelectionCancelledEvent>()
-            .add_message::<LayerActivatedEvent>()
-            .add_message::<LayerDeactivatedEvent>();
-
         app.init_asset::<ViewLayoutAsset>()
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
             .init_asset::<SdfStructureAsset>()
@@ -120,11 +100,13 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::CustomSpriteMaterial,
             >::default())
+            .add_plugins(Material2dPlugin::<custom_sprite_material::EnemyHpBarMaterial>::default())
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
-            .init_resource::<ViewLayerNavigationConfig>()
-            .init_resource::<ViewLayerTransitionConfig>()
+            // Add reconciliation plugin for declarative view updates
+            // 添加协调插件用于声明式视图更新
+            .add_plugins(ViewReconciliationPlugin)
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
@@ -143,12 +125,20 @@ impl Plugin for CoreViewPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                ron_view::update_hp_bar_shader_params
+                (
+                    ron_view::update_hp_bar_shader_params,
+                    ron_view::update_enemy_hp_bar_shader_params,
+                )
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
+            // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)
+            // 将动态 UI 元素更新分为时间依赖（每帧）和 fact 依赖（变化时）
             .add_systems(
                 Update,
-                ron_view::update_dynamic_ui_elements
+                (
+                    ron_view::update_time_dependent_ui_elements,
+                    ron_view::update_fact_dependent_ui_elements,
+                )
                     .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
             )
             // First group of UI systems
@@ -156,19 +146,28 @@ impl Plugin for CoreViewPlugin {
                 Update,
                 (
                     update_view_from_map_system,
-                    watch_view_layout_changes_system,
-                    rebuild_reloaded_view_system,
-                    load_navigation_and_transitions_system,
+                    load_global_triggers_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
                     global_trigger_system,
-                    // Unified InteractiveLayer systems (for both OW and Battle)
-                    // 统一的 InteractiveLayer 系统（同时用于 OW 和 Battle）
-                    handle_interactive_layer_navigation_system,
-                    handle_interactive_layer_confirm_cancel_system,
-                    handle_interactive_layer_transitions_system,
-                    spawn_ron_view_system,
+                )
+                    .in_set(ViewUpdate),
+            )
+            // spawn_ron_view_system has many parameters, add separately
+            // spawn_ron_view_system 有很多参数，单独添加
+            .add_systems(Update, spawn_ron_view_system.in_set(ViewUpdate))
+            .add_systems(
+                Update,
+                (
                     ui_animation_init_system,
+                    // Cleanup View-layer rules when ViewRoot entities are despawned
+                    // 当 ViewRoot 实体销毁时清理 View 层规则
+                    cleanup_view_rules_system,
+                    // Process pending View rules when FRE assets finish loading
+                    // 当 FRE 资产加载完成后处理待处理的 View 规则
+                    // This must run after spawn_ron_view_system to ensure PendingViewRules is ready
+                    // 必须在 spawn_ron_view_system 之后运行以确保 PendingViewRules 已准备好
+                    process_pending_view_rules_system.after(spawn_ron_view_system),
                 )
                     .in_set(ViewUpdate),
             )
@@ -179,11 +178,7 @@ impl Plugin for CoreViewPlugin {
                     ron_view::setup_hp_bar_sprites
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_sdf_view_shape_system,
-                    update_ui_box_visibility_system,
-                    update_ui_container_visibility_system,
                     assign_text_material_system,
-                    spawn_reactive_indicator_system,
-                    update_reactive_indicator_system,
                     show_text_when_ready_system,
                     update_camera_anchored_ui_on_camera_move_system,
                     update_camera_anchored_ui_on_change_system,
@@ -194,25 +189,26 @@ impl Plugin for CoreViewPlugin {
                     evaluate_state_sprite_rules_system,
                     evaluate_new_state_sprites_system,
                     update_state_sprite_textures_system,
+                    // visible_when expression evaluation system
+                    // visible_when 表达式评估系统
+                    evaluate_visible_when_system
+                        .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
                 )
                     .in_set(ViewUpdate),
             );
 
         #[cfg(feature = "debug")]
         {
+            // Debug-only type registration for inspector
+            // 仅 debug 模式下的类型注册（用于检查器）
+            // Hot reload is handled by ViewReconciliationPlugin
+            // 热重载由 ViewReconciliationPlugin 处理
             app.register_type::<ViewBox>()
-                .register_type::<ViewLayer>()
                 .register_type::<CameraAnchored>()
-                .register_type::<ViewBoxVisibility>()
-                .register_type::<ReactiveIndicator>()
-                .register_type::<ReactivePosition>()
-                .register_type::<ReactiveIndicatorVisibility>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()
-                .register_type::<ElementState>()
-                .register_type::<InteractiveLayer>()
-                .register_type::<NavigatorType>();
+                .register_type::<ElementState>();
         }
     }
 }

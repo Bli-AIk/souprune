@@ -59,7 +59,7 @@ pub mod debug_collider {
         keyboard: Res<ButtonInput<KeyCode>>,
         mut config_store: ResMut<GizmoConfigStore>,
     ) {
-        if keyboard.just_pressed(KeyCode::F3) {
+        if keyboard.just_pressed(KeyCode::F4) {
             let (config, _) = config_store.config_mut::<ColliderGizmos>();
             config.enabled = !config.enabled;
             info!(

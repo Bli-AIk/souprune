@@ -15,7 +15,6 @@
 //! 它依赖 `serde_types` 进行类型转换。
 
 use super::serde_types::*;
-use crate::core::view::components::InteractiveLayerDef;
 use bevy::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -25,35 +24,79 @@ use std::collections::HashMap;
 /// 视图布局资产 - 表示完整的视图布局配置。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct ViewLayoutAsset {
-    #[allow(dead_code)]
-    pub version: u32,
     /// Root view nodes
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
     #[serde(default)]
-    pub navigation: Option<HashMap<String, NavigationRuleDef>>,
-    #[serde(default)]
-    pub transitions: Option<HashMap<String, LayerTransitionsDef>>,
-    #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
-    /// Interactive layer definitions for unified navigation.
+    /// Data requirements for this View.
+    /// Declares what FRE data files this View needs.
+    /// These facts are loaded and merged into the ViewRoot's local_facts database.
     ///
-    /// 用于统一导航的交互层定义。
-    ///
-    /// This is the new unified system that works for both OW and Battle.
-    /// Format: { "layer_id": InteractiveLayerDef }
-    ///
-    /// 这是新的统一系统，适用于 OW 和 Battle。
-    /// 格式: { "层ID": InteractiveLayerDef }
+    /// 此 View 的数据需求声明。
+    /// 声明此 View 需要哪些 FRE 数据文件。
+    /// 这些事实会被加载并合并到 ViewRoot 的 local_facts 数据库中。
     #[serde(default)]
-    pub interactive_layers: Option<HashMap<String, InteractiveLayerDef>>,
-    /// The initial layer to activate when this layout is loaded.
-    /// If not specified, the first key in interactive_layers will be used.
+    pub requires: Vec<DataRequirement>,
+    /// Inline facts to set when this View is loaded.
+    /// These facts are stored in the ViewRoot's local_facts database.
+    /// Use `requires` for loading external FRE files; use this for simple inline values.
     ///
-    /// 加载此布局时要激活的初始层。
-    /// 如果未指定，将使用 interactive_layers 中的第一个键。
+    /// 加载此 View 时要设置的内联事实。
+    /// 这些事实存储在 ViewRoot 的 local_facts 数据库中。
+    /// 加载外部 FRE 文件请使用 `requires`；这里用于简单的内联值。
     #[serde(default)]
-    pub initial_layer: Option<String>,
+    pub facts: Option<HashMap<String, InitialFactValue>>,
+}
+
+/// Data requirement declaration for Views.
+/// Specifies how to load external FRE data.
+///
+/// View 的数据需求声明。
+/// 指定如何加载外部 FRE 数据。
+#[derive(Debug, Deserialize, Clone)]
+pub enum DataRequirement {
+    /// Load facts and rules from a FRE file.
+    /// Example: `File("battle/fre/enemies/dummy.fre.ron")`
+    ///
+    /// 从 FRE 文件加载事实和规则。
+    /// 示例：`File("battle/fre/enemies/dummy.fre.ron")`
+    File(String),
+
+    /// Declare an interface that must be bound externally.
+    /// The binding is provided by SpawnView's `bindings` field.
+    ///
+    /// 声明必须由外部绑定的接口。
+    /// 绑定由 SpawnView 的 `bindings` 字段提供。
+    Interface {
+        /// Interface name (used as key in bindings)
+        /// 接口名称（在 bindings 中作为键使用）
+        interface: String,
+        /// Expected facts (for validation, optional)
+        /// 预期的事实（用于验证，可选）
+        #[serde(default)]
+        expects: Vec<String>,
+    },
+}
+
+/// Value type for initial facts in View Schema.
+/// Supports int, float, bool, string, and array values.
+///
+/// View Schema 中初始事实的值类型。
+/// 支持 int、float、bool、string 和数组值。
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum InitialFactValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+    /// List of strings - useful for enemy names, etc.
+    /// 字符串列表 - 用于敌人名称等。
+    StringList(Vec<String>),
+    /// List of integers - useful for HP values, etc.
+    /// 整数列表 - 用于 HP 值等。
+    IntList(Vec<i64>),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -76,8 +119,13 @@ pub struct ViewNodeDef {
     #[serde(default)]
     #[allow(dead_code)]
     pub style: StyleDef,
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0", "true"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0", "true"
     #[serde(default)]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
+    pub visible_when: Option<String>,
     #[serde(default)]
     #[allow(dead_code)]
     pub background_color: Option<SerializableColor>,
@@ -99,9 +147,6 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "cursor")]
-    pub reactive_indicator: Option<ReactiveIndicatorDef>,
-    #[serde(default)]
     #[serde(alias = "ui_box_logic")]
     pub ui_shape_logic: Option<ViewBoxLogicDef>,
     #[serde(default)]
@@ -112,10 +157,77 @@ pub struct ViewNodeDef {
     /// Default is true for top-level nodes with ui_shape_logic.
     #[serde(default = "default_camera_anchored")]
     pub camera_anchored: bool,
+    /// Repeat configuration for generating multiple instances from an array.
+    /// When present, this node will be spawned multiple times based on the array.
+    ///
+    /// 用于从数组生成多个实例的重复配置。
+    /// 存在时，此节点将根据数组被多次生成。
+    #[serde(default)]
+    pub repeat: Option<RepeatDef>,
 }
 
 fn default_camera_anchored() -> bool {
     true
+}
+
+// ============================================================================
+// Repeat Configuration (Dynamic UI Element Generation)
+// 重复配置（动态 UI 元素生成）
+// ============================================================================
+
+/// Repeat configuration for generating multiple UI elements from an array.
+/// Used for things like HP bars where each enemy needs its own visual element.
+///
+/// 用于从数组生成多个 UI 元素的重复配置。
+/// 用于如血条这样每个敌人需要独立视觉元素的场景。
+///
+/// Example in RON:
+/// ```ron
+/// (
+///     name: "EnemyHpBars",
+///     repeat: (
+///         source: "enemy_names",
+///         index_var: "i",
+///     ),
+///     sprite: (
+///         visual: "procedural://white_pixel",
+///         transform: (
+///             translation: (100.0, "50.0 - @i * 32.0", 1.0),
+///             scale: ("80.0 * $enemy_hps[@i] / $enemy_hp_maxs[@i]", 12.0, 1.0),
+///         ),
+///     ),
+/// )
+/// ```
+#[derive(Debug, Deserialize, Clone)]
+pub struct RepeatDef {
+    /// Source array fact name (e.g., "enemy_names").
+    /// The length of this array determines how many instances are created.
+    ///
+    /// 源数组 fact 名称（如 "enemy_names"）。
+    /// 此数组的长度决定创建多少个实例。
+    pub source: String,
+
+    /// Optional limit on number of items to generate.
+    ///
+    /// 生成元素数量的可选限制。
+    #[serde(default)]
+    pub limit: Option<usize>,
+
+    /// Index variable name for templates (default: "i").
+    /// Use @i in expressions to reference current index.
+    ///
+    /// 模板中的索引变量名（默认："i"）。
+    /// 在表达式中使用 @i 引用当前索引。
+    #[serde(default)]
+    pub index_var: Option<String>,
+
+    /// Item variable name for templates (default: "item").
+    /// Use @item in expressions to reference current array element value.
+    ///
+    /// 模板中的元素变量名（默认："item"）。
+    /// 在表达式中使用 @item 引用当前数组元素值。
+    #[serde(default)]
+    pub item_var: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -170,10 +282,8 @@ pub struct ImageDef {
 #[derive(Debug, Deserialize, Clone)]
 pub struct SpriteDef {
     /// Visual resource path (supports shorthand and auto type detection).
-    /// Replaces the old `path` + `is_animation` pattern.
     ///
     /// 视觉资源路径（支持简写和自动类型检测）。
-    /// 替代旧的 `path` + `is_animation` 模式。
     pub visual: crate::core::visual::Visual,
 
     /// Initial animation state for character animations.
@@ -229,6 +339,44 @@ pub struct SpriteDef {
     /// 帧动画的帧持续时间（秒）。
     #[serde(default)]
     pub frame_duration: Option<f32>,
+
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
+
+    /// HP bar source configuration for HP bar sprites.
+    /// When set, this sprite is treated as an HP bar and its shader params
+    /// will be dynamically updated based on the specified HP source.
+    ///
+    /// HP 条来源配置。
+    /// 设置后，此精灵将被视为 HP 条，其 shader 参数
+    /// 将根据指定的 HP 来源动态更新。
+    #[serde(default)]
+    pub hp_bar_source: Option<HPBarSourceDef>,
+}
+
+/// HP bar source definition for configuring where HP values come from.
+/// HP 条来源定义，用于配置 HP 值的来源。
+#[derive(Debug, Deserialize, Clone)]
+pub enum HPBarSourceDef {
+    /// Player HP source - uses player_hp and player_hp_max facts.
+    /// 玩家 HP 来源 - 使用 player_hp 和 player_hp_max facts。
+    Player,
+    /// Enemy HP source - uses enemy_hps and enemy_hp_maxs arrays.
+    /// The index is resolved from the repeat context (@i variable).
+    /// 敌人 HP 来源 - 使用 enemy_hps 和 enemy_hp_maxs 数组。
+    /// 索引从 repeat 上下文（@i 变量）解析。
+    Enemy,
+    /// Custom HP source with expressions.
+    /// 自定义 HP 来源（使用表达式）。
+    Custom {
+        hp_expr: String,
+        hp_max_expr: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -244,68 +392,19 @@ pub struct TextDef {
     pub line_height: Option<f32>,
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConditionalStyleDef {
     pub condition: String,
     pub color: SerializableColor,
-}
-
-/// Definition for a reactive indicator element in RON configuration.
-/// This configures visual elements that respond to UI events such as selection changes.
-///
-/// RON 配置中响应式指示器元素的定义。
-/// 配置响应选择变更等 UI 事件的视觉元素。
-#[derive(Debug, Deserialize, Clone)]
-pub struct ReactiveIndicatorDef {
-    #[allow(dead_code)]
-    pub sprite_path: String,
-    #[serde(default)]
-    pub default_translation: Option<ReactivePositionDef>,
-    #[serde(default)]
-    pub overrides: HashMap<String, ReactivePositionDef>,
-    #[serde(default)]
-    pub visibility_rule: Option<UIVisibilityRuleDef>,
-    #[serde(default)]
-    pub transform: Option<ReactiveTransformDef>,
-}
-
-/// Position calculation mode for reactive indicators.
-///
-/// 响应式指示器的位置计算模式。
-#[derive(Debug, Deserialize, Clone)]
-pub enum ReactivePositionDef {
-    /// Fixed position regardless of selection index.
-    ///
-    /// 固定位置，不随选择索引变化。
-    Static(SerializableVec3),
-
-    /// Linear interpolation: origin + step * index.
-    ///
-    /// 线性插值：origin + step * index。
-    Linear {
-        origin: SerializableVec3,
-        step: SerializableVec3,
-    },
-
-    /// Custom positions for each index.
-    ///
-    /// 每个索引的自定义位置。
-    Custom { positions: Vec<SerializableVec3> },
-}
-
-/// Transform definition for reactive indicators.
-///
-/// 响应式指示器的变换定义。
-#[derive(Debug, Deserialize, Clone)]
-pub struct ReactiveTransformDef {
-    #[serde(default)]
-    pub translation: Option<SerializableVec3>,
-    #[serde(default)]
-    pub scale: Option<SerializableVec3>,
-    #[serde(default)]
-    pub rotation: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -321,53 +420,6 @@ pub struct ViewBoxLogicDef {
     pub structure_file: Option<String>,
     #[serde(default)]
     pub fill_color: Option<SerializableColor>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct NavigationRuleDef {
-    #[serde(default)]
-    pub mappings: HashMap<String, isize>,
-    #[serde(default)]
-    pub looping: bool,
-    #[serde(default)]
-    pub min_index: Option<IndexBoundDef>,
-    #[serde(default)]
-    pub max_index: Option<IndexBoundDef>,
-    #[serde(default)]
-    pub sound_on_navigate: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum IndexBoundDef {
-    Static(usize),
-    Dynamic(String),
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct LayerTransitionsDef {
-    #[serde(default)]
-    pub on_confirm: Option<Vec<TransitionRuleDef>>,
-    #[serde(default)]
-    pub on_cancel: Option<TransitionActionDef>,
-    #[serde(default)]
-    pub sound_on_confirm: Option<String>,
-    #[serde(default)]
-    pub sound_on_cancel: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TransitionRuleDef {
-    #[serde(default)]
-    pub condition: Option<String>,
-    pub action: TransitionActionDef,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub enum TransitionActionDef {
-    GotoLayer(String),
-    PopState,
-    PushState(String),
 }
 
 // ============================================================================
@@ -443,21 +495,19 @@ pub struct StateSpriteConfig {
     #[serde(default)]
     pub rules: Vec<StateRuleDef>,
 
-    /// Sugar syntax: shorthand for subscribing to interactive layer selection.
-    /// Format: (layer_id, index)
-    /// Equivalent to: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
-    ///
-    /// 语法糖：订阅交互层选中状态的简写。
-    /// 格式: (层ID, 索引)
-    /// 等同于: rules: [(trigger: InteractiveLayerSelected(layer_id, index), state: "selected")]
-    #[serde(default)]
-    pub subscribe_selection: Option<(String, usize)>,
-
     /// Transform configuration for the sprite.
     ///
     /// 精灵的变换配置。
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
+
+    /// Expression-based visibility control.
+    /// Examples: "fact('depth') == 1", "$selection == 0"
+    ///
+    /// 基于表达式的可见性控制。
+    /// 示例: "fact('depth') == 1", "$selection == 0"
+    #[serde(default)]
+    pub visible_when: Option<String>,
 }
 
 /// A rule that triggers a state change.

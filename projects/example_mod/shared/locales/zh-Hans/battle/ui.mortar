@@ -1,2 +1,12 @@
 pub const LV: String = "LV"
 pub const HP: String = "HP"
+
+// 战斗对话文本
+pub const ENEMY_APPEARED: String = "* 敌人出现了！"
+
+// 战斗敌人名称
+pub const ENEMY_TEST1: String = "测试1"
+pub const ENEMY_TEST2: String = "测试2"
+pub const ENEMY_TEST3: String = "测试3"
+pub const ENEMY_TEST4: String = "测试4"
+pub const ENEMY_TEST5: String = "测试5"

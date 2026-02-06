@@ -1,0 +1,12 @@
+// Test enemy 3 definition
+// 测试敌人 3 定义
+(
+    facts: {
+        "test3.name": String("{{battle/ui:ENEMY_TEST3}}"),
+        "test3.hp": Int(120),
+        "test3.hp_max": Int(150),
+        "test3.attack": Int(10),
+        "test3.defense": Int(5),
+    },
+    rules: [],
+)

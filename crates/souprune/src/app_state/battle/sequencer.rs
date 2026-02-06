@@ -21,7 +21,7 @@ mod interaction;
 mod performance;
 mod player;
 mod tween;
-mod view_action;
+pub mod view_action;
 mod view_element;
 
 // Re-export public types
@@ -52,6 +52,7 @@ impl Plugin for SequencerPlugin {
                     player::process_player_action_system,
                     camera::process_camera_action_system,
                     view_action::process_view_action_system,
+                    // AwaitInteraction using ViewRoot.local_facts
                     interaction::process_await_selection_system,
                     view_element::process_modify_view_element_system,
                     tween::process_tween_view_element_system,
@@ -74,6 +75,9 @@ impl Plugin for SequencerPlugin {
                     fact_chapter::process_fact_switch_chapter_system,
                     fact_chapter::process_emit_fact_event_chapter_system,
                     fact_chapter::process_modify_fact_chapter_system,
+                    fact_chapter::process_load_fre_chapter_system,
+                    fact_chapter::complete_load_fre_chapter_system,
+                    // AwaitInteraction completion check
                     interaction::check_await_selection_completion_system,
                     flow::cleanup_finished_chapters_system,
                     flow::sync_battle_flow_system,

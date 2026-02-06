@@ -1,0 +1,12 @@
+// Test enemy 2 definition
+// 测试敌人 2 定义
+(
+    facts: {
+        "test2.name": String("{{battle/ui:ENEMY_TEST2}}"),
+        "test2.hp": Int(80),
+        "test2.hp_max": Int(100),
+        "test2.attack": Int(7),
+        "test2.defense": Int(2),
+    },
+    rules: [],
+)

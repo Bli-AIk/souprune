@@ -1,43 +1,43 @@
 #![enable(implicit_some)]
+// Sans idle animation view layout
+// Sans 待机动画视图布局
+
 (
-    version: 1,
     roots: [
         (
             name: "Sans_Legs",
             sprite: (
-                path: "textures/battle/sans/legs.png",
-                transform: Some((
+                visual: "textures/battle/sans/legs.png",
+                transform: (
                     translation: (3.0, 57.0, 0.0),
                     scale: (2.0, 2.0, 2.0),
-                )),
+                ),
             ),
             children: [
                 (
                     name: "Sans_Torso",
                     sprite: (
-                        path: "textures/battle/sans/torso.png",
-                        transform: Some((
+                        visual: "textures/battle/sans/torso.png",
+                        transform: (
                             translation: (
                                 x: "cos(snap(@time * 0.5, 1.0/30.0) * 10.0)",
                                 y: "23.0 + (sin(snap(@time * 0.5, 1.0/30.0) * 20.0) / 1.5)",
                                 z: 0.1
                             ),
-                            // Scale inherited from parent
-                        )),
+                        ),
                     ),
                 ),
                 (
                     name: "Sans_Head",
                     sprite: (
-                        path: "textures/battle/sans/head.png",
-                        transform: Some((
+                        visual: "textures/battle/sans/head.png",
+                        transform: (
                             translation: (
                                 x: "cos(snap(@time * 0.5, 1.0/30.0) * 10.0)",
                                 y: "45.0 + sin(snap(@time * 0.5, 1.0/30.0) * 20.0)",
                                 z: 0.2
                             ),
-                            // Scale inherited from parent
-                        )),
+                        ),
                     ),
                 ),
             ],

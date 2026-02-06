@@ -21,10 +21,10 @@
 use super::context::{ActiveChapter, ChapterFinished};
 use super::flow::spawn_chapter;
 use crate::app_state::battle::chapter_schema::{
-    Chapter, FactCondition, FactModificationDef, FactValueMatch,
+    AggregateRule, Chapter, FactCondition, FactModificationDef, FactValueMatch,
 };
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, FreAsset, LayeredFactDatabase};
 
 /// Evaluate a FactCondition against the LayeredFactDatabase.
 ///
@@ -244,4 +244,210 @@ pub fn process_modify_fact_chapter_system(
             commands.entity(entity).insert(ChapterFinished);
         }
     }
+}
+
+// =============================================================================
+// LoadFre Chapter Processing
+// LoadFre 章节处理
+// =============================================================================
+
+/// Component to track LoadFre chapter state.
+/// Holds handles to the FRE assets being loaded.
+///
+/// 跟踪 LoadFre 章节状态的组件。
+/// 持有正在加载的 FRE 资产句柄。
+#[derive(Component)]
+pub struct LoadFreState {
+    /// Handles to the FRE files being loaded
+    pub handles: Vec<Handle<FreAsset>>,
+    /// Aggregation rules to apply after loading
+    pub aggregate: std::collections::HashMap<String, AggregateRule>,
+    /// Whether all assets have been processed
+    pub processed: bool,
+}
+
+/// System to initiate LoadFre chapter loading.
+/// Starts loading FRE files and attaches LoadFreState component.
+///
+/// 启动 LoadFre 章节加载的系统。
+/// 开始加载 FRE 文件并附加 LoadFreState 组件。
+pub fn process_load_fre_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<ChapterFinished>, Without<LoadFreState>)>,
+    asset_server: Res<AssetServer>,
+) {
+    for (entity, active) in query.iter() {
+        if let Chapter::LoadFre { files, aggregate } = &active.chapter {
+            let handles: Vec<Handle<FreAsset>> = files
+                .iter()
+                .map(|path| {
+                    info!("LoadFre Chapter: Loading FRE file '{}'", path);
+                    asset_server.load::<FreAsset>(path.clone())
+                })
+                .collect();
+
+            commands.entity(entity).insert(LoadFreState {
+                handles,
+                aggregate: aggregate.clone(),
+                processed: false,
+            });
+        }
+    }
+}
+
+/// System to complete LoadFre chapter after assets are loaded.
+/// Processes loaded FRE files, applies aggregation, and finishes.
+///
+/// 资产加载后完成 LoadFre 章节的系统。
+/// 处理已加载的 FRE 文件，应用聚合，然后完成。
+pub fn complete_load_fre_chapter_system(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut LoadFreState), Without<ChapterFinished>>,
+    mut layered_db: ResMut<LayeredFactDatabase>,
+    fre_assets: Res<Assets<FreAsset>>,
+) {
+    for (entity, mut state) in query.iter_mut() {
+        if state.processed {
+            continue;
+        }
+
+        // Check if all assets are loaded
+        let all_loaded = state.handles.iter().all(|h| fre_assets.contains(h));
+        if !all_loaded {
+            continue;
+        }
+
+        // Collect all facts from loaded FRE files
+        let mut all_facts: std::collections::HashMap<String, FactValue> =
+            std::collections::HashMap::new();
+
+        for handle in &state.handles {
+            if let Some(fre_asset) = fre_assets.get(handle) {
+                for (key, value_def) in fre_asset.get_facts() {
+                    let fact_value: FactValue = value_def.clone().into();
+                    all_facts.insert(key.clone(), fact_value.clone());
+                    layered_db.set(key.as_str(), fact_value);
+                }
+                info!(
+                    "LoadFre Chapter: Loaded {} facts from FRE file",
+                    fre_asset.get_facts().len()
+                );
+            }
+        }
+
+        // Apply aggregation rules
+        for (array_name, rule) in &state.aggregate {
+            match rule {
+                AggregateRule::Collect(pattern) => {
+                    let values = collect_matching_values(&all_facts, pattern);
+                    if !values.is_empty() {
+                        // Determine array type from first value
+                        match &values[0] {
+                            FactValue::Int(_) => {
+                                let int_values: Vec<i64> = values
+                                    .iter()
+                                    .filter_map(|v| {
+                                        if let FactValue::Int(i) = v {
+                                            Some(*i)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+                                layered_db.set(array_name.as_str(), int_values);
+                            }
+                            FactValue::String(_) => {
+                                let string_values: Vec<String> = values
+                                    .iter()
+                                    .filter_map(|v| {
+                                        if let FactValue::String(s) = v {
+                                            Some(s.clone())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+                                layered_db.set(array_name.as_str(), string_values);
+                            }
+                            _ => {
+                                warn!(
+                                    "LoadFre Chapter: Unsupported value type for aggregation '{}' (only Int and String supported)",
+                                    array_name
+                                );
+                            }
+                        }
+                        info!(
+                            "LoadFre Chapter: Aggregated {} values into '{}'",
+                            values.len(),
+                            array_name
+                        );
+                    }
+                }
+                AggregateRule::CollectKeys(pattern) => {
+                    let keys = collect_matching_keys(&all_facts, pattern);
+                    if !keys.is_empty() {
+                        layered_db.set(array_name.as_str(), keys.clone());
+                        info!(
+                            "LoadFre Chapter: Collected {} keys into '{}'",
+                            keys.len(),
+                            array_name
+                        );
+                    }
+                }
+            }
+        }
+
+        state.processed = true;
+        commands.entity(entity).insert(ChapterFinished);
+        info!("LoadFre Chapter: Completed");
+    }
+}
+
+/// Collect values from facts matching a glob pattern.
+/// Pattern uses `*` as wildcard. Example: "*.hp" matches "dummy.hp", "sans.hp".
+///
+/// 收集匹配 glob 模式的 facts 值。
+/// 模式使用 `*` 作为通配符。示例："*.hp" 匹配 "dummy.hp"、"sans.hp"。
+fn collect_matching_values(
+    facts: &std::collections::HashMap<String, FactValue>,
+    pattern: &str,
+) -> Vec<FactValue> {
+    let mut values = Vec::new();
+
+    // Simple glob matching: convert "*.hp" to regex "^[^.]+\.hp$"
+    let regex_pattern = pattern.replace(".", r"\.").replace("*", "[^.]+");
+    let regex = regex::Regex::new(&format!("^{}$", regex_pattern)).ok();
+
+    if let Some(re) = regex {
+        for (key, value) in facts {
+            if re.is_match(key) {
+                values.push(value.clone());
+            }
+        }
+    }
+
+    values
+}
+
+/// Collect fact keys matching a glob pattern.
+///
+/// 收集匹配 glob 模式的 fact 键。
+fn collect_matching_keys(
+    facts: &std::collections::HashMap<String, FactValue>,
+    pattern: &str,
+) -> Vec<String> {
+    let mut keys = Vec::new();
+
+    let regex_pattern = pattern.replace(".", r"\.").replace("*", "[^.]+");
+    let regex = regex::Regex::new(&format!("^{}$", regex_pattern)).ok();
+
+    if let Some(re) = regex {
+        for key in facts.keys() {
+            if re.is_match(key) {
+                keys.push(key.clone());
+            }
+        }
+    }
+
+    keys
 }
