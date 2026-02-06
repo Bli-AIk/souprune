@@ -21,11 +21,9 @@ pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
 pub use crate::core::input::actions::Action;
-pub use crate::core::item::{Item, ItemAsset, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::item::{Item, ItemEffect, ItemRegistry, ItemType};
 pub use crate::core::view::layout::{
-    FloatOrExpr, IndexBoundDef, LayerTransitionsDef, NavigationRuleDef, ReactivePositionDef,
-    SerializableVec3, TransitionActionDef, TransitionRuleDef, ViewBoxLogicDef, ViewLayoutAsset,
-    ViewNodeDef,
+    FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };
 
 use std::default::Default;
@@ -267,20 +265,30 @@ pub fn run() {
                     Box::new(MultiSourceAssetReader::new(readers))
                 })
                 .with_watcher(|sender| {
-                    // Watch the primary project directory for hot reloading
+                    // Watch the project root directory for hot reloading
+                    // This allows hot reloading of view_layout.ron files outside of assets/
                     //
-                    // 监听主项目目录以实现热重载
+                    // 监听项目根目录以实现热重载
+                    // 这允许热重载 assets/ 目录之外的 view_layout.ron 文件
                     let config = config::load_config();
-                    let roots = config::get_asset_roots(&config.project.mod_name);
+                    let project_root =
+                        std::path::Path::new("projects").join(&config.project.mod_name);
 
-                    // Find the first root that actually exists on disk
-                    //
-                    // 找到磁盘上实际存在的第一个根目录
-                    for root in &roots {
-                        if root.exists() {
-                            info!("[Hot Reload] Setting up file watcher for: {:?}", root);
+                    // Try to watch the project root directory (not just assets/)
+                    // 尝试监视项目根目录（不仅仅是 assets/）
+                    let watch_paths = vec![
+                        project_root.clone(),
+                        dunce::canonicalize(&project_root).unwrap_or(project_root.clone()),
+                    ];
+
+                    for path in &watch_paths {
+                        if path.exists() {
+                            info!(
+                                "[Hot Reload] Setting up file watcher for project root: {:?}",
+                                path
+                            );
                             match FileWatcher::new(
-                                root.clone(),
+                                path.clone(),
                                 sender.clone(),
                                 std::time::Duration::from_millis(300),
                             ) {
@@ -292,13 +300,13 @@ pub fn run() {
                                 Err(e) => {
                                     warn!(
                                         "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
-                                        root, e
+                                        path, e
                                     );
                                 }
                             }
                         }
                     }
-                    error!("[Hot Reload] No valid asset root found for file watching");
+                    error!("[Hot Reload] No valid project root found for file watching");
                     None
                 }),
         )

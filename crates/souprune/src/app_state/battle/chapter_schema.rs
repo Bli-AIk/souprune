@@ -100,12 +100,26 @@ pub enum Chapter {
     /// Spawn View Chapter.
     ///
     /// Loads and spawns a view layout file. This creates the visual elements
-    /// defined in the .view_layout.ron file.
+    /// defined in the .view_layout.ron file. Supports data bindings for
+    /// injecting FRE data into the View's requires interfaces.
     ///
     /// 生成视图章节。
     ///
     /// 加载并生成视图布局文件。这会创建 .view_layout.ron 文件中定义的可视元素。
-    SpawnView { view_layout: String },
+    /// 支持数据绑定，将 FRE 数据注入 View 的 requires 接口。
+    SpawnView {
+        /// Path to the view layout file.
+        /// 视图布局文件路径。
+        view_layout: String,
+
+        /// Data bindings for the View's requires interfaces.
+        /// Maps interface names to data sources.
+        ///
+        /// 数据绑定，用于 View 的 requires 接口。
+        /// 将接口名称映射到数据源。
+        #[serde(default)]
+        bindings: std::collections::HashMap<String, DataBinding>,
+    },
 
     /// Await Selection Chapter.
     ///
@@ -396,6 +410,44 @@ pub enum Chapter {
         /// 要应用的修改列表。
         modifications: Vec<FactModificationDef>,
     },
+
+    /// Load FRE data files into the fact database.
+    ///
+    /// Loads facts and rules from one or more `.fre.ron` files.
+    /// Supports aggregation to collect values from multiple files into arrays.
+    ///
+    /// 将 FRE 数据文件加载到事实数据库中。
+    ///
+    /// 从一个或多个 `.fre.ron` 文件加载事实和规则。
+    /// 支持聚合功能，将多个文件的值收集到数组中。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// LoadFre(
+    ///     files: [
+    ///         "battle/fre/enemies/dummy.fre.ron",
+    ///         "battle/fre/enemies/sans.fre.ron",
+    ///     ],
+    ///     aggregate: {
+    ///         "enemy_names": Collect("*.name"),
+    ///         "enemy_hps": Collect("*.hp"),
+    ///     },
+    /// ),
+    /// ```
+    LoadFre {
+        /// List of FRE files to load.
+        ///
+        /// 要加载的 FRE 文件列表。
+        files: Vec<String>,
+
+        /// Aggregation rules for collecting values into arrays.
+        /// Key is the new array fact name, value is the aggregation rule.
+        ///
+        /// 将值收集到数组的聚合规则。
+        /// 键是新数组 fact 名称，值是聚合规则。
+        #[serde(default)]
+        aggregate: std::collections::HashMap<String, AggregateRule>,
+    },
 }
 
 fn default_true() -> bool {
@@ -485,6 +537,50 @@ pub enum FactModificationDef {
 
     /// Toggle a boolean fact.
     Toggle(String),
+}
+
+/// Aggregation rule for LoadFre chapter.
+/// Defines how to collect values from multiple FRE files into arrays.
+///
+/// LoadFre 章节的聚合规则。
+/// 定义如何将多个 FRE 文件的值收集到数组中。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum AggregateRule {
+    /// Collect values matching a glob pattern into an array.
+    /// Pattern uses `*` as wildcard. Example: "*.hp" matches "dummy.hp", "sans.hp", etc.
+    ///
+    /// 将匹配 glob 模式的值收集到数组中。
+    /// 模式使用 `*` 作为通配符。示例："*.hp" 匹配 "dummy.hp"、"sans.hp" 等。
+    Collect(String),
+
+    /// Collect fact keys (names) matching a glob pattern into a string array.
+    ///
+    /// 将匹配 glob 模式的 fact 键（名称）收集到字符串数组中。
+    CollectKeys(String),
+}
+
+/// Data binding for SpawnView's requires interfaces.
+/// Specifies where to load FRE data from.
+///
+/// SpawnView 的 requires 接口数据绑定。
+/// 指定从哪里加载 FRE 数据。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum DataBinding {
+    /// Bind to a single FRE file.
+    /// 绑定到单个 FRE 文件。
+    File(String),
+
+    /// Bind to multiple FRE files (merged).
+    /// 绑定到多个 FRE 文件（合并）。
+    Files(Vec<String>),
+
+    /// Bind to facts already in the LOCAL layer (from LoadFre).
+    /// 绑定到已在 LOCAL 层的 facts（来自 LoadFre）。
+    LocalLayer,
+
+    /// Bind to a dynamic expression result.
+    /// 绑定到动态表达式结果。
+    Expr(String),
 }
 
 /// Camera Action Enum.

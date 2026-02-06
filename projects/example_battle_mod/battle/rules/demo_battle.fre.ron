@@ -19,13 +19,12 @@
 // - 通过事件进行阶段转换
 
 (
-    version: 1,
 
     // Initial facts to set when this rule set is loaded
     // These are LOCAL layer facts specific to this battle
     // 加载此规则集时设置的初始事实
     // 这些是此战斗特定的局部层事实
-    initial_facts: {
+    facts: {
         "battle_turn_count": Int(0),
         "battle_phase": String("initializing"),
         "enemy_0_hp": Int(100),

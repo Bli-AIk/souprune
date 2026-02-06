@@ -29,7 +29,7 @@ pub mod collision;
 pub mod danmaku;
 pub mod fre;
 pub mod player_config_schema;
-mod sequencer;
+pub mod sequencer;
 
 use crate::app_state::AppState;
 use crate::app_state::battle::am_integration::AmBattlePlugin;

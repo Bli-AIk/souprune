@@ -22,7 +22,7 @@ pub mod debug_fre_panel {
     use bevy::window::{
         PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
     };
-    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, RuleRegistry};
+    use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
     use bevy_inspector_egui::egui;
     use leafwing_input_manager::action_state::ActionState;
@@ -80,6 +80,7 @@ pub mod debug_fre_panel {
     enum FREPanelTab {
         #[default]
         Facts,
+        ViewFacts,
         Rules,
         EventHistory,
         States,
@@ -116,9 +117,50 @@ pub mod debug_fre_panel {
         data_keys: Vec<String>,
     }
 
+    /// Resource to track recently triggered rules for visual feedback.
+    /// 跟踪最近触发的规则以提供视觉反馈的资源。
+    #[derive(Resource, Default)]
+    pub struct RuleTriggerHistory {
+        /// Map from rule_id to last trigger timestamp (in seconds)
+        /// 规则ID到上次触发时间戳（秒）的映射
+        pub triggered_rules: std::collections::HashMap<String, f64>,
+    }
+
+    impl RuleTriggerHistory {
+        /// Record that a rule was triggered at the current time.
+        /// 记录规则在当前时间被触发。
+        pub fn record_trigger(&mut self, rule_id: &str, current_time: f64) {
+            self.triggered_rules
+                .insert(rule_id.to_string(), current_time);
+        }
+
+        /// Check if a rule was triggered within the last N seconds.
+        /// 检查规则是否在最近 N 秒内被触发。
+        pub fn was_recently_triggered(
+            &self,
+            rule_id: &str,
+            current_time: f64,
+            duration: f64,
+        ) -> bool {
+            if let Some(&trigger_time) = self.triggered_rules.get(rule_id) {
+                current_time - trigger_time < duration
+            } else {
+                false
+            }
+        }
+
+        /// Clean up old triggers (older than 5 seconds).
+        /// 清理旧的触发记录（超过5秒的）。
+        pub fn cleanup_old_triggers(&mut self, current_time: f64) {
+            self.triggered_rules
+                .retain(|_, &mut trigger_time| current_time - trigger_time < 5.0);
+        }
+    }
+
     pub(crate) fn setup_fre_panel_debug(app: &mut App) {
         app.init_resource::<FREPanelState>()
             .init_resource::<FactEventHistory>()
+            .init_resource::<RuleTriggerHistory>()
             .add_systems(
                 Update,
                 (
@@ -129,6 +171,7 @@ pub mod debug_fre_panel {
                     app_state_changed_refresh_fre_panel_system,
                     fre_panel_refresh_system,
                     track_fact_events_system,
+                    cleanup_rule_trigger_history_system,
                 ),
             )
             .add_systems(
@@ -139,13 +182,22 @@ pub mod debug_fre_panel {
             .add_systems(FREPanelContextPass, fre_panel_ui_system);
     }
 
+    /// System to clean up old rule trigger history entries.
+    /// 清理旧的规则触发历史记录的系统。
+    fn cleanup_rule_trigger_history_system(
+        mut history: ResMut<RuleTriggerHistory>,
+        time: Res<Time>,
+    ) {
+        history.cleanup_old_triggers(time.elapsed_secs_f64());
+    }
+
     /// System to handle F7 hotkey for opening/closing the FRE panel.
     fn handle_fre_panel_hotkeys_system(
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut state: ResMut<FREPanelState>,
         mut commands: Commands,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::F7) {
+        if !keyboard_input.just_pressed(KeyCode::F2) {
             return;
         }
 
@@ -374,6 +426,12 @@ pub mod debug_fre_panel {
                     world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::Facts;
                 }
                 if ui
+                    .selectable_label(current_tab == FREPanelTab::ViewFacts, "🖼 View")
+                    .clicked()
+                {
+                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::ViewFacts;
+                }
+                if ui
                     .selectable_label(current_tab == FREPanelTab::Rules, "📜 Rules")
                     .clicked()
                 {
@@ -398,6 +456,7 @@ pub mod debug_fre_panel {
             // Content based on selected tab
             match current_tab {
                 FREPanelTab::Facts => render_facts_tab(ui, world),
+                FREPanelTab::ViewFacts => render_view_facts_tab(ui, world),
                 FREPanelTab::Rules => render_rules_tab(ui, world),
                 FREPanelTab::EventHistory => render_events_tab(ui, world),
                 FREPanelTab::States => render_states_tab(ui, world),
@@ -447,6 +506,242 @@ pub mod debug_fre_panel {
             egui::CollapsingHeader::new("➕ Add New Fact").show(ui, |ui| {
                 render_add_fact_form(ui, world, true);
             });
+        });
+    }
+
+    /// Render the View Local Facts tab.
+    /// Shows local facts from all active ViewRoot components.
+    ///
+    /// 渲染 View 局部事实选项卡。
+    /// 显示所有活跃 ViewRoot 组件的局部事实。
+    fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
+        use crate::core::view::components::ViewRoot;
+
+        // Search filter
+        let search_filter = world.resource::<FREPanelState>().search_filter.clone();
+        let mut new_filter = search_filter.clone();
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            if ui.text_edit_singleline(&mut new_filter).changed() {
+                world.resource_mut::<FREPanelState>().search_filter = new_filter.clone();
+            }
+        });
+
+        ui.separator();
+
+        // Query all ViewRoot components
+        let mut view_roots: Vec<(Entity, String, String, Vec<(String, FactValue)>)> = Vec::new();
+
+        // Use a scope to avoid borrowing world mutably while iterating
+        {
+            let mut query = world.query::<(Entity, &ViewRoot, Option<&Name>)>();
+            for (entity, view_root, name) in query.iter(world) {
+                let display_name = name
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| format!("Entity {:?}", entity));
+
+                let facts: Vec<_> = view_root
+                    .local_facts
+                    .iter()
+                    .filter(|(k, _)| search_filter.is_empty() || k.0.contains(&search_filter))
+                    .map(|(k, v)| (k.0.clone(), v.clone()))
+                    .collect();
+
+                view_roots.push((entity, display_name, view_root.namespace.clone(), facts));
+            }
+        }
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            if view_roots.is_empty() {
+                ui.label("⚠ No active View instances found.");
+                ui.label("Views with local_facts will appear here when loaded.");
+                return;
+            }
+
+            ui.label(format!("📊 {} active View instance(s)", view_roots.len()));
+            ui.separator();
+
+            // Collect modifications to apply after iteration
+            let mut modifications: Vec<(Entity, String, FactValue)> = Vec::new();
+
+            for (entity, display_name, namespace, facts) in &view_roots {
+                let header_text = format!("🖼 {} ({})", display_name, namespace);
+                egui::CollapsingHeader::new(header_text)
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        if facts.is_empty() {
+                            ui.label("(no local facts)");
+                            return;
+                        }
+
+                        for (key, value) in facts {
+                            ui.horizontal(|ui| {
+                                // Key label with namespace prefix indicator
+                                let key_label = if key.starts_with("view.") {
+                                    format!("  {}", key)
+                                } else {
+                                    format!("  ${}", key)
+                                };
+                                ui.label(&key_label);
+
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| match value {
+                                        FactValue::Int(v) => {
+                                            let mut val = *v;
+                                            if ui.add(egui::DragValue::new(&mut val)).changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Int(val),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::Float(v) => {
+                                            let mut val = *v;
+                                            if ui
+                                                .add(egui::DragValue::new(&mut val).speed(0.1))
+                                                .changed()
+                                            {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Float(val),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::Bool(v) => {
+                                            let mut checked = *v;
+                                            if ui.checkbox(&mut checked, "").changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::Bool(checked),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::String(s) => {
+                                            let mut text = s.clone();
+                                            let response = ui.add(
+                                                egui::TextEdit::singleline(&mut text)
+                                                    .desired_width(150.0),
+                                            );
+                                            if response.changed() {
+                                                modifications.push((
+                                                    *entity,
+                                                    key.clone(),
+                                                    FactValue::String(text.clone()),
+                                                ));
+                                            }
+                                        }
+                                        FactValue::StringList(list) => {
+                                            // Show list with editable elements
+                                            ui.push_id(format!("strlist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            let response = ui.add(
+                                                                egui::TextEdit::singleline(item)
+                                                                    .desired_width(120.0),
+                                                            );
+                                                            if response.changed() {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(String::new());
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::StringList(new_list),
+                                                        ));
+                                                    }
+                                                });
+                                            });
+                                        }
+                                        FactValue::IntList(list) => {
+                                            // Show int list with editable elements
+                                            ui.push_id(format!("intlist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            if ui
+                                                                .add(egui::DragValue::new(item))
+                                                                .changed()
+                                                            {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(0);
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::IntList(new_list),
+                                                        ));
+                                                    }
+                                                });
+                                            });
+                                        }
+                                    },
+                                );
+                            });
+                        }
+                    });
+            }
+
+            // Apply modifications to ViewRoot local_facts
+            for (entity, key, value) in modifications {
+                if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
+                    view_root.local_facts.set(key.as_str(), value);
+                }
+            }
         });
     }
 
@@ -515,6 +810,94 @@ pub mod debug_fre_panel {
                                     layer,
                                 ));
                             }
+                        }
+                        FactValue::StringList(ref list) => {
+                            // Show list with editable elements
+                            ui.push_id(format!("layered_strlist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            let response = ui.add(
+                                                egui::TextEdit::singleline(item)
+                                                    .desired_width(120.0),
+                                            );
+                                            if response.changed() {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(String::new());
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::StringList(new_list),
+                                            layer,
+                                        ));
+                                    }
+                                });
+                            });
+                        }
+                        FactValue::IntList(ref list) => {
+                            // Show int list with editable elements
+                            ui.push_id(format!("layered_intlist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            if ui.add(egui::DragValue::new(item)).changed() {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(0);
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::IntList(new_list),
+                                            layer,
+                                        ));
+                                    }
+                                });
+                            });
                         }
                     },
                 );
@@ -620,96 +1003,107 @@ pub mod debug_fre_panel {
             ui.label("📜 Registered Rules");
             ui.separator();
 
-            let rule_registry = world.get_resource::<RuleRegistry>();
+            // Get time and trigger history for highlight calculation
+            // 获取时间和触发历史用于高亮计算
+            let current_time = world
+                .get_resource::<Time>()
+                .map(|t| t.elapsed_secs_f64())
+                .unwrap_or(0.0);
+            let trigger_history = world.get_resource::<RuleTriggerHistory>();
+
+            let rule_registry = world.get_resource::<LayeredRuleRegistry>();
 
             match rule_registry {
                 Some(registry) => {
-                    let rule_count = registry.iter().count();
-                    ui.label(format!("Total rules: {}", rule_count));
+                    // Count rules across all layers
+                    let global_count = registry.global_iter().count();
+                    let local_count = registry.local_iter().count();
+                    let view_count: usize =
+                        registry.view_iter().map(|(_, r)| r.iter().count()).sum();
+                    let total_count = global_count + local_count + view_count;
+
+                    ui.label(format!(
+                        "Total rules: {} (Global: {}, Local: {}, View: {})",
+                        total_count, global_count, local_count, view_count
+                    ));
                     ui.separator();
 
-                    if rule_count == 0 {
+                    if total_count == 0 {
                         ui.label("No rules registered.");
-                        ui.label("Rules are loaded from .rules.ron files.");
+                        ui.label("Rules are loaded from .fre.ron files.");
                     } else {
-                        // Collect rules into a Vec for sorting
-                        let mut rules: Vec<_> = registry.iter().collect();
-                        rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                        // Show rules grouped by scope
+                        // 按作用域分组显示规则
 
-                        for rule in rules {
-                            let status_icon = if rule.enabled { "✅" } else { "❌" };
-                            let header_text = format!(
-                                "{} {} [Priority: {}]",
-                                status_icon, rule.id, rule.priority
-                            );
+                        // Global rules
+                        if global_count > 0 {
+                            egui::CollapsingHeader::new(format!(
+                                "🌍 Global Rules ({})",
+                                global_count
+                            ))
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                let mut global_rules: Vec<_> = registry.global_iter().collect();
+                                global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                for rule in global_rules {
+                                    let is_triggered = trigger_history
+                                        .map(|h| {
+                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
+                                        })
+                                        .unwrap_or(false);
+                                    show_rule_entry(ui, rule, is_triggered);
+                                }
+                            });
+                        }
 
-                            egui::CollapsingHeader::new(header_text)
-                                .default_open(false)
+                        // Local rules
+                        if local_count > 0 {
+                            egui::CollapsingHeader::new(format!(
+                                "📍 Local Rules ({})",
+                                local_count
+                            ))
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                let mut local_rules: Vec<_> = registry.local_iter().collect();
+                                local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                for rule in local_rules {
+                                    let is_triggered = trigger_history
+                                        .map(|h| {
+                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
+                                        })
+                                        .unwrap_or(false);
+                                    show_rule_entry(ui, rule, is_triggered);
+                                }
+                            });
+                        }
+
+                        // View rules
+                        if view_count > 0 {
+                            egui::CollapsingHeader::new(format!("👁 View Rules ({})", view_count))
+                                .default_open(true)
                                 .show(ui, |ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label("Trigger:");
-                                        ui.monospace(&rule.trigger.0);
-                                    });
-
-                                    ui.horizontal(|ui| {
-                                        ui.label("Enabled:");
-                                        ui.label(if rule.enabled { "Yes" } else { "No" });
-                                    });
-
-                                    // Condition
-                                    egui::CollapsingHeader::new("Condition")
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            ui.monospace(format!("{:?}", rule.condition));
-                                        });
-
-                                    // Modifications
-                                    if !rule.modifications.is_empty() {
+                                    for (entity, view_registry) in registry.view_iter() {
+                                        let view_rule_count = view_registry.iter().count();
                                         egui::CollapsingHeader::new(format!(
-                                            "Modifications ({})",
-                                            rule.modifications.len()
+                                            "Entity {:?} ({} rules)",
+                                            entity, view_rule_count
                                         ))
-                                        .default_open(false)
+                                        .default_open(true)
                                         .show(ui, |ui| {
-                                            for (i, modification) in
-                                                rule.modifications.iter().enumerate()
-                                            {
-                                                ui.monospace(format!(
-                                                    "{}: {:?}",
-                                                    i + 1,
-                                                    modification
-                                                ));
-                                            }
-                                        });
-                                    }
-
-                                    // Actions
-                                    if !rule.actions.is_empty() {
-                                        egui::CollapsingHeader::new(format!(
-                                            "Actions ({})",
-                                            rule.actions.len()
-                                        ))
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            for i in 0..rule.actions.len() {
-                                                ui.monospace(format!(
-                                                    "{}: <action function>",
-                                                    i + 1
-                                                ));
-                                            }
-                                        });
-                                    }
-
-                                    // Outputs
-                                    if !rule.outputs.is_empty() {
-                                        egui::CollapsingHeader::new(format!(
-                                            "Outputs ({})",
-                                            rule.outputs.len()
-                                        ))
-                                        .default_open(false)
-                                        .show(ui, |ui| {
-                                            for output in &rule.outputs {
-                                                ui.monospace(&output.0);
+                                            let mut view_rules: Vec<_> =
+                                                view_registry.iter().collect();
+                                            view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+                                            for rule in view_rules {
+                                                let is_triggered = trigger_history
+                                                    .map(|h| {
+                                                        h.was_recently_triggered(
+                                                            &rule.id,
+                                                            current_time,
+                                                            1.0,
+                                                        )
+                                                    })
+                                                    .unwrap_or(false);
+                                                show_rule_entry(ui, rule, is_triggered);
                                             }
                                         });
                                     }
@@ -718,7 +1112,7 @@ pub mod debug_fre_panel {
                     }
                 }
                 None => {
-                    ui.label("RuleRegistry not available.");
+                    ui.label("LayeredRuleRegistry not available.");
                     ui.label("Make sure FREPlugin is installed.");
                 }
             }
@@ -726,12 +1120,104 @@ pub mod debug_fre_panel {
             ui.separator();
 
             // Show some helpful info
-            egui::CollapsingHeader::new("ℹ️ How Rules Work").show(ui, |ui| {
-                ui.label("• Rules are defined in .rules.ron files");
+            egui::CollapsingHeader::new("How Rules Work").show(ui, |ui| {
+                ui.label("• Rules are defined in .fre.ron files");
                 ui.label("• Each rule has: trigger, condition, modifications, actions, outputs");
                 ui.label("• Rules are evaluated when their trigger event fires");
                 ui.label("• Conditions use facts from the LayeredFactDatabase");
             });
+        });
+    }
+
+    /// Helper function to display a single rule entry with optional trigger highlight.
+    /// 显示单个规则条目的辅助函数，可选触发高亮。
+    ///
+    /// # Arguments
+    /// * `ui` - The egui UI context
+    /// * `rule` - The rule to display
+    /// * `is_recently_triggered` - Whether this rule was triggered in the last second
+    fn show_rule_entry(
+        ui: &mut egui::Ui,
+        rule: &bevy_fact_rule_event::Rule,
+        is_recently_triggered: bool,
+    ) {
+        let status_icon = if rule.enabled { "✅" } else { "❌" };
+        let trigger_indicator = if is_recently_triggered { "🔥 " } else { "" };
+        let header_text = format!(
+            "{}{} {} [Priority: {}]",
+            trigger_indicator, status_icon, rule.id, rule.priority
+        );
+
+        // Use green color for recently triggered rules
+        // 为最近触发的规则使用绿色
+        let header_color = if is_recently_triggered {
+            egui::Color32::from_rgb(100, 255, 100) // Bright green
+        } else {
+            ui.visuals().text_color()
+        };
+
+        let header =
+            egui::CollapsingHeader::new(egui::RichText::new(header_text).color(header_color))
+                .default_open(false);
+
+        header.show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Trigger:");
+                ui.monospace(&rule.trigger.0);
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Enabled:");
+                ui.label(if rule.enabled { "Yes" } else { "No" });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Consume Event:");
+                ui.label(if rule.consume_event { "Yes" } else { "No" });
+            });
+
+            // Condition
+            egui::CollapsingHeader::new("Condition")
+                .default_open(false)
+                .show(ui, |ui| {
+                    ui.monospace(format!("{:?}", rule.condition));
+                });
+
+            // Modifications
+            if !rule.modifications.is_empty() {
+                egui::CollapsingHeader::new(format!(
+                    "Modifications ({})",
+                    rule.modifications.len()
+                ))
+                .default_open(false)
+                .show(ui, |ui| {
+                    for (i, modification) in rule.modifications.iter().enumerate() {
+                        ui.monospace(format!("{}: {:?}", i + 1, modification));
+                    }
+                });
+            }
+
+            // Actions
+            if !rule.actions.is_empty() {
+                egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for i in 0..rule.actions.len() {
+                            ui.monospace(format!("{}: <action function>", i + 1));
+                        }
+                    });
+            }
+
+            // Outputs
+            if !rule.outputs.is_empty() {
+                egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len()))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for output in &rule.outputs {
+                            ui.monospace(&output.0);
+                        }
+                    });
+            }
         });
     }
 

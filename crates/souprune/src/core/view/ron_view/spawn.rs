@@ -3,15 +3,30 @@ use super::super::layout::*;
 use super::super::lifecycle::BackpackViewRoot;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{
-    PlayerDataView, evaluate_condition, evaluate_float_expr, resolve_text_content,
+    PlayerDataView, evaluate_condition, evaluate_float_expr, evaluate_float_expr_with_repeat,
+    evaluate_visible_when, preprocess_sprite_def_for_repeat, resolve_text_content,
+    vec3_tuple_depends_on_time,
 };
-use super::resources::{RonDrivenView, ViewGenerated, ViewLayoutHandle, ViewLayoutWatcher};
+use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated, ViewLayoutHandle};
 use crate::app_state::battle::BattleViewRoot;
 use crate::app_state::overworld::chase::ChaseHUDRoot;
+use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
+
+/// System parameter bundle for FRE-related resources.
+/// Reduces system parameter count to stay within Bevy's 16-parameter limit.
+///
+/// FRE 相关资源的系统参数包。
+/// 减少系统参数数量以保持在 Bevy 的 16 参数限制内。
+#[derive(SystemParam)]
+pub struct FreSystemParams<'w> {
+    pub rule_registry: ResMut<'w, LayeredRuleRegistry>,
+    pub action_defs: ResMut<'w, RuleActionDefs>,
+}
 
 /// System to spawn view elements from RON layout.
 ///
@@ -34,6 +49,10 @@ pub fn spawn_ron_view_system(
     view_layout_handle: Option<Res<ViewLayoutHandle>>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
+    pending_bindings: Option<
+        Res<crate::app_state::battle::sequencer::view_action::PendingViewBindings>,
+    >,
     backpack_root_query: Query<
         Entity,
         (
@@ -56,7 +75,7 @@ pub fn spawn_ron_view_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
-    mut watcher: Option<ResMut<ViewLayoutWatcher>>,
+    mut fre_params: FreSystemParams,
 ) {
     let player_data = PlayerDataView::new(&layered_db);
 
@@ -68,19 +87,45 @@ pub fn spawn_ron_view_system(
         return;
     };
 
-    let mut spawned_any = false;
+    // Check if all FRE assets in pending bindings are loaded
+    // 检查所有待处理绑定中的 FRE 资产是否已加载
+    if let Some(ref bindings_res) = pending_bindings {
+        for handle in &bindings_res.fre_handles {
+            if fre_assets.get(handle).is_none() {
+                // FRE asset not yet loaded, wait for next frame
+                // FRE 资产尚未加载，等待下一帧
+                trace!("[spawn_ron_view] Waiting for FRE assets to load...");
+                return;
+            }
+        }
+    }
+
+    // Log query counts for debugging
+    let backpack_count = backpack_root_query.iter().count();
+    let battle_count = battle_root_query.iter().count();
+    let chase_count = chase_root_query.iter().count();
+    trace!(
+        "[spawn_ron_view] backpack_roots={}, battle_roots={}, chase_roots={}, layout_path='{}'",
+        backpack_count, battle_count, chase_count, view_layout_handle.path
+    );
 
     // Helper closure to spawn view for an entity
     let mut spawn_for_entity = |view_entity: Entity, label: &str| {
-        info!("Spawning view from RON layout ({})", label);
+        info!(
+            "[spawn_ron_view] Spawning view from RON layout ({}), entity={:?}",
+            label, view_entity
+        );
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
             Err(_) => {
-                warn!("No Camera2d found for view spawning!");
+                warn!("[spawn_ron_view] No Camera2d found for view spawning!");
                 return false;
             }
         };
+
+        // Get bindings if available
+        let bindings = pending_bindings.as_ref().map(|b| &b.bindings);
 
         spawn_ron_view_for_entity(
             &mut commands,
@@ -90,41 +135,53 @@ pub fn spawn_ron_view_system(
             camera_transform,
             &mut sprite_params,
             &animation_assets,
+            &fre_assets,
             &mortar_strings,
             &player_data,
             &item_registry,
             &view_layout_handle.path,
+            bindings,
+            &layered_db,
+            &mut fre_params.rule_registry,
+            &mut fre_params.action_defs,
         );
-        commands.entity(view_entity).insert(ViewGenerated);
+
+        // Add ViewGenerated and HotReloadableViewRoot for hot reload support
+        // 添加 ViewGenerated 和 HotReloadableViewRoot 以支持热重载
+        // Also add ReconciliationEnabled to let the reconciliation system handle updates
+        // 同时添加 ReconciliationEnabled 让协调系统处理更新
+        commands.entity(view_entity).insert((
+            ViewGenerated,
+            HotReloadableViewRoot {
+                layout_path: view_layout_handle.path.clone(),
+                layout_handle: view_layout_handle.handle.clone(),
+            },
+            crate::core::view::reconcile::ReconciliationEnabled,
+        ));
+
+        info!(
+            "[spawn_ron_view] Added ViewGenerated and HotReloadableViewRoot to entity {:?}",
+            view_entity
+        );
         true
     };
 
     // Handle BackpackViewRoot entities (OW Backpack)
     // 处理 BackpackViewRoot 实体（OW 背包）
     for view_entity in backpack_root_query.iter() {
-        if spawn_for_entity(view_entity, "BackpackViewRoot") {
-            spawned_any = true;
-        }
+        spawn_for_entity(view_entity, "BackpackViewRoot");
     }
 
     // Handle BattleViewRoot entities (Battle UI)
     // 处理 BattleViewRoot 实体（Battle UI）
     for view_entity in battle_root_query.iter() {
-        if spawn_for_entity(view_entity, "BattleViewRoot") {
-            spawned_any = true;
-        }
+        spawn_for_entity(view_entity, "BattleViewRoot");
     }
 
     // Handle ChaseHUDRoot entities (Chase HUD)
     // 处理 ChaseHUDRoot 实体（Chase HUD）
     for view_entity in chase_root_query.iter() {
-        if spawn_for_entity(view_entity, "ChaseHUDRoot") {
-            spawned_any = true;
-        }
-    }
-
-    if spawned_any && let Some(ref mut w) = watcher {
-        w.pending_reload = false;
+        spawn_for_entity(view_entity, "ChaseHUDRoot");
     }
 }
 
@@ -140,56 +197,323 @@ pub fn spawn_ron_view_for_entity(
     camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+    fre_assets: &Assets<FreAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
     layout_path: &str,
+    bindings: Option<
+        &std::collections::HashMap<String, crate::app_state::battle::chapter_schema::DataBinding>,
+    >,
+    layered_db: &LayeredFactDatabase,
+    rule_registry: &mut LayeredRuleRegistry,
+    action_defs: &mut RuleActionDefs,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
     let namespace = crate::core::view::components::ViewRoot::namespace_from_path(layout_path);
 
-    // Attach ViewRoot to the view entity
-    // 为视图实体附加 ViewRoot 组件
-    commands
-        .entity(view_entity)
-        .insert(crate::core::view::components::ViewRoot::new(
-            layout_path.to_string(),
-        ));
+    // Create ViewRoot with local facts initialized from layout
+    // 创建带有从布局初始化的局部事实的 ViewRoot
+    let mut view_root = crate::core::view::components::ViewRoot::new(layout_path.to_string());
 
-    // Spawn InteractiveLayers if defined
-    // 如果定义了交互层则生成
-    if let Some(interactive_layers) = &view_layout.interactive_layers {
-        for (layer_id, layer_def) in interactive_layers {
-            let interactive_layer = layer_def.build(layer_id, player_data);
-            info!(
-                "Creating InteractiveLayer '{}' with navigator: {:?}",
-                layer_id, interactive_layer.navigator
-            );
-            // Add Name component so state_sprite system can identify this layer
-            // 添加 Name 组件以便 state_sprite 系统能识别此层
-            commands.spawn((
-                interactive_layer,
-                Name::new(format!("InteractiveLayer:{}", layer_id)),
-            ));
+    // Track pending FRE files that need delayed registration (store handles to keep loading alive)
+    // 跟踪需要延迟注册的待处理 FRE 文件（存储句柄以保持加载请求）
+    let mut pending_fre_handles: Vec<(String, Handle<FreAsset>)> = Vec::new();
+
+    // Process requires declarations
+    // 处理 requires 声明
+    for requirement in &view_layout.requires {
+        match requirement {
+            DataRequirement::File(path) => {
+                // Load FRE file if already loaded
+                // 如果已加载则加载 FRE 文件
+                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                if let Some(fre_asset) = fre_assets.get(&handle) {
+                    load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
+
+                    // Register View-scoped rules from this FRE file
+                    // 从此 FRE 文件注册 View 作用域的规则
+                    let rule_defs = fre_asset.get_rule_defs();
+                    let scope = fre_asset.scope();
+                    for (idx, rule_def) in rule_defs.iter().enumerate() {
+                        // Use the FRE file's declared scope, or default to View for FRE files loaded via requires
+                        // 使用 FRE 文件声明的作用域，或对于通过 requires 加载的文件默认为 View
+                        let effective_scope = if scope == RuleScope::Local {
+                            // If the file says Local but is loaded via View's requires, treat as View
+                            // 如果文件声明为 Local 但通过 View 的 requires 加载，则视为 View
+                            RuleScope::View
+                        } else {
+                            scope
+                        };
+
+                        let rule = rule_def.to_rule_with_index(idx, effective_scope);
+                        let rule_id = rule_def.generate_id(idx);
+
+                        // Store actions for this rule in action_defs
+                        // 将此规则的 actions 存储到 action_defs 中
+                        if !rule_def.actions.is_empty() {
+                            action_defs
+                                .actions_by_rule
+                                .insert(rule_id.clone(), rule_def.actions.clone());
+                        }
+
+                        if effective_scope == RuleScope::View {
+                            rule_registry.register_view_rule(view_entity, rule);
+                            info!(
+                                "[ViewRoot] Registered View rule '{}' for entity {:?} from '{}'",
+                                rule_id, view_entity, path
+                            );
+                        } else {
+                            rule_registry.register(rule);
+                        }
+                    }
+                    if !rule_defs.is_empty() {
+                        info!(
+                            "[ViewRoot] Registered {} rules from '{}' for View entity {:?}",
+                            rule_defs.len(),
+                            path,
+                            view_entity
+                        );
+                    }
+                    info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
+                } else {
+                    // FRE file not yet loaded - add to pending for delayed registration
+                    // Store the handle to keep the loading request alive
+                    // FRE 文件尚未加载 - 添加到待处理列表以延迟注册
+                    // 存储句柄以保持加载请求不被取消
+                    info!(
+                        "[ViewRoot] FRE file '{}' not yet loaded, adding to pending",
+                        path
+                    );
+                    pending_fre_handles.push((path.clone(), handle));
+                }
+            }
+            DataRequirement::Interface {
+                interface,
+                expects: _,
+            } => {
+                // Look up binding for this interface
+                // 查找此接口的绑定
+                if let Some(bindings) = bindings {
+                    if let Some(binding) = bindings.get(interface) {
+                        match binding {
+                            crate::app_state::battle::chapter_schema::DataBinding::File(path) => {
+                                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                                if let Some(fre_asset) = fre_assets.get(&handle) {
+                                    load_fre_into_view_root(
+                                        &mut view_root,
+                                        fre_asset,
+                                        mortar_strings,
+                                    );
+
+                                    // Register View-scoped rules from interface binding
+                                    // 从接口绑定注册 View 作用域的规则
+                                    let rule_defs = fre_asset.get_rule_defs();
+                                    let scope = fre_asset.scope();
+                                    for (idx, rule_def) in rule_defs.iter().enumerate() {
+                                        let effective_scope = if scope == RuleScope::Local {
+                                            RuleScope::View
+                                        } else {
+                                            scope
+                                        };
+                                        let rule =
+                                            rule_def.to_rule_with_index(idx, effective_scope);
+                                        let rule_id = rule_def.generate_id(idx);
+
+                                        // Store actions for this rule
+                                        if !rule_def.actions.is_empty() {
+                                            action_defs
+                                                .actions_by_rule
+                                                .insert(rule_id, rule_def.actions.clone());
+                                        }
+
+                                        if effective_scope == RuleScope::View {
+                                            rule_registry.register_view_rule(view_entity, rule);
+                                        } else {
+                                            rule_registry.register(rule);
+                                        }
+                                    }
+
+                                    info!(
+                                        "[ViewRoot] Bound interface '{}' to file '{}' ({} rules)",
+                                        interface,
+                                        path,
+                                        rule_defs.len()
+                                    );
+                                }
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::Files(paths) => {
+                                let mut total_rules = 0;
+                                for path in paths {
+                                    let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                                    if let Some(fre_asset) = fre_assets.get(&handle) {
+                                        load_fre_into_view_root(
+                                            &mut view_root,
+                                            fre_asset,
+                                            mortar_strings,
+                                        );
+
+                                        // Register View-scoped rules from interface binding
+                                        // 从接口绑定注册 View 作用域的规则
+                                        let rule_defs = fre_asset.get_rule_defs();
+                                        let scope = fre_asset.scope();
+                                        for (idx, rule_def) in rule_defs.iter().enumerate() {
+                                            let effective_scope = if scope == RuleScope::Local {
+                                                RuleScope::View
+                                            } else {
+                                                scope
+                                            };
+                                            let rule =
+                                                rule_def.to_rule_with_index(idx, effective_scope);
+                                            let rule_id = rule_def.generate_id(idx);
+
+                                            // Store actions for this rule
+                                            if !rule_def.actions.is_empty() {
+                                                action_defs
+                                                    .actions_by_rule
+                                                    .insert(rule_id, rule_def.actions.clone());
+                                            }
+
+                                            if effective_scope == RuleScope::View {
+                                                rule_registry.register_view_rule(view_entity, rule);
+                                            } else {
+                                                rule_registry.register(rule);
+                                            }
+                                        }
+                                        total_rules += rule_defs.len();
+                                    }
+                                }
+                                info!(
+                                    "[ViewRoot] Bound interface '{}' to {} files ({} rules)",
+                                    interface,
+                                    paths.len(),
+                                    total_rules
+                                );
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::LocalLayer => {
+                                // Copy facts from LOCAL layer to view's local_facts
+                                // 从 LOCAL 层复制 facts 到 view 的 local_facts
+                                for (key, value) in layered_db.iter_local() {
+                                    // Resolve localization for string values
+                                    // 解析字符串值的本地化
+                                    match value {
+                                        bevy_fact_rule_event::FactValue::String(s) => {
+                                            let resolved =
+                                                resolve_simple_localization(s, mortar_strings);
+                                            view_root.local_facts.set(key.0.clone(), resolved);
+                                        }
+                                        bevy_fact_rule_event::FactValue::StringList(list) => {
+                                            let resolved_list: Vec<String> = list
+                                                .iter()
+                                                .map(|s| {
+                                                    resolve_simple_localization(s, mortar_strings)
+                                                })
+                                                .collect();
+                                            view_root.local_facts.set(key.0.clone(), resolved_list);
+                                        }
+                                        _ => {
+                                            view_root.local_facts.set(key.0.clone(), value.clone());
+                                        }
+                                    }
+                                }
+                                info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
+                            }
+                            crate::app_state::battle::chapter_schema::DataBinding::Expr(_expr) => {
+                                warn!(
+                                    "[ViewRoot] Expr binding not yet implemented for interface '{}'",
+                                    interface
+                                );
+                            }
+                        }
+                    } else {
+                        warn!(
+                            "[ViewRoot] No binding provided for interface '{}'",
+                            interface
+                        );
+                    }
+                } else {
+                    warn!(
+                        "[ViewRoot] Interface '{}' requires binding but none provided",
+                        interface
+                    );
+                }
+            }
         }
     }
 
-    for root in &view_layout.roots {
-        spawn_view_node(
-            commands,
-            asset_server,
-            view_entity,
-            root,
-            camera_transform,
-            sprite_params,
-            animation_assets,
-            mortar_strings,
-            player_data,
-            item_registry,
-            true,       // Top-level nodes
-            &namespace, // Pass namespace to children
+    // Initialize local_facts from inline facts in layout
+    // 从布局中的内联 facts 初始化 local_facts
+    if let Some(facts) = &view_layout.facts {
+        for (key, value) in facts {
+            use crate::core::view::layout::InitialFactValue;
+            match value {
+                InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
+                InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
+                InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
+                InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+                InitialFactValue::StringList(list) => {
+                    // Resolve localization references in string list items
+                    // 解析字符串列表项中的本地化引用
+                    let resolved_list: Vec<String> = list
+                        .iter()
+                        .map(|s| resolve_simple_localization(s, mortar_strings))
+                        .collect();
+                    view_root.local_facts.set(key.clone(), resolved_list)
+                }
+                InitialFactValue::IntList(list) => {
+                    view_root.local_facts.set(key.clone(), list.clone())
+                }
+            }
+        }
+        info!(
+            "[ViewRoot] Initialized {} local facts for '{}'",
+            facts.len(),
+            layout_path
         );
+    }
+
+    // Spawn view nodes BEFORE attaching ViewRoot, using a player_data with local_facts
+    // 在附加 ViewRoot 之前生成视图节点，使用带有 local_facts 的 player_data
+    {
+        // Create player_data with local_facts for spawning children
+        // 使用 local_facts 创建 player_data 以生成子节点
+        let player_data_with_locals =
+            PlayerDataView::with_local_facts(player_data.db(), &view_root.local_facts);
+
+        for root in &view_layout.roots {
+            spawn_view_node(
+                commands,
+                asset_server,
+                view_entity,
+                root,
+                camera_transform,
+                sprite_params,
+                animation_assets,
+                mortar_strings,
+                &player_data_with_locals,
+                item_registry,
+                true,       // Top-level nodes
+                &namespace, // Pass namespace to children
+            );
+        }
+    }
+
+    // Attach ViewRoot to the view entity AFTER spawning children
+    // 在生成子节点之后将 ViewRoot 附加到视图实体
+    commands.entity(view_entity).insert(view_root);
+
+    // If there are pending FRE files, add PendingViewRules component for delayed registration
+    // 如果有待处理的 FRE 文件，添加 PendingViewRules 组件以延迟注册
+    if !pending_fre_handles.is_empty() {
+        info!(
+            "[ViewRoot] Adding PendingViewRules with {} pending handles for entity {:?}",
+            pending_fre_handles.len(),
+            view_entity
+        );
+        commands.entity(view_entity).insert(PendingViewRules {
+            pending_handles: pending_fre_handles,
+        });
     }
 }
 
@@ -271,6 +595,7 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
+        visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }
 }
@@ -293,6 +618,106 @@ pub fn spawn_view_node(
     is_top_level: bool,
     namespace: &str, // New parameter: namespace for ViewElement
 ) {
+    // Handle repeat configuration - spawn multiple instances from array
+    // 处理重复配置 - 从数组生成多个实例
+    if let Some(repeat) = &node_def.repeat {
+        // Get array length from source
+        let array_len = if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+            list.len()
+        } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+            list.len()
+        } else {
+            warn!(
+                "[spawn_view_node] Repeat source '{}' not found for node '{}'",
+                repeat.source, node_def.name
+            );
+            0
+        };
+
+        let limit = repeat.limit.unwrap_or(usize::MAX);
+        let count = array_len.min(limit);
+
+        info!(
+            "[spawn_view_node] Repeating node '{}' {} times (source: '{}', len: {}, limit: {:?})",
+            node_def.name, count, repeat.source, array_len, repeat.limit
+        );
+
+        for i in 0..count {
+            // Create repeat context for this iteration
+            let mut ctx = super::parsing::RepeatContext::new(i);
+
+            // Get item value from array if item_var is specified
+            if let Some(item_var) = &repeat.item_var {
+                let item_value =
+                    if let Some(list) = player_data.get_fact_string_list(&repeat.source) {
+                        list.get(i).cloned()
+                    } else if let Some(list) = player_data.get_fact_int_list(&repeat.source) {
+                        list.get(i).map(|v| v.to_string())
+                    } else {
+                        None
+                    };
+                if let Some(value) = item_value {
+                    ctx = ctx.with_item(item_var, value);
+                }
+            }
+
+            // Spawn with context
+            spawn_view_node_with_repeat_context(
+                commands,
+                asset_server,
+                parent_entity,
+                node_def,
+                camera_transform,
+                sprite_params,
+                animation_assets,
+                mortar_strings,
+                player_data,
+                item_registry,
+                is_top_level,
+                namespace,
+                Some(&ctx),
+            );
+        }
+        return;
+    }
+
+    // No repeat - spawn normally without context
+    spawn_view_node_with_repeat_context(
+        commands,
+        asset_server,
+        parent_entity,
+        node_def,
+        camera_transform,
+        sprite_params,
+        animation_assets,
+        mortar_strings,
+        player_data,
+        item_registry,
+        is_top_level,
+        namespace,
+        None,
+    );
+}
+
+/// Internal function to spawn a single view node with optional repeat context.
+///
+/// 带可选重复上下文生成单个视图节点的内部函数。
+#[allow(clippy::too_many_arguments)]
+fn spawn_view_node_with_repeat_context(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    parent_entity: Entity,
+    node_def: &ViewNodeDef,
+    camera_transform: &Transform,
+    sprite_params: &mut SpriteParams,
+    animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView<'_>,
+    item_registry: &crate::core::item::ItemRegistry,
+    is_top_level: bool,
+    namespace: &str,
+    repeat_ctx: Option<&super::parsing::RepeatContext>,
+) {
     // Determine if this node has a ViewBox (ui_shape_logic)
     let has_ui_box = node_def.ui_shape_logic.is_some();
     // Determine if this is a standalone sprite node (sprite without ViewBox)
@@ -307,10 +732,21 @@ pub fn spawn_view_node(
 
     // Create ViewElement for named nodes
     // 为具名节点创建 ViewElement
-    let view_element = if !node_def.name.is_empty() {
+    // If repeat context exists, append index to name for uniqueness
+    let node_name = if let Some(ctx) = repeat_ctx {
+        if !node_def.name.is_empty() {
+            format!("{}_{}", node_def.name, ctx.index)
+        } else {
+            String::new()
+        }
+    } else {
+        node_def.name.clone()
+    };
+
+    let view_element = if !node_name.is_empty() {
         Some(crate::core::view::components::ViewElement::new(
             namespace.to_string(),
-            node_def.name.clone(),
+            node_name.clone(),
             node_def.tags.clone(),
         ))
     } else {
@@ -403,16 +839,16 @@ pub fn spawn_view_node(
             if let Some(t_def) = &sprite_def.transform {
                 if let Some(trans) = &t_def.translation {
                     transform.translation = Vec3::new(
-                        evaluate_float_expr(&trans.0, player_data, None),
-                        evaluate_float_expr(&trans.1, player_data, None),
-                        evaluate_float_expr(&trans.2, player_data, None),
+                        evaluate_float_expr_with_repeat(&trans.0, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&trans.1, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&trans.2, player_data, None, repeat_ctx),
                     );
                 }
                 if let Some(scale) = &t_def.scale {
                     transform.scale = Vec3::new(
-                        evaluate_float_expr(&scale.0, player_data, None),
-                        evaluate_float_expr(&scale.1, player_data, None),
-                        evaluate_float_expr(&scale.2, player_data, None),
+                        evaluate_float_expr_with_repeat(&scale.0, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&scale.1, player_data, None, repeat_ctx),
+                        evaluate_float_expr_with_repeat(&scale.2, player_data, None, repeat_ctx),
                     );
                 }
                 if let Some(rot) = t_def.rotation {
@@ -422,7 +858,7 @@ pub fn spawn_view_node(
 
             info!(
                 "[UI Sprite] Spawning standalone sprite '{}' at position: {:?}, scale: {:?}",
-                node_def.name, transform.translation, transform.scale
+                node_name, transform.translation, transform.scale
             );
 
             let config = load_config();
@@ -445,6 +881,10 @@ pub fn spawn_view_node(
                     final_transform.translation += shift;
                 }
 
+                // Determine HP source type based on configuration and repeat context
+                // 根据配置和 repeat 上下文确定 HP 来源类型
+                let hp_source = determine_hp_source(&sprite_def.hp_bar_source, repeat_ctx);
+
                 let mut entity_cmd = parent.spawn((
                     final_transform,
                     GlobalTransform::default(),
@@ -454,11 +894,8 @@ pub fn spawn_view_node(
                     Name::new(node_def.name.clone()),
                     RonDrivenView,
                     HPBarSprite {
-                        shader_params: sprite_def
-                            .shader_params
-                            .as_ref()
-                            .map(dynamic_color_to_static)
-                            .unwrap_or(Color::WHITE),
+                        shader_params_expr: sprite_def.shader_params.clone(),
+                        hp_source,
                     },
                 ));
                 if let Some(ref ve) = view_element {
@@ -545,11 +982,6 @@ pub fn spawn_view_node(
                 ui_shape_logic.border_width,
                 ui_shape_logic.offset
             );
-            let visibility_rule = node_def
-                .visibility_rule
-                .as_ref()
-                .map(parse_visibility_rule)
-                .unwrap_or(ViewLayerVisibilityRule::Always);
 
             let texts = node_def
                 .texts
@@ -596,7 +1028,6 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Visibility::default(),
                     InheritedVisibility::default(),
                     ViewVisibility::default(),
@@ -622,7 +1053,6 @@ pub fn spawn_view_node(
                         ui_shape_logic.structure_file.clone(),
                         fill_color,
                     ),
-                    ViewBoxVisibility::new(visibility_rule.clone()),
                     Transform::from_translation(offset),
                     GlobalTransform::default(),
                     Visibility::default(),
@@ -670,101 +1100,6 @@ pub fn spawn_view_node(
                 );
             }
 
-            // Process reactive indicator definition (selection indicator, etc.)
-            // 处理响应式指示器定义（选择指示器等）
-            if let Some(indicator_def) = &node_def.reactive_indicator {
-                let mut sprite_context = sprite_params.create_sprite_context();
-                let mut sprite = match sprite_context.get_sprite("common", "heartsmall") {
-                    Ok(s) => s,
-                    Err(e) => {
-                        warn!(
-                            "Failed to load indicator sprite 'common/heartsmall': {}. using default.",
-                            e
-                        );
-                        sprite_context.get_missing_sprite()
-                    }
-                };
-                sprite.color = Color::srgb(1.0, 0.0, 0.0);
-
-                let indicator_position = if let Some(default_pos) = &indicator_def.default_translation {
-                    match default_pos {
-                        ReactivePositionDef::Static(vec) => {
-                            ReactivePosition::Static(serializable_vec3_to_static(vec))
-                        }
-                        ReactivePositionDef::Linear { origin, step } => {
-                            ReactivePosition::Linear {
-                                origin: serializable_vec3_to_static(origin),
-                                step: serializable_vec3_to_static(step),
-                            }
-                        }
-                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
-                            positions.iter().map(serializable_vec3_to_static).collect(),
-                        ),
-                    }
-                } else if let Some(transform) = &indicator_def.transform {
-                    if let Some(translation) = &transform.translation {
-                        ReactivePosition::Static(serializable_vec3_to_static(translation))
-                    } else {
-                        ReactivePosition::Static(Vec3::ZERO)
-                    }
-                } else {
-                    ReactivePosition::Static(Vec3::ZERO)
-                };
-
-                let indicator_visibility = if let Some(vis_rule) = &indicator_def.visibility_rule {
-                    parse_visibility_rule(vis_rule)
-                } else if let ViewLayerVisibilityRule::OnlyIn(ref layers) = visibility_rule {
-                    ReactiveIndicatorVisibility::OnlyIn(layers.clone())
-                } else {
-                    // Default to always visible if no visibility rule is specified
-                    // 如果未指定可见性规则，默认始终可见
-                    ReactiveIndicatorVisibility::Always
-                };
-
-                let mut placement = ReactivePlacement::new(indicator_position);
-
-                for (layer_name, position_def) in &indicator_def.overrides {
-                    let layer = ViewLayer::new(layer_name.clone());
-                    let position = match position_def {
-                        ReactivePositionDef::Static(vec) => {
-                            ReactivePosition::Static(serializable_vec3_to_static(vec))
-                        }
-                        ReactivePositionDef::Linear { origin, step} => {
-                            ReactivePosition::Linear {
-                                origin: serializable_vec3_to_static(origin),
-                                step: serializable_vec3_to_static(step),
-                            }
-                        }
-                        ReactivePositionDef::Custom { positions } => ReactivePosition::Custom(
-                            positions.iter().map(serializable_vec3_to_static).collect(),
-                        ),
-                    };
-                    placement = placement.with_override(layer, position);
-                }
-
-                let indicator_transform = if let Some(transform_def) = &indicator_def.transform {
-                    let mut transform = Transform::default();
-                    if let Some(scale) = &transform_def.scale {
-                        transform.scale = serializable_vec3_to_static(scale);
-                    } else {
-                        transform.scale = Vec3::splat(1.0);
-                    }
-                    if let Some(rotation) = transform_def.rotation {
-                        transform.rotation = Quat::from_rotation_z(rotation.to_radians());
-                    }
-                    transform
-                } else {
-                    Transform::from_scale(Vec3::splat(1.0))
-                };
-
-                box_entity.insert(ReactiveIndicator::new(
-                    sprite,
-                    indicator_visibility,
-                    placement,
-                    indicator_transform,
-                ));
-            }
-
             // Store entity ID for recursive child processing after closure ends
             // 存储实体 ID 以便在闭包结束后进行递归子节点处理
             spawned_entity_id = Some(box_entity.id());
@@ -783,17 +1118,10 @@ pub fn spawn_view_node(
                 node_def.children.len()
             );
 
-            let visibility_rule = node_def
-                .visibility_rule
-                .as_ref()
-                .map(parse_visibility_rule)
-                .unwrap_or(ViewLayerVisibilityRule::Always);
-
             // Spawn container entity with ViewContainer marker
             // 使用 ViewContainer 标记生成容器实体
             let mut container_entity = parent.spawn((
                 ViewContainer,
-                ViewContainerVisibility::new(visibility_rule),
                 Transform::default(),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -832,11 +1160,50 @@ pub fn spawn_view_node(
     // 在闭包结束后递归处理子节点，以避免借用冲突
     info!("After closure, spawned_entity_id: {:?}", spawned_entity_id);
     if let Some(entity_id) = spawned_entity_id {
+        // Add VisibleWhen component if node has visible_when expression
+        // 如果节点有 visible_when 表达式则添加 VisibleWhen 组件
+        if let Some(visible_when_expr) = &node_def.visible_when {
+            let expr = visible_when_expr.trim();
+            if !expr.is_empty() {
+                // Replace @i and other repeat context variables in the expression
+                // 替换表达式中的 @i 和其他 repeat 上下文变量
+                let processed_expr = if let Some(ctx) = repeat_ctx {
+                    let mut result = expr.to_string();
+                    // Replace @i or @index with concrete index
+                    result = result.replace("@i", &ctx.index.to_string());
+                    result = result.replace("@index", &ctx.index.to_string());
+                    // Replace custom index variable if defined (e.g., $i when index_var: "i")
+                    for (var_name, var_value) in &ctx.variables {
+                        // For repeat context, variables are typically item values
+                        result = result.replace(&format!("@{}", var_name), var_value);
+                    }
+                    result
+                } else {
+                    expr.to_string()
+                };
+
+                info!(
+                    "Adding VisibleWhen to entity {:?} ({}): '{}' (original: '{}')",
+                    entity_id, node_def.name, processed_expr, expr
+                );
+                commands.entity(entity_id).insert(VisibleWhen {
+                    expression: processed_expr.clone(),
+                });
+
+                // Evaluate initial visibility
+                let is_visible = evaluate_visible_when(&processed_expr, player_data);
+                if !is_visible {
+                    commands.entity(entity_id).insert(Visibility::Hidden);
+                }
+            }
+        }
+
         // Add DynamicViewElement component if needed
         if is_standalone_sprite {
             let sprite_def = node_def.sprite.as_ref().unwrap();
 
             let mut has_dynamic = false;
+            let mut has_time_dependency = false;
             if let Some(t) = &sprite_def.transform {
                 if let Some(trans) = &t.translation {
                     let tx = trans.0.is_dynamic();
@@ -850,11 +1217,22 @@ pub fn spawn_view_node(
                     if tx || ty || tz {
                         has_dynamic = true;
                     }
+
+                    // Check for time dependency
+                    // 检查时间依赖
+                    if vec3_tuple_depends_on_time(trans) {
+                        has_time_dependency = true;
+                    }
                 }
-                if let Some(s) = &t.scale
-                    && (s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic())
-                {
-                    has_dynamic = true;
+                if let Some(s) = &t.scale {
+                    if s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic() {
+                        has_dynamic = true;
+                    }
+                    // Check scale for time dependency
+                    // 检查 scale 的时间依赖
+                    if vec3_tuple_depends_on_time(s) {
+                        has_time_dependency = true;
+                    }
                 }
             }
             if sprite_def
@@ -867,15 +1245,32 @@ pub fn spawn_view_node(
 
             if has_dynamic {
                 info!(
-                    "Adding DynamicViewElement to entity {:?} ({})",
-                    entity_id, node_def.name
+                    "Adding DynamicViewElement to entity {:?} ({}) [time_dependent={}]",
+                    entity_id, node_def.name, has_time_dependency
                 );
+
+                // Preprocess sprite_def to resolve repeat variables if repeat context exists
+                // 如果存在 repeat 上下文，预处理 sprite_def 以解析 repeat 变量
+                let processed_sprite_def = if let Some(ctx) = repeat_ctx {
+                    preprocess_sprite_def_for_repeat(sprite_def, ctx)
+                } else {
+                    sprite_def.clone()
+                };
+
                 commands
                     .entity(entity_id)
                     .insert(super::super::components::DynamicViewElement {
-                        sprite_def: Some(sprite_def.clone()),
+                        sprite_def: Some(processed_sprite_def),
                         text_def: None,
                     });
+
+                // Add TimeDependentTransform marker if expression uses @time
+                // 如果表达式使用 @time 则添加 TimeDependentTransform 标记
+                if has_time_dependency {
+                    commands
+                        .entity(entity_id)
+                        .insert(super::super::components::TimeDependentTransform);
+                }
             } else {
                 info!("No dynamic properties found for {}", node_def.name);
             }
@@ -958,6 +1353,37 @@ pub(crate) fn spawn_container_texts(
             cmd.insert(ViewTextTemplate(template.clone()));
         }
 
+        // Add VisibleWhen component if text has visible_when expression
+        // 如果文本有 visible_when 表达式则添加 VisibleWhen 组件
+        if let Some(visible_when_expr) = &text_def.visible_when {
+            let expr = visible_when_expr.trim();
+            if !expr.is_empty() {
+                // Evaluate initial visibility
+                let is_visible = evaluate_visible_when(expr, player_data);
+
+                // Debug: check if we can access local facts
+                let depth_value = player_data.get_fact_int("depth");
+                info!(
+                    "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
+                    text_config.name,
+                    expr,
+                    is_visible,
+                    depth_value,
+                    player_data.local_facts().is_some()
+                );
+
+                cmd.insert(VisibleWhen {
+                    expression: expr.to_string(),
+                });
+                // Set initial visibility
+                if is_visible {
+                    cmd.insert(Visibility::Inherited);
+                } else {
+                    cmd.insert(Visibility::Hidden);
+                }
+            }
+        }
+
         // Add DynamicViewElement if transform has dynamic expressions
         let has_dynamic = text_def
             .transform
@@ -970,11 +1396,30 @@ pub(crate) fn spawn_container_texts(
                 .as_ref()
                 .is_some_and(is_dynamic_vec3);
 
+        // Check for time dependency in text transform
+        // 检查文本变换中的时间依赖
+        let has_time_dependency = text_def
+            .transform
+            .translation
+            .as_ref()
+            .is_some_and(vec3_tuple_depends_on_time)
+            || text_def
+                .transform
+                .scale
+                .as_ref()
+                .is_some_and(vec3_tuple_depends_on_time);
+
         if has_dynamic {
             cmd.insert(super::super::components::DynamicViewElement {
                 sprite_def: None,
                 text_def: Some(text_def.clone()),
             });
+
+            // Add TimeDependentTransform marker if expression uses @time
+            // 如果表达式使用 @time 则添加 TimeDependentTransform 标记
+            if has_time_dependency {
+                cmd.insert(super::super::components::TimeDependentTransform);
+            }
         }
     }
 }
@@ -1158,32 +1603,89 @@ fn spawn_standalone_static_sprite(
     );
 }
 
-fn parse_visibility_rule(rule_def: &UIVisibilityRuleDef) -> ViewLayerVisibilityRule {
-    match rule_def.rule_type.as_str() {
-        "Always" => ViewLayerVisibilityRule::Always,
-        "AlwaysHidden" => ViewLayerVisibilityRule::AlwaysHidden,
-        "OnlyIn" => {
-            if let Some(layers) = &rule_def.layers {
-                let ui_layers = layers
+/// Resolve simple localization references in a string.
+/// Format: {{path:KEY}} -> looks up "path:KEY" in mortar_strings
+///
+/// 解析字符串中的简单本地化引用。
+/// 格式：{{path:KEY}} -> 在 mortar_strings 中查找 "path:KEY"
+fn resolve_simple_localization(
+    s: &str,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    // Check if the entire string is a localization reference
+    if s.starts_with("{{") && s.ends_with("}}") && s.len() > 4 {
+        let key = &s[2..s.len() - 2];
+        if let Some(value) = mortar_strings.get(key) {
+            return value.to_string();
+        }
+    }
+    // Return original string if not a localization reference or not found
+    s.to_string()
+}
+
+/// Load facts from a FreAsset into the ViewRoot's local_facts.
+///
+/// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
+pub fn load_fre_into_view_root(
+    view_root: &mut crate::core::view::components::ViewRoot,
+    fre_asset: &FreAsset,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) {
+    use bevy_fact_rule_event::FactValue;
+
+    for (key, value_def) in fre_asset.get_facts() {
+        let fact_value: FactValue = value_def.clone().into();
+        match fact_value {
+            FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
+            FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),
+            FactValue::Bool(b) => view_root.local_facts.set(key.clone(), b),
+            FactValue::String(s) => {
+                let resolved = resolve_simple_localization(&s, mortar_strings);
+                view_root.local_facts.set(key.clone(), resolved)
+            }
+            FactValue::StringList(list) => {
+                let resolved_list: Vec<String> = list
                     .iter()
-                    .map(|name| ViewLayer::new(name.clone()))
+                    .map(|s| resolve_simple_localization(s, mortar_strings))
                     .collect();
-                ViewLayerVisibilityRule::OnlyIn(ui_layers)
+                view_root.local_facts.set(key.clone(), resolved_list)
+            }
+            FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
+        }
+    }
+}
+
+/// Determine HP source type from configuration and repeat context.
+/// 根据配置和 repeat 上下文确定 HP 来源类型。
+pub fn determine_hp_source(
+    hp_bar_source: &Option<HPBarSourceDef>,
+    repeat_ctx: Option<&super::parsing::RepeatContext>,
+) -> HPSourceType {
+    match hp_bar_source {
+        Some(HPBarSourceDef::Player) => HPSourceType::Player,
+        Some(HPBarSourceDef::Enemy) => {
+            // Get index from repeat context if available
+            // 如果有 repeat 上下文则从中获取索引
+            let index = repeat_ctx.map(|ctx| ctx.index).unwrap_or(0);
+            HPSourceType::Enemy { index }
+        }
+        Some(HPBarSourceDef::Custom {
+            hp_expr,
+            hp_max_expr,
+        }) => HPSourceType::Custom {
+            hp_expr: hp_expr.clone(),
+            hp_max_expr: hp_max_expr.clone(),
+        },
+        None => {
+            // Default: if we have repeat context, assume it's an enemy HP bar
+            // Otherwise, assume player HP bar
+            // 默认：如果有 repeat 上下文，假设是敌人 HP 条
+            // 否则假设是玩家 HP 条
+            if let Some(ctx) = repeat_ctx {
+                HPSourceType::Enemy { index: ctx.index }
             } else {
-                ViewLayerVisibilityRule::Always
+                HPSourceType::Player
             }
         }
-        "Except" => {
-            if let Some(layers) = &rule_def.layers {
-                let ui_layers = layers
-                    .iter()
-                    .map(|name| ViewLayer::new(name.clone()))
-                    .collect();
-                ViewLayerVisibilityRule::Except(ui_layers)
-            } else {
-                ViewLayerVisibilityRule::Always
-            }
-        }
-        _ => ViewLayerVisibilityRule::Always,
     }
 }

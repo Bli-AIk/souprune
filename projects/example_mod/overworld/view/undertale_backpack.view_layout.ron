@@ -1,23 +1,52 @@
 #![enable(implicit_some)]
+// Undertale Backpack View Layout
+// Undertale 背包视图布局
+//
+// View system features used in this layout:
+// 此布局使用的视图系统特性：
+// - `visible_when`: Expression-based visibility control
+// - `initial_facts`: View-local state initialization
+// - Dynamic transforms: Expression-driven cursor positioning
+// - `requires`: FRE rules loaded with View lifecycle
+//
+// DEPTH MAPPING / 深度映射:
+// - depth 0: Main menu (ITEM/STAT)
+// - depth 1: Item list (with USE/INFO/DROP options shown)
+// - depth 2: Item options focused (USE/INFO/DROP selection active)
+// - depth 3: Status page
+//
+// NOTE: Navigation is now handled by FRE rules in backpack.fre.ron
+// 注意：导航现在由 backpack.fre.ron 中的 FRE 规则处理
+
 (
-    // Query the API documentation for this file in layout.rs.
-    //
-    // 在 layout.rs 查询此文件的 API 文档。
-    version: 1,
+    // Data requirements - FRE rules loaded when this View is spawned
+    // 数据需求 - 当此 View 生成时加载的 FRE 规则
+    requires: [
+        File("overworld/rules/backpack.fre.ron"),
+    ],
+
+    // View-local facts initialized when this layout is spawned
+    // View 局部事实，在此布局生成时初始化
+    facts: {
+        "depth": 0,
+        "selection": 0,
+        "active": true,
+    },
+
     roots: [
-        // Menu Box (ITEM/STAT)
+        // ========================================
+        // MENU BOX (ITEM/STAT) - Always visible
+        // 菜单框（物品/状态）- 始终可见
+        // ========================================
         (
             name: "MenuBox",
+            visible_when: "true",  // Always visible when backpack is open
             ui_shape_logic: (
                 width: 65.0,
                 height: 68.0,
                 border_width: 3.0,
                 offset: (-108.5, -1.0, 0.0),
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
-            ),
-            visibility_rule: (
-                rule_type: "Always",
-                layers: None,
             ),
             texts: [
                 (
@@ -47,40 +76,45 @@
                     line_height: 1.375,
                 ),
             ],
-            reactive_indicator: (
-                sprite_path: "common/heartsmall",
-                default_translation: Some(Linear(
-                    origin: (-19.0, 18.5, 2.0),
-                    step: (0.0, -18.0, 0.0),
-                )),
-                overrides: {},
-                visibility_rule: (
-                    rule_type: "OnlyIn",
-                    layers: ["BackpackMenu"],
+            // Menu cursor as child of MenuBox for proper positioning
+            // 菜单光标作为 MenuBox 的子物体以正确定位
+            children: [
+                (
+                    name: "MenuCursor",
+                    visible_when: "$depth == 0",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to MenuBox center
+                        // 相对于 MenuBox 中心的位置
+                        // ITEM text at Y=28.25, cursor 10px left of text at X=-19.5
+                        // Step between options: 18.0 pixels
+                        transform: (
+                            translation: ("-19.0", "18.5 + (-18.0 * $selection)", "6.0"),
+                        ),
+                    ),
                 ),
-                transform: (
-                ),
-            ),
-            children: [],
+            ],
         ),
-        // Info Box (Name, LV, HP, Gold)
+
+        // ========================================
+        // INFO BOX (Name, LV, HP, Gold) - Always visible
+        // 信息框（名称、等级、HP、金币）- 始终可见
+        // ========================================
         (
             name: "InfoBox",
+            visible_when: "true",
             ui_shape_logic: (
                 width: 65.0,
                 height: 49.0,
                 border_width: 3.0,
-                offset: (-108.5, "if(player.y > camera.y, -68.5, 66.5)", 0.0),
+                offset: (-108.5, -68.5, 0.0),
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
-            ),
-            visibility_rule: (
-                rule_type: "Always",
-                layers: None,
             ),
             texts: [
                 (
                     id: "NameText",
-                    content: "{@player.name}",
+                    content: "{$player_name}",
                     font: DeterminationSans,
                     world_scale: (13.0, 13.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -91,7 +125,7 @@
                 ),
                 (
                     id: "HUDText",
-                    content: "{{overworld/ui:LV}}  {@player.lv}\n{{overworld/ui:HP}}  {@player.hp}/{@player.hp_max}\ng   {@player.gold}",
+                    content: "{{overworld/ui:LV}}  {$player_lv}\n{{overworld/ui:HP}}  {$player_hp}/{$player_hp_max}\ng   {$player_gold}",
                     font: Hud,
                     world_scale: (8.0, 8.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -103,19 +137,20 @@
             ],
             children: [],
         ),
-        // Item Box (Item list and USE/INFO/DROP)
+
+        // ========================================
+        // ITEM BOX - Visible at depth 1 or 2
+        // 物品框 - 在深度 1 或 2 时可见
+        // ========================================
         (
             name: "ItemBox",
+            visible_when: "$depth == 1 || $depth == 2",
             ui_shape_logic: (
                 width: 167.0,
                 height: 175.0,
                 border_width: 3.0,
                 offset: (20.5, 3.5, 0.0),
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
-            ),
-            visibility_rule: (
-                rule_type: "OnlyIn",
-                layers: ["BackpackItem", "BackpackItemOptions"],
             ),
             texts: [
                 (
@@ -139,6 +174,7 @@
                         translation: (-64.25, -63.5, 1.0),
                     ),
                     line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
                 (
                     id: "ItemLayerOptionInfo",
@@ -147,9 +183,10 @@
                     world_scale: (13.25, 13.25),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-12.25, -63.5, 1.0),
+                        translation: (-16.25, -63.5, 1.0),
                     ),
                     line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
                 (
                     id: "ItemLayerOptionDrop",
@@ -161,37 +198,58 @@
                         translation: (40.75, -63.5, 1.0),
                     ),
                     line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
                 ),
             ],
-            reactive_indicator: (
-                sprite_path: "common/heartsmall",
-                default_translation: Some(Linear(
-                    origin: (-72.0, 68.0, 2.0),
-                    step: (0.0, -16.0, 0.0),
-                )),
-                overrides: {
-                    "BackpackItemOptions": Custom(
-                        positions: [
-                            (-72.0, -72.0, 2.0),
-                            (-24.0, -72.0, 2.0),
-                            (33.0, -72.0, 2.0),
-                        ],
+            // Item cursors as children of ItemBox for proper positioning
+            // 物品光标作为 ItemBox 的子物体以正确定位
+            children: [
+                // Item list cursor - visible at depth 1
+                // 物品列表光标 - 在深度 1 时可见
+                (
+                    name: "ItemCursor",
+                    visible_when: "$depth == 1",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to ItemBox center
+                        // First item text at Y=76.5, cursor 10px left of text at X=-74.25
+                        // Step between items: 16 pixels
+                        transform: (
+                            translation: (
+                                "-72.0",                          // X: left of item list text
+                                "68 + (-16.0 * $selection)",    // Y: First item position + step * selection
+                                "6.0",                             // Z: above box
+                            ),
+                        ),
                     ),
-                },
-                visibility_rule: (
-                    rule_type: "OnlyIn",
-                    layers: ["BackpackItem", "BackpackItemOptions"],
                 ),
-                transform: Some((
-                    scale: (1.0, 1.0, 1.0),
-                    rotation: 0.0,
-                )),
-            ),
-            children: [],
+                // Item options cursor - visible at depth 2
+                // 物品选项光标 - 在深度 2 时可见
+                (
+                    name: "OptionsCursor",
+                    visible_when: "$depth == 2",
+                    sprite: (
+                        visual: "common/ui/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                        // Position relative to ItemBox center based on selection: 0=USE, 1=INFO, 2=DROP
+                        // USE at X=-64.25, INFO at X=-12.25, DROP at X=40.75
+                        // Cursor 10px left of each text
+                        transform: (
+                            translation: ("if($selection == 0, -72.0, if($selection == 1, -24.25, 33.0))", "-72.0", "6.0"),
+                        ),
+                    ),
+                ),
+            ],
         ),
-        // Status Box (Detailed stats)
+
+        // ========================================
+        // STATUS BOX - Visible at depth 3
+        // 状态框 - 在深度 3 时可见
+        // ========================================
         (
             name: "StatusBox",
+            visible_when: "$depth == 3",
             ui_shape_logic: (
                 width: 167.0,
                 height: 202.5,
@@ -199,14 +257,10 @@
                 offset: (20.5, -10.5, 0.0),
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
-            visibility_rule: (
-                rule_type: "OnlyIn",
-                layers: ["BackpackStatus"],
-            ),
             texts: [
                 (
                     id: "StatusLayerName",
-                    content: "\"{@player.name}\"",
+                    content: "\"{$player_name}\"",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -217,7 +271,7 @@
                 ),
                 (
                     id: "StatusLayerLvHp",
-                    content: "{{overworld/ui:LV}}   {@player.lv}\n{{overworld/ui:HP}}  {@player.hp} / {@player.hp_max}",
+                    content: "{{overworld/ui:LV}}   {$player_lv}\n{{overworld/ui:HP}}  {$player_hp} / {$player_hp_max}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -228,7 +282,7 @@
                 ),
                 (
                     id: "StatusLayerCombat",
-                    content: "{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {@player.exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {@player.next_exp}",
+                    content: "{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {$player_exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {$player_next_exp}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -250,7 +304,7 @@
                 ),
                 (
                     id: "StatusLayerGold",
-                    content: "{{overworld/ui:GOLD}}: {@player.gold}",
+                    content: "{{overworld/ui:GOLD}}: {$player_gold}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -263,11 +317,13 @@
             children: [],
         ),
     ],
-    // Global triggers for state transitions.
-    // Sound effects are now configured in states.ron using on_enter_sound/on_exit_sound.
-    //
-    // 状态转换的全局触发器。
-    // 音效现在在 states.ron 中使用 on_enter_sound/on_exit_sound 配置。
+
+    // Global triggers remain for state machine integration
+    // 全局触发器保留用于状态机集成
+    // NOTE: Menu key to close backpack is now handled by FRE rules in backpack.fre.ron
+    // with depth condition check. Only opening the backpack is handled here.
+    // 注意：Menu 键关闭背包现在由 backpack.fre.ron 中的 FRE 规则处理，
+    // 带有深度条件检查。这里只处理打开背包。
     global_triggers: {
         "Menu": [
             (
@@ -275,154 +331,6 @@
                 sound: None,
                 allowed_states: ["Normal"],
             ),
-            (
-                target_state: "Normal",
-                sound: None,
-                allowed_states: ["Backpack"],
-            ),
         ],
     },
-    navigation: {
-        "BackpackMenu": (
-            mappings: {
-                "Up": -1,
-                "Down": 1,
-            },
-            looping: false,
-            min_index: 0,
-            max_index: 2,
-            sound_on_navigate: "choice.wav",
-        ),
-        "BackpackItem": (
-            mappings: {
-                "Up": -1,
-                "Down": 1,
-            },
-            looping: false,
-            min_index: 0,
-            max_index: Some("min(inventory.len(), inventory_capacity)"),
-            sound_on_navigate: "choice.wav",
-        ),
-        "BackpackItemOptions": (
-            mappings: {
-                "Left": -1,
-                "Right": 1,
-            },
-            looping: false,
-            min_index: 0,
-            max_index: 3,
-            sound_on_navigate: "choice.wav",
-        ),
-        "BackpackStatus": (
-            mappings: {},
-            looping: false,
-            min_index: 0,
-            max_index: 1,
-        ),
-    },
-    transitions: {
-        "BackpackMenu": (
-            on_confirm: Some([
-                (
-                    condition: "index == 0 && !player.inventory.is_empty",
-                    action: GotoLayer("BackpackItem"),
-                ),
-                (
-                    condition: "index == 1",
-                    action: GotoLayer("BackpackStatus"),
-                ),
-            ]),
-            on_cancel: PopState,
-            sound_on_confirm: "confirm.wav",
-            sound_on_cancel: None,
-        ),
-        "BackpackItem": (
-            on_confirm: Some([
-                (
-                    condition: None,
-                    action: GotoLayer("BackpackItemOptions"),
-                ),
-            ]),
-            on_cancel: Some(GotoLayer("BackpackMenu")),
-            sound_on_confirm: "confirm.wav",
-            sound_on_cancel: None,
-        ),
-        "BackpackItemOptions": (
-            on_confirm: None,
-            on_cancel: Some(GotoLayer("BackpackItem")),
-            sound_on_confirm: "confirm.wav",
-            sound_on_cancel: None,
-        ),
-        "BackpackStatus": (
-            on_confirm: None,
-            on_cancel: Some(GotoLayer("BackpackMenu")),
-            sound_on_confirm: "confirm.wav",
-            sound_on_cancel: None,
-        ),
-    },
-    // Unified interactive layer system
-    // 统一交互层系统
-    interactive_layers: {
-        "BackpackMenu": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: 2,
-                looping: false,
-            ),
-            selectable_elements: [],
-            sound_on_navigate: "choice.wav",
-            on_confirm: [
-                (
-                    condition: "index == 0 && !player.inventory.is_empty",
-                    action: GotoLayer("BackpackItem"),
-                ),
-                (
-                    condition: "index == 1",
-                    action: GotoLayer("BackpackStatus"),
-                ),
-            ],
-            on_cancel: PopState,
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackItem": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: "max(inventory.len(), 1)",
-                looping: false,
-            ),
-            selectable_elements: [],
-            sound_on_navigate: "choice.wav",
-            on_confirm: [
-                (
-                    action: GotoLayer("BackpackItemOptions"),
-                ),
-            ],
-            on_cancel: GotoLayer("BackpackMenu"),
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackItemOptions": (
-            navigator_type: Linear(
-                direction: Horizontal,
-                option_count: 3,
-                looping: false,
-            ),
-            selectable_elements: ["ItemLayerOptionUse", "ItemLayerOptionInfo", "ItemLayerOptionDrop"],
-            sound_on_navigate: "choice.wav",
-            on_cancel: GotoLayer("BackpackItem"),
-            sound_on_confirm: "confirm.wav",
-        ),
-        "BackpackStatus": (
-            navigator_type: Linear(
-                direction: Vertical,
-                option_count: 1,
-                looping: false,
-            ),
-            selectable_elements: [],
-            on_cancel: GotoLayer("BackpackMenu"),
-            sound_on_confirm: "confirm.wav",
-        ),
-    },
-    // The initial layer to activate when this layout is loaded
-    // 加载此布局时要激活的初始层
-    initial_layer: "BackpackMenu",
 )

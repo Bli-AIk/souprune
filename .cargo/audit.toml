@@ -1,0 +1,11 @@
+# Cargo audit configuration
+# https://rustsec.org/advisories/
+
+[advisories]
+# Ignore unmaintained crate warnings for indirect dependencies
+# These are transitive dependencies from upstream crates (Bevy ecosystem)
+ignore = [
+    # paste is used by metal, kira, rav1e (Bevy/image dependencies)
+    # No security vulnerability, just unmaintained status
+    "RUSTSEC-2024-0436",
+]

@@ -1,4 +1,8 @@
-use super::super::components::{DynamicViewElement, HPBarLag, HPBarSprite, ViewTextTemplate};
+use super::super::components::ViewRoot;
+use super::super::components::{
+    DynamicViewElement, HPBarLag, HPBarSprite, HPSourceType, TimeDependentTransform,
+    ViewTextTemplate,
+};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
@@ -13,19 +17,44 @@ pub fn update_hp_bar_shader_params(
     mut query: Query<(
         &MeshMaterial2d<super::super::custom_sprite_material::CustomSpriteMaterial>,
         &mut HPBarLag,
+        &HPBarSprite,
     )>,
 ) {
-    let player_data = PlayerDataView::new(&layered_db);
-    let hp_ratio = player_data.hp() as f32 / player_data.hp_max() as f32;
+    // Early exit: skip if no HP bars exist
+    // 提前退出：如果没有 HP 条则跳过
+    if query.is_empty() {
+        return;
+    }
 
-    for (material_handle, mut lag) in query.iter_mut() {
+    // Check if any HP bar needs animation update (lag animation in progress)
+    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
+    let needs_animation_update = query.iter().any(|(_, lag, _)| lag.anim_progress < 0.5);
+
+    // Only proceed if database changed OR animation is in progress
+    // 仅在数据库变化或动画进行中时继续
+    if !layered_db.is_changed() && !needs_animation_update {
+        return;
+    }
+
+    let player_data = PlayerDataView::new(&layered_db);
+
+    for (material_handle, mut lag, hp_bar) in query.iter_mut() {
+        // Get HP values based on source type
+        // 根据来源类型获取 HP 值
+        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
+        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
+
         // Detect significant HP drop (Damage taken)
-        if hp_ratio < lag.last_hp_ratio {
+        // 检测明显的 HP 下降（受到伤害）
+        if hp_ratio < lag.last_hp_ratio - 0.001 {
             // Start the sequence immediately
             lag.delay_timer = 0.0;
             lag.start_lag_ratio = lag.lag_hp_ratio;
             lag.anim_progress = 0.0;
-            info!("[HP Bar] Damage detected! Starting OutCirc animation immediately.");
+            trace!(
+                "[HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
+                hp_ratio, lag.last_hp_ratio
+            );
         }
 
         lag.last_hp_ratio = hp_ratio;
@@ -51,8 +80,23 @@ pub fn update_hp_bar_shader_params(
             lag.lag_hp_ratio = hp_ratio;
         }
 
-        let half_width = 40.0 + (player_data.hp_max() as f32 - 20.0) * 95.0 / 79.0 / 2.0; // Dynamic based on hp_max
-        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, 1.0);
+        // Evaluate half_width from config expression - config is required
+        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
+            // Get the third component (half_width) from the expression tuple
+            evaluate_float_expr(&params.2, &player_data, None)
+        } else {
+            // No config provided - use simple fallback, NOT game-specific formula
+            40.0
+        };
+
+        // Evaluate alpha from config if available
+        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
+            evaluate_float_expr(&params.3, &player_data, None)
+        } else {
+            1.0
+        };
+
+        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, alpha);
 
         if let Some(material) = materials.get_mut(material_handle) {
             material.color_params = target_params;
@@ -60,130 +104,298 @@ pub fn update_hp_bar_shader_params(
     }
 }
 
-pub fn update_dynamic_ui_elements(
+/// Update enemy HP bar shader parameters (green material).
+/// Similar to update_hp_bar_shader_params but for EnemyHpBarMaterial.
+///
+/// 更新敌人 HP 条着色器参数（绿色材质）。
+/// 类似于 update_hp_bar_shader_params，但用于 EnemyHpBarMaterial。
+pub fn update_enemy_hp_bar_shader_params(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
+    mut materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
     mut query: Query<(
-        &DynamicViewElement,
-        &mut Transform,
-        Option<&mut HPBarSprite>,
+        Entity,
+        &MeshMaterial2d<super::super::custom_sprite_material::EnemyHpBarMaterial>,
+        &mut HPBarLag,
+        &HPBarSprite,
     )>,
-    mut frame_count: Local<usize>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<(Entity, &ViewRoot)>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
 ) {
-    let player_data = PlayerDataView::new(&layered_db);
-    *frame_count += 1;
-    if !query.is_empty() && (*frame_count).is_multiple_of(60) {
-        debug!(
-            "update_dynamic_ui_elements: processing {} entities. Time: {}",
-            query.iter().len(),
-            time.elapsed_secs_f64()
-        );
+    // Early exit: skip if no enemy HP bars exist
+    // 提前退出：如果没有敌人 HP 条则跳过
+    if query.is_empty() {
+        return;
     }
 
-    for (dynamic_elem, mut transform, hp_bar) in query.iter_mut() {
-        // Update sprite transform and shader params if present
-        if let Some(sprite_def) = &dynamic_elem.sprite_def {
-            if let Some(t_def) = &sprite_def.transform {
-                // Debug log for specific entity
-                // if let Some(expr) = t_def.translation.x.as_expr() {
-                //    debug!("Evaluating expr: {}", expr);
-                // }
+    // Check if any HP bar needs animation update (lag animation in progress)
+    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
+    let needs_animation_update = query.iter().any(|(_, _, lag, _)| lag.anim_progress < 0.5);
 
-                let new_translation = if let Some(trans) = &t_def.translation {
-                    Vec3::new(
-                        evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
-                        evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
-                        evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
-                    )
-                } else {
-                    Vec3::ZERO
-                };
+    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
+    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
 
-                if let Some(scale_def) = &t_def.scale {
-                    let new_scale = Vec3::new(
-                        evaluate_float_expr(
-                            &scale_def.0,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &scale_def.1,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                        evaluate_float_expr(
-                            &scale_def.2,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        ),
-                    );
+    // Only proceed if database changed OR animation is in progress
+    // 仅在数据库变化或动画进行中时继续
+    if !global_changed && !any_view_root_changed && !needs_animation_update {
+        return;
+    }
 
-                    // Apply pivot offset if present
-                    if let Some(pivot) = &sprite_def.pivot {
-                        let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
-                        let shift_x = (0.5 - pivot_x) * new_scale.x;
-                        let shift_y = (0.5 - pivot_y) * new_scale.y;
-                        let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
-                        transform.translation = new_translation + shift;
-                    } else {
-                        transform.translation = new_translation;
-                    }
+    for (entity, material_handle, mut lag, hp_bar) in query.iter_mut() {
+        // Find ViewRoot ancestor to access local facts (where enemy_hps is stored)
+        // 查找 ViewRoot 祖先以访问局部事实（enemy_hps 存储位置）
+        let view_root_result =
+            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+        let player_data = if let Some((_, view_root)) = view_root_result {
+            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
 
-                    transform.scale = new_scale;
-                } else {
-                    transform.translation = new_translation;
-                }
-            }
+        // Get HP values based on source type
+        // 根据来源类型获取 HP 值
+        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
+        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
 
-            // Update HP bar shader params if present
-            if let (Some(mut hp_bar_sprite), Some(shader_params)) =
-                (hp_bar, &sprite_def.shader_params)
-            {
-                hp_bar_sprite.shader_params = Color::srgba(
-                    evaluate_float_expr(
-                        &shader_params.0,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.1,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.2,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                    evaluate_float_expr(
-                        &shader_params.3,
-                        &player_data,
-                        Some(time.elapsed_secs_f64()),
-                    ),
-                );
-            }
+        // Detect significant HP drop (Damage taken)
+        // 检测明显的 HP 下降（受到伤害）
+        if hp_ratio < lag.last_hp_ratio - 0.001 {
+            // Start the sequence immediately
+            lag.delay_timer = 0.0;
+            lag.start_lag_ratio = lag.lag_hp_ratio;
+            lag.anim_progress = 0.0;
+            trace!(
+                "[Enemy HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
+                hp_ratio, lag.last_hp_ratio
+            );
         }
 
-        // Update text transform if present
-        if let Some(text_def) = &dynamic_elem.text_def {
-            let new_translation = if let Some(trans) = &text_def.transform.translation {
-                Vec3::new(
-                    evaluate_float_expr(&trans.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&trans.2, &player_data, Some(time.elapsed_secs_f64())),
-                )
-            } else {
-                Vec3::ZERO
-            };
-            transform.translation = new_translation;
+        lag.last_hp_ratio = hp_ratio;
 
-            if let Some(scale_def) = &text_def.transform.scale {
-                transform.scale = Vec3::new(
-                    evaluate_float_expr(&scale_def.0, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.1, &player_data, Some(time.elapsed_secs_f64())),
-                    evaluate_float_expr(&scale_def.2, &player_data, Some(time.elapsed_secs_f64())),
-                );
+        if hp_ratio > lag.lag_hp_ratio {
+            // HEALED: Instant sync
+            lag.lag_hp_ratio = hp_ratio;
+            lag.anim_progress = 0.5;
+            lag.delay_timer = 0.0;
+        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
+            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
+
+            // OutCirc easing formula
+            // t: 0.0 -> 1.0
+            let t = lag.anim_progress / 0.5;
+            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
+
+            // Interpolate between start and current actual HP
+            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
+        }
+        // Final safety sync
+        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
+            lag.lag_hp_ratio = hp_ratio;
+        }
+
+        // Evaluate half_width from config expression - config is required
+        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
+            // Get the third component (half_width) from the expression tuple
+            evaluate_float_expr(&params.2, &player_data, None)
+        } else {
+            // No config provided - use simple fallback, NOT game-specific formula
+            40.0
+        };
+
+        // Evaluate alpha from config if available
+        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
+            evaluate_float_expr(&params.3, &player_data, None)
+        } else {
+            1.0
+        };
+
+        // Enemy HP bar doesn't use lag_ratio in shader (simple green bar)
+        // 敌人 HP 条在着色器中不使用 lag_ratio（简单的绿色条）
+        let target_params = LinearRgba::new(hp_ratio, hp_ratio, half_width, alpha);
+
+        if let Some(material) = materials.get_mut(material_handle) {
+            material.color_params = target_params;
+        }
+    }
+}
+
+/// Get HP values from the specified source.
+/// 从指定来源获取 HP 值。
+fn get_hp_values_from_source(hp_source: &HPSourceType, player_data: &PlayerDataView) -> (f32, f32) {
+    match hp_source {
+        HPSourceType::Player => {
+            let hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
+            let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
+            (hp, hp_max)
+        }
+        HPSourceType::Enemy { index } => {
+            let hp = player_data
+                .get_fact_int_list("enemy_hps")
+                .and_then(|list| list.get(*index).copied())
+                .unwrap_or(100) as f32;
+            let hp_max = player_data
+                .get_fact_int_list("enemy_hp_maxs")
+                .and_then(|list| list.get(*index).copied())
+                .unwrap_or(100) as f32;
+            (hp, hp_max)
+        }
+        HPSourceType::Custom {
+            hp_expr,
+            hp_max_expr,
+        } => {
+            let hp =
+                super::parsing::evaluate_fact_expression(hp_expr, player_data).unwrap_or(100.0);
+            let hp_max =
+                super::parsing::evaluate_fact_expression(hp_max_expr, player_data).unwrap_or(100.0);
+            (hp, hp_max)
+        }
+    }
+}
+
+/// Update time-dependent UI elements (elements with @time in expressions).
+/// Runs every frame for animation effects.
+///
+/// 更新时间依赖的 UI 元素（表达式中包含 @time 的元素）。
+/// 每帧运行以实现动画效果。
+pub fn update_time_dependent_ui_elements(
+    time: Res<Time>,
+    layered_db: Res<LayeredFactDatabase>,
+    mut query: Query<(Entity, &DynamicViewElement, &mut Transform), With<TimeDependentTransform>>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<&ViewRoot>,
+) {
+    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
+        let local_facts = find_view_root_ancestor(entity, &parent_query, &view_root_query)
+            .map(|root| &root.local_facts);
+
+        let player_data = if let Some(local) = local_facts {
+            PlayerDataView::with_local_facts(&layered_db, local)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
+        update_element_transform(
+            dynamic_elem,
+            &mut transform,
+            &player_data,
+            Some(time.elapsed_secs_f64()),
+        );
+    }
+}
+
+/// Update fact-dependent UI elements (elements without @time).
+/// Only runs when LayeredFactDatabase or ViewRoot changes.
+///
+/// 更新 fact 依赖的 UI 元素（不包含 @time 的元素）。
+/// 仅在 LayeredFactDatabase 或 ViewRoot 变化时运行。
+pub fn update_fact_dependent_ui_elements(
+    layered_db: Res<LayeredFactDatabase>,
+    mut query: Query<
+        (Entity, &DynamicViewElement, &mut Transform),
+        Without<TimeDependentTransform>,
+    >,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<&ViewRoot, Changed<ViewRoot>>,
+    all_view_root_query: Query<&ViewRoot>,
+) {
+    // Check if any ViewRoot changed (local_facts modification)
+    // 检查是否有任何 ViewRoot 变化（local_facts 修改）
+    let any_view_root_changed = !view_root_query.is_empty();
+
+    // Only update when fact database changes OR any ViewRoot's local_facts changed
+    // 仅在 fact 数据库变化或任何 ViewRoot 的 local_facts 变化时更新
+    if !layered_db.is_changed() && !any_view_root_changed {
+        return;
+    }
+
+    for (entity, dynamic_elem, mut transform) in query.iter_mut() {
+        let local_facts = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
+            .map(|root| &root.local_facts);
+
+        let player_data = if let Some(local) = local_facts {
+            PlayerDataView::with_local_facts(&layered_db, local)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
+        // Pass None for time since these elements don't depend on it
+        // 传入 None 作为时间，因为这些元素不依赖时间
+        update_element_transform(dynamic_elem, &mut transform, &player_data, None);
+    }
+}
+
+/// Shared helper to update element transform from definition.
+///
+/// 共享的辅助函数，用于从定义更新元素变换。
+fn update_element_transform(
+    dynamic_elem: &DynamicViewElement,
+    transform: &mut Transform,
+    player_data: &PlayerDataView,
+    time: Option<f64>,
+) {
+    // Update sprite transform if present
+    // 如果存在精灵定义则更新变换
+    if let Some(sprite_def) = &dynamic_elem.sprite_def
+        && let Some(t_def) = &sprite_def.transform
+    {
+        let new_translation = if let Some(trans) = &t_def.translation {
+            Vec3::new(
+                evaluate_float_expr(&trans.0, player_data, time),
+                evaluate_float_expr(&trans.1, player_data, time),
+                evaluate_float_expr(&trans.2, player_data, time),
+            )
+        } else {
+            Vec3::ZERO
+        };
+
+        if let Some(scale_def) = &t_def.scale {
+            let new_scale = Vec3::new(
+                evaluate_float_expr(&scale_def.0, player_data, time),
+                evaluate_float_expr(&scale_def.1, player_data, time),
+                evaluate_float_expr(&scale_def.2, player_data, time),
+            );
+
+            // Apply pivot offset if present
+            // 如果存在 pivot 则应用偏移
+            if let Some(pivot) = &sprite_def.pivot {
+                let (pivot_x, pivot_y) = vec2_tuple_to_static(pivot);
+                let shift_x = (0.5 - pivot_x) * new_scale.x;
+                let shift_y = (0.5 - pivot_y) * new_scale.y;
+                let shift = transform.rotation * Vec3::new(shift_x, shift_y, 0.0);
+                transform.translation = new_translation + shift;
+            } else {
+                transform.translation = new_translation;
             }
+
+            transform.scale = new_scale;
+        } else {
+            transform.translation = new_translation;
+        }
+    }
+
+    // Update text transform if present
+    // 如果存在文本定义则更新变换
+    if let Some(text_def) = &dynamic_elem.text_def {
+        let new_translation = if let Some(trans) = &text_def.transform.translation {
+            Vec3::new(
+                evaluate_float_expr(&trans.0, player_data, time),
+                evaluate_float_expr(&trans.1, player_data, time),
+                evaluate_float_expr(&trans.2, player_data, time),
+            )
+        } else {
+            Vec3::ZERO
+        };
+        transform.translation = new_translation;
+
+        if let Some(scale_def) = &text_def.transform.scale {
+            transform.scale = Vec3::new(
+                evaluate_float_expr(&scale_def.0, player_data, time),
+                evaluate_float_expr(&scale_def.1, player_data, time),
+                evaluate_float_expr(&scale_def.2, player_data, time),
+            );
         }
     }
 }
@@ -194,25 +406,49 @@ pub fn update_dynamic_text_system(
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    view_root_query: Query<(Entity, &ViewRoot)>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
+    parent_query: Query<&ChildOf>,
 ) {
     use bevy::prelude::DetectChanges;
 
-    if !layered_db.is_changed() {
+    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
+    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
+
+    if !global_changed && !any_view_root_changed {
         return;
     }
 
-    let player_data = PlayerDataView::new(&layered_db);
+    // Base player data for logging and fallback
+    // 用于日志和回退的基础 player data
+    let base_player_data = PlayerDataView::new(&layered_db);
 
     info!(
-        "[update_dynamic_text_system] LayeredFactDatabase changed! hp={}, hp_max={}",
-        player_data.hp(),
-        player_data.hp_max()
+        "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
+        global_changed,
+        any_view_root_changed,
+        base_player_data.get_fact_int("player_hp").unwrap_or(0),
+        base_player_data.get_fact_int("player_hp_max").unwrap_or(0)
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {
+        // Find ViewRoot ancestor to access local facts
+        // 查找 ViewRoot 祖先以访问局部事实
+        let view_root_result =
+            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+        let player_data = if let Some((_, view_root)) = view_root_result {
+            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
         info!(
-            "[update_dynamic_text_system] Updating text '{}' with template: '{}'",
-            name, template.0
+            "[update_dynamic_text_system] Updating text '{}' with template: '{}' (has_local_facts={})",
+            name,
+            template.0,
+            view_root_result.is_some()
         );
 
         let new_content =
@@ -235,12 +471,18 @@ pub fn update_dynamic_text_system(
         *text3d = parse_text_preserving_whitespace(&new_content);
 
         // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
+        // Use queue_handled to avoid panic if entity is despawned during the same frame
         // 关键修复：添加 NeedsGlyphRefresh 以触发文本重新渲染
-        commands
-            .entity(entity)
-            .insert(super::super::text::NeedsGlyphRefresh);
+        // 使用 queue_handled 避免在同一帧中实体被销毁时 panic
+        commands.queue(move |world: &mut World| {
+            if world.get_entity(entity).is_ok() {
+                world
+                    .entity_mut(entity)
+                    .insert(super::super::text::NeedsGlyphRefresh);
+            }
+        });
         info!(
-            "[update_dynamic_text_system] Added NeedsGlyphRefresh to '{}'",
+            "[update_dynamic_text_system] Queued NeedsGlyphRefresh for '{}'",
             name
         );
 
@@ -248,4 +490,68 @@ pub fn update_dynamic_text_system(
         // To support that, we would need to store the `conditional_style` in a component too.
         // For HP update, it is usually just text change, so this might be enough for the bug report.
     }
+}
+
+/// Find the ViewRoot ancestor of an entity by traversing up the hierarchy.
+/// Returns a tuple of (Entity, &ViewRoot) if found, None otherwise.
+///
+/// 通过向上遍历层级结构查找实体的 ViewRoot 祖先。
+/// 如果找到则返回 (Entity, &ViewRoot) 元组，否则返回 None。
+fn find_view_root_ancestor_entity<'a>(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    view_root_query: &'a Query<(Entity, &ViewRoot)>,
+) -> Option<(Entity, &'a ViewRoot)> {
+    let mut current = entity;
+
+    // First check if the entity itself is a ViewRoot
+    if let Ok((e, view_root)) = view_root_query.get(current) {
+        return Some((e, view_root));
+    }
+
+    // Traverse up the parent hierarchy
+    while let Ok(child_of) = parent_query.get(current) {
+        let parent = child_of.parent();
+
+        // Check if parent is a ViewRoot
+        if let Ok((e, view_root)) = view_root_query.get(parent) {
+            return Some((e, view_root));
+        }
+
+        current = parent;
+    }
+
+    None
+}
+
+/// Find the ViewRoot ancestor of an entity by traversing up the hierarchy.
+/// Returns a reference to the ViewRoot if found, None otherwise.
+///
+/// 通过向上遍历层级结构查找实体的 ViewRoot 祖先。
+/// 如果找到则返回 ViewRoot 的引用，否则返回 None。
+fn find_view_root_ancestor<'a>(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    view_root_query: &'a Query<&ViewRoot>,
+) -> Option<&'a ViewRoot> {
+    let mut current = entity;
+
+    // First check if the entity itself is a ViewRoot
+    if let Ok(view_root) = view_root_query.get(current) {
+        return Some(view_root);
+    }
+
+    // Traverse up the parent hierarchy
+    while let Ok(child_of) = parent_query.get(current) {
+        let parent = child_of.parent();
+
+        // Check if parent is a ViewRoot
+        if let Ok(view_root) = view_root_query.get(parent) {
+            return Some(view_root);
+        }
+
+        current = parent;
+    }
+
+    None
 }

@@ -1,8 +1,54 @@
 #![enable(implicit_some)]
+// Undertale Battle View Layout
+// Undertale 战斗视图布局
+//
+// View system features used in this layout:
+// 此布局使用的视图系统特性：
+// - `visible_when`: Expression-based visibility control
+// - `requires`: Data dependency declaration with interface bindings
+// - `facts`: View-local state initialization
+//
+// NOTE: Navigation is handled by battle_view_navigation_system in battle/fre/bridge.rs
+// 注意：导航由 battle/fre/bridge.rs 中的 battle_view_navigation_system 处理
+
 (
-    version: 1,
+    // Data dependencies declaration
+    // 数据依赖声明
+    requires: [
+        // Battle menu navigation rules - registered as View-scoped rules
+        // 战斗菜单导航规则 - 作为 View 作用域规则注册
+        File("battle/rules/battle_menu.fre.ron"),
+
+        // Enemies interface - bound by SpawnView's bindings
+        // 敌人接口 - 由 SpawnView 的 bindings 绑定
+        Interface(
+            interface: "enemies",
+            expects: [
+                "enemy_names: StringList",
+                "enemy_hps: IntList",
+                "enemy_hp_maxs: IntList",
+            ],
+        ),
+    ],
+
+    // View-local facts for battle menu state
+    // 战斗菜单状态的 View 局部事实
+    facts: {
+        "depth": 0,                // 0=main menu, 1=submenu
+        "button_selection": 0,     // Main menu button (persists across depths)
+        "enemy_selection": 0,      // Enemy selection in depth 1
+        "item_selection": 0,       // Item selection in depth 1
+        "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
+        "active": true,            // Whether menu is active (vs bullet hell)
+        "enemy_view_offset": 0,    // Scroll offset for enemy list (滚动偏移量)
+        "enemy_display_limit": 3,  // Max enemies to display at once (同时显示的最大敌人数)
+    },
+
     roots: [
-        // Battle Box (Dialog/Bullet Box)
+        // ========================================
+        // BATTLE BOX (Dialog/Bullet Box)
+        // 战斗框（对话/弹幕框）
+        // ========================================
         (
             name: "BattleBox",
             tags: ["BattleBox"],
@@ -11,93 +57,241 @@
                 height: 130.0,
                 border_width: 5.0,
                 offset: (0.0, -80.0, 0.0),
-                // Use classic UIBox structure (Border + Filler)
                 structure_file: "shared/ui_structures/ui_box.sdf.ron",
             ),
-            // Optional: Add HP bar or text here later
-            children: [],
+            texts: [
+                (
+                    id: "BattleDialogue",
+                    content: "{{battle/ui:ENEMY_APPEARED}}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.2,
+                    // Only show in main menu (depth 0)
+                    // 仅在主菜单（深度 0）时显示
+                    visible_when: "$depth == 0",
+                ),
+
+                // ========================================
+                // ENEMY LIST (depth 1, FIGHT/ACT/MERCY)
+                // 敌人列表（深度 1，战斗/行动/仁慈模式）
+                // ========================================
+                // Using lambda syntax with range to dynamically generate visible enemy names
+                // 使用带范围的 lambda 语法动态生成可见的敌人名称
+                (
+                    id: "EnemyNames",
+                    content: "{|name, i| in $enemy_names[$enemy_view_offset..$enemy_view_offset+$enemy_display_limit] => \"* {name}\"}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-220.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.25,
+                    // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemies exist
+                    // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式，且敌人存在
+                    visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 1",
+                ),
+            ],
+            children: [
+                // ========================================
+                // ENEMY HP BARS (FIGHT mode only)
+                // 敌人 HP 条（仅限战斗模式）
+                // Using repeat syntax to generate HP bars for each enemy
+                // 使用 repeat 语法为每个敌人生成 HP 条
+                // ========================================
+                (
+                    name: "EnemyHpBar",
+                    // Show when: depth 1, FIGHT mode, and within visible window
+                    // 显示条件：深度1，战斗模式，且在可见窗口内
+                    visible_when: "$depth == 1 && $menu_context == 0 && @i >= $enemy_view_offset && @i < $enemy_view_offset + $enemy_display_limit",
+                    repeat: (
+                        source: "enemy_names",
+                        index_var: "i",
+                    ),
+                    sprite: (
+                        visual: "procedural://white_pixel",
+                        // Use green enemy HP bar shader
+                        // 使用绿色敌人 HP 条 shader
+                        custom_shader: "shaders/enemy_hp_bar_sprite.wgsl",
+                        // HP bar source: Enemy - index from repeat context
+                        // HP 条来源：敌人 - 索引来自 repeat 上下文
+                        hp_bar_source: Enemy,
+                        // Shader params: (hp_ratio, lag_ratio, half_width, alpha)
+                        // Note: hp_ratio and lag_ratio will be dynamically updated by the system
+                        shader_params: (1.0, 1.0, 50.0, 1.0),
+                        transform: (
+                            // Position: Y offset based on visible index (relative to view_offset)
+                            // 位置：Y偏移基于可见索引（相对于view_offset）
+                            translation: (-68.0, "31.25 - (@i - $enemy_view_offset) * 32.0", 10.0),
+                            // Width fixed, height fixed
+                            scale: (100.75, 17.0, 1.0),
+                        ),
+                        pivot: (0.0, 0.5),
+                    ),
+                ),
+            ],
         ),
 
-        // Fight Button - using data-driven state_sprite
-        // 战斗按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // BATTLE MENU CURSOR (Main Menu, depth 0)
+        // 战斗菜单光标（主菜单，深度 0）
+        // ========================================
+        (
+            name: "MenuCursor",
+            visible_when: "$depth == 0 && $active",
+            sprite: (
+                visual: "common/ui/heart",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                transform: (
+                    translation: (
+                        "if($button_selection == 0, -272.0, if($button_selection == 1, -119.0, if($button_selection == 2, 41.0, 196.0)))",
+                        "-214.0",
+                        "2.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // ENEMY SELECTION CURSOR (Submenu, depth 1)
+        // 敌人选择光标（子菜单，深度 1）
+        // ========================================
+        (
+            name: "EnemySelectionCursor",
+            // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3)
+            // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式
+            visible_when: "$depth == 1 && $active && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3)",
+            sprite: (
+                visual: "common/ui/heart",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                transform: (
+                    translation: (
+                        // X position: left of enemy names, inside BattleBox
+                        // X 位置：敌人名称左侧，在战斗框内
+                        "-248.0",
+                        // Y position: based on visible position (enemy_selection - enemy_view_offset)
+                        // Y 位置：基于可见位置（enemy_selection - enemy_view_offset）
+                        // Pattern: 50 - (visible_index) * 32 for Y offset from top
+                        // 模式：50 - (可见索引) * 32 用于从顶部的 Y 偏移
+                        "-45.5 - ($enemy_selection - $enemy_view_offset) * 32.0",
+                        "10.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // FIGHT BUTTON
+        // 战斗按钮
+        // ========================================
         (
             name: "BtnFight",
-            state_sprite: (
-                default: "textures/battle/ui/fight/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/fight/true.png",
-                },
-                // Sugar syntax: subscribe to BattleMainMenu selection at index 0
-                // 语法糖：订阅 BattleMainMenu 选中状态，索引 0
-                subscribe_selection: ("BattleMainMenu", 0),
+            sprite: (
+                visual: "textures/battle/ui/fight/false.png",
                 transform: (
                     translation: (-233.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        // FIGHT button selected state
+        // 战斗按钮选中状态
+        (
+            name: "BtnFightSelected",
+            visible_when: "$button_selection == 0",
+            sprite: (
+                visual: "textures/battle/ui/fight/true.png",
+                transform: (
+                    translation: (-233.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // Act Button - using data-driven state_sprite
-        // 行动按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // ACT BUTTON
+        // 行动按钮
+        // ========================================
         (
             name: "BtnAct",
-            state_sprite: (
-                default: "textures/battle/ui/act/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/act/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 1),
+            sprite: (
+                visual: "textures/battle/ui/act/false.png",
                 transform: (
                     translation: (-80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnActSelected",
+            visible_when: "$button_selection == 1",
+            sprite: (
+                visual: "textures/battle/ui/act/true.png",
+                transform: (
+                    translation: (-80.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // Item Button - using data-driven state_sprite
-        // 物品按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // ITEM BUTTON
+        // 物品按钮
+        // ========================================
         (
             name: "BtnItem",
-            state_sprite: (
-                default: "textures/battle/ui/item/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/item/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 2),
+            sprite: (
+                visual: "textures/battle/ui/item/false.png",
                 transform: (
                     translation: (80.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnItemSelected",
+            visible_when: "$button_selection == 2",
+            sprite: (
+                visual: "textures/battle/ui/item/true.png",
+                transform: (
+                    translation: (80.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // Mercy Button - using data-driven state_sprite
-        // 慈悲按钮 - 使用数据驱动的 state_sprite
+        // ========================================
+        // MERCY BUTTON
+        // 仁慈按钮
+        // ========================================
         (
             name: "BtnMercy",
-            state_sprite: (
-                default: "textures/battle/ui/mercy/false.png",
-                variants: {
-                    "selected": "textures/battle/ui/mercy/true.png",
-                },
-                subscribe_selection: ("BattleMainMenu", 3),
+            sprite: (
+                visual: "textures/battle/ui/mercy/false.png",
                 transform: (
                     translation: (235.0, -213.0, 1.0),
-                    scale: (1.0, 1.0, 1.0),
+                ),
+            ),
+        ),
+        (
+            name: "BtnMercySelected",
+            visible_when: "$button_selection == 3",
+            sprite: (
+                visual: "textures/battle/ui/mercy/true.png",
+                transform: (
+                    translation: (235.0, -213.0, 1.5),
                 ),
             ),
         ),
 
-        // HUD Info - Pure container node (no visible box, just texts and children)
-        // HUD 信息 - 纯容器节点（无可见框，只有文本和子节点）
+        // ========================================
+        // HUD INFO
+        // HUD 信息
+        // ========================================
         (
             name: "BattleHUD",
-            // 重构后不再需要 0x0 的 ui_shape_logic hack
-            // After refactoring, the 0x0 ui_shape_logic hack is no longer needed
             texts: [
                 (
                     id: "PlayerName",
-                    content: "{@player.name}",
+                    content: "{$player_name}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -117,7 +311,7 @@
                 ),
                 (
                     id: "PlayerLevelValue",
-                    content: "{@player.lv}",
+                    content: "{$player_lv}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -127,12 +321,12 @@
                 ),
                 (
                     id: "HPValueCurrent",
-                    content: "{@player.hp}",
+                    content: "{$player_hp}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("-5.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("-5.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
@@ -142,17 +336,17 @@
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("33.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("33.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
                 (
                     id: "HPValueMax",
-                    content: "{@player.hp_max}",
+                    content: "{$player_hp_max}",
                     font: BattleHud,
                     world_scale: (24.0, 24.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: ("57.5 + (@player.hp_max - 20) * 94.5 / 79", -155.5, 1.0),
+                        translation: ("57.5 + ($player_hp_max - 20) * 94.5 / 79", -155.5, 1.0),
                     ),
                 ),
             ],
@@ -169,34 +363,17 @@
                 (
                     name: "HPBar",
                     sprite: (
-                        visual: "procedural://white_pixel",  // Use procedural texture
+                        visual: "procedural://white_pixel",
                         transform: (
-                            translation: (-45.0, -170.5, 1.0),  // Move left, behind text (z=1)
-                            scale: ("25.0 + (@player.hp_max - 20) * 95.0 / 79", 20.5, 1.0),  // Dynamic width based on hp_max
+                            translation: (-45.0, -170.5, 1.0),
+                            scale: ("25.0 + ($player_hp_max - 20) * 95.0 / 79", 20.5, 1.0),
                         ),
                         custom_shader: "shaders/hp_bar_sprite.wgsl",
-                        shader_params: (0.8, 0.8, "40.0 + (@player.hp_max - 20) * 95.0 / 79 / 2", 1.0),  // HP%, lag%, half_width (dynamic), alpha
+                        shader_params: (0.8, 0.8, "40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2", 1.0),
                         pivot: (0.0, 0.5),
                     ),
                 )
             ],
         ),
     ],
-    
-    // Interactive layer definitions for battle menu navigation
-    // 战斗菜单导航的交互层定义
-    interactive_layers: {
-        "BattleMainMenu": (
-            // 1 row, 4 columns for FIGHT/ACT/ITEM/MERCY buttons
-            // 1 行 4 列的 FIGHT/ACT/ITEM/MERCY 按钮
-            navigator_type: Grid(
-                rows: 1,
-                cols: 4,
-                looping: true,
-            ),
-            selectable_elements: ["BtnFight", "BtnAct", "BtnItem", "BtnMercy"],
-            sound_on_navigate: "choice.wav",
-            sound_on_confirm: "confirm.wav",
-        ),
-    },
 )

@@ -51,7 +51,7 @@ pub fn sync_battle_flow_system(
         // Load battle-specific rules if specified
         if let Some(rules_path) = &asset.rules_file {
             let rules_handle =
-                asset_server.load::<bevy_fact_rule_event::RuleSetAsset>(rules_path.clone());
+                asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
             battle_rules_handle.handle = Some(rules_handle);
             info!("Battle FRE: Loading rules from {}", rules_path);
         }

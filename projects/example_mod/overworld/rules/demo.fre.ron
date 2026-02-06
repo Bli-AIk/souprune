@@ -19,11 +19,10 @@
 // - 第5次进入：退出追逐战状态（效果淡出）
 
 (
-    version: 1,
 
     // Initial facts to set when this rule set is loaded
     // 加载此规则集时设置的初始事实
-    initial_facts: {
+    facts: {
         "demo_area_visit_count": Int(0),
     },
 
@@ -32,7 +31,7 @@
         // 规则 1：每次进入触发器时增加计数器
         (
             id: "demo_increment_visit",
-            trigger: "trigger_enter_demo_trigger",
+            event: Event("trigger_enter_demo_trigger"),
             condition: Always,
             modifications: [
                 Increment(key: "demo_area_visit_count", amount: 1),
@@ -48,7 +47,7 @@
         // 规则 2：第2次进入时进入追逐战状态
         (
             id: "demo_enter_chase",
-            trigger: "demo_visit_updated",
+            event: Event("demo_visit_updated"),
             condition: Equals(key: "demo_area_visit_count", value: Int(2)),
             actions: [
                 Log(message: "Entering Chase State!"),
@@ -62,7 +61,7 @@
         // 规则 3：第3次进入时播放弹幕
         (
             id: "demo_play_danmaku",
-            trigger: "demo_visit_updated",
+            event: Event("demo_visit_updated"),
             condition: Equals(key: "demo_area_visit_count", value: Int(3)),
             actions: [
                 Log(message: "Playing danmaku performance!"),
@@ -78,7 +77,7 @@
         // 规则 4：第5次进入时退出追逐战状态
         (
             id: "demo_exit_chase",
-            trigger: "demo_visit_updated",
+            event: Event("demo_visit_updated"),
             condition: Equals(key: "demo_area_visit_count", value: Int(5)),
             actions: [
                 Log(message: "Exiting Chase State!"),
