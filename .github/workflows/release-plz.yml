@@ -20,15 +20,6 @@ jobs:
           submodules: true
           persist-credentials: false
 
-      - name: Checkout mortar
-        uses: actions/checkout@v6
-        with:
-          repository: Bli-AIk/mortar
-          path: temp-mortar
-      - name: Move mortar to sibling directory
-        shell: bash
-        run: mv temp-mortar ../mortar
-
       - &install-deps
         name: Install dependencies (Ubuntu)
         run: |
@@ -61,15 +52,6 @@ jobs:
       cancel-in-progress: false
     steps:
       - *checkout
-
-      - name: Checkout mortar
-        uses: actions/checkout@v6
-        with:
-          repository: Bli-AIk/mortar
-          path: temp-mortar
-      - name: Move mortar to sibling directory
-        shell: bash
-        run: mv temp-mortar ../mortar
 
       - *install-deps
 
