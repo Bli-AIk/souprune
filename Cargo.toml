@@ -51,3 +51,9 @@ opt-level = 3
 
 [profile.dev.package.symphonium]
 opt-level = 3
+
+# CI profile for faster builds without debug info
+[profile.ci]
+inherits = "release"
+debug = false
+strip = true
