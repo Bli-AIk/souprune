@@ -24,16 +24,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Checkout mortar
-        uses: actions/checkout@v6
-        with:
-          repository: Bli-AIk/mortar
-          path: temp-mortar
-
-      - name: Move mortar to sibling directory
-        run: mv temp-mortar ../mortar
-
-      - name: Install Bevy Dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -47,24 +38,19 @@ jobs:
             libxinerama-dev \
             libxcursor-dev \
             libgl1-mesa-dev \
-            pkg-config
+            pkg-config \
+            mold
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "ci-test"
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
-
-      - name: Cache cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -75,6 +61,19 @@ jobs:
       - name: Run tests
         run: cargo nextest run --workspace
 
+  deny:
+    name: Cargo Deny
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          arguments: --all-features
+
   security:
     name: Security Audit
     if: github.event.pull_request.draft == false
@@ -84,14 +83,6 @@ jobs:
         with:
           submodules: true
 
-      - name: Checkout mortar
-        uses: actions/checkout@v6
-        with:
-          repository: Bli-AIk/mortar
-          path: temp-mortar
-
-      - name: Move mortar to sibling directory
-        run: mv temp-mortar ../mortar
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

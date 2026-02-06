@@ -14,6 +14,15 @@ members = [
     "crates/interoptopus_backend_haxe",
 ]
 
+# Exclude mortar submodule - it has its own workspace
+exclude = [
+    "crates/mortar",
+]
+
+# Use local mortar_compiler for bevy_mortar_bond during development
+[patch.crates-io]
+mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
+
 [workspace.lints.rust]
 
 # Enable a small amount of optimization in the dev profile.
@@ -51,3 +60,9 @@ opt-level = 3
 
 [profile.dev.package.symphonium]
 opt-level = 3
+
+# CI profile for faster builds without debug info
+[profile.ci]
+inherits = "release"
+debug = false
+strip = true
