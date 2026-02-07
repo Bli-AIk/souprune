@@ -362,6 +362,12 @@ pub fn update_shader_materials_system(
         return;
     }
 
+    // DEBUG: Log that we're updating materials
+    eprintln!(
+        "[update_shader_materials] Running: global_changed={}, needs_expr={}, needs_anim={}",
+        global_changed, needs_expression_eval, needs_animation_update
+    );
+
     let delta_time = time.delta_secs();
 
     for (entity, mut shader_mat, material_handle) in query.iter_mut() {
@@ -432,8 +438,15 @@ pub fn update_shader_materials_system(
 
         // 3. Update DynamicMaterial2d uniforms
         if let Some(material) = materials.get_mut(&material_handle.0) {
-            material.params = shader_mat.pack_params();
-            material.extra_params = shader_mat.pack_extra_params();
+            let new_params = shader_mat.pack_params();
+            let new_extra = shader_mat.pack_extra_params();
+            // DEBUG: Log every material update
+            eprintln!(
+                "[update] Entity {:?} updating material AssetId {:?} with params {:?}",
+                entity, material_handle.0.id(), new_params
+            );
+            material.params = new_params;
+            material.extra_params = new_extra;
         }
     }
 }

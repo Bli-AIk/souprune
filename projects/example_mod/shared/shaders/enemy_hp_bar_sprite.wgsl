@@ -27,6 +27,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha = color_params.r;
     let hp_ratio = color_params.b;
     
+    // DEBUG: Visualize hp_ratio directly as color intensity
+    // If all bars show the same color, they're getting the same hp_ratio value
+    // hp_ratio=1.0 -> bright green, hp_ratio=0.5 -> medium green
+    
     // UV.x goes from 0 (left) to 1 (right)
     let t = in.uv.x;
     

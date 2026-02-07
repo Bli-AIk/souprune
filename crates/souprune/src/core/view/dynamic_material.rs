@@ -36,8 +36,8 @@ use bevy::render::view::ExtractedView;
 use bevy::render::{Extract, ExtractSchedule, Render, RenderApp, RenderStartup, RenderSystems};
 use bevy::shader::Shader;
 use bevy::sprite_render::{
-    DrawMesh2d, Mesh2dPipeline, Mesh2dPipelineKey, RenderMesh2dInstances, SetMesh2dBindGroup,
-    SetMesh2dViewBindGroup, init_mesh_2d_pipeline,
+    DrawMesh2d, Material2dBindGroupId, Mesh2dPipeline, Mesh2dPipelineKey, RenderMesh2dInstances,
+    SetMesh2dBindGroup, SetMesh2dViewBindGroup, init_mesh_2d_pipeline,
 };
 use bevy_shader::ShaderDefVal;
 use std::collections::HashMap;
@@ -207,13 +207,25 @@ impl RenderAsset for PreparedDynamicMaterial2d {
         (render_device, pipeline, material_param): &mut SystemParamItem<Self::Param>,
         _previous: Option<&Self>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
+        // Debug: log params being prepared
+        eprintln!(
+            "[prepare_asset] AssetId {:?} preparing with params {:?}",
+            _asset_id, material.params
+        );
+        
         // Use AsBindGroup to create the bind group
         match material.as_bind_group(&pipeline.material_layout, render_device, material_param) {
-            Ok(prepared) => Ok(PreparedDynamicMaterial2d {
-                bind_group: prepared.bind_group,
-                shader: material.shader.clone(),
-                depth_bias: 0.0,
-            }),
+            Ok(prepared) => {
+                eprintln!(
+                    "[prepare_asset] AssetId {:?} bind_group created successfully",
+                    _asset_id
+                );
+                Ok(PreparedDynamicMaterial2d {
+                    bind_group: prepared.bind_group,
+                    shader: material.shader.clone(),
+                    depth_bias: 0.0,
+                })
+            }
             Err(AsBindGroupError::RetryNextUpdate) => {
                 Err(PrepareAssetError::RetryNextUpdate(material))
             }
@@ -345,8 +357,8 @@ pub fn extract_dynamic_material2d_instances(
 
     for (entity, visibility, material) in &query {
         if visibility.get() {
-            trace!(
-                "[Extract] Entity {:?} -> Material {:?}",
+            eprintln!(
+                "[extract] Entity {:?} visible, material {:?}",
                 entity,
                 material.0.id()
             );
@@ -386,7 +398,7 @@ pub fn queue_dynamic_material2d_meshes(
     render_meshes: Res<RenderAssets<RenderMesh>>,
     render_materials: Res<RenderAssets<PreparedDynamicMaterial2d>>,
     material_instances: Res<RenderDynamicMaterial2dInstances>,
-    render_mesh_instances: Res<RenderMesh2dInstances>,
+    mut render_mesh_instances: ResMut<RenderMesh2dInstances>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
     views: Query<(&ExtractedView, &Msaa)>,
 ) {
@@ -407,21 +419,42 @@ pub fn queue_dynamic_material2d_meshes(
             | Mesh2dPipelineKey::BLEND_ALPHA;
 
         for (visible_entity, material_asset_id) in material_instances.iter() {
-            let Some(mesh_instance) = render_mesh_instances.get(visible_entity) else {
+            let Some(mesh_instance) = render_mesh_instances.get_mut(visible_entity) else {
+                eprintln!(
+                    "[queue] Entity {:?} skipped: no mesh_instance",
+                    visible_entity
+                );
                 continue;
             };
 
             let Some(prepared_material) = render_materials.get(*material_asset_id) else {
+                eprintln!(
+                    "[queue] Entity {:?} skipped: no prepared_material for {:?}",
+                    visible_entity, material_asset_id
+                );
                 continue;
             };
+
+            // CRITICAL: Set the material bind group ID to prevent batching across different materials.
+            // Without this, Bevy batches all entities with the same mesh, causing them to share
+            // the same material bind group (always using the last entity's material).
+            // 关键：设置材质绑定组 ID 以防止不同材质的实体被合批。
+            // 如果不设置，Bevy 会将所有使用相同 mesh 的实体合批，
+            // 导致它们共享同一个材质绑定组（始终使用最后一个实体的材质）。
+            mesh_instance.material_bind_group_id =
+                Material2dBindGroupId(Some(prepared_material.bind_group.id()));
 
             let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id) else {
+                eprintln!(
+                    "[queue] Entity {:?} skipped: no mesh",
+                    visible_entity
+                );
                 continue;
             };
 
-            trace!(
-                "[Queue] Entity {:?} -> Material {:?}",
-                visible_entity, material_asset_id
+            eprintln!(
+                "[queue] Entity {:?} -> Material {:?}, bind_group_id: {:?}",
+                visible_entity, material_asset_id, prepared_material.bind_group.id()
             );
 
             let mesh_key =
@@ -512,6 +545,14 @@ impl<P: bevy::render::render_phase::PhaseItem, const I: usize> RenderCommand<P>
             );
             return RenderCommandResult::Skip;
         };
+
+        // Debug: log which material is being bound with bind_group address
+        eprintln!(
+            "[render] Entity {:?} binding material {:?}, bind_group ptr: {:p}",
+            item.main_entity(),
+            material_asset_id,
+            &material.bind_group
+        );
 
         pass.set_bind_group(I, &material.bind_group, &[]);
         RenderCommandResult::Success
