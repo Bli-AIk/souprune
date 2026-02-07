@@ -564,14 +564,18 @@ version = "0.1.1"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "console_error_panic_hook",
  "fontdb 0.23.0",
  "image",
  "owo-colors",
  "quick-xml 0.39.0",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "toml 0.8.23",
  "ttf-parser 0.25.1",
+ "wasm-bindgen",
+ "web-sys",
  "zip",
 ]
 
