@@ -354,7 +354,10 @@ pub fn update_shader_materials_system(
 
     // Only proceed if database changed OR animation is in progress OR expressions need evaluation
     // 只有在数据库变化、动画进行中或需要表达式评估时才继续
-    if !global_changed && !any_view_root_changed && !needs_animation_update && !needs_expression_eval
+    if !global_changed
+        && !any_view_root_changed
+        && !needs_animation_update
+        && !needs_expression_eval
     {
         return;
     }
@@ -382,8 +385,11 @@ pub fn update_shader_materials_system(
                     MaterialParamValue::Expr(expr_str) => {
                         // Convert to Val::Expr for evaluate_float_expr
                         let val_expr: Val<f32> = Val::Expr(expr_str.clone());
-                        let result =
-                            evaluate_float_expr(&val_expr, &player_data, Some(time.elapsed_secs_f64()));
+                        let result = evaluate_float_expr(
+                            &val_expr,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        );
                         trace!(
                             "[ShaderMaterial Update] Entity {:?}: '{}' = Expr('{}') -> {}",
                             entity, name, expr_str, result
@@ -420,6 +426,9 @@ pub fn update_shader_materials_system(
             // Update target parameter with lag value
             shader_mat.current_values.insert(target_param, lag_value);
         }
+
+        // Update debug string for inspector
+        shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
 
         // 3. Update DynamicMaterial2d uniforms
         if let Some(material) = materials.get_mut(&material_handle.0) {

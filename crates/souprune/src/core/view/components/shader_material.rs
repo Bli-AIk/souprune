@@ -22,26 +22,37 @@ use crate::core::view::layout::view_schema::{EasingDef, MaterialDef, MaterialPar
 ///
 /// 通用着色器材质组件。
 /// 为使用 DynamicMaterial2d 的实体存储运行时状态。
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct ShaderMaterial {
     /// Loaded shader handle.
     ///
     /// 已加载的着色器句柄。
     pub shader: Handle<Shader>,
 
-    /// Parameter definitions from RON config.
-    /// Maps parameter name -> expression/static value.
+    /// Parameter definitions from RON config (stored as debug string for reflection).
     ///
-    /// RON 配置中的参数定义。
-    /// 参数名 -> 表达式/静态值的映射。
+    /// RON 配置中的参数定义（为反射存储为调试字符串）。
+    #[reflect(ignore)]
     pub param_defs: HashMap<String, MaterialParamValue>,
+
+    /// Debug string showing param_defs (for inspector).
+    ///
+    /// 显示 param_defs 的调试字符串（用于检查器）。
+    pub param_defs_debug: String,
 
     /// Current evaluated parameter values.
     /// Updated each frame by update_shader_materials_system.
     ///
     /// 当前评估的参数值。
     /// 由 update_shader_materials_system 每帧更新。
+    #[reflect(ignore)]
     pub current_values: HashMap<String, f32>,
+
+    /// Debug string showing current_values (for inspector).
+    ///
+    /// 显示 current_values 的调试字符串（用于检查器）。
+    pub current_values_debug: String,
 
     /// Ordered list of parameter names for Vec4 packing.
     /// Elements 0-3 go to params, 4-7 go to extra_params.
@@ -53,6 +64,7 @@ pub struct ShaderMaterial {
     /// Animation state (optional).
     ///
     /// 动画状态（可选）。
+    #[reflect(ignore)]
     pub animation: Option<MaterialAnimationState>,
 }
 
@@ -100,10 +112,16 @@ impl ShaderMaterial {
             })
         });
 
+        // Create debug strings for inspector
+        let param_defs_debug = format!("{:?}", param_defs);
+        let current_values_debug = format!("{:?}", current_values);
+
         Self {
             shader,
             param_defs,
+            param_defs_debug,
             current_values,
+            current_values_debug,
             param_order,
             animation,
         }

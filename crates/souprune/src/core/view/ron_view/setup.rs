@@ -169,7 +169,7 @@ pub fn setup_shader_materials_system(
         &super::super::reconcile::ShaderMaterialPendingSetup,
     )>,
 ) {
-    use crate::core::view::dynamic_material::{DynamicMaterial2d, MeshDynamicMaterial2d};
+    use crate::core::view::dynamic_material::{DynamicMaterial2d, MeshDynamicMaterial2d, MaterialAssetIdDebug};
 
     let Some(textures) = procedural_textures else {
         return;
@@ -200,11 +200,14 @@ pub fn setup_shader_materials_system(
         };
 
         let material_handle = dynamic_materials.add(material);
+        let asset_id_debug = MaterialAssetIdDebug {
+            asset_id: format!("{:?}", material_handle.id()),
+        };
 
         // Remove pending marker and add mesh/material components
         commands
             .entity(entity)
             .remove::<super::super::reconcile::ShaderMaterialPendingSetup>()
-            .insert((Mesh2d(mesh.clone()), MeshDynamicMaterial2d(material_handle)));
+            .insert((Mesh2d(mesh.clone()), MeshDynamicMaterial2d(material_handle), asset_id_debug));
     }
 }

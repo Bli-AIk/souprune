@@ -951,17 +951,27 @@ fn spawn_view_node_with_repeat_context(
                     asset_server.load(&visual_path)
                 };
                 spawn_standalone_static_sprite(
-                    parent, sprite_def, &view_element, texture_handle, transform,
-                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                    parent,
+                    sprite_def,
+                    &view_element,
+                    texture_handle,
+                    transform,
+                    &node_def.name,
+                    &mut spawned_entity_id,
+                    &visual_path,
                 );
-            } else if let Some(resolved) = resolve_visual_path(&visual_path, &config.project.mod_name) {
+            } else if let Some(resolved) =
+                resolve_visual_path(&visual_path, &config.project.mod_name)
+            {
                 let asset_path = get_asset_path(&resolved, &config.project.mod_name);
 
                 match resolved {
                     ResolvedVisual::CharacterAnimation(_) => {
                         // Character animation (.character.ron)
                         let config_handle = asset_server
-                            .load::<crate::core::character_asset::AnimationConfigAsset>(&asset_path);
+                            .load::<crate::core::character_asset::AnimationConfigAsset>(
+                            &asset_path,
+                        );
 
                         let mut entity_cmd = parent.spawn((
                             crate::core::character_asset::CharacterAnimator {
@@ -986,8 +996,14 @@ fn spawn_view_node_with_repeat_context(
                     ResolvedVisual::Sprite(_) | ResolvedVisual::FrameAnimation(_) => {
                         let texture_handle = asset_server.load(&asset_path);
                         spawn_standalone_static_sprite(
-                            parent, sprite_def, &view_element, texture_handle, transform,
-                            &node_def.name, &mut spawned_entity_id, &asset_path,
+                            parent,
+                            sprite_def,
+                            &view_element,
+                            texture_handle,
+                            transform,
+                            &node_def.name,
+                            &mut spawned_entity_id,
+                            &asset_path,
                         );
                     }
                 }
@@ -995,8 +1011,14 @@ fn spawn_view_node_with_repeat_context(
                 // Fallback: try direct load
                 let texture_handle = asset_server.load(&visual_path);
                 spawn_standalone_static_sprite(
-                    parent, sprite_def, &view_element, texture_handle, transform,
-                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                    parent,
+                    sprite_def,
+                    &view_element,
+                    texture_handle,
+                    transform,
+                    &node_def.name,
+                    &mut spawned_entity_id,
+                    &visual_path,
                 );
             }
             return;
@@ -1121,7 +1143,8 @@ fn spawn_view_node_with_repeat_context(
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
                     "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
-                    node_def.name, sprite_def.visual.path()
+                    node_def.name,
+                    sprite_def.visual.path()
                 );
                 spawn_ui_sprite(
                     &mut box_entity,

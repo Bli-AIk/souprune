@@ -100,6 +100,9 @@ impl Plugin for CoreViewPlugin {
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
+            // Register ShaderMaterial for inspector
+            // 为检查器注册 ShaderMaterial
+            .register_type::<components::ShaderMaterial>()
             // Keep PixelOutlineMaterial for chase state highlight (still used)
             // 保留 PixelOutlineMaterial 用于追逐状态高亮（仍在使用）
             .add_plugins(Material2dPlugin::<

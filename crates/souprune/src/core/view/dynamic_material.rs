@@ -145,6 +145,16 @@ impl Default for MeshDynamicMaterial2d {
     }
 }
 
+/// Debug component showing material AssetId for inspector.
+/// 用于检查器的材质 AssetId 调试组件。
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct MaterialAssetIdDebug {
+    /// AssetId as string for inspector display.
+    /// 作为字符串的 AssetId，用于检查器显示。
+    pub asset_id: String,
+}
+
 // ============================================================================
 // Pipeline Key
 // ============================================================================
@@ -411,8 +421,7 @@ pub fn queue_dynamic_material2d_meshes(
 
             trace!(
                 "[Queue] Entity {:?} -> Material {:?}",
-                visible_entity,
-                material_asset_id
+                visible_entity, material_asset_id
             );
 
             let mesh_key =
@@ -520,6 +529,7 @@ pub struct DynamicMaterial2dPlugin;
 impl Plugin for DynamicMaterial2dPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<DynamicMaterial2d>()
+            .register_type::<MaterialAssetIdDebug>()
             .add_plugins(RenderAssetPlugin::<PreparedDynamicMaterial2d>::default());
 
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
