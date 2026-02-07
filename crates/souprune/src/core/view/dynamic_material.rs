@@ -155,14 +155,8 @@ impl DynamicMaterial2d {
 
 /// Component to link an entity to a DynamicMaterial2d.
 /// 将实体链接到 DynamicMaterial2d 的组件。
-#[derive(Component, Clone, Debug, Deref, DerefMut)]
+#[derive(Component, Clone, Debug, Deref, DerefMut, Default)]
 pub struct MeshDynamicMaterial2d(pub Handle<DynamicMaterial2d>);
-
-impl Default for MeshDynamicMaterial2d {
-    fn default() -> Self {
-        Self(Handle::default())
-    }
-}
 
 /// Debug component showing material AssetId for inspector.
 /// 用于检查器的材质 AssetId 调试组件。
@@ -332,12 +326,11 @@ impl SpecializedMeshPipeline for DynamicMaterial2dPipeline {
         descriptor.layout.push(self.material_layout.clone());
 
         // Enable alpha blending for transparency
-        if let Some(ref mut fragment) = descriptor.fragment {
-            if let Some(target) = fragment.targets.get_mut(0) {
-                if let Some(color_target) = target {
-                    color_target.blend = Some(BlendState::ALPHA_BLENDING);
-                }
-            }
+        if let Some(ref mut fragment) = descriptor.fragment
+            && let Some(target) = fragment.targets.get_mut(0)
+            && let Some(color_target) = target
+        {
+            color_target.blend = Some(BlendState::ALPHA_BLENDING);
         }
 
         descriptor.label = Some("dynamic_material2d_pipeline".into());
@@ -377,11 +370,10 @@ pub fn cache_shader_handles(
 ) {
     for (_id, prepared) in materials.iter() {
         let shader_id = prepared.shader.id();
-        if !pipeline.shader_cache.contains_key(&shader_id) {
-            pipeline
-                .shader_cache
-                .insert(shader_id, prepared.shader.clone());
-        }
+        pipeline
+            .shader_cache
+            .entry(shader_id)
+            .or_insert_with(|| prepared.shader.clone());
     }
 }
 

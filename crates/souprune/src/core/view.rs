@@ -46,7 +46,6 @@ mod text;
 mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
-pub use dynamic_material::{DynamicMaterial2d, DynamicMaterial2dPlugin, MeshDynamicMaterial2d};
 
 use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
