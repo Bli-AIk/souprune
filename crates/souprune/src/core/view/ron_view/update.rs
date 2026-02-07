@@ -335,6 +335,14 @@ pub fn update_shader_materials_system(
         return;
     }
 
+    // Check if any shader material needs expression evaluation
+    // 检查是否有材质需要表达式评估
+    let needs_expression_eval = query.iter().any(|(_, sm, _)| {
+        sm.param_defs
+            .values()
+            .any(|v| matches!(v, MaterialParamValue::Expr(_)))
+    });
+
     // Check if any shader material needs animation update
     let needs_animation_update = query
         .iter()
@@ -344,8 +352,10 @@ pub fn update_shader_materials_system(
     let global_changed = layered_db.is_changed();
     let any_view_root_changed = !changed_view_roots.is_empty();
 
-    // Only proceed if database changed OR animation is in progress
-    if !global_changed && !any_view_root_changed && !needs_animation_update {
+    // Only proceed if database changed OR animation is in progress OR expressions need evaluation
+    // 只有在数据库变化、动画进行中或需要表达式评估时才继续
+    if !global_changed && !any_view_root_changed && !needs_animation_update && !needs_expression_eval
+    {
         return;
     }
 

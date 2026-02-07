@@ -77,7 +77,12 @@ impl ShaderMaterial {
             current_values.insert(name.clone(), initial);
         }
 
-        // Ensure consistent ordering (sort by name)
+        // Sort by name for consistent ordering (alphabetical)
+        // This means shader params should be named to achieve desired order:
+        // - param[0] = first alphabetically (e.g., "a_hp_ratio")
+        // - param[1] = second alphabetically (e.g., "b_lag_ratio")
+        // Or use standard names: "alpha", "half_width", "hp_ratio", "lag_ratio"
+        // 按名称排序以获得一致的顺序（字母顺序）
         param_order.sort();
 
         let animation = def.animations.as_ref().and_then(|anims| {
