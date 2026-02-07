@@ -110,6 +110,7 @@ pub fn view_reconciliation_system(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&CameraAnchored>,
+        Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: Query<&Children>,
 ) {
@@ -180,6 +181,7 @@ fn build_current_tree_from_query(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&CameraAnchored>,
+        Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: &Query<&Children>,
 ) -> CurrentViewTree {
@@ -207,6 +209,7 @@ struct CollectedElement {
     sprite: Option<super::tree::CurrentSprite>,
     visible_when_expr: Option<String>,
     camera_offset: Option<Vec3>,
+    has_shader_material: bool,
 }
 
 /// Recursively collect all view element descendants.
@@ -223,6 +226,7 @@ fn collect_descendants(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&CameraAnchored>,
+        Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: &Query<&Children>,
     result: &mut Vec<CollectedElement>,
@@ -237,6 +241,7 @@ fn collect_descendants(
         sprite_opt,
         visible_when_opt,
         camera_anchored_opt,
+        shader_material_opt,
     )) = view_element_query.get(entity)
     {
         let parent = child_of.map(|c| c.parent());
@@ -263,6 +268,7 @@ fn collect_descendants(
             sprite,
             visible_when_expr,
             camera_offset,
+            has_shader_material: shader_material_opt.is_some(),
         });
     }
 
@@ -295,6 +301,7 @@ fn build_current_tree_with_components(
             sprite: elem.sprite.clone(),
             visible_when_expr: elem.visible_when_expr.clone(),
             camera_offset: elem.camera_offset,
+            has_shader_material: elem.has_shader_material,
         });
     }
 

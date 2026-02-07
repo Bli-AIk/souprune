@@ -3,79 +3,17 @@
 //! Custom Material2d for sprite rendering with shader support.
 //! 支持着色器的精灵渲染自定义 Material2d。
 //!
-//! Generic sprite material system for shader-based effects.
+//! This module contains PixelOutlineMaterial for chase state highlight effects.
+//! HP bar materials have been replaced by the DynamicMaterial2d system.
 //!
-//! 用于着色器效果的通用精灵材质系统。
+//! 该模块包含追逐状态高亮效果的 PixelOutlineMaterial。
+//! HP 条材质已被 DynamicMaterial2d 系统取代。
 
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
-
-/// Custom sprite material with shader parameters.
-///
-/// 带有着色器参数的自定义精灵材质。
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct CustomSpriteMaterial {
-    /// Shader uniform parameters (vec4).
-    ///
-    /// 着色器 uniform 参数 (vec4)。
-    #[uniform(0)]
-    pub color_params: LinearRgba,
-
-    /// Base texture.
-    ///
-    /// 基础纹理。
-    #[texture(1)]
-    #[sampler(2)]
-    pub texture: Handle<Image>,
-}
-
-impl Material2d for CustomSpriteMaterial {
-    fn fragment_shader() -> ShaderRef {
-        // HP bar shader with UV-based gradient
-        "shared/shaders/hp_bar_sprite.wgsl".into()
-    }
-
-    fn alpha_mode(&self) -> AlphaMode2d {
-        AlphaMode2d::Blend
-    }
-}
-
-/// Enemy HP bar material with green color scheme.
-/// Uses a separate shader from player HP bar.
-///
-/// 敌人 HP 条材质（绿色配色方案）。
-/// 使用与玩家 HP 条不同的着色器。
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct EnemyHpBarMaterial {
-    /// Shader uniform parameters (vec4).
-    /// (hp_ratio, unused, half_width, alpha)
-    ///
-    /// 着色器 uniform 参数 (vec4)。
-    /// (hp比率, 未使用, 半宽度, 透明度)
-    #[uniform(0)]
-    pub color_params: LinearRgba,
-
-    /// Base texture.
-    ///
-    /// 基础纹理。
-    #[texture(1)]
-    #[sampler(2)]
-    pub texture: Handle<Image>,
-}
-
-impl Material2d for EnemyHpBarMaterial {
-    fn fragment_shader() -> ShaderRef {
-        // Enemy HP bar shader with green color
-        "shared/shaders/enemy_hp_bar_sprite.wgsl".into()
-    }
-
-    fn alpha_mode(&self) -> AlphaMode2d {
-        AlphaMode2d::Blend
-    }
-}
 
 /// Pixel outline material for chase state highlight effect.
 /// Uses a shader that creates 1-pixel red outline around opaque pixels.

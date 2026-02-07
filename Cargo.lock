@@ -6840,6 +6840,7 @@ dependencies = [
  "bevy_mortar_bond",
  "bevy_rich_text3d",
  "bevy_seedling",
+ "bevy_shader",
  "bevy_tween",
  "chrono",
  "dunce",

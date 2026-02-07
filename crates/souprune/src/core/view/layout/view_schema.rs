@@ -356,7 +356,16 @@ pub struct SpriteDef {
     /// 设置后，此精灵将被视为 HP 条，其 shader 参数
     /// 将根据指定的 HP 来源动态更新。
     #[serde(default)]
+    #[deprecated(note = "Use `material` field instead for dynamic shader support")]
     pub hp_bar_source: Option<HPBarSourceDef>,
+
+    /// Dynamic material definition for custom shaders.
+    /// Replaces old custom_shader + shader_params + hp_bar_source fields.
+    ///
+    /// 自定义着色器的动态材质定义。
+    /// 替代旧的 custom_shader + shader_params + hp_bar_source 字段。
+    #[serde(default)]
+    pub material: Option<MaterialDef>,
 }
 
 /// HP bar source definition for configuring where HP values come from.
@@ -547,4 +556,174 @@ pub enum StateTriggerDef {
     // PlayerHPAbove(u32),
     // GameEvent(String),
     // FactCondition { fact: String, value: String },
+}
+
+// ============================================================================
+// Material Configuration (Dynamic Shader System)
+// 材质配置（动态着色器系统）
+// ============================================================================
+
+/// Material definition for dynamic shader-based sprites.
+/// Replaces old custom_shader + shader_params + hp_bar_source fields.
+///
+/// 动态着色器精灵的材质定义。
+/// 替代旧的 custom_shader + shader_params + hp_bar_source 字段。
+///
+/// Example in RON:
+/// ```ron
+/// material: (
+///     shader: "shared/shaders/hp_bar_sprite.wgsl",
+///     params: {
+///         "hp_ratio": Expr("$player_hp / $player_hp_max"),
+///         "lag_ratio": Static(1.0),
+///         "half_width": Expr("40.0 + ($player_hp_max - 20) * 95.0 / 79 / 2"),
+///         "alpha": Static(1.0),
+///     },
+///     animations: (
+///         lag: (
+///             source: "hp_ratio",
+///             target: "lag_ratio",
+///             delay: 0.2,
+///             duration: 0.4,
+///             easing: OutCirc,
+///         ),
+///     ),
+/// )
+/// ```
+#[derive(Debug, Deserialize, Clone)]
+pub struct MaterialDef {
+    /// Shader resource path.
+    /// Can be project-relative (e.g., "shared/shaders/hp_bar.wgsl")
+    /// or mod-relative (e.g., "mod://my_mod/shaders/effect.wgsl").
+    ///
+    /// 着色器资源路径。
+    /// 可以是项目相对路径（如 "shared/shaders/hp_bar.wgsl"）
+    /// 或 mod 相对路径（如 "mod://my_mod/shaders/effect.wgsl"）。
+    pub shader: String,
+
+    /// Shader parameters: name -> expression/static value.
+    /// Maximum 8 parameters (params vec4 + extra_params vec4).
+    ///
+    /// 着色器参数：名称 -> 表达式/静态值。
+    /// 最多 8 个参数（params vec4 + extra_params vec4）。
+    #[serde(default)]
+    pub params: HashMap<String, MaterialParamValue>,
+
+    /// Animation configurations (optional).
+    ///
+    /// 动画配置（可选）。
+    #[serde(default)]
+    pub animations: Option<MaterialAnimationsDef>,
+
+    /// Base texture path (optional).
+    /// If not specified, uses procedural://white_pixel.
+    ///
+    /// 基础纹理路径（可选）。
+    /// 如果未指定，使用 procedural://white_pixel。
+    #[serde(default)]
+    pub texture: Option<String>,
+}
+
+/// Material parameter value - can be static or expression-based.
+///
+/// 材质参数值 - 可以是静态值或基于表达式。
+#[derive(Debug, Deserialize, Clone)]
+pub enum MaterialParamValue {
+    /// Static float value.
+    ///
+    /// 静态浮点值。
+    Static(f32),
+
+    /// Expression string that will be evaluated at runtime.
+    /// Supports $fact_name variables and standard math operations.
+    ///
+    /// 在运行时评估的表达式字符串。
+    /// 支持 $fact_name 变量和标准数学运算。
+    Expr(String),
+}
+
+impl Default for MaterialParamValue {
+    fn default() -> Self {
+        Self::Static(0.0)
+    }
+}
+
+/// Animation configurations for material parameters.
+///
+/// 材质参数的动画配置。
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MaterialAnimationsDef {
+    /// Lag animation configuration.
+    /// Creates a delayed, smoothed version of a source parameter.
+    ///
+    /// 延迟动画配置。
+    /// 创建源参数的延迟、平滑版本。
+    #[serde(default)]
+    pub lag: Option<LagAnimationDef>,
+}
+
+/// Lag animation definition.
+/// Smoothly follows a source parameter with delay.
+///
+/// 延迟动画定义。
+/// 带延迟地平滑跟随源参数。
+#[derive(Debug, Deserialize, Clone)]
+pub struct LagAnimationDef {
+    /// Source parameter name to track.
+    ///
+    /// 要跟踪的源参数名。
+    pub source: String,
+
+    /// Target parameter name to write to.
+    ///
+    /// 要写入的目标参数名。
+    pub target: String,
+
+    /// Delay in seconds before animation starts.
+    /// Default: 0.2
+    ///
+    /// 动画开始前的延迟（秒）。
+    /// 默认：0.2
+    #[serde(default = "default_lag_delay")]
+    pub delay: f32,
+
+    /// Animation duration in seconds.
+    /// Default: 0.4
+    ///
+    /// 动画时长（秒）。
+    /// 默认：0.4
+    #[serde(default = "default_lag_duration")]
+    pub duration: f32,
+
+    /// Easing function.
+    ///
+    /// 缓动函数。
+    #[serde(default)]
+    pub easing: EasingDef,
+}
+
+fn default_lag_delay() -> f32 {
+    0.2
+}
+
+fn default_lag_duration() -> f32 {
+    0.4
+}
+
+/// Easing function definition for animations.
+///
+/// 动画的缓动函数定义。
+#[derive(Debug, Deserialize, Clone, Default, PartialEq, Eq)]
+pub enum EasingDef {
+    #[default]
+    Linear,
+    InQuad,
+    OutQuad,
+    InOutQuad,
+    InCubic,
+    OutCubic,
+    InOutCubic,
+    InCirc,
+    OutCirc,
+    InOutCirc,
 }

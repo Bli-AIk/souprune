@@ -61,8 +61,8 @@ pub use resolve::*;
 // ViewReconciliationPlugin 被 CoreViewPlugin 使用
 #[allow(unused_imports)]
 pub use spawn_helpers::{
-    SpawnContext, ViewElementSpec, build_text_config, spawn_hp_bar_entity, spawn_sprite_entity,
-    spawn_text_entity, spawn_viewbox_entity,
+    ShaderMaterialPendingSetup, SpawnContext, ViewElementSpec, build_text_config,
+    spawn_shader_material_entity, spawn_sprite_entity, spawn_text_entity, spawn_viewbox_entity,
 };
 pub use system::ViewReconciliationPlugin;
 #[allow(unused_imports)]

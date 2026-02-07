@@ -309,20 +309,24 @@ pub fn spawn_text_entity(
     entity_id
 }
 
-/// Spawn an HP bar entity with custom shader material.
+/// Spawn a shader material entity with DynamicMaterial2d.
 /// Returns the spawned entity ID.
 ///
-/// 生成带有自定义着色器材质的 HP 条实体。
+/// 生成带有 DynamicMaterial2d 的着色器材质实体。
 /// 返回生成的实体 ID。
-pub fn spawn_hp_bar_entity(
+pub fn spawn_shader_material_entity(
     commands: &mut Commands,
     parent: Option<Entity>,
     ctx: &SpawnContext,
     spec: &ViewElementSpec,
     sprite_def: &SpriteDef,
+    material_def: &crate::core::view::layout::view_schema::MaterialDef,
     repeat_ctx: Option<&RepeatContext>,
 ) -> Entity {
-    use crate::core::view::ron_view::spawn::determine_hp_source;
+    use crate::core::view::components::ShaderMaterial;
+    use crate::core::view::ron_view::spawn::load_procedural_image_handle;
+
+    let visual_path = sprite_def.visual.path().to_owned();
 
     // Build transform
     let mut transform = spec.transform;
@@ -355,8 +359,29 @@ pub fn spawn_hp_bar_entity(
         transform.translation += shift;
     }
 
-    // Determine HP source type
-    let hp_source = determine_hp_source(&sprite_def.hp_bar_source, repeat_ctx);
+    // Load shader
+    // The shader path should be relative to the project root (e.g., "shared/shaders/hp_bar.wgsl")
+    // because MultiSourceAssetReader already has projects/{mod_name}/ as a root.
+    // 着色器路径应该相对于项目根目录（如 "shared/shaders/hp_bar.wgsl"），
+    // 因为 MultiSourceAssetReader 已经将 projects/{mod_name}/ 设为根目录。
+    let shader_path = if material_def.shader.starts_with("mod://") {
+        // mod:// paths are expanded relative to the project root
+        material_def.shader.replacen("mod://", "", 1)
+    } else {
+        // Direct paths like "shared/shaders/..." are used as-is
+        material_def.shader.clone()
+    };
+    let shader_handle = ctx.asset_server.load(&shader_path);
+
+    // Load texture
+    let texture_handle: Handle<Image> = if visual_path.starts_with("procedural://") {
+        load_procedural_image_handle(&visual_path, ctx.asset_server)
+    } else {
+        ctx.asset_server.load(&visual_path)
+    };
+
+    // Create ShaderMaterial component
+    let shader_material = ShaderMaterial::from_def(shader_handle.clone(), material_def);
 
     // Create view element component
     let view_element = ViewElement::new(
@@ -365,7 +390,9 @@ pub fn spawn_hp_bar_entity(
         spec.tags.clone(),
     );
 
-    // Spawn entity (material will be applied by setup system)
+    // Spawn entity with marker (material will be applied by setup system)
+    // The actual MeshDynamicMaterial2d and Mesh2d will be added by the setup system
+    // because we need to create the DynamicMaterial2d asset first
     let mut entity_commands = commands.spawn((
         transform,
         GlobalTransform::default(),
@@ -375,9 +402,10 @@ pub fn spawn_hp_bar_entity(
         Name::new(spec.local_name.clone()),
         view_element,
         RonDrivenView,
-        HPBarSprite {
-            shader_params_expr: sprite_def.shader_params.clone(),
-            hp_source,
+        shader_material,
+        // Store texture handle for setup system
+        ShaderMaterialPendingSetup {
+            texture: texture_handle,
         },
     ));
 
@@ -396,11 +424,21 @@ pub fn spawn_hp_bar_entity(
     }
 
     info!(
-        "[spawn_helpers] Spawned HP bar '{}' (Entity {:?})",
-        spec.full_name, entity_id
+        "[spawn_helpers] Spawned shader material '{}' with shader '{}' (Entity {:?})",
+        spec.full_name, shader_path, entity_id
     );
 
     entity_id
+}
+
+/// Marker component for shader materials pending setup.
+/// Contains the texture handle to be used when creating DynamicMaterial2d.
+///
+/// 等待设置的着色器材质标记组件。
+/// 包含创建 DynamicMaterial2d 时要使用的纹理句柄。
+#[derive(Component)]
+pub struct ShaderMaterialPendingSetup {
+    pub texture: Handle<Image>,
 }
 
 /// Spawn a ViewBox entity with SDF shape.

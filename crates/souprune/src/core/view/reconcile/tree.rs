@@ -10,6 +10,8 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use std::collections::HashMap;
 
+use crate::core::view::layout::view_schema::EasingDef;
+
 /// Unique identifier for a view element.
 /// Used for matching between current and desired state.
 ///
@@ -134,6 +136,51 @@ pub struct DesiredHpBar {
     pub max_hp: f32,
 }
 
+/// Desired state for shader material component.
+/// 着色器材质组件的期望状态。
+#[derive(Clone, Debug, PartialEq)]
+pub struct DesiredMaterial {
+    /// Shader path
+    /// 着色器路径
+    pub shader: String,
+
+    /// Parameter definitions (name -> expression or static value)
+    /// 参数定义（名称 -> 表达式或静态值）
+    pub params: std::collections::HashMap<String, MaterialParamDef>,
+
+    /// Animation configuration
+    /// 动画配置
+    pub animations: Option<DesiredMaterialAnimations>,
+}
+
+/// Parameter definition for materials.
+/// 材质的参数定义。
+#[derive(Clone, Debug, PartialEq)]
+pub enum MaterialParamDef {
+    Static(f32),
+    Expr(String),
+}
+
+/// Animation configuration for materials.
+/// 材质的动画配置。
+#[derive(Clone, Debug, PartialEq)]
+pub struct DesiredMaterialAnimations {
+    /// Lag animation (source -> target param with easing)
+    /// 延迟动画（源参数 -> 目标参数，带缓动）
+    pub lag: Option<DesiredLagAnimation>,
+}
+
+/// Lag animation configuration.
+/// 延迟动画配置。
+#[derive(Clone, Debug, PartialEq)]
+pub struct DesiredLagAnimation {
+    pub source: String,
+    pub target: String,
+    pub delay: f32,
+    pub duration: f32,
+    pub easing: EasingDef,
+}
+
 /// HP source type for HP bars.
 /// HP 条的 HP 来源类型。
 #[derive(Clone, Debug, PartialEq)]
@@ -179,6 +226,10 @@ pub struct DesiredElement {
     /// 可选的 HP 条定义
     pub hp_bar: Option<DesiredHpBar>,
 
+    /// Optional material definition (for DynamicMaterial2d)
+    /// 可选的材质定义（用于 DynamicMaterial2d）
+    pub material: Option<DesiredMaterial>,
+
     /// Camera anchored flag
     /// 相机锚定标志
     pub camera_anchored: bool,
@@ -209,6 +260,7 @@ impl DesiredElement {
             sprite: None,
             texts: Vec::new(),
             hp_bar: None,
+            material: None,
             camera_anchored: true,
             camera_offset: None,
             children: Vec::new(),
@@ -311,6 +363,19 @@ pub struct CurrentElement {
     /// Current camera_anchored offset (if entity has CameraAnchored component)
     /// 当前 camera_anchored 偏移（如果实体有 CameraAnchored 组件）
     pub camera_offset: Option<Vec3>,
+
+    /// Whether this element has ShaderMaterial component
+    /// 此元素是否有 ShaderMaterial 组件
+    pub has_shader_material: bool,
+}
+
+/// Current material properties from ECS.
+/// 来自 ECS 的当前材质属性。
+#[derive(Clone, Debug, PartialEq)]
+pub struct CurrentMaterial {
+    /// Shader path (from ShaderMaterial component)
+    /// 着色器路径（来自 ShaderMaterial 组件）
+    pub shader_path: String,
 }
 
 /// Current sprite properties from ECS.

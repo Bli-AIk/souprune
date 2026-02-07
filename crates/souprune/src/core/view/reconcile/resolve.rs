@@ -6,8 +6,12 @@
 //!
 //! 将属性绑定解析为具体值的函数。
 
-use super::tree::{DesiredHpBar, DesiredSprite, DesiredText, HpSourceType};
+use super::tree::{
+    DesiredLagAnimation, DesiredMaterial, DesiredMaterialAnimations, DesiredSprite, DesiredText,
+    MaterialParamDef,
+};
 use crate::core::view::layout::serde_types::serializable_color_to_color;
+use crate::core::view::layout::view_schema::MaterialParamValue;
 use crate::core::view::layout::{SpriteDef, TextDef};
 use crate::core::view::ron_view::parsing::{
     PlayerDataView, RepeatContext, evaluate_float_expr, evaluate_float_expr_with_repeat,
@@ -176,36 +180,42 @@ pub fn resolve_single_text(
     }
 }
 
-/// Resolve HP bar source type.
-/// 解析 HP 条来源类型。
-pub fn resolve_hp_bar(
-    sprite_def: Option<&SpriteDef>,
-    repeat_ctx: Option<&RepeatContext>,
-) -> Option<DesiredHpBar> {
+/// Resolve material definition from sprite def.
+/// 从精灵定义解析材质定义。
+pub fn resolve_material(sprite_def: Option<&SpriteDef>) -> Option<DesiredMaterial> {
     let sprite = sprite_def?;
-    let hp_bar_source = sprite.hp_bar_source.as_ref()?;
+    let material_def = sprite.material.as_ref()?;
 
-    use crate::core::view::layout::view_schema::HPBarSourceDef;
+    // Convert params
+    let params = material_def
+        .params
+        .iter()
+        .map(|(k, v)| {
+            let def = match v {
+                MaterialParamValue::Static(val) => MaterialParamDef::Static(*val),
+                MaterialParamValue::Expr(expr) => MaterialParamDef::Expr(expr.clone()),
+            };
+            (k.clone(), def)
+        })
+        .collect();
 
-    let source_type = match hp_bar_source {
-        HPBarSourceDef::Player => HpSourceType::Player,
-        HPBarSourceDef::Enemy => {
-            let index = repeat_ctx.map(|c| c.index).unwrap_or(0);
-            HpSourceType::Enemy { index }
-        }
-        HPBarSourceDef::Custom {
-            hp_expr,
-            hp_max_expr,
-        } => HpSourceType::Custom {
-            hp_expr: hp_expr.clone(),
-            max_expr: hp_max_expr.clone(),
-        },
-    };
+    // Convert animations if present
+    let animations = material_def.animations.as_ref().map(|anim_def| {
+        let lag = anim_def.lag.as_ref().map(|lag_def| DesiredLagAnimation {
+            source: lag_def.source.clone(),
+            target: lag_def.target.clone(),
+            delay: lag_def.delay,
+            duration: lag_def.duration,
+            easing: lag_def.easing.clone(),
+        });
 
-    Some(DesiredHpBar {
-        source_type,
-        current_hp: 0.0, // Will be filled by update system
-        max_hp: 100.0,   // Will be filled by update system
+        DesiredMaterialAnimations { lag }
+    });
+
+    Some(DesiredMaterial {
+        shader: material_def.shader.clone(),
+        params,
+        animations,
     })
 }
 
