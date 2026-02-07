@@ -8,6 +8,25 @@
 //!
 //! 本模块实现基于 `SpecializedMeshPipeline` 的材质系统，
 //! 允许通过 RON 配置在运行时指定着色器。
+//!
+//! # Important: Material Batching Prevention
+//! # 重要：防止材质合批
+//!
+//! Bevy's rendering pipeline batches entities that share the same mesh and
+//! `Material2dBindGroupId` into a single draw call. For entities with different
+//! material parameters (e.g., multiple HP bars with different HP values), this
+//! causes all batched entities to render with the SAME material bind group
+//! (typically the last entity's material).
+//!
+//! Bevy 的渲染管线会将共享相同 mesh 和 `Material2dBindGroupId` 的实体合批到一个 draw call。
+//! 对于具有不同材质参数的实体（如多个血条有不同的 HP 值），这会导致所有合批的实体都使用
+//! 相同的材质绑定组（通常是最后一个实体的材质）。
+//!
+//! **Solution**: In `queue_dynamic_material2d_meshes`, we must set each entity's
+//! `material_bind_group_id` in `RenderMesh2dInstances` to prevent incorrect batching.
+//!
+//! **解决方案**：在 `queue_dynamic_material2d_meshes` 中，必须为每个实体在
+//! `RenderMesh2dInstances` 中设置其 `material_bind_group_id` 以防止错误的合批。
 
 use bevy::asset::{AssetId, Handle};
 use bevy::core_pipeline::core_2d::Transparent2d;
@@ -207,25 +226,13 @@ impl RenderAsset for PreparedDynamicMaterial2d {
         (render_device, pipeline, material_param): &mut SystemParamItem<Self::Param>,
         _previous: Option<&Self>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
-        // Debug: log params being prepared
-        eprintln!(
-            "[prepare_asset] AssetId {:?} preparing with params {:?}",
-            _asset_id, material.params
-        );
-        
         // Use AsBindGroup to create the bind group
         match material.as_bind_group(&pipeline.material_layout, render_device, material_param) {
-            Ok(prepared) => {
-                eprintln!(
-                    "[prepare_asset] AssetId {:?} bind_group created successfully",
-                    _asset_id
-                );
-                Ok(PreparedDynamicMaterial2d {
-                    bind_group: prepared.bind_group,
-                    shader: material.shader.clone(),
-                    depth_bias: 0.0,
-                })
-            }
+            Ok(prepared) => Ok(PreparedDynamicMaterial2d {
+                bind_group: prepared.bind_group,
+                shader: material.shader.clone(),
+                depth_bias: 0.0,
+            }),
             Err(AsBindGroupError::RetryNextUpdate) => {
                 Err(PrepareAssetError::RetryNextUpdate(material))
             }
@@ -357,11 +364,6 @@ pub fn extract_dynamic_material2d_instances(
 
     for (entity, visibility, material) in &query {
         if visibility.get() {
-            eprintln!(
-                "[extract] Entity {:?} visible, material {:?}",
-                entity,
-                material.0.id()
-            );
             material_instances.insert(entity.into(), material.0.id());
         }
     }
@@ -420,18 +422,10 @@ pub fn queue_dynamic_material2d_meshes(
 
         for (visible_entity, material_asset_id) in material_instances.iter() {
             let Some(mesh_instance) = render_mesh_instances.get_mut(visible_entity) else {
-                eprintln!(
-                    "[queue] Entity {:?} skipped: no mesh_instance",
-                    visible_entity
-                );
                 continue;
             };
 
             let Some(prepared_material) = render_materials.get(*material_asset_id) else {
-                eprintln!(
-                    "[queue] Entity {:?} skipped: no prepared_material for {:?}",
-                    visible_entity, material_asset_id
-                );
                 continue;
             };
 
@@ -445,17 +439,8 @@ pub fn queue_dynamic_material2d_meshes(
                 Material2dBindGroupId(Some(prepared_material.bind_group.id()));
 
             let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id) else {
-                eprintln!(
-                    "[queue] Entity {:?} skipped: no mesh",
-                    visible_entity
-                );
                 continue;
             };
-
-            eprintln!(
-                "[queue] Entity {:?} -> Material {:?}, bind_group_id: {:?}",
-                visible_entity, material_asset_id, prepared_material.bind_group.id()
-            );
 
             let mesh_key =
                 view_key | Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology());
@@ -545,14 +530,6 @@ impl<P: bevy::render::render_phase::PhaseItem, const I: usize> RenderCommand<P>
             );
             return RenderCommandResult::Skip;
         };
-
-        // Debug: log which material is being bound with bind_group address
-        eprintln!(
-            "[render] Entity {:?} binding material {:?}, bind_group ptr: {:p}",
-            item.main_entity(),
-            material_asset_id,
-            &material.bind_group
-        );
 
         pass.set_bind_group(I, &material.bind_group, &[]);
         RenderCommandResult::Success

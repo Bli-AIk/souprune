@@ -169,7 +169,9 @@ pub fn setup_shader_materials_system(
         &super::super::reconcile::ShaderMaterialPendingSetup,
     )>,
 ) {
-    use crate::core::view::dynamic_material::{DynamicMaterial2d, MeshDynamicMaterial2d, MaterialAssetIdDebug};
+    use crate::core::view::dynamic_material::{
+        DynamicMaterial2d, MaterialAssetIdDebug, MeshDynamicMaterial2d,
+    };
 
     let Some(textures) = procedural_textures else {
         return;
@@ -208,6 +210,10 @@ pub fn setup_shader_materials_system(
         commands
             .entity(entity)
             .remove::<super::super::reconcile::ShaderMaterialPendingSetup>()
-            .insert((Mesh2d(mesh.clone()), MeshDynamicMaterial2d(material_handle), asset_id_debug));
+            .insert((
+                Mesh2d(mesh.clone()),
+                MeshDynamicMaterial2d(material_handle),
+                asset_id_debug,
+            ));
     }
 }
