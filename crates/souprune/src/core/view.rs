@@ -40,7 +40,6 @@ pub mod reconcile;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
-mod shaders;
 mod state;
 mod text;
 mod visible_when;
