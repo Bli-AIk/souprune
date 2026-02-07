@@ -335,6 +335,11 @@ pub fn extract_dynamic_material2d_instances(
 
     for (entity, visibility, material) in &query {
         if visibility.get() {
+            trace!(
+                "[Extract] Entity {:?} -> Material {:?}",
+                entity,
+                material.0.id()
+            );
             material_instances.insert(entity.into(), material.0.id());
         }
     }
@@ -403,6 +408,12 @@ pub fn queue_dynamic_material2d_meshes(
             let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id) else {
                 continue;
             };
+
+            trace!(
+                "[Queue] Entity {:?} -> Material {:?}",
+                visible_entity,
+                material_asset_id
+            );
 
             let mesh_key =
                 view_key | Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology());
@@ -477,10 +488,19 @@ impl<P: bevy::render::render_phase::PhaseItem, const I: usize> RenderCommand<P>
         let material_instances = material_instances.into_inner();
 
         let Some(material_asset_id) = material_instances.get(&item.main_entity()) else {
+            trace!(
+                "[Render] Entity {:?} not found in material_instances",
+                item.main_entity()
+            );
             return RenderCommandResult::Skip;
         };
 
         let Some(material) = materials.get(*material_asset_id) else {
+            trace!(
+                "[Render] Material {:?} not found for entity {:?}",
+                material_asset_id,
+                item.main_entity()
+            );
             return RenderCommandResult::Skip;
         };
 

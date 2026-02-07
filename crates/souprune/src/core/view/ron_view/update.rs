@@ -382,7 +382,13 @@ pub fn update_shader_materials_system(
                     MaterialParamValue::Expr(expr_str) => {
                         // Convert to Val::Expr for evaluate_float_expr
                         let val_expr: Val<f32> = Val::Expr(expr_str.clone());
-                        evaluate_float_expr(&val_expr, &player_data, Some(time.elapsed_secs_f64()))
+                        let result =
+                            evaluate_float_expr(&val_expr, &player_data, Some(time.elapsed_secs_f64()));
+                        trace!(
+                            "[ShaderMaterial Update] Entity {:?}: '{}' = Expr('{}') -> {}",
+                            entity, name, expr_str, result
+                        );
+                        result
                     }
                 };
                 (name.clone(), value)

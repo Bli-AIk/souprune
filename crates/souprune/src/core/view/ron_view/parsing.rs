@@ -111,8 +111,20 @@ fn preprocess_material_param_for_repeat(
             let val = Val::Expr(expr_str.clone());
             let processed = preprocess_val_for_repeat(&val, repeat_ctx);
             match processed {
-                Val::Static(v) => MaterialParamValue::Static(v),
-                Val::Expr(s) => MaterialParamValue::Expr(s),
+                Val::Static(v) => {
+                    trace!(
+                        "[MaterialParam Preprocess] '{}' -> Static({}), repeat index: {}",
+                        expr_str, v, repeat_ctx.index
+                    );
+                    MaterialParamValue::Static(v)
+                }
+                Val::Expr(s) => {
+                    trace!(
+                        "[MaterialParam Preprocess] '{}' -> Expr('{}'), repeat index: {}",
+                        expr_str, s, repeat_ctx.index
+                    );
+                    MaterialParamValue::Expr(s)
+                }
             }
         }
     }

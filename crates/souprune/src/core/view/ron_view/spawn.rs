@@ -940,8 +940,8 @@ fn spawn_view_node_with_repeat_context(
                 spawned_entity_id = Some(entity_id);
 
                 info!(
-                    "[UI Sprite] Spawned shader material sprite '{}' with shader '{}' (Entity {:?})",
-                    node_def.name, shader_path, entity_id
+                    "[UI Sprite] Spawned shader material sprite '{}' (Entity {:?})",
+                    node_def.name, entity_id
                 );
             } else if visual_path.contains("://") {
                 // Handle special protocol paths (e.g., "procedural://white_pixel")

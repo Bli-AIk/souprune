@@ -206,10 +206,5 @@ pub fn setup_shader_materials_system(
             .entity(entity)
             .remove::<super::super::reconcile::ShaderMaterialPendingSetup>()
             .insert((Mesh2d(mesh.clone()), MeshDynamicMaterial2d(material_handle)));
-
-        info!(
-            "[ShaderMaterial Setup] Set up dynamic material for entity {:?} with shader {:?}",
-            entity, shader_mat.shader
-        );
     }
 }
