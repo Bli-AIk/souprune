@@ -564,6 +564,7 @@ version = "0.1.1"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "chrono",
  "console_error_panic_hook",
  "fontdb 0.23.0",
  "image",
