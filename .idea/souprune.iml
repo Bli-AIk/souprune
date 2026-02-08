@@ -37,6 +37,12 @@
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/logs" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_am_mod/code/mod_example/.cargo" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_am_mod/code/mod_example/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/dev" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/doc/public/wasm" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/wasm/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/mortar/target" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/.cargo" />
+      <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
