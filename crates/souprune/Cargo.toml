@@ -45,7 +45,7 @@ bevy = { version = "0.17.2", default-features = false, features = [
 bevy_shader = "0.17.2"
 leafwing-input-manager = "0.19.0"
 seldom_state = "0.15.0"
-bevy_ecs_tiled = "0.10"
+bevy_ecs_tiled = "0.11"
 bevy_tween = "0.10.0"
 bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter", version = "0.1" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event", version = "0.2" }
