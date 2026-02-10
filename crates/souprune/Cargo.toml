@@ -42,6 +42,7 @@ bevy = { version = "0.17.2", default-features = false, features = [
     "x11",
     "wayland",
 ] }
+bevy_shader = "0.17.2"
 leafwing-input-manager = "0.19.0"
 seldom_state = "0.15.0"
 bevy_ecs_tiled = "0.10"
@@ -49,7 +50,7 @@ bevy_tween = "0.10.0"
 bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter", version = "0.1" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event", version = "0.2" }
 bevy_mortar_bond = { path = "../bevy_mortar_bond", version = "0.2" }
-bevy_alight_motion = { path = "../bevy_alight_motion", version = "0.1" }
+bevy_alight_motion = { path = "../bevy_alight_motion", version = "0.2" }
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

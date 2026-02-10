@@ -155,6 +155,19 @@ fn reconcile_properties(
             });
         }
     }
+
+    // Material comparison
+    // Note: Material updates are primarily handled by the parameter evaluation system.
+    // This comparison is for detecting shader changes or animation config changes.
+    if let Some(desired_material) = &desired.material {
+        let needs_update = !current.has_shader_material;
+        if needs_update {
+            deltas.push(ViewDelta::UpdateMaterial {
+                entity: current.entity,
+                new_value: desired_material.clone(),
+            });
+        }
+    }
 }
 
 /// Check if two colors are approximately equal.
@@ -233,6 +246,7 @@ pub fn build_current_tree(
             sprite: None,
             visible_when_expr: None,
             camera_offset: None,
+            has_shader_material: false,
         });
     }
 
@@ -305,6 +319,7 @@ mod tests {
             sprite: None,
             visible_when_expr: None,
             camera_offset: None,
+            has_shader_material: false,
         });
 
         let desired = DesiredViewTree::new(); // Empty - no elements desired

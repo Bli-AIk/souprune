@@ -864,11 +864,23 @@ fn spawn_view_node_with_repeat_context(
             let config = load_config();
             let visual_path = sprite_def.visual.path().to_owned();
 
-            // Check if using custom shader (HP bar)
-            let use_custom_material = sprite_def.custom_shader.is_some();
+            // Check if using new material system (DynamicMaterial2d)
+            // 检查是否使用新的材质系统 (DynamicMaterial2d)
+            if sprite_def.material.is_some() {
+                // Use DynamicMaterial2d with ShaderMaterial (new system)
+                // 使用带有 ShaderMaterial 的 DynamicMaterial2d（新系统）
+                use crate::core::view::components::ShaderMaterial;
+                use crate::core::view::reconcile::ShaderMaterialPendingSetup;
 
-            if use_custom_material {
-                // Use Material2d with custom shader (HP bar)
+                // Preprocess sprite_def for repeat context to replace @i in material params
+                // 预处理 sprite_def 以替换材质参数中的 @i
+                let processed_sprite_def = if let Some(ctx) = repeat_ctx {
+                    preprocess_sprite_def_for_repeat(sprite_def, ctx)
+                } else {
+                    sprite_def.clone()
+                };
+                let material_def = processed_sprite_def.material.as_ref().unwrap();
+
                 let mut final_transform = Transform::from_translation(transform.translation)
                     .with_scale(transform.scale)
                     .with_rotation(transform.rotation);
@@ -881,9 +893,31 @@ fn spawn_view_node_with_repeat_context(
                     final_transform.translation += shift;
                 }
 
-                // Determine HP source type based on configuration and repeat context
-                // 根据配置和 repeat 上下文确定 HP 来源类型
-                let hp_source = determine_hp_source(&sprite_def.hp_bar_source, repeat_ctx);
+                // Load shader
+                // The shader path should be relative to the project root (e.g., "shared/shaders/hp_bar.wgsl")
+                // because MultiSourceAssetReader already has projects/{mod_name}/ as a root.
+                // 着色器路径应该相对于项目根目录（如 "shared/shaders/hp_bar.wgsl"），
+                // 因为 MultiSourceAssetReader 已经将 projects/{mod_name}/ 设为根目录。
+                let shader_path = if material_def.shader.starts_with("mod://") {
+                    // mod:// paths are expanded relative to the project root
+                    material_def.shader.replacen("mod://", "", 1)
+                } else {
+                    // Direct paths like "shared/shaders/..." are used as-is
+                    material_def.shader.clone()
+                };
+                let shader_handle = asset_server.load(&shader_path);
+
+                // Load texture
+                // For procedural:// paths, use default handle - setup system will replace with real texture
+                // 对于 procedural:// 路径，使用默认句柄 - 设置系统将替换为真实纹理
+                let texture_handle: Handle<Image> = if visual_path.starts_with("procedural://") {
+                    Handle::default()
+                } else {
+                    asset_server.load(&visual_path)
+                };
+
+                // Create ShaderMaterial component
+                let shader_material = ShaderMaterial::from_def(shader_handle.clone(), material_def);
 
                 let mut entity_cmd = parent.spawn((
                     final_transform,
@@ -893,9 +927,9 @@ fn spawn_view_node_with_repeat_context(
                     ViewVisibility::default(),
                     Name::new(node_def.name.clone()),
                     RonDrivenView,
-                    HPBarSprite {
-                        shader_params_expr: sprite_def.shader_params.clone(),
-                        hp_source,
+                    shader_material,
+                    ShaderMaterialPendingSetup {
+                        texture: texture_handle,
                     },
                 ));
                 if let Some(ref ve) = view_element {
@@ -906,7 +940,7 @@ fn spawn_view_node_with_repeat_context(
                 spawned_entity_id = Some(entity_id);
 
                 info!(
-                    "[UI Sprite] Spawned HP bar sprite '{}' (Entity {:?}) - will apply material in setup system",
+                    "[UI Sprite] Spawned shader material sprite '{}' (Entity {:?})",
                     node_def.name, entity_id
                 );
             } else if visual_path.contains("://") {
@@ -917,17 +951,27 @@ fn spawn_view_node_with_repeat_context(
                     asset_server.load(&visual_path)
                 };
                 spawn_standalone_static_sprite(
-                    parent, sprite_def, &view_element, texture_handle, transform,
-                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                    parent,
+                    sprite_def,
+                    &view_element,
+                    texture_handle,
+                    transform,
+                    &node_def.name,
+                    &mut spawned_entity_id,
+                    &visual_path,
                 );
-            } else if let Some(resolved) = resolve_visual_path(&visual_path, &config.project.mod_name) {
+            } else if let Some(resolved) =
+                resolve_visual_path(&visual_path, &config.project.mod_name)
+            {
                 let asset_path = get_asset_path(&resolved, &config.project.mod_name);
 
                 match resolved {
                     ResolvedVisual::CharacterAnimation(_) => {
                         // Character animation (.character.ron)
                         let config_handle = asset_server
-                            .load::<crate::core::character_asset::AnimationConfigAsset>(&asset_path);
+                            .load::<crate::core::character_asset::AnimationConfigAsset>(
+                            &asset_path,
+                        );
 
                         let mut entity_cmd = parent.spawn((
                             crate::core::character_asset::CharacterAnimator {
@@ -952,8 +996,14 @@ fn spawn_view_node_with_repeat_context(
                     ResolvedVisual::Sprite(_) | ResolvedVisual::FrameAnimation(_) => {
                         let texture_handle = asset_server.load(&asset_path);
                         spawn_standalone_static_sprite(
-                            parent, sprite_def, &view_element, texture_handle, transform,
-                            &node_def.name, &mut spawned_entity_id, &asset_path,
+                            parent,
+                            sprite_def,
+                            &view_element,
+                            texture_handle,
+                            transform,
+                            &node_def.name,
+                            &mut spawned_entity_id,
+                            &asset_path,
                         );
                     }
                 }
@@ -961,8 +1011,14 @@ fn spawn_view_node_with_repeat_context(
                 // Fallback: try direct load
                 let texture_handle = asset_server.load(&visual_path);
                 spawn_standalone_static_sprite(
-                    parent, sprite_def, &view_element, texture_handle, transform,
-                    &node_def.name, &mut spawned_entity_id, &visual_path,
+                    parent,
+                    sprite_def,
+                    &view_element,
+                    texture_handle,
+                    transform,
+                    &node_def.name,
+                    &mut spawned_entity_id,
+                    &visual_path,
                 );
             }
             return;
@@ -1087,7 +1143,8 @@ fn spawn_view_node_with_repeat_context(
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
                     "[UI Box] Adding child sprite to ViewBox '{}': {:?}",
-                    node_def.name, sprite_def.visual.path()
+                    node_def.name,
+                    sprite_def.visual.path()
                 );
                 spawn_ui_sprite(
                     &mut box_entity,
@@ -1655,37 +1712,17 @@ pub fn load_fre_into_view_root(
     }
 }
 
-/// Determine HP source type from configuration and repeat context.
-/// 根据配置和 repeat 上下文确定 HP 来源类型。
-pub fn determine_hp_source(
-    hp_bar_source: &Option<HPBarSourceDef>,
-    repeat_ctx: Option<&super::parsing::RepeatContext>,
-) -> HPSourceType {
-    match hp_bar_source {
-        Some(HPBarSourceDef::Player) => HPSourceType::Player,
-        Some(HPBarSourceDef::Enemy) => {
-            // Get index from repeat context if available
-            // 如果有 repeat 上下文则从中获取索引
-            let index = repeat_ctx.map(|ctx| ctx.index).unwrap_or(0);
-            HPSourceType::Enemy { index }
-        }
-        Some(HPBarSourceDef::Custom {
-            hp_expr,
-            hp_max_expr,
-        }) => HPSourceType::Custom {
-            hp_expr: hp_expr.clone(),
-            hp_max_expr: hp_max_expr.clone(),
-        },
-        None => {
-            // Default: if we have repeat context, assume it's an enemy HP bar
-            // Otherwise, assume player HP bar
-            // 默认：如果有 repeat 上下文，假设是敌人 HP 条
-            // 否则假设是玩家 HP 条
-            if let Some(ctx) = repeat_ctx {
-                HPSourceType::Enemy { index: ctx.index }
-            } else {
-                HPSourceType::Player
-            }
-        }
-    }
+/// Load a procedural image handle for special protocols.
+/// Returns a Handle<Image> for the requested procedural resource.
+///
+/// 加载程序化图像句柄用于特殊协议。
+/// 返回请求的程序化资源的 Handle<Image>。
+pub fn load_procedural_image_handle(
+    visual_path: &str,
+    asset_server: &AssetServer,
+) -> Handle<Image> {
+    // Currently we just pass it to asset_server which has custom handlers
+    // for procedural:// protocol
+    // We need to convert to owned string to avoid lifetime issues
+    asset_server.load(visual_path.to_string())
 }

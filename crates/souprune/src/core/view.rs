@@ -31,6 +31,7 @@ pub struct ViewUpdate;
 mod camera;
 pub(crate) mod components;
 mod custom_sprite_material;
+pub mod dynamic_material;
 pub(crate) mod expr_eval;
 pub(crate) mod layout;
 mod lifecycle;
@@ -39,7 +40,6 @@ pub mod reconcile;
 pub(crate) mod ron_view;
 pub mod sdf_shape;
 mod sdf_view_shape;
-mod shaders;
 mod state;
 mod text;
 mod visible_when;
@@ -98,13 +98,17 @@ impl Plugin for CoreViewPlugin {
             .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
-            .add_plugins(Material2dPlugin::<
-                custom_sprite_material::CustomSpriteMaterial,
-            >::default())
-            .add_plugins(Material2dPlugin::<custom_sprite_material::EnemyHpBarMaterial>::default())
+            // Register ShaderMaterial for inspector
+            // 为检查器注册 ShaderMaterial
+            .register_type::<components::ShaderMaterial>()
+            // Keep PixelOutlineMaterial for chase state highlight (still used)
+            // 保留 PixelOutlineMaterial 用于追逐状态高亮（仍在使用）
             .add_plugins(Material2dPlugin::<
                 custom_sprite_material::PixelOutlineMaterial,
             >::default())
+            // Add DynamicMaterial2d plugin for runtime shader selection
+            // 添加 DynamicMaterial2d 插件用于运行时着色器选择
+            .add_plugins(dynamic_material::DynamicMaterial2dPlugin)
             // Add reconciliation plugin for declarative view updates
             // 添加协调插件用于声明式视图更新
             .add_plugins(ViewReconciliationPlugin)
@@ -126,10 +130,9 @@ impl Plugin for CoreViewPlugin {
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 Update,
-                (
-                    ron_view::update_hp_bar_shader_params,
-                    ron_view::update_enemy_hp_bar_shader_params,
-                )
+                // New shader material update system (replaces old HP bar systems)
+                // 新的着色器材质更新系统（取代旧的 HP 条系统）
+                ron_view::update_shader_materials_system
                     .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
             )
             // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)
@@ -176,7 +179,7 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 Update,
                 (
-                    ron_view::setup_hp_bar_sprites
+                    ron_view::setup_shader_materials_system
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_sdf_view_shape_system,
                     assign_text_material_system,

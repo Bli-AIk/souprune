@@ -2,7 +2,7 @@ use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
 use bevy::prelude::*;
 
-use super::super::components::{HPBarLag, HPBarSprite, ViewAnimationState};
+use super::super::components::ViewAnimationState;
 use super::super::layout::ViewLayoutAsset;
 use super::parsing::parse_overworld_state;
 use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
@@ -153,146 +153,67 @@ pub fn ui_animation_init_system(
     }
 }
 
-#[allow(clippy::type_complexity)]
-pub fn setup_hp_bar_sprites(
+/// Setup system for ShaderMaterial entities.
+/// Creates DynamicMaterial2d assets and attaches Mesh2d and MeshDynamicMaterial2d components.
+///
+/// ShaderMaterial 实体的设置系统。
+/// 创建 DynamicMaterial2d 资产并附加 Mesh2d 和 MeshDynamicMaterial2d 组件。
+pub fn setup_shader_materials_system(
     mut commands: Commands,
     procedural_textures: Option<Res<super::super::procedural_textures::ProceduralTextures>>,
-    layered_db: Option<Res<bevy_fact_rule_event::LayeredFactDatabase>>,
-    mut player_materials: ResMut<
-        Assets<super::super::custom_sprite_material::CustomSpriteMaterial>,
-    >,
-    mut enemy_materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
+    mut dynamic_materials: ResMut<Assets<crate::core::view::dynamic_material::DynamicMaterial2d>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    // Add Without<Mesh2d> to prevent running every frame
-    query: Query<(Entity, &HPBarSprite, &Transform), (Without<Sprite>, Without<Mesh2d>)>,
+    query: Query<(
+        Entity,
+        &super::super::components::ShaderMaterial,
+        &super::super::reconcile::ShaderMaterialPendingSetup,
+    )>,
 ) {
-    use super::super::components::HPSourceType;
-    use super::parsing::{PlayerDataView, evaluate_dynamic_color};
+    use crate::core::view::dynamic_material::{
+        DynamicMaterial2d, MaterialAssetIdDebug, MeshDynamicMaterial2d,
+    };
 
     let Some(textures) = procedural_textures else {
         return;
     };
 
+    if query.is_empty() {
+        return;
+    }
+
     // Create quad mesh (unit square, will be scaled by Transform)
     let mesh = meshes.add(Rectangle::new(1.0, 1.0));
 
-    // Create a default database for fallback (kept alive for the entire function)
-    let default_db = bevy_fact_rule_event::LayeredFactDatabase::default();
-    let db_ref: &bevy_fact_rule_event::LayeredFactDatabase = layered_db
-        .as_ref()
-        .map(|r| r.as_ref())
-        .unwrap_or(&default_db);
-
-    let player_data = PlayerDataView::new(db_ref);
-
-    for (entity, hp_bar, _transform) in query.iter() {
-        // Get actual HP ratio based on HP source type
-        // 根据 HP 来源类型获取实际 HP 比率
-        let (actual_hp, actual_hp_max) = match &hp_bar.hp_source {
-            HPSourceType::Player => {
-                let hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
-                let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
-                (hp, hp_max)
-            }
-            HPSourceType::Enemy { index } => {
-                let hp = player_data
-                    .get_fact_int_list("enemy_hps")
-                    .and_then(|list| list.get(*index).copied())
-                    .unwrap_or(100) as f32;
-                let hp_max = player_data
-                    .get_fact_int_list("enemy_hp_maxs")
-                    .and_then(|list| list.get(*index).copied())
-                    .unwrap_or(100) as f32;
-                (hp, hp_max)
-            }
-            HPSourceType::Custom {
-                hp_expr,
-                hp_max_expr,
-            } => {
-                // Evaluate custom expressions
-                // 计算自定义表达式
-                let hp = super::parsing::evaluate_fact_expression(hp_expr, &player_data)
-                    .unwrap_or(100.0);
-                let hp_max = super::parsing::evaluate_fact_expression(hp_max_expr, &player_data)
-                    .unwrap_or(100.0);
-                (hp, hp_max)
-            }
+    for (entity, shader_mat, pending) in query.iter() {
+        // If texture handle is default (placeholder for procedural), use white_pixel
+        // 如果纹理句柄是默认的（procedural 的占位符），使用 white_pixel
+        let texture = if pending.texture == Handle::default() {
+            textures.white_pixel.clone()
+        } else {
+            pending.texture.clone()
         };
 
-        let actual_hp_ratio = if actual_hp_max > 0.0 {
-            actual_hp / actual_hp_max
-        } else {
-            1.0
+        // Create the DynamicMaterial2d asset
+        let material = DynamicMaterial2d {
+            shader: shader_mat.shader.clone(),
+            params: shader_mat.pack_params(),
+            extra_params: shader_mat.pack_extra_params(),
+            texture: Some(texture),
         };
 
-        // Evaluate shader_params from config expressions - config is required
-        let (_hp_ratio, _lag_ratio, half_width, alpha) =
-            if let Some(ref params) = hp_bar.shader_params_expr {
-                evaluate_dynamic_color(params, &player_data, None)
-            } else {
-                // No config provided - log warning and use minimal fallback
-                warn!(
-                    "[HP Bar Setup] Entity {:?} missing shader_params config. \
-                    Please add shader_params expression in view_layout.ron",
-                    entity
-                );
-                // Use simple fallback values, NOT game-specific formulas
-                (1.0, 1.0, 40.0, 1.0)
-            };
+        let material_handle = dynamic_materials.add(material);
+        let asset_id_debug = MaterialAssetIdDebug {
+            asset_id: format!("{:?}", material_handle.id()),
+        };
 
-        // Use actual HP ratio for material initialization, not config values
-        // 使用实际 HP 比率进行材质初始化，而不是配置值
-        // Choose material type based on HP source
-        // 根据 HP 来源选择材质类型
-        let is_enemy = matches!(hp_bar.hp_source, HPSourceType::Enemy { .. });
-
-        if is_enemy {
-            // Use green enemy HP bar material
-            // 使用绿色敌人 HP 条材质
-            let material =
-                enemy_materials.add(super::super::custom_sprite_material::EnemyHpBarMaterial {
-                    color_params: LinearRgba::new(
-                        actual_hp_ratio,
-                        actual_hp_ratio,
-                        half_width,
-                        alpha,
-                    ),
-                    texture: textures.white_pixel.clone(),
-                });
-            commands.entity(entity).insert((
+        // Remove pending marker and add mesh/material components
+        commands
+            .entity(entity)
+            .remove::<super::super::reconcile::ShaderMaterialPendingSetup>()
+            .insert((
                 Mesh2d(mesh.clone()),
-                MeshMaterial2d(material),
-                HPBarLag::new(actual_hp_ratio),
+                MeshDynamicMaterial2d(material_handle),
+                asset_id_debug,
             ));
-        } else {
-            // Use yellow player HP bar material
-            // 使用黄色玩家 HP 条材质
-            let material =
-                player_materials.add(super::super::custom_sprite_material::CustomSpriteMaterial {
-                    color_params: LinearRgba::new(
-                        actual_hp_ratio,
-                        actual_hp_ratio,
-                        half_width,
-                        alpha,
-                    ),
-                    texture: textures.white_pixel.clone(),
-                });
-            commands.entity(entity).insert((
-                Mesh2d(mesh.clone()),
-                MeshMaterial2d(material),
-                HPBarLag::new(actual_hp_ratio),
-            ));
-        }
-
-        info!(
-            "[HP Bar Setup] Spawned HP bar for entity {:?} (source: {:?}, is_enemy: {}). Actual HP ratio: {:.2} ({}/{}), half_width: {:.2}",
-            entity,
-            hp_bar.hp_source,
-            is_enemy,
-            actual_hp_ratio,
-            actual_hp,
-            actual_hp_max,
-            half_width
-        );
     }
 }

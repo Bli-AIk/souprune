@@ -1,4 +1,5 @@
 use super::super::layout::FloatOrExpr;
+use super::super::layout::view_schema::MaterialParamValue;
 use crate::app_state::battle::chapter_schema::Val;
 use crate::app_state::overworld::OverworldSubState;
 use crate::core::view::expr_eval::{create_eval_callback, preprocess_varname};
@@ -78,7 +79,55 @@ pub fn preprocess_sprite_def_for_repeat(
         }
     }
 
+    // Preprocess material parameter expressions
+    if let Some(ref mut material) = result.material {
+        let mut new_params = HashMap::new();
+        for (name, value) in &material.params {
+            let new_value = preprocess_material_param_for_repeat(value, repeat_ctx);
+            new_params.insert(name.clone(), new_value);
+        }
+        material.params = new_params;
+    }
+
     result
+}
+
+/// Preprocess a MaterialParamValue to resolve repeat context variables.
+///
+/// 预处理 MaterialParamValue 以解析 repeat 上下文变量。
+fn preprocess_material_param_for_repeat(
+    value: &MaterialParamValue,
+    repeat_ctx: &RepeatContext,
+) -> MaterialParamValue {
+    match value {
+        MaterialParamValue::Static(v) => MaterialParamValue::Static(*v),
+        MaterialParamValue::Expr(expr_str) => {
+            // Check if expression contains repeat variables
+            if !expr_str.contains('@') && !expr_str.contains("[@") {
+                return MaterialParamValue::Expr(expr_str.clone());
+            }
+
+            // Reuse the same preprocessing logic as Val<f32>
+            let val = Val::Expr(expr_str.clone());
+            let processed = preprocess_val_for_repeat(&val, repeat_ctx);
+            match processed {
+                Val::Static(v) => {
+                    trace!(
+                        "[MaterialParam Preprocess] '{}' -> Static({}), repeat index: {}",
+                        expr_str, v, repeat_ctx.index
+                    );
+                    MaterialParamValue::Static(v)
+                }
+                Val::Expr(s) => {
+                    trace!(
+                        "[MaterialParam Preprocess] '{}' -> Expr('{}'), repeat index: {}",
+                        expr_str, s, repeat_ctx.index
+                    );
+                    MaterialParamValue::Expr(s)
+                }
+            }
+        }
+    }
 }
 
 /// Preprocess a single Val<f32> to resolve repeat context variables.
