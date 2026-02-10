@@ -12,7 +12,7 @@
 
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
-**SoupRune** is a refreshingly modern framework for the next generation of fangames,
+**SoupRune** is a distinctive modern framework for the next generation of fangames,
 designed specifically for creating RPG / STG games similar to
 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
@@ -22,7 +22,7 @@ designed specifically for creating RPG / STG games similar to
 
 ## 🥣 What is this?
 
-**SoupRune** is a refreshingly modern framework for the next generation of fangames, built on the `bevy` engine and born
+**SoupRune** is a distinctive modern framework for the next generation of fangames, built on the `bevy` engine and born
 for creating RPG and Danmaku (STG)
 games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 

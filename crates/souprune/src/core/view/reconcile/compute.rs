@@ -7,7 +7,7 @@
 //! 从资产和事实计算期望视图状态的纯函数。
 
 use super::resolve::{
-    process_visible_when_for_repeat, resolve_hp_bar, resolve_sprite, resolve_texts,
+    process_visible_when_for_repeat, resolve_material, resolve_sprite, resolve_texts,
     resolve_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
@@ -135,7 +135,7 @@ fn compute_element(
 
     let texts = resolve_texts(&ctx.player_data, &node_def.texts, repeat_ctx);
 
-    let hp_bar = resolve_hp_bar(node_def.sprite.as_ref(), repeat_ctx);
+    let material = resolve_material(node_def.sprite.as_ref());
 
     // Process visible_when expression for storage
     let visible_when_expr =
@@ -154,7 +154,7 @@ fn compute_element(
     element.visibility = visibility;
     element.sprite = sprite;
     element.texts = texts;
-    element.hp_bar = hp_bar;
+    element.material = material;
     element.camera_anchored = node_def.camera_anchored;
     element.camera_offset = camera_offset;
     element.children = children;
@@ -226,7 +226,7 @@ fn expand_repeat(
 
         let texts = resolve_texts(&ctx.player_data, &node_def.texts, Some(&repeat_ctx));
 
-        let hp_bar = resolve_hp_bar(node_def.sprite.as_ref(), Some(&repeat_ctx));
+        let material = resolve_material(node_def.sprite.as_ref());
 
         let visible_when_expr =
             process_visible_when_for_repeat(node_def.visible_when.as_deref(), Some(&repeat_ctx));
@@ -244,7 +244,7 @@ fn expand_repeat(
         element.visibility = visibility;
         element.sprite = sprite;
         element.texts = texts;
-        element.hp_bar = hp_bar;
+        element.material = material;
         element.camera_anchored = node_def.camera_anchored;
         element.camera_offset = camera_offset;
         element.children = children;

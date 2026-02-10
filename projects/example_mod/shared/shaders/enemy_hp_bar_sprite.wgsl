@@ -4,11 +4,11 @@
 // This shader displays enemy HP with a green color scheme (no lag effect).
 // 此着色器使用绿色配色方案显示敌人 HP（无延迟效果）。
 //
-// Uniform data passed via color_params:
-// - r: Current HP percentage (0.0-1.0)
-// - g: (unused, can be used for effects)
-// - b: (unused)
-// - a: Alpha
+// Uniform data passed via color_params (alphabetical order):
+// - r: alpha (params sorted alphabetically: alpha, half_width, hp_ratio, lag_ratio)
+// - g: half_width (unused)
+// - b: hp_ratio - Current HP percentage (0.0-1.0)
+// - a: lag_ratio (unused for enemy HP)
 
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 
@@ -23,7 +23,13 @@ var base_sampler: sampler;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let hp_ratio = color_params.r;
+    // Parameters are sorted alphabetically: alpha, half_width, hp_ratio, lag_ratio
+    let alpha = color_params.r;
+    let hp_ratio = color_params.b;
+    
+    // DEBUG: Visualize hp_ratio directly as color intensity
+    // If all bars show the same color, they're getting the same hp_ratio value
+    // hp_ratio=1.0 -> bright green, hp_ratio=0.5 -> medium green
     
     // UV.x goes from 0 (left) to 1 (right)
     let t = in.uv.x;
@@ -40,5 +46,5 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         final_color = col_bg;
     }
     
-    return vec4<f32>(final_color, color_params.a);
+    return vec4<f32>(final_color, alpha);
 }

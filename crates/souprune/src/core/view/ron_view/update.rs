@@ -1,259 +1,11 @@
 use super::super::components::ViewRoot;
-use super::super::components::{
-    DynamicViewElement, HPBarLag, HPBarSprite, HPSourceType, TimeDependentTransform,
-    ViewTextTemplate,
-};
+use super::super::components::{DynamicViewElement, TimeDependentTransform, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_rich_text3d::Text3d;
-
-pub fn update_hp_bar_shader_params(
-    time: Res<Time>,
-    layered_db: Res<LayeredFactDatabase>,
-    mut materials: ResMut<Assets<super::super::custom_sprite_material::CustomSpriteMaterial>>,
-    mut query: Query<(
-        &MeshMaterial2d<super::super::custom_sprite_material::CustomSpriteMaterial>,
-        &mut HPBarLag,
-        &HPBarSprite,
-    )>,
-) {
-    // Early exit: skip if no HP bars exist
-    // 提前退出：如果没有 HP 条则跳过
-    if query.is_empty() {
-        return;
-    }
-
-    // Check if any HP bar needs animation update (lag animation in progress)
-    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
-    let needs_animation_update = query.iter().any(|(_, lag, _)| lag.anim_progress < 0.5);
-
-    // Only proceed if database changed OR animation is in progress
-    // 仅在数据库变化或动画进行中时继续
-    if !layered_db.is_changed() && !needs_animation_update {
-        return;
-    }
-
-    let player_data = PlayerDataView::new(&layered_db);
-
-    for (material_handle, mut lag, hp_bar) in query.iter_mut() {
-        // Get HP values based on source type
-        // 根据来源类型获取 HP 值
-        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
-        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
-
-        // Detect significant HP drop (Damage taken)
-        // 检测明显的 HP 下降（受到伤害）
-        if hp_ratio < lag.last_hp_ratio - 0.001 {
-            // Start the sequence immediately
-            lag.delay_timer = 0.0;
-            lag.start_lag_ratio = lag.lag_hp_ratio;
-            lag.anim_progress = 0.0;
-            trace!(
-                "[HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
-                hp_ratio, lag.last_hp_ratio
-            );
-        }
-
-        lag.last_hp_ratio = hp_ratio;
-
-        if hp_ratio > lag.lag_hp_ratio {
-            // HEALED: Instant sync
-            lag.lag_hp_ratio = hp_ratio;
-            lag.anim_progress = 0.5;
-            lag.delay_timer = 0.0;
-        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
-            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
-
-            // OutCirc easing formula
-            // t: 0.0 -> 1.0
-            let t = lag.anim_progress / 0.5;
-            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
-
-            // Interpolate between start and current actual HP
-            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
-        }
-        // Final safety sync
-        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
-            lag.lag_hp_ratio = hp_ratio;
-        }
-
-        // Evaluate half_width from config expression - config is required
-        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
-            // Get the third component (half_width) from the expression tuple
-            evaluate_float_expr(&params.2, &player_data, None)
-        } else {
-            // No config provided - use simple fallback, NOT game-specific formula
-            40.0
-        };
-
-        // Evaluate alpha from config if available
-        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
-            evaluate_float_expr(&params.3, &player_data, None)
-        } else {
-            1.0
-        };
-
-        let target_params = LinearRgba::new(hp_ratio, lag.lag_hp_ratio, half_width, alpha);
-
-        if let Some(material) = materials.get_mut(material_handle) {
-            material.color_params = target_params;
-        }
-    }
-}
-
-/// Update enemy HP bar shader parameters (green material).
-/// Similar to update_hp_bar_shader_params but for EnemyHpBarMaterial.
-///
-/// 更新敌人 HP 条着色器参数（绿色材质）。
-/// 类似于 update_hp_bar_shader_params，但用于 EnemyHpBarMaterial。
-pub fn update_enemy_hp_bar_shader_params(
-    time: Res<Time>,
-    layered_db: Res<LayeredFactDatabase>,
-    mut materials: ResMut<Assets<super::super::custom_sprite_material::EnemyHpBarMaterial>>,
-    mut query: Query<(
-        Entity,
-        &MeshMaterial2d<super::super::custom_sprite_material::EnemyHpBarMaterial>,
-        &mut HPBarLag,
-        &HPBarSprite,
-    )>,
-    parent_query: Query<&ChildOf>,
-    view_root_query: Query<(Entity, &ViewRoot)>,
-    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
-) {
-    // Early exit: skip if no enemy HP bars exist
-    // 提前退出：如果没有敌人 HP 条则跳过
-    if query.is_empty() {
-        return;
-    }
-
-    // Check if any HP bar needs animation update (lag animation in progress)
-    // 检查是否有 HP 条需要动画更新（lag 动画进行中）
-    let needs_animation_update = query.iter().any(|(_, _, lag, _)| lag.anim_progress < 0.5);
-
-    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
-    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
-    let global_changed = layered_db.is_changed();
-    let any_view_root_changed = !changed_view_roots.is_empty();
-
-    // Only proceed if database changed OR animation is in progress
-    // 仅在数据库变化或动画进行中时继续
-    if !global_changed && !any_view_root_changed && !needs_animation_update {
-        return;
-    }
-
-    for (entity, material_handle, mut lag, hp_bar) in query.iter_mut() {
-        // Find ViewRoot ancestor to access local facts (where enemy_hps is stored)
-        // 查找 ViewRoot 祖先以访问局部事实（enemy_hps 存储位置）
-        let view_root_result =
-            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
-        let player_data = if let Some((_, view_root)) = view_root_result {
-            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
-        } else {
-            PlayerDataView::new(&layered_db)
-        };
-
-        // Get HP values based on source type
-        // 根据来源类型获取 HP 值
-        let (hp, hp_max) = get_hp_values_from_source(&hp_bar.hp_source, &player_data);
-        let hp_ratio = if hp_max > 0.0 { hp / hp_max } else { 1.0 };
-
-        // Detect significant HP drop (Damage taken)
-        // 检测明显的 HP 下降（受到伤害）
-        if hp_ratio < lag.last_hp_ratio - 0.001 {
-            // Start the sequence immediately
-            lag.delay_timer = 0.0;
-            lag.start_lag_ratio = lag.lag_hp_ratio;
-            lag.anim_progress = 0.0;
-            trace!(
-                "[Enemy HP Bar] Damage detected! Starting OutCirc animation. hp_ratio: {:.3}, last: {:.3}",
-                hp_ratio, lag.last_hp_ratio
-            );
-        }
-
-        lag.last_hp_ratio = hp_ratio;
-
-        if hp_ratio > lag.lag_hp_ratio {
-            // HEALED: Instant sync
-            lag.lag_hp_ratio = hp_ratio;
-            lag.anim_progress = 0.5;
-            lag.delay_timer = 0.0;
-        } else if hp_ratio < lag.lag_hp_ratio && lag.anim_progress < 0.5 {
-            lag.anim_progress = (lag.anim_progress + time.delta_secs()).min(0.5);
-
-            // OutCirc easing formula
-            // t: 0.0 -> 1.0
-            let t = lag.anim_progress / 0.5;
-            let eased_t = (1.0 - (t - 1.0).powi(2)).sqrt();
-
-            // Interpolate between start and current actual HP
-            lag.lag_hp_ratio = lag.start_lag_ratio + (hp_ratio - lag.start_lag_ratio) * eased_t;
-        }
-        // Final safety sync
-        if (lag.lag_hp_ratio - hp_ratio).abs() < 0.001 {
-            lag.lag_hp_ratio = hp_ratio;
-        }
-
-        // Evaluate half_width from config expression - config is required
-        let half_width = if let Some(ref params) = hp_bar.shader_params_expr {
-            // Get the third component (half_width) from the expression tuple
-            evaluate_float_expr(&params.2, &player_data, None)
-        } else {
-            // No config provided - use simple fallback, NOT game-specific formula
-            40.0
-        };
-
-        // Evaluate alpha from config if available
-        let alpha = if let Some(ref params) = hp_bar.shader_params_expr {
-            evaluate_float_expr(&params.3, &player_data, None)
-        } else {
-            1.0
-        };
-
-        // Enemy HP bar doesn't use lag_ratio in shader (simple green bar)
-        // 敌人 HP 条在着色器中不使用 lag_ratio（简单的绿色条）
-        let target_params = LinearRgba::new(hp_ratio, hp_ratio, half_width, alpha);
-
-        if let Some(material) = materials.get_mut(material_handle) {
-            material.color_params = target_params;
-        }
-    }
-}
-
-/// Get HP values from the specified source.
-/// 从指定来源获取 HP 值。
-fn get_hp_values_from_source(hp_source: &HPSourceType, player_data: &PlayerDataView) -> (f32, f32) {
-    match hp_source {
-        HPSourceType::Player => {
-            let hp = player_data.get_fact_int("player_hp").unwrap_or(20) as f32;
-            let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(20) as f32;
-            (hp, hp_max)
-        }
-        HPSourceType::Enemy { index } => {
-            let hp = player_data
-                .get_fact_int_list("enemy_hps")
-                .and_then(|list| list.get(*index).copied())
-                .unwrap_or(100) as f32;
-            let hp_max = player_data
-                .get_fact_int_list("enemy_hp_maxs")
-                .and_then(|list| list.get(*index).copied())
-                .unwrap_or(100) as f32;
-            (hp, hp_max)
-        }
-        HPSourceType::Custom {
-            hp_expr,
-            hp_max_expr,
-        } => {
-            let hp =
-                super::parsing::evaluate_fact_expression(hp_expr, player_data).unwrap_or(100.0);
-            let hp_max =
-                super::parsing::evaluate_fact_expression(hp_max_expr, player_data).unwrap_or(100.0);
-            (hp, hp_max)
-        }
-    }
-}
 
 /// Update time-dependent UI elements (elements with @time in expressions).
 /// Runs every frame for animation effects.
@@ -554,4 +306,136 @@ fn find_view_root_ancestor<'a>(
     }
 
     None
+}
+
+/// Update shader material parameters for DynamicMaterial2d entities.
+/// Evaluates parameter expressions and updates material uniforms.
+///
+/// 更新 DynamicMaterial2d 实体的着色器材质参数。
+/// 评估参数表达式并更新材质 uniform。
+pub fn update_shader_materials_system(
+    time: Res<Time>,
+    layered_db: Res<LayeredFactDatabase>,
+    mut materials: ResMut<Assets<crate::core::view::dynamic_material::DynamicMaterial2d>>,
+    mut query: Query<(
+        Entity,
+        &mut super::super::components::ShaderMaterial,
+        &crate::core::view::dynamic_material::MeshDynamicMaterial2d,
+    )>,
+    parent_query: Query<&ChildOf>,
+    view_root_query: Query<(Entity, &ViewRoot)>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
+) {
+    use crate::core::view::layout::Val;
+    use crate::core::view::layout::view_schema::MaterialParamValue;
+    use std::collections::HashMap;
+
+    // Early exit: skip if no shader materials exist
+    if query.is_empty() {
+        return;
+    }
+
+    // Check if any shader material needs expression evaluation
+    // 检查是否有材质需要表达式评估
+    let needs_expression_eval = query.iter().any(|(_, sm, _)| {
+        sm.param_defs
+            .values()
+            .any(|v| matches!(v, MaterialParamValue::Expr(_)))
+    });
+
+    // Check if any shader material needs animation update
+    let needs_animation_update = query
+        .iter()
+        .any(|(_, sm, _)| sm.animation.as_ref().is_some_and(|a| a.anim_progress < 1.0));
+
+    // Check if we need to update
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
+
+    // Only proceed if database changed OR animation is in progress OR expressions need evaluation
+    // 只有在数据库变化、动画进行中或需要表达式评估时才继续
+    if !global_changed
+        && !any_view_root_changed
+        && !needs_animation_update
+        && !needs_expression_eval
+    {
+        return;
+    }
+
+    let delta_time = time.delta_secs();
+
+    for (entity, mut shader_mat, material_handle) in query.iter_mut() {
+        // Find ViewRoot ancestor to access local facts
+        let view_root_result =
+            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+        let player_data = if let Some((_, view_root)) = view_root_result {
+            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+        } else {
+            PlayerDataView::new(&layered_db)
+        };
+
+        // 1. Evaluate all parameter expressions
+        // Collect into a temporary HashMap to avoid borrowing issues
+        let new_values: HashMap<String, f32> = shader_mat
+            .param_defs
+            .iter()
+            .map(|(name, param_def)| {
+                let value = match param_def {
+                    MaterialParamValue::Static(v) => *v,
+                    MaterialParamValue::Expr(expr_str) => {
+                        // Convert to Val::Expr for evaluate_float_expr
+                        let val_expr: Val<f32> = Val::Expr(expr_str.clone());
+                        let result = evaluate_float_expr(
+                            &val_expr,
+                            &player_data,
+                            Some(time.elapsed_secs_f64()),
+                        );
+                        trace!(
+                            "[ShaderMaterial Update] Entity {:?}: '{}' = Expr('{}') -> {}",
+                            entity, name, expr_str, result
+                        );
+                        result
+                    }
+                };
+                (name.clone(), value)
+            })
+            .collect();
+
+        // Update current_values
+        for (name, value) in new_values {
+            shader_mat.current_values.insert(name, value);
+        }
+
+        // 2. Process lag animation if present
+        // First extract animation info to avoid borrowing issues
+        let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
+            let source_value = shader_mat
+                .current_values
+                .get(&anim_state.source_param)
+                .copied()
+                .unwrap_or(1.0);
+            (anim_state.target_param.clone(), source_value)
+        });
+
+        if let Some((target_param, source_value)) = anim_update
+            && let Some(ref mut anim_state) = shader_mat.animation
+        {
+            // Update animation and get lag value
+            let lag_value = anim_state.update(source_value, delta_time);
+
+            // Update target parameter with lag value
+            shader_mat.current_values.insert(target_param, lag_value);
+        }
+
+        // Update debug string for inspector
+        shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
+
+        // 3. Update DynamicMaterial2d uniforms
+        if let Some(material) = materials.get_mut(&material_handle.0) {
+            let new_params = shader_mat.pack_params();
+            let new_extra = shader_mat.pack_extra_params();
+            material.params = new_params;
+            material.extra_params = new_extra;
+        }
+    }
 }
