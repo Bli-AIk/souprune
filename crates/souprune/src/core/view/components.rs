@@ -9,6 +9,7 @@
 pub(crate) mod box_components;
 pub(crate) mod camera;
 pub(crate) mod hpbar;
+pub mod shader_material;
 pub(crate) mod state_sprite;
 pub(crate) mod text;
 pub(crate) mod view_element;
@@ -16,11 +17,12 @@ pub(crate) mod view_element;
 // Re-export all public types
 pub(crate) use box_components::{ViewBox, ViewBoxFiller, ViewContainer};
 pub(crate) use camera::{CameraAnchored, CameraAnchoredBundle, CameraAnchoredDynamic};
+pub use shader_material::ShaderMaterial;
 pub(crate) use state_sprite::StateSpriteState;
 pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemplate};
 
 // Public exports (used outside core::ui)
-pub use hpbar::{DynamicViewElement, HPBarLag, HPBarSprite, HPSourceType, TimeDependentTransform};
+pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
     ActiveView, ElementState, PendingViewRules, ViewElement, ViewElementHistory, ViewRoot,
     VisibleWhen, find_element_by_full_name, find_elements_by_tag,

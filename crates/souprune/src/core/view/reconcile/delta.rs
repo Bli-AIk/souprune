@@ -6,7 +6,7 @@
 //!
 //! 定义 ViewDelta 枚举和 apply_deltas 函数。
 
-use super::tree::{DesiredElement, DesiredHpBar, DesiredSprite, DesiredText};
+use super::tree::{DesiredElement, DesiredHpBar, DesiredMaterial, DesiredSprite, DesiredText};
 use bevy::prelude::*;
 
 /// Represents a single change operation to be applied to the ECS world.
@@ -79,6 +79,13 @@ pub enum ViewDelta {
     /// Update camera offset of an existing element.
     /// 更新现有元素的相机偏移。
     UpdateCameraOffset { entity: Entity, new_offset: Vec3 },
+
+    /// Update material definition of an existing element.
+    /// 更新现有元素的材质定义。
+    UpdateMaterial {
+        entity: Entity,
+        new_value: DesiredMaterial,
+    },
 }
 
 /// Apply a list of deltas to the ECS world.
@@ -170,6 +177,16 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                     }
                 });
             }
+            ViewDelta::UpdateMaterial {
+                entity,
+                new_value: _,
+            } => {
+                // Material updates are handled by dedicated systems
+                // This delta is mainly for tracking that an update is needed
+                // 材质更新由专门的系统处理
+                // 此差异主要用于跟踪需要更新
+                let _ = entity;
+            }
         }
     }
 }
@@ -250,6 +267,7 @@ pub struct DeltaStats {
     pub hp_bar_updates: usize,
     pub visible_when_updates: usize,
     pub camera_offset_updates: usize,
+    pub material_updates: usize,
 }
 
 impl DeltaStats {
@@ -268,6 +286,7 @@ impl DeltaStats {
                 ViewDelta::UpdateHpBar { .. } => stats.hp_bar_updates += 1,
                 ViewDelta::UpdateVisibleWhen { .. } => stats.visible_when_updates += 1,
                 ViewDelta::UpdateCameraOffset { .. } => stats.camera_offset_updates += 1,
+                ViewDelta::UpdateMaterial { .. } => stats.material_updates += 1,
             }
         }
         stats
@@ -285,5 +304,6 @@ impl DeltaStats {
             || self.hp_bar_updates > 0
             || self.visible_when_updates > 0
             || self.camera_offset_updates > 0
+            || self.material_updates > 0
     }
 }

@@ -274,6 +274,13 @@ pub struct BlackWhiteMaterial {
 
 impl Material2d for BlackWhiteMaterial {
     fn fragment_shader() -> ShaderRef {
+        // TODO: Refactor to use a more generic shader system that allows
+        // user-configurable shader paths through RON configuration.
+        // This hardcoded path should be replaced with a data-driven approach
+        // similar to DynamicMaterial2d's material.shader field.
+        //
+        // TODO: 重构为更通用的着色器系统，允许用户通过 RON 配置指定着色器路径。
+        // 此硬编码路径应替换为类似 DynamicMaterial2d 的 material.shader 字段的数据驱动方式。
         "shaders/black_white_tile.wgsl".into()
     }
 
@@ -292,6 +299,10 @@ pub struct BlackWhiteTilemapMaterial {}
 
 impl MaterialTilemap for BlackWhiteTilemapMaterial {
     fn fragment_shader() -> ShaderRef {
+        // TODO: Refactor to use a more generic shader system that allows
+        // user-configurable shader paths through RON configuration.
+        //
+        // TODO: 重构为更通用的着色器系统，允许用户通过 RON 配置指定着色器路径。
         "shaders/black_white_tilemap.wgsl".into()
     }
 }

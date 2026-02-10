@@ -12,8 +12,7 @@
 
 [![](https://dcbadge.limes.pink/api/server/5YXK5DRjPZ)](https://discord.gg/5YXK5DRjPZ)
 
-**SoupRune** 是一个令人耳目一新的现代化框架，为次世代同人游戏而生，
-专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 的 RPG / STG 游戏而设计。
+**SoupRune** 是一个独树一帜的 RPG / STG 现代化框架。
 
 | 英语                     | 简体中文 |
 |------------------------|------|
@@ -21,8 +20,8 @@
 
 ## 🥣 这是什么？
 
-**SoupRune** 是一个令人耳目一新的现代化框架，它基于 `bevy` 引擎制作，为次世代同人游戏而生，
-专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 风格的 RPG / 弹幕射击游戏。
+**SoupRune** 是一个独树一帜的现代化框架，它基于 `bevy` 引擎制作，为次世代同人游戏而生，
+专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 风格的 RPG / 弹幕射击游戏而设计。
 
 它致力于成为下一代社区驱动的 Fangame 引擎——既带来了独特的味道，又在底层架构上拥抱了高性能与现代开发范式。
 
