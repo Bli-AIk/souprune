@@ -50,43 +50,6 @@ impl ChapterCompletedEvent {
     }
 }
 
-/// Event emitted when player confirms a selection in AwaitInteraction.
-///
-/// 玩家在 AwaitInteraction 中确认选择时发出的事件。
-#[derive(Message, Debug, Clone)]
-pub struct SelectionConfirmedEvent {
-    /// The layer ID where selection was made
-    pub layer_id: String,
-    /// The selected option index
-    pub selection_index: usize,
-    /// The selected option ID (if available)
-    pub selection_id: Option<String>,
-}
-
-impl SelectionConfirmedEvent {
-    /// Create a new selection confirmed event.
-    pub fn new(layer_id: impl Into<String>, selection_index: usize) -> Self {
-        Self {
-            layer_id: layer_id.into(),
-            selection_index,
-            selection_id: None,
-        }
-    }
-
-    /// Create with selection ID.
-    pub fn with_id(
-        layer_id: impl Into<String>,
-        selection_index: usize,
-        selection_id: impl Into<String>,
-    ) -> Self {
-        Self {
-            layer_id: layer_id.into(),
-            selection_index,
-            selection_id: Some(selection_id.into()),
-        }
-    }
-}
-
 /// System to emit FRE events when chapters complete.
 /// Converts internal ChapterCompletedEvent to FactEvent for FRE processing.
 ///
@@ -131,57 +94,6 @@ pub fn emit_chapter_completed_events_system(
         info!(
             "Battle FRE Bridge: Emitted events for chapter completion: {}",
             event.chapter_type
-        );
-    }
-}
-
-/// System to emit FRE events when player confirms a selection.
-/// Updates relevant facts and emits selection events.
-///
-/// 玩家确认选择时发出 FRE 事件的系统。
-/// 更新相关事实并发出选择事件。
-pub fn emit_selection_confirmed_events_system(
-    mut selection_events: MessageReader<SelectionConfirmedEvent>,
-    mut fact_event_writer: MessageWriter<FactEvent>,
-    mut layered_db: ResMut<LayeredFactDatabase>,
-) {
-    for event in selection_events.read() {
-        // Update facts
-        layered_db.set("last_selection_layer", event.layer_id.clone());
-        layered_db.set("last_selection_index", event.selection_index as i64);
-
-        if let Some(ref selection_id) = event.selection_id {
-            layered_db.set("last_selection_id", selection_id.clone());
-        }
-
-        // Emit selection confirmed event
-        let mut fact_event = FactEvent::new("selection_confirmed")
-            .with_data("layer_id", &event.layer_id)
-            .with_data("selection_index", event.selection_index.to_string());
-
-        if let Some(ref selection_id) = event.selection_id {
-            fact_event = fact_event.with_data("selection_id", selection_id);
-        }
-
-        fact_event_writer.write(fact_event);
-
-        // Emit specific action events based on known layer IDs
-        if event.layer_id == "BattleMainMenu" {
-            let action_name = match event.selection_index {
-                0 => "fight",
-                1 => "act",
-                2 => "item",
-                3 => "mercy",
-                _ => "unknown",
-            };
-
-            layered_db.set("player_last_action", action_name);
-            fact_event_writer.write(FactEvent::new(format!("player_action_{}", action_name)));
-        }
-
-        info!(
-            "Battle FRE Bridge: Selection confirmed in layer '{}', index {}",
-            event.layer_id, event.selection_index
         );
     }
 }

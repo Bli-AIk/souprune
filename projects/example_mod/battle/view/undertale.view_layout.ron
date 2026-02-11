@@ -39,7 +39,8 @@
         "enemy_selection": 0,      // Enemy selection in depth 1
         "item_selection": 0,       // Item selection in depth 1
         "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
-        "active": true,            // Whether menu is active (vs bullet hell)
+        "interactable": false,     // Whether menu accepts input (vs bullet hell)
+        "selection_confirmed": false, // Set to true when player confirms selection
         "enemy_view_offset": 0,    // Scroll offset for enemy list (滚动偏移量)
         "enemy_display_limit": 3,  // Max enemies to display at once (同时显示的最大敌人数)
     },
@@ -153,7 +154,7 @@
         // ========================================
         (
             name: "MenuCursor",
-            visible_when: "$depth == 0 && $active",
+            visible_when: "$depth == 0 && $interactable",
             sprite: (
                 visual: "common/ui/heart",
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
@@ -175,7 +176,7 @@
             name: "EnemySelectionCursor",
             // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3)
             // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式
-            visible_when: "$depth == 1 && $active && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3)",
+            visible_when: "$depth == 1 && $interactable && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3)",
             sprite: (
                 visual: "common/ui/heart",
                 color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心

@@ -2,137 +2,98 @@
 //!
 //! ## Module Overview
 //!
-//! AwaitInteraction systems for the battle sequencer.
-//! This module has been reimplemented to use ViewRoot.local_facts instead of InteractiveLayer.
+//! AwaitFact systems for the battle sequencer.
+//! This module implements reactive fact-based blocking for chapter sequences.
 //!
-//! 战斗序列管理器的 AwaitInteraction 系统。
-//! 此模块已重新实现，使用 ViewRoot.local_facts 替代 InteractiveLayer。
+//! 战斗序列管理器的 AwaitFact 系统。
+//! 此模块实现基于 Fact 条件的响应式阻塞机制。
 
 use super::super::chapter_schema::Chapter;
-use super::super::fre::SelectionConfirmedEvent;
 use super::context::*;
+use crate::core::fre_bridge::evaluate_single_condition;
 use crate::core::view::components::ViewRoot;
-use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
-use bevy_fact_rule_event::FactValue;
+use bevy_fact_rule_event::LayeredFactDatabase;
 
-/// Marker component to track that this chapter is waiting for interaction.
+/// Marker component to track that this chapter is waiting for a fact condition.
 ///
-/// 标记组件，用于追踪此 Chapter 正在等待交互。
+/// 标记组件，用于追踪此 Chapter 正在等待 Fact 条件。
 #[derive(Component)]
-pub struct AwaitingInteractionChapter {
-    /// The layer ID we're waiting on.
-    pub layer_id: String,
+pub struct AwaitingFactChapter {
+    /// The condition expression to evaluate.
+    pub condition: String,
+    /// Whether to use View's local_facts or global FactDatabase.
+    pub local: bool,
 }
 
-/// System to process AwaitInteraction chapters.
+/// System to process AwaitFact chapters - mark them as awaiting.
 ///
-/// 处理 AwaitInteraction 章节的系统。
-///
-/// This system activates the menu by setting `active: true` in ViewRoot.local_facts
-/// and marks the chapter as waiting for player input. The chapter won't finish
-/// until the player confirms a selection.
-///
-/// 此系统通过在 ViewRoot.local_facts 中设置 `active: true` 来激活菜单，
-/// 并将章节标记为等待玩家输入。章节不会结束，直到玩家确认选择。
+/// 处理 AwaitFact 章节的系统 - 标记为等待状态。
 #[allow(clippy::type_complexity)]
-pub fn process_await_selection_system(
+pub fn process_await_fact_system(
     mut commands: Commands,
     query: Query<
         (Entity, &ActiveChapter),
         (
             Without<WaitTimer>,
             Without<ChapterFinished>,
-            Without<AwaitingInteractionChapter>,
+            Without<AwaitingFactChapter>,
         ),
     >,
-    mut view_root_query: Query<&mut ViewRoot>,
 ) {
     for (chapter_entity, active_chapter) in query.iter() {
-        if let Chapter::AwaitInteraction {
-            layer_id,
-            initial_selection,
-        } = &active_chapter.chapter
-        {
+        if let Chapter::AwaitFact { condition, local } = &active_chapter.chapter {
             info!(
-                "[Battle] Starting AwaitInteraction for layer '{}' at index {}",
-                layer_id, initial_selection
+                "[Battle] Starting AwaitFact with condition: '{}' (local: {})",
+                condition, local
             );
 
-            // Activate the menu in ViewRoot.local_facts
-            let mut found = false;
-            for mut view_root in view_root_query.iter_mut() {
-                // Set active to true to enable navigation
-                view_root.local_facts.set("active", FactValue::Bool(true));
-                view_root
-                    .local_facts
-                    .set("selection", FactValue::Int(*initial_selection as i64));
-                view_root.local_facts.set("depth", FactValue::Int(0));
-
-                found = true;
-                info!(
-                    "[Battle] Activated view menu for layer '{}', waiting for player input",
-                    layer_id
-                );
-                break;
-            }
-
-            if !found {
-                warn!("[Battle] No ViewRoot found! Chapter will complete immediately.");
-                commands.entity(chapter_entity).insert(ChapterFinished);
-            } else {
-                // Mark this chapter as waiting
-                commands
-                    .entity(chapter_entity)
-                    .insert(AwaitingInteractionChapter {
-                        layer_id: layer_id.clone(),
-                    });
-            }
+            commands.entity(chapter_entity).insert(AwaitingFactChapter {
+                condition: condition.clone(),
+                local: *local,
+            });
         }
     }
 }
 
-/// System to check for interaction completion and finish the AwaitInteraction chapter.
+/// System to check if fact condition is met and finish the AwaitFact chapter.
 ///
-/// 检查交互完成情况并结束 AwaitInteraction 章节的系统。
-///
-/// Listens for SelectionConfirmedEvent and marks the corresponding chapter as finished.
-///
-/// 监听 SelectionConfirmedEvent 并将相应的章节标记为完成。
+/// 检查 Fact 条件是否满足并结束 AwaitFact 章节的系统。
 #[allow(clippy::type_complexity)]
-pub fn check_await_selection_completion_system(
+pub fn check_await_fact_completion_system(
     mut commands: Commands,
-    mut confirm_events: MessageReader<SelectionConfirmedEvent>,
-    awaiting_query: Query<(Entity, &AwaitingInteractionChapter)>,
-    mut view_root_query: Query<&mut ViewRoot>,
+    awaiting_query: Query<(Entity, &AwaitingFactChapter)>,
+    view_root_query: Query<&ViewRoot>,
+    global_facts: Res<LayeredFactDatabase>,
 ) {
-    for event in confirm_events.read() {
-        info!(
-            "[Battle] Received SelectionConfirmedEvent for layer '{}', index {}",
-            event.layer_id, event.selection_index
-        );
-
-        // Find the chapter that is waiting for this layer
-        for (chapter_entity, awaiting) in awaiting_query.iter() {
-            if awaiting.layer_id == event.layer_id {
-                // Mark the chapter as finished
-                commands.entity(chapter_entity).insert(ChapterFinished);
-                commands
-                    .entity(chapter_entity)
-                    .remove::<AwaitingInteractionChapter>();
-
-                info!(
-                    "[Battle] AwaitInteraction for '{}' completed with selection {}",
-                    event.layer_id, event.selection_index
-                );
+    for (chapter_entity, awaiting) in awaiting_query.iter() {
+        let condition_met = if awaiting.local {
+            // Use View's local_facts
+            if let Some(view_root) = view_root_query.iter().next() {
+                evaluate_single_condition(
+                    &awaiting.condition,
+                    &view_root.local_facts,
+                    &global_facts,
+                )
+            } else {
+                warn!("[Battle] No ViewRoot found for local fact evaluation!");
+                false
             }
-        }
+        } else {
+            // Use global FactDatabase
+            let empty_local = bevy_fact_rule_event::FactDatabase::new();
+            evaluate_single_condition(&awaiting.condition, &empty_local, &global_facts)
+        };
 
-        // Deactivate the menu
-        for mut view_root in view_root_query.iter_mut() {
-            view_root.local_facts.set("active", FactValue::Bool(false));
-            view_root.local_facts.set("selection", FactValue::Int(0));
-            info!("[Battle] Deactivated view menu, reset selection to 0");
+        if condition_met {
+            info!(
+                "[Battle] AwaitFact condition '{}' met, completing chapter",
+                awaiting.condition
+            );
+            commands.entity(chapter_entity).insert(ChapterFinished);
+            commands
+                .entity(chapter_entity)
+                .remove::<AwaitingFactChapter>();
         }
     }
 }

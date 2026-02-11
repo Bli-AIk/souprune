@@ -357,7 +357,7 @@ fn evaluate_conditions(
 /// - `$name.len()` - 获取 StringList 的长度
 ///
 /// 变量解析优先级：local_facts -> global_facts
-fn evaluate_single_condition(
+pub fn evaluate_single_condition(
     condition: &str,
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,

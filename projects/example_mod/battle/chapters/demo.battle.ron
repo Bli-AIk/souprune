@@ -17,10 +17,19 @@
                 "enemies": File("battle/enemies/demo_enemies.fre.ron"),
             },
         ),
-        AwaitInteraction(
-            layer_id: "BattleMainMenu",
-            initial_selection: 0,
-        ),
+        // Enable menu interaction
+        // 启用菜单交互
+        SetViewFact(key: "interactable", value: Bool(true)),
+        SetViewFact(key: "depth", value: Int(0)),
+        SetViewFact(key: "button_selection", value: Int(0)),
+
+        // Wait for player to confirm selection in submenu
+        // 等待玩家在子菜单中确认选择
+        AwaitFact(condition: "$selection_confirmed == true"),
+
+        // Reset selection_confirmed for next turn
+        // 重置 selection_confirmed 以备下一回合
+        SetViewFact(key: "selection_confirmed", value: Bool(false)),
         SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
         TweenViewElement(

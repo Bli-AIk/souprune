@@ -6,10 +6,11 @@
 //!
 //! 战斗序列管理器的视图控制系统。
 
-use super::super::chapter_schema::{Chapter, DataBinding};
+use super::super::chapter_schema::{Chapter, DataBinding, FactValueMatch};
 use super::context::*;
+use crate::core::view::components::ViewRoot;
 use bevy::prelude::*;
-use bevy_fact_rule_event::FreAsset;
+use bevy_fact_rule_event::{FactValue, FreAsset};
 use std::collections::HashMap;
 
 /// Resource to store view bindings for the current view spawn.
@@ -118,6 +119,37 @@ pub fn process_view_action_system(
                 Name::new("BattleView Root"),
             ));
             commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+/// System to process SetViewFact chapters.
+///
+/// 处理 SetViewFact 章节的系统。
+#[allow(clippy::type_complexity)]
+pub fn process_set_view_fact_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
+    mut view_root_query: Query<&mut ViewRoot>,
+) {
+    for (chapter_entity, active_chapter) in query.iter() {
+        if let Chapter::SetViewFact { key, value } = &active_chapter.chapter {
+            // Find the active ViewRoot and set the fact
+            if let Some(mut view_root) = view_root_query.iter_mut().next() {
+                let fact_value = match value {
+                    FactValueMatch::Bool(b) => FactValue::Bool(*b),
+                    FactValueMatch::Int(i) => FactValue::Int(*i),
+                    FactValueMatch::Float(f) => FactValue::Float(*f),
+                    FactValueMatch::String(s) => FactValue::String(s.clone()),
+                };
+
+                view_root.local_facts.set(key.as_str(), fact_value);
+                info!("[Battle] SetViewFact: Set '{}' = {:?}", key, value);
+            } else {
+                warn!("[Battle] SetViewFact: No ViewRoot found!");
+            }
+
+            commands.entity(chapter_entity).insert(ChapterFinished);
         }
     }
 }
