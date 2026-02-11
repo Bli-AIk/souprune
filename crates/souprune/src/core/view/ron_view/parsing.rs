@@ -392,8 +392,7 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
 /// - 浮点数带小数点输出
 /// - 布尔值输出为 "true" 或 "false"
 /// - 字符串作为带引号的字符串输出
-/// - 字符串列表输出其长度（用于表达式计算）
-/// - 整数列表输出其长度（用于表达式计算）
+/// - 列表输出其长度（用于表达式计算）
 fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
     use bevy_fact_rule_event::FactValue;
     match value {
@@ -403,6 +402,8 @@ fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
         FactValue::String(s) => format!("\"{}\"", s),
         FactValue::StringList(list) => list.len().to_string(),
         FactValue::IntList(list) => list.len().to_string(),
+        FactValue::FloatList(list) => list.len().to_string(),
+        FactValue::BoolList(list) => list.len().to_string(),
     }
 }
 
@@ -919,6 +920,16 @@ pub fn resolve_text_content(
                                 bevy_fact_rule_event::FactValue::IntList(list) => list
                                     .iter()
                                     .map(|i| i.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                bevy_fact_rule_event::FactValue::FloatList(list) => list
+                                    .iter()
+                                    .map(|f| f.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                bevy_fact_rule_event::FactValue::BoolList(list) => list
+                                    .iter()
+                                    .map(|b| b.to_string())
                                     .collect::<Vec<_>>()
                                     .join(", "),
                             }

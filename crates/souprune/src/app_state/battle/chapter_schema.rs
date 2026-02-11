@@ -6,12 +6,12 @@
 //!
 //! ## 模块概述
 //!
-//! Defines the schema for Battle Chapters in RON files.
-//! This module contains pure data structures that map directly to the `battle.ron` format.
+//! Defines the schema for Sequence Chapters in RON files.
+//! This module contains pure data structures that map directly to the `.sequence.ron` format.
 //! It serves as the data contract between the configuration files and the game logic.
 //!
-//! 定义 Battle Chapter 在 RON 文件中的 Schema。
-//! 本模块包含直接映射到 `battle.ron` 格式的纯数据结构。
+//! 定义 Sequence Chapter 在 RON 文件中的 Schema。
+//! 本模块包含直接映射到 `.sequence.ron` 格式的纯数据结构。
 //! 它作为配置文件与游戏逻辑之间的数据契约。
 //!
 //! Chapter is the minimal unit of the linear sequence in the battle system.
@@ -477,10 +477,103 @@ pub enum Chapter {
         #[serde(default)]
         aggregate: std::collections::HashMap<String, AggregateRule>,
     },
+
+    /// Run an external sequence file.
+    ///
+    /// Loads and executes a `.sequence.ron` file as a sub-sequence.
+    /// Supports parameter passing to inject values into the sub-sequence's execution context.
+    ///
+    /// 运行外部序列文件。
+    ///
+    /// 加载并执行 `.sequence.ron` 文件作为子序列。
+    /// 支持参数传递，将值注入子序列的执行上下文。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// // Simple call
+    /// RunSequence(path: "common/show_narration.sequence.ron"),
+    ///
+    /// // With parameters
+    /// RunSequence(
+    ///     path: "common/show_narration.sequence.ron",
+    ///     params: {
+    ///         "mortar_key": String("EnemyDummyActCheckResult"),
+    ///     },
+    /// ),
+    ///
+    /// // Dynamic path from fact
+    /// RunSequence(path_fact: "selected_sequence_path"),
+    /// ```
+    RunSequence {
+        /// Fixed path to the sequence file.
+        ///
+        /// 序列文件的固定路径。
+        #[serde(default)]
+        path: Option<String>,
+
+        /// Read path from a String fact.
+        /// Used for dynamic sequence selection.
+        ///
+        /// 从 String fact 读取路径。
+        /// 用于动态序列选择。
+        #[serde(default)]
+        path_fact: Option<String>,
+
+        /// Parameters to inject into the sub-sequence's execution context.
+        /// These become available as facts in the sub-sequence.
+        ///
+        /// 注入子序列执行上下文的参数。
+        /// 这些参数在子序列中可作为 facts 使用。
+        #[serde(default)]
+        params: std::collections::HashMap<String, FactValueMatch>,
+    },
+
+    /// Execute ACT behavior from a behavior string.
+    ///
+    /// Parses and executes ACT behavior strings in the format:
+    /// - `"narration:NodeName"` - Show narration from Mortar node, wait for confirm, end interaction
+    /// - `"sequence:path"` - Execute a custom sequence file
+    /// - `"end"` - Directly end the interaction
+    ///
+    /// 执行 ACT 行为字符串。
+    ///
+    /// 解析并执行以下格式的 ACT 行为字符串：
+    /// - `"narration:NodeName"` - 显示 Mortar 节点的旁白，等待确认，结束交互
+    /// - `"sequence:path"` - 执行自定义序列文件
+    /// - `"end"` - 直接结束交互
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// ExecuteActBehavior(
+    ///     behaviors_fact: "current_enemy_act_behaviors",
+    ///     index_fact: "selected_act_index",
+    /// ),
+    /// ```
+    ExecuteActBehavior {
+        /// Fact key containing the StringList of behaviors.
+        ///
+        /// 包含行为列表的 StringList fact 键名。
+        #[serde(default = "default_behaviors_fact")]
+        behaviors_fact: String,
+
+        /// Fact key containing the Int index of selected behavior.
+        ///
+        /// 包含选中行为索引的 Int fact 键名。
+        #[serde(default = "default_index_fact")]
+        index_fact: String,
+    },
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_behaviors_fact() -> String {
+    "current_enemy_act_behaviors".to_string()
+}
+
+fn default_index_fact() -> String {
+    "selected_act_index".to_string()
 }
 
 // =============================================================================

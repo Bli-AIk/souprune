@@ -20,6 +20,7 @@ mod flow;
 mod interaction;
 mod performance;
 mod player;
+mod run_sequence;
 mod tween;
 pub mod view_action;
 mod view_element;
@@ -78,6 +79,10 @@ impl Plugin for SequencerPlugin {
                     fact_chapter::process_modify_fact_chapter_system,
                     fact_chapter::process_load_fre_chapter_system,
                     fact_chapter::complete_load_fre_chapter_system,
+                    // RunSequence and ExecuteActBehavior
+                    run_sequence::process_run_sequence_system,
+                    run_sequence::complete_run_sequence_system,
+                    run_sequence::process_execute_act_behavior_system,
                     // AwaitFact: check condition completion
                     interaction::check_await_fact_completion_system,
                     flow::cleanup_finished_chapters_system,

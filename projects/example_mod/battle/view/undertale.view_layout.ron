@@ -29,12 +29,24 @@
                 "enemy_hp_maxs: IntList",
             ],
         ),
+
+        // Current enemy ACT data - set when player selects an enemy in ACT menu
+        // 当前敌人 ACT 数据 - 玩家在 ACT 菜单选择敌人时设置
+        // These are copied from the selected enemy's FRE data
+        // 这些从选中敌人的 FRE 数据复制
+        Interface(
+            interface: "current_enemy",
+            expects: [
+                "current_enemy_act_name_keys: StringList",
+                "current_enemy_act_behaviors: StringList",
+            ],
+        ),
     ],
 
     // View-local facts for battle menu state
     // 战斗菜单状态的 View 局部事实
     facts: {
-        "depth": 0,                // 0=main menu, 1=submenu
+        "depth": 0,                // 0=main menu, 1=submenu, 2=ACT options
         "button_selection": 0,     // Main menu button (persists across depths)
         "enemy_selection": 0,      // Enemy selection in depth 1
         "item_selection": 0,       // Item selection in depth 1
@@ -43,6 +55,15 @@
         "selection_confirmed": false, // Set to true when player confirms selection
         "enemy_view_offset": 0,    // Scroll offset for enemy list (滚动偏移量)
         "enemy_display_limit": 3,  // Max enemies to display at once (同时显示的最大敌人数)
+
+        // ACT options state (depth 2)
+        // ACT 选项状态（深度 2）
+        "act_selection": 0,        // Currently selected ACT option (0-based)
+        "act_count": 0,            // Number of ACT options for current enemy
+        "narration_visible": false,  // Whether to show narration text
+        "narration_key": "",       // Current Mortar node key for narration
+        "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
+        "buttons_visible": true,   // Whether to show menu buttons
     },
 
     roots: [
@@ -95,6 +116,58 @@
                     // Show in depth 1 for FIGHT(0), ACT(1), MERCY(3) when enemies exist
                     // 在深度 1 时显示，仅限战斗(0)、行动(1)、仁慈(3)模式，且敌人存在
                     visible_when: "$depth == 1 && ($menu_context == 0 || $menu_context == 1 || $menu_context == 3) && $enemy_names >= 1",
+                ),
+
+                // ========================================
+                // ACT OPTIONS GRID (depth 2, ACT mode)
+                // ACT 选项网格（深度 2，行动模式）
+                // 2 columns layout: left column (even indices), right column (odd indices)
+                // 2 列布局：左列（偶数索引），右列（奇数索引）
+                // ========================================
+                // Left column: options 0, 2, 4, ...
+                // 左列：选项 0, 2, 4, ...
+                (
+                    id: "ActOptionsLeft",
+                    content: "{|name, i| in $current_enemy_act_name_keys[0, 2] => \"* {{battle/enemies/dummy:{name}}}\"}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-220.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.25,
+                    visible_when: "$depth == 2 && $menu_context == 1",
+                ),
+                // Right column: options 1, 3, 5, ...
+                // 右列：选项 1, 3, 5, ...
+                (
+                    id: "ActOptionsRight",
+                    content: "{|name, i| in $current_enemy_act_name_keys[1, 3] => \"* {{battle/enemies/dummy:{name}}}\"}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (50.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.25,
+                    visible_when: "$depth == 2 && $menu_context == 1",
+                ),
+
+                // ========================================
+                // NARRATION TEXT
+                // 旁白文本
+                // ========================================
+                (
+                    id: "NarrationText",
+                    content: "{{battle/enemies/dummy:$narration_key}}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-267.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.2,
+                    visible_when: "$narration_visible == true",
                 ),
             ],
             children: [
@@ -190,6 +263,32 @@
                         // Pattern: 50 - (visible_index) * 32 for Y offset from top
                         // 模式：50 - (可见索引) * 32 用于从顶部的 Y 偏移
                         "-45.5 - ($enemy_selection - $enemy_view_offset) * 32.0",
+                        "10.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // ACT SELECTION CURSOR (depth 2)
+        // ACT 选择光标（深度 2）
+        // 2-column grid: left column at X=-248, right column at X=22
+        // 2 列网格：左列 X=-248，右列 X=22
+        // ========================================
+        (
+            name: "ActSelectionCursor",
+            visible_when: "$depth == 2 && $interactable && $menu_context == 1",
+            sprite: (
+                visual: "common/ui/heart",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                transform: (
+                    translation: (
+                        // X position: left column (-248) if even selection, right column (22) if odd
+                        // X 位置：偶数选择在左列 (-248)，奇数选择在右列 (22)
+                        "if($act_selection % 2 == 0, -248.0, 22.0)",
+                        // Y position: row based on selection / 2 (0,1 -> row 0; 2,3 -> row 1)
+                        // Y 位置：行基于 selection / 2（0,1 -> 第 0 行；2,3 -> 第 1 行）
+                        "-45.5 - floor($act_selection / 2) * 32.0",
                         "10.0",
                     ),
                 ),

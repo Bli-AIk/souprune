@@ -51,7 +51,7 @@ use camera::{
     update_dynamic_camera_anchors_system,
 };
 pub use components::{
-    ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
+    ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
 };
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;

@@ -10,7 +10,6 @@
 // 规则处理敌人特定的动作和行为。
 
 (
-
     // Enemy data as initial facts
     // These are merged into the battle's fact database
     // 作为初始事实的敌人数据
@@ -27,20 +26,42 @@
         // Encounter description
         // 遭遇描述
         "dummy.description": String("A cotton heart and a button eye."),
+
+        // ACT options count
+        // ACT 选项数量
+        "dummy.act_count": Int(4),
+
+        // ACT name keys (Mortar localization keys)
+        // ACT 名称键（Mortar 本地化键）
+        "dummy.act_name_keys": StringList([
+            "EnemyDummyActCheck",
+            "EnemyDummyActTalk",
+            "EnemyDummyActFlirt",
+            "EnemyDummyActHug",
+        ]),
+
+        // ACT behaviors - defines what happens when each ACT is selected
+        // Formats:
+        //   "narration:NodeName" - Show narration from Mortar node, wait for confirm, end interaction
+        //   "sequence:path" - Execute custom sequence file
+        //   "end" - Just end interaction
+        //
+        // ACT 行为 - 定义选择每个 ACT 时发生的事情
+        // 格式:
+        //   "narration:节点名" - 显示 Mortar 节点的旁白，等待确认，结束交互
+        //   "sequence:路径" - 执行自定义序列文件
+        //   "end" - 直接结束交互
+        "dummy.act_behaviors": StringList([
+            "narration:EnemyDummyActCheckResult",
+            "narration:EnemyDummyActTalkResult",
+            "sequence:battle/acts/dummy/flirt.sequence.ron",
+            "end",
+        ]),
     },
 
     // Enemy-specific rules
     // These handle ACT options, damage reactions, etc.
     // 敌人特定规则
     // 处理行动选项、受伤反应等
-    rules: [
-        // Check action - displays enemy info
-        // 查看行动 - 显示敌人信息
-        // (
-        //     event: BattleEvent(kind: ActSelected(enemy: "dummy", act: "Check")),
-        //     actions: [
-        //         SetFact("battle_dialogue", String("* DUMMY - ATK 0 DEF 0\n* A cotton heart and a button eye.\n* You are the apple of my eye.")),
-        //     ],
-        // ),
-    ],
+    rules: [],
 )
