@@ -26,9 +26,8 @@ pub fn write_constants(g: &Interop, w: &mut IndentWriter) -> Result<(), Error> {
         w.indented(|w| {
             writeln!(
                 w,
-                "public static inline var {}:{} = {};",
-                name,
-                "Int", // TODO: determine type from constant
+                "public static inline var {}:Int = {};",
+                name, // TODO: determine type from constant
                 value
             )
         })?;

@@ -88,7 +88,7 @@ pub struct SpriteConfig {
     pub flip_y: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct TomlAssetLoader;
 
 impl AssetLoader for TomlAssetLoader {
