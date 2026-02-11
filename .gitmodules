@@ -13,3 +13,9 @@
 [submodule "crates/mortar"]
 	path = crates/mortar
 	url = https://github.com/Bli-AIk/mortar.git
+[submodule "crates/iyes_perf_ui"]
+	path = crates/iyes_perf_ui
+	url = https://github.com/Bli-AIk/iyes_perf_ui.git
+[submodule "crates/bevy_tween"]
+	path = crates/bevy_tween
+	url = https://github.com/Bli-AIk/bevy_tween.git

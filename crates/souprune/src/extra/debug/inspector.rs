@@ -299,10 +299,8 @@ pub mod debug_inspector {
             .spawn((
                 Name::new("Debug: Inspector Camera"),
                 Camera2d,
-                Camera {
-                    target: RenderTarget::Window(WindowRef::Entity(window_entity)),
-                    ..default()
-                },
+                Camera::default(),
+                RenderTarget::Window(WindowRef::Entity(window_entity)),
                 EguiMultipassSchedule::new(InspectorWindowContextPass),
                 StandaloneInspectorCamera,
                 super::super::DebugCamera,

@@ -44,9 +44,9 @@ use bevy::render::render_phase::{
     SetItemPipeline, TrackedRenderPass, ViewSortedRenderPhases,
 };
 use bevy::render::render_resource::{
-    AsBindGroup, AsBindGroupError, BindGroup, BindGroupLayout, BlendState, PipelineCache,
-    RenderPipelineDescriptor, ShaderType, SpecializedMeshPipeline, SpecializedMeshPipelineError,
-    SpecializedMeshPipelines,
+    AsBindGroup, AsBindGroupError, BindGroup, BindGroupLayout, BindGroupLayoutDescriptor,
+    BlendState, PipelineCache, RenderPipelineDescriptor, ShaderType, SpecializedMeshPipeline,
+    SpecializedMeshPipelineError, SpecializedMeshPipelines,
 };
 use bevy::render::renderer::RenderDevice;
 use bevy::render::sync_world::MainEntityHashMap;
@@ -211,17 +211,26 @@ impl RenderAsset for PreparedDynamicMaterial2d {
     type Param = (
         SRes<RenderDevice>,
         SRes<DynamicMaterial2dPipeline>,
+        SRes<PipelineCache>,
         <DynamicMaterial2d as AsBindGroup>::Param,
     );
 
     fn prepare_asset(
         material: Self::SourceAsset,
         _asset_id: AssetId<Self::SourceAsset>,
-        (render_device, pipeline, material_param): &mut SystemParamItem<Self::Param>,
+        (render_device, pipeline, pipeline_cache, material_param): &mut SystemParamItem<
+            Self::Param,
+        >,
         _previous: Option<&Self>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Use AsBindGroup to create the bind group
-        match material.as_bind_group(&pipeline.material_layout, render_device, material_param) {
+        // In Bevy 0.18, as_bind_group takes BindGroupLayoutDescriptor and PipelineCache
+        match material.as_bind_group(
+            &pipeline.material_layout_descriptor,
+            render_device,
+            pipeline_cache,
+            material_param,
+        ) {
             Ok(prepared) => Ok(PreparedDynamicMaterial2d {
                 bind_group: prepared.bind_group,
                 shader: material.shader.clone(),
@@ -251,6 +260,10 @@ pub struct DynamicMaterial2dPipeline {
     /// 材质绑定组布局（由 AsBindGroup 生成）。
     pub material_layout: BindGroupLayout,
 
+    /// Material bind group layout descriptor for as_bind_group.
+    /// 用于 as_bind_group 的材质绑定组布局描述符。
+    pub material_layout_descriptor: BindGroupLayoutDescriptor,
+
     /// Cached shader handles for pipeline specialization.
     /// Key is shader asset ID, value is the handle.
     /// 用于管道特化的缓存着色器句柄。
@@ -265,12 +278,15 @@ pub fn init_dynamic_material2d_pipeline(
     render_device: Res<RenderDevice>,
     mesh2d_pipeline: Res<Mesh2dPipeline>,
 ) {
-    // Get the bind group layout from AsBindGroup derive macro
+    // Get both the layout and descriptor from AsBindGroup derive macro
     let material_layout = DynamicMaterial2d::bind_group_layout(&render_device);
+    let material_layout_descriptor =
+        DynamicMaterial2d::bind_group_layout_descriptor(&render_device);
 
     commands.insert_resource(DynamicMaterial2dPipeline {
         mesh2d_pipeline: mesh2d_pipeline.clone(),
         material_layout,
+        material_layout_descriptor,
         shader_cache: HashMap::default(),
     });
 }
@@ -322,8 +338,10 @@ impl SpecializedMeshPipeline for DynamicMaterial2dPipeline {
             fragment.shader = shader_handle;
         }
 
-        // Add material bind group layout
-        descriptor.layout.push(self.material_layout.clone());
+        // Add material bind group layout descriptor
+        descriptor
+            .layout
+            .push(self.material_layout_descriptor.clone());
 
         // Enable alpha blending for transparency
         if let Some(ref mut fragment) = descriptor.fragment
