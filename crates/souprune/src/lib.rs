@@ -33,7 +33,7 @@ use crate::extra::multi_source::MultiSourceAssetReader;
 use app_state::{app_setup, battle, overworld};
 use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
-use bevy::asset::io::{AssetSource, AssetSourceId};
+use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::prelude::*;
 #[cfg(feature = "unsafe_gpu")]
 use bevy::render::RenderPlugin;
@@ -184,14 +184,12 @@ fn get_file_importer_plugins() -> (
 /// 获取应用程序中使用的第三方插件。
 fn get_third_plugins() -> (
     leafwing_input_manager::prelude::InputManagerPlugin<Action>,
-    seldom_state::prelude::StateMachinePlugin,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_rich_text3d::Text3dPlugin,
     bevy_alight_motion::prelude::AlightMotionPlugin,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
-        seldom_state::prelude::StateMachinePlugin::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
         bevy_rich_text3d::Text3dPlugin {
             default_atlas_dimension: (1024, 1024),
@@ -258,13 +256,13 @@ pub fn run() {
         .insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
-            AssetSource::build()
-                .with_reader(move || {
-                    let roots = config::get_asset_roots(&project_name);
-                    let readers = roots.into_iter().map(FileAssetReader::new).collect();
-                    Box::new(MultiSourceAssetReader::new(readers))
-                })
-                .with_watcher(|sender| {
+            AssetSourceBuilder::new(move || {
+                let roots = config::get_asset_roots(&project_name);
+                let readers = roots.into_iter().map(FileAssetReader::new).collect();
+                Box::new(MultiSourceAssetReader::new(readers))
+            })
+            .with_watcher(
+                |sender: async_channel::Sender<bevy::asset::io::AssetSourceEvent>| {
                     // Watch the project root directory for hot reloading
                     // This allows hot reloading of view_layout.ron files outside of assets/
                     //
@@ -308,7 +306,8 @@ pub fn run() {
                     }
                     error!("[Hot Reload] No valid project root found for file watching");
                     None
-                }),
+                },
+            ),
         )
         .insert_resource(app_setup::ResolutionScale(resolution_scale))
         .insert_resource(extra::mortar::CurrentLocale(language))
