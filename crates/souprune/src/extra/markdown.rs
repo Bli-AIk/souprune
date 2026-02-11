@@ -32,7 +32,7 @@ impl Plugin for MarkdownPlugin {
 }
 #[derive(Asset, TypePath, Debug)]
 pub struct MarkdownAsset;
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct MarkdownAssetLoader;
 
 impl AssetLoader for MarkdownAssetLoader {

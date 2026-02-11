@@ -232,10 +232,8 @@ pub mod debug_fre_panel {
             .spawn((
                 Name::new("Debug: FRE Panel Camera"),
                 Camera2d,
-                Camera {
-                    target: RenderTarget::Window(WindowRef::Entity(window_entity)),
-                    ..default()
-                },
+                Camera::default(),
+                RenderTarget::Window(WindowRef::Entity(window_entity)),
                 EguiMultipassSchedule::new(FREPanelContextPass),
                 FREPanelCamera,
                 super::super::DebugCamera,

@@ -48,7 +48,11 @@ impl Plugin for PlayerPlugin {
                     .add_message::<SpawnPlayerRequest>()
                     .add_systems(
                         Update,
-                        (player_direction_control_system, spawn_player_on_event)
+                        (
+                            player_direction_control_system,
+                            spawn_player_on_event,
+                            player_state_transition_system,
+                        )
                             .in_set(OverworldUpdate),
                     );
             }
@@ -104,13 +108,10 @@ pub fn spawn_overworld_player(
     player_behavior: &Res<PlayerBehavior>,
 ) {
     use crate::app_state::overworld::character::components::*;
-    use crate::app_state::overworld::player::utils::{is_player_running, is_player_walking};
     use crate::core::character_asset::{AnimationConfigAsset, CharacterAnimator};
     use crate::core::collision::Rect2DCollider;
     use crate::core::input::Action;
     use leafwing_input_manager::action_state::ActionState;
-    use seldom_state::machine::StateMachine;
-    use seldom_state::prelude::IntoTrigger;
 
     let anim_config: Handle<AnimationConfigAsset> =
         asset_server.load(&player_behavior.animation_config_path);
@@ -134,24 +135,12 @@ pub fn spawn_overworld_player(
         }
     };
 
-    let mut state_machine = StateMachine::default()
-        .trans::<StateIdle, _>(is_player_walking, StateWalking)
-        .trans::<StateWalking, _>(is_player_walking.not(), StateIdle)
-        .trans::<StateRunning, _>(is_player_walking.not(), StateIdle);
-
-    if player_behavior.run_action.is_some() {
-        state_machine = state_machine
-            .trans::<StateWalking, _>(is_player_running, StateRunning)
-            .trans::<StateRunning, _>(is_player_running.not(), StateWalking);
-    }
-
     commands.spawn((
         Name::new("OverworldPlayer"),
         StateIdle,
         PlayerControlled,
         BulletTarget::new(),
         crate::app_state::overworld::chase::ChaseHighlight,
-        state_machine,
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
         Rect2DCollider::new(
@@ -168,4 +157,118 @@ pub fn spawn_overworld_player(
             },
         ),
     ));
+}
+
+/// Pure Bevy system for player state transitions.
+/// Replaces seldom_state's declarative StateMachine.
+///
+/// 纯 Bevy 系统实现的玩家状态转换。
+/// 替换 seldom_state 的声明式 StateMachine。
+pub fn player_state_transition_system(
+    mut commands: Commands,
+    query: Query<
+        (
+            Entity,
+            Option<&character::components::StateIdle>,
+            Option<&character::components::StateWalking>,
+            Option<&character::components::StateRunning>,
+        ),
+        With<character::components::PlayerControlled>,
+    >,
+    action_query: Query<
+        &leafwing_input_manager::action_state::ActionState<crate::core::input::Action>,
+        With<character::components::PlayerControlled>,
+    >,
+    registry: Res<crate::core::input::ActionRegistry>,
+    behavior_config: Res<crate::core::input::InputBehaviorConfig>,
+    overworld_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
+    player_behavior: Res<PlayerBehavior>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
+) {
+    use crate::app_state::overworld::character::components::*;
+    use crate::core::input::ActionStateExt;
+
+    // Check if current state allows player movement
+    let player_movable = state_config
+        .as_ref()
+        .map(|c| c.is_player_movable(overworld_state.name()))
+        .unwrap_or(true);
+
+    let Ok(action_state) = action_query.single() else {
+        return;
+    };
+
+    // Check walking input
+    let is_walking = if player_movable {
+        let up_pressed = behavior_config
+            .nav_up()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let down_pressed = behavior_config
+            .nav_down()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let left_pressed = behavior_config
+            .nav_left()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+        let right_pressed = behavior_config
+            .nav_right()
+            .map(|name| action_state.action_pressed(&registry, name))
+            .unwrap_or(false);
+
+        let has_vertical = (up_pressed && !down_pressed) || (down_pressed && !up_pressed);
+        let has_horizontal = (left_pressed && !right_pressed) || (right_pressed && !left_pressed);
+        has_vertical || has_horizontal
+    } else {
+        false
+    };
+
+    // Check running input
+    let is_running = if player_movable && is_walking {
+        player_behavior
+            .run_action
+            .as_ref()
+            .and_then(|name| registry.get(name))
+            .map(|action| action_state.pressed(&action))
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
+    for (entity, has_idle, has_walking, has_running) in query.iter() {
+        let mut entity_commands = commands.entity(entity);
+
+        match (
+            has_idle.is_some(),
+            has_walking.is_some(),
+            has_running.is_some(),
+        ) {
+            // StateIdle: transition to Walking if walking
+            (true, false, false) if is_walking => {
+                entity_commands.remove::<StateIdle>().insert(StateWalking);
+            }
+            // StateWalking: transition to Running if running, or to Idle if not walking
+            (false, true, false) => {
+                if !is_walking {
+                    entity_commands.remove::<StateWalking>().insert(StateIdle);
+                } else if is_running {
+                    entity_commands
+                        .remove::<StateWalking>()
+                        .insert(StateRunning);
+                }
+            }
+            // StateRunning: transition to Walking if not running, or to Idle if not walking
+            (false, false, true) => {
+                if !is_walking {
+                    entity_commands.remove::<StateRunning>().insert(StateIdle);
+                } else if !is_running {
+                    entity_commands
+                        .remove::<StateRunning>()
+                        .insert(StateWalking);
+                }
+            }
+            _ => {}
+        }
+    }
 }
