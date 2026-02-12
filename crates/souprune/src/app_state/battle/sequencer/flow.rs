@@ -106,7 +106,7 @@ pub fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<E
 pub fn advance_battle_flow_system(
     mut commands: Commands,
     mut context: ResMut<BattleContext>,
-    active_chapters: Query<&ActiveChapter>,
+    active_chapters: Query<&ActiveChapter, Without<ChapterFinished>>,
 ) {
     // Check if any root-level chapter is active
     // 检查是否有任何根级章节处于活动状态

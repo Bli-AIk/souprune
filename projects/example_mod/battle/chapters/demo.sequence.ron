@@ -39,6 +39,10 @@
         // 执行待处理的行动序列（由 FRE 规则设置）
         RunSequence(path_fact: "pending_sequence"),
 
+        // Disable interaction before entering danmaku phase
+        // 进入弹幕阶段前禁用交互
+        SetViewFact(key: "interactable", value: Bool(false)),
+
         SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
         TweenViewElement(

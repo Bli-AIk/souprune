@@ -94,9 +94,9 @@
                         translation: (-267.0, 50.0, 1.0),
                     ),
                     line_height: 1.2,
-                    // Only show in main menu (depth 0)
-                    // 仅在主菜单（深度 0）时显示
-                    visible_when: "$depth == 0",
+                    // Only show in main menu (depth 0) and not during narration
+                    // 仅在主菜单（深度 0）且非旁白时显示
+                    visible_when: "$depth == 0 && $narration_visible == false",
                 ),
 
                 // ========================================
@@ -138,7 +138,7 @@
                         translation: (-220.0, 50.0, 1.0),
                     ),
                     line_height: 1.25,
-                    visible_when: "$depth == 2 && $menu_context == 1",
+                    visible_when: "$depth == 2 && $menu_context == 1 && $narration_visible == false",
                 ),
                 // Right column: options 1, 3, 5, ... (start at 1, step 2)
                 // 右列：选项 1, 3, 5, ...（从 1 开始，步进 2）
@@ -152,7 +152,7 @@
                         translation: (50.0, 50.0, 1.0),
                     ),
                     line_height: 1.25,
-                    visible_when: "$depth == 2 && $menu_context == 1",
+                    visible_when: "$depth == 2 && $menu_context == 1 && $narration_visible == false",
                 ),
 
                 // ========================================
@@ -303,6 +303,8 @@
         // ========================================
         (
             name: "BtnFight",
+            // Always visible (false/unselected state)
+            // 始终可见（未选中状态）
             sprite: (
                 visual: "textures/battle/ui/fight/false.png",
                 transform: (
@@ -310,11 +312,11 @@
                 ),
             ),
         ),
-        // FIGHT button selected state
-        // 战斗按钮选中状态
+        // FIGHT button selected state (hidden when buttons_visible is false)
+        // 战斗按钮选中状态（buttons_visible 为 false 时隐藏高亮）
         (
             name: "BtnFightSelected",
-            visible_when: "$button_selection == 0",
+            visible_when: "$button_selection == 0 && $buttons_visible == true && $interactable == true",
             sprite: (
                 visual: "textures/battle/ui/fight/true.png",
                 transform: (
@@ -338,7 +340,7 @@
         ),
         (
             name: "BtnActSelected",
-            visible_when: "$button_selection == 1",
+            visible_when: "$button_selection == 1 && $buttons_visible == true && $interactable == true",
             sprite: (
                 visual: "textures/battle/ui/act/true.png",
                 transform: (
@@ -362,7 +364,7 @@
         ),
         (
             name: "BtnItemSelected",
-            visible_when: "$button_selection == 2",
+            visible_when: "$button_selection == 2 && $buttons_visible == true && $interactable == true",
             sprite: (
                 visual: "textures/battle/ui/item/true.png",
                 transform: (
@@ -386,7 +388,7 @@
         ),
         (
             name: "BtnMercySelected",
-            visible_when: "$button_selection == 3",
+            visible_when: "$button_selection == 3 && $buttons_visible == true && $interactable == true",
             sprite: (
                 visual: "textures/battle/ui/mercy/true.png",
                 transform: (
