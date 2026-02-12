@@ -16,7 +16,9 @@ pub mod debug_inspector {
     use crate::core::input::Action;
     use bevy::app::App;
     use bevy::camera::RenderTarget;
+    use bevy::ecs::query::QueryFilter;
     use bevy::ecs::schedule::ScheduleLabel;
+    use bevy::ecs::system::SystemIdMarker;
     use bevy::prelude::*;
     use bevy::window::{
         PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
@@ -28,6 +30,7 @@ pub mod debug_inspector {
     use iyes_perf_ui::prelude::*;
     use leafwing_input_manager::action_state::ActionState;
     use leafwing_input_manager::plugin::InputManagerSystem;
+    use std::marker::PhantomData;
     use std::time::Duration;
 
     #[derive(Component)]
@@ -57,6 +60,49 @@ pub mod debug_inspector {
         window_focused: bool,
         /// Two-phase refresh state for state change handling.
         refresh_phase: RefreshPhase,
+        /// Whether to show all entities including BRP/system internals.
+        /// 是否显示所有实体，包括 BRP/系统内部实体。
+        show_all_entities: bool,
+    }
+
+    /// Custom entity filter that excludes BRP system entities by default.
+    /// 自定义实体过滤器，默认排除 BRP 系统实体。
+    struct BrpEntityFilter {
+        show_all: bool,
+        _marker: PhantomData<Without<ChildOf>>,
+    }
+
+    impl BrpEntityFilter {
+        fn new(show_all: bool) -> Self {
+            Self {
+                show_all,
+                _marker: PhantomData,
+            }
+        }
+    }
+
+    impl bevy_inspector::EntityFilter for BrpEntityFilter {
+        type StaticFilter = Without<ChildOf>;
+
+        fn is_active(&self) -> bool {
+            !self.show_all
+        }
+
+        fn filter_entity(&self, world: &mut World, entity: Entity) -> bool {
+            // Filter out entities with SystemIdMarker (BRP registered systems)
+            // 过滤掉带有 SystemIdMarker 的实体（BRP 注册的系统）
+            if world.get::<SystemIdMarker>(entity).is_some() {
+                return false;
+            }
+
+            // Filter out Observer entities
+            // 过滤掉 Observer 实体
+            if world.get::<bevy::ecs::observer::Observer>(entity).is_some() {
+                return false;
+            }
+
+            true
+        }
     }
 
     #[derive(Component)]
@@ -415,9 +461,14 @@ pub mod debug_inspector {
     }
 
     fn inspector_window_ui_system(world: &mut World) {
-        let inspector_camera = world
-            .get_resource::<InspectorUiState>()
-            .and_then(|state| state.inspector_camera);
+        // Get inspector state
+        let (inspector_camera, show_all_entities) = {
+            let state = world.get_resource::<InspectorUiState>();
+            (
+                state.and_then(|s| s.inspector_camera),
+                state.map(|s| s.show_all_entities).unwrap_or(false),
+            )
+        };
         let Some(camera_entity) = inspector_camera else {
             return;
         };
@@ -432,9 +483,33 @@ pub mod debug_inspector {
             Err(_) => return,
         };
 
+        // Top panel for controls
+        // 顶部面板用于控件
+        egui::TopBottomPanel::top("inspector_controls").show(egui_context.get_mut(), |ui| {
+            ui.horizontal(|ui| {
+                // Get current state
+                let mut show_all = world
+                    .get_resource::<InspectorUiState>()
+                    .map(|s| s.show_all_entities)
+                    .unwrap_or(false);
+
+                if ui
+                    .checkbox(&mut show_all, "Show all entities (BRP/System internals)")
+                    .changed()
+                {
+                    if let Some(mut state) = world.get_resource_mut::<InspectorUiState>() {
+                        state.show_all_entities = show_all;
+                    }
+                }
+            });
+        });
+
         egui::CentralPanel::default().show(egui_context.get_mut(), |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                bevy_inspector::ui_for_world(world, ui);
+                // Use filtered entity display
+                // 使用过滤后的实体显示
+                let filter = BrpEntityFilter::new(show_all_entities);
+                bevy_inspector::ui_for_entities_filtered(world, ui, true, &filter);
                 ui.allocate_space(ui.available_size());
             });
         });
