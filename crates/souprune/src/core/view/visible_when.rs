@@ -3,9 +3,21 @@
 //! 使用 `visible_when` 表达式的运行时可见性评估系统。
 //!
 //! This module provides the system that evaluates `visible_when` expressions
-//! every frame and updates entity visibility accordingly.
+//! and updates entity visibility accordingly.
 //!
-//! 本模块提供每帧评估 `visible_when` 表达式并相应更新实体可见性的系统。
+//! ## Performance Optimization
+//!
+//! This system only runs when relevant data changes:
+//! - Global LayeredFactDatabase changes
+//! - Any ViewRoot's local_facts changes
+//!
+//! ## 性能优化
+//!
+//! 此系统仅在相关数据变更时运行：
+//! - 全局 LayeredFactDatabase 变更
+//! - 任何 ViewRoot 的 local_facts 变更
+//!
+//! 本模块提供评估 `visible_when` 表达式并相应更新实体可见性的系统。
 
 use super::components::{ViewRoot, VisibleWhen};
 use super::ron_view::parsing::PlayerDataView;
@@ -14,19 +26,29 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 
 /// System that evaluates `visible_when` expressions and updates visibility.
 ///
-/// This system runs every frame for entities that have the `VisibleWhen` component.
-/// It creates a `PlayerDataView` that can access View-local facts through `ViewRoot`.
+/// This system only runs when the fact database or any ViewRoot's local_facts changes,
+/// avoiding unnecessary per-frame computation.
 ///
 /// 评估 `visible_when` 表达式并更新可见性的系统。
 ///
-/// 对于具有 `VisibleWhen` 组件的实体，此系统每帧运行。
-/// 它创建一个可以通过 `ViewRoot` 访问 View 局部事实的 `PlayerDataView`。
+/// 此系统仅在 fact 数据库或任何 ViewRoot 的 local_facts 变更时运行，
+/// 避免不必要的每帧计算。
 pub(crate) fn evaluate_visible_when_system(
     layered_db: Res<LayeredFactDatabase>,
     view_root_query: Query<&ViewRoot>,
+    changed_view_roots: Query<Entity, Changed<ViewRoot>>,
     child_of_query: Query<&ChildOf>,
     mut query: Query<(Entity, &VisibleWhen, &mut Visibility)>,
 ) {
+    // Performance optimization: Only evaluate when data actually changes
+    // 性能优化：仅在数据实际变更时评估
+    let global_changed = layered_db.is_changed();
+    let any_view_root_changed = !changed_view_roots.is_empty();
+
+    if !global_changed && !any_view_root_changed {
+        return;
+    }
+
     for (entity, visible_when, mut visibility) in query.iter_mut() {
         // Try to find the ViewRoot ancestor by traversing up the hierarchy
         // 通过向上遍历层级尝试找到 ViewRoot 祖先
@@ -51,7 +73,7 @@ pub(crate) fn evaluate_visible_when_system(
 
         if *visibility != desired_visibility {
             *visibility = desired_visibility;
-            debug!(
+            trace!(
                 "Entity {:?} visibility changed to {:?} based on '{}'",
                 entity, desired_visibility, visible_when.expression
             );

@@ -51,18 +51,33 @@ pub struct CollisionTileGroup;
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
 
+/// Setup the tilemap, using preloaded map handle if available.
+///
+/// 设置 tilemap，如果可用则使用预加载的地图句柄。
 pub fn setup_tilemap_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     souprune_config: Res<crate::config::SoupruneConfig>,
+    preloaded_maps: Option<Res<crate::app_state::app_setup::PreloadedMaps>>,
 ) {
+    // Use preloaded map handle if available, otherwise load on demand
+    // 如果预加载的地图句柄可用则使用它，否则按需加载
+    let map_handle = if let Some(ref preloaded) = preloaded_maps
+        && let Some(ref handle) = preloaded.initial_map
+    {
+        info!("Using preloaded map handle");
+        handle.clone()
+    } else {
+        info!("Loading map on demand (no preloaded handle available)");
+        asset_server.load(&souprune_config.game.initial_map_path)
+    };
+
     commands.spawn((
         OverworldEntity(),
-        TiledMap(asset_server.load(&souprune_config.game.initial_map_path)),
+        TiledMap(map_handle),
         TilemapAnchor::Center,
         TiledMapLayerZOffset(souprune_config.render.z_layer_tilemap),
     ));
-    // TODO: Tilemap的资源加载（或许）应当在 AppSetup 阶段完成。
 }
 
 /// Initialize Tilemap layers, filter and hide layers with "prototype" in their names,

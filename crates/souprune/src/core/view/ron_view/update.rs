@@ -173,11 +173,11 @@ pub fn update_dynamic_text_system(
         return;
     }
 
-    // Base player data for logging and fallback
-    // 用于日志和回退的基础 player data
+    // Base player data for fallback
+    // 用于回退的基础 player data
     let base_player_data = PlayerDataView::new(&layered_db);
 
-    info!(
+    trace!(
         "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
         global_changed,
         any_view_root_changed,
@@ -196,30 +196,23 @@ pub fn update_dynamic_text_system(
             PlayerDataView::new(&layered_db)
         };
 
-        info!(
-            "[update_dynamic_text_system] Updating text '{}' with template: '{}' (has_local_facts={})",
-            name,
-            template.0,
-            view_root_result.is_some()
-        );
-
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
 
-        info!(
-            "[update_dynamic_text_system] Resolved content for '{}': '{}'",
+        // Performance optimization: Skip if content hasn't changed
+        // 性能优化：如果内容未变化则跳过
+        // Note: Text3d doesn't directly expose content for comparison, so we always update.
+        // Future improvement: Store last resolved content in a component for comparison.
+        // 注意：Text3d 不直接暴露内容用于比较，所以我们总是更新。
+        // 未来改进：在组件中存储上次解析的内容用于比较。
+
+        trace!(
+            "[update_dynamic_text_system] Updating text '{}': '{}'",
             name, new_content
         );
 
-        // We also need to check if there is a conditional style embedded (not fully supported by simple re-resolve yet)
-        // But the original spawn logic handled conditional color.
-        // For now, let's just update the content. Re-implementing conditional color here would be ideal.
-        //
-        // 我们还需要检查是否嵌入了条件样式（目前的简单重新解析尚未完全支持）。
-        // 但原始生成逻辑处理了条件颜色。
-        // 目前，我们只更新内容。在此处理想情况下重新实现条件颜色。
-
         // Re-parsing the text3d
+        // 重新解析 text3d
         *text3d = parse_text_preserving_whitespace(&new_content);
 
         // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
@@ -233,10 +226,6 @@ pub fn update_dynamic_text_system(
                     .insert(super::super::text::NeedsGlyphRefresh);
             }
         });
-        info!(
-            "[update_dynamic_text_system] Queued NeedsGlyphRefresh for '{}'",
-            name
-        );
 
         // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
         // To support that, we would need to store the `conditional_style` in a component too.
