@@ -7,14 +7,6 @@
 //!
 //! 本模块提供数据驱动的精灵状态管理。
 //! 精灵纹理可以根据配置规则变化。
-//!
-//! NOTE: This module has been simplified during the View System refactor.
-//! The old InteractiveLayer-based triggers have been removed.
-//! Future implementation should use facts-based triggers.
-//!
-//! 注意：此模块在 View System 重构期间已简化。
-//! 旧的基于 InteractiveLayer 的触发器已被移除。
-//! 未来实现应使用基于 facts 的触发器。
 
 use bevy::prelude::*;
 use std::collections::HashMap;
