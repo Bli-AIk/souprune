@@ -2,22 +2,18 @@
 // 通用旁白序列
 //
 // This sequence displays a narration message and waits for player confirmation.
-// The narration key is read from the `action_param` fact, which should be set
+// The narration text is determined by the `action_param` fact, which is set
 // by FRE rules before running this sequence.
 //
 // 此序列显示旁白消息并等待玩家确认。
-// 旁白键从 `action_param` fact 读取，该 fact 应在运行此序列前由 FRE 规则设置。
+// 旁白文本由 `action_param` fact 确定，该 fact 在运行此序列前由 FRE 规则设置。
 //
 // Prerequisites / 前置条件:
-//   - action_param: The Mortar localization key for the narration text
+//   - action_param: The Mortar localization key for the narration text (set by FRE)
 //
 // This is a reusable template for any "show text → wait → continue" pattern.
 // 这是任何"显示文本 → 等待 → 继续"模式的可复用模板。
 (chapters: [
-    // Set narration key from action_param
-    // 从 action_param 设置旁白键
-    SetViewFact(key: "narration_key", value: Expr("$action_param")),
-
     // Hide menu buttons, show narration
     // 隐藏菜单按钮，显示旁白
     SetViewFact(key: "depth", value: Int(0)),

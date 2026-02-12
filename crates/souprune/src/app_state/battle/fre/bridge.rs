@@ -183,65 +183,109 @@ pub fn copy_enemy_act_data_system(
                     enemy_id, enemy_index
                 );
 
-                // Try to find enemy ACT data with various naming patterns
-                // Pattern 1: "dummy.act_name_keys" (id prefix)
-                // Pattern 2: "enemy_0.act_name_keys" (index prefix)
-                // 尝试使用各种命名模式查找敌人 ACT 数据
-                // 模式 1: "dummy.act_name_keys"（ID 前缀）
-                // 模式 2: "enemy_0.act_name_keys"（索引前缀）
+                // Try to find enemy action data with various naming patterns
+                // Pattern 1: "action_labels" (global, for single-enemy demo)
+                // Pattern 2: "dummy.action_labels" (id prefix)
+                // Pattern 3: "enemy_0.action_labels" (index prefix)
+                // 尝试使用各种命名模式查找敌人动作数据
+                // 模式 1: "action_labels"（全局，单敌人 demo）
+                // 模式 2: "dummy.action_labels"（ID 前缀）
+                // 模式 3: "enemy_0.action_labels"（索引前缀）
 
-                // Get act_name_keys
-                let act_name_keys = layered_db
-                    .get_string_list(&format!("{}.act_name_keys", enemy_id.to_lowercase()))
+                // Get action_labels (display names)
+                let action_labels = layered_db
+                    .get_string_list("action_labels")
                     .or_else(|| {
-                        layered_db.get_string_list(&format!("enemy_{}.act_name_keys", enemy_index))
+                        layered_db
+                            .get_string_list(&format!("{}.action_labels", enemy_id.to_lowercase()))
+                    })
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.action_labels", enemy_index))
                     })
                     .map(|v| v.to_vec());
 
-                // Get act_behaviors
-                let act_behaviors = layered_db
-                    .get_string_list(&format!("{}.act_behaviors", enemy_id.to_lowercase()))
+                // Get action_sequences (sequence paths)
+                let action_sequences = layered_db
+                    .get_string_list("action_sequences")
                     .or_else(|| {
-                        layered_db.get_string_list(&format!("enemy_{}.act_behaviors", enemy_index))
+                        layered_db.get_string_list(&format!(
+                            "{}.action_sequences",
+                            enemy_id.to_lowercase()
+                        ))
+                    })
+                    .or_else(|| {
+                        layered_db
+                            .get_string_list(&format!("enemy_{}.action_sequences", enemy_index))
+                    })
+                    .map(|v| v.to_vec());
+
+                // Get action_params (parameters for sequences)
+                let action_params = layered_db
+                    .get_string_list("action_params")
+                    .or_else(|| {
+                        layered_db
+                            .get_string_list(&format!("{}.action_params", enemy_id.to_lowercase()))
+                    })
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.action_params", enemy_index))
                     })
                     .map(|v| v.to_vec());
 
                 // Get act_count
                 let act_count = layered_db
-                    .get_int(&format!("{}.act_count", enemy_id.to_lowercase()))
+                    .get_int("act_count")
+                    .or_else(|| {
+                        layered_db.get_int(&format!("{}.act_count", enemy_id.to_lowercase()))
+                    })
                     .or_else(|| layered_db.get_int(&format!("enemy_{}.act_count", enemy_index)));
 
-                // Set current_enemy_* facts in ViewRoot local_facts
-                let keys_len = act_name_keys.as_ref().map(|k| k.len());
-                if let Some(keys) = act_name_keys {
+                // Set action facts in ViewRoot local_facts using generic naming
+                // 在 ViewRoot local_facts 中使用通用命名设置动作 facts
+                let labels_len = action_labels.as_ref().map(|k| k.len());
+                if let Some(labels) = action_labels {
                     info!(
-                        "ACT Options: Found {} ACT name keys for {}",
-                        keys.len(),
+                        "ACT Options: Found {} action labels for {}",
+                        labels.len(),
                         enemy_id
                     );
                     view_root
                         .local_facts
-                        .set("current_enemy_act_name_keys", FactValue::StringList(keys));
+                        .set("action_labels", FactValue::StringList(labels));
                 } else {
                     warn!(
-                        "ACT Options: No act_name_keys found for enemy ID '{}'",
+                        "ACT Options: No action_labels found for enemy ID '{}'",
                         enemy_id
                     );
                 }
 
-                if let Some(behaviors) = act_behaviors {
+                if let Some(sequences) = action_sequences {
                     info!(
-                        "ACT Options: Found {} ACT behaviors for {}",
-                        behaviors.len(),
+                        "ACT Options: Found {} action sequences for {}",
+                        sequences.len(),
                         enemy_id
                     );
-                    view_root.local_facts.set(
-                        "current_enemy_act_behaviors",
-                        FactValue::StringList(behaviors),
-                    );
+                    view_root
+                        .local_facts
+                        .set("action_sequences", FactValue::StringList(sequences));
                 } else {
                     warn!(
-                        "ACT Options: No act_behaviors found for enemy ID '{}'",
+                        "ACT Options: No action_sequences found for enemy ID '{}'",
+                        enemy_id
+                    );
+                }
+
+                if let Some(params) = action_params {
+                    info!(
+                        "ACT Options: Found {} action params for {}",
+                        params.len(),
+                        enemy_id
+                    );
+                    view_root
+                        .local_facts
+                        .set("action_params", FactValue::StringList(params));
+                } else {
+                    warn!(
+                        "ACT Options: No action_params found for enemy ID '{}'",
                         enemy_id
                     );
                 }
@@ -251,9 +295,9 @@ pub fn copy_enemy_act_data_system(
                     view_root
                         .local_facts
                         .set("act_count", FactValue::Int(count));
-                } else if let Some(len) = keys_len {
-                    // Fall back to length of act_name_keys
-                    info!("ACT Options: Using keys.len() = {} as act_count", len);
+                } else if let Some(len) = labels_len {
+                    // Fall back to length of action_labels
+                    info!("ACT Options: Using labels.len() = {} as act_count", len);
                     view_root
                         .local_facts
                         .set("act_count", FactValue::Int(len as i64));

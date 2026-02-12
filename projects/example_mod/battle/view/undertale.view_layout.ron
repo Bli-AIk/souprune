@@ -63,7 +63,7 @@
         "act_selection": 0,        // Currently selected ACT option (0-based)
         "act_count": 0,            // Number of ACT options for current enemy
         "narration_visible": false,  // Whether to show narration text
-        "narration_key": "",       // Current Mortar node key for narration
+        "action_param": "",        // Current action parameter (e.g., narration key, set by FRE)
         "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
         "buttons_visible": true,   // Whether to show menu buttons
     },
@@ -161,7 +161,7 @@
                 // ========================================
                 (
                     id: "NarrationText",
-                    content: "{{battle/enemies/dummy:$narration_key}}",
+                    content: "{{battle/enemies/dummy:$action_param}}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
