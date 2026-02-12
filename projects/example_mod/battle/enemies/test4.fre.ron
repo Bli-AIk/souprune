@@ -1,12 +1,43 @@
-// Test enemy 4 definition
-// 测试敌人 4 定义
+// Loox enemy definition (5 ACT options)
+// 独眼怪敌人定义 (5 个 ACT 选项)
 (
     facts: {
-        "test4.name": String("{{battle/ui:ENEMY_TEST4}}"),
-        "test4.hp": Int(60),
-        "test4.hp_max": Int(80),
-        "test4.attack": Int(3),
-        "test4.defense": Int(1),
+        "loox.name": String("{{battle/ui:ENEMY_LOOX}}"),
+        "loox.hp": Int(60),
+        "loox.hp_max": Int(80),
+        "loox.attack": Int(6),
+        "loox.defense": Int(6),
+        "loox.description": String("Don't pick on him. Family name: Eyewalker."),
+
+        // ACT options count
+        "act_count": Int(5),
+
+        // Action option display labels
+        "action_labels": StringList([
+            "{{battle/ui:ACT_LOOX_CHECK}}",
+            "{{battle/ui:ACT_LOOX_PICKOFF}}",
+            "{{battle/ui:ACT_LOOX_DONTPICK}}",
+            "{{battle/ui:ACT_LOOX_STARE}}",
+            "{{battle/ui:ACT_LOOX_FLIRT}}",
+        ]),
+
+        // Sequence paths for each action option
+        "action_sequences": StringList([
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+        ]),
+
+        // Parameters for each action
+        "action_params": StringList([
+            "{{battle/ui:ACT_LOOX_CHECK_RESULT}}",
+            "{{battle/ui:ACT_LOOX_PICKOFF_RESULT}}",
+            "{{battle/ui:ACT_LOOX_DONTPICK_RESULT}}",
+            "{{battle/ui:ACT_LOOX_STARE_RESULT}}",
+            "{{battle/ui:ACT_LOOX_FLIRT_RESULT}}",
+        ]),
     },
     rules: [],
 )

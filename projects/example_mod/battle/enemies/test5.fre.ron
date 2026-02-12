@@ -1,12 +1,46 @@
-// Test enemy 5 definition
-// 测试敌人 5 定义
+// Vegetoid enemy definition (6 ACT options)
+// 蔬菜人敌人定义 (6 个 ACT 选项)
 (
     facts: {
-        "test5.name": String("{{battle/ui:ENEMY_TEST5}}"),
-        "test5.hp": Int(150),
-        "test5.hp_max": Int(200),
-        "test5.attack": Int(15),
-        "test5.defense": Int(8),
+        "vegetoid.name": String("{{battle/ui:ENEMY_VEGETOID}}"),
+        "vegetoid.hp": Int(150),
+        "vegetoid.hp_max": Int(200),
+        "vegetoid.attack": Int(6),
+        "vegetoid.defense": Int(6),
+        "vegetoid.description": String("Serving Size: 1 Monster. Not monitored by the USDA."),
+
+        // ACT options count
+        "act_count": Int(6),
+
+        // Action option display labels
+        "action_labels": StringList([
+            "{{battle/ui:ACT_VEGETOID_CHECK}}",
+            "{{battle/ui:ACT_VEGETOID_TALK}}",
+            "{{battle/ui:ACT_VEGETOID_DINNER}}",
+            "{{battle/ui:ACT_VEGETOID_DEVOUR}}",
+            "{{battle/ui:ACT_VEGETOID_FLIRT}}",
+            "{{battle/ui:ACT_VEGETOID_PAT}}",
+        ]),
+
+        // Sequence paths for each action option
+        "action_sequences": StringList([
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+        ]),
+
+        // Parameters for each action
+        "action_params": StringList([
+            "{{battle/ui:ACT_VEGETOID_CHECK_RESULT}}",
+            "{{battle/ui:ACT_VEGETOID_TALK_RESULT}}",
+            "{{battle/ui:ACT_VEGETOID_DINNER_RESULT}}",
+            "{{battle/ui:ACT_VEGETOID_DEVOUR_RESULT}}",
+            "{{battle/ui:ACT_VEGETOID_FLIRT_RESULT}}",
+            "{{battle/ui:ACT_VEGETOID_PAT_RESULT}}",
+        ]),
     },
     rules: [],
 )
