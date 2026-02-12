@@ -888,44 +888,43 @@ fn try_evaluate_dynamic_key_mixed(
     let suffix = &expr[brace_end + 1..];
 
     // Check if suffix contains array indexing
-    if let Some(bracket_start) = suffix.find('[') {
-        if suffix.ends_with(']') {
-            let array_suffix = &suffix[..bracket_start];
-            let index_expr = &suffix[bracket_start + 1..suffix.len() - 1];
+    if let Some(bracket_start) = suffix.find('[')
+        && suffix.ends_with(']')
+    {
+        let array_suffix = &suffix[..bracket_start];
+        let index_expr = &suffix[bracket_start + 1..suffix.len() - 1];
 
-            let full_key = format!("{}{}", prefix_value, array_suffix);
+        let full_key = format!("{}{}", prefix_value, array_suffix);
 
-            // Evaluate the index from local_facts
-            let index: usize = if index_expr.starts_with('$') {
-                let index_var_name = &index_expr[1..];
-                let index_value = local_facts.get_int(index_var_name)?;
-                if index_value < 0 {
-                    return None;
-                }
-                index_value as usize
-            } else {
-                index_expr.parse::<usize>().ok()?
-            };
+        // Evaluate the index from local_facts
+        let index: usize = if let Some(index_var_name) = index_expr.strip_prefix('$') {
+            let index_value = local_facts.get_int(index_var_name)?;
+            if index_value < 0 {
+                return None;
+            }
+            index_value as usize
+        } else {
+            index_expr.parse::<usize>().ok()?
+        };
 
-            // Get the array from global_facts
-            return match global_facts.get_by_str(&full_key)? {
-                FactValue::StringList(list) => {
-                    if index < list.len() {
-                        Some(FactValue::String(list[index].clone()))
-                    } else {
-                        None
-                    }
+        // Get the array from global_facts
+        return match global_facts.get_by_str(&full_key)? {
+            FactValue::StringList(list) => {
+                if index < list.len() {
+                    Some(FactValue::String(list[index].clone()))
+                } else {
+                    None
                 }
-                FactValue::IntList(list) => {
-                    if index < list.len() {
-                        Some(FactValue::Int(list[index]))
-                    } else {
-                        None
-                    }
+            }
+            FactValue::IntList(list) => {
+                if index < list.len() {
+                    Some(FactValue::Int(list[index]))
+                } else {
+                    None
                 }
-                _ => None,
-            };
-        }
+            }
+            _ => None,
+        };
     }
 
     // No array indexing, look up from global_facts
@@ -1054,56 +1053,55 @@ fn try_evaluate_dynamic_key(
     let suffix = &expr[brace_end + 1..];
 
     // Check if suffix contains array indexing: .array_name[$index]
-    if let Some(bracket_start) = suffix.find('[') {
-        if suffix.ends_with(']') {
-            // Extract array suffix and index expression
-            let array_suffix = &suffix[..bracket_start]; // e.g., ".action_params"
-            let index_expr = &suffix[bracket_start + 1..suffix.len() - 1]; // e.g., "$act_selection"
+    if let Some(bracket_start) = suffix.find('[')
+        && suffix.ends_with(']')
+    {
+        // Extract array suffix and index expression
+        let array_suffix = &suffix[..bracket_start]; // e.g., ".action_params"
+        let index_expr = &suffix[bracket_start + 1..suffix.len() - 1]; // e.g., "$act_selection"
 
-            // Build the full array key
-            let full_key = format!("{}{}", prefix_value, array_suffix);
+        // Build the full array key
+        let full_key = format!("{}{}", prefix_value, array_suffix);
 
-            // Evaluate the index
-            let index: usize = if index_expr.starts_with('$') {
-                let index_var_name = &index_expr[1..];
-                let index_value = facts.get_int(index_var_name)?;
-                if index_value < 0 {
+        // Evaluate the index
+        let index: usize = if let Some(index_var_name) = index_expr.strip_prefix('$') {
+            let index_value = facts.get_int(index_var_name)?;
+            if index_value < 0 {
+                warn!(
+                    "Dynamic key array index '{}' evaluated to negative value: {}",
+                    expr, index_value
+                );
+                return None;
+            }
+            index_value as usize
+        } else {
+            index_expr.parse::<usize>().ok()?
+        };
+
+        // Get the array and index into it
+        return match facts.get_by_str(&full_key)? {
+            FactValue::StringList(list) => {
+                if index < list.len() {
+                    Some(FactValue::String(list[index].clone()))
+                } else {
                     warn!(
-                        "Dynamic key array index '{}' evaluated to negative value: {}",
-                        expr, index_value
+                        "Dynamic key array index {} out of bounds for '{}' (len={})",
+                        index,
+                        full_key,
+                        list.len()
                     );
-                    return None;
+                    None
                 }
-                index_value as usize
-            } else {
-                index_expr.parse::<usize>().ok()?
-            };
-
-            // Get the array and index into it
-            return match facts.get_by_str(&full_key)? {
-                FactValue::StringList(list) => {
-                    if index < list.len() {
-                        Some(FactValue::String(list[index].clone()))
-                    } else {
-                        warn!(
-                            "Dynamic key array index {} out of bounds for '{}' (len={})",
-                            index,
-                            full_key,
-                            list.len()
-                        );
-                        None
-                    }
+            }
+            FactValue::IntList(list) => {
+                if index < list.len() {
+                    Some(FactValue::Int(list[index]))
+                } else {
+                    None
                 }
-                FactValue::IntList(list) => {
-                    if index < list.len() {
-                        Some(FactValue::Int(list[index]))
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-        }
+            }
+            _ => None,
+        };
     }
 
     // No array indexing, just look up the full key
@@ -1177,9 +1175,8 @@ fn try_evaluate_array_index(
     let index_expr = &expr[bracket_start + 1..expr.len() - 1]; // Content between [ and ]
 
     // Evaluate the index expression
-    let index: usize = if index_expr.starts_with('$') {
+    let index: usize = if let Some(index_var_name) = index_expr.strip_prefix('$') {
         // Index is a variable reference
-        let index_var_name = &index_expr[1..];
         let index_value = facts.get_int(index_var_name)?;
         if index_value < 0 {
             warn!(
