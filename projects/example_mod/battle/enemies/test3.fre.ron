@@ -10,10 +10,10 @@
         "moldsmal.description": String("Stereotypical: Curvaceously attractive, but no brains."),
 
         // ACT options count
-        "act_count": Int(4),
+        "moldsmal.act_count": Int(4),
 
         // Action option display labels
-        "action_labels": StringList([
+        "moldsmal.action_labels": StringList([
             "{{battle/ui:ACT_MOLDSMAL_CHECK}}",
             "{{battle/ui:ACT_MOLDSMAL_IMITATE}}",
             "{{battle/ui:ACT_MOLDSMAL_FLIRT}}",
@@ -21,7 +21,7 @@
         ]),
 
         // Sequence paths for each action option
-        "action_sequences": StringList([
+        "moldsmal.action_sequences": StringList([
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
@@ -29,7 +29,7 @@
         ]),
 
         // Parameters for each action
-        "action_params": StringList([
+        "moldsmal.action_params": StringList([
             "{{battle/ui:ACT_MOLDSMAL_CHECK_RESULT}}",
             "{{battle/ui:ACT_MOLDSMAL_IMITATE_RESULT}}",
             "{{battle/ui:ACT_MOLDSMAL_FLIRT_RESULT}}",

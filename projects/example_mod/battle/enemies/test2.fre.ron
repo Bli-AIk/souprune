@@ -10,24 +10,24 @@
         "whimsun.description": String("This monster is too sensitive to fight."),
 
         // ACT options count
-        "act_count": Int(3),
+        "whimsun.act_count": Int(3),
 
         // Action option display labels
-        "action_labels": StringList([
+        "whimsun.action_labels": StringList([
             "{{battle/ui:ACT_WHIMSUN_CHECK}}",
             "{{battle/ui:ACT_WHIMSUN_CONSOLE}}",
             "{{battle/ui:ACT_WHIMSUN_TERRORIZE}}",
         ]),
 
         // Sequence paths for each action option
-        "action_sequences": StringList([
+        "whimsun.action_sequences": StringList([
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
         ]),
 
         // Parameters for each action
-        "action_params": StringList([
+        "whimsun.action_params": StringList([
             "{{battle/ui:ACT_WHIMSUN_CHECK_RESULT}}",
             "{{battle/ui:ACT_WHIMSUN_CONSOLE_RESULT}}",
             "{{battle/ui:ACT_WHIMSUN_TERRORIZE_RESULT}}",

@@ -37,11 +37,11 @@
 
         // ACT options count
         // ACT 选项数量
-        "act_count": Int(4),
+        "dummy.act_count": Int(4),
 
         // Action option display labels (Mortar localization keys)
         // 动作选项显示标签（Mortar 本地化键）
-        "action_labels": StringList([
+        "dummy.action_labels": StringList([
             "EnemyDummyActCheck",
             "EnemyDummyActTalk",
             "EnemyDummyActFlirt",
@@ -50,7 +50,7 @@
 
         // Sequence paths for each action option
         // 每个动作选项对应的序列路径
-        "action_sequences": StringList([
+        "dummy.action_sequences": StringList([
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
             "battle/acts/dummy/flirt.sequence.ron",
@@ -59,7 +59,7 @@
 
         // Parameters for each action (e.g., narration key for simple narration)
         // 每个动作的参数（例如，简单旁白的旁白键）
-        "action_params": StringList([
+        "dummy.action_params": StringList([
             "EnemyDummyActCheckResult",
             "EnemyDummyActTalkResult",
             "",

@@ -10,10 +10,10 @@
         "vegetoid.description": String("Serving Size: 1 Monster. Not monitored by the USDA."),
 
         // ACT options count
-        "act_count": Int(6),
+        "vegetoid.act_count": Int(6),
 
         // Action option display labels
-        "action_labels": StringList([
+        "vegetoid.action_labels": StringList([
             "{{battle/ui:ACT_VEGETOID_CHECK}}",
             "{{battle/ui:ACT_VEGETOID_TALK}}",
             "{{battle/ui:ACT_VEGETOID_DINNER}}",
@@ -23,7 +23,7 @@
         ]),
 
         // Sequence paths for each action option
-        "action_sequences": StringList([
+        "vegetoid.action_sequences": StringList([
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
@@ -33,7 +33,7 @@
         ]),
 
         // Parameters for each action
-        "action_params": StringList([
+        "vegetoid.action_params": StringList([
             "{{battle/ui:ACT_VEGETOID_CHECK_RESULT}}",
             "{{battle/ui:ACT_VEGETOID_TALK_RESULT}}",
             "{{battle/ui:ACT_VEGETOID_DINNER_RESULT}}",

@@ -185,10 +185,15 @@
             event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 1", "$menu_context == 1"],
             actions: [
-                // Copy selected enemy's ACT data to current_enemy_* facts
-                // (This will be done by the battle system when it loads enemy data)
-                // 复制选中敌人的 ACT 数据到 current_enemy_* facts
-                // （这将由战斗系统在加载敌人数据时完成）
+                // Set current_enemy_id from enemy_ids array for dynamic key lookup
+                // 从 enemy_ids 数组设置 current_enemy_id 用于动态键名查找
+                SetLocalFact("current_enemy_id", Expr("$enemy_ids[$enemy_selection]")),
+                // Copy selected enemy's ACT data to generic facts for View consumption
+                // 复制选中敌人的 ACT 数据到通用 facts 供 View 使用
+                SetLocalFact("act_count", Expr("$${current_enemy_id}.act_count")),
+                SetLocalFact("action_labels", Expr("$${current_enemy_id}.action_labels")),
+                SetLocalFact("action_sequences", Expr("$${current_enemy_id}.action_sequences")),
+                SetLocalFact("action_params", Expr("$${current_enemy_id}.action_params")),
                 SetLocalFact("depth", Int(2)),
                 SetLocalFact("act_selection", Int(0)),
                 PlaySound("confirm"),
@@ -213,19 +218,19 @@
         ),
 
         // Confirm in ACT options - execute ACT (depth 2)
-        // Uses array indexing to get sequence path: $action_sequences[$act_selection]
+        // Uses dynamic key to get sequence path: $${current_enemy_id}.action_sequences
         // 在 ACT 选项中确认 - 执行 ACT（深度 2）
-        // 使用数组索引获取序列路径：$action_sequences[$act_selection]
+        // 使用动态键名获取序列路径：$${current_enemy_id}.action_sequences
         (
             event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 2", "$menu_context == 1"],
             actions: [
                 // Set the action parameter for the sequence to use (e.g., narration key)
                 // 设置动作参数供序列使用（例如旁白键）
-                SetLocalFact("action_param", Expr("$action_params[$act_selection]")),
-                // Set the pending sequence path from action_sequences array
-                // 从 action_sequences 数组设置待执行序列路径
-                SetLocalFact("pending_sequence", Expr("$action_sequences[$act_selection]")),
+                SetLocalFact("action_param", Expr("$${current_enemy_id}.action_params[$act_selection]")),
+                // Set the pending sequence path using dynamic key
+                // 使用动态键名设置待执行序列路径
+                SetLocalFact("pending_sequence", Expr("$${current_enemy_id}.action_sequences[$act_selection]")),
                 SetLocalFact("selection_confirmed", Bool(true)),
                 SetLocalFact("interactable", Bool(false)),
                 PlaySound("confirm"),

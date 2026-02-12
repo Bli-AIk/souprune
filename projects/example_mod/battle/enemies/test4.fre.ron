@@ -10,10 +10,10 @@
         "loox.description": String("Don't pick on him. Family name: Eyewalker."),
 
         // ACT options count
-        "act_count": Int(5),
+        "loox.act_count": Int(5),
 
         // Action option display labels
-        "action_labels": StringList([
+        "loox.action_labels": StringList([
             "{{battle/ui:ACT_LOOX_CHECK}}",
             "{{battle/ui:ACT_LOOX_PICKOFF}}",
             "{{battle/ui:ACT_LOOX_DONTPICK}}",
@@ -22,7 +22,7 @@
         ]),
 
         // Sequence paths for each action option
-        "action_sequences": StringList([
+        "loox.action_sequences": StringList([
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
             "battle/common/narration.sequence.ron",
@@ -31,7 +31,7 @@
         ]),
 
         // Parameters for each action
-        "action_params": StringList([
+        "loox.action_params": StringList([
             "{{battle/ui:ACT_LOOX_CHECK_RESULT}}",
             "{{battle/ui:ACT_LOOX_PICKOFF_RESULT}}",
             "{{battle/ui:ACT_LOOX_DONTPICK_RESULT}}",
