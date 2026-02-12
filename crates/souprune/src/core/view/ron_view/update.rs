@@ -302,6 +302,18 @@ fn find_view_root_ancestor<'a>(
 ///
 /// 更新 DynamicMaterial2d 实体的着色器材质参数。
 /// 评估参数表达式并更新材质 uniform。
+///
+/// ## Performance Optimization / 性能优化
+///
+/// This system uses a two-phase approach:
+/// 1. **Animation phase**: Always process entities with active animations (anim_progress < 1.0)
+/// 2. **Expression phase**: Only evaluate expressions when fact database changes
+///
+/// This avoids evaluating expressions every frame when data hasn't changed.
+///
+/// 该系统使用两阶段方法：
+/// 1. **动画阶段**：始终处理有活跃动画的实体（anim_progress < 1.0）
+/// 2. **表达式阶段**：仅在 fact 数据库变化时评估表达式
 pub fn update_shader_materials_system(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
@@ -317,114 +329,111 @@ pub fn update_shader_materials_system(
 ) {
     use crate::core::view::layout::Val;
     use crate::core::view::layout::view_schema::MaterialParamValue;
-    use std::collections::HashMap;
 
     // Early exit: skip if no shader materials exist
     if query.is_empty() {
         return;
     }
 
-    // Check if any shader material needs expression evaluation
-    // 检查是否有材质需要表达式评估
-    let needs_expression_eval = query.iter().any(|(_, sm, _)| {
-        sm.param_defs
-            .values()
-            .any(|v| matches!(v, MaterialParamValue::Expr(_)))
-    });
-
-    // Check if any shader material needs animation update
-    let needs_animation_update = query
-        .iter()
-        .any(|(_, sm, _)| sm.animation.as_ref().is_some_and(|a| a.anim_progress < 1.0));
-
-    // Check if we need to update
-    let global_changed = layered_db.is_changed();
-    let any_view_root_changed = !changed_view_roots.is_empty();
-
-    // Only proceed if database changed OR animation is in progress OR expressions need evaluation
-    // 只有在数据库变化、动画进行中或需要表达式评估时才继续
-    if !global_changed
-        && !any_view_root_changed
-        && !needs_animation_update
-        && !needs_expression_eval
-    {
-        return;
-    }
-
     let delta_time = time.delta_secs();
+    let elapsed_secs = time.elapsed_secs_f64();
+
+    // Check if fact data changed (triggers expression re-evaluation)
+    let facts_changed = layered_db.is_changed() || !changed_view_roots.is_empty();
 
     for (entity, mut shader_mat, material_handle) in query.iter_mut() {
-        // Find ViewRoot ancestor to access local facts
-        let view_root_result =
-            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
-        let player_data = if let Some((_, view_root)) = view_root_result {
-            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
-        } else {
-            PlayerDataView::new(&layered_db)
-        };
+        // Determine what needs updating for this entity
+        let has_active_animation = shader_mat
+            .animation
+            .as_ref()
+            .is_some_and(|a| a.anim_progress < 1.0);
 
-        // 1. Evaluate all parameter expressions
-        // Collect into a temporary HashMap to avoid borrowing issues
-        let new_values: HashMap<String, f32> = shader_mat
-            .param_defs
-            .iter()
-            .map(|(name, param_def)| {
-                let value = match param_def {
-                    MaterialParamValue::Static(v) => *v,
-                    MaterialParamValue::Expr(expr_str) => {
-                        // Convert to Val::Expr for evaluate_float_expr
-                        let val_expr: Val<f32> = Val::Expr(expr_str.clone());
-                        let result = evaluate_float_expr(
-                            &val_expr,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        );
-                        trace!(
-                            "[ShaderMaterial Update] Entity {:?}: '{}' = Expr('{}') -> {}",
-                            entity, name, expr_str, result
-                        );
-                        result
-                    }
-                };
-                (name.clone(), value)
-            })
-            .collect();
-
-        // Update current_values
-        for (name, value) in new_values {
-            shader_mat.current_values.insert(name, value);
+        // Skip this entity if no animation and no fact changes
+        // 如果没有动画且没有 fact 变化，跳过此实体
+        if !has_active_animation && !facts_changed {
+            continue;
         }
 
-        // 2. Process lag animation if present
-        // First extract animation info to avoid borrowing issues
-        let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
-            let source_value = shader_mat
-                .current_values
-                .get(&anim_state.source_param)
-                .copied()
-                .unwrap_or(1.0);
-            (anim_state.target_param.clone(), source_value)
-        });
+        let mut material_changed = false;
 
-        if let Some((target_param, source_value)) = anim_update
-            && let Some(ref mut anim_state) = shader_mat.animation
-        {
-            // Update animation and get lag value
-            let lag_value = anim_state.update(source_value, delta_time);
+        // Phase 1: Evaluate expressions only if facts changed
+        // 阶段 1：仅在 facts 变化时评估表达式
+        if facts_changed {
+            // Find ViewRoot ancestor to access local facts (lazy evaluation)
+            let view_root_result =
+                find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+            let player_data = if let Some((_, view_root)) = view_root_result {
+                PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+            } else {
+                PlayerDataView::new(&layered_db)
+            };
 
-            // Update target parameter with lag value
-            shader_mat.current_values.insert(target_param, lag_value);
+            // Evaluate parameter expressions and collect updates
+            // 评估参数表达式并收集更新
+            let updates: Vec<(String, f32)> = shader_mat
+                .param_defs
+                .iter()
+                .map(|(name, param_def)| {
+                    let new_value = match param_def {
+                        MaterialParamValue::Static(v) => *v,
+                        MaterialParamValue::Expr(expr_str) => {
+                            let val_expr: Val<f32> = Val::Expr(expr_str.clone());
+                            evaluate_float_expr(&val_expr, &player_data, Some(elapsed_secs))
+                        }
+                    };
+                    (name.clone(), new_value)
+                })
+                .collect();
+
+            // Apply updates with change detection
+            // 应用更新并检测变化
+            for (name, new_value) in updates {
+                let should_update = shader_mat
+                    .current_values
+                    .get(&name)
+                    .map(|old| (*old - new_value).abs() > f32::EPSILON)
+                    .unwrap_or(true);
+
+                if should_update {
+                    shader_mat.current_values.insert(name, new_value);
+                    material_changed = true;
+                }
+            }
         }
 
-        // Update debug string for inspector
-        shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
+        // Phase 2: Process lag animation if present and active
+        // 阶段 2：处理延迟动画（如果存在且活跃）
+        if has_active_animation {
+            // Extract animation info to avoid borrowing issues
+            let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
+                let source_value = shader_mat
+                    .current_values
+                    .get(&anim_state.source_param)
+                    .copied()
+                    .unwrap_or(1.0);
+                (anim_state.target_param.clone(), source_value)
+            });
 
-        // 3. Update DynamicMaterial2d uniforms
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            let new_params = shader_mat.pack_params();
-            let new_extra = shader_mat.pack_extra_params();
-            material.params = new_params;
-            material.extra_params = new_extra;
+            if let Some((target_param, source_value)) = anim_update
+                && let Some(ref mut anim_state) = shader_mat.animation
+            {
+                let lag_value = anim_state.update(source_value, delta_time);
+                shader_mat.current_values.insert(target_param, lag_value);
+                material_changed = true;
+            }
+        }
+
+        // Phase 3: Update DynamicMaterial2d uniforms only if values changed
+        // 阶段 3：仅在值变化时更新材质 uniform
+        if material_changed {
+            if let Some(material) = materials.get_mut(&material_handle.0) {
+                material.params = shader_mat.pack_params();
+                material.extra_params = shader_mat.pack_extra_params();
+            }
+
+            // Update debug string only when values change (not every frame)
+            // 仅在值变化时更新调试字符串（而非每帧）
+            shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
         }
     }
 }

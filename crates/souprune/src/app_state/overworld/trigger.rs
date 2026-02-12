@@ -436,7 +436,8 @@ pub fn handle_chase_state_actions_system(
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
 ) {
     for event in events.read() {
         // Get all matching rules for this event, grouped by priority
@@ -458,7 +459,7 @@ pub fn handle_chase_state_actions_system(
                                                     "FRE: Entering chase state '{}' via action",
                                                     state_name
                                                 );
-                                                next_state.set(
+                                                next_ow_state.set(
                                                     crate::app_state::overworld::OverworldSubState::new(
                                                         state_name.clone(),
                                                     ),
@@ -478,7 +479,7 @@ pub fn handle_chase_state_actions_system(
                                         if chase_enabled.0 {
                                             info!("FRE: Exiting chase state via action");
                                             // Return to default state (empty string means default)
-                                            next_state.set(
+                                            next_ow_state.set(
                                                 crate::app_state::overworld::OverworldSubState::default(
                                                 ),
                                             );
@@ -487,6 +488,10 @@ pub fn handle_chase_state_actions_system(
                                                 "FRE: ExitChaseState action ignored - chase not enabled"
                                             );
                                         }
+                                    }
+                                    "StartBattle" => {
+                                        info!("FRE: Starting battle via action");
+                                        next_app_state.set(crate::app_state::AppState::Battle);
                                     }
                                     _ => {}
                                 }
