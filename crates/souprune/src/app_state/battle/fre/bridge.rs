@@ -130,7 +130,10 @@ pub fn copy_enemy_act_data_system(
 
     let current_depth = view_root.local_facts.get_int("depth").unwrap_or(0);
     let current_menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
-    let enemy_selection = view_root.local_facts.get_int("enemy_selection").unwrap_or(0);
+    let enemy_selection = view_root
+        .local_facts
+        .get_int("enemy_selection")
+        .unwrap_or(0);
 
     // Check for transition to depth 2 (ACT options)
     let entered_act_options = current_depth == 2
@@ -167,13 +170,17 @@ pub fn copy_enemy_act_data_system(
                 // Get act_name_keys
                 let act_name_keys = layered_db
                     .get_string_list(&format!("{}.act_name_keys", enemy_id.to_lowercase()))
-                    .or_else(|| layered_db.get_string_list(&format!("enemy_{}.act_name_keys", enemy_index)))
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.act_name_keys", enemy_index))
+                    })
                     .map(|v| v.to_vec());
 
                 // Get act_behaviors
                 let act_behaviors = layered_db
                     .get_string_list(&format!("{}.act_behaviors", enemy_id.to_lowercase()))
-                    .or_else(|| layered_db.get_string_list(&format!("enemy_{}.act_behaviors", enemy_index)))
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.act_behaviors", enemy_index))
+                    })
                     .map(|v| v.to_vec());
 
                 // Get act_count
@@ -184,25 +191,48 @@ pub fn copy_enemy_act_data_system(
                 // Set current_enemy_* facts in ViewRoot local_facts
                 let keys_len = act_name_keys.as_ref().map(|k| k.len());
                 if let Some(keys) = act_name_keys {
-                    info!("ACT Options: Found {} ACT name keys for {}", keys.len(), enemy_id);
-                    view_root.local_facts.set("current_enemy_act_name_keys", FactValue::StringList(keys));
+                    info!(
+                        "ACT Options: Found {} ACT name keys for {}",
+                        keys.len(),
+                        enemy_id
+                    );
+                    view_root
+                        .local_facts
+                        .set("current_enemy_act_name_keys", FactValue::StringList(keys));
                 } else {
-                    warn!("ACT Options: No act_name_keys found for enemy ID '{}'", enemy_id);
+                    warn!(
+                        "ACT Options: No act_name_keys found for enemy ID '{}'",
+                        enemy_id
+                    );
                 }
 
                 if let Some(behaviors) = act_behaviors {
-                    info!("ACT Options: Found {} ACT behaviors for {}", behaviors.len(), enemy_id);
-                    view_root.local_facts.set("current_enemy_act_behaviors", FactValue::StringList(behaviors));
+                    info!(
+                        "ACT Options: Found {} ACT behaviors for {}",
+                        behaviors.len(),
+                        enemy_id
+                    );
+                    view_root.local_facts.set(
+                        "current_enemy_act_behaviors",
+                        FactValue::StringList(behaviors),
+                    );
                 } else {
-                    warn!("ACT Options: No act_behaviors found for enemy ID '{}'", enemy_id);
+                    warn!(
+                        "ACT Options: No act_behaviors found for enemy ID '{}'",
+                        enemy_id
+                    );
                 }
 
                 if let Some(count) = act_count {
                     info!("ACT Options: act_count = {} for {}", count, enemy_id);
-                    view_root.local_facts.set("act_count", FactValue::Int(count));
+                    view_root
+                        .local_facts
+                        .set("act_count", FactValue::Int(count));
                 } else if let Some(len) = keys_len {
                     // Fall back to length of act_name_keys
-                    view_root.local_facts.set("act_count", FactValue::Int(len as i64));
+                    view_root
+                        .local_facts
+                        .set("act_count", FactValue::Int(len as i64));
                 }
             }
         }

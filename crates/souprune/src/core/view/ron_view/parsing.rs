@@ -232,7 +232,10 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
     let array_name = &caps[3];
     let start_expr = caps.get(4).map(|m| m.as_str());
     let end_expr = caps.get(5).map(|m| m.as_str());
-    let step_val: usize = caps.get(6).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+    let step_val: usize = caps
+        .get(6)
+        .and_then(|m| m.as_str().parse().ok())
+        .unwrap_or(1);
     let template = &caps[7];
     let separator = caps.get(8).map(|m| m.as_str()).unwrap_or("\n");
 
@@ -842,7 +845,15 @@ pub fn resolve_text_content(
 
                 if found_closing {
                     if let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) {
-                        result.push_str(&evaluated);
+                        // Recursively resolve any localization markers in lambda output
+                        // 递归处理 lambda 输出中的本地化标记
+                        let resolved = resolve_text_content(
+                            &evaluated,
+                            mortar_strings,
+                            player_data,
+                            item_registry,
+                        );
+                        result.push_str(&resolved);
                     } else {
                         warn!("Failed to evaluate lambda expression: {}", expr);
                         result.push_str(&format!("{{{}}})", expr));
