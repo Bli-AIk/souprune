@@ -212,7 +212,13 @@ pub fn process_view_actions_system(
 
                 // Execute each action (view_root is already mutable)
                 for action in actions {
-                    execute_action(action, &mut view_root.local_facts, &global_facts, &audio, &asset_server);
+                    execute_action(
+                        action,
+                        &mut view_root.local_facts,
+                        &global_facts,
+                        &audio,
+                        &asset_server,
+                    );
                 }
 
                 // If this rule consumes the event, stop all matching
@@ -799,7 +805,9 @@ fn evaluate_local_fact_value(
         LocalFactValue::Bool(v) => FactValue::Bool(*v),
         LocalFactValue::String(v) => FactValue::String(v.clone()),
         LocalFactValue::Expr(expr) => {
-            if let Some(result) = evaluate_simple_expression_with_global(expr, local_facts, global_facts) {
+            if let Some(result) =
+                evaluate_simple_expression_with_global(expr, local_facts, global_facts)
+            {
                 result
             } else {
                 warn!(

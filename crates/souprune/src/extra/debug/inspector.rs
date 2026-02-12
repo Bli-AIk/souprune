@@ -97,7 +97,6 @@ pub mod debug_inspector {
             bevy::diagnostic::SystemInformationDiagnosticsPlugin,
             bevy::render::diagnostic::RenderDiagnosticsPlugin,
             PerfUiPlugin,
-            DefaultTweenPlugins,
         ));
 
         app.add_tween_systems(bevy_tween::tween::component_tween_system::<
