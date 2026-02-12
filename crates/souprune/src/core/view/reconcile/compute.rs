@@ -15,7 +15,7 @@ use crate::app_state::battle::chapter_schema::Val;
 use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};
-use bevy::prelude::{Transform, Vec3};
+use bevy::prelude::Vec3;
 use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
 
 /// Context for resolving expressions during desired state computation.
@@ -106,7 +106,12 @@ fn compute_element(
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
     // Extract camera offset from ui_shape_logic if camera_anchored
-    // This needs to be done before transform resolution for proper handling
+    // This is stored in camera_offset field, NOT applied to transform
+    // The CameraAnchored system manages transform for these elements
+    //
+    // 从 ui_shape_logic 提取相机偏移（如果是 camera_anchored）
+    // 这存储在 camera_offset 字段中，而不是应用到 transform
+    // CameraAnchored 系统管理这些元素的 transform
     let camera_offset = if node_def.camera_anchored {
         node_def
             .ui_shape_logic
@@ -116,14 +121,14 @@ fn compute_element(
         None
     };
 
-    // Resolve all properties
-    // For camera_anchored elements with ui_shape_logic, the transform comes from offset
-    let transform = if let Some(offset) = camera_offset {
-        // Camera-anchored elements use offset as their transform position
-        Transform::from_translation(offset)
-    } else {
-        resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx)
-    };
+    // Resolve transform from sprite definition
+    // For camera_anchored elements, we still compute transform but reconciliation
+    // will skip updating it since CameraAnchored system manages it
+    //
+    // 从精灵定义解析 transform
+    // 对于 camera_anchored 元素，我们仍然计算 transform，但 reconciliation
+    // 会跳过更新它，因为 CameraAnchored 系统管理它
+    let transform = resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx);
 
     let visibility = resolve_visibility(
         &ctx.player_data,
@@ -195,6 +200,7 @@ fn expand_repeat(
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
         // Extract camera offset from ui_shape_logic if camera_anchored
+        // This is stored in camera_offset field, NOT applied to transform
         let camera_offset = if node_def.camera_anchored {
             node_def
                 .ui_shape_logic
@@ -204,17 +210,13 @@ fn expand_repeat(
             None
         };
 
-        // Resolve properties with repeat context
-        // For camera_anchored elements with ui_shape_logic, the transform comes from offset
-        let transform = if let Some(offset) = camera_offset {
-            Transform::from_translation(offset)
-        } else {
-            resolve_transform(
-                &ctx.player_data,
-                node_def.sprite.as_ref(),
-                Some(&repeat_ctx),
-            )
-        };
+        // Resolve transform from sprite definition
+        // For camera_anchored elements, reconciliation will skip updating transform
+        let transform = resolve_transform(
+            &ctx.player_data,
+            node_def.sprite.as_ref(),
+            Some(&repeat_ctx),
+        );
 
         let visibility = resolve_visibility(
             &ctx.player_data,

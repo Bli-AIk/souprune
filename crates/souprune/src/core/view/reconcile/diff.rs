@@ -94,7 +94,11 @@ fn reconcile_properties(
     deltas: &mut Vec<ViewDelta>,
 ) {
     // Transform comparison
-    if !transforms_approximately_equal(&current.transform, &desired.transform) {
+    // Skip for camera_anchored elements - their transform is managed by CameraAnchored system
+    // 跳过 camera_anchored 元素 - 它们的 transform 由 CameraAnchored 系统管理
+    if !desired.camera_anchored
+        && !transforms_approximately_equal(&current.transform, &desired.transform)
+    {
         deltas.push(ViewDelta::UpdateTransform {
             entity: current.entity,
             new_value: desired.transform,
