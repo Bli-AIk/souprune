@@ -790,17 +790,24 @@ fn evaluate_local_fact_value(
 /// Supports:
 /// - `$name` - local fact reference
 /// - `$name + 1`, `$name - 1` - simple increment/decrement
+/// - `$array[$index]` - array indexing (StringList/IntList)
 ///
 /// 简单的表达式评估器，用于基本算术。
 ///
 /// 支持：
 /// - `$name` - 局部 fact 引用
 /// - `$name + 1`、`$name - 1` - 简单增减
+/// - `$array[$index]` - 数组索引（StringList/IntList）
 fn evaluate_simple_expression(
     expr: &str,
     facts: &bevy_fact_rule_event::FactDatabase,
 ) -> Option<FactValue> {
     let expr = expr.trim();
+
+    // Handle array indexing: $array[$index]
+    if let Some(result) = try_evaluate_array_index(expr, facts) {
+        return Some(result);
+    }
 
     // Handle simple variable reference: $name
     if expr.starts_with('$') && !expr.contains(' ') {
@@ -840,6 +847,112 @@ fn evaluate_simple_expression(
     }
 
     None
+}
+
+/// Try to evaluate an array indexing expression: `$array[$index]`
+///
+/// Supports:
+/// - StringList indexing → returns String
+/// - IntList indexing → returns Int
+/// - Index can be a literal number or a $variable reference
+///
+/// 尝试评估数组索引表达式：`$array[$index]`
+fn try_evaluate_array_index(
+    expr: &str,
+    facts: &bevy_fact_rule_event::FactDatabase,
+) -> Option<FactValue> {
+    // Pattern: $array[$index]
+    // Find the pattern: starts with $, has [, ends with ]
+    if !expr.starts_with('$') || !expr.contains('[') || !expr.ends_with(']') {
+        return None;
+    }
+
+    // Extract array name and index expression
+    let bracket_start = expr.find('[')?;
+    let array_name = &expr[1..bracket_start]; // Remove leading $
+    let index_expr = &expr[bracket_start + 1..expr.len() - 1]; // Content between [ and ]
+
+    // Evaluate the index expression
+    let index: usize = if index_expr.starts_with('$') {
+        // Index is a variable reference
+        let index_var_name = &index_expr[1..];
+        let index_value = facts.get_int(index_var_name)?;
+        if index_value < 0 {
+            warn!(
+                "Array index expression '{}' evaluated to negative value: {}",
+                expr, index_value
+            );
+            return None;
+        }
+        index_value as usize
+    } else {
+        // Index is a literal number
+        index_expr.parse::<usize>().ok()?
+    };
+
+    // Get the array value and index into it
+    match facts.get_by_str(array_name)? {
+        FactValue::StringList(list) => {
+            if index < list.len() {
+                Some(FactValue::String(list[index].clone()))
+            } else {
+                warn!(
+                    "Array index {} out of bounds for StringList '{}' (len={})",
+                    index,
+                    array_name,
+                    list.len()
+                );
+                None
+            }
+        }
+        FactValue::IntList(list) => {
+            if index < list.len() {
+                Some(FactValue::Int(list[index]))
+            } else {
+                warn!(
+                    "Array index {} out of bounds for IntList '{}' (len={})",
+                    index,
+                    array_name,
+                    list.len()
+                );
+                None
+            }
+        }
+        FactValue::FloatList(list) => {
+            if index < list.len() {
+                Some(FactValue::Float(list[index]))
+            } else {
+                warn!(
+                    "Array index {} out of bounds for FloatList '{}' (len={})",
+                    index,
+                    array_name,
+                    list.len()
+                );
+                None
+            }
+        }
+        FactValue::BoolList(list) => {
+            if index < list.len() {
+                Some(FactValue::Bool(list[index]))
+            } else {
+                warn!(
+                    "Array index {} out of bounds for BoolList '{}' (len={})",
+                    index,
+                    array_name,
+                    list.len()
+                );
+                None
+            }
+        }
+        _ => {
+            warn!(
+                "Cannot index into non-array fact '{}' (type: {:?})",
+                array_name,
+                facts.get_by_str(array_name)
+            );
+            None
+        }
+    }
 }
 
 /// System to handle SwitchState requests from ViewRoot.local_facts.

@@ -197,26 +197,35 @@
 
         // Confirm in submenu (non-ACT) - execute action (handled by battle system)
         // 在子菜单确认（非 ACT）- 执行行动（由战斗系统处理）
+        // TODO: Implement FIGHT/ITEM/MERCY pending_sequence paths
         (
             event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 1", "$menu_context != 1"],
             actions: [
                 SetLocalFact("selection_confirmed", Bool(true)),
                 SetLocalFact("interactable", Bool(false)),
+                // Set the pending sequence path (placeholder for now)
+                // 设置待执行的序列路径（暂时为占位符）
+                SetLocalFact("pending_sequence", String("")),
                 PlaySound("confirm"),
                 EmitEvent("battle_action_executed"),
             ],
         ),
 
         // Confirm in ACT options - execute ACT (depth 2)
+        // Uses array indexing to get sequence path: $action_sequences[$act_selection]
         // 在 ACT 选项中确认 - 执行 ACT（深度 2）
+        // 使用数组索引获取序列路径：$action_sequences[$act_selection]
         (
             event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 2", "$menu_context == 1"],
             actions: [
-                // Set the selected ACT index for ExecuteActBehavior to use
-                // 设置选中的 ACT 索引供 ExecuteActBehavior 使用
-                SetLocalFact("selected_act_index", Expr("$act_selection")),
+                // Set the action parameter for the sequence to use (e.g., narration key)
+                // 设置动作参数供序列使用（例如旁白键）
+                SetLocalFact("action_param", Expr("$action_params[$act_selection]")),
+                // Set the pending sequence path from action_sequences array
+                // 从 action_sequences 数组设置待执行序列路径
+                SetLocalFact("pending_sequence", Expr("$action_sequences[$act_selection]")),
                 SetLocalFact("selection_confirmed", Bool(true)),
                 SetLocalFact("interactable", Bool(false)),
                 PlaySound("confirm"),

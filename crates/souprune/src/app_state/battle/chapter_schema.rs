@@ -527,53 +527,10 @@ pub enum Chapter {
         #[serde(default)]
         params: std::collections::HashMap<String, FactValueMatch>,
     },
-
-    /// Execute ACT behavior from a behavior string.
-    ///
-    /// Parses and executes ACT behavior strings in the format:
-    /// - `"narration:NodeName"` - Show narration from Mortar node, wait for confirm, end interaction
-    /// - `"sequence:path"` - Execute a custom sequence file
-    /// - `"end"` - Directly end the interaction
-    ///
-    /// 执行 ACT 行为字符串。
-    ///
-    /// 解析并执行以下格式的 ACT 行为字符串：
-    /// - `"narration:NodeName"` - 显示 Mortar 节点的旁白，等待确认，结束交互
-    /// - `"sequence:path"` - 执行自定义序列文件
-    /// - `"end"` - 直接结束交互
-    ///
-    /// # Example / 示例
-    /// ```ron
-    /// ExecuteActBehavior(
-    ///     behaviors_fact: "current_enemy_act_behaviors",
-    ///     index_fact: "selected_act_index",
-    /// ),
-    /// ```
-    ExecuteActBehavior {
-        /// Fact key containing the StringList of behaviors.
-        ///
-        /// 包含行为列表的 StringList fact 键名。
-        #[serde(default = "default_behaviors_fact")]
-        behaviors_fact: String,
-
-        /// Fact key containing the Int index of selected behavior.
-        ///
-        /// 包含选中行为索引的 Int fact 键名。
-        #[serde(default = "default_index_fact")]
-        index_fact: String,
-    },
 }
 
 fn default_true() -> bool {
     true
-}
-
-fn default_behaviors_fact() -> String {
-    "current_enemy_act_behaviors".to_string()
-}
-
-fn default_index_fact() -> String {
-    "selected_act_index".to_string()
 }
 
 // =============================================================================

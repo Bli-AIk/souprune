@@ -34,6 +34,11 @@
         // Reset selection_confirmed for next turn
         // 重置 selection_confirmed 以备下一回合
         SetViewFact(key: "selection_confirmed", value: Bool(false)),
+
+        // Execute the pending action sequence (set by FRE rules)
+        // 执行待处理的行动序列（由 FRE 规则设置）
+        RunSequence(path_fact: "pending_sequence"),
+
         SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
         TweenViewElement(
