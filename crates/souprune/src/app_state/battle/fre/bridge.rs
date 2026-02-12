@@ -109,15 +109,19 @@ pub fn emit_chapter_completed_events_system(
 pub struct ActOptionsTracker {
     pub last_depth: Option<i64>,
     pub last_menu_context: Option<i64>,
+    /// The enemy index for which ACT data was last copied.
+    /// 上次复制 ACT 数据的敌人索引。
+    pub last_enemy_index: Option<i64>,
 }
 
 /// System to copy enemy ACT data to ViewRoot when entering ACT options.
-/// When depth transitions to 2 and menu_context is 1 (ACT), copies the
+/// When depth is 2 and menu_context is 1 (ACT), copies the
 /// selected enemy's ACT data to current_enemy_* local facts.
+/// Also ensures act_count is set for proper navigation.
 ///
 /// 进入 ACT 选项时复制敌人 ACT 数据到 ViewRoot 的系统。
-/// 当 depth 变为 2 且 menu_context 为 1（ACT）时，复制选中敌人的 ACT 数据到
-/// current_enemy_* 局部 facts。
+/// 当 depth 为 2 且 menu_context 为 1（ACT）时，复制选中敌人的 ACT 数据到
+/// current_enemy_* 局部 facts。同时确保设置 act_count 以正确导航。
 pub fn copy_enemy_act_data_system(
     mut tracker: ResMut<ActOptionsTracker>,
     mut view_roots: Query<&mut ViewRoot>,
@@ -135,12 +139,31 @@ pub fn copy_enemy_act_data_system(
         .get_int("enemy_selection")
         .unwrap_or(0);
 
-    // Check for transition to depth 2 (ACT options)
-    let entered_act_options = current_depth == 2
-        && current_menu_context == 1
-        && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
+    // Check if we're in ACT options mode (depth 2, menu_context 1)
+    // 检查是否处于 ACT 选项模式（depth 2, menu_context 1）
+    let in_act_options = current_depth == 2 && current_menu_context == 1;
 
-    if entered_act_options {
+    // Check if we need to copy data:
+    // 1. Just entered ACT options (transition)
+    // 2. In ACT options but act_count is still 0 (data not yet copied)
+    // 3. Enemy selection changed while in ACT options
+    //
+    // 检查是否需要复制数据：
+    // 1. 刚进入 ACT 选项（转换）
+    // 2. 处于 ACT 选项但 act_count 仍为 0（数据尚未复制）
+    // 3. 在 ACT 选项中敌人选择已更改
+    let current_act_count = view_root.local_facts.get_int("act_count").unwrap_or(0);
+    let entered_act_options =
+        in_act_options && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
+    let act_count_not_set = in_act_options && current_act_count == 0;
+    let enemy_changed = in_act_options
+        && tracker
+            .last_enemy_index
+            .is_some_and(|idx| idx != enemy_selection);
+
+    let need_copy = entered_act_options || act_count_not_set || enemy_changed;
+
+    if need_copy {
         // Get enemy IDs array to find enemy ACT data - clone to avoid borrow issues
         // Fall back to enemy_names if enemy_ids is not available
         // 获取敌人 ID 数组来查找敌人 ACT 数据 - 克隆以避免借用问题
@@ -230,10 +253,14 @@ pub fn copy_enemy_act_data_system(
                         .set("act_count", FactValue::Int(count));
                 } else if let Some(len) = keys_len {
                     // Fall back to length of act_name_keys
+                    info!("ACT Options: Using keys.len() = {} as act_count", len);
                     view_root
                         .local_facts
                         .set("act_count", FactValue::Int(len as i64));
                 }
+
+                // Update tracker with current enemy index
+                tracker.last_enemy_index = Some(enemy_selection);
             }
         }
     }

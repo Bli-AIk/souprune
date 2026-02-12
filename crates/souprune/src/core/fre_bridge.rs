@@ -116,6 +116,26 @@ pub fn process_view_actions_system(
         // Get all matching rules for this event, grouped by priority
         let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
+        // Debug: Log when we have matching rules for Left/Right events
+        if event.id.0.contains("Left") || event.id.0.contains("Right") {
+            debug!(
+                "FRE Bridge: Event '{}' has {} rule groups matching",
+                event.id.0,
+                rule_groups.len()
+            );
+            for (i, group) in rule_groups.iter().enumerate() {
+                for rule in group {
+                    debug!(
+                        "  Group {}: rule '{}' with {} conditions: {:?}",
+                        i,
+                        rule.id,
+                        rule.condition_expressions.len(),
+                        rule.condition_expressions
+                    );
+                }
+            }
+        }
+
         if rule_groups.is_empty() {
             continue;
         }
@@ -140,12 +160,24 @@ pub fn process_view_actions_system(
                     &view_root.local_facts,
                     &global_facts,
                 ) {
-                    debug!(
-                        "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
-                        rule.id,
-                        view_root.local_facts.get_int("depth"),
-                        view_root.local_facts.get_int("selection")
-                    );
+                    // Only log for ACT navigation rules (depth 2 related)
+                    if rule.id.contains("act") || rule.id.contains("depth_2") {
+                        debug!(
+                            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
+                            rule.id,
+                            view_root.local_facts.get_int("depth"),
+                            view_root.local_facts.get_int("menu_context"),
+                            view_root.local_facts.get_int("act_selection"),
+                            view_root.local_facts.get_int("act_count")
+                        );
+                    } else {
+                        debug!(
+                            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+                            rule.id,
+                            view_root.local_facts.get_int("depth"),
+                            view_root.local_facts.get_int("selection")
+                        );
+                    }
                     continue;
                 }
 
@@ -329,7 +361,10 @@ fn evaluate_conditions(
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) -> bool {
     for condition in conditions {
-        if !evaluate_single_condition(condition, local_facts, global_facts) {
+        let result = evaluate_single_condition(condition, local_facts, global_facts);
+        if !result {
+            // Log failed condition for debugging
+            debug!("FRE Bridge: Condition '{}' evaluated to false", condition);
             return false;
         }
     }
@@ -368,12 +403,21 @@ pub fn evaluate_single_condition(
     if let Some(idx) = condition.find(" == ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
+        // Use compare_ints if left side contains arithmetic operators (%, +, -)
+        // 如果左侧包含算术运算符（%, +, -），使用 compare_ints
+        if left.contains(" % ") || left.contains(" + ") || left.contains(" - ") {
+            return compare_ints(left, right, local_facts, global_facts, |a, b| a == b);
+        }
         return compare_values(left, right, local_facts, global_facts, |a, b| a == b);
     }
 
     if let Some(idx) = condition.find(" != ") {
         let left = condition[..idx].trim();
         let right = condition[idx + 4..].trim();
+        // Use compare_ints if left side contains arithmetic operators
+        if left.contains(" % ") || left.contains(" + ") || left.contains(" - ") {
+            return compare_ints(left, right, local_facts, global_facts, |a, b| a != b);
+        }
         return compare_values(left, right, local_facts, global_facts, |a, b| a != b);
     }
 
@@ -513,7 +557,8 @@ fn resolve_int(
 ) -> Option<i64> {
     let expr = expr.trim();
 
-    // Check for expression patterns: $var + N, $var - N
+    // Check for expression patterns: $var + N, $var - N, $var % N
+    // 支持的表达式模式：$var + N, $var - N, $var % N
     if let Some(idx) = expr.find(" + ") {
         let left = expr[..idx].trim();
         let right = expr[idx + 3..].trim();
@@ -528,6 +573,19 @@ fn resolve_int(
         let left_val = resolve_int(left, local_facts, global_facts)?;
         let right_val = resolve_int(right, local_facts, global_facts)?;
         return Some(left_val - right_val);
+    }
+
+    // Modulo operation (e.g., $act_selection % 2)
+    // 模运算（例如 $act_selection % 2）
+    if let Some(idx) = expr.find(" % ") {
+        let left = expr[..idx].trim();
+        let right = expr[idx + 3..].trim();
+        let left_val = resolve_int(left, local_facts, global_facts)?;
+        let right_val = resolve_int(right, local_facts, global_facts)?;
+        if right_val != 0 {
+            return Some(left_val % right_val);
+        }
+        return None; // Avoid division by zero
     }
 
     // Check for .len() suffix (e.g., $player_inventory.len())
