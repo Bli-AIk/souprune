@@ -323,6 +323,10 @@ pub fn update_shader_materials_system(
         &mut super::super::components::ShaderMaterial,
         &crate::core::view::dynamic_material::MeshDynamicMaterial2d,
     )>,
+    added_materials: Query<
+        Entity,
+        Added<crate::core::view::dynamic_material::MeshDynamicMaterial2d>,
+    >,
     parent_query: Query<&ChildOf>,
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
@@ -339,7 +343,11 @@ pub fn update_shader_materials_system(
     let elapsed_secs = time.elapsed_secs_f64();
 
     // Check if fact data changed (triggers expression re-evaluation)
+    // Also force evaluation for newly added materials to ensure correct initial values
+    // 检查 fact 数据是否变化（触发表达式重新评估）
+    // 同时为新添加的材质强制评估以确保初始值正确
     let facts_changed = layered_db.is_changed() || !changed_view_roots.is_empty();
+    let has_new_materials = !added_materials.is_empty();
 
     for (entity, mut shader_mat, material_handle) in query.iter_mut() {
         // Determine what needs updating for this entity
@@ -354,20 +362,25 @@ pub fn update_shader_materials_system(
         // 这是为了检测源值变化并重启动画
         let has_animation_config = shader_mat.animation.is_some();
 
+        // Check if this is a newly added material that needs initial expression evaluation
+        // 检查是否是新添加的材质，需要初始表达式评估
+        let is_newly_added = has_new_materials && added_materials.contains(entity);
+
         // Skip this entity if:
         // - No active animation AND
         // - No fact changes AND
+        // - Not newly added AND
         // - No animation config (nothing could trigger animation restart)
-        // 跳过条件：无活跃动画 且 无 fact 变化 且 无动画配置
-        if !has_active_animation && !facts_changed {
+        // 跳过条件：无活跃动画 且 无 fact 变化 且 非新添加 且 无动画配置
+        if !has_active_animation && !facts_changed && !is_newly_added {
             continue;
         }
 
         let mut material_changed = false;
 
-        // Phase 1: Evaluate expressions only if facts changed
-        // 阶段 1：仅在 facts 变化时评估表达式
-        if facts_changed {
+        // Phase 1: Evaluate expressions if facts changed OR material is newly added
+        // 阶段 1：当 facts 变化或材质新添加时评估表达式
+        if facts_changed || is_newly_added {
             // Find ViewRoot ancestor to access local facts (lazy evaluation)
             let view_root_result =
                 find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
