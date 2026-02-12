@@ -348,8 +348,17 @@ pub fn update_shader_materials_system(
             .as_ref()
             .is_some_and(|a| a.anim_progress < 1.0);
 
-        // Skip this entity if no animation and no fact changes
-        // 如果没有动画且没有 fact 变化，跳过此实体
+        // Check if this entity has any animation config (even if not currently active)
+        // This is needed to detect source value changes and restart animations
+        // 检查此实体是否有动画配置（即使当前不活跃）
+        // 这是为了检测源值变化并重启动画
+        let has_animation_config = shader_mat.animation.is_some();
+
+        // Skip this entity if:
+        // - No active animation AND
+        // - No fact changes AND
+        // - No animation config (nothing could trigger animation restart)
+        // 跳过条件：无活跃动画 且 无 fact 变化 且 无动画配置
         if !has_active_animation && !facts_changed {
             continue;
         }
@@ -401,9 +410,17 @@ pub fn update_shader_materials_system(
             }
         }
 
-        // Phase 2: Process lag animation if present and active
-        // 阶段 2：处理延迟动画（如果存在且活跃）
-        if has_active_animation {
+        // Phase 2: Process lag animation if present
+        // 阶段 2：处理延迟动画（如果存在）
+        //
+        // Run animation update when:
+        // - Animation is currently active (anim_progress < 1.0), OR
+        // - Facts changed and animation config exists (to detect source value changes)
+        //
+        // 运行动画更新的条件：
+        // - 动画当前活跃（anim_progress < 1.0），或
+        // - Facts 变化且存在动画配置（检测源值变化）
+        if has_active_animation || (facts_changed && has_animation_config) {
             // Extract animation info to avoid borrowing issues
             let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
                 let source_value = shader_mat
