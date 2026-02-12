@@ -807,9 +807,9 @@ pub fn resolve_text_content(
                     // Preprocess $variable in the key before resolving
                     // 在解析前预处理键中的 $variable
                     let processed_key = preprocess_fact_expressions(&key, player_data);
-                    // Remove quotes from string values (format_fact_for_expr adds them)
-                    // 移除字符串值的引号（format_fact_for_expr 添加的）
-                    let processed_key = processed_key.trim_matches('"').to_string();
+                    // Remove quotes from string values (format_fact_for_expr adds them for expressions)
+                    // 移除字符串值的引号（format_fact_for_expr 为表达式添加的）
+                    let processed_key = processed_key.replace('"', "");
                     let resolved = mortar_strings.resolve(&processed_key);
                     result.push_str(resolved);
                 } else {
