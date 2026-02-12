@@ -14,7 +14,7 @@ use crate::app_state::battle::SequenceAsset;
 use crate::app_state::battle::chapter_schema::{Chapter, FactValueMatch};
 use crate::core::view::ViewRoot;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactDatabase, FactReader, FactValue};
+use bevy_fact_rule_event::{FactReader, FactValue, LayeredFactDatabase};
 use std::collections::HashMap;
 
 /// Prefix for injected sequence parameters in local_facts.
@@ -52,7 +52,7 @@ pub fn process_run_sequence_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<ChapterFinished>, Without<RunSequenceChapter>)>,
     asset_server: Res<AssetServer>,
-    fact_db: Res<FactDatabase>,
+    fact_db: Res<LayeredFactDatabase>,
     view_roots: Query<&ViewRoot>,
 ) {
     for (entity, active) in query.iter() {
@@ -154,7 +154,7 @@ pub fn process_execute_act_behavior_system(
         (Entity, &ActiveChapter),
         (Without<ChapterFinished>, Without<ExecuteActBehaviorChapter>),
     >,
-    fact_db: Res<FactDatabase>,
+    fact_db: Res<LayeredFactDatabase>,
     view_roots: Query<&ViewRoot>,
     mut context: ResMut<BattleContext>,
 ) {

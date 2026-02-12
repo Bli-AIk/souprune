@@ -24,6 +24,7 @@
         Interface(
             interface: "enemies",
             expects: [
+                "enemy_ids: StringList",
                 "enemy_names: StringList",
                 "enemy_hps: IntList",
                 "enemy_hp_maxs: IntList",
@@ -124,11 +125,11 @@
                 // 2 columns layout: left column (even indices), right column (odd indices)
                 // 2 列布局：左列（偶数索引），右列（奇数索引）
                 // ========================================
-                // Left column: options 0, 2, 4, ...
-                // 左列：选项 0, 2, 4, ...
+                // Left column: options 0, 2, 4, ... (start at 0, step 2)
+                // 左列：选项 0, 2, 4, ...（从 0 开始，步进 2）
                 (
                     id: "ActOptionsLeft",
-                    content: "{|name, i| in $current_enemy_act_name_keys[0, 2] => \"* {{battle/enemies/dummy:{name}}}\"}",
+                    content: "{|name, i| in $current_enemy_act_name_keys[0..$act_count step 2] => \"* {{battle/enemies/dummy:{name}}}\"}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -138,11 +139,11 @@
                     line_height: 1.25,
                     visible_when: "$depth == 2 && $menu_context == 1",
                 ),
-                // Right column: options 1, 3, 5, ...
-                // 右列：选项 1, 3, 5, ...
+                // Right column: options 1, 3, 5, ... (start at 1, step 2)
+                // 右列：选项 1, 3, 5, ...（从 1 开始，步进 2）
                 (
                     id: "ActOptionsRight",
-                    content: "{|name, i| in $current_enemy_act_name_keys[1, 3] => \"* {{battle/enemies/dummy:{name}}}\"}",
+                    content: "{|name, i| in $current_enemy_act_name_keys[1..$act_count step 2] => \"* {{battle/enemies/dummy:{name}}}\"}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),

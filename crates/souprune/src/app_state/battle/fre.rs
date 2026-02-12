@@ -27,7 +27,10 @@ use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, LayeredR
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{apply_pending_damage_system, setup_battle_action_handlers_system};
-pub use bridge::{ChapterCompletedEvent, emit_chapter_completed_events_system};
+pub use bridge::{
+    ActOptionsTracker, ChapterCompletedEvent, copy_enemy_act_data_system,
+    emit_chapter_completed_events_system,
+};
 
 /// System set for Battle FRE processing.
 ///
@@ -64,6 +67,7 @@ impl Plugin for BattleFREPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ChapterCompletedEvent>()
             .init_resource::<BattleRulesHandle>()
+            .init_resource::<ActOptionsTracker>()
             .configure_sets(Update, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
                 OnEnter(AppState::Battle),
@@ -76,6 +80,7 @@ impl Plugin for BattleFREPlugin {
                     register_battle_rules_system,
                     emit_chapter_completed_events_system,
                     apply_pending_damage_system,
+                    copy_enemy_act_data_system,
                     // Note: Battle UI navigation is now handled by FRE rules in battle_menu.fre.ron
                     // The core::fre_bridge::FREBridgePlugin provides ActionEvent-to-FRE conversion
                     // 注意：战斗 UI 导航现在由 battle_menu.fre.ron 中的 FRE 规则处理

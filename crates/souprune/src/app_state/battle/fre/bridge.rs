@@ -17,7 +17,9 @@
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
+
+use crate::core::view::ViewRoot;
 
 /// Event emitted when a Chapter completes.
 /// This is an internal Bevy event used to bridge Sequencer → FRE.
@@ -96,4 +98,117 @@ pub fn emit_chapter_completed_events_system(
             event.chapter_type
         );
     }
+}
+
+/// Resource to track the last seen depth and menu_context values.
+/// Used to detect transitions into ACT options mode.
+///
+/// 追踪上次看到的 depth 和 menu_context 值的资源。
+/// 用于检测进入 ACT 选项模式的转换。
+#[derive(Resource, Default)]
+pub struct ActOptionsTracker {
+    pub last_depth: Option<i64>,
+    pub last_menu_context: Option<i64>,
+}
+
+/// System to copy enemy ACT data to ViewRoot when entering ACT options.
+/// When depth transitions to 2 and menu_context is 1 (ACT), copies the
+/// selected enemy's ACT data to current_enemy_* local facts.
+///
+/// 进入 ACT 选项时复制敌人 ACT 数据到 ViewRoot 的系统。
+/// 当 depth 变为 2 且 menu_context 为 1（ACT）时，复制选中敌人的 ACT 数据到
+/// current_enemy_* 局部 facts。
+pub fn copy_enemy_act_data_system(
+    mut tracker: ResMut<ActOptionsTracker>,
+    mut view_roots: Query<&mut ViewRoot>,
+    layered_db: Res<LayeredFactDatabase>,
+) {
+    // Get current depth and menu_context from ViewRoot local_facts
+    let Ok(mut view_root) = view_roots.single_mut() else {
+        return;
+    };
+
+    let current_depth = view_root.local_facts.get_int("depth").unwrap_or(0);
+    let current_menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
+    let enemy_selection = view_root.local_facts.get_int("enemy_selection").unwrap_or(0);
+
+    // Check for transition to depth 2 (ACT options)
+    let entered_act_options = current_depth == 2
+        && current_menu_context == 1
+        && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
+
+    if entered_act_options {
+        // Get enemy IDs array to find enemy ACT data - clone to avoid borrow issues
+        // Fall back to enemy_names if enemy_ids is not available
+        // 获取敌人 ID 数组来查找敌人 ACT 数据 - 克隆以避免借用问题
+        // 如果 enemy_ids 不可用，回退到 enemy_names
+        let enemy_ids_opt = view_root
+            .local_facts
+            .get_string_list("enemy_ids")
+            .or_else(|| view_root.local_facts.get_string_list("enemy_names"))
+            .map(|v| v.to_vec());
+
+        if let Some(ids) = enemy_ids_opt {
+            let enemy_index = enemy_selection as usize;
+            if enemy_index < ids.len() {
+                let enemy_id = ids[enemy_index].clone();
+                info!(
+                    "ACT Options: Entering for enemy ID '{}' (index {})",
+                    enemy_id, enemy_index
+                );
+
+                // Try to find enemy ACT data with various naming patterns
+                // Pattern 1: "dummy.act_name_keys" (id prefix)
+                // Pattern 2: "enemy_0.act_name_keys" (index prefix)
+                // 尝试使用各种命名模式查找敌人 ACT 数据
+                // 模式 1: "dummy.act_name_keys"（ID 前缀）
+                // 模式 2: "enemy_0.act_name_keys"（索引前缀）
+
+                // Get act_name_keys
+                let act_name_keys = layered_db
+                    .get_string_list(&format!("{}.act_name_keys", enemy_id.to_lowercase()))
+                    .or_else(|| layered_db.get_string_list(&format!("enemy_{}.act_name_keys", enemy_index)))
+                    .map(|v| v.to_vec());
+
+                // Get act_behaviors
+                let act_behaviors = layered_db
+                    .get_string_list(&format!("{}.act_behaviors", enemy_id.to_lowercase()))
+                    .or_else(|| layered_db.get_string_list(&format!("enemy_{}.act_behaviors", enemy_index)))
+                    .map(|v| v.to_vec());
+
+                // Get act_count
+                let act_count = layered_db
+                    .get_int(&format!("{}.act_count", enemy_id.to_lowercase()))
+                    .or_else(|| layered_db.get_int(&format!("enemy_{}.act_count", enemy_index)));
+
+                // Set current_enemy_* facts in ViewRoot local_facts
+                let keys_len = act_name_keys.as_ref().map(|k| k.len());
+                if let Some(keys) = act_name_keys {
+                    info!("ACT Options: Found {} ACT name keys for {}", keys.len(), enemy_id);
+                    view_root.local_facts.set("current_enemy_act_name_keys", FactValue::StringList(keys));
+                } else {
+                    warn!("ACT Options: No act_name_keys found for enemy ID '{}'", enemy_id);
+                }
+
+                if let Some(behaviors) = act_behaviors {
+                    info!("ACT Options: Found {} ACT behaviors for {}", behaviors.len(), enemy_id);
+                    view_root.local_facts.set("current_enemy_act_behaviors", FactValue::StringList(behaviors));
+                } else {
+                    warn!("ACT Options: No act_behaviors found for enemy ID '{}'", enemy_id);
+                }
+
+                if let Some(count) = act_count {
+                    info!("ACT Options: act_count = {} for {}", count, enemy_id);
+                    view_root.local_facts.set("act_count", FactValue::Int(count));
+                } else if let Some(len) = keys_len {
+                    // Fall back to length of act_name_keys
+                    view_root.local_facts.set("act_count", FactValue::Int(len as i64));
+                }
+            }
+        }
+    }
+
+    // Update tracker
+    tracker.last_depth = Some(current_depth);
+    tracker.last_menu_context = Some(current_menu_context);
 }

@@ -217,10 +217,12 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
 /// - `{|name, i| in $enemy_names => "* {name}" sep "\n"}` - with index and separator
 /// - `{|name, i| in $enemy_names[$enemy_view_offset..$enemy_view_offset+$enemy_display_limit] => "* {name}"}` - with range
 fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Option<String> {
-    // First, try the extended regex with optional range syntax
-    // Format: |item, index| in $array or $array[$start..$end] => "template" sep "separator"
+    // Extended regex with optional range and step syntax
+    // Format: |item, index| in $array or $array[$start..$end] or $array[$start..$end step $step] => "template" sep "separator"
+    // 扩展正则表达式，支持可选范围和步进语法
+    // 格式：|item, index| in $array 或 $array[$start..$end] 或 $array[$start..$end step $step] => "template" sep "separator"
     let lambda_regex_with_range = regex::Regex::new(
-        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]]+)\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]\s]+)(?:\s+step\s+(\d+))?\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
     ).ok()?;
 
     let caps = lambda_regex_with_range.captures(expr)?;
@@ -230,8 +232,9 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
     let array_name = &caps[3];
     let start_expr = caps.get(4).map(|m| m.as_str());
     let end_expr = caps.get(5).map(|m| m.as_str());
-    let template = &caps[6];
-    let separator = caps.get(7).map(|m| m.as_str()).unwrap_or("\n");
+    let step_val: usize = caps.get(6).and_then(|m| m.as_str().parse().ok()).unwrap_or(1);
+    let template = &caps[7];
+    let separator = caps.get(8).map(|m| m.as_str()).unwrap_or("\n");
 
     // Get array from player data - try StringList first, then IntList
     let array: Vec<String> = if let Some(list) = player_data.get_fact_string_list(array_name) {
@@ -258,12 +261,12 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
         (0, array.len())
     };
 
-    // Generate output for elements in range
-    // 为范围内的元素生成输出
+    // Generate output for elements in range with step
+    // 为范围内的元素生成输出（带步进）
     let lines: Vec<String> = array
         .iter()
         .enumerate()
-        .filter(|(i, _)| *i >= start_idx && *i < end_idx)
+        .filter(|(i, _)| *i >= start_idx && *i < end_idx && (*i - start_idx) % step_val == 0)
         .map(|(i, item)| {
             let mut line = template.to_string();
             // Replace item variable: {item_var}

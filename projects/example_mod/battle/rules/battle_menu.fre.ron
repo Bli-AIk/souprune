@@ -216,7 +216,7 @@
             actions: [
                 // Set the selected ACT index for ExecuteActBehavior to use
                 // 设置选中的 ACT 索引供 ExecuteActBehavior 使用
-                SetFact("selected_act_index", Expr("$act_selection")),
+                SetLocalFact("selected_act_index", Expr("$act_selection")),
                 SetLocalFact("selection_confirmed", Bool(true)),
                 SetLocalFact("interactable", Bool(false)),
                 PlaySound("confirm"),

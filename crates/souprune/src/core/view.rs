@@ -75,7 +75,7 @@ use components::state_sprite::{
     update_state_sprite_textures_system,
 };
 #[cfg(feature = "debug")]
-use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
+use components::{CameraAnchored, ViewBox, ViewElement};
 use lifecycle::cleanup_view_rules_system;
 use lifecycle::process_pending_view_rules_system;
 use reconcile::ViewReconciliationPlugin;

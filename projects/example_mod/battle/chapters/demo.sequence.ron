@@ -7,6 +7,10 @@
     chapters: [
         SetCamera(SetZoom(2.0)),
 
+        // Load enemy-specific FRE data (ACT options, behaviors) into local layer
+        // 加载敌人特定 FRE 数据（ACT 选项、行为）到本地层
+        LoadFre(files: ["battle/enemies/dummy.fre.ron"]),
+
         // Spawn battle UI view with enemy data bound directly from FRE file
         // 生成战斗 UI 视图，敌人数据直接从 FRE 文件绑定
         SpawnView(

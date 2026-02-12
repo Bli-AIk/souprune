@@ -9,6 +9,16 @@
 
 (
     facts: {
+        // Enemy IDs (used to look up ACT data from enemy FRE files)
+        // 敌人 ID（用于从敌人 FRE 文件查找 ACT 数据）
+        "enemy_ids": StringList([
+            "dummy",
+            "dummy",
+            "dummy",
+            "dummy",
+            "dummy",
+        ]),
+
         // Enemy names (localized)
         // 敌人名称（本地化）
         "enemy_names": StringList([
