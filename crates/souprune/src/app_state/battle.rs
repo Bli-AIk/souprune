@@ -91,8 +91,8 @@ impl Plugin for BattlePlugin {
             // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
             // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
-            .init_asset::<BattleAsset>()
-            .register_asset_loader(RonAssetLoader::<BattleAsset>::new(&["battle.ron"]))
+            .init_asset::<SequenceAsset>()
+            .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]))
             .init_asset::<BattlePlayerConfig>()
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
@@ -174,18 +174,18 @@ fn cleanup_battle_input_manager(
     }
 }
 
-/// Battle configuration asset loaded from `.battle.ron` files.
+/// Sequence configuration asset loaded from `.sequence.ron` files.
 /// Contains the chapter sequence and optional rules file path.
 ///
-/// 从 `.battle.ron` 文件加载的战斗配置资产。
+/// 从 `.sequence.ron` 文件加载的序列配置资产。
 /// 包含章节序列和可选的规则文件路径。
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
-pub struct BattleAsset {
-    /// Path to the FRE rules file for this battle (optional).
-    /// The rules will be loaded to the Local layer when the battle starts.
+pub struct SequenceAsset {
+    /// Path to the FRE rules file for this sequence (optional).
+    /// The rules will be loaded to the Local layer when the sequence starts.
     ///
-    /// 此战斗的 FRE 规则文件路径（可选）。
-    /// 规则将在战斗开始时加载到 Local 层。
+    /// 此序列的 FRE 规则文件路径（可选）。
+    /// 规则将在序列开始时加载到 Local 层。
     #[serde(default)]
     pub rules_file: Option<String>,
 

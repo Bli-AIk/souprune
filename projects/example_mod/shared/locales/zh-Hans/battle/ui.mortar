@@ -5,8 +5,60 @@ pub const HP: String = "HP"
 pub const ENEMY_APPEARED: String = "* 敌人出现了！"
 
 // 战斗敌人名称
-pub const ENEMY_TEST1: String = "测试1"
-pub const ENEMY_TEST2: String = "测试2"
-pub const ENEMY_TEST3: String = "测试3"
-pub const ENEMY_TEST4: String = "测试4"
-pub const ENEMY_TEST5: String = "测试5"
+pub const ENEMY_FROGGIT: String = "蛙吉特"
+pub const ENEMY_WHIMSUN: String = "小哭虫"
+pub const ENEMY_MOLDSMAL: String = "霉霉怪"
+pub const ENEMY_LOOX: String = "独眼怪"
+pub const ENEMY_VEGETOID: String = "蔬菜人"
+
+// ACT 选项标签 - 蛙吉特 (2 选项)
+pub const ACT_FROGGIT_CHECK: String = "查看"
+pub const ACT_FROGGIT_COMPLIMENT: String = "称赞"
+
+// ACT 选项标签 - 小哭虫 (3 选项)
+pub const ACT_WHIMSUN_CHECK: String = "查看"
+pub const ACT_WHIMSUN_CONSOLE: String = "安慰"
+pub const ACT_WHIMSUN_TERRORIZE: String = "恐吓"
+
+// ACT 选项标签 - 霉霉怪 (4 选项)
+pub const ACT_MOLDSMAL_CHECK: String = "查看"
+pub const ACT_MOLDSMAL_IMITATE: String = "模仿"
+pub const ACT_MOLDSMAL_FLIRT: String = "调情"
+pub const ACT_MOLDSMAL_UNHUG: String = "取消拥抱"
+
+// ACT 选项标签 - 独眼怪 (5 选项)
+pub const ACT_LOOX_CHECK: String = "查看"
+pub const ACT_LOOX_PICKOFF: String = "欺负"
+pub const ACT_LOOX_DONTPICK: String = "不欺负"
+pub const ACT_LOOX_STARE: String = "对视"
+pub const ACT_LOOX_FLIRT: String = "调情"
+
+// ACT 选项标签 - 蔬菜人 (6 选项)
+pub const ACT_VEGETOID_CHECK: String = "查看"
+pub const ACT_VEGETOID_TALK: String = "交谈"
+pub const ACT_VEGETOID_DINNER: String = "晚餐"
+pub const ACT_VEGETOID_DEVOUR: String = "吞噬"
+pub const ACT_VEGETOID_FLIRT: String = "调情"
+pub const ACT_VEGETOID_PAT: String = "轻拍"
+
+// ACT 结果旁白
+pub const ACT_FROGGIT_CHECK_RESULT: String = "* 蛙吉特 - 攻击 4 防御 5\n* 这只怪物的生活很艰难。"
+pub const ACT_FROGGIT_COMPLIMENT_RESULT: String = "* 蛙吉特不明白你说的话，但还是很高兴。"
+pub const ACT_WHIMSUN_CHECK_RESULT: String = "* 小哭虫 - 攻击 5 防御 0\n* 这只怪物太敏感了，无法战斗。"
+pub const ACT_WHIMSUN_CONSOLE_RESULT: String = "* 你告诉小哭虫一切都会好起来。它不相信你。"
+pub const ACT_WHIMSUN_TERRORIZE_RESULT: String = "* 你恐吓小哭虫。\n* 它看起来更加害怕了！"
+pub const ACT_MOLDSMAL_CHECK_RESULT: String = "* 霉霉怪 - 攻击 6 防御 0\n* 典型的：曲线迷人，但没脑子。"
+pub const ACT_MOLDSMAL_IMITATE_RESULT: String = "* 你扭动臀部。霉霉怪也扭动回应。\n* 多么有意义的对话！"
+pub const ACT_MOLDSMAL_FLIRT_RESULT: String = "* 你向霉霉怪展示最迷人的扭动。霉霉怪似乎很满意。"
+pub const ACT_MOLDSMAL_UNHUG_RESULT: String = "* 霉霉怪本来就没有拥抱你。"
+pub const ACT_LOOX_CHECK_RESULT: String = "* 独眼怪 - 攻击 6 防御 6\n* 不要欺负它。\n* 家族名：独行者。"
+pub const ACT_LOOX_PICKOFF_RESULT: String = "* 你欺负独眼怪。\n* 独眼怪的攻击力上升了！"
+pub const ACT_LOOX_DONTPICK_RESULT: String = "* 你没有欺负独眼怪。\n* 独眼怪似乎松了一口气。"
+pub const ACT_LOOX_STARE_RESULT: String = "* 你盯着独眼怪的眼睛。它也盯回来。\n* 时间流逝..."
+pub const ACT_LOOX_FLIRT_RESULT: String = "* 你向独眼怪扭动臀部。独眼怪面无表情地看着。"
+pub const ACT_VEGETOID_CHECK_RESULT: String = "* 蔬菜人 - 攻击 6 防御 6\n* 份量：1只怪物。\n* 未经食品安全局检测。"
+pub const ACT_VEGETOID_TALK_RESULT: String = "* 你与蔬菜人交谈。\n* "植物不会说话，笨蛋。""
+pub const ACT_VEGETOID_DINNER_RESULT: String = "* 你邀请蔬菜人一起吃晚餐。\n* 蔬菜人提供了健康的一餐。"
+pub const ACT_VEGETOID_DEVOUR_RESULT: String = "* 你尝试吃掉蔬菜人。\n* 它对这个想法感到不舒服。"
+pub const ACT_VEGETOID_FLIRT_RESULT: String = "* 你向蔬菜人眨眼。\n* 蔬菜人看起来困惑但高兴。"
+pub const ACT_VEGETOID_PAT_RESULT: String = "* 你轻拍蔬菜人。\n* 它的叶子愉快地沙沙作响。"

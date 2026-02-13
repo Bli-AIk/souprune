@@ -17,7 +17,9 @@
 //! 旧的硬编码导航系统已被移除。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
+
+use crate::core::view::ViewRoot;
 
 /// Event emitted when a Chapter completes.
 /// This is an internal Bevy event used to bridge Sequencer → FRE.
@@ -46,43 +48,6 @@ impl ChapterCompletedEvent {
         Self {
             chapter_type: chapter_type.into(),
             result: Some(result.into()),
-        }
-    }
-}
-
-/// Event emitted when player confirms a selection in AwaitInteraction.
-///
-/// 玩家在 AwaitInteraction 中确认选择时发出的事件。
-#[derive(Message, Debug, Clone)]
-pub struct SelectionConfirmedEvent {
-    /// The layer ID where selection was made
-    pub layer_id: String,
-    /// The selected option index
-    pub selection_index: usize,
-    /// The selected option ID (if available)
-    pub selection_id: Option<String>,
-}
-
-impl SelectionConfirmedEvent {
-    /// Create a new selection confirmed event.
-    pub fn new(layer_id: impl Into<String>, selection_index: usize) -> Self {
-        Self {
-            layer_id: layer_id.into(),
-            selection_index,
-            selection_id: None,
-        }
-    }
-
-    /// Create with selection ID.
-    pub fn with_id(
-        layer_id: impl Into<String>,
-        selection_index: usize,
-        selection_id: impl Into<String>,
-    ) -> Self {
-        Self {
-            layer_id: layer_id.into(),
-            selection_index,
-            selection_id: Some(selection_id.into()),
         }
     }
 }
@@ -135,53 +100,216 @@ pub fn emit_chapter_completed_events_system(
     }
 }
 
-/// System to emit FRE events when player confirms a selection.
-/// Updates relevant facts and emits selection events.
+/// Resource to track the last seen depth and menu_context values.
+/// Used to detect transitions into ACT options mode.
 ///
-/// 玩家确认选择时发出 FRE 事件的系统。
-/// 更新相关事实并发出选择事件。
-pub fn emit_selection_confirmed_events_system(
-    mut selection_events: MessageReader<SelectionConfirmedEvent>,
-    mut fact_event_writer: MessageWriter<FactEvent>,
-    mut layered_db: ResMut<LayeredFactDatabase>,
+/// 追踪上次看到的 depth 和 menu_context 值的资源。
+/// 用于检测进入 ACT 选项模式的转换。
+#[derive(Resource, Default)]
+pub struct ActOptionsTracker {
+    pub last_depth: Option<i64>,
+    pub last_menu_context: Option<i64>,
+    /// The enemy index for which ACT data was last copied.
+    /// 上次复制 ACT 数据的敌人索引。
+    pub last_enemy_index: Option<i64>,
+}
+
+/// System to copy enemy ACT data to ViewRoot when entering ACT options.
+/// When depth is 2 and menu_context is 1 (ACT), copies the
+/// selected enemy's ACT data to current_enemy_* local facts.
+/// Also ensures act_count is set for proper navigation.
+///
+/// 进入 ACT 选项时复制敌人 ACT 数据到 ViewRoot 的系统。
+/// 当 depth 为 2 且 menu_context 为 1（ACT）时，复制选中敌人的 ACT 数据到
+/// current_enemy_* 局部 facts。同时确保设置 act_count 以正确导航。
+pub fn copy_enemy_act_data_system(
+    mut tracker: ResMut<ActOptionsTracker>,
+    mut view_roots: Query<&mut ViewRoot>,
+    layered_db: Res<LayeredFactDatabase>,
 ) {
-    for event in selection_events.read() {
-        // Update facts
-        layered_db.set("last_selection_layer", event.layer_id.clone());
-        layered_db.set("last_selection_index", event.selection_index as i64);
+    // Get current depth and menu_context from ViewRoot local_facts
+    let Ok(mut view_root) = view_roots.single_mut() else {
+        return;
+    };
 
-        if let Some(ref selection_id) = event.selection_id {
-            layered_db.set("last_selection_id", selection_id.clone());
+    let current_depth = view_root.local_facts.get_int("depth").unwrap_or(0);
+    let current_menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
+    let enemy_selection = view_root
+        .local_facts
+        .get_int("enemy_selection")
+        .unwrap_or(0);
+
+    // Check if we're in ACT options mode (depth 2, menu_context 1)
+    // 检查是否处于 ACT 选项模式（depth 2, menu_context 1）
+    let in_act_options = current_depth == 2 && current_menu_context == 1;
+
+    // Check if we need to copy data:
+    // 1. Just entered ACT options (transition)
+    // 2. In ACT options but act_count is still 0 (data not yet copied)
+    // 3. Enemy selection changed while in ACT options
+    //
+    // 检查是否需要复制数据：
+    // 1. 刚进入 ACT 选项（转换）
+    // 2. 处于 ACT 选项但 act_count 仍为 0（数据尚未复制）
+    // 3. 在 ACT 选项中敌人选择已更改
+    let current_act_count = view_root.local_facts.get_int("act_count").unwrap_or(0);
+    let entered_act_options =
+        in_act_options && (tracker.last_depth != Some(2) || tracker.last_menu_context != Some(1));
+    let act_count_not_set = in_act_options && current_act_count == 0;
+    let enemy_changed = in_act_options
+        && tracker
+            .last_enemy_index
+            .is_some_and(|idx| idx != enemy_selection);
+
+    let need_copy = entered_act_options || act_count_not_set || enemy_changed;
+
+    if need_copy {
+        // Get enemy IDs array to find enemy ACT data - clone to avoid borrow issues
+        // Fall back to enemy_names if enemy_ids is not available
+        // 获取敌人 ID 数组来查找敌人 ACT 数据 - 克隆以避免借用问题
+        // 如果 enemy_ids 不可用，回退到 enemy_names
+        let enemy_ids_opt = view_root
+            .local_facts
+            .get_string_list("enemy_ids")
+            .or_else(|| view_root.local_facts.get_string_list("enemy_names"))
+            .map(|v| v.to_vec());
+
+        if let Some(ids) = enemy_ids_opt {
+            let enemy_index = enemy_selection as usize;
+            if enemy_index < ids.len() {
+                let enemy_id = ids[enemy_index].clone();
+                info!(
+                    "ACT Options: Entering for enemy ID '{}' (index {})",
+                    enemy_id, enemy_index
+                );
+
+                // Try to find enemy action data with various naming patterns
+                // Pattern 1: "action_labels" (global, for single-enemy demo)
+                // Pattern 2: "dummy.action_labels" (id prefix)
+                // Pattern 3: "enemy_0.action_labels" (index prefix)
+                // 尝试使用各种命名模式查找敌人动作数据
+                // 模式 1: "action_labels"（全局，单敌人 demo）
+                // 模式 2: "dummy.action_labels"（ID 前缀）
+                // 模式 3: "enemy_0.action_labels"（索引前缀）
+
+                // Get action_labels (display names)
+                let action_labels = layered_db
+                    .get_string_list("action_labels")
+                    .or_else(|| {
+                        layered_db
+                            .get_string_list(&format!("{}.action_labels", enemy_id.to_lowercase()))
+                    })
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.action_labels", enemy_index))
+                    })
+                    .map(|v| v.to_vec());
+
+                // Get action_sequences (sequence paths)
+                let action_sequences = layered_db
+                    .get_string_list("action_sequences")
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!(
+                            "{}.action_sequences",
+                            enemy_id.to_lowercase()
+                        ))
+                    })
+                    .or_else(|| {
+                        layered_db
+                            .get_string_list(&format!("enemy_{}.action_sequences", enemy_index))
+                    })
+                    .map(|v| v.to_vec());
+
+                // Get action_params (parameters for sequences)
+                let action_params = layered_db
+                    .get_string_list("action_params")
+                    .or_else(|| {
+                        layered_db
+                            .get_string_list(&format!("{}.action_params", enemy_id.to_lowercase()))
+                    })
+                    .or_else(|| {
+                        layered_db.get_string_list(&format!("enemy_{}.action_params", enemy_index))
+                    })
+                    .map(|v| v.to_vec());
+
+                // Get act_count
+                let act_count = layered_db
+                    .get_int("act_count")
+                    .or_else(|| {
+                        layered_db.get_int(&format!("{}.act_count", enemy_id.to_lowercase()))
+                    })
+                    .or_else(|| layered_db.get_int(&format!("enemy_{}.act_count", enemy_index)));
+
+                // Set action facts in ViewRoot local_facts using generic naming
+                // 在 ViewRoot local_facts 中使用通用命名设置动作 facts
+                let labels_len = action_labels.as_ref().map(|k| k.len());
+                if let Some(labels) = action_labels {
+                    info!(
+                        "ACT Options: Found {} action labels for {}",
+                        labels.len(),
+                        enemy_id
+                    );
+                    view_root
+                        .local_facts
+                        .set("action_labels", FactValue::StringList(labels));
+                } else {
+                    warn!(
+                        "ACT Options: No action_labels found for enemy ID '{}'",
+                        enemy_id
+                    );
+                }
+
+                if let Some(sequences) = action_sequences {
+                    info!(
+                        "ACT Options: Found {} action sequences for {}",
+                        sequences.len(),
+                        enemy_id
+                    );
+                    view_root
+                        .local_facts
+                        .set("action_sequences", FactValue::StringList(sequences));
+                } else {
+                    warn!(
+                        "ACT Options: No action_sequences found for enemy ID '{}'",
+                        enemy_id
+                    );
+                }
+
+                if let Some(params) = action_params {
+                    info!(
+                        "ACT Options: Found {} action params for {}",
+                        params.len(),
+                        enemy_id
+                    );
+                    view_root
+                        .local_facts
+                        .set("action_params", FactValue::StringList(params));
+                } else {
+                    warn!(
+                        "ACT Options: No action_params found for enemy ID '{}'",
+                        enemy_id
+                    );
+                }
+
+                if let Some(count) = act_count {
+                    info!("ACT Options: act_count = {} for {}", count, enemy_id);
+                    view_root
+                        .local_facts
+                        .set("act_count", FactValue::Int(count));
+                } else if let Some(len) = labels_len {
+                    // Fall back to length of action_labels
+                    info!("ACT Options: Using labels.len() = {} as act_count", len);
+                    view_root
+                        .local_facts
+                        .set("act_count", FactValue::Int(len as i64));
+                }
+
+                // Update tracker with current enemy index
+                tracker.last_enemy_index = Some(enemy_selection);
+            }
         }
-
-        // Emit selection confirmed event
-        let mut fact_event = FactEvent::new("selection_confirmed")
-            .with_data("layer_id", &event.layer_id)
-            .with_data("selection_index", event.selection_index.to_string());
-
-        if let Some(ref selection_id) = event.selection_id {
-            fact_event = fact_event.with_data("selection_id", selection_id);
-        }
-
-        fact_event_writer.write(fact_event);
-
-        // Emit specific action events based on known layer IDs
-        if event.layer_id == "BattleMainMenu" {
-            let action_name = match event.selection_index {
-                0 => "fight",
-                1 => "act",
-                2 => "item",
-                3 => "mercy",
-                _ => "unknown",
-            };
-
-            layered_db.set("player_last_action", action_name);
-            fact_event_writer.write(FactEvent::new(format!("player_action_{}", action_name)));
-        }
-
-        info!(
-            "Battle FRE Bridge: Selection confirmed in layer '{}', index {}",
-            event.layer_id, event.selection_index
-        );
     }
+
+    // Update tracker
+    tracker.last_depth = Some(current_depth);
+    tracker.last_menu_context = Some(current_menu_context);
 }

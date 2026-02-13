@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的核心类型和资源。
 
-use super::super::BattleAsset;
+use super::super::SequenceAsset;
 use super::super::chapter_schema::Chapter;
 use bevy::prelude::*;
 
@@ -59,8 +59,8 @@ pub struct ParallelTracker {
 #[derive(Component)]
 pub struct ChapterFinished;
 
-/// Resource holding the current battle flow asset handle.
+/// Resource holding the current sequence flow asset handle.
 ///
-/// 持有当前战斗流程资产句柄的资源。
+/// 持有当前序列流程资产句柄的资源。
 #[derive(Resource)]
-pub struct CurrentBattleFlow(pub Handle<BattleAsset>);
+pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);

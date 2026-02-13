@@ -1,0 +1,13 @@
+// Dummy 敌人本地化文本
+
+// ACT 名称
+pub const EnemyDummyActCheck: String = "检查"
+pub const EnemyDummyActTalk: String = "交谈"
+pub const EnemyDummyActFlirt: String = "调情"
+pub const EnemyDummyActHug: String = "拥抱"
+
+// ACT 结果文本
+pub const EnemyDummyActCheckResult: String = "* DUMMY - ATK 0 DEF 0\n* 棉花心和纽扣眼。\n* 你是它眼中的苹果。"
+pub const EnemyDummyActTalkResult: String = "* 你和 Dummy 说话。\n* 它似乎不太擅长聊天。"
+pub const EnemyDummyActFlirtResult: String = "* 你向 Dummy 调情。\n* 它的脸红了...是染料吗？"
+pub const EnemyDummyActHugResult: String = "* 你拥抱了 Dummy。\n* ……"

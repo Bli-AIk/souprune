@@ -30,7 +30,7 @@
     facts: {
         "depth": 0,
         "selection": 0,
-        "active": true,
+        "interactable": true,
     },
 
     roots: [

@@ -13,8 +13,8 @@ use std::path::Path;
 extern "C" fn host_log(_level: u32, msg: *const u8, len: usize) {
     unsafe {
         let slice = std::slice::from_raw_parts(msg, len);
-        let s = String::from_utf8_lossy(slice);
-        info!("[MOD] {}", s);
+        let message = String::from_utf8_lossy(slice);
+        info!("[MOD] {}", message);
     }
 }
 

@@ -106,6 +106,7 @@ impl ShaderMaterial {
                 easing: lag.easing.clone(),
                 // Runtime state
                 lag_value: 1.0,
+                anim_start_value: 1.0,
                 last_source_value: 1.0,
                 delay_timer: 0.0,
                 anim_progress: 1.0,
@@ -190,6 +191,11 @@ pub struct MaterialAnimationState {
     /// 当前延迟值（插值）。
     pub lag_value: f32,
 
+    /// Animation start value (captured when animation starts).
+    ///
+    /// 动画起始值（动画开始时捕获）。
+    pub anim_start_value: f32,
+
     /// Last source value for change detection.
     ///
     /// 用于变化检测的上一个源值。
@@ -215,7 +221,9 @@ impl MaterialAnimationState {
     pub fn update(&mut self, source_value: f32, delta_time: f32) -> f32 {
         // Detect source value change
         if (source_value - self.last_source_value).abs() > f32::EPSILON {
-            // Source changed, start delay countdown
+            // Source changed, capture start value and start delay countdown
+            // 源值变化，捕获起始值并开始延迟倒计时
+            self.anim_start_value = self.lag_value;
             self.delay_timer = self.delay;
             self.anim_progress = 0.0;
             self.last_source_value = source_value;
@@ -235,10 +243,11 @@ impl MaterialAnimationState {
             // Apply easing
             let t = self.apply_easing(self.anim_progress);
 
-            // Interpolate from lag_value to source_value
-            // Note: This is simplified; a proper implementation would store start_value
-            let start_value = self.lag_value;
-            self.lag_value = start_value + (source_value - start_value) * t;
+            // Interpolate from start_value to target (source_value)
+            // Use stored anim_start_value, not current lag_value
+            // 从 start_value 插值到目标值（source_value）
+            // 使用存储的 anim_start_value，而不是当前的 lag_value
+            self.lag_value = self.anim_start_value + (source_value - self.anim_start_value) * t;
         } else {
             self.lag_value = source_value;
         }

@@ -12,11 +12,13 @@
 // - 2nd entry: Enter chase state (screen darkens, highlights appear)
 // - 3rd entry: Play danmaku performance
 // - 5th entry: Exit chase state (effects fade out)
+// - 6th entry: Start battle (for Tracy profiling without debug feature)
 //
 // 追逐战状态行为：
 // - 第2次进入：进入追逐战状态（屏幕变暗，高亮出现）
 // - 第3次进入：播放弹幕演出
 // - 第5次进入：退出追逐战状态（效果淡出）
+// - 第6次进入：启动战斗（用于不启用 debug feature 时的 Tracy 性能分析）
 
 (
 
@@ -84,6 +86,20 @@
                 Custom(action_type: "ExitChaseState", params: {}),
             ],
             outputs: ["chase_state_exited"],
+            priority: 5,
+        ),
+
+        // Rule 5: Start battle on 6th visit (for Tracy profiling)
+        // 规则 5：第6次进入时启动战斗（用于 Tracy 性能分析）
+        (
+            id: "demo_start_battle",
+            event: Event("demo_visit_updated"),
+            condition: Equals(key: "demo_area_visit_count", value: Int(6)),
+            actions: [
+                Log(message: "Starting Battle for profiling!"),
+                Custom(action_type: "StartBattle", params: {}),
+            ],
+            outputs: ["battle_started"],
             priority: 5,
         ),
     ],

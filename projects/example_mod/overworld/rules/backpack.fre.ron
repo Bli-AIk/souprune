@@ -26,7 +26,7 @@
     facts: {
         "depth": Int(0),
         "selection": Int(0),
-        "active": Bool(true),
+        "interactable": Bool(true),
     },
 
     rules: [

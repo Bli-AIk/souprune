@@ -384,10 +384,10 @@ pub fn on_am_entity_spawned(
     let event = trigger.event();
     let layer_name = &event.layer_name;
 
-    // info!(
-    //     "[AM Battle] Entity spawned: '{}' (type={:?})",
-    //     layer_name, event.element_type
-    // );
+    trace!(
+        "[AM Battle] Entity spawned: '{}' (type={:?})",
+        layer_name, event.element_type
+    );
 
     // Add AmBattleEntity marker to all AM entities
     commands.entity(event.entity).insert(AmBattleEntity);
@@ -399,10 +399,10 @@ pub fn on_am_entity_spawned(
             && regex.is_match(layer_name)
         {
             commands.entity(event.entity).insert(AmBulletMarker);
-            // info!(
-            //     "  → Matched bullet pattern, added AmBulletMarker to '{}'",
-            //     layer_name
-            // );
+            trace!(
+                "  → Matched bullet pattern, added AmBulletMarker to '{}'",
+                layer_name
+            );
         }
 
         // Check battle_box pattern
@@ -410,10 +410,10 @@ pub fn on_am_entity_spawned(
             && regex.is_match(layer_name)
         {
             commands.entity(event.entity).insert(AmBattleBoxMarker);
-            // info!(
-            //     "  → Matched battle_box pattern, added AmBattleBoxMarker to '{}'",
-            //     layer_name
-            // );
+            trace!(
+                "  → Matched battle_box pattern, added AmBattleBoxMarker to '{}'",
+                layer_name
+            );
         }
 
         // Check hidden pattern - mark layers matching this pattern for hiding

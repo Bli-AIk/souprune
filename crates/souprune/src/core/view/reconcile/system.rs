@@ -291,7 +291,16 @@ fn build_current_tree_with_components(
     let mut tree = CurrentViewTree::new();
 
     for elem in elements {
-        let key = ViewElementKey::new(elem.full_name.clone());
+        // Extract repeat index from name if present (e.g., "EnemyHpBar_0" -> Some(0))
+        // 从名称中提取重复索引（如 "EnemyHpBar_0" -> Some(0)）
+        let repeat_index = extract_repeat_index(&elem.full_name);
+
+        let key = if let Some(idx) = repeat_index {
+            ViewElementKey::with_repeat_index(&elem.full_name, idx)
+        } else {
+            ViewElementKey::new(elem.full_name.clone())
+        };
+
         tree.insert(CurrentElement {
             entity: elem.entity,
             key,
@@ -306,6 +315,20 @@ fn build_current_tree_with_components(
     }
 
     tree
+}
+
+/// Extract repeat index from element name.
+/// e.g., "namespace::EnemyHpBar_2" -> Some(2)
+///
+/// 从元素名称提取重复索引。
+fn extract_repeat_index(full_name: &str) -> Option<usize> {
+    // Find the last underscore followed by a number
+    if let Some(underscore_pos) = full_name.rfind('_') {
+        let suffix = &full_name[underscore_pos + 1..];
+        suffix.parse::<usize>().ok()
+    } else {
+        None
+    }
 }
 
 /// Plugin to enable the reconciliation system.
