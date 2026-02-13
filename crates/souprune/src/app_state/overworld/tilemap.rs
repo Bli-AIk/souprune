@@ -49,6 +49,7 @@ pub(crate) struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
+        use object_properties::process_map_object_properties_system;
         use systems::*;
         app.init_resource::<CurrentMapBgm>()
             .init_resource::<CurrentBgmHandle>()
@@ -58,6 +59,7 @@ impl Plugin for TilemapPlugin {
                 (
                     initialize_tilemap_system,
                     generate_collision_tiles_system,
+                    process_map_object_properties_system,
                     setup_camera_bounds_system,
                     update_objects_order_with_player_system,
                     update_map_bgm_system,

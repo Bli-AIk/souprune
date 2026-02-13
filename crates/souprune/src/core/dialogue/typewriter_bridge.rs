@@ -41,9 +41,13 @@ use super::components::MortarController;
 /// ]
 /// ```
 pub fn handle_typewriter_mortar_events(
-    mut events: MessageReader<MortarGameEvent>,
+    events: Option<MessageReader<MortarGameEvent>>,
     mut typewriters: Query<&mut Typewriter, With<MortarController>>,
 ) {
+    let Some(mut events) = events else {
+        return;
+    };
+
     for event in events.read() {
         match event.name.as_str() {
             "set_typewriter_speed" => {

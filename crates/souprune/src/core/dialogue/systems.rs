@@ -15,17 +15,25 @@ use super::config::{DialogueBlockingConfig, DialogueInputConfig};
 /// 将有焦点的 Typewriter 状态同步到 FRE Facts。
 ///
 /// Updates `dialogue:typewriter_playing` fact based on whether any focused
-/// typewriter is currently playing.
+/// typewriter is currently playing. Only updates when the value actually changes.
 ///
 /// 根据是否有任何焦点打字机正在播放，更新 `dialogue:typewriter_playing` fact。
+/// 仅在值实际变化时更新。
 pub fn sync_typewriter_state_to_facts_system(
     query: Query<&Typewriter, (With<MortarController>, With<DialogueFocus>)>,
     mut facts: ResMut<LayeredFactDatabase>,
 ) {
     let any_playing = query.iter().any(|tw| tw.state == TypewriterState::Playing);
 
-    // Update the fact
-    facts.set("dialogue:typewriter_playing", FactValue::Bool(any_playing));
+    // Only update if value actually changed to avoid triggering unnecessary View updates
+    // Use bypass_change_detection to read without marking as changed
+    let current = facts
+        .bypass_change_detection()
+        .get_bool("dialogue:typewriter_playing")
+        .unwrap_or(false);
+    if current != any_playing {
+        facts.set("dialogue:typewriter_playing", FactValue::Bool(any_playing));
+    }
 }
 
 /// Handles dialogue advancement on FRE events.

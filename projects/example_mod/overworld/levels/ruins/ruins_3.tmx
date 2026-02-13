@@ -122,5 +122,10 @@
     <property name="collision" type="bool" value="true"/>
    </properties>
   </object>
+  <object id="17" name="demo_trigger" x="360.333" y="119.333" width="60" height="60">
+   <properties>
+    <property name="trigger" type="bool" value="true"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

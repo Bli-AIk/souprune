@@ -10,7 +10,6 @@
 //! 处理触发区域检测并发出 FRE 事件。
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
 
-use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
@@ -56,12 +55,6 @@ impl TriggerZone {
     }
 }
 
-/// Marker for the demo trigger zone to avoid duplicate spawning.
-///
-/// 演示触发区域的标记，用于避免重复生成。
-#[derive(Component)]
-pub struct DemoTriggerSpawned;
-
 /// Resource to track loaded rule set handles.
 ///
 /// 跟踪已加载规则集句柄的资源。
@@ -80,50 +73,6 @@ pub struct LoadedRuleSets {
 pub struct RuleActionDefs {
     /// Maps rule ID to its action definitions
     pub actions_by_rule: HashMap<String, Vec<RuleActionDef>>,
-}
-
-/// System to spawn a demo trigger zone for testing FRE.
-/// This creates a 64x64 trigger zone near the player spawn point.
-///
-/// 生成用于测试 FRE 的演示触发区域。
-/// 在玩家出生点附近创建一个 64x64 的触发区域。
-pub fn spawn_demo_trigger_zone_system(
-    mut commands: Commands,
-    existing_triggers: Query<&DemoTriggerSpawned>,
-    player_query: Query<&Transform, Added<PlayerControlled>>,
-) {
-    // Only spawn once
-    if !existing_triggers.is_empty() {
-        return;
-    }
-
-    // Wait for player to spawn, then create trigger near them
-    let Ok(player_transform) = player_query.single() else {
-        return;
-    };
-
-    // Create trigger zone 48 pixels to the right of player spawn
-    let trigger_pos = Vec3::new(
-        player_transform.translation.x + 48.0,
-        player_transform.translation.y,
-        0.0,
-    );
-
-    commands.spawn((
-        OverworldEntity(),
-        TriggerZone::new("demo_trigger"),
-        Rect2DCollider::new(Vec2::new(64.0, 64.0), Vec2::ZERO),
-        Transform::from_translation(trigger_pos),
-        Visibility::Hidden,
-        DemoTriggerSpawned,
-        Name::new("DemoTriggerZone"),
-    ));
-
-    info!(
-        "FRE: Spawned demo trigger zone at ({:.1}, {:.1})",
-        trigger_pos.x, trigger_pos.y
-    );
-    info!("FRE: Walk into the cyan box (press F3 to see it) to trigger danmaku!");
 }
 
 /// System to detect player entering/exiting trigger zones and emit FRE events.

@@ -99,3 +99,15 @@ dev:
 # ===============================================
 clean:
     cargo clean
+
+# ===============================================
+# Tracy
+# ===============================================
+tracy:
+    cargo run -p {{project}} --release --features trace_tracy
+
+# ===============================================
+# Debug Tracy
+# ===============================================
+debug_tracy:
+    cargo run -p {{project}} --release --features debug_tracy

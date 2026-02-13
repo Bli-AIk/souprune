@@ -166,7 +166,6 @@ impl Plugin for OverworldPlugin {
                     view::input_to_fre_event_bridge_system,
                     trigger::load_fre_rules_system,
                     trigger::register_loaded_rules_system,
-                    trigger::spawn_demo_trigger_zone_system,
                     trigger::trigger_zone_detection_system,
                     trigger::collect_danmaku_actions_system,
                     trigger::play_danmaku_from_actions_system,

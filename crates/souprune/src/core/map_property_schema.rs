@@ -71,11 +71,6 @@ pub mod object_keys {
     ///
     /// 触发区域类型。
     pub const TRIGGER: &str = "trigger";
-
-    /// Unique identifier for the trigger.
-    ///
-    /// 触发器的唯一标识符。
-    pub const TRIGGER_ID: &str = "trigger_id";
 }
 
 /// Property definition for validation purposes.
@@ -130,12 +125,6 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
     PropertyDef {
         key: object_keys::TRIGGER,
         description: "Trigger zone type",
-        required: false,
-        default: None,
-    },
-    PropertyDef {
-        key: object_keys::TRIGGER_ID,
-        description: "Unique identifier for the trigger",
         required: false,
         default: None,
     },
