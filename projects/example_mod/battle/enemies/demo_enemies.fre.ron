@@ -9,14 +9,24 @@
 
 (
     facts: {
+        // Enemy IDs (used to look up ACT data from enemy FRE files)
+        // 敌人 ID（用于从敌人 FRE 文件查找 ACT 数据）
+        "enemy_ids": StringList([
+            "froggit",
+            "whimsun",
+            "moldsmal",
+            "loox",
+            "vegetoid",
+        ]),
+
         // Enemy names (localized)
         // 敌人名称（本地化）
         "enemy_names": StringList([
-            "{{battle/ui:ENEMY_TEST1}}",
-            "{{battle/ui:ENEMY_TEST2}}",
-            "{{battle/ui:ENEMY_TEST3}}",
-            "{{battle/ui:ENEMY_TEST4}}",
-            "{{battle/ui:ENEMY_TEST5}}",
+            "{{battle/ui:ENEMY_FROGGIT}}",
+            "{{battle/ui:ENEMY_WHIMSUN}}",
+            "{{battle/ui:ENEMY_MOLDSMAL}}",
+            "{{battle/ui:ENEMY_LOOX}}",
+            "{{battle/ui:ENEMY_VEGETOID}}",
         ]),
 
         // Current HP values
@@ -29,11 +39,11 @@
 
         // Attack values
         // 攻击值
-        "enemy_attacks": IntList([5, 7, 10, 3, 15]),
+        "enemy_attacks": IntList([4, 5, 6, 6, 6]),
 
         // Defense values
         // 防御值
-        "enemy_defenses": IntList([3, 2, 5, 1, 8]),
+        "enemy_defenses": IntList([5, 0, 0, 6, 6]),
     },
     rules: [],
 )

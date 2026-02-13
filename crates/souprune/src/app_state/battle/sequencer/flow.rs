@@ -6,7 +6,7 @@
 //!
 //! 战斗流程控制系统 - 处理章节序列和生命周期。
 
-use super::super::BattleAsset;
+use super::super::SequenceAsset;
 use super::super::chapter_schema::Chapter;
 use super::context::*;
 use bevy::prelude::*;
@@ -20,9 +20,9 @@ pub fn load_default_chapter_system(
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     let chapter_path = &souprune_config.game.initial_battle_path;
-    let handle = asset_server.load::<BattleAsset>(chapter_path);
-    commands.insert_resource(CurrentBattleFlow(handle));
-    info!("Loading default battle flow: {}", chapter_path);
+    let handle = asset_server.load::<SequenceAsset>(chapter_path);
+    commands.insert_resource(CurrentSequenceFlow(handle));
+    info!("Loading default sequence flow: {}", chapter_path);
 }
 
 /// System to sync battle flow when asset is loaded.
@@ -32,9 +32,9 @@ pub fn load_default_chapter_system(
 /// 如果指定了规则文件，也会加载战斗特定的 FRE 规则。
 pub fn sync_battle_flow_system(
     mut commands: Commands,
-    flow_handle: Option<Res<CurrentBattleFlow>>,
+    flow_handle: Option<Res<CurrentSequenceFlow>>,
     mut context: ResMut<BattleContext>,
-    assets: Res<Assets<BattleAsset>>,
+    assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
     mut battle_rules_handle: ResMut<super::super::fre::BattleRulesHandle>,
 ) {
@@ -43,7 +43,7 @@ pub fn sync_battle_flow_system(
         && context.chapters.is_empty()
     {
         info!(
-            "Battle flow loaded. Pushing {} chapters to queue.",
+            "Sequence flow loaded. Pushing {} chapters to queue.",
             asset.chapters.len()
         );
         context.chapters.extend(asset.chapters.clone());
@@ -56,7 +56,7 @@ pub fn sync_battle_flow_system(
             info!("Battle FRE: Loading rules from {}", rules_path);
         }
 
-        commands.remove_resource::<CurrentBattleFlow>();
+        commands.remove_resource::<CurrentSequenceFlow>();
     }
 }
 
@@ -106,7 +106,7 @@ pub fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<E
 pub fn advance_battle_flow_system(
     mut commands: Commands,
     mut context: ResMut<BattleContext>,
-    active_chapters: Query<&ActiveChapter>,
+    active_chapters: Query<&ActiveChapter, Without<ChapterFinished>>,
 ) {
     // Check if any root-level chapter is active
     // 检查是否有任何根级章节处于活动状态

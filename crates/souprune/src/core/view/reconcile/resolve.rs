@@ -80,8 +80,21 @@ pub fn resolve_transform(
         Quat::IDENTITY
     };
 
+    // Apply pivot offset if present
+    // 如果存在 pivot 则应用偏移
+    let final_translation = if let Some(pivot) = &sprite.pivot {
+        let (pivot_x, pivot_y) =
+            crate::core::view::layout::serde_types::vec2_tuple_to_static(pivot);
+        let shift_x = (0.5 - pivot_x) * scale.x;
+        let shift_y = (0.5 - pivot_y) * scale.y;
+        let shift = rotation * Vec3::new(shift_x, shift_y, 0.0);
+        translation + shift
+    } else {
+        translation
+    };
+
     Transform {
-        translation,
+        translation: final_translation,
         rotation,
         scale,
     }

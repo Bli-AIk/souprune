@@ -108,6 +108,8 @@ impl<'a> PlayerDataView<'a> {
             FactValue::String(_) => 0.0,
             FactValue::StringList(list) => list.len() as f64,
             FactValue::IntList(list) => list.len() as f64,
+            FactValue::FloatList(list) => list.len() as f64,
+            FactValue::BoolList(list) => list.len() as f64,
         })
     }
 
@@ -162,7 +164,10 @@ impl<'a> PlayerDataView<'a> {
             FactValue::Int(i) => Some(i.to_string()),
             FactValue::Float(f) => Some(f.to_string()),
             FactValue::Bool(b) => Some(b.to_string()),
-            FactValue::StringList(_) | FactValue::IntList(_) => None,
+            FactValue::StringList(_)
+            | FactValue::IntList(_)
+            | FactValue::FloatList(_)
+            | FactValue::BoolList(_) => None,
         })
     }
 

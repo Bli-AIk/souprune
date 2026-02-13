@@ -217,10 +217,12 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
 /// - `{|name, i| in $enemy_names => "* {name}" sep "\n"}` - with index and separator
 /// - `{|name, i| in $enemy_names[$enemy_view_offset..$enemy_view_offset+$enemy_display_limit] => "* {name}"}` - with range
 fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Option<String> {
-    // First, try the extended regex with optional range syntax
-    // Format: |item, index| in $array or $array[$start..$end] => "template" sep "separator"
+    // Extended regex with optional range and step syntax
+    // Format: |item, index| in $array or $array[$start..$end] or $array[$start..$end step $step] => "template" sep "separator"
+    // 扩展正则表达式，支持可选范围和步进语法
+    // 格式：|item, index| in $array 或 $array[$start..$end] 或 $array[$start..$end step $step] => "template" sep "separator"
     let lambda_regex_with_range = regex::Regex::new(
-        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]]+)\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]\s]+)(?:\s+step\s+(\d+))?\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
     ).ok()?;
 
     let caps = lambda_regex_with_range.captures(expr)?;
@@ -230,8 +232,12 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
     let array_name = &caps[3];
     let start_expr = caps.get(4).map(|m| m.as_str());
     let end_expr = caps.get(5).map(|m| m.as_str());
-    let template = &caps[6];
-    let separator = caps.get(7).map(|m| m.as_str()).unwrap_or("\n");
+    let step_val: usize = caps
+        .get(6)
+        .and_then(|m| m.as_str().parse().ok())
+        .unwrap_or(1);
+    let template = &caps[7];
+    let separator = caps.get(8).map(|m| m.as_str()).unwrap_or("\n");
 
     // Get array from player data - try StringList first, then IntList
     let array: Vec<String> = if let Some(list) = player_data.get_fact_string_list(array_name) {
@@ -258,12 +264,12 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
         (0, array.len())
     };
 
-    // Generate output for elements in range
-    // 为范围内的元素生成输出
+    // Generate output for elements in range with step
+    // 为范围内的元素生成输出（带步进）
     let lines: Vec<String> = array
         .iter()
         .enumerate()
-        .filter(|(i, _)| *i >= start_idx && *i < end_idx)
+        .filter(|(i, _)| *i >= start_idx && *i < end_idx && (*i - start_idx) % step_val == 0)
         .map(|(i, item)| {
             let mut line = template.to_string();
             // Replace item variable: {item_var}
@@ -392,8 +398,7 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
 /// - 浮点数带小数点输出
 /// - 布尔值输出为 "true" 或 "false"
 /// - 字符串作为带引号的字符串输出
-/// - 字符串列表输出其长度（用于表达式计算）
-/// - 整数列表输出其长度（用于表达式计算）
+/// - 列表输出其长度（用于表达式计算）
 fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
     use bevy_fact_rule_event::FactValue;
     match value {
@@ -403,6 +408,8 @@ fn format_fact_for_expr(value: &bevy_fact_rule_event::FactValue) -> String {
         FactValue::String(s) => format!("\"{}\"", s),
         FactValue::StringList(list) => list.len().to_string(),
         FactValue::IntList(list) => list.len().to_string(),
+        FactValue::FloatList(list) => list.len().to_string(),
+        FactValue::BoolList(list) => list.len().to_string(),
     }
 }
 
@@ -797,7 +804,13 @@ pub fn resolve_text_content(
                 }
 
                 if found_closing {
-                    let resolved = mortar_strings.resolve(&key);
+                    // Preprocess $variable in the key before resolving
+                    // 在解析前预处理键中的 $variable
+                    let processed_key = preprocess_fact_expressions(&key, player_data);
+                    // Remove quotes from string values (format_fact_for_expr adds them for expressions)
+                    // 移除字符串值的引号（format_fact_for_expr 为表达式添加的）
+                    let processed_key = processed_key.replace('"', "");
+                    let resolved = mortar_strings.resolve(&processed_key);
                     result.push_str(resolved);
                 } else {
                     result.push_str("{{");
@@ -838,7 +851,15 @@ pub fn resolve_text_content(
 
                 if found_closing {
                     if let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) {
-                        result.push_str(&evaluated);
+                        // Recursively resolve any localization markers in lambda output
+                        // 递归处理 lambda 输出中的本地化标记
+                        let resolved = resolve_text_content(
+                            &evaluated,
+                            mortar_strings,
+                            player_data,
+                            item_registry,
+                        );
+                        result.push_str(&resolved);
                     } else {
                         warn!("Failed to evaluate lambda expression: {}", expr);
                         result.push_str(&format!("{{{}}})", expr));
@@ -919,6 +940,16 @@ pub fn resolve_text_content(
                                 bevy_fact_rule_event::FactValue::IntList(list) => list
                                     .iter()
                                     .map(|i| i.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                bevy_fact_rule_event::FactValue::FloatList(list) => list
+                                    .iter()
+                                    .map(|f| f.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                bevy_fact_rule_event::FactValue::BoolList(list) => list
+                                    .iter()
+                                    .map(|b| b.to_string())
                                     .collect::<Vec<_>>()
                                     .join(", "),
                             }

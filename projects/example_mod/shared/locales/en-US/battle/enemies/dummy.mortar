@@ -1,0 +1,13 @@
+// Dummy enemy localization text
+
+// ACT names
+pub const EnemyDummyActCheck: String = "Check"
+pub const EnemyDummyActTalk: String = "Talk"
+pub const EnemyDummyActFlirt: String = "Flirt"
+pub const EnemyDummyActHug: String = "Hug"
+
+// ACT result text
+pub const EnemyDummyActCheckResult: String = "* DUMMY - ATK 0 DEF 0\n* A cotton heart and a button eye.\n* You are the apple of my eye."
+pub const EnemyDummyActTalkResult: String = "* You talk to Dummy.\n* It doesn't seem like much of a conversation."
+pub const EnemyDummyActFlirtResult: String = "* You flirt with Dummy.\n* Its face is red... Is that dye?"
+pub const EnemyDummyActHugResult: String = "* You hug Dummy.\n* ..."

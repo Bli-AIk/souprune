@@ -222,11 +222,14 @@ fn apply_modification(
         }
         super::super::chapter_schema::ElementModification::SetBoxSize(width, height) => {
             if let Ok(mut ui_box) = ui_boxes.get_mut(entity) {
-                let w = resolve_val_f32(width, None, player_data, None);
-                let h = resolve_val_f32(height, None, player_data, None);
-                ui_box.width = w;
-                ui_box.height = h;
-                info!("Set box size for entity {:?}: {}x{}", entity, w, h);
+                let new_width = resolve_val_f32(width, None, player_data, None);
+                let new_height = resolve_val_f32(height, None, player_data, None);
+                ui_box.width = new_width;
+                ui_box.height = new_height;
+                info!(
+                    "Set box size for entity {:?}: {}x{}",
+                    entity, new_width, new_height
+                );
             }
         }
         super::super::chapter_schema::ElementModification::Undo => {

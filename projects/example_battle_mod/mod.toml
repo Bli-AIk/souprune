@@ -19,6 +19,6 @@ audios = "audios"          # Audio resources / 音频资源目录
 
 [game]
 global_rules = "global.fre.ron"
-initial_battle_path = "battle/chapters/demo.battle.ron"
+initial_battle_path = "battle/chapters/demo.sequence.ron"
 input_config_path = "config/input.ron"
 required_modules = ["common", "battle"]

@@ -25,6 +25,7 @@ use crate::core::sprite::ModuleSpriteRegistry;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
+use bevy_ecs_tiled::prelude::TiledMapAsset;
 use std::fs;
 
 pub(crate) struct AppSetupPlugin;
@@ -33,7 +34,11 @@ impl Plugin for AppSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(AppState::AppSetup),
-            (load_textures_system, setup_camera_system),
+            (
+                load_textures_system,
+                setup_camera_system,
+                preload_maps_system,
+            ),
         )
         .add_systems(
             Update,
@@ -185,6 +190,39 @@ fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionS
         }),
         Followable::default(),
     ));
+}
+
+/// Preload map assets during AppSetup to avoid loading spikes when entering Overworld.
+///
+/// 在 AppSetup 阶段预加载地图资源，避免进入 Overworld 时的加载卡顿。
+fn preload_maps_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    let initial_map = &souprune_config.game.initial_map_path;
+
+    if !initial_map.is_empty() {
+        info!("Preloading initial map: {}", initial_map);
+        let handle: Handle<TiledMapAsset> = asset_server.load(initial_map);
+        commands.insert_resource(PreloadedMaps {
+            initial_map: Some(handle),
+        });
+    } else {
+        commands.insert_resource(PreloadedMaps { initial_map: None });
+    }
+}
+
+/// Resource storing preloaded map handles.
+/// Using preloaded maps avoids the loading spike when entering Overworld.
+///
+/// 存储预加载地图句柄的资源。
+/// 使用预加载地图可以避免进入 Overworld 时的加载尖峰。
+#[derive(Resource, Default)]
+pub struct PreloadedMaps {
+    /// The initial overworld map handle, preloaded during AppSetup.
+    /// 初始 Overworld 地图句柄，在 AppSetup 期间预加载。
+    pub initial_map: Option<Handle<TiledMapAsset>>,
 }
 
 #[derive(Resource)]

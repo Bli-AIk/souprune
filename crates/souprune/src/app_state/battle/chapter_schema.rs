@@ -6,12 +6,12 @@
 //!
 //! ## 模块概述
 //!
-//! Defines the schema for Battle Chapters in RON files.
-//! This module contains pure data structures that map directly to the `battle.ron` format.
+//! Defines the schema for Sequence Chapters in RON files.
+//! This module contains pure data structures that map directly to the `.sequence.ron` format.
 //! It serves as the data contract between the configuration files and the game logic.
 //!
-//! 定义 Battle Chapter 在 RON 文件中的 Schema。
-//! 本模块包含直接映射到 `battle.ron` 格式的纯数据结构。
+//! 定义 Sequence Chapter 在 RON 文件中的 Schema。
+//! 本模块包含直接映射到 `.sequence.ron` 格式的纯数据结构。
 //! 它作为配置文件与游戏逻辑之间的数据契约。
 //!
 //! Chapter is the minimal unit of the linear sequence in the battle system.
@@ -121,34 +121,63 @@ pub enum Chapter {
         bindings: std::collections::HashMap<String, DataBinding>,
     },
 
-    /// Await Selection Chapter.
+    /// Await Fact Condition Chapter.
     ///
-    /// Blocks the battle sequencer until player confirms a selection in the specified
-    /// interactive layer. This is used for player choice menus like FIGHT/ACT/ITEM/MERCY.
+    /// Blocks the battle sequencer until the specified fact condition evaluates to true.
+    /// This is a reactive blocking mechanism - the chapter polls the condition each frame.
+    /// Condition syntax reuses the FRE condition parser.
     ///
-    /// 等待选择章节。
+    /// 等待 Fact 条件章节。
     ///
-    /// 阻塞战斗 sequencer 直到玩家在指定的交互层中确认选择。
-    /// 用于玩家选择菜单，如 FIGHT/ACT/ITEM/MERCY。
+    /// 阻塞战斗 sequencer 直到指定的条件表达式求值为 true。
+    /// 这是响应式阻塞机制——章节每帧轮询条件。
+    /// 条件语法复用 FRE 的条件解析器。
     ///
     /// # Example / 示例
     /// ```ron
-    /// AwaitInteraction(
-    ///     layer_id: "BattleMainMenu",
-    ///     initial_selection: 0,
-    /// ),
+    /// AwaitFact(condition: "$selection_confirmed == true"),
+    /// AwaitFact(condition: "$enemy_hp <= 0", local: false),
     /// ```
-    AwaitInteraction {
-        /// The ID of the interactive layer to activate.
+    AwaitFact {
+        /// Condition expression (FRE condition syntax).
+        /// Example: "$selection_confirmed == true"
         ///
-        /// 要激活的交互层的 ID。
-        layer_id: String,
+        /// 条件表达式（FRE 条件语法）。
+        /// 示例："$selection_confirmed == true"
+        condition: String,
 
-        /// Initial selection index (default: 0).
+        /// Use View's local_facts (default: true) or global FactDatabase.
         ///
-        /// 初始选择索引（默认：0）。
-        #[serde(default)]
-        initial_selection: usize,
+        /// 使用 View 的 local_facts（默认：true）还是全局 FactDatabase。
+        #[serde(default = "default_true")]
+        local: bool,
+    },
+
+    /// Set View Fact Chapter.
+    ///
+    /// Sets a single fact in the active View's local_facts.
+    /// Use this to control View state from battle chapters.
+    ///
+    /// 设置 View 局部 Fact 章节。
+    ///
+    /// 在当前活跃 View 的 local_facts 中设置单个 Fact。
+    /// 用于从战斗章节控制 View 状态。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// SetViewFact(key: "interactable", value: Bool(true)),
+    /// SetViewFact(key: "depth", value: Int(0)),
+    /// ```
+    SetViewFact {
+        /// The fact key to set.
+        ///
+        /// 要设置的 fact 键名。
+        key: String,
+
+        /// The value to set.
+        ///
+        /// 要设置的值。
+        value: FactValueMatch,
     },
 
     /// Danmaku Performance Chapter.
@@ -447,6 +476,56 @@ pub enum Chapter {
         /// 键是新数组 fact 名称，值是聚合规则。
         #[serde(default)]
         aggregate: std::collections::HashMap<String, AggregateRule>,
+    },
+
+    /// Run an external sequence file.
+    ///
+    /// Loads and executes a `.sequence.ron` file as a sub-sequence.
+    /// Supports parameter passing to inject values into the sub-sequence's execution context.
+    ///
+    /// 运行外部序列文件。
+    ///
+    /// 加载并执行 `.sequence.ron` 文件作为子序列。
+    /// 支持参数传递，将值注入子序列的执行上下文。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// // Simple call
+    /// RunSequence(path: "common/show_narration.sequence.ron"),
+    ///
+    /// // With parameters
+    /// RunSequence(
+    ///     path: "common/show_narration.sequence.ron",
+    ///     params: {
+    ///         "mortar_key": String("EnemyDummyActCheckResult"),
+    ///     },
+    /// ),
+    ///
+    /// // Dynamic path from fact
+    /// RunSequence(path_fact: "selected_sequence_path"),
+    /// ```
+    RunSequence {
+        /// Fixed path to the sequence file.
+        ///
+        /// 序列文件的固定路径。
+        #[serde(default)]
+        path: Option<String>,
+
+        /// Read path from a String fact.
+        /// Used for dynamic sequence selection.
+        ///
+        /// 从 String fact 读取路径。
+        /// 用于动态序列选择。
+        #[serde(default)]
+        path_fact: Option<String>,
+
+        /// Parameters to inject into the sub-sequence's execution context.
+        /// These become available as facts in the sub-sequence.
+        ///
+        /// 注入子序列执行上下文的参数。
+        /// 这些参数在子序列中可作为 facts 使用。
+        #[serde(default)]
+        params: std::collections::HashMap<String, FactValueMatch>,
     },
 }
 
