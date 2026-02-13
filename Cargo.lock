@@ -4442,7 +4442,7 @@ dependencies = [
 
 [[package]]
 name = "interoptopus_backend_haxe"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "derive_builder",
  "heck",
@@ -6975,7 +6975,7 @@ dependencies = [
 
 [[package]]
 name = "souprune"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -7016,7 +7016,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_api"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "interoptopus",
  "interoptopus_backend_c",

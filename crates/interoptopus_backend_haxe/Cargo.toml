@@ -1,6 +1,6 @@
 [package]
 name = "interoptopus_backend_haxe"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 description = "Haxe (hxcpp) backend for Interoptopus FFI bindings generator"
 license = "MIT OR Apache-2.0"

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/Bli-AIk/souprune/compare/souprune-v0.5.1...souprune-v0.6.0) - 2026-02-13
+
+### Added
+
+- Integrate cargo-deny and optimize CI pipeline ([#59](https://github.com/Bli-AIk/souprune/pull/59))
+- [**breaking**] integrate Fact-Rule-Event system into battle and debug tools ([#45](https://github.com/Bli-AIk/souprune/pull/45))
+- [**breaking**] Unified Interactive View & Data-Driven Input System ([#44](https://github.com/Bli-AIk/souprune/pull/44))
+- *(battle)* Add Tween View Element Animation System ([#43](https://github.com/Bli-AIk/souprune/pull/43))
+- add ModifyViewElement command & refactor ui to view ([#41](https://github.com/Bli-AIk/souprune/pull/41))
+
+### Other
+
+- [**breaking**] view interaction system and generic sequence engine (breaking) ([#67](https://github.com/Bli-AIk/souprune/pull/67))
+
+### Refactor
+
+- [**breaking**] upgrade to Bevy 0.18 ([#66](https://github.com/Bli-AIk/souprune/pull/66))
+- [**breaking**] migrate HP bar to generic ShaderMaterial and introduce DynamicMaterial2d ([#65](https://github.com/Bli-AIk/souprune/pull/65))
+- *(view)* replace evalexpr with fasteval for expression evaluation ([#63](https://github.com/Bli-AIk/souprune/pull/63))
+- refactor!(view): adopt FRE-driven reconciliation view system ([#58](https://github.com/Bli-AIk/souprune/pull/58))
+- [**breaking**] Remove hardcoded paths and introduce unified Visual system ([#47](https://github.com/Bli-AIk/souprune/pull/47))
+- replace debug visualizers with Gizmos & simplify core logic ([#46](https://github.com/Bli-AIk/souprune/pull/46))
+- Replace bevy_smud with custom SDF rendering ([#42](https://github.com/Bli-AIk/souprune/pull/42))
+- Refactor RON backends to separate schema from logic ([#40](https://github.com/Bli-AIk/souprune/pull/40))
+
 ## [0.5.0](https://github.com/Bli-AIk/souprune/releases/tag/souprune-v0.5.0) - 2026-01-27
 
 ### Added
