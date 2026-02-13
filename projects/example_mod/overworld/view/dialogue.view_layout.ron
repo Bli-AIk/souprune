@@ -1,0 +1,53 @@
+#![enable(implicit_some)]
+// Dialogue Box View Layout
+// 对话框视图布局
+//
+// A simple dialogue box for displaying text from Mortar scripts.
+// 一个简单的对话框，用于显示 Mortar 脚本中的文本。
+
+(
+    // Data requirements - FRE rules loaded when this View is spawned
+    // 数据需求 - 当此 View 生成时加载的 FRE 规则
+    requires: [
+        File("shared/dialogue.fre.ron"),
+    ],
+
+    // View-local facts initialized when this layout is spawned
+    // View 局部事实，在此布局生成时初始化
+    facts: {
+        "dialogue:active": true,
+    },
+
+    roots: [
+        // ========================================
+        // DIALOGUE BOX
+        // 对话框
+        // ========================================
+        (
+            name: "DialogueBox",
+            visible_when: "dialogue:active",
+            ui_shape_logic: (
+                width: 280.0,
+                height: 72.0,
+                border_width: 3.0,
+                offset: (0.0, -72.0, 0.0),
+                structure_file: "shared/ui_structures/ui_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "DialogueText",
+                    content: "",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-120.0, 24.0, 1.0),
+                    ),
+                    line_height: 1.375,
+                    // Typewriter effect will be applied via MortarController + Typewriter components
+                    // 打字机效果将通过 MortarController + Typewriter 组件应用
+                ),
+            ],
+        ),
+    ],
+)

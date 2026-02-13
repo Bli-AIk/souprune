@@ -71,6 +71,11 @@ pub mod object_keys {
     ///
     /// 触发区域类型。
     pub const TRIGGER: &str = "trigger";
+
+    /// Interactable object type.
+    ///
+    /// 可交互物体类型。
+    pub const INTERACTABLE: &str = "interactable";
 }
 
 /// Property definition for validation purposes.
@@ -125,6 +130,12 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
     PropertyDef {
         key: object_keys::TRIGGER,
         description: "Trigger zone type",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::INTERACTABLE,
+        description: "Interactable object type",
         required: false,
         default: None,
     },

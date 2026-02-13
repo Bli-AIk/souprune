@@ -1,18 +1,20 @@
 //! # trigger.rs
 //!
 //! ## Module Overview
-//! FRE-based trigger zones for overworld areas.
-//! Handles trigger zone detection and emits FRE events.
+//! FRE-based trigger zones and interactable objects for overworld areas.
+//! Handles trigger zone detection, interactable detection, and emits FRE events.
 //! Rules are loaded from RON files for data-driven gameplay.
 //!
 //! ## 模块概述
-//! 基于 FRE 的 Overworld 区域触发器。
-//! 处理触发区域检测并发出 FRE 事件。
+//! 基于 FRE 的 Overworld 区域触发器和可交互物体。
+//! 处理触发区域检测、可交互物体检测，并发出 FRE 事件。
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
 
 use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::core::basic_components::Facing;
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
@@ -20,6 +22,7 @@ use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
     LayeredRuleRegistry, RuleActionDef,
 };
+use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
 
 /// Marker component for trigger zones.
@@ -53,6 +56,47 @@ impl TriggerZone {
             player_inside: false,
         }
     }
+}
+
+/// Marker component for interactable objects.
+/// These objects can be interacted with when the player faces them and presses confirm.
+///
+/// 可交互物体的标记组件。
+/// 当玩家面向这些物体并按下确认键时，可以与它们交互。
+#[derive(Component, Debug)]
+pub struct Interactable {
+    /// Unique identifier for this interactable.
+    ///
+    /// 此可交互物体的唯一标识符。
+    pub id: String,
+
+    /// Maximum interaction distance from player.
+    ///
+    /// 与玩家的最大交互距离。
+    pub max_distance: f32,
+}
+
+impl Interactable {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            max_distance: 20.0,
+        }
+    }
+
+    pub fn with_distance(mut self, distance: f32) -> Self {
+        self.max_distance = distance;
+        self
+    }
+}
+
+/// Resource to track the currently focused interactable entity.
+///
+/// 跟踪当前聚焦的可交互实体的资源。
+#[derive(Resource, Default)]
+pub struct FocusedInteractable {
+    pub entity: Option<Entity>,
+    pub id: Option<String>,
 }
 
 /// Resource to track loaded rule set handles.
@@ -461,4 +505,205 @@ fn handle_chase_action(
         }
         _ => {}
     }
+}
+
+/// System to detect interactable objects in front of the player.
+/// Updates FocusedInteractable resource when player faces an interactable.
+///
+/// 检测玩家面前可交互物体的系统。
+/// 当玩家面向可交互物体时更新 FocusedInteractable 资源。
+#[allow(clippy::type_complexity)]
+/// Check if a ray from `origin` in direction `dir` intersects an AABB defined by `center` and `half_size`.
+/// Returns the distance to intersection if hit, or None if no intersection within `max_dist`.
+fn ray_aabb_intersection(
+    origin: Vec2,
+    dir: Vec2,
+    center: Vec2,
+    half_size: Vec2,
+    max_dist: f32,
+) -> Option<f32> {
+    let min = center - half_size;
+    let max = center + half_size;
+
+    // Handle each axis
+    let (mut t_min, mut t_max) = (0.0_f32, max_dist);
+
+    // X axis
+    if dir.x.abs() < 1e-6 {
+        // Ray parallel to Y axis
+        if origin.x < min.x || origin.x > max.x {
+            return None;
+        }
+    } else {
+        let inv_d = 1.0 / dir.x;
+        let mut t1 = (min.x - origin.x) * inv_d;
+        let mut t2 = (max.x - origin.x) * inv_d;
+        if t1 > t2 {
+            std::mem::swap(&mut t1, &mut t2);
+        }
+        t_min = t_min.max(t1);
+        t_max = t_max.min(t2);
+        if t_min > t_max {
+            return None;
+        }
+    }
+
+    // Y axis
+    if dir.y.abs() < 1e-6 {
+        // Ray parallel to X axis
+        if origin.y < min.y || origin.y > max.y {
+            return None;
+        }
+    } else {
+        let inv_d = 1.0 / dir.y;
+        let mut t1 = (min.y - origin.y) * inv_d;
+        let mut t2 = (max.y - origin.y) * inv_d;
+        if t1 > t2 {
+            std::mem::swap(&mut t1, &mut t2);
+        }
+        t_min = t_min.max(t1);
+        t_max = t_max.min(t2);
+        if t_min > t_max {
+            return None;
+        }
+    }
+
+    // Check if intersection is within valid range
+    if t_min >= 0.0 && t_min <= max_dist {
+        Some(t_min)
+    } else if t_max >= 0.0 && t_max <= max_dist {
+        Some(t_max)
+    } else {
+        None
+    }
+}
+
+pub fn interactable_detection_system(
+    player_query: Query<(&Transform, &Facing, &Rect2DCollider), With<PlayerControlled>>,
+    interactables: Query<(Entity, &Transform, &Interactable, Option<&Rect2DCollider>)>,
+    mut focused: ResMut<FocusedInteractable>,
+    mut logged_once: Local<bool>,
+) {
+    let Ok((player_transform, facing, player_collider)) = player_query.single() else {
+        return;
+    };
+
+    // Log interactable count once
+    if !*logged_once {
+        let count = interactables.iter().count();
+        info!(
+            "Interactable detection: found {} interactable entities",
+            count
+        );
+        *logged_once = true;
+    }
+
+    let player_pos = player_transform.translation.truncate() + player_collider.offset;
+    let facing_dir = facing.value.as_vec2();
+
+    // Find the closest interactable that the ray intersects
+    let mut best_match: Option<(Entity, String, f32)> = None;
+
+    for (entity, interactable_transform, interactable, opt_collider) in interactables.iter() {
+        // Get interactable center position and size
+        let (center, half_size) = match opt_collider {
+            Some(collider) => (
+                interactable_transform.translation.truncate() + collider.offset,
+                collider.size / 2.0,
+            ),
+            None => {
+                // No collider - use a small default area
+                (
+                    interactable_transform.translation.truncate(),
+                    Vec2::splat(8.0),
+                )
+            }
+        };
+
+        // Ray-AABB intersection test
+        if let Some(hit_dist) = ray_aabb_intersection(
+            player_pos,
+            facing_dir,
+            center,
+            half_size,
+            interactable.max_distance,
+        ) {
+            // Update best match if closer
+            if best_match.is_none() || hit_dist < best_match.as_ref().unwrap().2 {
+                best_match = Some((entity, interactable.id.clone(), hit_dist));
+            }
+        }
+    }
+
+    // Update focused interactable
+    match best_match {
+        Some((entity, id, _)) => {
+            if focused.entity != Some(entity) {
+                focused.entity = Some(entity);
+                focused.id = Some(id.clone());
+                debug!("FRE: Player can interact with '{}'", id);
+            }
+        }
+        None => {
+            if focused.entity.is_some() {
+                debug!("FRE: No interactable in range");
+                focused.entity = None;
+                focused.id = None;
+            }
+        }
+    }
+}
+
+/// System to handle player interaction when confirm is pressed.
+/// Emits FRE event `interact_{id}` when player confirms on a focused interactable.
+///
+/// 当按下确认键时处理玩家交互的系统。
+/// 当玩家在聚焦的可交互物体上确认时，发出 FRE 事件 `interact_{id}`。
+pub fn handle_interaction_input_system(
+    registry: Res<ActionRegistry>,
+    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    focused: Res<FocusedInteractable>,
+    current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
+    mut event_writer: MessageWriter<FactEvent>,
+) {
+    // Only handle interaction in Normal state (player_movable: true)
+    let player_movable = state_config
+        .as_ref()
+        .and_then(|config| config.0.states.get(&current_state.0))
+        .map(|def| def.player_movable)
+        .unwrap_or(true);
+
+    if !player_movable {
+        return;
+    }
+
+    let Ok(action_state) = query.single() else {
+        return;
+    };
+
+    // Check if confirm was just pressed
+    if !action_state.action_just_pressed(&registry, "Confirm") {
+        return;
+    }
+
+    // Log that confirm was pressed
+    info!(
+        "FRE: Confirm pressed, focused interactable: {:?}",
+        focused.id
+    );
+
+    // Check if there's a focused interactable
+    let Some(ref interactable_id) = focused.id else {
+        info!("FRE: No focused interactable, ignoring confirm");
+        return;
+    };
+
+    // Emit interaction event
+    let event_id = format!("interact_{}", interactable_id);
+    info!(
+        "FRE: Player interacting with '{}', emitting '{}'",
+        interactable_id, event_id
+    );
+    event_writer.write(FactEvent::new(event_id));
 }

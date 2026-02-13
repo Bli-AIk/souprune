@@ -151,6 +151,7 @@ impl Plugin for OverworldPlugin {
             .init_resource::<trigger::LoadedRuleSets>()
             .init_resource::<trigger::RuleActionDefs>()
             .init_resource::<trigger::PendingDanmakuActions>()
+            .init_resource::<trigger::FocusedInteractable>()
             .add_systems(
                 OnEnter(AppState::Overworld),
                 (
@@ -167,6 +168,10 @@ impl Plugin for OverworldPlugin {
                     trigger::load_fre_rules_system,
                     trigger::register_loaded_rules_system,
                     trigger::trigger_zone_detection_system,
+                    // Interactable detection and input handling
+                    // 可交互物体检测和输入处理
+                    trigger::interactable_detection_system,
+                    trigger::handle_interaction_input_system,
                     trigger::collect_danmaku_actions_system,
                     trigger::play_danmaku_from_actions_system,
                     trigger::handle_chase_state_actions_system,
