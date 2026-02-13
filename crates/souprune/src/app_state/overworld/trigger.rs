@@ -436,70 +436,80 @@ pub fn handle_chase_state_actions_system(
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
 ) {
     for event in events.read() {
-        // Get all matching rules for this event, grouped by priority
         let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
         'outer: for group in rule_groups {
             for rule in group {
-                // Check if rule's condition is met
-                if rule.condition.evaluate(&*fact_db) {
-                    // Look up the original action definitions for this rule
-                    if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                        for action in actions {
-                            if let RuleActionDef::Custom { action_type, .. } = action {
-                                match action_type.as_str() {
-                                    "EnterChaseState" => {
-                                        if chase_enabled.0 {
-                                            if let Some(ref state_name) = chase_state_name.0 {
-                                                info!(
-                                                    "FRE: Entering chase state '{}' via action",
-                                                    state_name
-                                                );
-                                                next_state.set(
-                                                    crate::app_state::overworld::OverworldSubState::new(
-                                                        state_name.clone(),
-                                                    ),
-                                                );
-                                            } else {
-                                                warn!(
-                                                    "FRE: EnterChaseState action ignored - no chase state name configured"
-                                                );
-                                            }
-                                        } else {
-                                            warn!(
-                                                "FRE: EnterChaseState action ignored - chase not enabled"
-                                            );
-                                        }
-                                    }
-                                    "ExitChaseState" => {
-                                        if chase_enabled.0 {
-                                            info!("FRE: Exiting chase state via action");
-                                            // Return to default state (empty string means default)
-                                            next_state.set(
-                                                crate::app_state::overworld::OverworldSubState::default(
-                                                ),
-                                            );
-                                        } else {
-                                            warn!(
-                                                "FRE: ExitChaseState action ignored - chase not enabled"
-                                            );
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                    }
+                if !rule.condition.evaluate(&*fact_db) {
+                    continue;
+                }
 
-                    // Respect consume_event
-                    if rule.consume_event {
-                        break 'outer;
-                    }
+                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                    continue;
+                };
+
+                for action in actions {
+                    let RuleActionDef::Custom { action_type, .. } = action else {
+                        continue;
+                    };
+
+                    handle_chase_action(
+                        action_type,
+                        &chase_enabled,
+                        &chase_state_name,
+                        &mut next_ow_state,
+                        &mut next_app_state,
+                    );
+                }
+
+                if rule.consume_event {
+                    break 'outer;
                 }
             }
         }
+    }
+}
+
+/// Handle individual chase-related FRE actions.
+/// 处理单个追逐相关的 FRE action。
+fn handle_chase_action(
+    action_type: &str,
+    chase_enabled: &super::chase::ChaseEnabled,
+    chase_state_name: &super::chase::ChaseStateName,
+    next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
+    next_app_state: &mut NextState<crate::app_state::AppState>,
+) {
+    match action_type {
+        "EnterChaseState" => {
+            if !chase_enabled.0 {
+                warn!("FRE: EnterChaseState action ignored - chase not enabled");
+                return;
+            }
+            let Some(ref state_name) = chase_state_name.0 else {
+                warn!("FRE: EnterChaseState action ignored - no chase state name configured");
+                return;
+            };
+            info!("FRE: Entering chase state '{}' via action", state_name);
+            next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+                state_name.clone(),
+            ));
+        }
+        "ExitChaseState" => {
+            if !chase_enabled.0 {
+                warn!("FRE: ExitChaseState action ignored - chase not enabled");
+                return;
+            }
+            info!("FRE: Exiting chase state via action");
+            next_ow_state.set(crate::app_state::overworld::OverworldSubState::default());
+        }
+        "StartBattle" => {
+            info!("FRE: Starting battle via action");
+            next_app_state.set(crate::app_state::AppState::Battle);
+        }
+        _ => {}
     }
 }

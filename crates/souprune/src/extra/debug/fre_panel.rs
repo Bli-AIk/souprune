@@ -727,6 +727,100 @@ pub mod debug_fre_panel {
                                                 });
                                             });
                                         }
+                                        FactValue::FloatList(list) => {
+                                            // Show float list with editable elements
+                                            ui.push_id(format!("floatlist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            if ui
+                                                                .add(
+                                                                    egui::DragValue::new(item)
+                                                                        .speed(0.1),
+                                                                )
+                                                                .changed()
+                                                            {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(0.0);
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::FloatList(new_list),
+                                                        ));
+                                                    }
+                                                });
+                                            });
+                                        }
+                                        FactValue::BoolList(list) => {
+                                            // Show bool list with editable elements
+                                            ui.push_id(format!("boollist_{}", key), |ui| {
+                                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                                    let mut new_list = list.clone();
+                                                    let mut changed = false;
+                                                    let mut to_remove: Option<usize> = None;
+
+                                                    for (idx, item) in
+                                                        new_list.iter_mut().enumerate()
+                                                    {
+                                                        ui.horizontal(|ui| {
+                                                            ui.label(format!("  {}:", idx));
+                                                            if ui.checkbox(item, "").changed() {
+                                                                changed = true;
+                                                            }
+                                                            if ui.small_button("🗑").clicked() {
+                                                                to_remove = Some(idx);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    // Handle removal
+                                                    if let Some(idx) = to_remove {
+                                                        new_list.remove(idx);
+                                                        changed = true;
+                                                    }
+
+                                                    // Add new element button
+                                                    if ui.small_button("➕ Add").clicked() {
+                                                        new_list.push(false);
+                                                        changed = true;
+                                                    }
+
+                                                    if changed {
+                                                        modifications.push((
+                                                            *entity,
+                                                            key.clone(),
+                                                            FactValue::BoolList(new_list),
+                                                        ));
+                                                    }
+                                                });
+                                            });
+                                        }
                                     },
                                 );
                             });
@@ -891,6 +985,93 @@ pub mod debug_fre_panel {
                                         modifications.push((
                                             key.clone(),
                                             FactValue::IntList(new_list),
+                                            layer,
+                                        ));
+                                    }
+                                });
+                            });
+                        }
+                        FactValue::FloatList(ref list) => {
+                            // Show float list with editable elements
+                            ui.push_id(format!("layered_floatlist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            if ui
+                                                .add(egui::DragValue::new(item).speed(0.1))
+                                                .changed()
+                                            {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(0.0);
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::FloatList(new_list),
+                                            layer,
+                                        ));
+                                    }
+                                });
+                            });
+                        }
+                        FactValue::BoolList(ref list) => {
+                            // Show bool list with editable elements
+                            ui.push_id(format!("layered_boollist_{}", key), |ui| {
+                                ui.collapsing(format!("[{}]", list.len()), |ui| {
+                                    let mut new_list = list.clone();
+                                    let mut changed = false;
+                                    let mut to_remove: Option<usize> = None;
+
+                                    for (idx, item) in new_list.iter_mut().enumerate() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("  {}:", idx));
+                                            if ui.checkbox(item, "").changed() {
+                                                changed = true;
+                                            }
+                                            if ui.small_button("🗑").clicked() {
+                                                to_remove = Some(idx);
+                                            }
+                                        });
+                                    }
+
+                                    // Handle removal
+                                    if let Some(idx) = to_remove {
+                                        new_list.remove(idx);
+                                        changed = true;
+                                    }
+
+                                    // Add new element button
+                                    if ui.small_button("➕ Add").clicked() {
+                                        new_list.push(false);
+                                        changed = true;
+                                    }
+
+                                    if changed {
+                                        modifications.push((
+                                            key.clone(),
+                                            FactValue::BoolList(new_list),
                                             layer,
                                         ));
                                     }

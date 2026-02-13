@@ -7,6 +7,17 @@
     chapters: [
         SetCamera(SetZoom(2.0)),
 
+        // Load all enemy FRE data (ACT options, behaviors) into local layer
+        // 加载所有敌人 FRE 数据（ACT 选项、行为）到本地层
+        LoadFre(files: [
+            "battle/enemies/dummy.fre.ron",
+            "battle/enemies/test1.fre.ron",
+            "battle/enemies/test2.fre.ron",
+            "battle/enemies/test3.fre.ron",
+            "battle/enemies/test4.fre.ron",
+            "battle/enemies/test5.fre.ron",
+        ]),
+
         // Spawn battle UI view with enemy data bound directly from FRE file
         // 生成战斗 UI 视图，敌人数据直接从 FRE 文件绑定
         SpawnView(
@@ -17,10 +28,28 @@
                 "enemies": File("battle/enemies/demo_enemies.fre.ron"),
             },
         ),
-        AwaitInteraction(
-            layer_id: "BattleMainMenu",
-            initial_selection: 0,
-        ),
+        // Enable menu interaction
+        // 启用菜单交互
+        SetViewFact(key: "interactable", value: Bool(true)),
+        SetViewFact(key: "depth", value: Int(0)),
+        SetViewFact(key: "button_selection", value: Int(0)),
+
+        // Wait for player to confirm selection in submenu
+        // 等待玩家在子菜单中确认选择
+        AwaitFact(condition: "$selection_confirmed == true"),
+
+        // Reset selection_confirmed for next turn
+        // 重置 selection_confirmed 以备下一回合
+        SetViewFact(key: "selection_confirmed", value: Bool(false)),
+
+        // Execute the pending action sequence (set by FRE rules)
+        // 执行待处理的行动序列（由 FRE 规则设置）
+        RunSequence(path_fact: "pending_sequence"),
+
+        // Disable interaction before entering danmaku phase
+        // 进入弹幕阶段前禁用交互
+        SetViewFact(key: "interactable", value: Bool(false)),
+
         SetPlayer(Spawn(config_path: "battle/players/player.battle_player.ron", position: (0.0, -80.0))),
 
         TweenViewElement(

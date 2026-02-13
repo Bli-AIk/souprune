@@ -416,6 +416,54 @@ pub fn spawn_shader_material_entity(
         });
     }
 
+    // Check if transform has dynamic expressions and add DynamicViewElement if needed.
+    // This ensures shader material elements (like HPBar) have their transforms updated
+    // when facts change, fixing position offset bugs.
+    //
+    // 检查 transform 是否有动态表达式，如果有则添加 DynamicViewElement。
+    // 这确保着色器材质元素（如 HPBar）在 facts 变化时更新 transform，修复位置偏移 bug。
+    let mut has_dynamic = false;
+    let mut has_time_dependency = false;
+    if let Some(t) = &sprite_def.transform {
+        if let Some(trans) = &t.translation {
+            if trans.0.is_dynamic() || trans.1.is_dynamic() || trans.2.is_dynamic() {
+                has_dynamic = true;
+            }
+            if crate::core::view::ron_view::parsing::vec3_tuple_depends_on_time(trans) {
+                has_time_dependency = true;
+            }
+        }
+        if let Some(s) = &t.scale {
+            if s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic() {
+                has_dynamic = true;
+            }
+            if crate::core::view::ron_view::parsing::vec3_tuple_depends_on_time(s) {
+                has_time_dependency = true;
+            }
+        }
+    }
+
+    if has_dynamic {
+        // Preprocess sprite_def to resolve repeat variables if repeat context exists
+        // 如果存在 repeat 上下文，预处理 sprite_def 以解析 repeat 变量
+        let processed_sprite_def = if let Some(ctx) = repeat_ctx {
+            crate::core::view::ron_view::parsing::preprocess_sprite_def_for_repeat(sprite_def, ctx)
+        } else {
+            sprite_def.clone()
+        };
+
+        entity_commands.insert(DynamicViewElement {
+            sprite_def: Some(processed_sprite_def),
+            text_def: None,
+        });
+
+        // Add TimeDependentTransform marker if expression uses @time
+        // 如果表达式使用 @time 则添加 TimeDependentTransform 标记
+        if has_time_dependency {
+            entity_commands.insert(TimeDependentTransform);
+        }
+    }
+
     let entity_id = entity_commands.id();
 
     // Set parent if provided
@@ -424,8 +472,8 @@ pub fn spawn_shader_material_entity(
     }
 
     info!(
-        "[spawn_helpers] Spawned shader material '{}' with shader '{}' (Entity {:?})",
-        spec.full_name, shader_path, entity_id
+        "[spawn_helpers] Spawned shader material '{}' with shader '{}' (Entity {:?}, dynamic={})",
+        spec.full_name, shader_path, entity_id, has_dynamic
     );
 
     entity_id

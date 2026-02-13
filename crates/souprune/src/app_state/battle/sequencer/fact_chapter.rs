@@ -341,41 +341,7 @@ pub fn complete_load_fre_chapter_system(
                 AggregateRule::Collect(pattern) => {
                     let values = collect_matching_values(&all_facts, pattern);
                     if !values.is_empty() {
-                        // Determine array type from first value
-                        match &values[0] {
-                            FactValue::Int(_) => {
-                                let int_values: Vec<i64> = values
-                                    .iter()
-                                    .filter_map(|v| {
-                                        if let FactValue::Int(i) = v {
-                                            Some(*i)
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect();
-                                layered_db.set(array_name.as_str(), int_values);
-                            }
-                            FactValue::String(_) => {
-                                let string_values: Vec<String> = values
-                                    .iter()
-                                    .filter_map(|v| {
-                                        if let FactValue::String(s) = v {
-                                            Some(s.clone())
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect();
-                                layered_db.set(array_name.as_str(), string_values);
-                            }
-                            _ => {
-                                warn!(
-                                    "LoadFre Chapter: Unsupported value type for aggregation '{}' (only Int and String supported)",
-                                    array_name
-                                );
-                            }
-                        }
+                        apply_collected_values(array_name, &values, &mut layered_db);
                         info!(
                             "LoadFre Chapter: Aggregated {} values into '{}'",
                             values.len(),
@@ -400,6 +366,53 @@ pub fn complete_load_fre_chapter_system(
         state.processed = true;
         commands.entity(entity).insert(ChapterFinished);
         info!("LoadFre Chapter: Completed");
+    }
+}
+
+/// Apply collected values to the database based on their type.
+/// 根据值类型将收集的值应用到数据库。
+fn apply_collected_values(
+    array_name: &str,
+    values: &[FactValue],
+    layered_db: &mut ResMut<LayeredFactDatabase>,
+) {
+    let Some(first) = values.first() else {
+        return;
+    };
+
+    match first {
+        FactValue::Int(_) => {
+            let int_values: Vec<i64> = values
+                .iter()
+                .filter_map(|v| {
+                    if let FactValue::Int(i) = v {
+                        Some(*i)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            layered_db.set(array_name, int_values);
+        }
+        FactValue::String(_) => {
+            let string_values: Vec<String> = values
+                .iter()
+                .filter_map(|v| {
+                    if let FactValue::String(s) = v {
+                        Some(s.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            layered_db.set(array_name, string_values);
+        }
+        _ => {
+            warn!(
+                "LoadFre Chapter: Unsupported value type for aggregation '{}' (only Int and String supported)",
+                array_name
+            );
+        }
     }
 }
 

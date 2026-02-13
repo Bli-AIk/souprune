@@ -173,11 +173,11 @@ pub fn update_dynamic_text_system(
         return;
     }
 
-    // Base player data for logging and fallback
-    // 用于日志和回退的基础 player data
+    // Base player data for fallback
+    // 用于回退的基础 player data
     let base_player_data = PlayerDataView::new(&layered_db);
 
-    info!(
+    trace!(
         "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
         global_changed,
         any_view_root_changed,
@@ -196,30 +196,23 @@ pub fn update_dynamic_text_system(
             PlayerDataView::new(&layered_db)
         };
 
-        info!(
-            "[update_dynamic_text_system] Updating text '{}' with template: '{}' (has_local_facts={})",
-            name,
-            template.0,
-            view_root_result.is_some()
-        );
-
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
 
-        info!(
-            "[update_dynamic_text_system] Resolved content for '{}': '{}'",
+        // Performance optimization: Skip if content hasn't changed
+        // 性能优化：如果内容未变化则跳过
+        // Note: Text3d doesn't directly expose content for comparison, so we always update.
+        // Future improvement: Store last resolved content in a component for comparison.
+        // 注意：Text3d 不直接暴露内容用于比较，所以我们总是更新。
+        // 未来改进：在组件中存储上次解析的内容用于比较。
+
+        trace!(
+            "[update_dynamic_text_system] Updating text '{}': '{}'",
             name, new_content
         );
 
-        // We also need to check if there is a conditional style embedded (not fully supported by simple re-resolve yet)
-        // But the original spawn logic handled conditional color.
-        // For now, let's just update the content. Re-implementing conditional color here would be ideal.
-        //
-        // 我们还需要检查是否嵌入了条件样式（目前的简单重新解析尚未完全支持）。
-        // 但原始生成逻辑处理了条件颜色。
-        // 目前，我们只更新内容。在此处理想情况下重新实现条件颜色。
-
         // Re-parsing the text3d
+        // 重新解析 text3d
         *text3d = parse_text_preserving_whitespace(&new_content);
 
         // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
@@ -233,10 +226,6 @@ pub fn update_dynamic_text_system(
                     .insert(super::super::text::NeedsGlyphRefresh);
             }
         });
-        info!(
-            "[update_dynamic_text_system] Queued NeedsGlyphRefresh for '{}'",
-            name
-        );
 
         // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
         // To support that, we would need to store the `conditional_style` in a component too.
@@ -313,6 +302,18 @@ fn find_view_root_ancestor<'a>(
 ///
 /// 更新 DynamicMaterial2d 实体的着色器材质参数。
 /// 评估参数表达式并更新材质 uniform。
+///
+/// ## Performance Optimization / 性能优化
+///
+/// This system uses a two-phase approach:
+/// 1. **Animation phase**: Always process entities with active animations (anim_progress < 1.0)
+/// 2. **Expression phase**: Only evaluate expressions when fact database changes
+///
+/// This avoids evaluating expressions every frame when data hasn't changed.
+///
+/// 该系统使用两阶段方法：
+/// 1. **动画阶段**：始终处理有活跃动画的实体（anim_progress < 1.0）
+/// 2. **表达式阶段**：仅在 fact 数据库变化时评估表达式
 pub fn update_shader_materials_system(
     time: Res<Time>,
     layered_db: Res<LayeredFactDatabase>,
@@ -322,120 +323,147 @@ pub fn update_shader_materials_system(
         &mut super::super::components::ShaderMaterial,
         &crate::core::view::dynamic_material::MeshDynamicMaterial2d,
     )>,
+    added_materials: Query<
+        Entity,
+        Added<crate::core::view::dynamic_material::MeshDynamicMaterial2d>,
+    >,
     parent_query: Query<&ChildOf>,
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
 ) {
     use crate::core::view::layout::Val;
     use crate::core::view::layout::view_schema::MaterialParamValue;
-    use std::collections::HashMap;
 
     // Early exit: skip if no shader materials exist
     if query.is_empty() {
         return;
     }
 
-    // Check if any shader material needs expression evaluation
-    // 检查是否有材质需要表达式评估
-    let needs_expression_eval = query.iter().any(|(_, sm, _)| {
-        sm.param_defs
-            .values()
-            .any(|v| matches!(v, MaterialParamValue::Expr(_)))
-    });
-
-    // Check if any shader material needs animation update
-    let needs_animation_update = query
-        .iter()
-        .any(|(_, sm, _)| sm.animation.as_ref().is_some_and(|a| a.anim_progress < 1.0));
-
-    // Check if we need to update
-    let global_changed = layered_db.is_changed();
-    let any_view_root_changed = !changed_view_roots.is_empty();
-
-    // Only proceed if database changed OR animation is in progress OR expressions need evaluation
-    // 只有在数据库变化、动画进行中或需要表达式评估时才继续
-    if !global_changed
-        && !any_view_root_changed
-        && !needs_animation_update
-        && !needs_expression_eval
-    {
-        return;
-    }
-
     let delta_time = time.delta_secs();
+    let elapsed_secs = time.elapsed_secs_f64();
+
+    // Check if fact data changed (triggers expression re-evaluation)
+    // Also force evaluation for newly added materials to ensure correct initial values
+    // 检查 fact 数据是否变化（触发表达式重新评估）
+    // 同时为新添加的材质强制评估以确保初始值正确
+    let facts_changed = layered_db.is_changed() || !changed_view_roots.is_empty();
+    let has_new_materials = !added_materials.is_empty();
 
     for (entity, mut shader_mat, material_handle) in query.iter_mut() {
-        // Find ViewRoot ancestor to access local facts
-        let view_root_result =
-            find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
-        let player_data = if let Some((_, view_root)) = view_root_result {
-            PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
-        } else {
-            PlayerDataView::new(&layered_db)
-        };
+        // Determine what needs updating for this entity
+        let has_active_animation = shader_mat
+            .animation
+            .as_ref()
+            .is_some_and(|a| a.anim_progress < 1.0);
 
-        // 1. Evaluate all parameter expressions
-        // Collect into a temporary HashMap to avoid borrowing issues
-        let new_values: HashMap<String, f32> = shader_mat
-            .param_defs
-            .iter()
-            .map(|(name, param_def)| {
-                let value = match param_def {
-                    MaterialParamValue::Static(v) => *v,
-                    MaterialParamValue::Expr(expr_str) => {
-                        // Convert to Val::Expr for evaluate_float_expr
-                        let val_expr: Val<f32> = Val::Expr(expr_str.clone());
-                        let result = evaluate_float_expr(
-                            &val_expr,
-                            &player_data,
-                            Some(time.elapsed_secs_f64()),
-                        );
-                        trace!(
-                            "[ShaderMaterial Update] Entity {:?}: '{}' = Expr('{}') -> {}",
-                            entity, name, expr_str, result
-                        );
-                        result
-                    }
-                };
-                (name.clone(), value)
-            })
-            .collect();
+        // Check if this entity has any animation config (even if not currently active)
+        // This is needed to detect source value changes and restart animations
+        // 检查此实体是否有动画配置（即使当前不活跃）
+        // 这是为了检测源值变化并重启动画
+        let has_animation_config = shader_mat.animation.is_some();
 
-        // Update current_values
-        for (name, value) in new_values {
-            shader_mat.current_values.insert(name, value);
+        // Check if this is a newly added material that needs initial expression evaluation
+        // 检查是否是新添加的材质，需要初始表达式评估
+        let is_newly_added = has_new_materials && added_materials.contains(entity);
+
+        // Skip this entity if:
+        // - No active animation AND
+        // - No fact changes AND
+        // - Not newly added AND
+        // - No animation config (nothing could trigger animation restart)
+        // 跳过条件：无活跃动画 且 无 fact 变化 且 非新添加 且 无动画配置
+        if !has_active_animation && !facts_changed && !is_newly_added {
+            continue;
         }
 
-        // 2. Process lag animation if present
-        // First extract animation info to avoid borrowing issues
-        let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
-            let source_value = shader_mat
-                .current_values
-                .get(&anim_state.source_param)
-                .copied()
-                .unwrap_or(1.0);
-            (anim_state.target_param.clone(), source_value)
-        });
+        let mut material_changed = false;
 
-        if let Some((target_param, source_value)) = anim_update
-            && let Some(ref mut anim_state) = shader_mat.animation
-        {
-            // Update animation and get lag value
-            let lag_value = anim_state.update(source_value, delta_time);
+        // Phase 1: Evaluate expressions if facts changed OR material is newly added
+        // 阶段 1：当 facts 变化或材质新添加时评估表达式
+        if facts_changed || is_newly_added {
+            // Find ViewRoot ancestor to access local facts (lazy evaluation)
+            let view_root_result =
+                find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
+            let player_data = if let Some((_, view_root)) = view_root_result {
+                PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+            } else {
+                PlayerDataView::new(&layered_db)
+            };
 
-            // Update target parameter with lag value
-            shader_mat.current_values.insert(target_param, lag_value);
+            // Evaluate parameter expressions and collect updates
+            // 评估参数表达式并收集更新
+            let updates: Vec<(String, f32)> = shader_mat
+                .param_defs
+                .iter()
+                .map(|(name, param_def)| {
+                    let new_value = match param_def {
+                        MaterialParamValue::Static(v) => *v,
+                        MaterialParamValue::Expr(expr_str) => {
+                            let val_expr: Val<f32> = Val::Expr(expr_str.clone());
+                            evaluate_float_expr(&val_expr, &player_data, Some(elapsed_secs))
+                        }
+                    };
+                    (name.clone(), new_value)
+                })
+                .collect();
+
+            // Apply updates with change detection
+            // 应用更新并检测变化
+            for (name, new_value) in updates {
+                let should_update = shader_mat
+                    .current_values
+                    .get(&name)
+                    .map(|old| (*old - new_value).abs() > f32::EPSILON)
+                    .unwrap_or(true);
+
+                if should_update {
+                    shader_mat.current_values.insert(name, new_value);
+                    material_changed = true;
+                }
+            }
         }
 
-        // Update debug string for inspector
-        shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
+        // Phase 2: Process lag animation if present
+        // 阶段 2：处理延迟动画（如果存在）
+        //
+        // Run animation update when:
+        // - Animation is currently active (anim_progress < 1.0), OR
+        // - Facts changed and animation config exists (to detect source value changes)
+        //
+        // 运行动画更新的条件：
+        // - 动画当前活跃（anim_progress < 1.0），或
+        // - Facts 变化且存在动画配置（检测源值变化）
+        if has_active_animation || (facts_changed && has_animation_config) {
+            // Extract animation info to avoid borrowing issues
+            let anim_update = shader_mat.animation.as_ref().map(|anim_state| {
+                let source_value = shader_mat
+                    .current_values
+                    .get(&anim_state.source_param)
+                    .copied()
+                    .unwrap_or(1.0);
+                (anim_state.target_param.clone(), source_value)
+            });
 
-        // 3. Update DynamicMaterial2d uniforms
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            let new_params = shader_mat.pack_params();
-            let new_extra = shader_mat.pack_extra_params();
-            material.params = new_params;
-            material.extra_params = new_extra;
+            if let Some((target_param, source_value)) = anim_update
+                && let Some(ref mut anim_state) = shader_mat.animation
+            {
+                let lag_value = anim_state.update(source_value, delta_time);
+                shader_mat.current_values.insert(target_param, lag_value);
+                material_changed = true;
+            }
+        }
+
+        // Phase 3: Update DynamicMaterial2d uniforms only if values changed
+        // 阶段 3：仅在值变化时更新材质 uniform
+        if material_changed {
+            if let Some(material) = materials.get_mut(&material_handle.0) {
+                material.params = shader_mat.pack_params();
+                material.extra_params = shader_mat.pack_extra_params();
+            }
+
+            // Update debug string only when values change (not every frame)
+            // 仅在值变化时更新调试字符串（而非每帧）
+            shader_mat.current_values_debug = format!("{:?}", shader_mat.current_values);
         }
     }
 }

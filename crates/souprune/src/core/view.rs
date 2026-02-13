@@ -51,7 +51,7 @@ use camera::{
     update_dynamic_camera_anchors_system,
 };
 pub use components::{
-    ElementState, ViewElementHistory, find_element_by_full_name, find_elements_by_tag,
+    ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
 };
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
@@ -75,7 +75,7 @@ use components::state_sprite::{
     update_state_sprite_textures_system,
 };
 #[cfg(feature = "debug")]
-use components::{CameraAnchored, ViewBox, ViewElement, ViewRoot};
+use components::{CameraAnchored, ViewBox, ViewElement};
 use lifecycle::cleanup_view_rules_system;
 use lifecycle::process_pending_view_rules_system;
 use reconcile::ViewReconciliationPlugin;
@@ -131,9 +131,12 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 Update,
                 // New shader material update system (replaces old HP bar systems)
+                // Must run AFTER setup_shader_materials_system to detect newly added materials
                 // 新的着色器材质更新系统（取代旧的 HP 条系统）
+                // 必须在 setup_shader_materials_system 之后运行以检测新添加的材质
                 ron_view::update_shader_materials_system
-                    .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
+                    .run_if(resource_exists::<procedural_textures::ProceduralTextures>)
+                    .after(ron_view::setup_shader_materials_system),
             )
             // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)
             // 将动态 UI 元素更新分为时间依赖（每帧）和 fact 依赖（变化时）

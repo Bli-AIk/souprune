@@ -1708,6 +1708,8 @@ pub fn load_fre_into_view_root(
                 view_root.local_facts.set(key.clone(), resolved_list)
             }
             FactValue::IntList(list) => view_root.local_facts.set(key.clone(), list),
+            FactValue::FloatList(list) => view_root.local_facts.set(key.clone(), list),
+            FactValue::BoolList(list) => view_root.local_facts.set(key.clone(), list),
         }
     }
 }

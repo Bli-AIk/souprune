@@ -187,9 +187,9 @@ fn calculate_analytic_separation(
 /// 盒子（矩形）的SDF函数
 /// 基于Inigo Quilez的盒子SDF实现
 pub fn sdf_box(point: Vec2, half_size: Vec2) -> f32 {
-    let d = point.abs() - half_size;
-    let outside_distance = d.max(Vec2::ZERO).length();
-    let inside_distance = d.x.max(d.y).min(0.0);
+    let distance_to_edge = point.abs() - half_size;
+    let outside_distance = distance_to_edge.max(Vec2::ZERO).length();
+    let inside_distance = distance_to_edge.x.max(distance_to_edge.y).min(0.0);
 
     outside_distance + inside_distance
 }

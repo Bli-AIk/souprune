@@ -10,7 +10,6 @@
 // 规则处理敌人特定的动作和行为。
 
 (
-
     // Enemy data as initial facts
     // These are merged into the battle's fact database
     // 作为初始事实的敌人数据
@@ -27,20 +26,50 @@
         // Encounter description
         // 遭遇描述
         "dummy.description": String("A cotton heart and a button eye."),
+
+        // =========================================================================
+        // Generic action system facts
+        // These use abstract naming for maximum reusability across ACT/ITEM/MERCY
+        //
+        // 通用行动系统 facts
+        // 使用抽象命名以最大化复用于 ACT/ITEM/MERCY
+        // =========================================================================
+
+        // ACT options count
+        // ACT 选项数量
+        "dummy.act_count": Int(4),
+
+        // Action option display labels (Mortar localization keys)
+        // 动作选项显示标签（Mortar 本地化键）
+        "dummy.action_labels": StringList([
+            "EnemyDummyActCheck",
+            "EnemyDummyActTalk",
+            "EnemyDummyActFlirt",
+            "EnemyDummyActHug",
+        ]),
+
+        // Sequence paths for each action option
+        // 每个动作选项对应的序列路径
+        "dummy.action_sequences": StringList([
+            "battle/common/narration.sequence.ron",
+            "battle/common/narration.sequence.ron",
+            "battle/acts/dummy/flirt.sequence.ron",
+            "battle/common/narration.sequence.ron",
+        ]),
+
+        // Parameters for each action (e.g., narration key for simple narration)
+        // 每个动作的参数（例如，简单旁白的旁白键）
+        "dummy.action_params": StringList([
+            "EnemyDummyActCheckResult",
+            "EnemyDummyActTalkResult",
+            "",
+            "EnemyDummyActHugResult",
+        ]),
     },
 
     // Enemy-specific rules
     // These handle ACT options, damage reactions, etc.
     // 敌人特定规则
     // 处理行动选项、受伤反应等
-    rules: [
-        // Check action - displays enemy info
-        // 查看行动 - 显示敌人信息
-        // (
-        //     event: BattleEvent(kind: ActSelected(enemy: "dummy", act: "Check")),
-        //     actions: [
-        //         SetFact("battle_dialogue", String("* DUMMY - ATK 0 DEF 0\n* A cotton heart and a button eye.\n* You are the apple of my eye.")),
-        //     ],
-        // ),
-    ],
+    rules: [],
 )
