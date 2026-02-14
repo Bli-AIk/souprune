@@ -16,7 +16,7 @@ pub mod debug_inspector {
     use crate::core::input::Action;
     use bevy::app::App;
     use bevy::camera::RenderTarget;
-    use bevy::ecs::query::QueryFilter;
+
     use bevy::ecs::schedule::ScheduleLabel;
     use bevy::ecs::system::SystemIdMarker;
     use bevy::prelude::*;
@@ -496,10 +496,9 @@ pub mod debug_inspector {
                 if ui
                     .checkbox(&mut show_all, "Show all entities (BRP/System internals)")
                     .changed()
+                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
                 {
-                    if let Some(mut state) = world.get_resource_mut::<InspectorUiState>() {
-                        state.show_all_entities = show_all;
-                    }
+                    state.show_all_entities = show_all;
                 }
             });
         });

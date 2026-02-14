@@ -901,21 +901,21 @@ pub fn handle_interaction_input_system(
         }
 
         // For simple text (non-Mortar) dialogue, set the fact directly
-        if !config.has_mortar {
-            if let Some(ref text) = config.simple_text {
-                // Set dialogue_text fact directly for View binding
-                // This will be handled by sync_typewriter_text_to_facts_system
-                // or we could set it here directly if needed
-                info!(
-                    "FRE: Simple text dialogue for '{}': '{}'",
-                    interactable_id, text
-                );
-                // For now, emit an event that other systems can handle
-                event_writer.write(FactEvent::new(format!(
-                    "simple_dialogue:{}",
-                    interactable_id
-                )));
-            }
+        if !config.has_mortar
+            && let Some(ref text) = config.simple_text
+        {
+            // Set dialogue_text fact directly for View binding
+            // This will be handled by sync_typewriter_text_to_facts_system
+            // or we could set it here directly if needed
+            info!(
+                "FRE: Simple text dialogue for '{}': '{}'",
+                interactable_id, text
+            );
+            // For now, emit an event that other systems can handle
+            event_writer.write(FactEvent::new(format!(
+                "simple_dialogue:{}",
+                interactable_id
+            )));
         }
 
         return;

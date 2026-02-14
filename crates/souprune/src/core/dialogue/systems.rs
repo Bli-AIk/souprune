@@ -321,14 +321,15 @@ pub fn spawn_dialogue_controller_system(
 
         // For simple text without Mortar and without Typewriter, set the fact directly
         // If there's a typewriter, sync_typewriter_text_to_facts_system will handle it
-        if !active_state.has_mortar && !active_state.has_typewriter {
-            if let Some(ref text) = active_state.simple_text {
-                info!(
-                    "spawn_dialogue_controller_system: setting simple_text to fact: '{}'",
-                    text
-                );
-                facts.set("dialogue_text", FactValue::String(text.clone()));
-            }
+        if !active_state.has_mortar
+            && !active_state.has_typewriter
+            && let Some(ref text) = active_state.simple_text
+        {
+            info!(
+                "spawn_dialogue_controller_system: setting simple_text to fact: '{}'",
+                text
+            );
+            facts.set("dialogue_text", FactValue::String(text.clone()));
         }
     }
 }
