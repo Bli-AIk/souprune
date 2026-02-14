@@ -102,5 +102,28 @@
             outputs: ["battle_started"],
             priority: 5,
         ),
+
+        // Rule 6: Start dialogue on interact_demo_talk event
+        // 规则 6：响应 interact_demo_talk 事件启动对话
+        (
+            id: "demo_talk_interaction",
+            event: Event("interact_demo_talk"),
+            condition: Always,
+            actions: [
+                Log(message: "Starting demo_talk dialogue"),
+                Custom(action_type: "SetOverworldState", params: {
+                    "state": "Dialogue",
+                }),
+                Custom(action_type: "SpawnView", params: {
+                    "path": "overworld/view/dialogue.view_layout.ron",
+                }),
+                Custom(action_type: "StartDialogue", params: {
+                    "path": "overworld/dialogue/demo_talk.mortar",
+                    "node": "Start",
+                }),
+            ],
+            outputs: ["dialogue_started"],
+            priority: 10,
+        ),
     ],
 )

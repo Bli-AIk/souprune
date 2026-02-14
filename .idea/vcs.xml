@@ -5,6 +5,7 @@
     <mapping directory="$PROJECT_DIR$/crates/bevy_alight_motion" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_ecs_typewriter" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_fact_rule_event" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crates/bevy_map_editor" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_mortar_bond" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_tween" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/iyes_perf_ui" vcs="Git" />

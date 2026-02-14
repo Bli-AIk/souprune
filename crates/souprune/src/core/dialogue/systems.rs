@@ -127,3 +127,35 @@ pub fn dialogue_skip_typewriter_system(
         }
     }
 }
+
+/// Syncs Mortar dialogue text to FRE facts for View text binding.
+///
+/// 将 Mortar 对话文本同步到 FRE facts 用于 View 文本绑定。
+///
+/// Updates `dialogue_text` fact with the current Mortar dialogue body text.
+/// Views can reference this with `$dialogue_text` in their text templates.
+///
+/// 使用当前 Mortar 对话正文更新 `dialogue_text` fact。
+/// View 可在文本模板中使用 `$dialogue_text` 引用。
+pub fn sync_mortar_text_to_facts_system(
+    runtime: Res<bevy_mortar_bond::MortarRuntime>,
+    mut facts: ResMut<LayeredFactDatabase>,
+) {
+    let new_text = runtime
+        .active_dialogue
+        .as_ref()
+        .and_then(|state| state.current_text())
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    // Only update if text actually changed
+    let current = facts
+        .bypass_change_detection()
+        .get_string("dialogue_text")
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    if current != new_text {
+        facts.set("dialogue_text", FactValue::String(new_text));
+    }
+}

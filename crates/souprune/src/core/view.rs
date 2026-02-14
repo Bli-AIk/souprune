@@ -69,6 +69,17 @@ use state::global_trigger_system;
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
 use visible_when::evaluate_visible_when_system;
 
+/// Message to request spawning a new View.
+///
+/// 请求生成新 View 的消息。
+#[derive(Message, Debug, Clone)]
+pub struct SpawnViewRequest {
+    /// Path to the view layout asset (e.g., "overworld/view/dialogue.view_layout.ron")
+    ///
+    /// 视图布局资源路径
+    pub path: String,
+}
+
 use crate::app_state::AppState;
 use components::state_sprite::{
     evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
@@ -115,7 +126,13 @@ impl Plugin for CoreViewPlugin {
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
+            // Register SpawnViewRequest message
+            // 注册 SpawnViewRequest 消息
+            .add_message::<SpawnViewRequest>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
+            // Handle SpawnViewRequest messages
+            // 处理 SpawnViewRequest 消息
+            .add_systems(Update, handle_spawn_view_request_system)
             // Use dynamic state transition detection instead of OnEnter/OnExit
             // since OverworldSubState is now string-based and dynamic
             // 使用动态状态转换检测替代 OnEnter/OnExit，因为 OverworldSubState 现在是基于字符串的动态状态
@@ -163,6 +180,12 @@ impl Plugin for CoreViewPlugin {
             // spawn_ron_view_system has many parameters, add separately
             // spawn_ron_view_system 有很多参数，单独添加
             .add_systems(Update, spawn_ron_view_system.in_set(ViewUpdate))
+            // Handle dynamically spawned views (via SpawnViewRequest)
+            // 处理动态 spawn 的 View（通过 SpawnViewRequest）
+            .add_systems(
+                Update,
+                ron_view::spawn_dynamic_view_system.in_set(ViewUpdate),
+            )
             .add_systems(
                 Update,
                 (
@@ -217,5 +240,39 @@ impl Plugin for CoreViewPlugin {
                 .register_type::<ViewElementHistory>()
                 .register_type::<ElementState>();
         }
+    }
+}
+
+/// System to handle SpawnViewRequest messages and spawn views.
+///
+/// 处理 SpawnViewRequest 消息并生成视图的系统。
+fn handle_spawn_view_request_system(
+    mut events: MessageReader<SpawnViewRequest>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for request in events.read() {
+        info!("Spawning view from request: {}", request.path);
+
+        // Load the view layout asset
+        let handle: Handle<ViewLayoutAsset> = asset_server.load(&request.path);
+
+        // Spawn a view root entity with the layout handle
+        // The actual view spawning is handled by spawn_dynamic_view_system
+        // Include Transform/Visibility components to support hierarchy
+        commands.spawn((
+            ron_view::HotReloadableViewRoot {
+                layout_path: request.path.clone(),
+                layout_handle: handle.clone(),
+            },
+            components::ViewRoot::new(request.path.clone()),
+            RonDrivenView,
+            Name::new(format!("SpawnedView:{}", request.path)),
+            // Required for hierarchy visibility propagation
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::Visible,
+            InheritedVisibility::default(),
+        ));
     }
 }

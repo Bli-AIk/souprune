@@ -431,6 +431,8 @@ pub fn handle_chase_state_actions_system(
     chase_state_name: Res<super::chase::ChaseStateName>,
     mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
     mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
+    mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
+    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
 ) {
     for event in events.read() {
         let rule_groups = rule_registry.get_matching_rules_grouped(event);
@@ -446,16 +448,18 @@ pub fn handle_chase_state_actions_system(
                 };
 
                 for action in actions {
-                    let RuleActionDef::Custom { action_type, .. } = action else {
+                    let RuleActionDef::Custom { .. } = action else {
                         continue;
                     };
 
                     handle_chase_action(
-                        action_type,
+                        action,
                         &chase_enabled,
                         &chase_state_name,
                         &mut next_ow_state,
                         &mut next_app_state,
+                        &mut mortar_event_writer,
+                        &mut spawn_view_writer,
                     );
                 }
 
@@ -470,13 +474,23 @@ pub fn handle_chase_state_actions_system(
 /// Handle individual chase-related FRE actions.
 /// 处理单个追逐相关的 FRE action。
 fn handle_chase_action(
-    action_type: &str,
+    action: &RuleActionDef,
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
     next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
     next_app_state: &mut NextState<crate::app_state::AppState>,
+    mortar_event_writer: &mut MessageWriter<bevy_mortar_bond::MortarEvent>,
+    spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
 ) {
-    match action_type {
+    let RuleActionDef::Custom {
+        action_type,
+        params,
+    } = action
+    else {
+        return;
+    };
+
+    match action_type.as_str() {
         "EnterChaseState" => {
             if !chase_enabled.0 {
                 warn!("FRE: EnterChaseState action ignored - chase not enabled");
@@ -502,6 +516,40 @@ fn handle_chase_action(
         "StartBattle" => {
             info!("FRE: Starting battle via action");
             next_app_state.set(crate::app_state::AppState::Battle);
+        }
+        "SetOverworldState" => {
+            if let Some(state) = params.get("state") {
+                info!("FRE: Setting overworld state to '{}' via action", state);
+                next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+                    state.clone(),
+                ));
+            } else {
+                warn!("FRE: SetOverworldState action missing 'state' param");
+            }
+        }
+        "SpawnView" => {
+            if let Some(path) = params.get("path") {
+                info!("FRE: Spawning view '{}' via action", path);
+                spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: path.clone() });
+            } else {
+                warn!("FRE: SpawnView action missing 'path' param");
+            }
+        }
+        "StartDialogue" => {
+            let path = params.get("path");
+            let node = params.get("node");
+            if let (Some(path), Some(node)) = (path, node) {
+                info!(
+                    "FRE: Starting dialogue '{}' node '{}' via action",
+                    path, node
+                );
+                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::StartNode {
+                    path: path.clone(),
+                    node: node.clone(),
+                });
+            } else {
+                warn!("FRE: StartDialogue action missing 'path' or 'node' param");
+            }
         }
         _ => {}
     }

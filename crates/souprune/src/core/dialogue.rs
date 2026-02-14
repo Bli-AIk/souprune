@@ -43,6 +43,7 @@ impl Plugin for DialoguePlugin {
                 Update,
                 (
                     systems::sync_typewriter_state_to_facts_system,
+                    systems::sync_mortar_text_to_facts_system,
                     systems::dialogue_advance_system,
                     systems::dialogue_skip_typewriter_system,
                     typewriter_bridge::handle_typewriter_mortar_events,

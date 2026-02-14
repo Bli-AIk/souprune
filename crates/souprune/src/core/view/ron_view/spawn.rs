@@ -1728,3 +1728,96 @@ pub fn load_procedural_image_handle(
     // We need to convert to owned string to avoid lifetime issues
     asset_server.load(visual_path.to_string())
 }
+
+/// System to spawn dynamically requested Views (via SpawnViewRequest).
+/// This handles Views that are spawned at runtime without going through
+/// the global ViewLayoutHandle resource.
+///
+/// 处理动态请求的 View（通过 SpawnViewRequest）的系统。
+/// 处理在运行时 spawn 的 View，无需全局 ViewLayoutHandle 资源。
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_dynamic_view_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    view_layouts: Res<Assets<ViewLayoutAsset>>,
+    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
+    // Query for dynamic views: have HotReloadableViewRoot and RonDrivenView, but not ViewGenerated
+    // 查询动态 View：有 HotReloadableViewRoot 和 RonDrivenView，但没有 ViewGenerated
+    dynamic_view_query: Query<
+        (Entity, &HotReloadableViewRoot, &ViewRoot),
+        (
+            With<RonDrivenView>,
+            Without<ViewGenerated>,
+            Without<ViewBox>,
+            // Exclude specific root types handled by spawn_ron_view_system
+            Without<BackpackViewRoot>,
+            Without<BattleViewRoot>,
+            Without<ChaseHUDRoot>,
+        ),
+    >,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
+    mut sprite_params: SpriteParams,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    layered_db: Res<LayeredFactDatabase>,
+    item_registry: Res<crate::core::item::ItemRegistry>,
+    mut fre_params: FreSystemParams,
+) {
+    let player_data = PlayerDataView::new(&layered_db);
+
+    for (view_entity, hot_reload_root, _view_root) in dynamic_view_query.iter() {
+        // Check if asset is loaded
+        let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
+            // Asset not yet loaded, wait
+            trace!(
+                "[spawn_dynamic_view] Waiting for asset to load: {}",
+                hot_reload_root.layout_path
+            );
+            continue;
+        };
+
+        let camera_transform = match camera_query.single() {
+            Ok(transform) => transform,
+            Err(_) => {
+                warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
+                continue;
+            }
+        };
+
+        info!(
+            "[spawn_dynamic_view] Spawning dynamic view: {}, entity={:?}",
+            hot_reload_root.layout_path, view_entity
+        );
+
+        spawn_ron_view_for_entity(
+            &mut commands,
+            &asset_server,
+            view_entity,
+            view_layout,
+            camera_transform,
+            &mut sprite_params,
+            &animation_assets,
+            &fre_assets,
+            &mortar_strings,
+            &player_data,
+            &item_registry,
+            &hot_reload_root.layout_path,
+            None, // No bindings for dynamic views
+            &layered_db,
+            &mut fre_params.rule_registry,
+            &mut fre_params.action_defs,
+        );
+
+        // Add ViewGenerated and ReconciliationEnabled
+        commands.entity(view_entity).insert((
+            ViewGenerated,
+            crate::core::view::reconcile::ReconciliationEnabled,
+        ));
+
+        info!(
+            "[spawn_dynamic_view] Added ViewGenerated to entity {:?}",
+            view_entity
+        );
+    }
+}
