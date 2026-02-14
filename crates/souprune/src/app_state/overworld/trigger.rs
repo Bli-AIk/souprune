@@ -829,7 +829,10 @@ pub fn handle_interaction_input_system(
 
     // Get the interactable component to check for dialogue config
     let Ok(interactable) = interactables.get(entity) else {
-        warn!("FRE: Focused entity {:?} has no Interactable component", entity);
+        warn!(
+            "FRE: Focused entity {:?} has no Interactable component",
+            entity
+        );
         return;
     };
 
@@ -847,7 +850,9 @@ pub fn handle_interaction_input_system(
         active_dialogue_state.simple_text = config.simple_text.clone();
 
         // Set overworld state to Dialogue
-        next_ow_state.set(crate::app_state::overworld::OverworldSubState::new("Dialogue"));
+        next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+            "Dialogue",
+        ));
 
         // Spawn dialogue view
         spawn_view_writer.write(crate::core::view::SpawnViewRequest {
@@ -886,7 +891,10 @@ pub fn handle_interaction_input_system(
                     interactable_id, text
                 );
                 // For now, emit an event that other systems can handle
-                event_writer.write(FactEvent::new(format!("simple_dialogue:{}", interactable_id)));
+                event_writer.write(FactEvent::new(format!(
+                    "simple_dialogue:{}",
+                    interactable_id
+                )));
             }
         }
 

@@ -297,7 +297,12 @@ fn spawn_interactable(
 
     info!(
         "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {:?}",
-        interactable_id, world_x, world_y, width, height, dialogue_config.is_some()
+        interactable_id,
+        world_x,
+        world_y,
+        width,
+        height,
+        dialogue_config.is_some()
     );
 
     let mut interactable = Interactable::new(&interactable_id);

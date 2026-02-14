@@ -189,7 +189,7 @@ pub fn sync_typewriter_text_to_facts_system(
     // Get the first focused typewriter's current text
     // 获取第一个焦点打字机的当前文本
     let typewriter_count = query.iter().count();
-    
+
     // If no typewriter exists but dialogue is active, use Mortar text directly
     // This handles the first frame before Typewriter entity is spawned
     // 如果没有打字机但对话已激活，直接使用 Mortar 文本

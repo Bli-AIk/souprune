@@ -36,6 +36,10 @@ pub struct DialoguePlugin;
 
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
+        // Add TypewriterPlugin as a dependency
+        // 添加 TypewriterPlugin 作为依赖
+        app.add_plugins(bevy_ecs_typewriter::TypewriterPlugin);
+
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<DialogueBlockingConfig>()
             .init_resource::<ActiveDialogueState>()
