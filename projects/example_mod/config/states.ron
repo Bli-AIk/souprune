@@ -57,5 +57,14 @@ StateConfig(
             initial_layer: None,
             chase_config: "overworld/chase_config.ron",
         ),
+
+        // Dialogue state - talking to NPCs, player cannot move
+        // 对话状态 - 与 NPC 交谈，玩家不能移动
+        "Dialogue": (
+            ui_interactive: false,
+            player_movable: false,
+            view_layout: None,  // View is spawned dynamically via SpawnViewRequest
+            initial_layer: None,
+        ),
     },
 )
