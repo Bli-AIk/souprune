@@ -221,23 +221,15 @@ fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) 
 /// Despawn the UI root entity and its children.
 ///
 /// 销毁 UI 根实体及其子实体。
+///
+/// In Bevy 0.18+, despawn() automatically handles child entities,
+/// so we just need to despawn the root entity.
+///
+/// 在 Bevy 0.18+ 中，despawn() 自动处理子实体，
+/// 所以我们只需要销毁根实体。
 fn despawn_ui(commands: &mut Commands, root_query: &Query<Entity, With<BackpackViewRoot>>) {
     for entity in root_query.iter() {
-        let root = entity;
-        commands.queue(move |world: &mut World| {
-            let mut stack = vec![root];
-            while let Some(entity) = stack.pop() {
-                if let Ok(entity_ref) = world.get_entity(entity)
-                    && let Some(children) = entity_ref.get::<Children>()
-                {
-                    for child in children.iter() {
-                        stack.push(child);
-                    }
-                }
-
-                let _ = world.despawn(entity);
-            }
-        });
+        commands.entity(entity).despawn();
         info!("Despawned UI");
     }
 }

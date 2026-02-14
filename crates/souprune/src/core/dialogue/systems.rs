@@ -390,6 +390,7 @@ pub fn despawn_dialogue_controller_system(
     // 4. Despawn all Views (dialogue Views will be cleaned up)
     // Note: This is a simple approach - a more refined approach would track which View
     // was spawned for dialogue and only despawn that one
+    // In Bevy 0.18+, despawn() automatically handles child entities
     for view_entity in view_query.iter() {
         info!(
             "despawn_dialogue_controller_system: despawning view entity {:?}",
