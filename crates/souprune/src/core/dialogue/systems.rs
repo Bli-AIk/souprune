@@ -20,7 +20,7 @@ use super::config::{DialogueBlockingConfig, DialogueInputConfig};
 /// 根据是否有任何焦点打字机正在播放，更新 `dialogue:typewriter_playing` fact。
 /// 仅在值实际变化时更新。
 pub fn sync_typewriter_state_to_facts_system(
-    query: Query<&Typewriter, (With<MortarController>, With<DialogueFocus>)>,
+    query: Query<&Typewriter, With<DialogueFocus>>,
     mut facts: ResMut<LayeredFactDatabase>,
 ) {
     let any_playing = query.iter().any(|tw| tw.state == TypewriterState::Playing);
@@ -50,9 +50,9 @@ pub fn dialogue_advance_system(
     config: Res<DialogueInputConfig>,
     blocking_config: Res<DialogueBlockingConfig>,
     mut mortar_events: MessageWriter<MortarEvent>,
-    query: Query<&Typewriter, (With<MortarController>, With<DialogueFocus>)>,
+    query: Query<&Typewriter, With<DialogueFocus>>,
     runtime: Res<MortarRuntime>,
-    active_state: Res<super::config::ActiveDialogueState>,
+    mut active_state: ResMut<super::config::ActiveDialogueState>,
     mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
     for event in fre_events.read() {
@@ -120,6 +120,8 @@ pub fn dialogue_advance_system(
         } else {
             // Simple text with finished typewriter - end dialogue
             info!("dialogue_advance_system: simple text finished, ending dialogue");
+            // Clear active state to trigger cleanup
+            *active_state = super::config::ActiveDialogueState::default();
             next_state.set(crate::app_state::overworld::OverworldSubState::default());
         }
     }
@@ -136,7 +138,7 @@ pub fn dialogue_advance_system(
 pub fn dialogue_skip_typewriter_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
-    mut query: Query<&mut Typewriter, (With<MortarController>, With<DialogueFocus>)>,
+    mut query: Query<&mut Typewriter, With<DialogueFocus>>,
 ) {
     for event in fre_events.read() {
         if event.id.0 != config.skip_typewriter_event {
