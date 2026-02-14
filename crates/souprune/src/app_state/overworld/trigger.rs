@@ -786,6 +786,7 @@ pub fn handle_interaction_input_system(
     current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     locale: Res<crate::extra::mortar::CurrentLocale>,
+    mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     mut event_writer: MessageWriter<FactEvent>,
     mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
@@ -848,6 +849,15 @@ pub fn handle_interaction_input_system(
         active_dialogue_state.has_typewriter = config.has_typewriter;
         active_dialogue_state.has_mortar = config.has_mortar;
         active_dialogue_state.simple_text = config.simple_text.clone();
+
+        // Clear dialogue_text fact to prevent flicker when using typewriter
+        // 清空 dialogue_text fact 以防止使用打字机时闪烁
+        if config.has_typewriter {
+            facts.set(
+                "dialogue_text",
+                bevy_fact_rule_event::FactValue::String(String::new()),
+            );
+        }
 
         // Set overworld state to Dialogue
         next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(

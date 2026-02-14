@@ -52,6 +52,8 @@ pub fn dialogue_advance_system(
     mut mortar_events: MessageWriter<MortarEvent>,
     query: Query<&Typewriter, (With<MortarController>, With<DialogueFocus>)>,
     runtime: Res<MortarRuntime>,
+    active_state: Res<super::config::ActiveDialogueState>,
+    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
 ) {
     for event in fre_events.read() {
         // Debug: log all events to see what's being received
@@ -66,19 +68,28 @@ pub fn dialogue_advance_system(
             config.advance_event
         );
 
-        // Check if there's an active dialogue
-        let Some(_state) = &runtime.active_dialogue else {
+        // Check if there's an active dialogue (either Mortar or simple text)
+        let mortar_active = runtime.active_dialogue.is_some();
+        let simple_active = active_state.simple_text.is_some() && !active_state.has_mortar;
+
+        if !mortar_active && !simple_active {
             info!("dialogue_advance_system: no active dialogue, skipping");
             continue;
-        };
+        }
 
         // Check if focused typewriters are ready
         let typewriters: Vec<_> = query.iter().collect();
 
         // If no typewriters exist (no-typewriter dialogue), allow advancement
         if typewriters.is_empty() {
-            info!("dialogue_advance_system: no typewriters, sending NextText");
-            mortar_events.write(MortarEvent::NextText);
+            if mortar_active {
+                info!("dialogue_advance_system: no typewriters, sending NextText");
+                mortar_events.write(MortarEvent::NextText);
+            } else {
+                // Simple text without typewriter - just end dialogue
+                info!("dialogue_advance_system: simple text (no typewriter), ending dialogue");
+                next_state.set(crate::app_state::overworld::OverworldSubState::default());
+            }
             continue;
         }
 
@@ -104,7 +115,13 @@ pub fn dialogue_advance_system(
             continue;
         }
 
-        mortar_events.write(MortarEvent::NextText);
+        if mortar_active {
+            mortar_events.write(MortarEvent::NextText);
+        } else {
+            // Simple text with finished typewriter - end dialogue
+            info!("dialogue_advance_system: simple text finished, ending dialogue");
+            next_state.set(crate::app_state::overworld::OverworldSubState::default());
+        }
     }
 }
 
@@ -183,6 +200,7 @@ pub fn sync_mortar_text_to_typewriter_system(
 /// View 可在文本模板中使用 `{{dialogue_text}}` 引用。
 pub fn sync_typewriter_text_to_facts_system(
     runtime: Res<bevy_mortar_bond::MortarRuntime>,
+    active_state: Res<super::config::ActiveDialogueState>,
     query: Query<&Typewriter, With<DialogueFocus>>,
     mut facts: ResMut<LayeredFactDatabase>,
 ) {
@@ -190,20 +208,26 @@ pub fn sync_typewriter_text_to_facts_system(
     // 获取第一个焦点打字机的当前文本
     let typewriter_count = query.iter().count();
 
-    // If no typewriter exists but dialogue is active, use Mortar text directly
-    // This handles the first frame before Typewriter entity is spawned
-    // 如果没有打字机但对话已激活，直接使用 Mortar 文本
-    // 这处理了 Typewriter 实体创建前的第一帧
+    // Determine what text to use
     let new_text = if typewriter_count > 0 {
+        // Use typewriter's current text (which progresses over time)
         query
             .iter()
             .next()
             .map(|tw| tw.current_text.clone())
             .unwrap_or_default()
+    } else if active_state.has_typewriter {
+        // Typewriter is configured but entity not yet spawned - show empty to avoid flicker
+        // 打字机已配置但实体尚未创建 - 显示空字符串以避免闪烁
+        return; // Don't update fact yet, wait for typewriter to be created
     } else if let Some(state) = &runtime.active_dialogue {
-        // Fallback to Mortar runtime text if no typewriter yet
-        // 如果还没有打字机，回退到 Mortar runtime 文本
+        // No typewriter configured - use Mortar text directly
+        // 未配置打字机 - 直接使用 Mortar 文本
         state.current_text().unwrap_or("").to_string()
+    } else if let Some(ref text) = active_state.simple_text {
+        // Simple text without typewriter - use directly
+        // 无打字机的简单文本 - 直接使用
+        text.clone()
     } else {
         return; // No dialogue active, nothing to sync
     };
@@ -274,11 +298,28 @@ pub fn spawn_dialogue_controller_system(
 
         // Add Typewriter if configured
         if active_state.has_typewriter {
-            entity_commands.insert(Typewriter::new("", 0.03)); // 30ms per character
+            // For simple text (no Mortar), initialize typewriter with the text directly
+            // For Mortar dialogues, start empty - sync_mortar_text_to_typewriter_system will fill it
+            let initial_text = if !active_state.has_mortar {
+                active_state.simple_text.clone().unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            let mut typewriter = Typewriter::new(&initial_text, 0.03); // 30ms per character
+            if !initial_text.is_empty() {
+                typewriter.play();
+                info!(
+                    "spawn_dialogue_controller_system: starting typewriter with simple_text: '{}'",
+                    initial_text
+                );
+            }
+            entity_commands.insert(typewriter);
         }
 
-        // For simple text without Mortar, set the fact directly
-        if !active_state.has_mortar {
+        // For simple text without Mortar and without Typewriter, set the fact directly
+        // If there's a typewriter, sync_typewriter_text_to_facts_system will handle it
+        if !active_state.has_mortar && !active_state.has_typewriter {
             if let Some(ref text) = active_state.simple_text {
                 info!(
                     "spawn_dialogue_controller_system: setting simple_text to fact: '{}'",
