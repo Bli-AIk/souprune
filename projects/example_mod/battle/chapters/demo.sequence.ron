@@ -28,8 +28,15 @@
                 "enemies": File("battle/enemies/demo_enemies.fre.ron"),
             },
         ),
-        // Enable menu interaction
-        // 启用菜单交互
+
+        // Trigger encounter intro narration with typewriter effect
+        // This event is handled by dialogue_test.fre.ron to start the Mortar dialogue
+        // 触发遭遇开场旁白（使用打字机效果）
+        // 此事件由 dialogue_test.fre.ron 处理以启动 Mortar 对话
+        EmitFactEvent(event_id: "battle:show_intro"),
+
+        // Enable menu interaction - intro typewriter plays in background without blocking
+        // 启用菜单交互 - 开场打字机在后台播放，不阻塞
         SetViewFact(key: "interactable", value: Bool(true)),
         SetViewFact(key: "depth", value: Int(0)),
         SetViewFact(key: "button_selection", value: Int(0)),

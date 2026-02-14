@@ -559,6 +559,27 @@ pub fn despawn_dialogue_controller_system(
 /// - 如果 pending_mortar_path 和 pending_mortar_node 设置，启动 Mortar 对话
 /// - 发出 `dialogue:started` FRE 事件用于场景特定处理（如状态切换）
 /// - 清除所有待处理 facts
+/// Handle pending dialogue startup based on FRE facts.
+///
+/// 基于 FRE facts 处理待启动的对话。
+///
+/// This system monitors `dialogue:pending_start` fact as trigger.
+/// When true, it reads other pending facts and starts the dialogue.
+///
+/// 该系统监听 `dialogue:pending_start` fact 作为触发器。
+/// 为 true 时，读取其他 pending facts 并启动对话。
+///
+/// **Facts used**:
+/// - `dialogue:pending_start` (bool): Trigger - set to true to start dialogue
+/// - `dialogue:pending_view` (string): Optional view to spawn (empty = no view)
+/// - `dialogue:pending_mortar_path` (string): Mortar file path (without locale prefix)
+/// - `dialogue:pending_mortar_node` (string): Mortar node name
+///
+/// This unified approach replaces scene-specific StartDialogue actions,
+/// ensuring consistent behavior across Overworld and Battle.
+///
+/// 这种统一方式替代了场景特定的 StartDialogue action，
+/// 确保 Overworld 和 Battle 中的行为一致。
 pub fn handle_pending_dialogue_start_system(
     mut facts: ResMut<LayeredFactDatabase>,
     mut mortar_events: MessageWriter<MortarEvent>,
@@ -566,18 +587,24 @@ pub fn handle_pending_dialogue_start_system(
     mut fre_event_writer: MessageWriter<FactEvent>,
     locale: Res<crate::extra::mortar::CurrentLocale>,
 ) {
-    // Check for pending view (required to trigger dialogue startup)
+    // Check trigger fact
+    let pending_start = facts
+        .bypass_change_detection()
+        .get_bool("dialogue:pending_start")
+        .unwrap_or(false);
+
+    if !pending_start {
+        return;
+    }
+
+    // Read pending view (optional - empty means no view to spawn)
     let pending_view = facts
         .bypass_change_detection()
         .get_string("dialogue:pending_view")
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
 
-    let Some(view_path) = pending_view else {
-        return;
-    };
-
-    // Read other pending facts
+    // Read Mortar configuration
     let mortar_path = facts
         .bypass_change_detection()
         .get_string("dialogue:pending_mortar_path")
@@ -590,6 +617,7 @@ pub fn handle_pending_dialogue_start_system(
         .filter(|s| !s.is_empty());
 
     // Clear all pending facts
+    facts.set("dialogue:pending_start", FactValue::Bool(false));
     facts.set("dialogue:pending_view", FactValue::String(String::new()));
     facts.set(
         "dialogue:pending_mortar_path",
@@ -610,13 +638,15 @@ pub fn handle_pending_dialogue_start_system(
     }
 
     info!(
-        "handle_pending_dialogue_start_system: spawning view '{}', mortar={:?}",
-        view_path,
+        "handle_pending_dialogue_start_system: view={:?}, mortar={:?}",
+        pending_view,
         mortar_path.as_ref().zip(mortar_node.as_ref())
     );
 
-    // Spawn dialogue view
-    spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: view_path });
+    // Spawn dialogue view if specified
+    if let Some(view_path) = pending_view {
+        spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: view_path });
+    }
 
     // Start Mortar dialogue if configured
     if let (Some(path), Some(node)) = (mortar_path, mortar_node) {
@@ -631,7 +661,6 @@ pub fn handle_pending_dialogue_start_system(
         mortar_events.write(MortarEvent::start_node(localized_path, node));
     }
 
-    // Emit dialogue:started event for scene-specific handling (e.g., state change)
-    // 发出 dialogue:started 事件用于场景特定处理（如状态切换）
+    // Emit dialogue:started event for scene-specific handling
     fre_event_writer.write(FactEvent::new("dialogue:started"));
 }

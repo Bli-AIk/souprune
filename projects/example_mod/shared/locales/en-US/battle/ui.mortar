@@ -1,8 +1,15 @@
 pub const LV: String = "LV"
 pub const HP: String = "HP"
 
-// Battle dialogue texts
+// Battle intro narration - used for both typewriter and static display
+// 战斗开场旁白 - 用于打字机效果和静态显示
 pub const ENEMY_APPEARED: String = "* Whimsun approached meekly!"
+
+// Battle intro narration node - displayed with typewriter effect at battle start
+// 战斗开场旁白节点 - 战斗开始时使用打字机效果显示
+node encounter_intro {
+    text: "* Whimsun approached meekly!"
+}
 
 // Enemy names for battle
 pub const ENEMY_FROGGIT: String = "Froggit"

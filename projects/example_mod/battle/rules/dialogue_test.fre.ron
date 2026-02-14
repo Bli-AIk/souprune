@@ -30,9 +30,45 @@
         // Test flags
         "test_dialogue_shown": Bool(false),
         "test_mortar_shown": Bool(false),
+        // Intro shown flag (prevents duplicate playback)
+        "battle:intro_shown": Bool(false),
     },
 
     rules: [
+        // === Encounter Intro Narration ===
+        // === 遭遇开场旁白 ===
+        
+        // Rule: Start encounter intro narration when battle:show_intro event fires
+        // Uses typewriter effect, does not block menu interaction
+        // 规则：当 battle:show_intro 事件触发时启动遭遇开场旁白
+        // 使用打字机效果，不阻塞菜单交互
+        //
+        // NOTE: Uses FRE modifications instead of Custom action for consistency.
+        // dialogue:pending_start triggers handle_pending_dialogue_start_system.
+        // 注意：使用 FRE modifications 代替 Custom action 以保持一致性。
+        // dialogue:pending_start 触发 handle_pending_dialogue_start_system。
+        (
+            id: "battle_encounter_intro",
+            event: Event("battle:show_intro"),
+            condition: Equals(key: "battle:intro_shown", value: Bool(false)),
+            modifications: [
+                // Mortar dialogue config (no view - text displays in existing battle UI)
+                // Mortar 对话配置（无 view - 文本在现有战斗 UI 中显示）
+                Set(key: "dialogue:pending_mortar_path", value: String("battle/ui.mortar")),
+                Set(key: "dialogue:pending_mortar_node", value: String("encounter_intro")),
+                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
+                // Dialogue behavior
+                // 对话行为
+                Set(key: "dialogue:has_typewriter", value: Bool(true)),
+                Set(key: "dialogue:has_focus", value: Bool(false)),  // No focus, menu stays interactive
+                Set(key: "battle:intro_shown", value: Bool(true)),
+            ],
+            actions: [
+                Log(message: "Battle: Starting encounter intro narration"),
+            ],
+            priority: 100,  // High priority to ensure it runs first
+        ),
+
         // === Simple Text Narration Test ===
         // === 简单文本旁白测试 ===
 
@@ -40,7 +76,7 @@
         // 规则：当 test_simple_narration 事件触发时显示简单旁白
         (
             id: "test_simple_narration",
-            trigger: "test_simple_narration",
+            event: Event("test_simple_narration"),
             condition: Equals(key: "test_dialogue_shown", value: Bool(false)),
             modifications: [
                 // Activate simple text dialogue (data-driven)
@@ -61,7 +97,7 @@
         // 规则：简单对话结束后清理
         (
             id: "test_simple_narration_ended",
-            trigger: "dialogue:ended",
+            event: Event("dialogue:ended"),
             condition: Equals(key: "dialogue:simple_text_active", value: Bool(true)),
             modifications: [
                 Set(key: "dialogue:simple_text_active", value: Bool(false)),
@@ -82,16 +118,18 @@
         // 
         // This demonstrates the FRE-driven Mortar dialogue flow:
         // 1. Set dialogue:pending_mortar_* facts
-        // 2. handle_pending_dialogue_start_system processes them
-        // 3. System spawns View, starts Mortar, emits dialogue:started
+        // 2. Set dialogue:pending_start = true (trigger)
+        // 3. handle_pending_dialogue_start_system processes them
+        // 4. System spawns View (optional), starts Mortar, emits dialogue:started
         //
         // 这演示了 FRE 驱动的 Mortar 对话流程：
         // 1. 设置 dialogue:pending_mortar_* facts
-        // 2. handle_pending_dialogue_start_system 处理它们
-        // 3. 系统生成 View，启动 Mortar，发出 dialogue:started
+        // 2. 设置 dialogue:pending_start = true（触发器）
+        // 3. handle_pending_dialogue_start_system 处理它们
+        // 4. 系统生成 View（可选），启动 Mortar，发出 dialogue:started
         (
             id: "test_mortar_dialogue",
-            trigger: "test_mortar_dialogue",
+            event: Event("test_mortar_dialogue"),
             condition: Equals(key: "test_mortar_shown", value: Bool(false)),
             modifications: [
                 // Set pending Mortar dialogue (FRE-driven)
@@ -99,6 +137,7 @@
                 Set(key: "dialogue:pending_mortar_path", value: String("dialogue/test/battle_test.mortar")),
                 Set(key: "dialogue:pending_mortar_node", value: String("act_greeting")),
                 Set(key: "dialogue:pending_view", value: String("battle/view/dialogue_box.view_layout.ron")),
+                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
                 Set(key: "test_mortar_shown", value: Bool(true)),
             ],
@@ -118,7 +157,7 @@
         // 它设置 dialogue:has_focus 和任何战斗特定状态。
         (
             id: "battle_dialogue_started",
-            trigger: "dialogue:started",
+            event: Event("dialogue:started"),
             condition: Always,
             modifications: [
                 Set(key: "dialogue:has_focus", value: Bool(true)),
@@ -136,15 +175,15 @@
         // 规则：Mortar 对话结束后清理
         (
             id: "battle_dialogue_ended",
-            trigger: "dialogue:ended",
+            event: Event("dialogue:ended"),
             condition: Always,
             modifications: [
                 Set(key: "dialogue:has_focus", value: Bool(false)),
                 Set(key: "battle:paused_for_dialogue", value: Bool(false)),
                 // Clear pending facts
-                Remove(key: "dialogue:pending_mortar_path"),
-                Remove(key: "dialogue:pending_mortar_node"),
-                Remove(key: "dialogue:pending_view"),
+                Remove("dialogue:pending_mortar_path"),
+                Remove("dialogue:pending_mortar_node"),
+                Remove("dialogue:pending_view"),
             ],
             actions: [
                 Log(message: "Battle: Dialogue ended, resuming battle"),
@@ -162,12 +201,13 @@
         // 示例：敌人的"检查"动作显示对话
         (
             id: "act_with_dialogue",
-            trigger: "battle:execute_act",
+            event: Event("battle:execute_act"),
             // Check if act_type requires dialogue
             condition: Equals(key: "act_type", value: String("check")),
             modifications: [
                 Set(key: "dialogue:pending_mortar_path", value: String("dialogue/enemies/dummy.mortar")),
                 Set(key: "dialogue:pending_mortar_node", value: String("check")),
+                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
             ],
             actions: [

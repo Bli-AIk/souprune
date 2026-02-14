@@ -18,6 +18,10 @@
         // Battle menu navigation rules - registered as View-scoped rules
         // 战斗菜单导航规则 - 作为 View 作用域规则注册
         File("battle/rules/battle_menu.fre.ron"),
+        
+        // Dialogue rules (encounter intro, ACT narration)
+        // 对话规则（遭遇开场、ACT 旁白）
+        File("battle/rules/dialogue_test.fre.ron"),
 
         // Enemies interface - bound by SpawnView's bindings
         // 敌人接口 - 由 SpawnView 的 bindings 绑定
@@ -86,7 +90,9 @@
             texts: [
                 (
                     id: "BattleDialogue",
-                    content: "{{battle/ui:ENEMY_APPEARED}}",
+                    // Use dialogue_text fact for typewriter effect
+                    // 使用 dialogue_text fact 以支持打字机效果
+                    content: "{{dialogue_text}}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -94,8 +100,8 @@
                         translation: (-267.0, 50.0, 1.0),
                     ),
                     line_height: 1.2,
-                    // Only show in main menu (depth 0), not during narration, and when interactable
-                    // 仅在主菜单（深度 0）且非旁白时显示，且可交互时显示
+                    // Only show when dialogue is active (depth 0), not during narration, and when interactable
+                    // 仅在对话激活时（深度 0）且非旁白时显示，且可交互时显示
                     visible_when: "$depth == 0 && $narration_visible == false && $interactable == true",
                 ),
 

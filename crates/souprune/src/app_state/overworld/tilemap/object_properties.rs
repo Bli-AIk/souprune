@@ -347,6 +347,13 @@ fn spawn_interactable(
             }
         }
 
+        // Add trigger to start dialogue (must be last to ensure all other facts are set first)
+        // 添加触发器启动对话（必须最后设置，以确保其他 facts 已设置）
+        modifications.push(FactModification::Set(
+            "dialogue:pending_start".to_string(),
+            FactValue::Bool(true),
+        ));
+
         // Build and register the rule (Local scope - cleared when leaving Overworld)
         // 构建并注册规则（Local 作用域 - 离开 Overworld 时清除）
         let mut rule_builder =

@@ -99,6 +99,14 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
 
     // Pending dialogue configuration (set via FRE rules to trigger dialogue startup)
     // 待处理的对话配置（通过 FRE 规则设置以触发对话启动）
+    //
+    // To start a dialogue via FRE rules, set these facts in modifications:
+    // 要通过 FRE 规则启动对话，在 modifications 中设置这些 facts：
+    //   - dialogue:pending_start = true (trigger)
+    //   - dialogue:pending_mortar_path = "path/to/file.mortar" (without locale prefix)
+    //   - dialogue:pending_mortar_node = "node_name"
+    //   - dialogue:pending_view = "path/to/view.ron" (optional, for spawning new view)
+    facts.set("dialogue:pending_start", FactValue::Bool(false));
     facts.set(
         "dialogue:pending_mortar_path",
         FactValue::String(String::new()),
@@ -107,8 +115,6 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
         "dialogue:pending_mortar_node",
         FactValue::String(String::new()),
     );
-    // Pending view path for dialogue UI
-    // 待处理的对话 UI 视图路径
     facts.set("dialogue:pending_view", FactValue::String(String::new()));
 
     // Focus mode: "all_finished" or "first_finished"

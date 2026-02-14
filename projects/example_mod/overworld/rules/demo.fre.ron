@@ -150,27 +150,11 @@
             priority: 5,
         ),
 
-        // Rule 6: Start dialogue on interact_demo_talk event
-        // 规则 6：响应 interact_demo_talk 事件启动对话
-        (
-            id: "demo_talk_interaction",
-            event: Event("interact_demo_talk"),
-            condition: Always,
-            actions: [
-                Log(message: "Starting demo_talk dialogue"),
-                Custom(action_type: "SetOverworldState", params: {
-                    "state": "Dialogue",
-                }),
-                Custom(action_type: "SpawnView", params: {
-                    "path": "overworld/view/dialogue.view_layout.ron",
-                }),
-                Custom(action_type: "StartDialogue", params: {
-                    "path": "overworld/dialogue.mortar",
-                    "node": "demo_talk",
-                }),
-            ],
-            outputs: ["dialogue_started"],
-            priority: 10,
-        ),
+        // Note: demo_talk and demo_talk_typewriter interactions are handled
+        // by auto-generated FRE rules from Tiled object properties.
+        // See object_properties.rs for the rule generation logic.
+        // 注意：demo_talk 和 demo_talk_typewriter 的交互由
+        // 从 Tiled 对象属性自动生成的 FRE 规则处理。
+        // 规则生成逻辑见 object_properties.rs。
     ],
 )

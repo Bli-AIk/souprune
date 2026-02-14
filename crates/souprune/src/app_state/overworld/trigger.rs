@@ -444,10 +444,8 @@ pub fn handle_chase_state_actions_system(
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
-    locale: Res<crate::extra::mortar::CurrentLocale>,
     mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
     mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
-    mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
     mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -473,10 +471,8 @@ pub fn handle_chase_state_actions_system(
                         action,
                         &chase_enabled,
                         &chase_state_name,
-                        &locale,
                         &mut next_ow_state,
                         &mut next_app_state,
-                        &mut mortar_event_writer,
                         &mut spawn_view_writer,
                         &mut despawn_view_writer,
                     );
@@ -496,10 +492,8 @@ fn handle_chase_action(
     action: &RuleActionDef,
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
-    locale: &crate::extra::mortar::CurrentLocale,
     next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
     next_app_state: &mut NextState<crate::app_state::AppState>,
-    mortar_event_writer: &mut MessageWriter<bevy_mortar_bond::MortarEvent>,
     spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
     despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -563,25 +557,14 @@ fn handle_chase_action(
             info!("FRE: Despawning view(s) via action (path: {:?})", path);
             despawn_view_writer.write(crate::core::view::DespawnViewRequest { path });
         }
-        "StartDialogue" => {
-            let path = params.get("path");
-            let node = params.get("node");
-            if let (Some(path), Some(node)) = (path, node) {
-                // Prepend locale path for localized dialogue files
-                // 为本地化对话文件添加语言路径前缀
-                let localized_path = format!("shared/locales/{}/{}", locale.0, path);
-                info!(
-                    "FRE: Starting dialogue '{}' node '{}' via action",
-                    localized_path, node
-                );
-                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::start_node(
-                    localized_path,
-                    node.clone(),
-                ));
-            } else {
-                warn!("FRE: StartDialogue action missing 'path' or 'node' param");
-            }
-        }
+        // NOTE: StartDialogue has been removed in favor of FRE fact-driven dialogue
+        // 注意：StartDialogue 已移除，改为使用 FRE fact 驱动的对话
+        //
+        // To start dialogue via FRE rules, use modifications:
+        //   Set("dialogue:pending_mortar_path", "path/to/file.mortar")
+        //   Set("dialogue:pending_mortar_node", "node_name")
+        //   Set("dialogue:pending_view", "view/path.ron")  // optional
+        //   Set("dialogue:pending_start", Bool(true))      // trigger
         _ => {}
     }
 }
