@@ -293,12 +293,7 @@ fn spawn_interactable(
 
     info!(
         "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {}",
-        interactable_id,
-        world_x,
-        world_y,
-        width,
-        height,
-        has_dialogue
+        interactable_id, world_x, world_y, width, height, has_dialogue
     );
 
     // If dialogue is configured, create FRE rule for handling interaction
@@ -354,8 +349,8 @@ fn spawn_interactable(
 
         // Build and register the rule (Local scope - cleared when leaving Overworld)
         // 构建并注册规则（Local 作用域 - 离开 Overworld 时清除）
-        let mut rule_builder = Rule::builder(&rule_id, trigger_event.clone())
-            .scope(RuleScope::Local);
+        let mut rule_builder =
+            Rule::builder(&rule_id, trigger_event.clone()).scope(RuleScope::Local);
         for modification in modifications {
             rule_builder = rule_builder.modify(modification);
         }

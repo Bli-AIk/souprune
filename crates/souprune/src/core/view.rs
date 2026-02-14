@@ -80,6 +80,17 @@ pub struct SpawnViewRequest {
     pub path: String,
 }
 
+/// Message to request despawning Views.
+///
+/// 请求销毁 View 的消息。
+#[derive(Message, Debug, Clone)]
+pub struct DespawnViewRequest {
+    /// Optional path to despawn a specific View. If None, despawns all dynamically spawned Views.
+    ///
+    /// 可选的路径，用于销毁特定 View。如果为 None，则销毁所有动态生成的 View。
+    pub path: Option<String>,
+}
+
 use crate::app_state::AppState;
 use components::state_sprite::{
     evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
@@ -129,10 +140,16 @@ impl Plugin for CoreViewPlugin {
             // Register SpawnViewRequest message
             // 注册 SpawnViewRequest 消息
             .add_message::<SpawnViewRequest>()
+            // Register DespawnViewRequest message
+            // 注册 DespawnViewRequest 消息
+            .add_message::<DespawnViewRequest>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             // Handle SpawnViewRequest messages
             // 处理 SpawnViewRequest 消息
             .add_systems(Update, handle_spawn_view_request_system)
+            // Handle DespawnViewRequest messages
+            // 处理 DespawnViewRequest 消息
+            .add_systems(Update, handle_despawn_view_request_system)
             // Use dynamic state transition detection instead of OnEnter/OnExit
             // since OverworldSubState is now string-based and dynamic
             // 使用动态状态转换检测替代 OnEnter/OnExit，因为 OverworldSubState 现在是基于字符串的动态状态
@@ -274,5 +291,53 @@ fn handle_spawn_view_request_system(
             Visibility::Visible,
             InheritedVisibility::default(),
         ));
+    }
+}
+
+/// System to handle DespawnViewRequest messages and despawn views.
+///
+/// 处理 DespawnViewRequest 消息并销毁视图的系统。
+fn handle_despawn_view_request_system(
+    mut events: MessageReader<DespawnViewRequest>,
+    mut commands: Commands,
+    query: Query<(Entity, &components::ViewRoot), With<RonDrivenView>>,
+) {
+    for request in events.read() {
+        let despawned_count = if let Some(ref path) = request.path {
+            // Despawn specific view by path
+            let mut count = 0;
+            for (entity, view_root) in query.iter() {
+                if view_root.layout_path == *path {
+                    info!("Despawning view: {} (entity {:?})", path, entity);
+                    commands.entity(entity).despawn();
+                    count += 1;
+                }
+            }
+            count
+        } else {
+            // Despawn all dynamically spawned views
+            let mut count = 0;
+            for (entity, view_root) in query.iter() {
+                info!(
+                    "Despawning view: {} (entity {:?})",
+                    view_root.layout_path, entity
+                );
+                commands.entity(entity).despawn();
+                count += 1;
+            }
+            count
+        };
+
+        if despawned_count == 0 {
+            info!(
+                "DespawnViewRequest: no views to despawn (path: {:?})",
+                request.path
+            );
+        } else {
+            info!(
+                "DespawnViewRequest: despawned {} views (path: {:?})",
+                despawned_count, request.path
+            );
+        }
     }
 }

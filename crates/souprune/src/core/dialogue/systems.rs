@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
-use bevy_mortar_bond::{MortarEvent, MortarRuntime};
+use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
 
 use super::components::MortarController;
 use super::config::DialogueInputConfig;
@@ -64,14 +64,21 @@ pub fn sync_typewriter_state_to_facts_system(
     // Helper to update fact only if value changed
     // 辅助函数：仅当值变化时更新 fact
     let update_fact = |facts: &mut ResMut<LayeredFactDatabase>, key: &str, value: bool| {
-        let current = facts.bypass_change_detection().get_bool(key).unwrap_or(false);
+        let current = facts
+            .bypass_change_detection()
+            .get_bool(key)
+            .unwrap_or(false);
         if current != value {
             facts.set(key, FactValue::Bool(value));
         }
     };
 
     update_fact(&mut facts, "dialogue:typewriter_playing", any_playing);
-    update_fact(&mut facts, "dialogue:all_typewriters_finished", all_finished);
+    update_fact(
+        &mut facts,
+        "dialogue:all_typewriters_finished",
+        all_finished,
+    );
     update_fact(&mut facts, "dialogue:any_typewriter_finished", any_finished);
 }
 
@@ -99,10 +106,9 @@ pub fn dialogue_advance_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
     mut mortar_events: MessageWriter<MortarEvent>,
-    mut fre_event_writer: MessageWriter<FactEvent>,
+    mut facts: ResMut<LayeredFactDatabase>,
     query: Query<&Typewriter, With<DialogueControllerEntity>>,
     runtime: Res<MortarRuntime>,
-    facts: Res<LayeredFactDatabase>,
 ) {
     for event in fre_events.read() {
         // Debug: log all events to see what's being received
@@ -146,9 +152,14 @@ pub fn dialogue_advance_system(
                 info!("dialogue_advance_system: no typewriters, sending NextText");
                 mortar_events.write(MortarEvent::next_text());
             } else {
-                // Simple text without typewriter - emit dialogue:ended event
-                info!("dialogue_advance_system: simple text (no typewriter), emitting dialogue:ended");
-                fre_event_writer.write(FactEvent::new("dialogue:ended"));
+                // Simple text without typewriter - mark for dialogue:ended
+                // This will be processed by emit_pending_dialogue_ended_system
+                // 简单文本无打字机 - 标记为需要发送 dialogue:ended
+                // 这将由 emit_pending_dialogue_ended_system 处理
+                info!(
+                    "dialogue_advance_system: simple text (no typewriter), marking dialogue ended"
+                );
+                facts.set("dialogue:pending_ended", FactValue::Bool(true));
             }
             continue;
         }
@@ -185,10 +196,50 @@ pub fn dialogue_advance_system(
         if mortar_active {
             mortar_events.write(MortarEvent::next_text());
         } else {
-            // Simple text with finished typewriter - emit dialogue:ended event
-            info!("dialogue_advance_system: simple text finished, emitting dialogue:ended");
-            fre_event_writer.write(FactEvent::new("dialogue:ended"));
+            // Simple text with finished typewriter - mark for dialogue:ended
+            // 简单文本打字机完成 - 标记为需要发送 dialogue:ended
+            info!("dialogue_advance_system: simple text finished, marking dialogue ended");
+            facts.set("dialogue:pending_ended", FactValue::Bool(true));
         }
+    }
+}
+
+/// Emits dialogue:ended event when pending_ended fact is set.
+/// This is a separate system to avoid MessageReader/MessageWriter conflict.
+///
+/// 当 pending_ended fact 被设置时发出 dialogue:ended 事件。
+/// 这是一个独立的系统以避免 MessageReader/MessageWriter 冲突。
+pub fn emit_pending_dialogue_ended_system(
+    mut facts: ResMut<LayeredFactDatabase>,
+    mut fre_event_writer: MessageWriter<FactEvent>,
+) {
+    if facts.get_bool("dialogue:pending_ended").unwrap_or(false) {
+        info!("emit_pending_dialogue_ended_system: emitting dialogue:ended");
+        fre_event_writer.write(FactEvent::new("dialogue:ended"));
+        facts.remove("dialogue:pending_ended");
+    }
+}
+
+/// Listens for MortarDialogueFinished messages and emits dialogue:ended FRE event.
+///
+/// 监听 MortarDialogueFinished 消息并发出 dialogue:ended FRE 事件。
+///
+/// This bridges the Mortar dialogue system with the FRE-driven dialogue cleanup.
+/// When a Mortar dialogue finishes naturally (not via StopDialogue), this system
+/// emits the corresponding FRE event for rule-based handling.
+///
+/// 这将 Mortar 对话系统与 FRE 驱动的对话清理桥接起来。
+/// 当 Mortar 对话自然结束时（非通过 StopDialogue），此系统发出相应的 FRE 事件供规则处理。
+pub fn handle_mortar_dialogue_finished_system(
+    mut mortar_finished: MessageReader<MortarDialogueFinished>,
+    mut fre_event_writer: MessageWriter<FactEvent>,
+) {
+    for finished in mortar_finished.read() {
+        info!(
+            "handle_mortar_dialogue_finished_system: Mortar dialogue finished (path: {}, node: {})",
+            finished.mortar_path, finished.node
+        );
+        fre_event_writer.write(FactEvent::new("dialogue:ended"));
     }
 }
 
@@ -329,7 +380,7 @@ pub fn sync_typewriter_text_to_facts_system(
         .unwrap_or_default();
 
     if current != new_text {
-        info!(
+        trace!(
             "sync_typewriter_text_to_facts: updating dialogue_text fact: '{}' -> '{}'",
             current, new_text
         );
@@ -539,10 +590,7 @@ pub fn handle_pending_dialogue_start_system(
         .filter(|s| !s.is_empty());
 
     // Clear all pending facts
-    facts.set(
-        "dialogue:pending_view",
-        FactValue::String(String::new()),
-    );
+    facts.set("dialogue:pending_view", FactValue::String(String::new()));
     facts.set(
         "dialogue:pending_mortar_path",
         FactValue::String(String::new()),
@@ -568,9 +616,7 @@ pub fn handle_pending_dialogue_start_system(
     );
 
     // Spawn dialogue view
-    spawn_view_writer.write(crate::core::view::SpawnViewRequest {
-        path: view_path,
-    });
+    spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: view_path });
 
     // Start Mortar dialogue if configured
     if let (Some(path), Some(node)) = (mortar_path, mortar_node) {

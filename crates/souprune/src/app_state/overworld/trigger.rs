@@ -449,6 +449,7 @@ pub fn handle_chase_state_actions_system(
     mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
     mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
+    mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
     for event in events.read() {
         let rule_groups = rule_registry.get_matching_rules_grouped(event);
@@ -477,6 +478,7 @@ pub fn handle_chase_state_actions_system(
                         &mut next_app_state,
                         &mut mortar_event_writer,
                         &mut spawn_view_writer,
+                        &mut despawn_view_writer,
                     );
                 }
 
@@ -499,6 +501,7 @@ fn handle_chase_action(
     next_app_state: &mut NextState<crate::app_state::AppState>,
     mortar_event_writer: &mut MessageWriter<bevy_mortar_bond::MortarEvent>,
     spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
+    despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
     let RuleActionDef::Custom {
         action_type,
@@ -552,6 +555,13 @@ fn handle_chase_action(
             } else {
                 warn!("FRE: SpawnView action missing 'path' param");
             }
+        }
+        "DespawnView" => {
+            // Optional path parameter - if not provided, despawns all dynamically spawned views
+            // 可选的 path 参数 - 如果未提供，则销毁所有动态生成的 View
+            let path = params.get("path").cloned();
+            info!("FRE: Despawning view(s) via action (path: {:?})", path);
+            despawn_view_writer.write(crate::core::view::DespawnViewRequest { path });
         }
         "StartDialogue" => {
             let path = params.get("path");

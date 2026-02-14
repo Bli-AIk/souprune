@@ -46,6 +46,36 @@
             priority: 100,
         ),
 
+        // Dialogue ended handler: Reset Overworld state and cleanup
+        // 对话结束处理：重置 Overworld 状态并清理
+        // This rule responds to dialogue:ended event emitted when:
+        // - Mortar dialogue finishes naturally (MortarDialogueFinished)
+        // - Simple text dialogue is dismissed (dialogue_advance_system)
+        //
+        // 此规则响应 dialogue:ended 事件，该事件在以下情况发出：
+        // - Mortar 对话自然结束（MortarDialogueFinished）
+        // - 简单文本对话被关闭（dialogue_advance_system）
+        (
+            id: "overworld_dialogue_ended",
+            event: Event("dialogue:ended"),
+            condition: Always,
+            modifications: [
+                // Reset dialogue-related facts
+                // 重置对话相关的 facts
+                Set(key: "dialogue:has_focus", value: Bool(false)),
+                Set(key: "dialogue:simple_text_active", value: Bool(false)),
+                Set(key: "dialogue:simple_text", value: String("")),
+            ],
+            actions: [
+                Log(message: "Dialogue ended, resetting Overworld state"),
+                Custom(action_type: "SetOverworldState", params: {
+                    "state": "Default",
+                }),
+                Custom(action_type: "DespawnView", params: {}),
+            ],
+            priority: 100,
+        ),
+
         // Rule 1: Increment counter on every trigger entry
         // 规则 1：每次进入触发器时增加计数器
         (

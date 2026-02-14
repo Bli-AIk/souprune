@@ -61,6 +61,8 @@ impl Plugin for DialoguePlugin {
                     systems::sync_typewriter_state_to_facts_system,
                     // Input handling systems
                     systems::dialogue_advance_system,
+                    systems::emit_pending_dialogue_ended_system,
+                    systems::handle_mortar_dialogue_finished_system,
                     systems::dialogue_skip_typewriter_system,
                     // Mortar event handling
                     typewriter_bridge::handle_typewriter_mortar_events,
@@ -92,10 +94,7 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     // Dialogue configuration facts
     // 对话配置 facts
     facts.set("dialogue:simple_text_active", FactValue::Bool(false));
-    facts.set(
-        "dialogue:simple_text",
-        FactValue::String(String::new()),
-    );
+    facts.set("dialogue:simple_text", FactValue::String(String::new()));
     facts.set("dialogue:has_typewriter", FactValue::Bool(true));
 
     // Pending dialogue configuration (set via FRE rules to trigger dialogue startup)
@@ -110,10 +109,7 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     );
     // Pending view path for dialogue UI
     // 待处理的对话 UI 视图路径
-    facts.set(
-        "dialogue:pending_view",
-        FactValue::String(String::new()),
-    );
+    facts.set("dialogue:pending_view", FactValue::String(String::new()));
 
     // Focus mode: "all_finished" or "first_finished"
     // 焦点模式："all_finished" 或 "first_finished"

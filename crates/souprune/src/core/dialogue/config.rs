@@ -46,10 +46,7 @@ impl Default for DialogueInputConfig {
 /// **已弃用**：此资源已弃用。请改用 FRE fact `dialogue:focus_mode`。
 /// - `"all_finished"` - 所有打字机必须完成才能步进
 /// - `"first_finished"` - 任一打字机完成即可步进
-#[deprecated(
-    since = "0.5.2",
-    note = "Use FRE fact 'dialogue:focus_mode' instead"
-)]
+#[deprecated(since = "0.5.2", note = "Use FRE fact 'dialogue:focus_mode' instead")]
 #[derive(Resource, Debug, Clone)]
 pub struct DialogueBlockingConfig {
     /// If true, all focused typewriters must finish before dialogue can advance.
