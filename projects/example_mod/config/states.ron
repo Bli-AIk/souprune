@@ -60,10 +60,12 @@ StateConfig(
 
         // Dialogue state - talking to NPCs, player cannot move
         // 对话状态 - 与 NPC 交谈，玩家不能移动
+        // View is spawned dynamically via SpawnView FRE action
+        // View 通过 SpawnView FRE action 动态生成
         "Dialogue": (
             ui_interactive: false,
             player_movable: false,
-            view_layout: None,  // View is spawned dynamically via SpawnViewRequest
+            view_layout: None,
             initial_layer: None,
         ),
     },

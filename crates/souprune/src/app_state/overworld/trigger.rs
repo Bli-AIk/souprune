@@ -74,6 +74,63 @@ pub struct Interactable {
     ///
     /// 与玩家的最大交互距离。
     pub max_distance: f32,
+
+    /// Dialogue configuration for this interactable.
+    /// If Some, the interactable will start dialogue when activated.
+    ///
+    /// 此可交互物体的对话配置。
+    /// 如果为 Some，则激活时会启动对话。
+    pub dialogue_config: Option<DialogueConfig>,
+}
+
+/// Configuration for dialogue triggered by interactable.
+///
+/// 可交互物体触发的对话配置。
+#[derive(Debug, Clone, Default)]
+pub struct DialogueConfig {
+    /// Path to Mortar dialogue file (relative to locales).
+    /// Used when has_mortar is true.
+    ///
+    /// Mortar 对话文件路径（相对于 locales）。
+    /// 当 has_mortar 为 true 时使用。
+    pub dialogue_path: Option<String>,
+
+    /// Node name in the Mortar file to start dialogue.
+    ///
+    /// 启动对话的 Mortar 文件中的节点名。
+    pub dialogue_node: Option<String>,
+
+    /// Whether to use typewriter effect.
+    ///
+    /// 是否使用打字机效果。
+    pub has_typewriter: bool,
+
+    /// Whether to use Mortar controller (for dynamic dialogue).
+    ///
+    /// 是否使用 Mortar 控制器（用于动态对话）。
+    pub has_mortar: bool,
+
+    /// Simple text content for non-Mortar dialogue.
+    /// Used when has_mortar is false.
+    ///
+    /// 非 Mortar 对话的简单文本内容。
+    /// 当 has_mortar 为 false 时使用。
+    pub simple_text: Option<String>,
+
+    /// View layout file for dialogue UI.
+    ///
+    /// 对话 UI 的 View 布局文件。
+    pub dialogue_view: String,
+}
+
+impl Default for Interactable {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            max_distance: 20.0,
+            dialogue_config: None,
+        }
+    }
 }
 
 impl Interactable {
@@ -81,11 +138,17 @@ impl Interactable {
         Self {
             id: id.into(),
             max_distance: 20.0,
+            dialogue_config: None,
         }
     }
 
     pub fn with_distance(mut self, distance: f32) -> Self {
         self.max_distance = distance;
+        self
+    }
+
+    pub fn with_dialogue(mut self, config: DialogueConfig) -> Self {
+        self.dialogue_config = Some(config);
         self
     }
 }
@@ -429,6 +492,7 @@ pub fn handle_chase_state_actions_system(
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
+    locale: Res<crate::extra::mortar::CurrentLocale>,
     mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
     mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
     mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
@@ -456,6 +520,7 @@ pub fn handle_chase_state_actions_system(
                         action,
                         &chase_enabled,
                         &chase_state_name,
+                        &locale,
                         &mut next_ow_state,
                         &mut next_app_state,
                         &mut mortar_event_writer,
@@ -477,6 +542,7 @@ fn handle_chase_action(
     action: &RuleActionDef,
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
+    locale: &crate::extra::mortar::CurrentLocale,
     next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
     next_app_state: &mut NextState<crate::app_state::AppState>,
     mortar_event_writer: &mut MessageWriter<bevy_mortar_bond::MortarEvent>,
@@ -539,12 +605,15 @@ fn handle_chase_action(
             let path = params.get("path");
             let node = params.get("node");
             if let (Some(path), Some(node)) = (path, node) {
+                // Prepend locale path for localized dialogue files
+                // 为本地化对话文件添加语言路径前缀
+                let localized_path = format!("shared/locales/{}/{}", locale.0, path);
                 info!(
                     "FRE: Starting dialogue '{}' node '{}' via action",
-                    path, node
+                    localized_path, node
                 );
                 mortar_event_writer.write(bevy_mortar_bond::MortarEvent::StartNode {
-                    path: path.clone(),
+                    path: localized_path,
                     node: node.clone(),
                 });
             } else {
@@ -703,17 +772,25 @@ pub fn interactable_detection_system(
 }
 
 /// System to handle player interaction when confirm is pressed.
-/// Emits FRE event `interact_{id}` when player confirms on a focused interactable.
+/// If the focused interactable has a DialogueConfig, starts dialogue directly.
+/// Otherwise, emits FRE event `interact_{id}` for rule-based handling.
 ///
 /// 当按下确认键时处理玩家交互的系统。
-/// 当玩家在聚焦的可交互物体上确认时，发出 FRE 事件 `interact_{id}`。
+/// 如果聚焦的可交互物体有 DialogueConfig，直接启动对话。
+/// 否则，发出 FRE 事件 `interact_{id}` 用于基于规则的处理。
 pub fn handle_interaction_input_system(
     registry: Res<ActionRegistry>,
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     focused: Res<FocusedInteractable>,
+    interactables: Query<&Interactable>,
     current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
+    locale: Res<crate::extra::mortar::CurrentLocale>,
     mut event_writer: MessageWriter<FactEvent>,
+    mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
+    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
+    mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut active_dialogue_state: ResMut<crate::core::dialogue::ActiveDialogueState>,
 ) {
     // Only handle interaction in Normal state (player_movable: true)
     let player_movable = state_config
@@ -735,19 +812,88 @@ pub fn handle_interaction_input_system(
         return;
     }
 
-    // Log that confirm was pressed
-    info!(
-        "FRE: Confirm pressed, focused interactable: {:?}",
-        focused.id
-    );
-
     // Check if there's a focused interactable
-    let Some(ref interactable_id) = focused.id else {
-        info!("FRE: No focused interactable, ignoring confirm");
+    let Some(entity) = focused.entity else {
         return;
     };
 
-    // Emit interaction event
+    let Some(ref interactable_id) = focused.id else {
+        return;
+    };
+
+    // Log that confirm was pressed
+    info!(
+        "FRE: Confirm pressed, focused interactable: {:?}",
+        interactable_id
+    );
+
+    // Get the interactable component to check for dialogue config
+    let Ok(interactable) = interactables.get(entity) else {
+        warn!("FRE: Focused entity {:?} has no Interactable component", entity);
+        return;
+    };
+
+    // If interactable has dialogue config, start dialogue directly
+    if let Some(ref config) = interactable.dialogue_config {
+        info!(
+            "FRE: Starting dialogue for '{}' (mortar={}, typewriter={})",
+            interactable_id, config.has_mortar, config.has_typewriter
+        );
+
+        // Set active dialogue state for dialogue systems to use
+        // 设置活动对话状态供对话系统使用
+        active_dialogue_state.has_typewriter = config.has_typewriter;
+        active_dialogue_state.has_mortar = config.has_mortar;
+        active_dialogue_state.simple_text = config.simple_text.clone();
+
+        // Set overworld state to Dialogue
+        next_ow_state.set(crate::app_state::overworld::OverworldSubState::new("Dialogue"));
+
+        // Spawn dialogue view
+        spawn_view_writer.write(crate::core::view::SpawnViewRequest {
+            path: config.dialogue_view.clone(),
+        });
+
+        // Start Mortar dialogue if configured
+        if config.has_mortar {
+            if let (Some(path), Some(node)) = (&config.dialogue_path, &config.dialogue_node) {
+                // Prepend locale path for localized dialogue files
+                let localized_path = format!("shared/locales/{}/{}", locale.0, path);
+                info!(
+                    "FRE: Starting Mortar dialogue '{}' node '{}'",
+                    localized_path, node
+                );
+                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::StartNode {
+                    path: localized_path,
+                    node: node.clone(),
+                });
+            } else {
+                warn!(
+                    "FRE: Interactable '{}' has_mortar=true but missing dialogue_path or dialogue_node",
+                    interactable_id
+                );
+            }
+        }
+
+        // For simple text (non-Mortar) dialogue, set the fact directly
+        if !config.has_mortar {
+            if let Some(ref text) = config.simple_text {
+                // Set dialogue_text fact directly for View binding
+                // This will be handled by sync_typewriter_text_to_facts_system
+                // or we could set it here directly if needed
+                info!(
+                    "FRE: Simple text dialogue for '{}': '{}'",
+                    interactable_id, text
+                );
+                // For now, emit an event that other systems can handle
+                event_writer.write(FactEvent::new(format!("simple_dialogue:{}", interactable_id)));
+            }
+        }
+
+        return;
+    }
+
+    // No dialogue config, emit interaction event for rule-based handling
     let event_id = format!("interact_{}", interactable_id);
     info!(
         "FRE: Player interacting with '{}', emitting '{}'",

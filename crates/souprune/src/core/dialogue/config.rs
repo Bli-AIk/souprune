@@ -29,8 +29,8 @@ pub struct DialogueInputConfig {
 impl Default for DialogueInputConfig {
     fn default() -> Self {
         Self {
-            advance_event: "dialogue:advance".to_string(),
-            skip_typewriter_event: "dialogue:skip_typewriter".to_string(),
+            advance_event: "dialogue_advance".to_string(),
+            skip_typewriter_event: "dialogue_skip_typewriter".to_string(),
         }
     }
 }
@@ -60,4 +60,31 @@ impl Default for DialogueBlockingConfig {
             require_all_finished: true,
         }
     }
+}
+
+/// Runtime state for the current active dialogue.
+///
+/// 当前活动对话的运行时状态。
+///
+/// This resource is set when a dialogue starts and cleared when it ends.
+/// It stores the component configuration for the current dialogue.
+///
+/// 此资源在对话启动时设置，结束时清除。
+/// 它存储当前对话的组件配置。
+#[derive(Resource, Debug, Clone, Default)]
+pub struct ActiveDialogueState {
+    /// Whether the current dialogue uses typewriter effect.
+    ///
+    /// 当前对话是否使用打字机效果。
+    pub has_typewriter: bool,
+
+    /// Whether the current dialogue uses Mortar controller.
+    ///
+    /// 当前对话是否使用 Mortar 控制器。
+    pub has_mortar: bool,
+
+    /// Simple text content for non-Mortar dialogue.
+    ///
+    /// 非 Mortar 对话的简单文本内容。
+    pub simple_text: Option<String>,
 }

@@ -1,7 +1,7 @@
-// 演示对话脚本 - demo_talk
-// Demo dialogue script
+// Demo dialogue - Chinese
+// 演示对话 - 中文
 
-node Start {
+node demo_talk {
     text: "你好，旅行者。"
     text: "这是一个演示对话。"
     text: "你可以按确认键继续阅读。"

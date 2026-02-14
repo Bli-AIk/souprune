@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="37" height="12" tilewidth="20" tileheight="20" infinite="0" nextlayerid="9" nextobjectid="18">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="37" height="12" tilewidth="20" tileheight="20" infinite="0" nextlayerid="9" nextobjectid="20">
  <properties>
   <property name="backpack_ui" value="overworld/view/undertale_backpack.view_layout.ron"/>
   <property name="bgm" value="ignore_music.wav"/>
@@ -125,11 +125,32 @@
   <object id="17" name="demo_talk" x="380" y="40" width="20" height="40">
    <properties>
     <property name="interactable" type="bool" value="true"/>
+    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
+    <property name="dialogue_node" value="demo_talk"/>
+    <property name="has_mortar" type="bool" value="true"/>
+    <property name="has_typewriter" type="bool" value="false"/>
    </properties>
   </object>
   <object id="18" name="demo_trigger" x="400" y="100" width="60" height="60">
    <properties>
     <property name="trigger" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="20" name="demo_talk_typewriter" x="360" y="40" width="20" height="40">
+   <properties>
+    <property name="interactable" type="bool" value="true"/>
+    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
+    <property name="dialogue_node" value="demo_talk"/>
+    <property name="has_mortar" type="bool" value="true"/>
+    <property name="has_typewriter" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="21" name="demo_simple_talk" x="400" y="40" width="20" height="40">
+   <properties>
+    <property name="interactable" type="bool" value="true"/>
+    <property name="simple_text" value="This is simple text without Mortar."/>
+    <property name="has_mortar" type="bool" value="false"/>
+    <property name="has_typewriter" type="bool" value="true"/>
    </properties>
   </object>
  </objectgroup>

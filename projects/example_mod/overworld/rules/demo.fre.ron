@@ -118,8 +118,8 @@
                     "path": "overworld/view/dialogue.view_layout.ron",
                 }),
                 Custom(action_type: "StartDialogue", params: {
-                    "path": "overworld/dialogue/demo_talk.mortar",
-                    "node": "Start",
+                    "path": "overworld/dialogue.mortar",
+                    "node": "demo_talk",
                 }),
             ],
             outputs: ["dialogue_started"],

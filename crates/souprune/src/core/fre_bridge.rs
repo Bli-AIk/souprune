@@ -53,10 +53,14 @@ pub fn action_to_fre_event_system(
 
     // Emit events for each action state change
     for action_name in registry.all_actions() {
+        // Normalize action name to lowercase for consistent FRE event matching
+        // 将动作名称规范化为小写，以实现一致的 FRE 事件匹配
+        let action_name_lower = action_name.to_lowercase();
+
         // JustPressed events
         if action_state.action_just_pressed(&registry, action_name) {
-            let event_id = format!("action:{}:just_pressed", action_name);
-            debug!(
+            let event_id = format!("action:{}:just_pressed", action_name_lower);
+            info!(
                 "FRE Bridge: {} just_pressed, emitting {}",
                 action_name, event_id
             );
@@ -70,7 +74,7 @@ pub fn action_to_fre_event_system(
 
         // JustReleased events
         if action_state.action_just_released(&registry, action_name) {
-            let event_id = format!("action:{}:just_released", action_name);
+            let event_id = format!("action:{}:just_released", action_name_lower);
             debug!(
                 "FRE Bridge: {} just_released, emitting {}",
                 action_name, event_id

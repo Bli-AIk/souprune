@@ -76,6 +76,53 @@ pub mod object_keys {
     ///
     /// 可交互物体类型。
     pub const INTERACTABLE: &str = "interactable";
+
+    // ========================================
+    // Dialogue Component Properties
+    // 对话组件属性
+    // ========================================
+
+    /// Path to Mortar dialogue file (relative to locales).
+    /// Example: "overworld/dialogue.mortar"
+    ///
+    /// Mortar 对话文件路径（相对于 locales）。
+    /// 示例："overworld/dialogue.mortar"
+    pub const DIALOGUE_PATH: &str = "dialogue_path";
+
+    /// Node name in the Mortar file to start dialogue.
+    /// Required when dialogue_path is set.
+    ///
+    /// 启动对话的 Mortar 文件中的节点名。
+    /// 当设置了 dialogue_path 时必须。
+    pub const DIALOGUE_NODE: &str = "dialogue_node";
+
+    /// Whether to use typewriter effect for this dialogue.
+    /// Default: true
+    ///
+    /// 是否为此对话使用打字机效果。
+    /// 默认：true
+    pub const HAS_TYPEWRITER: &str = "has_typewriter";
+
+    /// Whether to use Mortar controller (for dynamic dialogue).
+    /// Default: true
+    ///
+    /// 是否使用 Mortar 控制器（用于动态对话）。
+    /// 默认：true
+    pub const HAS_MORTAR: &str = "has_mortar";
+
+    /// Simple text content for non-Mortar dialogue.
+    /// Used when has_mortar is false.
+    ///
+    /// 非 Mortar 对话的简单文本内容。
+    /// 当 has_mortar 为 false 时使用。
+    pub const SIMPLE_TEXT: &str = "simple_text";
+
+    /// View layout file for dialogue UI.
+    /// Default: "overworld/view/dialogue.view_layout.ron"
+    ///
+    /// 对话 UI 的 View 布局文件。
+    /// 默认："overworld/view/dialogue.view_layout.ron"
+    pub const DIALOGUE_VIEW: &str = "dialogue_view";
 }
 
 /// Property definition for validation purposes.
@@ -138,6 +185,43 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         description: "Interactable object type",
         required: false,
         default: None,
+    },
+    // Dialogue properties
+    PropertyDef {
+        key: object_keys::DIALOGUE_PATH,
+        description: "Path to Mortar dialogue file (relative to locales)",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_NODE,
+        description: "Node name in the Mortar file to start dialogue",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::HAS_TYPEWRITER,
+        description: "Whether to use typewriter effect",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::HAS_MORTAR,
+        description: "Whether to use Mortar controller",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::SIMPLE_TEXT,
+        description: "Simple text content for non-Mortar dialogue",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_VIEW,
+        description: "View layout file for dialogue UI",
+        required: false,
+        default: Some("overworld/view/dialogue.view_layout.ron"),
     },
 ];
 

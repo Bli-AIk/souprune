@@ -10,9 +10,11 @@
 
 use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
-use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
+use crate::app_state::overworld::trigger::{DialogueConfig, Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
-use crate::core::map_property_schema::{get_object_bool_property, object_keys};
+use crate::core::map_property_schema::{
+    get_object_bool_property, get_string_property, object_keys,
+};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 
@@ -261,15 +263,52 @@ fn spawn_interactable(
     let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
     let size = Vec2::new(width, height);
 
+    // Read dialogue configuration from object properties
+    // 从对象属性读取对话配置
+    let dialogue_path =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_PATH).map(String::from);
+    let dialogue_node =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_NODE).map(String::from);
+    let has_typewriter =
+        get_object_bool_property(&object_data.properties, object_keys::HAS_TYPEWRITER)
+            .unwrap_or(true);
+    let has_mortar =
+        get_object_bool_property(&object_data.properties, object_keys::HAS_MORTAR).unwrap_or(true);
+    let simple_text =
+        get_string_property(&object_data.properties, object_keys::SIMPLE_TEXT).map(String::from);
+    let dialogue_view = get_string_property(&object_data.properties, object_keys::DIALOGUE_VIEW)
+        .map(String::from)
+        .unwrap_or_else(|| "overworld/view/dialogue.view_layout.ron".to_string());
+
+    // Build dialogue config if any dialogue property is set
+    // 如果设置了任何对话属性，则构建对话配置
+    let dialogue_config = if dialogue_path.is_some() || simple_text.is_some() {
+        Some(DialogueConfig {
+            dialogue_path,
+            dialogue_node,
+            has_typewriter,
+            has_mortar,
+            simple_text,
+            dialogue_view,
+        })
+    } else {
+        None
+    };
+
     info!(
-        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {})",
-        interactable_id, world_x, world_y, width, height
+        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {:?}",
+        interactable_id, world_x, world_y, width, height, dialogue_config.is_some()
     );
+
+    let mut interactable = Interactable::new(&interactable_id);
+    if let Some(config) = dialogue_config {
+        interactable = interactable.with_dialogue(config);
+    }
 
     commands.spawn((
         OverworldEntity(),
         TiledInteractable,
-        Interactable::new(&interactable_id),
+        interactable,
         Rect2DCollider::new(size, Vec2::ZERO),
         Transform::from_xyz(world_x, world_y, 0.0),
         Visibility::Hidden,

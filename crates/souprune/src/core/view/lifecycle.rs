@@ -10,6 +10,34 @@
 //!
 //! 本模块处理 UI 实体的生成和生命周期。
 
+// TODO: Refactor View spawning mechanism / 重构 View 生成机制
+//
+// Currently there are two ways to spawn Views:
+// 1. **State-driven**: `backpack_state_transition_system` uses `ui_interactive` flag
+//    from `states.ron` to automatically spawn/despawn Views when state changes
+// 2. **FRE action-driven**: `SpawnViewRequest` allows FRE rules to spawn Views dynamically
+//
+// This causes confusion about which method to use:
+// - Backpack uses method 1 (state-driven)
+// - Dialogue uses method 2 (FRE action-driven)
+//
+// A unified approach should be considered:
+// - Either extend state config to support all View spawn scenarios
+// - Or remove state-driven spawning and use FRE actions consistently
+//
+// 目前有两种生成 View 的方式：
+// 1. **状态驱动**：`backpack_state_transition_system` 使用 `states.ron` 中的
+//    `ui_interactive` 标志在状态变化时自动生成/销毁 View
+// 2. **FRE action 驱动**：`SpawnViewRequest` 允许 FRE 规则动态生成 View
+//
+// 这导致使用哪种方法的困惑：
+// - 背包使用方式 1（状态驱动）
+// - 对话使用方式 2（FRE action 驱动）
+//
+// 应考虑统一的方法：
+// - 扩展状态配置以支持所有 View 生成场景
+// - 或移除状态驱动生成，统一使用 FRE action
+
 use super::layout::ViewLayoutAsset;
 use super::ron_view::ViewLayoutHandle;
 use crate::app_state::overworld::{OverworldEntity, OverworldSubState};

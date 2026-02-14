@@ -24,9 +24,10 @@ mod systems;
 mod typewriter_bridge;
 
 pub use components::{DialogueFocus, MortarController};
-pub use config::{DialogueBlockingConfig, DialogueInputConfig};
+pub use config::{ActiveDialogueState, DialogueBlockingConfig, DialogueInputConfig};
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
 /// Plugin that integrates dialogue systems with Mortar, Typewriter, and FRE.
 ///
@@ -37,18 +38,39 @@ impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<DialogueBlockingConfig>()
+            .init_resource::<ActiveDialogueState>()
             .register_type::<MortarController>()
             .register_type::<DialogueFocus>()
+            .add_systems(Startup, init_dialogue_facts)
             .add_systems(
                 Update,
                 (
+                    // Lifecycle systems
+                    systems::spawn_dialogue_controller_system,
+                    systems::despawn_dialogue_controller_system,
+                    // Sync systems
+                    systems::sync_mortar_text_to_typewriter_system,
+                    systems::sync_typewriter_text_to_facts_system,
                     systems::sync_typewriter_state_to_facts_system,
-                    systems::sync_mortar_text_to_facts_system,
+                    // Input handling systems
                     systems::dialogue_advance_system,
                     systems::dialogue_skip_typewriter_system,
+                    // Mortar event bridge
                     typewriter_bridge::handle_typewriter_mortar_events,
                 )
                     .chain(),
             );
     }
+}
+
+/// Initialize dialogue-related facts in LayeredFactDatabase.
+///
+/// 在 LayeredFactDatabase 中初始化对话相关的 facts。
+fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
+    // Set default value for typewriter state fact
+    // This ensures the FRE condition can evaluate even before any typewriter exists
+    // 设置打字机状态 fact 的默认值
+    // 这确保即使没有打字机存在，FRE 条件也能正确评估
+    facts.set("dialogue_typewriter_playing", FactValue::Bool(false));
+    info!("DialoguePlugin: Initialized dialogue_typewriter_playing = false");
 }

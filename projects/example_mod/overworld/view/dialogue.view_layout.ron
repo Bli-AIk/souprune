@@ -36,7 +36,7 @@
             texts: [
                 (
                     id: "DialogueText",
-                    content: "$dialogue_text",
+                    content: "{{dialogue_text}}",
                     font: DeterminationSans,
                     world_scale: (13.25, 13.25),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -44,8 +44,8 @@
                         translation: (-120.0, 24.0, 1.0),
                     ),
                     line_height: 1.375,
-                    // Typewriter effect will be applied via MortarController + Typewriter components
-                    // 打字机效果将通过 MortarController + Typewriter 组件应用
+                    // Text content is resolved from 'dialogue_text' fact
+                    // 文本内容从 'dialogue_text' fact 解析
                 ),
             ],
         ),

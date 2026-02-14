@@ -810,8 +810,24 @@ pub fn resolve_text_content(
                     // Remove quotes from string values (format_fact_for_expr adds them for expressions)
                     // 移除字符串值的引号（format_fact_for_expr 为表达式添加的）
                     let processed_key = processed_key.replace('"', "");
-                    let resolved = mortar_strings.resolve(&processed_key);
-                    result.push_str(resolved);
+
+                    // First try to resolve from facts (for dynamic values like dialogue_text)
+                    // 首先尝试从 facts 解析（用于动态值如 dialogue_text）
+                    let resolved = if let Some(fact_value) = player_data.get_fact(&processed_key) {
+                        // Convert fact value to string
+                        match fact_value {
+                            bevy_fact_rule_event::FactValue::String(s) => s.to_string(),
+                            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+                            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+                            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+                            _ => mortar_strings.resolve(&processed_key).to_string(),
+                        }
+                    } else {
+                        // Fallback to mortar string table for localization
+                        // 回退到 mortar 字符串表用于本地化
+                        mortar_strings.resolve(&processed_key).to_string()
+                    };
+                    result.push_str(&resolved);
                 } else {
                     result.push_str("{{");
                     result.push_str(&key);
