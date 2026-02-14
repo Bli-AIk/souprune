@@ -29,6 +29,23 @@
     },
 
     rules: [
+        // Dialogue started handler: Set Overworld state to Dialogue
+        // 对话启动处理：设置 Overworld 状态为 Dialogue
+        // This rule responds to dialogue:started event emitted by handle_pending_dialogue_start_system
+        // 此规则响应 handle_pending_dialogue_start_system 发出的 dialogue:started 事件
+        (
+            id: "overworld_dialogue_started",
+            event: Event("dialogue:started"),
+            condition: Always,
+            actions: [
+                Log(message: "Dialogue started, setting Overworld state"),
+                Custom(action_type: "SetOverworldState", params: {
+                    "state": "Dialogue",
+                }),
+            ],
+            priority: 100,
+        ),
+
         // Rule 1: Increment counter on every trigger entry
         // 规则 1：每次进入触发器时增加计数器
         (

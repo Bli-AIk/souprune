@@ -63,6 +63,12 @@ impl TriggerZone {
 ///
 /// 可交互物体的标记组件。
 /// 当玩家面向这些物体并按下确认键时，可以与它们交互。
+///
+/// Dialogue configuration is now handled via FRE rules generated at Tiled map load time.
+/// See `object_properties.rs` for rule generation logic.
+///
+/// 对话配置现在通过在 Tiled 地图加载时生成的 FRE 规则处理。
+/// 规则生成逻辑见 `object_properties.rs`。
 #[derive(Component, Debug)]
 pub struct Interactable {
     /// Unique identifier for this interactable.
@@ -74,53 +80,6 @@ pub struct Interactable {
     ///
     /// 与玩家的最大交互距离。
     pub max_distance: f32,
-
-    /// Dialogue configuration for this interactable.
-    /// If Some, the interactable will start dialogue when activated.
-    ///
-    /// 此可交互物体的对话配置。
-    /// 如果为 Some，则激活时会启动对话。
-    pub dialogue_config: Option<DialogueConfig>,
-}
-
-/// Configuration for dialogue triggered by interactable.
-///
-/// 可交互物体触发的对话配置。
-#[derive(Debug, Clone, Default)]
-pub struct DialogueConfig {
-    /// Path to Mortar dialogue file (relative to locales).
-    /// Used when has_mortar is true.
-    ///
-    /// Mortar 对话文件路径（相对于 locales）。
-    /// 当 has_mortar 为 true 时使用。
-    pub dialogue_path: Option<String>,
-
-    /// Node name in the Mortar file to start dialogue.
-    ///
-    /// 启动对话的 Mortar 文件中的节点名。
-    pub dialogue_node: Option<String>,
-
-    /// Whether to use typewriter effect.
-    ///
-    /// 是否使用打字机效果。
-    pub has_typewriter: bool,
-
-    /// Whether to use Mortar controller (for dynamic dialogue).
-    ///
-    /// 是否使用 Mortar 控制器（用于动态对话）。
-    pub has_mortar: bool,
-
-    /// Simple text content for non-Mortar dialogue.
-    /// Used when has_mortar is false.
-    ///
-    /// 非 Mortar 对话的简单文本内容。
-    /// 当 has_mortar 为 false 时使用。
-    pub simple_text: Option<String>,
-
-    /// View layout file for dialogue UI.
-    ///
-    /// 对话 UI 的 View 布局文件。
-    pub dialogue_view: String,
 }
 
 impl Default for Interactable {
@@ -128,7 +87,6 @@ impl Default for Interactable {
         Self {
             id: String::new(),
             max_distance: 20.0,
-            dialogue_config: None,
         }
     }
 }
@@ -138,17 +96,11 @@ impl Interactable {
         Self {
             id: id.into(),
             max_distance: 20.0,
-            dialogue_config: None,
         }
     }
 
     pub fn with_distance(mut self, distance: f32) -> Self {
         self.max_distance = distance;
-        self
-    }
-
-    pub fn with_dialogue(mut self, config: DialogueConfig) -> Self {
-        self.dialogue_config = Some(config);
         self
     }
 }
@@ -612,10 +564,10 @@ fn handle_chase_action(
                     "FRE: Starting dialogue '{}' node '{}' via action",
                     localized_path, node
                 );
-                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::StartNode {
-                    path: localized_path,
-                    node: node.clone(),
-                });
+                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::start_node(
+                    localized_path,
+                    node.clone(),
+                ));
             } else {
                 warn!("FRE: StartDialogue action missing 'path' or 'node' param");
             }
@@ -782,12 +734,12 @@ pub fn interactable_detection_system(
 }
 
 /// System to handle player interaction when confirm is pressed.
-/// If the focused interactable has a DialogueConfig, starts dialogue directly.
-/// Otherwise, emits FRE event `interact_{id}` for rule-based handling.
+/// Emits FRE event `interact_{id}` for rule-based handling.
+/// Dialogue configuration is handled by FRE rules generated from Tiled map properties.
 ///
 /// 当按下确认键时处理玩家交互的系统。
-/// 如果聚焦的可交互物体有 DialogueConfig，直接启动对话。
-/// 否则，发出 FRE 事件 `interact_{id}` 用于基于规则的处理。
+/// 发出 FRE 事件 `interact_{id}` 用于基于规则的处理。
+/// 对话配置由从 Tiled 地图属性生成的 FRE 规则处理。
 pub fn handle_interaction_input_system(
     registry: Res<ActionRegistry>,
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
@@ -795,13 +747,7 @@ pub fn handle_interaction_input_system(
     interactables: Query<&Interactable>,
     current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    locale: Res<crate::extra::mortar::CurrentLocale>,
-    mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     mut event_writer: MessageWriter<FactEvent>,
-    mut mortar_event_writer: MessageWriter<bevy_mortar_bond::MortarEvent>,
-    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
-    mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
-    mut active_dialogue_state: ResMut<crate::core::dialogue::ActiveDialogueState>,
 ) {
     // Only handle interaction in Normal state (player_movable: true)
     let player_movable = state_config
@@ -832,96 +778,17 @@ pub fn handle_interaction_input_system(
         return;
     };
 
-    // Log that confirm was pressed
-    info!(
-        "FRE: Confirm pressed, focused interactable: {:?}",
-        interactable_id
-    );
-
-    // Get the interactable component to check for dialogue config
-    let Ok(interactable) = interactables.get(entity) else {
+    // Verify the entity still has Interactable component
+    if interactables.get(entity).is_err() {
         warn!(
             "FRE: Focused entity {:?} has no Interactable component",
             entity
         );
         return;
-    };
-
-    // If interactable has dialogue config, start dialogue directly
-    if let Some(ref config) = interactable.dialogue_config {
-        info!(
-            "FRE: Starting dialogue for '{}' (mortar={}, typewriter={})",
-            interactable_id, config.has_mortar, config.has_typewriter
-        );
-
-        // Set active dialogue state for dialogue systems to use
-        // 设置活动对话状态供对话系统使用
-        active_dialogue_state.has_typewriter = config.has_typewriter;
-        active_dialogue_state.has_mortar = config.has_mortar;
-        active_dialogue_state.simple_text = config.simple_text.clone();
-
-        // Clear dialogue_text fact to prevent flicker when using typewriter
-        // 清空 dialogue_text fact 以防止使用打字机时闪烁
-        if config.has_typewriter {
-            facts.set(
-                "dialogue_text",
-                bevy_fact_rule_event::FactValue::String(String::new()),
-            );
-        }
-
-        // Set overworld state to Dialogue
-        next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
-            "Dialogue",
-        ));
-
-        // Spawn dialogue view
-        spawn_view_writer.write(crate::core::view::SpawnViewRequest {
-            path: config.dialogue_view.clone(),
-        });
-
-        // Start Mortar dialogue if configured
-        if config.has_mortar {
-            if let (Some(path), Some(node)) = (&config.dialogue_path, &config.dialogue_node) {
-                // Prepend locale path for localized dialogue files
-                let localized_path = format!("shared/locales/{}/{}", locale.0, path);
-                info!(
-                    "FRE: Starting Mortar dialogue '{}' node '{}'",
-                    localized_path, node
-                );
-                mortar_event_writer.write(bevy_mortar_bond::MortarEvent::StartNode {
-                    path: localized_path,
-                    node: node.clone(),
-                });
-            } else {
-                warn!(
-                    "FRE: Interactable '{}' has_mortar=true but missing dialogue_path or dialogue_node",
-                    interactable_id
-                );
-            }
-        }
-
-        // For simple text (non-Mortar) dialogue, set the fact directly
-        if !config.has_mortar
-            && let Some(ref text) = config.simple_text
-        {
-            // Set dialogue_text fact directly for View binding
-            // This will be handled by sync_typewriter_text_to_facts_system
-            // or we could set it here directly if needed
-            info!(
-                "FRE: Simple text dialogue for '{}': '{}'",
-                interactable_id, text
-            );
-            // For now, emit an event that other systems can handle
-            event_writer.write(FactEvent::new(format!(
-                "simple_dialogue:{}",
-                interactable_id
-            )));
-        }
-
-        return;
     }
 
-    // No dialogue config, emit interaction event for rule-based handling
+    // Emit interaction event for FRE rule-based handling
+    // FRE rules handle dialogue configuration (view spawn, Mortar start, etc.)
     let event_id = format!("interact_{}", interactable_id);
     info!(
         "FRE: Player interacting with '{}', emitting '{}'",

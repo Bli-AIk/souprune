@@ -10,13 +10,14 @@
 
 use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
-use crate::app_state::overworld::trigger::{DialogueConfig, Interactable, TriggerZone};
+use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
 use crate::core::map_property_schema::{
     get_object_bool_property, get_string_property, object_keys,
 };
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_fact_rule_event::{FactModification, FactValue, LayeredRuleRegistry, Rule, RuleScope};
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
@@ -45,6 +46,7 @@ pub fn process_map_object_properties_system(
     tiled_maps_query: Query<&TiledMap>,
     existing_triggers: Query<&TiledTriggerZone>,
     existing_interactables: Query<&TiledInteractable>,
+    mut rule_registry: ResMut<LayeredRuleRegistry>,
     mut processed: Local<bool>,
 ) {
     // Only process once
@@ -147,6 +149,7 @@ pub fn process_map_object_properties_system(
                         center_offset_x,
                         center_offset_y,
                         map_height,
+                        &mut rule_registry,
                     );
                 }
             }
@@ -236,12 +239,17 @@ fn spawn_trigger_zone(
 }
 
 /// Spawn an interactable entity from a Tiled object.
+/// If dialogue properties are set, also registers an FRE rule for handling interaction.
+///
+/// 从 Tiled 对象生成可交互实体。
+/// 如果设置了对话属性，也注册 FRE 规则处理交互。
 fn spawn_interactable(
     commands: &mut Commands,
     object_data: &tiled::ObjectData,
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
+    rule_registry: &mut LayeredRuleRegistry,
 ) {
     let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
         trace!(
@@ -280,35 +288,88 @@ fn spawn_interactable(
         .map(String::from)
         .unwrap_or_else(|| "overworld/view/dialogue.view_layout.ron".to_string());
 
-    // Build dialogue config if any dialogue property is set
-    // 如果设置了任何对话属性，则构建对话配置
-    let dialogue_config = if dialogue_path.is_some() || simple_text.is_some() {
-        Some(DialogueConfig {
-            dialogue_path,
-            dialogue_node,
-            has_typewriter,
-            has_mortar,
-            simple_text,
-            dialogue_view,
-        })
-    } else {
-        None
-    };
+    // Check if dialogue is configured
+    let has_dialogue = dialogue_path.is_some() || simple_text.is_some();
 
     info!(
-        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {:?}",
+        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {}",
         interactable_id,
         world_x,
         world_y,
         width,
         height,
-        dialogue_config.is_some()
+        has_dialogue
     );
 
-    let mut interactable = Interactable::new(&interactable_id);
-    if let Some(config) = dialogue_config {
-        interactable = interactable.with_dialogue(config);
+    // If dialogue is configured, create FRE rule for handling interaction
+    // 如果配置了对话，创建 FRE 规则处理交互
+    if has_dialogue {
+        let trigger_event = format!("interact_{}", interactable_id);
+        let rule_id = format!("dialogue_interact_{}", interactable_id);
+
+        // Build modifications for the rule
+        // 为规则构建 modifications
+        let mut modifications = vec![
+            // Set typewriter flag
+            FactModification::Set(
+                "dialogue:has_typewriter".to_string(),
+                FactValue::Bool(has_typewriter),
+            ),
+            // Set view path
+            FactModification::Set(
+                "dialogue:pending_view".to_string(),
+                FactValue::String(dialogue_view),
+            ),
+        ];
+
+        // Add Mortar path and node if using Mortar
+        if has_mortar {
+            if let Some(path) = dialogue_path {
+                modifications.push(FactModification::Set(
+                    "dialogue:pending_mortar_path".to_string(),
+                    FactValue::String(path),
+                ));
+            }
+            if let Some(node) = dialogue_node {
+                modifications.push(FactModification::Set(
+                    "dialogue:pending_mortar_node".to_string(),
+                    FactValue::String(node),
+                ));
+            }
+        }
+
+        // Add simple text if not using Mortar
+        if !has_mortar {
+            modifications.push(FactModification::Set(
+                "dialogue:simple_text_active".to_string(),
+                FactValue::Bool(true),
+            ));
+            if let Some(text) = simple_text {
+                modifications.push(FactModification::Set(
+                    "dialogue:simple_text".to_string(),
+                    FactValue::String(text),
+                ));
+            }
+        }
+
+        // Build and register the rule (Local scope - cleared when leaving Overworld)
+        // 构建并注册规则（Local 作用域 - 离开 Overworld 时清除）
+        let mut rule_builder = Rule::builder(&rule_id, trigger_event.clone())
+            .scope(RuleScope::Local);
+        for modification in modifications {
+            rule_builder = rule_builder.modify(modification);
+        }
+        let rule = rule_builder.build();
+
+        rule_registry.register(rule);
+        info!(
+            "FRE: Registered dialogue rule '{}' for trigger '{}'",
+            rule_id, trigger_event
+        );
     }
+
+    // Spawn interactable entity (without dialogue_config)
+    let interactable = Interactable::new(&interactable_id);
 
     commands.spawn((
         OverworldEntity(),

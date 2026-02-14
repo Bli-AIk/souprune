@@ -46,16 +46,12 @@ impl MortarController {
     }
 }
 
-/// Dialogue focus marker - indicates this entity responds to input.
-///
-/// 对话焦点标记 - 表示该实体响应输入。
-///
-/// Multiple entities can have [`DialogueFocus`] simultaneously
-/// (e.g., split-screen dialogue). Use [`DialogueBlockingConfig`]
-/// to control whether all focused typewriters must finish before advancing.
-///
-/// 多个实体可以同时拥有 [`DialogueFocus`]（例如分屏对话）。
-/// 使用 [`DialogueBlockingConfig`] 控制是否所有焦点打字机完成后才能步进。
-#[derive(Component, Debug, Clone, Copy, Default, Reflect)]
-#[reflect(Component)]
-pub struct DialogueFocus;
+// Note: DialogueFocus has been removed.
+// Focus control is now handled via FRE fact `dialogue:has_focus` (Bool).
+// When `dialogue:has_focus` is true, all typewriters on DialogueControllerEntity
+// will respond to input.
+//
+// 注意：DialogueFocus 已被移除。
+// 焦点控制现在通过 FRE fact `dialogue:has_focus` (Bool) 处理。
+// 当 `dialogue:has_focus` 为 true 时，DialogueControllerEntity 上的所有打字机
+// 将响应输入。

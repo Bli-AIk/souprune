@@ -39,11 +39,17 @@ impl Default for DialogueInputConfig {
 ///
 /// 多焦点场景下的对话阻塞行为配置。
 ///
-/// When multiple entities have [`DialogueFocus`], this controls
-/// whether all typewriters must finish before advancing.
+/// **DEPRECATED**: This resource is deprecated. Use FRE fact `dialogue:focus_mode` instead.
+/// - `"all_finished"` - all typewriters must finish before advancing
+/// - `"first_finished"` - any typewriter finished allows advancement
 ///
-/// 当多个实体拥有 [`DialogueFocus`] 时，此配置控制是否所有打字机
-/// 都必须完成后才能步进。
+/// **已弃用**：此资源已弃用。请改用 FRE fact `dialogue:focus_mode`。
+/// - `"all_finished"` - 所有打字机必须完成才能步进
+/// - `"first_finished"` - 任一打字机完成即可步进
+#[deprecated(
+    since = "0.5.2",
+    note = "Use FRE fact 'dialogue:focus_mode' instead"
+)]
 #[derive(Resource, Debug, Clone)]
 pub struct DialogueBlockingConfig {
     /// If true, all focused typewriters must finish before dialogue can advance.
@@ -54,6 +60,7 @@ pub struct DialogueBlockingConfig {
     pub require_all_finished: bool,
 }
 
+#[allow(deprecated)]
 impl Default for DialogueBlockingConfig {
     fn default() -> Self {
         Self {
@@ -62,29 +69,14 @@ impl Default for DialogueBlockingConfig {
     }
 }
 
-/// Runtime state for the current active dialogue.
-///
-/// 当前活动对话的运行时状态。
-///
-/// This resource is set when a dialogue starts and cleared when it ends.
-/// It stores the component configuration for the current dialogue.
-///
-/// 此资源在对话启动时设置，结束时清除。
-/// 它存储当前对话的组件配置。
-#[derive(Resource, Debug, Clone, Default)]
-pub struct ActiveDialogueState {
-    /// Whether the current dialogue uses typewriter effect.
-    ///
-    /// 当前对话是否使用打字机效果。
-    pub has_typewriter: bool,
-
-    /// Whether the current dialogue uses Mortar controller.
-    ///
-    /// 当前对话是否使用 Mortar 控制器。
-    pub has_mortar: bool,
-
-    /// Simple text content for non-Mortar dialogue.
-    ///
-    /// 非 Mortar 对话的简单文本内容。
-    pub simple_text: Option<String>,
-}
+// Note: ActiveDialogueState has been removed.
+// Dialogue state is now managed via FRE facts:
+// - dialogue:simple_text_active (Bool) - whether simple text dialogue is active
+// - dialogue:simple_text (String) - the simple text content
+// - dialogue:has_typewriter (Bool) - whether typewriter is enabled
+//
+// 注意：ActiveDialogueState 已被移除。
+// 对话状态现在通过 FRE facts 管理：
+// - dialogue:simple_text_active (Bool) - 简单文本对话是否激活
+// - dialogue:simple_text (String) - 简单文本内容
+// - dialogue:has_typewriter (Bool) - 是否启用打字机
