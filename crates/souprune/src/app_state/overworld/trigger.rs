@@ -11,7 +11,7 @@
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::core::basic_components::Facing;
+use crate::core::basic_components::{Direction, Facing};
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
@@ -716,7 +716,17 @@ pub fn interactable_detection_system(
     }
 
     let player_pos = player_transform.translation.truncate() + player_collider.offset;
-    let facing_dir = facing.value.as_vec2();
+
+    // Normalize facing direction to 4 cardinal directions only
+    // Player sprite only has 4 directions, so we should only cast rays in cardinal directions
+    // 将朝向规范化为仅 4 个主方向
+    // 玩家 sprite 只有 4 个方向，因此我们只应该在主方向发射射线
+    let facing_dir = match facing.value {
+        Direction::Up | Direction::UpLeft | Direction::UpRight => Vec2::Y,
+        Direction::Down | Direction::DownLeft | Direction::DownRight => -Vec2::Y,
+        Direction::Left => -Vec2::X,
+        Direction::Right => Vec2::X,
+    };
 
     // Find the closest interactable that the ray intersects
     let mut best_match: Option<(Entity, String, f32)> = None;

@@ -293,6 +293,8 @@ pub mod debug_collider {
         interactable_query: Query<&Interactable>,
         focused: Res<FocusedInteractable>,
     ) {
+        use crate::core::basic_components::Direction;
+
         let Ok((player_transform, facing, player_collider)) = player_query.single() else {
             return;
         };
@@ -305,7 +307,16 @@ pub mod debug_collider {
             .unwrap_or(DEFAULT_RAY_LENGTH);
 
         let player_pos = player_transform.translation().truncate() + player_collider.offset;
-        let facing_dir = facing.value.as_vec2();
+
+        // Normalize facing direction to 4 cardinal directions only (same as interactable_detection_system)
+        // 将朝向规范化为仅 4 个主方向（与 interactable_detection_system 保持一致）
+        let facing_dir = match facing.value {
+            Direction::Up | Direction::UpLeft | Direction::UpRight => Vec2::Y,
+            Direction::Down | Direction::DownLeft | Direction::DownRight => -Vec2::Y,
+            Direction::Left => -Vec2::X,
+            Direction::Right => Vec2::X,
+        };
+
         let ray_end = player_pos + facing_dir * ray_length;
 
         // Draw ray - gold if focused on something, yellow otherwise
