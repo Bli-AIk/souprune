@@ -72,6 +72,11 @@ pub mod object_keys {
     /// 触发区域类型。
     pub const TRIGGER: &str = "trigger";
 
+    /// Trigger zone ID (for identifying which trigger was activated).
+    ///
+    /// 触发区域 ID（用于识别哪个触发器被激活）。
+    pub const TRIGGER_ID: &str = "trigger_id";
+
     /// Interactable object type.
     ///
     /// 可交互物体类型。
