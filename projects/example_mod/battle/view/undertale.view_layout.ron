@@ -23,6 +23,10 @@
         // 对话规则（遭遇开场、ACT 旁白）
         File("battle/rules/dialogue_test.fre.ron"),
 
+        // Shared dialogue input rules (cancel to skip typewriter, confirm to advance)
+        // 共享对话输入规则（取消键跳过打字机，确认键步进对话）
+        File("shared/dialogue.fre.ron"),
+
         // Enemies interface - bound by SpawnView's bindings
         // 敌人接口 - 由 SpawnView 的 bindings 绑定
         Interface(

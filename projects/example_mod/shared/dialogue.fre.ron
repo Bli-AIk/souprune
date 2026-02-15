@@ -32,20 +32,30 @@
     rules: [
         // Rule 1: Advance dialogue when confirm is pressed and typewriter is finished
         // 规则 1：当按下确认键且打字机已完成时步进对话
+        // Only when dialogue has focus to avoid conflict with menu navigation
+        // 仅当对话有焦点时，避免与菜单导航冲突
         (
             id: "dialogue_advance_on_confirm",
             event: Event("action:confirm:just_pressed"),
-            condition: Equals(key: "dialogue:typewriter_playing", value: Bool(false)),
+            conditions: [
+                "$dialogue:has_focus == true",
+                "$dialogue:typewriter_playing == false",
+            ],
             outputs: ["dialogue_advance"],
             priority: 10,
         ),
 
         // Rule 2: Skip typewriter when cancel is pressed and typewriter is playing
         // 规则 2：当按下取消键且打字机正在播放时跳过打字机
+        // Only when dialogue has focus to avoid conflict with menu navigation
+        // 仅当对话有焦点时，避免与菜单导航冲突
         (
             id: "dialogue_skip_on_cancel",
             event: Event("action:cancel:just_pressed"),
-            condition: Equals(key: "dialogue:typewriter_playing", value: Bool(true)),
+            conditions: [
+                "$dialogue:has_focus == true",
+                "$dialogue:typewriter_playing == true",
+            ],
             outputs: ["dialogue_skip_typewriter"],
             priority: 10,
         ),

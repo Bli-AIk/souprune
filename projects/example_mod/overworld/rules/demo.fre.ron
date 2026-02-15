@@ -69,7 +69,7 @@
             actions: [
                 Log(message: "Dialogue ended, resetting Overworld state"),
                 Custom(action_type: "SetOverworldState", params: {
-                    "state": "Default",
+                    "state": "Normal",  // Match states.ron state name
                 }),
                 Custom(action_type: "DespawnView", params: {}),
             ],
