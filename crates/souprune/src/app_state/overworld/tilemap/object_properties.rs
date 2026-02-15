@@ -287,6 +287,8 @@ fn spawn_interactable(
     let dialogue_view = get_string_property(&object_data.properties, object_keys::DIALOGUE_VIEW)
         .map(String::from)
         .unwrap_or_else(|| "overworld/view/dialogue.view_layout.ron".to_string());
+    let dialogue_voice =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_VOICE).map(String::from);
 
     // Check if dialogue is configured
     let has_dialogue = dialogue_path.is_some() || simple_text.is_some();
@@ -319,6 +321,15 @@ fn spawn_interactable(
             // 设置焦点标志（交互对话默认为 true）
             FactModification::Set("dialogue:has_focus".to_string(), FactValue::Bool(true)),
         ];
+
+        // Add voice sound effect if configured
+        // 添加音效（如果配置了）
+        if let Some(voice) = dialogue_voice {
+            modifications.push(FactModification::Set(
+                "dialogue:voice".to_string(),
+                FactValue::String(voice),
+            ));
+        }
 
         // Add Mortar path and node if using Mortar
         if has_mortar {

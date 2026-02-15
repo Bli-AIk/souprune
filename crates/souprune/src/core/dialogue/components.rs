@@ -46,6 +46,40 @@ impl MortarController {
     }
 }
 
+/// Component for typewriter voice/sound effect.
+///
+/// 打字机音效组件。
+///
+/// When attached to an entity with Typewriter, plays a sound effect
+/// each time a character is displayed.
+///
+/// 当附加到带有 Typewriter 的实体时，每次显示字符时播放音效。
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
+pub struct TypewriterVoice {
+    /// Path to the voice audio file (relative to assets).
+    ///
+    /// 音效文件路径（相对于 assets）。
+    pub sound_path: String,
+
+    /// Last observed char index for change detection.
+    ///
+    /// 上次观察的字符索引，用于变化检测。
+    pub last_char_index: usize,
+}
+
+impl TypewriterVoice {
+    /// Creates a new TypewriterVoice with the given sound path.
+    ///
+    /// 用给定的音效路径创建新的 TypewriterVoice。
+    pub fn new(sound_path: impl Into<String>) -> Self {
+        Self {
+            sound_path: sound_path.into(),
+            last_char_index: 0,
+        }
+    }
+}
+
 // Note: DialogueFocus has been removed.
 // Focus control is now handled via FRE fact `dialogue:has_focus` (Bool).
 // When `dialogue:has_focus` is true, all typewriters on DialogueControllerEntity

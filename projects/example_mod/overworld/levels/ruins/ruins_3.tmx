@@ -141,6 +141,7 @@
     <property name="interactable" type="bool" value="true"/>
     <property name="dialogue_path" value="overworld/dialogue.mortar"/>
     <property name="dialogue_node" value="demo_talk"/>
+    <property name="dialogue_voice" value="audio/voice/voice_flowey_1.wav"/>
     <property name="has_mortar" type="bool" value="true"/>
     <property name="has_typewriter" type="bool" value="true"/>
    </properties>
@@ -149,6 +150,7 @@
    <properties>
     <property name="interactable" type="bool" value="true"/>
     <property name="simple_text" value="This is simple text without Mortar."/>
+    <property name="dialogue_voice" value="audio/voice/voice_monster.wav"/>
     <property name="has_mortar" type="bool" value="false"/>
     <property name="has_typewriter" type="bool" value="true"/>
    </properties>

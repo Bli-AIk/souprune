@@ -61,6 +61,9 @@
                 // 对话行为
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
                 Set(key: "dialogue:has_focus", value: Bool(false)),  // No focus, menu stays interactive
+                // Voice sound effect for typewriter
+                // 打字机音效
+                Set(key: "dialogue:voice", value: String("audio/voice/voice_typewriter_default.wav")),
                 Set(key: "battle:intro_shown", value: Bool(true)),
             ],
             actions: [

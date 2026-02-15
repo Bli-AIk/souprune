@@ -26,6 +26,7 @@ mod systems;
 mod typewriter_bridge;
 
 pub use components::MortarController;
+pub use components::TypewriterVoice;
 #[allow(deprecated)]
 pub use config::DialogueBlockingConfig;
 pub use config::DialogueInputConfig;
@@ -48,6 +49,7 @@ impl Plugin for DialoguePlugin {
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<DialogueBlockingConfig>()
             .register_type::<MortarController>()
+            .register_type::<TypewriterVoice>()
             .add_systems(Startup, init_dialogue_facts)
             .add_systems(
                 Update,
@@ -63,6 +65,8 @@ impl Plugin for DialoguePlugin {
                     systems::sync_mortar_text_to_typewriter_system,
                     systems::sync_typewriter_text_to_facts_system,
                     systems::sync_typewriter_state_to_facts_system,
+                    // Voice system - plays sound on char advance
+                    systems::typewriter_voice_system,
                     // Resume handling
                     systems::replay_typewriter_on_depth_resume_system,
                     // Input handling systems

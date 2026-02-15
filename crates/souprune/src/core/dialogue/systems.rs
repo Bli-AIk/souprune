@@ -7,7 +7,7 @@ use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
 
-use super::components::MortarController;
+use super::components::{MortarController, TypewriterVoice};
 use super::config::DialogueInputConfig;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
@@ -508,6 +508,18 @@ pub fn spawn_dialogue_controller_system(
                 );
             }
             entity_commands.insert(typewriter);
+
+            // Add TypewriterVoice if dialogue:voice fact is set
+            // 如果设置了 dialogue:voice fact，添加 TypewriterVoice
+            if let Some(voice_path) = facts.bypass_change_detection().get_string("dialogue:voice") {
+                if !voice_path.is_empty() {
+                    info!(
+                        "spawn_dialogue_controller_system: adding TypewriterVoice with path: '{}'",
+                        voice_path
+                    );
+                    entity_commands.insert(super::components::TypewriterVoice::new(voice_path));
+                }
+            }
         }
 
         // For simple text without Typewriter, set the dialogue_text in View's local_facts
@@ -841,5 +853,76 @@ pub fn replay_typewriter_on_depth_resume_system(
         view_root
             .local_facts
             .set("dialogue_text", FactValue::String(String::new()));
+    }
+}
+
+/// System to play typewriter voice sound when characters are displayed.
+///
+/// 当字符显示时播放打字机音效的系统。
+///
+/// This system monitors the Typewriter's current_char_index and plays
+/// the configured voice sound each time it increases.
+///
+/// 此系统监控 Typewriter 的 current_char_index，每次增加时播放配置的音效。
+#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
+pub fn typewriter_voice_system(
+    mut query: Query<(&Typewriter, &mut TypewriterVoice)>,
+    audio: Res<bevy_kira_audio::Audio>,
+    asset_server: Res<AssetServer>,
+) {
+    use bevy_kira_audio::AudioControl;
+
+    for (typewriter, mut voice) in query.iter_mut() {
+        // Only play when typewriter is playing and char index has increased
+        if typewriter.state != TypewriterState::Playing {
+            continue;
+        }
+
+        // Check if character index has increased
+        if typewriter.current_char_index > voice.last_char_index {
+            // Play voice sound
+            let handle: Handle<bevy_kira_audio::AudioSource> = asset_server.load(&voice.sound_path);
+            audio.play(handle);
+
+            // Update last observed index
+            voice.last_char_index = typewriter.current_char_index;
+        } else if typewriter.current_char_index < voice.last_char_index {
+            // Typewriter was reset, update tracking
+            voice.last_char_index = typewriter.current_char_index;
+        }
+    }
+}
+
+/// Firewheel variant of typewriter voice system.
+///
+/// Firewheel 版本的打字机音效系统。
+#[cfg(feature = "firewheel")]
+pub fn typewriter_voice_system(
+    mut query: Query<(&Typewriter, &mut TypewriterVoice)>,
+    audio_cx: Res<bevy_seedling::AudioContext>,
+    asset_server: Res<AssetServer>,
+) {
+    use bevy_seedling::prelude::*;
+
+    for (typewriter, mut voice) in query.iter_mut() {
+        // Only play when typewriter is playing and char index has increased
+        if typewriter.state != TypewriterState::Playing {
+            continue;
+        }
+
+        // Check if character index has increased
+        if typewriter.current_char_index > voice.last_char_index {
+            // Play voice sound using seedling
+            let handle: Handle<AudioFile> = asset_server.load(&voice.sound_path);
+            // Note: Firewheel/seedling audio playback would need proper implementation
+            // For now, just log
+            debug!("Typewriter voice: would play {}", voice.sound_path);
+
+            // Update last observed index
+            voice.last_char_index = typewriter.current_char_index;
+        } else if typewriter.current_char_index < voice.last_char_index {
+            // Typewriter was reset, update tracking
+            voice.last_char_index = typewriter.current_char_index;
+        }
     }
 }

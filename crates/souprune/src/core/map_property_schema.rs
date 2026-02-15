@@ -128,6 +128,15 @@ pub mod object_keys {
     /// 对话 UI 的 View 布局文件。
     /// 默认："overworld/view/dialogue.view_layout.ron"
     pub const DIALOGUE_VIEW: &str = "dialogue_view";
+
+    /// Voice sound effect for typewriter.
+    /// Path to audio file (relative to assets).
+    /// Example: "audio/voice/voice_monster.wav"
+    ///
+    /// 打字机音效。
+    /// 音频文件路径（相对于 assets）。
+    /// 示例："audio/voice/voice_monster.wav"
+    pub const DIALOGUE_VOICE: &str = "dialogue_voice";
 }
 
 /// Property definition for validation purposes.
@@ -227,6 +236,12 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         description: "View layout file for dialogue UI",
         required: false,
         default: Some("overworld/view/dialogue.view_layout.ron"),
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_VOICE,
+        description: "Voice sound effect path for typewriter",
+        required: false,
+        default: None,
     },
 ];
 
