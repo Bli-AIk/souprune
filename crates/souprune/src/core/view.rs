@@ -283,6 +283,7 @@ fn handle_spawn_view_request_system(
                 layout_handle: handle.clone(),
             },
             components::ViewRoot::new(request.path.clone()),
+            components::ActiveView, // Mark as active for FRE input handling and dialogue text sync
             RonDrivenView,
             Name::new(format!("SpawnedView:{}", request.path)),
             // Required for hierarchy visibility propagation

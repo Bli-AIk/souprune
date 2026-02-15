@@ -63,19 +63,26 @@ pub mod debug_inspector {
         /// Whether to show all entities including BRP/system internals.
         /// 是否显示所有实体，包括 BRP/系统内部实体。
         show_all_entities: bool,
+        /// Search filter for entity names.
+        /// 实体名称搜索过滤器。
+        search_query: String,
     }
 
     /// Custom entity filter that excludes BRP system entities by default.
     /// 自定义实体过滤器，默认排除 BRP 系统实体。
     struct BrpEntityFilter {
         show_all: bool,
+        /// Search query for filtering by entity name.
+        /// 用于按实体名称过滤的搜索查询。
+        search_query: String,
         _marker: PhantomData<Without<ChildOf>>,
     }
 
     impl BrpEntityFilter {
-        fn new(show_all: bool) -> Self {
+        fn new(show_all: bool, search_query: &str) -> Self {
             Self {
                 show_all,
+                search_query: search_query.to_lowercase(),
                 _marker: PhantomData,
             }
         }
@@ -85,20 +92,36 @@ pub mod debug_inspector {
         type StaticFilter = Without<ChildOf>;
 
         fn is_active(&self) -> bool {
-            !self.show_all
+            !self.show_all || !self.search_query.is_empty()
         }
 
         fn filter_entity(&self, world: &mut World, entity: Entity) -> bool {
             // Filter out entities with SystemIdMarker (BRP registered systems)
             // 过滤掉带有 SystemIdMarker 的实体（BRP 注册的系统）
-            if world.get::<SystemIdMarker>(entity).is_some() {
-                return false;
+            if !self.show_all {
+                if world.get::<SystemIdMarker>(entity).is_some() {
+                    return false;
+                }
+
+                // Filter out Observer entities
+                // 过滤掉 Observer 实体
+                if world.get::<bevy::ecs::observer::Observer>(entity).is_some() {
+                    return false;
+                }
             }
 
-            // Filter out Observer entities
-            // 过滤掉 Observer 实体
-            if world.get::<bevy::ecs::observer::Observer>(entity).is_some() {
-                return false;
+            // Apply search filter if provided
+            // 如果提供了搜索过滤器则应用
+            if !self.search_query.is_empty() {
+                if let Some(name) = world.get::<Name>(entity) {
+                    if !name.to_lowercase().contains(&self.search_query) {
+                        return false;
+                    }
+                } else {
+                    // Entity without name - don't match search
+                    // 没有名称的实体 - 不匹配搜索
+                    return false;
+                }
             }
 
             true
@@ -486,6 +509,34 @@ pub mod debug_inspector {
         // Top panel for controls
         // 顶部面板用于控件
         egui::TopBottomPanel::top("inspector_controls").show(egui_context.get_mut(), |ui| {
+            // Search box
+            // 搜索框
+            ui.horizontal(|ui| {
+                ui.label("🔍");
+                let mut search_query = world
+                    .get_resource::<InspectorUiState>()
+                    .map(|s| s.search_query.clone())
+                    .unwrap_or_default();
+
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut search_query)
+                        .hint_text("Search entities by name...")
+                        .desired_width(300.0),
+                );
+
+                if response.changed()
+                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
+                {
+                    state.search_query = search_query.clone();
+                }
+
+                if ui.button("✕").clicked()
+                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
+                {
+                    state.search_query.clear();
+                }
+            });
+
             ui.horizontal(|ui| {
                 // Get current state
                 let mut show_all = world
@@ -503,11 +554,17 @@ pub mod debug_inspector {
             });
         });
 
+        // Get search query for filter
+        let search_query = world
+            .get_resource::<InspectorUiState>()
+            .map(|s| s.search_query.clone())
+            .unwrap_or_default();
+
         egui::CentralPanel::default().show(egui_context.get_mut(), |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 // Use filtered entity display
                 // 使用过滤后的实体显示
-                let filter = BrpEntityFilter::new(show_all_entities);
+                let filter = BrpEntityFilter::new(show_all_entities, &search_query);
                 bevy_inspector::ui_for_entities_filtered(world, ui, true, &filter);
                 ui.allocate_space(ui.available_size());
             });

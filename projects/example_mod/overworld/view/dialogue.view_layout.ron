@@ -16,6 +16,7 @@
     // View 局部事实，在此布局生成时初始化
     facts: {
         "dialogue_active": true,
+        "dialogue_text": "",
     },
 
     roots: [

@@ -70,6 +70,10 @@
         "action_param": "",        // Current action parameter (e.g., narration key, set by FRE)
         "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
         "buttons_visible": true,   // Whether to show menu buttons
+
+        // Dialogue text for typewriter effect
+        // 对话文本，用于打字机效果
+        "dialogue_text": "",       // Synced from typewriter system
     },
 
     roots: [
