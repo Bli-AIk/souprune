@@ -201,15 +201,15 @@ pub fn process_view_actions_system(
                 }
 
                 // Look up the original action definitions for this rule
+                // Rules with only 'outputs' (no actions) are handled by FRE's output system
+                // 查找此规则的原始动作定义
+                // 只有 'outputs'（无 actions）的规则由 FRE 的 output 系统处理
                 let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    warn!(
-                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                        rule.id,
-                        action_defs
-                            .actions_by_rule
-                            .keys()
-                            .take(5)
-                            .collect::<Vec<_>>()
+                    // Skip silently - rule may only have outputs, no actions to execute
+                    // 静默跳过 - 规则可能只有 outputs，没有 actions 需要执行
+                    trace!(
+                        "FRE Bridge: Rule '{}' has no actions (may use outputs only)",
+                        rule.id
                     );
                     continue;
                 };
@@ -308,15 +308,16 @@ pub fn process_view_actions_system(
                     history.record_trigger(&rule.id, time.elapsed_secs_f64());
                 }
 
+                // Look up the original action definitions for this rule
+                // Rules with only 'outputs' (no actions) are handled by FRE's output system
+                // 查找此规则的原始动作定义
+                // 只有 'outputs'（无 actions）的规则由 FRE 的 output 系统处理
                 let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    warn!(
-                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                        rule.id,
-                        action_defs
-                            .actions_by_rule
-                            .keys()
-                            .take(5)
-                            .collect::<Vec<_>>()
+                    // Skip silently - rule may only have outputs, no actions to execute
+                    // 静默跳过 - 规则可能只有 outputs，没有 actions 需要执行
+                    trace!(
+                        "FRE Bridge: Rule '{}' has no actions (may use outputs only)",
+                        rule.id
                     );
                     continue;
                 };

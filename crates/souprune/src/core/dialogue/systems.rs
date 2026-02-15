@@ -373,8 +373,9 @@ pub fn sync_typewriter_text_to_facts_system(
         );
     }
 
-    // Update dialogue_text in all ActiveView's local_facts
-    // 更新所有 ActiveView 的 local_facts 中的 dialogue_text
+    // Update dialogue_text and dialogue_visible in all ActiveView's local_facts
+    // 更新所有 ActiveView 的 local_facts 中的 dialogue_text 和 dialogue_visible
+    let dialogue_visible = !new_text.is_empty();
     for mut view_root in active_view_query.iter_mut() {
         let current = view_root
             .local_facts
@@ -390,6 +391,11 @@ pub fn sync_typewriter_text_to_facts_system(
             view_root
                 .local_facts
                 .set("dialogue_text", FactValue::String(new_text.clone()));
+            // Also set dialogue_visible for view visibility control
+            // 同时设置 dialogue_visible 用于视图可见性控制
+            view_root
+                .local_facts
+                .set("dialogue_visible", FactValue::Bool(dialogue_visible));
         }
     }
 }
