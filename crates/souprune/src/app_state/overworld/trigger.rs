@@ -363,27 +363,31 @@ pub fn collect_danmaku_actions_system(
 
         'outer: for group in rule_groups {
             for rule in group {
-                // Check if rule's condition is met
-                if rule.condition.evaluate(&*fact_db) {
-                    // Look up the original action definitions for this rule
-                    if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                        for action in actions {
-                            if let RuleActionDef::Custom {
-                                action_type,
-                                params,
-                            } = action
-                                && action_type == "PlayDanmaku"
-                                && let Some(path) = params.get("path")
-                            {
-                                pending.requests.push(path.clone());
-                            }
+                // Check if rule's condition_expressions are met (empty = always true)
+                if !crate::core::fre_bridge::evaluate_conditions_layered(
+                    &rule.condition_expressions,
+                    &*fact_db,
+                ) {
+                    continue;
+                }
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom {
+                            action_type,
+                            params,
+                        } = action
+                            && action_type == "PlayDanmaku"
+                            && let Some(path) = params.get("path")
+                        {
+                            pending.requests.push(path.clone());
                         }
                     }
+                }
 
-                    // Respect consume_event
-                    if rule.consume_event {
-                        break 'outer;
-                    }
+                // Respect consume_event
+                if rule.consume_event {
+                    break 'outer;
                 }
             }
         }
@@ -454,7 +458,10 @@ pub fn handle_chase_state_actions_system(
 
         'outer: for group in rule_groups {
             for rule in group {
-                if !rule.condition.evaluate(&*fact_db) {
+                if !crate::core::fre_bridge::evaluate_conditions_layered(
+                    &rule.condition_expressions,
+                    &*fact_db,
+                ) {
                     continue;
                 }
 

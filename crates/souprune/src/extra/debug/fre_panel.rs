@@ -1355,12 +1355,19 @@ pub mod debug_fre_panel {
                 ui.label(if rule.consume_event { "Yes" } else { "No" });
             });
 
-            // Condition
-            egui::CollapsingHeader::new("Condition")
+            // Condition expressions
+            if !rule.condition_expressions.is_empty() {
+                egui::CollapsingHeader::new(format!(
+                    "Conditions ({})",
+                    rule.condition_expressions.len()
+                ))
                 .default_open(false)
                 .show(ui, |ui| {
-                    ui.monospace(format!("{:?}", rule.condition));
+                    for (i, expr) in rule.condition_expressions.iter().enumerate() {
+                        ui.monospace(format!("{}: {}", i + 1, expr));
+                    }
                 });
+            }
 
             // Modifications
             if !rule.modifications.is_empty() {
@@ -1374,17 +1381,6 @@ pub mod debug_fre_panel {
                         ui.monospace(format!("{}: {:?}", i + 1, modification));
                     }
                 });
-            }
-
-            // Actions
-            if !rule.actions.is_empty() {
-                egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        for i in 0..rule.actions.len() {
-                            ui.monospace(format!("{}: <action function>", i + 1));
-                        }
-                    });
             }
 
             // Outputs

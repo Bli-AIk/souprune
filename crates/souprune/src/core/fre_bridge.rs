@@ -407,6 +407,26 @@ fn evaluate_conditions(
     true
 }
 
+/// Evaluate condition expressions against only global facts (no local facts).
+/// Returns true if all conditions pass or if no conditions exist.
+///
+/// 只根据全局 FactDatabase 评估条件表达式。
+/// 如果所有条件都通过或没有条件，则返回 true。
+pub fn evaluate_conditions_layered(
+    conditions: &[String],
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> bool {
+    let empty_local = bevy_fact_rule_event::FactDatabase::new();
+    for condition in conditions {
+        let result = evaluate_single_condition(condition, &empty_local, global_facts);
+        if !result {
+            debug!("FRE Bridge: Condition '{}' evaluated to false", condition);
+            return false;
+        }
+    }
+    true
+}
+
 /// Evaluate a single condition expression.
 ///
 /// Supports:
@@ -759,9 +779,6 @@ fn execute_action(
         RuleActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
         }
-        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
-            // These are handled by the global FRE system, not View-specific
-        }
     }
 }
 
@@ -813,9 +830,6 @@ fn execute_action_firewheel(
         // Actions not relevant for View local_facts - handled by global FRE system
         RuleActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
-        }
-        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
-            // These are handled by the global FRE system, not View-specific
         }
     }
 }
