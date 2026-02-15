@@ -6,8 +6,8 @@ description = "An example mod for SoupRune."
 # Resource directories configuration
 # 资源目录配置
 [resources]
-textures = "textures"      # Texture/sprite resources / 图片资源目录
-audios = "audios"          # Audio resources / 音频资源目录
+textures = "assets/textures"      # Texture/sprite resources / 图片资源目录
+audios = "assets/audios"          # Audio resources / 音频资源目录
 
 [dependencies]
 # List dependencies here
@@ -19,10 +19,10 @@ audios = "audios"          # Audio resources / 音频资源目录
 
 [game]
 global_rules = "global.fre.ron"
-initial_map_path = "overworld/levels/ruins/ruins_3.tmx"
-initial_battle_path = "battle/chapters/demo.sequence.ron"
-player_behavior_path = "overworld/players/player_behavior.ron"
+initial_map_path = "states/overworld/levels/ruins/ruins_3.tmx"
+initial_battle_path = "states/battle/chapters/demo.sequence.ron"
+player_behavior_path = "states/overworld/players/player_behavior.ron"
 input_config_path = "config/input.ron"
 states_config = "config/states.ron"
 # Chase state configuration (optional - omit to disable chase functionality)
-chase_config = "overworld/chase_config.ron"
+chase_config = "states/overworld/chase_config.ron"

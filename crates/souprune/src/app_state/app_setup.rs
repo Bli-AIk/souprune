@@ -103,7 +103,7 @@ fn load_textures_system(mut commands: Commands, asset_server: Res<AssetServer>) 
     for module_name in &discovered_modules {
         registry.register_module(
             module_name.clone(),
-            asset_server.load_folder(format!("textures/{}", module_name)),
+            asset_server.load_folder(format!("assets/textures/{}", module_name)),
         );
         info!("Registered texture module: {}", module_name);
     }

@@ -1,0 +1,22 @@
+#![enable(implicit_some)]
+(
+    // Example with FRE rules file
+    // 带 FRE 规则文件的示例
+    rules_file: "states/battle/rules/demo_battle.fre.ron",
+    
+    chapters: [
+        SetCamera(SetZoom(2.0)),
+        SpawnView(view_layout: "states/battle/view/undertale.view_layout.ron"),
+        SetPlayer(Spawn(config_path: "states/battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+        Wait(1.0),
+        DanmakuPerformance(
+            performance: "states/battle/danmaku/demo_attack.performance.ron",
+            position: (0.0, 50.0),
+        ),
+        Wait(10.0),
+        Sequence([
+            Wait(0.5),
+            SetPlayer(Despawn),
+        ]),
+    ],
+)

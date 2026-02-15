@@ -1,0 +1,17 @@
+[[module]]
+loaded_before = ["setup"]
+
+# Here is the configuration file of the game resources, which defines the paths of various animations and sprites.
+# Each resource has a unique name and corresponding file path for easy reference in game code.
+# For animation resources, horizontal flipping (flip_x) and vertical flipping (flip_y) are turned off by default.
+# And looping is enabled by default.
+# These can be set as needed.
+
+# -ui-
+[[sprites]]
+name = "heart"
+path = "assets/textures/common/view/heart.png"
+
+[[sprites]]
+name = "heartsmall"
+path = "assets/textures/common/view/heartsmall.png"

@@ -22,7 +22,7 @@
         "items.monster_candy.type": String("Food"),
         "items.monster_candy.consumable": Bool(true),
         "items.monster_candy.heal": Int(10),
-        "items.monster_candy.audio": String("sounds/heal.wav"),
+        "items.monster_candy.audio": String("assets/audios/sfx/heal.wav"),
 
         // Test Parent
         "items.test_parent.locate_name": String("TEST_PARENT"),
@@ -47,7 +47,7 @@
         "items.tough_glove.description": String("A worn pink leather glove."),
         "items.tough_glove.type": String("Weapon"),
         "items.tough_glove.damage": Int(5),
-        "items.tough_glove.audio": String("sounds/punch_impact.wav"),
+        "items.tough_glove.audio": String("assets/audios/sfx/punch_impact.wav"),
 
         // Faded Ribbon
         "items.faded_ribbon.locate_name": String("FADED_RIBBON"),

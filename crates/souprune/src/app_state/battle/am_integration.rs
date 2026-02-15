@@ -354,7 +354,7 @@ fn load_am_battle_config(
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
     let config_path = format!(
-        "projects/{}/battle/am_config.ron",
+        "projects/{}/states/battle/am_config.ron",
         project_config.project.mod_name
     );
 

@@ -242,7 +242,7 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         key: object_keys::DIALOGUE_VIEW,
         description: "View layout file for dialogue UI",
         required: false,
-        default: Some("overworld/view/dialogue.view_layout.ron"),
+        default: Some("states/overworld/view/dialogue.view_layout.ron"),
     },
     PropertyDef {
         key: object_keys::DIALOGUE_VOICE,

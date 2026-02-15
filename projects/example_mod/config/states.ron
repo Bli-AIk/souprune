@@ -33,7 +33,7 @@ StateConfig(
         "Backpack": (
             ui_interactive: true,
             player_movable: false,
-            view_layout: "overworld/view/undertale_backpack.view_layout.ron",
+            view_layout: "states/overworld/view/undertale_backpack.view_layout.ron",
             initial_layer: None,  // No longer needed - using initial_facts in view_layout
             on_enter_sound: "audios/sfx/confirm.wav",
             //on_exit_sound: "audios/sfx/choice.wav",
@@ -56,7 +56,7 @@ StateConfig(
             player_can_interact: false,
             view_layout: None,
             initial_layer: None,
-            chase_config: "overworld/chase_config.ron",
+            chase_config: "states/overworld/chase_config.ron",
         ),
 
         // Dialogue state - talking to NPCs, player cannot move

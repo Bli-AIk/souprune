@@ -1,0 +1,68 @@
+# Battle module configuration
+# Contains all sprites and animations for the battle gameplay
+
+# Battle UI elements
+[[sprites]]
+name = "act_false"
+path = "assets/textures/battle/view/act/false.png"
+
+[[sprites]]
+name = "act_true"
+path = "assets/textures/battle/view/act/true.png"
+
+[[sprites]]
+name = "fight_false"
+path = "assets/textures/battle/view/fight/false.png"
+
+[[sprites]]
+name = "fight_true"
+path = "assets/textures/battle/view/fight/true.png"
+
+[[sprites]]
+name = "item_false"
+path = "assets/textures/battle/view/item/false.png"
+
+[[sprites]]
+name = "item_true"
+path = "assets/textures/battle/view/item/true.png"
+
+[[sprites]]
+name = "mercy_false"
+path = "assets/textures/battle/view/mercy/false.png"
+
+[[sprites]]
+name = "mercy_true"
+path = "assets/textures/battle/view/mercy/true.png"
+
+[[sprites]]
+name = "hpname"
+path = "assets/textures/battle/view/hpname.png"
+
+# Example sprites with flip settings
+[[sprites]]
+name = "example_sprite_flipped_x"
+path = "assets/textures/battle/view/act/false.png"
+flip_x = true
+
+[[sprites]]
+name = "example_sprite_flipped_y"
+path = "assets/textures/battle/view/act/false.png"
+flip_y = true
+
+[[sprites]]
+name = "example_sprite_flipped_both"
+path = "assets/textures/battle/view/act/false.png"
+flip_x = true
+flip_y = true
+
+# Battle bullets
+[[sprites]]
+name = "spear"
+path = "assets/textures/battle/bullets/spear/spear.png"
+
+# Flowey pellet animation (36 frames at 0.05s per frame)
+[[animations]]
+name = "flowey_pellet"
+path = "assets/textures/battle/bullets/flowey_pellet"
+frame_duration = 0.05
+looping = true

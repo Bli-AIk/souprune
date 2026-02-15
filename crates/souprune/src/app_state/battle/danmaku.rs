@@ -34,10 +34,10 @@ pub struct BattleInvincibilityConfig {
     pub normal_color: Color,
     /// Flash heart color (dark red)
     pub flash_color: Color,
-    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// Sound to play when taking damage (full path, e.g., "assets/audios/sfx/hurtsound.wav")
     /// If None, no sound is played.
     ///
-    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 受伤时播放的音效（完整路径，如 "assets/audios/sfx/hurtsound.wav"）
     /// 如果为 None，则不播放音效。
     pub damage_sound: Option<String>,
 }
