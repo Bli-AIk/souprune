@@ -36,7 +36,7 @@
         // 仅当对话有焦点时，避免与菜单导航冲突
         (
             id: "dialogue_advance_on_confirm",
-            event: Event("action:confirm:just_pressed"),
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
             conditions: [
                 "$dialogue:has_focus == true",
                 "$dialogue:typewriter_playing == false",
@@ -47,13 +47,15 @@
 
         // Rule 2: Skip typewriter when cancel is pressed and typewriter is playing
         // 规则 2：当按下取消键且打字机正在播放时跳过打字机
-        // This rule does NOT require dialogue:has_focus because skipping typewriter
-        // doesn't conflict with menu navigation - it only accelerates text display.
-        // 此规则不要求 dialogue:has_focus，因为跳过打字机不会与菜单导航冲突，它只是加速文本显示。
+        // Only when depth == 0 to avoid conflict with menu navigation
+        // (depth > 0 means menu is active, cancel is used for menu navigation)
+        // 仅当 depth == 0 时，避免与菜单导航冲突
+        // （depth > 0 表示菜单激活，cancel 用于菜单导航）
         (
             id: "dialogue_skip_on_cancel",
-            event: Event("action:cancel:just_pressed"),
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
             conditions: [
+                "$depth == 0",
                 "$dialogue:typewriter_playing == true",
             ],
             outputs: ["dialogue_skip_typewriter"],

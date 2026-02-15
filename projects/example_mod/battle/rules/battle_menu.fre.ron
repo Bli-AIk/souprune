@@ -298,6 +298,10 @@
 
         // Cancel from ACT options - back to enemy selection (depth 2 -> 1)
         // 从 ACT 选项取消 - 返回敌人选择（深度 2 -> 1）
+        // consume_event prevents dialogue skip rule from triggering
+        // High priority (100) ensures this runs before dialogue rules (priority 10)
+        // consume_event 防止对话跳过规则触发
+        // 高优先级 (100) 确保在对话规则 (priority 10) 之前运行
         (
             event: ActionEvent(action: "Cancel", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 2"],
@@ -305,10 +309,16 @@
                 SetLocalFact("depth", Int(1)),
                 SetLocalFact("act_selection", Int(0)),
             ],
+            consume_event: true,
+            priority: 100,
         ),
 
         // Cancel from submenu - back to main menu (depth 1 -> 0)
         // 从子菜单取消 - 返回主菜单（深度 1 -> 0）
+        // consume_event prevents dialogue skip rule from triggering
+        // High priority (100) ensures this runs before dialogue rules (priority 10)
+        // consume_event 防止对话跳过规则触发
+        // 高优先级 (100) 确保在对话规则 (priority 10) 之前运行
         (
             event: ActionEvent(action: "Cancel", kind: JustPressed),
             conditions: ["$interactable == true", "$depth == 1"],
@@ -320,6 +330,8 @@
                 SetLocalFact("enemy_view_offset", Int(0)),
                 // button_selection is preserved, no need to restore
             ],
+            consume_event: true,
+            priority: 100,
         ),
 
         // Confirm when narration is visible (press to continue / dismiss)
