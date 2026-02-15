@@ -104,6 +104,7 @@ pub fn process_view_actions_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -186,11 +187,13 @@ pub fn process_view_actions_system(
                 }
 
                 info!(
-                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
                     rule.id,
                     event.id.0,
                     rule.priority,
-                    rule.condition_expressions.len()
+                    rule.condition_expressions.len(),
+                    rule.outputs.len(),
+                    rule.outputs
                 );
 
                 // Record rule trigger for debug panel visualization
@@ -225,6 +228,15 @@ pub fn process_view_actions_system(
                     modification.apply(&mut global_facts);
                 }
 
+                // Emit output events for this rule via pending events queue
+                // 通过待处理事件队列发送此规则的输出事件
+                for output_id in &rule.outputs {
+                    info!("FRE Bridge: Queueing output event '{}'", output_id.0);
+                    pending_events
+                        .events
+                        .push(FactEvent::new(output_id.clone()));
+                }
+
                 // If this rule consumes the event, stop all matching
                 // 如果此规则消费事件，停止所有匹配
                 if rule.consume_event {
@@ -248,6 +260,7 @@ pub fn process_view_actions_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -294,11 +307,13 @@ pub fn process_view_actions_system(
                 }
 
                 info!(
-                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
                     rule.id,
                     event.id.0,
                     rule.priority,
-                    rule.condition_expressions.len()
+                    rule.condition_expressions.len(),
+                    rule.outputs.len(),
+                    rule.outputs
                 );
 
                 // Record rule trigger for debug panel visualization
@@ -330,6 +345,15 @@ pub fn process_view_actions_system(
                 // 将 modifications 应用到全局 facts 数据库
                 for modification in &rule.modifications {
                     modification.apply(&mut global_facts);
+                }
+
+                // Emit output events for this rule via pending events queue
+                // 通过待处理事件队列发送此规则的输出事件
+                for output_id in &rule.outputs {
+                    info!("FRE Bridge: Queueing output event '{}'", output_id.0);
+                    pending_events
+                        .events
+                        .push(FactEvent::new(output_id.clone()));
                 }
 
                 // If this rule consumes the event, stop all matching

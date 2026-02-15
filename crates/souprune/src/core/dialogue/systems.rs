@@ -41,17 +41,18 @@ pub fn sync_typewriter_state_to_facts_system(
                 any_playing = true;
                 all_finished = false;
             }
+            TypewriterState::Paused => {
+                // Paused still counts as "playing" for skip purposes - text is not fully shown
+                // 暂停仍算作"正在播放"用于跳过 - 文本尚未完全显示
+                any_playing = true;
+                all_finished = false;
+            }
             TypewriterState::Finished => {
                 any_finished = true;
             }
             TypewriterState::Idle => {
                 // Idle state counts as not playing but not finished either
                 // 空闲状态算作未播放但也未完成
-            }
-            TypewriterState::Paused => {
-                // Paused is similar to playing - not finished yet
-                // 暂停类似于播放 - 尚未完成
-                all_finished = false;
             }
         }
     }
@@ -260,22 +261,40 @@ pub fn dialogue_skip_typewriter_system(
     mut query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
 ) {
     for event in fre_events.read() {
+        debug!(
+            "dialogue_skip_typewriter_system: received event '{}', expecting '{}'",
+            event.id.0, config.skip_typewriter_event
+        );
         if event.id.0 != config.skip_typewriter_event {
             continue;
         }
+
+        info!("dialogue_skip_typewriter_system: processing skip event");
 
         // Note: Focus checking is done at the FRE rule level (dialogue.fre.ron)
         // This system just executes the skip action unconditionally
         // 注意：焦点检查在 FRE 规则层完成 (dialogue.fre.ron)
         // 此系统只负责无条件执行跳过操作
 
+        let typewriter_count = query.iter().count();
+        debug!(
+            "dialogue_skip_typewriter_system: found {} typewriters",
+            typewriter_count
+        );
+
         for mut typewriter in &mut query {
-            if typewriter.state == TypewriterState::Playing {
+            debug!(
+                "dialogue_skip_typewriter_system: typewriter state = {:?}",
+                typewriter.state
+            );
+            if typewriter.state == TypewriterState::Playing
+                || typewriter.state == TypewriterState::Paused
+            {
                 // Skip to end - show all text immediately
                 typewriter.current_text = typewriter.source_text.clone();
                 typewriter.current_char_index = typewriter.source_text.chars().count();
                 typewriter.state = TypewriterState::Finished;
-                debug!("Typewriter skipped to end");
+                info!("Typewriter skipped to end");
             }
         }
     }
@@ -799,7 +818,14 @@ pub fn replay_typewriter_on_depth_resume_system(
         );
     }
 
-    // Check if depth changed from non-zero to 0
+    // Check if depth changed from 0 to non-zero (pause typewriter)
+    let left_zero = match (*prev_depth, current_depth) {
+        (Some(prev), Some(curr)) if prev == 0 && curr != 0 => true,
+        (None, Some(curr)) if curr != 0 => true,
+        _ => false,
+    };
+
+    // Check if depth changed from non-zero to 0 (resume/replay typewriter)
     let resumed_to_zero = match (*prev_depth, current_depth) {
         (Some(prev), Some(curr)) if prev != 0 && curr == 0 => true,
         _ => false,
@@ -807,6 +833,15 @@ pub fn replay_typewriter_on_depth_resume_system(
 
     // Update previous depth
     *prev_depth = current_depth;
+
+    // Pause typewriter when depth leaves 0
+    if left_zero {
+        info!("replay_typewriter_on_depth_resume: depth left 0, pausing typewriters");
+        for mut typewriter in typewriter_query.iter_mut() {
+            typewriter.pause();
+        }
+        return;
+    }
 
     if !resumed_to_zero {
         return;
@@ -830,36 +865,43 @@ pub fn replay_typewriter_on_depth_resume_system(
         replay_enabled
     );
 
-    if !replay_enabled {
-        return;
-    }
-
-    // Check if there's a typewriter to restart
+    // Check if there's a typewriter to restart/resume
     let typewriter_count = typewriter_query.iter().count();
     info!(
         "replay_typewriter_on_depth_resume: found {} typewriters",
         typewriter_count
     );
 
-    // Restart typewriter
-    for mut typewriter in typewriter_query.iter_mut() {
-        info!(
-            "replay_typewriter_on_depth_resume: restarting typewriter, source_text='{}'",
-            typewriter.source_text
-        );
-        typewriter.restart();
-    }
+    if replay_enabled {
+        // Restart typewriter to replay the effect
+        for mut typewriter in typewriter_query.iter_mut() {
+            info!(
+                "replay_typewriter_on_depth_resume: restarting typewriter, source_text='{}'",
+                typewriter.source_text
+            );
+            typewriter.restart();
+        }
 
-    // Immediately clear dialogue_text in View to prevent one-frame flash
-    // sync_typewriter_text_to_facts_system runs before this system, so the View
-    // would show full text until next frame unless we clear it here
-    // 立即清空 View 中的 dialogue_text 以防止一帧闪烁
-    // sync_typewriter_text_to_facts_system 在此系统之前运行，所以如果不在此清空，
-    // View 会显示完整文本直到下一帧
-    for mut view_root in active_view_query.iter_mut() {
-        view_root
-            .local_facts
-            .set("dialogue_text", FactValue::String(String::new()));
+        // Immediately clear dialogue_text in View to prevent one-frame flash
+        // sync_typewriter_text_to_facts_system runs before this system, so the View
+        // would show full text until next frame unless we clear it here
+        // 立即清空 View 中的 dialogue_text 以防止一帧闪烁
+        // sync_typewriter_text_to_facts_system 在此系统之前运行，所以如果不在此清空，
+        // View 会显示完整文本直到下一帧
+        for mut view_root in active_view_query.iter_mut() {
+            view_root
+                .local_facts
+                .set("dialogue_text", FactValue::String(String::new()));
+        }
+    } else {
+        // Just resume the paused typewriter without restarting
+        for mut typewriter in typewriter_query.iter_mut() {
+            info!(
+                "replay_typewriter_on_depth_resume: resuming typewriter, source_text='{}'",
+                typewriter.source_text
+            );
+            typewriter.resume();
+        }
     }
 }
 

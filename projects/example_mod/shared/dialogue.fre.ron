@@ -24,13 +24,14 @@
     // Initial dialogue state facts
     // 初始对话状态事实
     facts: {
-        // Whether any typewriter is currently playing
-        // 是否有打字机正在播放
-        "dialogue:typewriter_playing": Bool(false),
-
         // Default typewriter speed in seconds per character
         // 默认打字机速度（每字符秒数）
         "dialogue:typewriter_speed": Float(0.03),
+
+        // NOTE: "dialogue:typewriter_playing" is managed by sync_typewriter_state_to_facts_system
+        // in global facts, NOT defined here to avoid shadowing the global value.
+        // 注意："dialogue:typewriter_playing" 由 sync_typewriter_state_to_facts_system
+        // 在 global facts 中管理，不在此定义以避免遮蔽全局值。
     },
 
     rules: [

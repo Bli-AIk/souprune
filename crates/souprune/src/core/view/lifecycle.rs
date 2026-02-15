@@ -410,6 +410,12 @@ pub(crate) fn process_pending_view_rules_system(
                     }
 
                     if effective_scope == RuleScope::View {
+                        info!(
+                            "[lifecycle] Registering View rule '{}' with {} outputs: {:?}",
+                            rule_id,
+                            rule.outputs.len(),
+                            rule.outputs
+                        );
                         rule_registry.register_view_rule(entity, rule);
                         info!(
                             "[lifecycle] Registered pending View rule '{}' for entity {:?} from '{}'",
