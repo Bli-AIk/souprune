@@ -124,11 +124,11 @@
   </object>
   <object id="17" name="demo_talk" x="380" y="40" width="20" height="40">
    <properties>
-    <property name="interactable" type="bool" value="true"/>
-    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
     <property name="dialogue_node" value="demo_talk"/>
+    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
     <property name="has_mortar" type="bool" value="true"/>
     <property name="has_typewriter" type="bool" value="false"/>
+    <property name="interactable" type="bool" value="true"/>
    </properties>
   </object>
   <object id="18" name="demo_trigger" x="400" y="100" width="60" height="60">
@@ -138,21 +138,23 @@
   </object>
   <object id="20" name="demo_talk_typewriter" x="360" y="40" width="20" height="40">
    <properties>
-    <property name="interactable" type="bool" value="true"/>
-    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
     <property name="dialogue_node" value="demo_talk"/>
+    <property name="dialogue_path" value="overworld/dialogue.mortar"/>
+    <property name="dialogue_typewriter_speed" value="0.01"/>
     <property name="dialogue_voice" value="audio/voice/voice_flowey_1.wav"/>
     <property name="has_mortar" type="bool" value="true"/>
     <property name="has_typewriter" type="bool" value="true"/>
+    <property name="interactable" type="bool" value="true"/>
    </properties>
   </object>
   <object id="21" name="demo_simple_talk" x="400" y="40" width="20" height="40">
    <properties>
-    <property name="interactable" type="bool" value="true"/>
-    <property name="simple_text" value="This is simple text without Mortar."/>
+    <property name="dialogue_typewriter_speed" value="0.08"/>
     <property name="dialogue_voice" value="audio/voice/voice_monster.wav"/>
     <property name="has_mortar" type="bool" value="false"/>
     <property name="has_typewriter" type="bool" value="true"/>
+    <property name="interactable" type="bool" value="true"/>
+    <property name="simple_text" value="This is simple text without Mortar."/>
    </properties>
   </object>
  </objectgroup>

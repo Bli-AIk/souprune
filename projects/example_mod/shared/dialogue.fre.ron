@@ -27,6 +27,10 @@
         // Whether any typewriter is currently playing
         // 是否有打字机正在播放
         "dialogue:typewriter_playing": Bool(false),
+
+        // Default typewriter speed in seconds per character
+        // 默认打字机速度（每字符秒数）
+        "dialogue:typewriter_speed": Float(0.03),
     },
 
     rules: [

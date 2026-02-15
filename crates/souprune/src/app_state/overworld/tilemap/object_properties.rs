@@ -13,7 +13,7 @@ use crate::app_state::overworld::tilemap::systems::TilemapCollider;
 use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
 use crate::core::map_property_schema::{
-    get_object_bool_property, get_string_property, object_keys,
+    get_object_bool_property, get_object_float_property, get_string_property, object_keys,
 };
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
@@ -289,6 +289,10 @@ fn spawn_interactable(
         .unwrap_or_else(|| "overworld/view/dialogue.view_layout.ron".to_string());
     let dialogue_voice =
         get_string_property(&object_data.properties, object_keys::DIALOGUE_VOICE).map(String::from);
+    let dialogue_typewriter_speed = get_object_float_property(
+        &object_data.properties,
+        object_keys::DIALOGUE_TYPEWRITER_SPEED,
+    );
 
     // Check if dialogue is configured
     let has_dialogue = dialogue_path.is_some() || simple_text.is_some();
@@ -328,6 +332,15 @@ fn spawn_interactable(
             modifications.push(FactModification::Set(
                 "dialogue:voice".to_string(),
                 FactValue::String(voice),
+            ));
+        }
+
+        // Add typewriter speed if configured
+        // 添加打字机速度（如果配置了）
+        if let Some(speed) = dialogue_typewriter_speed {
+            modifications.push(FactModification::Set(
+                "dialogue:typewriter_speed".to_string(),
+                FactValue::Float(speed),
             ));
         }
 

@@ -499,7 +499,14 @@ pub fn spawn_dialogue_controller_system(
                 String::new()
             };
 
-            let mut typewriter = Typewriter::new(&initial_text, 0.03); // 30ms per character
+            // Read typewriter speed from FRE fact, default to 0.03 (30ms per char)
+            // 从 FRE fact 读取打字机速度，默认为 0.03（每字符30ms）
+            let typewriter_speed = facts
+                .bypass_change_detection()
+                .get_float("dialogue:typewriter_speed")
+                .map(|n| n as f32)
+                .unwrap_or(0.03);
+            let mut typewriter = Typewriter::new(&initial_text, typewriter_speed);
             if !initial_text.is_empty() {
                 typewriter.play();
                 info!(

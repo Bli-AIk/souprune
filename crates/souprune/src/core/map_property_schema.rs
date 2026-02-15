@@ -137,6 +137,13 @@ pub mod object_keys {
     /// 音频文件路径（相对于 assets）。
     /// 示例："audio/voice/voice_monster.wav"
     pub const DIALOGUE_VOICE: &str = "dialogue_voice";
+
+    /// Typewriter speed in seconds per character.
+    /// Example: "0.05" for 50ms per character.
+    ///
+    /// 打字机速度（每字符秒数）。
+    /// 示例："0.05" 表示每字符50ms。
+    pub const DIALOGUE_TYPEWRITER_SPEED: &str = "dialogue_typewriter_speed";
 }
 
 /// Property definition for validation purposes.
@@ -240,6 +247,12 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
     PropertyDef {
         key: object_keys::DIALOGUE_VOICE,
         description: "Voice sound effect path for typewriter",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_TYPEWRITER_SPEED,
+        description: "Typewriter speed in seconds per character",
         required: false,
         default: None,
     },
@@ -352,6 +365,27 @@ pub fn get_string_property_or_default<'a>(
     default: &'a str,
 ) -> &'a str {
     get_string_property(properties, key).unwrap_or(default)
+}
+
+/// Get a float property from an object's properties HashMap.
+///
+/// 从对象的属性 HashMap 获取浮点数属性。
+pub fn get_object_float_property(
+    properties: &std::collections::HashMap<String, tiled::PropertyValue>,
+    key: &str,
+) -> Option<f64> {
+    properties.get(key).and_then(|v| match v {
+        tiled::PropertyValue::FloatValue(f) => Some(*f as f64),
+        tiled::PropertyValue::IntValue(i) => Some(*i as f64),
+        tiled::PropertyValue::StringValue(s) => s.parse().ok(),
+        _ => {
+            debug!(
+                "Object property '{}' has unexpected type, expected Float/Int/String",
+                key
+            );
+            None
+        }
+    })
 }
 
 /// Validate object properties and log warnings for unknown properties.
