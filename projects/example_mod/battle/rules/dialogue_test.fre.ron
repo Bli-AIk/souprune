@@ -139,6 +139,7 @@
                 Set(key: "dialogue:pending_view", value: String("battle/view/dialogue_box.view_layout.ron")),
                 Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
+                Set(key: "dialogue:has_focus", value: Bool(true)),  // Block menu during this dialogue
                 Set(key: "test_mortar_shown", value: Bool(true)),
             ],
             actions: [
@@ -151,16 +152,21 @@
         // 规则：处理战斗中的 dialogue:started 事件
         //
         // This is similar to overworld_dialogue_started but for battle context.
-        // It sets dialogue:has_focus and any battle-specific state.
+        // NOTE: dialogue:has_focus is now set by the dialogue trigger rule, not here.
+        // This allows encounter intro to run without blocking menu.
         //
         // 这类似于 overworld_dialogue_started 但用于战斗上下文。
-        // 它设置 dialogue:has_focus 和任何战斗特定状态。
+        // 注意：dialogue:has_focus 现在由对话触发规则设置，而不是这里。
+        // 这允许遭遇开场在不阻塞菜单的情况下运行。
         (
             id: "battle_dialogue_started",
             event: Event("dialogue:started"),
             condition: Always,
             modifications: [
-                Set(key: "dialogue:has_focus", value: Bool(true)),
+                // NOTE: dialogue:has_focus is set by individual dialogue trigger rules.
+                // Do NOT set it here to avoid overriding intentional false values.
+                // 注意：dialogue:has_focus 由各个对话触发规则设置。
+                // 不要在此处设置，以避免覆盖有意设置的 false 值。
                 // Battle-specific: pause enemy turns during dialogue
                 // 战斗特定：对话期间暂停敌人回合
                 Set(key: "battle:paused_for_dialogue", value: Bool(true)),
@@ -209,6 +215,7 @@
                 Set(key: "dialogue:pending_mortar_node", value: String("check")),
                 Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
+                Set(key: "dialogue:has_focus", value: Bool(true)),  // Block menu during ACT dialogue
             ],
             actions: [
                 Log(message: "Battle: ACT 'check' triggered dialogue"),

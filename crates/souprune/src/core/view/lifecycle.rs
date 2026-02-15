@@ -447,8 +447,18 @@ pub(crate) fn process_pending_view_rules_system(
             commands
                 .entity(entity)
                 .remove::<super::components::PendingViewRules>();
+
+            // Set view_rules_loaded fact in View's local_facts
+            // This allows AwaitFact to wait for FRE rules to be ready
+            // 在 View 的 local_facts 中设置 view_rules_loaded fact
+            // 这允许 AwaitFact 等待 FRE 规则准备就绪
+            view_root.local_facts.set(
+                "view_rules_loaded",
+                bevy_fact_rule_event::FactValue::Bool(true),
+            );
+
             info!(
-                "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules",
+                "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules, set view_rules_loaded=true",
                 entity
             );
         }

@@ -29,6 +29,12 @@
             },
         ),
 
+        // Wait for View's FRE rules to be loaded before emitting events
+        // This ensures dialogue_test.fre.ron rules are ready to handle battle:show_intro
+        // 在发出事件前等待 View 的 FRE 规则加载完成
+        // 这确保 dialogue_test.fre.ron 规则准备好处理 battle:show_intro
+        AwaitFact(condition: "$view_rules_loaded == true", local: true),
+
         // Trigger encounter intro narration with typewriter effect
         // This event is handled by dialogue_test.fre.ron to start the Mortar dialogue
         // 触发遭遇开场旁白（使用打字机效果）

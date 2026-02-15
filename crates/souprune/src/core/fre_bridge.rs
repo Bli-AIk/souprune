@@ -103,7 +103,7 @@ pub fn process_view_actions_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
-    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -201,28 +201,28 @@ pub fn process_view_actions_system(
                 }
 
                 // Look up the original action definitions for this rule
-                // Rules with only 'outputs' (no actions) are handled by FRE's output system
+                // Rules may have modifications without actions, so process both
                 // 查找此规则的原始动作定义
-                // 只有 'outputs'（无 actions）的规则由 FRE 的 output 系统处理
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    // Skip silently - rule may only have outputs, no actions to execute
-                    // 静默跳过 - 规则可能只有 outputs，没有 actions 需要执行
-                    trace!(
-                        "FRE Bridge: Rule '{}' has no actions (may use outputs only)",
-                        rule.id
-                    );
-                    continue;
-                };
+                // 规则可能只有 modifications 而没有 actions，所以两者都要处理
+                let actions = action_defs.actions_by_rule.get(&rule.id);
 
                 // Execute each action (view_root is already mutable)
-                for action in actions {
-                    execute_action(
-                        action,
-                        &mut view_root.local_facts,
-                        &global_facts,
-                        &audio,
-                        &asset_server,
-                    );
+                if let Some(actions) = actions {
+                    for action in actions {
+                        execute_action(
+                            action,
+                            &mut view_root.local_facts,
+                            &global_facts,
+                            &audio,
+                            &asset_server,
+                        );
+                    }
+                }
+
+                // Apply modifications to global facts database
+                // 将 modifications 应用到全局 facts 数据库
+                for modification in &rule.modifications {
+                    modification.apply(&mut global_facts);
                 }
 
                 // If this rule consumes the event, stop all matching
@@ -247,7 +247,7 @@ pub fn process_view_actions_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -309,27 +309,27 @@ pub fn process_view_actions_system(
                 }
 
                 // Look up the original action definitions for this rule
-                // Rules with only 'outputs' (no actions) are handled by FRE's output system
+                // Rules may have modifications without actions, so process both
                 // 查找此规则的原始动作定义
-                // 只有 'outputs'（无 actions）的规则由 FRE 的 output 系统处理
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    // Skip silently - rule may only have outputs, no actions to execute
-                    // 静默跳过 - 规则可能只有 outputs，没有 actions 需要执行
-                    trace!(
-                        "FRE Bridge: Rule '{}' has no actions (may use outputs only)",
-                        rule.id
-                    );
-                    continue;
-                };
+                // 规则可能只有 modifications 而没有 actions，所以两者都要处理
+                let actions = action_defs.actions_by_rule.get(&rule.id);
 
-                for action in actions {
-                    execute_action_firewheel(
-                        action,
-                        &mut view_root.local_facts,
-                        &global_facts,
-                        &mut commands,
-                        &asset_server,
-                    );
+                if let Some(actions) = actions {
+                    for action in actions {
+                        execute_action_firewheel(
+                            action,
+                            &mut view_root.local_facts,
+                            &global_facts,
+                            &mut commands,
+                            &asset_server,
+                        );
+                    }
+                }
+
+                // Apply modifications to global facts database
+                // 将 modifications 应用到全局 facts 数据库
+                for modification in &rule.modifications {
+                    modification.apply(&mut global_facts);
                 }
 
                 // If this rule consumes the event, stop all matching

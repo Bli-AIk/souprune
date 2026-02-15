@@ -453,6 +453,18 @@ pub fn spawn_dialogue_controller_system(
         .unwrap_or(false)
         || runtime.has_active_dialogues();
 
+    // DEBUG: Log state every frame when there's any dialogue-related activity
+    if dialogue_active || simple_text_active || has_controller || runtime.has_active_dialogues() {
+        debug!(
+            "spawn_dialogue_controller_system: dialogue_active={}, simple_text_active={}, has_controller={}, has_mortar={}, runtime_active={}",
+            dialogue_active,
+            simple_text_active,
+            has_controller,
+            has_mortar,
+            runtime.has_active_dialogues()
+        );
+    }
+
     // Spawn controller when dialogue starts
     if has_dialogue && !has_controller {
         info!(
@@ -460,9 +472,12 @@ pub fn spawn_dialogue_controller_system(
             has_mortar, simple_text_active, has_typewriter
         );
 
-        // Set dialogue:has_focus to true when spawning controller
-        // 生成控制器时设置 dialogue:has_focus 为 true
-        facts.set("dialogue:has_focus", FactValue::Bool(true));
+        // NOTE: dialogue:has_focus is now fully controlled by FRE rules.
+        // FRE rules should set dialogue:has_focus as part of their dialogue setup.
+        // This allows scenarios like Battle encounter intro to run without blocking menu.
+        // 注意：dialogue:has_focus 现在完全由 FRE 规则控制。
+        // FRE 规则应在对话设置中设置 dialogue:has_focus。
+        // 这允许像战斗遭遇开场这样的场景运行而不阻塞菜单。
 
         let mut entity_commands = commands.spawn(DialogueControllerEntity);
 
@@ -644,6 +659,8 @@ pub fn handle_pending_dialogue_start_system(
         return;
     }
 
+    info!("handle_pending_dialogue_start_system: pending_start=true, processing dialogue");
+
     // Read pending view (optional - empty means no view to spawn)
     let pending_view = facts
         .bypass_change_detection()
@@ -662,6 +679,11 @@ pub fn handle_pending_dialogue_start_system(
         .get_string("dialogue:pending_mortar_node")
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
+
+    info!(
+        "handle_pending_dialogue_start_system: view={:?}, path={:?}, node={:?}",
+        pending_view, mortar_path, mortar_node
+    );
 
     // Clear all pending facts (use set() to write to Local layer,
     // since FRE rules write to Local layer by default)

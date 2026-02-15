@@ -315,6 +315,9 @@ fn spawn_interactable(
                 "dialogue:pending_view".to_string(),
                 FactValue::String(dialogue_view),
             ),
+            // Set focus flag (default true for interactive dialogues)
+            // 设置焦点标志（交互对话默认为 true）
+            FactModification::Set("dialogue:has_focus".to_string(), FactValue::Bool(true)),
         ];
 
         // Add Mortar path and node if using Mortar

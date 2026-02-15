@@ -71,6 +71,10 @@
         "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
         "buttons_visible": true,   // Whether to show menu buttons
 
+        // View initialization state (set to true when FRE rules finish loading)
+        // View 初始化状态（FRE 规则加载完成时设为 true）
+        "view_rules_loaded": false,
+
         // Dialogue text for typewriter effect
         // 对话文本，用于打字机效果
         "dialogue_text": "",       // Synced from typewriter system
