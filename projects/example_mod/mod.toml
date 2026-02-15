@@ -23,5 +23,6 @@ initial_map_path = "overworld/levels/ruins/ruins_3.tmx"
 initial_battle_path = "battle/chapters/demo.sequence.ron"
 player_behavior_path = "overworld/players/player_behavior.ron"
 input_config_path = "config/input.ron"
+states_config = "config/states.ron"
 # Chase state configuration (optional - omit to disable chase functionality)
 chase_config = "overworld/chase_config.ron"
