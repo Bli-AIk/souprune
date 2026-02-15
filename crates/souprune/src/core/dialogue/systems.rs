@@ -537,35 +537,35 @@ pub fn spawn_dialogue_controller_system(
 
             // Add TypewriterVoice if dialogue:voice fact is set
             // 如果设置了 dialogue:voice fact，添加 TypewriterVoice
-            if let Some(voice_path) = facts.bypass_change_detection().get_string("dialogue:voice") {
-                if !voice_path.is_empty() {
-                    info!(
-                        "spawn_dialogue_controller_system: adding TypewriterVoice with path: '{}'",
-                        voice_path
-                    );
-                    entity_commands.insert(super::components::TypewriterVoice::new(voice_path));
-                }
+            if let Some(voice_path) = facts.bypass_change_detection().get_string("dialogue:voice")
+                && !voice_path.is_empty()
+            {
+                info!(
+                    "spawn_dialogue_controller_system: adding TypewriterVoice with path: '{}'",
+                    voice_path
+                );
+                entity_commands.insert(super::components::TypewriterVoice::new(voice_path));
             }
         }
 
         // For simple text without Typewriter, set the dialogue_text in View's local_facts
         // If there's a typewriter, sync_typewriter_text_to_facts_system will handle it
-        if !has_mortar && !has_typewriter {
-            if let Some(text) = facts
+        if !has_mortar
+            && !has_typewriter
+            && let Some(text) = facts
                 .bypass_change_detection()
                 .get_string("dialogue:simple_text")
-            {
-                info!(
-                    "spawn_dialogue_controller_system: setting simple_text to View local_facts: '{}'",
-                    text
-                );
-                let text_owned = text.to_string();
-                // Update all ActiveView's local_facts
-                for mut view_root in active_view_query.iter_mut() {
-                    view_root
-                        .local_facts
-                        .set("dialogue_text", FactValue::String(text_owned.clone()));
-                }
+        {
+            info!(
+                "spawn_dialogue_controller_system: setting simple_text to View local_facts: '{}'",
+                text
+            );
+            let text_owned = text.to_string();
+            // Update all ActiveView's local_facts
+            for mut view_root in active_view_query.iter_mut() {
+                view_root
+                    .local_facts
+                    .set("dialogue_text", FactValue::String(text_owned.clone()));
             }
         }
     }
@@ -943,16 +943,17 @@ pub fn typewriter_voice_system(
 }
 
 /// Firewheel variant of typewriter voice system.
+/// NOTE: Sound playback not yet implemented for bevy_seedling 0.7, only tracking.
 ///
 /// Firewheel 版本的打字机音效系统。
+/// 注意：bevy_seedling 0.7 的音效播放尚未实现，仅做追踪。
 #[cfg(feature = "firewheel")]
 pub fn typewriter_voice_system(
     mut query: Query<(&Typewriter, &mut TypewriterVoice)>,
-    audio_cx: Res<bevy_seedling::AudioContext>,
-    asset_server: Res<AssetServer>,
+    // Audio playback would need proper implementation using SamplePlayer
+    // asset_server: Res<AssetServer>,
+    // mut commands: Commands,
 ) {
-    use bevy_seedling::prelude::*;
-
     for (typewriter, mut voice) in query.iter_mut() {
         // Only play when typewriter is playing and char index has increased
         if typewriter.state != TypewriterState::Playing {
@@ -961,10 +962,7 @@ pub fn typewriter_voice_system(
 
         // Check if character index has increased
         if typewriter.current_char_index > voice.last_char_index {
-            // Play voice sound using seedling
-            let handle: Handle<AudioFile> = asset_server.load(&voice.sound_path);
-            // Note: Firewheel/seedling audio playback would need proper implementation
-            // For now, just log
+            // TODO: Implement sound playback using bevy_seedling::sample::SamplePlayer
             debug!("Typewriter voice: would play {}", voice.sound_path);
 
             // Update last observed index
