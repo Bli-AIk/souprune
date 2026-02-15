@@ -258,19 +258,16 @@ pub fn dialogue_skip_typewriter_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
     mut query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
-    facts: Res<LayeredFactDatabase>,
 ) {
     for event in fre_events.read() {
         if event.id.0 != config.skip_typewriter_event {
             continue;
         }
 
-        // Check if dialogue has focus
-        // 检查对话是否有焦点
-        let has_focus = facts.get_bool("dialogue:has_focus").unwrap_or(false);
-        if !has_focus {
-            continue;
-        }
+        // Note: Focus checking is done at the FRE rule level (dialogue.fre.ron)
+        // This system just executes the skip action unconditionally
+        // 注意：焦点检查在 FRE 规则层完成 (dialogue.fre.ron)
+        // 此系统只负责无条件执行跳过操作
 
         for mut typewriter in &mut query {
             if typewriter.state == TypewriterState::Playing {

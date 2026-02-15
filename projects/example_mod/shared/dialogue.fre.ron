@@ -47,13 +47,13 @@
 
         // Rule 2: Skip typewriter when cancel is pressed and typewriter is playing
         // 规则 2：当按下取消键且打字机正在播放时跳过打字机
-        // Only when dialogue has focus to avoid conflict with menu navigation
-        // 仅当对话有焦点时，避免与菜单导航冲突
+        // This rule does NOT require dialogue:has_focus because skipping typewriter
+        // doesn't conflict with menu navigation - it only accelerates text display.
+        // 此规则不要求 dialogue:has_focus，因为跳过打字机不会与菜单导航冲突，它只是加速文本显示。
         (
             id: "dialogue_skip_on_cancel",
             event: Event("action:cancel:just_pressed"),
             conditions: [
-                "$dialogue:has_focus == true",
                 "$dialogue:typewriter_playing == true",
             ],
             outputs: ["dialogue_skip_typewriter"],
