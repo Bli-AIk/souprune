@@ -749,3 +749,100 @@ pub fn handle_pending_dialogue_start_system(
     // Emit dialogue:started event for scene-specific handling
     fre_event_writer.write(FactEvent::new("dialogue:started"));
 }
+
+/// System to replay Typewriter when View's depth returns to 0.
+///
+/// 当 View 的 depth 返回 0 时重播 Typewriter 的系统。
+///
+/// This system monitors the `depth` fact in ActiveView's local_facts.
+/// When `depth` changes from non-zero to 0 and `dialogue:replay_on_resume` is true,
+/// it restarts the Typewriter component to replay the text effect.
+///
+/// 该系统监控 ActiveView 的 local_facts 中的 `depth` fact。
+/// 当 `depth` 从非零变为 0 且 `dialogue:replay_on_resume` 为 true 时，
+/// 重启 Typewriter 组件以重播文本效果。
+///
+/// **Configuration fact** (in View's local_facts):
+/// - `dialogue:replay_on_resume` (bool): If true, replay typewriter when resuming (default: false)
+pub fn replay_typewriter_on_depth_resume_system(
+    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
+    mut typewriter_query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+    mut prev_depth: Local<Option<i64>>,
+) {
+    // Get current depth from ActiveView's local_facts
+    let current_depth = active_view_query
+        .iter()
+        .next()
+        .and_then(|view| view.local_facts.get_int("depth"));
+
+    // Log depth changes for debugging
+    if *prev_depth != current_depth {
+        debug!(
+            "replay_typewriter_on_depth_resume: depth changed {:?} -> {:?}",
+            *prev_depth, current_depth
+        );
+    }
+
+    // Check if depth changed from non-zero to 0
+    let resumed_to_zero = match (*prev_depth, current_depth) {
+        (Some(prev), Some(curr)) if prev != 0 && curr == 0 => true,
+        _ => false,
+    };
+
+    // Update previous depth
+    *prev_depth = current_depth;
+
+    if !resumed_to_zero {
+        return;
+    }
+
+    info!("replay_typewriter_on_depth_resume: depth returned to 0");
+
+    // Check if replay_on_resume is enabled (from View's local_facts)
+    let replay_enabled = active_view_query
+        .iter()
+        .next()
+        .map(|view| {
+            view.local_facts
+                .get_bool("dialogue:replay_on_resume")
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+
+    info!(
+        "replay_typewriter_on_depth_resume: replay_enabled={}",
+        replay_enabled
+    );
+
+    if !replay_enabled {
+        return;
+    }
+
+    // Check if there's a typewriter to restart
+    let typewriter_count = typewriter_query.iter().count();
+    info!(
+        "replay_typewriter_on_depth_resume: found {} typewriters",
+        typewriter_count
+    );
+
+    // Restart typewriter
+    for mut typewriter in typewriter_query.iter_mut() {
+        info!(
+            "replay_typewriter_on_depth_resume: restarting typewriter, source_text='{}'",
+            typewriter.source_text
+        );
+        typewriter.restart();
+    }
+
+    // Immediately clear dialogue_text in View to prevent one-frame flash
+    // sync_typewriter_text_to_facts_system runs before this system, so the View
+    // would show full text until next frame unless we clear it here
+    // 立即清空 View 中的 dialogue_text 以防止一帧闪烁
+    // sync_typewriter_text_to_facts_system 在此系统之前运行，所以如果不在此清空，
+    // View 会显示完整文本直到下一帧
+    for mut view_root in active_view_query.iter_mut() {
+        view_root
+            .local_facts
+            .set("dialogue_text", FactValue::String(String::new()));
+    }
+}

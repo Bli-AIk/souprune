@@ -63,6 +63,8 @@ impl Plugin for DialoguePlugin {
                     systems::sync_mortar_text_to_typewriter_system,
                     systems::sync_typewriter_text_to_facts_system,
                     systems::sync_typewriter_state_to_facts_system,
+                    // Resume handling
+                    systems::replay_typewriter_on_depth_resume_system,
                     // Input handling systems
                     systems::dialogue_advance_system,
                     systems::emit_pending_dialogue_ended_system,

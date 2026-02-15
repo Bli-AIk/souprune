@@ -79,6 +79,10 @@
         // 对话文本，用于打字机效果
         "dialogue_text": "",       // Synced from typewriter system
         "dialogue_visible": false, // Whether dialogue text should be visible (set by typewriter sync)
+
+        // Typewriter resume behavior - replay typewriter when depth returns to 0
+        // 打字机恢复行为 - 当 depth 返回 0 时重播打字机
+        "dialogue:replay_on_resume": true,
     },
 
     roots: [
