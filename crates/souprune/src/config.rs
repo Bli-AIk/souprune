@@ -107,6 +107,13 @@ pub struct GameConfig {
     /// 如果为 None，则禁用追逐战功能。
     pub chase_config: Option<String>,
 
+    /// Default dialogue view layout path for Tiled objects.
+    /// Can be overridden per-object via `dialogue_view` property.
+    ///
+    /// Tiled 对象的默认对话视图布局路径。
+    /// 可通过 `dialogue_view` 属性覆盖。
+    pub dialogue_view_default: String,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -128,6 +135,7 @@ impl Default for GameConfig {
             input_config_path: String::new(),
             states_config: "config/states.ron".to_string(),
             chase_config: None,
+            dialogue_view_default: "overworld/view/dialogue.view_layout.ron".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }

@@ -48,11 +48,12 @@ StateConfig(
             initial_layer: None,
         ),
 
-        // Chase state - darkened screen with highlights, player can move
-        // 追逐战状态 - 屏幕变暗，高亮显示，玩家可移动
+        // Chase state - darkened screen with highlights, player can move but cannot interact
+        // 追逐战状态 - 屏幕变暗，高亮显示，玩家可移动但不能交互
         "Chase": (
             ui_interactive: false,
             player_movable: true,
+            player_can_interact: false,
             view_layout: None,
             initial_layer: None,
             chase_config: "overworld/chase_config.ron",

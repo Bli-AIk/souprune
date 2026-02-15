@@ -749,14 +749,14 @@ pub fn handle_interaction_input_system(
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {
-    // Only handle interaction in Normal state (player_movable: true)
-    let player_movable = state_config
+    // Only handle interaction when player can interact in current state
+    let can_interact = state_config
         .as_ref()
         .and_then(|config| config.0.states.get(&current_state.0))
-        .map(|def| def.player_movable)
+        .map(|def| def.can_interact())
         .unwrap_or(true);
 
-    if !player_movable {
+    if !can_interact {
         return;
     }
 

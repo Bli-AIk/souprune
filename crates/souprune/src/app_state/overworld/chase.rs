@@ -1546,16 +1546,20 @@ pub struct DamageUIMarker;
 pub struct ChaseHUDRoot;
 
 /// System to setup Chase HUD when entering chase state.
-/// Loads the damage_flash.view_layout.ron which contains HP bar and HP text.
+/// Loads the View layout from chase_config.damage_ui.layout_path.
 ///
 /// 进入追逐战状态时设置 HUD 的系统。
-/// 加载包含血条和血量文字的 damage_flash.view_layout.ron。
-fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+/// 从 chase_config.damage_ui.layout_path 加载视图布局。
+fn setup_chase_hud_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    chase_config: Res<ChaseConfig>,
+) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD View layout / 加载追逐战 HUD 视图布局
-    let ui_path = "overworld/view/damage_flash.view_layout.ron";
-    let handle = asset_server.load(ui_path);
+    // Load the chase HUD View layout from config / 从配置加载追逐战 HUD 视图布局
+    let ui_path = &chase_config.damage_ui.layout_path;
+    let handle = asset_server.load(ui_path.clone());
 
     // Insert the View layout handle resource
     commands.insert_resource(crate::core::view::ViewLayoutHandle {
@@ -1577,7 +1581,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
         Name::new("ChaseHUD Root"),
     ));
 
-    info!("Chase: Chase HUD setup complete");
+    info!("Chase: Chase HUD setup complete, layout: {}", ui_path);
 }
 
 /// System to cleanup Chase HUD when exiting chase state.

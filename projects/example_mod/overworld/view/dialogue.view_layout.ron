@@ -17,6 +17,7 @@
     facts: {
         "dialogue_active": true,
         "dialogue_text": "",
+        "depth": 0,
     },
 
     roots: [

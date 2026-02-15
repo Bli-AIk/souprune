@@ -1327,15 +1327,16 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                action_to_fre_event_system,
-                process_view_actions_system,
-                handle_switch_state_system,
-            )
-                .chain(),
-        );
+        app.add_systems(Startup, register_condition_evaluator_system)
+            .add_systems(
+                Update,
+                (
+                    action_to_fre_event_system,
+                    process_view_actions_system,
+                    handle_switch_state_system,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -1489,4 +1490,36 @@ mod tests {
             &global_facts
         ));
     }
+}
+
+// ============================================================================
+// Condition Evaluator Implementation
+// ============================================================================
+
+/// Souprune's implementation of condition evaluation.
+/// This evaluator is registered with the FRE system to evaluate rule conditions.
+///
+/// Souprune 的条件评估实现。
+/// 此评估器注册到 FRE 系统以评估规则条件。
+pub struct SoupruneConditionEvaluator;
+
+impl bevy_fact_rule_event::ConditionEvaluatorTrait for SoupruneConditionEvaluator {
+    fn evaluate(
+        &self,
+        conditions: &[String],
+        facts: &bevy_fact_rule_event::LayeredFactDatabase,
+    ) -> bool {
+        evaluate_conditions_layered(conditions, facts)
+    }
+}
+
+/// System to register the Souprune condition evaluator with the FRE system.
+/// Should run at startup, after FREPlugin is built.
+///
+/// 将 Souprune 条件评估器注册到 FRE 系统的系统。
+/// 应在启动时运行，在 FREPlugin 构建之后。
+pub fn register_condition_evaluator_system(mut commands: Commands) {
+    commands.insert_resource(bevy_fact_rule_event::ConditionEvaluator::new(
+        SoupruneConditionEvaluator,
+    ));
 }

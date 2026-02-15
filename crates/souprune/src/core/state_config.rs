@@ -41,6 +41,14 @@ pub struct StateDefinition {
     #[serde(default)]
     pub player_movable: bool,
 
+    /// Whether the player can interact with objects in this state.
+    /// Defaults to the value of `player_movable` if not specified.
+    ///
+    /// 此状态下玩家是否可与物体交互。
+    /// 如果未指定，默认为 `player_movable` 的值。
+    #[serde(default)]
+    pub player_can_interact: Option<bool>,
+
     /// Whether the camera should follow the player in this state.
     ///
     /// 此状态下相机是否跟随玩家。
@@ -80,6 +88,17 @@ pub struct StateDefinition {
     pub chase_config: Option<String>,
 }
 
+impl StateDefinition {
+    /// Check if player can interact in this state.
+    /// Returns `player_can_interact` if set, otherwise falls back to `player_movable`.
+    ///
+    /// 检查玩家是否可以在此状态下交互。
+    /// 如果设置了 `player_can_interact` 则返回它，否则回退到 `player_movable`。
+    pub fn can_interact(&self) -> bool {
+        self.player_can_interact.unwrap_or(self.player_movable)
+    }
+}
+
 fn default_true() -> bool {
     true
 }
@@ -89,6 +108,7 @@ impl Default for StateDefinition {
         Self {
             ui_interactive: false,
             player_movable: true,
+            player_can_interact: None,
             camera_follow_player: true,
             view_layout: None,
             initial_layer: None,

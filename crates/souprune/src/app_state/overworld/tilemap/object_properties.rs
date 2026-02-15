@@ -47,6 +47,7 @@ pub fn process_map_object_properties_system(
     existing_triggers: Query<&TiledTriggerZone>,
     existing_interactables: Query<&TiledInteractable>,
     mut rule_registry: ResMut<LayeredRuleRegistry>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
     mut processed: Local<bool>,
 ) {
     // Only process once
@@ -150,6 +151,7 @@ pub fn process_map_object_properties_system(
                         center_offset_y,
                         map_height,
                         &mut rule_registry,
+                        &souprune_config.game.dialogue_view_default,
                     );
                 }
             }
@@ -250,6 +252,7 @@ fn spawn_interactable(
     center_offset_y: f32,
     map_height: f32,
     rule_registry: &mut LayeredRuleRegistry,
+    dialogue_view_default: &str,
 ) {
     let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
         trace!(
@@ -286,7 +289,7 @@ fn spawn_interactable(
         get_string_property(&object_data.properties, object_keys::SIMPLE_TEXT).map(String::from);
     let dialogue_view = get_string_property(&object_data.properties, object_keys::DIALOGUE_VIEW)
         .map(String::from)
-        .unwrap_or_else(|| "overworld/view/dialogue.view_layout.ron".to_string());
+        .unwrap_or_else(|| dialogue_view_default.to_string());
     let dialogue_voice =
         get_string_property(&object_data.properties, object_keys::DIALOGUE_VOICE).map(String::from);
     let dialogue_typewriter_speed = get_object_float_property(

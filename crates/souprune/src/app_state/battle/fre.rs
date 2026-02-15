@@ -53,8 +53,6 @@ pub struct BattleInputEntity;
 pub struct BattleRulesHandle {
     /// Handle for custom battle rules (from battle asset rules_file)
     pub handle: Option<Handle<FreAsset>>,
-    /// Handle for battle menu rules (always loaded)
-    pub menu_handle: Option<Handle<FreAsset>>,
     pub registered: bool,
 }
 
@@ -101,8 +99,6 @@ impl Plugin for BattleFREPlugin {
 fn setup_battle_fre_system(
     mut commands: Commands,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    mut battle_rules_handle: ResMut<BattleRulesHandle>,
-    asset_server: Res<AssetServer>,
     player_input: Res<PlayerInputSettings>,
 ) {
     // Clear local layer from any previous state
@@ -124,11 +120,10 @@ fn setup_battle_fre_system(
     ));
     info!("Battle FRE: Spawned input entity for ActionState");
 
-    // Always load battle menu rules
-    let menu_path = "battle/rules/battle_menu.fre.ron";
-    let menu_handle = asset_server.load::<FreAsset>(menu_path);
-    battle_rules_handle.menu_handle = Some(menu_handle);
-    info!("Battle FRE: Loading battle menu rules from {}", menu_path);
+    // NOTE: Battle menu rules (battle_menu.fre.ron) are loaded via View's requires mechanism.
+    // The View layout declares: requires: [File("battle/rules/battle_menu.fre.ron")]
+    // 注意：战斗菜单规则通过 View 的 requires 机制加载。
+    // View 布局声明：requires: [File("battle/rules/battle_menu.fre.ron")]
 
     // Player data is already in global layer (managed by core::data module)
     // No need to sync here
@@ -139,12 +134,14 @@ fn setup_battle_fre_system(
 }
 
 /// System to register battle-specific rules when loaded.
-/// Handles both menu rules (always loaded) and custom battle rules (optional).
+/// Handles custom battle rules (optional).
 /// Also populates RuleActionDefs for action execution.
+/// NOTE: Battle menu rules are loaded via View's requires mechanism.
 ///
 /// 当战斗规则加载完成时注册它们的系统。
-/// 处理菜单规则（总是加载）和自定义战斗规则（可选）。
+/// 处理自定义战斗规则（可选）。
 /// 同时填充 RuleActionDefs 以执行 action。
+/// 注意：战斗菜单规则通过 View 的 requires 机制加载。
 fn register_battle_rules_system(
     mut commands: Commands,
     mut battle_rules_handle: ResMut<BattleRulesHandle>,
@@ -158,13 +155,6 @@ fn register_battle_rules_system(
         return;
     }
 
-    // Wait for menu rules to load (always required)
-    let menu_loaded = battle_rules_handle
-        .menu_handle
-        .as_ref()
-        .map(|h| fre_assets.get(h).is_some())
-        .unwrap_or(false);
-
     // Wait for custom rules if specified
     let custom_loaded = battle_rules_handle
         .handle
@@ -172,7 +162,7 @@ fn register_battle_rules_system(
         .map(|h| fre_assets.get(h).is_some())
         .unwrap_or(true); // true if no custom rules
 
-    if !menu_loaded || !custom_loaded {
+    if !custom_loaded {
         return;
     }
 
@@ -184,39 +174,6 @@ fn register_battle_rules_system(
             return; // Will run again next frame with the resource available
         }
     };
-
-    // Process menu rules - facts only, rules are registered via View's requires mechanism
-    // 处理菜单规则 - 仅处理 facts，规则通过 View 的 requires 机制注册
-    if let Some(handle) = &battle_rules_handle.menu_handle
-        && let Some(fre_asset) = fre_assets.get(handle)
-    {
-        // NOTE: Menu rules are now registered as View-scoped rules via the View layout's
-        // requires: [File("battle/rules/battle_menu.fre.ron")] declaration.
-        // We only apply facts here for backward compatibility with any direct Local layer access.
-        // 注意：菜单规则现在通过 View 布局的 requires 声明注册为 View 作用域规则。
-        // 此处仅应用 facts 以兼容任何直接访问 Local 层的情况。
-        for (key, value) in fre_asset.get_facts() {
-            let fact_value = match value {
-                FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
-                FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
-                FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
-                FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
-                FactValueDef::StringList(v) => {
-                    bevy_fact_rule_event::FactValue::StringList(v.clone())
-                }
-                FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
-            };
-            fact_db.set_local(key.as_str(), fact_value);
-            trace!(
-                "Battle FRE: Set fact '{}' from menu rules to Local layer",
-                key
-            );
-        }
-        info!(
-            "Battle FRE: Applied {} facts from menu rules (rules registered via View)",
-            fre_asset.get_facts().len()
-        );
-    }
 
     // Process custom battle rules (if any)
     if let Some(handle) = &battle_rules_handle.handle
@@ -239,17 +196,10 @@ fn register_battle_rules_system(
 
         let rules_defs = fre_asset.get_rule_defs();
         let scope = fre_asset.scope();
-        let offset = battle_rules_handle
-            .menu_handle
-            .as_ref()
-            .and_then(|h| fre_assets.get(h))
-            .map(|rs| rs.get_rule_defs().len())
-            .unwrap_or(0);
 
         for (idx, rule_def) in rules_defs.iter().enumerate() {
-            let global_idx = offset + idx;
-            let rule = rule_def.to_rule_with_index(global_idx, scope);
-            let rule_id = rule_def.generate_id(global_idx);
+            let rule = rule_def.to_rule_with_index(idx, scope);
+            let rule_id = rule_def.generate_id(idx);
 
             if !rule_def.actions.is_empty() {
                 action_defs
@@ -287,7 +237,6 @@ fn cleanup_battle_fre_system(
 
     // Reset rules handle for next battle
     battle_rules_handle.handle = None;
-    battle_rules_handle.menu_handle = None;
     battle_rules_handle.registered = false;
 
     info!("Battle FRE: Cleaned up local layer (facts and rules) and reset rules handle");

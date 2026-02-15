@@ -36,7 +36,7 @@
         (
             id: "overworld_dialogue_started",
             event: Event("dialogue:started"),
-            condition: Always,
+            // condition: Always (no conditions needed)
             actions: [
                 Log(message: "Dialogue started, setting Overworld state"),
                 Custom(action_type: "SetOverworldState", params: {
@@ -58,7 +58,7 @@
         (
             id: "overworld_dialogue_ended",
             event: Event("dialogue:ended"),
-            condition: Always,
+            // condition: Always (no conditions needed)
             modifications: [
                 // Reset dialogue-related facts
                 // 重置对话相关的 facts
@@ -81,7 +81,7 @@
         (
             id: "demo_increment_visit",
             event: Event("trigger_enter_demo_trigger"),
-            condition: Always,
+            // condition: Always (no conditions needed)
             modifications: [
                 Increment(key: "demo_area_visit_count", amount: 1),
             ],
@@ -97,7 +97,7 @@
         (
             id: "demo_enter_chase",
             event: Event("demo_visit_updated"),
-            condition: Equals(key: "demo_area_visit_count", value: Int(2)),
+            conditions: ["$demo_area_visit_count == 2"],
             actions: [
                 Log(message: "Entering Chase State!"),
                 Custom(action_type: "EnterChaseState", params: {}),
@@ -111,7 +111,7 @@
         (
             id: "demo_play_danmaku",
             event: Event("demo_visit_updated"),
-            condition: Equals(key: "demo_area_visit_count", value: Int(3)),
+            conditions: ["$demo_area_visit_count == 3"],
             actions: [
                 Log(message: "Playing danmaku performance!"),
                 Custom(action_type: "PlayDanmaku", params: {
@@ -127,7 +127,7 @@
         (
             id: "demo_exit_chase",
             event: Event("demo_visit_updated"),
-            condition: Equals(key: "demo_area_visit_count", value: Int(5)),
+            conditions: ["$demo_area_visit_count == 5"],
             actions: [
                 Log(message: "Exiting Chase State!"),
                 Custom(action_type: "ExitChaseState", params: {}),
@@ -141,7 +141,7 @@
         (
             id: "demo_start_battle",
             event: Event("demo_visit_updated"),
-            condition: Equals(key: "demo_area_visit_count", value: Int(6)),
+            conditions: ["$demo_area_visit_count == 6"],
             actions: [
                 Log(message: "Starting Battle for profiling!"),
                 Custom(action_type: "StartBattle", params: {}),
