@@ -1517,7 +1517,8 @@ pub mod debug_fre_panel {
 
                                 // Show details only for current state
                                 if is_current {
-                                    let is_ui_interactive = config.is_ui_interactive(state_name);
+                                    let is_view_interactive =
+                                        config.is_view_interactive(state_name);
                                     let is_player_movable = config.is_player_movable(state_name);
                                     let view_layout = config.get_view_layout(state_name);
                                     let chase_config = config.get_chase_config_path(state_name);
@@ -1525,7 +1526,7 @@ pub mod debug_fre_panel {
                                     ui.indent(state_name, |ui| {
                                         ui.horizontal(|ui| {
                                             ui.label("UI Interactive:");
-                                            if is_ui_interactive {
+                                            if is_view_interactive {
                                                 ui.colored_label(egui::Color32::GREEN, "Yes");
                                             } else {
                                                 ui.colored_label(egui::Color32::GRAY, "No");

@@ -105,16 +105,16 @@ fn compute_element(
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
-    // Extract camera offset from ui_shape_logic if camera_anchored
+    // Extract camera offset from view_box if camera_anchored
     // This is stored in camera_offset field, NOT applied to transform
     // The CameraAnchored system manages transform for these elements
     //
-    // 从 ui_shape_logic 提取相机偏移（如果是 camera_anchored）
+    // 从 view_box 提取相机偏移（如果是 camera_anchored）
     // 这存储在 camera_offset 字段中，而不是应用到 transform
     // CameraAnchored 系统管理这些元素的 transform
     let camera_offset = if node_def.camera_anchored {
         node_def
-            .ui_shape_logic
+            .view_box
             .as_ref()
             .map(|logic| serializable_vec3_to_vec3(&logic.offset))
     } else {
@@ -199,11 +199,11 @@ fn expand_repeat(
         let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        // Extract camera offset from ui_shape_logic if camera_anchored
+        // Extract camera offset from view_box if camera_anchored
         // This is stored in camera_offset field, NOT applied to transform
         let camera_offset = if node_def.camera_anchored {
             node_def
-                .ui_shape_logic
+                .view_box
                 .as_ref()
                 .map(|logic| serializable_vec3_to_vec3(&logic.offset))
         } else {

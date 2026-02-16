@@ -8,7 +8,7 @@ StateConfig(
         // Battle state - main gameplay state
         // 战斗状态 - 主游戏状态
         "Battle": (
-            ui_interactive: true,
+            view_interactive: true,
             player_movable: false,
             view_layout: "states/battle/view/undertale.view_layout.ron",
             initial_layer: None,

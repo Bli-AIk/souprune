@@ -718,8 +718,8 @@ fn spawn_view_node_with_repeat_context(
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
-    // Determine if this node has a ViewBox (ui_shape_logic)
-    let has_ui_box = node_def.ui_shape_logic.is_some();
+    // Determine if this node has a ViewBox (view_box)
+    let has_ui_box = node_def.view_box.is_some();
     // Determine if this is a standalone sprite node (sprite without ViewBox)
     let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
     // Determine if this is a state sprite node
@@ -1025,18 +1025,18 @@ fn spawn_view_node_with_repeat_context(
         }
 
         // =====================================================================
-        // Case 2: ViewBox Node (has ui_shape_logic)
-        // 情况 2: ViewBox 节点（有 ui_shape_logic）
+        // Case 2: ViewBox Node (has view_box)
+        // 情况 2: ViewBox 节点（有 view_box）
         // =====================================================================
         if has_ui_box {
-            let ui_shape_logic = node_def.ui_shape_logic.as_ref().unwrap();
+            let view_box = node_def.view_box.as_ref().unwrap();
             info!(
                 "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
-                ui_shape_logic.width,
-                ui_shape_logic.height,
-                ui_shape_logic.border_width,
-                ui_shape_logic.offset
+                view_box.width,
+                view_box.height,
+                view_box.border_width,
+                view_box.offset
             );
 
             let texts = node_def
@@ -1047,15 +1047,15 @@ fn spawn_view_node_with_repeat_context(
                 })
                 .collect::<Vec<_>>();
 
-            let offset = serializable_vec3_to_static(&ui_shape_logic.offset);
-            let dynamic_anchor = if ui_shape_logic.offset.0.as_expr().is_some()
-                || ui_shape_logic.offset.1.as_expr().is_some()
-                || ui_shape_logic.offset.2.as_expr().is_some()
+            let offset = serializable_vec3_to_static(&view_box.offset);
+            let dynamic_anchor = if view_box.offset.0.as_expr().is_some()
+                || view_box.offset.1.as_expr().is_some()
+                || view_box.offset.2.as_expr().is_some()
             {
                 Some(CameraAnchoredDynamic {
-                    x_expression: ui_shape_logic.offset.0.as_expr().map(|s| s.to_string()),
-                    y_expression: ui_shape_logic.offset.1.as_expr().map(|s| s.to_string()),
-                    z_expression: ui_shape_logic.offset.2.as_expr().map(|s| s.to_string()),
+                    x_expression: view_box.offset.0.as_expr().map(|s| s.to_string()),
+                    y_expression: view_box.offset.1.as_expr().map(|s| s.to_string()),
+                    z_expression: view_box.offset.2.as_expr().map(|s| s.to_string()),
                 })
             } else {
                 None
@@ -1063,7 +1063,7 @@ fn spawn_view_node_with_repeat_context(
 
             // Convert fill color from RON definition
             // 从 RON 定义转换填充颜色
-            let fill_color = ui_shape_logic
+            let fill_color = view_box
                 .fill_color
                 .as_ref()
                 .map(|c| {
@@ -1076,12 +1076,12 @@ fn spawn_view_node_with_repeat_context(
                 // Top-level nodes use CameraAnchored
                 let mut entity_cmd = parent.spawn((
                     ViewBox::new_full(
-                        ui_shape_logic.width,
-                        ui_shape_logic.height,
-                        ui_shape_logic.border_width,
+                        view_box.width,
+                        view_box.height,
+                        view_box.border_width,
                         texts,
-                        ui_shape_logic.fill_shader.clone(),
-                        ui_shape_logic.structure_file.clone(),
+                        view_box.fill_shader.clone(),
+                        view_box.structure_file.clone(),
                         fill_color,
                     ),
                     Visibility::default(),
@@ -1101,12 +1101,12 @@ fn spawn_view_node_with_repeat_context(
                 // Child nodes use regular Transform relative to parent
                 let mut entity_cmd = parent.spawn((
                     ViewBox::new_full(
-                        ui_shape_logic.width,
-                        ui_shape_logic.height,
-                        ui_shape_logic.border_width,
+                        view_box.width,
+                        view_box.height,
+                        view_box.border_width,
                         texts,
-                        ui_shape_logic.fill_shader.clone(),
-                        ui_shape_logic.structure_file.clone(),
+                        view_box.fill_shader.clone(),
+                        view_box.structure_file.clone(),
                         fill_color,
                     ),
                     Transform::from_translation(offset),
@@ -1132,7 +1132,7 @@ fn spawn_view_node_with_repeat_context(
 
             info!(
                 "[UI Box] Spawned ViewBox '{}' at camera offset: {:?} with structure_file: {:?}",
-                node_def.name, offset, ui_shape_logic.structure_file
+                node_def.name, offset, view_box.structure_file
             );
 
             if let Some(dynamic) = dynamic_anchor {

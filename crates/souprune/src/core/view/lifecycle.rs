@@ -69,7 +69,7 @@ pub struct StateTransitionTracker {
 #[derive(Resource, Default)]
 pub struct UIInteractiveStateTracker {
     /// Whether we were in a UI interactive state last frame.
-    pub was_ui_interactive: bool,
+    pub was_view_interactive: bool,
     /// The layout handle for the current UI interactive state.
     pub current_layout_handle: Option<Handle<ViewLayoutAsset>>,
 }
@@ -103,20 +103,20 @@ pub(crate) fn backpack_state_transition_system(
 
     // Check if current state has ui_interactive enabled
     let state_name = overworld_state.name();
-    let is_ui_interactive = state_config.is_ui_interactive(state_name);
+    let is_view_interactive = state_config.is_view_interactive(state_name);
 
     // Log state every frame for debugging
     trace!(
-        "[lifecycle] state='{}', is_ui_interactive={}, was_ui_interactive={}, has_handle={}, root_count={}",
+        "[lifecycle] state='{}', is_view_interactive={}, was_view_interactive={}, has_handle={}, root_count={}",
         state_name,
-        is_ui_interactive,
-        tracker.was_ui_interactive,
+        is_view_interactive,
+        tracker.was_view_interactive,
         tracker.current_layout_handle.is_some(),
         root_query.iter().count()
     );
 
     // Detect entering UI interactive state
-    if is_ui_interactive && !tracker.was_ui_interactive {
+    if is_view_interactive && !tracker.was_view_interactive {
         info!(
             "[lifecycle] Entering UI interactive state '{}' - loading view layout",
             state_name
@@ -140,7 +140,7 @@ pub(crate) fn backpack_state_transition_system(
     }
 
     // Try to spawn UI if we have a pending layout handle
-    if is_ui_interactive
+    if is_view_interactive
         && tracker.current_layout_handle.is_some()
         && let Some(ref handle) = tracker.current_layout_handle
         && view_layouts.get(handle).is_some()
@@ -177,7 +177,7 @@ pub(crate) fn backpack_state_transition_system(
     }
 
     // Detect exiting UI interactive state
-    if !is_ui_interactive && tracker.was_ui_interactive {
+    if !is_view_interactive && tracker.was_view_interactive {
         info!("[lifecycle] Exiting UI interactive state - despawning UI");
         despawn_ui(&mut commands, &root_query);
         // Remove ViewLayoutHandle resource when exiting UI state
@@ -187,7 +187,7 @@ pub(crate) fn backpack_state_transition_system(
         tracker.current_layout_handle = None;
     }
 
-    tracker.was_ui_interactive = is_ui_interactive;
+    tracker.was_view_interactive = is_view_interactive;
 }
 
 /// Spawn the UI root entity.

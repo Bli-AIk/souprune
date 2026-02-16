@@ -28,12 +28,12 @@
         (
             name: "DialogueBox",
             visible_when: "$dialogue_active",
-            ui_shape_logic: (
+            view_box: (
                 width: 280.0,
                 height: 72.0,
                 border_width: 3.0,
                 offset: (0.0, -72.0, 0.0),
-                structure_file: "shared/ui_structures/ui_box.sdf.ron",
+                structure_file: "shared/view_structures/view_box.sdf.ron",
             ),
             texts: [
                 (

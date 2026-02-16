@@ -29,11 +29,12 @@ pub struct StateConfig {
 /// 单个状态的配置定义。
 #[derive(Debug, Deserialize, Clone)]
 pub struct StateDefinition {
-    /// Whether UI is interactive in this state.
+    /// Whether View is interactive in this state.
     ///
-    /// 此状态下 UI 是否可交互。
+    /// 此状态下 View 是否可交互。
     #[serde(default)]
-    pub ui_interactive: bool,
+    #[serde(alias = "ui_interactive")]
+    pub view_interactive: bool,
 
     /// Whether the player can move in this state.
     ///
@@ -106,7 +107,7 @@ fn default_true() -> bool {
 impl Default for StateDefinition {
     fn default() -> Self {
         Self {
-            ui_interactive: false,
+            view_interactive: false,
             player_movable: true,
             player_can_interact: None,
             camera_follow_player: true,
@@ -154,9 +155,9 @@ impl LoadedStateConfig {
     /// Check if UI is interactive for the given state.
     ///
     /// 检查给定状态下 UI 是否可交互。
-    pub fn is_ui_interactive(&self, state_name: &str) -> bool {
+    pub fn is_view_interactive(&self, state_name: &str) -> bool {
         self.get(state_name)
-            .map(|s| s.ui_interactive)
+            .map(|s| s.view_interactive)
             .unwrap_or(false)
     }
 
@@ -278,8 +279,8 @@ fn process_loaded_state_config_system(
         );
         for (name, def) in &config.states {
             debug!(
-                "  State '{}': ui_interactive={}, player_movable={}, camera_follow={}",
-                name, def.ui_interactive, def.player_movable, def.camera_follow_player
+                "  State '{}': view_interactive={}, player_movable={}, camera_follow={}",
+                name, def.view_interactive, def.player_movable, def.camera_follow_player
             );
         }
         *loaded_config = LoadedStateConfig(config.clone());

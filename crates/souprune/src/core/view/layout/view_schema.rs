@@ -147,14 +147,14 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "ui_box_logic")]
-    pub ui_shape_logic: Option<ViewBoxLogicDef>,
+    #[serde(alias = "view_box", alias = "ui_box_logic")]
+    pub view_box: Option<ViewBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<ViewNodeDef>,
     /// If true, this UI node will be anchored to the camera and follow its movement.
     /// This is useful for HUD elements that should stay fixed on screen.
-    /// Default is true for top-level nodes with ui_shape_logic.
+    /// Default is true for top-level nodes with view_box.
     #[serde(default = "default_camera_anchored")]
     pub camera_anchored: bool,
     /// Repeat configuration for generating multiple instances from an array.
