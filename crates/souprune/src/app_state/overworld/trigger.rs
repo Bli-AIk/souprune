@@ -366,7 +366,7 @@ pub fn collect_danmaku_actions_system(
                 // Check if rule's condition_expressions are met (empty = always true)
                 if !crate::core::fre_bridge::evaluate_conditions_layered(
                     &rule.condition_expressions,
-                    &*fact_db,
+                    &fact_db,
                 ) {
                     continue;
                 }
@@ -460,7 +460,7 @@ pub fn handle_chase_state_actions_system(
             for rule in group {
                 if !crate::core::fre_bridge::evaluate_conditions_layered(
                     &rule.condition_expressions,
-                    &*fact_db,
+                    &fact_db,
                 ) {
                     continue;
                 }

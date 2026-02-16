@@ -243,6 +243,7 @@ pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
 /// mod.toml 中 [resources] 节的资源路径配置。
 #[derive(Clone, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct ResourcePaths {
     /// Path to textures directory relative to mod root.
     ///
@@ -253,15 +254,6 @@ pub struct ResourcePaths {
     ///
     /// 音频目录路径，相对于 mod 根目录。
     pub audios: String,
-}
-
-impl Default for ResourcePaths {
-    fn default() -> Self {
-        Self {
-            textures: String::new(),
-            audios: String::new(),
-        }
-    }
 }
 
 #[derive(Deserialize)]
