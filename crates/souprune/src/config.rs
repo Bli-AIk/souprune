@@ -241,7 +241,7 @@ pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
 /// Resource paths configuration from mod.toml [resources] section.
 ///
 /// mod.toml 中 [resources] 节的资源路径配置。
-#[derive(Clone, Deserialize, Default)]
+#[derive(Clone, Deserialize)]
 #[serde(default)]
 pub struct ResourcePaths {
     /// Path to textures directory relative to mod root.
@@ -255,11 +255,11 @@ pub struct ResourcePaths {
     pub audios: String,
 }
 
-impl ResourcePaths {
-    fn with_defaults() -> Self {
+impl Default for ResourcePaths {
+    fn default() -> Self {
         Self {
-            textures: "assets/textures".to_string(),
-            audios: "assets/audios".to_string(),
+            textures: String::new(),
+            audios: String::new(),
         }
     }
 }
@@ -320,8 +320,8 @@ Falling back to default configuration (example_mod)",
                 default_config()
             });
 
-            // Initialize resources with defaults
-            config.resources = ResourcePaths::with_defaults();
+            // Initialize resources - will be populated from mod.toml
+            config.resources = ResourcePaths::default();
 
             let mod_name = &config.project.mod_name;
             let mod_config_path = Path::new("projects").join(mod_name).join("mod.toml");
@@ -358,7 +358,7 @@ Falling back to default configuration (example_mod)",
                                 config.game.hidden_layer_keywords = val;
                             }
                         }
-                        // Load resource paths from [resources] section
+                        // Load resource paths from [resources] section (required)
                         if let Some(res_partial) = mod_cfg.resources {
                             if let Some(val) = res_partial.textures {
                                 config.resources.textures = val;
@@ -366,6 +366,14 @@ Falling back to default configuration (example_mod)",
                             if let Some(val) = res_partial.audios {
                                 config.resources.audios = val;
                             }
+                        }
+
+                        // Validate required resource paths
+                        if config.resources.textures.is_empty() {
+                            error!("mod.toml: [resources].textures is required");
+                        }
+                        if config.resources.audios.is_empty() {
+                            error!("mod.toml: [resources].audios is required");
                         }
                     }
                     Err(e) => error!("Failed to load mod.toml: {}", e),
@@ -388,6 +396,6 @@ fn default_config() -> SoupruneConfig {
         },
         game: GameConfig::default(),
         render: RenderConfig::default(),
-        resources: ResourcePaths::with_defaults(),
+        resources: ResourcePaths::default(),
     }
 }
