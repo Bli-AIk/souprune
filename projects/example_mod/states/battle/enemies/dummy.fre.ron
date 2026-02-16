@@ -60,10 +60,10 @@
         // Parameters for each action (e.g., narration key for simple narration)
         // 每个动作的参数（例如，简单旁白的旁白键）
         "dummy.action_params": StringList([
-            "EnemyDummyActCheckResult",
-            "EnemyDummyActTalkResult",
+            "battle/enemies/dummy:EnemyDummyActCheckResult",
+            "battle/enemies/dummy:EnemyDummyActTalkResult",
             "",
-            "EnemyDummyActHugResult",
+            "battle/enemies/dummy:EnemyDummyActHugResult",
         ]),
     },
 

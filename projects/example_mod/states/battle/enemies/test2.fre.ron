@@ -28,9 +28,9 @@
 
         // Parameters for each action
         "whimsun.action_params": StringList([
-            "{{battle/ui:ACT_WHIMSUN_CHECK_RESULT}}",
-            "{{battle/ui:ACT_WHIMSUN_CONSOLE_RESULT}}",
-            "{{battle/ui:ACT_WHIMSUN_TERRORIZE_RESULT}}",
+            "battle/ui:ACT_WHIMSUN_CHECK_RESULT",
+            "battle/ui:ACT_WHIMSUN_CONSOLE_RESULT",
+            "battle/ui:ACT_WHIMSUN_TERRORIZE_RESULT",
         ]),
     },
     rules: [],

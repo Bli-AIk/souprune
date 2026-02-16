@@ -34,12 +34,12 @@
 
         // Parameters for each action
         "vegetoid.action_params": StringList([
-            "{{battle/ui:ACT_VEGETOID_CHECK_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_TALK_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_DINNER_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_DEVOUR_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_FLIRT_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_PAT_RESULT}}",
+            "battle/ui:ACT_VEGETOID_CHECK_RESULT",
+            "battle/ui:ACT_VEGETOID_TALK_RESULT",
+            "battle/ui:ACT_VEGETOID_DINNER_RESULT",
+            "battle/ui:ACT_VEGETOID_DEVOUR_RESULT",
+            "battle/ui:ACT_VEGETOID_FLIRT_RESULT",
+            "battle/ui:ACT_VEGETOID_PAT_RESULT",
         ]),
     },
     rules: [],
