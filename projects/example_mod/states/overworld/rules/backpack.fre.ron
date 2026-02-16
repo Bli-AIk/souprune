@@ -58,7 +58,7 @@
         // 规则：在深度 1 向下导航（物品列表，最大 = 物品数量 - 1）
         (
             event: ActionEvent(action: "Down", kind: JustPressed),
-            conditions: ["$depth == 1", "$selection < $player_inventory.len() - 1"],
+            conditions: ["$depth == 1", "$selection < $player:inventory.len() - 1"],
             actions: [
                 SetLocalFact("selection", Expr("$selection + 1")),
                 PlaySound("choice"),

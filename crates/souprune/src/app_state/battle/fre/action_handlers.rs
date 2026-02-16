@@ -192,10 +192,10 @@ pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) 
     if let Some(pending_damage) = layered_db.get_int("pending_player_damage")
         && pending_damage != 0
     {
-        let current_hp = layered_db.get_int_or("player_hp", 100);
+        let current_hp = layered_db.get_int_or("player:hp", 100);
         let new_hp = (current_hp - pending_damage).max(0);
 
-        layered_db.set("player_hp", new_hp);
+        layered_db.set("player:hp", new_hp);
         layered_db.remove("pending_player_damage");
 
         info!(

@@ -555,7 +555,7 @@ fn resolve_value(
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) -> Option<FactValue> {
-    // Check for .len() suffix (e.g., $player_inventory.len())
+    // Check for .len() suffix (e.g., $player:inventory.len())
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
@@ -665,7 +665,7 @@ fn resolve_int(
         return None; // Avoid division by zero
     }
 
-    // Check for .len() suffix (e.g., $player_inventory.len())
+    // Check for .len() suffix (e.g., $player:inventory.len())
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
@@ -1464,7 +1464,7 @@ mod tests {
         let local_facts = FactDatabase::new();
         let mut global_facts = LayeredFactDatabase::default();
         global_facts.set_global(
-            "player_inventory",
+            "player:inventory",
             FactValue::StringList(vec![
                 "item1".to_string(),
                 "item2".to_string(),
@@ -1472,8 +1472,8 @@ mod tests {
             ]),
         );
 
-        // Test $player_inventory.len() resolves to 3
-        let conditions = vec!["$player_inventory.len() == 3".to_string()];
+        // Test $player:inventory.len() resolves to 3
+        let conditions = vec!["$player:inventory.len() == 3".to_string()];
         assert!(evaluate_conditions(
             &conditions,
             &local_facts,
@@ -1481,7 +1481,7 @@ mod tests {
         ));
 
         // Test comparison with arithmetic
-        let conditions2 = vec!["$player_inventory.len() > 2".to_string()];
+        let conditions2 = vec!["$player:inventory.len() > 2".to_string()];
         assert!(evaluate_conditions(
             &conditions2,
             &local_facts,

@@ -101,7 +101,7 @@
             texts: [
                 (
                     id: "NameText",
-                    content: "{$player_name}",
+                    content: "{$player:name}",
                     font: DeterminationSans,
                     world_scale: (13.0, 13.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -112,7 +112,7 @@
                 ),
                 (
                     id: "HUDText",
-                    content: "{{overworld/ui:LV}}  {$player_lv}\n{{overworld/ui:HP}}  {$player_hp}/{$player_hp_max}\ng   {$player_gold}",
+                    content: "{{overworld/ui:LV}}  {$player:lv}\n{{overworld/ui:HP}}  {$player:hp}/{$player:hp_max}\ng   {$player:gold}",
                     font: Hud,
                     world_scale: (8.0, 8.0),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -235,7 +235,7 @@
             texts: [
                 (
                     id: "StatusLayerName",
-                    content: "\"{$player_name}\"",
+                    content: "\"{$player:name}\"",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -246,7 +246,7 @@
                 ),
                 (
                     id: "StatusLayerLvHp",
-                    content: "{{overworld/ui:LV}}   {$player_lv}\n{{overworld/ui:HP}}  {$player_hp} / {$player_hp_max}",
+                    content: "{{overworld/ui:LV}}   {$player:lv}\n{{overworld/ui:HP}}  {$player:hp} / {$player:hp_max}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -257,7 +257,7 @@
                 ),
                 (
                     id: "StatusLayerCombat",
-                    content: "{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {$player_exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {$player_next_exp}",
+                    content: "{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {$player:exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {$player:next_exp}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
@@ -279,7 +279,7 @@
                 ),
                 (
                     id: "StatusLayerGold",
-                    content: "{{overworld/ui:GOLD}}: {$player_gold}",
+                    content: "{{overworld/ui:GOLD}}: {$player:gold}",
                     font: DeterminationSans,
                     world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
