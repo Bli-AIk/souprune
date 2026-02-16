@@ -4,7 +4,16 @@
 node demo_talk {
     text: "* Hello, traveler."
     text: "* This is a demo dialogue."
-    text: "* Press confirm to\n  continue reading."
-    text: "* Press cancel to\n  skip the typewriter effect."
-    text: "* That's all for\n  the dialogue demo."
+    text: """
+        * Press confirm to
+          continue reading.
+    """
+    text: """
+        * Press cancel to
+          skip the typewriter effect.
+    """
+    text: """
+        * That's all for
+          the dialogue demo.
+    """
 }
