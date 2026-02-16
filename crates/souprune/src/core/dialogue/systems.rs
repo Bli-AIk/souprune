@@ -322,7 +322,7 @@ pub fn sync_mortar_text_to_typewriter_system(
     for mut typewriter in &mut query {
         // Only update if the source text changed
         if typewriter.source_text != new_text {
-            info!(
+            trace!(
                 "sync_mortar_text_to_typewriter: updating source_text to '{}'",
                 new_text
             );

@@ -103,7 +103,7 @@ pub fn process_view_actions_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
-    mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
@@ -222,19 +222,18 @@ pub fn process_view_actions_system(
                     }
                 }
 
-                // Apply modifications to global facts database
-                // 将 modifications 应用到全局 facts 数据库
-                for modification in &rule.modifications {
-                    modification.apply(&mut global_facts);
-                }
-
-                // Emit output events for this rule via pending events queue
-                // 通过待处理事件队列发送此规则的输出事件
+                // Queue output events with deduplication.
+                // This system can correctly evaluate conditions with local facts,
+                // so it should handle outputs for rules that reference local facts.
+                // The queue_output method ensures no duplicates if process_rules_system
+                // already queued the same output.
+                //
+                // 使用去重队列输出事件。
+                // 此系统可以正确评估包含 local facts 的条件，
+                // 因此它应该处理引用 local facts 的规则的 outputs。
+                // queue_output 方法确保如果 process_rules_system 已排队相同输出则不会重复。
                 for output_id in &rule.outputs {
-                    info!("FRE Bridge: Queueing output event '{}'", output_id.0);
-                    pending_events
-                        .events
-                        .push(FactEvent::new(output_id.clone()));
+                    pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
                 }
 
                 // If this rule consumes the event, stop all matching
@@ -259,7 +258,7 @@ pub fn process_view_actions_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut global_facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
@@ -341,19 +340,18 @@ pub fn process_view_actions_system(
                     }
                 }
 
-                // Apply modifications to global facts database
-                // 将 modifications 应用到全局 facts 数据库
-                for modification in &rule.modifications {
-                    modification.apply(&mut global_facts);
-                }
-
-                // Emit output events for this rule via pending events queue
-                // 通过待处理事件队列发送此规则的输出事件
+                // Queue output events with deduplication.
+                // This system can correctly evaluate conditions with local facts,
+                // so it should handle outputs for rules that reference local facts.
+                // The queue_output method ensures no duplicates if process_rules_system
+                // already queued the same output.
+                //
+                // 使用去重队列输出事件。
+                // 此系统可以正确评估包含 local facts 的条件，
+                // 因此它应该处理引用 local facts 的规则的 outputs。
+                // queue_output 方法确保如果 process_rules_system 已排队相同输出则不会重复。
                 for output_id in &rule.outputs {
-                    info!("FRE Bridge: Queueing output event '{}'", output_id.0);
-                    pending_events
-                        .events
-                        .push(FactEvent::new(output_id.clone()));
+                    pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
                 }
 
                 // If this rule consumes the event, stop all matching
