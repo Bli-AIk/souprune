@@ -33,7 +33,7 @@ StateConfig(
         "Backpack": (
             view_interactive: true,
             player_movable: false,
-            view_layout: "states/overworld/view/undertale_backpack.view_layout.ron",
+            view_layout: "states/overworld/view/undertale_backpack.view.ron",
             initial_layer: None,  // No longer needed - using initial_facts in view_layout
             on_enter_sound: "audios/sfx/confirm.wav",
             //on_exit_sound: "audios/sfx/choice.wav",

@@ -76,10 +76,10 @@ pub struct ViewRoot {
     pub layout_path: String,
 
     /// Namespace (auto-generated from layout path).
-    /// Example: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
+    /// Example: "battle/ui/undertale.view.ron" -> "battle_ui_undertale"
     ///
     /// 命名空间（从布局路径自动生成）。
-    /// 示例: "battle/ui/undertale.view_layout.ron" -> "battle_ui_undertale"
+    /// 示例: "battle/ui/undertale.view.ron" -> "battle_ui_undertale"
     pub namespace: String,
 
     /// Local fact storage for this View instance.
@@ -106,14 +106,13 @@ impl ViewRoot {
 
     /// Generate namespace from layout path.
     ///
-    /// Removes the `.view_layout.ron` extension and replaces `/` and `.` with `_`.
+    /// Removes the `.view.ron` extension and replaces `/` and `.` with `_`.
     ///
     /// 从布局路径生成命名空间。
     ///
-    /// 移除 `.view_layout.ron` 扩展名，并将 `/` 和 `.` 替换为 `_`。
+    /// 移除 `.view.ron` 扩展名，并将 `/` 和 `.` 替换为 `_`。
     pub fn namespace_from_path(path: &str) -> String {
-        path.trim_end_matches(".view_layout.ron")
-            .replace(['/', '.'], "_")
+        path.trim_end_matches(".view.ron").replace(['/', '.'], "_")
     }
 }
 

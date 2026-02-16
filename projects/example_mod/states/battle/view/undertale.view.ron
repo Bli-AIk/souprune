@@ -5,8 +5,10 @@
 // View system features used in this layout:
 // 此布局使用的视图系统特性：
 // - `visible_when`: Expression-based visibility control
-// - `requires`: Data dependency declaration with interface bindings
-// - `facts`: View-local state initialization
+// - Interfaces for enemy data binding
+//
+// FRE integration is in undertale.view_rules.ron
+// FRE 集成在 undertale.view_rules.ron 中
 //
 // NOTE: Navigation is handled by battle_view_navigation_system in battle/fre/bridge.rs
 // 注意：导航由 battle/fre/bridge.rs 中的 battle_view_navigation_system 处理
@@ -41,8 +43,6 @@
 
         // Current enemy ACT data - set when player selects an enemy in ACT menu
         // 当前敌人 ACT 数据 - 玩家在 ACT 菜单选择敌人时设置
-        // These are copied from the selected enemy's FRE data
-        // 这些从选中敌人的 FRE 数据复制
         Interface(
             interface: "current_enemy",
             expects: [
@@ -63,29 +63,25 @@
         "menu_context": 0,         // What menu we're in: 0=FIGHT, 1=ACT, 2=ITEM, 3=MERCY
         "interactable": false,     // Whether menu accepts input (vs bullet hell)
         "selection_confirmed": false, // Set to true when player confirms selection
-        "enemy_view_offset": 0,    // Scroll offset for enemy list (滚动偏移量)
-        "enemy_display_limit": 3,  // Max enemies to display at once (同时显示的最大敌人数)
+        "enemy_view_offset": 0,    // Scroll offset for enemy list
+        "enemy_display_limit": 3,  // Max enemies to display at once
 
         // ACT options state (depth 2)
-        // ACT 选项状态（深度 2）
         "act_selection": 0,        // Currently selected ACT option (0-based)
         "act_count": 0,            // Number of ACT options for current enemy
         "narration_visible": false,  // Whether to show narration text
-        "action_param": "",        // Current action parameter (e.g., narration key, set by FRE)
+        "action_param": "",        // Current action parameter
         "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
         "buttons_visible": true,   // Whether to show menu buttons
 
-        // View initialization state (set to true when FRE rules finish loading)
-        // View 初始化状态（FRE 规则加载完成时设为 true）
+        // View initialization state
         "view_rules_loaded": false,
 
         // Dialogue text for typewriter effect
-        // 对话文本，用于打字机效果
         "dialogue_text": "",       // Synced from typewriter system
-        "dialogue_visible": false, // Whether dialogue text should be visible (set by typewriter sync)
+        "dialogue_visible": false, // Whether dialogue text should be visible
 
-        // Typewriter resume behavior - replay typewriter when depth returns to 0
-        // 打字机恢复行为 - 当 depth 返回 0 时重播打字机
+        // Typewriter resume behavior
         "dialogue:replay_on_resume": true,
     },
 

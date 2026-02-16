@@ -146,6 +146,7 @@
             actions: [
                 SwitchState("Normal"),
             ],
+            priority: 100,  // Higher priority than map-layer open rule
         ),
 
         // Rule: Menu at depth 0 -> close backpack (same as Cancel)
@@ -156,6 +157,7 @@
             actions: [
                 SwitchState("Normal"),
             ],
+            priority: 100,  // Higher priority than map-layer open rule
         ),
 
         // Rule: Cancel at depth 1 -> back to menu

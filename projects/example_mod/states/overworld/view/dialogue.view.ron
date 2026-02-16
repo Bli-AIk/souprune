@@ -46,8 +46,6 @@
                         translation: (-120.0, 24.0, 1.0),
                     ),
                     line_height: 1.375,
-                    // Text content is resolved from 'dialogue_text' fact
-                    // 文本内容从 'dialogue_text' fact 解析
                 ),
             ],
         ),

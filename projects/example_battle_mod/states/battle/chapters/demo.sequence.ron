@@ -6,7 +6,7 @@
     
     chapters: [
         SetCamera(SetZoom(2.0)),
-        SpawnView(view_layout: "states/battle/view/undertale.view_layout.ron"),
+        SpawnView(view_layout: "states/battle/view/undertale.view.ron"),
         SetPlayer(Spawn(config_path: "states/battle/players/player.battle_player.ron", position: (0.0, -80.0))),
         Wait(1.0),
         DanmakuPerformance(

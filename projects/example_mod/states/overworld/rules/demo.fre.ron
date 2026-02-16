@@ -29,6 +29,24 @@
     },
 
     rules: [
+        // Open backpack when Menu is pressed
+        // 按 Menu 打开背包
+        // Note: This rule has low priority so View-layer close rules take precedence.
+        // 注意：此规则优先级较低，View 层的关闭规则会优先处理。
+        (
+            id: "overworld_open_backpack",
+            event: ActionEvent(action: "Menu", kind: JustPressed),
+            // No conditions - the View layer's close rule will take precedence when active
+            // 无条件 - 当 View 激活时，View 层的关闭规则会优先
+            actions: [
+                Log(message: "Opening Backpack"),
+                Custom(action_type: "SetOverworldState", params: {
+                    "state": "Backpack",
+                }),
+            ],
+            priority: 0,  // Low priority so View layer rules (close) can override
+        ),
+
         // Dialogue started handler: Set Overworld state to Dialogue
         // 对话启动处理：设置 Overworld 状态为 Dialogue
         // This rule responds to dialogue:started event emitted by handle_pending_dialogue_start_system

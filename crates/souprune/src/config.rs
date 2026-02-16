@@ -135,7 +135,7 @@ impl Default for GameConfig {
             input_config_path: String::new(),
             states_config: "config/states.ron".to_string(),
             chase_config: None,
-            dialogue_view_default: "states/overworld/view/dialogue.view_layout.ron".to_string(),
+            dialogue_view_default: "states/overworld/view/dialogue.view.ron".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }

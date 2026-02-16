@@ -71,7 +71,7 @@
     damage_ui: (
         // UI layout file to show when player takes damage
         // 玩家受伤时显示的UI布局文件
-        layout_path: "states/overworld/view/damage_flash.view_layout.ron",
+        layout_path: "states/overworld/view/damage_flash.view.ron",
         
         // Duration to show the damage UI (seconds)
         // 显示受伤UI的持续时间（秒）

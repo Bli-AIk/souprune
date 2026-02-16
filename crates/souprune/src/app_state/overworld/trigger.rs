@@ -198,9 +198,9 @@ pub fn load_fre_rules_system(
     }
 
     // NOTE: backpack.fre.ron is no longer loaded here.
-    // It's loaded via View's `requires` in undertale_backpack.view_layout.ron.
+    // It's loaded via View's `requires` in undertale_backpack.view.ron.
     // 注意：backpack.fre.ron 不再在此处加载。
-    // 它通过 undertale_backpack.view_layout.ron 中 View 的 `requires` 加载。
+    // 它通过 undertale_backpack.view.ron 中 View 的 `requires` 加载。
 
     // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {

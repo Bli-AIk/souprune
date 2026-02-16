@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="37" height="12" tilewidth="20" tileheight="20" infinite="0" nextlayerid="9" nextobjectid="20">
  <properties>
-  <property name="backpack_ui" value="states/overworld/view/undertale_backpack.view_layout.ron"/>
+  <property name="backpack_ui" value="states/overworld/view/undertale_backpack.view.ron"/>
   <property name="bgm" value="ignore_music.wav"/>
   <property name="rules_file" value="states/overworld/rules/demo.fre.ron"/>
  </properties>

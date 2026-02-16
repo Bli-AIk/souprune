@@ -10,7 +10,7 @@ StateConfig(
         "Battle": (
             view_interactive: true,
             player_movable: false,
-            view_layout: "states/battle/view/undertale.view_layout.ron",
+            view_layout: "states/battle/view/undertale.view.ron",
             initial_layer: None,
         ),
     },

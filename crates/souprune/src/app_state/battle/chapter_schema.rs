@@ -100,12 +100,12 @@ pub enum Chapter {
     /// Spawn View Chapter.
     ///
     /// Loads and spawns a view layout file. This creates the visual elements
-    /// defined in the .view_layout.ron file. Supports data bindings for
+    /// defined in the .view.ron file. Supports data bindings for
     /// injecting FRE data into the View's requires interfaces.
     ///
     /// 生成视图章节。
     ///
-    /// 加载并生成视图布局文件。这会创建 .view_layout.ron 文件中定义的可视元素。
+    /// 加载并生成视图布局文件。这会创建 .view.ron 文件中定义的可视元素。
     /// 支持数据绑定，将 FRE 数据注入 View 的 requires 接口。
     SpawnView {
         /// Path to the view layout file.

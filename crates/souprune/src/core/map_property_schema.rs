@@ -123,10 +123,10 @@ pub mod object_keys {
     pub const SIMPLE_TEXT: &str = "simple_text";
 
     /// View layout file for dialogue UI.
-    /// Default: "overworld/view/dialogue.view_layout.ron"
+    /// Default: "overworld/view/dialogue.view.ron"
     ///
     /// 对话 UI 的 View 布局文件。
-    /// 默认："overworld/view/dialogue.view_layout.ron"
+    /// 默认："overworld/view/dialogue.view.ron"
     pub const DIALOGUE_VIEW: &str = "dialogue_view";
 
     /// Voice sound effect for typewriter.
@@ -242,7 +242,7 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         key: object_keys::DIALOGUE_VIEW,
         description: "View layout file for dialogue UI",
         required: false,
-        default: Some("states/overworld/view/dialogue.view_layout.ron"),
+        default: Some("states/overworld/view/dialogue.view.ron"),
     },
     PropertyDef {
         key: object_keys::DIALOGUE_VOICE,

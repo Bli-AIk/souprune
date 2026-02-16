@@ -74,7 +74,7 @@ use visible_when::evaluate_visible_when_system;
 /// 请求生成新 View 的消息。
 #[derive(Message, Debug, Clone)]
 pub struct SpawnViewRequest {
-    /// Path to the view layout asset (e.g., "overworld/view/dialogue.view_layout.ron")
+    /// Path to the view layout asset (e.g., "overworld/view/dialogue.view.ron")
     ///
     /// 视图布局资源路径
     pub path: String,
@@ -117,7 +117,9 @@ pub(crate) struct CoreViewPlugin;
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<ViewLayoutAsset>()
-            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
+            // Only support .view.ron format (legacy .view_layout.ron is fully deprecated)
+            // 仅支持 .view.ron 格式（旧的 .view_layout.ron 已完全弃用）
+            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view.ron"]))
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             // Register ShaderMaterial for inspector

@@ -21,7 +21,7 @@
         // Spawn battle UI view with enemy data bound directly from FRE file
         // 生成战斗 UI 视图，敌人数据直接从 FRE 文件绑定
         SpawnView(
-            view_layout: "states/battle/view/undertale.view_layout.ron",
+            view_layout: "states/battle/view/undertale.view.ron",
             bindings: {
                 // Directly bind enemy data from FRE file (no LoadFre needed)
                 // 直接从 FRE 文件绑定敌人数据（无需 LoadFre）

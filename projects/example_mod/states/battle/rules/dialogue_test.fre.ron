@@ -139,7 +139,7 @@
                 // 设置待处理 Mortar 对话（FRE 驱动）
                 Set(key: "dialogue:pending_mortar_path", value: String("dialogue/test/battle_test.mortar")),
                 Set(key: "dialogue:pending_mortar_node", value: String("act_greeting")),
-                Set(key: "dialogue:pending_view", value: String("states/battle/view/dialogue_box.view_layout.ron")),
+                Set(key: "dialogue:pending_view", value: String("")),  // Empty = use embedded BattleDialogue
                 Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
                 Set(key: "dialogue:has_typewriter", value: Bool(true)),
                 Set(key: "dialogue:has_focus", value: Bool(true)),  // Block menu during this dialogue

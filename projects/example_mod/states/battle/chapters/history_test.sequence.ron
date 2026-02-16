@@ -19,7 +19,7 @@
         SetCamera(SetZoom(2.0)),
         // === Initial UI Setup ===
         // === 初始 UI 设置 ===
-        SpawnView(view_layout: "states/battle/view/undertale.view_layout.ron"),
+        SpawnView(view_layout: "states/battle/view/undertale.view.ron"),
         Wait(0.5),
             
             // === Test 1: Simple SetPosition ===
