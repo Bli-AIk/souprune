@@ -29,21 +29,21 @@
             name: "DialogueBox",
             visible_when: "$dialogue_active",
             view_box: (
-                width: 280.0,
-                height: 72.0,
+                width: 283.0,
+                height: 70.0,
                 border_width: 3.0,
-                offset: (0.0, -72.0, 0.0),
+                offset: (0.5, -78.0, 0.0),
                 structure_file: "shared/view_structures/view_box.sdf.ron",
             ),
             texts: [
                 (
                     id: "DialogueText",
                     content: "{{dialogue_text}}",
-                    font: DeterminationSans,
+                    font: DeterminationMono,
                     world_scale: (13.25, 13.25),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: (-120.0, 24.0, 1.0),
+                        translation: (-130.5, 29.0, 1.0),
                     ),
                     line_height: 1.375,
                 ),
