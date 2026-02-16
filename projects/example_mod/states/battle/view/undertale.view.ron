@@ -113,9 +113,9 @@
                         translation: (-267.0, 50.0, 1.0),
                     ),
                     line_height: 1.2,
-                    // Show when dialogue is active and at main menu (depth 0)
-                    // 当对话激活且在主菜单（深度 0）时显示
-                    visible_when: "$depth == 0 && $dialogue_visible == true",
+                    // Show when dialogue is active and at main menu (depth 0), but not during narration
+                    // 当对话激活且在主菜单（深度 0）时显示，但旁白显示时隐藏
+                    visible_when: "$depth == 0 && $dialogue_visible == true && $narration_visible == false",
                 ),
 
                 // ========================================
@@ -180,7 +180,9 @@
                 // ========================================
                 (
                     id: "NarrationText",
-                    content: "{{battle/enemies/dummy:$action_param}}",
+                    // action_param contains the Mortar key (e.g., "EnemyDummyActCheckResult")
+                    // action_param 包含 Mortar 键（如 "EnemyDummyActCheckResult"）
+                    content: "{{$action_param}}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),
