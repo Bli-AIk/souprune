@@ -16,8 +16,8 @@
         ]),
 
         // Monster Candy
-        "items.monster_candy.locate_name": String("MONSTER_CANDY"),
-        "items.monster_candy.locate_file": String("items"),
+        "items.monster_candy.locale_name": String("MONSTER_CANDY"),
+        "items.monster_candy.locale_file": String("items"),
         "items.monster_candy.description": String("Has a distinct, non-licorice flavor."),
         "items.monster_candy.type": String("Food"),
         "items.monster_candy.consumable": Bool(true),
@@ -25,8 +25,8 @@
         "items.monster_candy.audio": String("assets/audios/sfx/heal.wav"),
 
         // Test Parent
-        "items.test_parent.locate_name": String("TEST_PARENT"),
-        "items.test_parent.locate_file": String("items"),
+        "items.test_parent.locale_name": String("TEST_PARENT"),
+        "items.test_parent.locale_file": String("items"),
         "items.test_parent.description": String("Comes with everything you need."),
         "items.test_parent.type": String("Food"),
         "items.test_parent.consumable": Bool(true),
@@ -34,38 +34,38 @@
         "items.test_parent.spawn_child": String("dry_noodles"),
 
         // Dry Noodles
-        "items.dry_noodles.locate_name": String("DRY_NOODLES"),
-        "items.dry_noodles.locate_file": String("items"),
+        "items.dry_noodles.locale_name": String("DRY_NOODLES"),
+        "items.dry_noodles.locale_file": String("items"),
         "items.dry_noodles.description": String("You don't have the water to boil them."),
         "items.dry_noodles.type": String("Food"),
         "items.dry_noodles.consumable": Bool(true),
         "items.dry_noodles.heal": Int(2),
 
         // Tough Glove
-        "items.tough_glove.locate_name": String("TOUGH_GLOVE"),
-        "items.tough_glove.locate_file": String("items"),
+        "items.tough_glove.locale_name": String("TOUGH_GLOVE"),
+        "items.tough_glove.locale_file": String("items"),
         "items.tough_glove.description": String("A worn pink leather glove."),
         "items.tough_glove.type": String("Weapon"),
         "items.tough_glove.damage": Int(5),
         "items.tough_glove.audio": String("assets/audios/sfx/punch_impact.wav"),
 
         // Faded Ribbon
-        "items.faded_ribbon.locate_name": String("FADED_RIBBON"),
-        "items.faded_ribbon.locate_file": String("items"),
+        "items.faded_ribbon.locale_name": String("FADED_RIBBON"),
+        "items.faded_ribbon.locale_file": String("items"),
         "items.faded_ribbon.description": String("If you're cuter, monsters won't hit you as hard."),
         "items.faded_ribbon.type": String("Armor"),
         "items.faded_ribbon.defense": Int(3),
 
         // Stick
-        "items.stick.locate_name": String("STICK"),
-        "items.stick.locate_file": String("items"),
+        "items.stick.locale_name": String("STICK"),
+        "items.stick.locale_file": String("items"),
         "items.stick.description": String("Its bark is worse than its bite."),
         "items.stick.type": String("Weapon"),
         "items.stick.damage": Int(0),
 
         // Bandage
-        "items.bandage.locate_name": String("BANDAGE"),
-        "items.bandage.locate_file": String("items"),
+        "items.bandage.locale_name": String("BANDAGE"),
+        "items.bandage.locale_file": String("items"),
         "items.bandage.description": String("It has already been used several times."),
         "items.bandage.type": String("Armor"),
         "items.bandage.defense": Int(0),

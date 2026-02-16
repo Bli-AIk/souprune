@@ -258,8 +258,8 @@ pub struct ResourcePaths {
 impl ResourcePaths {
     fn with_defaults() -> Self {
         Self {
-            textures: "textures".to_string(),
-            audios: "audios".to_string(),
+            textures: "assets/textures".to_string(),
+            audios: "assets/audios".to_string(),
         }
     }
 }
