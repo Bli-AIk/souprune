@@ -26,8 +26,8 @@
 
         // Parameters for each action
         "froggit.action_params": StringList([
-            "battle/ui:ACT_FROGGIT_CHECK_RESULT",
-            "battle/ui:ACT_FROGGIT_COMPLIMENT_RESULT",
+            "{{battle/ui:ACT_FROGGIT_CHECK_RESULT}}",
+            "{{battle/ui:ACT_FROGGIT_COMPLIMENT_RESULT}}",
         ]),
     },
     rules: [],

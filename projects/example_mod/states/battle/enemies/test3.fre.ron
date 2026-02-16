@@ -30,10 +30,10 @@
 
         // Parameters for each action
         "moldsmal.action_params": StringList([
-            "battle/ui:ACT_MOLDSMAL_CHECK_RESULT",
-            "battle/ui:ACT_MOLDSMAL_IMITATE_RESULT",
-            "battle/ui:ACT_MOLDSMAL_FLIRT_RESULT",
-            "battle/ui:ACT_MOLDSMAL_UNHUG_RESULT",
+            "{{battle/ui:ACT_MOLDSMAL_CHECK_RESULT}}",
+            "{{battle/ui:ACT_MOLDSMAL_IMITATE_RESULT}}",
+            "{{battle/ui:ACT_MOLDSMAL_FLIRT_RESULT}}",
+            "{{battle/ui:ACT_MOLDSMAL_UNHUG_RESULT}}",
         ]),
     },
     rules: [],

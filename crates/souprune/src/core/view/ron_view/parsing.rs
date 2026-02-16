@@ -827,7 +827,15 @@ pub fn resolve_text_content(
                         // 回退到 mortar 字符串表用于本地化
                         mortar_strings.resolve(&processed_key).to_string()
                     };
-                    result.push_str(&resolved);
+
+                    // Recursively resolve if the result still contains {{...}} markers
+                    // 如果结果仍包含 {{...}} 标记，递归解析
+                    let final_resolved = if resolved.contains("{{") && resolved.contains("}}") {
+                        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
+                    } else {
+                        resolved
+                    };
+                    result.push_str(&final_resolved);
                 } else {
                     result.push_str("{{");
                     result.push_str(&key);
