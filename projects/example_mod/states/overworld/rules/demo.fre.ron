@@ -1,178 +1,46 @@
 #![enable(implicit_some)]
-// Demo FRE Rules for Overworld (Experimental Feature)
-// 演示 Overworld 的 FRE 规则（实验性功能）
-//
-// This file demonstrates the data-driven rule system with danmaku integration.
-// Walk into the trigger zone to trigger a danmaku performance on the 3rd visit.
-//
-// 此文件演示数据驱动的规则系统与弹幕系统的整合。
-// 走进触发区域将在第3次访问时触发弹幕演出。
-//
-// Chase state behavior:
-// - 2nd entry: Enter chase state (screen darkens, highlights appear)
-// - 3rd entry: Play danmaku performance
-// - 5th entry: Exit chase state (effects fade out)
-// - 6th entry: Start battle (for Tracy profiling without debug feature)
-//
-// 追逐战状态行为：
-// - 第2次进入：进入追逐战状态（屏幕变暗，高亮出现）
-// - 第3次进入：播放弹幕演出
-// - 第5次进入：退出追逐战状态（效果淡出）
-// - 第6次进入：启动战斗（用于不启用 debug feature 时的 Tracy 性能分析）
+// Demo FRE Rules for Overworld - chase state and danmaku demo
+// Walk into trigger zone: 2nd=chase, 3rd=danmaku, 5th=exit chase, 6th=battle
 
 (
-
-    // Initial facts to set when this rule set is loaded
-    // 加载此规则集时设置的初始事实
-    facts: {
-        "demo_area_visit_count": Int(0),
-    },
+    facts: { "demo_area_visit_count": Int(0) },
 
     rules: [
-        // Open backpack when Menu is pressed
-        // 按 Menu 打开背包
-        // Note: This rule has low priority so View-layer close rules take precedence.
-        // 注意：此规则优先级较低，View 层的关闭规则会优先处理。
-        (
-            id: "overworld_open_backpack",
-            event: ActionEvent(action: "Menu", kind: JustPressed),
-            // No conditions - the View layer's close rule will take precedence when active
-            // 无条件 - 当 View 激活时，View 层的关闭规则会优先
-            actions: [
-                Log(message: "Opening Backpack"),
-                Custom(action_type: "SetOverworldState", params: {
-                    "state": "Backpack",
-                }),
-            ],
-            priority: 0,  // Low priority so View layer rules (close) can override
-        ),
+        // Open backpack (low priority so View close rules take precedence)
+        (id: "overworld_open_backpack", event: ActionEvent(action: "Menu", kind: JustPressed),
+         actions: [Log(message: "Opening Backpack"), Custom(action_type: "SetOverworldState", params: { "state": "Backpack" })],
+         priority: 0),
 
-        // Dialogue started handler: Set Overworld state to Dialogue
-        // 对话启动处理：设置 Overworld 状态为 Dialogue
-        // This rule responds to dialogue:started event emitted by handle_pending_dialogue_start_system
-        // 此规则响应 handle_pending_dialogue_start_system 发出的 dialogue:started 事件
-        (
-            id: "overworld_dialogue_started",
-            event: Event("dialogue:started"),
-            // condition: Always (no conditions needed)
-            actions: [
-                Log(message: "Dialogue started, setting Overworld state"),
-                Custom(action_type: "SetOverworldState", params: {
-                    "state": "Dialogue",
-                }),
-            ],
-            priority: 100,
-        ),
+        // Dialogue lifecycle
+        (id: "overworld_dialogue_started", event: Event("dialogue:started"),
+         actions: [Custom(action_type: "SetOverworldState", params: { "state": "Dialogue" })],
+         priority: 100),
 
-        // Dialogue ended handler: Reset Overworld state and cleanup
-        // 对话结束处理：重置 Overworld 状态并清理
-        // This rule responds to dialogue:ended event emitted when:
-        // - Mortar dialogue finishes naturally (MortarDialogueFinished)
-        // - Simple text dialogue is dismissed (dialogue_advance_system)
-        //
-        // 此规则响应 dialogue:ended 事件，该事件在以下情况发出：
-        // - Mortar 对话自然结束（MortarDialogueFinished）
-        // - 简单文本对话被关闭（dialogue_advance_system）
-        (
-            id: "overworld_dialogue_ended",
-            event: Event("dialogue:ended"),
-            // condition: Always (no conditions needed)
-            modifications: [
-                // Reset dialogue-related facts
-                // 重置对话相关的 facts
-                Set(key: "dialogue:has_focus", value: Bool(false)),
-                Set(key: "dialogue:simple_text_active", value: Bool(false)),
-                Set(key: "dialogue:simple_text", value: String("")),
-            ],
-            actions: [
-                Log(message: "Dialogue ended, resetting Overworld state"),
-                Custom(action_type: "SetOverworldState", params: {
-                    "state": "Normal",  // Match states.ron state name
-                }),
-                Custom(action_type: "DespawnView", params: {}),
-            ],
-            priority: 100,
-        ),
+        (id: "overworld_dialogue_ended", event: Event("dialogue:ended"),
+         modifications: [
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "dialogue:simple_text_active", value: Bool(false)),
+             Set(key: "dialogue:simple_text", value: String("")),
+         ],
+         actions: [Custom(action_type: "SetOverworldState", params: { "state": "Normal" }), Custom(action_type: "DespawnView", params: {})],
+         priority: 100),
 
-        // Rule 1: Increment counter on every trigger entry
-        // 规则 1：每次进入触发器时增加计数器
-        (
-            id: "demo_increment_visit",
-            event: Event("trigger_enter_demo_trigger"),
-            // condition: Always (no conditions needed)
-            modifications: [
-                Increment(key: "demo_area_visit_count", amount: 1),
-            ],
-            actions: [
-                Log(message: "Player entered trigger zone"),
-            ],
-            outputs: ["demo_visit_updated"],
-            priority: 10,
-        ),
+        // Demo trigger zone events
+        (id: "demo_increment_visit", event: Event("trigger_enter_demo_trigger"),
+         modifications: [Increment(key: "demo_area_visit_count", amount: 1)],
+         outputs: ["demo_visit_updated"], priority: 10),
 
-        // Rule 2: Enter chase state on 2nd visit
-        // 规则 2：第2次进入时进入追逐战状态
-        (
-            id: "demo_enter_chase",
-            event: Event("demo_visit_updated"),
-            conditions: ["$demo_area_visit_count == 2"],
-            actions: [
-                Log(message: "Entering Chase State!"),
-                Custom(action_type: "EnterChaseState", params: {}),
-            ],
-            outputs: ["chase_state_entered"],
-            priority: 5,
-        ),
+        (id: "demo_enter_chase", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 2"],
+         actions: [Custom(action_type: "EnterChaseState", params: {})], outputs: ["chase_state_entered"], priority: 5),
 
-        // Rule 3: Play danmaku on 3rd visit
-        // 规则 3：第3次进入时播放弹幕
-        (
-            id: "demo_play_danmaku",
-            event: Event("demo_visit_updated"),
-            conditions: ["$demo_area_visit_count == 3"],
-            actions: [
-                Log(message: "Playing danmaku performance!"),
-                Custom(action_type: "PlayDanmaku", params: {
-                    "path": "states/overworld/danmaku/demo_attack_ow.performance.ron",
-                }),
-            ],
-            outputs: ["danmaku_played"],
-            priority: 5,
-        ),
+        (id: "demo_play_danmaku", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 3"],
+         actions: [Custom(action_type: "PlayDanmaku", params: { "path": "states/overworld/danmaku/demo_attack_ow.performance.ron" })],
+         outputs: ["danmaku_played"], priority: 5),
 
-        // Rule 4: Exit chase state on 5th visit
-        // 规则 4：第5次进入时退出追逐战状态
-        (
-            id: "demo_exit_chase",
-            event: Event("demo_visit_updated"),
-            conditions: ["$demo_area_visit_count == 5"],
-            actions: [
-                Log(message: "Exiting Chase State!"),
-                Custom(action_type: "ExitChaseState", params: {}),
-            ],
-            outputs: ["chase_state_exited"],
-            priority: 5,
-        ),
+        (id: "demo_exit_chase", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 5"],
+         actions: [Custom(action_type: "ExitChaseState", params: {})], outputs: ["chase_state_exited"], priority: 5),
 
-        // Rule 5: Start battle on 6th visit (for Tracy profiling)
-        // 规则 5：第6次进入时启动战斗（用于 Tracy 性能分析）
-        (
-            id: "demo_start_battle",
-            event: Event("demo_visit_updated"),
-            conditions: ["$demo_area_visit_count == 6"],
-            actions: [
-                Log(message: "Starting Battle for profiling!"),
-                Custom(action_type: "StartBattle", params: {}),
-            ],
-            outputs: ["battle_started"],
-            priority: 5,
-        ),
-
-        // Note: demo_talk and demo_talk_typewriter interactions are handled
-        // by auto-generated FRE rules from Tiled object properties.
-        // See object_properties.rs for the rule generation logic.
-        // 注意：demo_talk 和 demo_talk_typewriter 的交互由
-        // 从 Tiled 对象属性自动生成的 FRE 规则处理。
-        // 规则生成逻辑见 object_properties.rs。
+        (id: "demo_start_battle", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 6"],
+         actions: [Custom(action_type: "StartBattle", params: {})], outputs: ["battle_started"], priority: 5),
     ],
 )

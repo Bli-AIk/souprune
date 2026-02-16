@@ -1,229 +1,90 @@
 #![enable(implicit_some)]
-// Battle Dialogue Test Rules (FRE-based)
-// 战斗对话测试规则（基于 FRE）
-//
-// This file demonstrates the FRE-driven dialogue system in battle.
-// It shows both simple text narration and Mortar dialogue integration.
-//
-// 此文件演示战斗中 FRE 驱动的对话系统。
-// 展示简单文本旁白和 Mortar 对话集成。
-//
-// Dialogue Flow (FRE-driven):
-// 1. Rule triggers → sets dialogue:* facts
-// 2. handle_pending_dialogue_start_system → spawns View/Mortar
-// 3. dialogue:started event → scene-specific rules handle state
-// 4. User advances → dialogue:ended event
-// 5. Cleanup rules restore interactability
-//
-// 对话流程（FRE 驱动）：
-// 1. 规则触发 → 设置 dialogue:* facts
-// 2. handle_pending_dialogue_start_system → 生成 View/Mortar
-// 3. dialogue:started 事件 → 场景特定规则处理状态
-// 4. 用户步进 → dialogue:ended 事件
-// 5. 清理规则恢复交互性
+// Battle Dialogue Test Rules - demonstrates FRE-driven dialogue system
+// Dialogue Flow: Rule triggers → sets dialogue:* facts → handle_pending_dialogue_start_system → spawns View/Mortar → dialogue:ended cleanup
 
 (
-    // Scope: Global - rules are active when battle is running
-    // 作用域：Global - 规则在战斗运行时生效
-
     facts: {
-        // Test flags
         "test_dialogue_shown": Bool(false),
         "test_mortar_shown": Bool(false),
-        // Intro shown flag (prevents duplicate playback)
         "battle:intro_shown": Bool(false),
     },
 
     rules: [
-        // === Encounter Intro Narration ===
-        // === 遭遇开场旁白 ===
-        
-        // Rule: Start encounter intro narration when battle:show_intro event fires
-        // Uses typewriter effect, does not block menu interaction
-        // 规则：当 battle:show_intro 事件触发时启动遭遇开场旁白
-        // 使用打字机效果，不阻塞菜单交互
-        //
-        // NOTE: Uses FRE modifications instead of Custom action for consistency.
-        // dialogue:pending_start triggers handle_pending_dialogue_start_system.
-        // 注意：使用 FRE modifications 代替 Custom action 以保持一致性。
-        // dialogue:pending_start 触发 handle_pending_dialogue_start_system。
-        (
-            id: "battle_encounter_intro",
-            event: Event("battle:show_intro"),
-            condition: Equals(key: "battle:intro_shown", value: Bool(false)),
-            modifications: [
-                // Mortar dialogue config (no view - text displays in existing battle UI)
-                // Mortar 对话配置（无 view - 文本在现有战斗 UI 中显示）
-                Set(key: "dialogue:pending_mortar_path", value: String("battle/ui.mortar")),
-                Set(key: "dialogue:pending_mortar_node", value: String("encounter_intro")),
-                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
-                // Dialogue behavior
-                // 对话行为
-                Set(key: "dialogue:has_typewriter", value: Bool(true)),
-                Set(key: "dialogue:has_focus", value: Bool(false)),  // No focus, menu stays interactive
-                // Voice sound effect for typewriter
-                // 打字机音效
-                Set(key: "dialogue:voice", value: String("audios/voice/voice_typewriter_default.wav")),
-                Set(key: "battle:intro_shown", value: Bool(true)),
-            ],
-            actions: [
-                Log(message: "Battle: Starting encounter intro narration"),
-            ],
-            priority: 100,  // High priority to ensure it runs first
-        ),
+        // Encounter intro narration (uses Mortar, no menu block)
+        (id: "battle_encounter_intro", event: Event("battle:show_intro"),
+         condition: Equals(key: "battle:intro_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("battle/ui.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("encounter_intro")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "dialogue:voice", value: String("audios/voice/voice_typewriter_default.wav")),
+             Set(key: "battle:intro_shown", value: Bool(true)),
+         ],
+         actions: [Log(message: "Battle: Starting encounter intro")],
+         priority: 100),
 
-        // === Simple Text Narration Test ===
-        // === 简单文本旁白测试 ===
+        // Simple text narration test
+        (id: "test_simple_narration", event: Event("test_simple_narration"),
+         condition: Equals(key: "test_dialogue_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:simple_text_active", value: Bool(true)),
+             Set(key: "dialogue:simple_text", value: String("* 这是一条测试旁白。\n* Your soul is filled with determination.")),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+             Set(key: "test_dialogue_shown", value: Bool(true)),
+         ],
+         priority: 10),
 
-        // Rule: Show simple narration when test_simple_narration event fires
-        // 规则：当 test_simple_narration 事件触发时显示简单旁白
-        (
-            id: "test_simple_narration",
-            event: Event("test_simple_narration"),
-            condition: Equals(key: "test_dialogue_shown", value: Bool(false)),
-            modifications: [
-                // Activate simple text dialogue (data-driven)
-                // 激活简单文本对话（数据驱动）
-                Set(key: "dialogue:simple_text_active", value: Bool(true)),
-                Set(key: "dialogue:simple_text", value: String("* 这是一条测试旁白。\n* Your soul is filled with determination.")),
-                Set(key: "dialogue:has_typewriter", value: Bool(true)),
-                Set(key: "dialogue:has_focus", value: Bool(true)),
-                Set(key: "test_dialogue_shown", value: Bool(true)),
-            ],
-            actions: [
-                Log(message: "Battle: Simple narration test triggered"),
-            ],
-            priority: 10,
-        ),
+        (id: "test_simple_narration_ended", event: Event("dialogue:ended"),
+         condition: Equals(key: "dialogue:simple_text_active", value: Bool(true)),
+         modifications: [
+             Set(key: "dialogue:simple_text_active", value: Bool(false)),
+             Set(key: "dialogue:simple_text", value: String("")),
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+         ],
+         priority: 10),
 
-        // Rule: Cleanup after simple dialogue ends
-        // 规则：简单对话结束后清理
-        (
-            id: "test_simple_narration_ended",
-            event: Event("dialogue:ended"),
-            condition: Equals(key: "dialogue:simple_text_active", value: Bool(true)),
-            modifications: [
-                Set(key: "dialogue:simple_text_active", value: Bool(false)),
-                Set(key: "dialogue:simple_text", value: String("")),
-                Set(key: "dialogue:has_focus", value: Bool(false)),
-            ],
-            actions: [
-                Log(message: "Battle: Simple narration ended, cleaned up"),
-            ],
-            priority: 10,
-        ),
+        // Mortar dialogue test
+        (id: "test_mortar_dialogue", event: Event("test_mortar_dialogue"),
+         condition: Equals(key: "test_mortar_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("dialogue/test/battle_test.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("act_greeting")),
+             Set(key: "dialogue:pending_view", value: String("")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+             Set(key: "test_mortar_shown", value: Bool(true)),
+         ],
+         priority: 10),
 
-        // === Mortar Dialogue Test ===
-        // === Mortar 对话测试 ===
+        // Battle dialogue lifecycle
+        (id: "battle_dialogue_started", event: Event("dialogue:started"), condition: Always,
+         modifications: [Set(key: "battle:paused_for_dialogue", value: Bool(true))],
+         priority: 5),
 
-        // Rule: Start Mortar dialogue when test_mortar_dialogue event fires
-        // 规则：当 test_mortar_dialogue 事件触发时启动 Mortar 对话
-        // 
-        // This demonstrates the FRE-driven Mortar dialogue flow:
-        // 1. Set dialogue:pending_mortar_* facts
-        // 2. Set dialogue:pending_start = true (trigger)
-        // 3. handle_pending_dialogue_start_system processes them
-        // 4. System spawns View (optional), starts Mortar, emits dialogue:started
-        //
-        // 这演示了 FRE 驱动的 Mortar 对话流程：
-        // 1. 设置 dialogue:pending_mortar_* facts
-        // 2. 设置 dialogue:pending_start = true（触发器）
-        // 3. handle_pending_dialogue_start_system 处理它们
-        // 4. 系统生成 View（可选），启动 Mortar，发出 dialogue:started
-        (
-            id: "test_mortar_dialogue",
-            event: Event("test_mortar_dialogue"),
-            condition: Equals(key: "test_mortar_shown", value: Bool(false)),
-            modifications: [
-                // Set pending Mortar dialogue (FRE-driven)
-                // 设置待处理 Mortar 对话（FRE 驱动）
-                Set(key: "dialogue:pending_mortar_path", value: String("dialogue/test/battle_test.mortar")),
-                Set(key: "dialogue:pending_mortar_node", value: String("act_greeting")),
-                Set(key: "dialogue:pending_view", value: String("")),  // Empty = use embedded BattleDialogue
-                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
-                Set(key: "dialogue:has_typewriter", value: Bool(true)),
-                Set(key: "dialogue:has_focus", value: Bool(true)),  // Block menu during this dialogue
-                Set(key: "test_mortar_shown", value: Bool(true)),
-            ],
-            actions: [
-                Log(message: "Battle: Mortar dialogue test triggered"),
-            ],
-            priority: 10,
-        ),
+        (id: "battle_dialogue_ended", event: Event("dialogue:ended"), condition: Always,
+         modifications: [
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "battle:paused_for_dialogue", value: Bool(false)),
+             Remove("dialogue:pending_mortar_path"),
+             Remove("dialogue:pending_mortar_node"),
+             Remove("dialogue:pending_view"),
+         ],
+         priority: 5),
 
-        // Rule: Handle dialogue:started event for battle
-        // 规则：处理战斗中的 dialogue:started 事件
-        //
-        // This is similar to overworld_dialogue_started but for battle context.
-        // NOTE: dialogue:has_focus is now set by the dialogue trigger rule, not here.
-        // This allows encounter intro to run without blocking menu.
-        //
-        // 这类似于 overworld_dialogue_started 但用于战斗上下文。
-        // 注意：dialogue:has_focus 现在由对话触发规则设置，而不是这里。
-        // 这允许遭遇开场在不阻塞菜单的情况下运行。
-        (
-            id: "battle_dialogue_started",
-            event: Event("dialogue:started"),
-            condition: Always,
-            modifications: [
-                // NOTE: dialogue:has_focus is set by individual dialogue trigger rules.
-                // Do NOT set it here to avoid overriding intentional false values.
-                // 注意：dialogue:has_focus 由各个对话触发规则设置。
-                // 不要在此处设置，以避免覆盖有意设置的 false 值。
-                // Battle-specific: pause enemy turns during dialogue
-                // 战斗特定：对话期间暂停敌人回合
-                Set(key: "battle:paused_for_dialogue", value: Bool(true)),
-            ],
-            actions: [
-                Log(message: "Battle: Dialogue started, pausing battle"),
-            ],
-            priority: 5,
-        ),
-
-        // Rule: Cleanup after Mortar dialogue ends
-        // 规则：Mortar 对话结束后清理
-        (
-            id: "battle_dialogue_ended",
-            event: Event("dialogue:ended"),
-            condition: Always,
-            modifications: [
-                Set(key: "dialogue:has_focus", value: Bool(false)),
-                Set(key: "battle:paused_for_dialogue", value: Bool(false)),
-                // Clear pending facts
-                Remove("dialogue:pending_mortar_path"),
-                Remove("dialogue:pending_mortar_node"),
-                Remove("dialogue:pending_view"),
-            ],
-            actions: [
-                Log(message: "Battle: Dialogue ended, resuming battle"),
-            ],
-            priority: 5,
-        ),
-
-        // === ACT Dialogue Integration ===
-        // === ACT 对话集成 ===
-
-        // Rule: When ACT is executed with dialogue parameter
-        // 规则：当执行带对话参数的 ACT 时
-        //
-        // Example: Enemy's "Check" action that shows dialogue
-        // 示例：敌人的"检查"动作显示对话
-        (
-            id: "act_with_dialogue",
-            event: Event("battle:execute_act"),
-            // Check if act_type requires dialogue
-            condition: Equals(key: "act_type", value: String("check")),
-            modifications: [
-                Set(key: "dialogue:pending_mortar_path", value: String("dialogue/enemies/dummy.mortar")),
-                Set(key: "dialogue:pending_mortar_node", value: String("check")),
-                Set(key: "dialogue:pending_start", value: Bool(true)),  // Trigger
-                Set(key: "dialogue:has_typewriter", value: Bool(true)),
-                Set(key: "dialogue:has_focus", value: Bool(true)),  // Block menu during ACT dialogue
-            ],
-            actions: [
-                Log(message: "Battle: ACT 'check' triggered dialogue"),
-            ],
-            priority: 10,
-        ),
+        // ACT with dialogue (e.g., Check action)
+        (id: "act_with_dialogue", event: Event("battle:execute_act"),
+         condition: Equals(key: "act_type", value: String("check")),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("dialogue/enemies/dummy.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("check")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+         ],
+         priority: 10),
     ],
 )
