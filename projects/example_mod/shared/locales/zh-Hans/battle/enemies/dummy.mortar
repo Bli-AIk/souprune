@@ -29,3 +29,9 @@ node act_hug {
     text: "* 你拥抱了 Dummy。"
     text: "* ……"
 }
+
+// MERCY 对话节点
+node mercy_spare {
+    text: "* 你饶恕了 Dummy。"
+    text: "* Dummy 松了一口气。"
+}

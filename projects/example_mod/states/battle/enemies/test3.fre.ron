@@ -38,6 +38,21 @@
 
         // Mortar dialogue file path (relative to shared/locales/{locale}/)
         "moldsmal.mortar_path": String("battle/enemies/moldsmal.mortar"),
+
+        // MERCY options (default: no dialogue, direct end)
+        "moldsmal.mercy_count": Int(2),
+        "moldsmal.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "moldsmal.mercy_sequences": StringList([
+            "states/battle/mercy/end.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "moldsmal.mercy_params": StringList([
+            "",
+            "",
+        ]),
     },
     rules: [],
 )

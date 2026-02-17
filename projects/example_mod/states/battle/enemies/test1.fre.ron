@@ -32,6 +32,24 @@
 
         // Mortar dialogue file path (relative to shared/locales/{locale}/)
         "froggit.mortar_path": String("battle/enemies/froggit.mortar"),
+
+        // =========================================================================
+        // MERCY options (froggit has special spare dialogue)
+        // MERCY 选项（froggit 有特殊饶恕对话）
+        // =========================================================================
+        "froggit.mercy_count": Int(2),
+        "froggit.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "froggit.mercy_sequences": StringList([
+            "states/battle/mercy/spare.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "froggit.mercy_params": StringList([
+            "mercy_spare",
+            "",
+        ]),
     },
     rules: [],
 )

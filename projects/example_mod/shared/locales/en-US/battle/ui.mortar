@@ -69,3 +69,7 @@ pub const ACT_VEGETOID_DINNER_RESULT: String = "* You ask Vegetoid to join you f
 pub const ACT_VEGETOID_DEVOUR_RESULT: String = "* You try to eat Vegetoid.\n* It seems uncomfortable with this idea."
 pub const ACT_VEGETOID_FLIRT_RESULT: String = "* You wink at Vegetoid.\n* Vegetoid seems confused but flattered."
 pub const ACT_VEGETOID_PAT_RESULT: String = "* You pat Vegetoid.\n* Its leaves rustle happily."
+
+// MERCY option labels
+pub const MERCY_SPARE: String = "Spare"
+pub const MERCY_FLEE: String = "Flee"

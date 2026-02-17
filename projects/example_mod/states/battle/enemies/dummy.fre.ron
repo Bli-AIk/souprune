@@ -69,6 +69,36 @@
         // Mortar dialogue file path (relative to shared/locales/{locale}/)
         // Mortar 对话文件路径（相对于 shared/locales/{locale}/）
         "dummy.mortar_path": String("battle/enemies/dummy.mortar"),
+
+        // =========================================================================
+        // MERCY options
+        // MERCY 选项
+        // =========================================================================
+
+        // MERCY options count
+        // MERCY 选项数量
+        "dummy.mercy_count": Int(2),
+
+        // MERCY option display labels (Mortar localization keys)
+        // MERCY 选项显示标签（Mortar 本地化键）
+        "dummy.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+
+        // Sequence paths for each MERCY option
+        // 每个 MERCY 选项对应的序列路径
+        "dummy.mercy_sequences": StringList([
+            "states/battle/mercy/spare.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+
+        // Mortar node names for each MERCY option's dialogue
+        // 每个 MERCY 选项对话的 Mortar 节点名
+        "dummy.mercy_params": StringList([
+            "mercy_spare",
+            "",
+        ]),
     },
 
     // Enemy-specific rules

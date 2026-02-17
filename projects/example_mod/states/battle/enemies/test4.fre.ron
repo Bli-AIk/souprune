@@ -41,6 +41,21 @@
 
         // Mortar dialogue file path (relative to shared/locales/{locale}/)
         "loox.mortar_path": String("battle/enemies/loox.mortar"),
+
+        // MERCY options (default: no dialogue, direct end)
+        "loox.mercy_count": Int(2),
+        "loox.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "loox.mercy_sequences": StringList([
+            "states/battle/mercy/end.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "loox.mercy_params": StringList([
+            "",
+            "",
+        ]),
     },
     rules: [],
 )

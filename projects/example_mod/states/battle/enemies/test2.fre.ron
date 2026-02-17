@@ -35,6 +35,21 @@
 
         // Mortar dialogue file path (relative to shared/locales/{locale}/)
         "whimsun.mortar_path": String("battle/enemies/whimsun.mortar"),
+
+        // MERCY options (default: no dialogue, direct end)
+        "whimsun.mercy_count": Int(2),
+        "whimsun.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "whimsun.mercy_sequences": StringList([
+            "states/battle/mercy/end.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "whimsun.mercy_params": StringList([
+            "",
+            "",
+        ]),
     },
     rules: [],
 )

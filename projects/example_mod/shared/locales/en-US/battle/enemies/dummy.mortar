@@ -30,3 +30,9 @@ node act_hug {
     text: "* You hug Dummy."
     text: "* ..."
 }
+
+// MERCY dialogue nodes
+node mercy_spare {
+    text: "* You spared Dummy."
+    text: "* Dummy feels relieved."
+}

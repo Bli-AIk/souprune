@@ -59,15 +59,30 @@
          conditions: ["$interactable == true", "$depth == 1", "$menu_context == 1"],
          actions: [SetLocalFact("current_enemy_id", Expr("$enemy_ids[$enemy_selection]")), SetLocalFact("act_count", Expr("$${current_enemy_id}.act_count")), SetLocalFact("action_labels", Expr("$${current_enemy_id}.action_labels")), SetLocalFact("action_sequences", Expr("$${current_enemy_id}.action_sequences")), SetLocalFact("action_params", Expr("$${current_enemy_id}.action_params")), SetLocalFact("depth", Int(2)), SetLocalFact("act_selection", Int(0)), PlaySound("confirm")]),
 
-        // Confirm: submenu non-ACT -> execute
+        // Confirm: submenu MERCY -> MERCY options
         (event: ActionEvent(action: "Confirm", kind: JustPressed),
-         conditions: ["$interactable == true", "$depth == 1", "$menu_context != 1"],
+         conditions: ["$interactable == true", "$depth == 1", "$menu_context == 3"],
+         actions: [SetLocalFact("current_enemy_id", Expr("$enemy_ids[$enemy_selection]")), SetLocalFact("mercy_count", Expr("$${current_enemy_id}.mercy_count")), SetLocalFact("mercy_labels", Expr("$${current_enemy_id}.mercy_labels")), SetLocalFact("mercy_sequences", Expr("$${current_enemy_id}.mercy_sequences")), SetLocalFact("mercy_params", Expr("$${current_enemy_id}.mercy_params")), SetLocalFact("depth", Int(2)), SetLocalFact("mercy_selection", Int(0)), PlaySound("confirm")]),
+
+        // Confirm: submenu FIGHT -> execute (no depth 2)
+        (event: ActionEvent(action: "Confirm", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 1", "$menu_context == 0"],
+         actions: [SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), SetLocalFact("pending_sequence", String("")), PlaySound("confirm"), EmitEvent("battle_action_executed")]),
+
+        // Confirm: submenu ITEM -> execute (no depth 2)
+        (event: ActionEvent(action: "Confirm", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 1", "$menu_context == 2"],
          actions: [SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), SetLocalFact("pending_sequence", String("")), PlaySound("confirm"), EmitEvent("battle_action_executed")]),
 
         // Confirm: ACT options -> execute
         (event: ActionEvent(action: "Confirm", kind: JustPressed),
          conditions: ["$interactable == true", "$depth == 2", "$menu_context == 1"],
          actions: [SetLocalFact("action_param", Expr("$${current_enemy_id}.action_params[$act_selection]")), SetLocalFact("mortar_path", Expr("$${current_enemy_id}.mortar_path")), SetLocalFact("pending_sequence", Expr("$${current_enemy_id}.action_sequences[$act_selection]")), SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), PlaySound("confirm")]),
+
+        // Confirm: MERCY options -> execute
+        (event: ActionEvent(action: "Confirm", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 2", "$menu_context == 3"],
+         actions: [SetLocalFact("action_param", Expr("$mercy_params[$mercy_selection]")), SetLocalFact("mortar_path", Expr("$${current_enemy_id}.mortar_path")), SetLocalFact("pending_sequence", Expr("$mercy_sequences[$mercy_selection]")), SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), PlaySound("confirm")]),
 
         // ACT options (depth 2) - 2-column grid navigation
         (event: ActionEvent(action: "Left", kind: JustPressed),
@@ -86,10 +101,19 @@
          conditions: ["$interactable == true", "$depth == 2", "$menu_context == 1", "$act_selection + 2 < $act_count"],
          actions: [SetLocalFact("act_selection", Expr("$act_selection + 2")), PlaySound("choice")]),
 
-        // Cancel: ACT options -> submenu
+        // MERCY options (depth 2) - single column navigation
+        (event: ActionEvent(action: "Up", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 2", "$menu_context == 3", "$mercy_selection > 0"],
+         actions: [SetLocalFact("mercy_selection", Expr("$mercy_selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed),
+         conditions: ["$interactable == true", "$depth == 2", "$menu_context == 3", "$mercy_selection < $mercy_count - 1"],
+         actions: [SetLocalFact("mercy_selection", Expr("$mercy_selection + 1")), PlaySound("choice")]),
+
+        // Cancel: ACT/MERCY options -> submenu
         (event: ActionEvent(action: "Cancel", kind: JustPressed),
          conditions: ["$interactable == true", "$depth == 2"],
-         actions: [SetLocalFact("depth", Int(1)), SetLocalFact("act_selection", Int(0))],
+         actions: [SetLocalFact("depth", Int(1)), SetLocalFact("act_selection", Int(0)), SetLocalFact("mercy_selection", Int(0))],
          consume_event: true, priority: 100),
 
         // Cancel: submenu -> main menu

@@ -74,6 +74,10 @@
         "confirm_pressed": false,  // Used by AwaitFact to wait for confirmation
         "buttons_visible": true,   // Whether to show menu buttons
 
+        // MERCY options state (depth 2, menu_context 3)
+        "mercy_selection": 0,      // Currently selected MERCY option (0-based)
+        "mercy_count": 0,          // Number of MERCY options for current enemy
+
         // View initialization state
         "view_rules_loaded": false,
 
@@ -172,6 +176,25 @@
                     ),
                     line_height: 1.25,
                     visible_when: "$depth == 2 && $menu_context == 1 && $narration_visible == false",
+                ),
+
+                // ========================================
+                // MERCY OPTIONS LIST (depth 2, MERCY mode)
+                // MERCY 选项列表（深度 2，仁慈模式）
+                // Single column layout (unlike ACT which is 2 columns)
+                // 单列布局（不同于 ACT 的 2 列）
+                // ========================================
+                (
+                    id: "MercyOptions",
+                    content: "{|name, i| in $mercy_labels[0..$mercy_count] => \"* {name}\"}",
+                    font: DeterminationMono,
+                    world_scale: (26.0, 26.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-220.0, 50.0, 1.0),
+                    ),
+                    line_height: 1.25,
+                    visible_when: "$depth == 2 && $menu_context == 3 && $narration_visible == false",
                 ),
 
                 // ========================================
@@ -312,6 +335,32 @@
                         // Y position: row based on selection / 2 (0,1 -> row 0; 2,3 -> row 1)
                         // Y 位置：行基于 selection / 2（0,1 -> 第 0 行；2,3 -> 第 1 行）
                         "-45.5 - floor($act_selection / 2) * 32.0",
+                        "10.0",
+                    ),
+                ),
+            ),
+        ),
+
+        // ========================================
+        // MERCY SELECTION CURSOR (depth 2, MERCY mode)
+        // MERCY 选择光标（深度 2，仁慈模式）
+        // Single column: fixed X=-248
+        // 单列：固定 X=-248
+        // ========================================
+        (
+            name: "MercySelectionCursor",
+            visible_when: "$depth == 2 && $interactable && $menu_context == 3",
+            sprite: (
+                visual: "common/view/heart",
+                color: (1.0, 0.0, 0.0, 1.0),  // Red heart / 红心
+                transform: (
+                    translation: (
+                        // X position: fixed at left column
+                        // X 位置：固定在左列
+                        "-248.0",
+                        // Y position: row based on selection
+                        // Y 位置：基于选择的行
+                        "-45.5 - $mercy_selection * 32.0",
                         "10.0",
                     ),
                 ),
