@@ -1105,7 +1105,8 @@ pub fn resolve_data_path(
                         let key = format!("{}:{}", item.locale_file, item.locale_name);
                         mortar_strings.resolve(&key).to_string()
                     } else {
-                        warn!("Item ID '{}' not found in registry!", item_id);
+                        // Use trace level to avoid log spam for undefined items
+                        trace!("Item ID '{}' not found in registry", item_id);
                         format!("UNDEFINED ({})", item_id)
                     }
                 })
