@@ -63,25 +63,28 @@ pub fn sync_typewriter_state_to_facts_system(
         any_finished = true;
     }
 
+    // Use bypass_change_detection to avoid triggering change detection unless values differ
+    // 使用 bypass_change_detection 避免在值相同时触发 change detection
+    let db = facts.bypass_change_detection();
+
     // Helper to update fact only if value changed
     // 辅助函数：仅当值变化时更新 fact
-    let update_fact = |facts: &mut ResMut<LayeredFactDatabase>, key: &str, value: bool| {
-        let current = facts
-            .bypass_change_detection()
-            .get_bool(key)
-            .unwrap_or(false);
-        if current != value {
-            facts.set(key, FactValue::Bool(value));
-        }
-    };
+    let mut changed = false;
+    if db.set_if_changed("dialogue:typewriter_playing", any_playing) {
+        changed = true;
+    }
+    if db.set_if_changed("dialogue:all_typewriters_finished", all_finished) {
+        changed = true;
+    }
+    if db.set_if_changed("dialogue:any_typewriter_finished", any_finished) {
+        changed = true;
+    }
 
-    update_fact(&mut facts, "dialogue:typewriter_playing", any_playing);
-    update_fact(
-        &mut facts,
-        "dialogue:all_typewriters_finished",
-        all_finished,
-    );
-    update_fact(&mut facts, "dialogue:any_typewriter_finished", any_finished);
+    // Manually set changed flag if any value was updated
+    // 如果有任何值被更新，手动设置 changed 标志
+    if changed {
+        facts.set_changed();
+    }
 }
 
 /// Handles dialogue advancement on FRE events.
@@ -93,6 +96,12 @@ pub fn sync_typewriter_state_to_facts_system(
 ///
 /// 监听配置的步进事件，当所有焦点打字机完成时
 /// （遵循阻塞配置）发送 `MortarEvent::NextText`。
+/// Run condition: Check if there are fact events to process.
+/// 运行条件：检查是否有 fact 事件需要处理。
+pub fn has_fact_events(events: MessageReader<FactEvent>) -> bool {
+    !events.is_empty()
+}
+
 /// Handles dialogue advancement on FRE events.
 ///
 /// 处理 FRE 事件触发的对话步进。
@@ -204,6 +213,12 @@ pub fn dialogue_advance_system(
             facts.set("dialogue:pending_ended", FactValue::Bool(true));
         }
     }
+}
+
+/// Run condition: Check if there's pending dialogue end to emit.
+/// 运行条件：检查是否有待发送的对话结束事件。
+pub fn has_pending_dialogue_ended(facts: Res<LayeredFactDatabase>) -> bool {
+    facts.get_bool("dialogue:pending_ended").unwrap_or(false)
 }
 
 /// Emits dialogue:ended event when pending_ended fact is set.
@@ -435,7 +450,7 @@ pub fn spawn_dialogue_controller_system(
     mut commands: Commands,
     runtime: Res<MortarRuntime>,
     query: Query<Entity, With<DialogueControllerEntity>>,
-    mut facts: ResMut<LayeredFactDatabase>,
+    facts: Res<LayeredFactDatabase>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
 ) {
     let has_controller = !query.is_empty();
@@ -445,29 +460,19 @@ pub fn spawn_dialogue_controller_system(
     // This avoids timing issues where Mortar hasn't started yet
     // 使用 handle_pending_dialogue_start_system 设置的 dialogue:active fact
     // 这避免了 Mortar 尚未启动时的时序问题
-    let dialogue_active = facts
-        .bypass_change_detection()
-        .get_bool("dialogue:active")
-        .unwrap_or(false);
+    let dialogue_active = facts.get_bool("dialogue:active").unwrap_or(false);
     let simple_text_active = facts
-        .bypass_change_detection()
         .get_bool("dialogue:simple_text_active")
         .unwrap_or(false);
     let has_dialogue = dialogue_active || simple_text_active;
 
     // Configuration from FRE facts
-    let has_typewriter = facts
-        .bypass_change_detection()
-        .get_bool("dialogue:has_typewriter")
-        .unwrap_or(true); // Default to true for backward compatibility
+    let has_typewriter = facts.get_bool("dialogue:has_typewriter").unwrap_or(true); // Default to true for backward compatibility
 
     // Check if this is a Mortar dialogue (set by handle_pending_dialogue_start_system)
     // 检查是否是 Mortar 对话（由 handle_pending_dialogue_start_system 设置）
-    let has_mortar = facts
-        .bypass_change_detection()
-        .get_bool("dialogue:has_mortar")
-        .unwrap_or(false)
-        || runtime.has_active_dialogues();
+    let has_mortar =
+        facts.get_bool("dialogue:has_mortar").unwrap_or(false) || runtime.has_active_dialogues();
 
     // DEBUG: Log state every frame when there's any dialogue-related activity
     if dialogue_active || simple_text_active || has_controller || runtime.has_active_dialogues() {
@@ -506,7 +511,6 @@ pub fn spawn_dialogue_controller_system(
         if has_typewriter {
             // Get simple text from FRE fact if available
             let simple_text = facts
-                .bypass_change_detection()
                 .get_string("dialogue:simple_text")
                 .map(|s| s.to_string());
 
@@ -521,7 +525,6 @@ pub fn spawn_dialogue_controller_system(
             // Read typewriter speed from FRE fact, default to 0.03 (30ms per char)
             // 从 FRE fact 读取打字机速度，默认为 0.03（每字符30ms）
             let typewriter_speed = facts
-                .bypass_change_detection()
                 .get_float("dialogue:typewriter_speed")
                 .map(|n| n as f32)
                 .unwrap_or(0.03);
@@ -537,7 +540,7 @@ pub fn spawn_dialogue_controller_system(
 
             // Add TypewriterVoice if dialogue:voice fact is set
             // 如果设置了 dialogue:voice fact，添加 TypewriterVoice
-            if let Some(voice_path) = facts.bypass_change_detection().get_string("dialogue:voice")
+            if let Some(voice_path) = facts.get_string("dialogue:voice")
                 && !voice_path.is_empty()
             {
                 info!(
@@ -552,9 +555,7 @@ pub fn spawn_dialogue_controller_system(
         // If there's a typewriter, sync_typewriter_text_to_facts_system will handle it
         if !has_mortar
             && !has_typewriter
-            && let Some(text) = facts
-                .bypass_change_detection()
-                .get_string("dialogue:simple_text")
+            && let Some(text) = facts.get_string("dialogue:simple_text")
         {
             info!(
                 "spawn_dialogue_controller_system: setting simple_text to View local_facts: '{}'",
@@ -569,6 +570,16 @@ pub fn spawn_dialogue_controller_system(
             }
         }
     }
+}
+
+/// Run condition: Check if despawn_dialogue_controller_system should run.
+/// 运行条件：检查 despawn_dialogue_controller_system 是否应该运行。
+pub fn should_check_dialogue_despawn(
+    fre_events: MessageReader<FactEvent>,
+    query: Query<Entity, With<DialogueControllerEntity>>,
+) -> bool {
+    // Run if there's a dialogue:ended event OR if there's a controller to potentially clean up
+    !fre_events.is_empty() || !query.is_empty()
 }
 
 /// System to despawn dialogue controller entity when dialogue ends.
@@ -637,6 +648,12 @@ pub fn despawn_dialogue_controller_system(
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
+}
+
+/// Run condition: Check if there's a pending dialogue start.
+/// 运行条件：检查是否有待启动的对话。
+pub fn has_pending_dialogue_start(facts: Res<LayeredFactDatabase>) -> bool {
+    facts.get_bool("dialogue:pending_start").unwrap_or(false)
 }
 
 /// Handles pending dialogue start requests from FRE facts.

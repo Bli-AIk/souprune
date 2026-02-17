@@ -182,6 +182,17 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
     info!("Battle FRE: Action handlers registered");
 }
 
+/// Run condition: Check if there's pending damage to apply.
+/// 运行条件：检查是否有待处理的伤害。
+pub fn has_pending_damage(layered_db: Res<LayeredFactDatabase>) -> bool {
+    layered_db
+        .get_int("pending_player_damage")
+        .is_some_and(|d| d != 0)
+        || layered_db
+            .get_int("pending_enemy_0_damage")
+            .is_some_and(|d| d != 0)
+}
+
 /// System to apply pending damage from FRE actions.
 /// This system reads damage facts and applies them to entity HP.
 ///

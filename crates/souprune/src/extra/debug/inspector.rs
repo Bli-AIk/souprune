@@ -160,13 +160,16 @@ pub mod debug_inspector {
         app.add_plugins(EguiPlugin::default());
         app.add_plugins(DefaultInspectorConfigPlugin);
 
-        app.add_plugins((
-            bevy::diagnostic::FrameTimeDiagnosticsPlugin::default(),
-            bevy::diagnostic::EntityCountDiagnosticsPlugin::default(),
-            bevy::diagnostic::SystemInformationDiagnosticsPlugin,
-            bevy::render::diagnostic::RenderDiagnosticsPlugin,
-            PerfUiPlugin,
-        ));
+        app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
+        app.add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin::default());
+        app.add_plugins(bevy::diagnostic::SystemInformationDiagnosticsPlugin);
+
+        // Only add RenderDiagnosticsPlugin if not already added (e.g., by trace_tracy)
+        if !app.is_plugin_added::<bevy::render::diagnostic::RenderDiagnosticsPlugin>() {
+            app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+        }
+
+        app.add_plugins(PerfUiPlugin);
 
         app.add_tween_systems(bevy_tween::tween::component_tween_system::<
             TextColorInterpolator,

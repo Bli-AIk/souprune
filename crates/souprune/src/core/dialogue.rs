@@ -57,10 +57,12 @@ impl Plugin for DialoguePlugin {
                     // Pending dialogue startup (reads FRE facts, spawns view, starts Mortar)
                     // Must run first to set dialogue:active before spawn_dialogue_controller_system
                     // 必须先运行以在 spawn_dialogue_controller_system 之前设置 dialogue:active
-                    systems::handle_pending_dialogue_start_system,
+                    systems::handle_pending_dialogue_start_system
+                        .run_if(systems::has_pending_dialogue_start),
                     // Lifecycle systems
                     systems::spawn_dialogue_controller_system,
-                    systems::despawn_dialogue_controller_system,
+                    systems::despawn_dialogue_controller_system
+                        .run_if(systems::should_check_dialogue_despawn),
                     // Sync systems
                     systems::sync_mortar_text_to_typewriter_system,
                     systems::sync_typewriter_text_to_facts_system,
@@ -70,8 +72,9 @@ impl Plugin for DialoguePlugin {
                     // Resume handling
                     systems::replay_typewriter_on_depth_resume_system,
                     // Input handling systems
-                    systems::dialogue_advance_system,
-                    systems::emit_pending_dialogue_ended_system,
+                    systems::dialogue_advance_system.run_if(systems::has_fact_events),
+                    systems::emit_pending_dialogue_ended_system
+                        .run_if(systems::has_pending_dialogue_ended),
                     systems::handle_mortar_dialogue_finished_system,
                     systems::dialogue_skip_typewriter_system,
                     // Mortar event handling

@@ -107,7 +107,13 @@ tracy:
     cargo run -p {{project}} --release --features trace_tracy
 
 # ===============================================
-# Debug Tracy
+# Bevy Debug Tracy (detailed Bevy function names in trace)
 # ===============================================
-debug_tracy:
+bevy_debug_tracy:
     cargo run -p {{project}} --release --features debug_tracy
+
+# ===============================================
+# Souprune Debug Tracy (souprune debug feature + trace)
+# ===============================================
+soup_debug_tracy:
+    cargo run -p {{project}} --release --features "trace_tracy,debug"

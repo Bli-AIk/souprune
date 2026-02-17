@@ -93,6 +93,26 @@ pub fn action_to_fre_event_system(
 ///
 /// 这允许 FRE 规则使用 `$@overworld_state` 和 `$@app_state` 检查当前状态。
 /// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
+/// Run condition: Check if any state has changed
+/// 运行条件：检查是否有任何状态变化
+fn state_facts_need_sync(
+    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    app_state: Option<Res<State<crate::app_state::AppState>>>,
+) -> bool {
+    // Check if either state has changed this frame
+    if let Some(ref state) = overworld_state {
+        if state.is_changed() {
+            return true;
+        }
+    }
+    if let Some(ref state) = app_state {
+        if state.is_changed() {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn sync_state_to_facts_system(
     overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
@@ -1365,7 +1385,7 @@ impl Plugin for FREBridgePlugin {
             .add_systems(
                 Update,
                 (
-                    sync_state_to_facts_system,
+                    sync_state_to_facts_system.run_if(state_facts_need_sync),
                     action_to_fre_event_system,
                     process_view_actions_system,
                     handle_switch_state_system,
