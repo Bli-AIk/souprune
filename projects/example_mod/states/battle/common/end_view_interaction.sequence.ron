@@ -1,5 +1,5 @@
 // 通用序列：结束 View 交互
-// 禁用交互、隐藏按钮和旁白区域
+// 禁用交互、隐藏按钮和旁白区域、清除对话文本
 //
 // 使用方式:
 // RunSequence(path: "states/battle/common/end_view_interaction.sequence.ron")
@@ -12,4 +12,7 @@
     
     // 隐藏旁白
     SetViewFact(key: "narration_visible", value: Bool(false)),
+
+    // 清除对话文本
+    SetViewFact(key: "dialogue_text", value: String("")),
 ])
