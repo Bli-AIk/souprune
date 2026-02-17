@@ -84,6 +84,33 @@ pub fn action_to_fre_event_system(
     }
 }
 
+/// System that syncs Bevy state values to FRE facts.
+///
+/// This allows FRE rules to check current state using `$@overworld_state` and `$@app_state`.
+/// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
+///
+/// 将 Bevy 状态值同步到 FRE facts 的系统。
+///
+/// 这允许 FRE 规则使用 `$@overworld_state` 和 `$@app_state` 检查当前状态。
+/// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
+pub fn sync_state_to_facts_system(
+    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    app_state: Option<Res<State<crate::app_state::AppState>>>,
+    mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+) {
+    // Sync OverworldSubState
+    if let Some(state) = overworld_state {
+        let state_name = state.get().name().to_string();
+        facts.set("@overworld_state", FactValue::String(state_name));
+    }
+
+    // Sync AppState
+    if let Some(state) = app_state {
+        let state_name = format!("{:?}", state.get());
+        facts.set("@app_state", FactValue::String(state_name));
+    }
+}
+
 /// System that processes FRE actions that affect ViewRoot.local_facts.
 ///
 /// This system listens for FRE events, checks which rules match,
@@ -599,6 +626,15 @@ fn resolve_value(
     // Try parsing as float
     if let Ok(v) = expr.parse::<f64>() {
         return Some(FactValue::Float(v));
+    }
+
+    // Try parsing as string literal (single or double quotes)
+    // 尝试解析字符串字面量（单引号或双引号）
+    if (expr.starts_with('\'') && expr.ends_with('\''))
+        || (expr.starts_with('"') && expr.ends_with('"'))
+    {
+        let inner = &expr[1..expr.len() - 1];
+        return Some(FactValue::String(inner.to_string()));
     }
 
     None
@@ -1329,6 +1365,7 @@ impl Plugin for FREBridgePlugin {
             .add_systems(
                 Update,
                 (
+                    sync_state_to_facts_system,
                     action_to_fre_event_system,
                     process_view_actions_system,
                     handle_switch_state_system,

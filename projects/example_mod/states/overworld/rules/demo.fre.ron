@@ -6,9 +6,9 @@
     facts: { "demo_area_visit_count": Int(0) },
 
     rules: [
-        // Open backpack (only when no dialogue is active)
+        // Open backpack (only when in Normal state and no dialogue)
         (id: "overworld_open_backpack", event: ActionEvent(action: "Menu", kind: JustPressed),
-         conditions: ["$dialogue:active != true"],
+         conditions: ["$@overworld_state == 'Normal'", "$dialogue:active != true"],
          actions: [Log(message: "Opening Backpack"), Custom(action_type: "SetOverworldState", params: { "state": "Backpack" })],
          priority: 0),
 
