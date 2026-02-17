@@ -70,6 +70,9 @@ impl Plugin for DialoguePlugin {
                     // Depth-based pause/resume - must run before voice to prevent sound on pause frame
                     // 基于 depth 的暂停/恢复 - 必须在 voice 之前运行以避免暂停帧播放音效
                     systems::replay_typewriter_on_depth_resume_system,
+                    // Handle dialogue:stop event - stops typewriter on FRE event
+                    // 处理 dialogue:stop 事件 - 响应 FRE 事件停止打字机
+                    systems::handle_dialogue_stop_event_system,
                     // Voice system - plays sound on char advance
                     systems::typewriter_voice_system,
                     // Input handling systems

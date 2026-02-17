@@ -864,35 +864,12 @@ pub fn replay_typewriter_on_depth_resume_system(
         return;
     }
 
-    // Check if narration is visible - if so, don't replay the intro dialogue
-    // This prevents the battle intro from replaying when entering ACT narration
-    // 检查旁白是否可见 - 如果是，不重播开场对话
-    // 这防止在进入 ACT 旁白时重播战斗开场
-    let narration_visible = active_view_query
-        .iter()
-        .next()
-        .map(|view| {
-            view.local_facts
-                .get_bool("narration_visible")
-                .unwrap_or(false)
-        })
-        .unwrap_or(false);
-
-    if narration_visible {
-        info!("replay_typewriter_on_depth_resume: narration_visible=true, stopping typewriters");
-        // Stop typewriter to clear dialogue and prevent audio during narration
-        // When narration ends, the dialogue should stay hidden (not resume)
-        // 停止打字机以清空对话并在旁白期间禁止音效
-        // 旁白结束后，对话应该保持隐藏（不恢复）
-        for mut typewriter in typewriter_query.iter_mut() {
-            typewriter.stop();
-        }
-        return;
-    }
-
     info!("replay_typewriter_on_depth_resume: depth returned to 0");
 
     // Check if replay_on_resume is enabled (from View's local_facts)
+    // This fact can be dynamically controlled by FRE rules (e.g., set to false during narration)
+    // 检查 replay_on_resume 是否启用（从 View 的 local_facts 读取）
+    // 此 fact 可由 FRE 规则动态控制（如在旁白期间设为 false）
     let replay_enabled = active_view_query
         .iter()
         .next()
@@ -1013,6 +990,36 @@ pub fn typewriter_voice_system(
         } else if typewriter.current_char_index < voice.last_char_index {
             // Typewriter was reset, update tracking
             voice.last_char_index = typewriter.current_char_index;
+        }
+    }
+}
+
+/// System to stop typewriters on FRE "dialogue:stop" event.
+///
+/// 在 FRE "dialogue:stop" 事件时停止打字机的系统。
+///
+/// This system listens for the `dialogue:stop` event and stops all
+/// DialogueControllerEntity typewriters. The event is emitted by sequences
+/// (via FRE EmitFactEvent) to explicitly stop dialogue before showing other content.
+///
+/// 此系统监听 `dialogue:stop` 事件并停止所有 DialogueControllerEntity 的打字机。
+/// 该事件由序列（通过 FRE EmitFactEvent）发出，用于在显示其他内容前显式停止对话。
+///
+/// Note: This system provides the "stop typewriter" capability. Business logic
+/// (when to stop) is controlled by FRE rules/sequences, not hardcoded here.
+///
+/// 注意：此系统提供"停止打字机"的能力。业务逻辑（何时停止）由 FRE 规则/序列控制，
+/// 不在此处硬编码。
+pub fn handle_dialogue_stop_event_system(
+    mut events: MessageReader<FactEvent>,
+    mut typewriter_query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+) {
+    for event in events.read() {
+        if event.id.0.starts_with("dialogue:stop") {
+            info!("handle_dialogue_stop_event: stopping all typewriters");
+            for mut typewriter in typewriter_query.iter_mut() {
+                typewriter.stop();
+            }
         }
     }
 }

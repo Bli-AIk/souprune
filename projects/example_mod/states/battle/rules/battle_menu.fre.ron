@@ -5,6 +5,15 @@
 (
     scope: View,
     rules: [
+        // ========================================
+        // DIALOGUE STOP HANDLER
+        // 对话停止处理
+        // ========================================
+        // Clear dialogue state when dialogue:stop event is received
+        // 当收到 dialogue:stop 事件时清除对话状态
+        (event: Event("dialogue:stop"),
+         actions: [SetLocalFact("dialogue_text", String("")), SetLocalFact("dialogue_visible", Bool(false))]),
+
         // Main menu (depth 0) - horizontal navigation
         (event: ActionEvent(action: "Left", kind: JustPressed),
          conditions: ["$interactable == true", "$depth == 0", "$button_selection > 0"],

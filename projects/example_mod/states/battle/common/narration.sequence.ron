@@ -14,11 +14,19 @@
 // This is a reusable template for any "show text → wait → continue" pattern.
 // 这是任何"显示文本 → 等待 → 继续"模式的可复用模板。
 (chapters: [
-    // First set narration_visible BEFORE depth to prevent intro dialogue replay
-    // 先设置 narration_visible 再设置 depth，防止开场对话重播
-    SetViewFact(key: "narration_visible", value: Bool(true)),
-    SetViewFact(key: "buttons_visible", value: Bool(false)),
+    // Stop any playing intro dialogue before showing narration
+    // 在显示旁白前停止任何正在播放的开场对话
+    EmitFactEvent(event_id: "dialogue:stop"),
+
+    // Disable typewriter replay when depth returns to 0 (controlled by FRE, not hardcoded)
+    // 禁用 depth 返回 0 时的打字机重播（由 FRE 控制，非硬编码）
+    SetViewFact(key: "dialogue:replay_on_resume", value: Bool(false)),
+
+    // Hide menu buttons, show narration
+    // 隐藏菜单按钮高亮，显示旁白
     SetViewFact(key: "depth", value: Int(0)),
+    SetViewFact(key: "buttons_visible", value: Bool(false)),
+    SetViewFact(key: "narration_visible", value: Bool(true)),
 
     // Wait for player to press confirm
     // 等待玩家按确认键
@@ -29,4 +37,8 @@
     // 隐藏旁白，恢复 UI
     SetViewFact(key: "narration_visible", value: Bool(false)),
     SetViewFact(key: "buttons_visible", value: Bool(true)),
+
+    // Re-enable typewriter replay for normal menu navigation
+    // 重新启用打字机重播以支持正常菜单导航
+    SetViewFact(key: "dialogue:replay_on_resume", value: Bool(true)),
 ])
