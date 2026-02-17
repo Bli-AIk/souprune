@@ -12,7 +12,7 @@
         // ACT options count
         "whimsun.act_count": Int(3),
 
-        // Action option display labels
+        // Action option display labels (Mortar localization keys)
         "whimsun.action_labels": StringList([
             "{{battle/ui:ACT_WHIMSUN_CHECK}}",
             "{{battle/ui:ACT_WHIMSUN_CONSOLE}}",
@@ -26,12 +26,15 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action
+        // Mortar node names for each action's dialogue
         "whimsun.action_params": StringList([
-            "{{battle/ui:ACT_WHIMSUN_CHECK_RESULT}}",
-            "{{battle/ui:ACT_WHIMSUN_CONSOLE_RESULT}}",
-            "{{battle/ui:ACT_WHIMSUN_TERRORIZE_RESULT}}",
+            "act_check",
+            "act_console",
+            "act_terrorize",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "whimsun.mortar_path": String("battle/enemies/whimsun.mortar"),
     },
     rules: [],
 )

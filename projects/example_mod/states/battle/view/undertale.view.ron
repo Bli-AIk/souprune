@@ -180,9 +180,9 @@
                 // ========================================
                 (
                     id: "NarrationText",
-                    // action_param contains the Mortar key (e.g., "EnemyDummyActCheckResult")
-                    // action_param 包含 Mortar 键（如 "EnemyDummyActCheckResult"）
-                    content: "{{$action_param}}",
+                    // Display dialogue_text synced from Mortar typewriter
+                    // 显示从 Mortar 打字机同步的 dialogue_text
+                    content: "{{dialogue_text}}",
                     font: DeterminationMono,
                     world_scale: (26.0, 26.0),
                     color: (1.0, 1.0, 1.0, 1.0),

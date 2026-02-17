@@ -12,7 +12,7 @@
         // ACT options count
         "moldsmal.act_count": Int(4),
 
-        // Action option display labels
+        // Action option display labels (Mortar localization keys)
         "moldsmal.action_labels": StringList([
             "{{battle/ui:ACT_MOLDSMAL_CHECK}}",
             "{{battle/ui:ACT_MOLDSMAL_IMITATE}}",
@@ -28,13 +28,16 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action
+        // Mortar node names for each action's dialogue
         "moldsmal.action_params": StringList([
-            "{{battle/ui:ACT_MOLDSMAL_CHECK_RESULT}}",
-            "{{battle/ui:ACT_MOLDSMAL_IMITATE_RESULT}}",
-            "{{battle/ui:ACT_MOLDSMAL_FLIRT_RESULT}}",
-            "{{battle/ui:ACT_MOLDSMAL_UNHUG_RESULT}}",
+            "act_check",
+            "act_imitate",
+            "act_flirt",
+            "act_unhug",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "moldsmal.mortar_path": String("battle/enemies/moldsmal.mortar"),
     },
     rules: [],
 )

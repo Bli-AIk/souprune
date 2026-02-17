@@ -12,7 +12,7 @@
         // ACT options count
         "loox.act_count": Int(5),
 
-        // Action option display labels
+        // Action option display labels (Mortar localization keys)
         "loox.action_labels": StringList([
             "{{battle/ui:ACT_LOOX_CHECK}}",
             "{{battle/ui:ACT_LOOX_PICKOFF}}",
@@ -30,14 +30,17 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action
+        // Mortar node names for each action's dialogue
         "loox.action_params": StringList([
-            "{{battle/ui:ACT_LOOX_CHECK_RESULT}}",
-            "{{battle/ui:ACT_LOOX_PICKOFF_RESULT}}",
-            "{{battle/ui:ACT_LOOX_DONTPICK_RESULT}}",
-            "{{battle/ui:ACT_LOOX_STARE_RESULT}}",
-            "{{battle/ui:ACT_LOOX_FLIRT_RESULT}}",
+            "act_check",
+            "act_pickoff",
+            "act_dontpick",
+            "act_stare",
+            "act_flirt",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "loox.mortar_path": String("battle/enemies/loox.mortar"),
     },
     rules: [],
 )

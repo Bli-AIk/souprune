@@ -67,7 +67,7 @@
         // Confirm: ACT options -> execute
         (event: ActionEvent(action: "Confirm", kind: JustPressed),
          conditions: ["$interactable == true", "$depth == 2", "$menu_context == 1"],
-         actions: [SetLocalFact("action_param", Expr("$${current_enemy_id}.action_params[$act_selection]")), SetLocalFact("pending_sequence", Expr("$${current_enemy_id}.action_sequences[$act_selection]")), SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), PlaySound("confirm")]),
+         actions: [SetLocalFact("action_param", Expr("$${current_enemy_id}.action_params[$act_selection]")), SetLocalFact("mortar_path", Expr("$${current_enemy_id}.mortar_path")), SetLocalFact("pending_sequence", Expr("$${current_enemy_id}.action_sequences[$act_selection]")), SetLocalFact("selection_confirmed", Bool(true)), SetLocalFact("interactable", Bool(false)), PlaySound("confirm")]),
 
         // ACT options (depth 2) - 2-column grid navigation
         (event: ActionEvent(action: "Left", kind: JustPressed),

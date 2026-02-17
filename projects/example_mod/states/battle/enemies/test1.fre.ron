@@ -12,7 +12,7 @@
         // ACT options count
         "froggit.act_count": Int(2),
 
-        // Action option display labels
+        // Action option display labels (Mortar localization keys)
         "froggit.action_labels": StringList([
             "{{battle/ui:ACT_FROGGIT_CHECK}}",
             "{{battle/ui:ACT_FROGGIT_COMPLIMENT}}",
@@ -24,11 +24,14 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action
+        // Mortar node names for each action's dialogue
         "froggit.action_params": StringList([
-            "{{battle/ui:ACT_FROGGIT_CHECK_RESULT}}",
-            "{{battle/ui:ACT_FROGGIT_COMPLIMENT_RESULT}}",
+            "act_check",
+            "act_compliment",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "froggit.mortar_path": String("battle/enemies/froggit.mortar"),
     },
     rules: [],
 )

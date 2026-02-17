@@ -6,8 +6,26 @@ pub const EnemyDummyActTalk: String = "交谈"
 pub const EnemyDummyActFlirt: String = "调情"
 pub const EnemyDummyActHug: String = "拥抱"
 
-// ACT 结果文本
-pub const EnemyDummyActCheckResult: String = "* DUMMY - ATK 0 DEF 0\n* 棉花心和纽扣眼。\n* 你是它眼中的苹果。"
-pub const EnemyDummyActTalkResult: String = "* 你和 Dummy 说话。\n* 它似乎不太擅长聊天。"
-pub const EnemyDummyActFlirtResult: String = "* 你向 Dummy 调情。\n* 它的脸红了...是染料吗？"
-pub const EnemyDummyActHugResult: String = "* 你拥抱了 Dummy。\n* ……"
+// ACT 结果对话节点
+// 这些是 ACT 动作触发的多步对话
+
+node act_check {
+    text: "* DUMMY - ATK 0 DEF 0"
+    text: "* 棉花心和纽扣眼。"
+    text: "* 你是它眼中的苹果。"
+}
+
+node act_talk {
+    text: "* 你和 Dummy 说话。"
+    text: "* 它似乎不太擅长聊天。"
+}
+
+node act_flirt {
+    text: "* 你向 Dummy 调情。"
+    text: "* 它的脸红了...是染料吗？"
+}
+
+node act_hug {
+    text: "* 你拥抱了 Dummy。"
+    text: "* ……"
+}

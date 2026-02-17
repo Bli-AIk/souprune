@@ -586,16 +586,22 @@ pub enum FactCondition {
 }
 
 /// Fact value for matching in FactSwitch and conditions.
-/// Mirrors `FactValueDef` from bevy_fact_rule_event.
+/// Mirrors `FactValueDef` from bevy_fact_rule_event, with added Expr support.
 ///
 /// 用于 FactSwitch 和条件匹配的 Fact 值。
-/// 镜像 bevy_fact_rule_event 中的 `FactValueDef`。
+/// 镜像 bevy_fact_rule_event 中的 `FactValueDef`，并添加 Expr 支持。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum FactValueMatch {
     Int(i64),
     Float(f64),
     Bool(bool),
     String(String),
+    /// Expression that evaluates to a fact value (e.g., "$action_param").
+    /// Useful for dynamic value assignment from other facts.
+    ///
+    /// 计算为 fact 值的表达式（如 "$action_param"）。
+    /// 用于从其他 fact 动态赋值。
+    Expr(String),
 }
 
 /// Fact modification for ModifyFact chapter.

@@ -100,6 +100,7 @@ pub fn complete_run_sequence_system(
     assets: Res<Assets<SequenceAsset>>,
     mut context: ResMut<BattleContext>,
     mut view_root_query: Query<&mut ViewRoot>,
+    layered_db: Res<LayeredFactDatabase>,
 ) {
     for (entity, run_seq, _active) in query.iter_mut() {
         if let Some(asset) = assets.get(&run_seq.handle) {
@@ -110,13 +111,28 @@ pub fn complete_run_sequence_system(
                     for (key, value) in &run_seq.params {
                         let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
                         let fact_value = match value {
-                            FactValueMatch::Bool(b) => FactValue::Bool(*b),
-                            FactValueMatch::Int(i) => FactValue::Int(*i),
-                            FactValueMatch::Float(f) => FactValue::Float(*f),
-                            FactValueMatch::String(s) => FactValue::String(s.clone()),
+                            FactValueMatch::Bool(b) => Some(FactValue::Bool(*b)),
+                            FactValueMatch::Int(i) => Some(FactValue::Int(*i)),
+                            FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
+                            FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
+                            FactValueMatch::Expr(expr) => {
+                                // For Expr in RunSequence params, read from layered_db
+                                if let Some(fact_key) = expr.strip_prefix('$') {
+                                    layered_db.get_by_str(fact_key).cloned()
+                                } else {
+                                    bevy_fact_rule_event::expr::evaluate_expr_to_fact(
+                                        expr,
+                                        &layered_db,
+                                    )
+                                }
+                            }
                         };
-                        view_root.local_facts.set(prefixed_key, fact_value);
-                        info!("RunSequence: Injected param '{}' = {:?}", key, value);
+                        if let Some(fv) = fact_value {
+                            view_root.local_facts.set(prefixed_key, fv.clone());
+                            info!("RunSequence: Injected param '{}' = {:?}", key, fv);
+                        } else {
+                            warn!("RunSequence: Failed to evaluate param '{}'", key);
+                        }
                     }
                 } else {
                     warn!("RunSequence: params provided but no ViewRoot found to inject into");

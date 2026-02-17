@@ -12,7 +12,7 @@
         // ACT options count
         "vegetoid.act_count": Int(6),
 
-        // Action option display labels
+        // Action option display labels (Mortar localization keys)
         "vegetoid.action_labels": StringList([
             "{{battle/ui:ACT_VEGETOID_CHECK}}",
             "{{battle/ui:ACT_VEGETOID_TALK}}",
@@ -32,15 +32,18 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action
+        // Mortar node names for each action's dialogue
         "vegetoid.action_params": StringList([
-            "{{battle/ui:ACT_VEGETOID_CHECK_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_TALK_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_DINNER_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_DEVOUR_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_FLIRT_RESULT}}",
-            "{{battle/ui:ACT_VEGETOID_PAT_RESULT}}",
+            "act_check",
+            "act_talk",
+            "act_dinner",
+            "act_devour",
+            "act_flirt",
+            "act_pat",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "vegetoid.mortar_path": String("battle/enemies/vegetoid.mortar"),
     },
     rules: [],
 )

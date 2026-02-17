@@ -57,14 +57,18 @@
             "states/battle/common/narration.sequence.ron",
         ]),
 
-        // Parameters for each action (e.g., narration key for simple narration)
-        // 每个动作的参数（例如，简单旁白的旁白键）
+        // Mortar node names for each action's dialogue
+        // 每个动作对话的 Mortar 节点名
         "dummy.action_params": StringList([
-            "{{battle/enemies/dummy:EnemyDummyActCheckResult}}",
-            "{{battle/enemies/dummy:EnemyDummyActTalkResult}}",
+            "act_check",
+            "act_talk",
             "",
-            "{{battle/enemies/dummy:EnemyDummyActHugResult}}",
+            "act_hug",
         ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        // Mortar 对话文件路径（相对于 shared/locales/{locale}/）
+        "dummy.mortar_path": String("battle/enemies/dummy.mortar"),
     },
 
     // Enemy-specific rules
