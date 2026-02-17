@@ -3,14 +3,14 @@
 
 node act_check {
     text: "* WHIMSUN - ATK 5 DEF 0"
-    text: "* This monster is too sensitive to fight."
+    text: "* This monster is too\n  sensitive to fight..."
 }
 
 node act_console {
-    text: "* You tell Whimsun it's going to be okay. It doesn't believe you."
+    text: "* Halfway through your first\n  word, Whimsun bursts into\n  tears and runs away."
 }
 
 node act_terrorize {
-    text: "* You terrorize Whimsun."
-    text: "* It seems even more terrified!"
+    text: "* You raise your arms and\n  wiggle your fingers."
+    text: "* Whimsun freaks out!"
 }

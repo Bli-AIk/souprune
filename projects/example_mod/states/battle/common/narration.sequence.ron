@@ -54,10 +54,11 @@
     // 等待对话结束（Mortar 对话完成）
     AwaitFact(condition: "$dialogue:active == false", local: false),
 
-    // Hide narration, restore UI
-    // 隐藏旁白，恢复 UI
+    // Hide narration, restore UI, and clear dialogue text
+    // 隐藏旁白，恢复 UI，并清除对话文本
     SetViewFact(key: "narration_visible", value: Bool(false)),
     SetViewFact(key: "buttons_visible", value: Bool(true)),
+    SetViewFact(key: "dialogue_text", value: String("")),
 
     // Re-enable typewriter replay for normal menu navigation
     // 重新启用打字机重播以支持正常菜单导航

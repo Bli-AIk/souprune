@@ -3,9 +3,9 @@
 
 node act_check {
     text: "* FROGGIT - ATK 4 DEF 5"
-    text: "* Life is difficult for this enemy."
+    text: "* Life is difficult for\n  this enemy."
 }
 
 node act_compliment {
-    text: "* Froggit didn't understand what you said, but was flattered anyway."
+    text: "* Froggit didn't understand\n  what you said, but was\n  flattered anyway."
 }

@@ -42,10 +42,11 @@
     // 等待对话结束
     AwaitFact(condition: "$dialogue:active == false", local: false),
 
-    // 结束交互，隐藏旁白
+    // 结束交互，隐藏旁白，清除对话文本
     SetViewFact(key: "interactable", value: Bool(false)),
     SetViewFact(key: "buttons_visible", value: Bool(false)),
     SetViewFact(key: "narration_visible", value: Bool(false)),
+    SetViewFact(key: "dialogue_text", value: String("")),
 
     // Re-enable typewriter replay
     // 重新启用打字机重播

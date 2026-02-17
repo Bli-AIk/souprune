@@ -3,18 +3,20 @@
 
 node act_check {
     text: "* MOLDSMAL - ATK 6 DEF 0"
-    text: "* Stereotypical: Curvaceously attractive, but no brains."
+    text: "* Stereotypical: Curvaceously\n  attractive, but no brains..."
 }
 
 node act_imitate {
-    text: "* You wiggle your hips. Moldsmal wiggles back."
+    text: "* You wiggle your hips."
+    text: "* Moldsmal wiggles back."
     text: "* What a meaningful conversation!"
 }
 
 node act_flirt {
-    text: "* You show Moldsmal your most alluring wiggle. Moldsmal seems satisfied."
+    text: "* You lie immobile with Moldsmal."
+    text: "* You feel like you understand\n  the world a little better."
 }
 
 node act_unhug {
-    text: "* Moldsmal wasn't hugging you in the first place."
+    text: "* Moldsmal wasn't hugging you\n  in the first place."
 }
