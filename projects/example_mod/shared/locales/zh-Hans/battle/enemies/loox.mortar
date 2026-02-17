@@ -1,0 +1,26 @@
+// 独眼怪 ACT 对话节点
+
+node act_check {
+    text: "* 独眼怪 - 攻击 6 防御 6"
+    text: "* 不要欺负它。"
+    text: "* 家族名：独行者。"
+}
+
+node act_pickoff {
+    text: "* 你欺负独眼怪。"
+    text: "* 独眼怪的攻击力上升了！"
+}
+
+node act_dontpick {
+    text: "* 你没有欺负独眼怪。"
+    text: "* 独眼怪似乎松了一口气。"
+}
+
+node act_stare {
+    text: "* 你盯着独眼怪的眼睛。它也盯回来。"
+    text: "* 时间流逝..."
+}
+
+node act_flirt {
+    text: "* 你向独眼怪扭动臀部。独眼怪面无表情地看着。"
+}

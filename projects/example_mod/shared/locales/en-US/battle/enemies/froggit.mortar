@@ -1,0 +1,11 @@
+// Froggit ACT dialogue nodes
+// 蛙吉特 ACT 对话节点
+
+node act_check {
+    text: "* FROGGIT - ATK 4 DEF 5"
+    text: "* Life is difficult for this enemy."
+}
+
+node act_compliment {
+    text: "* Froggit didn't understand what you said, but was flattered anyway."
+}
