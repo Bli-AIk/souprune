@@ -864,6 +864,32 @@ pub fn replay_typewriter_on_depth_resume_system(
         return;
     }
 
+    // Check if narration is visible - if so, don't replay the intro dialogue
+    // This prevents the battle intro from replaying when entering ACT narration
+    // 检查旁白是否可见 - 如果是，不重播开场对话
+    // 这防止在进入 ACT 旁白时重播战斗开场
+    let narration_visible = active_view_query
+        .iter()
+        .next()
+        .map(|view| {
+            view.local_facts
+                .get_bool("narration_visible")
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+
+    if narration_visible {
+        info!("replay_typewriter_on_depth_resume: narration_visible=true, stopping typewriters");
+        // Stop typewriter to clear dialogue and prevent audio during narration
+        // When narration ends, the dialogue should stay hidden (not resume)
+        // 停止打字机以清空对话并在旁白期间禁止音效
+        // 旁白结束后，对话应该保持隐藏（不恢复）
+        for mut typewriter in typewriter_query.iter_mut() {
+            typewriter.stop();
+        }
+        return;
+    }
+
     info!("replay_typewriter_on_depth_resume: depth returned to 0");
 
     // Check if replay_on_resume is enabled (from View's local_facts)

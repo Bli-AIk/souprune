@@ -67,10 +67,11 @@ impl Plugin for DialoguePlugin {
                     systems::sync_mortar_text_to_typewriter_system,
                     systems::sync_typewriter_text_to_facts_system,
                     systems::sync_typewriter_state_to_facts_system,
+                    // Depth-based pause/resume - must run before voice to prevent sound on pause frame
+                    // 基于 depth 的暂停/恢复 - 必须在 voice 之前运行以避免暂停帧播放音效
+                    systems::replay_typewriter_on_depth_resume_system,
                     // Voice system - plays sound on char advance
                     systems::typewriter_voice_system,
-                    // Resume handling
-                    systems::replay_typewriter_on_depth_resume_system,
                     // Input handling systems
                     systems::dialogue_advance_system.run_if(systems::has_fact_events),
                     systems::emit_pending_dialogue_ended_system
