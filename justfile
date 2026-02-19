@@ -32,13 +32,9 @@ typos:
 # Tokei 行数检查
 # ===============================================
 tokei-check:
-    @result=$(tokei crates/{{project}} --output json --files | jq -r '.Rust.reports[]? | select(.stats.code > 1000) | "Error: \(.name) has \(.stats.code) lines of code"') && \
-    if [ -n "$result" ]; then \
-        echo "$result"; \
-        exit 1; \
-    else \
-        echo "Tokei OK: All Rust files under 1000 lines."; \
-    fi
+    @./tokei_check.sh
+
+alias line := tokei-check
 
 # ===============================================
 # check
