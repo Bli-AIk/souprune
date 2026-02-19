@@ -588,6 +588,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "toml 0.8.23",
+ "tracing-tracy",
  "ttf-parser 0.25.1",
  "wasm-bindgen",
  "web-sys",
