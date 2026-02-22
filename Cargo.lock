@@ -580,6 +580,7 @@ dependencies = [
  "bevy-inspector-egui",
  "chrono",
  "console_error_panic_hook",
+ "cosmic-text 0.16.0",
  "fontdb 0.23.0",
  "image",
  "owo-colors",
