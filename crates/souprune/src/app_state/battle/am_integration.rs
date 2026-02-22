@@ -569,7 +569,10 @@ fn add_am_collision_system(
             AmLayerSpec::SpriteShape { width, height, .. } => Some((*width, *height)),
             AmLayerSpec::SdfShape { width, height, .. } => Some((*width, *height)),
             AmLayerSpec::Image { width, height, .. } => Some((*width, *height)),
-            AmLayerSpec::Text { .. } | AmLayerSpec::Null | AmLayerSpec::EmbedScene => None,
+            AmLayerSpec::Text { .. }
+            | AmLayerSpec::Null
+            | AmLayerSpec::EmbedScene
+            | AmLayerSpec::Camera { .. } => None,
         }
     }
 
