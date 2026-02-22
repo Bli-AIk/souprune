@@ -299,12 +299,3 @@ fn serializable_vec3_to_vec3(vec: &SerializableVec3) -> Vec3 {
     };
     Vec3::new(x, y, z)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy_fact_rule_event::FactDatabase;
-
-    // Tests would go here but require mocking LayeredFactDatabase
-    // which is complex. For now, integration tests will cover this.
-}
