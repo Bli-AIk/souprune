@@ -52,7 +52,39 @@ these steps:
 2. **Clone Repository**: `git clone https://github.com/Bli-AIk/souprune.git`
 3. **Enter Directory**: `cd souprune`
 4. **Update Submodules**: `git submodule update --init --recursive`
-5. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
+5. **Setup Example Mods**:
+   - Linux/macOS: `./setup_mods.sh`
+   - Windows: `.\setup_mods.ps1`
+6. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
+
+<details>
+<summary>Setup Mods Options</summary>
+
+```bash
+# Install all example mods
+# The example mod is located in the https://github.com/Bli-AIk/souprune_example_mods repository
+./setup_mods.sh
+
+# Install specific example mod
+./setup_mods.sh example_mod
+
+# List available mods
+./setup_mods.sh --list
+
+# Update mods from remote
+./setup_mods.sh --update
+
+# Remove all mod worktrees
+./setup_mods.sh --clean
+```
+
+Configure active mod in `projects/config.toml`:
+```toml
+[project]
+mod_name = "example_mod"
+```
+
+</details>
 
 ## ⚙️ Design Philosophy
 

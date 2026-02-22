@@ -1,0 +1,17 @@
+[repo]
+url = "https://github.com/Bli-AIk/souprune_example_mods.git"
+
+[mods.example_mod]
+branch = "mod/example_mod"
+path = "projects/example_mod"
+description = "Full-featured example with overworld and battle"
+
+[mods.example_battle_mod]
+branch = "mod/example_battle_mod"
+path = "projects/example_battle_mod"
+description = "Battle-focused example"
+
+[mods.example_am_mod]
+branch = "mod/example_am_mod"
+path = "projects/example_am_mod"
+description = "Alight Motion integration example"
