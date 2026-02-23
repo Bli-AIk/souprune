@@ -24,6 +24,7 @@ AGENTS.md
 GEMINI.md
 agent_*.md
 check.txt
+ai_check.sh
 
 logs/
 dev/
