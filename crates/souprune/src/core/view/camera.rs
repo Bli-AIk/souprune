@@ -47,7 +47,7 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
                 (overworld_state.as_ref(), state_config.as_ref())
             {
                 let state_name = ow_state.name();
-                config.is_ui_interactive(state_name) || config.is_chase_state(state_name)
+                config.is_view_interactive(state_name) || config.is_chase_state(state_name)
             } else {
                 false
             }
@@ -214,7 +214,7 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
                 (overworld_state.as_ref(), state_config.as_ref())
             {
                 let state_name = ow_state.name();
-                config.is_ui_interactive(state_name) || config.is_chase_state(state_name)
+                config.is_view_interactive(state_name) || config.is_chase_state(state_name)
             } else {
                 false
             }

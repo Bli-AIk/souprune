@@ -1,0 +1,10 @@
+// Demo dialogue - Chinese
+// 演示对话 - 中文
+
+node demo_talk {
+    text: "你好，旅行者。"
+    text: "这是一个演示对话。"
+    text: "你可以按确认键继续阅读。"
+    text: "按取消键可以跳过打字机效果。"
+    text: "好了，对话演示到此结束。"
+}

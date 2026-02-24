@@ -23,11 +23,16 @@ static VAR_PATTERN: Lazy<Regex> = Lazy::new(|| {
 /// Preprocess expression to convert special variable names to fasteval-compatible format.
 /// - `@time` → `__at_time`
 /// - `player.x` → `player_x`
+/// - `player:hp` → `player__hp` (namespace format)
 ///
 /// 预处理表达式，将特殊变量名转换为 fasteval 兼容格式。
 pub fn preprocess_varname(expr: &str) -> String {
+    // First, replace colons in variable names with double underscores
+    // This handles the namespace format like `player:hp`
+    let expr = expr.replace(':', "__");
+
     VAR_PATTERN
-        .replace_all(expr, |caps: &regex::Captures| {
+        .replace_all(&expr, |caps: &regex::Captures| {
             if let Some(at_var) = caps.get(1) {
                 // @varname → __at_varname
                 format!("__at_{}", at_var.as_str())

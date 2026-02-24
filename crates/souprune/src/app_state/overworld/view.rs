@@ -52,8 +52,21 @@ pub(crate) fn input_to_fre_event_bridge_system(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {
-    // Only process input in non-movable states (UI states)
-    // 仅在不可移动状态（UI 状态）中处理输入
+    let Ok(action_state) = query.single() else {
+        return;
+    };
+
+    // Menu key is special - always emit input_menu regardless of player_movable
+    // This allows opening the backpack from Normal state
+    // Menu 键是特殊的 - 无论 player_movable 如何都发出 input_menu
+    // 这允许从 Normal 状态打开背包
+    if action_state.action_just_pressed(&registry, "Menu") {
+        debug!("Input bridge: Menu pressed, emitting input_menu");
+        event_writer.write(FactEvent::new("input_menu"));
+    }
+
+    // Other inputs only work in non-movable states (UI states)
+    // 其他输入仅在不可移动状态（UI 状态）中处理
     let player_movable = state_config
         .as_ref()
         .and_then(|config| config.0.states.get(&current_state.0))
@@ -63,10 +76,6 @@ pub(crate) fn input_to_fre_event_bridge_system(
     if player_movable {
         return;
     }
-
-    let Ok(action_state) = query.single() else {
-        return;
-    };
 
     // Check navigation inputs and emit FRE events
     // 检查导航输入并发出 FRE 事件
@@ -90,8 +99,8 @@ pub(crate) fn input_to_fre_event_bridge_system(
         event_writer.write(FactEvent::new("input_nav_right"));
     }
 
-    // Check UI inputs
-    // 检查 UI 输入
+    // Check UI inputs (Confirm, Cancel)
+    // 检查 UI 输入（Confirm, Cancel）
     if action_state.action_just_pressed(&registry, "Confirm") {
         debug!("Input bridge: Confirm pressed, emitting input_confirm");
         event_writer.write(FactEvent::new("input_confirm"));
@@ -100,10 +109,5 @@ pub(crate) fn input_to_fre_event_bridge_system(
     if action_state.action_just_pressed(&registry, "Cancel") {
         debug!("Input bridge: Cancel pressed, emitting input_cancel");
         event_writer.write(FactEvent::new("input_cancel"));
-    }
-
-    if action_state.action_just_pressed(&registry, "Menu") {
-        debug!("Input bridge: Menu pressed, emitting input_menu");
-        event_writer.write(FactEvent::new("input_menu"));
     }
 }

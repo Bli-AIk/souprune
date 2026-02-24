@@ -47,6 +47,16 @@ pub fn load_global_triggers_system(
     *last_processed_handle = Some(view_layout_handle.handle.id());
 
     if let Some(global_triggers) = &view_layout.global_triggers {
+        // DEPRECATION WARNING: global_triggers will be removed in a future version.
+        // Use FRE rules with SwitchState action instead.
+        // 弃用警告：global_triggers 将在未来版本中移除。
+        // 请改用带有 SwitchState action 的 FRE 规则。
+        warn!(
+            "[DEPRECATED] global_triggers in view_layout.ron is deprecated. \
+            Use FRE rules with SwitchState action instead. \
+            See backpack.fre.ron for examples."
+        );
+
         for (action_str, rules_def) in global_triggers {
             if let Some(action) = action_registry.get(action_str) {
                 let mut rules = Vec::new();

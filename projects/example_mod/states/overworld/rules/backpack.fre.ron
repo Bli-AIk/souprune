@@ -1,0 +1,60 @@
+#![enable(implicit_some)]
+// Backpack Navigation Rules - depth: 0=Menu, 1=ItemList, 2=ItemOptions, 3=Status
+
+(
+    scope: View,
+    facts: { "depth": Int(0), "selection": Int(0), "interactable": Bool(true) },
+
+    rules: [
+        // Navigation
+        (event: ActionEvent(action: "Up", kind: JustPressed), conditions: ["$selection > 0"],
+         actions: [SetLocalFact("selection", Expr("$selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed), conditions: ["$depth == 0", "$selection < 1"],
+         actions: [SetLocalFact("selection", Expr("$selection + 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Down", kind: JustPressed), conditions: ["$depth == 1", "$selection < $player:inventory.len() - 1"],
+         actions: [SetLocalFact("selection", Expr("$selection + 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Left", kind: JustPressed), conditions: ["$depth == 2", "$selection > 0"],
+         actions: [SetLocalFact("selection", Expr("$selection - 1")), PlaySound("choice")]),
+
+        (event: ActionEvent(action: "Right", kind: JustPressed), conditions: ["$depth == 2", "$selection < 2"],
+         actions: [SetLocalFact("selection", Expr("$selection + 1")), PlaySound("choice")]),
+
+        // Confirm: depth 0 ITEM -> depth 1
+        (event: ActionEvent(action: "Confirm", kind: JustPressed), conditions: ["$depth == 0", "$selection == 0"],
+         actions: [SetLocalFact("depth", Int(1)), SetLocalFact("selection", Int(0)), PlaySound("confirm")]),
+
+        // Confirm: depth 0 STAT -> depth 3
+        (event: ActionEvent(action: "Confirm", kind: JustPressed), conditions: ["$depth == 0", "$selection == 1"],
+         actions: [SetLocalFact("depth", Int(3)), SetLocalFact("selection", Int(0)), PlaySound("confirm")]),
+
+        // Confirm: depth 1 -> depth 2 (item options)
+        (event: ActionEvent(action: "Confirm", kind: JustPressed), conditions: ["$depth == 1"],
+         actions: [SetLocalFact("depth", Int(2)), SetLocalFact("selection", Int(0)), PlaySound("confirm")]),
+
+        // Confirm: depth 2 -> execute & return to depth 1
+        (event: ActionEvent(action: "Confirm", kind: JustPressed), conditions: ["$depth == 2"],
+         actions: [SetLocalFact("depth", Int(1)), PlaySound("confirm")]),
+
+        // Cancel: depth 0 -> close
+        (event: ActionEvent(action: "Cancel", kind: JustPressed), conditions: ["$depth == 0"],
+         actions: [SwitchState("Normal")], priority: 100),
+
+        (event: ActionEvent(action: "Menu", kind: JustPressed), conditions: ["$depth == 0"],
+         actions: [SwitchState("Normal")], priority: 100),
+
+        // Cancel: depth 1 -> depth 0
+        (event: ActionEvent(action: "Cancel", kind: JustPressed), conditions: ["$depth == 1"],
+         actions: [SetLocalFact("depth", Int(0)), SetLocalFact("selection", Int(0))]),
+
+        // Cancel: depth 2 -> depth 1
+        (event: ActionEvent(action: "Cancel", kind: JustPressed), conditions: ["$depth == 2"],
+         actions: [SetLocalFact("depth", Int(1))]),
+
+        // Cancel: depth 3 -> depth 0 with selection=1
+        (event: ActionEvent(action: "Cancel", kind: JustPressed), conditions: ["$depth == 3"],
+         actions: [SetLocalFact("depth", Int(0)), SetLocalFact("selection", Int(1))]),
+    ],
+)

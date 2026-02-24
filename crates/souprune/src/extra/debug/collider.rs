@@ -17,7 +17,8 @@ pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;
     use crate::app_state::overworld::tilemap::*;
-    use crate::app_state::overworld::trigger::TriggerZone;
+    use crate::app_state::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
+    use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::color::palettes::css;
     use bevy::math::Isometry2d;
@@ -40,6 +41,8 @@ pub mod debug_collider {
                 toggle_collider_visibility_system,
                 draw_rect_collider_gizmos_system,
                 draw_trigger_zone_gizmos_system,
+                draw_interactable_gizmos_system,
+                draw_interaction_ray_gizmo_system,
                 draw_battle_collider_gizmos_system,
                 draw_am_mask_gizmos_system,
             ),
@@ -243,5 +246,90 @@ pub mod debug_collider {
                 break;
             }
         }
+    }
+
+    /// Draw Interactable entities using Gizmos (magenta/purple).
+    ///
+    /// 使用 Gizmos 绘制 Interactable 实体（洋红色/紫色）。
+    fn draw_interactable_gizmos_system(
+        mut gizmos: Gizmos<ColliderGizmos>,
+        focused: Res<FocusedInteractable>,
+        interactables: Query<(
+            Entity,
+            &GlobalTransform,
+            &Interactable,
+            Option<&Rect2DCollider>,
+        )>,
+    ) {
+        for (entity, transform, _interactable, opt_collider) in interactables.iter() {
+            let pos = transform.translation().truncate()
+                + opt_collider.map(|c| c.offset).unwrap_or(Vec2::ZERO);
+
+            // Use different colors based on focus state
+            let color = if focused.entity == Some(entity) {
+                css::GOLD // Bright gold when focused
+            } else {
+                css::MAGENTA // Magenta otherwise
+            };
+
+            // Draw collider rect if present (the actual interactable area)
+            if let Some(collider) = opt_collider {
+                gizmos.rect_2d(Isometry2d::from_translation(pos), collider.size, color);
+            }
+        }
+    }
+
+    /// Default interaction ray length for visualization.
+    const DEFAULT_RAY_LENGTH: f32 = 40.0;
+
+    /// Draw player interaction ray using Gizmos.
+    /// Ray length uses the focused interactable's max_distance, or default if none focused.
+    ///
+    /// 使用 Gizmos 绘制玩家交互射线。
+    /// 射线长度使用聚焦的可交互物体的 max_distance，若无聚焦则使用默认值。
+    fn draw_interaction_ray_gizmo_system(
+        mut gizmos: Gizmos<ColliderGizmos>,
+        player_query: Query<(&GlobalTransform, &Facing, &Rect2DCollider), With<PlayerControlled>>,
+        interactable_query: Query<&Interactable>,
+        focused: Res<FocusedInteractable>,
+    ) {
+        use crate::core::basic_components::Direction;
+
+        let Ok((player_transform, facing, player_collider)) = player_query.single() else {
+            return;
+        };
+
+        // Use focused interactable's distance if available, otherwise use default
+        let ray_length = focused
+            .entity
+            .and_then(|e| interactable_query.get(e).ok())
+            .map(|i| i.max_distance)
+            .unwrap_or(DEFAULT_RAY_LENGTH);
+
+        let player_pos = player_transform.translation().truncate() + player_collider.offset;
+
+        // Normalize facing direction to 4 cardinal directions only (same as interactable_detection_system)
+        // 将朝向规范化为仅 4 个主方向（与 interactable_detection_system 保持一致）
+        let facing_dir = match facing.value {
+            Direction::Up | Direction::UpLeft | Direction::UpRight => Vec2::Y,
+            Direction::Down | Direction::DownLeft | Direction::DownRight => -Vec2::Y,
+            Direction::Left => -Vec2::X,
+            Direction::Right => Vec2::X,
+        };
+
+        let ray_end = player_pos + facing_dir * ray_length;
+
+        // Draw ray - gold if focused on something, yellow otherwise
+        let color = if focused.entity.is_some() {
+            css::GOLD
+        } else {
+            css::YELLOW
+        };
+
+        // Draw the ray line
+        gizmos.line_2d(player_pos, ray_end, color);
+
+        // Draw small circle at ray end
+        gizmos.circle_2d(Isometry2d::from_translation(ray_end), 3.0, color);
     }
 }

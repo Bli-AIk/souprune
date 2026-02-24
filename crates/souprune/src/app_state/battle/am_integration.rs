@@ -354,7 +354,7 @@ fn load_am_battle_config(
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
     let config_path = format!(
-        "projects/{}/battle/am_config.ron",
+        "projects/{}/states/battle/am_config.ron",
         project_config.project.mod_name
     );
 
@@ -569,7 +569,10 @@ fn add_am_collision_system(
             AmLayerSpec::SpriteShape { width, height, .. } => Some((*width, *height)),
             AmLayerSpec::SdfShape { width, height, .. } => Some((*width, *height)),
             AmLayerSpec::Image { width, height, .. } => Some((*width, *height)),
-            AmLayerSpec::Text { .. } | AmLayerSpec::Null | AmLayerSpec::EmbedScene => None,
+            AmLayerSpec::Text { .. }
+            | AmLayerSpec::Null
+            | AmLayerSpec::EmbedScene
+            | AmLayerSpec::Camera { .. } => None,
         }
     }
 

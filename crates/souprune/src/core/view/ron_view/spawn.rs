@@ -718,8 +718,8 @@ fn spawn_view_node_with_repeat_context(
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
-    // Determine if this node has a ViewBox (ui_shape_logic)
-    let has_ui_box = node_def.ui_shape_logic.is_some();
+    // Determine if this node has a ViewBox (view_box)
+    let has_ui_box = node_def.view_box.is_some();
     // Determine if this is a standalone sprite node (sprite without ViewBox)
     let is_standalone_sprite = !has_ui_box && node_def.sprite.is_some();
     // Determine if this is a state sprite node
@@ -1025,18 +1025,18 @@ fn spawn_view_node_with_repeat_context(
         }
 
         // =====================================================================
-        // Case 2: ViewBox Node (has ui_shape_logic)
-        // 情况 2: ViewBox 节点（有 ui_shape_logic）
+        // Case 2: ViewBox Node (has view_box)
+        // 情况 2: ViewBox 节点（有 view_box）
         // =====================================================================
         if has_ui_box {
-            let ui_shape_logic = node_def.ui_shape_logic.as_ref().unwrap();
+            let view_box = node_def.view_box.as_ref().unwrap();
             info!(
                 "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
-                ui_shape_logic.width,
-                ui_shape_logic.height,
-                ui_shape_logic.border_width,
-                ui_shape_logic.offset
+                view_box.width,
+                view_box.height,
+                view_box.border_width,
+                view_box.offset
             );
 
             let texts = node_def
@@ -1047,15 +1047,15 @@ fn spawn_view_node_with_repeat_context(
                 })
                 .collect::<Vec<_>>();
 
-            let offset = serializable_vec3_to_static(&ui_shape_logic.offset);
-            let dynamic_anchor = if ui_shape_logic.offset.0.as_expr().is_some()
-                || ui_shape_logic.offset.1.as_expr().is_some()
-                || ui_shape_logic.offset.2.as_expr().is_some()
+            let offset = serializable_vec3_to_static(&view_box.offset);
+            let dynamic_anchor = if view_box.offset.0.as_expr().is_some()
+                || view_box.offset.1.as_expr().is_some()
+                || view_box.offset.2.as_expr().is_some()
             {
                 Some(CameraAnchoredDynamic {
-                    x_expression: ui_shape_logic.offset.0.as_expr().map(|s| s.to_string()),
-                    y_expression: ui_shape_logic.offset.1.as_expr().map(|s| s.to_string()),
-                    z_expression: ui_shape_logic.offset.2.as_expr().map(|s| s.to_string()),
+                    x_expression: view_box.offset.0.as_expr().map(|s| s.to_string()),
+                    y_expression: view_box.offset.1.as_expr().map(|s| s.to_string()),
+                    z_expression: view_box.offset.2.as_expr().map(|s| s.to_string()),
                 })
             } else {
                 None
@@ -1063,7 +1063,7 @@ fn spawn_view_node_with_repeat_context(
 
             // Convert fill color from RON definition
             // 从 RON 定义转换填充颜色
-            let fill_color = ui_shape_logic
+            let fill_color = view_box
                 .fill_color
                 .as_ref()
                 .map(|c| {
@@ -1076,12 +1076,12 @@ fn spawn_view_node_with_repeat_context(
                 // Top-level nodes use CameraAnchored
                 let mut entity_cmd = parent.spawn((
                     ViewBox::new_full(
-                        ui_shape_logic.width,
-                        ui_shape_logic.height,
-                        ui_shape_logic.border_width,
+                        view_box.width,
+                        view_box.height,
+                        view_box.border_width,
                         texts,
-                        ui_shape_logic.fill_shader.clone(),
-                        ui_shape_logic.structure_file.clone(),
+                        view_box.fill_shader.clone(),
+                        view_box.structure_file.clone(),
                         fill_color,
                     ),
                     Visibility::default(),
@@ -1101,12 +1101,12 @@ fn spawn_view_node_with_repeat_context(
                 // Child nodes use regular Transform relative to parent
                 let mut entity_cmd = parent.spawn((
                     ViewBox::new_full(
-                        ui_shape_logic.width,
-                        ui_shape_logic.height,
-                        ui_shape_logic.border_width,
+                        view_box.width,
+                        view_box.height,
+                        view_box.border_width,
                         texts,
-                        ui_shape_logic.fill_shader.clone(),
-                        ui_shape_logic.structure_file.clone(),
+                        view_box.fill_shader.clone(),
+                        view_box.structure_file.clone(),
                         fill_color,
                     ),
                     Transform::from_translation(offset),
@@ -1132,7 +1132,7 @@ fn spawn_view_node_with_repeat_context(
 
             info!(
                 "[UI Box] Spawned ViewBox '{}' at camera offset: {:?} with structure_file: {:?}",
-                node_def.name, offset, ui_shape_logic.structure_file
+                node_def.name, offset, view_box.structure_file
             );
 
             if let Some(dynamic) = dynamic_anchor {
@@ -1727,4 +1727,97 @@ pub fn load_procedural_image_handle(
     // for procedural:// protocol
     // We need to convert to owned string to avoid lifetime issues
     asset_server.load(visual_path.to_string())
+}
+
+/// System to spawn dynamically requested Views (via SpawnViewRequest).
+/// This handles Views that are spawned at runtime without going through
+/// the global ViewLayoutHandle resource.
+///
+/// 处理动态请求的 View（通过 SpawnViewRequest）的系统。
+/// 处理在运行时 spawn 的 View，无需全局 ViewLayoutHandle 资源。
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_dynamic_view_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    view_layouts: Res<Assets<ViewLayoutAsset>>,
+    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
+    fre_assets: Res<Assets<FreAsset>>,
+    // Query for dynamic views: have HotReloadableViewRoot and RonDrivenView, but not ViewGenerated
+    // 查询动态 View：有 HotReloadableViewRoot 和 RonDrivenView，但没有 ViewGenerated
+    dynamic_view_query: Query<
+        (Entity, &HotReloadableViewRoot, &ViewRoot),
+        (
+            With<RonDrivenView>,
+            Without<ViewGenerated>,
+            Without<ViewBox>,
+            // Exclude specific root types handled by spawn_ron_view_system
+            Without<BackpackViewRoot>,
+            Without<BattleViewRoot>,
+            Without<ChaseHUDRoot>,
+        ),
+    >,
+    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
+    mut sprite_params: SpriteParams,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    layered_db: Res<LayeredFactDatabase>,
+    item_registry: Res<crate::core::item::ItemRegistry>,
+    mut fre_params: FreSystemParams,
+) {
+    let player_data = PlayerDataView::new(&layered_db);
+
+    for (view_entity, hot_reload_root, _view_root) in dynamic_view_query.iter() {
+        // Check if asset is loaded
+        let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
+            // Asset not yet loaded, wait
+            trace!(
+                "[spawn_dynamic_view] Waiting for asset to load: {}",
+                hot_reload_root.layout_path
+            );
+            continue;
+        };
+
+        let camera_transform = match camera_query.single() {
+            Ok(transform) => transform,
+            Err(_) => {
+                warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
+                continue;
+            }
+        };
+
+        info!(
+            "[spawn_dynamic_view] Spawning dynamic view: {}, entity={:?}",
+            hot_reload_root.layout_path, view_entity
+        );
+
+        spawn_ron_view_for_entity(
+            &mut commands,
+            &asset_server,
+            view_entity,
+            view_layout,
+            camera_transform,
+            &mut sprite_params,
+            &animation_assets,
+            &fre_assets,
+            &mortar_strings,
+            &player_data,
+            &item_registry,
+            &hot_reload_root.layout_path,
+            None, // No bindings for dynamic views
+            &layered_db,
+            &mut fre_params.rule_registry,
+            &mut fre_params.action_defs,
+        );
+
+        // Add ViewGenerated and ReconciliationEnabled
+        commands.entity(view_entity).insert((
+            ViewGenerated,
+            crate::core::view::reconcile::ReconciliationEnabled,
+        ));
+
+        info!(
+            "[spawn_dynamic_view] Added ViewGenerated to entity {:?}",
+            view_entity
+        );
+    }
 }

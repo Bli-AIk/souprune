@@ -8,133 +8,408 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
+use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
+use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
-use crate::core::map_property_schema::{get_object_bool_property, object_keys};
+use crate::core::map_property_schema::{
+    get_object_bool_property, get_object_float_property, get_string_property, object_keys,
+};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_fact_rule_event::{FactModification, FactValue, LayeredRuleRegistry, Rule, RuleScope};
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
 #[derive(Component)]
 pub struct ObjectCollider;
 
-/// System to directly create collision entities for objects with collision properties
-/// 直接为具有碰撞属性的对象创建碰撞实体的系统
+/// Marker component for trigger zones spawned from Tiled
+/// 从 Tiled 生成的触发区域的标记组件
+#[derive(Component)]
+pub struct TiledTriggerZone;
+
+/// Marker component for interactable objects spawned from Tiled
+/// 从 Tiled 生成的可交互物体的标记组件
+#[derive(Component)]
+pub struct TiledInteractable;
+
+/// System to process Tiled object layer properties and spawn corresponding entities.
+/// Handles both collision objects and trigger zones.
+///
+/// 处理 Tiled 对象层属性并生成相应实体的系统。
+/// 处理碰撞对象和触发区域。
 #[allow(dead_code)]
 pub fn process_map_object_properties_system(
     mut commands: Commands,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     tiled_maps_query: Query<&TiledMap>,
-    existing_colliders: Query<&ObjectCollider>,
+    existing_triggers: Query<&TiledTriggerZone>,
+    existing_interactables: Query<&TiledInteractable>,
+    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+    mut processed: Local<bool>,
 ) {
-    // Add debug logging
-    //
-    // 添加调试日志
-    let map_count = tiled_maps_query.iter().count();
-    let collider_count = existing_colliders.iter().count();
-
-    trace!(
-        "Object properties system running: {} maps, {} existing colliders",
-        map_count, collider_count
-    );
-
-    // Only run if we haven't created object colliders yet
-    //
-    // 仅在尚未创建对象碰撞体时运行
-    if !existing_colliders.is_empty() {
-        trace!("Object colliders already exist, skipping");
+    // Only process once
+    if *processed {
         return;
     }
 
+    let map_count = tiled_maps_query.iter().count();
+    let trigger_count = existing_triggers.iter().count();
+    let interactable_count = existing_interactables.iter().count();
+
+    // Wait for map to be available
+    if map_count == 0 {
+        return;
+    }
+
+    // Try to get map asset - if not loaded yet, wait
+    let mut any_map_loaded = false;
     for tiled_map_handle in tiled_maps_query.iter() {
-        trace!("Processing tiled map handle");
-
-        if let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) {
-            trace!("Found tiled map asset");
-
-            // Calculate map center offset (same as tilemap collision system)
-            //
-            // 计算地图中心偏移（与瓦片地图碰撞系统相同）
-            let tile_size = tiled_map_asset.map.tile_width as f32;
-            let tile_height = tiled_map_asset.map.tile_height as f32;
-            let map_width = tiled_map_asset.map.width as f32 * tile_size;
-            let map_height = tiled_map_asset.map.height as f32 * tile_height;
-            let center_offset_x = -map_width / 2.0;
-            let center_offset_y = -map_height / 2.0;
-
-            for layer in tiled_map_asset.map.layers() {
-                trace!("Processing layer: {}", layer.name);
-
-                if let Some(object_layer) = layer.as_object_layer() {
-                    trace!(
-                        "Processing object layer '{}' with {} objects",
-                        layer.name,
-                        object_layer.objects().count()
-                    );
-
-                    for object_data in object_layer.objects() {
-                        trace!(
-                            "Checking object '{}' at ({}, {}) with shape {:?}",
-                            object_data.name, object_data.x, object_data.y, object_data.shape
-                        );
-
-                        // Check if this object has collision property set to true
-                        //
-                        // 检查此对象是否将碰撞属性设置为 true
-                        if get_object_bool_property(&object_data.properties, object_keys::COLLISION)
-                            != Some(true)
-                        {
-                            trace!(
-                                "Object '{}' has no collision property or collision=false",
-                                object_data.name
-                            );
-                            continue;
-                        }
-
-                        trace!(
-                            "Found collision object '{}' with collision=true",
-                            object_data.name
-                        );
-
-                        if let tiled::ObjectShape::Rect { width, height } = object_data.shape {
-                            // Calculate world position (same coordinate system as tilemap)
-                            // Tiled uses top-left origin, convert to center-based
-                            //
-                            // 计算世界位置（与瓦片地图坐标系相同）
-                            // Tiled 使用左上角原点，转换为基于中心
-                            let world_x = center_offset_x + object_data.x + width / 2.0;
-                            let world_y = center_offset_y
-                                + (tiled_map_asset.map.height as f32 * tile_height
-                                    - object_data.y
-                                    - height / 2.0);
-
-                            let size = Vec2::new(width, height);
-
-                            trace!(
-                                "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
-                                object_data.name, world_x, world_y, width, height
-                            );
-
-                            commands.spawn((
-                                ObjectCollider,
-                                TilemapCollider,
-                                Rect2DCollider::new(size, Vec2::ZERO),
-                                Transform::from_xyz(world_x, world_y, 0.0),
-                                Visibility::Hidden, // Hide the object entity itself
-                                Name::new(format!("ObjectCollision_{}", object_data.name)),
-                            ));
-                        } else {
-                            trace!("Object '{}' is not a rectangle", object_data.name);
-                        }
-                    }
-                } else {
-                    trace!("Layer '{}' is not an object layer", layer.name);
-                }
-            }
-            break; // Process only the first map for now
-        } else {
-            trace!("Could not get tiled map asset");
+        if tiled_map_assets.get(&tiled_map_handle.0).is_some() {
+            any_map_loaded = true;
+            break;
         }
     }
+
+    if !any_map_loaded {
+        return;
+    }
+
+    info!(
+        "Object properties system processing: {} maps, {} triggers, {} interactables",
+        map_count, trigger_count, interactable_count
+    );
+
+    for tiled_map_handle in tiled_maps_query.iter() {
+        let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) else {
+            continue;
+        };
+
+        info!("Processing tiled map for triggers and interactables");
+
+        // Calculate map center offset (Tiled uses top-left origin, Bevy uses center)
+        let tile_width = tiled_map_asset.map.tile_width as f32;
+        let tile_height = tiled_map_asset.map.tile_height as f32;
+        let map_width = tiled_map_asset.map.width as f32 * tile_width;
+        let map_height = tiled_map_asset.map.height as f32 * tile_height;
+        let center_offset_x = -map_width / 2.0;
+        let center_offset_y = -map_height / 2.0;
+
+        for layer in tiled_map_asset.map.layers() {
+            let Some(object_layer) = layer.as_object_layer() else {
+                continue;
+            };
+
+            trace!(
+                "Processing object layer '{}' with {} objects",
+                layer.name,
+                object_layer.objects().count()
+            );
+
+            for object_data in object_layer.objects() {
+                trace!(
+                    "Checking object '{}' at ({}, {}) with shape {:?}",
+                    object_data.name, object_data.x, object_data.y, object_data.shape
+                );
+
+                // Note: collision objects are handled by generate_collision_tiles_system
+                // Skip collision objects here to avoid duplicates
+                if get_object_bool_property(&object_data.properties, object_keys::COLLISION)
+                    == Some(true)
+                {
+                    continue;
+                }
+
+                // Handle trigger zones
+                if get_object_bool_property(&object_data.properties, object_keys::TRIGGER)
+                    == Some(true)
+                {
+                    spawn_trigger_zone(
+                        &mut commands,
+                        &object_data,
+                        center_offset_x,
+                        center_offset_y,
+                        map_height,
+                    );
+                    continue;
+                }
+
+                // Handle interactable objects
+                let is_interactable =
+                    get_object_bool_property(&object_data.properties, object_keys::INTERACTABLE);
+                info!(
+                    "Object '{}' interactable property: {:?}",
+                    object_data.name, is_interactable
+                );
+                if is_interactable == Some(true) {
+                    spawn_interactable(
+                        &mut commands,
+                        &object_data,
+                        center_offset_x,
+                        center_offset_y,
+                        map_height,
+                        &mut rule_registry,
+                        &souprune_config.game.dialogue_view_default,
+                    );
+                }
+            }
+        }
+
+        // Process only the first map for now
+        break;
+    }
+
+    // Mark as processed
+    *processed = true;
+    info!("Object properties system completed processing");
+}
+
+/// Spawn a collision entity from a Tiled object.
+fn spawn_collision_object(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+) {
+    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+        trace!("Collision object '{}' is not a rectangle", object_data.name);
+        return;
+    };
+
+    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
+    let world_x = center_offset_x + object_data.x + width / 2.0;
+    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
+    let size = Vec2::new(width, height);
+
+    trace!(
+        "Creating collision object '{}' at ({}, {}) size ({}, {})",
+        object_data.name, world_x, world_y, width, height
+    );
+
+    commands.spawn((
+        ObjectCollider,
+        TilemapCollider,
+        Rect2DCollider::new(size, Vec2::ZERO),
+        Transform::from_xyz(world_x, world_y, 0.0),
+        Visibility::Hidden,
+        Name::new(format!("ObjectCollision_{}", object_data.name)),
+    ));
+}
+
+/// Spawn a trigger zone entity from a Tiled object.
+fn spawn_trigger_zone(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+) {
+    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+        trace!("Trigger object '{}' is not a rectangle", object_data.name);
+        return;
+    };
+
+    // Use object name if provided, otherwise use Tiled object ID
+    let trigger_id = if !object_data.name.is_empty() {
+        object_data.name.clone()
+    } else {
+        format!("trigger_{}", object_data.id())
+    };
+
+    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
+    let world_x = center_offset_x + object_data.x + width / 2.0;
+    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
+    let size = Vec2::new(width, height);
+
+    info!(
+        "FRE: Creating trigger zone '{}' at ({:.1}, {:.1}) size ({}, {})",
+        trigger_id, world_x, world_y, width, height
+    );
+
+    commands.spawn((
+        OverworldEntity(),
+        TiledTriggerZone,
+        TriggerZone::new(&trigger_id),
+        Rect2DCollider::new(size, Vec2::ZERO),
+        Transform::from_xyz(world_x, world_y, 0.0),
+        Visibility::Hidden,
+        Name::new(format!("TriggerZone_{}", trigger_id)),
+    ));
+}
+
+/// Spawn an interactable entity from a Tiled object.
+/// If dialogue properties are set, also registers an FRE rule for handling interaction.
+///
+/// 从 Tiled 对象生成可交互实体。
+/// 如果设置了对话属性，也注册 FRE 规则处理交互。
+fn spawn_interactable(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+    rule_registry: &mut LayeredRuleRegistry,
+    dialogue_view_default: &str,
+) {
+    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+        trace!(
+            "Interactable object '{}' is not a rectangle",
+            object_data.name
+        );
+        return;
+    };
+
+    // Use object name if provided, otherwise use Tiled object ID
+    let interactable_id = if !object_data.name.is_empty() {
+        object_data.name.clone()
+    } else {
+        format!("interactable_{}", object_data.id())
+    };
+
+    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
+    let world_x = center_offset_x + object_data.x + width / 2.0;
+    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
+    let size = Vec2::new(width, height);
+
+    // Read dialogue configuration from object properties
+    // 从对象属性读取对话配置
+    let dialogue_path =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_PATH).map(String::from);
+    let dialogue_node =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_NODE).map(String::from);
+    let has_typewriter =
+        get_object_bool_property(&object_data.properties, object_keys::HAS_TYPEWRITER)
+            .unwrap_or(true);
+    let has_mortar =
+        get_object_bool_property(&object_data.properties, object_keys::HAS_MORTAR).unwrap_or(true);
+    let simple_text =
+        get_string_property(&object_data.properties, object_keys::SIMPLE_TEXT).map(String::from);
+    let dialogue_view = get_string_property(&object_data.properties, object_keys::DIALOGUE_VIEW)
+        .map(String::from)
+        .unwrap_or_else(|| dialogue_view_default.to_string());
+    let dialogue_voice =
+        get_string_property(&object_data.properties, object_keys::DIALOGUE_VOICE).map(String::from);
+    let dialogue_typewriter_speed = get_object_float_property(
+        &object_data.properties,
+        object_keys::DIALOGUE_TYPEWRITER_SPEED,
+    );
+
+    // Check if dialogue is configured
+    let has_dialogue = dialogue_path.is_some() || simple_text.is_some();
+
+    info!(
+        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {}",
+        interactable_id, world_x, world_y, width, height, has_dialogue
+    );
+
+    // If dialogue is configured, create FRE rule for handling interaction
+    // 如果配置了对话，创建 FRE 规则处理交互
+    if has_dialogue {
+        let trigger_event = format!("interact_{}", interactable_id);
+        let rule_id = format!("dialogue_interact_{}", interactable_id);
+
+        // Build modifications for the rule
+        // 为规则构建 modifications
+        let mut modifications = vec![
+            // Set typewriter flag
+            FactModification::Set(
+                "dialogue:has_typewriter".to_string(),
+                FactValue::Bool(has_typewriter),
+            ),
+            // Set view path
+            FactModification::Set(
+                "dialogue:pending_view".to_string(),
+                FactValue::String(dialogue_view),
+            ),
+            // Set focus flag (default true for interactive dialogues)
+            // 设置焦点标志（交互对话默认为 true）
+            FactModification::Set("dialogue:has_focus".to_string(), FactValue::Bool(true)),
+        ];
+
+        // Add voice sound effect if configured
+        // 添加音效（如果配置了）
+        if let Some(voice) = dialogue_voice {
+            modifications.push(FactModification::Set(
+                "dialogue:voice".to_string(),
+                FactValue::String(voice),
+            ));
+        }
+
+        // Add typewriter speed if configured
+        // 添加打字机速度（如果配置了）
+        if let Some(speed) = dialogue_typewriter_speed {
+            modifications.push(FactModification::Set(
+                "dialogue:typewriter_speed".to_string(),
+                FactValue::Float(speed),
+            ));
+        }
+
+        // Add Mortar path and node if using Mortar
+        if has_mortar {
+            if let Some(path) = dialogue_path {
+                modifications.push(FactModification::Set(
+                    "dialogue:pending_mortar_path".to_string(),
+                    FactValue::String(path),
+                ));
+            }
+            if let Some(node) = dialogue_node {
+                modifications.push(FactModification::Set(
+                    "dialogue:pending_mortar_node".to_string(),
+                    FactValue::String(node),
+                ));
+            }
+        }
+
+        // Add simple text if not using Mortar
+        if !has_mortar {
+            modifications.push(FactModification::Set(
+                "dialogue:simple_text_active".to_string(),
+                FactValue::Bool(true),
+            ));
+            if let Some(text) = simple_text {
+                modifications.push(FactModification::Set(
+                    "dialogue:simple_text".to_string(),
+                    FactValue::String(text),
+                ));
+            }
+        }
+
+        // Add trigger to start dialogue (must be last to ensure all other facts are set first)
+        // 添加触发器启动对话（必须最后设置，以确保其他 facts 已设置）
+        modifications.push(FactModification::Set(
+            "dialogue:pending_start".to_string(),
+            FactValue::Bool(true),
+        ));
+
+        // Build and register the rule (Local scope - cleared when leaving Overworld)
+        // 构建并注册规则（Local 作用域 - 离开 Overworld 时清除）
+        let mut rule_builder =
+            Rule::builder(&rule_id, trigger_event.clone()).scope(RuleScope::Local);
+        for modification in modifications {
+            rule_builder = rule_builder.modify(modification);
+        }
+        let rule = rule_builder.build();
+
+        rule_registry.register(rule);
+        info!(
+            "FRE: Registered dialogue rule '{}' for trigger '{}'",
+            rule_id, trigger_event
+        );
+    }
+
+    // Spawn interactable entity (without dialogue_config)
+    let interactable = Interactable::new(&interactable_id);
+
+    commands.spawn((
+        OverworldEntity(),
+        TiledInteractable,
+        interactable,
+        Rect2DCollider::new(size, Vec2::ZERO),
+        Transform::from_xyz(world_x, world_y, 0.0),
+        Visibility::Hidden,
+        Name::new(format!("Interactable_{}", interactable_id)),
+    ));
 }

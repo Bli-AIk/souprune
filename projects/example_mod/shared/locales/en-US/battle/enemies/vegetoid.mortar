@@ -1,0 +1,32 @@
+// Vegetoid ACT dialogue nodes
+// Vegetoid ACT 对话节点
+
+node act_check {
+    text: "* VEGETOID - ATK 6 DEF 6"
+    text: "* Serving Size: 1 Monster"
+    text: "* Not monitored by the USDA"
+}
+
+node act_talk {
+    text: "* You talk to Vegetoid."
+    text: "* \"Plants Can't Talk Dummy\""
+}
+
+node act_dinner {
+    text: "* You pat your stomach."
+    text: "* Vegetoid offers a healthy\n  meal."
+}
+
+node act_devour {
+    text: "* You tried to eat Vegetoid,\n  but it wasn't weakened\n  enough."
+}
+
+node act_flirt {
+    text: "* You wink at Vegetoid."
+    text: "* Vegetoid seems confused\n  but flattered."
+}
+
+node act_pat {
+    text: "* You pat Vegetoid."
+    text: "* Its leaves rustle happily."
+}

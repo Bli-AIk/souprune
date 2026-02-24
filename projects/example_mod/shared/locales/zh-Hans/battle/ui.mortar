@@ -62,3 +62,7 @@ pub const ACT_VEGETOID_DINNER_RESULT: String = "* 你邀请蔬菜人一起吃晚
 pub const ACT_VEGETOID_DEVOUR_RESULT: String = "* 你尝试吃掉蔬菜人。\n* 它对这个想法感到不舒服。"
 pub const ACT_VEGETOID_FLIRT_RESULT: String = "* 你向蔬菜人眨眼。\n* 蔬菜人看起来困惑但高兴。"
 pub const ACT_VEGETOID_PAT_RESULT: String = "* 你轻拍蔬菜人。\n* 它的叶子愉快地沙沙作响。"
+
+// MERCY 选项标签
+pub const MERCY_SPARE: String = "饶恕"
+pub const MERCY_FLEE: String = "逃跑"

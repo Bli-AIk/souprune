@@ -149,7 +149,7 @@ pub fn view_reconciliation_system(
         // Log statistics
         let stats = DeltaStats::from_deltas(&deltas);
         if stats.has_changes() {
-            info!(
+            debug!(
                 "[Reconciliation] View {:?}: {} spawns, {} despawns, {} transform updates, {} visibility updates",
                 root_entity,
                 stats.spawns,

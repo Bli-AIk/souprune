@@ -10,6 +10,34 @@
 //!
 //! 本模块处理 UI 实体的生成和生命周期。
 
+// TODO: Refactor View spawning mechanism / 重构 View 生成机制
+//
+// Currently there are two ways to spawn Views:
+// 1. **State-driven**: `backpack_state_transition_system` uses `ui_interactive` flag
+//    from `states.ron` to automatically spawn/despawn Views when state changes
+// 2. **FRE action-driven**: `SpawnViewRequest` allows FRE rules to spawn Views dynamically
+//
+// This causes confusion about which method to use:
+// - Backpack uses method 1 (state-driven)
+// - Dialogue uses method 2 (FRE action-driven)
+//
+// A unified approach should be considered:
+// - Either extend state config to support all View spawn scenarios
+// - Or remove state-driven spawning and use FRE actions consistently
+//
+// 目前有两种生成 View 的方式：
+// 1. **状态驱动**：`backpack_state_transition_system` 使用 `states.ron` 中的
+//    `ui_interactive` 标志在状态变化时自动生成/销毁 View
+// 2. **FRE action 驱动**：`SpawnViewRequest` 允许 FRE 规则动态生成 View
+//
+// 这导致使用哪种方法的困惑：
+// - 背包使用方式 1（状态驱动）
+// - 对话使用方式 2（FRE action 驱动）
+//
+// 应考虑统一的方法：
+// - 扩展状态配置以支持所有 View 生成场景
+// - 或移除状态驱动生成，统一使用 FRE action
+
 use super::layout::ViewLayoutAsset;
 use super::ron_view::ViewLayoutHandle;
 use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
@@ -41,7 +69,7 @@ pub struct StateTransitionTracker {
 #[derive(Resource, Default)]
 pub struct UIInteractiveStateTracker {
     /// Whether we were in a UI interactive state last frame.
-    pub was_ui_interactive: bool,
+    pub was_view_interactive: bool,
     /// The layout handle for the current UI interactive state.
     pub current_layout_handle: Option<Handle<ViewLayoutAsset>>,
 }
@@ -75,20 +103,20 @@ pub(crate) fn backpack_state_transition_system(
 
     // Check if current state has ui_interactive enabled
     let state_name = overworld_state.name();
-    let is_ui_interactive = state_config.is_ui_interactive(state_name);
+    let is_view_interactive = state_config.is_view_interactive(state_name);
 
     // Log state every frame for debugging
     trace!(
-        "[lifecycle] state='{}', is_ui_interactive={}, was_ui_interactive={}, has_handle={}, root_count={}",
+        "[lifecycle] state='{}', is_view_interactive={}, was_view_interactive={}, has_handle={}, root_count={}",
         state_name,
-        is_ui_interactive,
-        tracker.was_ui_interactive,
+        is_view_interactive,
+        tracker.was_view_interactive,
         tracker.current_layout_handle.is_some(),
         root_query.iter().count()
     );
 
     // Detect entering UI interactive state
-    if is_ui_interactive && !tracker.was_ui_interactive {
+    if is_view_interactive && !tracker.was_view_interactive {
         info!(
             "[lifecycle] Entering UI interactive state '{}' - loading view layout",
             state_name
@@ -112,7 +140,7 @@ pub(crate) fn backpack_state_transition_system(
     }
 
     // Try to spawn UI if we have a pending layout handle
-    if is_ui_interactive
+    if is_view_interactive
         && tracker.current_layout_handle.is_some()
         && let Some(ref handle) = tracker.current_layout_handle
         && view_layouts.get(handle).is_some()
@@ -149,7 +177,7 @@ pub(crate) fn backpack_state_transition_system(
     }
 
     // Detect exiting UI interactive state
-    if !is_ui_interactive && tracker.was_ui_interactive {
+    if !is_view_interactive && tracker.was_view_interactive {
         info!("[lifecycle] Exiting UI interactive state - despawning UI");
         despawn_ui(&mut commands, &root_query);
         // Remove ViewLayoutHandle resource when exiting UI state
@@ -159,7 +187,7 @@ pub(crate) fn backpack_state_transition_system(
         tracker.current_layout_handle = None;
     }
 
-    tracker.was_ui_interactive = is_ui_interactive;
+    tracker.was_view_interactive = is_view_interactive;
 }
 
 /// Spawn the UI root entity.
@@ -193,23 +221,15 @@ fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) 
 /// Despawn the UI root entity and its children.
 ///
 /// 销毁 UI 根实体及其子实体。
+///
+/// In Bevy 0.18+, despawn() automatically handles child entities,
+/// so we just need to despawn the root entity.
+///
+/// 在 Bevy 0.18+ 中，despawn() 自动处理子实体，
+/// 所以我们只需要销毁根实体。
 fn despawn_ui(commands: &mut Commands, root_query: &Query<Entity, With<BackpackViewRoot>>) {
     for entity in root_query.iter() {
-        let root = entity;
-        commands.queue(move |world: &mut World| {
-            let mut stack = vec![root];
-            while let Some(entity) = stack.pop() {
-                if let Ok(entity_ref) = world.get_entity(entity)
-                    && let Some(children) = entity_ref.get::<Children>()
-                {
-                    for child in children.iter() {
-                        stack.push(child);
-                    }
-                }
-
-                let _ = world.despawn(entity);
-            }
-        });
+        commands.entity(entity).despawn();
         info!("Despawned UI");
     }
 }
@@ -390,6 +410,12 @@ pub(crate) fn process_pending_view_rules_system(
                     }
 
                     if effective_scope == RuleScope::View {
+                        info!(
+                            "[lifecycle] Registering View rule '{}' with {} outputs: {:?}",
+                            rule_id,
+                            rule.outputs.len(),
+                            rule.outputs
+                        );
                         rule_registry.register_view_rule(entity, rule);
                         info!(
                             "[lifecycle] Registered pending View rule '{}' for entity {:?} from '{}'",
@@ -427,8 +453,18 @@ pub(crate) fn process_pending_view_rules_system(
             commands
                 .entity(entity)
                 .remove::<super::components::PendingViewRules>();
+
+            // Set view_rules_loaded fact in View's local_facts
+            // This allows AwaitFact to wait for FRE rules to be ready
+            // 在 View 的 local_facts 中设置 view_rules_loaded fact
+            // 这允许 AwaitFact 等待 FRE 规则准备就绪
+            view_root.local_facts.set(
+                "view_rules_loaded",
+                bevy_fact_rule_event::FactValue::Bool(true),
+            );
+
             info!(
-                "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules",
+                "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules, set view_rules_loaded=true",
                 entity
             );
         }

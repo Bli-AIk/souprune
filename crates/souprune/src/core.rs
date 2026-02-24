@@ -38,6 +38,7 @@ pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
+pub mod dialogue;
 pub(crate) mod fre_bridge;
 pub(crate) mod input;
 pub mod item;
@@ -84,6 +85,7 @@ impl Plugin for CorePlugin {
                 collision::CollisionPlugin,
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
+                dialogue::DialoguePlugin,
                 fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
                 item::ItemPlugin,

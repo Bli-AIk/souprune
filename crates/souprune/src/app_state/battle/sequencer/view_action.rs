@@ -137,14 +137,23 @@ pub fn process_set_view_fact_system(
             // Find the active ViewRoot and set the fact
             if let Some(mut view_root) = view_root_query.iter_mut().next() {
                 let fact_value = match value {
-                    FactValueMatch::Bool(b) => FactValue::Bool(*b),
-                    FactValueMatch::Int(i) => FactValue::Int(*i),
-                    FactValueMatch::Float(f) => FactValue::Float(*f),
-                    FactValueMatch::String(s) => FactValue::String(s.clone()),
+                    FactValueMatch::Bool(b) => Some(FactValue::Bool(*b)),
+                    FactValueMatch::Int(i) => Some(FactValue::Int(*i)),
+                    FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
+                    FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
+                    FactValueMatch::Expr(expr) => {
+                        // Read from LayeredFactDatabase for expression evaluation
+                        // This is a SetViewFact, so we don't have direct access to layered_db
+                        // For now, just log a warning - this should use a different approach
+                        warn!("[Battle] SetViewFact: Expr not supported yet for '{}'", key);
+                        None
+                    }
                 };
 
-                view_root.local_facts.set(key.as_str(), fact_value);
-                info!("[Battle] SetViewFact: Set '{}' = {:?}", key, value);
+                if let Some(fv) = fact_value {
+                    view_root.local_facts.set(key.as_str(), fv.clone());
+                    info!("[Battle] SetViewFact: Set '{}' = {:?}", key, fv);
+                }
             } else {
                 warn!("[Battle] SetViewFact: No ViewRoot found!");
             }

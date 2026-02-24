@@ -53,10 +53,14 @@ pub fn action_to_fre_event_system(
 
     // Emit events for each action state change
     for action_name in registry.all_actions() {
+        // Normalize action name to lowercase for consistent FRE event matching
+        // 将动作名称规范化为小写，以实现一致的 FRE 事件匹配
+        let action_name_lower = action_name.to_lowercase();
+
         // JustPressed events
         if action_state.action_just_pressed(&registry, action_name) {
-            let event_id = format!("action:{}:just_pressed", action_name);
-            debug!(
+            let event_id = format!("action:{}:just_pressed", action_name_lower);
+            info!(
                 "FRE Bridge: {} just_pressed, emitting {}",
                 action_name, event_id
             );
@@ -70,13 +74,60 @@ pub fn action_to_fre_event_system(
 
         // JustReleased events
         if action_state.action_just_released(&registry, action_name) {
-            let event_id = format!("action:{}:just_released", action_name);
+            let event_id = format!("action:{}:just_released", action_name_lower);
             debug!(
                 "FRE Bridge: {} just_released, emitting {}",
                 action_name, event_id
             );
             event_writer.write(FactEvent::new(event_id));
         }
+    }
+}
+
+/// System that syncs Bevy state values to FRE facts.
+///
+/// This allows FRE rules to check current state using `$@overworld_state` and `$@app_state`.
+/// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
+///
+/// 将 Bevy 状态值同步到 FRE facts 的系统。
+///
+/// 这允许 FRE 规则使用 `$@overworld_state` 和 `$@app_state` 检查当前状态。
+/// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
+/// Run condition: Check if any state has changed
+/// 运行条件：检查是否有任何状态变化
+fn state_facts_need_sync(
+    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    app_state: Option<Res<State<crate::app_state::AppState>>>,
+) -> bool {
+    // Check if either state has changed this frame
+    if let Some(ref state) = overworld_state {
+        if state.is_changed() {
+            return true;
+        }
+    }
+    if let Some(ref state) = app_state {
+        if state.is_changed() {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn sync_state_to_facts_system(
+    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    app_state: Option<Res<State<crate::app_state::AppState>>>,
+    mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+) {
+    // Sync OverworldSubState
+    if let Some(state) = overworld_state {
+        let state_name = state.get().name().to_string();
+        facts.set("@overworld_state", FactValue::String(state_name));
+    }
+
+    // Sync AppState
+    if let Some(state) = app_state {
+        let state_name = format!("{:?}", state.get());
+        facts.set("@app_state", FactValue::String(state_name));
     }
 }
 
@@ -100,6 +151,7 @@ pub fn process_view_actions_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -182,11 +234,13 @@ pub fn process_view_actions_system(
                 }
 
                 info!(
-                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
                     rule.id,
                     event.id.0,
                     rule.priority,
-                    rule.condition_expressions.len()
+                    rule.condition_expressions.len(),
+                    rule.outputs.len(),
+                    rule.outputs
                 );
 
                 // Record rule trigger for debug panel visualization
@@ -197,28 +251,36 @@ pub fn process_view_actions_system(
                 }
 
                 // Look up the original action definitions for this rule
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    warn!(
-                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                        rule.id,
-                        action_defs
-                            .actions_by_rule
-                            .keys()
-                            .take(5)
-                            .collect::<Vec<_>>()
-                    );
-                    continue;
-                };
+                // Rules may have modifications without actions, so process both
+                // 查找此规则的原始动作定义
+                // 规则可能只有 modifications 而没有 actions，所以两者都要处理
+                let actions = action_defs.actions_by_rule.get(&rule.id);
 
                 // Execute each action (view_root is already mutable)
-                for action in actions {
-                    execute_action(
-                        action,
-                        &mut view_root.local_facts,
-                        &global_facts,
-                        &audio,
-                        &asset_server,
-                    );
+                if let Some(actions) = actions {
+                    for action in actions {
+                        execute_action(
+                            action,
+                            &mut view_root.local_facts,
+                            &global_facts,
+                            &audio,
+                            &asset_server,
+                        );
+                    }
+                }
+
+                // Queue output events with deduplication.
+                // This system can correctly evaluate conditions with local facts,
+                // so it should handle outputs for rules that reference local facts.
+                // The queue_output method ensures no duplicates if process_rules_system
+                // already queued the same output.
+                //
+                // 使用去重队列输出事件。
+                // 此系统可以正确评估包含 local facts 的条件，
+                // 因此它应该处理引用 local facts 的规则的 outputs。
+                // queue_output 方法确保如果 process_rules_system 已排队相同输出则不会重复。
+                for output_id in &rule.outputs {
+                    pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
                 }
 
                 // If this rule consumes the event, stop all matching
@@ -244,6 +306,7 @@ pub fn process_view_actions_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
     #[cfg(feature = "debug")] mut trigger_history: Option<
         ResMut<crate::extra::debug::RuleTriggerHistory>,
     >,
@@ -290,11 +353,13 @@ pub fn process_view_actions_system(
                 }
 
                 info!(
-                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}), executing actions",
+                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
                     rule.id,
                     event.id.0,
                     rule.priority,
-                    rule.condition_expressions.len()
+                    rule.condition_expressions.len(),
+                    rule.outputs.len(),
+                    rule.outputs
                 );
 
                 // Record rule trigger for debug panel visualization
@@ -304,27 +369,36 @@ pub fn process_view_actions_system(
                     history.record_trigger(&rule.id, time.elapsed_secs_f64());
                 }
 
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    warn!(
-                        "FRE Bridge: No actions found for rule '{}' in action_defs (available: {:?})",
-                        rule.id,
-                        action_defs
-                            .actions_by_rule
-                            .keys()
-                            .take(5)
-                            .collect::<Vec<_>>()
-                    );
-                    continue;
-                };
+                // Look up the original action definitions for this rule
+                // Rules may have modifications without actions, so process both
+                // 查找此规则的原始动作定义
+                // 规则可能只有 modifications 而没有 actions，所以两者都要处理
+                let actions = action_defs.actions_by_rule.get(&rule.id);
 
-                for action in actions {
-                    execute_action_firewheel(
-                        action,
-                        &mut view_root.local_facts,
-                        &global_facts,
-                        &mut commands,
-                        &asset_server,
-                    );
+                if let Some(actions) = actions {
+                    for action in actions {
+                        execute_action_firewheel(
+                            action,
+                            &mut view_root.local_facts,
+                            &global_facts,
+                            &mut commands,
+                            &asset_server,
+                        );
+                    }
+                }
+
+                // Queue output events with deduplication.
+                // This system can correctly evaluate conditions with local facts,
+                // so it should handle outputs for rules that reference local facts.
+                // The queue_output method ensures no duplicates if process_rules_system
+                // already queued the same output.
+                //
+                // 使用去重队列输出事件。
+                // 此系统可以正确评估包含 local facts 的条件，
+                // 因此它应该处理引用 local facts 的规则的 outputs。
+                // queue_output 方法确保如果 process_rules_system 已排队相同输出则不会重复。
+                for output_id in &rule.outputs {
+                    pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
                 }
 
                 // If this rule consumes the event, stop all matching
@@ -371,6 +445,26 @@ fn evaluate_conditions(
         let result = evaluate_single_condition(condition, local_facts, global_facts);
         if !result {
             // Log failed condition for debugging
+            debug!("FRE Bridge: Condition '{}' evaluated to false", condition);
+            return false;
+        }
+    }
+    true
+}
+
+/// Evaluate condition expressions against only global facts (no local facts).
+/// Returns true if all conditions pass or if no conditions exist.
+///
+/// 只根据全局 FactDatabase 评估条件表达式。
+/// 如果所有条件都通过或没有条件，则返回 true。
+pub fn evaluate_conditions_layered(
+    conditions: &[String],
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> bool {
+    let empty_local = bevy_fact_rule_event::FactDatabase::new();
+    for condition in conditions {
+        let result = evaluate_single_condition(condition, &empty_local, global_facts);
+        if !result {
             debug!("FRE Bridge: Condition '{}' evaluated to false", condition);
             return false;
         }
@@ -508,7 +602,7 @@ fn resolve_value(
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) -> Option<FactValue> {
-    // Check for .len() suffix (e.g., $player_inventory.len())
+    // Check for .len() suffix (e.g., $player:inventory.len())
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
@@ -552,6 +646,15 @@ fn resolve_value(
     // Try parsing as float
     if let Ok(v) = expr.parse::<f64>() {
         return Some(FactValue::Float(v));
+    }
+
+    // Try parsing as string literal (single or double quotes)
+    // 尝试解析字符串字面量（单引号或双引号）
+    if (expr.starts_with('\'') && expr.ends_with('\''))
+        || (expr.starts_with('"') && expr.ends_with('"'))
+    {
+        let inner = &expr[1..expr.len() - 1];
+        return Some(FactValue::String(inner.to_string()));
     }
 
     None
@@ -618,7 +721,7 @@ fn resolve_int(
         return None; // Avoid division by zero
     }
 
-    // Check for .len() suffix (e.g., $player_inventory.len())
+    // Check for .len() suffix (e.g., $player:inventory.len())
     if let Some(base) = expr.strip_suffix(".len()") {
         if let Some(var_name) = base.strip_prefix('$') {
             // Check local_facts first
@@ -730,9 +833,6 @@ fn execute_action(
         RuleActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
         }
-        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
-            // These are handled by the global FRE system, not View-specific
-        }
     }
 }
 
@@ -784,9 +884,6 @@ fn execute_action_firewheel(
         // Actions not relevant for View local_facts - handled by global FRE system
         RuleActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
-        }
-        RuleActionDef::SetResource { .. } | RuleActionDef::SpawnEntity { .. } => {
-            // These are handled by the global FRE system, not View-specific
         }
     }
 }
@@ -1284,15 +1381,17 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                action_to_fre_event_system,
-                process_view_actions_system,
-                handle_switch_state_system,
-            )
-                .chain(),
-        );
+        app.add_systems(Startup, register_condition_evaluator_system)
+            .add_systems(
+                Update,
+                (
+                    sync_state_to_facts_system.run_if(state_facts_need_sync),
+                    action_to_fre_event_system,
+                    process_view_actions_system,
+                    handle_switch_state_system,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -1422,7 +1521,7 @@ mod tests {
         let local_facts = FactDatabase::new();
         let mut global_facts = LayeredFactDatabase::default();
         global_facts.set_global(
-            "player_inventory",
+            "player:inventory",
             FactValue::StringList(vec![
                 "item1".to_string(),
                 "item2".to_string(),
@@ -1430,8 +1529,8 @@ mod tests {
             ]),
         );
 
-        // Test $player_inventory.len() resolves to 3
-        let conditions = vec!["$player_inventory.len() == 3".to_string()];
+        // Test $player:inventory.len() resolves to 3
+        let conditions = vec!["$player:inventory.len() == 3".to_string()];
         assert!(evaluate_conditions(
             &conditions,
             &local_facts,
@@ -1439,11 +1538,43 @@ mod tests {
         ));
 
         // Test comparison with arithmetic
-        let conditions2 = vec!["$player_inventory.len() > 2".to_string()];
+        let conditions2 = vec!["$player:inventory.len() > 2".to_string()];
         assert!(evaluate_conditions(
             &conditions2,
             &local_facts,
             &global_facts
         ));
     }
+}
+
+// ============================================================================
+// Condition Evaluator Implementation
+// ============================================================================
+
+/// Souprune's implementation of condition evaluation.
+/// This evaluator is registered with the FRE system to evaluate rule conditions.
+///
+/// Souprune 的条件评估实现。
+/// 此评估器注册到 FRE 系统以评估规则条件。
+pub struct SoupruneConditionEvaluator;
+
+impl bevy_fact_rule_event::ConditionEvaluatorTrait for SoupruneConditionEvaluator {
+    fn evaluate(
+        &self,
+        conditions: &[String],
+        facts: &bevy_fact_rule_event::LayeredFactDatabase,
+    ) -> bool {
+        evaluate_conditions_layered(conditions, facts)
+    }
+}
+
+/// System to register the Souprune condition evaluator with the FRE system.
+/// Should run at startup, after FREPlugin is built.
+///
+/// 将 Souprune 条件评估器注册到 FRE 系统的系统。
+/// 应在启动时运行，在 FREPlugin 构建之后。
+pub fn register_condition_evaluator_system(mut commands: Commands) {
+    commands.insert_resource(bevy_fact_rule_event::ConditionEvaluator::new(
+        SoupruneConditionEvaluator,
+    ));
 }

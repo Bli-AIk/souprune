@@ -1,0 +1,55 @@
+// Froggit enemy definition (2 ACT options)
+// 蛙吉特敌人定义 (2 个 ACT 选项)
+(
+    facts: {
+        "froggit.name": String("{{battle/ui:ENEMY_FROGGIT}}"),
+        "froggit.hp": Int(100),
+        "froggit.hp_max": Int(100),
+        "froggit.attack": Int(4),
+        "froggit.defense": Int(5),
+        "froggit.description": String("Life is difficult for this enemy."),
+
+        // ACT options count
+        "froggit.act_count": Int(2),
+
+        // Action option display labels (Mortar localization keys)
+        "froggit.action_labels": StringList([
+            "{{battle/ui:ACT_FROGGIT_CHECK}}",
+            "{{battle/ui:ACT_FROGGIT_COMPLIMENT}}",
+        ]),
+
+        // Sequence paths for each action option
+        "froggit.action_sequences": StringList([
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+        ]),
+
+        // Mortar node names for each action's dialogue
+        "froggit.action_params": StringList([
+            "act_check",
+            "act_compliment",
+        ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "froggit.mortar_path": String("battle/enemies/froggit.mortar"),
+
+        // =========================================================================
+        // MERCY options (froggit has special spare dialogue)
+        // MERCY 选项（froggit 有特殊饶恕对话）
+        // =========================================================================
+        "froggit.mercy_count": Int(2),
+        "froggit.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "froggit.mercy_sequences": StringList([
+            "states/battle/mercy/spare.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "froggit.mercy_params": StringList([
+            "mercy_spare",
+            "",
+        ]),
+    },
+    rules: [],
+)

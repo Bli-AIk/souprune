@@ -181,8 +181,8 @@ pub fn update_dynamic_text_system(
         "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
         global_changed,
         any_view_root_changed,
-        base_player_data.get_fact_int("player_hp").unwrap_or(0),
-        base_player_data.get_fact_int("player_hp_max").unwrap_or(0)
+        base_player_data.get_fact_int("player:hp").unwrap_or(0),
+        base_player_data.get_fact_int("player:hp_max").unwrap_or(0)
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {

@@ -72,10 +72,78 @@ pub mod object_keys {
     /// 触发区域类型。
     pub const TRIGGER: &str = "trigger";
 
-    /// Unique identifier for the trigger.
+    /// Trigger zone ID (for identifying which trigger was activated).
     ///
-    /// 触发器的唯一标识符。
+    /// 触发区域 ID（用于识别哪个触发器被激活）。
     pub const TRIGGER_ID: &str = "trigger_id";
+
+    /// Interactable object type.
+    ///
+    /// 可交互物体类型。
+    pub const INTERACTABLE: &str = "interactable";
+
+    // ========================================
+    // Dialogue Component Properties
+    // 对话组件属性
+    // ========================================
+
+    /// Path to Mortar dialogue file (relative to locales).
+    /// Example: "overworld/dialogue.mortar"
+    ///
+    /// Mortar 对话文件路径（相对于 locales）。
+    /// 示例："overworld/dialogue.mortar"
+    pub const DIALOGUE_PATH: &str = "dialogue_path";
+
+    /// Node name in the Mortar file to start dialogue.
+    /// Required when dialogue_path is set.
+    ///
+    /// 启动对话的 Mortar 文件中的节点名。
+    /// 当设置了 dialogue_path 时必须。
+    pub const DIALOGUE_NODE: &str = "dialogue_node";
+
+    /// Whether to use typewriter effect for this dialogue.
+    /// Default: true
+    ///
+    /// 是否为此对话使用打字机效果。
+    /// 默认：true
+    pub const HAS_TYPEWRITER: &str = "has_typewriter";
+
+    /// Whether to use Mortar controller (for dynamic dialogue).
+    /// Default: true
+    ///
+    /// 是否使用 Mortar 控制器（用于动态对话）。
+    /// 默认：true
+    pub const HAS_MORTAR: &str = "has_mortar";
+
+    /// Simple text content for non-Mortar dialogue.
+    /// Used when has_mortar is false.
+    ///
+    /// 非 Mortar 对话的简单文本内容。
+    /// 当 has_mortar 为 false 时使用。
+    pub const SIMPLE_TEXT: &str = "simple_text";
+
+    /// View layout file for dialogue UI.
+    /// Default: "overworld/view/dialogue.view.ron"
+    ///
+    /// 对话 UI 的 View 布局文件。
+    /// 默认："overworld/view/dialogue.view.ron"
+    pub const DIALOGUE_VIEW: &str = "dialogue_view";
+
+    /// Voice sound effect for typewriter.
+    /// Path to audio file (relative to assets).
+    /// Example: "audio/voice/voice_monster.wav"
+    ///
+    /// 打字机音效。
+    /// 音频文件路径（相对于 assets）。
+    /// 示例："audio/voice/voice_monster.wav"
+    pub const DIALOGUE_VOICE: &str = "dialogue_voice";
+
+    /// Typewriter speed in seconds per character.
+    /// Example: "0.05" for 50ms per character.
+    ///
+    /// 打字机速度（每字符秒数）。
+    /// 示例："0.05" 表示每字符50ms。
+    pub const DIALOGUE_TYPEWRITER_SPEED: &str = "dialogue_typewriter_speed";
 }
 
 /// Property definition for validation purposes.
@@ -134,8 +202,57 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         default: None,
     },
     PropertyDef {
-        key: object_keys::TRIGGER_ID,
-        description: "Unique identifier for the trigger",
+        key: object_keys::INTERACTABLE,
+        description: "Interactable object type",
+        required: false,
+        default: None,
+    },
+    // Dialogue properties
+    PropertyDef {
+        key: object_keys::DIALOGUE_PATH,
+        description: "Path to Mortar dialogue file (relative to locales)",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_NODE,
+        description: "Node name in the Mortar file to start dialogue",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::HAS_TYPEWRITER,
+        description: "Whether to use typewriter effect",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::HAS_MORTAR,
+        description: "Whether to use Mortar controller",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::SIMPLE_TEXT,
+        description: "Simple text content for non-Mortar dialogue",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_VIEW,
+        description: "View layout file for dialogue UI",
+        required: false,
+        default: Some("states/overworld/view/dialogue.view.ron"),
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_VOICE,
+        description: "Voice sound effect path for typewriter",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::DIALOGUE_TYPEWRITER_SPEED,
+        description: "Typewriter speed in seconds per character",
         required: false,
         default: None,
     },
@@ -248,6 +365,27 @@ pub fn get_string_property_or_default<'a>(
     default: &'a str,
 ) -> &'a str {
     get_string_property(properties, key).unwrap_or(default)
+}
+
+/// Get a float property from an object's properties HashMap.
+///
+/// 从对象的属性 HashMap 获取浮点数属性。
+pub fn get_object_float_property(
+    properties: &std::collections::HashMap<String, tiled::PropertyValue>,
+    key: &str,
+) -> Option<f64> {
+    properties.get(key).and_then(|v| match v {
+        tiled::PropertyValue::FloatValue(f) => Some(*f as f64),
+        tiled::PropertyValue::IntValue(i) => Some(*i as f64),
+        tiled::PropertyValue::StringValue(s) => s.parse().ok(),
+        _ => {
+            debug!(
+                "Object property '{}' has unexpected type, expected Float/Int/String",
+                key
+            );
+            None
+        }
+    })
 }
 
 /// Validate object properties and log warnings for unknown properties.
