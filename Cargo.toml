@@ -12,6 +12,7 @@ members = [
     "crates/souprune_mod_test",
     "crates/souprune_mock_host",
     "crates/interoptopus_backend_haxe",
+    "crates/flambe",
 ]
 
 # Exclude mortar submodule - it has its own workspace
