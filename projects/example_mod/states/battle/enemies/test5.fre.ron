@@ -1,0 +1,64 @@
+// Vegetoid enemy definition (6 ACT options)
+// 蔬菜人敌人定义 (6 个 ACT 选项)
+(
+    facts: {
+        "vegetoid.name": String("{{battle/ui:ENEMY_VEGETOID}}"),
+        "vegetoid.hp": Int(150),
+        "vegetoid.hp_max": Int(200),
+        "vegetoid.attack": Int(6),
+        "vegetoid.defense": Int(6),
+        "vegetoid.description": String("Serving Size: 1 Monster. Not monitored by the USDA."),
+
+        // ACT options count
+        "vegetoid.act_count": Int(6),
+
+        // Action option display labels (Mortar localization keys)
+        "vegetoid.action_labels": StringList([
+            "{{battle/ui:ACT_VEGETOID_CHECK}}",
+            "{{battle/ui:ACT_VEGETOID_TALK}}",
+            "{{battle/ui:ACT_VEGETOID_DINNER}}",
+            "{{battle/ui:ACT_VEGETOID_DEVOUR}}",
+            "{{battle/ui:ACT_VEGETOID_FLIRT}}",
+            "{{battle/ui:ACT_VEGETOID_PAT}}",
+        ]),
+
+        // Sequence paths for each action option
+        "vegetoid.action_sequences": StringList([
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+            "states/battle/common/narration.sequence.ron",
+        ]),
+
+        // Mortar node names for each action's dialogue
+        "vegetoid.action_params": StringList([
+            "act_check",
+            "act_talk",
+            "act_dinner",
+            "act_devour",
+            "act_flirt",
+            "act_pat",
+        ]),
+
+        // Mortar dialogue file path (relative to shared/locales/{locale}/)
+        "vegetoid.mortar_path": String("battle/enemies/vegetoid.mortar"),
+
+        // MERCY options (default: no dialogue, direct end)
+        "vegetoid.mercy_count": Int(2),
+        "vegetoid.mercy_labels": StringList([
+            "{{battle/ui:MERCY_SPARE}}",
+            "{{battle/ui:MERCY_FLEE}}",
+        ]),
+        "vegetoid.mercy_sequences": StringList([
+            "states/battle/mercy/end.sequence.ron",
+            "states/battle/mercy/end.sequence.ron",
+        ]),
+        "vegetoid.mercy_params": StringList([
+            "",
+            "",
+        ]),
+    },
+    rules: [],
+)

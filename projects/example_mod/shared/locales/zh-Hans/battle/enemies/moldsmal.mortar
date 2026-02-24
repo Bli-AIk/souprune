@@ -1,0 +1,19 @@
+// 霉霉怪 ACT 对话节点
+
+node act_check {
+    text: "* 霉霉怪 - 攻击 6 防御 0"
+    text: "* 典型的：曲线迷人，但没脑子。"
+}
+
+node act_imitate {
+    text: "* 你扭动臀部。霉霉怪也扭动回应。"
+    text: "* 多么有意义的对话！"
+}
+
+node act_flirt {
+    text: "* 你向霉霉怪展示最迷人的扭动。霉霉怪似乎很满意。"
+}
+
+node act_unhug {
+    text: "* 霉霉怪本来就没有拥抱你。"
+}

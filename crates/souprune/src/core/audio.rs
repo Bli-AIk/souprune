@@ -61,10 +61,7 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
     let audios_dir = &config.resources.audios;
 
     // Build the audios directory path
-    let audios_root = Path::new("projects")
-        .join(mod_name)
-        .join("assets")
-        .join(audios_dir);
+    let audios_root = Path::new("projects").join(mod_name).join(audios_dir);
 
     if !audios_root.exists() {
         warn!("Audios directory does not exist: {:?}", audios_root);
@@ -372,12 +369,12 @@ pub fn play_sound(commands: &mut Commands, asset_server: &AssetServer, sound_nam
 ///
 /// # Example with Kira
 /// ```ignore
-/// play_sound_full_path(&audio, &asset_server, "audios/sfx/confirm.wav");
+/// play_sound_full_path(&audio, &asset_server, "assets/audios/sfx/confirm.wav");
 /// ```
 ///
 /// # Example with Seedling
 /// ```ignore
-/// play_sound_full_path(&mut commands, &asset_server, "audios/sfx/confirm.wav");
+/// play_sound_full_path(&mut commands, &asset_server, "assets/audios/sfx/confirm.wav");
 /// ```
 #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn play_sound_full_path(

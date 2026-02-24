@@ -69,6 +69,28 @@ use state::global_trigger_system;
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
 use visible_when::evaluate_visible_when_system;
 
+/// Message to request spawning a new View.
+///
+/// 请求生成新 View 的消息。
+#[derive(Message, Debug, Clone)]
+pub struct SpawnViewRequest {
+    /// Path to the view layout asset (e.g., "overworld/view/dialogue.view.ron")
+    ///
+    /// 视图布局资源路径
+    pub path: String,
+}
+
+/// Message to request despawning Views.
+///
+/// 请求销毁 View 的消息。
+#[derive(Message, Debug, Clone)]
+pub struct DespawnViewRequest {
+    /// Optional path to despawn a specific View. If None, despawns all dynamically spawned Views.
+    ///
+    /// 可选的路径，用于销毁特定 View。如果为 None，则销毁所有动态生成的 View。
+    pub path: Option<String>,
+}
+
 use crate::app_state::AppState;
 use components::state_sprite::{
     evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
@@ -95,7 +117,9 @@ pub(crate) struct CoreViewPlugin;
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<ViewLayoutAsset>()
-            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view_layout.ron"]))
+            // Only support .view.ron format (legacy .view_layout.ron is fully deprecated)
+            // 仅支持 .view.ron 格式（旧的 .view_layout.ron 已完全弃用）
+            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view.ron"]))
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             // Register ShaderMaterial for inspector
@@ -115,7 +139,19 @@ impl Plugin for CoreViewPlugin {
             .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
+            // Register SpawnViewRequest message
+            // 注册 SpawnViewRequest 消息
+            .add_message::<SpawnViewRequest>()
+            // Register DespawnViewRequest message
+            // 注册 DespawnViewRequest 消息
+            .add_message::<DespawnViewRequest>()
             .add_systems(Startup, procedural_textures::init_procedural_textures)
+            // Handle SpawnViewRequest messages
+            // 处理 SpawnViewRequest 消息
+            .add_systems(Update, handle_spawn_view_request_system)
+            // Handle DespawnViewRequest messages
+            // 处理 DespawnViewRequest 消息
+            .add_systems(Update, handle_despawn_view_request_system)
             // Use dynamic state transition detection instead of OnEnter/OnExit
             // since OverworldSubState is now string-based and dynamic
             // 使用动态状态转换检测替代 OnEnter/OnExit，因为 OverworldSubState 现在是基于字符串的动态状态
@@ -163,6 +199,12 @@ impl Plugin for CoreViewPlugin {
             // spawn_ron_view_system has many parameters, add separately
             // spawn_ron_view_system 有很多参数，单独添加
             .add_systems(Update, spawn_ron_view_system.in_set(ViewUpdate))
+            // Handle dynamically spawned views (via SpawnViewRequest)
+            // 处理动态 spawn 的 View（通过 SpawnViewRequest）
+            .add_systems(
+                Update,
+                ron_view::spawn_dynamic_view_system.in_set(ViewUpdate),
+            )
             .add_systems(
                 Update,
                 (
@@ -216,6 +258,89 @@ impl Plugin for CoreViewPlugin {
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()
                 .register_type::<ElementState>();
+        }
+    }
+}
+
+/// System to handle SpawnViewRequest messages and spawn views.
+///
+/// 处理 SpawnViewRequest 消息并生成视图的系统。
+fn handle_spawn_view_request_system(
+    mut events: MessageReader<SpawnViewRequest>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for request in events.read() {
+        info!("Spawning view from request: {}", request.path);
+
+        // Load the view layout asset
+        let handle: Handle<ViewLayoutAsset> = asset_server.load(&request.path);
+
+        // Spawn a view root entity with the layout handle
+        // The actual view spawning is handled by spawn_dynamic_view_system
+        // Include Transform/Visibility components to support hierarchy
+        commands.spawn((
+            ron_view::HotReloadableViewRoot {
+                layout_path: request.path.clone(),
+                layout_handle: handle.clone(),
+            },
+            components::ViewRoot::new(request.path.clone()),
+            components::ActiveView, // Mark as active for FRE input handling and dialogue text sync
+            RonDrivenView,
+            Name::new(format!("SpawnedView:{}", request.path)),
+            // Required for hierarchy visibility propagation
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::Visible,
+            InheritedVisibility::default(),
+        ));
+    }
+}
+
+/// System to handle DespawnViewRequest messages and despawn views.
+///
+/// 处理 DespawnViewRequest 消息并销毁视图的系统。
+fn handle_despawn_view_request_system(
+    mut events: MessageReader<DespawnViewRequest>,
+    mut commands: Commands,
+    query: Query<(Entity, &components::ViewRoot), With<RonDrivenView>>,
+) {
+    for request in events.read() {
+        let despawned_count = if let Some(ref path) = request.path {
+            // Despawn specific view by path
+            let mut count = 0;
+            for (entity, view_root) in query.iter() {
+                if view_root.layout_path == *path {
+                    info!("Despawning view: {} (entity {:?})", path, entity);
+                    commands.entity(entity).despawn();
+                    count += 1;
+                }
+            }
+            count
+        } else {
+            // Despawn all dynamically spawned views
+            let mut count = 0;
+            for (entity, view_root) in query.iter() {
+                info!(
+                    "Despawning view: {} (entity {:?})",
+                    view_root.layout_path, entity
+                );
+                commands.entity(entity).despawn();
+                count += 1;
+            }
+            count
+        };
+
+        if despawned_count == 0 {
+            info!(
+                "DespawnViewRequest: no views to despawn (path: {:?})",
+                request.path
+            );
+        } else {
+            info!(
+                "DespawnViewRequest: despawned {} views (path: {:?})",
+                despawned_count, request.path
+            );
         }
     }
 }

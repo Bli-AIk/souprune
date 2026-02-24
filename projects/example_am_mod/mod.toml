@@ -6,8 +6,8 @@ description = "An example mod for SoupRune with Alight Motion integration."
 # Resource directories configuration
 # 资源目录配置
 [resources]
-textures = "textures"      # Texture/sprite resources / 图片资源目录
-audios = "audios"          # Audio resources / 音频资源目录
+textures = "assets/textures"      # Texture/sprite resources / 图片资源目录
+audios = "assets/audios"          # Audio resources / 音频资源目录
 
 [dependencies]
 # List dependencies here
@@ -19,6 +19,6 @@ audios = "audios"          # Audio resources / 音频资源目录
 
 [game]
 global_rules = "global.fre.ron"
-initial_battle_path = "battle/chapters/demo.sequence.ron"
+initial_battle_path = "states/battle/chapters/demo.sequence.ron"
 input_config_path = "config/input.ron"
 required_modules = ["common", "battle"]

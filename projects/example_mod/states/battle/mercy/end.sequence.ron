@@ -1,0 +1,14 @@
+#![enable(implicit_some)]
+// Generic MERCY sequence: end immediately
+// 通用 MERCY 序列：立即结束
+//
+// This sequence ends the view interaction without showing any dialogue.
+// Used for default Spare/Flee actions that don't have special text.
+//
+// 此序列立即结束 View 交互，不显示任何对话。
+// 用于没有特殊文本的默认 Spare/Flee 动作。
+(chapters: [
+    // End the view interaction
+    // 结束 View 交互
+    RunSequence(path: "states/battle/common/end_view_interaction.sequence.ron"),
+])

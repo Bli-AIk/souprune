@@ -1,0 +1,90 @@
+#![enable(implicit_some)]
+// Battle Dialogue Test Rules - demonstrates FRE-driven dialogue system
+// Dialogue Flow: Rule triggers → sets dialogue:* facts → handle_pending_dialogue_start_system → spawns View/Mortar → dialogue:ended cleanup
+
+(
+    facts: {
+        "test_dialogue_shown": Bool(false),
+        "test_mortar_shown": Bool(false),
+        "battle:intro_shown": Bool(false),
+    },
+
+    rules: [
+        // Encounter intro narration (uses Mortar, no menu block)
+        (id: "battle_encounter_intro", event: Event("battle:show_intro"),
+         condition: Equals(key: "battle:intro_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("battle/ui.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("encounter_intro")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "dialogue:voice", value: String("audios/voice/voice_typewriter_default.wav")),
+             Set(key: "battle:intro_shown", value: Bool(true)),
+         ],
+         actions: [Log(message: "Battle: Starting encounter intro")],
+         priority: 100),
+
+        // Simple text narration test
+        (id: "test_simple_narration", event: Event("test_simple_narration"),
+         condition: Equals(key: "test_dialogue_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:simple_text_active", value: Bool(true)),
+             Set(key: "dialogue:simple_text", value: String("* 这是一条测试旁白。\n* Your soul is filled with determination.")),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+             Set(key: "test_dialogue_shown", value: Bool(true)),
+         ],
+         priority: 10),
+
+        (id: "test_simple_narration_ended", event: Event("dialogue:ended"),
+         condition: Equals(key: "dialogue:simple_text_active", value: Bool(true)),
+         modifications: [
+             Set(key: "dialogue:simple_text_active", value: Bool(false)),
+             Set(key: "dialogue:simple_text", value: String("")),
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+         ],
+         priority: 10),
+
+        // Mortar dialogue test
+        (id: "test_mortar_dialogue", event: Event("test_mortar_dialogue"),
+         condition: Equals(key: "test_mortar_shown", value: Bool(false)),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("dialogue/test/battle_test.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("act_greeting")),
+             Set(key: "dialogue:pending_view", value: String("")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+             Set(key: "test_mortar_shown", value: Bool(true)),
+         ],
+         priority: 10),
+
+        // Battle dialogue lifecycle
+        (id: "battle_dialogue_started", event: Event("dialogue:started"), condition: Always,
+         modifications: [Set(key: "battle:paused_for_dialogue", value: Bool(true))],
+         priority: 5),
+
+        (id: "battle_dialogue_ended", event: Event("dialogue:ended"), condition: Always,
+         modifications: [
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "battle:paused_for_dialogue", value: Bool(false)),
+             Remove("dialogue:pending_mortar_path"),
+             Remove("dialogue:pending_mortar_node"),
+             Remove("dialogue:pending_view"),
+         ],
+         priority: 5),
+
+        // ACT with dialogue (e.g., Check action)
+        (id: "act_with_dialogue", event: Event("battle:execute_act"),
+         condition: Equals(key: "act_type", value: String("check")),
+         modifications: [
+             Set(key: "dialogue:pending_mortar_path", value: String("dialogue/enemies/dummy.mortar")),
+             Set(key: "dialogue:pending_mortar_node", value: String("check")),
+             Set(key: "dialogue:pending_start", value: Bool(true)),
+             Set(key: "dialogue:has_typewriter", value: Bool(true)),
+             Set(key: "dialogue:has_focus", value: Bool(true)),
+         ],
+         priority: 10),
+    ],
+)

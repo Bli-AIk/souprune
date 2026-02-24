@@ -270,10 +270,10 @@ pub struct DamageUIConfig {
     pub layout_path: String,
     /// Display duration in seconds
     pub display_duration: f32,
-    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// Sound to play when taking damage (full path, e.g., "assets/audios/sfx/hurtsound.wav")
     /// If None, no sound is played.
     ///
-    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 受伤时播放的音效（完整路径，如 "assets/audios/sfx/hurtsound.wav"）
     /// 如果为 None，则不播放音效。
     #[serde(default)]
     pub damage_sound: Option<String>,
@@ -1306,10 +1306,10 @@ pub fn chase_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            let current_hp = layered_db.get_int("player_hp").unwrap_or(20) as usize;
-            let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
+            let current_hp = layered_db.get_int("player:hp").unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20) as usize;
             let new_hp = current_hp.saturating_sub(damage);
-            layered_db.set_global("player_hp", new_hp as i64);
+            layered_db.set_global("player:hp", new_hp as i64);
 
             // Fire damage event
             damage_events.write(ChasePlayerDamageEvent {
@@ -1546,16 +1546,20 @@ pub struct DamageUIMarker;
 pub struct ChaseHUDRoot;
 
 /// System to setup Chase HUD when entering chase state.
-/// Loads the damage_flash.view_layout.ron which contains HP bar and HP text.
+/// Loads the View layout from chase_config.damage_ui.layout_path.
 ///
 /// 进入追逐战状态时设置 HUD 的系统。
-/// 加载包含血条和血量文字的 damage_flash.view_layout.ron。
-fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+/// 从 chase_config.damage_ui.layout_path 加载视图布局。
+fn setup_chase_hud_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    chase_config: Res<ChaseConfig>,
+) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD View layout / 加载追逐战 HUD 视图布局
-    let ui_path = "overworld/view/damage_flash.view_layout.ron";
-    let handle = asset_server.load(ui_path);
+    // Load the chase HUD View layout from config / 从配置加载追逐战 HUD 视图布局
+    let ui_path = &chase_config.damage_ui.layout_path;
+    let handle = asset_server.load(ui_path.clone());
 
     // Insert the View layout handle resource
     commands.insert_resource(crate::core::view::ViewLayoutHandle {
@@ -1577,7 +1581,7 @@ fn setup_chase_hud_system(mut commands: Commands, asset_server: Res<AssetServer>
         Name::new("ChaseHUD Root"),
     ));
 
-    info!("Chase: Chase HUD setup complete");
+    info!("Chase: Chase HUD setup complete, layout: {}", ui_path);
 }
 
 /// System to cleanup Chase HUD when exiting chase state.

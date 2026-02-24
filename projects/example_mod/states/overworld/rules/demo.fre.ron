@@ -1,0 +1,47 @@
+#![enable(implicit_some)]
+// Demo FRE Rules for Overworld - chase state and danmaku demo
+// Walk into trigger zone: 2nd=chase, 3rd=danmaku, 5th=exit chase, 6th=battle
+
+(
+    facts: { "demo_area_visit_count": Int(0) },
+
+    rules: [
+        // Open backpack (only when in Normal state and no dialogue)
+        (id: "overworld_open_backpack", event: ActionEvent(action: "Menu", kind: JustPressed),
+         conditions: ["$@overworld_state == 'Normal'", "$dialogue:active != true"],
+         actions: [Log(message: "Opening Backpack"), Custom(action_type: "SetOverworldState", params: { "state": "Backpack" })],
+         priority: 0),
+
+        // Dialogue lifecycle
+        (id: "overworld_dialogue_started", event: Event("dialogue:started"),
+         actions: [Custom(action_type: "SetOverworldState", params: { "state": "Dialogue" })],
+         priority: 100),
+
+        (id: "overworld_dialogue_ended", event: Event("dialogue:ended"),
+         modifications: [
+             Set(key: "dialogue:has_focus", value: Bool(false)),
+             Set(key: "dialogue:simple_text_active", value: Bool(false)),
+             Set(key: "dialogue:simple_text", value: String("")),
+         ],
+         actions: [Custom(action_type: "SetOverworldState", params: { "state": "Normal" }), Custom(action_type: "DespawnView", params: {})],
+         priority: 100),
+
+        // Demo trigger zone events
+        (id: "demo_increment_visit", event: Event("trigger_enter_demo_trigger"),
+         modifications: [Increment(key: "demo_area_visit_count", amount: 1)],
+         outputs: ["demo_visit_updated"], priority: 10),
+
+        (id: "demo_enter_chase", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 2"],
+         actions: [Custom(action_type: "EnterChaseState", params: {})], outputs: ["chase_state_entered"], priority: 5),
+
+        (id: "demo_play_danmaku", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 3"],
+         actions: [Custom(action_type: "PlayDanmaku", params: { "path": "states/overworld/danmaku/demo_attack_ow.performance.ron" })],
+         outputs: ["danmaku_played"], priority: 5),
+
+        (id: "demo_exit_chase", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 5"],
+         actions: [Custom(action_type: "ExitChaseState", params: {})], outputs: ["chase_state_exited"], priority: 5),
+
+        (id: "demo_start_battle", event: Event("demo_visit_updated"), conditions: ["$demo_area_visit_count == 6"],
+         actions: [Custom(action_type: "StartBattle", params: {})], outputs: ["battle_started"], priority: 5),
+    ],
+)

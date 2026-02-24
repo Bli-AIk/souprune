@@ -129,10 +129,10 @@ fn apply_modification(
     match modification {
         super::super::chapter_schema::ElementModification::SetTexture(path) => {
             if let Ok(mut sprite) = sprites.get_mut(entity) {
-                let texture_path = if path.starts_with("textures/") {
+                let texture_path = if path.starts_with("assets/textures/") {
                     path.clone()
                 } else {
-                    format!("textures/{}", path)
+                    format!("assets/textures/{}", path)
                 };
                 sprite.image = asset_server.load(&texture_path);
                 info!("Set texture for entity {:?}: {}", entity, texture_path);

@@ -23,7 +23,8 @@
 AGENTS.md
 GEMINI.md
 agent_*.md
-check.txt
+check*.txt
+ai_check.sh
 
 logs/
 dev/
@@ -50,3 +51,11 @@ reports/
 
 # Ignore .cargo/ in mod examples (local dev config for cross-compilation)
 projects/**/code/**/.cargo/
+
+# Mod worktrees (managed by souprune_example_mods repo)
+projects/example_mod/
+projects/example_battle_mod/
+projects/example_am_mod/
+
+# Mod repo worktree manager
+.mod-repo/

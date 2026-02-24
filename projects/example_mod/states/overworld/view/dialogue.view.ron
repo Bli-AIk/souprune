@@ -1,0 +1,53 @@
+#![enable(implicit_some)]
+// Dialogue Box View Layout
+// 对话框视图布局
+//
+// A simple dialogue box for displaying text from Mortar scripts.
+// 一个简单的对话框，用于显示 Mortar 脚本中的文本。
+
+(
+    // Data requirements - FRE rules loaded when this View is spawned
+    // 数据需求 - 当此 View 生成时加载的 FRE 规则
+    requires: [
+        File("shared/dialogue.fre.ron"),
+    ],
+
+    // View-local facts initialized when this layout is spawned
+    // View 局部事实，在此布局生成时初始化
+    facts: {
+        "dialogue_active": true,
+        "dialogue_text": "",
+        "depth": 0,
+    },
+
+    roots: [
+        // ========================================
+        // DIALOGUE BOX
+        // 对话框
+        // ========================================
+        (
+            name: "DialogueBox",
+            visible_when: "$dialogue_active",
+            view_box: (
+                width: 283.0,
+                height: 70.0,
+                border_width: 3.0,
+                offset: (0.5, -78.0, 0.0),
+                structure_file: "shared/view_structures/view_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "DialogueText",
+                    content: "{{dialogue_text}}",
+                    font: DeterminationMono,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-130.5, 29.0, 1.0),
+                    ),
+                    line_height: 1.375,
+                ),
+            ],
+        ),
+    ],
+)

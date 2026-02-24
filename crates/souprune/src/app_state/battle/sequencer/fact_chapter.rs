@@ -203,27 +203,66 @@ pub fn process_emit_fact_event_chapter_system(
 
 /// System to process ModifyFact chapters.
 /// Applies the specified modifications to the LayeredFactDatabase and finishes immediately.
+/// For Expr values, it first checks View's local_facts, then falls back to LayeredFactDatabase.
 ///
 /// 处理 ModifyFact 章节的系统。
 /// 将指定的修改应用于 LayeredFactDatabase 并立即完成。
+/// 对于 Expr 值，首先检查 View 的 local_facts，然后回退到 LayeredFactDatabase。
 pub fn process_modify_fact_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
+    view_root_query: Query<&crate::core::view::ViewRoot>,
 ) {
     for (entity, active) in query.iter() {
         if let Chapter::ModifyFact { modifications } = &active.chapter {
             for modification in modifications {
                 match modification {
                     FactModificationDef::Set { key, value } => {
-                        let fact_value: FactValue = match value {
-                            FactValueMatch::Int(v) => FactValue::Int(*v),
-                            FactValueMatch::Float(v) => FactValue::Float(*v),
-                            FactValueMatch::Bool(v) => FactValue::Bool(*v),
-                            FactValueMatch::String(v) => FactValue::String(v.clone()),
+                        let fact_value: Option<FactValue> = match value {
+                            FactValueMatch::Int(v) => Some(FactValue::Int(*v)),
+                            FactValueMatch::Float(v) => Some(FactValue::Float(*v)),
+                            FactValueMatch::Bool(v) => Some(FactValue::Bool(*v)),
+                            FactValueMatch::String(v) => Some(FactValue::String(v.clone())),
+                            FactValueMatch::Expr(expr) => {
+                                // For simple $key references, read the fact directly
+                                // First check View's local_facts, then LayeredFactDatabase
+                                // This supports string facts unlike evaluate_expr_to_fact
+                                if let Some(fact_key) = expr.strip_prefix('$') {
+                                    // Try View's local_facts first
+                                    let view_root = view_root_query.iter().next();
+                                    info!(
+                                        "ModifyFact Expr: looking for '{}', has ViewRoot={}",
+                                        fact_key,
+                                        view_root.is_some()
+                                    );
+                                    let from_view = view_root.and_then(|vr| {
+                                        vr.local_facts.get_by_str(fact_key).cloned()
+                                    });
+                                    let from_db = layered_db.get_by_str(fact_key).cloned();
+                                    info!(
+                                        "ModifyFact Expr: '{}' -> view={:?}, db={:?}",
+                                        fact_key, from_view, from_db
+                                    );
+                                    from_view.or(from_db)
+                                } else {
+                                    // For complex expressions, use numeric evaluation
+                                    bevy_fact_rule_event::expr::evaluate_expr_to_fact(
+                                        expr,
+                                        &layered_db,
+                                    )
+                                }
+                            }
                         };
-                        layered_db.set(key.as_str(), fact_value);
-                        info!("ModifyFact Chapter: Set '{}' to {:?}", key, value);
+                        if let Some(fv) = fact_value {
+                            layered_db.set(key.as_str(), fv.clone());
+                            info!("ModifyFact Chapter: Set '{}' to {:?}", key, fv);
+                        } else {
+                            warn!(
+                                "ModifyFact Chapter: Failed to evaluate expression for '{}'",
+                                key
+                            );
+                        }
                     }
                     FactModificationDef::Increment { key, amount } => {
                         layered_db.increment(key, *amount);

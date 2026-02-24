@@ -1,0 +1,16 @@
+// 蛙吉特 ACT 对话节点
+
+node act_check {
+    text: "* 蛙吉特 - 攻击 4 防御 5"
+    text: "* 这只怪物的生活很艰难。"
+}
+
+node act_compliment {
+    text: "* 蛙吉特不明白你说的话，但还是很高兴。"
+}
+
+// MERCY 对话节点
+node mercy_spare {
+    text: "* 蛙吉特跳走了。"
+    text: "* 你赢了！"
+}

@@ -1,0 +1,22 @@
+// Moldsmal ACT dialogue nodes
+// Moldsmal ACT 对话节点
+
+node act_check {
+    text: "* MOLDSMAL - ATK 6 DEF 0"
+    text: "* Stereotypical: Curvaceously\n  attractive, but no brains..."
+}
+
+node act_imitate {
+    text: "* You wiggle your hips."
+    text: "* Moldsmal wiggles back."
+    text: "* What a meaningful conversation!"
+}
+
+node act_flirt {
+    text: "* You lie immobile with Moldsmal."
+    text: "* You feel like you understand\n  the world a little better."
+}
+
+node act_unhug {
+    text: "* Moldsmal wasn't hugging you\n  in the first place."
+}

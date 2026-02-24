@@ -34,10 +34,10 @@ pub struct BattleInvincibilityConfig {
     pub normal_color: Color,
     /// Flash heart color (dark red)
     pub flash_color: Color,
-    /// Sound to play when taking damage (full path, e.g., "audios/sfx/hurtsound.wav")
+    /// Sound to play when taking damage (full path, e.g., "assets/audios/sfx/hurtsound.wav")
     /// If None, no sound is played.
     ///
-    /// 受伤时播放的音效（完整路径，如 "audios/sfx/hurtsound.wav"）
+    /// 受伤时播放的音效（完整路径，如 "assets/audios/sfx/hurtsound.wav"）
     /// 如果为 None，则不播放音效。
     pub damage_sound: Option<String>,
 }
@@ -262,10 +262,10 @@ fn battle_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            let current_hp = layered_db.get_int("player_hp").unwrap_or(20) as usize;
-            let hp_max = layered_db.get_int("player_hp_max").unwrap_or(20) as usize;
+            let current_hp = layered_db.get_int("player:hp").unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20) as usize;
             let new_hp = current_hp.saturating_sub(damage);
-            layered_db.set_global("player_hp", new_hp as i64);
+            layered_db.set_global("player:hp", new_hp as i64);
 
             // Start player invincibility
             player_invincibility.start(invincibility_config.duration);

@@ -1,0 +1,16 @@
+// Whimsun ACT dialogue nodes
+// Whimsun ACT 对话节点
+
+node act_check {
+    text: "* WHIMSUN - ATK 5 DEF 0"
+    text: "* This monster is too\n  sensitive to fight..."
+}
+
+node act_console {
+    text: "* Halfway through your first\n  word, Whimsun bursts into\n  tears and runs away."
+}
+
+node act_terrorize {
+    text: "* You raise your arms and\n  wiggle your fingers."
+    text: "* Whimsun freaks out!"
+}
