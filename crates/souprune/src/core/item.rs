@@ -39,8 +39,8 @@ pub struct ItemId(pub String);
 #[derive(Debug, Clone, Reflect)]
 pub struct Item {
     pub id: String,
-    pub locate_name: String,
-    pub locate_file: String,
+    pub locale_name: String,
+    pub locale_file: String,
     pub description: String,
     pub item_type: ItemType,
 }
@@ -185,8 +185,8 @@ fn parse_items_from_fre(fre_asset: &FreAsset, registry: &mut ItemRegistry) {
             }
         };
 
-        let locate_name = get_str("locate_name");
-        let locate_file = get_str("locate_file");
+        let locale_name = get_str("locale_name");
+        let locale_file = get_str("locale_file");
         let description = get_str("description");
         let item_type_str = get_str("type");
 
@@ -247,13 +247,13 @@ fn parse_items_from_fre(fre_asset: &FreAsset, registry: &mut ItemRegistry) {
 
         let item = Item {
             id: item_id.clone(),
-            locate_name,
-            locate_file,
+            locale_name,
+            locale_file,
             description,
             item_type,
         };
 
-        info!("Registered Item: [{}] {}", item.id, item.locate_name);
+        info!("Registered Item: [{}] {}", item.id, item.locale_name);
         registry.0.insert(item_id, item);
     }
 }

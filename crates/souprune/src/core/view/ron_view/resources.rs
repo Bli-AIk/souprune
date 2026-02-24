@@ -14,9 +14,9 @@ use std::time::SystemTime;
 pub struct ViewLayoutHandle {
     pub handle: Handle<ViewLayoutAsset>,
     pub last_modified: Option<SystemTime>,
-    /// Layout asset path (e.g., "battle/view/undertale.view_layout.ron")
+    /// Layout asset path (e.g., "battle/view/undertale.view.ron")
     ///
-    /// 布局资源路径（例如 "battle/view/undertale.view_layout.ron"）
+    /// 布局资源路径（例如 "battle/view/undertale.view.ron"）
     pub path: String,
 }
 

@@ -107,6 +107,13 @@ pub struct GameConfig {
     /// 如果为 None，则禁用追逐战功能。
     pub chase_config: Option<String>,
 
+    /// Default dialogue view layout path for Tiled objects.
+    /// Can be overridden per-object via `dialogue_view` property.
+    ///
+    /// Tiled 对象的默认对话视图布局路径。
+    /// 可通过 `dialogue_view` 属性覆盖。
+    pub dialogue_view_default: String,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -128,6 +135,7 @@ impl Default for GameConfig {
             input_config_path: String::new(),
             states_config: "config/states.ron".to_string(),
             chase_config: None,
+            dialogue_view_default: "states/overworld/view/dialogue.view.ron".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }
@@ -233,8 +241,9 @@ pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
 /// Resource paths configuration from mod.toml [resources] section.
 ///
 /// mod.toml 中 [resources] 节的资源路径配置。
-#[derive(Clone, Deserialize, Default)]
+#[derive(Clone, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct ResourcePaths {
     /// Path to textures directory relative to mod root.
     ///
@@ -245,15 +254,6 @@ pub struct ResourcePaths {
     ///
     /// 音频目录路径，相对于 mod 根目录。
     pub audios: String,
-}
-
-impl ResourcePaths {
-    fn with_defaults() -> Self {
-        Self {
-            textures: "textures".to_string(),
-            audios: "audios".to_string(),
-        }
-    }
 }
 
 #[derive(Deserialize)]
@@ -312,8 +312,8 @@ Falling back to default configuration (example_mod)",
                 default_config()
             });
 
-            // Initialize resources with defaults
-            config.resources = ResourcePaths::with_defaults();
+            // Initialize resources - will be populated from mod.toml
+            config.resources = ResourcePaths::default();
 
             let mod_name = &config.project.mod_name;
             let mod_config_path = Path::new("projects").join(mod_name).join("mod.toml");
@@ -350,7 +350,7 @@ Falling back to default configuration (example_mod)",
                                 config.game.hidden_layer_keywords = val;
                             }
                         }
-                        // Load resource paths from [resources] section
+                        // Load resource paths from [resources] section (required)
                         if let Some(res_partial) = mod_cfg.resources {
                             if let Some(val) = res_partial.textures {
                                 config.resources.textures = val;
@@ -358,6 +358,14 @@ Falling back to default configuration (example_mod)",
                             if let Some(val) = res_partial.audios {
                                 config.resources.audios = val;
                             }
+                        }
+
+                        // Validate required resource paths
+                        if config.resources.textures.is_empty() {
+                            error!("mod.toml: [resources].textures is required");
+                        }
+                        if config.resources.audios.is_empty() {
+                            error!("mod.toml: [resources].audios is required");
                         }
                     }
                     Err(e) => error!("Failed to load mod.toml: {}", e),
@@ -380,6 +388,6 @@ fn default_config() -> SoupruneConfig {
         },
         game: GameConfig::default(),
         render: RenderConfig::default(),
-        resources: ResourcePaths::with_defaults(),
+        resources: ResourcePaths::default(),
     }
 }

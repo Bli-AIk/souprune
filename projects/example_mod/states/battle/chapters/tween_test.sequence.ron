@@ -1,0 +1,48 @@
+#![enable(implicit_some)]
+// Tween Test Battle Chapter
+// 缓动测试战斗章节
+
+(
+    chapters: [
+        SetCamera(SetZoom(2.0)),
+        // === Initial UI Setup ===
+        // === 初始 UI 设置 ===
+        SpawnView(view_layout: "states/battle/view/undertale.view.ron"),
+        Wait(0.5),
+        // === TweenViewElement Syntax Tests ===
+        // === TweenViewElement 语法测试 ===
+        
+        // Test Syntax 1: Named to - BoxSize(to: (width, height))
+        // 测试语法 1: 命名 to - BoxSize(to: (宽度, 高度))
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(to: (400.0, 400.0)),
+            duration: 0.5,
+            easing: QuadInOut,
+            wait_for_completion: true,
+        ),
+        Wait(0.5),
+        
+        // Test Syntax 2: with @current expression
+        // 测试语法 2: 带 @current 表达式
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(to: (566.0, "@current")),
+            duration: 0.5,
+            easing: SineInOut,
+            wait_for_completion: true,
+        ),
+        Wait(0.5),
+        
+        // Test Syntax 3: from/to - BoxSize(from: (w1, h1), to: (w2, h2))
+        // 测试语法 3: from/to - BoxSize(from: (起点宽, 起点高), to: (终点宽, 终点高))
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(from: (300.0, 100.0), to: (566.0, 130.0)),
+            duration: 0.8,
+            easing: ElasticOut,
+            wait_for_completion: true,
+        ),
+        Wait(1.0),
+    ],
+)

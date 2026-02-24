@@ -6,13 +6,17 @@
 //!
 //! ## 模块概述
 //!
-//! Defines the pure data schema for View Layouts in RON files (`.view_layout.ron`).
-//! This module contains `ViewLayoutAsset` and related definitions that map directly to the configuration files.
-//! It relies on `serde_types` for type conversions.
+//! Defines the pure data schema for View Layouts in RON files.
+//! Using single-file format (`.view.ron`) containing:
+//! - `roots`: Visual layout nodes
+//! - `requires`: FRE data dependencies (optional)
+//! - `facts`: Initial fact values (optional)
 //!
-//! 定义视图布局在 RON 文件 (`.view_layout.ron`) 中的纯数据 Schema。
-//! 本模块包含 `ViewLayoutAsset` 及相关定义，直接映射到配置文件。
-//! 它依赖 `serde_types` 进行类型转换。
+//! 定义视图布局在 RON 文件中的纯数据 Schema。
+//! 使用单文件格式（`.view.ron`）包含：
+//! - `roots`: 视觉布局节点
+//! - `requires`: FRE 数据依赖（可选）
+//! - `facts`: 初始 fact 值（可选）
 
 use super::serde_types::*;
 use bevy::prelude::*;
@@ -20,31 +24,33 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 /// View Layout Asset - represents a complete view layout configuration.
+/// Loaded from `.view.ron` files.
 ///
 /// 视图布局资产 - 表示完整的视图布局配置。
+/// 从 `.view.ron` 文件加载。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct ViewLayoutAsset {
     /// Root view nodes
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
+
+    /// Global triggers for state transitions.
+    /// DEPRECATED: Use FRE rules with SwitchState action instead.
+    ///
+    /// 状态转换的全局触发器。
+    /// 已弃用：请改用带有 SwitchState action 的 FRE 规则。
     #[serde(default)]
     pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
+
     /// Data requirements for this View.
-    /// Declares what FRE data files this View needs.
-    /// These facts are loaded and merged into the ViewRoot's local_facts database.
     ///
     /// 此 View 的数据需求声明。
-    /// 声明此 View 需要哪些 FRE 数据文件。
-    /// 这些事实会被加载并合并到 ViewRoot 的 local_facts 数据库中。
     #[serde(default)]
     pub requires: Vec<DataRequirement>,
+
     /// Inline facts to set when this View is loaded.
-    /// These facts are stored in the ViewRoot's local_facts database.
-    /// Use `requires` for loading external FRE files; use this for simple inline values.
     ///
     /// 加载此 View 时要设置的内联事实。
-    /// 这些事实存储在 ViewRoot 的 local_facts 数据库中。
-    /// 加载外部 FRE 文件请使用 `requires`；这里用于简单的内联值。
     #[serde(default)]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 }
@@ -147,14 +153,14 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "ui_box_logic")]
-    pub ui_shape_logic: Option<ViewBoxLogicDef>,
+    #[serde(alias = "view_box", alias = "ui_box_logic")]
+    pub view_box: Option<ViewBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<ViewNodeDef>,
     /// If true, this UI node will be anchored to the camera and follow its movement.
     /// This is useful for HUD elements that should stay fixed on screen.
-    /// Default is true for top-level nodes with ui_shape_logic.
+    /// Default is true for top-level nodes with view_box.
     #[serde(default = "default_camera_anchored")]
     pub camera_anchored: bool,
     /// Repeat configuration for generating multiple instances from an array.

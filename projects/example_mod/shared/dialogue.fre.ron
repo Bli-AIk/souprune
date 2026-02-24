@@ -1,0 +1,70 @@
+#![enable(implicit_some)]
+// Dialogue System FRE Rules
+// 对话系统 FRE 规则
+//
+// This file defines the input rules for the dialogue system.
+// All dialogue input handling goes through these FRE rules - no hardcoded keys.
+//
+// 此文件定义对话系统的输入规则。
+// 所有对话输入处理通过这些 FRE 规则完成，无硬编码按键。
+//
+// Events emitted by these rules:
+// - dialogue:advance - Advance to next text/confirm choice
+// - dialogue:skip_typewriter - Skip typewriter to show full text
+//
+// 这些规则发出的事件：
+// - dialogue:advance - 步进到下一段文本/确认选项
+// - dialogue:skip_typewriter - 跳过打字机显示完整文本
+
+(
+    // Scope: Local - dialogue rules are state-specific
+    // 作用域：Local - 对话规则是状态特定的
+    scope: Local,
+
+    // Initial dialogue state facts
+    // 初始对话状态事实
+    facts: {
+        // Default typewriter speed in seconds per character
+        // 默认打字机速度（每字符秒数）
+        "dialogue:typewriter_speed": Float(0.03),
+
+        // NOTE: "dialogue:typewriter_playing" is managed by sync_typewriter_state_to_facts_system
+        // in global facts, NOT defined here to avoid shadowing the global value.
+        // 注意："dialogue:typewriter_playing" 由 sync_typewriter_state_to_facts_system
+        // 在 global facts 中管理，不在此定义以避免遮蔽全局值。
+    },
+
+    rules: [
+        // Rule 1: Advance dialogue when confirm is pressed and typewriter is finished
+        // 规则 1：当按下确认键且打字机已完成时步进对话
+        // Only when dialogue has focus to avoid conflict with menu navigation
+        // 仅当对话有焦点时，避免与菜单导航冲突
+        (
+            id: "dialogue_advance_on_confirm",
+            event: ActionEvent(action: "Confirm", kind: JustPressed),
+            conditions: [
+                "$dialogue:has_focus == true",
+                "$dialogue:typewriter_playing == false",
+            ],
+            outputs: ["dialogue_advance"],
+            priority: 10,
+        ),
+
+        // Rule 2: Skip typewriter when cancel is pressed and typewriter is playing
+        // 规则 2：当按下取消键且打字机正在播放时跳过打字机
+        // Only when depth == 0 to avoid conflict with menu navigation
+        // (depth > 0 means menu is active, cancel is used for menu navigation)
+        // 仅当 depth == 0 时，避免与菜单导航冲突
+        // （depth > 0 表示菜单激活，cancel 用于菜单导航）
+        (
+            id: "dialogue_skip_on_cancel",
+            event: ActionEvent(action: "Cancel", kind: JustPressed),
+            conditions: [
+                "$depth == 0",
+                "$dialogue:typewriter_playing == true",
+            ],
+            outputs: ["dialogue_skip_typewriter"],
+            priority: 10,
+        ),
+    ],
+)

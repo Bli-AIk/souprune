@@ -25,36 +25,36 @@
     facts: {
         // Basic identity
         // 基本身份
-        "player_name": String("Chara"),
+        "player:name": String("Chara"),
 
         // Level progression
         // 等级进度
-        "player_lv": Int(1),
-        "player_exp": Int(0),
-        "player_next_exp": Int(10),
+        "player:lv": Int(1),
+        "player:exp": Int(0),
+        "player:next_exp": Int(10),
 
         // Health
         // 生命值
-        "player_hp": Int(20),
-        "player_hp_max": Int(20),
+        "player:hp": Int(20),
+        "player:hp_max": Int(20),
 
         // Combat stats
         // 战斗属性
-        "player_atk": Int(0),
-        "player_def": Int(0),
+        "player:atk": Int(0),
+        "player:def": Int(0),
 
         // Currency
         // 货币
-        "player_gold": Int(42),
+        "player:gold": Int(42),
 
         // Equipment (item IDs)
         // 装备（物品 ID）
-        "player_weapon": String("stick"),
-        "player_armor": String("bandage"),
+        "player:weapon": String("stick"),
+        "player:armor": String("bandage"),
 
         // Inventory (StringList of item IDs)
         // 物品栏（物品 ID 的字符串列表）
-        "player_inventory": StringList([
+        "player:inventory": StringList([
             "monster_candy",
             "monster_candy",
             "monster_candy",
@@ -62,7 +62,7 @@
             "monster_candy",
             "UNDEFITEM",
         ]),
-        "player_inventory_capacity": Int(8),
+        "player:inventory_capacity": Int(8),
     },
 
     // No rules in this file - purely data definition

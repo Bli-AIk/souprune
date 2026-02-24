@@ -152,8 +152,9 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
 
             // Step 1: Handle $array[@var] dynamic index syntax FIRST
             // Convert $array[@i] to $array[N] where N is the concrete index
+            // Note: Supports namespace format like $player:inventory[@i]
             let dynamic_index_regex =
-                regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]")
+                regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]")
                     .unwrap();
 
             result = dynamic_index_regex
@@ -345,14 +346,14 @@ fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize 
 
     if expr == "inventory.len()" {
         return player_data
-            .get_fact_string_list("player_inventory")
+            .get_fact_string_list("player:inventory")
             .map(|list| list.len())
             .unwrap_or(0);
     }
 
     if expr == "inventory_capacity" {
         return player_data
-            .get_fact_int("player_inventory_capacity")
+            .get_fact_int("player:inventory_capacity")
             .unwrap_or(8) as usize;
     }
 
@@ -441,7 +442,7 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
 
     // Handle $array[index] syntax first: replace $word[number] with the array element value
     // 首先处理 $array[index] 语法：将 $word[number] 替换为数组元素值
-    let array_index_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]").unwrap();
+    let array_index_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[(\d+)\]").unwrap();
     result = array_index_regex
         .replace_all(&result, |caps: &regex::Captures| {
             let array_name = &caps[1];
@@ -452,7 +453,8 @@ fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> Stri
 
     // Handle $name syntax: replace $word with the fact value (preserving type)
     // 处理 $name 语法：将 $word 替换为 fact 值（保留类型）
-    let dollar_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+    // Note: Supports namespace format like $player:hp
+    let dollar_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)").unwrap();
     result = dollar_regex
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
@@ -503,9 +505,10 @@ pub fn preprocess_fact_expressions_with_repeat(
 
     // Step 1: Handle $array[@var] dynamic index syntax FIRST (before @var replacement)
     // 步骤 1: 首先处理 $array[@var] 动态索引语法（在 @var 替换之前）
+    // Note: Supports namespace format like $player:inventory[@i]
     if let Some(ctx) = repeat_ctx {
         let dynamic_index_regex =
-            regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]").unwrap();
+            regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]").unwrap();
 
         result = dynamic_index_regex
             .replace_all(&result, |caps: &regex::Captures| {
@@ -619,7 +622,7 @@ pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
     // Preprocess special functions
     // 预处理特殊函数
     let is_empty = player_data
-        .get_fact_string_list("player_inventory")
+        .get_fact_string_list("player:inventory")
         .map(|list| list.is_empty())
         .unwrap_or(true);
     let processed_expr =
@@ -810,8 +813,32 @@ pub fn resolve_text_content(
                     // Remove quotes from string values (format_fact_for_expr adds them for expressions)
                     // 移除字符串值的引号（format_fact_for_expr 为表达式添加的）
                     let processed_key = processed_key.replace('"', "");
-                    let resolved = mortar_strings.resolve(&processed_key);
-                    result.push_str(resolved);
+
+                    // First try to resolve from facts (for dynamic values like dialogue_text)
+                    // 首先尝试从 facts 解析（用于动态值如 dialogue_text）
+                    let resolved = if let Some(fact_value) = player_data.get_fact(&processed_key) {
+                        // Convert fact value to string
+                        match fact_value {
+                            bevy_fact_rule_event::FactValue::String(s) => s.to_string(),
+                            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+                            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+                            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+                            _ => mortar_strings.resolve(&processed_key).to_string(),
+                        }
+                    } else {
+                        // Fallback to mortar string table for localization
+                        // 回退到 mortar 字符串表用于本地化
+                        mortar_strings.resolve(&processed_key).to_string()
+                    };
+
+                    // Recursively resolve if the result still contains {{...}} markers
+                    // 如果结果仍包含 {{...}} 标记，递归解析
+                    let final_resolved = if resolved.contains("{{") && resolved.contains("}}") {
+                        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
+                    } else {
+                        resolved
+                    };
+                    result.push_str(&final_resolved);
                 } else {
                     result.push_str("{{");
                     result.push_str(&key);
@@ -1000,7 +1027,7 @@ pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool
     // Helper closure to get inventory
     let get_inventory = || {
         player_data
-            .get_fact_string_list("player_inventory")
+            .get_fact_string_list("player:inventory")
             .unwrap_or_default()
     };
 
@@ -1013,16 +1040,16 @@ pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool
                 if parts.len() >= 3 {
                     match (parts[1], parts[2]) {
                         ("hp", "is_low") => {
-                            let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
-                            let hp_max = player_data.get_fact_int("player_hp_max").unwrap_or(1);
+                            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
+                            let hp_max = player_data.get_fact_int("player:hp_max").unwrap_or(1);
                             hp < hp_max / 4
                         }
                         ("hp", "is_critical") => {
-                            let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
+                            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
                             hp <= 1
                         }
                         ("gold", "is_zero") => {
-                            player_data.get_fact_int("player_gold").unwrap_or(0) == 0
+                            player_data.get_fact_int("player:gold").unwrap_or(0) == 0
                         }
                         _ => false,
                     }
@@ -1049,36 +1076,37 @@ pub fn resolve_data_path(
     let get_int = |key: &str| player_data.get_fact_int(key).unwrap_or(0);
 
     match path {
-        "player.name" => get_string("player_name"),
-        "player.lv" => get_int("player_lv").to_string(),
+        "player.name" => get_string("player:name"),
+        "player.lv" => get_int("player:lv").to_string(),
         "player.hp" => {
-            let result = get_int("player_hp").to_string();
+            let result = get_int("player:hp").to_string();
             info!("[resolve_data_path] player.hp = {}", result);
             result
         }
         "player.hp_max" => {
-            let result = get_int("player_hp_max").to_string();
+            let result = get_int("player:hp_max").to_string();
             info!("[resolve_data_path] player.hp_max = {}", result);
             result
         }
-        "player.gold" => get_int("player_gold").to_string(),
-        "player.exp" => get_int("player_exp").to_string(),
-        "player.next_exp" => get_int("player_next_exp").to_string(),
-        "player.attack" => get_int("player_attack").to_string(),
-        "player.defense" => get_int("player_defense").to_string(),
+        "player.gold" => get_int("player:gold").to_string(),
+        "player.exp" => get_int("player:exp").to_string(),
+        "player.next_exp" => get_int("player:next_exp").to_string(),
+        "player.attack" => get_int("player:attack").to_string(),
+        "player.defense" => get_int("player:defense").to_string(),
         "player.inventory" => {
             let inventory = player_data
-                .get_fact_string_list("player_inventory")
+                .get_fact_string_list("player:inventory")
                 .unwrap_or_default();
             inventory
                 .iter()
                 .take(8)
                 .map(|item_id| {
                     if let Some(item) = item_registry.get(item_id) {
-                        let key = format!("{}:{}", item.locate_file, item.locate_name);
+                        let key = format!("{}:{}", item.locale_file, item.locale_name);
                         mortar_strings.resolve(&key).to_string()
                     } else {
-                        warn!("Item ID '{}' not found in registry!", item_id);
+                        // Use trace level to avoid log spam for undefined items
+                        trace!("Item ID '{}' not found in registry", item_id);
                         format!("UNDEFINED ({})", item_id)
                     }
                 })
@@ -1086,16 +1114,16 @@ pub fn resolve_data_path(
                 .join("\n")
         }
         "player.weapon" => {
-            let weapon = get_string("player_weapon");
+            let weapon = get_string("player:weapon");
             if let Some(item) = item_registry.get(&weapon) {
-                let key = format!("{}:{}", item.locate_file, item.locate_name);
+                let key = format!("{}:{}", item.locale_file, item.locale_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 weapon
             }
         }
         "player.weapon_atk" => {
-            let weapon = get_string("player_weapon");
+            let weapon = get_string("player:weapon");
             if let Some(item) = item_registry.get(&weapon)
                 && let ItemType::Weapon { damage, .. } = item.item_type
             {
@@ -1104,7 +1132,7 @@ pub fn resolve_data_path(
             "0".to_string()
         }
         "player.total_attack" => {
-            let weapon = get_string("player_weapon");
+            let weapon = get_string("player:weapon");
             let weapon_atk = if let Some(item) = item_registry.get(&weapon) {
                 if let ItemType::Weapon { damage, .. } = item.item_type {
                     damage as i64
@@ -1114,19 +1142,19 @@ pub fn resolve_data_path(
             } else {
                 0
             };
-            (get_int("player_attack") + weapon_atk).to_string()
+            (get_int("player:attack") + weapon_atk).to_string()
         }
         "player.armor" => {
-            let armor = get_string("player_armor");
+            let armor = get_string("player:armor");
             if let Some(item) = item_registry.get(&armor) {
-                let key = format!("{}:{}", item.locate_file, item.locate_name);
+                let key = format!("{}:{}", item.locale_file, item.locale_name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 armor
             }
         }
         "player.armor_def" => {
-            let armor = get_string("player_armor");
+            let armor = get_string("player:armor");
             if let Some(item) = item_registry.get(&armor)
                 && let ItemType::Armor { defense } = item.item_type
             {
@@ -1135,7 +1163,7 @@ pub fn resolve_data_path(
             "0".to_string()
         }
         "player.total_defense" => {
-            let armor = get_string("player_armor");
+            let armor = get_string("player:armor");
             let armor_def = if let Some(item) = item_registry.get(&armor) {
                 if let ItemType::Armor { defense } = item.item_type {
                     defense as i64
@@ -1145,7 +1173,7 @@ pub fn resolve_data_path(
             } else {
                 0
             };
-            (get_int("player_defense") + armor_def).to_string()
+            (get_int("player:defense") + armor_def).to_string()
         }
         _ => format!("<unknown:{}>", path),
     }
@@ -1214,7 +1242,7 @@ pub fn evaluate_transition_condition_unified(
     // Helper to get inventory
     let get_inventory = || {
         player_data
-            .get_fact_string_list("player_inventory")
+            .get_fact_string_list("player:inventory")
             .unwrap_or_default()
     };
 

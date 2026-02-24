@@ -1,0 +1,103 @@
+#![enable(implicit_some)]
+// Battle configuration with FRE data loading
+// 带有 FRE 数据加载的战斗配置
+(
+    // The sequence of chapters to execute
+    // 要执行的章节序列
+    chapters: [
+        SetCamera(SetZoom(2.0)),
+
+        // Load all enemy FRE data (ACT options, behaviors) into local layer
+        // 加载所有敌人 FRE 数据（ACT 选项、行为）到本地层
+        LoadFre(files: [
+            "states/battle/enemies/dummy.fre.ron",
+            "states/battle/enemies/test1.fre.ron",
+            "states/battle/enemies/test2.fre.ron",
+            "states/battle/enemies/test3.fre.ron",
+            "states/battle/enemies/test4.fre.ron",
+            "states/battle/enemies/test5.fre.ron",
+        ]),
+
+        // Spawn battle UI view with enemy data bound directly from FRE file
+        // 生成战斗 UI 视图，敌人数据直接从 FRE 文件绑定
+        SpawnView(
+            view_layout: "states/battle/view/undertale.view.ron",
+            bindings: {
+                // Directly bind enemy data from FRE file (no LoadFre needed)
+                // 直接从 FRE 文件绑定敌人数据（无需 LoadFre）
+                "enemies": File("states/battle/enemies/demo_enemies.fre.ron"),
+            },
+        ),
+
+        // Wait for View's FRE rules to be loaded before emitting events
+        // This ensures dialogue_test.fre.ron rules are ready to handle battle:show_intro
+        // 在发出事件前等待 View 的 FRE 规则加载完成
+        // 这确保 dialogue_test.fre.ron 规则准备好处理 battle:show_intro
+        AwaitFact(condition: "$view_rules_loaded == true", local: true),
+
+        // Trigger encounter intro narration with typewriter effect
+        // This event is handled by dialogue_test.fre.ron to start the Mortar dialogue
+        // 触发遭遇开场旁白（使用打字机效果）
+        // 此事件由 dialogue_test.fre.ron 处理以启动 Mortar 对话
+        EmitFactEvent(event_id: "battle:show_intro"),
+
+        // Enable menu interaction - intro typewriter plays in background without blocking
+        // 启用菜单交互 - 开场打字机在后台播放，不阻塞
+        SetViewFact(key: "interactable", value: Bool(true)),
+        SetViewFact(key: "depth", value: Int(0)),
+        SetViewFact(key: "button_selection", value: Int(0)),
+
+        // Wait for player to confirm selection in submenu
+        // 等待玩家在子菜单中确认选择
+        AwaitFact(condition: "$selection_confirmed == true"),
+
+        // Reset selection_confirmed for next turn
+        // 重置 selection_confirmed 以备下一回合
+        SetViewFact(key: "selection_confirmed", value: Bool(false)),
+
+        // Execute the pending action sequence (set by FRE rules)
+        // 执行待处理的行动序列（由 FRE 规则设置）
+        RunSequence(path_fact: "pending_sequence"),
+
+        // Disable interaction before entering danmaku phase
+        // 进入弹幕阶段前禁用交互
+        SetViewFact(key: "interactable", value: Bool(false)),
+
+        SetPlayer(Spawn(config_path: "states/battle/players/player.battle_player.ron", position: (0.0, -80.0))),
+
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(to: (130, "@current")),
+            duration: 0.85,
+            easing: QuadInOut,
+            wait_for_completion: false,
+        ),
+        Wait(0.15),
+
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: Position(to: ("@current", "@current + 80", "@current")),
+            duration: 1.0,
+            easing: CubicOut,
+            wait_for_completion: true,
+        ),
+        Wait(1.0),
+
+        DanmakuPerformance(
+            performance: "states/battle/danmaku/demo_attack.performance.ron",
+            translation: Some((0.0, 50.0)),
+        ),
+        Wait(10.0),
+        Sequence([
+            Wait(0.5),
+            SetPlayer(Despawn),// TODO: 实现这个功能
+        ]),
+        TweenViewElement(
+            selector: LocalName("BattleBox"),
+            target: BoxSize(from: (300.0, 100.0), to: (566.0, 130.0)),
+            duration: 0.8,
+            easing: ElasticOut,
+            wait_for_completion: true,
+        ),
+    ],
+)

@@ -499,16 +499,16 @@ pub fn spawn_viewbox_entity(
     parent: Option<Entity>,
     ctx: &SpawnContext,
     spec: &ViewElementSpec,
-    ui_shape_logic: &ViewBoxLogicDef,
+    view_box: &ViewBoxLogicDef,
     texts: Vec<ViewTextConfig>,
     is_top_level: bool,
 ) -> Entity {
     use crate::core::view::layout::serde_types::serializable_vec3_to_static;
 
-    let offset = serializable_vec3_to_static(&ui_shape_logic.offset);
+    let offset = serializable_vec3_to_static(&view_box.offset);
 
     // Convert fill color
-    let fill_color = ui_shape_logic
+    let fill_color = view_box
         .fill_color
         .as_ref()
         .map(|c| {
@@ -518,13 +518,14 @@ pub fn spawn_viewbox_entity(
         .unwrap_or(Color::BLACK);
 
     // Create ViewBox
-    let view_box = ViewBox::new_full(
-        ui_shape_logic.width,
-        ui_shape_logic.height,
-        ui_shape_logic.border_width,
+    let view_box_def = view_box;
+    let view_box_component = ViewBox::new_full(
+        view_box_def.width,
+        view_box_def.height,
+        view_box_def.border_width,
         texts,
-        ui_shape_logic.fill_shader.clone(),
-        ui_shape_logic.structure_file.clone(),
+        view_box_def.fill_shader.clone(),
+        view_box_def.structure_file.clone(),
         fill_color,
     );
 
@@ -538,7 +539,7 @@ pub fn spawn_viewbox_entity(
     let mut entity_commands = if is_top_level {
         // Top-level nodes use CameraAnchored
         commands.spawn((
-            view_box,
+            view_box_component,
             spec.visibility,
             InheritedVisibility::default(),
             ViewVisibility::default(),
@@ -550,7 +551,7 @@ pub fn spawn_viewbox_entity(
     } else {
         // Child nodes use Transform relative to parent
         commands.spawn((
-            view_box,
+            view_box_component,
             Transform::from_translation(offset),
             GlobalTransform::default(),
             spec.visibility,
@@ -570,14 +571,14 @@ pub fn spawn_viewbox_entity(
     }
 
     // Add dynamic anchor if offset has expressions
-    if ui_shape_logic.offset.0.as_expr().is_some()
-        || ui_shape_logic.offset.1.as_expr().is_some()
-        || ui_shape_logic.offset.2.as_expr().is_some()
+    if view_box_def.offset.0.as_expr().is_some()
+        || view_box_def.offset.1.as_expr().is_some()
+        || view_box_def.offset.2.as_expr().is_some()
     {
         entity_commands.insert(CameraAnchoredDynamic {
-            x_expression: ui_shape_logic.offset.0.as_expr().map(|s| s.to_string()),
-            y_expression: ui_shape_logic.offset.1.as_expr().map(|s| s.to_string()),
-            z_expression: ui_shape_logic.offset.2.as_expr().map(|s| s.to_string()),
+            x_expression: view_box_def.offset.0.as_expr().map(|s| s.to_string()),
+            y_expression: view_box_def.offset.1.as_expr().map(|s| s.to_string()),
+            z_expression: view_box_def.offset.2.as_expr().map(|s| s.to_string()),
         });
     }
 

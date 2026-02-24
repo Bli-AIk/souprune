@@ -247,7 +247,7 @@ pub fn incremental_reload_system(
 
             // Update CameraAnchored offset for ViewBox nodes
             // ViewBox 节点的 CameraAnchored 偏移更新
-            if let Some(ui_logic) = &node_def.ui_shape_logic
+            if let Some(ui_logic) = &node_def.view_box
                 && let Ok(mut camera_anchored) = camera_anchored_query.get_mut(entity)
             {
                 let new_offset = super::super::layout::serde_types::serializable_vec3_to_static(
@@ -264,15 +264,15 @@ pub fn incremental_reload_system(
             }
 
             // Update Transform from sprite def (only for standalone sprites, not ViewBox)
-            // ViewBox entities use CameraAnchored + ui_shape_logic.offset, not sprite.transform
+            // ViewBox entities use CameraAnchored + view_box.offset, not sprite.transform
             // 从 sprite def 更新 Transform（仅适用于独立 sprite，不适用于 ViewBox）
-            // ViewBox 实体使用 CameraAnchored + ui_shape_logic.offset，而不是 sprite.transform
+            // ViewBox 实体使用 CameraAnchored + view_box.offset，而不是 sprite.transform
             if let Some(sprite_def) = &node_def.sprite {
-                // Skip Transform update if this node has ui_shape_logic (it's a ViewBox)
+                // Skip Transform update if this node has view_box (it's a ViewBox)
                 // ViewBox position is managed separately via CameraAnchored component
-                // 如果此节点有 ui_shape_logic（它是 ViewBox），则跳过 Transform 更新
+                // 如果此节点有 view_box（它是 ViewBox），则跳过 Transform 更新
                 // ViewBox 位置通过 CameraAnchored 组件单独管理
-                let is_viewbox = node_def.ui_shape_logic.is_some();
+                let is_viewbox = node_def.view_box.is_some();
                 let mut sprite_updated = false;
 
                 if !is_viewbox

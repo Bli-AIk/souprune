@@ -865,222 +865,52 @@ pub mod debug_fre_panel {
             return;
         }
 
-        let mut modifications: Vec<(String, FactValue, FactLayerSelection)> = Vec::new();
+        // Group facts by namespace (part before the colon)
+        // 按命名空间分组（冒号前的部分）
+        let mut grouped: std::collections::BTreeMap<String, Vec<(String, String, FactValue)>> =
+            std::collections::BTreeMap::new();
 
         for (key, value) in facts {
-            ui.horizontal(|ui| {
-                ui.label(&key);
-                ui.with_layout(
-                    egui::Layout::right_to_left(egui::Align::Center),
-                    |ui| match value {
-                        FactValue::Int(v) => {
-                            let mut val = v;
-                            if ui.add(egui::DragValue::new(&mut val)).changed() {
-                                modifications.push((key.clone(), FactValue::Int(val), layer));
-                            }
-                        }
-                        FactValue::Float(v) => {
-                            let mut val = v;
-                            if ui.add(egui::DragValue::new(&mut val).speed(0.1)).changed() {
-                                modifications.push((key.clone(), FactValue::Float(val), layer));
-                            }
-                        }
-                        FactValue::Bool(v) => {
-                            let mut checked = v;
-                            if ui.checkbox(&mut checked, "").changed() {
-                                modifications.push((key.clone(), FactValue::Bool(checked), layer));
-                            }
-                        }
-                        FactValue::String(ref s) => {
-                            let mut text = s.clone();
-                            let response =
-                                ui.add(egui::TextEdit::singleline(&mut text).desired_width(150.0));
-                            if response.changed() {
-                                modifications.push((
-                                    key.clone(),
-                                    FactValue::String(text.clone()),
-                                    layer,
-                                ));
-                            }
-                        }
-                        FactValue::StringList(ref list) => {
-                            // Show list with editable elements
-                            ui.push_id(format!("layered_strlist_{}", key), |ui| {
-                                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    let mut new_list = list.clone();
-                                    let mut changed = false;
-                                    let mut to_remove: Option<usize> = None;
+            let (namespace, short_key) = if let Some(pos) = key.find(':') {
+                (key[..pos].to_string(), key[pos + 1..].to_string())
+            } else {
+                ("(ungrouped)".to_string(), key.clone())
+            };
+            grouped
+                .entry(namespace)
+                .or_default()
+                .push((key, short_key, value));
+        }
 
-                                    for (idx, item) in new_list.iter_mut().enumerate() {
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!("  {}:", idx));
-                                            let response = ui.add(
-                                                egui::TextEdit::singleline(item)
-                                                    .desired_width(120.0),
-                                            );
-                                            if response.changed() {
-                                                changed = true;
-                                            }
-                                            if ui.small_button("🗑").clicked() {
-                                                to_remove = Some(idx);
-                                            }
-                                        });
-                                    }
+        let mut modifications: Vec<(String, FactValue, FactLayerSelection)> = Vec::new();
 
-                                    // Handle removal
-                                    if let Some(idx) = to_remove {
-                                        new_list.remove(idx);
-                                        changed = true;
-                                    }
-
-                                    // Add new element button
-                                    if ui.small_button("➕ Add").clicked() {
-                                        new_list.push(String::new());
-                                        changed = true;
-                                    }
-
-                                    if changed {
-                                        modifications.push((
-                                            key.clone(),
-                                            FactValue::StringList(new_list),
-                                            layer,
-                                        ));
-                                    }
-                                });
-                            });
-                        }
-                        FactValue::IntList(ref list) => {
-                            // Show int list with editable elements
-                            ui.push_id(format!("layered_intlist_{}", key), |ui| {
-                                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    let mut new_list = list.clone();
-                                    let mut changed = false;
-                                    let mut to_remove: Option<usize> = None;
-
-                                    for (idx, item) in new_list.iter_mut().enumerate() {
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!("  {}:", idx));
-                                            if ui.add(egui::DragValue::new(item)).changed() {
-                                                changed = true;
-                                            }
-                                            if ui.small_button("🗑").clicked() {
-                                                to_remove = Some(idx);
-                                            }
-                                        });
-                                    }
-
-                                    // Handle removal
-                                    if let Some(idx) = to_remove {
-                                        new_list.remove(idx);
-                                        changed = true;
-                                    }
-
-                                    // Add new element button
-                                    if ui.small_button("➕ Add").clicked() {
-                                        new_list.push(0);
-                                        changed = true;
-                                    }
-
-                                    if changed {
-                                        modifications.push((
-                                            key.clone(),
-                                            FactValue::IntList(new_list),
-                                            layer,
-                                        ));
-                                    }
-                                });
-                            });
-                        }
-                        FactValue::FloatList(ref list) => {
-                            // Show float list with editable elements
-                            ui.push_id(format!("layered_floatlist_{}", key), |ui| {
-                                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    let mut new_list = list.clone();
-                                    let mut changed = false;
-                                    let mut to_remove: Option<usize> = None;
-
-                                    for (idx, item) in new_list.iter_mut().enumerate() {
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!("  {}:", idx));
-                                            if ui
-                                                .add(egui::DragValue::new(item).speed(0.1))
-                                                .changed()
-                                            {
-                                                changed = true;
-                                            }
-                                            if ui.small_button("🗑").clicked() {
-                                                to_remove = Some(idx);
-                                            }
-                                        });
-                                    }
-
-                                    // Handle removal
-                                    if let Some(idx) = to_remove {
-                                        new_list.remove(idx);
-                                        changed = true;
-                                    }
-
-                                    // Add new element button
-                                    if ui.small_button("➕ Add").clicked() {
-                                        new_list.push(0.0);
-                                        changed = true;
-                                    }
-
-                                    if changed {
-                                        modifications.push((
-                                            key.clone(),
-                                            FactValue::FloatList(new_list),
-                                            layer,
-                                        ));
-                                    }
-                                });
-                            });
-                        }
-                        FactValue::BoolList(ref list) => {
-                            // Show bool list with editable elements
-                            ui.push_id(format!("layered_boollist_{}", key), |ui| {
-                                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                    let mut new_list = list.clone();
-                                    let mut changed = false;
-                                    let mut to_remove: Option<usize> = None;
-
-                                    for (idx, item) in new_list.iter_mut().enumerate() {
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!("  {}:", idx));
-                                            if ui.checkbox(item, "").changed() {
-                                                changed = true;
-                                            }
-                                            if ui.small_button("🗑").clicked() {
-                                                to_remove = Some(idx);
-                                            }
-                                        });
-                                    }
-
-                                    // Handle removal
-                                    if let Some(idx) = to_remove {
-                                        new_list.remove(idx);
-                                        changed = true;
-                                    }
-
-                                    // Add new element button
-                                    if ui.small_button("➕ Add").clicked() {
-                                        new_list.push(false);
-                                        changed = true;
-                                    }
-
-                                    if changed {
-                                        modifications.push((
-                                            key.clone(),
-                                            FactValue::BoolList(new_list),
-                                            layer,
-                                        ));
-                                    }
-                                });
-                            });
-                        }
-                    },
-                );
-            });
+        // Render each namespace group
+        // 渲染每个命名空间分组
+        for (namespace, facts_in_group) in &grouped {
+            let header_text = format!("📁 {} ({})", namespace, facts_in_group.len());
+            egui::CollapsingHeader::new(header_text)
+                .default_open(namespace != "(ungrouped)" || grouped.len() == 1)
+                .show(ui, |ui| {
+                    for (full_key, short_key, value) in facts_in_group {
+                        ui.horizontal(|ui| {
+                            // Show short key (without namespace prefix)
+                            // 显示短键名（不含命名空间前缀）
+                            ui.label(short_key);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    render_fact_value_editor(
+                                        ui,
+                                        full_key,
+                                        value,
+                                        layer,
+                                        &mut modifications,
+                                    );
+                                },
+                            );
+                        });
+                    }
+                });
         }
 
         // Apply modifications to LayeredFactDatabase
@@ -1089,6 +919,202 @@ pub mod debug_fre_panel {
             match layer {
                 FactLayerSelection::Global => db.set_global(key.as_str(), value),
                 FactLayerSelection::Local => db.set_local(key.as_str(), value),
+            }
+        }
+    }
+
+    /// Render an editor widget for a single fact value.
+    /// 渲染单个事实值的编辑器组件。
+    fn render_fact_value_editor(
+        ui: &mut egui::Ui,
+        key: &str,
+        value: &FactValue,
+        layer: FactLayerSelection,
+        modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+    ) {
+        match value {
+            FactValue::Int(v) => {
+                let mut val = *v;
+                if ui.add(egui::DragValue::new(&mut val)).changed() {
+                    modifications.push((key.to_string(), FactValue::Int(val), layer));
+                }
+            }
+            FactValue::Float(v) => {
+                let mut val = *v;
+                if ui.add(egui::DragValue::new(&mut val).speed(0.1)).changed() {
+                    modifications.push((key.to_string(), FactValue::Float(val), layer));
+                }
+            }
+            FactValue::Bool(v) => {
+                let mut checked = *v;
+                if ui.checkbox(&mut checked, "").changed() {
+                    modifications.push((key.to_string(), FactValue::Bool(checked), layer));
+                }
+            }
+            FactValue::String(s) => {
+                let mut text = s.clone();
+                let response = ui.add(egui::TextEdit::singleline(&mut text).desired_width(150.0));
+                if response.changed() {
+                    modifications.push((key.to_string(), FactValue::String(text), layer));
+                }
+            }
+            FactValue::StringList(list) => {
+                ui.push_id(format!("layered_strlist_{}", key), |ui| {
+                    ui.collapsing(format!("[{}]", list.len()), |ui| {
+                        let mut new_list = list.clone();
+                        let mut changed = false;
+                        let mut to_remove: Option<usize> = None;
+
+                        for (idx, item) in new_list.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("  {}:", idx));
+                                let response =
+                                    ui.add(egui::TextEdit::singleline(item).desired_width(120.0));
+                                if response.changed() {
+                                    changed = true;
+                                }
+                                if ui.small_button("🗑").clicked() {
+                                    to_remove = Some(idx);
+                                }
+                            });
+                        }
+
+                        if let Some(idx) = to_remove {
+                            new_list.remove(idx);
+                            changed = true;
+                        }
+
+                        if ui.small_button("➕ Add").clicked() {
+                            new_list.push(String::new());
+                            changed = true;
+                        }
+
+                        if changed {
+                            modifications.push((
+                                key.to_string(),
+                                FactValue::StringList(new_list),
+                                layer,
+                            ));
+                        }
+                    });
+                });
+            }
+            FactValue::IntList(list) => {
+                ui.push_id(format!("layered_intlist_{}", key), |ui| {
+                    ui.collapsing(format!("[{}]", list.len()), |ui| {
+                        let mut new_list = list.clone();
+                        let mut changed = false;
+                        let mut to_remove: Option<usize> = None;
+
+                        for (idx, item) in new_list.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("  {}:", idx));
+                                if ui.add(egui::DragValue::new(item)).changed() {
+                                    changed = true;
+                                }
+                                if ui.small_button("🗑").clicked() {
+                                    to_remove = Some(idx);
+                                }
+                            });
+                        }
+
+                        if let Some(idx) = to_remove {
+                            new_list.remove(idx);
+                            changed = true;
+                        }
+
+                        if ui.small_button("➕ Add").clicked() {
+                            new_list.push(0);
+                            changed = true;
+                        }
+
+                        if changed {
+                            modifications.push((
+                                key.to_string(),
+                                FactValue::IntList(new_list),
+                                layer,
+                            ));
+                        }
+                    });
+                });
+            }
+            FactValue::FloatList(list) => {
+                ui.push_id(format!("layered_floatlist_{}", key), |ui| {
+                    ui.collapsing(format!("[{}]", list.len()), |ui| {
+                        let mut new_list = list.clone();
+                        let mut changed = false;
+                        let mut to_remove: Option<usize> = None;
+
+                        for (idx, item) in new_list.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("  {}:", idx));
+                                if ui.add(egui::DragValue::new(item).speed(0.1)).changed() {
+                                    changed = true;
+                                }
+                                if ui.small_button("🗑").clicked() {
+                                    to_remove = Some(idx);
+                                }
+                            });
+                        }
+
+                        if let Some(idx) = to_remove {
+                            new_list.remove(idx);
+                            changed = true;
+                        }
+
+                        if ui.small_button("➕ Add").clicked() {
+                            new_list.push(0.0);
+                            changed = true;
+                        }
+
+                        if changed {
+                            modifications.push((
+                                key.to_string(),
+                                FactValue::FloatList(new_list),
+                                layer,
+                            ));
+                        }
+                    });
+                });
+            }
+            FactValue::BoolList(list) => {
+                ui.push_id(format!("layered_boollist_{}", key), |ui| {
+                    ui.collapsing(format!("[{}]", list.len()), |ui| {
+                        let mut new_list = list.clone();
+                        let mut changed = false;
+                        let mut to_remove: Option<usize> = None;
+
+                        for (idx, item) in new_list.iter_mut().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("  {}:", idx));
+                                if ui.checkbox(item, "").changed() {
+                                    changed = true;
+                                }
+                                if ui.small_button("🗑").clicked() {
+                                    to_remove = Some(idx);
+                                }
+                            });
+                        }
+
+                        if let Some(idx) = to_remove {
+                            new_list.remove(idx);
+                            changed = true;
+                        }
+
+                        if ui.small_button("➕ Add").clicked() {
+                            new_list.push(false);
+                            changed = true;
+                        }
+
+                        if changed {
+                            modifications.push((
+                                key.to_string(),
+                                FactValue::BoolList(new_list),
+                                layer,
+                            ));
+                        }
+                    });
+                });
             }
         }
     }
@@ -1355,12 +1381,19 @@ pub mod debug_fre_panel {
                 ui.label(if rule.consume_event { "Yes" } else { "No" });
             });
 
-            // Condition
-            egui::CollapsingHeader::new("Condition")
+            // Condition expressions
+            if !rule.condition_expressions.is_empty() {
+                egui::CollapsingHeader::new(format!(
+                    "Conditions ({})",
+                    rule.condition_expressions.len()
+                ))
                 .default_open(false)
                 .show(ui, |ui| {
-                    ui.monospace(format!("{:?}", rule.condition));
+                    for (i, expr) in rule.condition_expressions.iter().enumerate() {
+                        ui.monospace(format!("{}: {}", i + 1, expr));
+                    }
                 });
+            }
 
             // Modifications
             if !rule.modifications.is_empty() {
@@ -1374,17 +1407,6 @@ pub mod debug_fre_panel {
                         ui.monospace(format!("{}: {:?}", i + 1, modification));
                     }
                 });
-            }
-
-            // Actions
-            if !rule.actions.is_empty() {
-                egui::CollapsingHeader::new(format!("Actions ({})", rule.actions.len()))
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        for i in 0..rule.actions.len() {
-                            ui.monospace(format!("{}: <action function>", i + 1));
-                        }
-                    });
             }
 
             // Outputs
@@ -1521,7 +1543,8 @@ pub mod debug_fre_panel {
 
                                 // Show details only for current state
                                 if is_current {
-                                    let is_ui_interactive = config.is_ui_interactive(state_name);
+                                    let is_view_interactive =
+                                        config.is_view_interactive(state_name);
                                     let is_player_movable = config.is_player_movable(state_name);
                                     let view_layout = config.get_view_layout(state_name);
                                     let chase_config = config.get_chase_config_path(state_name);
@@ -1529,7 +1552,7 @@ pub mod debug_fre_panel {
                                     ui.indent(state_name, |ui| {
                                         ui.horizontal(|ui| {
                                             ui.label("UI Interactive:");
-                                            if is_ui_interactive {
+                                            if is_view_interactive {
                                                 ui.colored_label(egui::Color32::GREEN, "Yes");
                                             } else {
                                                 ui.colored_label(egui::Color32::GRAY, "No");

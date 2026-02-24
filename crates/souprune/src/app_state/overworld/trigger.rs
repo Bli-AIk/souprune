@@ -1,19 +1,20 @@
 //! # trigger.rs
 //!
 //! ## Module Overview
-//! FRE-based trigger zones for overworld areas.
-//! Handles trigger zone detection and emits FRE events.
+//! FRE-based trigger zones and interactable objects for overworld areas.
+//! Handles trigger zone detection, interactable detection, and emits FRE events.
 //! Rules are loaded from RON files for data-driven gameplay.
 //!
 //! ## 模块概述
-//! 基于 FRE 的 Overworld 区域触发器。
-//! 处理触发区域检测并发出 FRE 事件。
+//! 基于 FRE 的 Overworld 区域触发器和可交互物体。
+//! 处理触发区域检测、可交互物体检测，并发出 FRE 事件。
 //! 规则从 RON 文件加载以实现数据驱动的游戏玩法。
 
-use crate::app_state::overworld::OverworldEntity;
 use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::core::basic_components::{Direction, Facing};
 use crate::core::collision::Rect2DCollider;
 use crate::core::danmaku::PlayPerformanceEvent;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
@@ -21,6 +22,7 @@ use bevy_fact_rule_event::{
     ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
     LayeredRuleRegistry, RuleActionDef,
 };
+use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
 
 /// Marker component for trigger zones.
@@ -56,11 +58,61 @@ impl TriggerZone {
     }
 }
 
-/// Marker for the demo trigger zone to avoid duplicate spawning.
+/// Marker component for interactable objects.
+/// These objects can be interacted with when the player faces them and presses confirm.
 ///
-/// 演示触发区域的标记，用于避免重复生成。
-#[derive(Component)]
-pub struct DemoTriggerSpawned;
+/// 可交互物体的标记组件。
+/// 当玩家面向这些物体并按下确认键时，可以与它们交互。
+///
+/// Dialogue configuration is now handled via FRE rules generated at Tiled map load time.
+/// See `object_properties.rs` for rule generation logic.
+///
+/// 对话配置现在通过在 Tiled 地图加载时生成的 FRE 规则处理。
+/// 规则生成逻辑见 `object_properties.rs`。
+#[derive(Component, Debug)]
+pub struct Interactable {
+    /// Unique identifier for this interactable.
+    ///
+    /// 此可交互物体的唯一标识符。
+    pub id: String,
+
+    /// Maximum interaction distance from player.
+    ///
+    /// 与玩家的最大交互距离。
+    pub max_distance: f32,
+}
+
+impl Default for Interactable {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            max_distance: 20.0,
+        }
+    }
+}
+
+impl Interactable {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            max_distance: 20.0,
+        }
+    }
+
+    pub fn with_distance(mut self, distance: f32) -> Self {
+        self.max_distance = distance;
+        self
+    }
+}
+
+/// Resource to track the currently focused interactable entity.
+///
+/// 跟踪当前聚焦的可交互实体的资源。
+#[derive(Resource, Default)]
+pub struct FocusedInteractable {
+    pub entity: Option<Entity>,
+    pub id: Option<String>,
+}
 
 /// Resource to track loaded rule set handles.
 ///
@@ -80,50 +132,6 @@ pub struct LoadedRuleSets {
 pub struct RuleActionDefs {
     /// Maps rule ID to its action definitions
     pub actions_by_rule: HashMap<String, Vec<RuleActionDef>>,
-}
-
-/// System to spawn a demo trigger zone for testing FRE.
-/// This creates a 64x64 trigger zone near the player spawn point.
-///
-/// 生成用于测试 FRE 的演示触发区域。
-/// 在玩家出生点附近创建一个 64x64 的触发区域。
-pub fn spawn_demo_trigger_zone_system(
-    mut commands: Commands,
-    existing_triggers: Query<&DemoTriggerSpawned>,
-    player_query: Query<&Transform, Added<PlayerControlled>>,
-) {
-    // Only spawn once
-    if !existing_triggers.is_empty() {
-        return;
-    }
-
-    // Wait for player to spawn, then create trigger near them
-    let Ok(player_transform) = player_query.single() else {
-        return;
-    };
-
-    // Create trigger zone 48 pixels to the right of player spawn
-    let trigger_pos = Vec3::new(
-        player_transform.translation.x + 48.0,
-        player_transform.translation.y,
-        0.0,
-    );
-
-    commands.spawn((
-        OverworldEntity(),
-        TriggerZone::new("demo_trigger"),
-        Rect2DCollider::new(Vec2::new(64.0, 64.0), Vec2::ZERO),
-        Transform::from_translation(trigger_pos),
-        Visibility::Hidden,
-        DemoTriggerSpawned,
-        Name::new("DemoTriggerZone"),
-    ));
-
-    info!(
-        "FRE: Spawned demo trigger zone at ({:.1}, {:.1})",
-        trigger_pos.x, trigger_pos.y
-    );
-    info!("FRE: Walk into the cyan box (press F3 to see it) to trigger danmaku!");
 }
 
 /// System to detect player entering/exiting trigger zones and emit FRE events.
@@ -190,9 +198,9 @@ pub fn load_fre_rules_system(
     }
 
     // NOTE: backpack.fre.ron is no longer loaded here.
-    // It's loaded via View's `requires` in undertale_backpack.view_layout.ron.
+    // It's loaded via View's `requires` in undertale_backpack.view.ron.
     // 注意：backpack.fre.ron 不再在此处加载。
-    // 它通过 undertale_backpack.view_layout.ron 中 View 的 `requires` 加载。
+    // 它通过 undertale_backpack.view.ron 中 View 的 `requires` 加载。
 
     // Try to find rules_file property in loaded maps (using schema key constant)
     for tiled_map in tiled_maps.iter() {
@@ -355,27 +363,31 @@ pub fn collect_danmaku_actions_system(
 
         'outer: for group in rule_groups {
             for rule in group {
-                // Check if rule's condition is met
-                if rule.condition.evaluate(&*fact_db) {
-                    // Look up the original action definitions for this rule
-                    if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                        for action in actions {
-                            if let RuleActionDef::Custom {
-                                action_type,
-                                params,
-                            } = action
-                                && action_type == "PlayDanmaku"
-                                && let Some(path) = params.get("path")
-                            {
-                                pending.requests.push(path.clone());
-                            }
+                // Check if rule's condition_expressions are met (empty = always true)
+                if !crate::core::fre_bridge::evaluate_conditions_layered(
+                    &rule.condition_expressions,
+                    &fact_db,
+                ) {
+                    continue;
+                }
+                // Look up the original action definitions for this rule
+                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
+                    for action in actions {
+                        if let RuleActionDef::Custom {
+                            action_type,
+                            params,
+                        } = action
+                            && action_type == "PlayDanmaku"
+                            && let Some(path) = params.get("path")
+                        {
+                            pending.requests.push(path.clone());
                         }
                     }
+                }
 
-                    // Respect consume_event
-                    if rule.consume_event {
-                        break 'outer;
-                    }
+                // Respect consume_event
+                if rule.consume_event {
+                    break 'outer;
                 }
             }
         }
@@ -438,13 +450,18 @@ pub fn handle_chase_state_actions_system(
     chase_state_name: Res<super::chase::ChaseStateName>,
     mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
     mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
+    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
+    mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
     for event in events.read() {
         let rule_groups = rule_registry.get_matching_rules_grouped(event);
 
         'outer: for group in rule_groups {
             for rule in group {
-                if !rule.condition.evaluate(&*fact_db) {
+                if !crate::core::fre_bridge::evaluate_conditions_layered(
+                    &rule.condition_expressions,
+                    &fact_db,
+                ) {
                     continue;
                 }
 
@@ -453,16 +470,18 @@ pub fn handle_chase_state_actions_system(
                 };
 
                 for action in actions {
-                    let RuleActionDef::Custom { action_type, .. } = action else {
+                    let RuleActionDef::Custom { .. } = action else {
                         continue;
                     };
 
                     handle_chase_action(
-                        action_type,
+                        action,
                         &chase_enabled,
                         &chase_state_name,
                         &mut next_ow_state,
                         &mut next_app_state,
+                        &mut spawn_view_writer,
+                        &mut despawn_view_writer,
                     );
                 }
 
@@ -477,13 +496,23 @@ pub fn handle_chase_state_actions_system(
 /// Handle individual chase-related FRE actions.
 /// 处理单个追逐相关的 FRE action。
 fn handle_chase_action(
-    action_type: &str,
+    action: &RuleActionDef,
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
     next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
     next_app_state: &mut NextState<crate::app_state::AppState>,
+    spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
+    despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
-    match action_type {
+    let RuleActionDef::Custom {
+        action_type,
+        params,
+    } = action
+    else {
+        return;
+    };
+
+    match action_type.as_str() {
         "EnterChaseState" => {
             if !chase_enabled.0 {
                 warn!("FRE: EnterChaseState action ignored - chase not enabled");
@@ -510,6 +539,260 @@ fn handle_chase_action(
             info!("FRE: Starting battle via action");
             next_app_state.set(crate::app_state::AppState::Battle);
         }
+        "SetOverworldState" => {
+            if let Some(state) = params.get("state") {
+                info!("FRE: Setting overworld state to '{}' via action", state);
+                next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+                    state.clone(),
+                ));
+            } else {
+                warn!("FRE: SetOverworldState action missing 'state' param");
+            }
+        }
+        "SpawnView" => {
+            if let Some(path) = params.get("path") {
+                info!("FRE: Spawning view '{}' via action", path);
+                spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: path.clone() });
+            } else {
+                warn!("FRE: SpawnView action missing 'path' param");
+            }
+        }
+        "DespawnView" => {
+            // Optional path parameter - if not provided, despawns all dynamically spawned views
+            // 可选的 path 参数 - 如果未提供，则销毁所有动态生成的 View
+            let path = params.get("path").cloned();
+            info!("FRE: Despawning view(s) via action (path: {:?})", path);
+            despawn_view_writer.write(crate::core::view::DespawnViewRequest { path });
+        }
+        // NOTE: StartDialogue has been removed in favor of FRE fact-driven dialogue
+        // 注意：StartDialogue 已移除，改为使用 FRE fact 驱动的对话
+        //
+        // To start dialogue via FRE rules, use modifications:
+        //   Set("dialogue:pending_mortar_path", "path/to/file.mortar")
+        //   Set("dialogue:pending_mortar_node", "node_name")
+        //   Set("dialogue:pending_view", "view/path.ron")  // optional
+        //   Set("dialogue:pending_start", Bool(true))      // trigger
         _ => {}
     }
+}
+
+/// System to detect interactable objects in front of the player.
+/// Updates FocusedInteractable resource when player faces an interactable.
+///
+/// 检测玩家面前可交互物体的系统。
+/// 当玩家面向可交互物体时更新 FocusedInteractable 资源。
+#[allow(clippy::type_complexity)]
+/// Check if a ray from `origin` in direction `dir` intersects an AABB defined by `center` and `half_size`.
+/// Returns the distance to intersection if hit, or None if no intersection within `max_dist`.
+fn ray_aabb_intersection(
+    origin: Vec2,
+    dir: Vec2,
+    center: Vec2,
+    half_size: Vec2,
+    max_dist: f32,
+) -> Option<f32> {
+    let min = center - half_size;
+    let max = center + half_size;
+
+    // Handle each axis
+    let (mut t_min, mut t_max) = (0.0_f32, max_dist);
+
+    // X axis
+    if dir.x.abs() < 1e-6 {
+        // Ray parallel to Y axis
+        if origin.x < min.x || origin.x > max.x {
+            return None;
+        }
+    } else {
+        let inv_d = 1.0 / dir.x;
+        let mut t1 = (min.x - origin.x) * inv_d;
+        let mut t2 = (max.x - origin.x) * inv_d;
+        if t1 > t2 {
+            std::mem::swap(&mut t1, &mut t2);
+        }
+        t_min = t_min.max(t1);
+        t_max = t_max.min(t2);
+        if t_min > t_max {
+            return None;
+        }
+    }
+
+    // Y axis
+    if dir.y.abs() < 1e-6 {
+        // Ray parallel to X axis
+        if origin.y < min.y || origin.y > max.y {
+            return None;
+        }
+    } else {
+        let inv_d = 1.0 / dir.y;
+        let mut t1 = (min.y - origin.y) * inv_d;
+        let mut t2 = (max.y - origin.y) * inv_d;
+        if t1 > t2 {
+            std::mem::swap(&mut t1, &mut t2);
+        }
+        t_min = t_min.max(t1);
+        t_max = t_max.min(t2);
+        if t_min > t_max {
+            return None;
+        }
+    }
+
+    // Check if intersection is within valid range
+    if t_min >= 0.0 && t_min <= max_dist {
+        Some(t_min)
+    } else if t_max >= 0.0 && t_max <= max_dist {
+        Some(t_max)
+    } else {
+        None
+    }
+}
+
+pub fn interactable_detection_system(
+    player_query: Query<(&Transform, &Facing, &Rect2DCollider), With<PlayerControlled>>,
+    interactables: Query<(Entity, &Transform, &Interactable, Option<&Rect2DCollider>)>,
+    mut focused: ResMut<FocusedInteractable>,
+    mut logged_once: Local<bool>,
+) {
+    let Ok((player_transform, facing, player_collider)) = player_query.single() else {
+        return;
+    };
+
+    // Log interactable count once
+    if !*logged_once {
+        let count = interactables.iter().count();
+        info!(
+            "Interactable detection: found {} interactable entities",
+            count
+        );
+        *logged_once = true;
+    }
+
+    let player_pos = player_transform.translation.truncate() + player_collider.offset;
+
+    // Normalize facing direction to 4 cardinal directions only
+    // Player sprite only has 4 directions, so we should only cast rays in cardinal directions
+    // 将朝向规范化为仅 4 个主方向
+    // 玩家 sprite 只有 4 个方向，因此我们只应该在主方向发射射线
+    let facing_dir = match facing.value {
+        Direction::Up | Direction::UpLeft | Direction::UpRight => Vec2::Y,
+        Direction::Down | Direction::DownLeft | Direction::DownRight => -Vec2::Y,
+        Direction::Left => -Vec2::X,
+        Direction::Right => Vec2::X,
+    };
+
+    // Find the closest interactable that the ray intersects
+    let mut best_match: Option<(Entity, String, f32)> = None;
+
+    for (entity, interactable_transform, interactable, opt_collider) in interactables.iter() {
+        // Get interactable center position and size
+        let (center, half_size) = match opt_collider {
+            Some(collider) => (
+                interactable_transform.translation.truncate() + collider.offset,
+                collider.size / 2.0,
+            ),
+            None => {
+                // No collider - use a small default area
+                (
+                    interactable_transform.translation.truncate(),
+                    Vec2::splat(8.0),
+                )
+            }
+        };
+
+        // Ray-AABB intersection test
+        if let Some(hit_dist) = ray_aabb_intersection(
+            player_pos,
+            facing_dir,
+            center,
+            half_size,
+            interactable.max_distance,
+        ) {
+            // Update best match if closer
+            if best_match.is_none() || hit_dist < best_match.as_ref().unwrap().2 {
+                best_match = Some((entity, interactable.id.clone(), hit_dist));
+            }
+        }
+    }
+
+    // Update focused interactable
+    match best_match {
+        Some((entity, id, _)) => {
+            if focused.entity != Some(entity) {
+                focused.entity = Some(entity);
+                focused.id = Some(id.clone());
+                debug!("FRE: Player can interact with '{}'", id);
+            }
+        }
+        None => {
+            if focused.entity.is_some() {
+                debug!("FRE: No interactable in range");
+                focused.entity = None;
+                focused.id = None;
+            }
+        }
+    }
+}
+
+/// System to handle player interaction when confirm is pressed.
+/// Emits FRE event `interact_{id}` for rule-based handling.
+/// Dialogue configuration is handled by FRE rules generated from Tiled map properties.
+///
+/// 当按下确认键时处理玩家交互的系统。
+/// 发出 FRE 事件 `interact_{id}` 用于基于规则的处理。
+/// 对话配置由从 Tiled 地图属性生成的 FRE 规则处理。
+pub fn handle_interaction_input_system(
+    registry: Res<ActionRegistry>,
+    query: Query<&ActionState<Action>, With<PlayerControlled>>,
+    focused: Res<FocusedInteractable>,
+    interactables: Query<&Interactable>,
+    current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
+    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
+    mut event_writer: MessageWriter<FactEvent>,
+) {
+    // Only handle interaction when player can interact in current state
+    let can_interact = state_config
+        .as_ref()
+        .and_then(|config| config.0.states.get(&current_state.0))
+        .map(|def| def.can_interact())
+        .unwrap_or(true);
+
+    if !can_interact {
+        return;
+    }
+
+    let Ok(action_state) = query.single() else {
+        return;
+    };
+
+    // Check if confirm was just pressed
+    if !action_state.action_just_pressed(&registry, "Confirm") {
+        return;
+    }
+
+    // Check if there's a focused interactable
+    let Some(entity) = focused.entity else {
+        return;
+    };
+
+    let Some(ref interactable_id) = focused.id else {
+        return;
+    };
+
+    // Verify the entity still has Interactable component
+    if interactables.get(entity).is_err() {
+        warn!(
+            "FRE: Focused entity {:?} has no Interactable component",
+            entity
+        );
+        return;
+    }
+
+    // Emit interaction event for FRE rule-based handling
+    // FRE rules handle dialogue configuration (view spawn, Mortar start, etc.)
+    let event_id = format!("interact_{}", interactable_id);
+    info!(
+        "FRE: Player interacting with '{}', emitting '{}'",
+        interactable_id, event_id
+    );
+    event_writer.write(FactEvent::new(event_id));
 }

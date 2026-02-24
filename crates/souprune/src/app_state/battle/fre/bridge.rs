@@ -52,6 +52,12 @@ impl ChapterCompletedEvent {
     }
 }
 
+/// Run condition: Check if there are chapter completed events to process.
+/// 运行条件：检查是否有章节完成事件需要处理。
+pub fn has_chapter_completed_events(events: MessageReader<ChapterCompletedEvent>) -> bool {
+    !events.is_empty()
+}
+
 /// System to emit FRE events when chapters complete.
 /// Converts internal ChapterCompletedEvent to FactEvent for FRE processing.
 ///

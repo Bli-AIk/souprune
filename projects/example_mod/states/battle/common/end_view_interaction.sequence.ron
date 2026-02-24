@@ -1,0 +1,22 @@
+// 通用序列：结束 View 交互
+// 禁用交互、隐藏按钮和旁白区域、清除对话状态、重置菜单深度
+//
+// 使用方式:
+// RunSequence(path: "states/battle/common/end_view_interaction.sequence.ron")
+(chapters: [
+    // 禁用交互
+    SetViewFact(key: "interactable", value: Bool(false)),
+    
+    // 隐藏按钮
+    SetViewFact(key: "buttons_visible", value: Bool(false)),
+    
+    // 隐藏旁白
+    SetViewFact(key: "narration_visible", value: Bool(false)),
+
+    // 清除对话文本和隐藏对话框
+    SetViewFact(key: "dialogue_text", value: String("")),
+    SetViewFact(key: "dialogue_visible", value: Bool(false)),
+
+    // 重置菜单深度（防止 ACT/MERCY 选项在弹幕战期间显示）
+    SetViewFact(key: "depth", value: Int(-1)),
+])

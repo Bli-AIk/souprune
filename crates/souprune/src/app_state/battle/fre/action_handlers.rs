@@ -48,17 +48,49 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
         }
     });
 
-    // TriggerDialogue - Start a dialogue sequence
+    // TriggerDialogue - Deprecated, use FRE rule modifications instead
+    // 已弃用，请改用 FRE 规则的 modifications
+    //
+    // Example FRE rule for simple text dialogue:
+    // ```ron
+    // (
+    //     id: "battle_narration",
+    //     trigger: "battle:show_narration",
+    //     modifications: [
+    //         SetFact(key: "dialogue:simple_text_active", value: Bool(true)),
+    //         SetFact(key: "dialogue:simple_text", value: String("* Your soul is filled with determination.")),
+    //         SetFact(key: "dialogue:has_typewriter", value: Bool(true)),
+    //     ],
+    // )
+    // ```
+    //
+    // Example FRE rule for Mortar dialogue:
+    // ```ron
+    // (
+    //     id: "start_mortar_dialogue",
+    //     trigger: "npc:interact",
+    //     modifications: [
+    //         SetFact(key: "dialogue:pending_mortar_path", value: String("dialogue/npc.mortar")),
+    //         SetFact(key: "dialogue:pending_mortar_node", value: String("greeting")),
+    //         SetFact(key: "dialogue:has_typewriter", value: Bool(true)),
+    //     ],
+    // )
+    // ```
     handler_registry.register("TriggerDialogue", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action {
-            let dialogue_id = params
-                .get("dialogue_id")
-                .map(String::as_str)
-                .unwrap_or("unknown");
+            let text = params.get("text").map(String::as_str).unwrap_or("");
+            let path = params.get("path").map(String::as_str).unwrap_or("");
+            let node = params.get("node").map(String::as_str).unwrap_or("");
 
-            info!("Battle FRE Action: TriggerDialogue '{}'", dialogue_id);
+            warn!(
+                "TriggerDialogue action is deprecated. Use FRE rule modifications instead. \
+                Received: text='{}', path='{}', node='{}'",
+                text, path, node
+            );
 
-            // TODO: Emit dialogue event or insert dialogue Chapter
+            // Note: Cannot modify facts from action handler.
+            // Use FRE rule modifications to set dialogue:simple_text_active,
+            // dialogue:simple_text, dialogue:pending_mortar_path, dialogue:pending_mortar_node
         }
     });
 
@@ -150,6 +182,17 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
     info!("Battle FRE: Action handlers registered");
 }
 
+/// Run condition: Check if there's pending damage to apply.
+/// 运行条件：检查是否有待处理的伤害。
+pub fn has_pending_damage(layered_db: Res<LayeredFactDatabase>) -> bool {
+    layered_db
+        .get_int("pending_player_damage")
+        .is_some_and(|d| d != 0)
+        || layered_db
+            .get_int("pending_enemy_0_damage")
+            .is_some_and(|d| d != 0)
+}
+
 /// System to apply pending damage from FRE actions.
 /// This system reads damage facts and applies them to entity HP.
 ///
@@ -160,10 +203,10 @@ pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) 
     if let Some(pending_damage) = layered_db.get_int("pending_player_damage")
         && pending_damage != 0
     {
-        let current_hp = layered_db.get_int_or("player_hp", 100);
+        let current_hp = layered_db.get_int_or("player:hp", 100);
         let new_hp = (current_hp - pending_damage).max(0);
 
-        layered_db.set("player_hp", new_hp);
+        layered_db.set("player:hp", new_hp);
         layered_db.remove("pending_player_damage");
 
         info!(

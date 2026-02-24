@@ -32,11 +32,11 @@ use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 /// let player_data = PlayerDataView::new(&layered_db);
 ///
 /// // Get fact value directly / 直接获取事实值
-/// let hp = player_data.get_fact_int("player_hp").unwrap_or(0);
-/// let name = player_data.get_fact_string("player_name").unwrap_or_default();
+/// let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
+/// let name = player_data.get_fact_string("player:name").unwrap_or_default();
 ///
 /// // Get fact with fallback and warning / 获取事实值，缺失时发出警告
-/// let hp = player_data.get_fact_int_or("player_hp", 0);
+/// let hp = player_data.get_fact_int_or("player:hp", 0);
 /// ```
 pub struct PlayerDataView<'a> {
     db: &'a LayeredFactDatabase,
