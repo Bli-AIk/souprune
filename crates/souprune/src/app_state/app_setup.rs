@@ -44,6 +44,10 @@ impl Plugin for AppSetupPlugin {
             Update,
             check_textures_system.run_if(in_state(AppState::AppSetup)),
         );
+
+        // On Android, maintain 4:3 aspect ratio via camera viewport
+        #[cfg(target_os = "android")]
+        app.add_systems(Update, android_viewport_system);
     }
 }
 
@@ -181,15 +185,71 @@ fn check_textures_system(
 }
 
 fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
+    // On Android, use Fixed scaling to always show base_resolution world units
+    // regardless of screen size. A viewport system will handle letterboxing.
+    #[cfg(target_os = "android")]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scaling_mode: bevy::camera::ScalingMode::Fixed {
+            width: 320.0,
+            height: 240.0,
+        },
+        ..OrthographicProjection::default_2d()
+    });
+    #[cfg(not(target_os = "android"))]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scale: 1.0 / resolution_scale.get() as f32,
+        ..OrthographicProjection::default_2d()
+    });
+
     commands.spawn((
         Name::new("Overworld Camera2d"),
         Camera2d,
-        Projection::Orthographic(OrthographicProjection {
-            scale: 1.0 / resolution_scale.get() as f32,
-            ..OrthographicProjection::default_2d()
-        }),
+        projection,
         Followable::default(),
     ));
+}
+
+/// On Android, set camera viewport to maintain 4:3 aspect ratio with letterboxing.
+#[cfg(target_os = "android")]
+fn android_viewport_system(
+    windows: Query<&Window>,
+    mut cameras: Query<&mut Camera, With<Camera2d>>,
+    souprune_config: Res<config::SoupruneConfig>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let screen_w = window.physical_width() as f32;
+    let screen_h = window.physical_height() as f32;
+    if screen_w <= 0.0 || screen_h <= 0.0 {
+        return;
+    }
+
+    let target_ratio = souprune_config.render.base_resolution_width as f32
+        / souprune_config.render.base_resolution_height as f32;
+    let screen_ratio = screen_w / screen_h;
+
+    let (vp_w, vp_h, offset_x, offset_y) = if screen_ratio > target_ratio {
+        // Wider than 4:3 → pillarbox (black bars on sides)
+        let vp_h = screen_h as u32;
+        let vp_w = (screen_h * target_ratio) as u32;
+        let offset_x = (screen_w as u32 - vp_w) / 2;
+        (vp_w, vp_h, offset_x, 0)
+    } else {
+        // Taller than 4:3 → letterbox (black bars top/bottom)
+        let vp_w = screen_w as u32;
+        let vp_h = (screen_w / target_ratio) as u32;
+        let offset_y = (screen_h as u32 - vp_h) / 2;
+        (vp_w, vp_h, 0, offset_y)
+    };
+
+    for mut camera in cameras.iter_mut() {
+        camera.viewport = Some(bevy::camera::Viewport {
+            physical_position: UVec2::new(offset_x, offset_y),
+            physical_size: UVec2::new(vp_w, vp_h),
+            ..default()
+        });
+    }
 }
 
 /// Preload map assets during AppSetup to avoid loading spikes when entering Overworld.
