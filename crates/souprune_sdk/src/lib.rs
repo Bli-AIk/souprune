@@ -46,7 +46,7 @@ macro_rules! declare_behaviors {
             unsafe { HOST_API = Some(api.read()); }
 
             let id_str = unsafe {
-                std::ffi::CStr::from_ptr(id as *const i8).to_str().unwrap_or("")
+                std::ffi::CStr::from_ptr(id as *const core::ffi::c_char).to_str().unwrap_or("")
             };
 
             $(
@@ -128,7 +128,7 @@ macro_rules! declare_danmaku {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn create_danmaku(id: *const u8) -> $crate::DanmakuInstance {
             let id_str = unsafe {
-                std::ffi::CStr::from_ptr(id as *const i8).to_str().unwrap_or("")
+                std::ffi::CStr::from_ptr(id as *const core::ffi::c_char).to_str().unwrap_or("")
             };
 
             $(

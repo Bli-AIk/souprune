@@ -243,7 +243,7 @@ pub fn resolve_visual_path_with_resources(
 ///
 /// 从 mod 名称和相对路径构建完整的纹理路径。
 fn build_texture_path(mod_name: &str, resources: &ResourcePaths, relative: &str) -> PathBuf {
-    Path::new("projects")
+    crate::config::get_projects_base_path()
         .join(mod_name)
         .join(&resources.textures)
         .join(relative)
@@ -259,7 +259,7 @@ fn search_texture_recursive(
     resources: &ResourcePaths,
     name: &str,
 ) -> Option<PathBuf> {
-    let textures_root = Path::new("projects")
+    let textures_root = crate::config::get_projects_base_path()
         .join(mod_name)
         .join(&resources.textures);
 

@@ -61,7 +61,9 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
     let audios_dir = &config.resources.audios;
 
     // Build the audios directory path
-    let audios_root = Path::new("projects").join(mod_name).join(audios_dir);
+    let audios_root = crate::config::get_projects_base_path()
+        .join(mod_name)
+        .join(audios_dir);
 
     if !audios_root.exists() {
         warn!("Audios directory does not exist: {:?}", audios_root);

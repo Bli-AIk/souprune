@@ -121,25 +121,48 @@ fn load_mods_system(
 ) {
     let config = crate::config::load_config();
     let mod_name = &config.project.mod_name;
-    let base_path = Path::new("projects").join(mod_name);
+    let base_path = crate::config::get_projects_base_path().join(mod_name);
 
     let mut candidate_filenames = Vec::new();
 
-    if cfg!(target_os = "windows") {
-        if cfg!(target_env = "msvc") {
-            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-            // Fallback to GNU if MSVC not found
-            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-        } else {
-            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-        }
-    } else {
+    #[cfg(target_os = "android")]
+    {
+        candidate_filenames.push(format!("{}_android.so", mod_name));
         candidate_filenames.push(format!("{}.so", mod_name));
+    }
+
+    // On Android, also search in app internal storage (dlopen can't load from /sdcard)
+    #[cfg(target_os = "android")]
+    let android_mods_dir = std::path::PathBuf::from("/data/data/com.bliaik.souprune/mods");
+
+    #[cfg(not(target_os = "android"))]
+    {
+        if cfg!(target_os = "windows") {
+            if cfg!(target_env = "msvc") {
+                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+                // Fallback to GNU if MSVC not found
+                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+            } else {
+                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+            }
+        } else {
+            candidate_filenames.push(format!("{}.so", mod_name));
+        }
     }
 
     let mut loaded_path = None;
     for filename in &candidate_filenames {
+        // On Android, first check the app internal mods directory (dlopen-accessible)
+        #[cfg(target_os = "android")]
+        {
+            let p = android_mods_dir.join(filename);
+            if p.exists() {
+                loaded_path = Some(p);
+                break;
+            }
+        }
+        // Then check the regular base path
         let p = base_path.join(filename);
         if p.exists() {
             loaded_path = Some(p);
@@ -203,7 +226,7 @@ fn load_mods_system(
 
         for i in 0..count {
             let id_ptr = get_id_fn(i);
-            let id = CStr::from_ptr(id_ptr as *const i8)
+            let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
                 .to_string_lossy()
                 .into_owned();
 
@@ -228,7 +251,7 @@ fn load_mods_system(
                     if id_ptr.is_null() {
                         continue;
                     }
-                    let id = CStr::from_ptr(id_ptr as *const i8)
+                    let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
                         .to_string_lossy()
                         .into_owned();
 

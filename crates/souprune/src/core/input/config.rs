@@ -76,6 +76,53 @@ pub enum InputBinding {
     ///
     /// 手柄按钮绑定（例如 "DPadUp"、"South"）
     Gamepad(String),
+
+    /// Touch virtual button binding (e.g., "DPadUp", "ButtonA")
+    /// Used for on-screen touch overlay controls on mobile platforms.
+    ///
+    /// 触屏虚拟按钮绑定（例如 "DPadUp"、"ButtonA"）
+    /// 用于移动平台的屏幕触控覆盖层控件。
+    Touch(String),
+}
+
+/// Touch overlay configuration.
+///
+/// 触控覆盖层配置。
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct TouchOverlayConfig {
+    /// Whether the touch overlay is enabled.
+    /// On Android, defaults to true if not specified.
+    ///
+    /// 触控覆盖层是否启用。
+    /// 在 Android 上，如果未指定则默认为 true。
+    #[serde(default)]
+    pub enabled: Option<bool>,
+
+    /// Path to the touch layout configuration file (RON format).
+    ///
+    /// 触控布局配置文件路径（RON 格式）。
+    #[serde(default)]
+    pub layout: Option<String>,
+
+    /// Opacity of touch controls (0.0 = transparent, 1.0 = opaque).
+    ///
+    /// 触控控件的透明度（0.0 = 透明，1.0 = 不透明）。
+    #[serde(default = "default_touch_opacity")]
+    pub opacity: f32,
+
+    /// Scale factor for touch controls.
+    ///
+    /// 触控控件的缩放系数。
+    #[serde(default = "default_touch_scale")]
+    pub scale: f32,
+}
+
+fn default_touch_opacity() -> f32 {
+    0.5
+}
+
+fn default_touch_scale() -> f32 {
+    1.0
 }
 
 /// Navigation behavior configuration.
@@ -188,6 +235,14 @@ pub struct InputConfig {
     /// 如果未提供，UI 交互功能将被禁用并发出警告。
     #[serde(default)]
     pub ui: UIConfig,
+
+    /// Touch overlay configuration (optional).
+    /// Enables on-screen virtual controls for touch/mobile platforms.
+    ///
+    /// 触控覆盖层配置（可选）。
+    /// 为触屏/移动平台启用屏幕虚拟控件。
+    #[serde(default)]
+    pub touch_overlay: Option<TouchOverlayConfig>,
 }
 
 impl InputConfig {
@@ -267,6 +322,11 @@ impl InputConfig {
                         } else {
                             warn!("Unknown gamepad button in input config: {}", button_str);
                         }
+                    }
+                    InputBinding::Touch(_) => {
+                        // Touch bindings are handled by the touch overlay system,
+                        // not leafwing InputMap. Skip silently.
+                        // 触控绑定由触控覆盖层系统处理，不通过 leafwing InputMap。
                     }
                 }
             }
