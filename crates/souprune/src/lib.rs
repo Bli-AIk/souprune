@@ -247,7 +247,7 @@ fn get_bevy_default_plugins(
     #[cfg(target_os = "android")]
     #[cfg(not(feature = "unsafe_gpu"))]
     {
-        use bevy::render::settings::WgpuLimits;
+        use bevy::render::settings::{Backends, WgpuLimits};
         plugins = plugins
             .set(RenderPlugin {
                 render_creation: RenderCreation::Automatic(WgpuSettings {
@@ -409,9 +409,13 @@ pub fn run() {
             match input::TouchLayoutDef::load_from_file(&full_path) {
                 Ok(mut layout) => {
                     info!("Loaded touch layout from {:?}", full_path);
-                    // Apply overlay-level opacity/scale if set in touch_overlay config
-                    layout.opacity = touch_cfg.opacity;
-                    layout.scale = touch_cfg.scale;
+                    // Apply overlay-level opacity/scale if explicitly set in touch_overlay config
+                    if let Some(opacity) = touch_cfg.opacity {
+                        layout.opacity = opacity;
+                    }
+                    if let Some(scale) = touch_cfg.scale {
+                        layout.scale = scale;
+                    }
                     Some(layout)
                 }
                 Err(e) => {
@@ -426,12 +430,16 @@ pub fn run() {
         None
     };
 
-    // Determine touch overlay enabled state from config
+    // Determine touch overlay enabled state: check if current OS is in platforms list
     let touch_enabled = input_config
         .touch_overlay
         .as_ref()
-        .and_then(|cfg| cfg.enabled)
-        .unwrap_or(cfg!(target_os = "android"));
+        .map(|cfg| {
+            cfg.platforms
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case(std::env::consts::OS))
+        })
+        .unwrap_or(false);
 
     let mut app = App::new();
     if let Some(layout) = touch_layout {

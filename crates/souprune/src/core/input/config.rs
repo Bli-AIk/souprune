@@ -22,6 +22,9 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Frame transition duration for button press/release animation (seconds).
+pub const TOUCH_FRAME_TRANSITION_SECS: f32 = 0.06;
+
 /// Error type for input configuration loading.
 ///
 /// 输入配置加载的错误类型。
@@ -90,13 +93,15 @@ pub enum InputBinding {
 /// 触控覆盖层配置。
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct TouchOverlayConfig {
-    /// Whether the touch overlay is enabled.
-    /// On Android, defaults to true if not specified.
+    /// List of platforms where the touch overlay is shown.
+    /// Uses OS names from `std::env::consts::OS`: "android", "ios", "linux", "macos", "windows".
+    /// If empty or omitted, the touch overlay is disabled on all platforms.
     ///
-    /// 触控覆盖层是否启用。
-    /// 在 Android 上，如果未指定则默认为 true。
+    /// 显示触控覆盖层的平台列表。
+    /// 使用 `std::env::consts::OS` 的系统名："android"、"ios"、"linux"、"macos"、"windows"。
+    /// 如果为空或省略，所有平台上均不显示。
     #[serde(default)]
-    pub enabled: Option<bool>,
+    pub platforms: Vec<String>,
 
     /// Path to the touch layout configuration file (RON format).
     ///
@@ -105,16 +110,20 @@ pub struct TouchOverlayConfig {
     pub layout: Option<String>,
 
     /// Opacity of touch controls (0.0 = transparent, 1.0 = opaque).
+    /// If not set, uses the value from the layout RON file.
     ///
     /// 触控控件的透明度（0.0 = 透明，1.0 = 不透明）。
-    #[serde(default = "default_touch_opacity")]
-    pub opacity: f32,
+    /// 如果未设置，使用布局 RON 文件中的值。
+    #[serde(default)]
+    pub opacity: Option<f32>,
 
     /// Scale factor for touch controls.
+    /// If not set, uses the value from the layout RON file.
     ///
     /// 触控控件的缩放系数。
-    #[serde(default = "default_touch_scale")]
-    pub scale: f32,
+    /// 如果未设置，使用布局 RON 文件中的值。
+    #[serde(default)]
+    pub scale: Option<f32>,
 }
 
 fn default_touch_opacity() -> f32 {
@@ -160,6 +169,14 @@ pub struct TouchButtonDef {
     #[serde(default)]
     pub pressed_texture: Option<String>,
 
+    /// Animation frame textures [idle, pressing, pressed, releasing].
+    /// When set, overrides `texture`/`pressed_texture`.
+    ///
+    /// 动画帧贴图 [空闲, 按下过渡, 按住, 松开过渡]。
+    /// 设置后覆盖 `texture`/`pressed_texture`。
+    #[serde(default)]
+    pub frames: Option<Vec<String>>,
+
     /// Text label shown on the button (fallback when no texture).
     /// 按钮上显示的文字标签（无贴图时的回退方案）。
     #[serde(default)]
@@ -194,6 +211,37 @@ fn default_btn_size() -> f32 {
     56.0
 }
 
+/// Definition of a touch controller (D-pad) with direction overlays.
+///
+/// 触控控制器（方向键）定义，带方向叠加层。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TouchControllerDef {
+    /// Screen anchor for the controller.
+    pub anchor: TouchAnchor,
+
+    /// Horizontal offset from anchor (logical pixels).
+    #[serde(default)]
+    pub offset_x: f32,
+
+    /// Vertical offset from anchor (logical pixels).
+    #[serde(default)]
+    pub offset_y: f32,
+
+    /// Controller display size (logical pixels, square).
+    #[serde(default = "default_controller_size")]
+    pub size: f32,
+
+    /// Base texture (always shown).
+    pub base_texture: String,
+
+    /// Direction overlay textures. Keys are action names (e.g., "Up", "Down").
+    pub overlays: HashMap<String, String>,
+}
+
+fn default_controller_size() -> f32 {
+    120.0
+}
+
 /// Touch layout definition loaded from RON config.
 /// Describes all virtual touch buttons and their layout.
 ///
@@ -210,6 +258,10 @@ pub struct TouchLayoutDef {
     /// 应用于所有按钮大小的全局缩放系数。
     #[serde(default = "default_touch_scale")]
     pub scale: f32,
+
+    /// Optional controller (D-pad) definition.
+    #[serde(default)]
+    pub controller: Option<TouchControllerDef>,
 
     /// Button definitions.
     /// 按钮定义。

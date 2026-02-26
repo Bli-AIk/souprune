@@ -46,6 +46,10 @@ impl Plugin for AppSetupPlugin {
             (
                 check_textures_system.run_if(in_state(AppState::AppSetup)),
                 crate::core::input::touch::update_touch_button_visuals,
+                crate::core::input::touch::tick_touch_button_animations,
+                crate::core::input::touch::update_controller_directions,
+                crate::core::input::touch::update_controller_overlays
+                    .after(crate::core::input::touch::update_controller_directions),
             ),
         );
 
