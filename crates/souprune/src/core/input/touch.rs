@@ -260,7 +260,7 @@ fn spawn_fallback_layout(
         ("Right", "▶", 2, 1),
     ];
     for (action, label, col, row) in &dpad_btns {
-        if registry.get(*action).is_none() {
+        if registry.get(action).is_none() {
             continue;
         }
         let btn = spawn_simple_button(
@@ -299,7 +299,7 @@ fn spawn_fallback_layout(
         ("Menu", "C", 0.0, 1.0),
     ];
     for (action, label, col, row) in action_btns {
-        if registry.get(*action).is_none() {
+        if registry.get(action).is_none() {
             continue;
         }
         let btn = spawn_simple_button(
@@ -409,10 +409,10 @@ fn inject_touch_actions(
 
         // Handle just-released buttons (were pressed last frame, not pressed now)
         for name in &prev.0 {
-            if !currently_pressed.contains(name) {
-                if let Some(slot) = registry.get(name) {
-                    set_button_state(&mut state, &slot, ButtonState::JustReleased);
-                }
+            if !currently_pressed.contains(name)
+                && let Some(slot) = registry.get(name)
+            {
+                set_button_state(&mut state, &slot, ButtonState::JustReleased);
             }
         }
     }
@@ -449,18 +449,18 @@ pub fn update_touch_button_visuals(
     for (interaction, mut bg, normal, pressed_img, image_node) in buttons.iter_mut() {
         match interaction {
             Interaction::Pressed => {
-                if let Some(mut img) = image_node {
-                    if let Some(ref handle) = pressed_img.0 {
-                        img.image = handle.clone();
-                    }
+                if let Some(mut img) = image_node
+                    && let Some(ref handle) = pressed_img.0
+                {
+                    img.image = handle.clone();
                 }
                 *bg = BackgroundColor(BTN_PRESSED_COLOR);
             }
             _ => {
-                if let Some(mut img) = image_node {
-                    if let Some(ref handle) = normal.0 {
-                        img.image = handle.clone();
-                    }
+                if let Some(mut img) = image_node
+                    && let Some(ref handle) = normal.0
+                {
+                    img.image = handle.clone();
                 }
                 *bg = BackgroundColor(FALLBACK_BTN_COLOR);
             }

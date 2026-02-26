@@ -100,15 +100,15 @@ fn state_facts_need_sync(
     app_state: Option<Res<State<crate::app_state::AppState>>>,
 ) -> bool {
     // Check if either state has changed this frame
-    if let Some(ref state) = overworld_state {
-        if state.is_changed() {
-            return true;
-        }
+    if let Some(ref state) = overworld_state
+        && state.is_changed()
+    {
+        return true;
     }
-    if let Some(ref state) = app_state {
-        if state.is_changed() {
-            return true;
-        }
+    if let Some(ref state) = app_state
+        && state.is_changed()
+    {
+        return true;
     }
     false
 }

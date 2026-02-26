@@ -6,7 +6,6 @@ use souprune_api::{
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};
-use std::path::Path;
 
 // === Host API Implementation (Must be static / extern "C") ===
 

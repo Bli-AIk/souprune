@@ -40,7 +40,7 @@ use bevy::render::RenderPlugin;
 #[cfg(feature = "unsafe_gpu")]
 use bevy::render::settings::InstanceFlags;
 #[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
-use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 use chrono::Local;
