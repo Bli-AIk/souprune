@@ -125,6 +125,113 @@ fn default_touch_scale() -> f32 {
     1.0
 }
 
+/// Screen corner anchor for touch button positioning.
+///
+/// 触控按钮定位的屏幕锚点。
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub enum TouchAnchor {
+    BottomLeft,
+    BottomRight,
+    TopLeft,
+    TopRight,
+}
+
+/// Definition of a single touch button in the layout config.
+///
+/// 布局配置中单个触控按钮的定义。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TouchButtonDef {
+    /// Action name to trigger (must be registered in ActionRegistry).
+    /// 要触发的动作名称（必须在 ActionRegistry 中注册）。
+    pub action: String,
+
+    /// Texture path for the normal state (relative to mod assets/).
+    /// If None, a semi-transparent rectangle with label is used.
+    ///
+    /// 常态贴图路径（相对于 mod assets/）。
+    /// 如果为 None，使用半透明矩形加文字标签。
+    #[serde(default)]
+    pub texture: Option<String>,
+
+    /// Texture path for the pressed state.
+    /// If None, uses a tint of the normal texture.
+    ///
+    /// 按下状态贴图路径。如果为 None，使用常态贴图的色调变化。
+    #[serde(default)]
+    pub pressed_texture: Option<String>,
+
+    /// Text label shown on the button (fallback when no texture).
+    /// 按钮上显示的文字标签（无贴图时的回退方案）。
+    #[serde(default)]
+    pub label: Option<String>,
+
+    /// Screen anchor for this button.
+    /// 此按钮的屏幕锚点。
+    pub anchor: TouchAnchor,
+
+    /// Horizontal offset from the anchor edge (in logical pixels).
+    /// 距锚点边缘的水平偏移量（逻辑像素）。
+    #[serde(default)]
+    pub offset_x: f32,
+
+    /// Vertical offset from the anchor edge (in logical pixels).
+    /// 距锚点边缘的垂直偏移量（逻辑像素）。
+    #[serde(default)]
+    pub offset_y: f32,
+
+    /// Button width (in logical pixels).
+    /// 按钮宽度（逻辑像素）。
+    #[serde(default = "default_btn_size")]
+    pub width: f32,
+
+    /// Button height (in logical pixels).
+    /// 按钮高度（逻辑像素）。
+    #[serde(default = "default_btn_size")]
+    pub height: f32,
+}
+
+fn default_btn_size() -> f32 {
+    56.0
+}
+
+/// Touch layout definition loaded from RON config.
+/// Describes all virtual touch buttons and their layout.
+///
+/// 从 RON 配置加载的触控布局定义。
+/// 描述所有虚拟触控按钮及其布局。
+#[derive(Debug, Clone, Deserialize, Serialize, Resource)]
+pub struct TouchLayoutDef {
+    /// Global opacity for all touch buttons (0.0–1.0).
+    /// 所有触控按钮的全局透明度（0.0–1.0）。
+    #[serde(default = "default_touch_opacity")]
+    pub opacity: f32,
+
+    /// Global scale factor applied to all button sizes.
+    /// 应用于所有按钮大小的全局缩放系数。
+    #[serde(default = "default_touch_scale")]
+    pub scale: f32,
+
+    /// Button definitions.
+    /// 按钮定义。
+    pub buttons: Vec<TouchButtonDef>,
+}
+
+impl TouchLayoutDef {
+    /// Load a TouchLayoutDef from a RON file.
+    ///
+    /// 从 RON 文件加载 TouchLayoutDef。
+    pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
+        let path = path.as_ref();
+        if !path.exists() {
+            return Err(ConfigError::FileNotFound(path.to_path_buf()));
+        }
+        let contents = fs::read_to_string(path)
+            .map_err(|e| ConfigError::ReadError(path.to_path_buf(), e.to_string()))?;
+        from_str::<Self>(&contents)
+            .map_err(|e| ConfigError::ParseError(path.to_path_buf(), e.to_string()))
+    }
+}
+
 /// Navigation behavior configuration.
 /// Maps direction names to action names.
 /// All fields are optional - if not configured, the corresponding functionality is disabled.
@@ -563,6 +670,7 @@ mod tests {
             .collect(),
             navigation: NavigationConfig::default(),
             ui: UIConfig::default(),
+            touch_overlay: None,
         };
 
         let registry = config.build_registry();

@@ -399,8 +399,46 @@ pub fn run() {
         input::PlayerInputSettings::from_config(&input_config, &action_registry);
     let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
 
-    App::new()
-        .insert_resource(ClearColor(Color::BLACK))
+    // Load touch layout config if specified
+    // 如果指定了触控布局配置则加载
+    let touch_layout = if let Some(ref touch_cfg) = input_config.touch_overlay {
+        if let Some(ref layout_path) = touch_cfg.layout {
+            let full_path = projects_base
+                .join(&config.project.mod_name)
+                .join(layout_path);
+            match input::TouchLayoutDef::load_from_file(&full_path) {
+                Ok(mut layout) => {
+                    info!("Loaded touch layout from {:?}", full_path);
+                    // Apply overlay-level opacity/scale if set in touch_overlay config
+                    layout.opacity = touch_cfg.opacity;
+                    layout.scale = touch_cfg.scale;
+                    Some(layout)
+                }
+                Err(e) => {
+                    warn!("Failed to load touch layout: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Determine touch overlay enabled state from config
+    let touch_enabled = input_config
+        .touch_overlay
+        .as_ref()
+        .and_then(|cfg| cfg.enabled)
+        .unwrap_or(cfg!(target_os = "android"));
+
+    let mut app = App::new();
+    if let Some(layout) = touch_layout {
+        app.insert_resource(layout);
+    }
+    app.insert_resource(input::touch::TouchOverlayEnabled(touch_enabled));
+    app.insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
             AssetSourceBuilder::new(move || {

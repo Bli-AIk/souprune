@@ -18,12 +18,13 @@
 //! 绕过 press()/release() 的状态机问题。
 
 use super::actions::{Action, ActionRegistry};
+use super::config::{TouchAnchor, TouchButtonDef, TouchLayoutDef};
 use bevy::prelude::*;
-use std::collections::HashSet;
-use leafwing_input_manager::action_state::{ActionKindData, ButtonData};
+use leafwing_input_manager::action_state::ActionKindData;
 use leafwing_input_manager::buttonlike::ButtonState;
 use leafwing_input_manager::plugin::InputManagerSystem;
 use leafwing_input_manager::prelude::ActionState;
+use std::collections::HashSet;
 
 /// Marker component for the touch overlay root entity.
 #[derive(Component)]
@@ -63,18 +64,31 @@ impl Plugin for TouchPlugin {
     }
 }
 
-const BTN_SIZE: f32 = 56.0;
-const DPAD_BTN: f32 = 52.0;
-const MARGIN: f32 = 8.0;
-const OVERLAY_OPACITY: f32 = 0.45;
-const BTN_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, OVERLAY_OPACITY);
+const FALLBACK_OPACITY: f32 = 0.45;
+const FALLBACK_BTN_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, FALLBACK_OPACITY);
 const BTN_PRESSED_COLOR: Color = Color::srgba(0.7, 0.9, 1.0, 0.7);
 
-/// Spawn the touch overlay UI. Call once after ActionRegistry is ready.
-pub fn spawn_touch_overlay(commands: &mut Commands, registry: &ActionRegistry) {
+/// Stores the normal-state image handle for pressed/released visual swap.
+#[derive(Component)]
+pub struct TouchNormalImage(pub Option<Handle<Image>>);
+
+/// Stores the pressed-state image handle for visual swap.
+#[derive(Component)]
+pub struct TouchPressedImage(pub Option<Handle<Image>>);
+
+/// Spawn the touch overlay UI from a `TouchLayoutDef` config.
+/// Falls back to simple colored rectangles if no textures are configured.
+pub fn spawn_touch_overlay(
+    commands: &mut Commands,
+    registry: &ActionRegistry,
+    asset_server: &AssetServer,
+    layout: Option<&TouchLayoutDef>,
+) {
     info!("Spawning touch overlay UI");
 
-    // Root container: full-screen, no background, pass-through for non-button areas
+    let opacity = layout.map(|l| l.opacity).unwrap_or(FALLBACK_OPACITY);
+    let scale = layout.map(|l| l.scale).unwrap_or(1.0);
+
     let root = commands
         .spawn((
             TouchOverlayRoot,
@@ -85,116 +99,240 @@ pub fn spawn_touch_overlay(commands: &mut Commands, registry: &ActionRegistry) {
                 position_type: PositionType::Absolute,
                 ..default()
             },
-            // Transparent background
             BackgroundColor(Color::NONE),
-            // High z-index to render above game content
             GlobalZIndex(1000),
             Pickable::IGNORE,
         ))
         .id();
 
-    // ── Left side: D-pad ──
-    let dpad_container = commands
+    if let Some(layout) = layout {
+        // Config-driven: spawn buttons from layout definition
+        for btn_def in &layout.buttons {
+            if registry.get(&btn_def.action).is_none() {
+                warn!(
+                    "Touch button action '{}' not registered, skipping",
+                    btn_def.action
+                );
+                continue;
+            }
+            let btn = spawn_config_button(commands, asset_server, btn_def, opacity, scale);
+            commands.entity(root).add_child(btn);
+        }
+    } else {
+        // Fallback: hardcoded layout (for mods without touch_layout.ron)
+        spawn_fallback_layout(commands, registry, root, opacity, scale);
+    }
+}
+
+/// Spawn a single button from config definition.
+fn spawn_config_button(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    def: &TouchButtonDef,
+    opacity: f32,
+    scale: f32,
+) -> Entity {
+    let w = def.width * scale;
+    let h = def.height * scale;
+
+    // Position based on anchor
+    let mut node = Node {
+        position_type: PositionType::Absolute,
+        width: Val::Px(w),
+        height: Val::Px(h),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+
+    match def.anchor {
+        TouchAnchor::BottomLeft => {
+            node.left = Val::Px(def.offset_x * scale);
+            node.bottom = Val::Px(def.offset_y * scale);
+        }
+        TouchAnchor::BottomRight => {
+            node.right = Val::Px(def.offset_x * scale);
+            node.bottom = Val::Px(def.offset_y * scale);
+        }
+        TouchAnchor::TopLeft => {
+            node.left = Val::Px(def.offset_x * scale);
+            node.top = Val::Px(def.offset_y * scale);
+        }
+        TouchAnchor::TopRight => {
+            node.right = Val::Px(def.offset_x * scale);
+            node.top = Val::Px(def.offset_y * scale);
+        }
+    }
+
+    let normal_handle = def
+        .texture
+        .as_ref()
+        .map(|p| asset_server.load::<Image>(p.clone()));
+    let pressed_handle = def
+        .pressed_texture
+        .as_ref()
+        .map(|p| asset_server.load::<Image>(p.clone()));
+
+    let bg_color = Color::srgba(1.0, 1.0, 1.0, opacity);
+
+    let mut btn_cmd = commands.spawn((
+        Name::new(format!("TouchBtn_{}", def.action)),
+        TouchAction(def.action.clone()),
+        TouchNormalImage(normal_handle.clone()),
+        TouchPressedImage(pressed_handle),
+        Button,
+        node,
+    ));
+
+    if let Some(ref handle) = normal_handle {
+        btn_cmd.insert((
+            ImageNode::new(handle.clone()),
+            BackgroundColor(Color::srgba(1.0, 1.0, 1.0, opacity)),
+        ));
+    } else {
+        btn_cmd.insert((
+            BackgroundColor(bg_color),
+            BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.6)),
+        ));
+        // Insert border only for non-textured buttons
+        btn_cmd.entry::<Node>().and_modify(|mut n| {
+            n.border = UiRect::all(Val::Px(2.0));
+        });
+    }
+
+    let btn = btn_cmd.id();
+
+    // Add text label if defined (shown even with textures if label is set)
+    if let Some(ref label) = def.label {
+        // Only show text on non-textured buttons or when explicitly set
+        if def.texture.is_none() || true {
+            let text = commands
+                .spawn((
+                    Text::new(label.clone()),
+                    TextFont {
+                        font_size: 18.0 * scale,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                    Pickable::IGNORE,
+                ))
+                .id();
+            commands.entity(btn).add_child(text);
+        }
+    }
+
+    btn
+}
+
+/// Fallback hardcoded layout when no config is provided.
+fn spawn_fallback_layout(
+    commands: &mut Commands,
+    registry: &ActionRegistry,
+    root: Entity,
+    opacity: f32,
+    scale: f32,
+) {
+    let btn_size = 52.0 * scale;
+    let action_btn_size = 56.0 * scale;
+    let margin = 8.0 * scale;
+    let bg = Color::srgba(1.0, 1.0, 1.0, opacity);
+
+    // D-pad container
+    let dpad = commands
         .spawn((
             Name::new("DPadContainer"),
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(24.0),
-                bottom: Val::Px(24.0),
-                width: Val::Px(DPAD_BTN * 3.0 + MARGIN * 2.0),
-                height: Val::Px(DPAD_BTN * 3.0 + MARGIN * 2.0),
+                left: Val::Px(24.0 * scale),
+                bottom: Val::Px(24.0 * scale),
+                width: Val::Px(btn_size * 3.0 + margin * 2.0),
+                height: Val::Px(btn_size * 3.0 + margin * 2.0),
                 ..default()
             },
             Pickable::IGNORE,
         ))
         .id();
 
-    // D-pad buttons: positioned within the 3x3 grid
-    let dpad_buttons = [
-        ("Up", 1, 0),    // top-center
-        ("Down", 1, 2),  // bottom-center
-        ("Left", 0, 1),  // center-left
-        ("Right", 2, 1), // center-right
+    let dpad_btns = [
+        ("Up", "▲", 1, 0),
+        ("Down", "▼", 1, 2),
+        ("Left", "◀", 0, 1),
+        ("Right", "▶", 2, 1),
     ];
-
-    let dpad_labels = ["▲", "▼", "◀", "▶"];
-
-    for (i, (action_name, col, row)) in dpad_buttons.iter().enumerate() {
-        if registry.get(action_name).is_none() {
+    for (action, label, col, row) in &dpad_btns {
+        if registry.get(*action).is_none() {
             continue;
         }
-        let x = *col as f32 * (DPAD_BTN + MARGIN);
-        let y = *row as f32 * (DPAD_BTN + MARGIN);
-
-        let btn = spawn_button(
+        let btn = spawn_simple_button(
             commands,
-            action_name,
-            dpad_labels[i],
-            DPAD_BTN,
-            Val::Px(x),
-            Val::Px(y),
+            action,
+            label,
+            btn_size,
+            Val::Px(*col as f32 * (btn_size + margin)),
+            Val::Px(*row as f32 * (btn_size + margin)),
+            bg,
+            scale,
         );
-        commands.entity(dpad_container).add_child(btn);
+        commands.entity(dpad).add_child(btn);
     }
+    commands.entity(root).add_child(dpad);
 
-    commands.entity(root).add_child(dpad_container);
-
-    // ── Right side: Action buttons ──
-    let action_container = commands
+    // Action buttons container
+    let actions = commands
         .spawn((
             Name::new("ActionButtonContainer"),
             Node {
                 position_type: PositionType::Absolute,
-                right: Val::Px(24.0),
-                bottom: Val::Px(24.0),
-                width: Val::Px(BTN_SIZE * 3.0 + MARGIN * 2.0),
-                height: Val::Px(BTN_SIZE * 3.0 + MARGIN * 2.0),
+                right: Val::Px(24.0 * scale),
+                bottom: Val::Px(24.0 * scale),
+                width: Val::Px(action_btn_size * 3.0 + margin * 2.0),
+                height: Val::Px(action_btn_size * 3.0 + margin * 2.0),
                 ..default()
             },
             Pickable::IGNORE,
         ))
         .id();
 
-    // Action buttons in a diamond-ish layout
-    let action_buttons: &[(&str, &str, f32, f32)] = &[
-        ("Confirm", "Z", 1.0, 2.0), // bottom-center
-        ("Cancel", "X", 2.0, 1.0),  // center-right
-        ("Menu", "C", 0.0, 1.0),    // center-left
+    let action_btns: &[(&str, &str, f32, f32)] = &[
+        ("Confirm", "Z", 1.0, 2.0),
+        ("Cancel", "X", 2.0, 1.0),
+        ("Menu", "C", 0.0, 1.0),
     ];
-
-    for (action_name, label, col, row) in action_buttons {
-        if registry.get(action_name).is_none() {
+    for (action, label, col, row) in action_btns {
+        if registry.get(*action).is_none() {
             continue;
         }
-        let x = *col * (BTN_SIZE + MARGIN);
-        let y = *row * (BTN_SIZE + MARGIN);
-
-        let btn = spawn_button(
+        let btn = spawn_simple_button(
             commands,
-            action_name,
+            action,
             label,
-            BTN_SIZE,
-            Val::Px(x),
-            Val::Px(y),
+            action_btn_size,
+            Val::Px(*col * (action_btn_size + margin)),
+            Val::Px(*row * (action_btn_size + margin)),
+            bg,
+            scale,
         );
-        commands.entity(action_container).add_child(btn);
+        commands.entity(actions).add_child(btn);
     }
-
-    commands.entity(root).add_child(action_container);
+    commands.entity(root).add_child(actions);
 }
 
-fn spawn_button(
+fn spawn_simple_button(
     commands: &mut Commands,
     action_name: &str,
     label: &str,
     size: f32,
     left: Val,
     top: Val,
+    bg: Color,
+    scale: f32,
 ) -> Entity {
     let btn = commands
         .spawn((
             Name::new(format!("TouchBtn_{}", action_name)),
             TouchAction(action_name.to_string()),
+            TouchNormalImage(None),
+            TouchPressedImage(None),
             Button,
             Node {
                 position_type: PositionType::Absolute,
@@ -208,7 +346,7 @@ fn spawn_button(
                 ..default()
             },
             BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.6)),
-            BackgroundColor(BTN_COLOR),
+            BackgroundColor(bg),
         ))
         .id();
 
@@ -216,7 +354,7 @@ fn spawn_button(
         .spawn((
             Text::new(label.to_string()),
             TextFont {
-                font_size: 18.0,
+                font_size: 18.0 * scale,
                 ..default()
             },
             TextColor(Color::WHITE),
@@ -295,16 +433,37 @@ fn set_button_state(state: &mut ActionState<Action>, action: &Action, target: Bu
 }
 
 /// Update button visuals based on interaction state.
+/// Swaps textures if pressed_texture is available, otherwise tints.
 pub fn update_touch_button_visuals(
     mut buttons: Query<
-        (&Interaction, &mut BackgroundColor),
+        (
+            &Interaction,
+            &mut BackgroundColor,
+            &TouchNormalImage,
+            &TouchPressedImage,
+            Option<&mut ImageNode>,
+        ),
         (Changed<Interaction>, With<TouchAction>),
     >,
 ) {
-    for (interaction, mut bg) in buttons.iter_mut() {
-        *bg = match interaction {
-            Interaction::Pressed => BackgroundColor(BTN_PRESSED_COLOR),
-            _ => BackgroundColor(BTN_COLOR),
+    for (interaction, mut bg, normal, pressed_img, image_node) in buttons.iter_mut() {
+        match interaction {
+            Interaction::Pressed => {
+                if let Some(mut img) = image_node {
+                    if let Some(ref handle) = pressed_img.0 {
+                        img.image = handle.clone();
+                    }
+                }
+                *bg = BackgroundColor(BTN_PRESSED_COLOR);
+            }
+            _ => {
+                if let Some(mut img) = image_node {
+                    if let Some(ref handle) = normal.0 {
+                        img.image = handle.clone();
+                    }
+                }
+                *bg = BackgroundColor(FALLBACK_BTN_COLOR);
+            }
         };
     }
 }

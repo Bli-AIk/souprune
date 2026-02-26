@@ -217,9 +217,16 @@ fn setup_touch_overlay_system(
     mut commands: Commands,
     registry: Res<crate::core::input::ActionRegistry>,
     enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
+    asset_server: Res<AssetServer>,
+    layout: Option<Res<crate::core::input::config::TouchLayoutDef>>,
 ) {
     if enabled.0 {
-        crate::core::input::touch::spawn_touch_overlay(&mut commands, &registry);
+        crate::core::input::touch::spawn_touch_overlay(
+            &mut commands,
+            &registry,
+            &asset_server,
+            layout.as_deref(),
+        );
     }
 }
 
