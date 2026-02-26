@@ -15,13 +15,11 @@
 //! - 管理 ActiveView 标记
 
 mod eval;
-pub use eval::{evaluate_conditions_layered, evaluate_single_condition};
 use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_evaluator_system};
+pub use eval::{evaluate_conditions_layered, evaluate_single_condition};
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{
-    FactEvent, FactValue, LayeredRuleRegistry, RuleActionDef,
-};
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredRuleRegistry, RuleActionDef};
 use leafwing_input_manager::action_state::ActionState;
 
 use crate::app_state::overworld::trigger::RuleActionDefs;
@@ -435,8 +433,6 @@ fn sync_dynamic_facts(
     // StringList.len() is evaluated directly via $var.len() syntax.
 }
 
-
-
 /// Execute a single FRE action on the ViewRoot's local_facts.
 ///
 /// 在 ViewRoot 的 local_facts 上执行单个 FRE 动作。
@@ -545,8 +541,6 @@ fn execute_action_firewheel(
     }
 }
 
-
-
 /// System to handle SwitchState requests from ViewRoot.local_facts.
 ///
 /// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
@@ -588,5 +582,3 @@ impl Plugin for FREBridgePlugin {
             );
     }
 }
-
-

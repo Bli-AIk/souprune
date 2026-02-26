@@ -13,8 +13,8 @@ use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
 
 use super::chase::{
-    is_in_chase_state, ChaseConfig, ChaseHeartMarker, ChaseStateName, ChaseTransition,
-    HitboxShapeConfig,
+    ChaseConfig, ChaseHeartMarker, ChaseStateName, ChaseTransition, HitboxShapeConfig,
+    is_in_chase_state,
 };
 
 // ============================================================================

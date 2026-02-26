@@ -186,9 +186,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                                                 let mut changed = false;
                                                 let mut to_remove: Option<usize> = None;
 
-                                                for (idx, item) in
-                                                    new_list.iter_mut().enumerate()
-                                                {
+                                                for (idx, item) in new_list.iter_mut().enumerate() {
                                                     ui.horizontal(|ui| {
                                                         ui.label(format!("  {}:", idx));
                                                         let response = ui.add(
@@ -234,9 +232,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                                                 let mut changed = false;
                                                 let mut to_remove: Option<usize> = None;
 
-                                                for (idx, item) in
-                                                    new_list.iter_mut().enumerate()
-                                                {
+                                                for (idx, item) in new_list.iter_mut().enumerate() {
                                                     ui.horizontal(|ui| {
                                                         ui.label(format!("  {}:", idx));
                                                         if ui
@@ -281,9 +277,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                                                 let mut changed = false;
                                                 let mut to_remove: Option<usize> = None;
 
-                                                for (idx, item) in
-                                                    new_list.iter_mut().enumerate()
-                                                {
+                                                for (idx, item) in new_list.iter_mut().enumerate() {
                                                     ui.horizontal(|ui| {
                                                         ui.label(format!("  {}:", idx));
                                                         if ui
@@ -331,9 +325,7 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                                                 let mut changed = false;
                                                 let mut to_remove: Option<usize> = None;
 
-                                                for (idx, item) in
-                                                    new_list.iter_mut().enumerate()
-                                                {
+                                                for (idx, item) in new_list.iter_mut().enumerate() {
                                                     ui.horizontal(|ui| {
                                                         ui.label(format!("  {}:", idx));
                                                         if ui.checkbox(item, "").changed() {
@@ -442,18 +434,15 @@ pub(super) fn render_layered_facts(
                         // Show short key (without namespace prefix)
                         // 显示短键名（不含命名空间前缀）
                         ui.label(short_key);
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                render_fact_value_editor(
-                                    ui,
-                                    full_key,
-                                    value,
-                                    layer,
-                                    &mut modifications,
-                                );
-                            },
-                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            render_fact_value_editor(
+                                ui,
+                                full_key,
+                                value,
+                                layer,
+                                &mut modifications,
+                            );
+                        });
                     });
                 }
             });
@@ -575,11 +564,7 @@ fn render_fact_value_editor(
                     }
 
                     if changed {
-                        modifications.push((
-                            key.to_string(),
-                            FactValue::IntList(new_list),
-                            layer,
-                        ));
+                        modifications.push((key.to_string(), FactValue::IntList(new_list), layer));
                     }
                 });
             });
@@ -653,11 +638,7 @@ fn render_fact_value_editor(
                     }
 
                     if changed {
-                        modifications.push((
-                            key.to_string(),
-                            FactValue::BoolList(new_list),
-                            layer,
-                        ));
+                        modifications.push((key.to_string(), FactValue::BoolList(new_list), layer));
                     }
                 });
             });

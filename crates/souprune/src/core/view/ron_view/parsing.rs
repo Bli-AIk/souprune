@@ -353,7 +353,6 @@ pub fn parse_overworld_state(state_str: &str) -> Option<OverworldSubState> {
     }
 }
 
-
 pub fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
@@ -601,7 +600,6 @@ pub fn resolve_text_content(
     result
 }
 
-
 pub fn resolve_data_path(
     path: &str,
     player_data: &PlayerDataView,
@@ -717,4 +715,3 @@ pub fn resolve_data_path(
         _ => format!("<unknown:{}>", path),
     }
 }
-

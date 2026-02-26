@@ -165,7 +165,10 @@ fn chase_enabled(enabled: Res<ChaseEnabled>) -> bool {
 }
 
 /// Check if current state is a chase state (has chase_config in its definition).
-pub fn is_in_chase_state(current_state: &OverworldSubState, chase_state_name: &ChaseStateName) -> bool {
+pub fn is_in_chase_state(
+    current_state: &OverworldSubState,
+    chase_state_name: &ChaseStateName,
+) -> bool {
     chase_state_name
         .0
         .as_ref()
