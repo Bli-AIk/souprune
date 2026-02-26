@@ -38,11 +38,15 @@ impl Plugin for AppSetupPlugin {
                 load_textures_system,
                 setup_camera_system,
                 preload_maps_system,
+                setup_touch_overlay_system,
             ),
         )
         .add_systems(
             Update,
-            check_textures_system.run_if(in_state(AppState::AppSetup)),
+            (
+                check_textures_system.run_if(in_state(AppState::AppSetup)),
+                crate::core::input::touch::update_touch_button_visuals,
+            ),
         );
 
         // On Android, maintain 4:3 aspect ratio via camera viewport
@@ -207,6 +211,16 @@ fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionS
         projection,
         Followable::default(),
     ));
+}
+
+fn setup_touch_overlay_system(
+    mut commands: Commands,
+    registry: Res<crate::core::input::ActionRegistry>,
+    enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
+) {
+    if enabled.0 {
+        crate::core::input::touch::spawn_touch_overlay(&mut commands, &registry);
+    }
 }
 
 /// On Android, set camera viewport to maintain 4:3 aspect ratio with letterboxing.
