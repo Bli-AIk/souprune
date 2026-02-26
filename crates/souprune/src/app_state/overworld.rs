@@ -24,6 +24,8 @@ use bevy_fact_rule_event::{LayeredFactDatabase, LayeredRuleRegistry};
 
 pub(crate) mod character;
 pub mod chase;
+pub mod chase_config;
+pub mod chase_damage;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
