@@ -14,9 +14,7 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
 
 // Re-export from sibling modules for backwards compatibility
-pub use super::spawn_helpers::{
-    build_text_config, load_fre_into_view_root, load_procedural_image_handle,
-};
+pub use super::spawn_helpers::{load_fre_into_view_root, load_procedural_image_handle};
 pub use super::spawn_nodes::spawn_view_node;
 
 /// System parameter bundle for FRE-related resources.

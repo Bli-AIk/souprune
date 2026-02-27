@@ -139,10 +139,10 @@ pub fn spawn_touch_overlay(
 
     // Auto-scale: layout is designed for (base_width * resolution_scale) px
     let design_width = (base_width * resolution_scale) as f32;
-    if let Some(win_w) = window_width {
-        if design_width > 0.0 {
-            scale *= win_w / design_width;
-        }
+    if let Some(win_w) = window_width
+        && design_width > 0.0
+    {
+        scale *= win_w / design_width;
     }
     info!(
         "Touch overlay opacity={opacity}, scale={scale}, design_width={design_width}, window_width={window_width:?}"
@@ -190,7 +190,7 @@ pub fn spawn_touch_overlay(
 /// Spawn the controller (D-pad) with base image and direction overlays.
 fn spawn_controller(
     commands: &mut Commands,
-    registry: &ActionRegistry,
+    _registry: &ActionRegistry,
     asset_server: &AssetServer,
     def: &TouchControllerDef,
     opacity: f32,
@@ -375,21 +375,21 @@ fn spawn_config_button(
 
     let btn = btn_cmd.id();
 
-    if let Some(ref label) = def.label {
-        if def.texture.is_none() {
-            let text = commands
-                .spawn((
-                    Text::new(label.clone()),
-                    TextFont {
-                        font_size: 18.0 * scale,
-                        ..default()
-                    },
-                    TextColor(Color::WHITE),
-                    Pickable::IGNORE,
-                ))
-                .id();
-            commands.entity(btn).add_child(text);
-        }
+    if let Some(ref label) = def.label
+        && def.texture.is_none()
+    {
+        let text = commands
+            .spawn((
+                Text::new(label.clone()),
+                TextFont {
+                    font_size: 18.0 * scale,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Pickable::IGNORE,
+            ))
+            .id();
+        commands.entity(btn).add_child(text);
     }
 
     btn
@@ -755,7 +755,7 @@ pub fn tick_touch_button_animations(
                 // Transition 3 → 0 (idle)
                 anim.phase = AnimPhase::Idle;
                 anim.current_frame = 0;
-                if let Some(handle) = frames.0.get(0) {
+                if let Some(handle) = frames.0.first() {
                     img.image = handle.clone();
                 }
             }

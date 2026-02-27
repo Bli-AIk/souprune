@@ -107,10 +107,11 @@ fn search_audio_recursive(
                     results.push(path.clone());
                 }
             }
-        } else if path.is_dir() && !file_name.starts_with('.') {
-            if let Some(found) = search_audio_recursive(&path, stem, exact_name) {
-                return Some(found);
-            }
+        } else if path.is_dir()
+            && !file_name.starts_with('.')
+            && let Some(found) = search_audio_recursive(&path, stem, exact_name)
+        {
+            return Some(found);
         }
     }
 
