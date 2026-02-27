@@ -354,22 +354,25 @@ fn update_behaviors_system(
         &mut BehaviorVelocity,
         &mut Transform,
     )>,
-    input: Res<ButtonInput<KeyCode>>,
+    action_states: Query<&leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>>,
+    registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
 ) {
-    // 1. Update Global Input Snapshot
+    // 1. Update Global Input Snapshot from ActionState (works with both keyboard and touch)
     INPUT_SNAPSHOT.with(|s| {
         let mut snap = s.borrow_mut();
         snap.pressed = [false; 7];
 
-        snap.pressed[Action::Up as usize] = input.pressed(KeyCode::ArrowUp);
-        snap.pressed[Action::Down as usize] = input.pressed(KeyCode::ArrowDown);
-        snap.pressed[Action::Left as usize] = input.pressed(KeyCode::ArrowLeft);
-        snap.pressed[Action::Right as usize] = input.pressed(KeyCode::ArrowRight);
-        snap.pressed[Action::Cancel as usize] =
-            input.pressed(KeyCode::KeyX) || input.pressed(KeyCode::ShiftLeft);
-        snap.pressed[Action::Confirm as usize] =
-            input.pressed(KeyCode::KeyZ) || input.pressed(KeyCode::Enter);
+        if let Some(state) = action_states.iter().next() {
+            use crate::core::input::actions::ActionStateExt;
+            snap.pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
+            snap.pressed[Action::Down as usize] = state.action_pressed(&registry, "Down");
+            snap.pressed[Action::Left as usize] = state.action_pressed(&registry, "Left");
+            snap.pressed[Action::Right as usize] = state.action_pressed(&registry, "Right");
+            snap.pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
+            snap.pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
+            snap.pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
+        }
     });
 
     // 2. Iterate Active Behaviors
