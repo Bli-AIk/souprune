@@ -22,6 +22,9 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Frame transition duration for button press/release animation (seconds).
+pub const TOUCH_FRAME_TRANSITION_SECS: f32 = 0.03;
+
 /// Error type for input configuration loading.
 ///
 /// 输入配置加载的错误类型。
@@ -76,6 +79,219 @@ pub enum InputBinding {
     ///
     /// 手柄按钮绑定（例如 "DPadUp"、"South"）
     Gamepad(String),
+
+    /// Touch virtual button binding (e.g., "DPadUp", "ButtonA")
+    /// Used for on-screen touch overlay controls on mobile platforms.
+    ///
+    /// 触屏虚拟按钮绑定（例如 "DPadUp"、"ButtonA"）
+    /// 用于移动平台的屏幕触控覆盖层控件。
+    Touch(String),
+}
+
+/// Touch overlay configuration.
+///
+/// 触控覆盖层配置。
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct TouchOverlayConfig {
+    /// List of platforms where the touch overlay is shown.
+    /// Uses OS names from `std::env::consts::OS`: "android", "ios", "linux", "macos", "windows".
+    /// If empty or omitted, the touch overlay is disabled on all platforms.
+    ///
+    /// 显示触控覆盖层的平台列表。
+    /// 使用 `std::env::consts::OS` 的系统名："android"、"ios"、"linux"、"macos"、"windows"。
+    /// 如果为空或省略，所有平台上均不显示。
+    #[serde(default)]
+    pub platforms: Vec<String>,
+
+    /// Path to the touch layout configuration file (RON format).
+    ///
+    /// 触控布局配置文件路径（RON 格式）。
+    #[serde(default)]
+    pub layout: Option<String>,
+
+    /// Opacity of touch controls (0.0 = transparent, 1.0 = opaque).
+    /// If not set, uses the value from the layout RON file.
+    ///
+    /// 触控控件的透明度（0.0 = 透明，1.0 = 不透明）。
+    /// 如果未设置，使用布局 RON 文件中的值。
+    #[serde(default)]
+    pub opacity: Option<f32>,
+
+    /// Scale factor for touch controls.
+    /// If not set, uses the value from the layout RON file.
+    ///
+    /// 触控控件的缩放系数。
+    /// 如果未设置，使用布局 RON 文件中的值。
+    #[serde(default)]
+    pub scale: Option<f32>,
+}
+
+fn default_touch_opacity() -> f32 {
+    0.5
+}
+
+fn default_touch_scale() -> f32 {
+    1.0
+}
+
+fn default_mobile_scale() -> f32 {
+    0.75
+}
+
+/// Screen corner anchor for touch button positioning.
+///
+/// 触控按钮定位的屏幕锚点。
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub enum TouchAnchor {
+    BottomLeft,
+    BottomRight,
+    TopLeft,
+    TopRight,
+}
+
+/// Definition of a single touch button in the layout config.
+///
+/// 布局配置中单个触控按钮的定义。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TouchButtonDef {
+    /// Action name to trigger (must be registered in ActionRegistry).
+    /// 要触发的动作名称（必须在 ActionRegistry 中注册）。
+    pub action: String,
+
+    /// Texture path for the normal state (relative to mod assets/).
+    /// If None, a semi-transparent rectangle with label is used.
+    ///
+    /// 常态贴图路径（相对于 mod assets/）。
+    /// 如果为 None，使用半透明矩形加文字标签。
+    #[serde(default)]
+    pub texture: Option<String>,
+
+    /// Texture path for the pressed state.
+    /// If None, uses a tint of the normal texture.
+    ///
+    /// 按下状态贴图路径。如果为 None，使用常态贴图的色调变化。
+    #[serde(default)]
+    pub pressed_texture: Option<String>,
+
+    /// Animation frame textures [idle, pressing, pressed, releasing].
+    /// When set, overrides `texture`/`pressed_texture`.
+    ///
+    /// 动画帧贴图 [空闲, 按下过渡, 按住, 松开过渡]。
+    /// 设置后覆盖 `texture`/`pressed_texture`。
+    #[serde(default)]
+    pub frames: Option<Vec<String>>,
+
+    /// Text label shown on the button (fallback when no texture).
+    /// 按钮上显示的文字标签（无贴图时的回退方案）。
+    #[serde(default)]
+    pub label: Option<String>,
+
+    /// Screen anchor for this button.
+    /// 此按钮的屏幕锚点。
+    pub anchor: TouchAnchor,
+
+    /// Horizontal offset from the anchor edge (in logical pixels).
+    /// 距锚点边缘的水平偏移量（逻辑像素）。
+    #[serde(default)]
+    pub offset_x: f32,
+
+    /// Vertical offset from the anchor edge (in logical pixels).
+    /// 距锚点边缘的垂直偏移量（逻辑像素）。
+    #[serde(default)]
+    pub offset_y: f32,
+
+    /// Button width (in logical pixels).
+    /// 按钮宽度（逻辑像素）。
+    #[serde(default = "default_btn_size")]
+    pub width: f32,
+
+    /// Button height (in logical pixels).
+    /// 按钮高度（逻辑像素）。
+    #[serde(default = "default_btn_size")]
+    pub height: f32,
+}
+
+fn default_btn_size() -> f32 {
+    56.0
+}
+
+/// Definition of a touch controller (D-pad) with direction overlays.
+///
+/// 触控控制器（方向键）定义，带方向叠加层。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TouchControllerDef {
+    /// Screen anchor for the controller.
+    pub anchor: TouchAnchor,
+
+    /// Horizontal offset from anchor (logical pixels).
+    #[serde(default)]
+    pub offset_x: f32,
+
+    /// Vertical offset from anchor (logical pixels).
+    #[serde(default)]
+    pub offset_y: f32,
+
+    /// Controller display size (logical pixels, square).
+    #[serde(default = "default_controller_size")]
+    pub size: f32,
+
+    /// Base texture (always shown).
+    pub base_texture: String,
+
+    /// Direction overlay textures. Keys are action names (e.g., "Up", "Down").
+    pub overlays: HashMap<String, String>,
+}
+
+fn default_controller_size() -> f32 {
+    120.0
+}
+
+/// Touch layout definition loaded from RON config.
+/// Describes all virtual touch buttons and their layout.
+///
+/// 从 RON 配置加载的触控布局定义。
+/// 描述所有虚拟触控按钮及其布局。
+#[derive(Debug, Clone, Deserialize, Serialize, Resource)]
+pub struct TouchLayoutDef {
+    /// Global opacity for all touch buttons (0.0–1.0).
+    /// 所有触控按钮的全局透明度（0.0–1.0）。
+    #[serde(default = "default_touch_opacity")]
+    pub opacity: f32,
+
+    /// Global scale factor applied to all button sizes.
+    /// 应用于所有按钮大小的全局缩放系数。
+    #[serde(default = "default_touch_scale")]
+    pub scale: f32,
+
+    /// Additional scale factor for mobile platforms (Android/iOS).
+    /// Applied on top of the auto-scale calculation.
+    /// 移动平台（Android/iOS）的额外缩放系数。在自动缩放基础上应用。
+    #[serde(default = "default_mobile_scale")]
+    pub mobile_scale: f32,
+
+    /// Optional controller (D-pad) definition.
+    #[serde(default)]
+    pub controller: Option<TouchControllerDef>,
+
+    /// Button definitions.
+    /// 按钮定义。
+    pub buttons: Vec<TouchButtonDef>,
+}
+
+impl TouchLayoutDef {
+    /// Load a TouchLayoutDef from a RON file.
+    ///
+    /// 从 RON 文件加载 TouchLayoutDef。
+    pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
+        let path = path.as_ref();
+        if !path.exists() {
+            return Err(ConfigError::FileNotFound(path.to_path_buf()));
+        }
+        let contents = fs::read_to_string(path)
+            .map_err(|e| ConfigError::ReadError(path.to_path_buf(), e.to_string()))?;
+        from_str::<Self>(&contents)
+            .map_err(|e| ConfigError::ParseError(path.to_path_buf(), e.to_string()))
+    }
 }
 
 /// Navigation behavior configuration.
@@ -188,6 +404,14 @@ pub struct InputConfig {
     /// 如果未提供，UI 交互功能将被禁用并发出警告。
     #[serde(default)]
     pub ui: UIConfig,
+
+    /// Touch overlay configuration (optional).
+    /// Enables on-screen virtual controls for touch/mobile platforms.
+    ///
+    /// 触控覆盖层配置（可选）。
+    /// 为触屏/移动平台启用屏幕虚拟控件。
+    #[serde(default)]
+    pub touch_overlay: Option<TouchOverlayConfig>,
 }
 
 impl InputConfig {
@@ -267,6 +491,11 @@ impl InputConfig {
                         } else {
                             warn!("Unknown gamepad button in input config: {}", button_str);
                         }
+                    }
+                    InputBinding::Touch(_) => {
+                        // Touch bindings are handled by the touch overlay system,
+                        // not leafwing InputMap. Skip silently.
+                        // 触控绑定由触控覆盖层系统处理，不通过 leafwing InputMap。
                     }
                 }
             }
@@ -503,6 +732,7 @@ mod tests {
             .collect(),
             navigation: NavigationConfig::default(),
             ui: UIConfig::default(),
+            touch_overlay: None,
         };
 
         let registry = config.build_registry();

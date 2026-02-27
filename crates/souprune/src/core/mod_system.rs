@@ -6,7 +6,6 @@ use souprune_api::{
 };
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_float};
-use std::path::Path;
 
 // === Host API Implementation (Must be static / extern "C") ===
 
@@ -121,25 +120,48 @@ fn load_mods_system(
 ) {
     let config = crate::config::load_config();
     let mod_name = &config.project.mod_name;
-    let base_path = Path::new("projects").join(mod_name);
+    let base_path = crate::config::get_projects_base_path().join(mod_name);
 
     let mut candidate_filenames = Vec::new();
 
-    if cfg!(target_os = "windows") {
-        if cfg!(target_env = "msvc") {
-            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-            // Fallback to GNU if MSVC not found
-            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-        } else {
-            candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-            candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-        }
-    } else {
+    #[cfg(target_os = "android")]
+    {
+        candidate_filenames.push(format!("{}_android.so", mod_name));
         candidate_filenames.push(format!("{}.so", mod_name));
+    }
+
+    // On Android, also search in app internal storage (dlopen can't load from /sdcard)
+    #[cfg(target_os = "android")]
+    let android_mods_dir = std::path::PathBuf::from("/data/data/com.bliaik.souprune/mods");
+
+    #[cfg(not(target_os = "android"))]
+    {
+        if cfg!(target_os = "windows") {
+            if cfg!(target_env = "msvc") {
+                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+                // Fallback to GNU if MSVC not found
+                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+            } else {
+                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
+                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
+            }
+        } else {
+            candidate_filenames.push(format!("{}.so", mod_name));
+        }
     }
 
     let mut loaded_path = None;
     for filename in &candidate_filenames {
+        // On Android, first check the app internal mods directory (dlopen-accessible)
+        #[cfg(target_os = "android")]
+        {
+            let p = android_mods_dir.join(filename);
+            if p.exists() {
+                loaded_path = Some(p);
+                break;
+            }
+        }
+        // Then check the regular base path
         let p = base_path.join(filename);
         if p.exists() {
             loaded_path = Some(p);
@@ -203,7 +225,7 @@ fn load_mods_system(
 
         for i in 0..count {
             let id_ptr = get_id_fn(i);
-            let id = CStr::from_ptr(id_ptr as *const i8)
+            let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
                 .to_string_lossy()
                 .into_owned();
 
@@ -228,7 +250,7 @@ fn load_mods_system(
                     if id_ptr.is_null() {
                         continue;
                     }
-                    let id = CStr::from_ptr(id_ptr as *const i8)
+                    let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
                         .to_string_lossy()
                         .into_owned();
 
@@ -332,22 +354,27 @@ fn update_behaviors_system(
         &mut BehaviorVelocity,
         &mut Transform,
     )>,
-    input: Res<ButtonInput<KeyCode>>,
+    action_states: Query<
+        &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
+    >,
+    registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
 ) {
-    // 1. Update Global Input Snapshot
+    // 1. Update Global Input Snapshot from ActionState (works with both keyboard and touch)
     INPUT_SNAPSHOT.with(|s| {
         let mut snap = s.borrow_mut();
         snap.pressed = [false; 7];
 
-        snap.pressed[Action::Up as usize] = input.pressed(KeyCode::ArrowUp);
-        snap.pressed[Action::Down as usize] = input.pressed(KeyCode::ArrowDown);
-        snap.pressed[Action::Left as usize] = input.pressed(KeyCode::ArrowLeft);
-        snap.pressed[Action::Right as usize] = input.pressed(KeyCode::ArrowRight);
-        snap.pressed[Action::Cancel as usize] =
-            input.pressed(KeyCode::KeyX) || input.pressed(KeyCode::ShiftLeft);
-        snap.pressed[Action::Confirm as usize] =
-            input.pressed(KeyCode::KeyZ) || input.pressed(KeyCode::Enter);
+        if let Some(state) = action_states.iter().next() {
+            use crate::core::input::actions::ActionStateExt;
+            snap.pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
+            snap.pressed[Action::Down as usize] = state.action_pressed(&registry, "Down");
+            snap.pressed[Action::Left as usize] = state.action_pressed(&registry, "Left");
+            snap.pressed[Action::Right as usize] = state.action_pressed(&registry, "Right");
+            snap.pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
+            snap.pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
+            snap.pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
+        }
     });
 
     // 2. Iterate Active Behaviors

@@ -141,7 +141,7 @@ pub fn process_set_view_fact_system(
                     FactValueMatch::Int(i) => Some(FactValue::Int(*i)),
                     FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
                     FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
-                    FactValueMatch::Expr(expr) => {
+                    FactValueMatch::Expr(_expr) => {
                         // Read from LayeredFactDatabase for expression evaluation
                         // This is a SetViewFact, so we don't have direct access to layered_db
                         // For now, just log a warning - this should use a different approach

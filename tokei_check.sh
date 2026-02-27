@@ -29,7 +29,9 @@ SEARCH_DIR="${2:-crates/}"
 errors=0
 
 # --- Check 1: No mod.rs files (Rust 2018+ module style) ---
-mod_files=$(find "$SEARCH_DIR" -name 'mod.rs' -type f 2>/dev/null || true)
+# Exclude examples/ directories: Cargo treats .rs files in examples/ as binaries,
+# so mod.rs is the only viable pattern for shared helper modules there.
+mod_files=$(find "$SEARCH_DIR" -name 'mod.rs' -type f -not -path '*/examples/*' 2>/dev/null || true)
 if [ -n "$mod_files" ]; then
     echo -e "${RED}${BOLD}Error:${RESET} Found mod.rs files. Use Rust 2018+ module naming instead:"
     echo "$mod_files" | while read -r f; do echo -e "  ${YELLOW}$f${RESET}"; done

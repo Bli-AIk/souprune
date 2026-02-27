@@ -38,11 +38,30 @@ impl Plugin for AppSetupPlugin {
                 load_textures_system,
                 setup_camera_system,
                 preload_maps_system,
+                #[cfg(not(target_os = "android"))]
+                setup_touch_overlay_system,
             ),
         )
         .add_systems(
             Update,
-            check_textures_system.run_if(in_state(AppState::AppSetup)),
+            (
+                check_textures_system.run_if(in_state(AppState::AppSetup)),
+                crate::core::input::touch::update_touch_button_visuals,
+                crate::core::input::touch::tick_touch_button_animations,
+                crate::core::input::touch::update_controller_directions,
+                crate::core::input::touch::update_controller_overlays
+                    .after(crate::core::input::touch::update_controller_directions),
+            ),
+        );
+
+        // On Android, defer touch overlay until window is ready, and maintain 4:3 viewport
+        #[cfg(target_os = "android")]
+        app.add_systems(
+            Update,
+            (
+                android_viewport_system,
+                deferred_touch_overlay_system.run_if(not(resource_exists::<TouchOverlaySpawned>)),
+            ),
         );
     }
 }
@@ -181,15 +200,147 @@ fn check_textures_system(
 }
 
 fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
+    // On Android, use Fixed scaling to always show base_resolution world units
+    // regardless of screen size. A viewport system will handle letterboxing.
+    #[cfg(target_os = "android")]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scaling_mode: bevy::camera::ScalingMode::Fixed {
+            width: 320.0,
+            height: 240.0,
+        },
+        ..OrthographicProjection::default_2d()
+    });
+    #[cfg(not(target_os = "android"))]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scale: 1.0 / resolution_scale.get() as f32,
+        ..OrthographicProjection::default_2d()
+    });
+
     commands.spawn((
         Name::new("Overworld Camera2d"),
         Camera2d,
-        Projection::Orthographic(OrthographicProjection {
-            scale: 1.0 / resolution_scale.get() as f32,
-            ..OrthographicProjection::default_2d()
-        }),
+        projection,
         Followable::default(),
     ));
+}
+
+fn setup_touch_overlay_system(
+    mut commands: Commands,
+    registry: Res<crate::core::input::ActionRegistry>,
+    enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
+    asset_server: Res<AssetServer>,
+    layout: Option<Res<crate::core::input::config::TouchLayoutDef>>,
+    windows: Query<&Window>,
+    resolution_scale: Res<ResolutionScale>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    if enabled.0 {
+        let window_width = windows.iter().next().map(|w| w.width());
+        crate::core::input::touch::spawn_touch_overlay(
+            &mut commands,
+            &registry,
+            &asset_server,
+            layout.as_deref(),
+            window_width,
+            resolution_scale.get(),
+            souprune_config.render.base_resolution_width,
+        );
+    }
+}
+
+/// On Android, set camera viewport to maintain 4:3 aspect ratio with letterboxing.
+#[cfg(target_os = "android")]
+fn android_viewport_system(
+    windows: Query<&Window>,
+    mut cameras: Query<&mut Camera, With<Camera2d>>,
+    souprune_config: Res<config::SoupruneConfig>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let screen_w = window.physical_width() as f32;
+    let screen_h = window.physical_height() as f32;
+    if screen_w <= 0.0 || screen_h <= 0.0 {
+        return;
+    }
+
+    let target_ratio = souprune_config.render.base_resolution_width as f32
+        / souprune_config.render.base_resolution_height as f32;
+    let screen_ratio = screen_w / screen_h;
+
+    let (vp_w, vp_h, offset_x, offset_y) = if screen_ratio > target_ratio {
+        // Wider than 4:3 → pillarbox (black bars on sides)
+        let vp_h = screen_h as u32;
+        let vp_w = (screen_h * target_ratio) as u32;
+        let offset_x = (screen_w as u32 - vp_w) / 2;
+        (vp_w, vp_h, offset_x, 0)
+    } else {
+        // Taller than 4:3 → letterbox (black bars top/bottom)
+        let vp_w = screen_w as u32;
+        let vp_h = (screen_w / target_ratio) as u32;
+        let offset_y = (screen_h as u32 - vp_h) / 2;
+        (vp_w, vp_h, 0, offset_y)
+    };
+
+    for mut camera in cameras.iter_mut() {
+        camera.viewport = Some(bevy::camera::Viewport {
+            physical_position: UVec2::new(offset_x, offset_y),
+            physical_size: UVec2::new(vp_w, vp_h),
+            ..default()
+        });
+    }
+}
+
+/// Marker resource indicating that the touch overlay has been spawned on Android.
+#[cfg(target_os = "android")]
+#[derive(Resource)]
+struct TouchOverlaySpawned;
+
+/// On Android, spawn the touch overlay once the window has its actual dimensions.
+/// The window reports default size (1280x720) before it's fully initialized.
+#[cfg(target_os = "android")]
+fn deferred_touch_overlay_system(
+    mut commands: Commands,
+    registry: Option<Res<crate::core::input::ActionRegistry>>,
+    enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
+    asset_server: Res<AssetServer>,
+    layout: Option<Res<crate::core::input::config::TouchLayoutDef>>,
+    windows: Query<&Window>,
+    resolution_scale: Res<ResolutionScale>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    let Some(registry) = registry else { return };
+    if !enabled.0 {
+        return;
+    }
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    // Wait until the physical dimensions differ from the default (1280x720).
+    let phys_w = window.physical_width();
+    let phys_h = window.physical_height();
+    if phys_w == 1280 && phys_h == 720 || phys_w == 0 || phys_h == 0 {
+        return;
+    }
+
+    let logical_width = window.width();
+    info!(
+        "Android window ready: physical={}x{}, logical_width={}, scale_factor={}",
+        phys_w,
+        phys_h,
+        logical_width,
+        window.scale_factor()
+    );
+    crate::core::input::touch::spawn_touch_overlay(
+        &mut commands,
+        &registry,
+        &asset_server,
+        layout.as_deref(),
+        Some(logical_width),
+        resolution_scale.get(),
+        souprune_config.render.base_resolution_width,
+    );
+    commands.insert_resource(TouchOverlaySpawned);
 }
 
 /// Preload map assets during AppSetup to avoid loading spikes when entering Overworld.

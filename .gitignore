@@ -59,3 +59,8 @@ projects/example_am_mod/
 
 # Mod repo worktree manager
 .mod-repo/
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/app/src/main/jniLibs/
+android/build/
