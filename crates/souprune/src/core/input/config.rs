@@ -135,7 +135,7 @@ fn default_touch_scale() -> f32 {
 }
 
 fn default_mobile_scale() -> f32 {
-    0.5
+    0.75
 }
 
 /// Screen corner anchor for touch button positioning.

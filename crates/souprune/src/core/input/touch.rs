@@ -600,6 +600,7 @@ fn insert_controller_dirs(dirs: &mut HashSet<String>, pos: Vec2) {
 fn detect_multitouch_pressed(
     touches: Res<Touches>,
     windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<&Camera, With<Camera2d>>,
     buttons: Query<
         (&ComputedNode, &UiGlobalTransform, &TouchAction),
         Without<TouchControllerZone>,
@@ -614,8 +615,16 @@ fn detect_multitouch_pressed(
     };
     let sf = window.scale_factor();
 
+    // Get camera viewport offset (for pillarbox/letterbox on Android)
+    let vp_offset = cameras
+        .iter()
+        .next()
+        .and_then(|cam| cam.physical_viewport_rect())
+        .map(|rect| rect.min.as_vec2())
+        .unwrap_or(Vec2::ZERO);
+
     for touch in touches.iter() {
-        let pos = touch.position() * sf;
+        let pos = touch.position() * sf - vp_offset;
 
         for (node, transform, action) in buttons.iter() {
             if node.contains_point(*transform, pos) {
@@ -638,6 +647,7 @@ fn detect_multitouch_pressed(
 pub fn update_controller_directions(
     touches: Res<Touches>,
     windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<&Camera, With<Camera2d>>,
     zones: Query<
         (
             &Interaction,
@@ -651,21 +661,32 @@ pub fn update_controller_directions(
 ) {
     dirs.0.clear();
 
-    // Single-pointer: Bevy Interaction + RelativeCursorPosition
-    for (interaction, _, _, rel_pos) in zones.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-        if let Some(pos) = rel_pos.normalized {
-            insert_controller_dirs(&mut dirs.0, pos);
+    let has_touches = touches.iter().next().is_some();
+
+    // Single-pointer: Bevy Interaction + RelativeCursorPosition (desktop only)
+    // Skip when touches are active to avoid Interaction focus-stealing on multitouch.
+    if !has_touches {
+        for (interaction, _, _, rel_pos) in zones.iter() {
+            if *interaction != Interaction::Pressed {
+                continue;
+            }
+            if let Some(pos) = rel_pos.normalized {
+                insert_controller_dirs(&mut dirs.0, pos);
+            }
         }
     }
 
     // Multitouch: direct hit testing with Touches
     if let Ok(window) = windows.single() {
         let sf = window.scale_factor();
+        let vp_offset = cameras
+            .iter()
+            .next()
+            .and_then(|cam| cam.physical_viewport_rect())
+            .map(|rect| rect.min.as_vec2())
+            .unwrap_or(Vec2::ZERO);
         for touch in touches.iter() {
-            let pos = touch.position() * sf;
+            let pos = touch.position() * sf - vp_offset;
             for (_, node, transform, _) in zones.iter() {
                 if node.contains_point(*transform, pos) {
                     if let Some(normalized) = node.normalize_point(*transform, pos) {
@@ -685,6 +706,7 @@ pub fn update_controller_directions(
 fn inject_touch_actions(
     enabled: Res<TouchOverlayEnabled>,
     registry: Res<ActionRegistry>,
+    touches: Res<Touches>,
     multitouch: Res<MultitouchPressed>,
     buttons: Query<(&Interaction, &TouchAction)>,
     controller_dirs: Res<ControllerDirections>,
@@ -696,11 +718,16 @@ fn inject_touch_actions(
     }
 
     let mut currently_pressed = HashSet::new();
+    let has_touches = touches.iter().next().is_some();
 
-    // Single-pointer: Bevy UI Interaction
-    for (interaction, touch_action) in buttons.iter() {
-        if *interaction == Interaction::Pressed {
-            currently_pressed.insert(touch_action.0.clone());
+    // When touches are active, use only multitouch detection (Touches-based hit testing).
+    // Bevy's Interaction only tracks one touch and causes focus-stealing on multitouch.
+    // When no touches (mouse/desktop), fall back to Interaction.
+    if !has_touches {
+        for (interaction, touch_action) in buttons.iter() {
+            if *interaction == Interaction::Pressed {
+                currently_pressed.insert(touch_action.0.clone());
+            }
         }
     }
 
@@ -754,6 +781,7 @@ fn set_button_state(state: &mut ActionState<Action>, action: &Action, target: Bu
 /// Update button visuals: handles both legacy two-texture and animated frame modes.
 /// Checks both single-pointer (Interaction) and multitouch (MultitouchPressed).
 pub fn update_touch_button_visuals(
+    touches: Res<Touches>,
     multitouch: Res<MultitouchPressed>,
     mut legacy_buttons: Query<
         (
@@ -779,11 +807,13 @@ pub fn update_touch_button_visuals(
         ),
     >,
 ) {
+    let has_touches = touches.iter().next().is_some();
+
     // Legacy two-texture buttons
     for (interaction, action, mut bg, normal, pressed_img, image_node) in legacy_buttons.iter_mut()
     {
-        let is_pressed =
-            *interaction == Interaction::Pressed || multitouch.0.contains(&action.0);
+        let is_pressed = multitouch.0.contains(&action.0)
+            || (!has_touches && *interaction == Interaction::Pressed);
         if is_pressed {
             if let Some(mut img) = image_node
                 && let Some(ref handle) = pressed_img.0
@@ -803,8 +833,8 @@ pub fn update_touch_button_visuals(
 
     // Animated frame buttons: trigger animation on press/release
     for (interaction, action, mut anim, frames, mut img) in anim_buttons.iter_mut() {
-        let is_pressed =
-            *interaction == Interaction::Pressed || multitouch.0.contains(&action.0);
+        let is_pressed = multitouch.0.contains(&action.0)
+            || (!has_touches && *interaction == Interaction::Pressed);
         if is_pressed {
             if anim.phase != AnimPhase::Pressing && anim.phase != AnimPhase::Held {
                 // Start press animation: show frame 1
