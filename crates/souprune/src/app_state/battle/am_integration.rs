@@ -354,7 +354,8 @@ fn load_am_battle_config(
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
     let config_path = format!(
-        "projects/{}/states/battle/am_config.ron",
+        "{}/{}/states/battle/am_config.ron",
+        crate::config::get_projects_base_path().display(),
         project_config.project.mod_name
     );
 
@@ -764,8 +765,10 @@ fn handle_play_am_performance_event(
         // Otherwise, use the default config loaded at battle start
         if let Some(custom_config_path) = &event.am_config_path {
             let full_path = format!(
-                "projects/{}/{}",
-                project_config.project.mod_name, custom_config_path
+                "{}/{}/{}",
+                crate::config::get_projects_base_path().display(),
+                project_config.project.mod_name,
+                custom_config_path
             );
             info!("[AM Battle] Using custom config: {}", full_path);
             let (config, bullet_regex, battle_box_regex, hidden_regex) =
