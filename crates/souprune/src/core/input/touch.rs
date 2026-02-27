@@ -120,17 +120,33 @@ const BTN_PRESSED_COLOR: Color = Color::srgba(0.7, 0.9, 1.0, 0.7);
 // ── Spawn ──
 
 /// Spawn the touch overlay UI from a `TouchLayoutDef` config.
+/// `resolution_scale` and `base_width` from SoupruneConfig are used to auto-scale.
+/// Layout sizes are designed for `base_width * resolution_scale` logical pixels.
+/// On screens with different widths, sizes scale proportionally.
 pub fn spawn_touch_overlay(
     commands: &mut Commands,
     registry: &ActionRegistry,
     asset_server: &AssetServer,
     layout: Option<&TouchLayoutDef>,
+    window_width: Option<f32>,
+    resolution_scale: u32,
+    base_width: u32,
 ) {
     info!("Spawning touch overlay UI");
 
     let opacity = layout.map(|l| l.opacity).unwrap_or(FALLBACK_OPACITY);
-    let scale = layout.map(|l| l.scale).unwrap_or(1.0);
-    info!("Touch overlay opacity={opacity}, scale={scale}");
+    let mut scale = layout.map(|l| l.scale).unwrap_or(1.0);
+
+    // Auto-scale: layout is designed for (base_width * resolution_scale) px
+    let design_width = (base_width * resolution_scale) as f32;
+    if let Some(win_w) = window_width {
+        if design_width > 0.0 {
+            scale *= win_w / design_width;
+        }
+    }
+    info!(
+        "Touch overlay opacity={opacity}, scale={scale}, design_width={design_width}, window_width={window_width:?}"
+    );
 
     let root = commands
         .spawn((

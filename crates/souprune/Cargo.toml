@@ -103,8 +103,13 @@ debug_tracy = ["trace_tracy", "bevy/debug"]
 # Android support: enables android-game-activity backend
 # Android 支持：启用 android-game-activity 后端
 android = ["bevy/android-game-activity"]
+# Bevy debug: enables ECS debug names for better panic/error messages
+# Bevy 调试：启用 ECS 调试名称，获得更详细的 panic/错误信息
+bevy_debug = ["bevy/debug"]
 
-# Enable GLES backend for Android (not enabled by default since Bevy 0.17)
+# Android GPU backend: GLES with constrained_limits
+# Vulkan: OOM + driver bugs (BiSheng GPU)
+# GLES: 需要 constrained_limits 禁用 storage buffers (设备不支持 VERTEX_STORAGE)
 [target.'cfg(target_os = "android")'.dependencies.bevy_render]
 version = "0.18"
 features = ["gles"]

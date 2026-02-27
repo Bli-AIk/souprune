@@ -223,13 +223,20 @@ fn setup_touch_overlay_system(
     enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
     asset_server: Res<AssetServer>,
     layout: Option<Res<crate::core::input::config::TouchLayoutDef>>,
+    windows: Query<&Window>,
+    resolution_scale: Res<ResolutionScale>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
     if enabled.0 {
+        let window_width = windows.iter().next().map(|w| w.width());
         crate::core::input::touch::spawn_touch_overlay(
             &mut commands,
             &registry,
             &asset_server,
             layout.as_deref(),
+            window_width,
+            resolution_scale.get(),
+            souprune_config.render.base_resolution_width,
         );
     }
 }

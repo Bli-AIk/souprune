@@ -13,6 +13,7 @@ ANDROID_MOD_BASE="/sdcard/SoupRune/projects"
 ANDROID_INTERNAL_MODS="/data/data/com.bliaik.souprune/mods"
 APK_PATH="$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
 PACKAGE_NAME="com.bliaik.souprune"
+BUILD_DEBUG=false
 
 # Colors
 RED='\033[0;31m'
@@ -142,7 +143,13 @@ check_env() {
 # ── 构建 ──────────────────────────────────────────────────
 
 build_native() {
-    echo -e "${GREEN}▶ [1/3] 构建 aarch64 native library (release)...${NC}"
+    local features="android"
+    if [ "$BUILD_DEBUG" = true ]; then
+        features="android,bevy_debug"
+        echo -e "${YELLOW}▶ [1/3] 构建 aarch64 native library (release + bevy/debug)...${NC}"
+    else
+        echo -e "${GREEN}▶ [1/3] 构建 aarch64 native library (release)...${NC}"
+    fi
 
     local TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
     export CC_aarch64_linux_android="$TOOLCHAIN/bin/aarch64-linux-android21-clang"
@@ -151,7 +158,7 @@ build_native() {
     export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/bin/aarch64-linux-android21-clang"
 
     cd "$PROJECT_ROOT"
-    cargo build -p souprune --target aarch64-linux-android --features android --release
+    cargo build -p souprune --target aarch64-linux-android --features "$features" --release
 
     echo -e "${GREEN}✅ Native library 构建完成${NC}"
 }
@@ -317,34 +324,40 @@ do_sync_mods() {
 show_menu() {
     echo
     echo -e "${BOLD}── 选择操作 ──${NC}"
-    echo -e "  ${CYAN}1${NC}. 📱 安装 APK + 同步 mod"
-    echo -e "  ${CYAN}2${NC}. 📱 安装 APK 到设备"
-    echo -e "  ${CYAN}3${NC}. 📂 同步 mod 文件夹到设备"
-    echo -e "  ${CYAN}4${NC}. 🚪 退出"
+    echo -e "  ${CYAN}1${NC}. 🔨 构建 + 安装 + 同步 mod"
+    echo -e "  ${CYAN}2${NC}. 🐛 构建 (debug features) + 安装 + 同步 mod"
+    echo -e "  ${CYAN}3${NC}. 📱 安装 APK 到设备"
+    echo -e "  ${CYAN}4${NC}. 📂 同步 mod 文件夹到设备"
+    echo -e "  ${CYAN}5${NC}. 🚪 退出"
     echo
 }
 
 menu_loop() {
     while true; do
         show_menu
-        read -rp "请选择 [1-4]: " choice
+        read -rp "请选择 [1-5]: " choice
         echo
         case "$choice" in
             1)
-                do_install && do_sync_mods || true
+                BUILD_DEBUG=false
+                do_build && do_install && do_sync_mods || true
                 ;;
             2)
-                do_install || true
+                BUILD_DEBUG=true
+                do_build && do_install && do_sync_mods || true
                 ;;
             3)
-                do_sync_mods || true
+                do_install || true
                 ;;
             4)
+                do_sync_mods || true
+                ;;
+            5)
                 echo -e "${GREEN}👋 再见！${NC}"
                 exit 0
                 ;;
             *)
-                echo -e "${YELLOW}⚠ 无效选择，请输入 1-4${NC}"
+                echo -e "${YELLOW}⚠ 无效选择，请输入 1-5${NC}"
                 ;;
         esac
     done
@@ -354,5 +367,4 @@ menu_loop() {
 
 banner
 check_env
-do_build
 menu_loop

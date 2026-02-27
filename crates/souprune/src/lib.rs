@@ -197,23 +197,10 @@ fn get_bevy_default_plugins(
             ..default()
         });
 
-    // On desktop: disable LogPlugin (we use our own file-based logging)
-    // On Android: keep LogPlugin enabled for logcat output
+    // On all platforms: disable LogPlugin, use our own file-based logging
     //
-    // 桌面端：禁用 LogPlugin（使用自定义文件日志）
-    // Android：保留 LogPlugin 以输出到 logcat
-    #[cfg(not(target_os = "android"))]
-    {
-        plugins = plugins.disable::<bevy::log::LogPlugin>();
-    }
-    #[cfg(target_os = "android")]
-    {
-        plugins = plugins.set(bevy::log::LogPlugin {
-            level: tracing::Level::INFO,
-            filter: "wgpu=error,bevy_render=warn,bevy_app=warn,bevy_ecs=warn,naga=warn".to_string(),
-            ..Default::default()
-        });
-    }
+    // 所有平台：禁用 LogPlugin，使用自定义文件日志
+    plugins = plugins.disable::<bevy::log::LogPlugin>();
 
     // On some devices, enabling the WGPU verification layer can cause a panic.
     // This may be caused by driver incompatibility or resource limitations.
@@ -238,21 +225,34 @@ fn get_bevy_default_plugins(
         });
     }
 
-    // Android: use GLES3 backend, disable PBR entirely.
-    // Huawei BiSheng GPU driver has critical bugs in both Vulkan and GLES3:
-    //   - Vulkan: SIGSEGV in create_compute_pipeline (BiSheng compiler null deref)
-    //   - GLES3 with PBR: stack corruption in libGLES_v200.so during queue submit
-    // Disabling PBR removes all problematic compute pipelines (atmosphere, prepass, etc.)
-    // and most complex shader compilation that triggers driver bugs.
+    // Android: use GLES3 backend with minimal feature set. Disable PBR entirely.
+    // Huawei BiSheng GPU driver: stack corruption in libGLES_v200.so during queue submit.
+    // Mitigations:
+    //   - Compatibility priority: minimal wgpu features (avoid enabling buggy GL extensions)
+    //   - constrained_limits: no storage buffers (VERTEX_STORAGE not supported)
+    //   - InstanceFlags::empty(): disable wgpu validation (reduces GL API calls)
+    //   - Gles3MinorVersion::Version0: force GLES 3.0 (avoid 3.1+ compute/storage features)
+    //   - No PBR/Gizmo plugins
     #[cfg(target_os = "android")]
     #[cfg(not(feature = "unsafe_gpu"))]
     {
-        use bevy::render::settings::{Backends, WgpuLimits};
+        use bevy::render::settings::InstanceFlags;
+        use bevy::render::settings::{
+            Backends, Gles3MinorVersion, WgpuLimits, WgpuSettingsPriority,
+        };
+        let mut no_storage = WgpuLimits::default();
+        no_storage.max_storage_buffers_per_shader_stage = 0;
+        no_storage.max_storage_textures_per_shader_stage = 0;
+        no_storage.max_dynamic_storage_buffers_per_pipeline_layout = 0;
+        no_storage.max_storage_buffer_binding_size = 0;
         plugins = plugins
             .set(RenderPlugin {
                 render_creation: RenderCreation::Automatic(WgpuSettings {
                     backends: Some(Backends::GL),
-                    limits: WgpuLimits::downlevel_webgl2_defaults(),
+                    priority: WgpuSettingsPriority::Compatibility,
+                    instance_flags: InstanceFlags::empty(),
+                    gles3_minor_version: Gles3MinorVersion::Version0,
+                    constrained_limits: Some(no_storage),
                     ..default()
                 }),
                 ..default()
@@ -330,18 +330,28 @@ pub fn run() {
     // 在 Android 上，在任何潜在 panic 之前输出早期调试信息
     #[cfg(target_os = "android")]
     {
-        // Install custom panic hook to capture the root cause of panics
+        // Install custom panic hook that writes to a file on /sdcard/
+        // because eprintln! may not appear in logcat for all threads
         std::panic::set_hook(Box::new(|info| {
-            eprintln!("[SoupRune PANIC] {}", info);
-            if let Some(location) = info.location() {
-                eprintln!(
-                    "[SoupRune PANIC] at {}:{}:{}",
-                    location.file(),
-                    location.line(),
-                    location.column()
-                );
+            let msg = format!(
+                "[SoupRune PANIC] {}\n  at: {:?}\n  thread: {:?}\n---\n",
+                info,
+                info.location(),
+                std::thread::current().name()
+            );
+            eprintln!("{}", msg);
+            // Append to file so both the original panic and cleanup panic are captured
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/sdcard/SoupRune/panic.log")
+            {
+                let _ = f.write_all(msg.as_bytes());
             }
         }));
+        // Clear old panic log on startup
+        let _ = std::fs::remove_file("/sdcard/SoupRune/panic.log");
         eprintln!("[SoupRune] run() started on Android");
         eprintln!(
             "[SoupRune] projects base: {:?}",
@@ -352,10 +362,6 @@ pub fn run() {
     // Initialize logging and keep the guard alive
     //
     // 初始化日志记录并保持 guard 存活
-    // On Android, skip custom file logging — Bevy's LogPlugin handles logcat output
-    //
-    // 在 Android 上跳过自定义文件日志，Bevy 的 LogPlugin 处理 logcat 输出
-    #[cfg(not(target_os = "android"))]
     let _log_guard = setup_logging().expect("Failed to initialize logging");
 
     #[cfg(feature = "unsafe_gpu")]
