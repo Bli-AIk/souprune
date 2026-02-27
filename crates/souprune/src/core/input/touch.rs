@@ -21,8 +21,10 @@ use super::actions::{Action, ActionRegistry};
 use super::config::{
     TOUCH_FRAME_TRANSITION_SECS, TouchAnchor, TouchButtonDef, TouchControllerDef, TouchLayoutDef,
 };
+use bevy::input::touch::Touches;
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
+use bevy::ui::{RelativeCursorPosition, UiGlobalTransform};
+use bevy::window::PrimaryWindow;
 use leafwing_input_manager::action_state::ActionKindData;
 use leafwing_input_manager::buttonlike::ButtonState;
 use leafwing_input_manager::plugin::InputManagerSystem;
@@ -56,6 +58,10 @@ struct PrevTouchPressed(HashSet<String>);
 /// Active direction actions from the controller zone, determined by touch position.
 #[derive(Resource, Default)]
 pub struct ControllerDirections(pub HashSet<String>);
+
+/// Tracks which touch actions are currently pressed via multitouch hit testing.
+#[derive(Resource, Default)]
+pub(crate) struct MultitouchPressed(HashSet<String>);
 
 /// Stores the normal-state image handle for pressed/released visual swap.
 #[derive(Component)]
@@ -102,9 +108,13 @@ impl Plugin for TouchPlugin {
         app.init_resource::<TouchOverlayEnabled>()
             .init_resource::<PrevTouchPressed>()
             .init_resource::<ControllerDirections>()
+            .init_resource::<MultitouchPressed>()
             .add_systems(
                 PreUpdate,
-                inject_touch_actions
+                (
+                    detect_multitouch_pressed,
+                    inject_touch_actions.after(detect_multitouch_pressed),
+                )
                     .in_set(InputManagerSystem::ManualControl)
                     .run_if(resource_exists::<ActionRegistry>),
             );
@@ -143,6 +153,14 @@ pub fn spawn_touch_overlay(
         && design_width > 0.0
     {
         scale *= win_w / design_width;
+    }
+
+    // Mobile scale: additional shrink factor for phone screens
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let ms = layout.map(|l| l.mobile_scale).unwrap_or(0.5);
+        info!("Applying mobile_scale={ms}");
+        scale *= ms;
     }
     info!(
         "Touch overlay opacity={opacity}, scale={scale}, design_width={design_width}, window_width={window_width:?}"
@@ -562,29 +580,98 @@ fn spawn_simple_button(
 /// center on either axis are ignored (0.1 = 20% of half-width).
 const CONTROLLER_DEADZONE: f32 = 0.1;
 
+fn insert_controller_dirs(dirs: &mut HashSet<String>, pos: Vec2) {
+    if pos.y < -CONTROLLER_DEADZONE {
+        dirs.insert("Up".to_string());
+    }
+    if pos.y > CONTROLLER_DEADZONE {
+        dirs.insert("Down".to_string());
+    }
+    if pos.x < -CONTROLLER_DEADZONE {
+        dirs.insert("Left".to_string());
+    }
+    if pos.x > CONTROLLER_DEADZONE {
+        dirs.insert("Right".to_string());
+    }
+}
+
+/// Detects touch presses via direct hit testing against UI nodes.
+/// Supports multiple simultaneous touches. Updates MultitouchPressed.
+fn detect_multitouch_pressed(
+    touches: Res<Touches>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    buttons: Query<
+        (&ComputedNode, &UiGlobalTransform, &TouchAction),
+        Without<TouchControllerZone>,
+    >,
+    zones: Query<(&ComputedNode, &UiGlobalTransform), With<TouchControllerZone>>,
+    mut multitouch: ResMut<MultitouchPressed>,
+) {
+    multitouch.0.clear();
+
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let sf = window.scale_factor();
+
+    for touch in touches.iter() {
+        let pos = touch.position() * sf;
+
+        for (node, transform, action) in buttons.iter() {
+            if node.contains_point(*transform, pos) {
+                multitouch.0.insert(action.0.clone());
+            }
+        }
+
+        for (node, transform) in zones.iter() {
+            if node.contains_point(*transform, pos) {
+                if let Some(normalized) = node.normalize_point(*transform, pos) {
+                    insert_controller_dirs(&mut multitouch.0, normalized);
+                }
+            }
+        }
+    }
+}
+
 /// Determines active direction actions from the controller touch zone position.
+/// Supports both single-pointer (Interaction) and multitouch (Touches).
 pub fn update_controller_directions(
-    zones: Query<(&Interaction, &RelativeCursorPosition), With<TouchControllerZone>>,
+    touches: Res<Touches>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    zones: Query<
+        (
+            &Interaction,
+            &ComputedNode,
+            &UiGlobalTransform,
+            &RelativeCursorPosition,
+        ),
+        With<TouchControllerZone>,
+    >,
     mut dirs: ResMut<ControllerDirections>,
 ) {
     dirs.0.clear();
-    for (interaction, rel_pos) in zones.iter() {
+
+    // Single-pointer: Bevy Interaction + RelativeCursorPosition
+    for (interaction, _, _, rel_pos) in zones.iter() {
         if *interaction != Interaction::Pressed {
             continue;
         }
-        // normalized: (0,0) = center, (-0.5,-0.5) = top-left, (0.5,0.5) = bottom-right
         if let Some(pos) = rel_pos.normalized {
-            if pos.y < -CONTROLLER_DEADZONE {
-                dirs.0.insert("Up".to_string());
-            }
-            if pos.y > CONTROLLER_DEADZONE {
-                dirs.0.insert("Down".to_string());
-            }
-            if pos.x < -CONTROLLER_DEADZONE {
-                dirs.0.insert("Left".to_string());
-            }
-            if pos.x > CONTROLLER_DEADZONE {
-                dirs.0.insert("Right".to_string());
+            insert_controller_dirs(&mut dirs.0, pos);
+        }
+    }
+
+    // Multitouch: direct hit testing with Touches
+    if let Ok(window) = windows.single() {
+        let sf = window.scale_factor();
+        for touch in touches.iter() {
+            let pos = touch.position() * sf;
+            for (_, node, transform, _) in zones.iter() {
+                if node.contains_point(*transform, pos) {
+                    if let Some(normalized) = node.normalize_point(*transform, pos) {
+                        insert_controller_dirs(&mut dirs.0, normalized);
+                    }
+                }
             }
         }
     }
@@ -594,9 +681,11 @@ pub fn update_controller_directions(
 
 /// Reads Bevy UI Interaction on touch buttons and injects corresponding
 /// actions into all entities carrying ActionState<Action>.
+/// Merges both single-pointer (Interaction) and multitouch (MultitouchPressed).
 fn inject_touch_actions(
     enabled: Res<TouchOverlayEnabled>,
     registry: Res<ActionRegistry>,
+    multitouch: Res<MultitouchPressed>,
     buttons: Query<(&Interaction, &TouchAction)>,
     controller_dirs: Res<ControllerDirections>,
     mut action_states: Query<&mut ActionState<Action>>,
@@ -607,11 +696,19 @@ fn inject_touch_actions(
     }
 
     let mut currently_pressed = HashSet::new();
+
+    // Single-pointer: Bevy UI Interaction
     for (interaction, touch_action) in buttons.iter() {
         if *interaction == Interaction::Pressed {
             currently_pressed.insert(touch_action.0.clone());
         }
     }
+
+    // Multitouch: from detect_multitouch_pressed (includes both buttons and controller dirs)
+    for action_name in &multitouch.0 {
+        currently_pressed.insert(action_name.clone());
+    }
+
     // Merge directions from controller zone position detection
     for dir in controller_dirs.0.iter() {
         currently_pressed.insert(dir.clone());
@@ -655,18 +752,19 @@ fn set_button_state(state: &mut ActionState<Action>, action: &Action, target: Bu
 // ── Visual Updates ──
 
 /// Update button visuals: handles both legacy two-texture and animated frame modes.
+/// Checks both single-pointer (Interaction) and multitouch (MultitouchPressed).
 pub fn update_touch_button_visuals(
+    multitouch: Res<MultitouchPressed>,
     mut legacy_buttons: Query<
         (
             &Interaction,
+            &TouchAction,
             &mut BackgroundColor,
             &TouchNormalImage,
             &TouchPressedImage,
             Option<&mut ImageNode>,
         ),
         (
-            Changed<Interaction>,
-            With<TouchAction>,
             Without<TouchAnimFrames>,
             Without<TouchControllerZone>,
         ),
@@ -674,58 +772,57 @@ pub fn update_touch_button_visuals(
     mut anim_buttons: Query<
         (
             &Interaction,
+            &TouchAction,
             &mut TouchAnimState,
             &TouchAnimFrames,
             &mut ImageNode,
         ),
-        (Changed<Interaction>, With<TouchAction>),
     >,
 ) {
     // Legacy two-texture buttons
-    for (interaction, mut bg, normal, pressed_img, image_node) in legacy_buttons.iter_mut() {
-        match interaction {
-            Interaction::Pressed => {
-                if let Some(mut img) = image_node
-                    && let Some(ref handle) = pressed_img.0
-                {
-                    img.image = handle.clone();
-                }
-                *bg = BackgroundColor(BTN_PRESSED_COLOR);
+    for (interaction, action, mut bg, normal, pressed_img, image_node) in legacy_buttons.iter_mut()
+    {
+        let is_pressed =
+            *interaction == Interaction::Pressed || multitouch.0.contains(&action.0);
+        if is_pressed {
+            if let Some(mut img) = image_node
+                && let Some(ref handle) = pressed_img.0
+            {
+                img.image = handle.clone();
             }
-            _ => {
-                if let Some(mut img) = image_node
-                    && let Some(ref handle) = normal.0
-                {
-                    img.image = handle.clone();
-                }
-                *bg = BackgroundColor(FALLBACK_BTN_COLOR);
+            *bg = BackgroundColor(BTN_PRESSED_COLOR);
+        } else {
+            if let Some(mut img) = image_node
+                && let Some(ref handle) = normal.0
+            {
+                img.image = handle.clone();
             }
-        };
+            *bg = BackgroundColor(FALLBACK_BTN_COLOR);
+        }
     }
 
-    // Animated frame buttons: trigger animation on interaction change
-    for (interaction, mut anim, frames, mut img) in anim_buttons.iter_mut() {
-        match interaction {
-            Interaction::Pressed => {
-                if anim.phase != AnimPhase::Pressing && anim.phase != AnimPhase::Held {
-                    // Start press animation: show frame 1
-                    anim.phase = AnimPhase::Pressing;
-                    anim.current_frame = 1;
-                    anim.timer.reset();
-                    if let Some(handle) = frames.0.get(1) {
-                        img.image = handle.clone();
-                    }
+    // Animated frame buttons: trigger animation on press/release
+    for (interaction, action, mut anim, frames, mut img) in anim_buttons.iter_mut() {
+        let is_pressed =
+            *interaction == Interaction::Pressed || multitouch.0.contains(&action.0);
+        if is_pressed {
+            if anim.phase != AnimPhase::Pressing && anim.phase != AnimPhase::Held {
+                // Start press animation: show frame 1
+                anim.phase = AnimPhase::Pressing;
+                anim.current_frame = 1;
+                anim.timer.reset();
+                if let Some(handle) = frames.0.get(1) {
+                    img.image = handle.clone();
                 }
             }
-            _ => {
-                if anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held {
-                    // Start release animation: show frame 3
-                    anim.phase = AnimPhase::Releasing;
-                    anim.current_frame = 3;
-                    anim.timer.reset();
-                    if let Some(handle) = frames.0.get(3) {
-                        img.image = handle.clone();
-                    }
+        } else {
+            if anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held {
+                // Start release animation: show frame 3
+                anim.phase = AnimPhase::Releasing;
+                anim.current_frame = 3;
+                anim.timer.reset();
+                if let Some(handle) = frames.0.get(3) {
+                    img.image = handle.clone();
                 }
             }
         }

@@ -134,6 +134,10 @@ fn default_touch_scale() -> f32 {
     1.0
 }
 
+fn default_mobile_scale() -> f32 {
+    0.5
+}
+
 /// Screen corner anchor for touch button positioning.
 ///
 /// 触控按钮定位的屏幕锚点。
@@ -258,6 +262,12 @@ pub struct TouchLayoutDef {
     /// 应用于所有按钮大小的全局缩放系数。
     #[serde(default = "default_touch_scale")]
     pub scale: f32,
+
+    /// Additional scale factor for mobile platforms (Android/iOS).
+    /// Applied on top of the auto-scale calculation.
+    /// 移动平台（Android/iOS）的额外缩放系数。在自动缩放基础上应用。
+    #[serde(default = "default_mobile_scale")]
+    pub mobile_scale: f32,
 
     /// Optional controller (D-pad) definition.
     #[serde(default)]
