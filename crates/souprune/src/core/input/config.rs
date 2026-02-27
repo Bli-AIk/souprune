@@ -23,7 +23,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Frame transition duration for button press/release animation (seconds).
-pub const TOUCH_FRAME_TRANSITION_SECS: f32 = 0.06;
+pub const TOUCH_FRAME_TRANSITION_SECS: f32 = 0.03;
 
 /// Error type for input configuration loading.
 ///

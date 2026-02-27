@@ -601,10 +601,7 @@ fn detect_multitouch_pressed(
     touches: Res<Touches>,
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<&Camera, With<Camera2d>>,
-    buttons: Query<
-        (&ComputedNode, &UiGlobalTransform, &TouchAction),
-        Without<TouchControllerZone>,
-    >,
+    buttons: Query<(&ComputedNode, &UiGlobalTransform, &TouchAction), Without<TouchControllerZone>>,
     zones: Query<(&ComputedNode, &UiGlobalTransform), With<TouchControllerZone>>,
     mut multitouch: ResMut<MultitouchPressed>,
 ) {
@@ -792,20 +789,15 @@ pub fn update_touch_button_visuals(
             &TouchPressedImage,
             Option<&mut ImageNode>,
         ),
-        (
-            Without<TouchAnimFrames>,
-            Without<TouchControllerZone>,
-        ),
+        (Without<TouchAnimFrames>, Without<TouchControllerZone>),
     >,
-    mut anim_buttons: Query<
-        (
-            &Interaction,
-            &TouchAction,
-            &mut TouchAnimState,
-            &TouchAnimFrames,
-            &mut ImageNode,
-        ),
-    >,
+    mut anim_buttons: Query<(
+        &Interaction,
+        &TouchAction,
+        &mut TouchAnimState,
+        &TouchAnimFrames,
+        &mut ImageNode,
+    )>,
 ) {
     let has_touches = touches.iter().next().is_some();
 
