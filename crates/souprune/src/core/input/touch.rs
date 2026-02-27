@@ -631,9 +631,10 @@ fn detect_multitouch_pressed(
 
         for (node, transform) in zones.iter() {
             if node.contains_point(*transform, pos)
-                && let Some(normalized) = node.normalize_point(*transform, pos) {
-                    insert_controller_dirs(&mut multitouch.0, normalized);
-                }
+                && let Some(normalized) = node.normalize_point(*transform, pos)
+            {
+                insert_controller_dirs(&mut multitouch.0, normalized);
+            }
         }
     }
 }
@@ -685,9 +686,10 @@ pub fn update_controller_directions(
             let pos = touch.position() * sf - vp_offset;
             for (_, node, transform, _) in zones.iter() {
                 if node.contains_point(*transform, pos)
-                    && let Some(normalized) = node.normalize_point(*transform, pos) {
-                        insert_controller_dirs(&mut dirs.0, normalized);
-                    }
+                    && let Some(normalized) = node.normalize_point(*transform, pos)
+                {
+                    insert_controller_dirs(&mut dirs.0, normalized);
+                }
             }
         }
     }

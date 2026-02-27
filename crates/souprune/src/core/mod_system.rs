@@ -354,7 +354,9 @@ fn update_behaviors_system(
         &mut BehaviorVelocity,
         &mut Transform,
     )>,
-    action_states: Query<&leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>>,
+    action_states: Query<
+        &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
+    >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
 ) {
