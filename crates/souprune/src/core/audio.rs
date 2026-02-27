@@ -63,9 +63,11 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
     if let Some(found) =
         search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
     {
-        let asset_path = found
-            .strip_prefix(format!("projects/{}/assets/", mod_name))
-            .unwrap_or(&found);
+        // Strip the assets root prefix to get a path relative to asset source roots
+        let assets_prefix = crate::config::get_projects_base_path()
+            .join(mod_name)
+            .join("assets");
+        let asset_path = found.strip_prefix(&assets_prefix).unwrap_or(&found);
         return Some(asset_path.to_string_lossy().to_string());
     }
 

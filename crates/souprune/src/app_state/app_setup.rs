@@ -38,6 +38,7 @@ impl Plugin for AppSetupPlugin {
                 load_textures_system,
                 setup_camera_system,
                 preload_maps_system,
+                #[cfg(not(target_os = "android"))]
                 setup_touch_overlay_system,
             ),
         )
@@ -53,9 +54,15 @@ impl Plugin for AppSetupPlugin {
             ),
         );
 
-        // On Android, maintain 4:3 aspect ratio via camera viewport
+        // On Android, defer touch overlay until window is ready, and maintain 4:3 viewport
         #[cfg(target_os = "android")]
-        app.add_systems(Update, android_viewport_system);
+        app.add_systems(
+            Update,
+            (
+                android_viewport_system,
+                deferred_touch_overlay_system.run_if(not(resource_exists::<TouchOverlaySpawned>)),
+            ),
+        );
     }
 }
 
@@ -282,6 +289,58 @@ fn android_viewport_system(
             ..default()
         });
     }
+}
+
+/// Marker resource indicating that the touch overlay has been spawned on Android.
+#[cfg(target_os = "android")]
+#[derive(Resource)]
+struct TouchOverlaySpawned;
+
+/// On Android, spawn the touch overlay once the window has its actual dimensions.
+/// The window reports default size (1280x720) before it's fully initialized.
+#[cfg(target_os = "android")]
+fn deferred_touch_overlay_system(
+    mut commands: Commands,
+    registry: Option<Res<crate::core::input::ActionRegistry>>,
+    enabled: Res<crate::core::input::touch::TouchOverlayEnabled>,
+    asset_server: Res<AssetServer>,
+    layout: Option<Res<crate::core::input::config::TouchLayoutDef>>,
+    windows: Query<&Window>,
+    resolution_scale: Res<ResolutionScale>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    let Some(registry) = registry else { return };
+    if !enabled.0 {
+        return;
+    }
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    // Wait until the physical dimensions differ from the default (1280x720).
+    let phys_w = window.physical_width();
+    let phys_h = window.physical_height();
+    if phys_w == 1280 && phys_h == 720 || phys_w == 0 || phys_h == 0 {
+        return;
+    }
+
+    let logical_width = window.width();
+    info!(
+        "Android window ready: physical={}x{}, logical_width={}, scale_factor={}",
+        phys_w,
+        phys_h,
+        logical_width,
+        window.scale_factor()
+    );
+    crate::core::input::touch::spawn_touch_overlay(
+        &mut commands,
+        &registry,
+        &asset_server,
+        layout.as_deref(),
+        Some(logical_width),
+        resolution_scale.get(),
+        souprune_config.render.base_resolution_width,
+    );
+    commands.insert_resource(TouchOverlaySpawned);
 }
 
 /// Preload map assets during AppSetup to avoid loading spikes when entering Overworld.

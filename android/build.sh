@@ -365,6 +365,48 @@ menu_loop() {
 
 # ── 入口 ──────────────────────────────────────────────────
 
+# Support --option N to skip interactive menu
+OPTION=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --option)
+            OPTION="$2"
+            shift 2
+            ;;
+        *)
+            echo -e "${RED}未知参数: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
 banner
 check_env
-menu_loop
+
+if [ -n "$OPTION" ]; then
+    case "$OPTION" in
+        1)
+            BUILD_DEBUG=false
+            do_build && do_install && do_sync_mods
+            ;;
+        2)
+            BUILD_DEBUG=true
+            do_build && do_install && do_sync_mods
+            ;;
+        3)
+            do_install
+            ;;
+        4)
+            do_sync_mods
+            ;;
+        5)
+            echo -e "${GREEN}👋 再见！${NC}"
+            ;;
+        *)
+            echo -e "${YELLOW}⚠ 无效选项: $OPTION${NC}"
+            exit 1
+            ;;
+    esac
+else
+    menu_loop
+fi

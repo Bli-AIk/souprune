@@ -364,11 +364,14 @@ pub fn get_asset_path(resolved: &ResolvedVisual, mod_name: &str) -> String {
         ResolvedVisual::CharacterAnimation(p) => p,
     };
 
-    // Strip "projects/{mod_name}/" prefix for asset server
-    let prefix = format!("projects/{}/", mod_name);
-    path.to_string_lossy()
-        .strip_prefix(&prefix)
-        .unwrap_or(&path.to_string_lossy())
+    // Strip projects base prefix for asset server
+    let projects_prefix = crate::config::get_projects_base_path().join(mod_name);
+    let prefix_str = projects_prefix.to_string_lossy().to_string();
+    let path_str = path.to_string_lossy().to_string();
+    path_str
+        .strip_prefix(prefix_str.as_str())
+        .map(|s| s.trim_start_matches('/').trim_start_matches('\\'))
+        .unwrap_or(&path_str)
         .to_string()
 }
 
