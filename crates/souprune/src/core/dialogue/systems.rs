@@ -933,7 +933,6 @@ pub fn replay_typewriter_on_depth_resume_system(
 /// the configured voice sound each time it increases.
 ///
 /// 此系统监控 Typewriter 的 current_char_index，每次增加时播放配置的音效。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub fn typewriter_voice_system(
     mut query: Query<(&Typewriter, &mut TypewriterVoice)>,
     audio: Res<bevy_kira_audio::Audio>,
@@ -952,38 +951,6 @@ pub fn typewriter_voice_system(
             // Play voice sound
             let handle: Handle<bevy_kira_audio::AudioSource> = asset_server.load(&voice.sound_path);
             audio.play(handle);
-
-            // Update last observed index
-            voice.last_char_index = typewriter.current_char_index;
-        } else if typewriter.current_char_index < voice.last_char_index {
-            // Typewriter was reset, update tracking
-            voice.last_char_index = typewriter.current_char_index;
-        }
-    }
-}
-
-/// Firewheel variant of typewriter voice system.
-/// NOTE: Sound playback not yet implemented for bevy_seedling 0.7, only tracking.
-///
-/// Firewheel 版本的打字机音效系统。
-/// 注意：bevy_seedling 0.7 的音效播放尚未实现，仅做追踪。
-#[cfg(feature = "firewheel")]
-pub fn typewriter_voice_system(
-    mut query: Query<(&Typewriter, &mut TypewriterVoice)>,
-    // Audio playback would need proper implementation using SamplePlayer
-    // asset_server: Res<AssetServer>,
-    // mut commands: Commands,
-) {
-    for (typewriter, mut voice) in query.iter_mut() {
-        // Only play when typewriter is playing and char index has increased
-        if typewriter.state != TypewriterState::Playing {
-            continue;
-        }
-
-        // Check if character index has increased
-        if typewriter.current_char_index > voice.last_char_index {
-            // TODO: Implement sound playback using bevy_seedling::sample::SamplePlayer
-            debug!("Typewriter voice: would play {}", voice.sound_path);
 
             // Update last observed index
             voice.last_char_index = typewriter.current_char_index;

@@ -35,10 +35,12 @@ use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::prelude::*;
-#[cfg(feature = "unsafe_gpu")]
+#[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
 use bevy::render::RenderPlugin;
 #[cfg(feature = "unsafe_gpu")]
-use bevy::render::settings::{InstanceFlags, RenderCreation, WgpuSettings};
+use bevy::render::settings::InstanceFlags;
+#[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
+use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 use chrono::Local;
@@ -56,12 +58,15 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     // 为本次运行生成带时间戳的文件名
     let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
     let filename = format!("souprune_{}.log", timestamp);
-    let log_dir = std::path::Path::new("logs");
+    let log_dir: std::path::PathBuf = if cfg!(target_os = "android") {
+        "/sdcard/SoupRune".into()
+    } else {
+        "logs".into()
+    };
 
-    // Ensure the logs directory exists
-    //
-    // 确保 logs 目录存在
-    std::fs::create_dir_all(log_dir)?;
+    // Ensure the logs directory exists (only works on desktop)
+    #[cfg(not(target_os = "android"))]
+    std::fs::create_dir_all(&log_dir)?;
 
     let file_path = log_dir.join(filename);
     let file = std::fs::File::create(file_path)?;
@@ -126,8 +131,13 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     // Generate a timestamped filename for this run
     let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
     let filename = format!("souprune_{}.log", timestamp);
-    let log_dir = std::path::Path::new("logs");
-    std::fs::create_dir_all(log_dir)?;
+    let log_dir: std::path::PathBuf = if cfg!(target_os = "android") {
+        "/sdcard/SoupRune".into()
+    } else {
+        "logs".into()
+    };
+    #[cfg(not(target_os = "android"))]
+    std::fs::create_dir_all(&log_dir)?;
 
     let file_path = log_dir.join(filename);
     let file = std::fs::File::create(file_path)?;
@@ -177,19 +187,34 @@ fn get_bevy_default_plugins(
     #[allow(unused_mut)]
     let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
+        .set(bevy::asset::AssetPlugin {
+            // Mod system loads from external storage (/sdcard/SoupRune/...).
+            // Must allow absolute paths for asset loading.
+            unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+            ..default()
+        })
         .set(WindowPlugin {
             primary_window: Some(Window {
+                #[cfg(not(target_os = "android"))]
                 resolution: WindowResolution::new(
                     base_width * resolution_scale,
                     base_height * resolution_scale,
                 ),
                 resizable: false,
                 title: "SoupRune".into(),
+                #[cfg(target_os = "android")]
+                mode: bevy::window::WindowMode::BorderlessFullscreen(
+                    bevy::window::MonitorSelection::Primary,
+                ),
                 ..default()
             }),
             ..default()
-        })
-        .disable::<bevy::log::LogPlugin>();
+        });
+
+    // On all platforms: disable LogPlugin, use our own file-based logging
+    //
+    // 所有平台：禁用 LogPlugin，使用自定义文件日志
+    plugins = plugins.disable::<bevy::log::LogPlugin>();
 
     // On some devices, enabling the WGPU verification layer can cause a panic.
     // This may be caused by driver incompatibility or resource limitations.
@@ -212,6 +237,43 @@ fn get_bevy_default_plugins(
             }),
             ..default()
         });
+    }
+
+    // Android: use GLES3 backend with minimal feature set. Disable PBR entirely.
+    // Huawei BiSheng GPU driver: stack corruption in libGLES_v200.so during queue submit.
+    // Mitigations:
+    //   - Compatibility priority: minimal wgpu features (avoid enabling buggy GL extensions)
+    //   - constrained_limits: no storage buffers (VERTEX_STORAGE not supported)
+    //   - InstanceFlags::empty(): disable wgpu validation (reduces GL API calls)
+    //   - Gles3MinorVersion::Version0: force GLES 3.0 (avoid 3.1+ compute/storage features)
+    //   - No PBR/Gizmo plugins
+    #[cfg(target_os = "android")]
+    #[cfg(not(feature = "unsafe_gpu"))]
+    {
+        use bevy::render::settings::InstanceFlags;
+        use bevy::render::settings::{
+            Backends, Gles3MinorVersion, WgpuLimits, WgpuSettingsPriority,
+        };
+        let mut no_storage = WgpuLimits::default();
+        no_storage.max_storage_buffers_per_shader_stage = 0;
+        no_storage.max_storage_textures_per_shader_stage = 0;
+        no_storage.max_dynamic_storage_buffers_per_pipeline_layout = 0;
+        no_storage.max_storage_buffer_binding_size = 0;
+        plugins = plugins
+            .set(RenderPlugin {
+                render_creation: RenderCreation::Automatic(WgpuSettings {
+                    backends: Some(Backends::GL),
+                    priority: WgpuSettingsPriority::Compatibility,
+                    instance_flags: InstanceFlags::empty(),
+                    gles3_minor_version: Gles3MinorVersion::Version0,
+                    constrained_limits: Some(no_storage),
+                    ..default()
+                }),
+                ..default()
+            })
+            .disable::<bevy::pbr::PbrPlugin>()
+            .disable::<bevy::gizmos::GizmoPlugin>()
+            .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
     }
 
     plugins
@@ -277,6 +339,40 @@ fn get_game_plugins() -> (
 }
 
 pub fn run() {
+    // On Android, print early debug info before any potential panic
+    //
+    // 在 Android 上，在任何潜在 panic 之前输出早期调试信息
+    #[cfg(target_os = "android")]
+    {
+        // Install custom panic hook that writes to a file on /sdcard/
+        // because eprintln! may not appear in logcat for all threads
+        std::panic::set_hook(Box::new(|info| {
+            let msg = format!(
+                "[SoupRune PANIC] {}\n  at: {:?}\n  thread: {:?}\n---\n",
+                info,
+                info.location(),
+                std::thread::current().name()
+            );
+            eprintln!("{}", msg);
+            // Append to file so both the original panic and cleanup panic are captured
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/sdcard/SoupRune/panic.log")
+            {
+                let _ = f.write_all(msg.as_bytes());
+            }
+        }));
+        // Clear old panic log on startup
+        let _ = std::fs::remove_file("/sdcard/SoupRune/panic.log");
+        eprintln!("[SoupRune] run() started on Android");
+        eprintln!(
+            "[SoupRune] projects base: {:?}",
+            config::get_projects_base_path()
+        );
+    }
+
     // Initialize logging and keep the guard alive
     //
     // 初始化日志记录并保持 guard 存活
@@ -285,7 +381,13 @@ pub fn run() {
     #[cfg(feature = "unsafe_gpu")]
     info!("Starting SoupRune with [unsafe_gpu] feature enabled.");
 
+    #[cfg(target_os = "android")]
+    eprintln!("[SoupRune] Loading config...");
+
     let config = config::load_config();
+
+    #[cfg(target_os = "android")]
+    eprintln!("[SoupRune] Config loaded: mod={}", config.project.mod_name);
 
     // Data
     let resolution_scale = config.window.resolution_scale;
@@ -297,9 +399,19 @@ pub fn run() {
 
     // Load input configuration from RON file
     // 从 RON 文件加载输入配置
-    let input_config_path = format!(
-        "projects/{}/{}",
-        config.project.mod_name, config.game.input_config_path
+    let projects_base = config::get_projects_base_path();
+    #[cfg(target_os = "android")]
+    eprintln!(
+        "[SoupRune] input_config_path parts: base={:?}, mod={:?}, input={:?}",
+        projects_base, config.project.mod_name, config.game.input_config_path
+    );
+    let input_config_path = projects_base
+        .join(&config.project.mod_name)
+        .join(&config.game.input_config_path);
+    #[cfg(target_os = "android")]
+    eprintln!(
+        "[SoupRune] input_config_path joined: {:?}",
+        input_config_path
     );
     let input_config = input::InputConfig::load_from_file(&input_config_path);
     let action_registry = input_config.build_registry();
@@ -307,8 +419,54 @@ pub fn run() {
         input::PlayerInputSettings::from_config(&input_config, &action_registry);
     let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
 
-    App::new()
-        .insert_resource(ClearColor(Color::BLACK))
+    // Load touch layout config if specified
+    // 如果指定了触控布局配置则加载
+    let touch_layout = if let Some(ref touch_cfg) = input_config.touch_overlay {
+        if let Some(ref layout_path) = touch_cfg.layout {
+            let full_path = projects_base
+                .join(&config.project.mod_name)
+                .join(layout_path);
+            match input::TouchLayoutDef::load_from_file(&full_path) {
+                Ok(mut layout) => {
+                    info!("Loaded touch layout from {:?}", full_path);
+                    // Apply overlay-level opacity/scale if explicitly set in touch_overlay config
+                    if let Some(opacity) = touch_cfg.opacity {
+                        layout.opacity = opacity;
+                    }
+                    if let Some(scale) = touch_cfg.scale {
+                        layout.scale = scale;
+                    }
+                    Some(layout)
+                }
+                Err(e) => {
+                    warn!("Failed to load touch layout: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Determine touch overlay enabled state: check if current OS is in platforms list
+    let touch_enabled = input_config
+        .touch_overlay
+        .as_ref()
+        .map(|cfg| {
+            cfg.platforms
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case(std::env::consts::OS))
+        })
+        .unwrap_or(false);
+
+    let mut app = App::new();
+    if let Some(layout) = touch_layout {
+        app.insert_resource(layout);
+    }
+    app.insert_resource(input::touch::TouchOverlayEnabled(touch_enabled));
+    app.insert_resource(ClearColor(Color::BLACK))
         .register_asset_source(
             AssetSourceId::Default,
             AssetSourceBuilder::new(move || {
@@ -325,7 +483,7 @@ pub fn run() {
                     // 这允许热重载 assets/ 目录之外的 view_layout.ron 文件
                     let config = config::load_config();
                     let project_root =
-                        std::path::Path::new("projects").join(&config.project.mod_name);
+                        config::get_projects_base_path().join(&config.project.mod_name);
 
                     // Try to watch the project root directory (not just assets/)
                     // 尝试监视项目根目录（不仅仅是 assets/）
@@ -377,7 +535,13 @@ pub fn run() {
         ))
         .insert_resource(config.clone())
         .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec![format!("projects/{}/assets/fonts", config.project.mod_name)],
+            font_directories: vec![
+                projects_base
+                    .join(&config.project.mod_name)
+                    .join("assets/fonts")
+                    .to_string_lossy()
+                    .into_owned(),
+            ],
             ..Default::default()
         })
         .insert_resource(action_registry)
@@ -392,4 +556,10 @@ pub fn run() {
         )
         .add_plugins(get_game_plugins())
         .run();
+}
+
+#[cfg(target_os = "android")]
+#[bevy_main]
+fn main() {
+    run();
 }

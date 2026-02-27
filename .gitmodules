@@ -19,3 +19,7 @@
 [submodule "crates/bevy_tween"]
 	path = crates/bevy_tween
 	url = https://github.com/Bli-AIk/bevy_tween.git
+[submodule "crates/flambe"]
+	path = crates/flambe
+	url = https://github.com/Bli-AIk/flambe.git
+	branch = feat/init

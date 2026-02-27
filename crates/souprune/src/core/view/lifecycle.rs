@@ -239,7 +239,6 @@ fn despawn_ui(commands: &mut Commands, root_query: &Query<Entity, With<BackpackV
 ///
 /// 根据状态配置播放状态转换音效的系统。
 /// 处理所有状态转换的 on_enter_sound 和 on_exit_sound。
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 pub(crate) fn state_transition_sound_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
@@ -260,8 +259,6 @@ pub(crate) fn state_transition_sound_system(
             && let Some(state_def) = state_config.get(prev_state)
             && let Some(ref sound_path) = state_def.on_exit_sound
         {
-            // Use full path function since config contains complete asset path
-            // 使用完整路径函数，因为配置包含完整的资源路径
             audio::play_sound_full_path(&audio, &asset_server, sound_path);
             debug!(
                 "Playing on_exit_sound for state '{}': {}",
@@ -273,57 +270,7 @@ pub(crate) fn state_transition_sound_system(
         if let Some(state_def) = state_config.get(current_state)
             && let Some(ref sound_path) = state_def.on_enter_sound
         {
-            // Use full path function since config contains complete asset path
-            // 使用完整路径函数，因为配置包含完整的资源路径
             audio::play_sound_full_path(&audio, &asset_server, sound_path);
-            debug!(
-                "Playing on_enter_sound for state '{}': {}",
-                current_state, sound_path
-            );
-        }
-
-        tracker.previous_state = Some(current_state.to_string());
-    }
-}
-
-/// System to play state transition sounds based on state config (firewheel backend).
-#[cfg(feature = "firewheel")]
-pub(crate) fn state_transition_sound_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    overworld_state: Res<State<OverworldSubState>>,
-    state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    mut tracker: ResMut<StateTransitionTracker>,
-) {
-    let Some(state_config) = state_config else {
-        return;
-    };
-
-    let current_state = overworld_state.name();
-
-    // Detect state change
-    if tracker.previous_state.as_deref() != Some(current_state) {
-        // Play exit sound for previous state
-        if let Some(ref prev_state) = tracker.previous_state
-            && let Some(state_def) = state_config.get(prev_state)
-            && let Some(ref sound_path) = state_def.on_exit_sound
-        {
-            // Use full path function since config contains complete asset path
-            // 使用完整路径函数，因为配置包含完整的资源路径
-            audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
-            debug!(
-                "Playing on_exit_sound for state '{}': {}",
-                prev_state, sound_path
-            );
-        }
-
-        // Play enter sound for current state
-        if let Some(state_def) = state_config.get(current_state)
-            && let Some(ref sound_path) = state_def.on_enter_sound
-        {
-            // Use full path function since config contains complete asset path
-            // 使用完整路径函数，因为配置包含完整的资源路径
-            audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
             debug!(
                 "Playing on_enter_sound for state '{}': {}",
                 current_state, sound_path

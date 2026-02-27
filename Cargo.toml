@@ -12,6 +12,7 @@ members = [
     "crates/souprune_mod_test",
     "crates/souprune_mock_host",
     "crates/interoptopus_backend_haxe",
+    "crates/flambe",
 ]
 
 # Exclude mortar submodule - it has its own workspace
@@ -41,24 +42,6 @@ opt-level = 3
 debug = 0
 
 # Ensure audio libraries are always optimized to prevent underruns
-[profile.dev.package.bevy_seedling]
-opt-level = 3
-
-[profile.dev.package.firewheel]
-opt-level = 3
-
-[profile.dev.package.firewheel-core]
-opt-level = 3
-
-[profile.dev.package.firewheel-graph]
-opt-level = 3
-
-[profile.dev.package.firewheel-nodes]
-opt-level = 3
-
-[profile.dev.package.firewheel-cpal]
-opt-level = 3
-
 [profile.dev.package.cpal]
 opt-level = 3
 

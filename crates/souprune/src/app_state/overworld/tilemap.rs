@@ -35,15 +35,10 @@ pub use object_properties::ObjectCollider;
 pub struct CurrentMapBgm(pub Option<String>);
 
 // ============================================================================
-// BGM Handle Resources - Backend Specific
+// BGM Handle Resource
 // ============================================================================
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 #[derive(Resource, Default)]
 pub struct CurrentBgmHandle(pub Option<Handle<bevy_kira_audio::AudioInstance>>);
-
-#[cfg(feature = "firewheel")]
-#[derive(Resource, Default)]
-pub struct CurrentBgmHandle(pub Option<Entity>);
 
 pub(crate) struct TilemapPlugin;
 
