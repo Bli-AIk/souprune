@@ -32,9 +32,16 @@ pub fn process_camera_action_system(
                     }
                     super::super::chapter_schema::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
-                            // Apply zoom relative to base resolution scale
-                            // 相对于基础分辨率缩放应用缩放
-                            ortho.scale = *zoom / resolution_scale.get() as f32;
+                            // On Android with ScalingMode::Fixed, scale=1.0 already shows
+                            // base resolution. On desktop with WindowSize, divide by resolution_scale.
+                            #[cfg(target_os = "android")]
+                            {
+                                ortho.scale = *zoom;
+                            }
+                            #[cfg(not(target_os = "android"))]
+                            {
+                                ortho.scale = *zoom / resolution_scale.get() as f32;
+                            }
                             info!(
                                 "[Battle] SetZoom: requested={}, actual={}",
                                 zoom, ortho.scale

@@ -18,16 +18,16 @@ exclude = [
     "assets/audios/*"
 ]
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [dependencies]
 bevy = { version = "0.18", default-features = false, features = [
-    "gltf_animation",
     "bevy_asset",
     "bevy_color",
     "bevy_core_pipeline",
     "bevy_gilrs",
     "bevy_gizmos",
-    "bevy_gltf",
-    "bevy_pbr",
     "bevy_picking",
     "bevy_render",
     "bevy_scene",
@@ -57,9 +57,8 @@ serde_json = "1.0"
 ron = "0.10"
 toml = "0.9.8"
 regex = "1.10"
-bevy_rich_text3d = { version = "0.6", features = ["reflect"] }
-bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"], optional = true }
-bevy_seedling = { version = "0.7", features = ["wav", "ogg", "flac", "mp3"], optional = true }
+bevy_rich_text3d = { version = "0.6", default-features = false, features = ["2d", "reflect"] }
+bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"] }
 anyhow = "1.0.100"
 async-channel = "2"
 tracing-appender = "0.2.4"
@@ -89,9 +88,8 @@ version = "0.11"
 optional = true
 
 [features]
-default = ["bevy_kira_audio"]
+default = []
 debug = ["dep:bevy-inspector-egui", "dep:bevy_brp_extras", "dep:iyes_perf_ui"]
-firewheel = ["bevy_seedling"]
 experimental = []
 unsafe_gpu = []
 # Tracy profiling with minimal overhead (no GUI)
@@ -100,3 +98,41 @@ trace_tracy = ["bevy/trace_tracy", "bevy/trace", "dep:tracing-tracy"]
 # Tracy profiling with system names visible (uses bevy/debug for ECS names)
 # Tracy 性能分析，可见系统名称（使用 bevy/debug 获取 ECS 名称）
 debug_tracy = ["trace_tracy", "bevy/debug"]
+# Android support: enables android-game-activity backend
+# Android 支持：启用 android-game-activity 后端
+android = ["bevy/android-game-activity"]
+# Bevy debug: enables ECS debug names for better panic/error messages
+# Bevy 调试：启用 ECS 调试名称，获得更详细的 panic/错误信息
+bevy_debug = ["bevy/debug"]
+
+# Android GPU backend: GLES with constrained_limits
+# Vulkan: OOM + driver bugs (BiSheng GPU)
+# GLES: 需要 constrained_limits 禁用 storage buffers (设备不支持 VERTEX_STORAGE)
+[target.'cfg(target_os = "android")'.dependencies.bevy_render]
+version = "0.18"
+features = ["gles"]
+
+[package.metadata.android]
+package = "com.bliaik.souprune"
+label = "SoupRune"
+[package.metadata.android.sdk]
+target_sdk_version = 35
+min_sdk_version = 26
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.READ_EXTERNAL_STORAGE"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.WRITE_EXTERNAL_STORAGE"
+max_sdk_version = 28
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+
+[package.metadata.android.application]
+debuggable = true
+theme = "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+
+[[package.metadata.android.application.meta_data]]
+name = "android.app.lib_name"
+value = "souprune"

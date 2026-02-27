@@ -24,6 +24,8 @@ use bevy_fact_rule_event::{LayeredFactDatabase, LayeredRuleRegistry};
 
 pub(crate) mod character;
 pub mod chase;
+pub mod chase_config;
+pub mod chase_damage;
 mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
@@ -192,7 +194,6 @@ fn set_overworld_danmaku_context(mut spawn_context: ResMut<DanmakuSpawnContext>)
     info!("Danmaku: Set spawn context to Overworld");
 }
 
-#[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
 fn stop_bgm_on_exit_system(
     mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
     mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
@@ -202,20 +203,6 @@ fn stop_bgm_on_exit_system(
         && let Some(instance) = audio_instances.get_mut(handle)
     {
         instance.stop(bevy_kira_audio::AudioTween::default());
-    }
-    bgm_handle.0 = None;
-    current_map_bgm.0 = None;
-}
-
-#[cfg(feature = "firewheel")]
-fn stop_bgm_on_exit_system(
-    mut commands: Commands,
-    mut bgm_handle: ResMut<tilemap::CurrentBgmHandle>,
-    mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
-) {
-    // Despawn BGM entity to stop playback
-    if let Some(entity) = bgm_handle.0 {
-        commands.entity(entity).despawn();
     }
     bgm_handle.0 = None;
     current_map_bgm.0 = None;

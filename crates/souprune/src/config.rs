@@ -188,9 +188,39 @@ impl Default for RenderConfig {
 
 static CONFIG: OnceLock<SoupruneConfig> = OnceLock::new();
 
+/// Returns the base path for the `projects/` directory.
+/// On Android, this resolves to external storage (`/sdcard/SoupRune/projects/`).
+/// On desktop platforms, this returns the relative `projects/` path.
+///
+/// 返回 `projects/` 目录的基础路径。
+/// 在 Android 上，解析为外部存储（`/sdcard/SoupRune/projects/`）。
+/// 在桌面平台上，返回相对路径 `projects/`。
+pub fn get_projects_base_path() -> PathBuf {
+    #[cfg(target_os = "android")]
+    {
+        // Try external storage first: /sdcard/SoupRune/projects/
+        let external = PathBuf::from("/sdcard/SoupRune/projects");
+        if external.exists() {
+            return external;
+        }
+        // Fallback: try app-specific external files dir
+        let app_external = PathBuf::from("/sdcard/Android/data/com.souprune.game/files/projects");
+        if app_external.exists() {
+            return app_external;
+        }
+        // Last resort: use relative path (may work if CWD is set correctly)
+        PathBuf::from("projects")
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        PathBuf::from("projects")
+    }
+}
+
 pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    let project_path = Path::new("projects").join(mod_name);
+    let projects_base = get_projects_base_path();
+    let project_path = projects_base.join(mod_name);
 
     // Primary: project's assets directory
     // 主要：项目的 assets 目录
@@ -303,7 +333,10 @@ fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
 pub fn load_config() -> SoupruneConfig {
     CONFIG
         .get_or_init(|| {
-            let mut config = read_config_from_disk("projects/config.toml").unwrap_or_else(|err| {
+            let projects_base = get_projects_base_path();
+            let config_path = projects_base.join("config.toml");
+
+            let mut config = read_config_from_disk(&config_path).unwrap_or_else(|err| {
                 error!(
                     "{}
 Falling back to default configuration (example_mod)",
@@ -316,12 +349,30 @@ Falling back to default configuration (example_mod)",
             config.resources = ResourcePaths::default();
 
             let mod_name = &config.project.mod_name;
-            let mod_config_path = Path::new("projects").join(mod_name).join("mod.toml");
+            let mod_config_path = projects_base.join(mod_name).join("mod.toml");
+
+            #[cfg(target_os = "android")]
+            eprintln!(
+                "[SoupRune] mod_config_path: {:?}, exists: {}",
+                mod_config_path,
+                mod_config_path.exists()
+            );
 
             if mod_config_path.exists() {
                 match read_mod_config(&mod_config_path) {
                     Ok(mod_cfg) => {
+                        #[cfg(target_os = "android")]
+                        eprintln!(
+                            "[SoupRune] mod.toml parsed, game section: {:?}",
+                            mod_cfg.game.is_some()
+                        );
+
                         if let Some(game_partial) = mod_cfg.game {
+                            #[cfg(target_os = "android")]
+                            eprintln!(
+                                "[SoupRune] game_partial.input_config_path: {:?}",
+                                game_partial.input_config_path
+                            );
                             if let Some(val) = game_partial.global_rules {
                                 config.game.global_rules = val;
                             }
@@ -368,7 +419,11 @@ Falling back to default configuration (example_mod)",
                             error!("mod.toml: [resources].audios is required");
                         }
                     }
-                    Err(e) => error!("Failed to load mod.toml: {}", e),
+                    Err(e) => {
+                        #[cfg(target_os = "android")]
+                        eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
+                        error!("Failed to load mod.toml: {}", e);
+                    }
                 }
             }
 

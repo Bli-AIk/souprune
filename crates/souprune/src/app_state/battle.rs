@@ -128,12 +128,24 @@ fn setup_battle_camera(
         commands.entity(camera_entity).despawn();
     }
 
+    // On Android, use Fixed scaling (viewport system handles aspect ratio)
+    #[cfg(target_os = "android")]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scaling_mode: bevy::camera::ScalingMode::Fixed {
+            width: 320.0,
+            height: 240.0,
+        },
+        ..OrthographicProjection::default_2d()
+    });
+    #[cfg(not(target_os = "android"))]
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scale: 1.0 / scale_value as f32,
+        ..OrthographicProjection::default_2d()
+    });
+
     commands.spawn((
         Camera2d,
-        Projection::Orthographic(OrthographicProjection {
-            scale: 1.0 / scale_value as f32,
-            ..OrthographicProjection::default_2d()
-        }),
+        projection,
         BattleCamera,
         BattleEntity,
         Name::new("Battle Camera2d"),

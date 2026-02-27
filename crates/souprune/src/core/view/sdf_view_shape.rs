@@ -270,18 +270,20 @@ fn spawn_structure_from_file(
 /// 从 RON 文件同步加载 SdfStructureAsset。
 fn load_sdf_structure(structure_file: &str) -> Option<SdfStructureAsset> {
     let config = crate::config::load_config();
-    let full_path = format!("projects/{}/{}", config.project.mod_name, structure_file);
+    let full_path = crate::config::get_projects_base_path()
+        .join(&config.project.mod_name)
+        .join(structure_file);
 
     let content = std::fs::read_to_string(&full_path)
         .map_err(|e| {
-            warn!("Failed to read structure file '{}': {}", full_path, e);
+            warn!("Failed to read structure file '{:?}': {}", full_path, e);
             e
         })
         .ok()?;
 
     ron::de::from_str::<SdfStructureAsset>(&content)
         .map_err(|e| {
-            warn!("Failed to parse structure file '{}': {}", full_path, e);
+            warn!("Failed to parse structure file '{:?}': {}", full_path, e);
             e
         })
         .ok()

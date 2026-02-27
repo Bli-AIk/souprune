@@ -319,7 +319,7 @@ impl SpecializedMeshPipeline for DynamicMaterial2dPipeline {
         }
 
         // Get the shader handle from cache
-        // Note: In specialize(), we can't load new shaders, so we use the cached handle
+        // Note: In specialize(), we can't load new shaders, so we use the cached handle.
         let shader_handle = self
             .shader_cache
             .get(&key.shader_id)
@@ -455,6 +455,15 @@ pub fn queue_dynamic_material2d_meshes(
             let mesh_key =
                 view_key | Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology());
 
+            // Skip entities whose shader isn't cached yet to avoid permanently caching
+            // a wrong pipeline via SpecializedMeshPipelines.
+            if !pipeline
+                .shader_cache
+                .contains_key(&prepared_material.shader.id())
+            {
+                continue;
+            }
+
             let key = DynamicMaterial2dKey {
                 mesh_key,
                 shader_id: prepared_material.shader.id(),
@@ -464,7 +473,7 @@ pub fn queue_dynamic_material2d_meshes(
                 match pipelines.specialize(&pipeline_cache, &pipeline, key, &mesh.layout) {
                     Ok(id) => id,
                     Err(err) => {
-                        error!("Failed to specialize dynamic material pipeline: {}", err);
+                        trace!("Shader pipeline not ready, will retry: {}", err);
                         continue;
                     }
                 };
@@ -576,7 +585,8 @@ impl Plugin for DynamicMaterial2dPlugin {
             .add_systems(
                 Render,
                 (
-                    cache_shader_handles.in_set(RenderSystems::PrepareAssets),
+                    // Run after PrepareAssets so RenderAssetPlugin has processed shaders
+                    cache_shader_handles.in_set(RenderSystems::PrepareResources),
                     queue_dynamic_material2d_meshes.in_set(RenderSystems::QueueMeshes),
                 ),
             );

@@ -156,9 +156,7 @@ fn battle_damage_detection_system(
         With<crate::core::danmaku::Bullet>,
     >,
     mut last_player_state: Local<Option<(Vec2, f64)>>,
-    #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))] audio: Res<
-        bevy_kira_audio::Audio,
-    >,
+    audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
 ) {
     let Ok((player_transform, player_hitbox)) = player_query.single() else {
@@ -272,10 +270,7 @@ fn battle_damage_detection_system(
 
             // Play hurt sound from config
             if let Some(sound_path) = &invincibility_config.damage_sound {
-                #[cfg(all(feature = "bevy_kira_audio", not(feature = "firewheel")))]
                 crate::core::audio::play_sound_full_path(&audio, &asset_server, sound_path);
-                #[cfg(feature = "firewheel")]
-                crate::core::audio::play_sound_full_path(&mut commands, &asset_server, sound_path);
             }
 
             info!(

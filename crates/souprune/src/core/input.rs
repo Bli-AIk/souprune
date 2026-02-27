@@ -21,6 +21,7 @@
 pub(crate) mod actions;
 pub(crate) mod config;
 pub(crate) mod resources;
+pub(crate) mod touch;
 
 pub(crate) use actions::*;
 pub(crate) use config::*;
@@ -40,6 +41,7 @@ impl Plugin for InputPlugin {
         // 注意：ActionRegistry 和 PlayerInputSettings 在此插件添加之前
         // 已在 lib.rs 中从 RON 配置文件初始化。
         app.init_asset::<InputConfig>()
-            .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]));
+            .register_asset_loader(RonAssetLoader::<InputConfig>::new(&["input.ron"]))
+            .add_plugins(touch::TouchPlugin);
     }
 }
