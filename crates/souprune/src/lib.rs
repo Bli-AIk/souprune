@@ -58,12 +58,15 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     // 为本次运行生成带时间戳的文件名
     let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
     let filename = format!("souprune_{}.log", timestamp);
-    let log_dir = std::path::Path::new("logs");
+    let log_dir: std::path::PathBuf = if cfg!(target_os = "android") {
+        "/sdcard/SoupRune".into()
+    } else {
+        "logs".into()
+    };
 
-    // Ensure the logs directory exists
-    //
-    // 确保 logs 目录存在
-    std::fs::create_dir_all(log_dir)?;
+    // Ensure the logs directory exists (only works on desktop)
+    #[cfg(not(target_os = "android"))]
+    std::fs::create_dir_all(&log_dir)?;
 
     let file_path = log_dir.join(filename);
     let file = std::fs::File::create(file_path)?;
@@ -128,8 +131,13 @@ fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard
     // Generate a timestamped filename for this run
     let timestamp = Local::now().format("%Y-%m-%d_%H-%M-%S");
     let filename = format!("souprune_{}.log", timestamp);
-    let log_dir = std::path::Path::new("logs");
-    std::fs::create_dir_all(log_dir)?;
+    let log_dir: std::path::PathBuf = if cfg!(target_os = "android") {
+        "/sdcard/SoupRune".into()
+    } else {
+        "logs".into()
+    };
+    #[cfg(not(target_os = "android"))]
+    std::fs::create_dir_all(&log_dir)?;
 
     let file_path = log_dir.join(filename);
     let file = std::fs::File::create(file_path)?;
@@ -179,6 +187,12 @@ fn get_bevy_default_plugins(
     #[allow(unused_mut)]
     let mut plugins = DefaultPlugins
         .set(ImagePlugin::default_nearest())
+        .set(bevy::asset::AssetPlugin {
+            // Mod system loads from external storage (/sdcard/SoupRune/...).
+            // Must allow absolute paths for asset loading.
+            unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+            ..default()
+        })
         .set(WindowPlugin {
             primary_window: Some(Window {
                 #[cfg(not(target_os = "android"))]

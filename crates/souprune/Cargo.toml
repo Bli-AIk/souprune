@@ -58,8 +58,7 @@ ron = "0.10"
 toml = "0.9.8"
 regex = "1.10"
 bevy_rich_text3d = { version = "0.6", default-features = false, features = ["2d", "reflect"] }
-bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"], optional = true }
-bevy_seedling = { version = "0.7", features = ["wav", "ogg", "flac", "mp3"], optional = true }
+bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"] }
 anyhow = "1.0.100"
 async-channel = "2"
 tracing-appender = "0.2.4"
@@ -89,9 +88,8 @@ version = "0.11"
 optional = true
 
 [features]
-default = ["bevy_kira_audio"]
+default = []
 debug = ["dep:bevy-inspector-egui", "dep:bevy_brp_extras", "dep:iyes_perf_ui"]
-firewheel = ["bevy_seedling"]
 experimental = []
 unsafe_gpu = []
 # Tracy profiling with minimal overhead (no GUI)
