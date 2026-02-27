@@ -630,11 +630,10 @@ fn detect_multitouch_pressed(
         }
 
         for (node, transform) in zones.iter() {
-            if node.contains_point(*transform, pos) {
-                if let Some(normalized) = node.normalize_point(*transform, pos) {
+            if node.contains_point(*transform, pos)
+                && let Some(normalized) = node.normalize_point(*transform, pos) {
                     insert_controller_dirs(&mut multitouch.0, normalized);
                 }
-            }
         }
     }
 }
@@ -685,11 +684,10 @@ pub fn update_controller_directions(
         for touch in touches.iter() {
             let pos = touch.position() * sf - vp_offset;
             for (_, node, transform, _) in zones.iter() {
-                if node.contains_point(*transform, pos) {
-                    if let Some(normalized) = node.normalize_point(*transform, pos) {
+                if node.contains_point(*transform, pos)
+                    && let Some(normalized) = node.normalize_point(*transform, pos) {
                         insert_controller_dirs(&mut dirs.0, normalized);
                     }
-                }
             }
         }
     }
@@ -837,15 +835,13 @@ pub fn update_touch_button_visuals(
                     img.image = handle.clone();
                 }
             }
-        } else {
-            if anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held {
-                // Start release animation: show frame 3
-                anim.phase = AnimPhase::Releasing;
-                anim.current_frame = 3;
-                anim.timer.reset();
-                if let Some(handle) = frames.0.get(3) {
-                    img.image = handle.clone();
-                }
+        } else if anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held {
+            // Start release animation: show frame 3
+            anim.phase = AnimPhase::Releasing;
+            anim.current_frame = 3;
+            anim.timer.reset();
+            if let Some(handle) = frames.0.get(3) {
+                img.image = handle.clone();
             }
         }
     }
