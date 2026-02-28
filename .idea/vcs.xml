@@ -7,6 +7,7 @@
     <mapping directory="$PROJECT_DIR$/crates/bevy_fact_rule_event" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_mortar_bond" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/bevy_tween" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crates/bevy_workbench" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/flambe" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/iyes_perf_ui" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crates/mortar" vcs="Git" />
