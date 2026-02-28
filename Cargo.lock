@@ -2129,6 +2129,8 @@ dependencies = [
  "bevy_egui",
  "egui",
  "egui_tiles",
+ "serde",
+ "toml 0.8.23",
 ]
 
 [[package]]
