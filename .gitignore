@@ -64,3 +64,4 @@ android/.gradle/
 android/app/build/
 android/app/src/main/jniLibs/
 android/build/
+crates/souprune/doc/overworld_sequence_refactor.md
