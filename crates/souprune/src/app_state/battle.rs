@@ -35,7 +35,7 @@ use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
-use crate::core::sequencer::{SequencerPlugin, SequencerUpdate};
+use crate::core::sequencer::SequencerPlugin;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
 use bevy::app::{App, Plugin, Update};
@@ -84,7 +84,7 @@ impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
             .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
-            .configure_sets(Update, SequencerUpdate.in_set(BattleUpdate))
+            // Note: SequencerUpdate is configured in lib.rs to support both Overworld and Battle
             // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
             //
             // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态

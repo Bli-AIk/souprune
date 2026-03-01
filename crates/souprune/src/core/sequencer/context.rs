@@ -64,3 +64,16 @@ pub struct ChapterFinished;
 /// 持有当前序列流程资产句柄的资源。
 #[derive(Resource)]
 pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);
+
+/// Resource to track the rules handle loaded by the current sequence.
+/// When a sequence specifies a `rules_file`, the handle is stored here
+/// for processing by state-specific FRE plugins.
+///
+/// 跟踪当前序列加载的规则句柄的资源。
+/// 当序列指定了 `rules_file` 时，句柄会存储在此处，
+/// 由特定状态的 FRE 插件处理。
+#[derive(Resource, Default)]
+pub struct SequenceRulesHandle {
+    pub handle: Option<Handle<bevy_fact_rule_event::FreAsset>>,
+    pub registered: bool,
+}

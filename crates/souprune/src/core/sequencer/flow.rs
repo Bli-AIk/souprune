@@ -26,17 +26,17 @@ pub fn load_default_chapter_system(
 }
 
 /// System to sync battle flow when asset is loaded.
-/// Also loads battle-specific FRE rules if specified.
+/// Also loads sequence-specific FRE rules if specified.
 ///
 /// 当资产加载完成时同步战斗流程的系统。
-/// 如果指定了规则文件，也会加载战斗特定的 FRE 规则。
+/// 如果指定了规则文件，也会加载序列特定的 FRE 规则。
 pub fn sync_battle_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentSequenceFlow>>,
     mut context: ResMut<SequenceContext>,
     assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
-    mut battle_rules_handle: ResMut<crate::app_state::battle::fre::BattleRulesHandle>,
+    mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)
@@ -48,12 +48,13 @@ pub fn sync_battle_flow_system(
         );
         context.chapters.extend(asset.chapters.clone());
 
-        // Load battle-specific rules if specified
+        // Load sequence-specific rules if specified
         if let Some(rules_path) = &asset.rules_file {
             let rules_handle =
                 asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
-            battle_rules_handle.handle = Some(rules_handle);
-            info!("Battle FRE: Loading rules from {}", rules_path);
+            sequence_rules_handle.handle = Some(rules_handle);
+            sequence_rules_handle.registered = false;
+            info!("Sequence FRE: Loading rules from {}", rules_path);
         }
 
         commands.remove_resource::<CurrentSequenceFlow>();

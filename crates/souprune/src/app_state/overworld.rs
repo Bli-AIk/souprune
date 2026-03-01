@@ -94,6 +94,9 @@ impl Plugin for OverworldPlugin {
             Update,
             OverworldUpdate.run_if(in_state(AppState::Overworld)),
         )
+        // Note: SequencerUpdate and ViewUpdate run_if conditions are configured in lib.rs
+        //
+        // 注意：SequencerUpdate 和 ViewUpdate 的运行条件在 lib.rs 中配置
         // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
         //
         // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
@@ -106,7 +109,10 @@ impl Plugin for OverworldPlugin {
         ))
         .add_systems(
             OnEnter(AppState::Overworld),
-            create_overworld_entities_system,
+            (
+                create_overworld_entities_system,
+                load_overworld_sequence_system,
+            ),
         )
         .add_systems(
             OnExit(AppState::Overworld),
@@ -185,8 +191,36 @@ impl Plugin for OverworldPlugin {
     }
 }
 
-fn create_overworld_entities_system(mut spawn_events: MessageWriter<player::SpawnPlayerRequest>) {
+fn create_overworld_entities_system(
+    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    // When sequence-driven mode is active, the sequence handles player spawning.
+    // 当序列驱动模式激活时，序列负责处理玩家生成。
+    if souprune_config.game.initial_sequence_path.is_some() {
+        return;
+    }
     spawn_events.write(player::SpawnPlayerRequest);
+}
+
+/// Load the overworld entry sequence when `initial_sequence_path` is configured.
+/// This replaces the hardcoded OnEnter initialization with a data-driven approach.
+///
+/// 当配置了 `initial_sequence_path` 时加载 Overworld 入口序列。
+/// 这将硬编码的 OnEnter 初始化替换为数据驱动的方式。
+fn load_overworld_sequence_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    souprune_config: Res<crate::config::SoupruneConfig>,
+) {
+    if let Some(ref sequence_path) = souprune_config.game.initial_sequence_path {
+        let handle = asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
+        commands.insert_resource(crate::core::sequencer::CurrentSequenceFlow(handle));
+        info!(
+            "Overworld: Loading entry sequence from '{}'",
+            sequence_path
+        );
+    }
 }
 
 fn set_overworld_danmaku_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {

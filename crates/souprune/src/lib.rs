@@ -554,6 +554,12 @@ pub fn run() {
                 in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
             ),
         )
+        .configure_sets(
+            Update,
+            sequencer::SequencerUpdate.run_if(
+                in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
+            ),
+        )
         .add_plugins(get_game_plugins())
         .run();
 }

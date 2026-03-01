@@ -13,11 +13,13 @@
 //! Sequencer 是线性序列管理器。
 //! 它负责管理和执行章节（Chapter），确保它们按顺序进行。
 
+mod bgm;
 mod camera;
 mod context;
 mod fact_chapter;
 mod flow;
 mod interaction;
+mod load_map;
 mod performance;
 mod player;
 mod run_sequence;
@@ -28,7 +30,7 @@ mod view_element;
 pub mod chapter_schema;
 
 // Re-export public types
-pub use context::{SequenceContext, SequenceExecutionState};
+pub use context::{CurrentSequenceFlow, SequenceContext, SequenceExecutionState, SequenceRulesHandle};
 pub use flow::load_default_chapter_system;
 
 use bevy::prelude::*;
@@ -76,6 +78,8 @@ pub(crate) struct SequencerPlugin;
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<context::SequenceContext>()
+            .init_resource::<context::SequenceRulesHandle>()
+            .init_resource::<bgm::SequencerBgm>()
             .init_asset::<SequenceAsset>()
             .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]))
             // Register custom interpolator systems for bevy_tween
@@ -118,6 +122,9 @@ impl Plugin for SequencerPlugin {
                     // RunSequence
                     run_sequence::process_run_sequence_system,
                     run_sequence::complete_run_sequence_system,
+                    // Scene setup chapters
+                    load_map::process_load_map_system,
+                    bgm::process_set_bgm_system,
                     // AwaitFact: check condition completion
                     interaction::check_await_fact_completion_system,
                     flow::cleanup_finished_chapters_system,

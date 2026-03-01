@@ -24,6 +24,7 @@ use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
+use crate::core::sequencer::SequenceRulesHandle;
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{
@@ -48,16 +49,6 @@ pub struct BattleFRESet;
 #[derive(Component)]
 pub struct BattleInputEntity;
 
-/// Resource to track the battle-specific rules handle.
-///
-/// 跟踪战斗特定规则句柄的资源。
-#[derive(Resource, Default)]
-pub struct BattleRulesHandle {
-    /// Handle for custom battle rules (from battle asset rules_file)
-    pub handle: Option<Handle<FreAsset>>,
-    pub registered: bool,
-}
-
 /// Plugin for Battle FRE integration.
 ///
 /// 战斗 FRE 集成插件。
@@ -66,7 +57,6 @@ pub struct BattleFREPlugin;
 impl Plugin for BattleFREPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<ChapterCompletedEvent>()
-            .init_resource::<BattleRulesHandle>()
             .init_resource::<ActOptionsTracker>()
             .configure_sets(Update, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
@@ -146,19 +136,19 @@ fn setup_battle_fre_system(
 /// 注意：战斗菜单规则通过 View 的 requires 机制加载。
 fn register_battle_rules_system(
     mut commands: Commands,
-    mut battle_rules_handle: ResMut<BattleRulesHandle>,
+    mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
     fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     existing_action_defs: Option<ResMut<RuleActionDefs>>,
 ) {
     // Skip if already registered
-    if battle_rules_handle.registered {
+    if sequence_rules_handle.registered {
         return;
     }
 
     // Wait for custom rules if specified
-    let custom_loaded = battle_rules_handle
+    let custom_loaded = sequence_rules_handle
         .handle
         .as_ref()
         .map(|h| fre_assets.get(h).is_some())
@@ -178,7 +168,7 @@ fn register_battle_rules_system(
     };
 
     // Process custom battle rules (if any)
-    if let Some(handle) = &battle_rules_handle.handle
+    if let Some(handle) = &sequence_rules_handle.handle
         && let Some(fre_asset) = fre_assets.get(handle)
     {
         for (key, value) in fre_asset.get_facts() {
@@ -214,7 +204,7 @@ fn register_battle_rules_system(
         info!("Battle FRE: Registered {} custom rules", rules_defs.len());
     }
 
-    battle_rules_handle.registered = true;
+    sequence_rules_handle.registered = true;
     info!("Battle FRE: All rules registered and action_defs populated");
 }
 
@@ -226,7 +216,7 @@ fn register_battle_rules_system(
 fn cleanup_battle_fre_system(
     mut layered_db: ResMut<LayeredFactDatabase>,
     mut registry: ResMut<LayeredRuleRegistry>,
-    mut battle_rules_handle: ResMut<BattleRulesHandle>,
+    mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
 ) {
     // TODO: Optionally promote certain facts to global layer
     // (e.g., battle results, experience gained)
@@ -238,8 +228,8 @@ fn cleanup_battle_fre_system(
     registry.clear_local();
 
     // Reset rules handle for next battle
-    battle_rules_handle.handle = None;
-    battle_rules_handle.registered = false;
+    sequence_rules_handle.handle = None;
+    sequence_rules_handle.registered = false;
 
     info!("Battle FRE: Cleaned up local layer (facts and rules) and reset rules handle");
 }

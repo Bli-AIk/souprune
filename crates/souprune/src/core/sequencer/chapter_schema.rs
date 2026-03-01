@@ -527,6 +527,84 @@ pub enum Chapter {
         #[serde(default)]
         params: std::collections::HashMap<String, FactValueMatch>,
     },
+
+    // =========================================================================
+    // Scene Setup Chapters
+    // 场景构建章节
+    // =========================================================================
+
+    /// Load a Tiled tilemap (.tmx) into the scene.
+    ///
+    /// Spawns a TiledMap entity and optionally triggers collision generation,
+    /// object property processing, and camera bounds setup.
+    /// These sub-operations are handled reactively by existing tilemap systems.
+    ///
+    /// 加载 Tiled 瓦片地图 (.tmx) 到场景中。
+    ///
+    /// 生成 TiledMap 实体，并可选地触发碰撞生成、对象属性处理和相机边界设置。
+    /// 这些子操作由现有的 tilemap 系统以响应式方式处理。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// LoadMap(
+    ///     path: "levels/town.tmx",
+    ///     generate_collision: true,
+    ///     process_objects: true,
+    ///     setup_camera_bounds: true,
+    /// ),
+    /// ```
+    LoadMap {
+        /// Path to the .tmx map file.
+        ///
+        /// .tmx 地图文件路径。
+        path: String,
+
+        /// Whether to generate collision tiles from collision layers (default: true).
+        ///
+        /// 是否从碰撞图层生成碰撞瓦片（默认：true）。
+        #[serde(default = "default_true")]
+        generate_collision: bool,
+
+        /// Whether to process map object properties (triggers, NPCs, etc.) (default: true).
+        ///
+        /// 是否处理地图对象属性（触发区、NPC 等）（默认：true）。
+        #[serde(default = "default_true")]
+        process_objects: bool,
+
+        /// Whether to setup camera bounds from map dimensions (default: true).
+        ///
+        /// 是否根据地图尺寸设置相机边界（默认：true）。
+        #[serde(default = "default_true")]
+        setup_camera_bounds: bool,
+    },
+
+    /// Play or switch background music.
+    ///
+    /// Controls BGM playback. Set path to None to stop current BGM.
+    ///
+    /// 播放或切换背景音乐。
+    ///
+    /// 控制 BGM 播放。将 path 设为 None 可停止当前 BGM。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// SetBgm(
+    ///     path: Some("audio/bgm/town.ogg"),
+    ///     fade_in: Some(1.0),
+    /// ),
+    /// ```
+    SetBgm {
+        /// BGM file path. None means stop current BGM.
+        ///
+        /// BGM 文件路径。None 表示停止当前 BGM。
+        path: Option<String>,
+
+        /// Fade-in duration in seconds (optional).
+        ///
+        /// 淡入持续时间（秒）（可选）。
+        #[serde(default)]
+        fade_in: Option<f32>,
+    },
 }
 
 fn default_true() -> bool {
