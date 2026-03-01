@@ -702,12 +702,10 @@ pub mod debug_fre_panel {
                     let current_app_state =
                         world.get_resource::<State<AppState>>().map(|s| *s.get());
 
-                    // List all AppState variants
                     let all_states = [
                         (AppState::AppSetup, "App initialization"),
                         (AppState::Menu, "Main menu"),
-                        (AppState::Overworld, "Overworld exploration"),
-                        (AppState::Battle, "Battle mode"),
+                        (AppState::Playing, "Playing"),
                     ];
 
                     for (state, description) in all_states {
@@ -727,12 +725,45 @@ pub mod debug_fre_panel {
                     }
                 });
 
+            ui.add_space(5.0);
+
+            // GameMode section
+            egui::CollapsingHeader::new("GameMode")
+                .default_open(true)
+                .show(ui, |ui| {
+                    let current_game_mode = world
+                        .get_resource::<State<crate::app_state::GameMode>>()
+                        .map(|s| *s.get());
+
+                    let all_modes = [
+                        (crate::app_state::GameMode::None, "No active mode"),
+                        (crate::app_state::GameMode::Overworld, "Overworld exploration"),
+                        (crate::app_state::GameMode::Battle, "Battle mode"),
+                    ];
+
+                    for (mode, description) in all_modes {
+                        let is_current = current_game_mode == Some(mode);
+                        let mode_name = format!("{:?}", mode);
+
+                        ui.horizontal(|ui| {
+                            if is_current {
+                                ui.colored_label(egui::Color32::GREEN, "> ");
+                                ui.colored_label(egui::Color32::GREEN, &mode_name);
+                                ui.small(description);
+                            } else {
+                                ui.label("  ");
+                                ui.colored_label(egui::Color32::GRAY, &mode_name);
+                            }
+                        });
+                    }
+                });
+
             ui.add_space(10.0);
 
-            // OverworldSubState section - only show when in Overworld
+            // OverworldSubState section - only show when in Overworld mode
             let is_in_overworld = world
-                .get_resource::<State<AppState>>()
-                .map(|s| *s.get() == AppState::Overworld)
+                .get_resource::<State<crate::app_state::GameMode>>()
+                .map(|s| *s.get() == crate::app_state::GameMode::Overworld)
                 .unwrap_or(false);
 
             if is_in_overworld {

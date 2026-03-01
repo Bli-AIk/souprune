@@ -449,7 +449,7 @@ pub fn handle_chase_state_actions_system(
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
     mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
-    mut next_app_state: ResMut<NextState<crate::app_state::AppState>>,
+    mut next_app_state: ResMut<NextState<crate::app_state::GameMode>>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
     mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -500,7 +500,7 @@ fn handle_chase_action(
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
     next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
-    next_app_state: &mut NextState<crate::app_state::AppState>,
+    next_app_state: &mut NextState<crate::app_state::GameMode>,
     spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
     despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -537,7 +537,7 @@ fn handle_chase_action(
         }
         "StartBattle" => {
             info!("FRE: Starting battle via action");
-            next_app_state.set(crate::app_state::AppState::Battle);
+            next_app_state.set(crate::app_state::GameMode::Battle);
         }
         "SetOverworldState" => {
             if let Some(state) = params.get("state") {

@@ -12,7 +12,7 @@
 
 #[cfg(feature = "debug")]
 pub mod debug_battle_test {
-    use crate::app_state::AppState;
+    use crate::app_state::GameMode;
     use bevy::prelude::*;
 
     pub(crate) fn setup_battle_test_debug(app: &mut App) {
@@ -21,15 +21,15 @@ pub mod debug_battle_test {
 
     fn debug_battle_test_system(
         input: Res<ButtonInput<KeyCode>>,
-        mut next_state: ResMut<NextState<AppState>>,
-        current_state: Res<State<AppState>>,
+        mut next_state: ResMut<NextState<GameMode>>,
+        current_state: Res<State<GameMode>>,
     ) {
         if input.just_pressed(KeyCode::F6) {
-            if *current_state.get() != AppState::Battle {
-                next_state.set(AppState::Battle);
-                info!("Debug: Switching to AppState::Battle");
+            if *current_state.get() != GameMode::Battle {
+                next_state.set(GameMode::Battle);
+                info!("Debug: Switching to GameMode::Battle");
             } else {
-                info!("Debug: Already in AppState::Battle");
+                info!("Debug: Already in GameMode::Battle");
             }
         }
     }

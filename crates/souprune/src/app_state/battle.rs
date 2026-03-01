@@ -29,7 +29,7 @@ pub mod danmaku;
 pub mod fre;
 pub mod player_config_schema;
 
-use crate::app_state::AppState;
+use crate::app_state::GameMode;
 use crate::app_state::battle::am_integration::AmBattlePlugin;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
@@ -82,7 +82,7 @@ pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+        app.configure_sets(Update, BattleUpdate.run_if(in_state(GameMode::Battle)))
             .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
             // Note: SequencerUpdate is configured in lib.rs to support both Overworld and Battle
             // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
@@ -100,14 +100,14 @@ impl Plugin for BattlePlugin {
                 BattleFREPlugin,
             ))
             .add_systems(
-                OnEnter(AppState::Battle),
+                OnEnter(GameMode::Battle),
                 (
                     crate::core::sequencer::load_default_chapter_system,
                     setup_battle_camera,
                     setup_battle_input_manager,
                 ),
             )
-            .add_systems(OnExit(AppState::Battle), cleanup_battle_input_manager);
+            .add_systems(OnExit(GameMode::Battle), cleanup_battle_input_manager);
     }
 }
 

@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 ///
 /// 当摄像机移动时同步锚点，支持有 UI 交互或追逐战配置的状态。
 pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
-    app_state: Res<State<crate::app_state::AppState>>,
+    game_mode: Res<State<crate::app_state::GameMode>>,
     overworld_state: Option<Res<State<OverworldSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>, Changed<Transform>)>,
@@ -38,11 +38,9 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
         (Without<Camera2d>, Without<DebugCamera>),
     >,
 ) {
-    // Only run in Battle state or Overworld states with UI interaction or chase config
-    // 仅在 Battle 状态或具有 UI 交互或追逐战配置的 Overworld 状态下运行
-    let should_run = match app_state.get() {
-        crate::app_state::AppState::Battle => true,
-        crate::app_state::AppState::Overworld => {
+    let should_run = match game_mode.get() {
+        crate::app_state::GameMode::Battle => true,
+        crate::app_state::GameMode::Overworld => {
             if let (Some(ow_state), Some(config)) =
                 (overworld_state.as_ref(), state_config.as_ref())
             {
@@ -192,7 +190,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 /// 仅在新 UI 产生或偏移量改变时同步，支持有 UI 交互或追逐战配置的状态。
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_camera_anchored_ui_on_change_system(
-    app_state: Res<State<crate::app_state::AppState>>,
+    game_mode: Res<State<crate::app_state::GameMode>>,
     overworld_state: Option<Res<State<OverworldSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
@@ -205,11 +203,9 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
         ),
     >,
 ) {
-    // Only run in Battle state or Overworld states with UI interaction or chase config
-    // 仅在 Battle 状态或具有 UI 交互或追逐战配置的 Overworld 状态下运行
-    let should_run = match app_state.get() {
-        crate::app_state::AppState::Battle => true,
-        crate::app_state::AppState::Overworld => {
+    let should_run = match game_mode.get() {
+        crate::app_state::GameMode::Battle => true,
+        crate::app_state::GameMode::Overworld => {
             if let (Some(ow_state), Some(config)) =
                 (overworld_state.as_ref(), state_config.as_ref())
             {

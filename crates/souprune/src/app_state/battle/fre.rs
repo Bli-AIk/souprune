@@ -8,17 +8,10 @@
 //! data-driven battle logic through declarative rules.
 //!
 //! 本模块为战斗系统提供 FRE 集成，通过声明式规则实现数据驱动的战斗逻辑。
-//!
-//! NOTE: Battle UI navigation has been moved to FRE rules in battle_menu.fre.ron.
-//! The old hardcoded navigation system has been removed.
-//!
-//! 注意：战斗 UI 导航已移至 battle_menu.fre.ron 中的 FRE 规则。
-//! 旧的硬编码导航系统已被移除。
 
 mod action_handlers;
 mod bridge;
 
-use crate::app_state::AppState;
 use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
@@ -60,10 +53,10 @@ impl Plugin for BattleFREPlugin {
             .init_resource::<ActOptionsTracker>()
             .configure_sets(Update, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
-                OnEnter(AppState::Battle),
+                OnEnter(crate::app_state::GameMode::Battle),
                 (setup_battle_fre_system, setup_battle_action_handlers_system),
             )
-            .add_systems(OnExit(AppState::Battle), cleanup_battle_fre_system)
+            .add_systems(OnExit(crate::app_state::GameMode::Battle), cleanup_battle_fre_system)
             .add_systems(
                 Update,
                 (

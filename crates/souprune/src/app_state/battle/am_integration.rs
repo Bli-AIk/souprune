@@ -217,7 +217,7 @@ impl Plugin for AmBattlePlugin {
             .init_resource::<AmBattleConfig>()
             .add_message::<PlayAmPerformanceEvent>()
             .add_systems(
-                OnEnter(crate::app_state::AppState::Battle),
+                OnEnter(crate::app_state::GameMode::Battle),
                 load_am_battle_config,
             )
             .add_systems(
@@ -241,7 +241,7 @@ impl Plugin for AmBattlePlugin {
                     .in_set(crate::app_state::battle::BattleUpdate),
             )
             .add_systems(
-                OnExit(crate::app_state::AppState::Battle),
+                OnExit(crate::app_state::GameMode::Battle),
                 cleanup_am_entities,
             );
     }

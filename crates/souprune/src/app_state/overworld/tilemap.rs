@@ -18,7 +18,6 @@
 //!
 //! 本文件实现了 `TilemapPlugin`，连接用于处理瓦片地图与相对玩家更新对象排序的系统。
 
-use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
 #[cfg(feature = "experimental")]

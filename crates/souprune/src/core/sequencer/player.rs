@@ -44,9 +44,9 @@ pub fn process_player_action_system(
         if let Chapter::SetPlayer(action) = &active_chapter.chapter {
             match action {
                 PlayerAction::Spawn {
-                    config_path: Some(config_path),
+                    config_path,
                     position,
-                } => {
+                } if config_path.ends_with(".battle_player.ron") => {
                     let handle = asset_server.load::<BattlePlayerConfig>(config_path);
                     commands.spawn((
                         PlayerSpawnRequest {
@@ -57,10 +57,8 @@ pub fn process_player_action_system(
                     ));
                     commands.entity(entity).insert(ChapterFinished);
                 }
-                // config_path: None → handled by state-specific systems (e.g., overworld)
-                PlayerAction::Spawn {
-                    config_path: None, ..
-                } => {}
+                // Non-battle config_path → handled by state-specific systems (e.g., overworld)
+                PlayerAction::Spawn { .. } => {}
                 PlayerAction::Teleport(pos) => {
                     for mut transform in player_query.iter_mut() {
                         transform.translation = pos.extend(0.0);

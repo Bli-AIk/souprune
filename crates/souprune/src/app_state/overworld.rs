@@ -15,6 +15,7 @@
 //! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
 
 use crate::app_state::cleanup_entities_system;
+use crate::app_state::GameMode;
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -88,11 +89,9 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        use crate::app_state::AppState;
-
         app.configure_sets(
             Update,
-            OverworldUpdate.run_if(in_state(AppState::Overworld)),
+            OverworldUpdate.run_if(in_state(GameMode::Overworld)),
         )
         // Note: SequencerUpdate and ViewUpdate run_if conditions are configured in lib.rs
         //
@@ -108,11 +107,11 @@ impl Plugin for OverworldPlugin {
             crate::core::view::CoreViewPlugin,
         ))
         .add_systems(
-            OnEnter(AppState::Overworld),
+            OnEnter(GameMode::Overworld),
             load_overworld_sequence_system,
         )
         .add_systems(
-            OnExit(AppState::Overworld),
+            OnExit(GameMode::Overworld),
             (
                 cleanup_entities_system::<OverworldEntity>,
                 stop_bgm_on_exit_system,
@@ -155,7 +154,7 @@ impl Plugin for OverworldPlugin {
             .configure_sets(
                 Update,
                 DanmakuUpdate
-                    .run_if(in_state(AppState::Battle).or(in_state(AppState::Overworld)))
+                    .run_if(in_state(crate::app_state::AppState::Playing))
                     .after(FRETriggerSet),
             )
             .init_resource::<trigger::LoadedRuleSets>()
@@ -163,7 +162,7 @@ impl Plugin for OverworldPlugin {
             .init_resource::<trigger::PendingDanmakuActions>()
             .init_resource::<trigger::FocusedInteractable>()
             .add_systems(
-                OnEnter(AppState::Overworld),
+                OnEnter(GameMode::Overworld),
                 (
                     trigger::setup_action_handlers_system,
                     set_overworld_danmaku_context,
@@ -219,10 +218,10 @@ fn load_overworld_sequence_system(
     }
 }
 
-/// Process `SetPlayer(Spawn { config_path: None })` chapters in overworld.
+/// Process `SetPlayer(Spawn { .. })` chapters in overworld for non-battle configs.
 /// Sends `SpawnPlayerRequest` using the already-loaded `PlayerBehavior` config.
 ///
-/// 处理 Overworld 中 `SetPlayer(Spawn { config_path: None })` 章节。
+/// 处理 Overworld 中非战斗配置的 `SetPlayer(Spawn { .. })` 章节。
 /// 使用已加载的 `PlayerBehavior` 配置发送 `SpawnPlayerRequest`。
 fn process_overworld_player_spawn_system(
     mut commands: Commands,
@@ -238,15 +237,19 @@ fn process_overworld_player_spawn_system(
     use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
 
     for (entity, active_chapter) in active_chapters.iter() {
-        if let Chapter::SetPlayer(PlayerAction::Spawn {
-            config_path: None, ..
-        }) = &active_chapter.chapter
+        if let Chapter::SetPlayer(PlayerAction::Spawn { config_path, .. }) =
+            &active_chapter.chapter
         {
-            spawn_events.write(player::SpawnPlayerRequest);
-            commands
-                .entity(entity)
-                .insert(crate::core::sequencer::ChapterFinished);
-            info!("Overworld: Spawning player via PlayerBehavior config");
+            if !config_path.ends_with(".battle_player.ron") {
+                spawn_events.write(player::SpawnPlayerRequest);
+                commands
+                    .entity(entity)
+                    .insert(crate::core::sequencer::ChapterFinished);
+                info!(
+                    "Overworld: Spawning player from config '{}'",
+                    config_path
+                );
+            }
         }
     }
 }

@@ -802,15 +802,16 @@ pub enum PlayerAction {
     SetMode(Vec<String>),
 
     /// Spawn a new player entity.
-    /// When `config_path` is set, loads battle player config (battle mode).
-    /// When `config_path` is None, spawns overworld player using PlayerBehavior config.
+    /// The `config_path` determines spawn behavior:
+    /// - Ends with `.battle_player.ron` → loads battle player config (battle mode).
+    /// - Otherwise → delegated to state-specific handlers (e.g., overworld).
     ///
     /// 生成一个新的玩家实体。
-    /// 当 `config_path` 设置时，加载战斗玩家配置（战斗模式）。
-    /// 当 `config_path` 为 None 时，使用 PlayerBehavior 配置生成 Overworld 玩家。
+    /// `config_path` 决定生成行为：
+    /// - 以 `.battle_player.ron` 结尾 → 加载战斗玩家配置（战斗模式）。
+    /// - 其他 → 委托给状态特定处理器（如 Overworld）。
     Spawn {
-        #[serde(default)]
-        config_path: Option<String>,
+        config_path: String,
         #[serde(default)]
         position: Option<Vec2>,
     },

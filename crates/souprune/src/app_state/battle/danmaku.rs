@@ -12,7 +12,6 @@
 
 pub use crate::core::danmaku::*;
 
-use crate::app_state::AppState;
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::DanmakuSpawnContext;
 use crate::core::mod_system::BehaviorParams;
@@ -94,7 +93,7 @@ pub struct DanmakuPlugin;
 impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
         // Set spawn context to Battle when entering battle state
-        app.add_systems(OnEnter(AppState::Battle), set_battle_context);
+        app.add_systems(OnEnter(crate::app_state::GameMode::Battle), set_battle_context);
 
         // Add damage detection and invincibility systems
         app.init_resource::<BattleInvincibilityConfig>()

@@ -548,17 +548,14 @@ pub fn run() {
         .insert_resource(player_input_settings)
         .insert_resource(input_behavior_config)
         .init_state::<app_state::AppState>()
+        .init_state::<app_state::GameMode>()
         .configure_sets(
             Update,
-            view::ViewUpdate.run_if(
-                in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
-            ),
+            view::ViewUpdate.run_if(in_state(app_state::AppState::Playing)),
         )
         .configure_sets(
             Update,
-            sequencer::SequencerUpdate.run_if(
-                in_state(app_state::AppState::Overworld).or(in_state(app_state::AppState::Battle)),
-            ),
+            sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Playing)),
         )
         .add_plugins(get_game_plugins())
         .run();

@@ -91,7 +91,6 @@ pub struct DespawnViewRequest {
     pub path: Option<String>,
 }
 
-use crate::app_state::AppState;
 use components::state_sprite::{
     evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
     update_state_sprite_textures_system,
@@ -161,7 +160,7 @@ impl Plugin for CoreViewPlugin {
                     backpack_state_transition_system,
                     state_transition_sound_system,
                 )
-                    .run_if(in_state(AppState::Overworld)),
+                    .run_if(in_state(crate::app_state::GameMode::Overworld)),
             )
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
