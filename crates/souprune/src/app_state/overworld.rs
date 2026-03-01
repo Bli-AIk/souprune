@@ -121,6 +121,10 @@ impl Plugin for OverworldPlugin {
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
         .add_systems(
             Update,
+            mark_tilemap_as_overworld_entity.in_set(OverworldUpdate),
+        )
+        .add_systems(
+            Update,
             process_overworld_player_spawn_system
                 .in_set(crate::core::sequencer::SequencerUpdate),
         )
@@ -281,6 +285,18 @@ fn bind_camera_target_system(
         for mut followable in camera.iter_mut() {
             followable.target = Some(player_entity);
         }
+    }
+}
+
+/// Mark TiledMap entities spawned by the sequencer with OverworldEntity for cleanup.
+///
+/// 为序列器生成的 TiledMap 实体添加 OverworldEntity 标记，用于模式切换时的清理。
+fn mark_tilemap_as_overworld_entity(
+    mut commands: Commands,
+    query: Query<Entity, (Added<bevy_ecs_tiled::prelude::TiledMap>, Without<OverworldEntity>)>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).insert(OverworldEntity());
     }
 }
 
