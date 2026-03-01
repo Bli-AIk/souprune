@@ -21,6 +21,8 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_alight_motion/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flambe/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_workbench/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/bevy_workbench/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />

@@ -23,3 +23,7 @@
 	path = crates/flambe
 	url = https://github.com/Bli-AIk/flambe.git
 	branch = feat/init
+[submodule "crates/bevy_workbench"]
+	path = crates/bevy_workbench
+	url = https://github.com/Bli-AIk/bevy_workbench.git
+	branch = feat/init

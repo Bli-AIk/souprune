@@ -1,0 +1,10 @@
+ui_scale = 1.25
+locale = "ZhCn"
+
+[theme]
+edit_theme = "Rerun"
+play_theme = "Rerun"
+edit_brightness = 1.0
+play_brightness = 0.6000000238418579
+
+[font]
