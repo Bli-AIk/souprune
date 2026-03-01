@@ -183,7 +183,8 @@ fn check_textures_system(
         if required_loaded && all_discovered_loaded {
             info!("All texture modules loaded: {:?}", discovered_modules.0);
 
-            if souprune_config.game.initial_map_path.is_empty()
+            if souprune_config.game.initial_sequence_path.is_none()
+                && souprune_config.game.initial_map_path.is_empty()
                 && !souprune_config.game.initial_battle_path.is_empty()
             {
                 info!(

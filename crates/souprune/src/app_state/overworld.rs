@@ -109,10 +109,7 @@ impl Plugin for OverworldPlugin {
         ))
         .add_systems(
             OnEnter(AppState::Overworld),
-            (
-                create_overworld_entities_system,
-                load_overworld_sequence_system,
-            ),
+            load_overworld_sequence_system,
         )
         .add_systems(
             OnExit(AppState::Overworld),
@@ -191,35 +188,33 @@ impl Plugin for OverworldPlugin {
     }
 }
 
-fn create_overworld_entities_system(
-    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
-) {
-    // When sequence-driven mode is active, the sequence handles player spawning.
-    // 当序列驱动模式激活时，序列负责处理玩家生成。
-    if souprune_config.game.initial_sequence_path.is_some() {
-        return;
-    }
-    spawn_events.write(player::SpawnPlayerRequest);
-}
-
-/// Load the overworld entry sequence when `initial_sequence_path` is configured.
-/// This replaces the hardcoded OnEnter initialization with a data-driven approach.
+/// Load the overworld entry sequence from `initial_sequence_path`.
+/// All overworld initialization is sequence-driven.
+/// Also sends SpawnPlayerRequest since player spawning uses PlayerBehavior config.
 ///
-/// 当配置了 `initial_sequence_path` 时加载 Overworld 入口序列。
-/// 这将硬编码的 OnEnter 初始化替换为数据驱动的方式。
+/// 从 `initial_sequence_path` 加载 Overworld 入口序列。
+/// 所有 Overworld 初始化均由序列驱动。
+/// 同时发送 SpawnPlayerRequest，因为玩家生成使用 PlayerBehavior 配置。
 fn load_overworld_sequence_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     souprune_config: Res<crate::config::SoupruneConfig>,
+    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
 ) {
-    if let Some(ref sequence_path) = souprune_config.game.initial_sequence_path {
-        let handle = asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
-        commands.insert_resource(crate::core::sequencer::CurrentSequenceFlow(handle));
-        info!(
-            "Overworld: Loading entry sequence from '{}'",
-            sequence_path
-        );
+    match souprune_config.game.initial_sequence_path {
+        Some(ref sequence_path) => {
+            let handle =
+                asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
+            commands.insert_resource(crate::core::sequencer::CurrentSequenceFlow(handle));
+            spawn_events.write(player::SpawnPlayerRequest);
+            info!(
+                "Overworld: Loading entry sequence from '{}'",
+                sequence_path
+            );
+        }
+        None => {
+            error!("Overworld: No initial_sequence_path configured in mod.toml. Overworld initialization requires a sequence file.");
+        }
     }
 }
 

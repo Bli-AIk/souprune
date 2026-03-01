@@ -46,9 +46,10 @@ impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
         use object_properties::process_map_object_properties_system;
         use systems::*;
+        // Tilemap is loaded by the sequencer's LoadMap chapter, not by hardcoded OnEnter systems.
+        // 瓦片地图由序列器的 LoadMap 章节加载，而非硬编码的 OnEnter 系统。
         app.init_resource::<CurrentMapBgm>()
             .init_resource::<CurrentBgmHandle>()
-            .add_systems(OnEnter(Overworld), setup_tilemap_system)
             .add_systems(
                 Update,
                 (

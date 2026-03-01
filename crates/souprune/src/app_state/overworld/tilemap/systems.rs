@@ -52,8 +52,11 @@ pub struct CollisionTileGroup;
 pub struct ObjectCollisionGroup;
 
 /// Setup the tilemap, using preloaded map handle if available.
+/// Kept for potential direct use; OnEnter(Overworld) uses sequencer's LoadMap instead.
 ///
 /// 设置 tilemap，如果可用则使用预加载的地图句柄。
+/// 保留供直接调用；OnEnter(Overworld) 使用序列器的 LoadMap 替代。
+#[allow(dead_code)]
 pub fn setup_tilemap_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
