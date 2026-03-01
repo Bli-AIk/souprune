@@ -1,5 +1,5 @@
 use super::super::layout::ViewLayoutAsset;
-use crate::app_state::overworld::OverworldSubState;
+use crate::app_state::SequenceSubState;
 use crate::core::input::Action;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -93,9 +93,9 @@ pub struct ViewGlobalTriggerConfig {
 
 #[derive(Clone)]
 pub struct GlobalTriggerRule {
-    pub target_state: OverworldSubState,
+    pub target_state: SequenceSubState,
     pub sound: Option<String>,
-    pub allowed_states: Vec<OverworldSubState>,
+    pub allowed_states: Vec<SequenceSubState>,
 }
 
 /// Marker component indicating the view has been generated for this entity.

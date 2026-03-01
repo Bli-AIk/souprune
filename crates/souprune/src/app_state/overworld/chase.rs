@@ -25,8 +25,9 @@ use bevy::prelude::*;
 use bevy::sprite_render::MeshMaterial2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 
+use crate::app_state::{ModeScoped, SequenceSubState};
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::{OverworldEntity, OverworldSubState, OverworldUpdate};
+use crate::app_state::overworld::OverworldUpdate;
 use crate::config;
 use crate::core::state_config::LoadedStateConfig;
 use crate::core::view::PixelOutlineMaterial;
@@ -166,7 +167,7 @@ fn chase_enabled(enabled: Res<ChaseEnabled>) -> bool {
 
 /// Check if current state is a chase state (has chase_config in its definition).
 pub fn is_in_chase_state(
-    current_state: &OverworldSubState,
+    current_state: &SequenceSubState,
     chase_state_name: &ChaseStateName,
 ) -> bool {
     chase_state_name
@@ -178,7 +179,7 @@ pub fn is_in_chase_state(
 /// System to detect when entering chase state.
 fn detect_chase_state_enter_system(
     mut commands: Commands,
-    current_state: Res<State<OverworldSubState>>,
+    current_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     mut tracker: ResMut<ChaseStateTracker>,
     mut transition: ResMut<ChaseTransition>,
@@ -193,9 +194,8 @@ fn detect_chase_state_enter_system(
 
         // Setup chase effect root
         commands.spawn((
-            OverworldEntity(),
+            ModeScoped("overworld".to_string()),
             ChaseEffectRoot,
-            Name::new("ChaseEffectRoot"),
             Transform::default(),
             Visibility::default(),
         ));
@@ -226,7 +226,7 @@ fn detect_chase_state_enter_system(
 
 /// System to detect when exiting chase state.
 fn detect_chase_state_exit_system(
-    current_state: Res<State<OverworldSubState>>,
+    current_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     mut tracker: ResMut<ChaseStateTracker>,
     mut transition: ResMut<ChaseTransition>,
@@ -318,7 +318,7 @@ fn load_chase_config_system(
 /// 设置追逐战效果可视化器的根实体。
 fn setup_chase_effect_root_system(mut commands: Commands) {
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         ChaseEffectRoot,
         Name::new("ChaseEffectRoot"),
         Transform::default(),

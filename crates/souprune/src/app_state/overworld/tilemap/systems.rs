@@ -18,7 +18,8 @@
 //!
 //! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
 
-use crate::app_state::overworld::{OverworldEntity, character};
+use crate::app_state::ModeScoped;
+use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
@@ -124,7 +125,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 CollisionTileGroup,
                 Name::new("CollisionTiles"),
                 Transform::default(),
@@ -141,7 +142,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 ObjectCollisionGroup,
                 Name::new("ObjectCollisions"),
                 Transform::default(),

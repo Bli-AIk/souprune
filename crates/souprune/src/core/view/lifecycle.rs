@@ -40,7 +40,7 @@
 
 use super::layout::ViewLayoutAsset;
 use super::ron_view::ViewLayoutHandle;
-use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
+use crate::app_state::{ModeScoped, SequenceSubState};
 use crate::core::audio;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
@@ -60,11 +60,11 @@ pub struct StateTransitionTracker {
 }
 
 /// Resource to track UI interactive state transitions.
-/// Since OverworldSubState is now dynamic (string-based), we can't use OnEnter/OnExit directly.
+/// Since SequenceSubState is dynamic (string-based), we can't use OnEnter/OnExit directly.
 /// This tracker monitors the `ui_interactive` flag from state config.
 ///
 /// 用于跟踪 UI 交互状态转换的资源。
-/// 由于 OverworldSubState 现在是动态的（基于字符串），我们无法直接使用 OnEnter/OnExit。
+/// 由于 SequenceSubState 是动态的（基于字符串），我们无法直接使用 OnEnter/OnExit。
 /// 此追踪器监视状态配置中的 `ui_interactive` 标志。
 #[derive(Resource, Default)]
 pub struct UIInteractiveStateTracker {
@@ -81,16 +81,11 @@ pub struct UIInteractiveStateTracker {
 pub struct BackpackViewRoot;
 
 /// System to detect UI interactive state transitions and trigger spawn/despawn.
-/// This replaces OnEnter/OnExit for the dynamic OverworldSubState.
-/// It checks the `ui_interactive` flag from state config instead of hardcoded state names.
-///
-/// 检测 UI 交互状态转换并触发生成/销毁的系统。
-/// 这替代了动态 OverworldSubState 的 OnEnter/OnExit。
-/// 它检查状态配置中的 `ui_interactive` 标志而不是硬编码的状态名称。
+/// Checks the `ui_interactive` flag from state config.
 pub(crate) fn backpack_state_transition_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut tracker: ResMut<UIInteractiveStateTracker>,
     locale_loaded: Option<Res<LocaleLoaded>>,
@@ -102,7 +97,7 @@ pub(crate) fn backpack_state_transition_system(
     };
 
     // Check if current state has ui_interactive enabled
-    let state_name = overworld_state.name();
+    let state_name = sub_state.name();
     let is_view_interactive = state_config.is_view_interactive(state_name);
 
     // Log state every frame for debugging
@@ -203,7 +198,7 @@ fn spawn_ui_root(commands: &mut Commands, locale_loaded: Option<&LocaleLoaded>) 
     }
 
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         BackpackViewRoot,
         ActiveView, // Mark as active for FRE system input handling
         Transform::from_translation(Vec3::ZERO),
@@ -242,7 +237,7 @@ fn despawn_ui(commands: &mut Commands, root_query: &Query<Entity, With<BackpackV
 pub(crate) fn state_transition_sound_system(
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut tracker: ResMut<StateTransitionTracker>,
 ) {
@@ -250,7 +245,7 @@ pub(crate) fn state_transition_sound_system(
         return;
     };
 
-    let current_state = overworld_state.name();
+    let current_state = sub_state.name();
 
     // Detect state change
     if tracker.previous_state.as_deref() != Some(current_state) {

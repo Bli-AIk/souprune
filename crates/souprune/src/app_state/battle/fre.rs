@@ -53,12 +53,14 @@ impl Plugin for BattleFREPlugin {
             .init_resource::<ActOptionsTracker>()
             .configure_sets(Update, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
-                OnEnter(crate::app_state::GameMode::Battle),
-                (setup_battle_fre_system, setup_battle_action_handlers_system),
+                Update,
+                (setup_battle_fre_system, setup_battle_action_handlers_system)
+                    .run_if(super::on_entering_battle),
             )
             .add_systems(
-                OnExit(crate::app_state::GameMode::Battle),
-                cleanup_battle_fre_system,
+                Update,
+                cleanup_battle_fre_system
+                    .run_if(super::on_exiting_battle),
             )
             .add_systems(
                 Update,
@@ -102,7 +104,7 @@ fn setup_battle_fre_system(
     commands.spawn((
         Name::new("BattleInputEntity"),
         BattleInputEntity,
-        crate::app_state::battle::BattleEntity,
+        crate::app_state::battle::battle_scoped(),
         player_input.get_merged_map(),
         ActionState::<Action>::default(),
     ));

@@ -94,8 +94,9 @@ impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
         // Set spawn context to Battle when entering battle state
         app.add_systems(
-            OnEnter(crate::app_state::GameMode::Battle),
-            set_battle_context,
+            Update,
+            set_battle_context
+                .run_if(super::on_entering_battle),
         );
 
         // Add damage detection and invincibility systems
@@ -129,8 +130,8 @@ impl Plugin for DanmakuPlugin {
 }
 
 fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
-    *spawn_context = DanmakuSpawnContext::battle();
-    info!("Danmaku: Set spawn context to Battle");
+    *spawn_context = DanmakuSpawnContext::with_mode("battle");
+    info!("Danmaku: Set spawn context to battle");
 }
 
 /// System to detect bullet collision with player in battle mode.

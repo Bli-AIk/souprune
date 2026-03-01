@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::super::components::ViewAnimationState;
 use super::super::layout::ViewLayoutAsset;
-use super::parsing::parse_overworld_state;
+use super::parsing::parse_sequence_state;
 use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
 use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
@@ -62,14 +62,14 @@ pub fn load_global_triggers_system(
                 let mut rules = Vec::new();
 
                 for rule_def in rules_def {
-                    if let Some(target_state) = parse_overworld_state(&rule_def.target_state) {
+                    if let Some(target_state) = parse_sequence_state(&rule_def.target_state) {
                         let allowed_states = rule_def
                             .allowed_states
                             .as_ref()
                             .map(|states| {
                                 states
                                     .iter()
-                                    .filter_map(|s| parse_overworld_state(s))
+                                    .filter_map(|s| parse_sequence_state(s))
                                     .collect()
                             })
                             .unwrap_or_default();

@@ -448,8 +448,8 @@ pub fn handle_chase_state_actions_system(
     action_defs: Res<RuleActionDefs>,
     chase_enabled: Res<super::chase::ChaseEnabled>,
     chase_state_name: Res<super::chase::ChaseStateName>,
-    mut next_ow_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
-    mut next_app_state: ResMut<NextState<crate::app_state::GameMode>>,
+    mut next_sub_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
     mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
     mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -478,8 +478,8 @@ pub fn handle_chase_state_actions_system(
                         action,
                         &chase_enabled,
                         &chase_state_name,
-                        &mut next_ow_state,
-                        &mut next_app_state,
+                        &mut next_sub_state,
+                        &mut sequence_mode,
                         &mut spawn_view_writer,
                         &mut despawn_view_writer,
                     );
@@ -499,8 +499,8 @@ fn handle_chase_action(
     action: &RuleActionDef,
     chase_enabled: &super::chase::ChaseEnabled,
     chase_state_name: &super::chase::ChaseStateName,
-    next_ow_state: &mut NextState<crate::app_state::overworld::OverworldSubState>,
-    next_app_state: &mut NextState<crate::app_state::GameMode>,
+    next_sub_state: &mut NextState<crate::app_state::SequenceSubState>,
+    sequence_mode: &mut ResMut<crate::app_state::SequenceMode>,
     spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
     despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
@@ -523,7 +523,7 @@ fn handle_chase_action(
                 return;
             };
             info!("FRE: Entering chase state '{}' via action", state_name);
-            next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+            next_sub_state.set(crate::app_state::SequenceSubState::new(
                 state_name.clone(),
             ));
         }
@@ -533,16 +533,16 @@ fn handle_chase_action(
                 return;
             }
             info!("FRE: Exiting chase state via action");
-            next_ow_state.set(crate::app_state::overworld::OverworldSubState::default());
+            next_sub_state.set(crate::app_state::SequenceSubState::default());
         }
         "StartBattle" => {
             info!("FRE: Starting battle via action");
-            next_app_state.set(crate::app_state::GameMode::Battle);
+            sequence_mode.0 = Some("battle".to_string());
         }
         "SetOverworldState" => {
             if let Some(state) = params.get("state") {
-                info!("FRE: Setting overworld state to '{}' via action", state);
-                next_ow_state.set(crate::app_state::overworld::OverworldSubState::new(
+                info!("FRE: Setting sub-state to '{}' via action", state);
+                next_sub_state.set(crate::app_state::SequenceSubState::new(
                     state.clone(),
                 ));
             } else {
@@ -745,7 +745,7 @@ pub fn handle_interaction_input_system(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     focused: Res<FocusedInteractable>,
     interactables: Query<&Interactable>,
-    current_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
+    current_state: Res<State<crate::app_state::SequenceSubState>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {

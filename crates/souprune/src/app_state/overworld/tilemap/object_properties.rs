@@ -8,7 +8,7 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
-use crate::app_state::overworld::OverworldEntity;
+use crate::app_state::ModeScoped;
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
 use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
@@ -230,7 +230,7 @@ fn spawn_trigger_zone(
     );
 
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         TiledTriggerZone,
         TriggerZone::new(&trigger_id),
         Rect2DCollider::new(size, Vec2::ZERO),
@@ -404,7 +404,7 @@ fn spawn_interactable(
     let interactable = Interactable::new(&interactable_id);
 
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         TiledInteractable,
         interactable,
         Rect2DCollider::new(size, Vec2::ZERO),

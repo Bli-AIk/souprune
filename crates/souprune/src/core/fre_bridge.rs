@@ -98,11 +98,10 @@ pub fn action_to_fre_event_system(
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
 fn state_facts_need_sync(
-    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
 ) -> bool {
-    // Check if either state has changed this frame
-    if let Some(ref state) = overworld_state
+    if let Some(ref state) = sub_state
         && state.is_changed()
     {
         return true;
@@ -116,14 +115,14 @@ fn state_facts_need_sync(
 }
 
 pub fn sync_state_to_facts_system(
-    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
     mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    // Sync OverworldSubState
-    if let Some(state) = overworld_state {
+    // Sync SequenceSubState (replaces OverworldSubState)
+    if let Some(state) = sub_state {
         let state_name = state.get().name().to_string();
-        facts.set("@overworld_state", FactValue::String(state_name));
+        facts.set("@sequence_sub_state", FactValue::String(state_name));
     }
 
     // Sync AppState
@@ -369,7 +368,7 @@ fn execute_action(
 /// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
 pub fn handle_switch_state_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
 ) {
     for mut view_root in active_view_query.iter_mut() {
         if let Some(FactValue::String(state_name)) =
@@ -377,7 +376,7 @@ pub fn handle_switch_state_system(
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
-            next_state.set(crate::app_state::overworld::OverworldSubState::new(
+            next_state.set(crate::app_state::SequenceSubState::new(
                 &state_name,
             ));
             view_root.local_facts.remove("_switch_state");

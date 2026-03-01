@@ -151,16 +151,15 @@ impl Plugin for CoreViewPlugin {
             // Handle DespawnViewRequest messages
             // 处理 DespawnViewRequest 消息
             .add_systems(Update, handle_despawn_view_request_system)
-            // Use dynamic state transition detection instead of OnEnter/OnExit
-            // since OverworldSubState is now string-based and dynamic
-            // 使用动态状态转换检测替代 OnEnter/OnExit，因为 OverworldSubState 现在是基于字符串的动态状态
+            // Use dynamic state transition detection
+            // 使用动态状态转换检测
             .add_systems(
                 Update,
                 (
                     backpack_state_transition_system,
                     state_transition_sound_system,
                 )
-                    .run_if(in_state(crate::app_state::GameMode::Overworld)),
+                    .run_if(crate::app_state::is_mode("overworld")),
             )
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(

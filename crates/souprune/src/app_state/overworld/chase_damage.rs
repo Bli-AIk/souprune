@@ -10,7 +10,7 @@ use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
+use crate::app_state::{ModeScoped, SequenceSubState};
 
 use super::chase::{
     ChaseConfig, ChaseHeartMarker, ChaseStateName, ChaseTransition, HitboxShapeConfig,
@@ -157,7 +157,7 @@ pub fn chase_damage_detection_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
@@ -187,7 +187,7 @@ pub fn chase_damage_detection_system(
     mut last_player_state: Local<Option<(Vec2, f64)>>,
 ) {
     // Only run in chase state
-    if !is_in_chase_state(&overworld_state, &chase_state_name) {
+    if !is_in_chase_state(&sub_state, &chase_state_name) {
         *last_player_state = None; // Reset when not in chase
         return;
     }
@@ -359,13 +359,13 @@ pub fn update_player_invincibility_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
 ) {
     // Only run in chase state
-    if !is_in_chase_state(&overworld_state, &chase_state_name) {
+    if !is_in_chase_state(&sub_state, &chase_state_name) {
         return;
     }
 
@@ -471,7 +471,7 @@ pub fn damage_ui_display_system(
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(camera_pos.x, camera_pos.y, 500.0)),
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 DamageUIMarker,
                 Name::new("DamageFlashOverlay"),
             ));
@@ -542,7 +542,7 @@ pub(super) fn setup_chase_hud_system(
         Visibility::default(),
         InheritedVisibility::default(),
         ViewVisibility::default(),
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         Name::new("ChaseHUD Root"),
     ));
 

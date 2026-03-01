@@ -18,7 +18,7 @@
 //!
 //! 根据玩家操作管理角色动画状态。
 
-use crate::app_state::overworld::OverworldSubState;
+use crate::app_state::SequenceSubState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
@@ -30,14 +30,14 @@ pub(crate) fn player_direction_control_system(
     mut query: Query<(&mut Facing, &ActionState<Action>), With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<LoadedStateConfig>>,
 ) {
     // Check if current state allows player movement via config
     // 通过配置检查当前状态是否允许玩家移动
     let player_movable = state_config
         .as_ref()
-        .map(|c| c.is_player_movable(overworld_state.name()))
+        .map(|c| c.is_player_movable(sub_state.name()))
         .unwrap_or(true);
 
     if !player_movable {

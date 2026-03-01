@@ -32,7 +32,7 @@ pub(crate) struct AppSetupPlugin;
 impl Plugin for AppSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            OnEnter(AppState::AppSetup),
+            OnEnter(AppState::Loading),
             (
                 load_textures_system,
                 setup_camera_system,
@@ -43,7 +43,7 @@ impl Plugin for AppSetupPlugin {
         .add_systems(
             Update,
             (
-                check_textures_system.run_if(in_state(AppState::AppSetup)),
+                check_textures_system.run_if(in_state(AppState::Loading)),
                 crate::core::input::touch::update_touch_button_visuals,
                 crate::core::input::touch::tick_touch_button_animations,
                 crate::core::input::touch::update_controller_directions,
@@ -140,7 +140,7 @@ pub struct DiscoveredModules(pub Vec<String>);
 
 fn check_textures_system(
     mut next_state: ResMut<NextState<AppState>>,
-    mut next_game_mode: ResMut<NextState<crate::app_state::GameMode>>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
     sprite_registry: Res<ModuleSpriteRegistry>,
     asset_server: Res<AssetServer>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
@@ -174,7 +174,7 @@ fn check_textures_system(
         if required_loaded && all_discovered_loaded {
             info!("All texture modules loaded: {:?}", discovered_modules.0);
 
-            next_state.set(AppState::Playing);
+            next_state.set(AppState::Running);
 
             if souprune_config.game.initial_sequence_path.is_none()
                 && souprune_config.game.initial_map_path.is_empty()
@@ -184,9 +184,9 @@ fn check_textures_system(
                     "No initial map path, but initial battle path found. Entering Battle: {}",
                     souprune_config.game.initial_battle_path
                 );
-                next_game_mode.set(crate::app_state::GameMode::Battle);
+                sequence_mode.0 = Some("battle".to_string());
             } else {
-                next_game_mode.set(crate::app_state::GameMode::Overworld);
+                sequence_mode.0 = Some("overworld".to_string());
             }
             break;
         }

@@ -27,7 +27,7 @@ use bevy::prelude::*;
 use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
-use crate::app_state::battle::BattleEntity;
+use crate::app_state::battle::battle_scoped;
 use crate::app_state::battle::collision::{AmBattleBoxBounds, BattleBox};
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
@@ -217,8 +217,9 @@ impl Plugin for AmBattlePlugin {
             .init_resource::<AmBattleConfig>()
             .add_message::<PlayAmPerformanceEvent>()
             .add_systems(
-                OnEnter(crate::app_state::GameMode::Battle),
-                load_am_battle_config,
+                Update,
+                load_am_battle_config
+                    .run_if(super::on_entering_battle),
             )
             .add_systems(
                 Update,
@@ -241,8 +242,9 @@ impl Plugin for AmBattlePlugin {
                     .in_set(crate::app_state::battle::BattleUpdate),
             )
             .add_systems(
-                OnExit(crate::app_state::GameMode::Battle),
-                cleanup_am_entities,
+                Update,
+                cleanup_am_entities
+                    .run_if(super::on_exiting_battle),
             );
     }
 }
@@ -802,7 +804,7 @@ fn handle_play_am_performance_event(
         // IMPORTANT: We must update inv_fit_scale when we override the Transform.scale
         // to keep mask coordinate calculations consistent with the actual transform.
         commands.entity(entity).insert((
-            BattleEntity,
+            battle_scoped(),
             Transform {
                 translation: offset,
                 scale: Vec3::splat(final_scale),

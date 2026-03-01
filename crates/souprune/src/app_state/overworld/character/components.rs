@@ -18,7 +18,7 @@
 //!
 //! 包括空闲、行走和奔跑状态的组件。
 
-use crate::app_state::overworld::OverworldEntity;
+use crate::app_state::ModeScoped;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::{Direction, Facing, Speed};
 use crate::core::character_asset::CharacterAnimator;
@@ -44,7 +44,7 @@ pub(crate) struct StateRunning;
 /// 所有 Overworld 角色（玩家和 NPC）的组件包。
 #[derive(Bundle)]
 pub(crate) struct CharacterBundle {
-    pub overworld_entity: OverworldEntity,
+    pub mode_scoped: ModeScoped,
     pub facing: Facing,
     pub speed: Speed,
     pub sprite: Sprite,
@@ -63,7 +63,7 @@ impl CharacterBundle {
         animator: CharacterAnimator,
     ) -> Self {
         Self {
-            overworld_entity: OverworldEntity(),
+            mode_scoped: ModeScoped("overworld".to_string()),
             facing: Facing { value: facing },
             speed: Speed { value: speed },
             sprite: Sprite::default(),

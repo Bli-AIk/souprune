@@ -8,6 +8,7 @@
 
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
+use crate::app_state::ModeScoped;
 use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
 use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
@@ -36,7 +37,7 @@ pub fn process_player_action_system(
         &mut Transform,
         (
             With<BehaviorParams>,
-            With<crate::app_state::battle::BattleEntity>,
+            With<ModeScoped>,
         ),
     >,
 ) {
@@ -53,7 +54,7 @@ pub fn process_player_action_system(
                             config_handle: handle,
                             position: position.unwrap_or(Vec2::ZERO),
                         },
-                        crate::app_state::battle::BattleEntity,
+                        ModeScoped("battle".to_string()),
                     ));
                     commands.entity(entity).insert(ChapterFinished);
                 }
@@ -129,7 +130,7 @@ pub fn process_player_spawn_requests(
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),
-                crate::app_state::battle::BattleEntity,
+                ModeScoped("battle".to_string()),
                 Name::new("BattlePlayer"),
             ));
 

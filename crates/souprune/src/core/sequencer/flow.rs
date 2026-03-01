@@ -37,6 +37,7 @@ pub fn sync_battle_flow_system(
     assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)
@@ -47,6 +48,12 @@ pub fn sync_battle_flow_system(
             asset.chapters.len()
         );
         context.chapters.extend(asset.chapters.clone());
+
+        // Set SequenceMode from the sequence asset's mode field
+        if let Some(mode) = &asset.mode {
+            sequence_mode.0 = Some(mode.clone());
+            info!("Sequence: Setting mode to '{}'", mode);
+        }
 
         // Load sequence-specific rules if specified
         if let Some(rules_path) = &asset.rules_file {

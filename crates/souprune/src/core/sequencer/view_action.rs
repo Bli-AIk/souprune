@@ -54,7 +54,7 @@ pub fn process_view_action_system(
                         Visibility::default(),
                         InheritedVisibility::default(),
                         ViewVisibility::default(),
-                        crate::app_state::battle::BattleEntity,
+                        crate::app_state::ModeScoped("battle".to_string()),
                         Name::new("BattleView Root"),
                     ));
                 }
@@ -115,7 +115,7 @@ pub fn process_view_action_system(
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
-                crate::app_state::battle::BattleEntity,
+                crate::app_state::ModeScoped("battle".to_string()),
                 Name::new("BattleView Root"),
             ));
             commands.entity(entity).insert(ChapterFinished);

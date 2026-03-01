@@ -20,7 +20,7 @@
 
 use super::components::{CameraAnchored, CameraAnchoredDynamic};
 use super::expr_eval::eval_number;
-use crate::app_state::overworld::OverworldSubState;
+use crate::app_state::{SequenceMode, SequenceSubState};
 use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
 use std::collections::BTreeMap;
@@ -29,8 +29,8 @@ use std::collections::BTreeMap;
 ///
 /// 当摄像机移动时同步锚点，支持有 UI 交互或追逐战配置的状态。
 pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
-    game_mode: Res<State<crate::app_state::GameMode>>,
-    overworld_state: Option<Res<State<OverworldSubState>>>,
+    mode: Res<SequenceMode>,
+    sub_state: Option<Res<State<SequenceSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>, Changed<Transform>)>,
     mut anchored_ui_query: Query<
@@ -38,13 +38,11 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
         (Without<Camera2d>, Without<DebugCamera>),
     >,
 ) {
-    let should_run = match game_mode.get() {
-        crate::app_state::GameMode::Battle => true,
-        crate::app_state::GameMode::Overworld => {
-            if let (Some(ow_state), Some(config)) =
-                (overworld_state.as_ref(), state_config.as_ref())
-            {
-                let state_name = ow_state.name();
+    let should_run = match mode.0.as_deref() {
+        Some("battle") => true,
+        Some("overworld") => {
+            if let (Some(sub), Some(config)) = (sub_state.as_ref(), state_config.as_ref()) {
+                let state_name = sub.name();
                 config.is_view_interactive(state_name) || config.is_chase_state(state_name)
             } else {
                 false
@@ -190,8 +188,8 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 /// 仅在新 UI 产生或偏移量改变时同步，支持有 UI 交互或追逐战配置的状态。
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_camera_anchored_ui_on_change_system(
-    game_mode: Res<State<crate::app_state::GameMode>>,
-    overworld_state: Option<Res<State<OverworldSubState>>>,
+    mode: Res<SequenceMode>,
+    sub_state: Option<Res<State<SequenceSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
     mut anchored_ui_query: Query<
@@ -203,13 +201,11 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
         ),
     >,
 ) {
-    let should_run = match game_mode.get() {
-        crate::app_state::GameMode::Battle => true,
-        crate::app_state::GameMode::Overworld => {
-            if let (Some(ow_state), Some(config)) =
-                (overworld_state.as_ref(), state_config.as_ref())
-            {
-                let state_name = ow_state.name();
+    let should_run = match mode.0.as_deref() {
+        Some("battle") => true,
+        Some("overworld") => {
+            if let (Some(sub), Some(config)) = (sub_state.as_ref(), state_config.as_ref()) {
+                let state_name = sub.name();
                 config.is_view_interactive(state_name) || config.is_chase_state(state_name)
             } else {
                 false

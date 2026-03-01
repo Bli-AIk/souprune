@@ -18,7 +18,7 @@
 //!
 //! 包括检查玩家是否在行走或执行操作的函数。
 
-use crate::app_state::overworld::OverworldSubState;
+use crate::app_state::SequenceSubState;
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::player::config::PlayerBehavior;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
@@ -31,14 +31,14 @@ pub fn is_player_walking(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
     behavior_config: Res<InputBehaviorConfig>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     state_config: Option<Res<LoadedStateConfig>>,
 ) -> prelude::Result<(), ()> {
     // Check if current state allows player movement via config
     // 通过配置检查当前状态是否允许玩家移动
     let player_movable = state_config
         .as_ref()
-        .map(|c| c.is_player_movable(overworld_state.name()))
+        .map(|c| c.is_player_movable(sub_state.name()))
         .unwrap_or(true);
 
     if !player_movable {
@@ -79,7 +79,7 @@ pub fn is_player_walking(
 pub fn is_player_running(
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     registry: Res<ActionRegistry>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     player_behavior: Res<PlayerBehavior>,
     state_config: Option<Res<LoadedStateConfig>>,
 ) -> prelude::Result<(), ()> {
@@ -87,7 +87,7 @@ pub fn is_player_running(
     // 通过配置检查当前状态是否允许玩家移动
     let player_movable = state_config
         .as_ref()
-        .map(|c| c.is_player_movable(overworld_state.name()))
+        .map(|c| c.is_player_movable(sub_state.name()))
         .unwrap_or(true);
 
     if !player_movable {

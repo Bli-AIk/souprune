@@ -59,17 +59,21 @@ pub struct SequencerUpdate;
 /// 包含章节序列和可选的规则文件路径。
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceAsset {
+    /// The mode this sequence runs in (e.g., "overworld", "battle").
+    /// Sets SequenceMode when this sequence is loaded.
+    #[serde(default)]
+    pub mode: Option<String>,
+
     /// Path to the FRE rules file for this sequence (optional).
     /// The rules will be loaded to the Local layer when the sequence starts.
-    ///
-    /// 此序列的 FRE 规则文件路径（可选）。
-    /// 规则将在序列开始时加载到 Local 层。
     #[serde(default)]
     pub rules_file: Option<String>,
 
+    /// Named exits for sequence-to-sequence jumps (supports graph editor).
+    #[serde(default)]
+    pub exits: std::collections::HashMap<String, String>,
+
     /// The sequence of chapters to execute.
-    ///
-    /// 要执行的章节序列。
     pub chapters: Vec<Chapter>,
 }
 
