@@ -6,8 +6,8 @@
 //!
 //! 战斗流程控制系统 - 处理章节序列和生命周期。
 
-use super::super::SequenceAsset;
-use super::super::chapter_schema::Chapter;
+use super::SequenceAsset;
+use super::chapter_schema::Chapter;
 use super::context::*;
 use bevy::prelude::*;
 
@@ -33,10 +33,10 @@ pub fn load_default_chapter_system(
 pub fn sync_battle_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentSequenceFlow>>,
-    mut context: ResMut<BattleContext>,
+    mut context: ResMut<SequenceContext>,
     assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
-    mut battle_rules_handle: ResMut<super::super::fre::BattleRulesHandle>,
+    mut battle_rules_handle: ResMut<crate::app_state::battle::fre::BattleRulesHandle>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)
@@ -105,7 +105,7 @@ pub fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<E
 /// 推进战斗流程系统。
 pub fn advance_battle_flow_system(
     mut commands: Commands,
-    mut context: ResMut<BattleContext>,
+    mut context: ResMut<SequenceContext>,
     active_chapters: Query<&ActiveChapter, Without<ChapterFinished>>,
 ) {
     // Check if any root-level chapter is active

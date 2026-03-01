@@ -6,28 +6,28 @@
 //!
 //! 战斗序列管理器的核心类型和资源。
 
-use super::super::SequenceAsset;
-use super::super::chapter_schema::Chapter;
+use super::SequenceAsset;
+use super::chapter_schema::Chapter;
 use bevy::prelude::*;
 
-/// Execution state of the battle sequencer.
+/// Execution state of the sequencer.
 ///
-/// 战斗序列管理器的执行状态。
+/// 序列管理器的执行状态。
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BattleExecutionState {
+pub enum SequenceExecutionState {
     #[default]
     Idle,
     Processing,
     Waiting,
 }
 
-/// [Resource] includes the queue of Chapters that have not yet occurred
+/// [Resource] includes the queue of Chapters that have not yet occurred.
 ///
-/// [Resource] 存放还没发生的章节队列
+/// [Resource] 存放还没发生的章节队列。
 #[derive(Resource, Default)]
-pub struct BattleContext {
+pub struct SequenceContext {
     pub chapters: Vec<Chapter>,
-    pub state: BattleExecutionState,
+    pub state: SequenceExecutionState,
 }
 
 /// Component for active chapters being processed.

@@ -6,9 +6,9 @@
 //!
 //! 战斗序列管理器的演出（弹幕和 AM）系统。
 
-use super::super::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
-use super::super::chapter_schema::Chapter;
-use super::super::danmaku::PlayPerformanceEvent;
+use crate::app_state::battle::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
+use super::chapter_schema::Chapter;
+use crate::app_state::battle::danmaku::PlayPerformanceEvent;
 use super::context::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;

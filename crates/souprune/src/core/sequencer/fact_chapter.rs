@@ -20,7 +20,7 @@
 
 use super::context::{ActiveChapter, ChapterFinished};
 use super::flow::spawn_chapter;
-use crate::app_state::battle::chapter_schema::{
+use super::chapter_schema::{
     AggregateRule, Chapter, FactCondition, FactModificationDef, FactValueMatch,
 };
 use bevy::prelude::*;

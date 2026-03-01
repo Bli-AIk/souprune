@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的视图控制系统。
 
-use super::super::chapter_schema::{Chapter, DataBinding, FactValueMatch};
+use super::chapter_schema::{Chapter, DataBinding, FactValueMatch};
 use super::context::*;
 use crate::core::view::components::ViewRoot;
 use bevy::prelude::*;
@@ -39,7 +39,7 @@ pub fn process_view_action_system(
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetUI(action) = &active_chapter.chapter {
             match action {
-                super::super::chapter_schema::UIAction::LoadLayout(path) => {
+                super::chapter_schema::UIAction::LoadLayout(path) => {
                     let handle = asset_server.load(path);
                     commands.insert_resource(crate::core::view::ViewLayoutHandle {
                         handle,

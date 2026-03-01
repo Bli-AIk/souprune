@@ -6,9 +6,9 @@
 //!
 //! 战斗序列管理器的玩家相关系统。
 
-use super::super::chapter_schema::{Chapter, PlayerAction};
-use super::super::danmaku::BattleInvincibilityConfig;
-use super::super::player_config_schema::{BattlePlayerConfig, ColliderShape};
+use super::chapter_schema::{Chapter, PlayerAction};
+use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
+use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use super::context::*;
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
 use crate::core::danmaku::BulletTarget;

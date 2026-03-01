@@ -51,7 +51,7 @@ pub fn spawn_ron_view_system(
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     fre_assets: Res<Assets<FreAsset>>,
     pending_bindings: Option<
-        Res<crate::app_state::battle::sequencer::view_action::PendingViewBindings>,
+        Res<crate::core::sequencer::view_action::PendingViewBindings>,
     >,
     backpack_root_query: Query<
         Entity,
@@ -203,7 +203,7 @@ pub fn spawn_ron_view_for_entity(
     item_registry: &crate::core::item::ItemRegistry,
     layout_path: &str,
     bindings: Option<
-        &std::collections::HashMap<String, crate::app_state::battle::chapter_schema::DataBinding>,
+        &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
     layered_db: &LayeredFactDatabase,
     rule_registry: &mut LayeredRuleRegistry,
@@ -298,7 +298,7 @@ pub fn spawn_ron_view_for_entity(
                 if let Some(bindings) = bindings {
                     if let Some(binding) = bindings.get(interface) {
                         match binding {
-                            crate::app_state::battle::chapter_schema::DataBinding::File(path) => {
+                            crate::core::sequencer::chapter_schema::DataBinding::File(path) => {
                                 let handle: Handle<FreAsset> = asset_server.load(path.clone());
                                 if let Some(fre_asset) = fre_assets.get(&handle) {
                                     load_fre_into_view_root(
@@ -343,7 +343,7 @@ pub fn spawn_ron_view_for_entity(
                                     );
                                 }
                             }
-                            crate::app_state::battle::chapter_schema::DataBinding::Files(paths) => {
+                            crate::core::sequencer::chapter_schema::DataBinding::Files(paths) => {
                                 let mut total_rules = 0;
                                 for path in paths {
                                     let handle: Handle<FreAsset> = asset_server.load(path.clone());
@@ -391,7 +391,7 @@ pub fn spawn_ron_view_for_entity(
                                     total_rules
                                 );
                             }
-                            crate::app_state::battle::chapter_schema::DataBinding::LocalLayer => {
+                            crate::core::sequencer::chapter_schema::DataBinding::LocalLayer => {
                                 // Copy facts from LOCAL layer to view's local_facts
                                 // 从 LOCAL 层复制 facts 到 view 的 local_facts
                                 for (key, value) in layered_db.iter_local() {
@@ -419,7 +419,7 @@ pub fn spawn_ron_view_for_entity(
                                 }
                                 info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
                             }
-                            crate::app_state::battle::chapter_schema::DataBinding::Expr(_expr) => {
+                            crate::core::sequencer::chapter_schema::DataBinding::Expr(_expr) => {
                                 warn!(
                                     "[ViewRoot] Expr binding not yet implemented for interface '{}'",
                                     interface

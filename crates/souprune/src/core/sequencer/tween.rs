@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的 TweenViewElement 系统，使用 bevy_tween。
 
-use super::super::chapter_schema::{Chapter, TweenTarget, Val};
+use super::chapter_schema::{Chapter, TweenTarget, Val};
 use super::context::*;
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
@@ -134,16 +134,16 @@ pub fn process_tween_view_element_system(
 
             // Resolve the selector to get target entity
             let target_entity = match selector {
-                super::super::chapter_schema::ElementSelector::FullName(full_name) => {
+                super::chapter_schema::ElementSelector::FullName(full_name) => {
                     crate::core::view::find_element_by_full_name(&view_elements, full_name)
                 }
-                super::super::chapter_schema::ElementSelector::LocalName(local_name) => {
+                super::chapter_schema::ElementSelector::LocalName(local_name) => {
                     view_elements
                         .iter()
                         .find(|(_, elem)| elem.local_name == *local_name)
                         .map(|(entity, _)| entity)
                 }
-                super::super::chapter_schema::ElementSelector::Tag(tag) => {
+                super::chapter_schema::ElementSelector::Tag(tag) => {
                     crate::core::view::find_elements_by_tag(&view_elements, tag)
                         .into_iter()
                         .next()

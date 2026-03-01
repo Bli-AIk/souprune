@@ -51,6 +51,7 @@ pub mod sprite;
 pub(crate) mod state_config;
 pub(crate) mod view;
 pub mod visual;
+pub mod sequencer;
 
 use crate::extra;
 use bevy::app::*;
