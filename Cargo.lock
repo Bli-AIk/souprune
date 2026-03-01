@@ -582,7 +582,7 @@ dependencies = [
  "ttf-parser 0.25.1",
  "wasm-bindgen",
  "web-sys",
- "zip 8.1.0",
+ "zip",
 ]
 
 [[package]]
@@ -3285,7 +3285,7 @@ dependencies = [
  "serde",
  "serde_json",
  "walkdir",
- "zip 7.4.0",
+ "zip",
 ]
 
 [[package]]
@@ -9059,20 +9059,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "zip"
-version = "7.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc12baa6db2b15a140161ce53d72209dacea594230798c24774139b54ecaa980"
-dependencies = [
- "crc32fast",
- "flate2",
- "indexmap",
- "memchr",
- "typed-path",
- "zopfli",
 ]
 
 [[package]]
