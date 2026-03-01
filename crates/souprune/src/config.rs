@@ -316,6 +316,7 @@ struct GameConfigPartial {
     global_rules: Option<String>,
     initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
+    initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
     states_config: Option<String>,
@@ -393,6 +394,9 @@ Falling back to default configuration (example_mod)",
                             }
                             if let Some(val) = game_partial.initial_battle_path {
                                 config.game.initial_battle_path = val;
+                            }
+                            if let Some(val) = game_partial.initial_sequence_path {
+                                config.game.initial_sequence_path = Some(val);
                             }
                             if let Some(val) = game_partial.player_behavior_path {
                                 config.game.player_behavior_path = val;
