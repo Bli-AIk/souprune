@@ -801,10 +801,19 @@ pub enum PlayerAction {
     /// String 引用的是 角色资产 中定义的 模式 名称。
     SetMode(Vec<String>),
 
-    /// Spawn a new player entity based on a config file.
+    /// Spawn a new player entity.
+    /// When `config_path` is set, loads battle player config (battle mode).
+    /// When `config_path` is None, spawns overworld player using PlayerBehavior config.
     ///
-    /// 根据配置文件生成一个新的玩家实体。
-    Spawn { config_path: String, position: Vec2 },
+    /// 生成一个新的玩家实体。
+    /// 当 `config_path` 设置时，加载战斗玩家配置（战斗模式）。
+    /// 当 `config_path` 为 None 时，使用 PlayerBehavior 配置生成 Overworld 玩家。
+    Spawn {
+        #[serde(default)]
+        config_path: Option<String>,
+        #[serde(default)]
+        position: Option<Vec2>,
+    },
 
     /// Teleport the player to a specified position.
     ///

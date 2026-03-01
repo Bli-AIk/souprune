@@ -122,6 +122,11 @@ impl Plugin for OverworldPlugin {
         .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
         .add_systems(
             Update,
+            process_overworld_player_spawn_system
+                .in_set(crate::core::sequencer::SequencerUpdate),
+        )
+        .add_systems(
+            Update,
             collision::player_tilemap_collision_system
                 .after(character::MovementSet)
                 .before(crate::core::camera::CameraUpdateSet)
@@ -190,23 +195,19 @@ impl Plugin for OverworldPlugin {
 
 /// Load the overworld entry sequence from `initial_sequence_path`.
 /// All overworld initialization is sequence-driven.
-/// Also sends SpawnPlayerRequest since player spawning uses PlayerBehavior config.
 ///
 /// 从 `initial_sequence_path` 加载 Overworld 入口序列。
 /// 所有 Overworld 初始化均由序列驱动。
-/// 同时发送 SpawnPlayerRequest，因为玩家生成使用 PlayerBehavior 配置。
 fn load_overworld_sequence_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     souprune_config: Res<crate::config::SoupruneConfig>,
-    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
 ) {
     match souprune_config.game.initial_sequence_path {
         Some(ref sequence_path) => {
             let handle =
                 asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
             commands.insert_resource(crate::core::sequencer::CurrentSequenceFlow(handle));
-            spawn_events.write(player::SpawnPlayerRequest);
             info!(
                 "Overworld: Loading entry sequence from '{}'",
                 sequence_path
@@ -214,6 +215,38 @@ fn load_overworld_sequence_system(
         }
         None => {
             error!("Overworld: No initial_sequence_path configured in mod.toml. Overworld initialization requires a sequence file.");
+        }
+    }
+}
+
+/// Process `SetPlayer(Spawn { config_path: None })` chapters in overworld.
+/// Sends `SpawnPlayerRequest` using the already-loaded `PlayerBehavior` config.
+///
+/// 处理 Overworld 中 `SetPlayer(Spawn { config_path: None })` 章节。
+/// 使用已加载的 `PlayerBehavior` 配置发送 `SpawnPlayerRequest`。
+fn process_overworld_player_spawn_system(
+    mut commands: Commands,
+    active_chapters: Query<
+        (Entity, &crate::core::sequencer::ActiveChapter),
+        (
+            Without<crate::core::sequencer::WaitTimer>,
+            Without<crate::core::sequencer::ChapterFinished>,
+        ),
+    >,
+    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
+) {
+    use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
+
+    for (entity, active_chapter) in active_chapters.iter() {
+        if let Chapter::SetPlayer(PlayerAction::Spawn {
+            config_path: None, ..
+        }) = &active_chapter.chapter
+        {
+            spawn_events.write(player::SpawnPlayerRequest);
+            commands
+                .entity(entity)
+                .insert(crate::core::sequencer::ChapterFinished);
+            info!("Overworld: Spawning player via PlayerBehavior config");
         }
     }
 }

@@ -44,27 +44,34 @@ pub fn process_player_action_system(
         if let Chapter::SetPlayer(action) = &active_chapter.chapter {
             match action {
                 PlayerAction::Spawn {
-                    config_path,
+                    config_path: Some(config_path),
                     position,
                 } => {
                     let handle = asset_server.load::<BattlePlayerConfig>(config_path);
                     commands.spawn((
                         PlayerSpawnRequest {
                             config_handle: handle,
-                            position: *position,
+                            position: position.unwrap_or(Vec2::ZERO),
                         },
                         crate::app_state::battle::BattleEntity,
                     ));
+                    commands.entity(entity).insert(ChapterFinished);
                 }
+                // config_path: None → handled by state-specific systems (e.g., overworld)
+                PlayerAction::Spawn {
+                    config_path: None, ..
+                } => {}
                 PlayerAction::Teleport(pos) => {
                     for mut transform in player_query.iter_mut() {
                         transform.translation = pos.extend(0.0);
                         info!("Player teleported to {}", pos);
                     }
+                    commands.entity(entity).insert(ChapterFinished);
                 }
-                _ => {}
+                _ => {
+                    commands.entity(entity).insert(ChapterFinished);
+                }
             }
-            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
