@@ -15,9 +15,9 @@ mod bridge;
 use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::input::{Action, PlayerInputSettings};
+use crate::core::sequencer::SequenceRulesHandle;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
-use crate::core::sequencer::SequenceRulesHandle;
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{
@@ -56,7 +56,10 @@ impl Plugin for BattleFREPlugin {
                 OnEnter(crate::app_state::GameMode::Battle),
                 (setup_battle_fre_system, setup_battle_action_handlers_system),
             )
-            .add_systems(OnExit(crate::app_state::GameMode::Battle), cleanup_battle_fre_system)
+            .add_systems(
+                OnExit(crate::app_state::GameMode::Battle),
+                cleanup_battle_fre_system,
+            )
             .add_systems(
                 Update,
                 (

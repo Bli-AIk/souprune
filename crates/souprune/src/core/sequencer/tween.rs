@@ -137,12 +137,10 @@ pub fn process_tween_view_element_system(
                 super::chapter_schema::ElementSelector::FullName(full_name) => {
                     crate::core::view::find_element_by_full_name(&view_elements, full_name)
                 }
-                super::chapter_schema::ElementSelector::LocalName(local_name) => {
-                    view_elements
-                        .iter()
-                        .find(|(_, elem)| elem.local_name == *local_name)
-                        .map(|(entity, _)| entity)
-                }
+                super::chapter_schema::ElementSelector::LocalName(local_name) => view_elements
+                    .iter()
+                    .find(|(_, elem)| elem.local_name == *local_name)
+                    .map(|(entity, _)| entity),
                 super::chapter_schema::ElementSelector::Tag(tag) => {
                     crate::core::view::find_elements_by_tag(&view_elements, tag)
                         .into_iter()

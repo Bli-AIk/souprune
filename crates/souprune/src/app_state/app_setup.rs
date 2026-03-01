@@ -337,7 +337,6 @@ fn deferred_touch_overlay_system(
     commands.insert_resource(TouchOverlaySpawned);
 }
 
-
 #[derive(Resource)]
 pub(crate) struct ResolutionScale(pub(crate) u32);
 

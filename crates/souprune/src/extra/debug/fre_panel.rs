@@ -737,7 +737,10 @@ pub mod debug_fre_panel {
 
                     let all_modes = [
                         (crate::app_state::GameMode::None, "No active mode"),
-                        (crate::app_state::GameMode::Overworld, "Overworld exploration"),
+                        (
+                            crate::app_state::GameMode::Overworld,
+                            "Overworld exploration",
+                        ),
                         (crate::app_state::GameMode::Battle, "Battle mode"),
                     ];
 

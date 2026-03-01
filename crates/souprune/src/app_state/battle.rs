@@ -35,9 +35,9 @@ use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
-use crate::core::sequencer::SequencerPlugin;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
+use crate::core::sequencer::SequencerPlugin;
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -184,5 +184,3 @@ fn cleanup_battle_input_manager(
         commands.entity(entity).despawn();
     }
 }
-
-

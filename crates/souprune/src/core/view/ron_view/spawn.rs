@@ -50,9 +50,7 @@ pub fn spawn_ron_view_system(
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     fre_assets: Res<Assets<FreAsset>>,
-    pending_bindings: Option<
-        Res<crate::core::sequencer::view_action::PendingViewBindings>,
-    >,
+    pending_bindings: Option<Res<crate::core::sequencer::view_action::PendingViewBindings>>,
     backpack_root_query: Query<
         Entity,
         (

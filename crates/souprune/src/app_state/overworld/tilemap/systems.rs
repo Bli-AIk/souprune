@@ -51,7 +51,6 @@ pub struct CollisionTileGroup;
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
 
-
 /// Initialize Tilemap layers, filter and hide layers with "prototype" in their names,
 /// and generate collision for "collision" layers.
 ///

@@ -47,11 +47,11 @@ pub mod mod_system;
 pub mod player_components;
 pub mod render_layers;
 pub mod ron_loader;
+pub mod sequencer;
 pub mod sprite;
 pub(crate) mod state_config;
 pub(crate) mod view;
 pub mod visual;
-pub mod sequencer;
 
 use crate::extra;
 use bevy::app::*;

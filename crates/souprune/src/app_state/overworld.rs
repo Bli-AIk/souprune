@@ -14,8 +14,8 @@
 //!
 //! 它负责协调子插件，并处理相机对玩家的跟随逻辑。
 
-use crate::app_state::cleanup_entities_system;
 use crate::app_state::GameMode;
+use crate::app_state::cleanup_entities_system;
 use crate::core::camera::Followable;
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -106,10 +106,7 @@ impl Plugin for OverworldPlugin {
             character::CharacterPlugin,
             crate::core::view::CoreViewPlugin,
         ))
-        .add_systems(
-            OnEnter(GameMode::Overworld),
-            load_overworld_sequence_system,
-        )
+        .add_systems(OnEnter(GameMode::Overworld), load_overworld_sequence_system)
         .add_systems(
             OnExit(GameMode::Overworld),
             (
@@ -125,8 +122,7 @@ impl Plugin for OverworldPlugin {
         )
         .add_systems(
             Update,
-            process_overworld_player_spawn_system
-                .in_set(crate::core::sequencer::SequencerUpdate),
+            process_overworld_player_spawn_system.in_set(crate::core::sequencer::SequencerUpdate),
         )
         .add_systems(
             Update,
@@ -208,16 +204,14 @@ fn load_overworld_sequence_system(
 ) {
     match souprune_config.game.initial_sequence_path {
         Some(ref sequence_path) => {
-            let handle =
-                asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
+            let handle = asset_server.load::<crate::core::sequencer::SequenceAsset>(sequence_path);
             commands.insert_resource(crate::core::sequencer::CurrentSequenceFlow(handle));
-            info!(
-                "Overworld: Loading entry sequence from '{}'",
-                sequence_path
-            );
+            info!("Overworld: Loading entry sequence from '{}'", sequence_path);
         }
         None => {
-            error!("Overworld: No initial_sequence_path configured in mod.toml. Overworld initialization requires a sequence file.");
+            error!(
+                "Overworld: No initial_sequence_path configured in mod.toml. Overworld initialization requires a sequence file."
+            );
         }
     }
 }
@@ -241,18 +235,14 @@ fn process_overworld_player_spawn_system(
     use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
 
     for (entity, active_chapter) in active_chapters.iter() {
-        if let Chapter::SetPlayer(PlayerAction::Spawn { config_path, .. }) =
-            &active_chapter.chapter
+        if let Chapter::SetPlayer(PlayerAction::Spawn { config_path, .. }) = &active_chapter.chapter
         {
             if !config_path.ends_with(".battle_player.ron") {
                 spawn_events.write(player::SpawnPlayerRequest);
                 commands
                     .entity(entity)
                     .insert(crate::core::sequencer::ChapterFinished);
-                info!(
-                    "Overworld: Spawning player from config '{}'",
-                    config_path
-                );
+                info!("Overworld: Spawning player from config '{}'", config_path);
             }
         }
     }
@@ -293,7 +283,13 @@ fn bind_camera_target_system(
 /// 为序列器生成的 TiledMap 实体添加 OverworldEntity 标记，用于模式切换时的清理。
 fn mark_tilemap_as_overworld_entity(
     mut commands: Commands,
-    query: Query<Entity, (Added<bevy_ecs_tiled::prelude::TiledMap>, Without<OverworldEntity>)>,
+    query: Query<
+        Entity,
+        (
+            Added<bevy_ecs_tiled::prelude::TiledMap>,
+            Without<OverworldEntity>,
+        ),
+    >,
 ) {
     for entity in query.iter() {
         commands.entity(entity).insert(OverworldEntity());

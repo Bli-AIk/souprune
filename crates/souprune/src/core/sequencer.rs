@@ -30,7 +30,10 @@ mod view_element;
 pub mod chapter_schema;
 
 // Re-export public types
-pub use context::{ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState, SequenceRulesHandle, WaitTimer};
+pub use context::{
+    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
+    SequenceRulesHandle, WaitTimer,
+};
 pub use flow::load_default_chapter_system;
 
 use bevy::prelude::*;

@@ -53,8 +53,7 @@ pub fn process_set_bgm_system(
             // Start new BGM if path is specified
             if let Some(bgm_path) = path {
                 info!("[Sequencer] SetBgm: playing '{}'", bgm_path);
-                let handle =
-                    crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+                let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
                 bgm.handle = Some(handle);
                 bgm.path = Some(bgm_path.clone());
             } else {

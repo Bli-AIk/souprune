@@ -8,9 +8,9 @@
 //! 处理 RunSequence 章节类型。
 //! 支持加载和执行外部序列文件，并传递参数。
 
-use super::context::*;
 use super::SequenceAsset;
 use super::chapter_schema::{Chapter, FactValueMatch};
+use super::context::*;
 use crate::core::view::ViewRoot;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
