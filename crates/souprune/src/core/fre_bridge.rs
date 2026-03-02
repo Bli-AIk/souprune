@@ -88,12 +88,12 @@ pub fn action_to_fre_event_system(
 
 /// System that syncs Bevy state values to FRE facts.
 ///
-/// This allows FRE rules to check current state using `$@overworld_state` and `$@app_state`.
+/// This allows FRE rules to check current state using `$@sequence_sub_state` and `$@app_state`.
 /// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
 ///
 /// 将 Bevy 状态值同步到 FRE facts 的系统。
 ///
-/// 这允许 FRE 规则使用 `$@overworld_state` 和 `$@app_state` 检查当前状态。
+/// 这允许 FRE 规则使用 `$@sequence_sub_state` 和 `$@app_state` 检查当前状态。
 /// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
