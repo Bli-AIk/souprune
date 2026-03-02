@@ -133,6 +133,16 @@ pub struct AmBattleConfig {
     /// 碰撞体以更好地匹配实际可见内容。
     /// 例如，0.05 表示碰撞体是精灵大小的 5%。
     pub collision_scale: f32,
+
+    /// Default battle box size (width, height) when size cannot be determined from AM layer.
+    ///
+    /// 当无法从 AM 图层确定大小时使用的默认战斗箱尺寸（宽, 高）。
+    #[serde(default = "default_battle_box_size")]
+    pub default_battle_box_size: (f32, f32),
+}
+
+fn default_battle_box_size() -> (f32, f32) {
+    (565.0, 140.0)
 }
 
 impl Default for AmBattleConfig {
@@ -144,7 +154,8 @@ impl Default for AmBattleConfig {
             battle_box_pattern: "^#C".to_string(),
             hidden_pattern: String::new(), // Empty = hide nothing by default
             bullet_damage: 1.0,
-            collision_scale: 0.05, // Default to 5% of sprite size since AM sprites often have large transparent areas
+            collision_scale: 0.05,
+            default_battle_box_size: default_battle_box_size(),
         }
     }
 }
@@ -717,10 +728,10 @@ fn add_am_collision_system(
             if let Some((w, h)) = get_layer_size(spec) {
                 (w.abs() * total_scale.x, h.abs() * total_scale.y)
             } else {
-                (565.0, 140.0)
+                am_config.default_battle_box_size
             }
         } else {
-            (565.0, 140.0)
+            am_config.default_battle_box_size
         };
 
         // Calculate center_offset from anchor_offset
