@@ -10,7 +10,8 @@ use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
-use crate::app_state::overworld::{OverworldEntity, OverworldSubState};
+use crate::app_state::{ModeScoped, SequenceSubState};
+use crate::core::fre_facts;
 
 use super::chase::{
     ChaseConfig, ChaseHeartMarker, ChaseStateName, ChaseTransition, HitboxShapeConfig,
@@ -157,7 +158,7 @@ pub fn chase_damage_detection_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     asset_server: Res<AssetServer>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
@@ -187,7 +188,7 @@ pub fn chase_damage_detection_system(
     mut last_player_state: Local<Option<(Vec2, f64)>>,
 ) {
     // Only run in chase state
-    if !is_in_chase_state(&overworld_state, &chase_state_name) {
+    if !is_in_chase_state(&sub_state, &chase_state_name) {
         *last_player_state = None; // Reset when not in chase
         return;
     }
@@ -274,10 +275,10 @@ pub fn chase_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            let current_hp = layered_db.get_int("player:hp").unwrap_or(20) as usize;
-            let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20) as usize;
+            let current_hp = layered_db.get_int(fre_facts::PLAYER_HP).unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int(fre_facts::PLAYER_HP_MAX).unwrap_or(20) as usize;
             let new_hp = current_hp.saturating_sub(damage);
-            layered_db.set_global("player:hp", new_hp as i64);
+            layered_db.set_global(fre_facts::PLAYER_HP, new_hp as i64);
 
             // Fire damage event
             damage_events.write(ChasePlayerDamageEvent {
@@ -359,13 +360,13 @@ pub fn update_player_invincibility_system(
     time: Res<Time>,
     chase_config: Res<ChaseConfig>,
     player_behavior: Res<crate::app_state::overworld::player::config::PlayerBehavior>,
-    overworld_state: Res<State<OverworldSubState>>,
+    sub_state: Res<State<SequenceSubState>>,
     chase_state_name: Res<ChaseStateName>,
     mut player_invincibility: ResMut<PlayerInvincibility>,
     mut heart_markers: Query<&mut Sprite, With<ChaseHeartMarker>>,
 ) {
     // Only run in chase state
-    if !is_in_chase_state(&overworld_state, &chase_state_name) {
+    if !is_in_chase_state(&sub_state, &chase_state_name) {
         return;
     }
 
@@ -471,7 +472,7 @@ pub fn damage_ui_display_system(
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(camera_pos.x, camera_pos.y, 500.0)),
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 DamageUIMarker,
                 Name::new("DamageFlashOverlay"),
             ));
@@ -504,47 +505,24 @@ pub fn damage_ui_display_system(
 #[derive(Component)]
 pub struct DamageUIMarker;
 
-/// Marker component for Chase HUD UI root entity.
-///
-/// 追逐战 HUD UI 根实体的标记组件。
-#[derive(Component)]
-pub struct ChaseHUDRoot;
-
 /// System to setup Chase HUD when entering chase state.
-/// Loads the View layout from chase_config.damage_ui.layout_path.
+/// Emits SpawnViewRequest to load the View layout from chase_config.damage_ui.layout_path.
 ///
 /// 进入追逐战状态时设置 HUD 的系统。
-/// 从 chase_config.damage_ui.layout_path 加载视图布局。
+/// 发送 SpawnViewRequest 从 chase_config.damage_ui.layout_path 加载视图布局。
 pub(super) fn setup_chase_hud_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
     chase_config: Res<ChaseConfig>,
+    mut spawn_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
 ) {
     info!("Chase: Setting up Chase HUD");
 
-    // Load the chase HUD View layout from config / 从配置加载追逐战 HUD 视图布局
     let ui_path = &chase_config.damage_ui.layout_path;
-    let handle = asset_server.load(ui_path.clone());
 
-    // Insert the View layout handle resource
-    commands.insert_resource(crate::core::view::ViewLayoutHandle {
-        handle,
-        last_modified: None,
+    spawn_writer.write(crate::core::view::SpawnViewRequest {
         path: ui_path.to_string(),
+        mode_scope: Some("overworld".to_string()),
+        bindings: None,
     });
-
-    // Spawn a root entity for the View system to attach to
-    // 生成一个根实体供 View 系统附加
-    commands.spawn((
-        ChaseHUDRoot,
-        Transform::default(),
-        GlobalTransform::default(),
-        Visibility::default(),
-        InheritedVisibility::default(),
-        ViewVisibility::default(),
-        OverworldEntity(),
-        Name::new("ChaseHUD Root"),
-    ));
 
     info!("Chase: Chase HUD setup complete, layout: {}", ui_path);
 }
@@ -553,24 +531,14 @@ pub(super) fn setup_chase_hud_system(
 ///
 /// 退出追逐战状态时清理 HUD 的系统。
 pub(super) fn cleanup_chase_hud_system(
-    mut commands: Commands,
-    chase_hud_query: Query<Entity, With<ChaseHUDRoot>>,
-    ron_driven_ui_query: Query<Entity, With<crate::core::view::RonDrivenView>>,
+    chase_config: Res<ChaseConfig>,
+    mut despawn_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
 ) {
     info!("Chase: Cleaning up Chase HUD");
 
-    // Despawn the Chase HUD root and all RON-driven UI entities
-    for entity in chase_hud_query.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    // Also despawn any RON-driven UI entities that may have been spawned
-    for entity in ron_driven_ui_query.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    // Remove the View layout handle resource
-    commands.remove_resource::<crate::core::view::ViewLayoutHandle>();
+    despawn_writer.write(crate::core::view::DespawnViewRequest {
+        path: Some(chase_config.damage_ui.layout_path.clone()),
+    });
 
     info!("Chase: Chase HUD cleanup complete");
 }

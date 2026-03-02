@@ -8,9 +8,9 @@
 //! 处理 RunSequence 章节类型。
 //! 支持加载和执行外部序列文件，并传递参数。
 
+use super::SequenceAsset;
+use super::chapter_schema::{Chapter, FactValueMatch};
 use super::context::*;
-use crate::app_state::battle::SequenceAsset;
-use crate::app_state::battle::chapter_schema::{Chapter, FactValueMatch};
 use crate::core::view::ViewRoot;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
@@ -98,7 +98,7 @@ pub fn complete_run_sequence_system(
     mut commands: Commands,
     mut query: Query<(Entity, &RunSequenceChapter, &ActiveChapter), Without<ChapterFinished>>,
     assets: Res<Assets<SequenceAsset>>,
-    mut context: ResMut<BattleContext>,
+    mut context: ResMut<SequenceContext>,
     mut view_root_query: Query<&mut ViewRoot>,
     layered_db: Res<LayeredFactDatabase>,
 ) {

@@ -15,8 +15,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 
-use super::resources::ViewLayoutHandle;
-use crate::core::map_property_schema::{get_string_property, keys, validate_map_properties};
+use crate::core::map_property_schema::validate_map_properties;
 
 // Debug-only imports for hot reload system
 #[cfg(feature = "debug")]
@@ -28,62 +27,22 @@ use bevy::asset::AssetEvent;
 #[cfg(feature = "debug")]
 use bevy::ecs::prelude::MessageReader;
 
-/// Load view layout from Tiled map properties (fallback for states.ron view_layout).
-/// This system only sets ViewLayoutHandle if states.ron doesn't already define view_layout.
+/// Validate Tiled map properties once per map load.
+/// Previously also preloaded ViewLayoutHandle, now only performs validation.
 ///
-/// NOTE: This system does NOT trigger hot reload. It only preloads
-/// the ViewLayoutHandle so it's ready when the UI state is entered.
-///
-/// 从 Tiled 地图属性加载视图布局（作为 states.ron view_layout 的回退）。
-/// 此系统仅在 states.ron 未定义 view_layout 时设置 ViewLayoutHandle。
-///
-/// 注意：此系统不触发热重载。它仅预加载
-/// ViewLayoutHandle 以便在进入 UI 状态时准备就绪。
-pub fn update_view_from_map_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
+/// 每次地图加载时验证 Tiled 地图属性。
+/// 之前还会预加载 ViewLayoutHandle，现在仅执行验证。
+pub fn validate_map_properties_system(
     tiled_maps_query: Query<&TiledMap>,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    existing_layout_handle: Option<Res<ViewLayoutHandle>>,
-    mut current_view_path: Local<Option<String>>,
     mut validated_maps: Local<std::collections::HashSet<bevy::asset::AssetId<TiledMapAsset>>>,
 ) {
-    // Skip if ViewLayoutHandle already exists (set by backpack_state_transition_system)
-    // 如果 ViewLayoutHandle 已存在（由 backpack_state_transition_system 设置），则跳过
-    if existing_layout_handle.is_some() {
-        return;
-    }
-
     for tiled_map in tiled_maps_query.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0) {
-            // Validate map properties once per map load
             let map_id = tiled_map.0.id();
             if !validated_maps.contains(&map_id) {
                 validate_map_properties(&map_asset.map.properties);
                 validated_maps.insert(map_id);
-            }
-
-            // Load view layout from map property (using schema key constant)
-            // This is a PRELOAD, not a hot reload trigger
-            // 这是预加载，不是热重载触发
-            if let Some(path) = get_string_property(&map_asset.map.properties, keys::BACKPACK_UI)
-                && current_view_path.as_deref() != Some(path)
-            {
-                let path_owned = path.to_string();
-                info!(
-                    "[update_view_from_map] Map property '{}': preloading view layout from '{}'",
-                    keys::BACKPACK_UI,
-                    path_owned
-                );
-                *current_view_path = Some(path_owned.clone());
-
-                let handle = asset_server.load(&path_owned);
-
-                commands.insert_resource(ViewLayoutHandle {
-                    handle,
-                    last_modified: None,
-                    path: path_owned,
-                });
             }
         }
     }

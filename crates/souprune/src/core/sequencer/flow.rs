@@ -6,8 +6,8 @@
 //!
 //! 战斗流程控制系统 - 处理章节序列和生命周期。
 
-use super::super::SequenceAsset;
-use super::super::chapter_schema::Chapter;
+use super::SequenceAsset;
+use super::chapter_schema::Chapter;
 use super::context::*;
 use bevy::prelude::*;
 
@@ -26,17 +26,18 @@ pub fn load_default_chapter_system(
 }
 
 /// System to sync battle flow when asset is loaded.
-/// Also loads battle-specific FRE rules if specified.
+/// Also loads sequence-specific FRE rules if specified.
 ///
 /// 当资产加载完成时同步战斗流程的系统。
-/// 如果指定了规则文件，也会加载战斗特定的 FRE 规则。
+/// 如果指定了规则文件，也会加载序列特定的 FRE 规则。
 pub fn sync_battle_flow_system(
     mut commands: Commands,
     flow_handle: Option<Res<CurrentSequenceFlow>>,
-    mut context: ResMut<BattleContext>,
+    mut context: ResMut<SequenceContext>,
     assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
-    mut battle_rules_handle: ResMut<super::super::fre::BattleRulesHandle>,
+    mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)
@@ -48,12 +49,19 @@ pub fn sync_battle_flow_system(
         );
         context.chapters.extend(asset.chapters.clone());
 
-        // Load battle-specific rules if specified
+        // Set SequenceMode from the sequence asset's mode field
+        if let Some(mode) = &asset.mode {
+            sequence_mode.0 = Some(mode.clone());
+            info!("Sequence: Setting mode to '{}'", mode);
+        }
+
+        // Load sequence-specific rules if specified
         if let Some(rules_path) = &asset.rules_file {
             let rules_handle =
                 asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
-            battle_rules_handle.handle = Some(rules_handle);
-            info!("Battle FRE: Loading rules from {}", rules_path);
+            sequence_rules_handle.handle = Some(rules_handle);
+            sequence_rules_handle.registered = false;
+            info!("Sequence FRE: Loading rules from {}", rules_path);
         }
 
         commands.remove_resource::<CurrentSequenceFlow>();
@@ -105,7 +113,7 @@ pub fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<E
 /// 推进战斗流程系统。
 pub fn advance_battle_flow_system(
     mut commands: Commands,
-    mut context: ResMut<BattleContext>,
+    mut context: ResMut<SequenceContext>,
     active_chapters: Query<&ActiveChapter, Without<ChapterFinished>>,
 ) {
     // Check if any root-level chapter is active
@@ -184,6 +192,49 @@ pub fn process_wait_chapter_system(
         if timer.0.is_finished() {
             commands.entity(entity).insert(ChapterFinished);
             info!("Wait Chapter finished.");
+        }
+    }
+}
+
+/// System that handles Custom chapters by dispatching via ActionHandlerRegistry
+/// when a handler is registered, or emitting FreCustomActionEvent as fallback.
+/// The chapter completes immediately after dispatching the event.
+///
+/// 处理 Custom 章节：优先通过 ActionHandlerRegistry 分发，
+/// 未注册的处理器则发出 FreCustomActionEvent。章节在分发后立即完成。
+pub fn process_custom_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
+    handler_registry: Res<bevy_fact_rule_event::ActionHandlerRegistry>,
+    fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
+    mut custom_action_writer: MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::Custom {
+            action_type,
+            params,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "Custom Chapter: dispatching action '{}' with params {:?}",
+                action_type, params
+            );
+
+            let action = bevy_fact_rule_event::RuleActionDef::Custom {
+                action_type: action_type.clone(),
+                params: params.clone(),
+            };
+
+            if handler_registry.has_handler(action_type) {
+                handler_registry.execute(&action, &fact_db, &mut commands);
+            } else {
+                custom_action_writer.write(crate::core::fre_bridge::FreCustomActionEvent {
+                    action_type: action_type.clone(),
+                    params: params.clone(),
+                });
+            }
+
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }

@@ -11,7 +11,7 @@ use super::resolve::{
     resolve_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
-use crate::app_state::battle::chapter_schema::Val;
+use crate::core::sequencer::chapter_schema::Val;
 use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};

@@ -8,10 +8,11 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
-use crate::app_state::overworld::OverworldEntity;
+use crate::app_state::ModeScoped;
 use crate::app_state::overworld::tilemap::systems::TilemapCollider;
 use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
+use crate::core::fre_facts;
 use crate::core::map_property_schema::{
     get_object_bool_property, get_object_float_property, get_string_property, object_keys,
 };
@@ -230,7 +231,7 @@ fn spawn_trigger_zone(
     );
 
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         TiledTriggerZone,
         TriggerZone::new(&trigger_id),
         Rect2DCollider::new(size, Vec2::ZERO),
@@ -316,24 +317,27 @@ fn spawn_interactable(
         let mut modifications = vec![
             // Set typewriter flag
             FactModification::Set(
-                "dialogue:has_typewriter".to_string(),
+                fre_facts::DIALOGUE_HAS_TYPEWRITER.to_string(),
                 FactValue::Bool(has_typewriter),
             ),
             // Set view path
             FactModification::Set(
-                "dialogue:pending_view".to_string(),
+                fre_facts::DIALOGUE_PENDING_VIEW.to_string(),
                 FactValue::String(dialogue_view),
             ),
             // Set focus flag (default true for interactive dialogues)
             // 设置焦点标志（交互对话默认为 true）
-            FactModification::Set("dialogue:has_focus".to_string(), FactValue::Bool(true)),
+            FactModification::Set(
+                fre_facts::DIALOGUE_HAS_FOCUS.to_string(),
+                FactValue::Bool(true),
+            ),
         ];
 
         // Add voice sound effect if configured
         // 添加音效（如果配置了）
         if let Some(voice) = dialogue_voice {
             modifications.push(FactModification::Set(
-                "dialogue:voice".to_string(),
+                fre_facts::DIALOGUE_VOICE.to_string(),
                 FactValue::String(voice),
             ));
         }
@@ -342,7 +346,7 @@ fn spawn_interactable(
         // 添加打字机速度（如果配置了）
         if let Some(speed) = dialogue_typewriter_speed {
             modifications.push(FactModification::Set(
-                "dialogue:typewriter_speed".to_string(),
+                fre_facts::DIALOGUE_TYPEWRITER_SPEED.to_string(),
                 FactValue::Float(speed),
             ));
         }
@@ -351,13 +355,13 @@ fn spawn_interactable(
         if has_mortar {
             if let Some(path) = dialogue_path {
                 modifications.push(FactModification::Set(
-                    "dialogue:pending_mortar_path".to_string(),
+                    fre_facts::DIALOGUE_PENDING_MORTAR_PATH.to_string(),
                     FactValue::String(path),
                 ));
             }
             if let Some(node) = dialogue_node {
                 modifications.push(FactModification::Set(
-                    "dialogue:pending_mortar_node".to_string(),
+                    fre_facts::DIALOGUE_PENDING_MORTAR_NODE.to_string(),
                     FactValue::String(node),
                 ));
             }
@@ -366,12 +370,12 @@ fn spawn_interactable(
         // Add simple text if not using Mortar
         if !has_mortar {
             modifications.push(FactModification::Set(
-                "dialogue:simple_text_active".to_string(),
+                fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE.to_string(),
                 FactValue::Bool(true),
             ));
             if let Some(text) = simple_text {
                 modifications.push(FactModification::Set(
-                    "dialogue:simple_text".to_string(),
+                    fre_facts::DIALOGUE_SIMPLE_TEXT.to_string(),
                     FactValue::String(text),
                 ));
             }
@@ -380,7 +384,7 @@ fn spawn_interactable(
         // Add trigger to start dialogue (must be last to ensure all other facts are set first)
         // 添加触发器启动对话（必须最后设置，以确保其他 facts 已设置）
         modifications.push(FactModification::Set(
-            "dialogue:pending_start".to_string(),
+            fre_facts::DIALOGUE_PENDING_START.to_string(),
             FactValue::Bool(true),
         ));
 
@@ -404,7 +408,7 @@ fn spawn_interactable(
     let interactable = Interactable::new(&interactable_id);
 
     commands.spawn((
-        OverworldEntity(),
+        ModeScoped("overworld".to_string()),
         TiledInteractable,
         interactable,
         Rect2DCollider::new(size, Vec2::ZERO),

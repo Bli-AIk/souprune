@@ -604,7 +604,7 @@ fn create_tile_sprites_system(
             RevealTilesRoot,
             Transform::default(),
             Visibility::Inherited,
-            super::super::OverworldEntity(),
+            crate::app_state::ModeScoped("overworld".to_string()),
         ))
         .id();
 

@@ -24,6 +24,6 @@ pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemp
 // Public exports (used outside core::ui)
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
-    ActiveView, ElementState, PendingViewRules, ViewElement, ViewElementHistory, ViewRoot,
-    VisibleWhen, find_element_by_full_name, find_elements_by_tag,
+    ActiveView, ElementState, PendingViewData, PendingViewRules, ViewElement, ViewElementHistory,
+    ViewRoot, VisibleWhen, find_element_by_full_name, find_elements_by_tag,
 };

@@ -18,7 +18,8 @@
 //!
 //! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
 
-use crate::app_state::overworld::{OverworldEntity, character};
+use crate::app_state::ModeScoped;
+use crate::app_state::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
@@ -29,9 +30,7 @@ use bevy::prelude::{
     Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
     Visibility, Window, With, Without,
 };
-use bevy_ecs_tiled::prelude::{
-    TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
-};
+use bevy_ecs_tiled::prelude::{TiledLayer, TiledMap, TiledMapAsset, TiledObject, tiled};
 
 /// Marker component for tilemap collision entities.
 ///
@@ -50,35 +49,6 @@ pub struct CollisionTileGroup;
 /// 用于组织对象碰撞的根实体。
 #[derive(Component)]
 pub struct ObjectCollisionGroup;
-
-/// Setup the tilemap, using preloaded map handle if available.
-///
-/// 设置 tilemap，如果可用则使用预加载的地图句柄。
-pub fn setup_tilemap_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
-    preloaded_maps: Option<Res<crate::app_state::app_setup::PreloadedMaps>>,
-) {
-    // Use preloaded map handle if available, otherwise load on demand
-    // 如果预加载的地图句柄可用则使用它，否则按需加载
-    let map_handle = if let Some(ref preloaded) = preloaded_maps
-        && let Some(ref handle) = preloaded.initial_map
-    {
-        info!("Using preloaded map handle");
-        handle.clone()
-    } else {
-        info!("Loading map on demand (no preloaded handle available)");
-        asset_server.load(&souprune_config.game.initial_map_path)
-    };
-
-    commands.spawn((
-        OverworldEntity(),
-        TiledMap(map_handle),
-        TilemapAnchor::Center,
-        TiledMapLayerZOffset(souprune_config.render.z_layer_tilemap),
-    ));
-}
 
 /// Initialize Tilemap layers, filter and hide layers with "prototype" in their names,
 /// and generate collision for "collision" layers.
@@ -153,7 +123,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 CollisionTileGroup,
                 Name::new("CollisionTiles"),
                 Transform::default(),
@@ -170,7 +140,7 @@ pub fn generate_collision_tiles_system(
     } else {
         commands
             .spawn((
-                OverworldEntity(),
+                ModeScoped("overworld".to_string()),
                 ObjectCollisionGroup,
                 Name::new("ObjectCollisions"),
                 Transform::default(),
