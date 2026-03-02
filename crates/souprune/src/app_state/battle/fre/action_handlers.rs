@@ -50,52 +50,6 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
         }
     });
 
-    // TriggerDialogue - Deprecated, use FRE rule modifications instead
-    // 已弃用，请改用 FRE 规则的 modifications
-    //
-    // Example FRE rule for simple text dialogue:
-    // ```ron
-    // (
-    //     id: "battle_narration",
-    //     trigger: "battle:show_narration",
-    //     modifications: [
-    //         SetFact(key: "dialogue:simple_text_active", value: Bool(true)),
-    //         SetFact(key: "dialogue:simple_text", value: String("* Your soul is filled with determination.")),
-    //         SetFact(key: "dialogue:has_typewriter", value: Bool(true)),
-    //     ],
-    // )
-    // ```
-    //
-    // Example FRE rule for Mortar dialogue:
-    // ```ron
-    // (
-    //     id: "start_mortar_dialogue",
-    //     trigger: "npc:interact",
-    //     modifications: [
-    //         SetFact(key: "dialogue:pending_mortar_path", value: String("dialogue/npc.mortar")),
-    //         SetFact(key: "dialogue:pending_mortar_node", value: String("greeting")),
-    //         SetFact(key: "dialogue:has_typewriter", value: Bool(true)),
-    //     ],
-    // )
-    // ```
-    handler_registry.register("TriggerDialogue", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
-            let text = params.get("text").map(String::as_str).unwrap_or("");
-            let path = params.get("path").map(String::as_str).unwrap_or("");
-            let node = params.get("node").map(String::as_str).unwrap_or("");
-
-            warn!(
-                "TriggerDialogue action is deprecated. Use FRE rule modifications instead. \
-                Received: text='{}', path='{}', node='{}'",
-                text, path, node
-            );
-
-            // Note: Cannot modify facts from action handler.
-            // Use FRE rule modifications to set dialogue:simple_text_active,
-            // dialogue:simple_text, dialogue:pending_mortar_path, dialogue:pending_mortar_node
-        }
-    });
-
     // PlayDanmaku - Play a danmaku performance
     handler_registry.register("PlayDanmaku", |action, _db, _commands| {
         if let RuleActionDef::Custom { params, .. } = action {
