@@ -703,7 +703,6 @@ pub mod debug_fre_panel {
 
                     let all_states = [
                         (AppState::Loading, "Resource loading"),
-                        (AppState::Menu, "Main menu"),
                         (AppState::Running, "Running"),
                     ];
 
