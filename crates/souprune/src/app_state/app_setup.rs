@@ -25,7 +25,6 @@ use crate::core::sprite::ModuleSpriteRegistry;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
-use bevy_ecs_tiled::prelude::TiledMapAsset;
 use std::fs;
 
 pub(crate) struct AppSetupPlugin;
@@ -33,11 +32,10 @@ pub(crate) struct AppSetupPlugin;
 impl Plugin for AppSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            OnEnter(AppState::AppSetup),
+            OnEnter(AppState::Loading),
             (
                 load_textures_system,
                 setup_camera_system,
-                preload_maps_system,
                 #[cfg(not(target_os = "android"))]
                 setup_touch_overlay_system,
             ),
@@ -45,7 +43,7 @@ impl Plugin for AppSetupPlugin {
         .add_systems(
             Update,
             (
-                check_textures_system.run_if(in_state(AppState::AppSetup)),
+                check_textures_system.run_if(in_state(AppState::Loading)),
                 crate::core::input::touch::update_touch_button_visuals,
                 crate::core::input::touch::tick_touch_button_animations,
                 crate::core::input::touch::update_controller_directions,
@@ -142,6 +140,7 @@ pub struct DiscoveredModules(pub Vec<String>);
 
 fn check_textures_system(
     mut next_state: ResMut<NextState<AppState>>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
     sprite_registry: Res<ModuleSpriteRegistry>,
     asset_server: Res<AssetServer>,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
@@ -149,11 +148,6 @@ fn check_textures_system(
     discovered_modules: Res<DiscoveredModules>,
 ) {
     for _ in events.read() {
-        // Check that all required modules are loaded
-        // Required modules come from config, but must be present in discovered modules
-        //
-        // 检查所有必需模块是否已加载
-        // 必需模块来自配置，但必须存在于发现的模块中
         let required_loaded = souprune_config.game.required_modules.iter().all(|module| {
             if !discovered_modules.0.contains(module) {
                 warn!(
@@ -169,9 +163,6 @@ fn check_textures_system(
             }
         });
 
-        // Also check that all discovered modules are loaded
-        //
-        // 同时检查所有发现的模块是否已加载
         let all_discovered_loaded = discovered_modules.0.iter().all(|module| {
             if let Some(handle) = sprite_registry.get_module(module) {
                 asset_server.is_loaded_with_dependencies(handle)
@@ -183,16 +174,19 @@ fn check_textures_system(
         if required_loaded && all_discovered_loaded {
             info!("All texture modules loaded: {:?}", discovered_modules.0);
 
-            if souprune_config.game.initial_map_path.is_empty()
+            next_state.set(AppState::Running);
+
+            if souprune_config.game.initial_sequence_path.is_none()
+                && souprune_config.game.initial_map_path.is_empty()
                 && !souprune_config.game.initial_battle_path.is_empty()
             {
                 info!(
                     "No initial map path, but initial battle path found. Entering Battle: {}",
                     souprune_config.game.initial_battle_path
                 );
-                next_state.set(AppState::Battle);
+                sequence_mode.0 = Some("battle".to_string());
             } else {
-                next_state.set(AppState::Overworld);
+                sequence_mode.0 = Some("overworld".to_string());
             }
             break;
         }
@@ -341,39 +335,6 @@ fn deferred_touch_overlay_system(
         souprune_config.render.base_resolution_width,
     );
     commands.insert_resource(TouchOverlaySpawned);
-}
-
-/// Preload map assets during AppSetup to avoid loading spikes when entering Overworld.
-///
-/// 在 AppSetup 阶段预加载地图资源，避免进入 Overworld 时的加载卡顿。
-fn preload_maps_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
-) {
-    let initial_map = &souprune_config.game.initial_map_path;
-
-    if !initial_map.is_empty() {
-        info!("Preloading initial map: {}", initial_map);
-        let handle: Handle<TiledMapAsset> = asset_server.load(initial_map);
-        commands.insert_resource(PreloadedMaps {
-            initial_map: Some(handle),
-        });
-    } else {
-        commands.insert_resource(PreloadedMaps { initial_map: None });
-    }
-}
-
-/// Resource storing preloaded map handles.
-/// Using preloaded maps avoids the loading spike when entering Overworld.
-///
-/// 存储预加载地图句柄的资源。
-/// 使用预加载地图可以避免进入 Overworld 时的加载尖峰。
-#[derive(Resource, Default)]
-pub struct PreloadedMaps {
-    /// The initial overworld map handle, preloaded during AppSetup.
-    /// 初始 Overworld 地图句柄，在 AppSetup 期间预加载。
-    pub initial_map: Option<Handle<TiledMapAsset>>,
 }
 
 #[derive(Resource)]

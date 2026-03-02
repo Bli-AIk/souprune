@@ -70,6 +70,20 @@ pub struct OutlineConfig {
     pub color: ColorConfig,
     /// Fade duration in seconds
     pub fade_duration: f32,
+    /// Outline padding in pixels (added to sprite size for outline mesh)
+    #[serde(default = "default_outline_padding")]
+    pub padding: f32,
+    /// Z-offset for outline rendering layer
+    #[serde(default = "default_outline_z_offset")]
+    pub z_offset: f32,
+}
+
+fn default_outline_padding() -> f32 {
+    2.0
+}
+
+fn default_outline_z_offset() -> f32 {
+    100.0
 }
 
 impl Default for OutlineConfig {
@@ -82,6 +96,8 @@ impl Default for OutlineConfig {
                 a: 1.0,
             },
             fade_duration: 0.5,
+            padding: default_outline_padding(),
+            z_offset: default_outline_z_offset(),
         }
     }
 }
@@ -95,6 +111,20 @@ pub struct DarkOverlayConfig {
     pub target_alpha: f32,
     /// Fade duration in seconds
     pub fade_duration: f32,
+    /// Size of the overlay quad (should be large enough to cover the screen)
+    #[serde(default = "default_overlay_size")]
+    pub overlay_size: f32,
+    /// Z-offset for overlay rendering layer
+    #[serde(default = "default_overlay_z_offset")]
+    pub z_offset: f32,
+}
+
+fn default_overlay_size() -> f32 {
+    10000.0
+}
+
+fn default_overlay_z_offset() -> f32 {
+    50.0
 }
 
 impl Default for DarkOverlayConfig {
@@ -102,6 +132,8 @@ impl Default for DarkOverlayConfig {
         Self {
             target_alpha: 0.5,
             fade_duration: 0.5,
+            overlay_size: default_overlay_size(),
+            z_offset: default_overlay_z_offset(),
         }
     }
 }

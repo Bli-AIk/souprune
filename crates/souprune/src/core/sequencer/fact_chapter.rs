@@ -18,11 +18,11 @@
 //! - EmitFactEvent 章节（从 sequencer 发出 FRE 事件）
 //! - ModifyFact 章节（从 sequencer 修改 facts）
 
-use super::context::{ActiveChapter, ChapterFinished};
-use super::flow::spawn_chapter;
-use crate::app_state::battle::chapter_schema::{
+use super::chapter_schema::{
     AggregateRule, Chapter, FactCondition, FactModificationDef, FactValueMatch,
 };
+use super::context::{ActiveChapter, ChapterFinished};
+use super::flow::spawn_chapter;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, FreAsset, LayeredFactDatabase};
 

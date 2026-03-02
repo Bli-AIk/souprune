@@ -24,41 +24,29 @@
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
 pub mod am_integration;
-pub mod chapter_schema;
 pub mod collision;
 pub mod danmaku;
 pub mod fre;
 pub mod player_config_schema;
-pub mod sequencer;
 
-use crate::app_state::AppState;
 use crate::app_state::battle::am_integration::AmBattlePlugin;
-use crate::app_state::battle::chapter_schema::Chapter;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
-use crate::app_state::battle::sequencer::SequencerPlugin;
+use crate::app_state::{ModeChanged, ModeScoped, is_mode};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
+use crate::core::sequencer::SequencerPlugin;
 use bevy::app::{App, Plugin, Update};
+use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
-use serde::{Deserialize, Serialize};
 
-/// Marker component for battle entities
-///
-/// 标记 Battle 实体的组件
-#[derive(Component)]
-pub(crate) struct BattleEntity;
-
-/// Marker component for the Battle UI root entity.
-///
-/// Battle UI 根实体的标记组件。
-///
-
-#[derive(Component)]
-pub struct BattleViewRoot;
+/// 创建 `ModeScoped("battle")` 标记的便捷方法。
+pub(crate) fn battle_scoped() -> ModeScoped {
+    ModeScoped("battle".to_string())
+}
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
@@ -82,17 +70,21 @@ pub struct BattleCamera;
 #[derive(Component)]
 pub struct BattleInputManager;
 
+/// Helper: returns true when entering a specific mode (for run_if conditions).
+fn on_entering_battle(mut events: MessageReader<ModeChanged>) -> bool {
+    events.read().any(|e| e.to.as_deref() == Some("battle"))
+}
+
+fn on_exiting_battle(mut events: MessageReader<ModeChanged>) -> bool {
+    events.read().any(|e| e.from.as_deref() == Some("battle"))
+}
+
 pub(crate) struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, BattleUpdate.run_if(in_state(AppState::Battle)))
+        app.configure_sets(Update, BattleUpdate.run_if(is_mode("battle")))
             .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
-            // Note: ViewUpdate run_if condition is configured in lib.rs to support both Overworld and Battle
-            //
-            // 注意：ViewUpdate 的运行条件在 lib.rs 中配置，以支持 Overworld 和 Battle 两个状态
-            .init_asset::<SequenceAsset>()
-            .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]))
             .init_asset::<BattlePlayerConfig>()
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
@@ -105,10 +97,18 @@ impl Plugin for BattlePlugin {
                 BattleFREPlugin,
             ))
             .add_systems(
-                OnEnter(AppState::Battle),
-                (setup_battle_camera, setup_battle_input_manager),
+                Update,
+                (
+                    crate::core::sequencer::load_default_chapter_system,
+                    setup_battle_camera,
+                    setup_battle_input_manager,
+                )
+                    .run_if(on_entering_battle),
             )
-            .add_systems(OnExit(AppState::Battle), cleanup_battle_input_manager);
+            .add_systems(
+                Update,
+                cleanup_battle_input_manager.run_if(on_exiting_battle),
+            );
     }
 }
 
@@ -147,7 +147,7 @@ fn setup_battle_camera(
         Camera2d,
         projection,
         BattleCamera,
-        BattleEntity,
+        battle_scoped(),
         Name::new("Battle Camera2d"),
     ));
 }
@@ -165,7 +165,7 @@ fn setup_battle_input_manager(
 
     commands.spawn((
         BattleInputManager,
-        BattleEntity,
+        battle_scoped(),
         input_map,
         ActionState::<Action>::default(),
         Name::new("Battle Input Manager"),
@@ -184,25 +184,4 @@ fn cleanup_battle_input_manager(
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
-}
-
-/// Sequence configuration asset loaded from `.sequence.ron` files.
-/// Contains the chapter sequence and optional rules file path.
-///
-/// 从 `.sequence.ron` 文件加载的序列配置资产。
-/// 包含章节序列和可选的规则文件路径。
-#[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
-pub struct SequenceAsset {
-    /// Path to the FRE rules file for this sequence (optional).
-    /// The rules will be loaded to the Local layer when the sequence starts.
-    ///
-    /// 此序列的 FRE 规则文件路径（可选）。
-    /// 规则将在序列开始时加载到 Local 层。
-    #[serde(default)]
-    pub rules_file: Option<String>,
-
-    /// The sequence of chapters to execute.
-    ///
-    /// 要执行的章节序列。
-    pub chapters: Vec<Chapter>,
 }

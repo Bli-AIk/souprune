@@ -75,15 +75,26 @@ pub struct GameConfig {
 
     /// Initial map path to load when entering Overworld.
     /// If empty and `initial_battle_path` is set, the game will start in Battle mode.
+    /// Ignored when `initial_sequence_path` is set (sequence-driven mode).
     ///
     /// 进入 Overworld 时加载的初始地图路径。
     /// 如果为空且设置了 `initial_battle_path`，游戏将以 Battle 模式启动。
+    /// 当设置了 `initial_sequence_path` 时此项被忽略（序列驱动模式）。
     pub initial_map_path: String,
 
     /// Debug battle chapter path to load when entering Battle state.
     ///
     /// 进入 Battle 状态时加载的调试用战斗章节路径。
     pub initial_battle_path: String,
+
+    /// Optional sequence path to load when entering Overworld.
+    /// When set, the Overworld initialization is driven by this sequence
+    /// instead of hardcoded OnEnter systems.
+    ///
+    /// 进入 Overworld 时加载的可选序列路径。
+    /// 设置后，Overworld 的初始化由此序列驱动，而非硬编码的 OnEnter 系统。
+    #[serde(default)]
+    pub initial_sequence_path: Option<String>,
 
     /// Path to player behavior configuration file.
     ///
@@ -131,6 +142,7 @@ impl Default for GameConfig {
             global_rules: String::new(),
             initial_map_path: String::new(),
             initial_battle_path: String::new(),
+            initial_sequence_path: None,
             player_behavior_path: String::new(),
             input_config_path: String::new(),
             states_config: "config/states.ron".to_string(),
@@ -304,6 +316,7 @@ struct GameConfigPartial {
     global_rules: Option<String>,
     initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
+    initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
     states_config: Option<String>,
@@ -381,6 +394,9 @@ Falling back to default configuration (example_mod)",
                             }
                             if let Some(val) = game_partial.initial_battle_path {
                                 config.game.initial_battle_path = val;
+                            }
+                            if let Some(val) = game_partial.initial_sequence_path {
+                                config.game.initial_sequence_path = Some(val);
                             }
                             if let Some(val) = game_partial.player_behavior_path {
                                 config.game.player_behavior_path = val;

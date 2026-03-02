@@ -6,18 +6,20 @@
 //!
 //! ## 模块概述
 //!
-//! Sequencer is the linear sequence manager for the battle system.
-//! It is responsible for managing and executing Chapters in the battle,
+//! Sequencer is the linear sequence manager.
+//! It is responsible for managing and executing Chapters,
 //! ensuring they proceed in order.
 //!
-//! Sequencer 是战斗系统的线性序列管理器。
-//! 它负责管理和执行战斗中的章节（Chapter），确保它们按顺序进行。
+//! Sequencer 是线性序列管理器。
+//! 它负责管理和执行章节（Chapter），确保它们按顺序进行。
 
+mod bgm;
 mod camera;
 mod context;
 mod fact_chapter;
 mod flow;
 mod interaction;
+mod load_map;
 mod performance;
 mod player;
 mod run_sequence;
@@ -25,26 +27,71 @@ mod tween;
 pub mod view_action;
 mod view_element;
 
-// Re-export public types
+pub mod chapter_schema;
 
-use crate::app_state::AppState;
-use crate::app_state::battle::BattleUpdate;
+// Re-export public types
+pub use context::{
+    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
+    SequenceRulesHandle, WaitTimer,
+};
+pub use flow::load_default_chapter_system;
+
 use bevy::prelude::*;
 use bevy_tween::BevyTweenRegisterSystems;
 use bevy_tween::tween::component_tween_system;
+use serde::{Deserialize, Serialize};
 
-/// Module for the battle sequencer.
+use crate::core::ron_loader::RonAssetLoader;
+use chapter_schema::Chapter;
+
+/// SystemSet for sequencer systems.
+/// Callers (BattlePlugin, OverworldPlugin) configure when this set runs.
 ///
-/// 战斗系统的线性序列管理器。
+/// Sequencer 系统集。
+/// 调用方（BattlePlugin, OverworldPlugin）配置该集合何时运行。
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SequencerUpdate;
+
+/// Sequence configuration asset loaded from `.sequence.ron` files.
+/// Contains the chapter sequence and optional rules file path.
+///
+/// 从 `.sequence.ron` 文件加载的序列配置资产。
+/// 包含章节序列和可选的规则文件路径。
+#[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
+pub struct SequenceAsset {
+    /// The mode this sequence runs in (e.g., "overworld", "battle").
+    /// Sets SequenceMode when this sequence is loaded.
+    #[serde(default)]
+    pub mode: Option<String>,
+
+    /// Path to the FRE rules file for this sequence (optional).
+    /// The rules will be loaded to the Local layer when the sequence starts.
+    #[serde(default)]
+    pub rules_file: Option<String>,
+
+    /// Named exits for sequence-to-sequence jumps (supports graph editor).
+    #[serde(default)]
+    pub exits: std::collections::HashMap<String, String>,
+
+    /// The sequence of chapters to execute.
+    pub chapters: Vec<Chapter>,
+}
+
+/// Module for the sequencer.
+///
+/// 线性序列管理器。
 pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<context::BattleContext>()
+        app.init_resource::<context::SequenceContext>()
+            .init_resource::<context::SequenceRulesHandle>()
+            .init_resource::<bgm::SequencerBgm>()
+            .init_asset::<SequenceAsset>()
+            .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]))
             // Register custom interpolator systems for bevy_tween
             .add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
             .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
-            .add_systems(OnEnter(AppState::Battle), flow::load_default_chapter_system)
             // Chapter processing systems - split into two groups to avoid tuple size limit
             .add_systems(
                 Update,
@@ -60,10 +107,11 @@ impl Plugin for SequencerPlugin {
                     tween::process_tween_view_element_system,
                     performance::process_danmaku_performance_system,
                     performance::process_am_performance_system,
+                    flow::process_custom_chapter_system,
                     player::process_player_spawn_requests,
                 )
                     .chain()
-                    .in_set(BattleUpdate),
+                    .in_set(SequencerUpdate),
             )
             // More chapter processing systems (continuation)
             .add_systems(
@@ -82,13 +130,16 @@ impl Plugin for SequencerPlugin {
                     // RunSequence
                     run_sequence::process_run_sequence_system,
                     run_sequence::complete_run_sequence_system,
+                    // Scene setup chapters
+                    load_map::process_load_map_system,
+                    bgm::process_set_bgm_system,
                     // AwaitFact: check condition completion
                     interaction::check_await_fact_completion_system,
                     flow::cleanup_finished_chapters_system,
                     flow::sync_battle_flow_system,
                 )
                     .chain()
-                    .in_set(BattleUpdate)
+                    .in_set(SequencerUpdate)
                     .after(flow::advance_battle_flow_system),
             );
     }

@@ -18,7 +18,7 @@ use bevy::ui::Val as BevyVal;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
 use serde::Deserialize;
 
-pub use crate::app_state::battle::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};
+pub use crate::core::sequencer::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};
 
 pub type FloatOrExpr = Val<f32>;
 

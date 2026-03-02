@@ -527,6 +527,114 @@ pub enum Chapter {
         #[serde(default)]
         params: std::collections::HashMap<String, FactValueMatch>,
     },
+
+    // =========================================================================
+    // Scene Setup Chapters
+    // 场景构建章节
+    // =========================================================================
+    /// Load a Tiled tilemap (.tmx) into the scene.
+    ///
+    /// Spawns a TiledMap entity and optionally triggers collision generation,
+    /// object property processing, and camera bounds setup.
+    /// These sub-operations are handled reactively by existing tilemap systems.
+    ///
+    /// 加载 Tiled 瓦片地图 (.tmx) 到场景中。
+    ///
+    /// 生成 TiledMap 实体，并可选地触发碰撞生成、对象属性处理和相机边界设置。
+    /// 这些子操作由现有的 tilemap 系统以响应式方式处理。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// LoadMap(
+    ///     path: "levels/town.tmx",
+    ///     generate_collision: true,
+    ///     process_objects: true,
+    ///     setup_camera_bounds: true,
+    /// ),
+    /// ```
+    LoadMap {
+        /// Path to the .tmx map file.
+        ///
+        /// .tmx 地图文件路径。
+        path: String,
+
+        /// Whether to generate collision tiles from collision layers (default: true).
+        ///
+        /// 是否从碰撞图层生成碰撞瓦片（默认：true）。
+        #[serde(default = "default_true")]
+        generate_collision: bool,
+
+        /// Whether to process map object properties (triggers, NPCs, etc.) (default: true).
+        ///
+        /// 是否处理地图对象属性（触发区、NPC 等）（默认：true）。
+        #[serde(default = "default_true")]
+        process_objects: bool,
+
+        /// Whether to setup camera bounds from map dimensions (default: true).
+        ///
+        /// 是否根据地图尺寸设置相机边界（默认：true）。
+        #[serde(default = "default_true")]
+        setup_camera_bounds: bool,
+    },
+
+    /// Play or switch background music.
+    ///
+    /// Controls BGM playback. Set path to None to stop current BGM.
+    ///
+    /// 播放或切换背景音乐。
+    ///
+    /// 控制 BGM 播放。将 path 设为 None 可停止当前 BGM。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// SetBgm(
+    ///     path: Some("audio/bgm/town.ogg"),
+    ///     fade_in: Some(1.0),
+    /// ),
+    /// ```
+    SetBgm {
+        /// BGM file path. None means stop current BGM.
+        ///
+        /// BGM 文件路径。None 表示停止当前 BGM。
+        path: Option<String>,
+
+        /// Fade-in duration in seconds (optional).
+        ///
+        /// 淡入持续时间（秒）（可选）。
+        #[serde(default)]
+        fade_in: Option<f32>,
+    },
+
+    /// Custom chapter type for editor/mod extensibility.
+    ///
+    /// Dispatched as a `FreCustomActionEvent` during chapter execution.
+    /// The chapter completes immediately (fire-and-forget).
+    /// Use `AwaitFact` after a Custom chapter if you need to wait for a result.
+    ///
+    /// 自定义章节类型，用于编辑器/Mod 扩展。
+    ///
+    /// 在章节执行期间作为 `FreCustomActionEvent` 分发。
+    /// 章节立即完成（fire-and-forget）。
+    /// 如果需要等待结果，在 Custom 章节后使用 `AwaitFact`。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// Custom(
+    ///     action_type: "ShakeCamera",
+    ///     params: { "intensity": "5.0", "duration": "0.5" },
+    /// ),
+    /// AwaitFact(condition: "$camera_shake_done == true"),
+    /// ```
+    Custom {
+        /// Action type identifier (matched by handler systems).
+        /// 动作类型标识符（由处理系统匹配）。
+        action_type: String,
+
+        /// Key-value parameters for the action.
+        /// 动作的键值参数。
+        #[serde(default)]
+        params: std::collections::HashMap<String, String>,
+    },
 }
 
 fn default_true() -> bool {
@@ -723,10 +831,20 @@ pub enum PlayerAction {
     /// String 引用的是 角色资产 中定义的 模式 名称。
     SetMode(Vec<String>),
 
-    /// Spawn a new player entity based on a config file.
+    /// Spawn a new player entity.
+    /// The `config_path` determines spawn behavior:
+    /// - Ends with `.battle_player.ron` → loads battle player config (battle mode).
+    /// - Otherwise → delegated to state-specific handlers (e.g., overworld).
     ///
-    /// 根据配置文件生成一个新的玩家实体。
-    Spawn { config_path: String, position: Vec2 },
+    /// 生成一个新的玩家实体。
+    /// `config_path` 决定生成行为：
+    /// - 以 `.battle_player.ron` 结尾 → 加载战斗玩家配置（战斗模式）。
+    /// - 其他 → 委托给状态特定处理器（如 Overworld）。
+    Spawn {
+        config_path: String,
+        #[serde(default)]
+        position: Option<Vec2>,
+    },
 
     /// Teleport the player to a specified position.
     ///

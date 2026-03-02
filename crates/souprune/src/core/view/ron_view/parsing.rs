@@ -1,7 +1,7 @@
 use super::super::layout::FloatOrExpr;
 use super::super::layout::view_schema::MaterialParamValue;
-use crate::app_state::battle::chapter_schema::Val;
-use crate::app_state::overworld::OverworldSubState;
+use crate::app_state::SequenceSubState;
+use crate::core::sequencer::chapter_schema::Val;
 use crate::core::view::expr_eval::create_eval_callback;
 use bevy::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -346,10 +346,10 @@ pub fn vec3_tuple_depends_on_time(tuple: &super::super::layout::serde_types::Vec
         || expression_depends_on_time(&tuple.2)
 }
 
-pub fn parse_overworld_state(state_str: &str) -> Option<OverworldSubState> {
+pub fn parse_sequence_state(state_str: &str) -> Option<SequenceSubState> {
     match state_str {
         "" | "None" => None,
-        name => Some(OverworldSubState::new(name)),
+        name => Some(SequenceSubState::new(name)),
     }
 }
 

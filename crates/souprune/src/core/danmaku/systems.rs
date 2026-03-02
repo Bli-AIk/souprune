@@ -12,8 +12,7 @@ use super::DanmakuSpawnContext;
 use super::components::*;
 use super::danmaku_schema::*;
 use super::target::BulletTarget;
-use crate::app_state::battle::BattleEntity;
-use crate::app_state::overworld::OverworldEntity;
+use crate::app_state::ModeScoped;
 use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
@@ -54,8 +53,6 @@ pub fn spawn_performance_players(
     performances: Res<Assets<DanmakuPerformance>>,
     spawn_context: Res<DanmakuSpawnContext>,
 ) {
-    use super::DanmakuActiveState;
-
     let mut still_pending = Vec::new();
 
     for (handle, event) in pending.pending.drain(..) {
@@ -73,14 +70,9 @@ pub fn spawn_performance_players(
                 Name::new("BulletContainer"),
             ));
 
-            // Add context-specific marker to container
-            match spawn_context.state {
-                DanmakuActiveState::Battle => {
-                    container_commands.insert(BattleEntity);
-                }
-                DanmakuActiveState::Overworld => {
-                    container_commands.insert(OverworldEntity());
-                }
+            // Add mode-scoped marker to container
+            if let Some(ref mode) = spawn_context.mode {
+                container_commands.insert(ModeScoped(mode.clone()));
             }
 
             let container_entity = container_commands.id();
@@ -96,17 +88,9 @@ pub fn spawn_performance_players(
                 Name::new("PerformancePlayer"),
             ));
 
-            // Add context-specific marker to PerformancePlayer too
-            // This ensures it gets cleaned up when exiting the state
-            // 给 PerformancePlayer 也添加状态标记
-            // 这确保在退出状态时它也会被清理
-            match spawn_context.state {
-                DanmakuActiveState::Battle => {
-                    player_commands.insert(BattleEntity);
-                }
-                DanmakuActiveState::Overworld => {
-                    player_commands.insert(OverworldEntity());
-                }
+            // Add mode-scoped marker to PerformancePlayer too
+            if let Some(ref mode) = spawn_context.mode {
+                player_commands.insert(ModeScoped(mode.clone()));
             }
 
             info!(

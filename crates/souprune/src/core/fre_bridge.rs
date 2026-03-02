@@ -19,13 +19,29 @@ use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_ev
 pub use eval::{evaluate_conditions_layered, evaluate_single_condition};
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactValue, LayeredRuleRegistry, RuleActionDef};
+use bevy_fact_rule_event::{
+    ActionHandlerRegistry, FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry,
+    RuleActionDef,
+};
 use leafwing_input_manager::action_state::ActionState;
+use std::collections::HashMap;
 
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
+use crate::core::fre_facts;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::view::components::{ActiveView, ViewRoot};
+
+/// Event emitted for each FRE Custom action encountered during rule evaluation.
+/// Systems can read this event to handle specific action types.
+///
+/// 在规则评估期间遇到的 FRE Custom action 会发出此事件。
+/// 系统可以读取此事件来处理特定的 action 类型。
+#[derive(Message, Debug, Clone)]
+pub struct FreCustomActionEvent {
+    pub action_type: String,
+    pub params: HashMap<String, String>,
+}
 
 /// System that converts input actions to FRE events.
 ///
@@ -88,21 +104,20 @@ pub fn action_to_fre_event_system(
 
 /// System that syncs Bevy state values to FRE facts.
 ///
-/// This allows FRE rules to check current state using `$@overworld_state` and `$@app_state`.
+/// This allows FRE rules to check current state using `$@sequence_sub_state` and `$@app_state`.
 /// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
 ///
 /// 将 Bevy 状态值同步到 FRE facts 的系统。
 ///
-/// 这允许 FRE 规则使用 `$@overworld_state` 和 `$@app_state` 检查当前状态。
+/// 这允许 FRE 规则使用 `$@sequence_sub_state` 和 `$@app_state` 检查当前状态。
 /// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
 fn state_facts_need_sync(
-    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
 ) -> bool {
-    // Check if either state has changed this frame
-    if let Some(ref state) = overworld_state
+    if let Some(ref state) = sub_state
         && state.is_changed()
     {
         return true;
@@ -116,20 +131,23 @@ fn state_facts_need_sync(
 }
 
 pub fn sync_state_to_facts_system(
-    overworld_state: Option<Res<State<crate::app_state::overworld::OverworldSubState>>>,
+    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
     mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
-    // Sync OverworldSubState
-    if let Some(state) = overworld_state {
+    // Sync SequenceSubState (replaces OverworldSubState)
+    if let Some(state) = sub_state {
         let state_name = state.get().name().to_string();
-        facts.set("@overworld_state", FactValue::String(state_name));
+        facts.set(
+            fre_facts::STATE_SEQUENCE_SUB_STATE,
+            FactValue::String(state_name),
+        );
     }
 
     // Sync AppState
     if let Some(state) = app_state {
         let state_name = format!("{:?}", state.get());
-        facts.set("@app_state", FactValue::String(state_name));
+        facts.set(fre_facts::STATE_APP_STATE, FactValue::String(state_name));
     }
 }
 
@@ -340,11 +358,14 @@ fn execute_action(
         }
         RuleActionDef::CloseView => {
             debug!("FRE Bridge: CloseView");
-            local_facts.set("_close_requested", FactValue::Bool(true));
+            local_facts.set(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
         }
         RuleActionDef::SwitchState(state_name) => {
             debug!("FRE Bridge: SwitchState({})", state_name);
-            local_facts.set("_switch_state", FactValue::String(state_name.clone()));
+            local_facts.set(
+                fre_facts::VIEW_SWITCH_STATE,
+                FactValue::String(state_name.clone()),
+            );
         }
         RuleActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
@@ -369,18 +390,85 @@ fn execute_action(
 /// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
 pub fn handle_switch_state_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    mut next_state: ResMut<NextState<crate::app_state::overworld::OverworldSubState>>,
+    mut next_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
 ) {
     for mut view_root in active_view_query.iter_mut() {
-        if let Some(FactValue::String(state_name)) =
-            view_root.local_facts.get_by_str("_switch_state")
+        if let Some(FactValue::String(state_name)) = view_root
+            .local_facts
+            .get_by_str(fre_facts::VIEW_SWITCH_STATE)
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
-            next_state.set(crate::app_state::overworld::OverworldSubState::new(
-                &state_name,
-            ));
-            view_root.local_facts.remove("_switch_state");
+            next_state.set(crate::app_state::SequenceSubState::new(&state_name));
+            view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
+        }
+    }
+}
+
+/// System that reads FRE events, matches rules, evaluates global conditions,
+/// and dispatches Custom actions as `FreCustomActionEvent` messages.
+///
+/// This is the unified global dispatch for Custom actions, replacing
+/// per-subsystem rule evaluation (handle_chase_state_actions_system,
+/// collect_danmaku_actions_system, etc.).
+///
+/// FRE 事件全局 Custom action 分发系统。
+/// 读取 FRE 事件，匹配规则，评估全局条件，
+/// 将 Custom action 作为 `FreCustomActionEvent` 消息分发。
+pub fn dispatch_custom_actions_system(
+    mut events: MessageReader<FactEvent>,
+    rule_registry: Res<LayeredRuleRegistry>,
+    action_defs: Res<RuleActionDefs>,
+    fact_db: Res<LayeredFactDatabase>,
+    handler_registry: Res<ActionHandlerRegistry>,
+    mut commands: Commands,
+    mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
+) {
+    for event in events.read() {
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
+        if rule_groups.is_empty() {
+            continue;
+        }
+
+        'outer: for group in rule_groups {
+            for rule in group {
+                if !evaluate_conditions_layered(&rule.condition_expressions, &fact_db) {
+                    continue;
+                }
+
+                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                    continue;
+                };
+
+                for action in actions {
+                    if let RuleActionDef::Custom {
+                        action_type,
+                        params,
+                    } = action
+                    {
+                        if handler_registry.has_handler(action_type) {
+                            debug!(
+                                "FRE: Executing registered handler for '{}' (rule: '{}')",
+                                action_type, rule.id
+                            );
+                            handler_registry.execute(action, &fact_db, &mut commands);
+                        } else {
+                            debug!(
+                                "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
+                                action_type, rule.id
+                            );
+                            custom_action_writer.write(FreCustomActionEvent {
+                                action_type: action_type.clone(),
+                                params: params.clone(),
+                            });
+                        }
+                    }
+                }
+
+                if rule.consume_event {
+                    break 'outer;
+                }
+            }
         }
     }
 }
@@ -392,13 +480,15 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, register_condition_evaluator_system)
+        app.add_message::<FreCustomActionEvent>()
+            .add_systems(Startup, register_condition_evaluator_system)
             .add_systems(
                 Update,
                 (
                     sync_state_to_facts_system.run_if(state_facts_need_sync),
                     action_to_fre_event_system,
                     process_view_actions_system,
+                    dispatch_custom_actions_system,
                     handle_switch_state_system,
                 )
                     .chain(),

@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的 ModifyViewElement 系统。
 
-use super::super::chapter_schema::Chapter;
+use super::chapter_schema::Chapter;
 use super::context::*;
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
@@ -48,7 +48,7 @@ pub fn process_modify_view_element_system(
             // Resolve the selector to get target entities
             // 解析选择器以获取目标实体
             let target_entities = match selector {
-                super::super::chapter_schema::ElementSelector::FullName(full_name) => {
+                super::chapter_schema::ElementSelector::FullName(full_name) => {
                     if let Some(entity) =
                         crate::core::view::find_element_by_full_name(&view_elements, full_name)
                     {
@@ -65,7 +65,7 @@ pub fn process_modify_view_element_system(
                         vec![]
                     }
                 }
-                super::super::chapter_schema::ElementSelector::LocalName(local_name) => {
+                super::chapter_schema::ElementSelector::LocalName(local_name) => {
                     // For simplicity, search in all namespaces
                     // 为简单起见，在所有命名空间中搜索
                     view_elements
@@ -74,7 +74,7 @@ pub fn process_modify_view_element_system(
                         .map(|(entity, _)| entity)
                         .collect()
                 }
-                super::super::chapter_schema::ElementSelector::Tag(tag) => {
+                super::chapter_schema::ElementSelector::Tag(tag) => {
                     crate::core::view::find_elements_by_tag(&view_elements, tag)
                 }
             };
@@ -116,7 +116,7 @@ fn apply_modification(
     commands: &mut Commands,
     asset_server: &AssetServer,
     entity: Entity,
-    modification: &super::super::chapter_schema::ElementModification,
+    modification: &super::chapter_schema::ElementModification,
     transforms: &mut Query<&mut Transform>,
     sprites: &mut Query<&mut Sprite>,
     visibilities: &mut Query<&mut Visibility>,
@@ -127,7 +127,7 @@ fn apply_modification(
     use crate::core::view::ron_view::parsing::resolve_val_f32;
 
     match modification {
-        super::super::chapter_schema::ElementModification::SetTexture(path) => {
+        super::chapter_schema::ElementModification::SetTexture(path) => {
             if let Ok(mut sprite) = sprites.get_mut(entity) {
                 let texture_path = if path.starts_with("assets/textures/") {
                     path.clone()
@@ -138,7 +138,7 @@ fn apply_modification(
                 info!("Set texture for entity {:?}: {}", entity, texture_path);
             }
         }
-        super::super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
+        super::chapter_schema::ElementModification::SetPosition(x, y, z) => {
             if let Ok(mut transform) = transforms.get_mut(entity) {
                 let final_x = resolve_val_f32(x, Some(transform.translation.x), player_data, None);
                 let final_y = resolve_val_f32(y, Some(transform.translation.y), player_data, None);
@@ -178,7 +178,7 @@ fn apply_modification(
                 }
             }
         }
-        super::super::chapter_schema::ElementModification::SetScale(x, y, z) => {
+        super::chapter_schema::ElementModification::SetScale(x, y, z) => {
             if let Ok(mut transform) = transforms.get_mut(entity) {
                 let final_x = resolve_val_f32(x, Some(transform.scale.x), player_data, None);
                 let final_y = resolve_val_f32(y, Some(transform.scale.y), player_data, None);
@@ -191,7 +191,7 @@ fn apply_modification(
                 );
             }
         }
-        super::super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
+        super::chapter_schema::ElementModification::SetColor(r, g, b, a) => {
             if let Ok(mut sprite) = sprites.get_mut(entity) {
                 let color = sprite.color;
 
@@ -207,7 +207,7 @@ fn apply_modification(
                 );
             }
         }
-        super::super::chapter_schema::ElementModification::SetVisibility(visible) => {
+        super::chapter_schema::ElementModification::SetVisibility(visible) => {
             if let Ok(mut visibility) = visibilities.get_mut(entity) {
                 use crate::core::view::ron_view::parsing::resolve_val_bool;
 
@@ -220,7 +220,7 @@ fn apply_modification(
                 info!("Set visibility for entity {:?}: {}", entity, is_visible);
             }
         }
-        super::super::chapter_schema::ElementModification::SetBoxSize(width, height) => {
+        super::chapter_schema::ElementModification::SetBoxSize(width, height) => {
             if let Ok(mut ui_box) = ui_boxes.get_mut(entity) {
                 let new_width = resolve_val_f32(width, None, player_data, None);
                 let new_height = resolve_val_f32(height, None, player_data, None);
@@ -232,7 +232,7 @@ fn apply_modification(
                 );
             }
         }
-        super::super::chapter_schema::ElementModification::Undo => {
+        super::chapter_schema::ElementModification::Undo => {
             if let Ok(mut history) = histories.get_mut(entity)
                 && let Some(previous_state) = history.undo()
             {
@@ -257,7 +257,7 @@ fn apply_modification(
                 }
             }
         }
-        super::super::chapter_schema::ElementModification::Redo => {
+        super::chapter_schema::ElementModification::Redo => {
             if let Ok(mut history) = histories.get_mut(entity)
                 && let Some(next_state) = history.redo()
             {
@@ -282,7 +282,7 @@ fn apply_modification(
                 }
             }
         }
-        super::super::chapter_schema::ElementModification::Reset => {
+        super::chapter_schema::ElementModification::Reset => {
             if let Ok(mut history) = histories.get_mut(entity) {
                 let original_state = history.reset();
                 // Apply original state

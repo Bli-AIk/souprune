@@ -1,6 +1,6 @@
 use super::super::layout::FloatOrExpr;
 use super::parsing::{PlayerDataView, RepeatContext};
-use crate::app_state::battle::chapter_schema::Val;
+use crate::core::sequencer::chapter_schema::Val;
 use crate::core::view::expr_eval::{create_eval_callback, preprocess_varname};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
@@ -604,14 +604,14 @@ pub fn evaluate_fact_expression(expr: &str, player_data: &PlayerDataView) -> Opt
 ///
 /// 将 Val<f32> 解析为实际的 f32 值。
 pub fn resolve_val_f32(
-    val: &crate::app_state::battle::chapter_schema::Val<f32>,
+    val: &crate::core::sequencer::chapter_schema::Val<f32>,
     current_value: Option<f32>,
     player_data: &PlayerDataView,
     time: Option<f64>,
 ) -> f32 {
     match val {
-        crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
-        crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
+        crate::core::sequencer::chapter_schema::Val::Static(v) => *v,
+        crate::core::sequencer::chapter_schema::Val::Expr(expr_str) => {
             // Special case: pure @current
             if expr_str == "@current" {
                 return current_value.unwrap_or(0.0);
@@ -628,12 +628,12 @@ pub fn resolve_val_f32(
 ///
 /// 将 Val<bool> 解析为实际的 bool 值。
 pub fn resolve_val_bool(
-    val: &crate::app_state::battle::chapter_schema::Val<bool>,
+    val: &crate::core::sequencer::chapter_schema::Val<bool>,
     player_data: &PlayerDataView,
 ) -> bool {
     match val {
-        crate::app_state::battle::chapter_schema::Val::Static(v) => *v,
-        crate::app_state::battle::chapter_schema::Val::Expr(expr_str) => {
+        crate::core::sequencer::chapter_schema::Val::Static(v) => *v,
+        crate::core::sequencer::chapter_schema::Val::Expr(expr_str) => {
             // Evaluate condition expression
             evaluate_condition(expr_str, player_data)
         }

@@ -6,28 +6,28 @@
 //!
 //! 战斗序列管理器的核心类型和资源。
 
-use super::super::SequenceAsset;
-use super::super::chapter_schema::Chapter;
+use super::SequenceAsset;
+use super::chapter_schema::Chapter;
 use bevy::prelude::*;
 
-/// Execution state of the battle sequencer.
+/// Execution state of the sequencer.
 ///
-/// 战斗序列管理器的执行状态。
+/// 序列管理器的执行状态。
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BattleExecutionState {
+pub enum SequenceExecutionState {
     #[default]
     Idle,
     Processing,
     Waiting,
 }
 
-/// [Resource] includes the queue of Chapters that have not yet occurred
+/// [Resource] includes the queue of Chapters that have not yet occurred.
 ///
-/// [Resource] 存放还没发生的章节队列
+/// [Resource] 存放还没发生的章节队列。
 #[derive(Resource, Default)]
-pub struct BattleContext {
+pub struct SequenceContext {
     pub chapters: Vec<Chapter>,
-    pub state: BattleExecutionState,
+    pub state: SequenceExecutionState,
 }
 
 /// Component for active chapters being processed.
@@ -64,3 +64,16 @@ pub struct ChapterFinished;
 /// 持有当前序列流程资产句柄的资源。
 #[derive(Resource)]
 pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);
+
+/// Resource to track the rules handle loaded by the current sequence.
+/// When a sequence specifies a `rules_file`, the handle is stored here
+/// for processing by state-specific FRE plugins.
+///
+/// 跟踪当前序列加载的规则句柄的资源。
+/// 当序列指定了 `rules_file` 时，句柄会存储在此处，
+/// 由特定状态的 FRE 插件处理。
+#[derive(Resource, Default)]
+pub struct SequenceRulesHandle {
+    pub handle: Option<Handle<bevy_fact_rule_event::FreAsset>>,
+    pub registered: bool,
+}

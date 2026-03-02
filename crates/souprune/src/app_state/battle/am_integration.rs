@@ -27,7 +27,7 @@ use bevy::prelude::*;
 use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
-use crate::app_state::battle::BattleEntity;
+use crate::app_state::battle::battle_scoped;
 use crate::app_state::battle::collision::{AmBattleBoxBounds, BattleBox};
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
@@ -40,7 +40,7 @@ use crate::core::danmaku::{
 /// AM 演出实体的标记组件。
 /// 用于识别和清理 AM 生成的实体。
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmBattleEntity;
+pub struct AmEntity;
 
 /// Marker for entities that should be treated as bullets (from #B group)
 /// Inherited from parent group if parent has this marker.
@@ -133,6 +133,16 @@ pub struct AmBattleConfig {
     /// 碰撞体以更好地匹配实际可见内容。
     /// 例如，0.05 表示碰撞体是精灵大小的 5%。
     pub collision_scale: f32,
+
+    /// Default battle box size (width, height) when size cannot be determined from AM layer.
+    ///
+    /// 当无法从 AM 图层确定大小时使用的默认战斗箱尺寸（宽, 高）。
+    #[serde(default = "default_battle_box_size")]
+    pub default_battle_box_size: (f32, f32),
+}
+
+fn default_battle_box_size() -> (f32, f32) {
+    (565.0, 140.0)
 }
 
 impl Default for AmBattleConfig {
@@ -144,7 +154,8 @@ impl Default for AmBattleConfig {
             battle_box_pattern: "^#C".to_string(),
             hidden_pattern: String::new(), // Empty = hide nothing by default
             bullet_damage: 1.0,
-            collision_scale: 0.05, // Default to 5% of sprite size since AM sprites often have large transparent areas
+            collision_scale: 0.05,
+            default_battle_box_size: default_battle_box_size(),
         }
     }
 }
@@ -217,8 +228,8 @@ impl Plugin for AmBattlePlugin {
             .init_resource::<AmBattleConfig>()
             .add_message::<PlayAmPerformanceEvent>()
             .add_systems(
-                OnEnter(crate::app_state::AppState::Battle),
-                load_am_battle_config,
+                Update,
+                load_am_battle_config.run_if(super::on_entering_battle),
             )
             .add_systems(
                 Update,
@@ -226,7 +237,7 @@ impl Plugin for AmBattlePlugin {
                     handle_play_am_performance_event,
                     // Sync fit scale for mask coordinate calculation
                     sync_am_fit_scale_system,
-                    // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc.) are available
+                    // Apply commands so observer results (AmEntity, AmHiddenMarker etc.) are available
                     ApplyDeferred,
                     propagate_am_markers_system,
                     // Apply commands before checking markers for collision
@@ -240,10 +251,7 @@ impl Plugin for AmBattlePlugin {
                     .chain()
                     .in_set(crate::app_state::battle::BattleUpdate),
             )
-            .add_systems(
-                OnExit(crate::app_state::AppState::Battle),
-                cleanup_am_entities,
-            );
+            .add_systems(Update, cleanup_am_entities.run_if(super::on_exiting_battle));
     }
 }
 
@@ -390,8 +398,8 @@ pub fn on_am_entity_spawned(
         layer_name, event.element_type
     );
 
-    // Add AmBattleEntity marker to all AM entities
-    commands.entity(event.entity).insert(AmBattleEntity);
+    // Add AmEntity marker to all AM entities
+    commands.entity(event.entity).insert(AmEntity);
 
     // Check regex patterns for bullet/battle_box/hidden markers
     if let Some(patterns) = patterns {
@@ -450,7 +458,7 @@ fn propagate_am_markers_system(
             Option<&AmBattleBoxMarker>,
             Option<&AmHiddenMarker>,
         ),
-        With<AmBattleEntity>,
+        With<AmEntity>,
     >,
     // Parent hierarchy for inheritance
     parent_query: Query<&ChildOf>,
@@ -715,10 +723,10 @@ fn add_am_collision_system(
             if let Some((w, h)) = get_layer_size(spec) {
                 (w.abs() * total_scale.x, h.abs() * total_scale.y)
             } else {
-                (565.0, 140.0)
+                am_config.default_battle_box_size
             }
         } else {
-            (565.0, 140.0)
+            am_config.default_battle_box_size
         };
 
         // Calculate center_offset from anchor_offset
@@ -802,7 +810,7 @@ fn handle_play_am_performance_event(
         // IMPORTANT: We must update inv_fit_scale when we override the Transform.scale
         // to keep mask coordinate calculations consistent with the actual transform.
         commands.entity(entity).insert((
-            BattleEntity,
+            battle_scoped(),
             Transform {
                 translation: offset,
                 scale: Vec3::splat(final_scale),
@@ -873,7 +881,7 @@ fn check_am_performance_completion(
 /// 退出战斗时清理 AM 实体的系统。
 fn cleanup_am_entities(
     mut commands: Commands,
-    query: Query<Entity, With<AmBattleEntity>>,
+    query: Query<Entity, With<AmEntity>>,
     mut am_state: ResMut<AmPerformanceState>,
 ) {
     for entity in query.iter() {
