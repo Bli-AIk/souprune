@@ -7,9 +7,7 @@ mod test_support;
 
 use ron::de::from_str;
 use serde::Deserialize;
-use souprune::{AnimationConfigAsset, CharacterAsset, Direction, PlayerBehavior};
-use std::path::PathBuf;
-use std::sync::Once;
+use souprune::{AnimationConfigAsset, CharacterAsset, Direction};
 
 /// Validate referenced assets (character + animation config) exist and parse.
 ///
@@ -82,16 +80,4 @@ fn default_initial_state() -> String {
 
 fn default_run_speed_multiplier() -> f32 {
     2.0
-}
-
-static WORKSPACE_DIR_SET: Once = Once::new();
-
-fn ensure_workspace_dir() {
-    WORKSPACE_DIR_SET.call_once(|| {
-        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
-            .canonicalize()
-            .expect("workspace root");
-        std::env::set_current_dir(workspace_root).expect("set workspace dir");
-    });
 }

@@ -42,6 +42,7 @@ pub const BEAT_DURATION: f32 = 60.0 / BGM_BPM;
 /// Note subdivision types.
 /// 音符细分类型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(clippy::enum_variant_names)]
 pub enum BeatEvent {
     /// Whole note (1 beat = 1 whole note in 4/4 time, but we use 1 beat as reference)
     /// 全音符

@@ -1,8 +1,8 @@
-/// Centralized FRE fact key constants.
-///
-/// 集中管理的 FRE fact key 常量。
-/// 所有在代码中引用的 fact key 字符串都应在此定义，
-/// 以避免拼写错误和方便全局搜索。
+//! Centralized FRE fact key constants.
+//!
+//! 集中管理的 FRE fact key 常量。
+//! 所有在代码中引用的 fact key 字符串都应在此定义，
+//! 以避免拼写错误和方便全局搜索。
 
 // ── Dialogue system facts ──────────────────────────────────────────
 

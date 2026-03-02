@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    unexpected_cfgs
+)]
 //! # lib.rs
 //!
 //! # lib.rs 文件
@@ -44,7 +50,7 @@ use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 use chrono::Local;
-use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::EnvFilter;
 
 /// Sets up the logging system with both stdout and file output.
 /// When `trace_tracy` feature is enabled, also adds Tracy profiler layer.
@@ -53,6 +59,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 /// 当启用 `trace_tracy` feature 时，还会添加 Tracy profiler 层。
 #[cfg(not(feature = "trace_tracy"))]
 fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard> {
+    use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
     // Generate a timestamped filename for this run
     //
     // 为本次运行生成带时间戳的文件名

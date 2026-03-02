@@ -159,6 +159,7 @@ impl BulletContext {
         let mut params = [0.0f32; 16];
         let params_len = c.params_len.min(16);
         if !c.params.is_null() && params_len > 0 {
+            #[allow(clippy::needless_range_loop)]
             for i in 0..params_len {
                 // SAFETY: We've checked params is not null and i < params_len
                 params[i] = unsafe { *c.params.add(i) };
