@@ -3,22 +3,6 @@ use crate::app_state::SequenceSubState;
 use crate::core::input::Action;
 use bevy::prelude::*;
 use std::collections::HashMap;
-use std::time::SystemTime;
-
-/// Resource that holds the current global view layout handle.
-/// This is used by spawn_ron_view_system to spawn views.
-///
-/// 持有当前全局视图布局句柄的资源。
-/// spawn_ron_view_system 使用此资源来生成视图。
-#[derive(Resource)]
-pub struct ViewLayoutHandle {
-    pub handle: Handle<ViewLayoutAsset>,
-    pub last_modified: Option<SystemTime>,
-    /// Layout asset path (e.g., "battle/view/undertale.view.ron")
-    ///
-    /// 布局资源路径（例如 "battle/view/undertale.view.ron"）
-    pub path: String,
-}
 
 /// Marker component for entities that are part of a RON-driven view.
 ///

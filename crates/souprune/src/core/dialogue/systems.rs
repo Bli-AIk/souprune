@@ -766,7 +766,11 @@ pub fn handle_pending_dialogue_start_system(
 
     // Spawn dialogue view if specified
     if let Some(view_path) = pending_view {
-        spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: view_path });
+        spawn_view_writer.write(crate::core::view::SpawnViewRequest {
+            path: view_path,
+            mode_scope: None,
+            bindings: None,
+        });
     }
 
     // Start Mortar dialogue if configured

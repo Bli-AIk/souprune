@@ -48,14 +48,6 @@ pub(crate) fn battle_scoped() -> ModeScoped {
     ModeScoped("battle".to_string())
 }
 
-/// Marker component for the Battle UI root entity.
-///
-/// Battle UI 根实体的标记组件。
-///
-
-#[derive(Component)]
-pub struct BattleViewRoot;
-
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BattleUpdate;
 

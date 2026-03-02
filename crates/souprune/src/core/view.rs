@@ -59,10 +59,10 @@ use lifecycle::{
     StateTransitionTracker, UIInteractiveStateTracker, backpack_state_transition_system,
     state_transition_sound_system,
 };
-pub use ron_view::{RonDrivenView, ViewLayoutHandle};
+pub use ron_view::RonDrivenView;
 use ron_view::{
-    load_global_triggers_system, spawn_ron_view_system, ui_animation_init_system,
-    update_dynamic_text_system, update_view_from_map_system,
+    load_global_triggers_system, ui_animation_init_system,
+    update_dynamic_text_system,
 };
 use sdf_view_shape::update_sdf_view_shape_system;
 use state::global_trigger_system;
@@ -78,6 +78,14 @@ pub struct SpawnViewRequest {
     ///
     /// 视图布局资源路径
     pub path: String,
+    /// Optional mode scope for automatic cleanup on mode change.
+    ///
+    /// 可选的模式作用域，用于模式切换时自动清理。
+    pub mode_scope: Option<String>,
+    /// Optional data bindings for interface requirements.
+    ///
+    /// 可选的数据绑定，用于接口需求。
+    pub bindings: Option<std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>>,
 }
 
 /// Message to request despawning Views.
@@ -186,7 +194,7 @@ impl Plugin for CoreViewPlugin {
             .add_systems(
                 Update,
                 (
-                    update_view_from_map_system,
+                    ron_view::reload::validate_map_properties_system,
                     load_global_triggers_system,
                     // Global trigger system for state changes (e.g., opening backpack)
                     // 全局触发器系统用于状态变更（如打开背包）
@@ -194,11 +202,8 @@ impl Plugin for CoreViewPlugin {
                 )
                     .in_set(ViewUpdate),
             )
-            // spawn_ron_view_system has many parameters, add separately
-            // spawn_ron_view_system 有很多参数，单独添加
-            .add_systems(Update, spawn_ron_view_system.in_set(ViewUpdate))
-            // Handle dynamically spawned views (via SpawnViewRequest)
-            // 处理动态 spawn 的 View（通过 SpawnViewRequest）
+            // Unified view spawn system (handles all view types via SpawnViewRequest)
+            // 统一的视图生成系统（通过 SpawnViewRequest 处理所有类型）
             .add_systems(
                 Update,
                 ron_view::spawn_dynamic_view_system.in_set(ViewUpdate),
@@ -212,9 +217,9 @@ impl Plugin for CoreViewPlugin {
                     cleanup_view_rules_system,
                     // Process pending View rules when FRE assets finish loading
                     // 当 FRE 资产加载完成后处理待处理的 View 规则
-                    // This must run after spawn_ron_view_system to ensure PendingViewRules is ready
-                    // 必须在 spawn_ron_view_system 之后运行以确保 PendingViewRules 已准备好
-                    process_pending_view_rules_system.after(spawn_ron_view_system),
+                    // This must run after spawn_dynamic_view_system to ensure PendingViewRules is ready
+                    // 必须在 spawn_dynamic_view_system 之后运行以确保 PendingViewRules 已准备好
+                    process_pending_view_rules_system.after(ron_view::spawn_dynamic_view_system),
                 )
                     .in_set(ViewUpdate),
             )
@@ -277,7 +282,7 @@ fn handle_spawn_view_request_system(
         // Spawn a view root entity with the layout handle
         // The actual view spawning is handled by spawn_dynamic_view_system
         // Include Transform/Visibility components to support hierarchy
-        commands.spawn((
+        let mut entity_commands = commands.spawn((
             ron_view::HotReloadableViewRoot {
                 layout_path: request.path.clone(),
                 layout_handle: handle.clone(),
@@ -292,6 +297,42 @@ fn handle_spawn_view_request_system(
             Visibility::Visible,
             InheritedVisibility::default(),
         ));
+
+        // Add ModeScoped if specified
+        if let Some(ref scope) = request.mode_scope {
+            entity_commands.insert(crate::app_state::ModeScoped(scope.clone()));
+        }
+
+        // Add PendingViewData if bindings specified
+        if let Some(ref bindings) = request.bindings {
+            use crate::core::sequencer::chapter_schema::DataBinding;
+
+            let mut fre_handles = Vec::new();
+            for binding in bindings.values() {
+                match binding {
+                    DataBinding::File(path) => {
+                        let handle: Handle<bevy_fact_rule_event::FreAsset> =
+                            asset_server.load(path.clone());
+                        info!("[SpawnViewRequest] Pre-loading FRE file for binding: {}", path);
+                        fre_handles.push(handle);
+                    }
+                    DataBinding::Files(paths) => {
+                        for path in paths {
+                            let handle: Handle<bevy_fact_rule_event::FreAsset> =
+                                asset_server.load(path.clone());
+                            info!("[SpawnViewRequest] Pre-loading FRE file for binding: {}", path);
+                            fre_handles.push(handle);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            entity_commands.insert(components::PendingViewData {
+                bindings: bindings.clone(),
+                fre_handles,
+            });
+        }
     }
 }
 

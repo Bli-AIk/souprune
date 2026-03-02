@@ -1,11 +1,8 @@
 use super::super::components::*;
 use super::super::layout::*;
-use super::super::lifecycle::BackpackViewRoot;
 use super::parsing::PlayerDataView;
-use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated, ViewLayoutHandle};
+use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
 use super::spawn_helpers::resolve_simple_localization;
-use crate::app_state::battle::BattleViewRoot;
-use crate::app_state::overworld::chase::ChaseHUDRoot;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
@@ -28,160 +25,7 @@ pub struct FreSystemParams<'w> {
     pub action_defs: ResMut<'w, RuleActionDefs>,
 }
 
-/// System to spawn view elements from RON layout.
-///
-/// 从 RON 布局生成视图元素的系统。
-///
-/// This system handles all UI root types:
-/// - BackpackViewRoot: OW Backpack
-/// - BattleViewRoot: Battle UI
-/// - ChaseHUDRoot: Chase HUD
-///
-/// 该系统处理所有 UI 根类型：
-/// - BackpackViewRoot：OW 背包
-/// - BattleViewRoot：Battle UI
-/// - ChaseHUDRoot：Chase HUD
-#[allow(clippy::type_complexity)]
-#[allow(clippy::too_many_arguments)]
-pub fn spawn_ron_view_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    view_layout_handle: Option<Res<ViewLayoutHandle>>,
-    view_layouts: Res<Assets<ViewLayoutAsset>>,
-    animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    fre_assets: Res<Assets<FreAsset>>,
-    pending_bindings: Option<Res<crate::core::sequencer::view_action::PendingViewBindings>>,
-    backpack_root_query: Query<
-        Entity,
-        (
-            With<BackpackViewRoot>,
-            Without<ViewGenerated>,
-            Without<ViewBox>,
-        ),
-    >,
-    battle_root_query: Query<
-        Entity,
-        (
-            With<BattleViewRoot>,
-            Without<ViewGenerated>,
-            Without<ViewBox>,
-        ),
-    >,
-    chase_root_query: Query<Entity, (With<ChaseHUDRoot>, Without<ViewGenerated>, Without<ViewBox>)>,
-    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
-    mut sprite_params: SpriteParams,
-    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
-    layered_db: Res<LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
-    mut fre_params: FreSystemParams,
-) {
-    let player_data = PlayerDataView::new(&layered_db);
 
-    let Some(view_layout_handle) = view_layout_handle else {
-        return;
-    };
-
-    let Some(view_layout) = view_layouts.get(&view_layout_handle.handle) else {
-        return;
-    };
-
-    // Check if all FRE assets in pending bindings are loaded
-    // 检查所有待处理绑定中的 FRE 资产是否已加载
-    if let Some(ref bindings_res) = pending_bindings {
-        for handle in &bindings_res.fre_handles {
-            if fre_assets.get(handle).is_none() {
-                // FRE asset not yet loaded, wait for next frame
-                // FRE 资产尚未加载，等待下一帧
-                trace!("[spawn_ron_view] Waiting for FRE assets to load...");
-                return;
-            }
-        }
-    }
-
-    // Log query counts for debugging
-    let backpack_count = backpack_root_query.iter().count();
-    let battle_count = battle_root_query.iter().count();
-    let chase_count = chase_root_query.iter().count();
-    trace!(
-        "[spawn_ron_view] backpack_roots={}, battle_roots={}, chase_roots={}, layout_path='{}'",
-        backpack_count, battle_count, chase_count, view_layout_handle.path
-    );
-
-    // Helper closure to spawn view for an entity
-    let mut spawn_for_entity = |view_entity: Entity, label: &str| {
-        info!(
-            "[spawn_ron_view] Spawning view from RON layout ({}), entity={:?}",
-            label, view_entity
-        );
-
-        let camera_transform = match camera_query.single() {
-            Ok(transform) => transform,
-            Err(_) => {
-                warn!("[spawn_ron_view] No Camera2d found for view spawning!");
-                return false;
-            }
-        };
-
-        // Get bindings if available
-        let bindings = pending_bindings.as_ref().map(|b| &b.bindings);
-
-        spawn_ron_view_for_entity(
-            &mut commands,
-            &asset_server,
-            view_entity,
-            view_layout,
-            camera_transform,
-            &mut sprite_params,
-            &animation_assets,
-            &fre_assets,
-            &mortar_strings,
-            &player_data,
-            &item_registry,
-            &view_layout_handle.path,
-            bindings,
-            &layered_db,
-            &mut fre_params.rule_registry,
-            &mut fre_params.action_defs,
-        );
-
-        // Add ViewGenerated and HotReloadableViewRoot for hot reload support
-        // 添加 ViewGenerated 和 HotReloadableViewRoot 以支持热重载
-        // Also add ReconciliationEnabled to let the reconciliation system handle updates
-        // 同时添加 ReconciliationEnabled 让协调系统处理更新
-        commands.entity(view_entity).insert((
-            ViewGenerated,
-            HotReloadableViewRoot {
-                layout_path: view_layout_handle.path.clone(),
-                layout_handle: view_layout_handle.handle.clone(),
-            },
-            crate::core::view::reconcile::ReconciliationEnabled,
-        ));
-
-        info!(
-            "[spawn_ron_view] Added ViewGenerated and HotReloadableViewRoot to entity {:?}",
-            view_entity
-        );
-        true
-    };
-
-    // Handle BackpackViewRoot entities (OW Backpack)
-    // 处理 BackpackViewRoot 实体（OW 背包）
-    for view_entity in backpack_root_query.iter() {
-        spawn_for_entity(view_entity, "BackpackViewRoot");
-    }
-
-    // Handle BattleViewRoot entities (Battle UI)
-    // 处理 BattleViewRoot 实体（Battle UI）
-    for view_entity in battle_root_query.iter() {
-        spawn_for_entity(view_entity, "BattleViewRoot");
-    }
-
-    // Handle ChaseHUDRoot entities (Chase HUD)
-    // 处理 ChaseHUDRoot 实体（Chase HUD）
-    for view_entity in chase_root_query.iter() {
-        spawn_for_entity(view_entity, "ChaseHUDRoot");
-    }
-}
 
 /// Spawn view elements for a specific entity.
 ///
@@ -515,12 +359,11 @@ pub fn spawn_ron_view_for_entity(
     }
 }
 
-/// System to spawn dynamically requested Views (via SpawnViewRequest).
-/// This handles Views that are spawned at runtime without going through
-/// the global ViewLayoutHandle resource.
+/// Unified system to spawn all Views (backpack, battle, chase, dialogue).
+/// All View spawning goes through SpawnViewRequest → this system.
 ///
-/// 处理动态请求的 View（通过 SpawnViewRequest）的系统。
-/// 处理在运行时 spawn 的 View，无需全局 ViewLayoutHandle 资源。
+/// 统一的 View 生成系统（背包、战斗、追逐、对话）。
+/// 所有 View 生成都通过 SpawnViewRequest → 此系统。
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_dynamic_view_system(
@@ -529,18 +372,14 @@ pub fn spawn_dynamic_view_system(
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
     fre_assets: Res<Assets<FreAsset>>,
-    // Query for dynamic views: have HotReloadableViewRoot and RonDrivenView, but not ViewGenerated
-    // 查询动态 View：有 HotReloadableViewRoot 和 RonDrivenView，但没有 ViewGenerated
+    // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
+    // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
     dynamic_view_query: Query<
-        (Entity, &HotReloadableViewRoot, &ViewRoot),
+        (Entity, &HotReloadableViewRoot, &ViewRoot, Option<&PendingViewData>),
         (
             With<RonDrivenView>,
             Without<ViewGenerated>,
             Without<ViewBox>,
-            // Exclude specific root types handled by spawn_ron_view_system
-            Without<BackpackViewRoot>,
-            Without<BattleViewRoot>,
-            Without<ChaseHUDRoot>,
         ),
     >,
     camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
@@ -552,16 +391,27 @@ pub fn spawn_dynamic_view_system(
 ) {
     let player_data = PlayerDataView::new(&layered_db);
 
-    for (view_entity, hot_reload_root, _view_root) in dynamic_view_query.iter() {
+    for (view_entity, hot_reload_root, _view_root, pending_view_data) in dynamic_view_query.iter() {
         // Check if asset is loaded
         let Some(view_layout) = view_layouts.get(&hot_reload_root.layout_handle) else {
-            // Asset not yet loaded, wait
             trace!(
                 "[spawn_dynamic_view] Waiting for asset to load: {}",
                 hot_reload_root.layout_path
             );
             continue;
         };
+
+        // If there are pending bindings, wait for all FRE assets to load
+        if let Some(pvd) = pending_view_data {
+            let all_loaded = pvd.fre_handles.iter().all(|h| fre_assets.get(h).is_some());
+            if !all_loaded {
+                trace!(
+                    "[spawn_dynamic_view] Waiting for FRE binding assets: {}",
+                    hot_reload_root.layout_path
+                );
+                continue;
+            }
+        }
 
         let camera_transform = match camera_query.single() {
             Ok(transform) => transform,
@@ -572,9 +422,12 @@ pub fn spawn_dynamic_view_system(
         };
 
         info!(
-            "[spawn_dynamic_view] Spawning dynamic view: {}, entity={:?}",
+            "[spawn_dynamic_view] Spawning view: {}, entity={:?}",
             hot_reload_root.layout_path, view_entity
         );
+
+        // Get bindings from PendingViewData if present
+        let bindings = pending_view_data.map(|pvd| &pvd.bindings);
 
         spawn_ron_view_for_entity(
             &mut commands,
@@ -589,17 +442,18 @@ pub fn spawn_dynamic_view_system(
             &player_data,
             &item_registry,
             &hot_reload_root.layout_path,
-            None, // No bindings for dynamic views
+            bindings,
             &layered_db,
             &mut fre_params.rule_registry,
             &mut fre_params.action_defs,
         );
 
-        // Add ViewGenerated and ReconciliationEnabled
+        // Add ViewGenerated and ReconciliationEnabled; remove PendingViewData
         commands.entity(view_entity).insert((
             ViewGenerated,
             crate::core::view::reconcile::ReconciliationEnabled,
         ));
+        commands.entity(view_entity).remove::<PendingViewData>();
 
         info!(
             "[spawn_dynamic_view] Added ViewGenerated to entity {:?}",

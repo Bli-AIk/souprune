@@ -5,46 +5,47 @@ use bevy::prelude::*;
 use super::super::components::ViewAnimationState;
 use super::super::layout::ViewLayoutAsset;
 use super::parsing::parse_sequence_state;
-use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, ViewLayoutHandle};
+use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, HotReloadableViewRoot};
 use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
 
 /// Load global trigger configuration from view layout.
+/// Reads from HotReloadableViewRoot entities.
 ///
 /// 从视图布局加载全局触发器配置。
+/// 从 HotReloadableViewRoot 实体读取。
 pub fn load_global_triggers_system(
-    view_layout_handle: Option<Res<ViewLayoutHandle>>,
+    hot_reload_roots: Query<&HotReloadableViewRoot>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
     action_registry: Res<ActionRegistry>,
     mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
     mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
 ) {
-    let Some(view_layout_handle) = view_layout_handle else {
+    // Find the first available view layout from any root entity
+    let Some(root) = hot_reload_roots.iter().next() else {
         return;
     };
 
     // Check if asset was modified - reset last_processed_handle to force reload
-    //
-    // 检查资产是否被修改 - 重置 last_processed_handle 以强制重新加载
     for event in events.read() {
         if let AssetEvent::Modified { id } = event
-            && *id == view_layout_handle.handle.id()
+            && *id == root.layout_handle.id()
         {
             info!("[Hot Reload] Reloading global triggers config...");
             *last_processed_handle = None;
         }
     }
 
-    if last_processed_handle.as_ref() == Some(&view_layout_handle.handle.id()) {
+    if last_processed_handle.as_ref() == Some(&root.layout_handle.id()) {
         return;
     }
 
-    let Some(view_layout) = view_layouts.get(&view_layout_handle.handle) else {
+    let Some(view_layout) = view_layouts.get(&root.layout_handle) else {
         return;
     };
 
-    *last_processed_handle = Some(view_layout_handle.handle.id());
+    *last_processed_handle = Some(root.layout_handle.id());
 
     if let Some(global_triggers) = &view_layout.global_triggers {
         // DEPRECATION WARNING: global_triggers will be removed in a future version.

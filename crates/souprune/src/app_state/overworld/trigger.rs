@@ -374,7 +374,11 @@ pub fn handle_overworld_custom_actions_system(
             "SpawnView" => {
                 if let Some(path) = event.params.get("path") {
                     info!("FRE: Spawning view '{}' via action", path);
-                    spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: path.clone() });
+                    spawn_view_writer.write(crate::core::view::SpawnViewRequest {
+                        path: path.clone(),
+                        mode_scope: None,
+                        bindings: None,
+                    });
                 } else {
                     warn!("FRE: SpawnView action missing 'path' param");
                 }
