@@ -30,9 +30,7 @@ use bevy::prelude::{
     Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
     Visibility, Window, With, Without,
 };
-use bevy_ecs_tiled::prelude::{
-    TiledLayer, TiledMap, TiledMapAsset, TiledMapLayerZOffset, TiledObject, TilemapAnchor, tiled,
-};
+use bevy_ecs_tiled::prelude::{TiledLayer, TiledMap, TiledMapAsset, TiledObject, tiled};
 
 /// Marker component for tilemap collision entities.
 ///

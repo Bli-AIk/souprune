@@ -217,14 +217,13 @@ fn process_overworld_player_spawn_system(
 
     for (entity, active_chapter) in active_chapters.iter() {
         if let Chapter::SetPlayer(PlayerAction::Spawn { config_path, .. }) = &active_chapter.chapter
+            && !config_path.ends_with(".battle_player.ron")
         {
-            if !config_path.ends_with(".battle_player.ron") {
-                spawn_events.write(player::SpawnPlayerRequest);
-                commands
-                    .entity(entity)
-                    .insert(crate::core::sequencer::ChapterFinished);
-                info!("Overworld: Spawning player from config '{}'", config_path);
-            }
+            spawn_events.write(player::SpawnPlayerRequest);
+            commands
+                .entity(entity)
+                .insert(crate::core::sequencer::ChapterFinished);
+            info!("Overworld: Spawning player from config '{}'", config_path);
         }
     }
 }

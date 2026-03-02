@@ -453,12 +453,11 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
-            if let Some(value_str) = params.get("value") {
-                if let Ok(hp) = value_str.parse::<usize>() {
-                    info!("FRE Action: SetPlayerHP requested with value {}", hp);
-                }
-            }
+        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action
+            && let Some(value_str) = params.get("value")
+            && let Ok(hp) = value_str.parse::<usize>()
+        {
+            info!("FRE Action: SetPlayerHP requested with value {}", hp);
         }
     });
 
