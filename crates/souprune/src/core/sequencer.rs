@@ -107,6 +107,7 @@ impl Plugin for SequencerPlugin {
                     tween::process_tween_view_element_system,
                     performance::process_danmaku_performance_system,
                     performance::process_am_performance_system,
+                    flow::process_custom_chapter_system,
                     player::process_player_spawn_requests,
                 )
                     .chain()

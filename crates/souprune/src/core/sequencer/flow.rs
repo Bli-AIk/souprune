@@ -195,3 +195,31 @@ pub fn process_wait_chapter_system(
         }
     }
 }
+
+/// System that handles Custom chapters by emitting FreCustomActionEvent.
+/// The chapter completes immediately after dispatching the event.
+///
+/// 处理 Custom 章节：发出 FreCustomActionEvent 后立即完成。
+pub fn process_custom_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
+    mut custom_action_writer: MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        if let Chapter::Custom {
+            action_type,
+            params,
+        } = &active_chapter.chapter
+        {
+            info!(
+                "Custom Chapter: dispatching action '{}' with params {:?}",
+                action_type, params
+            );
+            custom_action_writer.write(crate::core::fre_bridge::FreCustomActionEvent {
+                action_type: action_type.clone(),
+                params: params.clone(),
+            });
+            commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}

@@ -604,6 +604,37 @@ pub enum Chapter {
         #[serde(default)]
         fade_in: Option<f32>,
     },
+
+    /// Custom chapter type for editor/mod extensibility.
+    ///
+    /// Dispatched as a `FreCustomActionEvent` during chapter execution.
+    /// The chapter completes immediately (fire-and-forget).
+    /// Use `AwaitFact` after a Custom chapter if you need to wait for a result.
+    ///
+    /// 自定义章节类型，用于编辑器/Mod 扩展。
+    ///
+    /// 在章节执行期间作为 `FreCustomActionEvent` 分发。
+    /// 章节立即完成（fire-and-forget）。
+    /// 如果需要等待结果，在 Custom 章节后使用 `AwaitFact`。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// Custom(
+    ///     action_type: "ShakeCamera",
+    ///     params: { "intensity": "5.0", "duration": "0.5" },
+    /// ),
+    /// AwaitFact(condition: "$camera_shake_done == true"),
+    /// ```
+    Custom {
+        /// Action type identifier (matched by handler systems).
+        /// 动作类型标识符（由处理系统匹配）。
+        action_type: String,
+
+        /// Key-value parameters for the action.
+        /// 动作的键值参数。
+        #[serde(default)]
+        params: std::collections::HashMap<String, String>,
+    },
 }
 
 fn default_true() -> bool {
