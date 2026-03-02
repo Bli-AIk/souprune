@@ -535,18 +535,22 @@ fn handle_chase_action(
             info!("FRE: Exiting chase state via action");
             next_sub_state.set(crate::app_state::SequenceSubState::default());
         }
-        "StartBattle" => {
-            info!("FRE: Starting battle via action");
-            sequence_mode.0 = Some("battle".to_string());
+        "SetMode" => {
+            if let Some(mode) = params.get("mode") {
+                info!("FRE: Setting mode to '{}' via action", mode);
+                sequence_mode.0 = Some(mode.clone());
+            } else {
+                warn!("FRE: SetMode action missing 'mode' param");
+            }
         }
-        "SetOverworldState" => {
+        "SetSubState" => {
             if let Some(state) = params.get("state") {
                 info!("FRE: Setting sub-state to '{}' via action", state);
                 next_sub_state.set(crate::app_state::SequenceSubState::new(
                     state.clone(),
                 ));
             } else {
-                warn!("FRE: SetOverworldState action missing 'state' param");
+                warn!("FRE: SetSubState action missing 'state' param");
             }
         }
         "SpawnView" => {
