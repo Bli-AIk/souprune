@@ -29,12 +29,12 @@ pub mod danmaku;
 pub mod fre;
 pub mod player_config_schema;
 
-use crate::app_state::{ModeChanged, ModeScoped, is_mode};
 use crate::app_state::battle::am_integration::AmBattlePlugin;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
+use crate::app_state::{ModeChanged, ModeScoped, is_mode};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
 use crate::core::sequencer::SequencerPlugin;

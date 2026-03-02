@@ -229,8 +229,7 @@ impl Plugin for AmBattlePlugin {
             .add_message::<PlayAmPerformanceEvent>()
             .add_systems(
                 Update,
-                load_am_battle_config
-                    .run_if(super::on_entering_battle),
+                load_am_battle_config.run_if(super::on_entering_battle),
             )
             .add_systems(
                 Update,
@@ -252,11 +251,7 @@ impl Plugin for AmBattlePlugin {
                     .chain()
                     .in_set(crate::app_state::battle::BattleUpdate),
             )
-            .add_systems(
-                Update,
-                cleanup_am_entities
-                    .run_if(super::on_exiting_battle),
-            );
+            .add_systems(Update, cleanup_am_entities.run_if(super::on_exiting_battle));
     }
 }
 

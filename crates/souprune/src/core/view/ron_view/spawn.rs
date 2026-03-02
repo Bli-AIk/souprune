@@ -25,8 +25,6 @@ pub struct FreSystemParams<'w> {
     pub action_defs: ResMut<'w, RuleActionDefs>,
 }
 
-
-
 /// Spawn view elements for a specific entity.
 ///
 /// 为特定实体生成视图元素。
@@ -375,7 +373,12 @@ pub fn spawn_dynamic_view_system(
     // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
     // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
     dynamic_view_query: Query<
-        (Entity, &HotReloadableViewRoot, &ViewRoot, Option<&PendingViewData>),
+        (
+            Entity,
+            &HotReloadableViewRoot,
+            &ViewRoot,
+            Option<&PendingViewData>,
+        ),
         (
             With<RonDrivenView>,
             Without<ViewGenerated>,

@@ -196,13 +196,17 @@ pub fn process_wait_chapter_system(
     }
 }
 
-/// System that handles Custom chapters by emitting FreCustomActionEvent.
+/// System that handles Custom chapters by dispatching via ActionHandlerRegistry
+/// when a handler is registered, or emitting FreCustomActionEvent as fallback.
 /// The chapter completes immediately after dispatching the event.
 ///
-/// 处理 Custom 章节：发出 FreCustomActionEvent 后立即完成。
+/// 处理 Custom 章节：优先通过 ActionHandlerRegistry 分发，
+/// 未注册的处理器则发出 FreCustomActionEvent。章节在分发后立即完成。
 pub fn process_custom_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
+    handler_registry: Res<bevy_fact_rule_event::ActionHandlerRegistry>,
+    fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     mut custom_action_writer: MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>,
 ) {
     for (entity, active_chapter) in query.iter() {
@@ -215,10 +219,21 @@ pub fn process_custom_chapter_system(
                 "Custom Chapter: dispatching action '{}' with params {:?}",
                 action_type, params
             );
-            custom_action_writer.write(crate::core::fre_bridge::FreCustomActionEvent {
+
+            let action = bevy_fact_rule_event::RuleActionDef::Custom {
                 action_type: action_type.clone(),
                 params: params.clone(),
-            });
+            };
+
+            if handler_registry.has_handler(action_type) {
+                handler_registry.execute(&action, &fact_db, &mut commands);
+            } else {
+                custom_action_writer.write(crate::core::fre_bridge::FreCustomActionEvent {
+                    action_type: action_type.clone(),
+                    params: params.clone(),
+                });
+            }
+
             commands.entity(entity).insert(ChapterFinished);
         }
     }

@@ -19,14 +19,17 @@ use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_ev
 pub use eval::{evaluate_conditions_layered, evaluate_single_condition};
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry, RuleActionDef};
+use bevy_fact_rule_event::{
+    ActionHandlerRegistry, FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry,
+    RuleActionDef,
+};
 use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
 
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
-use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::fre_facts;
+use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::view::components::{ActiveView, ViewRoot};
 
 /// Event emitted for each FRE Custom action encountered during rule evaluation.
@@ -135,7 +138,10 @@ pub fn sync_state_to_facts_system(
     // Sync SequenceSubState (replaces OverworldSubState)
     if let Some(state) = sub_state {
         let state_name = state.get().name().to_string();
-        facts.set(fre_facts::STATE_SEQUENCE_SUB_STATE, FactValue::String(state_name));
+        facts.set(
+            fre_facts::STATE_SEQUENCE_SUB_STATE,
+            FactValue::String(state_name),
+        );
     }
 
     // Sync AppState
@@ -356,7 +362,10 @@ fn execute_action(
         }
         RuleActionDef::SwitchState(state_name) => {
             debug!("FRE Bridge: SwitchState({})", state_name);
-            local_facts.set(fre_facts::VIEW_SWITCH_STATE, FactValue::String(state_name.clone()));
+            local_facts.set(
+                fre_facts::VIEW_SWITCH_STATE,
+                FactValue::String(state_name.clone()),
+            );
         }
         RuleActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
@@ -384,14 +393,13 @@ pub fn handle_switch_state_system(
     mut next_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
 ) {
     for mut view_root in active_view_query.iter_mut() {
-        if let Some(FactValue::String(state_name)) =
-            view_root.local_facts.get_by_str(fre_facts::VIEW_SWITCH_STATE)
+        if let Some(FactValue::String(state_name)) = view_root
+            .local_facts
+            .get_by_str(fre_facts::VIEW_SWITCH_STATE)
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
-            next_state.set(crate::app_state::SequenceSubState::new(
-                &state_name,
-            ));
+            next_state.set(crate::app_state::SequenceSubState::new(&state_name));
             view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
         }
     }
@@ -412,6 +420,8 @@ pub fn dispatch_custom_actions_system(
     rule_registry: Res<LayeredRuleRegistry>,
     action_defs: Res<RuleActionDefs>,
     fact_db: Res<LayeredFactDatabase>,
+    handler_registry: Res<ActionHandlerRegistry>,
+    mut commands: Commands,
     mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
 ) {
     for event in events.read() {
@@ -436,14 +446,22 @@ pub fn dispatch_custom_actions_system(
                         params,
                     } = action
                     {
-                        debug!(
-                            "FRE: Dispatching custom action '{}' (rule: '{}')",
-                            action_type, rule.id
-                        );
-                        custom_action_writer.write(FreCustomActionEvent {
-                            action_type: action_type.clone(),
-                            params: params.clone(),
-                        });
+                        if handler_registry.has_handler(action_type) {
+                            debug!(
+                                "FRE: Executing registered handler for '{}' (rule: '{}')",
+                                action_type, rule.id
+                            );
+                            handler_registry.execute(action, &fact_db, &mut commands);
+                        } else {
+                            debug!(
+                                "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
+                                action_type, rule.id
+                            );
+                            custom_action_writer.write(FreCustomActionEvent {
+                                action_type: action_type.clone(),
+                                params: params.clone(),
+                            });
+                        }
                     }
                 }
 

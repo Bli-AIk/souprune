@@ -379,7 +379,8 @@ pub struct PendingViewRules {
 #[derive(Component, Debug, Clone, Default)]
 pub struct PendingViewData {
     /// Data bindings for this view (interface name → binding).
-    pub bindings: std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
+    pub bindings:
+        std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     /// Handles to FRE assets being loaded for bindings (keeps loading alive).
     pub fre_handles: Vec<bevy::prelude::Handle<bevy_fact_rule_event::FreAsset>>,
 }

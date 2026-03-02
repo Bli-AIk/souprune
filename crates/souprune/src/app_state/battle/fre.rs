@@ -60,8 +60,7 @@ impl Plugin for BattleFREPlugin {
             )
             .add_systems(
                 Update,
-                cleanup_battle_fre_system
-                    .run_if(super::on_exiting_battle),
+                cleanup_battle_fre_system.run_if(super::on_exiting_battle),
             )
             .add_systems(
                 Update,

@@ -327,7 +327,10 @@ fn spawn_interactable(
             ),
             // Set focus flag (default true for interactive dialogues)
             // 设置焦点标志（交互对话默认为 true）
-            FactModification::Set(fre_facts::DIALOGUE_HAS_FOCUS.to_string(), FactValue::Bool(true)),
+            FactModification::Set(
+                fre_facts::DIALOGUE_HAS_FOCUS.to_string(),
+                FactValue::Bool(true),
+            ),
         ];
 
         // Add voice sound effect if configured

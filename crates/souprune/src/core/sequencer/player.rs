@@ -33,13 +33,7 @@ pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
-    mut player_query: Query<
-        &mut Transform,
-        (
-            With<BehaviorParams>,
-            With<ModeScoped>,
-        ),
-    >,
+    mut player_query: Query<&mut Transform, (With<BehaviorParams>, With<ModeScoped>)>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetPlayer(action) = &active_chapter.chapter {

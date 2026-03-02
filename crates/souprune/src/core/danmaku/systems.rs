@@ -53,7 +53,6 @@ pub fn spawn_performance_players(
     performances: Res<Assets<DanmakuPerformance>>,
     spawn_context: Res<DanmakuSpawnContext>,
 ) {
-
     let mut still_pending = Vec::new();
 
     for (handle, event) in pending.pending.drain(..) {

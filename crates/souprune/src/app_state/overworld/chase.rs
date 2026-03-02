@@ -25,9 +25,9 @@ use bevy::prelude::*;
 use bevy::sprite_render::MeshMaterial2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 
-use crate::app_state::{ModeScoped, SequenceSubState};
-use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::app_state::overworld::OverworldUpdate;
+use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::app_state::{ModeScoped, SequenceSubState};
 use crate::config;
 use crate::core::state_config::LoadedStateConfig;
 use crate::core::view::PixelOutlineMaterial;
@@ -515,7 +515,9 @@ fn spawn_player_outline_system(
             ChaseEffect { target_alpha: 1.0 },
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            Transform::from_translation(player_transform.translation + Vec3::new(0.0, 0.0, chase_config.outline.z_offset)),
+            Transform::from_translation(
+                player_transform.translation + Vec3::new(0.0, 0.0, chase_config.outline.z_offset),
+            ),
             Name::new("ChasePlayerOutline"),
         ));
     });

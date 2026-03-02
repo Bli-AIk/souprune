@@ -65,9 +65,7 @@ pub(crate) fn backpack_state_transition_system(
 
     trace!(
         "[lifecycle] state='{}', is_view_interactive={}, was_view_interactive={}",
-        state_name,
-        is_view_interactive,
-        tracker.was_view_interactive,
+        state_name, is_view_interactive, tracker.was_view_interactive,
     );
 
     // Detect entering UI interactive state

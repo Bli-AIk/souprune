@@ -729,9 +729,7 @@ pub mod debug_fre_panel {
             egui::CollapsingHeader::new("SequenceMode")
                 .default_open(true)
                 .show(ui, |ui| {
-                    let current_mode = world
-                        .get_resource::<SequenceMode>()
-                        .map(|m| m.0.clone());
+                    let current_mode = world.get_resource::<SequenceMode>().map(|m| m.0.clone());
 
                     ui.horizontal(|ui| {
                         ui.label("Current:");

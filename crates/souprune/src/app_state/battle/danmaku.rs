@@ -94,11 +94,7 @@ pub struct DanmakuPlugin;
 impl Plugin for DanmakuPlugin {
     fn build(&self, app: &mut App) {
         // Set spawn context to Battle when entering battle state
-        app.add_systems(
-            Update,
-            set_battle_context
-                .run_if(super::on_entering_battle),
-        );
+        app.add_systems(Update, set_battle_context.run_if(super::on_entering_battle));
 
         // Add damage detection and invincibility systems
         app.init_resource::<BattleInvincibilityConfig>()

@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use super::super::components::ViewAnimationState;
 use super::super::layout::ViewLayoutAsset;
 use super::parsing::parse_sequence_state;
-use super::resources::{GlobalTriggerRule, ViewGlobalTriggerConfig, HotReloadableViewRoot};
+use super::resources::{GlobalTriggerRule, HotReloadableViewRoot, ViewGlobalTriggerConfig};
 use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
 

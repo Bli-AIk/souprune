@@ -60,10 +60,7 @@ use lifecycle::{
     state_transition_sound_system,
 };
 pub use ron_view::RonDrivenView;
-use ron_view::{
-    load_global_triggers_system, ui_animation_init_system,
-    update_dynamic_text_system,
-};
+use ron_view::{load_global_triggers_system, ui_animation_init_system, update_dynamic_text_system};
 use sdf_view_shape::update_sdf_view_shape_system;
 use state::global_trigger_system;
 use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
@@ -85,7 +82,9 @@ pub struct SpawnViewRequest {
     /// Optional data bindings for interface requirements.
     ///
     /// 可选的数据绑定，用于接口需求。
-    pub bindings: Option<std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>>,
+    pub bindings: Option<
+        std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
+    >,
 }
 
 /// Message to request despawning Views.
@@ -313,14 +312,20 @@ fn handle_spawn_view_request_system(
                     DataBinding::File(path) => {
                         let handle: Handle<bevy_fact_rule_event::FreAsset> =
                             asset_server.load(path.clone());
-                        info!("[SpawnViewRequest] Pre-loading FRE file for binding: {}", path);
+                        info!(
+                            "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
+                            path
+                        );
                         fre_handles.push(handle);
                     }
                     DataBinding::Files(paths) => {
                         for path in paths {
                             let handle: Handle<bevy_fact_rule_event::FreAsset> =
                                 asset_server.load(path.clone());
-                            info!("[SpawnViewRequest] Pre-loading FRE file for binding: {}", path);
+                            info!(
+                                "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
+                                path
+                            );
                             fre_handles.push(handle);
                         }
                     }

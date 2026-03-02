@@ -112,14 +112,29 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
 
     // Typewriter state facts
     // 打字机状态 facts
-    facts.set_global(fre_facts::DIALOGUE_TYPEWRITER_PLAYING, FactValue::Bool(false));
-    facts.set_global(fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED, FactValue::Bool(true));
-    facts.set_global(fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED, FactValue::Bool(true));
+    facts.set_global(
+        fre_facts::DIALOGUE_TYPEWRITER_PLAYING,
+        FactValue::Bool(false),
+    );
+    facts.set_global(
+        fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED,
+        FactValue::Bool(true),
+    );
+    facts.set_global(
+        fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED,
+        FactValue::Bool(true),
+    );
 
     // Dialogue configuration facts
     // 对话配置 facts
-    facts.set_global(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE, FactValue::Bool(false));
-    facts.set_global(fre_facts::DIALOGUE_SIMPLE_TEXT, FactValue::String(String::new()));
+    facts.set_global(
+        fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE,
+        FactValue::Bool(false),
+    );
+    facts.set_global(
+        fre_facts::DIALOGUE_SIMPLE_TEXT,
+        FactValue::String(String::new()),
+    );
     facts.set_global(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
 
     // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
@@ -145,7 +160,10 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
         fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
         FactValue::String(String::new()),
     );
-    facts.set_global(fre_facts::DIALOGUE_PENDING_VIEW, FactValue::String(String::new()));
+    facts.set_global(
+        fre_facts::DIALOGUE_PENDING_VIEW,
+        FactValue::String(String::new()),
+    );
 
     // Dialogue active state (set by handle_pending_dialogue_start_system)
     // 对话活跃状态（由 handle_pending_dialogue_start_system 设置）

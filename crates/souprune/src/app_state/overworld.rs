@@ -50,49 +50,43 @@ pub(crate) struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(
-            Update,
-            OverworldUpdate.run_if(is_mode("overworld")),
-        )
-        .add_plugins((
-            tilemap::TilemapPlugin,
-            player::PlayerPlugin,
-            character::CharacterPlugin,
-            crate::core::view::CoreViewPlugin,
-        ))
-        // Mode enter/exit systems react to ModeChanged events
-        .add_systems(
-            Update,
-            (
-                on_enter_overworld_system,
-                on_exit_overworld_system,
-            ),
-        )
-        .add_systems(
-            Update,
-            trigger::setup_action_handlers_system
-                .run_if(on_entering_mode("overworld")),
-        )
-        .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
-        .add_systems(
-            Update,
-            mark_tilemap_as_overworld_scoped.in_set(OverworldUpdate),
-        )
-        .add_systems(
-            Update,
-            process_overworld_player_spawn_system.in_set(crate::core::sequencer::SequencerUpdate),
-        )
-        .add_systems(
-            Update,
-            collision::player_tilemap_collision_system
-                .after(character::MovementSet)
-                .before(crate::core::camera::CameraUpdateSet)
-                .in_set(OverworldUpdate),
-        )
-        .add_systems(
-            Update,
-            force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
-        );
+        app.configure_sets(Update, OverworldUpdate.run_if(is_mode("overworld")))
+            .add_plugins((
+                tilemap::TilemapPlugin,
+                player::PlayerPlugin,
+                character::CharacterPlugin,
+                crate::core::view::CoreViewPlugin,
+            ))
+            // Mode enter/exit systems react to ModeChanged events
+            .add_systems(
+                Update,
+                (on_enter_overworld_system, on_exit_overworld_system),
+            )
+            .add_systems(
+                Update,
+                trigger::setup_action_handlers_system.run_if(on_entering_mode("overworld")),
+            )
+            .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
+            .add_systems(
+                Update,
+                mark_tilemap_as_overworld_scoped.in_set(OverworldUpdate),
+            )
+            .add_systems(
+                Update,
+                process_overworld_player_spawn_system
+                    .in_set(crate::core::sequencer::SequencerUpdate),
+            )
+            .add_systems(
+                Update,
+                collision::player_tilemap_collision_system
+                    .after(character::MovementSet)
+                    .before(crate::core::camera::CameraUpdateSet)
+                    .in_set(OverworldUpdate),
+            )
+            .add_systems(
+                Update,
+                force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
+            );
 
         // FRE + Danmaku integration + Chase
         app.add_plugins(bevy_fact_rule_event::FREPlugin)
@@ -107,6 +101,7 @@ impl Plugin for OverworldPlugin {
             .init_resource::<trigger::LoadedRuleSets>()
             .init_resource::<trigger::RuleActionDefs>()
             .init_resource::<trigger::PendingDanmakuActions>()
+            .init_resource::<trigger::PendingViewActions>()
             .init_resource::<trigger::FocusedInteractable>()
             .add_systems(
                 Update,
@@ -118,6 +113,7 @@ impl Plugin for OverworldPlugin {
                     trigger::interactable_detection_system,
                     trigger::handle_interaction_input_system,
                     trigger::handle_overworld_custom_actions_system,
+                    trigger::apply_pending_view_actions_system,
                     trigger::play_danmaku_from_actions_system,
                     trigger::log_fact_changes_system,
                 )
@@ -142,7 +138,10 @@ fn on_enter_overworld_system(
     souprune_config: Res<crate::config::SoupruneConfig>,
     mut spawn_context: ResMut<DanmakuSpawnContext>,
 ) {
-    if !mode_events.read().any(|e| e.to.as_deref() == Some("overworld")) {
+    if !mode_events
+        .read()
+        .any(|e| e.to.as_deref() == Some("overworld"))
+    {
         return;
     }
 
@@ -154,9 +153,7 @@ fn on_enter_overworld_system(
             info!("Overworld: Loading entry sequence from '{}'", sequence_path);
         }
         None => {
-            error!(
-                "Overworld: No initial_sequence_path configured in mod.toml."
-            );
+            error!("Overworld: No initial_sequence_path configured in mod.toml.");
         }
     }
 
@@ -175,7 +172,10 @@ fn on_exit_overworld_system(
     mut registry: ResMut<LayeredRuleRegistry>,
     mut loaded_rule_sets: ResMut<trigger::LoadedRuleSets>,
 ) {
-    if !mode_events.read().any(|e| e.from.as_deref() == Some("overworld")) {
+    if !mode_events
+        .read()
+        .any(|e| e.from.as_deref() == Some("overworld"))
+    {
         return;
     }
 
@@ -228,8 +228,6 @@ fn process_overworld_player_spawn_system(
         }
     }
 }
-
-
 
 fn bind_camera_target_system(
     mut camera: Query<&mut Followable, With<Camera2d>>,
@@ -307,5 +305,3 @@ fn force_player_idle_on_non_movable_state_system(
         );
     }
 }
-
-
