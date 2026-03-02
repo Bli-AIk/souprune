@@ -40,7 +40,7 @@ use crate::core::danmaku::{
 /// AM 演出实体的标记组件。
 /// 用于识别和清理 AM 生成的实体。
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmBattleEntity;
+pub struct AmEntity;
 
 /// Marker for entities that should be treated as bullets (from #B group)
 /// Inherited from parent group if parent has this marker.
@@ -238,7 +238,7 @@ impl Plugin for AmBattlePlugin {
                     handle_play_am_performance_event,
                     // Sync fit scale for mask coordinate calculation
                     sync_am_fit_scale_system,
-                    // Apply commands so observer results (AmBattleEntity, AmHiddenMarker etc.) are available
+                    // Apply commands so observer results (AmEntity, AmHiddenMarker etc.) are available
                     ApplyDeferred,
                     propagate_am_markers_system,
                     // Apply commands before checking markers for collision
@@ -403,8 +403,8 @@ pub fn on_am_entity_spawned(
         layer_name, event.element_type
     );
 
-    // Add AmBattleEntity marker to all AM entities
-    commands.entity(event.entity).insert(AmBattleEntity);
+    // Add AmEntity marker to all AM entities
+    commands.entity(event.entity).insert(AmEntity);
 
     // Check regex patterns for bullet/battle_box/hidden markers
     if let Some(patterns) = patterns {
@@ -463,7 +463,7 @@ fn propagate_am_markers_system(
             Option<&AmBattleBoxMarker>,
             Option<&AmHiddenMarker>,
         ),
-        With<AmBattleEntity>,
+        With<AmEntity>,
     >,
     // Parent hierarchy for inheritance
     parent_query: Query<&ChildOf>,
@@ -886,7 +886,7 @@ fn check_am_performance_completion(
 /// 退出战斗时清理 AM 实体的系统。
 fn cleanup_am_entities(
     mut commands: Commands,
-    query: Query<Entity, With<AmBattleEntity>>,
+    query: Query<Entity, With<AmEntity>>,
     mut am_state: ResMut<AmPerformanceState>,
 ) {
     for entity in query.iter() {
