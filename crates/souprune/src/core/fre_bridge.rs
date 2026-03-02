@@ -25,6 +25,7 @@ use leafwing_input_manager::action_state::ActionState;
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
+use crate::core::fre_facts;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
 /// System that converts input actions to FRE events.
@@ -122,13 +123,13 @@ pub fn sync_state_to_facts_system(
     // Sync SequenceSubState (replaces OverworldSubState)
     if let Some(state) = sub_state {
         let state_name = state.get().name().to_string();
-        facts.set("@sequence_sub_state", FactValue::String(state_name));
+        facts.set(fre_facts::STATE_SEQUENCE_SUB_STATE, FactValue::String(state_name));
     }
 
     // Sync AppState
     if let Some(state) = app_state {
         let state_name = format!("{:?}", state.get());
-        facts.set("@app_state", FactValue::String(state_name));
+        facts.set(fre_facts::STATE_APP_STATE, FactValue::String(state_name));
     }
 }
 
@@ -339,11 +340,11 @@ fn execute_action(
         }
         RuleActionDef::CloseView => {
             debug!("FRE Bridge: CloseView");
-            local_facts.set("_close_requested", FactValue::Bool(true));
+            local_facts.set(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
         }
         RuleActionDef::SwitchState(state_name) => {
             debug!("FRE Bridge: SwitchState({})", state_name);
-            local_facts.set("_switch_state", FactValue::String(state_name.clone()));
+            local_facts.set(fre_facts::VIEW_SWITCH_STATE, FactValue::String(state_name.clone()));
         }
         RuleActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
@@ -372,14 +373,14 @@ pub fn handle_switch_state_system(
 ) {
     for mut view_root in active_view_query.iter_mut() {
         if let Some(FactValue::String(state_name)) =
-            view_root.local_facts.get_by_str("_switch_state")
+            view_root.local_facts.get_by_str(fre_facts::VIEW_SWITCH_STATE)
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
             next_state.set(crate::app_state::SequenceSubState::new(
                 &state_name,
             ));
-            view_root.local_facts.remove("_switch_state");
+            view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
         }
     }
 }

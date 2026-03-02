@@ -39,6 +39,7 @@ pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
+pub mod fre_facts;
 pub(crate) mod fre_bridge;
 pub(crate) mod input;
 pub mod item;

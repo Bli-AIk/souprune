@@ -14,6 +14,7 @@ mod bridge;
 
 use crate::app_state::battle::BattleUpdate;
 use crate::app_state::overworld::trigger::RuleActionDefs;
+use crate::core::fre_facts;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;
 use bevy::prelude::*;
@@ -118,8 +119,8 @@ fn setup_battle_fre_system(
     // Player data is already in global layer (managed by core::data module)
     // No need to sync here
 
-    let hp = layered_db.get_int("player:hp").unwrap_or(20);
-    let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20);
+    let hp = layered_db.get_int(fre_facts::PLAYER_HP).unwrap_or(20);
+    let hp_max = layered_db.get_int(fre_facts::PLAYER_HP_MAX).unwrap_or(20);
     info!("Battle FRE: Initialized with player HP {}/{}", hp, hp_max);
 }
 

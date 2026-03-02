@@ -6,6 +6,7 @@ use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_rich_text3d::Text3d;
+use crate::core::fre_facts;
 
 /// Update time-dependent UI elements (elements with @time in expressions).
 /// Runs every frame for animation effects.
@@ -181,8 +182,8 @@ pub fn update_dynamic_text_system(
         "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
         global_changed,
         any_view_root_changed,
-        base_player_data.get_fact_int("player:hp").unwrap_or(0),
-        base_player_data.get_fact_int("player:hp_max").unwrap_or(0)
+        base_player_data.get_fact_int(fre_facts::PLAYER_HP).unwrap_or(0),
+        base_player_data.get_fact_int(fre_facts::PLAYER_HP_MAX).unwrap_or(0)
     );
 
     for (entity, template, mut text3d, name) in text_query.iter_mut() {

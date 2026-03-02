@@ -13,6 +13,8 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::{ActionHandlerRegistry, LayeredFactDatabase, RuleActionDef};
 
+use crate::core::fre_facts;
+
 /// System to set up battle-specific action handlers.
 /// Called when entering Battle state.
 ///
@@ -186,10 +188,10 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 /// 运行条件：检查是否有待处理的伤害。
 pub fn has_pending_damage(layered_db: Res<LayeredFactDatabase>) -> bool {
     layered_db
-        .get_int("pending_player_damage")
+        .get_int(fre_facts::PENDING_PLAYER_DAMAGE)
         .is_some_and(|d| d != 0)
         || layered_db
-            .get_int("pending_enemy_0_damage")
+            .get_int(fre_facts::PENDING_ENEMY_0_DAMAGE)
             .is_some_and(|d| d != 0)
 }
 
@@ -200,14 +202,14 @@ pub fn has_pending_damage(layered_db: Res<LayeredFactDatabase>) -> bool {
 /// 此系统读取伤害事实并将其应用于实体 HP。
 pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) {
     // Check for pending player damage
-    if let Some(pending_damage) = layered_db.get_int("pending_player_damage")
+    if let Some(pending_damage) = layered_db.get_int(fre_facts::PENDING_PLAYER_DAMAGE)
         && pending_damage != 0
     {
-        let current_hp = layered_db.get_int_or("player:hp", 100);
+        let current_hp = layered_db.get_int_or(fre_facts::PLAYER_HP, 100);
         let new_hp = (current_hp - pending_damage).max(0);
 
-        layered_db.set("player:hp", new_hp);
-        layered_db.remove("pending_player_damage");
+        layered_db.set(fre_facts::PLAYER_HP, new_hp);
+        layered_db.remove(fre_facts::PENDING_PLAYER_DAMAGE);
 
         info!(
             "Battle FRE: Applied {} damage to player (HP: {} -> {})",
@@ -216,14 +218,14 @@ pub fn apply_pending_damage_system(mut layered_db: ResMut<LayeredFactDatabase>) 
     }
 
     // Check for pending enemy damage (enemy_0 as example)
-    if let Some(pending_damage) = layered_db.get_int("pending_enemy_0_damage")
+    if let Some(pending_damage) = layered_db.get_int(fre_facts::PENDING_ENEMY_0_DAMAGE)
         && pending_damage != 0
     {
-        let current_hp = layered_db.get_int_or("enemy_0_hp", 100);
+        let current_hp = layered_db.get_int_or(fre_facts::ENEMY_0_HP, 100);
         let new_hp = (current_hp - pending_damage).max(0);
 
-        layered_db.set("enemy_0_hp", new_hp);
-        layered_db.remove("pending_enemy_0_damage");
+        layered_db.set(fre_facts::ENEMY_0_HP, new_hp);
+        layered_db.remove(fre_facts::PENDING_ENEMY_0_DAMAGE);
 
         info!(
             "Battle FRE: Applied {} damage to enemy_0 (HP: {} -> {})",

@@ -34,6 +34,8 @@ pub use config::DialogueInputConfig;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
+use crate::core::fre_facts;
+
 /// Plugin that integrates dialogue systems with Mortar, Typewriter, and FRE.
 ///
 /// 整合 Mortar、Typewriter 和 FRE 的对话系统插件。
@@ -106,19 +108,19 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
 
     // Focus control - replaces DialogueFocus component
     // 焦点控制 - 替代 DialogueFocus 组件
-    facts.set_global("dialogue:has_focus", FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(false));
 
     // Typewriter state facts
     // 打字机状态 facts
-    facts.set_global("dialogue:typewriter_playing", FactValue::Bool(false));
-    facts.set_global("dialogue:all_typewriters_finished", FactValue::Bool(true));
-    facts.set_global("dialogue:any_typewriter_finished", FactValue::Bool(true));
+    facts.set_global(fre_facts::DIALOGUE_TYPEWRITER_PLAYING, FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED, FactValue::Bool(true));
+    facts.set_global(fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED, FactValue::Bool(true));
 
     // Dialogue configuration facts
     // 对话配置 facts
-    facts.set_global("dialogue:simple_text_active", FactValue::Bool(false));
-    facts.set_global("dialogue:simple_text", FactValue::String(String::new()));
-    facts.set_global("dialogue:has_typewriter", FactValue::Bool(true));
+    facts.set_global(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE, FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_SIMPLE_TEXT, FactValue::String(String::new()));
+    facts.set_global(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
 
     // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
     // Views that use {{dialogue_text}} should define it in their `facts:` section.
@@ -134,26 +136,26 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
     //   - dialogue:pending_mortar_path = "path/to/file.mortar" (without locale prefix)
     //   - dialogue:pending_mortar_node = "node_name"
     //   - dialogue:pending_view = "path/to/view.ron" (optional, for spawning new view)
-    facts.set_global("dialogue:pending_start", FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(false));
     facts.set_global(
-        "dialogue:pending_mortar_path",
+        fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
         FactValue::String(String::new()),
     );
     facts.set_global(
-        "dialogue:pending_mortar_node",
+        fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
         FactValue::String(String::new()),
     );
-    facts.set_global("dialogue:pending_view", FactValue::String(String::new()));
+    facts.set_global(fre_facts::DIALOGUE_PENDING_VIEW, FactValue::String(String::new()));
 
     // Dialogue active state (set by handle_pending_dialogue_start_system)
     // 对话活跃状态（由 handle_pending_dialogue_start_system 设置）
-    facts.set_global("dialogue:active", FactValue::Bool(false));
-    facts.set_global("dialogue:has_mortar", FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(false));
+    facts.set_global(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(false));
 
     // Focus mode: "all_finished" or "first_finished"
     // 焦点模式："all_finished" 或 "first_finished"
     facts.set_global(
-        "dialogue:focus_mode",
+        fre_facts::DIALOGUE_FOCUS_MODE,
         FactValue::String("all_finished".to_string()),
     );
 
