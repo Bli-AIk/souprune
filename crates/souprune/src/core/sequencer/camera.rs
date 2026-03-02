@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的摄像机控制系统。
 
-use super::super::chapter_schema::Chapter;
+use super::chapter_schema::Chapter;
 use super::context::*;
 use bevy::prelude::*;
 
@@ -27,10 +27,10 @@ pub fn process_camera_action_system(
         if let Chapter::SetCamera(action) = &active_chapter.chapter {
             for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
                 match action {
-                    super::super::chapter_schema::CameraAction::SetPosition(pos) => {
+                    super::chapter_schema::CameraAction::SetPosition(pos) => {
                         transform.translation = pos.extend(transform.translation.z);
                     }
-                    super::super::chapter_schema::CameraAction::SetZoom(zoom) => {
+                    super::chapter_schema::CameraAction::SetZoom(zoom) => {
                         if let Projection::Orthographic(ortho) = &mut *proj {
                             // On Android with ScalingMode::Fixed, scale=1.0 already shows
                             // base resolution. On desktop with WindowSize, divide by resolution_scale.

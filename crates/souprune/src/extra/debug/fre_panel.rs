@@ -686,10 +686,9 @@ pub mod debug_fre_panel {
 
     /// Render the States tab.
     ///
-    /// 渲染状态标签页，显示 AppState 和 OverworldSubState。
+    /// 渲染状态标签页，显示 AppState、SequenceMode 和 SequenceSubState。
     fn render_states_tab(ui: &mut egui::Ui, world: &mut World) {
-        use crate::app_state::AppState;
-        use crate::app_state::overworld::OverworldSubState;
+        use crate::app_state::{AppState, SequenceMode, SequenceSubState};
 
         ui.heading("Game States");
         ui.separator();
@@ -702,12 +701,9 @@ pub mod debug_fre_panel {
                     let current_app_state =
                         world.get_resource::<State<AppState>>().map(|s| *s.get());
 
-                    // List all AppState variants
                     let all_states = [
-                        (AppState::AppSetup, "App initialization"),
-                        (AppState::Menu, "Main menu"),
-                        (AppState::Overworld, "Overworld exploration"),
-                        (AppState::Battle, "Battle mode"),
+                        (AppState::Loading, "Resource loading"),
+                        (AppState::Running, "Running"),
                     ];
 
                     for (state, description) in all_states {
@@ -727,28 +723,44 @@ pub mod debug_fre_panel {
                     }
                 });
 
+            ui.add_space(5.0);
+
+            // SequenceMode section
+            egui::CollapsingHeader::new("SequenceMode")
+                .default_open(true)
+                .show(ui, |ui| {
+                    let current_mode = world.get_resource::<SequenceMode>().map(|m| m.0.clone());
+
+                    ui.horizontal(|ui| {
+                        ui.label("Current:");
+                        if let Some(Some(mode)) = &current_mode {
+                            ui.colored_label(egui::Color32::GREEN, mode);
+                        } else {
+                            ui.colored_label(egui::Color32::GRAY, "None");
+                        }
+                    });
+                });
+
             ui.add_space(10.0);
 
-            // OverworldSubState section - only show when in Overworld
-            let is_in_overworld = world
-                .get_resource::<State<AppState>>()
-                .map(|s| *s.get() == AppState::Overworld)
+            // SequenceSubState section
+            let has_mode = world
+                .get_resource::<SequenceMode>()
+                .map(|m| m.0.is_some())
                 .unwrap_or(false);
 
-            if is_in_overworld {
-                egui::CollapsingHeader::new("OverworldSubState")
+            if has_mode {
+                egui::CollapsingHeader::new("SequenceSubState")
                     .default_open(true)
                     .show(ui, |ui| {
                         let current_sub_state = world
-                            .get_resource::<State<OverworldSubState>>()
+                            .get_resource::<State<SequenceSubState>>()
                             .map(|s| s.name().to_string());
 
-                        // Get all available states from LoadedStateConfig
                         let state_config =
                             world.get_resource::<crate::core::state_config::LoadedStateConfig>();
 
                         if let Some(config) = state_config {
-                            // Get all state names and sort them
                             let mut state_names: Vec<&String> = config.0.states.keys().collect();
                             state_names.sort();
 
@@ -766,7 +778,6 @@ pub mod debug_fre_panel {
                                     }
                                 });
 
-                                // Show details only for current state
                                 if is_current {
                                     let is_view_interactive =
                                         config.is_view_interactive(state_name);
@@ -817,14 +828,13 @@ pub mod debug_fre_panel {
                     });
             }
 
-            // Chase state info - only show when in Overworld
-            if is_in_overworld {
+            // Chase state info
+            if has_mode {
                 ui.add_space(10.0);
 
                 egui::CollapsingHeader::new("Chase State Info")
                     .default_open(true)
                     .show(ui, |ui| {
-                        // ChaseEnabled
                         if let Some(chase_enabled) =
                             world.get_resource::<crate::app_state::overworld::chase::ChaseEnabled>()
                         {
@@ -838,7 +848,6 @@ pub mod debug_fre_panel {
                             });
                         }
 
-                        // ChaseStateName
                         if let Some(chase_state_name) =
                             world
                                 .get_resource::<crate::app_state::overworld::chase::ChaseStateName>(

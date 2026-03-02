@@ -9,6 +9,7 @@ use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
 
 use super::components::{MortarController, TypewriterVoice};
 use super::config::DialogueInputConfig;
+use crate::core::fre_facts;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
 /// Syncs focused Typewriter state to FRE Facts.
@@ -70,13 +71,13 @@ pub fn sync_typewriter_state_to_facts_system(
     // Helper to update fact only if value changed
     // 辅助函数：仅当值变化时更新 fact
     let mut changed = false;
-    if db.set_if_changed("dialogue:typewriter_playing", any_playing) {
+    if db.set_if_changed(fre_facts::DIALOGUE_TYPEWRITER_PLAYING, any_playing) {
         changed = true;
     }
-    if db.set_if_changed("dialogue:all_typewriters_finished", all_finished) {
+    if db.set_if_changed(fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED, all_finished) {
         changed = true;
     }
-    if db.set_if_changed("dialogue:any_typewriter_finished", any_finished) {
+    if db.set_if_changed(fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED, any_finished) {
         changed = true;
     }
 
@@ -131,7 +132,9 @@ pub fn dialogue_advance_system(
 
         // Check if dialogue has focus (FRE fact replaces DialogueFocus component)
         // 检查对话是否有焦点（FRE fact 替代 DialogueFocus 组件）
-        let has_focus = facts.get_bool("dialogue:has_focus").unwrap_or(false);
+        let has_focus = facts
+            .get_bool(fre_facts::DIALOGUE_HAS_FOCUS)
+            .unwrap_or(false);
         if !has_focus {
             debug!("dialogue_advance_system: dialogue:has_focus is false, skipping");
             continue;
@@ -146,7 +149,7 @@ pub fn dialogue_advance_system(
         // Use FRE fact to check simple text dialogue (data-driven)
         let mortar_active = runtime.has_active_dialogues();
         let simple_active = facts
-            .get_bool("dialogue:simple_text_active")
+            .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
             .unwrap_or(false);
 
         if !mortar_active && !simple_active {
@@ -170,7 +173,7 @@ pub fn dialogue_advance_system(
                 info!(
                     "dialogue_advance_system: simple text (no typewriter), marking dialogue ended"
                 );
-                facts.set("dialogue:pending_ended", FactValue::Bool(true));
+                facts.set(fre_facts::DIALOGUE_PENDING_ENDED, FactValue::Bool(true));
             }
             continue;
         }
@@ -182,7 +185,7 @@ pub fn dialogue_advance_system(
         // "all_finished" - 所有打字机必须完成才能步进
         // "first_finished" - 任一打字机完成即可步进
         let focus_mode = facts
-            .get_string("dialogue:focus_mode")
+            .get_string(fre_facts::DIALOGUE_FOCUS_MODE)
             .unwrap_or("all_finished");
         let require_all_finished = focus_mode == "all_finished";
 
@@ -210,7 +213,7 @@ pub fn dialogue_advance_system(
             // Simple text with finished typewriter - mark for dialogue:ended
             // 简单文本打字机完成 - 标记为需要发送 dialogue:ended
             info!("dialogue_advance_system: simple text finished, marking dialogue ended");
-            facts.set("dialogue:pending_ended", FactValue::Bool(true));
+            facts.set(fre_facts::DIALOGUE_PENDING_ENDED, FactValue::Bool(true));
         }
     }
 }
@@ -218,7 +221,9 @@ pub fn dialogue_advance_system(
 /// Run condition: Check if there's pending dialogue end to emit.
 /// 运行条件：检查是否有待发送的对话结束事件。
 pub fn has_pending_dialogue_ended(facts: Res<LayeredFactDatabase>) -> bool {
-    facts.get_bool("dialogue:pending_ended").unwrap_or(false)
+    facts
+        .get_bool(fre_facts::DIALOGUE_PENDING_ENDED)
+        .unwrap_or(false)
 }
 
 /// Emits dialogue:ended event when pending_ended fact is set.
@@ -230,10 +235,13 @@ pub fn emit_pending_dialogue_ended_system(
     mut facts: ResMut<LayeredFactDatabase>,
     mut fre_event_writer: MessageWriter<FactEvent>,
 ) {
-    if facts.get_bool("dialogue:pending_ended").unwrap_or(false) {
+    if facts
+        .get_bool(fre_facts::DIALOGUE_PENDING_ENDED)
+        .unwrap_or(false)
+    {
         info!("emit_pending_dialogue_ended_system: emitting dialogue:ended");
-        fre_event_writer.write(FactEvent::new("dialogue:ended"));
-        facts.remove("dialogue:pending_ended");
+        fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_ENDED));
+        facts.remove(fre_facts::DIALOGUE_PENDING_ENDED);
     }
 }
 
@@ -256,7 +264,7 @@ pub fn handle_mortar_dialogue_finished_system(
             "handle_mortar_dialogue_finished_system: Mortar dialogue finished (path: {}, node: {})",
             finished.mortar_path, finished.node
         );
-        fre_event_writer.write(FactEvent::new("dialogue:ended"));
+        fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_ENDED));
     }
 }
 
@@ -370,7 +378,7 @@ pub fn sync_typewriter_text_to_facts_system(
 
     // Check if simple text dialogue is active via FRE fact (data-driven)
     let simple_text_active = facts
-        .get_bool("dialogue:simple_text_active")
+        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
         .unwrap_or(false);
 
     // Determine what text to use
@@ -460,19 +468,23 @@ pub fn spawn_dialogue_controller_system(
     // This avoids timing issues where Mortar hasn't started yet
     // 使用 handle_pending_dialogue_start_system 设置的 dialogue:active fact
     // 这避免了 Mortar 尚未启动时的时序问题
-    let dialogue_active = facts.get_bool("dialogue:active").unwrap_or(false);
+    let dialogue_active = facts.get_bool(fre_facts::DIALOGUE_ACTIVE).unwrap_or(false);
     let simple_text_active = facts
-        .get_bool("dialogue:simple_text_active")
+        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
         .unwrap_or(false);
     let has_dialogue = dialogue_active || simple_text_active;
 
     // Configuration from FRE facts
-    let has_typewriter = facts.get_bool("dialogue:has_typewriter").unwrap_or(true); // Default to true for backward compatibility
+    let has_typewriter = facts
+        .get_bool(fre_facts::DIALOGUE_HAS_TYPEWRITER)
+        .unwrap_or(true); // Default to true for backward compatibility
 
     // Check if this is a Mortar dialogue (set by handle_pending_dialogue_start_system)
     // 检查是否是 Mortar 对话（由 handle_pending_dialogue_start_system 设置）
-    let has_mortar =
-        facts.get_bool("dialogue:has_mortar").unwrap_or(false) || runtime.has_active_dialogues();
+    let has_mortar = facts
+        .get_bool(fre_facts::DIALOGUE_HAS_MORTAR)
+        .unwrap_or(false)
+        || runtime.has_active_dialogues();
 
     // DEBUG: Log state every frame when there's any dialogue-related activity
     if dialogue_active || simple_text_active || has_controller || runtime.has_active_dialogues() {
@@ -511,7 +523,7 @@ pub fn spawn_dialogue_controller_system(
         if has_typewriter {
             // Get simple text from FRE fact if available
             let simple_text = facts
-                .get_string("dialogue:simple_text")
+                .get_string(fre_facts::DIALOGUE_SIMPLE_TEXT)
                 .map(|s| s.to_string());
 
             // For simple text (no Mortar), initialize typewriter with the text directly
@@ -525,7 +537,7 @@ pub fn spawn_dialogue_controller_system(
             // Read typewriter speed from FRE fact, default to 0.03 (30ms per char)
             // 从 FRE fact 读取打字机速度，默认为 0.03（每字符30ms）
             let typewriter_speed = facts
-                .get_float("dialogue:typewriter_speed")
+                .get_float(fre_facts::DIALOGUE_TYPEWRITER_SPEED)
                 .map(|n| n as f32)
                 .unwrap_or(0.03);
             let mut typewriter = Typewriter::new(&initial_text, typewriter_speed);
@@ -540,7 +552,7 @@ pub fn spawn_dialogue_controller_system(
 
             // Add TypewriterVoice if dialogue:voice fact is set
             // 如果设置了 dialogue:voice fact，添加 TypewriterVoice
-            if let Some(voice_path) = facts.get_string("dialogue:voice")
+            if let Some(voice_path) = facts.get_string(fre_facts::DIALOGUE_VOICE)
                 && !voice_path.is_empty()
             {
                 info!(
@@ -555,7 +567,7 @@ pub fn spawn_dialogue_controller_system(
         // If there's a typewriter, sync_typewriter_text_to_facts_system will handle it
         if !has_mortar
             && !has_typewriter
-            && let Some(text) = facts.get_string("dialogue:simple_text")
+            && let Some(text) = facts.get_string(fre_facts::DIALOGUE_SIMPLE_TEXT)
         {
             info!(
                 "spawn_dialogue_controller_system: setting simple_text to View local_facts: '{}'",
@@ -601,7 +613,7 @@ pub fn despawn_dialogue_controller_system(
     // Listen for dialogue:ended event
     let mut should_cleanup = false;
     for event in fre_events.read() {
-        if event.id.0 == "dialogue:ended" {
+        if event.id.0 == fre_facts::DIALOGUE_ENDED {
             should_cleanup = true;
             break;
         }
@@ -615,13 +627,13 @@ pub fn despawn_dialogue_controller_system(
         let mortar_active = runtime.has_active_dialogues();
         let simple_active = facts
             .bypass_change_detection()
-            .get_bool("dialogue:simple_text_active")
+            .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
             .unwrap_or(false);
         // Also check dialogue:active fact to handle the frame where Mortar hasn't started yet
         // 同时检查 dialogue:active fact 以处理 Mortar 尚未启动的那一帧
         let dialogue_active_fact = facts
             .bypass_change_detection()
-            .get_bool("dialogue:active")
+            .get_bool(fre_facts::DIALOGUE_ACTIVE)
             .unwrap_or(false);
         let has_controller = !query.is_empty();
 
@@ -639,9 +651,9 @@ pub fn despawn_dialogue_controller_system(
 
     // Reset dialogue-related facts when cleaning up (Local layer for scene scope)
     // 清理时重置对话相关的 facts（Local 层用于场景作用域）
-    facts.set("dialogue:has_focus", FactValue::Bool(false));
-    facts.set("dialogue:active", FactValue::Bool(false));
-    facts.set("dialogue:has_mortar", FactValue::Bool(false));
+    facts.set(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(false));
+    facts.set(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(false));
+    facts.set(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(false));
 
     // Despawn controller entity
     // Note: View cleanup should be handled by FRE rules with DespawnView action
@@ -653,7 +665,9 @@ pub fn despawn_dialogue_controller_system(
 /// Run condition: Check if there's a pending dialogue start.
 /// 运行条件：检查是否有待启动的对话。
 pub fn has_pending_dialogue_start(facts: Res<LayeredFactDatabase>) -> bool {
-    facts.get_bool("dialogue:pending_start").unwrap_or(false)
+    facts
+        .get_bool(fre_facts::DIALOGUE_PENDING_START)
+        .unwrap_or(false)
 }
 
 /// Handles pending dialogue start requests from FRE facts.
@@ -704,7 +718,7 @@ pub fn handle_pending_dialogue_start_system(
     // Check trigger fact
     let pending_start = facts
         .bypass_change_detection()
-        .get_bool("dialogue:pending_start")
+        .get_bool(fre_facts::DIALOGUE_PENDING_START)
         .unwrap_or(false);
 
     if !pending_start {
@@ -716,19 +730,19 @@ pub fn handle_pending_dialogue_start_system(
     // Read pending view (optional - empty means no view to spawn)
     let pending_view = facts
         .bypass_change_detection()
-        .get_string("dialogue:pending_view")
+        .get_string(fre_facts::DIALOGUE_PENDING_VIEW)
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
 
     // Read Mortar configuration
     let mortar_path = facts
         .bypass_change_detection()
-        .get_string("dialogue:pending_mortar_path")
+        .get_string(fre_facts::DIALOGUE_PENDING_MORTAR_PATH)
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
     let mortar_node = facts
         .bypass_change_detection()
-        .get_string("dialogue:pending_mortar_node")
+        .get_string(fre_facts::DIALOGUE_PENDING_MORTAR_NODE)
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty());
 
@@ -741,14 +755,17 @@ pub fn handle_pending_dialogue_start_system(
     // since FRE rules write to Local layer by default)
     // 清除所有待处理的 facts（使用 set() 写入 Local 层，
     // 因为 FRE 规则默认写入 Local 层）
-    facts.set("dialogue:pending_start", FactValue::Bool(false));
-    facts.set("dialogue:pending_view", FactValue::String(String::new()));
+    facts.set(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(false));
     facts.set(
-        "dialogue:pending_mortar_path",
+        fre_facts::DIALOGUE_PENDING_VIEW,
         FactValue::String(String::new()),
     );
     facts.set(
-        "dialogue:pending_mortar_node",
+        fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
+        FactValue::String(String::new()),
+    );
+    facts.set(
+        fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
         FactValue::String(String::new()),
     );
 
@@ -765,7 +782,11 @@ pub fn handle_pending_dialogue_start_system(
 
     // Spawn dialogue view if specified
     if let Some(view_path) = pending_view {
-        spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: view_path });
+        spawn_view_writer.write(crate::core::view::SpawnViewRequest {
+            path: view_path,
+            mode_scope: None,
+            bindings: None,
+        });
     }
 
     // Start Mortar dialogue if configured
@@ -789,17 +810,17 @@ pub fn handle_pending_dialogue_start_system(
     // 这允许 spawn_dialogue_controller_system 在 runtime.has_active_dialogues() 返回 true 之前生成控制器
     let simple_text_active = facts
         .bypass_change_detection()
-        .get_bool("dialogue:simple_text_active")
+        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
         .unwrap_or(false);
     let dialogue_active = has_mortar || simple_text_active;
-    facts.set("dialogue:active", FactValue::Bool(dialogue_active));
+    facts.set(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(dialogue_active));
 
     // Set dialogue:has_mortar to distinguish from simple_text
     // 设置 dialogue:has_mortar 以区分于 simple_text
-    facts.set("dialogue:has_mortar", FactValue::Bool(has_mortar));
+    facts.set(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(has_mortar));
 
     // Emit dialogue:started event for scene-specific handling
-    fre_event_writer.write(FactEvent::new("dialogue:started"));
+    fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_STARTED));
 }
 
 /// System to replay Typewriter when View's depth returns to 0.
@@ -875,7 +896,7 @@ pub fn replay_typewriter_on_depth_resume_system(
         .next()
         .map(|view| {
             view.local_facts
-                .get_bool("dialogue:replay_on_resume")
+                .get_bool(fre_facts::DIALOGUE_REPLAY_ON_RESUME)
                 .unwrap_or(false)
         })
         .unwrap_or(false);
@@ -982,7 +1003,7 @@ pub fn handle_dialogue_stop_event_system(
     mut typewriter_query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
 ) {
     for event in events.read() {
-        if event.id.0.starts_with("dialogue:stop") {
+        if event.id.0.starts_with(fre_facts::DIALOGUE_STOP_PREFIX) {
             info!("handle_dialogue_stop_event: stopping all typewriters");
             for mut typewriter in typewriter_query.iter_mut() {
                 typewriter.stop();

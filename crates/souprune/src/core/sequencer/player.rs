@@ -6,10 +6,11 @@
 //!
 //! 战斗序列管理器的玩家相关系统。
 
-use super::super::chapter_schema::{Chapter, PlayerAction};
-use super::super::danmaku::BattleInvincibilityConfig;
-use super::super::player_config_schema::{BattlePlayerConfig, ColliderShape};
+use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
+use crate::app_state::ModeScoped;
+use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
+use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
@@ -32,13 +33,7 @@ pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
-    mut player_query: Query<
-        &mut Transform,
-        (
-            With<BehaviorParams>,
-            With<crate::app_state::battle::BattleEntity>,
-        ),
-    >,
+    mut player_query: Query<&mut Transform, (With<BehaviorParams>, With<ModeScoped>)>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetPlayer(action) = &active_chapter.chapter {
@@ -46,25 +41,30 @@ pub fn process_player_action_system(
                 PlayerAction::Spawn {
                     config_path,
                     position,
-                } => {
+                } if config_path.ends_with(".battle_player.ron") => {
                     let handle = asset_server.load::<BattlePlayerConfig>(config_path);
                     commands.spawn((
                         PlayerSpawnRequest {
                             config_handle: handle,
-                            position: *position,
+                            position: position.unwrap_or(Vec2::ZERO),
                         },
-                        crate::app_state::battle::BattleEntity,
+                        ModeScoped("battle".to_string()),
                     ));
+                    commands.entity(entity).insert(ChapterFinished);
                 }
+                // Non-battle config_path → handled by state-specific systems (e.g., overworld)
+                PlayerAction::Spawn { .. } => {}
                 PlayerAction::Teleport(pos) => {
                     for mut transform in player_query.iter_mut() {
                         transform.translation = pos.extend(0.0);
                         info!("Player teleported to {}", pos);
                     }
+                    commands.entity(entity).insert(ChapterFinished);
                 }
-                _ => {}
+                _ => {
+                    commands.entity(entity).insert(ChapterFinished);
+                }
             }
-            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
@@ -124,7 +124,7 @@ pub fn process_player_spawn_requests(
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),
-                crate::app_state::battle::BattleEntity,
+                ModeScoped("battle".to_string()),
                 Name::new("BattlePlayer"),
             ));
 

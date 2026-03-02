@@ -22,7 +22,7 @@ use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::state_config::LoadedStateConfig;
 
-use super::OverworldSubState;
+use crate::app_state::SequenceSubState;
 
 /// System that bridges keyboard/gamepad input to FRE events.
 ///
@@ -48,7 +48,7 @@ use super::OverworldSubState;
 pub(crate) fn input_to_fre_event_bridge_system(
     registry: Res<ActionRegistry>,
     state_config: Option<Res<LoadedStateConfig>>,
-    current_state: Res<State<OverworldSubState>>,
+    current_state: Res<State<SequenceSubState>>,
     query: Query<&ActionState<Action>, With<PlayerControlled>>,
     mut event_writer: MessageWriter<FactEvent>,
 ) {

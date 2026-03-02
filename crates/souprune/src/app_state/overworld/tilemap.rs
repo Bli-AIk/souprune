@@ -18,7 +18,6 @@
 //!
 //! 本文件实现了 `TilemapPlugin`，连接用于处理瓦片地图与相对玩家更新对象排序的系统。
 
-use crate::app_state::AppState::Overworld;
 use bevy::prelude::*;
 
 #[cfg(feature = "experimental")]
@@ -46,9 +45,10 @@ impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
         use object_properties::process_map_object_properties_system;
         use systems::*;
+        // Tilemap is loaded by the sequencer's LoadMap chapter, not by hardcoded OnEnter systems.
+        // 瓦片地图由序列器的 LoadMap 章节加载，而非硬编码的 OnEnter 系统。
         app.init_resource::<CurrentMapBgm>()
             .init_resource::<CurrentBgmHandle>()
-            .add_systems(OnEnter(Overworld), setup_tilemap_system)
             .add_systems(
                 Update,
                 (

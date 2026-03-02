@@ -8,7 +8,7 @@
 //! 战斗序列管理器的 AwaitFact 系统。
 //! 此模块实现基于 Fact 条件的响应式阻塞机制。
 
-use super::super::chapter_schema::Chapter;
+use super::chapter_schema::Chapter;
 use super::context::*;
 use crate::core::fre_bridge::evaluate_single_condition;
 use crate::core::view::components::ViewRoot;

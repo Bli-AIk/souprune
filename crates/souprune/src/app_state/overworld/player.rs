@@ -181,7 +181,7 @@ pub fn player_state_transition_system(
     >,
     registry: Res<crate::core::input::ActionRegistry>,
     behavior_config: Res<crate::core::input::InputBehaviorConfig>,
-    overworld_state: Res<State<crate::app_state::overworld::OverworldSubState>>,
+    sub_state: Res<State<crate::app_state::SequenceSubState>>,
     player_behavior: Res<PlayerBehavior>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
 ) {
@@ -191,7 +191,7 @@ pub fn player_state_transition_system(
     // Check if current state allows player movement
     let player_movable = state_config
         .as_ref()
-        .map(|c| c.is_player_movable(overworld_state.name()))
+        .map(|c| c.is_player_movable(sub_state.name()))
         .unwrap_or(true);
 
     let Ok(action_state) = action_query.single() else {
