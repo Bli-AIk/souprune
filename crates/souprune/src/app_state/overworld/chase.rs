@@ -395,7 +395,7 @@ fn spawn_chase_dark_overlay_system(
     };
 
     // Create a very large box to cover the screen
-    let overlay_size = 10000.0;
+    let overlay_size = chase_config.dark_overlay.overlay_size;
     let shape = ViewSdfShape::new(overlay_size, overlay_size, Color::srgba(0.0, 0.0, 0.0, 0.0));
     let mesh = meshes.add(shape.create_mesh());
     let material = sdf_materials.add(shape.to_material());
@@ -409,7 +409,7 @@ fn spawn_chase_dark_overlay_system(
             shape,
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            Transform::from_xyz(0.0, 0.0, 50.0), // High Z to be on top
+            Transform::from_xyz(0.0, 0.0, chase_config.dark_overlay.z_offset),
             Name::new("ChaseDarkOverlay"),
         ));
     });
@@ -428,6 +428,7 @@ fn spawn_player_outline_system(
     images: Res<Assets<Image>>,
     atlas_layouts: Res<Assets<TextureAtlasLayout>>,
     transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
     chase_root: Query<Entity, With<ChaseEffectRoot>>,
     player_query: Query<(Entity, &Sprite, &Transform), With<PlayerControlled>>,
     existing_outline: Query<Entity, With<ChasePlayerOutline>>,
@@ -494,7 +495,7 @@ fn spawn_player_outline_system(
     );
 
     // Create a quad mesh for the outline (slightly larger to accommodate outline)
-    let outline_size = sprite_size + Vec2::splat(2.0);
+    let outline_size = sprite_size + Vec2::splat(chase_config.outline.padding);
     let mesh = meshes.add(Rectangle::new(outline_size.x, outline_size.y));
 
     // Create the outline material with red color and 0 alpha initially
@@ -514,7 +515,7 @@ fn spawn_player_outline_system(
             ChaseEffect { target_alpha: 1.0 },
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            Transform::from_translation(player_transform.translation + Vec3::new(0.0, 0.0, 100.0)),
+            Transform::from_translation(player_transform.translation + Vec3::new(0.0, 0.0, chase_config.outline.z_offset)),
             Name::new("ChasePlayerOutline"),
         ));
     });
@@ -596,6 +597,7 @@ fn update_player_outline_system(
     atlas_layouts: Res<Assets<TextureAtlasLayout>>,
     mut materials: ResMut<Assets<PixelOutlineMaterial>>,
     transition: Res<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
 ) {
     if !transition.active {
         return;
@@ -660,7 +662,7 @@ fn update_player_outline_system(
                 // 只在精灵尺寸变化时更新 mesh（避免每帧创建新 mesh）
                 if (outline_marker.current_size - sprite_size).length() > 0.01 {
                     outline_marker.current_size = sprite_size;
-                    let outline_size = sprite_size + Vec2::splat(2.0);
+                    let outline_size = sprite_size + Vec2::splat(chase_config.outline.padding);
                     let new_mesh = meshes.add(Rectangle::new(outline_size.x, outline_size.y));
                     commands.entity(entity).insert(Mesh2d(new_mesh));
                 }
