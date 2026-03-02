@@ -117,9 +117,8 @@ impl Plugin for OverworldPlugin {
                     trigger::trigger_zone_detection_system,
                     trigger::interactable_detection_system,
                     trigger::handle_interaction_input_system,
-                    trigger::collect_danmaku_actions_system,
+                    trigger::handle_overworld_custom_actions_system,
                     trigger::play_danmaku_from_actions_system,
-                    trigger::handle_chase_state_actions_system,
                     trigger::log_fact_changes_system,
                 )
                     .chain()

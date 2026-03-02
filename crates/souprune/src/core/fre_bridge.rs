@@ -19,14 +19,26 @@ use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_ev
 pub use eval::{evaluate_conditions_layered, evaluate_single_condition};
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactValue, LayeredRuleRegistry, RuleActionDef};
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry, RuleActionDef};
 use leafwing_input_manager::action_state::ActionState;
+use std::collections::HashMap;
 
 use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::audio;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::fre_facts;
 use crate::core::view::components::{ActiveView, ViewRoot};
+
+/// Event emitted for each FRE Custom action encountered during rule evaluation.
+/// Systems can read this event to handle specific action types.
+///
+/// 在规则评估期间遇到的 FRE Custom action 会发出此事件。
+/// 系统可以读取此事件来处理特定的 action 类型。
+#[derive(Message, Debug, Clone)]
+pub struct FreCustomActionEvent {
+    pub action_type: String,
+    pub params: HashMap<String, String>,
+}
 
 /// System that converts input actions to FRE events.
 ///
@@ -385,6 +397,64 @@ pub fn handle_switch_state_system(
     }
 }
 
+/// System that reads FRE events, matches rules, evaluates global conditions,
+/// and dispatches Custom actions as `FreCustomActionEvent` messages.
+///
+/// This is the unified global dispatch for Custom actions, replacing
+/// per-subsystem rule evaluation (handle_chase_state_actions_system,
+/// collect_danmaku_actions_system, etc.).
+///
+/// FRE 事件全局 Custom action 分发系统。
+/// 读取 FRE 事件，匹配规则，评估全局条件，
+/// 将 Custom action 作为 `FreCustomActionEvent` 消息分发。
+pub fn dispatch_custom_actions_system(
+    mut events: MessageReader<FactEvent>,
+    rule_registry: Res<LayeredRuleRegistry>,
+    action_defs: Res<RuleActionDefs>,
+    fact_db: Res<LayeredFactDatabase>,
+    mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
+) {
+    for event in events.read() {
+        let rule_groups = rule_registry.get_matching_rules_grouped(event);
+        if rule_groups.is_empty() {
+            continue;
+        }
+
+        'outer: for group in rule_groups {
+            for rule in group {
+                if !evaluate_conditions_layered(&rule.condition_expressions, &fact_db) {
+                    continue;
+                }
+
+                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                    continue;
+                };
+
+                for action in actions {
+                    if let RuleActionDef::Custom {
+                        action_type,
+                        params,
+                    } = action
+                    {
+                        debug!(
+                            "FRE: Dispatching custom action '{}' (rule: '{}')",
+                            action_type, rule.id
+                        );
+                        custom_action_writer.write(FreCustomActionEvent {
+                            action_type: action_type.clone(),
+                            params: params.clone(),
+                        });
+                    }
+                }
+
+                if rule.consume_event {
+                    break 'outer;
+                }
+            }
+        }
+    }
+}
+
 /// Plugin for FRE-View bridge systems.
 ///
 /// FRE-View 桥接系统的插件。
@@ -392,13 +462,15 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, register_condition_evaluator_system)
+        app.add_message::<FreCustomActionEvent>()
+            .add_systems(Startup, register_condition_evaluator_system)
             .add_systems(
                 Update,
                 (
                     sync_state_to_facts_system.run_if(state_facts_need_sync),
                     action_to_fre_event_system,
                     process_view_actions_system,
+                    dispatch_custom_actions_system,
                     handle_switch_state_system,
                 )
                     .chain(),

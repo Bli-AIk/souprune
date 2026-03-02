@@ -19,7 +19,7 @@ use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
-    ActionHandlerRegistry, FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
+    FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase,
     LayeredRuleRegistry, RuleActionDef,
 };
 use leafwing_input_manager::action_state::ActionState;
@@ -303,38 +303,8 @@ pub fn register_loaded_rules_system(
 ///
 /// 设置游戏特定动作的自定义动作处理程序的系统。
 pub fn setup_action_handlers_system(world: &mut World) {
-    // Initialize the pending danmaku resource
     world.init_resource::<PendingDanmakuActions>();
-
-    let mut handler_registry = world.resource_mut::<ActionHandlerRegistry>();
-
-    // Register the SetPlayerHP action handler
-    handler_registry.register("SetPlayerHP", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action
-            && let Some(value_str) = params.get("value")
-            && let Ok(hp) = value_str.parse::<usize>()
-        {
-            info!("FRE Action: SetPlayerHP requested with value {}", hp);
-            // Note: Actual HP change is handled by apply_hp_change_system
-            // because we can't access PlayerData from Commands
-        }
-    });
-
-    // Note: PlayDanmaku is handled via PendingDanmakuActions resource
-    // The actual registration happens below
-    handler_registry.register("PlayDanmaku", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
-            if let Some(path) = params.get("path") {
-                info!("FRE Action: PlayDanmaku registered with path: {}", path);
-                // Actual playback is handled by play_danmaku_from_actions_system
-                // which reads from PendingDanmakuActions
-            } else {
-                warn!("FRE Action: PlayDanmaku missing 'path' parameter");
-            }
-        }
-    });
-
-    info!("FRE: Custom action handlers registered");
+    info!("FRE: Custom action handlers initialized");
 }
 
 /// Resource to store pending danmaku play requests from FRE actions.
@@ -345,50 +315,92 @@ pub struct PendingDanmakuActions {
     pub requests: Vec<String>,
 }
 
-/// System to collect PlayDanmaku actions from executed rules.
-/// This runs after rule evaluation and checks which rules were triggered.
+/// System that handles overworld-specific Custom FRE actions
+/// dispatched via `FreCustomActionEvent`.
 ///
-/// 从已执行规则中收集 PlayDanmaku action 的系统。
-/// 在规则评估后运行，检查哪些规则被触发。
-pub fn collect_danmaku_actions_system(
-    mut events: MessageReader<FactEvent>,
-    rule_registry: Res<LayeredRuleRegistry>,
-    fact_db: Res<LayeredFactDatabase>,
-    action_defs: Res<RuleActionDefs>,
-    mut pending: ResMut<PendingDanmakuActions>,
+/// 处理通过 `FreCustomActionEvent` 分发的 Overworld 专用 Custom FRE action。
+pub fn handle_overworld_custom_actions_system(
+    mut events: MessageReader<crate::core::fre_bridge::FreCustomActionEvent>,
+    chase_enabled: Res<super::chase::ChaseEnabled>,
+    chase_state_name: Res<super::chase::ChaseStateName>,
+    mut next_sub_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
+    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
+    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
+    mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
+    mut pending_danmaku: ResMut<PendingDanmakuActions>,
 ) {
     for event in events.read() {
-        // Get all matching rules for this event, grouped by priority
-        let rule_groups = rule_registry.get_matching_rules_grouped(event);
-
-        'outer: for group in rule_groups {
-            for rule in group {
-                // Check if rule's condition_expressions are met (empty = always true)
-                if !crate::core::fre_bridge::evaluate_conditions_layered(
-                    &rule.condition_expressions,
-                    &fact_db,
-                ) {
+        match event.action_type.as_str() {
+            "EnterChaseState" => {
+                if !chase_enabled.0 {
+                    warn!("FRE: EnterChaseState action ignored - chase not enabled");
                     continue;
                 }
-                // Look up the original action definitions for this rule
-                if let Some(actions) = action_defs.actions_by_rule.get(&rule.id) {
-                    for action in actions {
-                        if let RuleActionDef::Custom {
-                            action_type,
-                            params,
-                        } = action
-                            && action_type == "PlayDanmaku"
-                            && let Some(path) = params.get("path")
-                        {
-                            pending.requests.push(path.clone());
-                        }
+                let Some(ref state_name) = chase_state_name.0 else {
+                    warn!("FRE: EnterChaseState action ignored - no chase state name configured");
+                    continue;
+                };
+                info!("FRE: Entering chase state '{}' via action", state_name);
+                next_sub_state.set(crate::app_state::SequenceSubState::new(
+                    state_name.clone(),
+                ));
+            }
+            "ExitChaseState" => {
+                if !chase_enabled.0 {
+                    warn!("FRE: ExitChaseState action ignored - chase not enabled");
+                    continue;
+                }
+                info!("FRE: Exiting chase state via action");
+                next_sub_state.set(crate::app_state::SequenceSubState::default());
+            }
+            "SetMode" => {
+                if let Some(mode) = event.params.get("mode") {
+                    info!("FRE: Setting mode to '{}' via action", mode);
+                    sequence_mode.0 = Some(mode.clone());
+                } else {
+                    warn!("FRE: SetMode action missing 'mode' param");
+                }
+            }
+            "SetSubState" => {
+                if let Some(state) = event.params.get("state") {
+                    info!("FRE: Setting sub-state to '{}' via action", state);
+                    next_sub_state.set(crate::app_state::SequenceSubState::new(
+                        state.clone(),
+                    ));
+                } else {
+                    warn!("FRE: SetSubState action missing 'state' param");
+                }
+            }
+            "SpawnView" => {
+                if let Some(path) = event.params.get("path") {
+                    info!("FRE: Spawning view '{}' via action", path);
+                    spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: path.clone() });
+                } else {
+                    warn!("FRE: SpawnView action missing 'path' param");
+                }
+            }
+            "DespawnView" => {
+                let path = event.params.get("path").cloned();
+                info!("FRE: Despawning view(s) via action (path: {:?})", path);
+                despawn_view_writer.write(crate::core::view::DespawnViewRequest { path });
+            }
+            "PlayDanmaku" => {
+                if let Some(path) = event.params.get("path") {
+                    info!("FRE: PlayDanmaku '{}' via action", path);
+                    pending_danmaku.requests.push(path.clone());
+                } else {
+                    warn!("FRE: PlayDanmaku action missing 'path' param");
+                }
+            }
+            "SetPlayerHP" => {
+                if let Some(value_str) = event.params.get("value") {
+                    if let Ok(hp) = value_str.parse::<usize>() {
+                        info!("FRE Action: SetPlayerHP requested with value {}", hp);
                     }
                 }
-
-                // Respect consume_event
-                if rule.consume_event {
-                    break 'outer;
-                }
+            }
+            _ => {
+                debug!("FRE: Unhandled custom action '{}'", event.action_type);
             }
         }
     }
@@ -433,150 +445,6 @@ pub fn log_fact_changes_system(
             let count = fact_db.get_int_or("demo_area_visit_count", 0);
             info!("FRE: demo_area_visit_count = {}", count);
         }
-    }
-}
-
-/// System to handle chase state transitions based on FRE actions.
-/// Reads EnterChaseState and ExitChaseState actions from rule definitions.
-///
-/// 根据 FRE action 处理追逐战状态转换的系统。
-/// 从规则定义中读取 EnterChaseState 和 ExitChaseState action。
-pub fn handle_chase_state_actions_system(
-    mut events: MessageReader<FactEvent>,
-    rule_registry: Res<LayeredRuleRegistry>,
-    fact_db: Res<LayeredFactDatabase>,
-    action_defs: Res<RuleActionDefs>,
-    chase_enabled: Res<super::chase::ChaseEnabled>,
-    chase_state_name: Res<super::chase::ChaseStateName>,
-    mut next_sub_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
-    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
-    mut spawn_view_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
-    mut despawn_view_writer: MessageWriter<crate::core::view::DespawnViewRequest>,
-) {
-    for event in events.read() {
-        let rule_groups = rule_registry.get_matching_rules_grouped(event);
-
-        'outer: for group in rule_groups {
-            for rule in group {
-                if !crate::core::fre_bridge::evaluate_conditions_layered(
-                    &rule.condition_expressions,
-                    &fact_db,
-                ) {
-                    continue;
-                }
-
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    continue;
-                };
-
-                for action in actions {
-                    let RuleActionDef::Custom { .. } = action else {
-                        continue;
-                    };
-
-                    handle_chase_action(
-                        action,
-                        &chase_enabled,
-                        &chase_state_name,
-                        &mut next_sub_state,
-                        &mut sequence_mode,
-                        &mut spawn_view_writer,
-                        &mut despawn_view_writer,
-                    );
-                }
-
-                if rule.consume_event {
-                    break 'outer;
-                }
-            }
-        }
-    }
-}
-
-/// Handle individual chase-related FRE actions.
-/// 处理单个追逐相关的 FRE action。
-fn handle_chase_action(
-    action: &RuleActionDef,
-    chase_enabled: &super::chase::ChaseEnabled,
-    chase_state_name: &super::chase::ChaseStateName,
-    next_sub_state: &mut NextState<crate::app_state::SequenceSubState>,
-    sequence_mode: &mut ResMut<crate::app_state::SequenceMode>,
-    spawn_view_writer: &mut MessageWriter<crate::core::view::SpawnViewRequest>,
-    despawn_view_writer: &mut MessageWriter<crate::core::view::DespawnViewRequest>,
-) {
-    let RuleActionDef::Custom {
-        action_type,
-        params,
-    } = action
-    else {
-        return;
-    };
-
-    match action_type.as_str() {
-        "EnterChaseState" => {
-            if !chase_enabled.0 {
-                warn!("FRE: EnterChaseState action ignored - chase not enabled");
-                return;
-            }
-            let Some(ref state_name) = chase_state_name.0 else {
-                warn!("FRE: EnterChaseState action ignored - no chase state name configured");
-                return;
-            };
-            info!("FRE: Entering chase state '{}' via action", state_name);
-            next_sub_state.set(crate::app_state::SequenceSubState::new(
-                state_name.clone(),
-            ));
-        }
-        "ExitChaseState" => {
-            if !chase_enabled.0 {
-                warn!("FRE: ExitChaseState action ignored - chase not enabled");
-                return;
-            }
-            info!("FRE: Exiting chase state via action");
-            next_sub_state.set(crate::app_state::SequenceSubState::default());
-        }
-        "SetMode" => {
-            if let Some(mode) = params.get("mode") {
-                info!("FRE: Setting mode to '{}' via action", mode);
-                sequence_mode.0 = Some(mode.clone());
-            } else {
-                warn!("FRE: SetMode action missing 'mode' param");
-            }
-        }
-        "SetSubState" => {
-            if let Some(state) = params.get("state") {
-                info!("FRE: Setting sub-state to '{}' via action", state);
-                next_sub_state.set(crate::app_state::SequenceSubState::new(
-                    state.clone(),
-                ));
-            } else {
-                warn!("FRE: SetSubState action missing 'state' param");
-            }
-        }
-        "SpawnView" => {
-            if let Some(path) = params.get("path") {
-                info!("FRE: Spawning view '{}' via action", path);
-                spawn_view_writer.write(crate::core::view::SpawnViewRequest { path: path.clone() });
-            } else {
-                warn!("FRE: SpawnView action missing 'path' param");
-            }
-        }
-        "DespawnView" => {
-            // Optional path parameter - if not provided, despawns all dynamically spawned views
-            // 可选的 path 参数 - 如果未提供，则销毁所有动态生成的 View
-            let path = params.get("path").cloned();
-            info!("FRE: Despawning view(s) via action (path: {:?})", path);
-            despawn_view_writer.write(crate::core::view::DespawnViewRequest { path });
-        }
-        // NOTE: StartDialogue has been removed in favor of FRE fact-driven dialogue
-        // 注意：StartDialogue 已移除，改为使用 FRE fact 驱动的对话
-        //
-        // To start dialogue via FRE rules, use modifications:
-        //   Set("dialogue:pending_mortar_path", "path/to/file.mortar")
-        //   Set("dialogue:pending_mortar_node", "node_name")
-        //   Set("dialogue:pending_view", "view/path.ron")  // optional
-        //   Set("dialogue:pending_start", Bool(true))      // trigger
-        _ => {}
     }
 }
 
