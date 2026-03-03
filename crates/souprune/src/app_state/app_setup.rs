@@ -199,8 +199,14 @@ fn setup_camera_system(
     mut commands: Commands,
     resolution_scale: Res<ResolutionScale>,
     game_schedule: Option<Res<crate::GameUpdateSchedule>>,
+    existing: Query<(), With<crate::core::camera::MainGameCamera>>,
     #[cfg(target_os = "android")] config: Option<Res<crate::config::SoupruneConfig>>,
 ) {
+    // Idempotent: skip if camera already exists (prevents duplicates on re-enter Loading)
+    if !existing.is_empty() {
+        return;
+    }
+
     let is_editor = game_schedule
         .as_ref()
         .is_some_and(|gs| gs.0 != Update.intern());

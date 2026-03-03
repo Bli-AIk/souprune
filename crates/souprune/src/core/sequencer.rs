@@ -30,6 +30,7 @@ mod view_element;
 pub mod chapter_schema;
 
 // Re-export public types
+pub use bgm::SequencerBgm;
 pub use context::{
     ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
     SequenceRulesHandle, WaitTimer,

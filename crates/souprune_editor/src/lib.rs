@@ -145,7 +145,14 @@ impl Plugin for SoupRuneEditorPlugin {
 
         // Play/Edit 模式切换钩子
         app.add_systems(OnEnter(EditorMode::Play), sequencer_bridge::on_enter_play);
-        app.add_systems(OnEnter(EditorMode::Edit), sequencer_bridge::on_exit_play);
+        app.add_systems(
+            OnEnter(EditorMode::Edit),
+            (
+                souprune::editor_stop_cleanup,
+                sequencer_bridge::on_exit_play,
+            )
+                .chain(),
+        );
 
         // 序列回放 UI 同步（仅在 Play 模式下执行）
         app.add_systems(GameSchedule, panels::playback::playback_sync_system);

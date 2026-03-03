@@ -17,6 +17,7 @@ pub fn on_enter_play(
     editor_seq: Res<EditorSequenceState>,
     mut context: ResMut<SequenceContext>,
     mut playback: ResMut<PlaybackState>,
+    mut sequence_mode: ResMut<souprune::app_state::SequenceMode>,
     config: Option<Res<souprune::config::SoupruneConfig>>,
     asset_server: Res<AssetServer>,
 ) {
@@ -29,6 +30,19 @@ pub fn on_enter_play(
         );
         context.chapters = chapters;
         context.state = SequenceExecutionState::Idle;
+        // 同步 SequenceMode（与 sync_battle_flow_system 一致）
+        if let Some(mode) = &seq.mode {
+            sequence_mode.0 = Some(mode.clone());
+        }
+        // 加载序列级 FRE 规则
+        if let Some(rules_path) = &seq.rules_file {
+            let rules_handle =
+                asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
+            commands.insert_resource(souprune::core::sequencer::SequenceRulesHandle {
+                handle: Some(rules_handle),
+                registered: false,
+            });
+        }
     } else if let Some(cfg) = config {
         // 从 SoupruneConfig 加载默认序列
         if let Some(path) = cfg.game.initial_sequence_path.clone() {
@@ -43,18 +57,9 @@ pub fn on_enter_play(
     }
 }
 
-/// 退出 Play 模式时，清理 SequenceContext 和活跃章节实体。
-pub fn on_exit_play(
-    mut commands: Commands,
-    mut context: ResMut<SequenceContext>,
-    active_chapters: Query<Entity, With<souprune::core::sequencer::ActiveChapter>>,
-) {
-    context.chapters.clear();
-    context.state = SequenceExecutionState::Idle;
-
-    for entity in &active_chapters {
-        commands.entity(entity).despawn();
-    }
-
-    info!("[编辑器] 退出播放 — 已清理序列状态");
+/// 退出 Play 模式时，由 souprune::editor_stop_cleanup 执行全局清理。
+/// 此函数仅处理编辑器侧状态（PlaybackState 等）。
+pub fn on_exit_play(mut playback: ResMut<PlaybackState>) {
+    playback.start_from = None;
+    info!("[编辑器] 退出播放");
 }

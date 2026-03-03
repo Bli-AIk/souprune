@@ -432,6 +432,96 @@ pub fn init_editor_game_systems(app: &mut App) {
     app.add_plugins(get_file_importer_plugins());
 }
 
+/// 编辑器 Stop 时的全局游戏状态清理。
+///
+/// 停止所有音频、重置序列/FRE/模式状态、清理游戏实体。
+/// 作为 exclusive system 注册在 `OnEnter(EditorMode::Edit)` 上。
+pub fn editor_stop_cleanup(world: &mut World) {
+    // 1. 停止所有音频实例
+    if let Some(mut instances) = world.get_resource_mut::<Assets<bevy_kira_audio::AudioInstance>>()
+    {
+        for (_, instance) in instances.iter_mut() {
+            instance.stop(bevy_kira_audio::AudioTween::default());
+        }
+    }
+
+    // 2. 重置 Sequencer BGM 状态
+    if let Some(mut bgm) = world.get_resource_mut::<core::sequencer::SequencerBgm>() {
+        bgm.handle = None;
+        bgm.path = None;
+    }
+
+    // 3. 重置地图 BGM 状态
+    if let Some(mut h) = world.get_resource_mut::<app_state::overworld::tilemap::CurrentBgmHandle>()
+    {
+        h.0 = None;
+    }
+    if let Some(mut m) = world.get_resource_mut::<app_state::overworld::tilemap::CurrentMapBgm>() {
+        m.0 = None;
+    }
+
+    // 4. 重置 SequenceMode → None（触发 ModeChanged 清理 ModeScoped 实体）
+    world.resource_mut::<app_state::SequenceMode>().0 = None;
+
+    // 4b. 重置 SequenceSubState → Normal
+    world
+        .resource_mut::<NextState<app_state::SequenceSubState>>()
+        .set(app_state::SequenceSubState::default());
+
+    // 5. 清理 SequenceContext
+    if let Some(mut ctx) = world.get_resource_mut::<core::sequencer::SequenceContext>() {
+        ctx.chapters.clear();
+        ctx.state = core::sequencer::SequenceExecutionState::Idle;
+    }
+
+    // 6. 移除 CurrentSequenceFlow 和 SequenceRulesHandle
+    world.remove_resource::<core::sequencer::CurrentSequenceFlow>();
+    if let Some(mut srh) = world.get_resource_mut::<core::sequencer::SequenceRulesHandle>() {
+        srh.handle = None;
+        srh.registered = false;
+    }
+
+    // 7. 清理 FRE 本地状态
+    if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
+        db.clear_local();
+    }
+    if let Some(mut reg) = world.get_resource_mut::<bevy_fact_rule_event::LayeredRuleRegistry>() {
+        reg.clear_local();
+    }
+    if let Some(mut loaded) =
+        world.get_resource_mut::<app_state::overworld::trigger::LoadedRuleSets>()
+    {
+        loaded.handles.clear();
+        loaded.initialized = false;
+        loaded.registered = false;
+    }
+    if let Some(mut action_defs) =
+        world.get_resource_mut::<app_state::overworld::trigger::RuleActionDefs>()
+    {
+        action_defs.actions_by_rule.clear();
+    }
+
+    // 8. 直接清理 ModeScoped 实体（不等待下帧 PreUpdate）
+    let scoped: Vec<Entity> = world
+        .query_filtered::<Entity, With<app_state::ModeScoped>>()
+        .iter(world)
+        .collect();
+    for entity in scoped {
+        world.despawn(entity);
+    }
+
+    // 9. 清理 ActiveChapter 实体
+    let chapters: Vec<Entity> = world
+        .query_filtered::<Entity, With<core::sequencer::ActiveChapter>>()
+        .iter(world)
+        .collect();
+    for entity in chapters {
+        world.despawn(entity);
+    }
+
+    info!("[编辑器] Stop — 已完成全局游戏状态清理");
+}
+
 /// 从 SoupruneConfig 加载输入配置并插入所有输入相关资源。
 ///
 /// 插入：ActionRegistry, PlayerInputSettings, InputBehaviorConfig。
