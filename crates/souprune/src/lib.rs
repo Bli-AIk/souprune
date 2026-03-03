@@ -437,11 +437,20 @@ pub fn init_editor_game_systems(app: &mut App) {
 /// 停止所有音频、重置序列/FRE/模式状态、清理游戏实体。
 /// 作为 exclusive system 注册在 `OnEnter(EditorMode::Edit)` 上。
 pub fn editor_stop_cleanup(world: &mut World) {
-    // 1. 停止所有音频实例
+    // 1. 通过 Audio channel 停止所有声音（包括无 handle 的 fire-and-forget 音效）
+    if let Some(audio) = world.get_resource::<bevy_kira_audio::Audio>() {
+        use bevy_kira_audio::AudioControl;
+        audio.stop();
+    }
+    // 同时逐个停止并移除 AudioInstance 资源（确保下次 Play 不复用旧实例）
     if let Some(mut instances) = world.get_resource_mut::<Assets<bevy_kira_audio::AudioInstance>>()
     {
-        for (_, instance) in instances.iter_mut() {
-            instance.stop(bevy_kira_audio::AudioTween::default());
+        let ids: Vec<_> = instances.ids().collect();
+        for id in ids {
+            if let Some(instance) = instances.get_mut(id) {
+                instance.stop(bevy_kira_audio::AudioTween::default());
+            }
+            instances.remove(id);
         }
     }
 
