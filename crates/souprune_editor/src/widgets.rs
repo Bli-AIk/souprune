@@ -1,4 +1,14 @@
-//! 编辑器 UI 组件。
+//! # Editor UI Widgets
+//!
+//! # 编辑器 UI 组件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module contains reusable UI widgets for the SoupRune editor.
+//!
+//! 此模块包含 SoupRune 编辑器的可重用 UI 组件。
 
 mod chapter_card;
 pub mod chapter_palette;

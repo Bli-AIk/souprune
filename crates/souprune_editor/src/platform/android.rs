@@ -1,4 +1,16 @@
-//! Android 平台适配 — 手势识别、虚拟键盘处理、性能优化。
+//! # Android Platform Adaptation
+//!
+//! # Android 平台适配
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Android platform adaptation for the editor.
+//! Provides gesture recognition, virtual keyboard handling, and performance optimization.
+//!
+//! 编辑器的 Android 平台适配。
+//! 提供手势识别、虚拟键盘处理和性能优化。
 
 use bevy::prelude::*;
 use bevy_workbench::theme::ThemeState;

@@ -1,5 +1,15 @@
+//! # Chapter Type Palette
+//!
 //! # 章节类型选择面板
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Chapter type palette widget for the editor.
+//! Displays all Chapter types by category for adding new chapters.
+//!
+//! 编辑器的章节类型选择面板组件。
 //! 按分类展示所有 Chapter 类型，用于添加新章节。
 
 use bevy_tween::interpolation::EaseKind;

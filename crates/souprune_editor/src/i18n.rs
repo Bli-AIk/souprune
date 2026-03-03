@@ -1,6 +1,16 @@
-//! 编辑器本地化支持。
+//! # Internationalization (i18n)
 //!
-//! 内嵌 Fluent (.ftl) 字符串，通过 bevy_workbench I18n 注册。
+//! # 编辑器本地化支持
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides internationalization support for the SoupRune editor.
+//! It embeds Fluent (.ftl) strings and registers them via bevy_workbench I18n.
+//!
+//! 此模块为 SoupRune 编辑器提供本地化支持。
+//! 它内嵌 Fluent (.ftl) 字符串并通过 bevy_workbench I18n 注册。
 
 use bevy_workbench::i18n::{I18n, Locale};
 

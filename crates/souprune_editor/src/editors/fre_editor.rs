@@ -1,5 +1,15 @@
+//! # FRE Rule Editor
+//!
 //! # FRE 规则编辑器
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! FRE rule editor for the editor.
+//! Edits `.fre.ron` files.
+//!
+//! 编辑器的 FRE 规则编辑器。
 //! 编辑 `.fre.ron` 文件。
 
 use std::path::{Path, PathBuf};

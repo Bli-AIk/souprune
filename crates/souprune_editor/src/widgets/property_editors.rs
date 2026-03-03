@@ -1,5 +1,15 @@
+//! # Property Editors
+//!
 //! # 属性编辑器组件
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Property editor widgets for the editor.
+//! Generic property editors: Option<T>, HashMap, lists, enum dropdowns, etc.
+//!
+//! 编辑器的属性编辑器组件。
 //! 通用属性编辑器：Option<T>、HashMap、列表、枚举下拉等。
 
 use bevy::prelude::*;

@@ -1,5 +1,15 @@
+//! # Chapter Card Rendering
+//!
 //! # 章节卡片渲染组件
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Chapter card rendering widget for the editor.
+//! Each Chapter type has a unique icon, color, and summary.
+//!
+//! 编辑器的章节卡片渲染组件。
 //! 每种 Chapter 类型对应独特的图标、颜色和摘要。
 
 use egui::Color32;

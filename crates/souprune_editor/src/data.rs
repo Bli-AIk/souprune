@@ -1,4 +1,14 @@
-//! 数据操作模块 — 序列加载、保存、CRUD 操作、撤销/重做。
+//! # Data Operations
+//!
+//! # 数据操作模块
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module handles data operations for the editor: sequence loading/saving, CRUD operations, and undo/redo.
+//!
+//! 此模块处理编辑器的数据操作：序列加载/保存、CRUD 操作和撤销/重做。
 
 mod sequence_ops;
 mod undo_actions;

@@ -1,5 +1,15 @@
+//! # View Editor
+//!
 //! # View 编辑器
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! View editor for the editor.
+//! Edits `.view.ron` / `.view_layout.ron` files.
+//!
+//! 编辑器的 View 编辑器。
 //! 编辑 `.view.ron` / `.view_layout.ron` 文件。
 
 use std::path::{Path, PathBuf};

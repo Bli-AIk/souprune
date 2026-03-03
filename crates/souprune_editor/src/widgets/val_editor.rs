@@ -1,6 +1,16 @@
+//! # Val<T> Editor
+//!
 //! # Val<T> 编辑器
 //!
-//! 支持静态值和 FRE 表达式两种模式的切换编辑器。
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Val<T> editor widget for the editor.
+//! Supports switching between static values and FRE expression modes.
+//!
+//! 编辑器的 Val<T> 编辑器组件。
+//! 支持在静态值和 FRE 表达式两种模式之间切换。
 
 use souprune::core::sequencer::chapter_schema::Val;
 

@@ -1,5 +1,15 @@
+//! # File Path Picker
+//!
 //! # 文件路径选择器
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! File path picker widget for the editor.
+//! Provides file path editing UI: text box + browse button.
+//!
+//! 编辑器的文件路径选择器组件。
 //! 提供文件路径编辑 UI：文本框 + 浏览按钮。
 
 /// 渲染文件路径编辑器：文本框 + 浏览按钮。

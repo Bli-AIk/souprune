@@ -1,6 +1,16 @@
+//! # Sequence Timeline Panel
+//!
 //! # 序列时间线面板
 //!
-//! 编辑器的核心面板，显示当前序列的章节列表。
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Sequence timeline panel for the editor.
+//! The core panel that displays the chapter list of the current sequence.
+//!
+//! 编辑器的序列时间线面板。
+//! 显示当前序列章节列表的核心面板。
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;

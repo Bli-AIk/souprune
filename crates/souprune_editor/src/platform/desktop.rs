@@ -1,4 +1,16 @@
-//! 桌面平台适配 — 快捷键、文件拖放。
+//! # Desktop Platform Adaptation
+//!
+//! # 桌面平台适配
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Desktop platform adaptation for the editor.
+//! Provides keyboard shortcuts and file drag-and-drop support.
+//!
+//! 编辑器的桌面平台适配。
+//! 提供键盘快捷键和文件拖放支持。
 
 use std::path::Path;
 

@@ -1,7 +1,17 @@
-//! FRE (Fact-Rule-Event) panel for the editor.
+//! # FRE (Fact-Rule-Event) Panel
 //!
+//! # FRE (事实-规则-事件) 面板
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! FRE (Fact-Rule-Event) panel for the editor.
 //! Provides a dockable panel to inspect and modify facts, view rules,
 //! track events, and monitor game states.
+//!
+//! 编辑器的 FRE (事实-规则-事件) 面板。
+//! 提供一个可停靠面板来检查和修改事实、查看规则、跟踪事件和监控游戏状态。
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry};

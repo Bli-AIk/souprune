@@ -1,6 +1,16 @@
+//! # Playback Control Panel
+//!
 //! # 回放控制面板
 //!
-//! Play/Pause/Stop 工具栏和序列回放状态管理。
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Playback control panel for the editor.
+//! Provides Play/Pause/Stop toolbar and sequence playback state management.
+//!
+//! 编辑器的回放控制面板。
+//! 提供播放/暂停/停止工具栏和序列回放状态管理。
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;

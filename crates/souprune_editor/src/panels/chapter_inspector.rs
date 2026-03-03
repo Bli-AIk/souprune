@@ -1,5 +1,15 @@
+//! # Chapter Inspector Panel
+//!
 //! # 章节属性检查器面板
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Chapter inspector panel for the editor.
+//! Displays editable properties of the selected chapter.
+//!
+//! 编辑器的章节属性检查器面板。
 //! 显示选中章节的可编辑属性。
 
 use bevy::prelude::*;

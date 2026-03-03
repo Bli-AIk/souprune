@@ -1,4 +1,14 @@
-//! SoupRune Editor 独立入口。
+//! # SoupRune Editor Standalone Entry Point
+//!
+//! # SoupRune 编辑器独立入口
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Standalone entry point for the SoupRune editor.
+//!
+//! SoupRune 编辑器的独立入口点。
 
 use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};

@@ -1,7 +1,14 @@
 //! # SoupRune Editor
 //!
-//! 基于 bevy_workbench 的序列驱动编辑器。
+//! # SoupRune 编辑器
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
 //! Sequence-driven editor built on bevy_workbench.
+//!
+//! 基于 bevy_workbench 的序列驱动编辑器。
 
 mod data;
 mod editors;

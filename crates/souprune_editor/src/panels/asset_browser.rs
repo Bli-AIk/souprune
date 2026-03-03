@@ -1,5 +1,15 @@
+//! # Asset Browser Panel
+//!
 //! # 资产浏览器面板
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Asset browser panel for the editor.
+//! Displays project file tree with support for file filtering, opening, creating, and cross-referencing.
+//!
+//! 编辑器的资产浏览器面板。
 //! 显示项目文件树，支持文件过滤、打开、新建和交叉引用。
 
 use std::collections::HashSet;

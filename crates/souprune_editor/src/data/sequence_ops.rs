@@ -1,4 +1,14 @@
-//! 序列文件 CRUD 操作。
+//! # Sequence File CRUD Operations
+//!
+//! # 序列文件 CRUD 操作
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Sequence file CRUD operations for the editor.
+//!
+//! 编辑器的序列文件 CRUD 操作。
 
 use std::path::PathBuf;
 

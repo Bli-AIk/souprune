@@ -1,7 +1,17 @@
-//! SVG icon rendering for the editor UI.
+//! # SVG Icon Rendering
 //!
+//! # SVG 图标渲染
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! SVG icon rendering for the editor UI.
 //! Uses `icondata_vs` (VS Code Codicons) and `resvg` to pre-render
 //! SVG icons into egui textures at startup.
+//!
+//! 编辑器 UI 的 SVG 图标渲染。
+//! 使用 `icondata_vs` (VS Code Codicons) 和 `resvg` 在启动时将 SVG 图标预渲染为 egui 纹理。
 
 use std::collections::HashMap;
 

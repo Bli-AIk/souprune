@@ -1,5 +1,15 @@
+//! # Sub-Editor Framework
+//!
 //! # 子编辑器框架
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Sub-editor framework for the editor.
+//! Defines the SubEditor trait and navigation stack management.
+//!
+//! 编辑器的子编辑器框架。
 //! 定义子编辑器 trait 和导航栈管理。
 
 use std::path::Path;

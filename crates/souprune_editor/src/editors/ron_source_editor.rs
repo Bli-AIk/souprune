@@ -1,5 +1,16 @@
+//! # Generic RON Source Editor
+//!
 //! # 通用 RON 源码编辑器
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Generic RON source editor for the editor.
+//! Edits any `.ron` file with basic text editing functionality.
+//! Also serves as a fallback for Performance editor and State configuration editor.
+//!
+//! 编辑器的通用 RON 源码编辑器。
 //! 编辑任意 `.ron` 文件，提供基本文本编辑功能。
 //! 同时作为 Performance 编辑器和 State 配置编辑器的回退。
 

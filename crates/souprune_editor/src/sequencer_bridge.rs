@@ -1,7 +1,16 @@
 //! # Sequencer Bridge
 //!
+//! # Sequencer 桥接层
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Bridge layer between the editor and Sequencer.
+//! Responsible for loading/cleaning sequence context when switching between Play/Edit modes.
+//!
 //! 编辑器与 Sequencer 之间的桥接层。
-//! 负责在 Play/Edit 切换时加载/清理序列上下文。
+//! 负责在 Play/Edit 模式切换时加载/清理序列上下文。
 
 use bevy::prelude::*;
 

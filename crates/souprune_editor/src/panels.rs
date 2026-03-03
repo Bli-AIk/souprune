@@ -1,4 +1,14 @@
-//! 编辑器面板。
+//! # Editor Panels
+//!
+//! # 编辑器面板
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module contains all dockable panels for the SoupRune editor.
+//!
+//! 此模块包含 SoupRune 编辑器的所有可停靠面板。
 
 mod asset_browser;
 mod chapter_inspector;

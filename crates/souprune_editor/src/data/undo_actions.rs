@@ -1,5 +1,15 @@
+//! # Editor Undo/Redo Actions
+//!
 //! # 编辑器撤销/重做操作
 //!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Editor undo/redo actions for the editor.
+//! Defines UndoAction implementations for sequence editing operations.
+//!
+//! 编辑器的撤销/重做操作。
 //! 定义序列编辑操作的 UndoAction 实现。
 
 use bevy::prelude::*;

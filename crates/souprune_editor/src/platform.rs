@@ -1,4 +1,14 @@
-//! 平台适配模块。
+//! # Platform Adaptation
+//!
+//! # 平台适配模块
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This module provides platform-specific adaptations for the SoupRune editor.
+//!
+//! 此模块为 SoupRune 编辑器提供平台特定的适配。
 
 #[cfg(target_os = "android")]
 mod android;
