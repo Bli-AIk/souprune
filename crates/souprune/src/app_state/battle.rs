@@ -108,14 +108,22 @@ impl Plugin for BattlePlugin {
             )
             .add_systems(
                 schedule,
-                cleanup_battle_input_manager.run_if(on_exiting_battle),
+                (cleanup_battle_camera, cleanup_battle_input_manager).run_if(on_exiting_battle),
             );
     }
 }
 
 fn setup_battle_camera(
     mut commands: Commands,
-    q_cameras: Query<Entity, (With<Camera2d>, Without<BattleCamera>)>,
+    mut q_game_cameras: Query<
+        (Entity, &mut Camera),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<BattleCamera>,
+        ),
+    >,
+    q_render_targets: Query<&bevy::camera::RenderTarget>,
     resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
 ) {
     let scale_value = resolution_scale.get();
@@ -125,8 +133,15 @@ fn setup_battle_camera(
         1.0 / scale_value as f32
     );
 
-    for camera_entity in q_cameras.iter() {
-        commands.entity(camera_entity).despawn();
+    // Capture render target and camera order before deactivating the main game camera,
+    // so the battle camera inherits them (e.g. editor texture render target).
+    let mut inherited_order: isize = 0;
+    let mut inherited_target: Option<bevy::camera::RenderTarget> = None;
+
+    for (entity, mut camera) in q_game_cameras.iter_mut() {
+        inherited_order = camera.order;
+        inherited_target = q_render_targets.get(entity).ok().cloned();
+        camera.is_active = false;
     }
 
     // On Android, use Fixed scaling (viewport system handles aspect ratio)
@@ -144,13 +159,27 @@ fn setup_battle_camera(
         ..OrthographicProjection::default_2d()
     });
 
-    commands.spawn((
+    info!(
+        "[Battle] Inherited camera settings: order={}, has_render_target={}",
+        inherited_order,
+        inherited_target.is_some()
+    );
+
+    let mut battle_cam = commands.spawn((
         Camera2d,
+        Camera {
+            order: inherited_order,
+            ..default()
+        },
         projection,
         BattleCamera,
+        crate::core::camera::MainGameCamera,
         battle_scoped(),
         Name::new("Battle Camera2d"),
     ));
+    if let Some(target) = inherited_target {
+        battle_cam.insert(target);
+    }
 }
 
 /// Sets up the Battle input manager entity with ActionState for handling UI navigation.
@@ -173,6 +202,24 @@ fn setup_battle_input_manager(
     ));
 
     info!("[Battle] Input manager spawned with MOD configuration");
+}
+
+/// Reactivates the main game camera when exiting Battle state.
+///
+/// 退出 Battle 状态时恢复主游戏相机。
+fn cleanup_battle_camera(
+    mut q_game_cameras: Query<
+        &mut Camera,
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<BattleCamera>,
+        ),
+    >,
+) {
+    for mut camera in q_game_cameras.iter_mut() {
+        camera.is_active = true;
+    }
 }
 
 /// Cleans up the Battle input manager when exiting Battle state.

@@ -455,6 +455,26 @@ pub fn insert_input_resources(app: &mut App) {
         .insert_resource(input_behavior_config);
 }
 
+/// 从 SoupruneConfig 推断字体目录并插入 `bevy_rich_text3d::LoadFonts` 资源。
+///
+/// 调用方需要先插入 `SoupruneConfig` 资源。
+pub fn insert_font_resources(app: &mut App) {
+    let config = app
+        .world()
+        .get_resource::<config::SoupruneConfig>()
+        .expect("SoupruneConfig must be inserted before calling insert_font_resources");
+    let projects_base = config::get_projects_base_path();
+    let font_dir = projects_base
+        .join(&config.project.mod_name)
+        .join("assets/fonts")
+        .to_string_lossy()
+        .into_owned();
+    app.insert_resource(bevy_rich_text3d::LoadFonts {
+        font_directories: vec![font_dir],
+        ..Default::default()
+    });
+}
+
 pub fn run() {
     // On Android, print early debug info before any potential panic
     //

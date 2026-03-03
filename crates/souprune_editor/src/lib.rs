@@ -74,6 +74,9 @@ impl Plugin for SoupRuneEditorPlugin {
         // 从配置加载完整的输入资源（ActionRegistry, PlayerInputSettings, InputBehaviorConfig）
         souprune::insert_input_resources(app);
 
+        // 从配置加载字体目录（bevy_rich_text3d 需要）
+        souprune::insert_font_resources(app);
+
         // 配置游戏系统集到 GameSchedule
         let schedule = souprune::game_schedule(app);
         app.configure_sets(
