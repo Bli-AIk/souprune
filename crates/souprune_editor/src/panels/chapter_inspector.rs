@@ -4,9 +4,11 @@
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
-use souprune::core::sequencer::chapter_schema::Chapter;
+use souprune::core::sequencer::chapter_schema::{Chapter, ElementModification, ElementSelector};
 
 use super::sequence_timeline::EditorSequenceState;
+use crate::data::ModifyChapterAction;
+use crate::widgets;
 use crate::widgets::property_editors::*;
 
 /// 章节属性检查器面板。
@@ -72,14 +74,21 @@ impl WorkbenchPanel for ChapterInspectorPanel {
         let changed = render_chapter_properties(ui, &mut edited_chapter);
 
         if changed {
-            let mut state = world.resource_mut::<EditorSequenceState>();
-            if let Some(seq) = &mut state.current
-                && let Some(ch) = seq.chapters.get_mut(idx)
             {
-                *ch = edited_chapter;
-                seq.dirty = true;
+                let mut state = world.resource_mut::<EditorSequenceState>();
+                if let Some(seq) = &mut state.current
+                    && let Some(ch) = seq.chapters.get_mut(idx)
+                {
+                    *ch = edited_chapter.clone();
+                    seq.dirty = true;
+                }
+                state.save_timer = Some(0.5);
             }
-            state.save_timer = Some(0.5);
+            world.resource_mut::<UndoStack>().push(ModifyChapterAction {
+                index: idx,
+                old_chapter: chapter,
+                new_chapter: edited_chapter,
+            });
         }
     }
 
@@ -101,7 +110,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
             view_layout,
             bindings,
         } => {
-            changed |= labeled_text(ui, "视图布局文件", view_layout);
+            changed |= widgets::path_picker::edit_file_path(ui, "视图布局文件", view_layout);
             ui.separator();
             changed |= edit_hashmap_string(ui, "绑定", bindings);
         }
@@ -122,7 +131,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
             performance,
             translation,
         } => {
-            changed |= labeled_text(ui, "演出文件", performance);
+            changed |= widgets::path_picker::edit_file_path(ui, "演出文件", performance);
             changed |= edit_option_vec2(ui, "位置", translation);
         }
 
@@ -131,7 +140,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
             am_config,
             wait_for_completion,
         } => {
-            changed |= labeled_text(ui, "AMPROJ 文件", amproj_path);
+            changed |= widgets::path_picker::edit_file_path(ui, "AMPROJ 文件", amproj_path);
             changed |= edit_option_string(ui, "AM 配置", am_config);
             if ui.checkbox(wait_for_completion, "等待完成").changed() {
                 changed = true;
@@ -139,10 +148,12 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
         }
 
         Chapter::TweenViewElement {
+            selector,
             duration,
             wait_for_completion,
             ..
         } => {
+            changed |= edit_element_selector(ui, selector);
             changed |= labeled_drag(ui, "持续时间 (秒)", duration, 0.0..=f32::MAX, 0.1);
             if ui.checkbox(wait_for_completion, "等待完成").changed() {
                 changed = true;
@@ -165,8 +176,12 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
             changed |= edit_camera_action(ui, action);
         }
 
-        Chapter::ModifyViewElement { .. } => {
-            ui.label("视图元素修改 (编辑器开发中)");
+        Chapter::ModifyViewElement {
+            selector,
+            modification,
+        } => {
+            changed |= edit_element_selector(ui, selector);
+            changed |= edit_element_modification(ui, modification);
         }
 
         Chapter::Conditional { condition, .. } => {
@@ -230,7 +245,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
             process_objects,
             setup_camera_bounds,
         } => {
-            changed |= labeled_text(ui, "地图路径", path);
+            changed |= widgets::path_picker::edit_file_path(ui, "地图路径", path);
             if ui.checkbox(generate_collision, "生成碰撞").changed() {
                 changed = true;
             }
@@ -257,5 +272,82 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter) -> bool {
         }
     }
 
+    changed
+}
+
+/// 渲染 ElementSelector 编辑器。
+fn edit_element_selector(ui: &mut egui::Ui, selector: &mut ElementSelector) -> bool {
+    let mut changed = false;
+    let variants = ["FullName", "LocalName", "Tag"];
+    let current = match selector {
+        ElementSelector::FullName(_) => 0,
+        ElementSelector::LocalName(_) => 1,
+        ElementSelector::Tag(_) => 2,
+    };
+    ui.horizontal(|ui| {
+        ui.label("选择器:");
+        for (i, name) in variants.iter().enumerate() {
+            if ui.selectable_label(current == i, *name).clicked() && current != i {
+                *selector = match i {
+                    0 => ElementSelector::FullName(String::new()),
+                    1 => ElementSelector::LocalName(String::new()),
+                    _ => ElementSelector::Tag(String::new()),
+                };
+                changed = true;
+            }
+        }
+    });
+    let name = match selector {
+        ElementSelector::FullName(n) | ElementSelector::LocalName(n) | ElementSelector::Tag(n) => n,
+    };
+    changed |= labeled_text(ui, "名称", name);
+    ui.separator();
+    changed
+}
+
+/// 渲染 ElementModification 编辑器。
+fn edit_element_modification(ui: &mut egui::Ui, modification: &mut ElementModification) -> bool {
+    let mut changed = false;
+    let label = match modification {
+        ElementModification::SetTexture(_) => "SetTexture",
+        ElementModification::SetPosition(..) => "SetPosition",
+        ElementModification::SetScale(..) => "SetScale",
+        ElementModification::SetColor(..) => "SetColor",
+        ElementModification::SetVisibility(_) => "SetVisibility",
+        ElementModification::SetBoxSize(..) => "SetBoxSize",
+        ElementModification::Undo => "Undo",
+        ElementModification::Redo => "Redo",
+        ElementModification::Reset => "Reset",
+    };
+    ui.label(format!("修改类型: {label}"));
+    match modification {
+        ElementModification::SetTexture(path) => {
+            changed |= widgets::path_picker::edit_file_path(ui, "贴图路径", path);
+        }
+        ElementModification::SetVisibility(val) => {
+            changed |= widgets::val_editor::edit_val_bool(ui, "可见性", val);
+        }
+        ElementModification::SetBoxSize(w, h) => {
+            changed |= widgets::val_editor::edit_val_f32(ui, "宽度", w);
+            changed |= widgets::val_editor::edit_val_f32(ui, "高度", h);
+        }
+        ElementModification::SetPosition(x, y, z) => {
+            changed |= widgets::val_editor::edit_val_f32(ui, "X", x);
+            changed |= widgets::val_editor::edit_val_f32(ui, "Y", y);
+            changed |= widgets::val_editor::edit_val_f32(ui, "Z", z);
+        }
+        ElementModification::SetScale(x, y, z) => {
+            changed |= widgets::val_editor::edit_val_f32(ui, "缩放X", x);
+            changed |= widgets::val_editor::edit_val_f32(ui, "缩放Y", y);
+            changed |= widgets::val_editor::edit_val_f32(ui, "缩放Z", z);
+        }
+        ElementModification::SetColor(r, g, b, a) => {
+            changed |= widgets::val_editor::edit_val_f32(ui, "R", r);
+            changed |= widgets::val_editor::edit_val_f32(ui, "G", g);
+            changed |= widgets::val_editor::edit_val_f32(ui, "B", b);
+            changed |= widgets::val_editor::edit_val_f32(ui, "A", a);
+        }
+        ElementModification::Undo | ElementModification::Redo | ElementModification::Reset => {}
+    }
     changed
 }

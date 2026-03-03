@@ -40,6 +40,7 @@ use app_state::{app_setup, battle, overworld};
 use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
+use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
 use bevy::prelude::*;
 #[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
 use bevy::render::RenderPlugin;
@@ -51,6 +52,27 @@ use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 use chrono::Local;
 use tracing_subscriber::EnvFilter;
+
+/// 游戏逻辑系统的目标调度器。
+///
+/// 游戏本体使用 `Update`，编辑器使用 `GameSchedule`（由 bevy_workbench 控制执行时机）。
+/// 所有游戏 Plugin 在 `build()` 中读取此资源，将系统注册到指定的调度器。
+#[derive(Resource, Clone)]
+pub struct GameUpdateSchedule(pub InternedScheduleLabel);
+
+impl Default for GameUpdateSchedule {
+    fn default() -> Self {
+        Self(Update.intern())
+    }
+}
+
+/// 从 App 中获取游戏逻辑调度器标签。
+/// 如果未设置 `GameUpdateSchedule` 资源，返回 `Update`。
+pub fn game_schedule(app: &App) -> InternedScheduleLabel {
+    app.world()
+        .get_resource::<GameUpdateSchedule>()
+        .map_or(Update.intern(), |s| s.0)
+}
 
 /// Sets up the logging system with both stdout and file output.
 /// When `trace_tracy` feature is enabled, also adds Tracy profiler layer.
@@ -289,7 +311,7 @@ fn get_bevy_default_plugins(
 /// Get the file importer plugins used in the application.
 ///
 /// 获取应用程序中使用的文件导入器插件。
-fn get_file_importer_plugins() -> (
+pub fn get_file_importer_plugins() -> (
     extra::markdown::MarkdownPlugin,
     extra::toml::TomlPlugin,
     extra::mortar::MortarExtraPlugin,
@@ -304,7 +326,7 @@ fn get_file_importer_plugins() -> (
 /// Get the third-party plugins used in the application.
 ///
 /// 获取应用程序中使用的第三方插件。
-fn get_third_plugins() -> (
+pub fn get_third_plugins() -> (
     leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_rich_text3d::Text3dPlugin,
@@ -327,7 +349,7 @@ fn get_third_plugins() -> (
 /// Get the game-specific plugins.
 ///
 /// 获取特定于游戏的插件。
-fn get_game_plugins() -> (
+pub fn get_game_plugins() -> (
     CorePlugin,
     app_setup::AppSetupPlugin,
     overworld::OverworldPlugin,
@@ -343,6 +365,94 @@ fn get_game_plugins() -> (
         GlobalPlugin,
         mod_system::ModPlugin,
     )
+}
+
+/// 为编辑器初始化游戏基础设施。
+///
+/// 添加核心插件、视图系统、第三方插件和必要的状态资源，
+/// 使 Sequencer 能在编辑器的 Play 模式下正常运行。
+///
+/// 调用方需要在此之前插入 `SoupruneConfig` 资源。
+pub fn init_editor_game_systems(app: &mut App) {
+    let schedule = game_schedule(app);
+
+    // 第三方游戏插件
+    app.add_plugins((
+        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
+        bevy_ecs_tiled::prelude::TiledPlugin::default(),
+        bevy_rich_text3d::Text3dPlugin {
+            default_atlas_dimension: (1024, 1024),
+            load_system_fonts: false,
+            ..Default::default()
+        },
+        bevy_alight_motion::prelude::AlightMotionPlugin,
+    ));
+
+    // 核心游戏系统（音频、摄像机、碰撞、动画、对话、FRE 桥接等）
+    app.add_plugins(core::CorePlugin);
+
+    // Mod 系统（DanmakuRegistry、BehaviorRegistry）
+    app.add_plugins(core::mod_system::ModPlugin);
+
+    // View 系统（SpawnView / ModifyViewElement 章节依赖）
+    app.add_plugins(core::view::CoreViewPlugin);
+
+    // 应用状态（FRE 桥接依赖）
+    // 编辑器直接跳到 Running，游戏系统（ViewUpdate 等）才会执行
+    app.init_state::<app_state::AppState>()
+        .init_state::<app_state::SequenceSubState>()
+        .init_resource::<app_state::SequenceMode>()
+        .init_resource::<app_state::overworld::trigger::RuleActionDefs>()
+        .insert_resource(core::input::ActionRegistry::new())
+        .add_message::<app_state::ModeChanged>()
+        .add_systems(
+            PreUpdate,
+            (
+                app_state::detect_mode_changes,
+                app_state::cleanup_mode_scoped_entities,
+            )
+                .chain(),
+        )
+        .configure_sets(
+            schedule,
+            core::view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
+        )
+        .configure_sets(
+            schedule,
+            core::sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
+        )
+        .add_systems(
+            Startup,
+            |mut next: ResMut<NextState<app_state::AppState>>| {
+                next.set(app_state::AppState::Running);
+            },
+        );
+
+    // 文件导入器插件
+    app.add_plugins(get_file_importer_plugins());
+}
+
+/// 从 SoupruneConfig 加载输入配置并插入所有输入相关资源。
+///
+/// 插入：ActionRegistry, PlayerInputSettings, InputBehaviorConfig。
+/// 调用方需要先插入 `SoupruneConfig` 资源。
+pub fn insert_input_resources(app: &mut App) {
+    let config = app
+        .world()
+        .get_resource::<config::SoupruneConfig>()
+        .expect("SoupruneConfig must be inserted before calling insert_input_resources");
+    let projects_base = config::get_projects_base_path();
+    let input_config_path = projects_base
+        .join(&config.project.mod_name)
+        .join(&config.game.input_config_path);
+    let input_config = input::InputConfig::load_from_file(&input_config_path);
+    let action_registry = input_config.build_registry();
+    let player_input_settings =
+        input::PlayerInputSettings::from_config(&input_config, &action_registry);
+    let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
+    app.insert_resource(action_registry)
+        .insert_resource(player_input_settings)
+        .insert_resource(input_behavior_config);
 }
 
 pub fn run() {
@@ -565,17 +675,20 @@ pub fn run() {
                 app_state::cleanup_mode_scoped_entities,
             )
                 .chain(),
-        )
-        .configure_sets(
-            Update,
-            view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .configure_sets(
-            Update,
-            sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .add_plugins(get_game_plugins())
-        .run();
+        );
+
+    // GameUpdateSchedule defaults to Update for standalone game
+    let schedule = game_schedule(&app);
+    app.configure_sets(
+        schedule,
+        view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
+    )
+    .configure_sets(
+        schedule,
+        sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
+    )
+    .add_plugins(get_game_plugins())
+    .run();
 }
 
 #[cfg(target_os = "android")]

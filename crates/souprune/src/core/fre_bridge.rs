@@ -480,10 +480,11 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.add_message::<FreCustomActionEvent>()
             .add_systems(Startup, register_condition_evaluator_system)
             .add_systems(
-                Update,
+                schedule,
                 (
                     sync_state_to_facts_system.run_if(state_facts_need_sync),
                     action_to_fre_event_system,

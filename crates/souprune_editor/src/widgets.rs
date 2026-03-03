@@ -7,7 +7,7 @@ pub mod property_editors;
 pub mod val_editor;
 
 pub use chapter_card::{
-    chapter_color, chapter_icon, chapter_summary, get_children, has_children,
+    chapter_color, chapter_icon, chapter_summary, chapter_type_name, get_children, has_children,
     render_chapter_card, render_chapter_card_response,
 };
 

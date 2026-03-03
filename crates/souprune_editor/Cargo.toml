@@ -7,6 +7,7 @@ edition = "2024"
 bevy = "0.18"
 bevy_workbench = { path = "../bevy_workbench" }
 bevy_egui = { version = "0.39", features = ["render"] }
+bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_tween = "0.11"
 egui = "0.33"
 souprune = { path = "../souprune" }

@@ -29,11 +29,20 @@ pub struct SequencerBgm {
 pub fn process_set_bgm_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    audio: Res<Audio>,
+    audio: Option<Res<Audio>>,
     asset_server: Res<AssetServer>,
     mut bgm: ResMut<SequencerBgm>,
-    mut audio_instances: ResMut<Assets<AudioInstance>>,
+    audio_instances: Option<ResMut<Assets<AudioInstance>>>,
 ) {
+    let (Some(audio), Some(mut audio_instances)) = (audio, audio_instances) else {
+        // 音频不可用时，仅标记章节完成
+        for (entity, active_chapter) in query.iter() {
+            if matches!(&active_chapter.chapter, Chapter::SetBgm { .. }) {
+                commands.entity(entity).insert(ChapterFinished);
+            }
+        }
+        return;
+    };
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetBgm { path, fade_in } = &active_chapter.chapter {
             // Stop current BGM if playing

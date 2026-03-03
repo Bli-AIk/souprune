@@ -7,6 +7,7 @@ use std::path::Path;
 use bevy::prelude::*;
 
 /// 子编辑器 trait。
+#[allow(dead_code)]
 pub trait SubEditor: Send + Sync + 'static {
     /// 唯一标识符。
     fn id(&self) -> &str;
@@ -33,6 +34,7 @@ pub trait SubEditor: Send + Sync + 'static {
 }
 
 /// 导航栈条目。
+#[allow(dead_code)]
 pub struct NavEntry {
     pub editor_id: String,
     pub file_path: String,
@@ -58,6 +60,7 @@ impl SubEditorManager {
     }
 
     /// 返回上一个编辑器。
+    #[allow(dead_code)]
     pub fn go_back(&mut self) {
         self.nav_stack.pop();
         self.active_editor = self.nav_stack.last().map(|e| e.editor_id.clone());

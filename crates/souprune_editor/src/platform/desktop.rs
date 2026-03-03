@@ -93,10 +93,7 @@ fn desktop_shortcuts_system(
 fn desktop_file_drop_system(mut dnd_events: MessageReader<FileDragAndDrop>) {
     for event in dnd_events.read() {
         if let FileDragAndDrop::DroppedFile { path_buf, .. } = event {
-            let ext = path_buf
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("");
+            let ext = path_buf.extension().and_then(|e| e.to_str()).unwrap_or("");
             match ext {
                 "ron" | "toml" | "png" | "jpg" | "ogg" | "wav" | "tmx" | "tsx" => {
                     if let Some(dest) = resolve_project_asset_dir() {

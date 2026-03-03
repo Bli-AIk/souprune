@@ -18,12 +18,12 @@
 //!
 //! 本文件实现了 `InputPlugin`，用于初始化并管理输入配置。
 
-pub(crate) mod actions;
+pub mod actions;
 pub(crate) mod config;
 pub(crate) mod resources;
-pub(crate) mod touch;
+pub mod touch;
 
-pub(crate) use actions::*;
+pub use actions::*;
 pub(crate) use config::*;
 pub(crate) use resources::*;
 

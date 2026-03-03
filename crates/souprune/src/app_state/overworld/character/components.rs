@@ -25,7 +25,7 @@ use crate::core::character_asset::CharacterAnimator;
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub(crate) struct PlayerControlled;
+pub struct PlayerControlled;
 
 #[derive(Clone, Component)]
 #[component(storage = "SparseSet")]

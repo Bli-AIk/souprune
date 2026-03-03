@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use souprune::core::sequencer::chapter_schema::Chapter;
 use souprune::core::sequencer::SequenceAsset;
+use souprune::core::sequencer::chapter_schema::Chapter;
 
 /// 编辑器内部的序列表示，不依赖 Bevy Asset 系统。
 #[derive(Debug, Clone)]
@@ -45,6 +45,8 @@ impl EditorSequence {
     }
 
     /// 插入章节到指定位置之后。
+    /// 在指定位置后插入一个新章节。
+    #[allow(dead_code)]
     pub fn insert_chapter(&mut self, index: usize, chapter: Chapter) {
         let pos = (index + 1).min(self.chapters.len());
         self.chapters.insert(pos, chapter);
@@ -96,10 +98,8 @@ pub enum SequenceFileEvent {
 
 /// 从文件路径加载序列（直接读取 RON，不经过 Bevy AssetServer）。
 pub fn load_sequence_from_file(path: &std::path::Path) -> Result<EditorSequence, String> {
-    let content =
-        std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {e}"))?;
-    let asset: SequenceAsset =
-        ron::from_str(&content).map_err(|e| format!("RON 解析失败: {e}"))?;
+    let content = std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {e}"))?;
+    let asset: SequenceAsset = ron::from_str(&content).map_err(|e| format!("RON 解析失败: {e}"))?;
     Ok(EditorSequence::from_asset(&asset, path.to_path_buf()))
 }
 

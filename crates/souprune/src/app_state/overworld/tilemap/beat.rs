@@ -160,10 +160,11 @@ pub struct BeatPlugin;
 
 impl Plugin for BeatPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_resource::<BeatTracker>()
             .add_message::<BeatEvent>()
             .add_systems(
-                Update,
+                schedule,
                 (activate_beat_tracker_system, update_beat_tracker_system)
                     .chain()
                     .in_set(super::super::OverworldUpdate),

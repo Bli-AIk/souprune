@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use bevy_workbench::prelude::*;
 
 use crate::data::load_sequence_from_file;
+use crate::editors::SubEditorManager;
 use crate::panels::sequence_timeline::EditorSequenceState;
 
 /// 项目文件类型。
@@ -26,13 +27,13 @@ pub enum AssetFileType {
 impl AssetFileType {
     fn icon(self) -> &'static str {
         match self {
-            Self::Sequence => "📋",
-            Self::View => "🖼",
-            Self::Rule => "📏",
-            Self::Performance => "🎯",
-            Self::Config => "⚙",
-            Self::Other => "📄",
-            Self::Directory => "📁",
+            Self::Sequence => "[SEQ]",
+            Self::View => "[VIEW]",
+            Self::Rule => "[FRE]",
+            Self::Performance => "[PERF]",
+            Self::Config => "[CFG]",
+            Self::Other => "[...]",
+            Self::Directory => "[DIR]",
         }
     }
 
@@ -206,10 +207,7 @@ impl WorkbenchPanel for AssetBrowserPanel {
         }
 
         // 首次加载文件树
-        let needs_scan = world
-            .resource::<AssetBrowserState>()
-            .file_tree
-            .is_none();
+        let needs_scan = world.resource::<AssetBrowserState>().file_tree.is_none();
         if needs_scan {
             let project_root = find_project_root();
             if let Some(root) = project_root {
@@ -272,7 +270,7 @@ fn render_asset_browser(ui: &mut egui::Ui, world: &mut World) {
         });
     } else {
         ui.label("未找到项目目录");
-        if ui.button("🔄 刷新").clicked() {
+        if ui.button("刷新").clicked() {
             world.resource_mut::<AssetBrowserState>().file_tree = None;
         }
     }
@@ -281,7 +279,7 @@ fn render_asset_browser(ui: &mut egui::Ui, world: &mut World) {
 fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
     ui.horizontal(|ui| {
         // 刷新按钮
-        if ui.small_button("🔄").on_hover_text("刷新文件树").clicked() {
+        if ui.small_button("↻").on_hover_text("刷新文件树").clicked() {
             world.resource_mut::<AssetBrowserState>().file_tree = None;
         }
 
@@ -289,7 +287,7 @@ fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
         let mut search = world.resource::<AssetBrowserState>().search_query.clone();
         ui.add(
             egui::TextEdit::singleline(&mut search)
-                .hint_text("🔍 搜索…")
+                .hint_text("搜索…")
                 .desired_width(120.0),
         );
         world.resource_mut::<AssetBrowserState>().search_query = search;
@@ -407,19 +405,19 @@ fn node_matches_search(node: &FileNode, search: &str) -> bool {
 }
 
 fn render_dir_context_menu(ui: &mut egui::Ui, world: &mut World, dir_path: &Path) {
-    if ui.button("📋 新建序列").clicked() {
+    if ui.button("新建序列").clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Sequence);
         ui.close();
     }
-    if ui.button("🖼 新建视图").clicked() {
+    if ui.button("新建视图").clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::View);
         ui.close();
     }
-    if ui.button("📏 新建规则").clicked() {
+    if ui.button("新建规则").clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Rule);
         ui.close();
     }
-    if ui.button("📁 新建目录").clicked() {
+    if ui.button("新建目录").clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Directory);
         ui.close();
     }
@@ -431,11 +429,11 @@ fn render_file_context_menu(
     file_path: &Path,
     file_type: AssetFileType,
 ) {
-    if ui.button("📂 打开").clicked() {
+    if ui.button("打开").clicked() {
         open_asset_file(world, file_path, file_type);
         ui.close();
     }
-    if ui.button("🔍 查找引用").clicked() {
+    if ui.button("查找引用").clicked() {
         find_and_show_references(ui, file_path);
         ui.close();
     }
@@ -476,19 +474,16 @@ fn render_new_file_dialog(ui: &mut egui::Ui, world: &mut World) {
                 ui.label("名称:");
                 ui.text_edit_singleline(&mut file_name);
             });
-            ui.label(format!(
-                "目录: {}",
-                parent_dir.display()
-            ));
+            ui.label(format!("目录: {}", parent_dir.display()));
 
             ui.horizontal(|ui| {
-                if ui.button("✅ 创建").clicked() {
+                if ui.button("创建").clicked() {
                     create_new_file(world, &parent_dir, &file_name, file_type);
                     world.resource_mut::<AssetBrowserState>().new_file_dialog = None;
                     // 刷新文件树
                     world.resource_mut::<AssetBrowserState>().file_tree = None;
                 }
-                if ui.button("❌ 取消").clicked() {
+                if ui.button("取消").clicked() {
                     world.resource_mut::<AssetBrowserState>().new_file_dialog = None;
                 }
             });
@@ -512,9 +507,7 @@ fn create_new_file(world: &mut World, parent_dir: &Path, name: &str, file_type: 
     }
 
     let template = match file_type {
-        AssetFileType::Sequence => {
-            "SequenceAsset(\n    chapters: [],\n)\n".to_string()
-        }
+        AssetFileType::Sequence => "SequenceAsset(\n    chapters: [],\n)\n".to_string(),
         AssetFileType::View => "// View layout\n()".to_string(),
         AssetFileType::Rule => "// FRE rules\n(\n    rules: [],\n)\n".to_string(),
         _ => String::new(),
@@ -531,20 +524,33 @@ fn create_new_file(world: &mut World, parent_dir: &Path, name: &str, file_type: 
 
 fn open_asset_file(world: &mut World, path: &Path, file_type: AssetFileType) {
     match file_type {
-        AssetFileType::Sequence => {
-            match load_sequence_from_file(path) {
-                Ok(seq) => {
-                    let mut state = world.resource_mut::<EditorSequenceState>();
-                    state.current = Some(seq);
-                    state.selected_chapter = None;
-                    info!("已打开序列: {}", path.display());
-                }
-                Err(e) => {
-                    warn!("打开序列失败: {e}");
-                }
+        AssetFileType::Sequence => match load_sequence_from_file(path) {
+            Ok(seq) => {
+                let mut state = world.resource_mut::<EditorSequenceState>();
+                state.current = Some(seq);
+                state.selected_chapter = None;
+                info!("已打开序列: {}", path.display());
             }
+            Err(e) => {
+                warn!("打开序列失败: {e}");
+            }
+        },
+        AssetFileType::View => {
+            world
+                .resource_mut::<SubEditorManager>()
+                .open("view_editor", &path.display().to_string());
+            info!("打开 View: {}", path.display());
+        }
+        AssetFileType::Rule => {
+            world
+                .resource_mut::<SubEditorManager>()
+                .open("fre_editor", &path.display().to_string());
+            info!("打开 FRE: {}", path.display());
         }
         _ => {
+            world
+                .resource_mut::<SubEditorManager>()
+                .open("ron_source_editor", &path.display().to_string());
             info!("打开文件: {} ({})", path.display(), file_type.label());
         }
     }

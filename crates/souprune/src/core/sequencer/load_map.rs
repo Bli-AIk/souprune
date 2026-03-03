@@ -24,8 +24,11 @@ pub fn process_load_map_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
+    souprune_config: Option<Res<crate::config::SoupruneConfig>>,
 ) {
+    let Some(souprune_config) = souprune_config else {
+        return;
+    };
     for (entity, active_chapter) in query.iter() {
         if let Chapter::LoadMap {
             path,

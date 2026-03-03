@@ -18,7 +18,7 @@ pub(crate) struct BattleCollisionPlugin;
 impl Plugin for BattleCollisionPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            crate::game_schedule(app),
             constrain_player_to_battle_box_system
                 .after(BattleMovementSet)
                 .in_set(BattleUpdate),

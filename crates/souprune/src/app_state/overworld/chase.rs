@@ -105,6 +105,7 @@ pub struct ChasePlugin;
 
 impl Plugin for ChasePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         // Initialize chase resources (config will be loaded dynamically)
         app.init_resource::<ChaseEnabled>()
             .init_resource::<ChaseStateName>()
@@ -117,14 +118,14 @@ impl Plugin for ChasePlugin {
             // Load chase config dynamically when state config becomes available
             // Must run before FRETriggerSet so chase state actions can work
             .add_systems(
-                Update,
+                schedule,
                 load_chase_config_system
                     .run_if(|loaded: Res<ChaseConfigLoaded>| !loaded.0)
                     .before(super::FRETriggerSet),
             )
             // Dynamic state change detection (replaces OnEnter/OnExit)
             .add_systems(
-                Update,
+                schedule,
                 (
                     detect_chase_state_enter_system,
                     detect_chase_state_exit_system,
@@ -135,7 +136,7 @@ impl Plugin for ChasePlugin {
                     .run_if(chase_enabled),
             )
             .add_systems(
-                Update,
+                schedule,
                 (
                     update_chase_transition_system,
                     spawn_chase_dark_overlay_system,

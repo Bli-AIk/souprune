@@ -72,31 +72,31 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
     }
 }
 
-/// 获取章节的图标 emoji。
+/// 获取章节的短标签（替代 emoji 图标）。
 pub fn chapter_icon(chapter: &Chapter) -> &'static str {
     match chapter {
-        Chapter::SpawnView { .. } => "🖼",
-        Chapter::AwaitFact { .. } => "⏳",
-        Chapter::SetViewFact { .. } => "📝",
-        Chapter::DanmakuPerformance { .. } => "🎯",
-        Chapter::AmPerformance { .. } => "🎬",
-        Chapter::TweenViewElement { .. } => "✨",
-        Chapter::Wait(_) => "⏱",
-        Chapter::Sequence(_) => "📋",
-        Chapter::Parallel(_) => "⚡",
-        Chapter::SetPlayer(_) => "👤",
-        Chapter::SetUI(_) => "🖥",
-        Chapter::ModifyViewElement { .. } => "🔧",
-        Chapter::SetCamera(_) => "📷",
-        Chapter::Conditional { .. } => "🔀",
-        Chapter::FactSwitch { .. } => "🔀",
-        Chapter::EmitFactEvent { .. } => "📡",
-        Chapter::ModifyFact { .. } => "📊",
-        Chapter::LoadFre { .. } => "📋",
-        Chapter::RunSequence { .. } => "📎",
-        Chapter::LoadMap { .. } => "🗺",
-        Chapter::SetBgm { .. } => "🎵",
-        Chapter::Custom { .. } => "⚡",
+        Chapter::SpawnView { .. } => "[V]",
+        Chapter::AwaitFact { .. } => "[?]",
+        Chapter::SetViewFact { .. } => "[VF]",
+        Chapter::DanmakuPerformance { .. } => "[D]",
+        Chapter::AmPerformance { .. } => "[AM]",
+        Chapter::TweenViewElement { .. } => "[~]",
+        Chapter::Wait(_) => "[W]",
+        Chapter::Sequence(_) => "[S]",
+        Chapter::Parallel(_) => "[P]",
+        Chapter::SetPlayer(_) => "[SP]",
+        Chapter::SetUI(_) => "[UI]",
+        Chapter::ModifyViewElement { .. } => "[MV]",
+        Chapter::SetCamera(_) => "[C]",
+        Chapter::Conditional { .. } => "[IF]",
+        Chapter::FactSwitch { .. } => "[SW]",
+        Chapter::EmitFactEvent { .. } => "[EV]",
+        Chapter::ModifyFact { .. } => "[MF]",
+        Chapter::LoadFre { .. } => "[FR]",
+        Chapter::RunSequence { .. } => "[RS]",
+        Chapter::LoadMap { .. } => "[M]",
+        Chapter::SetBgm { .. } => "[B]",
+        Chapter::Custom { .. } => "[X]",
     }
 }
 
@@ -146,13 +146,17 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         Chapter::ModifyViewElement { selector, .. } => format!("{selector:?}"),
         Chapter::SetCamera(action) => format!("{action:?}"),
         Chapter::Conditional { condition, .. } => format!("{condition:?}"),
-        Chapter::FactSwitch { fact_key, cases, .. } => {
+        Chapter::FactSwitch {
+            fact_key, cases, ..
+        } => {
             format!("{fact_key} ({} cases)", cases.len())
         }
         Chapter::EmitFactEvent { event_id, .. } => event_id.clone(),
         Chapter::ModifyFact { modifications } => format!("{} mods", modifications.len()),
         Chapter::LoadFre { files, .. } => format!("{} files", files.len()),
-        Chapter::RunSequence { path, path_fact, .. } => {
+        Chapter::RunSequence {
+            path, path_fact, ..
+        } => {
             if let Some(p) = path {
                 p.clone()
             } else if let Some(f) = path_fact {
@@ -162,9 +166,7 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
             }
         }
         Chapter::LoadMap { path, .. } => path.clone(),
-        Chapter::SetBgm { path, .. } => {
-            path.as_deref().unwrap_or("(stop)").to_string()
-        }
+        Chapter::SetBgm { path, .. } => path.as_deref().unwrap_or("(stop)").to_string(),
         Chapter::Custom { action_type, .. } => action_type.clone(),
     }
 }
@@ -215,8 +217,7 @@ pub fn render_chapter_card(
 
                 // 摘要
                 ui.label(
-                    egui::RichText::new(truncate(&summary, 40))
-                        .color(Color32::from_gray(180)),
+                    egui::RichText::new(truncate(&summary, 40)).color(Color32::from_gray(180)),
                 );
             });
         })
@@ -262,8 +263,7 @@ pub fn render_chapter_card_response(
                 ui.label(egui::RichText::new(icon).size(16.0));
                 ui.label(egui::RichText::new(type_name).strong().color(color));
                 ui.label(
-                    egui::RichText::new(truncate(&summary, 40))
-                        .color(Color32::from_gray(180)),
+                    egui::RichText::new(truncate(&summary, 40)).color(Color32::from_gray(180)),
                 );
             });
         })
@@ -273,7 +273,7 @@ pub fn render_chapter_card_response(
     response.interact(egui::Sense::drag())
 }
 
-fn chapter_type_name(chapter: &Chapter) -> &'static str {
+pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
     match chapter {
         Chapter::SpawnView { .. } => "SpawnView",
         Chapter::AwaitFact { .. } => "AwaitFact",

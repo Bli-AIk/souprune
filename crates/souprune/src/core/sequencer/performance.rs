@@ -9,8 +9,6 @@
 use super::chapter_schema::Chapter;
 use super::context::*;
 use crate::app_state::battle::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
-use crate::app_state::battle::danmaku::PlayPerformanceEvent;
-use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 
 /// Marker component for AM performance chapter tracking.
@@ -30,8 +28,13 @@ pub struct AmPerformanceTracker {
 pub fn process_danmaku_performance_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    mut performance_events: MessageWriter<PlayPerformanceEvent>,
+    performance_events: Option<
+        bevy::ecs::message::MessageWriter<crate::core::danmaku::PlayPerformanceEvent>,
+    >,
 ) {
+    let Some(mut performance_events) = performance_events else {
+        return;
+    };
     for (entity, active_chapter) in query.iter() {
         if let Chapter::DanmakuPerformance {
             performance,
@@ -42,7 +45,7 @@ pub fn process_danmaku_performance_system(
                 "[Battle] Starting danmaku performance from: {}",
                 performance
             );
-            let mut event = PlayPerformanceEvent::new(performance.clone());
+            let mut event = crate::core::danmaku::PlayPerformanceEvent::new(performance.clone());
             if let Some((x, y)) = translation {
                 event = event.at_position(Vec2::new(*x, *y));
             }
@@ -66,8 +69,15 @@ pub fn process_am_performance_system(
             Without<AmPerformanceTracker>,
         ),
     >,
-    mut performance_events: MessageWriter<PlayAmPerformanceEvent>,
+    performance_events: Option<
+        bevy::ecs::message::MessageWriter<
+            crate::app_state::battle::am_integration::PlayAmPerformanceEvent,
+        >,
+    >,
 ) {
+    let Some(mut performance_events) = performance_events else {
+        return;
+    };
     for (entity, active_chapter) in query.iter() {
         if let Chapter::AmPerformance {
             amproj_path,
@@ -103,8 +113,9 @@ pub fn process_am_performance_system(
 pub fn process_am_wait_chapter_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut AmPerformanceTracker), Without<ChapterFinished>>,
-    am_state: Res<AmPerformanceState>,
+    am_state: Option<Res<AmPerformanceState>>,
 ) {
+    let Some(am_state) = am_state else { return };
     for (entity, mut tracker) in query.iter_mut() {
         if !tracker.wait_for_completion {
             continue;

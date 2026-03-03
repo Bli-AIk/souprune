@@ -149,7 +149,7 @@ pub fn edit_hashmap_string_flat(
     }
 
     ui.horizontal(|ui| {
-        if ui.small_button("➕ 添加").clicked() {
+        if ui.small_button("+ 添加").clicked() {
             let new_key = format!("key_{}", map.len());
             map.insert(new_key, String::new());
             changed = true;
@@ -180,7 +180,7 @@ pub fn edit_string_list(ui: &mut egui::Ui, label: &str, list: &mut Vec<String>) 
         list.remove(idx);
         changed = true;
     }
-    if ui.small_button("➕ 添加").clicked() {
+    if ui.small_button("+ 添加").clicked() {
         list.push(String::new());
         changed = true;
     }
@@ -190,11 +190,7 @@ pub fn edit_string_list(ui: &mut egui::Ui, label: &str, list: &mut Vec<String>) 
 
 // ─── FactValueMatch 编辑器 ───────────────────────────────────
 
-pub fn edit_fact_value_match(
-    ui: &mut egui::Ui,
-    label: &str,
-    value: &mut FactValueMatch,
-) -> bool {
+pub fn edit_fact_value_match(ui: &mut egui::Ui, label: &str, value: &mut FactValueMatch) -> bool {
     let mut changed = false;
     ui.label(format!("{label}:"));
 
@@ -358,7 +354,7 @@ pub fn edit_fact_condition(ui: &mut egui::Ui, condition: &mut FactCondition) -> 
                     });
                 });
             }
-            if ui.small_button("➕ 添加子条件").clicked() {
+            if ui.small_button("+ 添加子条件").clicked() {
                 subs.push(FactCondition::Always);
                 changed = true;
             }
@@ -687,7 +683,7 @@ pub fn edit_fact_modifications(
         modifications.remove(idx);
         changed = true;
     }
-    if ui.small_button("➕ 添加修改").clicked() {
+    if ui.small_button("+ 添加修改").clicked() {
         modifications.push(FactModificationDef::Set {
             key: String::new(),
             value: FactValueMatch::Int(0),

@@ -6880,6 +6880,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_egui",
+ "bevy_fact_rule_event",
  "bevy_tween",
  "bevy_workbench",
  "egui",

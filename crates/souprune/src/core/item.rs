@@ -23,9 +23,10 @@ pub struct ItemPlugin;
 
 impl Plugin for ItemPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_resource::<ItemRegistry>()
             .add_systems(Startup, load_items_system)
-            .add_systems(Update, sync_items_system);
+            .add_systems(schedule, sync_items_system);
     }
 }
 

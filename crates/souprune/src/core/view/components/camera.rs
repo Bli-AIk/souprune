@@ -12,7 +12,7 @@ use bevy::reflect::Reflect;
 /// 标记需要根据摄像机位置保持固定偏移的 UI 实体
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct CameraAnchored {
+pub struct CameraAnchored {
     pub(crate) offset: Vec3,
 }
 

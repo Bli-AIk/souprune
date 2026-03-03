@@ -21,8 +21,11 @@ use bevy_fact_rule_event::FactValue;
 pub fn process_view_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    mut spawn_writer: MessageWriter<crate::core::view::SpawnViewRequest>,
+    spawn_writer: Option<MessageWriter<crate::core::view::SpawnViewRequest>>,
 ) {
+    let Some(mut spawn_writer) = spawn_writer else {
+        return;
+    };
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetUI(action) = &active_chapter.chapter {
             match action {

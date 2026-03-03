@@ -320,13 +320,14 @@ pub struct TileRevealPlugin;
 
 impl Plugin for TileRevealPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.add_plugins(Material2dPlugin::<BlackWhiteMaterial>::default())
             .add_plugins(MaterialTilemapPlugin::<BlackWhiteTilemapMaterial>::default())
             .init_resource::<TileRevealState>()
             .init_resource::<TilemapTextureCache>()
             .add_tween_systems(bevy_tween::tween::component_tween_system::<ScaleInterpolator>())
             .add_systems(
-                Update,
+                schedule,
                 (
                     apply_black_white_tilemap_material_system,
                     cache_tilemap_textures_system,

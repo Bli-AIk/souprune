@@ -140,6 +140,7 @@ impl UndoAction for ModifyChapterAction {
 }
 
 /// 批量操作（多个操作一起撤销/重做）。
+#[allow(dead_code)]
 pub struct BatchChapterAction {
     pub actions: Vec<Box<dyn UndoAction>>,
     pub desc: String,

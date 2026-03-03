@@ -222,6 +222,7 @@ pub struct StateConfigPlugin;
 
 impl Plugin for StateConfigPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_asset::<StateConfig>()
             .register_asset_loader(crate::core::ron_loader::RonAssetLoader::<StateConfig>::new(
                 &["states.ron"],
@@ -230,7 +231,7 @@ impl Plugin for StateConfigPlugin {
             .init_resource::<StateConfigHandle>()
             .init_resource::<StateConfigLoaded>()
             .add_systems(Startup, load_state_config_system)
-            .add_systems(Update, process_loaded_state_config_system);
+            .add_systems(schedule, process_loaded_state_config_system);
     }
 }
 

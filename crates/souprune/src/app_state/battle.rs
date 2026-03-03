@@ -38,7 +38,7 @@ use crate::app_state::{ModeChanged, ModeScoped, is_mode};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
 use crate::core::sequencer::SequencerPlugin;
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin};
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -79,12 +79,13 @@ fn on_exiting_battle(mut events: MessageReader<ModeChanged>) -> bool {
     events.read().any(|e| e.from.as_deref() == Some("battle"))
 }
 
-pub(crate) struct BattlePlugin;
+pub struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, BattleUpdate.run_if(is_mode("battle")))
-            .configure_sets(Update, BattleMovementSet.in_set(BattleUpdate))
+        let schedule = crate::game_schedule(app);
+        app.configure_sets(schedule, BattleUpdate.run_if(is_mode("battle")))
+            .configure_sets(schedule, BattleMovementSet.in_set(BattleUpdate))
             .init_asset::<BattlePlayerConfig>()
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
@@ -97,7 +98,7 @@ impl Plugin for BattlePlugin {
                 BattleFREPlugin,
             ))
             .add_systems(
-                Update,
+                schedule,
                 (
                     crate::core::sequencer::load_default_chapter_system,
                     setup_battle_camera,
@@ -106,7 +107,7 @@ impl Plugin for BattlePlugin {
                     .run_if(on_entering_battle),
             )
             .add_systems(
-                Update,
+                schedule,
                 cleanup_battle_input_manager.run_if(on_exiting_battle),
             );
     }

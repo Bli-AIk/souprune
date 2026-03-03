@@ -118,10 +118,11 @@ use bevy::sprite_render::Material2dPlugin;
 /// RON 驱动的 View 插件，支持 Overworld 和 Battle 场景。
 /// 该插件从 RON 文件加载 View 布局，并使用 SDF 形状和 3D 文本进行渲染。
 /// 通过修改 RON 文件可以实现不同的 View 风格，而无需更改代码。
-pub(crate) struct CoreViewPlugin;
+pub struct CoreViewPlugin;
 
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_asset::<ViewLayoutAsset>()
             // Only support .view.ron format (legacy .view_layout.ron is fully deprecated)
             // 仅支持 .view.ron 格式（旧的 .view_layout.ron 已完全弃用）
@@ -154,14 +155,14 @@ impl Plugin for CoreViewPlugin {
             .add_systems(Startup, procedural_textures::init_procedural_textures)
             // Handle SpawnViewRequest messages
             // 处理 SpawnViewRequest 消息
-            .add_systems(Update, handle_spawn_view_request_system)
+            .add_systems(schedule, handle_spawn_view_request_system)
             // Handle DespawnViewRequest messages
             // 处理 DespawnViewRequest 消息
-            .add_systems(Update, handle_despawn_view_request_system)
+            .add_systems(schedule, handle_despawn_view_request_system)
             // Use dynamic state transition detection
             // 使用动态状态转换检测
             .add_systems(
-                Update,
+                schedule,
                 (
                     backpack_state_transition_system,
                     state_transition_sound_system,
@@ -170,7 +171,7 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
-                Update,
+                schedule,
                 // New shader material update system (replaces old HP bar systems)
                 // Must run AFTER setup_shader_materials_system to detect newly added materials
                 // 新的着色器材质更新系统（取代旧的 HP 条系统）
@@ -182,7 +183,7 @@ impl Plugin for CoreViewPlugin {
             // Split dynamic UI element updates into time-dependent (every frame) and fact-dependent (on change)
             // 将动态 UI 元素更新分为时间依赖（每帧）和 fact 依赖（变化时）
             .add_systems(
-                Update,
+                schedule,
                 (
                     ron_view::update_time_dependent_ui_elements,
                     ron_view::update_fact_dependent_ui_elements,
@@ -191,7 +192,7 @@ impl Plugin for CoreViewPlugin {
             )
             // First group of UI systems
             .add_systems(
-                Update,
+                schedule,
                 (
                     ron_view::reload::validate_map_properties_system,
                     load_global_triggers_system,
@@ -204,11 +205,11 @@ impl Plugin for CoreViewPlugin {
             // Unified view spawn system (handles all view types via SpawnViewRequest)
             // 统一的视图生成系统（通过 SpawnViewRequest 处理所有类型）
             .add_systems(
-                Update,
+                schedule,
                 ron_view::spawn_dynamic_view_system.in_set(ViewUpdate),
             )
             .add_systems(
-                Update,
+                schedule,
                 (
                     ui_animation_init_system,
                     // Cleanup View-layer rules when ViewRoot entities are despawned
@@ -224,7 +225,7 @@ impl Plugin for CoreViewPlugin {
             )
             // Second group of UI systems (rendering/display)
             .add_systems(
-                Update,
+                schedule,
                 (
                     ron_view::setup_shader_materials_system
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),

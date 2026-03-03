@@ -21,16 +21,17 @@
 pub(crate) mod components;
 mod systems;
 
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin};
 use bevy::prelude::IntoScheduleConfigs;
 
 pub(crate) struct AnimationPlugin;
 
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         use systems::*;
         app.add_systems(
-            Update,
+            schedule,
             (
                 sync_sprite_animation_system,
                 animate_sprite_system,

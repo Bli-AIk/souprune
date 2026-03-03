@@ -21,7 +21,7 @@ pub fn process_camera_action_system(
         (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
-    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
+    resolution_scale: Option<Res<crate::app_state::app_setup::ResolutionScale>>,
 ) {
     for (entity, active_chapter) in query.iter() {
         if let Chapter::SetCamera(action) = &active_chapter.chapter {
@@ -40,7 +40,11 @@ pub fn process_camera_action_system(
                             }
                             #[cfg(not(target_os = "android"))]
                             {
-                                ortho.scale = *zoom / resolution_scale.get() as f32;
+                                ortho.scale = *zoom
+                                    / resolution_scale
+                                        .as_ref()
+                                        .map(|r| r.get() as f32)
+                                        .unwrap_or(1.0);
                             }
                             info!(
                                 "[Battle] SetZoom: requested={}, actual={}",

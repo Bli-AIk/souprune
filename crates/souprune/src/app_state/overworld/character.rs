@@ -29,9 +29,10 @@ pub(crate) mod systems;
 pub struct CharacterPlugin;
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         use systems::*;
         app.add_systems(
-            Update,
+            schedule,
             (
                 update_walking_system,
                 update_running_system,

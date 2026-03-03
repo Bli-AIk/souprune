@@ -22,7 +22,10 @@ impl Plugin for AndroidPlatformPlugin {
         app.insert_resource(ThemeState::touch())
             .init_resource::<TouchGestureState>()
             .init_resource::<AndroidPerfConfig>()
-            .add_systems(Update, (gesture_recognition_system, virtual_keyboard_system));
+            .add_systems(
+                Update,
+                (gesture_recognition_system, virtual_keyboard_system),
+            );
     }
 }
 
@@ -109,10 +112,7 @@ fn gesture_recognition_system(
 // ─── P7.2 虚拟键盘处理 ───────────────────────────────────
 
 /// 虚拟键盘适配系统 — 检测键盘状态并调整 UI 布局偏移。
-fn virtual_keyboard_system(
-    windows: Query<&Window>,
-    mut _egui_ctx: bevy_egui::EguiContexts,
-) {
+fn virtual_keyboard_system(windows: Query<&Window>, mut _egui_ctx: bevy_egui::EguiContexts) {
     // Bevy 0.18 没有直接提供虚拟键盘高度 API。
     // 当 egui 文本输入获得焦点时，Android 系统会自动弹出键盘。
     // bevy_egui 在 Android 上会自动处理视口调整。

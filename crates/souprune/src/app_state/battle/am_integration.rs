@@ -224,15 +224,16 @@ pub struct AmBattlePlugin;
 
 impl Plugin for AmBattlePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_resource::<AmPerformanceState>()
             .init_resource::<AmBattleConfig>()
             .add_message::<PlayAmPerformanceEvent>()
             .add_systems(
-                Update,
+                schedule,
                 load_am_battle_config.run_if(super::on_entering_battle),
             )
             .add_systems(
-                Update,
+                schedule,
                 (
                     handle_play_am_performance_event,
                     // Sync fit scale for mask coordinate calculation
@@ -251,7 +252,10 @@ impl Plugin for AmBattlePlugin {
                     .chain()
                     .in_set(crate::app_state::battle::BattleUpdate),
             )
-            .add_systems(Update, cleanup_am_entities.run_if(super::on_exiting_battle));
+            .add_systems(
+                schedule,
+                cleanup_am_entities.run_if(super::on_exiting_battle),
+            );
     }
 }
 

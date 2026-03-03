@@ -25,7 +25,7 @@ impl RonSourceEditor {
             content: String::new(),
             dirty: false,
             editor_id: "performance_editor".to_string(),
-            icon: "🎯",
+            icon: "[PERF]",
         }
     }
 
@@ -35,7 +35,7 @@ impl RonSourceEditor {
             content: String::new(),
             dirty: false,
             editor_id: "state_editor".to_string(),
-            icon: "⚙",
+            icon: "[CFG]",
         }
     }
 
@@ -45,7 +45,7 @@ impl RonSourceEditor {
             content: String::new(),
             dirty: false,
             editor_id: "ron_source".to_string(),
-            icon: "📝",
+            icon: "[RON]",
         }
     }
 }
@@ -85,7 +85,7 @@ impl SubEditor for RonSourceEditor {
             if self.dirty {
                 ui.label(egui::RichText::new("● 未保存").color(egui::Color32::YELLOW));
             }
-            if ui.button("💾 保存").clicked()
+            if ui.button("保存").clicked()
                 && let Err(e) = self.save_inner()
             {
                 warn!("{e}");

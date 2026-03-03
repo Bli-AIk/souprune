@@ -66,7 +66,7 @@ impl ViewFont {
 /// 单个文本元素的配置
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewTextConfig {
+pub struct ViewTextConfig {
     pub(crate) name: Name,
     pub(crate) content: String,
     pub(crate) template: Option<String>,

@@ -2,19 +2,18 @@
 //!
 //! 按分类展示所有 Chapter 类型，用于添加新章节。
 
+use bevy_tween::interpolation::EaseKind;
 use egui::Color32;
 use souprune::core::sequencer::chapter_schema::{
     CameraAction, Chapter, ElementModification, ElementSelector, FactCondition, FactValueMatch,
     PlayerAction, TweenTarget, UIAction, Val,
 };
-use bevy_tween::interpolation::EaseKind;
 
 use super::chapter_card::ChapterCategory;
 
 /// 章节分类定义。
 struct CategoryDef {
     name: &'static str,
-    icon: &'static str,
     color: Color32,
     templates: Vec<ChapterTemplate>,
 }
@@ -31,27 +30,26 @@ fn all_categories() -> Vec<CategoryDef> {
     vec![
         CategoryDef {
             name: "流程控制",
-            icon: "🔵",
             color: ChapterCategory::Flow.color(),
             templates: vec![
                 ChapterTemplate {
                     name: "Wait",
-                    icon: "⏱",
+                    icon: "[W]",
                     create: || Chapter::Wait(1.0),
                 },
                 ChapterTemplate {
                     name: "Sequence",
-                    icon: "📋",
+                    icon: "[S]",
                     create: || Chapter::Sequence(vec![]),
                 },
                 ChapterTemplate {
                     name: "Parallel",
-                    icon: "⚡",
+                    icon: "[P]",
                     create: || Chapter::Parallel(vec![]),
                 },
                 ChapterTemplate {
                     name: "RunSequence",
-                    icon: "📎",
+                    icon: "[RS]",
                     create: || Chapter::RunSequence {
                         path: Some(String::new()),
                         path_fact: None,
@@ -62,12 +60,11 @@ fn all_categories() -> Vec<CategoryDef> {
         },
         CategoryDef {
             name: "场景",
-            icon: "🟢",
             color: ChapterCategory::Scene.color(),
             templates: vec![
                 ChapterTemplate {
                     name: "LoadMap",
-                    icon: "🗺",
+                    icon: "[M]",
                     create: || Chapter::LoadMap {
                         path: String::new(),
                         generate_collision: true,
@@ -77,24 +74,23 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "SetPlayer",
-                    icon: "👤",
+                    icon: "[SP]",
                     create: || Chapter::SetPlayer(PlayerAction::SetActive(true)),
                 },
                 ChapterTemplate {
                     name: "SetCamera",
-                    icon: "📷",
+                    icon: "[C]",
                     create: || Chapter::SetCamera(CameraAction::FollowPlayer(true)),
                 },
             ],
         },
         CategoryDef {
             name: "界面",
-            icon: "🟣",
             color: ChapterCategory::View.color(),
             templates: vec![
                 ChapterTemplate {
                     name: "SpawnView",
-                    icon: "🖼",
+                    icon: "[V]",
                     create: || Chapter::SpawnView {
                         view_layout: String::new(),
                         bindings: Default::default(),
@@ -102,7 +98,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "SetViewFact",
-                    icon: "📝",
+                    icon: "[VF]",
                     create: || Chapter::SetViewFact {
                         key: String::new(),
                         value: FactValueMatch::String(String::new()),
@@ -110,7 +106,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "ModifyViewElement",
-                    icon: "🔧",
+                    icon: "[MV]",
                     create: || Chapter::ModifyViewElement {
                         selector: ElementSelector::LocalName(String::new()),
                         modification: ElementModification::SetVisibility(Val::Static(true)),
@@ -118,7 +114,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "TweenViewElement",
-                    icon: "✨",
+                    icon: "[~]",
                     create: || Chapter::TweenViewElement {
                         selector: ElementSelector::LocalName(String::new()),
                         target: TweenTarget::Alpha {
@@ -132,19 +128,18 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "SetUI",
-                    icon: "🖥",
+                    icon: "[UI]",
                     create: || Chapter::SetUI(UIAction::Show(String::new())),
                 },
             ],
         },
         CategoryDef {
             name: "逻辑",
-            icon: "🟡",
             color: ChapterCategory::Logic.color(),
             templates: vec![
                 ChapterTemplate {
                     name: "Conditional",
-                    icon: "🔀",
+                    icon: "[IF]",
                     create: || Chapter::Conditional {
                         condition: FactCondition::Always,
                         then_branch: Box::new(Chapter::Wait(0.0)),
@@ -153,7 +148,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "FactSwitch",
-                    icon: "🔀",
+                    icon: "[SW]",
                     create: || Chapter::FactSwitch {
                         fact_key: String::new(),
                         cases: vec![],
@@ -162,7 +157,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "AwaitFact",
-                    icon: "⏳",
+                    icon: "[?]",
                     create: || Chapter::AwaitFact {
                         condition: String::new(),
                         local: true,
@@ -170,7 +165,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "EmitFactEvent",
-                    icon: "📡",
+                    icon: "[EV]",
                     create: || Chapter::EmitFactEvent {
                         event_id: String::new(),
                         data: Default::default(),
@@ -178,14 +173,14 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "ModifyFact",
-                    icon: "📊",
+                    icon: "[MF]",
                     create: || Chapter::ModifyFact {
                         modifications: vec![],
                     },
                 },
                 ChapterTemplate {
                     name: "LoadFre",
-                    icon: "📋",
+                    icon: "[FR]",
                     create: || Chapter::LoadFre {
                         files: vec![String::new()],
                         aggregate: Default::default(),
@@ -195,12 +190,11 @@ fn all_categories() -> Vec<CategoryDef> {
         },
         CategoryDef {
             name: "战斗",
-            icon: "🔴",
             color: ChapterCategory::Combat.color(),
             templates: vec![
                 ChapterTemplate {
                     name: "DanmakuPerformance",
-                    icon: "🎯",
+                    icon: "[D]",
                     create: || Chapter::DanmakuPerformance {
                         performance: String::new(),
                         translation: None,
@@ -208,7 +202,7 @@ fn all_categories() -> Vec<CategoryDef> {
                 },
                 ChapterTemplate {
                     name: "AmPerformance",
-                    icon: "🎬",
+                    icon: "[AM]",
                     create: || Chapter::AmPerformance {
                         amproj_path: String::new(),
                         am_config: None,
@@ -219,11 +213,10 @@ fn all_categories() -> Vec<CategoryDef> {
         },
         CategoryDef {
             name: "音频",
-            icon: "🔵",
             color: ChapterCategory::Audio.color(),
             templates: vec![ChapterTemplate {
                 name: "SetBgm",
-                icon: "🎵",
+                icon: "[B]",
                 create: || Chapter::SetBgm {
                     path: None,
                     fade_in: None,
@@ -232,11 +225,10 @@ fn all_categories() -> Vec<CategoryDef> {
         },
         CategoryDef {
             name: "扩展",
-            icon: "⚪",
             color: ChapterCategory::Flow.color(),
             templates: vec![ChapterTemplate {
                 name: "Custom",
-                icon: "⚡",
+                icon: "[X]",
                 create: || Chapter::Custom {
                     action_type: String::new(),
                     params: Default::default(),
@@ -266,15 +258,13 @@ pub fn render_chapter_palette(
     // 分类 Tab 栏
     ui.horizontal_wrapped(|ui| {
         for (i, cat) in categories.iter().enumerate() {
-            let text = format!("{} {}", cat.icon, cat.name);
+            let text = cat.name;
             let is_selected = state.selected_category == i;
-            let btn = egui::Button::new(
-                egui::RichText::new(text).color(if is_selected {
-                    cat.color
-                } else {
-                    Color32::from_gray(180)
-                }),
-            );
+            let btn = egui::Button::new(egui::RichText::new(text).color(if is_selected {
+                cat.color
+            } else {
+                Color32::from_gray(180)
+            }));
             if ui.add(btn).clicked() {
                 state.selected_category = i;
             }
@@ -300,9 +290,7 @@ pub fn render_chapter_palette(
                         let resp = frame
                             .show(col, |ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(template.icon).size(20.0),
-                                    );
+                                    ui.label(egui::RichText::new(template.icon).size(20.0));
                                     ui.label(
                                         egui::RichText::new(template.name)
                                             .strong()
