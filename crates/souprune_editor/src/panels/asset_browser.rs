@@ -27,13 +27,25 @@ pub enum AssetFileType {
 impl AssetFileType {
     fn icon(self) -> &'static str {
         match self {
-            Self::Sequence => "[SEQ]",
-            Self::View => "[VIEW]",
-            Self::Rule => "[FRE]",
-            Self::Performance => "[PERF]",
-            Self::Config => "[CFG]",
-            Self::Other => "[...]",
-            Self::Directory => "[DIR]",
+            Self::Sequence => "▶",
+            Self::View => "◎",
+            Self::Rule => "◆",
+            Self::Performance => "✦",
+            Self::Config => "■",
+            Self::Other => "○",
+            Self::Directory => "",
+        }
+    }
+
+    fn color(self) -> egui::Color32 {
+        match self {
+            Self::Sequence => egui::Color32::from_rgb(255, 200, 60),
+            Self::View => egui::Color32::from_rgb(100, 220, 100),
+            Self::Rule => egui::Color32::from_rgb(100, 160, 255),
+            Self::Performance => egui::Color32::from_rgb(220, 100, 255),
+            Self::Config => egui::Color32::from_rgb(100, 220, 220),
+            Self::Other => egui::Color32::from_rgb(160, 160, 160),
+            Self::Directory => egui::Color32::from_rgb(200, 200, 200),
         }
     }
 
@@ -308,7 +320,12 @@ fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
                 .resource::<AssetBrowserState>()
                 .active_filters
                 .contains(&ft);
-            let label = format!("{} {}", ft.icon(), ft.label());
+            let color = if active {
+                ft.color()
+            } else {
+                egui::Color32::from_rgb(80, 80, 80)
+            };
+            let label = egui::RichText::new(format!("{} {}", ft.icon(), ft.label())).color(color);
             if ui.selectable_label(active, label).clicked() {
                 let mut state = world.resource_mut::<AssetBrowserState>();
                 if active {
@@ -336,41 +353,50 @@ fn render_file_tree(
 
     if node.file_type == AssetFileType::Directory {
         let is_expanded = expanded.contains(&node.path);
-        let header = format!("{} {}", node.file_type.icon(), node.name);
 
-        let resp = ui.selectable_label(false, if is_expanded { "▼" } else { "▶" });
-        ui.horizontal(|ui| {
-            if resp.clicked() {
-                let mut state = world.resource_mut::<AssetBrowserState>();
-                if is_expanded {
-                    state.expanded_dirs.remove(&node.path);
-                } else {
-                    state.expanded_dirs.insert(node.path.clone());
-                }
-            }
-            ui.label(header);
+        let id = ui.make_persistent_id(egui::Id::new(&node.path));
+        let state = egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(),
+            id,
+            is_expanded,
+        );
+        let header_resp = state.show_header(ui, |ui| {
+            ui.label(&node.name);
         });
+
+        let header_open = header_resp.is_open();
+        let (toggle_resp, _header_inner, _body) = header_resp.body(|ui| {
+            for child in &node.children {
+                render_file_tree(ui, world, child, filters, expanded, search);
+            }
+        });
+
+        // 同步展开状态
+        if header_open != is_expanded {
+            let mut state = world.resource_mut::<AssetBrowserState>();
+            if header_open {
+                state.expanded_dirs.insert(node.path.clone());
+            } else {
+                state.expanded_dirs.remove(&node.path);
+            }
+        }
 
         // 右键菜单
-        resp.context_menu(|ui| {
+        toggle_resp.context_menu(|ui| {
             render_dir_context_menu(ui, world, &node.path);
         });
-
-        if is_expanded {
-            ui.indent(egui::Id::new(&node.path), |ui| {
-                for child in &node.children {
-                    render_file_tree(ui, world, child, filters, expanded, search);
-                }
-            });
-        }
     } else {
         // 文件类型过滤
         if !filters.contains(&node.file_type) {
             return;
         }
 
-        let label = format!("{} {}", node.file_type.icon(), node.name);
-        let resp = ui.selectable_label(false, label);
+        let icon = egui::RichText::new(node.file_type.icon()).color(node.file_type.color());
+        let resp = ui.horizontal(|ui| {
+            ui.label(icon);
+            ui.selectable_label(false, &node.name)
+        });
+        let resp = resp.inner;
 
         // 双击打开文件
         if resp.double_clicked() {
