@@ -11,12 +11,12 @@ bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_tween = "0.11"
 egui = "0.33"
 souprune = { path = "../souprune" }
-ron = "0.9"
+ron = "0.12"
 rfd = "0.17"
 serde = { version = "1", features = ["derive"] }
 icondata_core = "0.1"
-icondata_vs = "0.0"
-resvg = "0.45"
+icondata_vs = "0.1"
+resvg = "0.47"
 
 [features]
 default = []
