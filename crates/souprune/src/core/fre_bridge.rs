@@ -171,10 +171,8 @@ pub fn process_view_actions_system(
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
-    #[cfg(feature = "debug")] mut trigger_history: Option<
-        ResMut<crate::extra::debug::RuleTriggerHistory>,
-    >,
-    #[cfg(feature = "debug")] time: Res<Time>,
+    mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
+    time: Res<Time>,
 ) {
     let Some(action_defs) = action_defs else {
         return;
@@ -264,7 +262,6 @@ pub fn process_view_actions_system(
 
                 // Record rule trigger for debug panel visualization
                 // 记录规则触发以供调试面板可视化
-                #[cfg(feature = "debug")]
                 if let Some(ref mut history) = trigger_history {
                     history.record_trigger(&rule.id, time.elapsed_secs_f64());
                 }

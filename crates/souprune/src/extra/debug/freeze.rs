@@ -23,14 +23,14 @@ use bevy::time::Virtual;
 ///
 /// 用于跟踪冻结状态并提供视觉反馈的资源
 #[derive(Resource, Default)]
-pub(crate) struct GameFreezeState {
+pub struct GameFreezeState {
     pub is_frozen: bool,
 }
 
 /// System to toggle game freeze state with F7 key
 ///
 /// 使用 F7 键切换游戏冻结状态的系统
-pub(crate) fn toggle_game_freeze_system(
+pub fn toggle_game_freeze_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut time: ResMut<Time<Virtual>>,
     mut freeze_state: ResMut<GameFreezeState>,
@@ -48,7 +48,7 @@ pub(crate) fn toggle_game_freeze_system(
     }
 }
 
-pub(super) mod debug_freeze {
+pub mod debug_freeze {
     use super::*;
 
     pub fn setup_freeze_debug(app: &mut App) {

@@ -104,9 +104,29 @@ impl Plugin for SoupRuneEditorPlugin {
         app.register_panel(panels::SequenceTimelinePanel::new());
         app.register_panel(panels::ChapterInspectorPanel::new());
         app.register_panel(panels::PlaybackPanel::new());
+        app.register_panel(panels::FrePanel::new());
 
         // i18n 在 Startup 时注册（I18n 资源由 WorkbenchPlugin 创建）
         app.add_systems(Startup, register_i18n);
+
+        // Collider gizmos（编辑器中注册，debug 模式下由 DebugPlugin 注册）
+        souprune::extra::debug::setup_collider_debug(app);
+        app.init_resource::<souprune::extra::debug::RuleTriggerHistory>();
+        app.init_resource::<panels::fre_panel::EditorFactEventHistory>();
+        app.insert_resource(bevy_workbench::game_view::GameViewToolbar {
+            toggles: vec![bevy_workbench::game_view::ToolbarToggle {
+                id: "gizmos".into(),
+                label: "Gizmos".into(),
+                enabled: false,
+            }],
+        });
+        app.add_systems(
+            Update,
+            (
+                panels::fre_panel::track_fact_events_system,
+                sync_gizmo_toggle_system,
+            ),
+        );
 
         // 发现游戏相机并注册为外部相机（由 GameViewPlugin 在 Play 模式劫持）
         // 使用 Update 而非 PostStartup，因为 OnEnter(Loading) 在首次 Update 时才触发
@@ -165,5 +185,18 @@ fn register_external_game_camera(
     if let Some(entity) = cameras.iter().next() {
         commands.insert_resource(ExternalGameCamera(entity));
         info!("[编辑器] 已注册外部游戏相机: {:?}", entity);
+    }
+}
+
+/// Syncs the GameViewToolbar "gizmos" toggle to ColliderGizmos config.
+fn sync_gizmo_toggle_system(
+    toolbar: Res<bevy_workbench::game_view::GameViewToolbar>,
+    mut gizmo_store: ResMut<GizmoConfigStore>,
+) {
+    if toolbar.is_changed()
+        && let Some(enabled) = toolbar.is_enabled("gizmos")
+    {
+        let (config, _) = gizmo_store.config_mut::<souprune::extra::debug::ColliderGizmos>();
+        config.enabled = enabled;
     }
 }

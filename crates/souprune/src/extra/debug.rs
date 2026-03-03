@@ -33,18 +33,17 @@
 
 #[cfg(feature = "debug")]
 mod battle_test;
-#[cfg(feature = "debug")]
 mod collider;
 #[cfg(feature = "debug")]
 mod fre_panel;
-#[cfg(feature = "debug")]
 mod freeze;
 #[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
 
 use bevy::app::{App, Plugin};
-use bevy::prelude::Component;
+use bevy::prelude::*;
+use std::collections::HashMap;
 
 /// Marker component for debug cameras (inspector, FRE panel, etc.).
 /// This is used to exclude debug cameras from game systems that query Camera2d.
@@ -54,41 +53,64 @@ use bevy::prelude::Component;
 #[derive(Component)]
 pub struct DebugCamera;
 
-/// Re-export RuleTriggerHistory for use by fre_bridge when tracking rule triggers.
-/// 重新导出 RuleTriggerHistory 供 fre_bridge 跟踪规则触发时使用。
-#[cfg(feature = "debug")]
-pub use fre_panel::debug_fre_panel::RuleTriggerHistory;
+// Collider gizmos and freeze are available without the debug feature.
+pub use collider::debug_collider::{ColliderGizmos, setup_collider_debug};
+pub use freeze::GameFreezeState;
+pub use freeze::debug_freeze::setup_freeze_debug;
+
+/// Resource to track recently triggered rules for visual feedback.
+/// Always available so the editor can show trigger highlights.
+#[derive(Resource, Default)]
+pub struct RuleTriggerHistory {
+    /// Map from rule_id to last trigger timestamp (in seconds).
+    pub triggered_rules: HashMap<String, f64>,
+}
+
+impl RuleTriggerHistory {
+    pub fn record_trigger(&mut self, rule_id: &str, current_time: f64) {
+        self.triggered_rules
+            .insert(rule_id.to_string(), current_time);
+    }
+
+    pub fn was_recently_triggered(&self, rule_id: &str, current_time: f64, duration: f64) -> bool {
+        if let Some(&trigger_time) = self.triggered_rules.get(rule_id) {
+            current_time - trigger_time < duration
+        } else {
+            false
+        }
+    }
+
+    pub fn cleanup_old_triggers(&mut self, current_time: f64) {
+        self.triggered_rules
+            .retain(|_, &mut trigger_time| current_time - trigger_time < 5.0);
+    }
+}
 
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
-    fn build(&self, _app: &mut App) {
+    fn build(&self, app: &mut App) {
+        // RuleTriggerHistory is always available (used by both debug FRE panel and editor)
+        app.init_resource::<RuleTriggerHistory>()
+            .add_systems(Update, cleanup_rule_trigger_history_system);
+
         #[cfg(feature = "debug")]
         {
+            setup_collider_debug(app);
+            setup_freeze_debug(app);
+
             use inspector::debug_inspector;
-            debug_inspector::setup_debug_features(_app);
+            debug_inspector::setup_debug_features(app);
 
-            // F2: Set up FRE debug panel.
-            // Use this for generic fact manipulation instead of game-specific shortcuts.
-            // 设置 FRE 调试面板 (F2)。
-            // 使用此面板进行通用事实操作，而非游戏特定的快捷键。
-            fre_panel::debug_fre_panel::setup_fre_panel_debug(_app);
+            fre_panel::debug_fre_panel::setup_fre_panel_debug(app);
 
-            // F4: Set up collider debugging features.
-            // 设置碰撞体调试功能 (F4)。
-            collider::debug_collider::setup_collider_debug(_app);
+            image_overlay::debug_image_overlay::setup_image_overlay_debug(app);
 
-            // F5: Set up image overlay debugging features.
-            // 设置图像覆盖调试功能 (F5)。
-            image_overlay::debug_image_overlay::setup_image_overlay_debug(_app);
-
-            // F6: Set up battle test debugging features.
-            // 设置战斗测试调试功能 (F6)。
-            battle_test::debug_battle_test::setup_battle_test_debug(_app);
-
-            // F7: Set up game freeze debugging features.
-            // 设置游戏冻结调试功能 (F7)。
-            freeze::debug_freeze::setup_freeze_debug(_app);
+            battle_test::debug_battle_test::setup_battle_test_debug(app);
         }
     }
+}
+
+fn cleanup_rule_trigger_history_system(mut history: ResMut<RuleTriggerHistory>, time: Res<Time>) {
+    history.cleanup_old_triggers(time.elapsed_secs_f64());
 }

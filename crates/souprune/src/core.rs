@@ -50,7 +50,7 @@ pub mod render_layers;
 pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;
-pub(crate) mod state_config;
+pub mod state_config;
 pub mod view;
 pub mod visual;
 
