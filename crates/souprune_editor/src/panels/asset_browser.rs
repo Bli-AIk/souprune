@@ -10,6 +10,7 @@ use bevy_workbench::prelude::*;
 
 use crate::data::load_sequence_from_file;
 use crate::editors::SubEditorManager;
+use crate::icons::EditorIcons;
 use crate::panels::sequence_timeline::EditorSequenceState;
 
 /// 项目文件类型。
@@ -25,15 +26,15 @@ pub enum AssetFileType {
 }
 
 impl AssetFileType {
-    fn icon(self) -> &'static str {
+    fn icon_name(self) -> &'static str {
         match self {
-            Self::Sequence => "▶",
-            Self::View => "◎",
-            Self::Rule => "◆",
-            Self::Performance => "✦",
-            Self::Config => "■",
-            Self::Other => "○",
-            Self::Directory => "",
+            Self::Sequence => "sequence",
+            Self::View => "view",
+            Self::Rule => "rule",
+            Self::Performance => "performance",
+            Self::Config => "config",
+            Self::Other => "file",
+            Self::Directory => "folder",
         }
     }
 
@@ -218,6 +219,12 @@ impl WorkbenchPanel for AssetBrowserPanel {
             world.insert_resource(AssetBrowserState::default());
         }
 
+        // 初始化图标纹理
+        if !world.contains_resource::<EditorIcons>() {
+            let icons = crate::icons::init_icons(ui.ctx());
+            world.insert_resource(icons);
+        }
+
         // 首次加载文件树
         let needs_scan = world.resource::<AssetBrowserState>().file_tree.is_none();
         if needs_scan {
@@ -315,25 +322,43 @@ fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
             AssetFileType::Config,
             AssetFileType::Other,
         ];
-        for ft in filter_types {
-            let active = world
-                .resource::<AssetBrowserState>()
-                .active_filters
-                .contains(&ft);
+
+        // 预先收集图标纹理 ID 和过滤状态，避免借用冲突
+        let icon_data: Vec<_> = {
+            let icons = world.get_resource::<EditorIcons>();
+            let state = world.resource::<AssetBrowserState>();
+            filter_types
+                .iter()
+                .map(|ft| {
+                    let active = state.active_filters.contains(ft);
+                    let tex_id = icons.and_then(|i| i.get(ft.icon_name())).map(|h| h.id());
+                    (*ft, active, tex_id)
+                })
+                .collect()
+        };
+
+        for (ft, active, tex_id) in icon_data {
             let color = if active {
                 ft.color()
             } else {
                 egui::Color32::from_rgb(80, 80, 80)
             };
-            let label = egui::RichText::new(format!("{} {}", ft.icon(), ft.label())).color(color);
-            if ui.selectable_label(active, label).clicked() {
-                let mut state = world.resource_mut::<AssetBrowserState>();
-                if active {
-                    state.active_filters.remove(&ft);
-                } else {
-                    state.active_filters.insert(ft);
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 2.0;
+                if let Some(id) = tex_id {
+                    let size = egui::vec2(16.0, 16.0);
+                    ui.add(egui::Image::new(egui::load::SizedTexture::new(id, size)).tint(color));
                 }
-            }
+                let label = egui::RichText::new(ft.label()).color(color);
+                if ui.selectable_label(active, label).clicked() {
+                    let mut state = world.resource_mut::<AssetBrowserState>();
+                    if active {
+                        state.active_filters.remove(&ft);
+                    } else {
+                        state.active_filters.insert(ft);
+                    }
+                }
+            });
         }
     });
 }
@@ -353,6 +378,7 @@ fn render_file_tree(
 
     if node.file_type == AssetFileType::Directory {
         let is_expanded = expanded.contains(&node.path);
+        let icon_name = if is_expanded { "folder_open" } else { "folder" };
 
         let id = ui.make_persistent_id(egui::Id::new(&node.path));
         let state = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -360,7 +386,17 @@ fn render_file_tree(
             id,
             is_expanded,
         );
+        let tex_id = world
+            .get_resource::<EditorIcons>()
+            .and_then(|i| i.get(icon_name))
+            .map(|h| h.id());
+        let dir_color = AssetFileType::Directory.color();
         let header_resp = state.show_header(ui, |ui| {
+            ui.spacing_mut().item_spacing.x = 4.0;
+            if let Some(id) = tex_id {
+                let size = egui::vec2(16.0, 16.0);
+                ui.add(egui::Image::new(egui::load::SizedTexture::new(id, size)).tint(dir_color));
+            }
             ui.label(&node.name);
         });
 
@@ -391,9 +427,17 @@ fn render_file_tree(
             return;
         }
 
-        let icon = egui::RichText::new(node.file_type.icon()).color(node.file_type.color());
+        let file_tex_id = world
+            .get_resource::<EditorIcons>()
+            .and_then(|i| i.get(node.file_type.icon_name()))
+            .map(|h| h.id());
+        let file_color = node.file_type.color();
         let resp = ui.horizontal(|ui| {
-            ui.label(icon);
+            ui.spacing_mut().item_spacing.x = 4.0;
+            if let Some(id) = file_tex_id {
+                let size = egui::vec2(16.0, 16.0);
+                ui.add(egui::Image::new(egui::load::SizedTexture::new(id, size)).tint(file_color));
+            }
             ui.selectable_label(false, &node.name)
         });
         let resp = resp.inner;

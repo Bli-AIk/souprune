@@ -6,6 +6,7 @@
 mod data;
 mod editors;
 mod i18n;
+pub mod icons;
 mod panels;
 mod platform;
 mod sequencer_bridge;
