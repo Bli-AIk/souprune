@@ -74,6 +74,35 @@ pub fn game_schedule(app: &App) -> InternedScheduleLabel {
         .map_or(Update.intern(), |s| s.0)
 }
 
+/// 初始化游戏核心状态。
+///
+/// 注册 AppState、SequenceSubState、SequenceMode、ModeChanged，
+/// 以及 ViewUpdate / SequencerUpdate 系统集的 run_if 条件。
+/// 游戏本体和编辑器共用此函数，避免重复初始化代码。
+pub fn init_game_state(app: &mut App) {
+    let schedule = game_schedule(app);
+    app.init_state::<app_state::AppState>()
+        .init_state::<app_state::SequenceSubState>()
+        .init_resource::<app_state::SequenceMode>()
+        .add_message::<app_state::ModeChanged>()
+        .add_systems(
+            PreUpdate,
+            (
+                app_state::detect_mode_changes,
+                app_state::cleanup_mode_scoped_entities,
+            )
+                .chain(),
+        )
+        .configure_sets(
+            schedule,
+            core::view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
+        )
+        .configure_sets(
+            schedule,
+            core::sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
+        );
+}
+
 /// Sets up the logging system with both stdout and file output.
 /// When `trace_tracy` feature is enabled, also adds Tracy profiler layer.
 ///
@@ -367,76 +396,11 @@ pub fn get_game_plugins() -> (
     )
 }
 
-/// 为编辑器初始化游戏基础设施。
+/// 重置所有游戏运行时状态。
 ///
-/// 添加核心插件、视图系统、第三方插件和必要的状态资源，
-/// 使 Sequencer 能在编辑器的 Play 模式下正常运行。
-///
-/// 调用方需要在此之前插入 `SoupruneConfig` 资源。
-pub fn init_editor_game_systems(app: &mut App) {
-    let schedule = game_schedule(app);
-
-    // 第三方游戏插件
-    app.add_plugins((
-        leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
-        bevy_ecs_tiled::prelude::TiledPlugin::default(),
-        bevy_rich_text3d::Text3dPlugin {
-            default_atlas_dimension: (1024, 1024),
-            load_system_fonts: false,
-            ..Default::default()
-        },
-        bevy_alight_motion::prelude::AlightMotionPlugin,
-    ));
-
-    // 核心游戏系统（音频、摄像机、碰撞、动画、对话、FRE 桥接等）
-    app.add_plugins(core::CorePlugin);
-
-    // Mod 系统（DanmakuRegistry、BehaviorRegistry）
-    app.add_plugins(core::mod_system::ModPlugin);
-
-    // View 系统（SpawnView / ModifyViewElement 章节依赖）
-    app.add_plugins(core::view::CoreViewPlugin);
-
-    // 应用状态（FRE 桥接依赖）
-    // 编辑器直接跳到 Running，游戏系统（ViewUpdate 等）才会执行
-    app.init_state::<app_state::AppState>()
-        .init_state::<app_state::SequenceSubState>()
-        .init_resource::<app_state::SequenceMode>()
-        .init_resource::<app_state::overworld::trigger::RuleActionDefs>()
-        .insert_resource(core::input::ActionRegistry::new())
-        .add_message::<app_state::ModeChanged>()
-        .add_systems(
-            PreUpdate,
-            (
-                app_state::detect_mode_changes,
-                app_state::cleanup_mode_scoped_entities,
-            )
-                .chain(),
-        )
-        .configure_sets(
-            schedule,
-            core::view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .configure_sets(
-            schedule,
-            core::sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .add_systems(
-            Startup,
-            |mut next: ResMut<NextState<app_state::AppState>>| {
-                next.set(app_state::AppState::Running);
-            },
-        );
-
-    // 文件导入器插件
-    app.add_plugins(get_file_importer_plugins());
-}
-
-/// 编辑器 Stop 时的全局游戏状态清理。
-///
-/// 停止所有音频、重置序列/FRE/模式状态、清理游戏实体。
-/// 作为 exclusive system 注册在 `OnEnter(EditorMode::Edit)` 上。
-pub fn editor_stop_cleanup(world: &mut World) {
+/// 停止所有音频、重置序列/FRE/模式状态、清理游戏实体，
+/// 使 App 回到可以重新开始游戏的干净状态。
+pub fn reset_game_state(world: &mut World) {
     // 1. 通过 Audio channel 停止所有声音（包括无 handle 的 fire-and-forget 音效）
     if let Some(audio) = world.get_resource::<bevy_kira_audio::Audio>() {
         use bevy_kira_audio::AudioControl;
@@ -536,7 +500,6 @@ pub fn editor_stop_cleanup(world: &mut World) {
     for entity in dialogue_entities {
         world.despawn(entity);
     }
-    // 清理对话相关 FRE facts
     if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
         db.set(
             core::fre_facts::DIALOGUE_ACTIVE,
@@ -553,7 +516,7 @@ pub fn editor_stop_cleanup(world: &mut World) {
         world.despawn(entity);
     }
 
-    info!("[编辑器] Stop — 已完成全局游戏状态清理");
+    info!("已完成游戏状态重置");
 }
 
 /// 从 SoupruneConfig 加载输入配置并插入所有输入相关资源。
@@ -807,32 +770,11 @@ pub fn run() {
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)
-        .insert_resource(input_behavior_config)
-        .init_state::<app_state::AppState>()
-        .init_state::<app_state::SequenceSubState>()
-        .init_resource::<app_state::SequenceMode>()
-        .add_message::<app_state::ModeChanged>()
-        .add_systems(
-            PreUpdate,
-            (
-                app_state::detect_mode_changes,
-                app_state::cleanup_mode_scoped_entities,
-            )
-                .chain(),
-        );
+        .insert_resource(input_behavior_config);
 
-    // GameUpdateSchedule defaults to Update for standalone game
-    let schedule = game_schedule(&app);
-    app.configure_sets(
-        schedule,
-        view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
-    )
-    .configure_sets(
-        schedule,
-        sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
-    )
-    .add_plugins(get_game_plugins())
-    .run();
+    init_game_state(&mut app);
+
+    app.add_plugins(get_game_plugins()).run();
 }
 
 #[cfg(target_os = "android")]

@@ -54,42 +54,18 @@ impl Plugin for SoupRuneEditorPlugin {
             .resource_mut::<bevy_workbench::game_view::GameViewState>()
             .resolution = UVec2::new(base_w * resolution_scale, base_h * resolution_scale);
 
-        // 应用状态（游戏插件依赖）
-        app.init_state::<souprune::app_state::AppState>()
-            .init_state::<souprune::app_state::SequenceSubState>()
-            .init_resource::<souprune::app_state::SequenceMode>()
-            .insert_resource(souprune::core::input::touch::TouchOverlayEnabled(false))
+        // 应用状态（游戏插件依赖）— 共享初始化
+        souprune::init_game_state(app);
+        app.insert_resource(souprune::core::input::touch::TouchOverlayEnabled(false))
             .insert_resource(souprune::app_state::app_setup::ResolutionScale(
                 resolution_scale,
-            ))
-            .add_message::<souprune::app_state::ModeChanged>()
-            .add_systems(
-                PreUpdate,
-                (
-                    souprune::app_state::detect_mode_changes,
-                    souprune::app_state::cleanup_mode_scoped_entities,
-                )
-                    .chain(),
-            );
+            ));
 
         // 从配置加载完整的输入资源（ActionRegistry, PlayerInputSettings, InputBehaviorConfig）
         souprune::insert_input_resources(app);
 
         // 从配置加载字体目录（bevy_rich_text3d 需要）
         souprune::insert_font_resources(app);
-
-        // 配置游戏系统集到 GameSchedule
-        let schedule = souprune::game_schedule(app);
-        app.configure_sets(
-            schedule,
-            souprune::core::view::ViewUpdate
-                .run_if(in_state(souprune::app_state::AppState::Running)),
-        )
-        .configure_sets(
-            schedule,
-            souprune::core::sequencer::SequencerUpdate
-                .run_if(in_state(souprune::app_state::AppState::Running)),
-        );
 
         // 完整的游戏插件栈（所有系统注册到 GameSchedule）
         app.add_plugins(souprune::get_third_plugins());
@@ -147,11 +123,7 @@ impl Plugin for SoupRuneEditorPlugin {
         app.add_systems(OnEnter(EditorMode::Play), sequencer_bridge::on_enter_play);
         app.add_systems(
             OnEnter(EditorMode::Edit),
-            (
-                souprune::editor_stop_cleanup,
-                sequencer_bridge::on_exit_play,
-            )
-                .chain(),
+            (souprune::reset_game_state, sequencer_bridge::on_exit_play).chain(),
         );
 
         // 序列回放 UI 同步（仅在 Play 模式下执行）

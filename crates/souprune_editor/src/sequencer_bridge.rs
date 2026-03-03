@@ -57,7 +57,7 @@ pub fn on_enter_play(
     }
 }
 
-/// 退出 Play 模式时，由 souprune::editor_stop_cleanup 执行全局清理。
+/// 退出 Play 模式时，由 souprune::reset_game_state 执行全局清理。
 /// 此函数仅处理编辑器侧状态（PlaybackState 等）。
 pub fn on_exit_play(mut playback: ResMut<PlaybackState>) {
     playback.start_from = None;
