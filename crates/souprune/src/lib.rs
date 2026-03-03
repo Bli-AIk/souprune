@@ -535,6 +535,15 @@ pub fn editor_stop_cleanup(world: &mut World) {
         );
     }
 
+    // 11. 清理 TiledMap 实体（由 LoadMap 章节生成，无 ModeScoped 标记）
+    let tiled_maps: Vec<Entity> = world
+        .query_filtered::<Entity, With<bevy_ecs_tiled::prelude::TiledMap>>()
+        .iter(world)
+        .collect();
+    for entity in tiled_maps {
+        world.despawn(entity);
+    }
+
     info!("[编辑器] Stop — 已完成全局游戏状态清理");
 }
 

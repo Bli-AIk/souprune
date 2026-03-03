@@ -27,8 +27,8 @@ use crate::core::map_property_schema::{get_string_property, keys, object_keys};
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Camera, Commands, Component, Entity, Name, Query, Res, ResMut, Sprite, Transform, Vec2,
-    Visibility, Window, With, Without,
+    Added, Camera, ChildOf, Children, Commands, Component, Entity, Name, Query, Res, ResMut,
+    Sprite, Transform, Vec2, Visibility, Window, With, Without,
 };
 use bevy_ecs_tiled::prelude::{TiledLayer, TiledMap, TiledMapAsset, TiledObject, tiled};
 
@@ -57,42 +57,61 @@ pub struct ObjectCollisionGroup;
 /// 并根据图层顺序设置其他图层的 z 轴位置，同时为 "collision" 图层生成碰撞
 pub fn initialize_tilemap_system(
     mut commands: Commands,
-    layers_query: Query<(Entity, &Name), Added<TiledLayer>>,
+    new_layers: Query<(Entity, &ChildOf), Added<TiledLayer>>,
+    parent_children: Query<&Children>,
+    layer_names: Query<&Name, With<TiledLayer>>,
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
-    let mut layers: Vec<_> = layers_query.iter().collect();
+    // 收集有新 layer 的父实体
+    let mut parents = Vec::new();
+    for (_, child_of) in new_layers.iter() {
+        let parent = child_of.parent();
+        if !parents.contains(&parent) {
+            parents.push(parent);
+        }
+    }
 
-    layers.sort_by_key(|(entity, _)| entity.index());
+    for parent in parents {
+        // 从父实体的 Children 中按正确顺序取 layer 实体
+        let Ok(children) = parent_children.get(parent) else {
+            continue;
+        };
+        let layers: Vec<_> = children
+            .iter()
+            .filter_map(|&child| layer_names.get(child).ok().map(|name| (child, name)))
+            .collect();
 
-    let hidden_keywords = &souprune_config.game.hidden_layer_keywords;
+        let hidden_keywords = &souprune_config.game.hidden_layer_keywords;
 
-    for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
-        let layer_name_str = layer_name.as_str();
+        for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
+            let layer_name_str = layer_name.as_str();
 
-        let name_lower = layer_name_str.to_ascii_lowercase();
-        if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
-            if name_lower.contains("collision") {
-                info!(
-                    "Hide collision layer: {} and generate collision tiles",
-                    layer_name_str
-                );
+            let name_lower = layer_name_str.to_ascii_lowercase();
+            if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
+                if name_lower.contains("collision") {
+                    info!(
+                        "Hide collision layer: {} and generate collision tiles",
+                        layer_name_str
+                    );
+                } else {
+                    info!("Hide prototype layer: {}", layer_name_str);
+                }
+                commands.entity(*layer_entity).insert(Visibility::Hidden);
             } else {
-                info!("Hide prototype layer: {}", layer_name_str);
+                info!("Show layers: {}", layer_name_str);
+
+                let z_offset = souprune_config.render.z_layer_base
+                    - (layers.len() as f32 - 1.0 - index as f32)
+                        * souprune_config.render.z_layer_step;
+
+                commands
+                    .entity(*layer_entity)
+                    .insert(Transform::from_xyz(0.0, 0.0, z_offset));
+                info!(
+                    "Set the Z-axis position of layer {} (order {}): {}",
+                    layer_name_str, index, z_offset
+                );
             }
-            commands.entity(*layer_entity).insert(Visibility::Hidden);
-        } else {
-            info!("Show layers: {}", layer_name_str);
-
-            let z_offset = souprune_config.render.z_layer_base
-                - (layers.len() as f32 - 1.0 - index as f32) * souprune_config.render.z_layer_step;
-
-            commands
-                .entity(*layer_entity)
-                .insert(Transform::from_xyz(0.0, 0.0, z_offset));
-            info!(
-                "Set the Z-axis position of layer {} (order {}): {}",
-                layer_name_str, index, z_offset
-            );
         }
     }
 }
