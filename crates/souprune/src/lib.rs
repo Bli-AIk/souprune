@@ -519,6 +519,22 @@ pub fn editor_stop_cleanup(world: &mut World) {
         world.despawn(entity);
     }
 
+    // 10. 清理 DialogueControllerEntity（打字机/对话实体，非 ModeScoped）
+    let dialogue_entities: Vec<Entity> = world
+        .query_filtered::<Entity, With<core::dialogue::DialogueControllerEntity>>()
+        .iter(world)
+        .collect();
+    for entity in dialogue_entities {
+        world.despawn(entity);
+    }
+    // 清理对话相关 FRE facts
+    if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
+        db.set(
+            core::fre_facts::DIALOGUE_ACTIVE,
+            bevy_fact_rule_event::FactValue::Bool(false),
+        );
+    }
+
     info!("[编辑器] Stop — 已完成全局游戏状态清理");
 }
 

@@ -116,6 +116,7 @@ pub fn action_to_fre_event_system(
 fn state_facts_need_sync(
     sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
+    facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) -> bool {
     if let Some(ref state) = sub_state
         && state.is_changed()
@@ -125,6 +126,17 @@ fn state_facts_need_sync(
     if let Some(ref state) = app_state
         && state.is_changed()
     {
+        return true;
+    }
+    // 编辑器 Stop 时 clear_local() 会清除状态 facts，需要在下次 Play 时重新同步
+    if sub_state.is_some()
+        && facts
+            .get_by_str(fre_facts::STATE_SEQUENCE_SUB_STATE)
+            .is_none()
+    {
+        return true;
+    }
+    if app_state.is_some() && facts.get_by_str(fre_facts::STATE_APP_STATE).is_none() {
         return true;
     }
     false

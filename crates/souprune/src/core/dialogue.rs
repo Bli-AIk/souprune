@@ -30,6 +30,7 @@ pub use components::TypewriterVoice;
 #[allow(deprecated)]
 pub use config::DialogueBlockingConfig;
 pub use config::DialogueInputConfig;
+pub use systems::DialogueControllerEntity;
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
