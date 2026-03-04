@@ -119,7 +119,7 @@ pub mod debug_fre_panel {
         data_keys: Vec<String>,
     }
 
-    use super::RuleTriggerHistory;
+    use crate::extra::debug::RuleTriggerHistory;
 
     pub(crate) fn setup_fre_panel_debug(app: &mut App) {
         app.init_resource::<FREPanelState>()
@@ -465,7 +465,7 @@ pub mod debug_fre_panel {
                                 global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in global_rules {
                                     let is_triggered = trigger_history
-                                        .map(|h| {
+                                        .map(|h: &RuleTriggerHistory| {
                                             h.was_recently_triggered(&rule.id, current_time, 1.0)
                                         })
                                         .unwrap_or(false);
@@ -486,7 +486,7 @@ pub mod debug_fre_panel {
                                 local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in local_rules {
                                     let is_triggered = trigger_history
-                                        .map(|h| {
+                                        .map(|h: &RuleTriggerHistory| {
                                             h.was_recently_triggered(&rule.id, current_time, 1.0)
                                         })
                                         .unwrap_or(false);
@@ -513,7 +513,7 @@ pub mod debug_fre_panel {
                                             view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                             for rule in view_rules {
                                                 let is_triggered = trigger_history
-                                                    .map(|h| {
+                                                    .map(|h: &RuleTriggerHistory| {
                                                         h.was_recently_triggered(
                                                             &rule.id,
                                                             current_time,

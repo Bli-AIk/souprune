@@ -2,16 +2,18 @@
 //!
 //! 复用游戏的 ViewBox/SDF/Text3d 渲染管线，通过 RenderLayers::layer(31) 隔离。
 
-use bevy::camera::visibility::RenderLayers;
 use bevy::camera::RenderTarget;
+use bevy::camera::visibility::RenderLayers;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 
-use souprune::core::view::reconcile::{SpawnContext, ViewElementSpec, build_text_config};
 use souprune::core::view::CameraAnchored;
+use souprune::core::view::reconcile::{SpawnContext, ViewElementSpec, build_text_config};
 
 use super::view_editor::ViewEditorState;
+
+use std::collections::HashMap;
 
 /// 预览系统状态资源。
 #[derive(Resource)]
@@ -28,6 +30,14 @@ pub struct ViewPreviewState {
     pub zoom: f32,
     /// 预览相机平移偏移
     pub pan_offset: Vec2,
+    /// Preview FRE interaction active (Play mode)
+    pub playing: bool,
+    /// Previous value of `playing` for transition detection
+    pub was_playing: bool,
+    /// Preview panel has focus (allows game input forwarding to FRE)
+    pub focused: bool,
+    /// Rule IDs registered during Play (cleaned up on Stop)
+    pub registered_rule_ids: Vec<String>,
 }
 
 impl Default for ViewPreviewState {
@@ -41,6 +51,10 @@ impl Default for ViewPreviewState {
             last_layout_hash: 0,
             zoom: 1.0,
             pan_offset: Vec2::ZERO,
+            playing: false,
+            was_playing: false,
+            focused: false,
+            registered_rule_ids: Vec::new(),
         }
     }
 }
@@ -60,6 +74,7 @@ pub fn setup_view_preview(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut state: ResMut<ViewPreviewState>,
+    resolution_scale: Res<souprune::app_state::app_setup::ResolutionScale>,
 ) {
     // 创建渲染目标纹理
     let mut image = Image::new_target_texture(
@@ -71,7 +86,7 @@ pub fn setup_view_preview(
     image.sampler = ImageSampler::nearest();
     state.render_target = images.add(image);
 
-    // 生成预览相机
+    // 生成预览相机（使用与游戏相机一致的 OrthographicProjection scale）
     let camera = commands
         .spawn((
             Camera2d,
@@ -80,6 +95,10 @@ pub fn setup_view_preview(
                 clear_color: ClearColorConfig::Custom(Color::srgba(0.12, 0.12, 0.16, 1.0)),
                 ..default()
             },
+            Projection::Orthographic(OrthographicProjection {
+                scale: 1.0 / resolution_scale.0 as f32,
+                ..OrthographicProjection::default_2d()
+            }),
             RenderTarget::from(state.render_target.clone()),
             RenderLayers::layer(PREVIEW_LAYER),
             ViewPreviewCamera,
@@ -125,13 +144,40 @@ pub fn rebuild_preview_entities(
     }
     preview_state.last_layout_hash = hash;
 
-    // 清理旧实体
+    // Stop playing when preview rebuilds (FRE state becomes stale)
+    if preview_state.playing {
+        preview_state.playing = false;
+        preview_state.focused = false;
+    }
+
+    // Cleanup old entities
     cleanup_preview(&mut commands, &mut preview_state);
 
-    // 构建 SpawnContext — 使用模拟 camera_transform（预览相机在原点）
+    // Spawn a ViewRoot container for FRE Play mode
+    let layout_path = editor_state
+        .file_path
+        .as_ref()
+        .and_then(|p| p.to_str())
+        .unwrap_or("preview")
+        .to_string();
+    let view_root_entity = commands
+        .spawn((
+            souprune::core::view::components::ViewRoot::new(layout_path),
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::Inherited,
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            RenderLayers::layer(PREVIEW_LAYER),
+            ViewPreviewEntity,
+            Name::new("preview_view_root"),
+        ))
+        .id();
+    preview_state.preview_entities.push(view_root_entity);
+
+    // Build SpawnContext
     let cam_transform = Transform::default();
-    let player_data =
-        souprune::core::view::ron_view::player_data::PlayerDataView::new(&fact_db);
+    let player_data = souprune::core::view::ron_view::player_data::PlayerDataView::new(&fact_db);
     let ctx = SpawnContext::new(
         &asset_server,
         &mortar_strings,
@@ -145,14 +191,14 @@ pub fn rebuild_preview_entities(
             .unwrap_or("preview"),
     );
 
-    // 遍历根节点，使用游戏管线生成预览实体
+    // Spawn preview nodes parented to the ViewRoot entity
     for root in &layout.roots {
         spawn_preview_node(
             &mut commands,
             &mut preview_state,
             &ctx,
             root,
-            None,
+            Some(view_root_entity),
             0.0,
         );
     }
@@ -194,12 +240,7 @@ fn spawn_preview_node(
             .map(|td| build_text_config(td, ctx))
             .collect();
         let entity = souprune::core::view::reconcile::spawn_viewbox_entity(
-            commands,
-            parent,
-            ctx,
-            &spec,
-            vb,
-            texts,
+            commands, parent, ctx, &spec, vb, texts,
             false, // is_top_level=false 避免 CameraAnchored
         );
         commands
@@ -311,15 +352,44 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
 
         // 工具栏
         ui.horizontal(|ui| {
+            // Play/Stop 按钮
+            if state.playing {
+                if ui.small_button("Stop").clicked() {
+                    state.playing = false;
+                    state.focused = false;
+                }
+            } else if ui.small_button("Play").clicked() {
+                state.playing = true;
+                state.focused = true;
+            }
+            ui.separator();
             ui.label(format!("Zoom: {:.0}%", state.zoom * 100.0));
             if ui.small_button("重置").clicked() {
                 state.zoom = 1.0;
                 state.pan_offset = Vec2::ZERO;
             }
+            ui.separator();
+            // 焦点指示器（仅 playing 时显示）
+            if state.playing {
+                if state.focused {
+                    ui.colored_label(egui::Color32::from_rgb(100, 255, 100), "Input Active");
+                } else {
+                    ui.colored_label(egui::Color32::from_rgb(120, 120, 140), "Click to interact");
+                }
+            }
         });
 
-        let (rect, response) =
-            ui.allocate_exact_size(base_size, egui::Sense::click_and_drag());
+        let (rect, response) = ui.allocate_exact_size(base_size, egui::Sense::click_and_drag());
+
+        // 点击切换焦点（仅 playing 时）
+        if state.playing && response.clicked() {
+            state.focused = !state.focused;
+        }
+
+        // 按 Esc 释放焦点
+        if state.focused && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            state.focused = false;
+        }
 
         // 滚轮缩放
         if response.hovered() {
@@ -337,6 +407,17 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
             let delta = response.drag_delta();
             state.pan_offset.x += delta.x / state.zoom;
             state.pan_offset.y -= delta.y / state.zoom;
+        }
+
+        // 焦点高亮边框
+        if state.focused {
+            let painter = ui.painter();
+            painter.rect_stroke(
+                rect,
+                0.0,
+                egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 255, 100)),
+                egui::StrokeKind::Outside,
+            );
         }
 
         ui.painter().image(
@@ -361,7 +442,8 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
 /// 同步预览相机的缩放和平移。
 pub fn sync_preview_camera(
     state: Res<ViewPreviewState>,
-    mut cameras: Query<&mut Transform, With<ViewPreviewCamera>>,
+    resolution_scale: Res<souprune::app_state::app_setup::ResolutionScale>,
+    mut cameras: Query<(&mut Transform, &mut Projection), With<ViewPreviewCamera>>,
 ) {
     if !state.is_changed() {
         return;
@@ -369,11 +451,13 @@ pub fn sync_preview_camera(
     let Some(cam_entity) = state.camera_entity else {
         return;
     };
-    if let Ok(mut transform) = cameras.get_mut(cam_entity) {
+    if let Ok((mut transform, mut projection)) = cameras.get_mut(cam_entity) {
         transform.translation.x = -state.pan_offset.x;
         transform.translation.y = -state.pan_offset.y;
-        let s = 1.0 / state.zoom;
-        transform.scale = Vec3::new(s, s, 1.0);
+        // 通过 OrthographicProjection::scale 实现缩放，保持与游戏相机一致的基准
+        if let Projection::Orthographic(ref mut ortho) = *projection {
+            ortho.scale = 1.0 / (resolution_scale.0 as f32 * state.zoom);
+        }
     }
 }
 
@@ -389,13 +473,7 @@ pub fn propagate_preview_render_layers(
 ) {
     let layer = RenderLayers::layer(PREVIEW_LAYER);
     for root in preview_entities.iter() {
-        propagate_layers_recursive(
-            &mut commands,
-            root,
-            &children_query,
-            &without_layer,
-            &layer,
-        );
+        propagate_layers_recursive(&mut commands, root, &children_query, &without_layer, &layer);
     }
 }
 
@@ -413,5 +491,178 @@ fn propagate_layers_recursive(
             }
             propagate_layers_recursive(commands, child, children_query, without_layer, layer);
         }
+    }
+}
+
+/// 预览输入映射资源：KeyCode → 动作名称。
+///
+/// 从 InputConfig 构建，用于将键盘输入转发为 FRE 事件。
+#[derive(Resource)]
+pub struct ViewPreviewKeyMap(pub HashMap<KeyCode, String>);
+
+/// 预览焦点时将键盘输入转发为 FRE 事件。
+///
+/// 当 `ViewPreviewState.focused` 为 true 时，读取 `ButtonInput<KeyCode>`，
+/// 通过 `ViewPreviewKeyMap` 映射为动作名称，发射对应的 `FactEvent`。
+pub fn preview_input_to_fre_system(
+    state: Res<ViewPreviewState>,
+    key_map: Res<ViewPreviewKeyMap>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut event_writer: MessageWriter<bevy_fact_rule_event::FactEvent>,
+) {
+    if !state.playing || !state.focused {
+        return;
+    }
+
+    for (keycode, action_name) in key_map.0.iter() {
+        let action_lower = action_name.to_lowercase();
+
+        if keys.just_pressed(*keycode) {
+            let event_id = format!("action:{}:just_pressed", action_lower);
+            info!(
+                "[ViewPreview] FRE: {} just_pressed → {}",
+                action_name, event_id
+            );
+            event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
+        }
+
+        if keys.just_released(*keycode) {
+            let event_id = format!("action:{}:just_released", action_lower);
+            debug!(
+                "[ViewPreview] FRE: {} just_released → {}",
+                action_name, event_id
+            );
+            event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
+        }
+    }
+}
+
+/// 检测 Play/Stop 状态变化，执行 FRE 初始化或清理。
+///
+/// Play 启动时：初始化 ViewRoot.local_facts + 注册 FRE 规则 + 添加 ActiveView
+/// Stop 时：清理规则 + 重置状态 + 触发预览重建
+#[allow(clippy::too_many_arguments)]
+pub fn preview_play_control_system(
+    mut state: ResMut<ViewPreviewState>,
+    fre_state: Option<Res<super::view_fre_panel::ViewFreState>>,
+    mut rule_registry: ResMut<bevy_fact_rule_event::LayeredRuleRegistry>,
+    mut action_defs: ResMut<souprune::app_state::overworld::trigger::RuleActionDefs>,
+    mut fact_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    mortar_strings: Res<souprune::extra::mortar::MortarStringTable>,
+    mut commands: Commands,
+    mut view_roots: Query<(Entity, &mut souprune::core::view::components::ViewRoot)>,
+) {
+    let playing = state.playing;
+    let was_playing = state.was_playing;
+
+    // No transition — nothing to do
+    if playing == was_playing {
+        return;
+    }
+    state.was_playing = playing;
+
+    if playing && !was_playing {
+        // --- Play start ---
+        let Some(fre_state) = fre_state else {
+            warn!("[ViewPreview] Play: ViewFreState not found");
+            state.playing = false;
+            state.was_playing = false;
+            state.focused = false;
+            return;
+        };
+
+        fact_db.clear_local();
+
+        let mut found_entity = None;
+        for e in &state.preview_entities {
+            if view_roots.get(*e).is_ok() {
+                found_entity = Some(*e);
+                break;
+            }
+        }
+
+        let Some(view_entity) = found_entity else {
+            warn!("[ViewPreview] Play: no preview ViewRoot entity found");
+            state.playing = false;
+            state.was_playing = false;
+            state.focused = false;
+            return;
+        };
+
+        let mut view_root = view_roots.get_mut(view_entity).unwrap().1;
+        view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
+
+        let mut registered_ids = Vec::new();
+        for fre_asset in fre_state.loaded_fre.values() {
+            souprune::core::view::ron_view::spawn::load_fre_into_view_root(
+                &mut view_root,
+                fre_asset,
+                &mortar_strings,
+            );
+
+            let rule_defs = fre_asset.get_rule_defs();
+            let scope = fre_asset.scope();
+            for (idx, rule_def) in rule_defs.iter().enumerate() {
+                let effective_scope = if scope == bevy_fact_rule_event::RuleScope::Local {
+                    bevy_fact_rule_event::RuleScope::View
+                } else {
+                    scope
+                };
+
+                let rule = rule_def.to_rule_with_index(idx, effective_scope);
+                let rule_id = rule_def.generate_id(idx);
+
+                if !rule_def.actions.is_empty() {
+                    action_defs
+                        .actions_by_rule
+                        .insert(rule_id.clone(), rule_def.actions.clone());
+                }
+
+                registered_ids.push(rule_id.clone());
+
+                if effective_scope == bevy_fact_rule_event::RuleScope::View {
+                    rule_registry.register_view_rule(view_entity, rule);
+                } else {
+                    rule_registry.register(rule);
+                }
+            }
+        }
+
+        commands
+            .entity(view_entity)
+            .insert(souprune::core::view::components::ActiveView);
+
+        info!(
+            "[ViewPreview] Play started: registered {} rules, local_facts initialized",
+            registered_ids.len()
+        );
+        state.registered_rule_ids = registered_ids;
+    } else if !playing && was_playing {
+        // --- Stop ---
+        for entity in &state.preview_entities {
+            if view_roots.get(*entity).is_ok() {
+                rule_registry.clear_view(*entity);
+                commands
+                    .entity(*entity)
+                    .remove::<souprune::core::view::components::ActiveView>();
+            }
+        }
+
+        for rule_id in &state.registered_rule_ids {
+            action_defs.actions_by_rule.remove(rule_id);
+        }
+        state.registered_rule_ids.clear();
+
+        fact_db.clear_local();
+
+        for entity in &state.preview_entities {
+            if let Ok((_, mut view_root)) = view_roots.get_mut(*entity) {
+                view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
+            }
+        }
+
+        state.last_layout_hash = 0;
+
+        info!("[ViewPreview] Play stopped: rules cleaned up, preview will rebuild");
     }
 }

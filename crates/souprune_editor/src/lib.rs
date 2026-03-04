@@ -71,6 +71,23 @@ impl Plugin for SoupRuneEditorPlugin {
         // 从配置加载完整的输入资源（ActionRegistry, PlayerInputSettings, InputBehaviorConfig）
         souprune::insert_input_resources(app);
 
+        // 构建预览输入映射（KeyCode → 动作名称），用于 View 预览的 FRE 交互
+        {
+            let config = app
+                .world()
+                .get_resource::<souprune::config::SoupruneConfig>()
+                .expect("SoupruneConfig required");
+            let projects_base = souprune::config::get_projects_base_path();
+            let input_config_path = projects_base
+                .join(&config.project.mod_name)
+                .join(&config.game.input_config_path);
+            let input_config =
+                souprune::core::input::InputConfig::load_from_file(&input_config_path);
+            let key_map =
+                panels::view_preview::ViewPreviewKeyMap(input_config.build_keycode_to_action_map());
+            app.insert_resource(key_map);
+        }
+
         // 从配置加载字体目录（bevy_rich_text3d 需要）
         souprune::insert_font_resources(app);
 
@@ -95,6 +112,7 @@ impl Plugin for SoupRuneEditorPlugin {
 
         // View 预览渲染
         app.init_resource::<panels::view_preview::ViewPreviewState>();
+        app.init_resource::<panels::view_fre_panel::ViewFreState>();
         app.add_systems(Startup, panels::view_preview::setup_view_preview);
         app.add_systems(
             Update,
@@ -115,6 +133,22 @@ impl Plugin for SoupRuneEditorPlugin {
                 souprune::core::view::text::show_text_when_ready_system,
             )
                 .run_if(in_state(EditorMode::Edit)),
+        );
+        // View 预览 FRE 交互：Play/Stop 控制始终运行，FRE 系统仅在 Play 模式运行
+        app.add_systems(
+            Update,
+            panels::view_preview::preview_play_control_system.run_if(in_state(EditorMode::Edit)),
+        );
+        app.add_systems(
+            Update,
+            (
+                panels::view_preview::preview_input_to_fre_system,
+                souprune::core::fre_bridge::process_view_actions_system,
+                souprune::core::view::visible_when::evaluate_visible_when_system,
+            )
+                .chain()
+                .run_if(in_state(EditorMode::Edit))
+                .run_if(|state: Res<panels::view_preview::ViewPreviewState>| state.playing),
         );
 
         // i18n 在 Startup 时注册（I18n 资源由 WorkbenchPlugin 创建）

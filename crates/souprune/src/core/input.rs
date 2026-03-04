@@ -19,12 +19,12 @@
 //! 本文件实现了 `InputPlugin`，用于初始化并管理输入配置。
 
 pub mod actions;
-pub(crate) mod config;
+pub mod config;
 pub(crate) mod resources;
 pub mod touch;
 
 pub use actions::*;
-pub(crate) use config::*;
+pub use config::*;
 pub(crate) use resources::*;
 
 use crate::core::ron_loader::RonAssetLoader;

@@ -35,11 +35,7 @@ pub enum SimFactValue {
 
 impl ViewFreState {
     /// 当 view 文件变更时，重新加载关联的 FRE 文件。
-    pub fn sync_for_view(
-        &mut self,
-        view_path: &std::path::Path,
-        requires: &[DataRequirement],
-    ) {
+    pub fn sync_for_view(&mut self, view_path: &std::path::Path, requires: &[DataRequirement]) {
         if self.loaded_for_path.as_deref() == Some(view_path) {
             return;
         }
@@ -48,28 +44,29 @@ impl ViewFreState {
 
         for req in requires {
             if let DataRequirement::File(rel_path) = req
-                && let Some(full) = souprune::config::resolve_path(rel_path) {
-                    match std::fs::read_to_string(&full) {
-                        Ok(content) => match ron::from_str::<FreAsset>(&content) {
-                            Ok(fre) => {
-                                // 从 FRE 的 facts 初始化模拟值
-                                for (k, v) in &fre.facts {
-                                    if !self.simulated_facts.contains_key(k) {
-                                        self.simulated_facts
-                                            .insert(k.clone(), fact_value_def_to_sim(v));
-                                    }
+                && let Some(full) = souprune::config::resolve_path(rel_path)
+            {
+                match std::fs::read_to_string(&full) {
+                    Ok(content) => match ron::from_str::<FreAsset>(&content) {
+                        Ok(fre) => {
+                            // 从 FRE 的 facts 初始化模拟值
+                            for (k, v) in &fre.facts {
+                                if !self.simulated_facts.contains_key(k) {
+                                    self.simulated_facts
+                                        .insert(k.clone(), fact_value_def_to_sim(v));
                                 }
-                                self.loaded_fre.insert(rel_path.clone(), fre);
                             }
-                            Err(e) => {
-                                bevy::log::warn!("FRE 解析失败 {rel_path}: {e}");
-                            }
-                        },
-                        Err(e) => {
-                            bevy::log::warn!("FRE 读取失败 {rel_path}: {e}");
+                            self.loaded_fre.insert(rel_path.clone(), fre);
                         }
+                        Err(e) => {
+                            bevy::log::warn!("FRE 解析失败 {rel_path}: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        bevy::log::warn!("FRE 读取失败 {rel_path}: {e}");
                     }
                 }
+            }
         }
     }
 
@@ -262,19 +259,13 @@ fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
                 match val {
                     SimFactValue::Int(v) => {
                         let mut f = *v as f64;
-                        if ui
-                            .add(egui::DragValue::new(&mut f).speed(1.0))
-                            .changed()
-                        {
+                        if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
                             *v = f as i64;
                             changed = true;
                         }
                     }
                     SimFactValue::Float(v) => {
-                        if ui
-                            .add(egui::DragValue::new(v).speed(0.1))
-                            .changed()
-                        {
+                        if ui.add(egui::DragValue::new(v).speed(0.1)).changed() {
                             changed = true;
                         }
                     }

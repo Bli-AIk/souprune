@@ -10,11 +10,7 @@ use souprune::core::view::layout::serde_types::{
 use super::val_editor::edit_val_f32;
 
 /// 编辑 Vec3Tuple (Val<f32>, Val<f32>, Val<f32>)。
-pub fn edit_vec3(
-    ui: &mut egui::Ui,
-    label: &str,
-    vec: &mut SerializableVec3,
-) -> bool {
+pub fn edit_vec3(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec3) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
@@ -28,11 +24,7 @@ pub fn edit_vec3(
 }
 
 /// 编辑 Vec2Tuple (Val<f32>, Val<f32>)。
-pub fn edit_vec2(
-    ui: &mut egui::Ui,
-    label: &str,
-    vec: &mut SerializableVec2,
-) -> bool {
+pub fn edit_vec2(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec2) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
@@ -45,11 +37,7 @@ pub fn edit_vec2(
 }
 
 /// 编辑 ColorTuple (Val<f32>, Val<f32>, Val<f32>, Val<f32>) — RGBA。
-pub fn edit_color(
-    ui: &mut egui::Ui,
-    label: &str,
-    color: &mut SerializableColor,
-) -> bool {
+pub fn edit_color(ui: &mut egui::Ui, label: &str, color: &mut SerializableColor) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
@@ -63,10 +51,7 @@ pub fn edit_color(
                 (*b * 255.0) as u8,
                 (*a * 255.0) as u8,
             );
-            let (rect, _) = ui.allocate_exact_size(
-                egui::vec2(16.0, 16.0),
-                egui::Sense::hover(),
-            );
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
             ui.painter().rect_filled(rect, 2.0, preview);
         }
     });
@@ -154,9 +139,9 @@ pub fn edit_transform(
             && ui
                 .add(egui::DragValue::new(r).speed(1.0).suffix("deg"))
                 .changed()
-            {
-                changed = true;
-            }
+        {
+            changed = true;
+        }
     });
     changed
 }
@@ -247,19 +232,37 @@ pub fn edit_font_def(ui: &mut egui::Ui, label: &str, font: &mut ViewFontDef) -> 
         egui::ComboBox::from_id_salt(label)
             .selected_text(current)
             .show_ui(ui, |ui| {
-                if ui.selectable_label(matches!(font, ViewFontDef::DeterminationMono), "DeterminationMono").clicked() {
+                if ui
+                    .selectable_label(
+                        matches!(font, ViewFontDef::DeterminationMono),
+                        "DeterminationMono",
+                    )
+                    .clicked()
+                {
                     *font = ViewFontDef::DeterminationMono;
                     changed = true;
                 }
-                if ui.selectable_label(matches!(font, ViewFontDef::DeterminationSans), "DeterminationSans").clicked() {
+                if ui
+                    .selectable_label(
+                        matches!(font, ViewFontDef::DeterminationSans),
+                        "DeterminationSans",
+                    )
+                    .clicked()
+                {
                     *font = ViewFontDef::DeterminationSans;
                     changed = true;
                 }
-                if ui.selectable_label(matches!(font, ViewFontDef::Hud), "Hud").clicked() {
+                if ui
+                    .selectable_label(matches!(font, ViewFontDef::Hud), "Hud")
+                    .clicked()
+                {
                     *font = ViewFontDef::Hud;
                     changed = true;
                 }
-                if ui.selectable_label(matches!(font, ViewFontDef::BattleHud), "BattleHud").clicked() {
+                if ui
+                    .selectable_label(matches!(font, ViewFontDef::BattleHud), "BattleHud")
+                    .clicked()
+                {
                     *font = ViewFontDef::BattleHud;
                     changed = true;
                 }
@@ -283,9 +286,10 @@ pub fn edit_string_string_map(
             ui.horizontal(|ui| {
                 ui.label(format!("{key}:"));
                 if let Some(val) = map.get_mut(key)
-                    && ui.text_edit_singleline(val).changed() {
-                        changed = true;
-                    }
+                    && ui.text_edit_singleline(val).changed()
+                {
+                    changed = true;
+                }
                 if ui.small_button("x").clicked() {
                     to_remove = Some(key.clone());
                 }
@@ -305,11 +309,7 @@ pub fn edit_string_string_map(
 }
 
 /// 编辑可选表达式字符串 (visible_when)。
-pub fn edit_expression(
-    ui: &mut egui::Ui,
-    label: &str,
-    expr: &mut Option<String>,
-) -> bool {
+pub fn edit_expression(ui: &mut egui::Ui, label: &str, expr: &mut Option<String>) -> bool {
     let mut changed = false;
     let mut enabled = expr.is_some();
     ui.horizontal(|ui| {
@@ -322,9 +322,10 @@ pub fn edit_expression(
             changed = true;
         }
         if let Some(e) = expr
-            && ui.text_edit_singleline(e).changed() {
-                changed = true;
-            }
+            && ui.text_edit_singleline(e).changed()
+        {
+            changed = true;
+        }
     });
     changed
 }

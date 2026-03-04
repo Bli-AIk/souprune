@@ -61,7 +61,7 @@ impl ViewEditorPanel {
 
 impl WorkbenchPanel for ViewEditorPanel {
     fn id(&self) -> &str {
-        "view_editor"
+        "view_editor_preview"
     }
     fn title(&self) -> String {
         "View Editor".to_string()
@@ -70,7 +70,7 @@ impl WorkbenchPanel for ViewEditorPanel {
         true
     }
     fn default_visible(&self) -> bool {
-        false
+        true
     }
     fn needs_world(&self) -> bool {
         true
@@ -280,7 +280,10 @@ fn render_tree_node(
                 }
             }
             ui.separator();
-            if ui.button(egui::RichText::new("删除").color(egui::Color32::RED)).clicked() {
+            if ui
+                .button(egui::RichText::new("删除").color(egui::Color32::RED))
+                .clicked()
+            {
                 *action = Some(TreeAction::Delete(path.to_vec()));
                 ui.close();
             }
@@ -296,11 +299,8 @@ fn render_tree_node(
         });
     } else {
         let id = egui::Id::new(format!("vn_{path_id}"));
-        let cs = egui::collapsing_header::CollapsingState::load_with_default_open(
-            ui.ctx(),
-            id,
-            true,
-        );
+        let cs =
+            egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true);
         cs.show_header(ui, |ui| {
             if ui.selectable_label(is_sel, &label).clicked() {
                 *action = Some(TreeAction::Select(path.to_vec()));
@@ -344,10 +344,11 @@ fn apply_tree_action(world: &mut World, action: TreeAction) {
         TreeAction::AddChild(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
             if let Some(layout) = &mut state.layout
-                && let Some(parent) = find_node_by_path_mut(&mut layout.roots, &path) {
-                    parent.children.push(new_empty_node("new_node"));
-                    state.dirty = true;
-                }
+                && let Some(parent) = find_node_by_path_mut(&mut layout.roots, &path)
+            {
+                parent.children.push(new_empty_node("new_node"));
+                state.dirty = true;
+            }
         }
         TreeAction::Duplicate(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
@@ -366,36 +367,39 @@ fn apply_tree_action(world: &mut World, action: TreeAction) {
         TreeAction::Delete(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
             if let Some(layout) = &mut state.layout
-                && let Some((siblings, idx)) = parent_children_mut(&mut layout.roots, &path) {
-                    siblings.remove(idx);
-                    state.dirty = true;
-                    // 清除选中（可能指向已删除的节点）
-                    state.selected_node = None;
-                }
+                && let Some((siblings, idx)) = parent_children_mut(&mut layout.roots, &path)
+            {
+                siblings.remove(idx);
+                state.dirty = true;
+                // 清除选中（可能指向已删除的节点）
+                state.selected_node = None;
+            }
         }
         TreeAction::MoveUp(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
             if let Some(layout) = &mut state.layout
                 && let Some((siblings, idx)) = parent_children_mut(&mut layout.roots, &path)
-                    && idx > 0 {
-                        siblings.swap(idx, idx - 1);
-                        state.dirty = true;
-                        let mut new_path = path.clone();
-                        *new_path.last_mut().unwrap() = idx - 1;
-                        state.selected_node = Some(new_path);
-                    }
+                && idx > 0
+            {
+                siblings.swap(idx, idx - 1);
+                state.dirty = true;
+                let mut new_path = path.clone();
+                *new_path.last_mut().unwrap() = idx - 1;
+                state.selected_node = Some(new_path);
+            }
         }
         TreeAction::MoveDown(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
             if let Some(layout) = &mut state.layout
                 && let Some((siblings, idx)) = parent_children_mut(&mut layout.roots, &path)
-                    && idx + 1 < siblings.len() {
-                        siblings.swap(idx, idx + 1);
-                        state.dirty = true;
-                        let mut new_path = path.clone();
-                        *new_path.last_mut().unwrap() = idx + 1;
-                        state.selected_node = Some(new_path);
-                    }
+                && idx + 1 < siblings.len()
+            {
+                siblings.swap(idx, idx + 1);
+                state.dirty = true;
+                let mut new_path = path.clone();
+                *new_path.last_mut().unwrap() = idx + 1;
+                state.selected_node = Some(new_path);
+            }
         }
     }
 }
@@ -466,17 +470,19 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
 
 fn edit_node_basics(ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {
     let mut changed = false;
-    egui::CollapsingHeader::new("基本").default_open(true).show(ui, |ui| {
-        changed |= labeled_text(ui, "名称", &mut node.name);
-        changed |= edit_tag_list(ui, "标签", &mut node.tags);
-        changed |= edit_expression(ui, "visible_when", &mut node.visible_when);
-        ui.horizontal(|ui| {
-            ui.label("camera_anchored:");
-            if ui.checkbox(&mut node.camera_anchored, "").changed() {
-                changed = true;
-            }
+    egui::CollapsingHeader::new("基本")
+        .default_open(true)
+        .show(ui, |ui| {
+            changed |= labeled_text(ui, "名称", &mut node.name);
+            changed |= edit_tag_list(ui, "标签", &mut node.tags);
+            changed |= edit_expression(ui, "visible_when", &mut node.visible_when);
+            ui.horizontal(|ui| {
+                ui.label("camera_anchored:");
+                if ui.checkbox(&mut node.camera_anchored, "").changed() {
+                    changed = true;
+                }
+            });
         });
-    });
     changed
 }
 
@@ -509,34 +515,36 @@ fn edit_node_sprite(ui: &mut egui::Ui, sprite_opt: &mut Option<SpriteDef>) -> bo
     let Some(sprite) = sprite_opt else {
         return changed;
     };
-    egui::CollapsingHeader::new("  Sprite").default_open(true).show(ui, |ui| {
-        // Visual path
-        ui.horizontal(|ui| {
-            ui.label("visual:");
-            if ui.text_edit_singleline(&mut sprite.visual.0).changed() {
-                changed = true;
-            }
+    egui::CollapsingHeader::new("  Sprite")
+        .default_open(true)
+        .show(ui, |ui| {
+            // Visual path
+            ui.horizontal(|ui| {
+                ui.label("visual:");
+                if ui.text_edit_singleline(&mut sprite.visual.0).changed() {
+                    changed = true;
+                }
+            });
+            // Color
+            changed |= edit_option_color(ui, "颜色", &mut sprite.color);
+            // Flip
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut sprite.flip_x, "flip_x").changed() {
+                    changed = true;
+                }
+                if ui.checkbox(&mut sprite.flip_y, "flip_y").changed() {
+                    changed = true;
+                }
+            });
+            // Transform
+            changed |= edit_option_transform(ui, "Transform", &mut sprite.transform);
+            // Pivot
+            changed |= edit_option_vec2_tuple(ui, "Pivot", &mut sprite.pivot);
+            // visible_when
+            changed |= edit_expression(ui, "visible_when", &mut sprite.visible_when);
+            // initial_state
+            changed |= edit_option_string(ui, "initial_state", &mut sprite.initial_state);
         });
-        // Color
-        changed |= edit_option_color(ui, "颜色", &mut sprite.color);
-        // Flip
-        ui.horizontal(|ui| {
-            if ui.checkbox(&mut sprite.flip_x, "flip_x").changed() {
-                changed = true;
-            }
-            if ui.checkbox(&mut sprite.flip_y, "flip_y").changed() {
-                changed = true;
-            }
-        });
-        // Transform
-        changed |= edit_option_transform(ui, "Transform", &mut sprite.transform);
-        // Pivot
-        changed |= edit_option_vec2_tuple(ui, "Pivot", &mut sprite.pivot);
-        // visible_when
-        changed |= edit_expression(ui, "visible_when", &mut sprite.visible_when);
-        // initial_state
-        changed |= edit_option_string(ui, "initial_state", &mut sprite.initial_state);
-    });
     changed
 }
 
@@ -546,17 +554,19 @@ fn edit_node_state_sprite(
 ) -> bool {
     let Some(ss) = ss_opt else { return false };
     let mut changed = false;
-    egui::CollapsingHeader::new("State Sprite").default_open(true).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.label("default:");
-            if ui.text_edit_singleline(&mut ss.default).changed() {
-                changed = true;
-            }
+    egui::CollapsingHeader::new("State Sprite")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("default:");
+                if ui.text_edit_singleline(&mut ss.default).changed() {
+                    changed = true;
+                }
+            });
+            changed |= edit_string_string_map(ui, "变体", &mut ss.variants);
+            changed |= edit_option_transform(ui, "Transform", &mut ss.transform);
+            changed |= edit_expression(ui, "visible_when", &mut ss.visible_when);
         });
-        changed |= edit_string_string_map(ui, "变体", &mut ss.variants);
-        changed |= edit_option_transform(ui, "Transform", &mut ss.transform);
-        changed |= edit_expression(ui, "visible_when", &mut ss.visible_when);
-    });
     changed
 }
 
@@ -565,86 +575,106 @@ fn edit_node_texts(ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
         return false;
     }
     let mut changed = false;
-    egui::CollapsingHeader::new("Text").default_open(true).show(ui, |ui| {
-        let mut to_remove = None;
-        for (i, text) in texts.iter_mut().enumerate() {
-            ui.push_id(i, |ui| {
-                ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("id:");
-                        if ui.text_edit_singleline(&mut text.id).changed() {
-                            changed = true;
-                        }
-                        if ui.small_button("x").clicked() {
-                            to_remove = Some(i);
-                        }
+    egui::CollapsingHeader::new("Text")
+        .default_open(true)
+        .show(ui, |ui| {
+            let mut to_remove = None;
+            for (i, text) in texts.iter_mut().enumerate() {
+                ui.push_id(i, |ui| {
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("id:");
+                            if ui.text_edit_singleline(&mut text.id).changed() {
+                                changed = true;
+                            }
+                            if ui.small_button("x").clicked() {
+                                to_remove = Some(i);
+                            }
+                        });
+                        changed |= edit_option_string(ui, "content", &mut text.content);
+                        changed |= edit_color(ui, "颜色", &mut text.color);
+                        changed |= edit_font_def(ui, "字体", &mut text.font);
+                        changed |= edit_vec2(ui, "world_scale", &mut text.world_scale);
+                        changed |= edit_expression(ui, "visible_when", &mut text.visible_when);
                     });
-                    changed |= edit_option_string(ui, "content", &mut text.content);
-                    changed |= edit_color(ui, "颜色", &mut text.color);
-                    changed |= edit_font_def(ui, "字体", &mut text.font);
-                    changed |= edit_vec2(ui, "world_scale", &mut text.world_scale);
-                    changed |= edit_expression(ui, "visible_when", &mut text.visible_when);
                 });
-            });
-        }
-        if let Some(i) = to_remove {
-            texts.remove(i);
-            changed = true;
-        }
-    });
+            }
+            if let Some(i) = to_remove {
+                texts.remove(i);
+                changed = true;
+            }
+        });
     changed
 }
 
 fn edit_node_view_box(ui: &mut egui::Ui, vb_opt: &mut Option<ViewBoxLogicDef>) -> bool {
     let Some(vb) = vb_opt else { return false };
     let mut changed = false;
-    egui::CollapsingHeader::new("ViewBox").default_open(true).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.label("宽:");
-            if ui.add(egui::DragValue::new(&mut vb.width).speed(1.0)).changed() {
-                changed = true;
-            }
-            ui.label("高:");
-            if ui.add(egui::DragValue::new(&mut vb.height).speed(1.0)).changed() {
-                changed = true;
-            }
+    egui::CollapsingHeader::new("ViewBox")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("宽:");
+                if ui
+                    .add(egui::DragValue::new(&mut vb.width).speed(1.0))
+                    .changed()
+                {
+                    changed = true;
+                }
+                ui.label("高:");
+                if ui
+                    .add(egui::DragValue::new(&mut vb.height).speed(1.0))
+                    .changed()
+                {
+                    changed = true;
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("border:");
+                if ui
+                    .add(egui::DragValue::new(&mut vb.border_width).speed(0.5))
+                    .changed()
+                {
+                    changed = true;
+                }
+            });
+            changed |= edit_vec3(ui, "offset", &mut vb.offset);
+            changed |= edit_option_color(ui, "fill_color", &mut vb.fill_color);
+            changed |= edit_option_string(ui, "structure_file", &mut vb.structure_file);
         });
-        ui.horizontal(|ui| {
-            ui.label("border:");
-            if ui.add(egui::DragValue::new(&mut vb.border_width).speed(0.5)).changed() {
-                changed = true;
-            }
-        });
-        changed |= edit_vec3(ui, "offset", &mut vb.offset);
-        changed |= edit_option_color(ui, "fill_color", &mut vb.fill_color);
-        changed |= edit_option_string(ui, "structure_file", &mut vb.structure_file);
-    });
     changed
 }
 
 fn edit_node_repeat(ui: &mut egui::Ui, repeat_opt: &mut Option<RepeatDef>) -> bool {
-    let Some(repeat) = repeat_opt else { return false };
+    let Some(repeat) = repeat_opt else {
+        return false;
+    };
     let mut changed = false;
-    egui::CollapsingHeader::new("Repeat").default_open(true).show(ui, |ui| {
-        changed |= labeled_text(ui, "source", &mut repeat.source);
-        // limit
-        let mut has_limit = repeat.limit.is_some();
-        ui.horizontal(|ui| {
-            if ui.checkbox(&mut has_limit, "limit").changed() {
-                repeat.limit = if has_limit { Some(10) } else { None };
-                changed = true;
-            }
-            if let Some(limit) = &mut repeat.limit {
-                let mut v = *limit as f64;
-                if ui.add(egui::DragValue::new(&mut v).speed(1.0).range(0.0..=1000.0)).changed() {
-                    *limit = v as usize;
+    egui::CollapsingHeader::new("Repeat")
+        .default_open(true)
+        .show(ui, |ui| {
+            changed |= labeled_text(ui, "source", &mut repeat.source);
+            // limit
+            let mut has_limit = repeat.limit.is_some();
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut has_limit, "limit").changed() {
+                    repeat.limit = if has_limit { Some(10) } else { None };
                     changed = true;
                 }
-            }
+                if let Some(limit) = &mut repeat.limit {
+                    let mut v = *limit as f64;
+                    if ui
+                        .add(egui::DragValue::new(&mut v).speed(1.0).range(0.0..=1000.0))
+                        .changed()
+                    {
+                        *limit = v as usize;
+                        changed = true;
+                    }
+                }
+            });
+            changed |= edit_option_string(ui, "index_var", &mut repeat.index_var);
+            changed |= edit_option_string(ui, "item_var", &mut repeat.item_var);
         });
-        changed |= edit_option_string(ui, "index_var", &mut repeat.index_var);
-        changed |= edit_option_string(ui, "item_var", &mut repeat.item_var);
-    });
     changed
 }
 
@@ -653,37 +683,39 @@ fn edit_data_requirements(ui: &mut egui::Ui, requires: &mut Vec<DataRequirement>
         return false;
     }
     let mut changed = false;
-    egui::CollapsingHeader::new("Data Requirements").default_open(false).show(ui, |ui| {
-        let mut to_remove = None;
-        for (i, req) in requires.iter_mut().enumerate() {
-            ui.push_id(i, |ui| {
-                ui.horizontal(|ui| {
-                    match req {
-                        DataRequirement::File(path) => {
-                            ui.label("File:");
-                            if ui.text_edit_singleline(path).changed() {
-                                changed = true;
+    egui::CollapsingHeader::new("Data Requirements")
+        .default_open(false)
+        .show(ui, |ui| {
+            let mut to_remove = None;
+            for (i, req) in requires.iter_mut().enumerate() {
+                ui.push_id(i, |ui| {
+                    ui.horizontal(|ui| {
+                        match req {
+                            DataRequirement::File(path) => {
+                                ui.label("File:");
+                                if ui.text_edit_singleline(path).changed() {
+                                    changed = true;
+                                }
+                            }
+                            DataRequirement::Interface { interface, expects } => {
+                                ui.label("Interface:");
+                                if ui.text_edit_singleline(interface).changed() {
+                                    changed = true;
+                                }
+                                ui.label(format!("({})", expects.join(", ")));
                             }
                         }
-                        DataRequirement::Interface { interface, expects } => {
-                            ui.label("Interface:");
-                            if ui.text_edit_singleline(interface).changed() {
-                                changed = true;
-                            }
-                            ui.label(format!("({})", expects.join(", ")));
+                        if ui.small_button("x").clicked() {
+                            to_remove = Some(i);
                         }
-                    }
-                    if ui.small_button("x").clicked() {
-                        to_remove = Some(i);
-                    }
+                    });
                 });
-            });
-        }
-        if let Some(i) = to_remove {
-            requires.remove(i);
-            changed = true;
-        }
-    });
+            }
+            if let Some(i) = to_remove {
+                requires.remove(i);
+                changed = true;
+            }
+        });
     changed
 }
 
@@ -695,22 +727,20 @@ fn edit_initial_facts(
         return false;
     };
     let mut changed = false;
-    egui::CollapsingHeader::new("Initial Facts").default_open(false).show(ui, |ui| {
-        let keys: Vec<String> = facts.keys().cloned().collect();
-        for key in &keys {
-            if let Some(val) = facts.get_mut(key) {
-                changed |= edit_initial_fact_value(ui, key, val);
+    egui::CollapsingHeader::new("Initial Facts")
+        .default_open(false)
+        .show(ui, |ui| {
+            let keys: Vec<String> = facts.keys().cloned().collect();
+            for key in &keys {
+                if let Some(val) = facts.get_mut(key) {
+                    changed |= edit_initial_fact_value(ui, key, val);
+                }
             }
-        }
-    });
+        });
     changed
 }
 
-fn edit_initial_fact_value(
-    ui: &mut egui::Ui,
-    key: &str,
-    val: &mut InitialFactValue,
-) -> bool {
+fn edit_initial_fact_value(ui: &mut egui::Ui, key: &str, val: &mut InitialFactValue) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{key}:"));
@@ -750,10 +780,7 @@ fn edit_initial_fact_value(
 
 // ─── Helpers ────────────────────────────────────────────────
 
-fn find_node_by_path<'a>(
-    roots: &'a [ViewNodeDef],
-    path: &[usize],
-) -> Option<&'a ViewNodeDef> {
+fn find_node_by_path<'a>(roots: &'a [ViewNodeDef], path: &[usize]) -> Option<&'a ViewNodeDef> {
     if path.is_empty() {
         return None;
     }

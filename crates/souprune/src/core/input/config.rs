@@ -504,6 +504,23 @@ impl InputConfig {
         map
     }
 
+    /// Build a reverse mapping from `KeyCode` to action name.
+    ///
+    /// 构建从 `KeyCode` 到动作名称的反向映射。
+    pub fn build_keycode_to_action_map(&self) -> HashMap<KeyCode, String> {
+        let mut map = HashMap::new();
+        for (action_name, bindings) in &self.actions {
+            for binding in bindings {
+                if let InputBinding::Key(key_str) = binding {
+                    if let Some(keycode) = Self::parse_keycode(key_str) {
+                        map.insert(keycode, action_name.clone());
+                    }
+                }
+            }
+        }
+        map
+    }
+
     /// Parse key code string to KeyCode enum.
     ///
     /// 将按键代码字符串解析为 KeyCode 枚举。

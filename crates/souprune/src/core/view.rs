@@ -29,7 +29,7 @@ use bevy::prelude::*;
 pub struct ViewUpdate;
 
 mod camera;
-pub(crate) mod components;
+pub mod components;
 mod custom_sprite_material;
 pub mod dynamic_material;
 pub(crate) mod expr_eval;
@@ -42,7 +42,7 @@ pub mod sdf_shape;
 pub mod sdf_view_shape;
 mod state;
 pub mod text;
-mod visible_when;
+pub mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
 
@@ -50,12 +50,12 @@ use camera::{
     update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
     update_dynamic_camera_anchors_system,
 };
-pub use components::{
-    ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
-};
 pub use components::box_components::ViewBox;
 pub use components::camera::CameraAnchored;
 pub use components::text::ViewTextConfig;
+pub use components::{
+    ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
+};
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{
@@ -101,12 +101,12 @@ pub struct DespawnViewRequest {
     pub path: Option<String>,
 }
 
+#[cfg(feature = "debug")]
+use components::ViewElement;
 use components::state_sprite::{
     evaluate_new_state_sprites_system, evaluate_state_sprite_rules_system,
     update_state_sprite_textures_system,
 };
-#[cfg(feature = "debug")]
-use components::{CameraAnchored, ViewBox, ViewElement};
 use lifecycle::cleanup_view_rules_system;
 use lifecycle::process_pending_view_rules_system;
 use reconcile::ViewReconciliationPlugin;
