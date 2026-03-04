@@ -140,12 +140,12 @@ pub fn rebuild_preview_entities(
         return;
     };
 
-    // 简单脏检查：用指针地址 + dirty 作哈希
-    let hash = layout as *const _ as u64;
-    if hash == preview_state.last_layout_hash && !editor_state.dirty {
+    // Dirty check using generation counter
+    let generation = editor_state.generation;
+    if generation == preview_state.last_layout_hash && !editor_state.dirty {
         return;
     }
-    preview_state.last_layout_hash = hash;
+    preview_state.last_layout_hash = generation;
 
     // Stop playing when preview rebuilds (FRE state becomes stale)
     if preview_state.playing {
@@ -207,11 +207,13 @@ pub fn rebuild_preview_entities(
 }
 
 fn cleanup_preview(commands: &mut Commands, state: &mut ViewPreviewState) {
-    for entity in state.preview_entities.drain(..) {
-        if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
-        }
+    // Only despawn root-level entities; Bevy cascades despawn to children.
+    if let Some(root) = state.preview_entities.first()
+        && let Ok(mut ec) = commands.get_entity(*root)
+    {
+        ec.despawn();
     }
+    state.preview_entities.clear();
 }
 
 fn spawn_preview_node(

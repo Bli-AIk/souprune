@@ -25,6 +25,8 @@ pub struct ViewEditorState {
     pub parse_error: Option<String>,
     pub selected_node: Option<Vec<usize>>,
     pub dirty: bool,
+    /// Incremented on each load/layout change; used for dirty-checking in preview rebuild.
+    pub generation: u64,
 }
 
 impl ViewEditorState {
@@ -35,6 +37,7 @@ impl ViewEditorState {
                 self.dirty = false;
                 self.selected_node = None;
                 self.parse_error = None;
+                self.generation += 1;
                 match ron::from_str::<ViewLayoutAsset>(&content) {
                     Ok(layout) => self.layout = Some(layout),
                     Err(e) => {

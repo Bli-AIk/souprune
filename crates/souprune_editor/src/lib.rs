@@ -119,19 +119,15 @@ impl Plugin for SoupRuneEditorPlugin {
             (
                 panels::view_preview::sync_preview_texture,
                 panels::view_preview::rebuild_preview_entities,
+                ApplyDeferred,
                 panels::view_preview::sync_preview_camera,
                 panels::view_preview::propagate_preview_render_layers,
-            ),
-        );
-        // SDF/Text 渲染系统 — 仅在编辑模式下运行
-        // Play 模式下由 GameSchedule 中的 CoreViewPlugin 驱动
-        app.add_systems(
-            Update,
-            (
+                // SDF/Text 渲染系统 — ApplyDeferred 确保 rebuild 的 despawn 已生效
                 souprune::core::view::sdf_view_shape::update_sdf_view_shape_system,
                 souprune::core::view::text::assign_text_material_system,
                 souprune::core::view::text::show_text_when_ready_system,
             )
+                .chain()
                 .run_if(in_state(EditorMode::Edit)),
         );
         // View 预览 FRE 交互：Play/Stop 控制始终运行，FRE 系统仅在 Play 模式运行
