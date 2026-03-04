@@ -30,6 +30,8 @@ pub struct ViewPreviewState {
     pub zoom: f32,
     /// 预览相机平移偏移
     pub pan_offset: Vec2,
+    /// Resolution scale factor (cached from ResolutionScale for UI calculations)
+    pub resolution_scale: f32,
     /// Preview FRE interaction active (Play mode)
     pub playing: bool,
     /// Previous value of `playing` for transition detection
@@ -51,6 +53,7 @@ impl Default for ViewPreviewState {
             last_layout_hash: 0,
             zoom: 1.0,
             pan_offset: Vec2::ZERO,
+            resolution_scale: 1.0,
             playing: false,
             was_playing: false,
             focused: false,
@@ -400,13 +403,15 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
             }
         }
 
-        // 中键或右键拖拽平移
+        // Middle or right button drag to pan
         if response.dragged_by(egui::PointerButton::Middle)
             || response.dragged_by(egui::PointerButton::Secondary)
         {
             let delta = response.drag_delta();
-            state.pan_offset.x += delta.x / state.zoom;
-            state.pan_offset.y -= delta.y / state.zoom;
+            // Normalize by zoom and resolution_scale for consistent pan speed
+            let scale = state.zoom * state.resolution_scale;
+            state.pan_offset.x += delta.x / scale;
+            state.pan_offset.y -= delta.y / scale;
         }
 
         // 焦点高亮边框
@@ -441,10 +446,16 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
 
 /// 同步预览相机的缩放和平移。
 pub fn sync_preview_camera(
-    state: Res<ViewPreviewState>,
+    mut state: ResMut<ViewPreviewState>,
     resolution_scale: Res<souprune::app_state::app_setup::ResolutionScale>,
     mut cameras: Query<(&mut Transform, &mut Projection), With<ViewPreviewCamera>>,
 ) {
+    // Cache resolution_scale for UI pan calculations
+    let rs = resolution_scale.0 as f32;
+    if (state.resolution_scale - rs).abs() > f32::EPSILON {
+        state.resolution_scale = rs;
+    }
+
     if !state.is_changed() {
         return;
     }
