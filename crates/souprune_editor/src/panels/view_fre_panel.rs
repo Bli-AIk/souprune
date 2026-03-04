@@ -75,6 +75,21 @@ impl ViewFreState {
     pub fn force_reload(&mut self) {
         self.loaded_for_path = None;
     }
+
+    /// Sync simulated_facts from live ViewRoot.local_facts during Play mode.
+    pub fn sync_from_live_facts(&mut self, live_facts: &bevy_fact_rule_event::FactDatabase) {
+        use bevy_fact_rule_event::FactValue;
+        for (key, value) in live_facts.iter() {
+            let sim = match value {
+                FactValue::Int(v) => SimFactValue::Int(*v),
+                FactValue::Float(v) => SimFactValue::Float(*v),
+                FactValue::Bool(v) => SimFactValue::Bool(*v),
+                FactValue::String(s) => SimFactValue::String(s.clone()),
+                _ => continue,
+            };
+            self.simulated_facts.insert(key.0.clone(), sim);
+        }
+    }
 }
 
 fn fact_value_def_to_sim(v: &FactValueDef) -> SimFactValue {

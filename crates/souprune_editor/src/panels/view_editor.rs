@@ -477,14 +477,18 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
         && ps.playing
     {
         let entities = ps.preview_entities.clone();
+        let mut live_facts = None;
         for entity in &entities {
             if let Some(view_root) =
                 world.get::<souprune::core::view::components::ViewRoot>(*entity)
             {
-                let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
-                fre.sync_from_live_facts(&view_root.local_facts);
+                live_facts = Some(view_root.local_facts.clone());
                 break;
             }
+        }
+        if let Some(facts) = live_facts {
+            let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
+            fre.sync_from_live_facts(&facts);
         }
     }
 }
