@@ -471,40 +471,21 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
     let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
     super::view_fre_panel::render_view_fre_section(ui, &mut fre);
 
-    // Live FRE state display during Play mode
+    // During Play mode, update Fact Simulator values from live ViewRoot.local_facts
     let preview_state = world.get_resource::<super::view_preview::ViewPreviewState>();
     if let Some(ps) = preview_state
         && ps.playing
     {
         let entities = ps.preview_entities.clone();
-        ui.separator();
-        egui::CollapsingHeader::new("Live FRE State")
-            .default_open(true)
-            .show(ui, |ui| {
-                let mut found = false;
-                for entity in &entities {
-                    if let Some(view_root) =
-                        world.get::<souprune::core::view::components::ViewRoot>(*entity)
-                    {
-                        found = true;
-                        let facts = &view_root.local_facts;
-                        if facts.is_empty() {
-                            ui.label("(no local facts)");
-                        } else {
-                            for (key, value) in facts.iter() {
-                                ui.horizontal(|ui| {
-                                    ui.monospace(&key.0);
-                                    ui.label("=");
-                                    ui.monospace(format!("{value:?}"));
-                                });
-                            }
-                        }
-                    }
-                }
-                if !found {
-                    ui.label("No ViewRoot entity found");
-                }
-            });
+        for entity in &entities {
+            if let Some(view_root) =
+                world.get::<souprune::core::view::components::ViewRoot>(*entity)
+            {
+                let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
+                fre.sync_from_live_facts(&view_root.local_facts);
+                break;
+            }
+        }
     }
 }
 
