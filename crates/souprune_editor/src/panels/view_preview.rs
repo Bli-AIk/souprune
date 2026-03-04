@@ -36,8 +36,8 @@ pub struct ViewPreviewState {
     pub playing: bool,
     /// Previous value of `playing` for transition detection
     pub was_playing: bool,
-    /// Preview panel has focus (allows game input forwarding to FRE)
-    pub focused: bool,
+    /// Whether the preview image is hovered (enables keyboard input forwarding)
+    pub hovered: bool,
     /// Rule IDs registered during Play (cleaned up on Stop)
     pub registered_rule_ids: Vec<String>,
 }
@@ -56,7 +56,7 @@ impl Default for ViewPreviewState {
             resolution_scale: 1.0,
             playing: false,
             was_playing: false,
-            focused: false,
+            hovered: false,
             registered_rule_ids: Vec::new(),
         }
     }
@@ -150,7 +150,6 @@ pub fn rebuild_preview_entities(
     // Stop playing when preview rebuilds (FRE state becomes stale)
     if preview_state.playing {
         preview_state.playing = false;
-        preview_state.focused = false;
     }
 
     // Cleanup old entities
@@ -353,52 +352,37 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
             egui::vec2(available.x, available.x / aspect)
         };
 
-        // 工具栏
+        // Toolbar
         ui.horizontal(|ui| {
-            // Play/Stop 按钮
             if state.playing {
                 if ui.small_button("Stop").clicked() {
                     state.playing = false;
-                    state.focused = false;
                 }
             } else if ui.small_button("Play").clicked() {
                 state.playing = true;
-                state.focused = true;
             }
             ui.separator();
             ui.label(format!("Zoom: {:.0}%", state.zoom * 100.0));
-            if ui.small_button("重置").clicked() {
+            if ui.small_button("Reset").clicked() {
                 state.zoom = 1.0;
                 state.pan_offset = Vec2::ZERO;
             }
-            ui.separator();
-            // 焦点指示器（仅 playing 时显示）
-            if state.playing {
-                if state.focused {
-                    ui.colored_label(egui::Color32::from_rgb(100, 255, 100), "Input Active");
-                } else {
-                    ui.colored_label(egui::Color32::from_rgb(120, 120, 140), "Click to interact");
-                }
+            if state.playing && state.hovered {
+                ui.separator();
+                ui.colored_label(egui::Color32::from_rgb(100, 255, 100), "Input Active");
             }
         });
 
         let (rect, response) = ui.allocate_exact_size(base_size, egui::Sense::click_and_drag());
 
-        // 点击切换焦点（仅 playing 时）
-        if state.playing && response.clicked() {
-            state.focused = !state.focused;
-        }
+        // Update hovered state from egui response (like GameViewFocus)
+        state.hovered = response.hovered();
 
-        // 按 Esc 释放焦点
-        if state.focused && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-            state.focused = false;
-        }
-
-        // 滚轮缩放
-        if response.hovered() {
+        // Scroll zoom
+        if state.hovered {
             let scroll = ui.input(|i| i.raw_scroll_delta.y);
             if scroll != 0.0 {
-                let factor = 1.0 + scroll * 0.002;
+                let factor = 1.0 + scroll * 0.001;
                 state.zoom = (state.zoom * factor).clamp(0.1, 10.0);
             }
         }
@@ -408,19 +392,18 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
             || response.dragged_by(egui::PointerButton::Secondary)
         {
             let delta = response.drag_delta();
-            // Normalize by zoom and resolution_scale for consistent pan speed
             let scale = state.zoom * state.resolution_scale;
             state.pan_offset.x += delta.x / scale;
             state.pan_offset.y -= delta.y / scale;
         }
 
-        // 焦点高亮边框
-        if state.focused {
+        // Hover highlight border (like Game View)
+        if state.playing && state.hovered {
             let painter = ui.painter();
             painter.rect_stroke(
                 rect,
                 0.0,
-                egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 255, 100)),
+                egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255)),
                 egui::StrokeKind::Outside,
             );
         }
@@ -511,17 +494,14 @@ fn propagate_layers_recursive(
 #[derive(Resource)]
 pub struct ViewPreviewKeyMap(pub HashMap<KeyCode, String>);
 
-/// 预览焦点时将键盘输入转发为 FRE 事件。
-///
-/// 当 `ViewPreviewState.focused` 为 true 时，读取 `ButtonInput<KeyCode>`，
-/// 通过 `ViewPreviewKeyMap` 映射为动作名称，发射对应的 `FactEvent`。
+/// Forward keyboard input to FRE events when preview is hovered during Play mode.
 pub fn preview_input_to_fre_system(
     state: Res<ViewPreviewState>,
     key_map: Res<ViewPreviewKeyMap>,
     keys: Res<ButtonInput<KeyCode>>,
     mut event_writer: MessageWriter<bevy_fact_rule_event::FactEvent>,
 ) {
-    if !state.playing || !state.focused {
+    if !state.playing || !state.hovered {
         return;
     }
 
@@ -555,6 +535,7 @@ pub fn preview_input_to_fre_system(
 #[allow(clippy::too_many_arguments)]
 pub fn preview_play_control_system(
     mut state: ResMut<ViewPreviewState>,
+    editor_state: Res<ViewEditorState>,
     fre_state: Option<Res<super::view_fre_panel::ViewFreState>>,
     mut rule_registry: ResMut<bevy_fact_rule_event::LayeredRuleRegistry>,
     mut action_defs: ResMut<souprune::app_state::overworld::trigger::RuleActionDefs>,
@@ -578,7 +559,6 @@ pub fn preview_play_control_system(
             warn!("[ViewPreview] Play: ViewFreState not found");
             state.playing = false;
             state.was_playing = false;
-            state.focused = false;
             return;
         };
 
@@ -596,12 +576,44 @@ pub fn preview_play_control_system(
             warn!("[ViewPreview] Play: no preview ViewRoot entity found");
             state.playing = false;
             state.was_playing = false;
-            state.focused = false;
             return;
         };
 
         let mut view_root = view_roots.get_mut(view_entity).unwrap().1;
         view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
+
+        // Load inline facts from view layout (depth, button_selection, interactable, etc.)
+        if let Some(layout) = &editor_state.layout
+            && let Some(facts) = &layout.facts
+        {
+            use souprune::core::view::layout::InitialFactValue;
+            for (key, value) in facts {
+                match value {
+                    InitialFactValue::Int(i) => {
+                        view_root.local_facts.set(key.clone(), *i);
+                    }
+                    InitialFactValue::Float(f) => {
+                        view_root.local_facts.set(key.clone(), *f);
+                    }
+                    InitialFactValue::Bool(b) => {
+                        view_root.local_facts.set(key.clone(), *b);
+                    }
+                    InitialFactValue::String(s) => {
+                        view_root.local_facts.set(key.clone(), s.clone());
+                    }
+                    InitialFactValue::StringList(list) => {
+                        view_root.local_facts.set(key.clone(), list.clone());
+                    }
+                    InitialFactValue::IntList(list) => {
+                        view_root.local_facts.set(key.clone(), list.clone());
+                    }
+                }
+            }
+            info!(
+                "[ViewPreview] Loaded {} inline facts from view layout",
+                facts.len()
+            );
+        }
 
         let mut registered_ids = Vec::new();
         for fre_asset in fre_state.loaded_fre.values() {

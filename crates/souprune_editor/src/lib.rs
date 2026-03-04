@@ -145,6 +145,7 @@ impl Plugin for SoupRuneEditorPlugin {
                 panels::view_preview::preview_input_to_fre_system,
                 souprune::core::fre_bridge::process_view_actions_system,
                 souprune::core::view::visible_when::evaluate_visible_when_system,
+                souprune::core::view::ron_view::update_fact_dependent_ui_elements,
             )
                 .chain()
                 .run_if(in_state(EditorMode::Edit))

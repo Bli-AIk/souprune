@@ -64,20 +64,41 @@ pub fn update_fact_dependent_ui_elements(
         return;
     }
 
+    info!(
+        "[update_fact_dependent] triggered: db_changed={}, view_root_changed={}",
+        layered_db.is_changed(),
+        any_view_root_changed
+    );
+
+    let mut count = 0u32;
     for (entity, dynamic_elem, mut transform) in query.iter_mut() {
         let local_facts = find_view_root_ancestor(entity, &parent_query, &all_view_root_query)
             .map(|root| &root.local_facts);
 
+        let has_local = local_facts.is_some();
         let player_data = if let Some(local) = local_facts {
             PlayerDataView::with_local_facts(&layered_db, local)
         } else {
             PlayerDataView::new(&layered_db)
         };
 
+        let old_translation = transform.translation;
         // Pass None for time since these elements don't depend on it
         // 传入 None 作为时间，因为这些元素不依赖时间
         update_element_transform(dynamic_elem, &mut transform, &player_data, None);
+
+        if old_translation != transform.translation {
+            info!(
+                "[update_fact_dependent] entity {:?} moved: {:?} -> {:?} (has_local_facts={})",
+                entity, old_translation, transform.translation, has_local
+            );
+        }
+        count += 1;
     }
+    info!(
+        "[update_fact_dependent] processed {} dynamic elements",
+        count
+    );
 }
 
 /// Shared helper to update element transform from definition.

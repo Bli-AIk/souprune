@@ -419,45 +419,46 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
         ui.label("无数据");
         return;
     };
-    let Some(path) = sel else {
-        ui.label("选择节点以编辑属性");
-        return;
-    };
 
-    if find_node_by_path(&layout.roots, &path).is_none() {
-        ui.colored_label(egui::Color32::RED, "节点路径无效");
-        return;
-    }
+    // Node property editing (requires selected node)
+    if let Some(path) = sel {
+        if find_node_by_path(&layout.roots, &path).is_none() {
+            ui.colored_label(egui::Color32::RED, "节点路径无效");
+        } else {
+            let mut changed = false;
 
-    let mut changed = false;
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                let mut node = find_node_by_path(&layout.roots, &path).unwrap().clone();
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        // We operate on a cloned node, then write it back if changed.
-        let mut node = find_node_by_path(&layout.roots, &path).unwrap().clone();
+                changed |= edit_node_basics(ui, &mut node);
+                changed |= edit_node_sprite(ui, &mut node.sprite);
+                changed |= edit_node_state_sprite(ui, &mut node.state_sprite);
+                changed |= edit_node_texts(ui, &mut node.texts);
+                changed |= edit_node_view_box(ui, &mut node.view_box);
+                changed |= edit_node_repeat(ui, &mut node.repeat);
 
-        changed |= edit_node_basics(ui, &mut node);
-        changed |= edit_node_sprite(ui, &mut node.sprite);
-        changed |= edit_node_state_sprite(ui, &mut node.state_sprite);
-        changed |= edit_node_texts(ui, &mut node.texts);
-        changed |= edit_node_view_box(ui, &mut node.view_box);
-        changed |= edit_node_repeat(ui, &mut node.repeat);
+                if changed {
+                    *find_node_by_path_mut(&mut layout.roots, &path).unwrap() = node;
+                }
 
-        if changed {
-            *find_node_by_path_mut(&mut layout.roots, &path).unwrap() = node;
+                // Layout-level sections (requires, facts)
+                changed |= edit_data_requirements(ui, &mut layout.requires);
+                changed |= edit_initial_facts(ui, &mut layout.facts);
+            });
+
+            if changed {
+                let mut state = world.resource_mut::<ViewEditorState>();
+                state.layout = Some(layout.clone());
+                state.dirty = true;
+            }
         }
-
-        // Layout-level sections (requires, facts)
-        changed |= edit_data_requirements(ui, &mut layout.requires);
-        changed |= edit_initial_facts(ui, &mut layout.facts);
-    });
-
-    if changed {
-        let mut state = world.resource_mut::<ViewEditorState>();
-        state.layout = Some(layout.clone());
-        state.dirty = true;
+    } else {
+        ui.label("选择节点以编辑属性");
     }
 
-    // FRE section (separate resource, no borrow conflict)
+    ui.separator();
+
+    // FRE section — always sync regardless of node selection
     let view_path = world.resource::<ViewEditorState>().file_path.clone();
     if let Some(vp) = &view_path {
         world
@@ -466,6 +467,42 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
     }
     let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
     super::view_fre_panel::render_view_fre_section(ui, &mut fre);
+
+    // Live FRE state display during Play mode
+    let preview_state = world.get_resource::<super::view_preview::ViewPreviewState>();
+    if let Some(ps) = preview_state
+        && ps.playing
+    {
+        let entities = ps.preview_entities.clone();
+        ui.separator();
+        egui::CollapsingHeader::new("Live FRE State")
+            .default_open(true)
+            .show(ui, |ui| {
+                let mut found = false;
+                for entity in &entities {
+                    if let Some(view_root) =
+                        world.get::<souprune::core::view::components::ViewRoot>(*entity)
+                    {
+                        found = true;
+                        let facts = &view_root.local_facts;
+                        if facts.is_empty() {
+                            ui.label("(no local facts)");
+                        } else {
+                            for (key, value) in facts.iter() {
+                                ui.horizontal(|ui| {
+                                    ui.monospace(&key.0);
+                                    ui.label("=");
+                                    ui.monospace(format!("{value:?}"));
+                                });
+                            }
+                        }
+                    }
+                }
+                if !found {
+                    ui.label("No ViewRoot entity found");
+                }
+            });
+    }
 }
 
 fn edit_node_basics(ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {

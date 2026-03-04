@@ -511,10 +511,10 @@ impl InputConfig {
         let mut map = HashMap::new();
         for (action_name, bindings) in &self.actions {
             for binding in bindings {
-                if let InputBinding::Key(key_str) = binding {
-                    if let Some(keycode) = Self::parse_keycode(key_str) {
-                        map.insert(keycode, action_name.clone());
-                    }
+                if let InputBinding::Key(key_str) = binding
+                    && let Some(keycode) = Self::parse_keycode(key_str)
+                {
+                    map.insert(keycode, action_name.clone());
                 }
             }
         }
