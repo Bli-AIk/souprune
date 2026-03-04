@@ -75,21 +75,6 @@ impl ViewFreState {
     pub fn force_reload(&mut self) {
         self.loaded_for_path = None;
     }
-
-    /// Sync simulated_facts from live ViewRoot.local_facts during Play mode.
-    pub fn sync_from_live_facts(&mut self, live_facts: &bevy_fact_rule_event::FactDatabase) {
-        use bevy_fact_rule_event::FactValue;
-        for (key, value) in live_facts.iter() {
-            let sim = match value {
-                FactValue::Int(v) => SimFactValue::Int(*v),
-                FactValue::Float(v) => SimFactValue::Float(*v),
-                FactValue::Bool(v) => SimFactValue::Bool(*v),
-                FactValue::String(s) => SimFactValue::String(s.clone()),
-                _ => continue,
-            };
-            self.simulated_facts.insert(key.0.clone(), sim);
-        }
-    }
 }
 
 fn fact_value_def_to_sim(v: &FactValueDef) -> SimFactValue {
@@ -105,7 +90,11 @@ fn fact_value_def_to_sim(v: &FactValueDef) -> SimFactValue {
 // ─── UI 渲染 ────────────────────────────────────────────────
 
 /// 在 inspector 底部渲染 FRE 区域。
-pub fn render_view_fre_section(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
+pub fn render_view_fre_section(
+    ui: &mut egui::Ui,
+    state: &mut ViewFreState,
+    live_facts: Option<&mut bevy_fact_rule_event::FactDatabase>,
+) -> bool {
     let mut changed = false;
 
     if state.loaded_fre.is_empty() {
@@ -121,13 +110,28 @@ pub fn render_view_fre_section(ui: &mut egui::Ui, state: &mut ViewFreState) -> b
             }
         });
 
-    egui::CollapsingHeader::new("Fact Simulator")
-        .default_open(false)
-        .show(ui, |ui| {
-            changed |= render_fact_simulator(ui, state);
-        });
+    // Show simulated fact editor only when not in Play mode
+    if live_facts.is_none() {
+        egui::CollapsingHeader::new("Fact Simulator")
+            .default_open(false)
+            .show(ui, |ui| {
+                changed |= render_fact_simulator(ui, state);
+            });
+    }
 
     changed
+}
+
+/// Render live fact simulator bound to ViewRoot.local_facts during Play mode.
+pub fn render_live_facts_section(
+    ui: &mut egui::Ui,
+    facts: &mut bevy_fact_rule_event::FactDatabase,
+) {
+    egui::CollapsingHeader::new("Fact Simulator (Live)")
+        .default_open(true)
+        .show(ui, |ui| {
+            render_live_fact_simulator(ui, facts);
+        });
 }
 
 fn total_rules(state: &ViewFreState) -> usize {
@@ -308,6 +312,67 @@ fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
             changed = true;
         }
     });
+
+    changed
+}
+
+/// Render Fact Simulator bound to live ViewRoot.local_facts during Play mode.
+fn render_live_fact_simulator(
+    ui: &mut egui::Ui,
+    facts: &mut bevy_fact_rule_event::FactDatabase,
+) -> bool {
+    use bevy_fact_rule_event::FactValue;
+
+    let mut changed = false;
+
+    if facts.is_empty() {
+        ui.label("(no facts)");
+        return false;
+    }
+
+    let entries: Vec<(String, FactValue)> = facts
+        .iter()
+        .map(|(k, v)| (k.0.clone(), v.clone()))
+        .collect();
+
+    for (key, value) in &entries {
+        ui.horizontal(|ui| {
+            ui.monospace(key);
+            match value {
+                FactValue::Int(v) => {
+                    let mut f = *v as f64;
+                    if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
+                        facts.set(key.clone(), f as i64);
+                        changed = true;
+                    }
+                }
+                FactValue::Float(v) => {
+                    let mut f = *v;
+                    if ui.add(egui::DragValue::new(&mut f).speed(0.1)).changed() {
+                        facts.set(key.clone(), f);
+                        changed = true;
+                    }
+                }
+                FactValue::Bool(v) => {
+                    let mut b = *v;
+                    if ui.checkbox(&mut b, "").changed() {
+                        facts.set(key.clone(), b);
+                        changed = true;
+                    }
+                }
+                FactValue::String(s) => {
+                    let mut s = s.clone();
+                    if ui.text_edit_singleline(&mut s).changed() {
+                        facts.set(key.clone(), s);
+                        changed = true;
+                    }
+                }
+                other => {
+                    ui.label(format!("{other:?}"));
+                }
+            }
+        });
+    }
 
     changed
 }

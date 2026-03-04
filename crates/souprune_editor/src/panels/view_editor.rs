@@ -69,16 +69,9 @@ impl WorkbenchPanel for ViewEditorPanel {
     fn title(&self) -> String {
         "View Editor".to_string()
     }
-    fn closable(&self) -> bool {
-        true
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.label("需要 World 访问");
     }
-    fn default_visible(&self) -> bool {
-        true
-    }
-    fn needs_world(&self) -> bool {
-        true
-    }
-
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
         check_pending_open(world);
 
@@ -124,9 +117,16 @@ impl WorkbenchPanel for ViewEditorPanel {
             }
         });
     }
+    fn needs_world(&self) -> bool {
+        true
+    }
 
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("需要 World 访问");
+    fn closable(&self) -> bool {
+        true
+    }
+
+    fn default_visible(&self) -> bool {
+        true
     }
 }
 
@@ -468,28 +468,35 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
             .get_resource_or_init::<super::view_fre_panel::ViewFreState>()
             .sync_for_view(vp, &layout.requires);
     }
-    let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
-    super::view_fre_panel::render_view_fre_section(ui, &mut fre);
 
-    // During Play mode, update Fact Simulator values from live ViewRoot.local_facts
+    // Check if we're in Play mode and find the ViewRoot entity
     let preview_state = world.get_resource::<super::view_preview::ViewPreviewState>();
-    if let Some(ps) = preview_state
-        && ps.playing
-    {
-        let entities = ps.preview_entities.clone();
-        let mut live_facts = None;
-        for entity in &entities {
-            if let Some(view_root) =
-                world.get::<souprune::core::view::components::ViewRoot>(*entity)
-            {
-                live_facts = Some(view_root.local_facts.clone());
-                break;
-            }
-        }
-        if let Some(facts) = live_facts {
+    let view_root_entity = preview_state.filter(|ps| ps.playing).and_then(|ps| {
+        ps.preview_entities
+            .iter()
+            .find(|e| {
+                world
+                    .get::<souprune::core::view::components::ViewRoot>(**e)
+                    .is_some()
+            })
+            .copied()
+    });
+
+    if let Some(entity) = view_root_entity {
+        // Play mode: render FRE section first (rules only), then live facts separately
+        {
             let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
-            fre.sync_from_live_facts(&facts);
+            super::view_fre_panel::render_view_fre_section(ui, &mut fre, None);
         }
+        // Live fact simulator bound to ViewRoot.local_facts
+        if let Some(mut view_root) =
+            world.get_mut::<souprune::core::view::components::ViewRoot>(entity)
+        {
+            super::view_fre_panel::render_live_facts_section(ui, &mut view_root.local_facts);
+        }
+    } else {
+        let mut fre = world.get_resource_or_init::<super::view_fre_panel::ViewFreState>();
+        super::view_fre_panel::render_view_fre_section(ui, &mut fre, None);
     }
 }
 
