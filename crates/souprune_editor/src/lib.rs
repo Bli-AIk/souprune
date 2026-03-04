@@ -88,6 +88,34 @@ impl Plugin for SoupRuneEditorPlugin {
         app.register_panel(panels::ChapterInspectorPanel::new());
         app.register_panel(panels::PlaybackPanel::new());
         app.register_panel(panels::FrePanel::new());
+        app.register_panel(panels::ViewEditorPanel::new());
+
+        // View 编辑器状态
+        app.init_resource::<panels::view_editor::ViewEditorState>();
+
+        // View 预览渲染
+        app.init_resource::<panels::view_preview::ViewPreviewState>();
+        app.add_systems(Startup, panels::view_preview::setup_view_preview);
+        app.add_systems(
+            Update,
+            (
+                panels::view_preview::sync_preview_texture,
+                panels::view_preview::rebuild_preview_entities,
+                panels::view_preview::sync_preview_camera,
+                panels::view_preview::propagate_preview_render_layers,
+            ),
+        );
+        // SDF/Text 渲染系统 — 仅在编辑模式下运行
+        // Play 模式下由 GameSchedule 中的 CoreViewPlugin 驱动
+        app.add_systems(
+            Update,
+            (
+                souprune::core::view::sdf_view_shape::update_sdf_view_shape_system,
+                souprune::core::view::text::assign_text_material_system,
+                souprune::core::view::text::show_text_when_ready_system,
+            )
+                .run_if(in_state(EditorMode::Edit)),
+        );
 
         // i18n 在 Startup 时注册（I18n 资源由 WorkbenchPlugin 创建）
         app.add_systems(Startup, register_i18n);

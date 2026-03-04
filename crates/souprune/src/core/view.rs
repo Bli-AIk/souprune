@@ -33,15 +33,15 @@ pub(crate) mod components;
 mod custom_sprite_material;
 pub mod dynamic_material;
 pub(crate) mod expr_eval;
-pub(crate) mod layout;
+pub mod layout;
 mod lifecycle;
 mod procedural_textures;
 pub mod reconcile;
-pub(crate) mod ron_view;
+pub mod ron_view;
 pub mod sdf_shape;
-mod sdf_view_shape;
+pub mod sdf_view_shape;
 mod state;
-mod text;
+pub mod text;
 mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
@@ -53,6 +53,9 @@ use camera::{
 pub use components::{
     ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
 };
+pub use components::box_components::ViewBox;
+pub use components::camera::CameraAnchored;
+pub use components::text::ViewTextConfig;
 pub(crate) use layout::SdfStructureAsset;
 use layout::ViewLayoutAsset;
 use lifecycle::{

@@ -15,6 +15,7 @@ pub mod chapter_palette;
 pub mod path_picker;
 pub mod property_editors;
 pub mod val_editor;
+pub mod view_widgets;
 
 pub use chapter_card::{
     chapter_color, chapter_icon, chapter_summary, chapter_type_name, get_children, has_children,

@@ -24,7 +24,7 @@ use bevy::reflect::Reflect;
 /// - 使用 `set_layer` 和 `set_index` 以受控方式修改状态（会进行夹住或重置索引）。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewAnimationState {
+pub struct ViewAnimationState {
     pub(crate) state_name: String,
 }
 
@@ -105,4 +105,4 @@ impl Default for ViewTextConfig {
 /// 存储原始模板字符串以用于动态文本更新。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewTextTemplate(pub(crate) String);
+pub struct ViewTextTemplate(pub(crate) String);

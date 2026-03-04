@@ -20,7 +20,7 @@
 
 use super::serde_types::*;
 use bevy::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// View Layout Asset - represents a complete view layout configuration.
@@ -28,7 +28,7 @@ use std::collections::HashMap;
 ///
 /// 视图布局资产 - 表示完整的视图布局配置。
 /// 从 `.view.ron` 文件加载。
-#[derive(Asset, TypePath, Debug, Deserialize, Clone)]
+#[derive(Asset, TypePath, Debug, Deserialize, Serialize, Clone)]
 pub struct ViewLayoutAsset {
     /// Root view nodes
     /// 根视图节点
@@ -60,7 +60,7 @@ pub struct ViewLayoutAsset {
 ///
 /// View 的数据需求声明。
 /// 指定如何加载外部 FRE 数据。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum DataRequirement {
     /// Load facts and rules from a FRE file.
     /// Example: `File("battle/fre/enemies/dummy.fre.ron")`
@@ -90,7 +90,7 @@ pub enum DataRequirement {
 ///
 /// View Schema 中初始事实的值类型。
 /// 支持 int、float、bool、string 和数组值。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum InitialFactValue {
     Int(i64),
@@ -105,7 +105,7 @@ pub enum InitialFactValue {
     IntList(Vec<i64>),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct GlobalTriggerRuleDef {
     pub target_state: String,
     #[serde(default)]
@@ -117,7 +117,7 @@ pub struct GlobalTriggerRuleDef {
 /// View Node Definition - defines a single visual element in the view layout.
 ///
 /// 视图节点定义 - 定义视图布局中的单个可视化元素。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ViewNodeDef {
     pub name: String,
     #[serde(default)]
@@ -204,7 +204,7 @@ fn default_camera_anchored() -> bool {
 ///     ),
 /// )
 /// ```
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RepeatDef {
     /// Source array fact name (e.g., "enemy_names").
     /// The length of this array determines how many instances are created.
@@ -237,7 +237,7 @@ pub struct RepeatDef {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StyleDef {
     #[serde(default)]
     pub width: Option<SerializableVal>,
@@ -261,7 +261,7 @@ pub struct StyleDef {
     pub align_items: Option<SerializableAlignItems>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UIVisibilityRuleDef {
     pub rule_type: String,
     #[serde(default)]
@@ -269,7 +269,7 @@ pub struct UIVisibilityRuleDef {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ImageDef {
     pub path: String,
     #[serde(default)]
@@ -285,7 +285,7 @@ pub struct ImageDef {
 ///
 /// 使用 `Visual` 进行自动路径解析和类型检测。
 /// 渲染属性（颜色、翻转、着色器等）在此定义。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SpriteDef {
     /// Visual resource path (supports shorthand and auto type detection).
     ///
@@ -376,7 +376,7 @@ pub struct SpriteDef {
 
 /// HP bar source definition for configuring where HP values come from.
 /// HP 条来源定义，用于配置 HP 值的来源。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum HPBarSourceDef {
     /// Player HP source - uses player_hp and player_hp_max facts.
     /// 玩家 HP 来源 - 使用 player_hp 和 player_hp_max facts。
@@ -394,7 +394,7 @@ pub enum HPBarSourceDef {
     },
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextDef {
     pub id: String,
     #[serde(default)]
@@ -416,13 +416,13 @@ pub struct TextDef {
     pub visible_when: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConditionalStyleDef {
     pub condition: String,
     pub color: SerializableColor,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ViewBoxLogicDef {
     pub width: f32,
     pub height: f32,
@@ -441,13 +441,13 @@ pub struct ViewBoxLogicDef {
 // SdfStructure Asset Definition
 // ============================================================================
 
-#[derive(Asset, TypePath, Debug, Deserialize, Clone)]
+#[derive(Asset, TypePath, Debug, Deserialize, Serialize, Clone)]
 pub struct SdfStructureAsset {
     pub layer_count: usize,
     pub root: SdfLayerDef,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SdfLayerDef {
     pub name: String,
     pub sdf_type: SdfShapeKind,
@@ -465,13 +465,13 @@ fn default_z_offset() -> f32 {
     0.1
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SdfShapeKind {
     Outer,
     Inner,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub enum SdfColorSource {
     #[default]
     FillColor,
@@ -489,7 +489,7 @@ pub enum SdfColorSource {
 ///
 /// 基于状态的精灵配置。
 /// 允许精灵纹理根据规则（如选中状态）变化。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StateSpriteConfig {
     /// Default texture path (used when no state rule matches).
     ///
@@ -528,7 +528,7 @@ pub struct StateSpriteConfig {
 /// A rule that triggers a state change.
 ///
 /// 触发状态变化的规则。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StateRuleDef {
     /// The trigger condition.
     ///
@@ -544,7 +544,7 @@ pub struct StateRuleDef {
 /// Trigger types for state changes.
 ///
 /// 状态变化的触发器类型。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum StateTriggerDef {
     /// Triggered when this element is selected in an interactive layer.
     /// Parameters: layer_id, index in selectable_elements
@@ -596,7 +596,7 @@ pub enum StateTriggerDef {
 ///     ),
 /// )
 /// ```
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MaterialDef {
     /// Shader resource path.
     /// Can be project-relative (e.g., "shared/shaders/hp_bar.wgsl")
@@ -633,7 +633,7 @@ pub struct MaterialDef {
 /// Material parameter value - can be static or expression-based.
 ///
 /// 材质参数值 - 可以是静态值或基于表达式。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum MaterialParamValue {
     /// Static float value.
     ///
@@ -657,7 +657,7 @@ impl Default for MaterialParamValue {
 /// Animation configurations for material parameters.
 ///
 /// 材质参数的动画配置。
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MaterialAnimationsDef {
     /// Lag animation configuration.
     /// Creates a delayed, smoothed version of a source parameter.
@@ -673,7 +673,7 @@ pub struct MaterialAnimationsDef {
 ///
 /// 延迟动画定义。
 /// 带延迟地平滑跟随源参数。
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LagAnimationDef {
     /// Source parameter name to track.
     ///
@@ -719,7 +719,7 @@ fn default_lag_duration() -> f32 {
 /// Easing function definition for animations.
 ///
 /// 动画的缓动函数定义。
-#[derive(Debug, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub enum EasingDef {
     #[default]
     Linear,
