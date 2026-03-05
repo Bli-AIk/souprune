@@ -26,8 +26,10 @@ pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
+pub use crate::core::definition::{CombatStats, DefinitionRegistry, GameDefinition, LocaleInfo};
+pub use crate::core::enemy::{ActionOption, EnemyDef, EnemyRegistry};
 pub use crate::core::input::actions::Action;
-pub use crate::core::item::{Item, ItemEffect, ItemRegistry, ItemType};
+pub use crate::core::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };

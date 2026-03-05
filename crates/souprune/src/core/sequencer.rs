@@ -130,6 +130,8 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
                 fact_chapter::process_modify_fact_chapter_system,
                 fact_chapter::process_load_fre_chapter_system,
                 fact_chapter::complete_load_fre_chapter_system,
+                fact_chapter::process_load_enemies_chapter_system,
+                fact_chapter::complete_load_enemies_chapter_system,
                 run_sequence::process_run_sequence_system,
                 run_sequence::complete_run_sequence_system,
                 load_map::process_load_map_system,

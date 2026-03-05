@@ -764,5 +764,6 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::LoadMap { .. } => "LoadMap",
         Chapter::SetBgm { .. } => "SetBgm",
         Chapter::Custom { .. } => "Custom",
+        Chapter::LoadEnemies { .. } => "LoadEnemies",
     }
 }

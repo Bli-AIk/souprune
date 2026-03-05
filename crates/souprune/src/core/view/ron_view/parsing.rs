@@ -639,7 +639,7 @@ pub fn resolve_data_path(
                 .take(8)
                 .map(|item_id| {
                     if let Some(item) = item_registry.get(item_id) {
-                        let key = format!("{}:{}", item.locale_file, item.locale_name);
+                        let key = format!("{}:{}", item.locale.file, item.locale.name);
                         mortar_strings.resolve(&key).to_string()
                     } else {
                         // Use trace level to avoid log spam for undefined items
@@ -653,7 +653,7 @@ pub fn resolve_data_path(
         "player.weapon" => {
             let weapon = get_string("player:weapon");
             if let Some(item) = item_registry.get(&weapon) {
-                let key = format!("{}:{}", item.locale_file, item.locale_name);
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 weapon
@@ -684,7 +684,7 @@ pub fn resolve_data_path(
         "player.armor" => {
             let armor = get_string("player:armor");
             if let Some(item) = item_registry.get(&armor) {
-                let key = format!("{}:{}", item.locale_file, item.locale_name);
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 armor

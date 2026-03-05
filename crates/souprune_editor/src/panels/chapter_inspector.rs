@@ -351,6 +351,10 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             ui.separator();
             changed |= edit_hashmap_string_flat(ui, &t(world, "prop-params"), params, world);
         }
+
+        Chapter::LoadEnemies { enemies } => {
+            changed |= edit_string_list(ui, &t(world, "prop-files"), enemies, world);
+        }
     }
 
     changed
