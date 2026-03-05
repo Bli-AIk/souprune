@@ -12,6 +12,12 @@
 
 use bevy::prelude::*;
 
+/// Marker for the game's primary camera.
+///
+/// 游戏主摄像机标记。编辑器可通过此标记查找并劫持游戏摄像机。
+#[derive(Component)]
+pub struct MainGameCamera;
+
 #[derive(Component, Default)]
 pub(crate) struct Followable {
     pub(crate) target: Option<Entity>,

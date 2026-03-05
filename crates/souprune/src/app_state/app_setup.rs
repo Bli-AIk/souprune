@@ -22,15 +22,17 @@ use crate::app_state::AppState;
 use crate::config;
 use crate::core::camera::Followable;
 use crate::core::sprite::ModuleSpriteRegistry;
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin};
 use bevy::asset::LoadedFolder;
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use std::fs;
 
-pub(crate) struct AppSetupPlugin;
+pub struct AppSetupPlugin;
 
 impl Plugin for AppSetupPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.add_systems(
             OnEnter(AppState::Loading),
             (
@@ -41,7 +43,7 @@ impl Plugin for AppSetupPlugin {
             ),
         )
         .add_systems(
-            Update,
+            schedule,
             (
                 check_textures_system.run_if(in_state(AppState::Loading)),
                 crate::core::input::touch::update_touch_button_visuals,
@@ -55,7 +57,7 @@ impl Plugin for AppSetupPlugin {
         // On Android, defer touch overlay until window is ready, and maintain 4:3 viewport
         #[cfg(target_os = "android")]
         app.add_systems(
-            Update,
+            schedule,
             (
                 android_viewport_system,
                 deferred_touch_overlay_system.run_if(not(resource_exists::<TouchOverlaySpawned>)),
@@ -193,29 +195,62 @@ fn check_textures_system(
     }
 }
 
-fn setup_camera_system(mut commands: Commands, resolution_scale: Res<ResolutionScale>) {
-    // On Android, use Fixed scaling to always show base_resolution world units
-    // regardless of screen size. A viewport system will handle letterboxing.
+fn setup_camera_system(
+    mut commands: Commands,
+    resolution_scale: Res<ResolutionScale>,
+    game_schedule: Option<Res<crate::GameUpdateSchedule>>,
+    existing: Query<(), With<crate::core::camera::MainGameCamera>>,
+    #[cfg(target_os = "android")] config: Option<Res<crate::config::SoupruneConfig>>,
+) {
+    // Idempotent: skip if camera already exists (prevents duplicates on re-enter Loading)
+    if !existing.is_empty() {
+        return;
+    }
+
+    let is_editor = game_schedule
+        .as_ref()
+        .is_some_and(|gs| gs.0 != Update.intern());
+
+    // Android 使用 Fixed 缩放 + viewport 系统保持宽高比（见 android_viewport_system）。
+    // 编辑器和独立游戏使用 WindowSize + scale：render target 分辨率 = base * scale，
+    // 相机可视区域 = render_target_size / scale = base_resolution，像素完美。
     #[cfg(target_os = "android")]
-    let projection = Projection::Orthographic(OrthographicProjection {
-        scaling_mode: bevy::camera::ScalingMode::Fixed {
-            width: 320.0,
-            height: 240.0,
-        },
-        ..OrthographicProjection::default_2d()
-    });
+    let projection = {
+        let base_w = config
+            .as_ref()
+            .map_or(320.0, |c| c.render.base_resolution_width as f32);
+        let base_h = config
+            .as_ref()
+            .map_or(240.0, |c| c.render.base_resolution_height as f32);
+        Projection::Orthographic(OrthographicProjection {
+            scaling_mode: bevy::camera::ScalingMode::Fixed {
+                width: base_w,
+                height: base_h,
+            },
+            ..OrthographicProjection::default_2d()
+        })
+    };
     #[cfg(not(target_os = "android"))]
     let projection = Projection::Orthographic(OrthographicProjection {
         scale: 1.0 / resolution_scale.get() as f32,
         ..OrthographicProjection::default_2d()
     });
 
-    commands.spawn((
+    let mut entity = commands.spawn((
         Name::new("Overworld Camera2d"),
         Camera2d,
         projection,
         Followable::default(),
+        crate::core::camera::MainGameCamera,
     ));
+
+    // 编辑器模式下禁用游戏相机（由 GameViewPlugin 在 Play 时劫持激活）
+    if is_editor {
+        entity.insert(Camera {
+            is_active: false,
+            ..default()
+        });
+    }
 }
 
 fn setup_touch_overlay_system(
@@ -338,7 +373,7 @@ fn deferred_touch_overlay_system(
 }
 
 #[derive(Resource)]
-pub(crate) struct ResolutionScale(pub(crate) u32);
+pub struct ResolutionScale(pub u32);
 
 impl ResolutionScale {
     pub(crate) fn get(&self) -> u32 {

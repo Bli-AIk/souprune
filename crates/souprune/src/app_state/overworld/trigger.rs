@@ -121,6 +121,7 @@ pub struct FocusedInteractable {
 pub struct LoadedRuleSets {
     pub handles: Vec<Handle<FreAsset>>,
     pub initialized: bool,
+    pub registered: bool,
 }
 
 /// Resource to store the mapping from rule IDs to their action definitions.
@@ -238,14 +239,13 @@ pub fn load_fre_rules_system(
 ///
 /// 从已加载的资产注册规则的系统。
 pub fn register_loaded_rules_system(
-    loaded_rule_sets: Res<LoadedRuleSets>,
+    mut loaded_rule_sets: ResMut<LoadedRuleSets>,
     fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut action_defs: ResMut<RuleActionDefs>,
-    mut registered: Local<bool>,
 ) {
-    if *registered || !loaded_rule_sets.initialized {
+    if loaded_rule_sets.registered || !loaded_rule_sets.initialized {
         return;
     }
 
@@ -292,7 +292,7 @@ pub fn register_loaded_rules_system(
         }
     }
 
-    *registered = true;
+    loaded_rule_sets.registered = true;
     info!(
         "FRE: All {} rule sets registered",
         loaded_rule_sets.handles.len()

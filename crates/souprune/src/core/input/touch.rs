@@ -61,7 +61,7 @@ pub struct ControllerDirections(pub HashSet<String>);
 
 /// Tracks which touch actions are currently pressed via multitouch hit testing.
 #[derive(Resource, Default)]
-pub(crate) struct MultitouchPressed(HashSet<String>);
+pub struct MultitouchPressed(HashSet<String>);
 
 /// Stores the normal-state image handle for pressed/released visual swap.
 #[derive(Component)]

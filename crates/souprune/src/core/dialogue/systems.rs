@@ -687,6 +687,7 @@ pub fn has_pending_dialogue_start(facts: Res<LayeredFactDatabase>) -> bool {
 /// - 如果 pending_mortar_path 和 pending_mortar_node 设置，启动 Mortar 对话
 /// - 发出 `dialogue:started` FRE 事件用于场景特定处理（如状态切换）
 /// - 清除所有待处理 facts
+///
 /// Handle pending dialogue startup based on FRE facts.
 ///
 /// 基于 FRE facts 处理待启动的对话。
@@ -864,10 +865,9 @@ pub fn replay_typewriter_on_depth_resume_system(
     };
 
     // Check if depth changed from non-zero to 0 (resume/replay typewriter)
-    let resumed_to_zero = match (*prev_depth, current_depth) {
-        (Some(prev), Some(curr)) if prev != 0 && curr == 0 => true,
-        _ => false,
-    };
+    let resumed_to_zero = matches!((*prev_depth, current_depth),
+        (Some(prev), Some(curr)) if prev != 0 && curr == 0
+    );
 
     // Update previous depth
     *prev_depth = current_depth;

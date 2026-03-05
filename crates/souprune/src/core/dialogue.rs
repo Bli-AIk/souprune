@@ -30,6 +30,7 @@ pub use components::TypewriterVoice;
 #[allow(deprecated)]
 pub use config::DialogueBlockingConfig;
 pub use config::DialogueInputConfig;
+pub use systems::DialogueControllerEntity;
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
@@ -43,6 +44,7 @@ pub struct DialoguePlugin;
 
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         // Add TypewriterPlugin as a dependency
         // 添加 TypewriterPlugin 作为依赖
         app.add_plugins(bevy_ecs_typewriter::TypewriterPlugin);
@@ -54,9 +56,8 @@ impl Plugin for DialoguePlugin {
             .register_type::<TypewriterVoice>()
             .add_systems(Startup, init_dialogue_facts)
             .add_systems(
-                Update,
+                schedule,
                 (
-                    // Pending dialogue startup (reads FRE facts, spawns view, starts Mortar)
                     // Must run first to set dialogue:active before spawn_dialogue_controller_system
                     // 必须先运行以在 spawn_dialogue_controller_system 之前设置 dialogue:active
                     systems::handle_pending_dialogue_start_system

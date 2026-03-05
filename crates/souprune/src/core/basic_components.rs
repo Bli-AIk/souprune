@@ -18,7 +18,7 @@ pub(crate) struct Speed {
 }
 
 #[derive(Component)]
-pub(crate) struct Facing {
+pub struct Facing {
     pub value: Direction,
 }
 

@@ -50,20 +50,21 @@ pub struct BattleFREPlugin;
 
 impl Plugin for BattleFREPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.add_message::<ChapterCompletedEvent>()
             .init_resource::<ActOptionsTracker>()
-            .configure_sets(Update, BattleFRESet.in_set(BattleUpdate))
+            .configure_sets(schedule, BattleFRESet.in_set(BattleUpdate))
             .add_systems(
-                Update,
+                schedule,
                 (setup_battle_fre_system, setup_battle_action_handlers_system)
                     .run_if(super::on_entering_battle),
             )
             .add_systems(
-                Update,
+                schedule,
                 cleanup_battle_fre_system.run_if(super::on_exiting_battle),
             )
             .add_systems(
-                Update,
+                schedule,
                 (
                     register_battle_rules_system,
                     emit_chapter_completed_events_system.run_if(has_chapter_completed_events),

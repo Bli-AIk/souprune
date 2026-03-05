@@ -59,11 +59,12 @@ pub struct ModPlugin;
 
 impl Plugin for ModPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_resource::<BehaviorRegistry>()
             .init_resource::<DanmakuRegistry>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
-                Update,
+                schedule,
                 (init_behaviors_system, update_behaviors_system)
                     .in_set(crate::app_state::battle::BattleMovementSet),
             );
