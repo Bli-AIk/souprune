@@ -90,37 +90,39 @@ impl Plugin for OverworldPlugin {
             );
 
         // FRE + Danmaku integration + Chase
-        app.add_plugins(bevy_fact_rule_event::FREPlugin)
-            .add_plugins(chase::ChasePlugin)
-            .configure_sets(schedule, FRETriggerSet.in_set(OverworldUpdate))
-            .configure_sets(
-                schedule,
-                DanmakuUpdate
-                    .run_if(in_state(AppState::Running))
-                    .after(FRETriggerSet),
+        app.add_plugins(bevy_fact_rule_event::FREPlugin {
+            schedule: Some(schedule),
+        })
+        .add_plugins(chase::ChasePlugin)
+        .configure_sets(schedule, FRETriggerSet.in_set(OverworldUpdate))
+        .configure_sets(
+            schedule,
+            DanmakuUpdate
+                .run_if(in_state(AppState::Running))
+                .after(FRETriggerSet),
+        )
+        .init_resource::<trigger::LoadedRuleSets>()
+        .init_resource::<trigger::RuleActionDefs>()
+        .init_resource::<trigger::PendingDanmakuActions>()
+        .init_resource::<trigger::PendingViewActions>()
+        .init_resource::<trigger::FocusedInteractable>()
+        .add_systems(
+            schedule,
+            (
+                view::input_to_fre_event_bridge_system,
+                trigger::load_fre_rules_system,
+                trigger::register_loaded_rules_system,
+                trigger::trigger_zone_detection_system,
+                trigger::interactable_detection_system,
+                trigger::handle_interaction_input_system,
+                trigger::handle_overworld_custom_actions_system,
+                trigger::apply_pending_view_actions_system,
+                trigger::play_danmaku_from_actions_system,
+                trigger::log_fact_changes_system,
             )
-            .init_resource::<trigger::LoadedRuleSets>()
-            .init_resource::<trigger::RuleActionDefs>()
-            .init_resource::<trigger::PendingDanmakuActions>()
-            .init_resource::<trigger::PendingViewActions>()
-            .init_resource::<trigger::FocusedInteractable>()
-            .add_systems(
-                schedule,
-                (
-                    view::input_to_fre_event_bridge_system,
-                    trigger::load_fre_rules_system,
-                    trigger::register_loaded_rules_system,
-                    trigger::trigger_zone_detection_system,
-                    trigger::interactable_detection_system,
-                    trigger::handle_interaction_input_system,
-                    trigger::handle_overworld_custom_actions_system,
-                    trigger::apply_pending_view_actions_system,
-                    trigger::play_danmaku_from_actions_system,
-                    trigger::log_fact_changes_system,
-                )
-                    .chain()
-                    .in_set(FRETriggerSet),
-            );
+                .chain()
+                .in_set(FRETriggerSet),
+        );
     }
 }
 

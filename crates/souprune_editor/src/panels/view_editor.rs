@@ -1,14 +1,4 @@
 //! View 可视化编辑器面板 — 三面板布局：Node Tree + Preview + Inspector。
-
-use std::path::{Path, PathBuf};
-
-use bevy::prelude::*;
-use bevy_workbench::prelude::*;
-use souprune::core::view::layout::{
-    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, TextDef, ViewBoxLogicDef,
-    ViewLayoutAsset, ViewNodeDef,
-};
-
 use super::view_preview::ViewPreviewState;
 use crate::editors::SubEditorManager;
 use crate::i18n::{t, t_args};
@@ -17,6 +7,13 @@ use crate::widgets::view_widgets::{
     edit_color, edit_expression, edit_font_def, edit_option_color, edit_option_transform,
     edit_option_vec2_tuple, edit_string_string_map, edit_tag_list, edit_vec2, edit_vec3,
 };
+use bevy::prelude::*;
+use bevy_workbench::prelude::*;
+use souprune::core::view::layout::{
+    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, TextDef, ViewBoxLogicDef,
+    ViewLayoutAsset, ViewNodeDef,
+};
+use std::path::{Path, PathBuf};
 
 /// View 编辑器状态资源。
 #[derive(Resource, Default)]
@@ -813,19 +810,13 @@ fn edit_initial_fact_value(ui: &mut egui::Ui, key: &str, val: &mut InitialFactVa
                 }
             }
             InitialFactValue::Float(v) => {
-                if ui.add(egui::DragValue::new(v).speed(0.1)).changed() {
-                    changed = true;
-                }
+                changed |= ui.add(egui::DragValue::new(v).speed(0.1)).changed();
             }
             InitialFactValue::Bool(v) => {
-                if ui.checkbox(v, "").changed() {
-                    changed = true;
-                }
+                changed |= ui.checkbox(v, "").changed();
             }
             InitialFactValue::String(s) => {
-                if ui.text_edit_singleline(s).changed() {
-                    changed = true;
-                }
+                changed |= ui.text_edit_singleline(s).changed();
             }
             InitialFactValue::StringList(list) => {
                 ui.label(format!("[{}]", list.join(", ")));
