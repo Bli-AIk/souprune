@@ -77,7 +77,7 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub(crate) fn update_dynamic_camera_anchors_system(
     mut anchored_query: Query<
         (&mut CameraAnchored, &CameraAnchoredDynamic, &mut Transform),
@@ -194,7 +194,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 /// Initialize (or re-sync) anchors only when the entity's offset changes or gets added (works in states with UI interaction or chase config).
 ///
 /// 仅在新 UI 产生或偏移量改变时同步，支持有 UI 交互或追逐战配置的状态。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub(crate) fn update_camera_anchored_ui_on_change_system(
     mode: Res<SequenceMode>,
     sub_state: Option<Res<State<SequenceSubState>>>,

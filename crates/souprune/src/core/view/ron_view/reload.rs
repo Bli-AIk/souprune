@@ -92,8 +92,8 @@ pub fn watch_view_layout_changes_system(
 /// 4. 更新 Sprite 颜色/翻转属性
 /// 5. 更新 DynamicViewElement 存储的定义（以在 fact 变化时保持）
 #[cfg(feature = "debug")]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn incremental_reload_system(
     mut pending_reloads: ResMut<PendingViewReloads>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,

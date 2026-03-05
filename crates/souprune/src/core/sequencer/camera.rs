@@ -13,7 +13,7 @@ use bevy::prelude::*;
 /// System to process camera actions.
 ///
 /// 处理摄像机动作的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_camera_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,

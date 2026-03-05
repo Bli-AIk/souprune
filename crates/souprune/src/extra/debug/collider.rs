@@ -74,7 +74,7 @@ pub mod debug_collider {
     /// Draw rectangular colliders (Player, Tilemap, Object) using Gizmos.
     ///
     /// 使用 Gizmos 绘制矩形碰撞体（玩家、瓦片地图、对象）。
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)] // reason: Bevy query type complexity
     fn draw_rect_collider_gizmos_system(
         mut gizmos: Gizmos<ColliderGizmos>,
         player_colliders: Query<
@@ -146,7 +146,7 @@ pub mod debug_collider {
     /// Draw Battle colliders (PhysicsCollider, TriggerCollider, BattleBox) using Gizmos.
     ///
     /// 使用 Gizmos 绘制 Battle 碰撞体。
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)] // reason: Bevy query type complexity
     fn draw_battle_collider_gizmos_system(
         mut gizmos: Gizmos<ColliderGizmos>,
         physics_colliders: Query<(&GlobalTransform, &PhysicsCollider)>,

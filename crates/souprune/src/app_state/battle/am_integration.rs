@@ -450,8 +450,7 @@ pub fn on_am_entity_spawned(
 /// System to propagate AM markers from parent groups to children.
 ///
 /// 将 AM 标记从父编组传播到子元素。
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 fn propagate_am_markers_system(
     mut commands: Commands,
     // All AM entities that might need marker inheritance
@@ -549,7 +548,7 @@ fn propagate_am_markers_system(
 ///
 /// 为标记的 AM 实体添加碰撞组件。
 /// 在 `propagate_am_markers_system` 和 `apply_deferred` 之后运行。
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 fn add_am_collision_system(
     mut commands: Commands,
     am_config: Res<AmBattleConfig>,

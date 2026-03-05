@@ -590,7 +590,7 @@ pub fn preview_input_to_fre_system(
 ///
 /// Play 启动时：初始化 ViewRoot.local_facts + 注册 FRE 规则 + 添加 ActiveView
 /// Stop 时：清理规则 + 重置状态 + 触发预览重建
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub fn preview_play_control_system(
     mut state: ResMut<ViewPreviewState>,
     editor_state: Res<ViewEditorState>,

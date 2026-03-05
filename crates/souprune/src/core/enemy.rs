@@ -16,7 +16,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::definition::{CombatStats, DefinitionRegistry, GameDefinition, LocaleInfo};
+use super::definition::{CombatStats, LocaleInfo};
 
 pub struct EnemyPlugin;
 
@@ -73,15 +73,6 @@ pub struct EnemyDef {
     pub mercies: Vec<ActionOption>,
 }
 
-impl GameDefinition for EnemyDef {
-    fn id(&self) -> &str {
-        &self.id
-    }
-    fn kind() -> &'static str {
-        "Enemy"
-    }
-}
-
 // --- Registry ---
 
 /// Central registry of all loaded enemy definitions.
@@ -96,23 +87,21 @@ impl EnemyRegistry {
     }
 }
 
-impl DefinitionRegistry for EnemyRegistry {
-    type Def = EnemyDef;
-    fn get(&self, id: &str) -> Option<&EnemyDef> {
-        self.0.get(id)
-    }
-    fn ids(&self) -> Vec<&str> {
-        self.0.keys().map(|s| s.as_str()).collect()
-    }
-}
-
 // --- Fact Projection ---
 
 /// Project enemy data into a fact database for View dynamic resolution.
 /// This enables View expressions like `$$enemy_id.action_labels`.
 ///
+/// Note: Only enemies need fact projection because View rules reference enemy
+/// data dynamically (HP bars, ACT labels, mercy state). Items are queried
+/// directly via ItemRegistry and don't participate in FRE rule evaluation.
+///
 /// 将敌人数据投影到 fact 数据库，供 View 动态解析使用。
 /// 使 View 表达式如 `$$enemy_id.action_labels` 能正常工作。
+///
+/// 注意：只有敌人需要 fact 投影，因为 View 规则会动态引用敌人数据
+/// （HP 条、ACT 标签、mercy 状态）。物品通过 ItemRegistry 直接查询，
+/// 不参与 FRE 规则评估。
 pub fn project_enemy_facts(enemy: &EnemyDef, db: &mut bevy_fact_rule_event::FactDatabase) {
     use bevy_fact_rule_event::FactValue;
     let id = &enemy.id;

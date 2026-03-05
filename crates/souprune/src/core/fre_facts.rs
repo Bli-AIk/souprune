@@ -52,16 +52,16 @@ pub const DIALOGUE_STOP_PREFIX: &str = "dialogue:stop";
 // ── State facts (synced from Bevy states) ──────────────────────────
 
 /// 当前 SequenceSubState 名称
-pub const STATE_SEQUENCE_SUB_STATE: &str = "@sequence_sub_state";
+pub const STATE_SEQUENCE_SUB_STATE: &str = "state:sequence_sub_state";
 /// 当前 AppState 名称
-pub const STATE_APP_STATE: &str = "@app_state";
+pub const STATE_APP_STATE: &str = "state:app_state";
 
 // ── View internal control facts ────────────────────────────────────
 
 /// 请求关闭当前 View 的局部标志
-pub const VIEW_CLOSE_REQUESTED: &str = "_close_requested";
+pub const VIEW_CLOSE_REQUESTED: &str = "view:close_requested";
 /// 请求切换状态的局部标志（值为目标状态名）
-pub const VIEW_SWITCH_STATE: &str = "_switch_state";
+pub const VIEW_SWITCH_STATE: &str = "view:switch_state";
 
 // ── Player facts ───────────────────────────────────────────────────
 
@@ -70,11 +70,19 @@ pub const PLAYER_HP: &str = "player:hp";
 /// 玩家最大 HP
 pub const PLAYER_HP_MAX: &str = "player:hp_max";
 /// 待处理的玩家伤害
-pub const PENDING_PLAYER_DAMAGE: &str = "pending_player_damage";
+pub const PENDING_PLAYER_DAMAGE: &str = "player:pending_damage";
 
-// ── Enemy facts (enemy_0 as example) ───────────────────────────────
+// ── Enemy facts ────────────────────────────────────────────────────
+
+/// Generate an enemy fact key by slot index and field name.
+/// e.g. `enemy_fact_key(0, "hp")` → `"enemy:0:hp"`
+///
+/// 根据敌人槽位索引和字段名生成 fact key。
+pub fn enemy_fact_key(index: usize, field: &str) -> String {
+    format!("enemy:{index}:{field}")
+}
 
 /// 敌人 0 的当前 HP
-pub const ENEMY_0_HP: &str = "enemy_0_hp";
+pub const ENEMY_0_HP: &str = "enemy:0:hp";
 /// 待处理的敌人 0 伤害
-pub const PENDING_ENEMY_0_DAMAGE: &str = "pending_enemy_0_damage";
+pub const PENDING_ENEMY_0_DAMAGE: &str = "enemy:0:pending_damage";

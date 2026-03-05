@@ -104,12 +104,12 @@ pub fn action_to_fre_event_system(
 
 /// System that syncs Bevy state values to FRE facts.
 ///
-/// This allows FRE rules to check current state using `$@sequence_sub_state` and `$@app_state`.
+/// This allows FRE rules to check current state using `$state:sequence_sub_state` and `$state:app_state`.
 /// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
 ///
 /// 将 Bevy 状态值同步到 FRE facts 的系统。
 ///
-/// 这允许 FRE 规则使用 `$@sequence_sub_state` 和 `$@app_state` 检查当前状态。
+/// 这允许 FRE 规则使用 `$state:sequence_sub_state` 和 `$state:app_state` 检查当前状态。
 /// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
@@ -231,10 +231,6 @@ pub fn process_view_actions_system(
                     continue;
                 };
 
-                // Sync dynamic facts from global database before condition evaluation
-                // 在条件评估前同步动态 facts
-                sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
-
                 // Check condition expressions against local_facts and global_facts
                 if !evaluate_conditions(
                     &rule.condition_expressions,
@@ -318,42 +314,6 @@ pub fn process_view_actions_system(
                 }
                 // Otherwise, continue checking in this priority group
             }
-        }
-    }
-}
-
-/// Syncs derived facts from global database to local_facts.
-/// This allows rules to reference global data in conditions.
-///
-/// 将派生 facts 从全局数据库同步到 local_facts。
-/// 这允许规则在条件中引用全局数据。
-///
-/// NOTE: This function is now minimal - StringList.len() is evaluated
-/// directly via $var.len() syntax in conditions.
-///
-/// 注意：此函数现在是最小化的 - StringList.len() 通过条件中的
-/// $var.len() 语法直接评估。
-fn sync_dynamic_facts(
-    local_facts: &mut bevy_fact_rule_event::FactDatabase,
-    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
-) {
-    // Sync dialogue state facts that are managed by sync_typewriter_state_to_facts_system.
-    // These facts live in LayeredFactDatabase.local and must be kept in sync with
-    // ViewRoot.local_facts so condition evaluation (which checks local first) uses
-    // up-to-date values. Without this, LocalLayer binding copies a stale snapshot
-    // and conditions like $dialogue:typewriter_playing == true never pass.
-    //
-    // 同步由 sync_typewriter_state_to_facts_system 管理的对话状态 facts。
-    // 这些 facts 存在于 LayeredFactDatabase.local 中，必须与 ViewRoot.local_facts
-    // 保持同步，以确保条件评估（优先检查 local）使用最新值。
-    for key in &[
-        fre_facts::DIALOGUE_TYPEWRITER_PLAYING,
-        fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED,
-        fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED,
-        fre_facts::DIALOGUE_HAS_FOCUS,
-    ] {
-        if let Some(val) = global_facts.get_by_str(key) {
-            local_facts.set(*key, val.clone());
         }
     }
 }

@@ -24,8 +24,6 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Sprite, Transform, default};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 pub fn get_or_create_texture_atlas(
     module_name: &str,
     sprite_registry: &mut ModuleSpriteRegistry,
@@ -80,8 +78,6 @@ pub fn get_or_create_texture_atlas(
     Ok((atlas_layout_handle, texture, index_map))
 }
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 pub fn create_texture_atlas(
     folder: &LoadedFolder,
     padding: Option<UVec2>,
@@ -160,7 +156,6 @@ pub fn create_texture_atlas(
 }
 
 #[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 pub fn create_sprite_from_atlas(
     commands: &mut Commands,
     translation: (f32, f32, f32),
@@ -189,7 +184,7 @@ pub fn create_sprite_from_atlas(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 #[allow(dead_code)]
 pub fn get_sprite_from_config(
     sprite_registry: &mut ModuleSpriteRegistry,

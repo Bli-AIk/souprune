@@ -423,7 +423,6 @@ fn spawn_chase_dark_overlay_system(
 /// Spawn player outline mesh using PixelOutlineMaterial.
 ///
 /// 使用 PixelOutlineMaterial 生成玩家描边网格。
-#[allow(clippy::type_complexity)]
 fn spawn_player_outline_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -584,7 +583,6 @@ fn spawn_heart_marker_system(
 /// Update player outline position and texture to follow player sprite.
 ///
 /// 更新玩家描边位置和纹理以跟随玩家精灵。
-#[allow(clippy::type_complexity)]
 fn update_player_outline_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,

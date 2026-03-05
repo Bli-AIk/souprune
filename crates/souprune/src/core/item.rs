@@ -18,7 +18,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::definition::{DefinitionRegistry, GameDefinition, LocaleInfo};
+use super::definition::LocaleInfo;
 
 pub struct ItemPlugin;
 
@@ -46,15 +46,6 @@ pub struct Item {
     pub locale: LocaleInfo,
     pub description: String,
     pub item_type: ItemType,
-}
-
-impl GameDefinition for Item {
-    fn id(&self) -> &str {
-        &self.id
-    }
-    fn kind() -> &'static str {
-        "Item"
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -101,16 +92,6 @@ pub struct ItemRegistry(pub HashMap<String, Item>);
 impl ItemRegistry {
     pub fn get(&self, id: &str) -> Option<&Item> {
         self.0.get(id)
-    }
-}
-
-impl DefinitionRegistry for ItemRegistry {
-    type Def = Item;
-    fn get(&self, id: &str) -> Option<&Item> {
-        self.0.get(id)
-    }
-    fn ids(&self) -> Vec<&str> {
-        self.0.keys().map(|s| s.as_str()).collect()
     }
 }
 

@@ -15,7 +15,7 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 /// System to process ModifyViewElement chapters.
 ///
 /// 处理 ModifyViewElement 章节的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_modify_view_element_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -111,7 +111,7 @@ pub fn process_modify_view_element_system(
 /// Apply a modification to a single entity.
 ///
 /// 对单个实体应用修改。
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 fn apply_modification(
     commands: &mut Commands,
     asset_server: &AssetServer,

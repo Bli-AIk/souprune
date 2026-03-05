@@ -206,7 +206,6 @@ fn spawn_ui_box_children(
 /// Load and spawn SDF structure from external RON file.
 ///
 /// 从外部 RON 文件加载并生成 SDF 结构。
-#[allow(clippy::too_many_arguments)]
 fn spawn_structure_from_file(
     commands: &mut Commands,
     entity: Entity,

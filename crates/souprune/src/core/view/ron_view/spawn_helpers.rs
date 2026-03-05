@@ -346,7 +346,7 @@ fn spawn_static_sprite(
 }
 
 /// Helper function to spawn a standalone static sprite (not nested under a parent).
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub(super) fn spawn_standalone_static_sprite(
     parent: &mut ChildSpawnerCommands,
     sprite_def: &SpriteDef,

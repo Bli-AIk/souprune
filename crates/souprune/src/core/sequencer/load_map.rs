@@ -19,7 +19,7 @@ use bevy_ecs_tiled::prelude::{TiledMap, TiledMapLayerZOffset, TilemapAnchor};
 /// System to process LoadMap chapters.
 ///
 /// 处理 LoadMap 章节的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_load_map_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,

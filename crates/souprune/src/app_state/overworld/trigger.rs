@@ -138,7 +138,6 @@ pub struct RuleActionDefs {
 /// System to detect player entering/exiting trigger zones and emit FRE events.
 ///
 /// 检测玩家进入/离开触发区域并发出 FRE 事件的系统。
-#[allow(clippy::type_complexity)]
 pub fn trigger_zone_detection_system(
     mut triggers: Query<(&Transform, &Rect2DCollider, &mut TriggerZone)>,
     player: Query<(&Transform, &Rect2DCollider, Entity), With<PlayerControlled>>,
@@ -548,7 +547,6 @@ pub fn log_fact_changes_system(
 ///
 /// 检测玩家面前可交互物体的系统。
 /// 当玩家面向可交互物体时更新 FocusedInteractable 资源。
-#[allow(clippy::type_complexity)]
 /// Check if a ray from `origin` in direction `dir` intersects an AABB defined by `center` and `half_size`.
 /// Returns the distance to intersection if hit, or None if no intersection within `max_dist`.
 fn ray_aabb_intersection(

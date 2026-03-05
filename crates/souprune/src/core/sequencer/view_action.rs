@@ -17,7 +17,7 @@ use bevy_fact_rule_event::FactValue;
 /// System to process view actions.
 ///
 /// 处理视图动作的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_view_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -66,7 +66,7 @@ pub fn process_view_action_system(
 /// System to process SetViewFact chapters.
 ///
 /// 处理 SetViewFact 章节的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_set_view_fact_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,

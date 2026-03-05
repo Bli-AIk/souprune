@@ -54,3 +54,32 @@ if [ "$errors" -ne 0 ]; then
 else
     echo -e "${GREEN}${BOLD}Tokei OK:${RESET} All Rust files under ${CYAN}$MAX_LINES${RESET} lines of code, no mod.rs found."
 fi
+
+# --- Check 3: No #[allow(clippy::...)] — use #[expect(clippy::...)] instead ---
+# Exclude submodule directories (they are independent repos)
+SUBMODULE_EXCLUDES=""
+for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
+    SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
+done
+
+allow_hits=$(grep -rn '#\[allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null || true)
+if [ -n "$allow_hits" ]; then
+    echo -e "${RED}${BOLD}Error:${RESET} Found #[allow(clippy::...)]. Use #[expect(clippy::...)] instead:"
+    echo "$allow_hits" | while read -r line; do echo -e "  ${YELLOW}$line${RESET}"; done
+    errors=1
+fi
+
+# --- Check 4: #[expect(clippy::...)] must have a // reason: comment ---
+expect_no_reason=$(grep -rn '#\[expect(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null \
+    | grep -v '// reason:' || true)
+if [ -n "$expect_no_reason" ]; then
+    echo -e "${RED}${BOLD}Error:${RESET} Found #[expect(clippy::...)] without // reason: comment:"
+    echo "$expect_no_reason" | while read -r line; do echo -e "  ${YELLOW}$line${RESET}"; done
+    errors=1
+fi
+
+if [ "$errors" -ne 0 ]; then
+    exit 1
+else
+    echo -e "${GREEN}${BOLD}Lint OK:${RESET} No #[allow(clippy::...)] found, all #[expect] have reasons."
+fi

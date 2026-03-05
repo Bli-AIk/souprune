@@ -24,7 +24,7 @@ pub struct AmPerformanceTracker {
 /// System to process DanmakuPerformance chapters.
 ///
 /// 处理弹幕演出章节的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_danmaku_performance_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
@@ -58,7 +58,7 @@ pub fn process_danmaku_performance_system(
 /// System to process AmPerformance chapters.
 ///
 /// 处理 AM 演出章节的系统。
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_am_performance_system(
     mut commands: Commands,
     query: Query<
