@@ -45,7 +45,7 @@ impl UndoAction for InsertChapterAction {
     }
 
     fn description(&self) -> &str {
-        "插入章节"
+        "Insert chapter"
     }
 }
 
@@ -76,7 +76,7 @@ impl UndoAction for RemoveChapterAction {
     }
 
     fn description(&self) -> &str {
-        "删除章节"
+        "Remove chapter"
     }
 }
 
@@ -112,7 +112,7 @@ impl UndoAction for MoveChapterAction {
     }
 
     fn description(&self) -> &str {
-        "移动章节"
+        "Move chapter"
     }
 }
 
@@ -145,7 +145,7 @@ impl UndoAction for ModifyChapterAction {
     }
 
     fn description(&self) -> &str {
-        "修改章节属性"
+        "Modify chapter"
     }
 }
 

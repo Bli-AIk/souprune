@@ -11,6 +11,7 @@ use souprune::core::view::layout::{
 
 use super::view_preview::ViewPreviewState;
 use crate::editors::SubEditorManager;
+use crate::i18n::{t, t_args};
 use crate::widgets::property_editors::{edit_option_string, labeled_text};
 use crate::widgets::view_widgets::{
     edit_color, edit_expression, edit_font_def, edit_option_color, edit_option_transform,
@@ -48,17 +49,21 @@ impl ViewEditorState {
             }
             Err(e) => {
                 warn!("加载 View 文件失败: {e}");
-                self.parse_error = Some(format!("读取文件失败: {e}"));
+                self.parse_error = Some(format!("Failed to read file: {e}"));
             }
         }
     }
 }
 
-pub struct ViewEditorPanel;
+pub struct ViewEditorPanel {
+    cached_title: String,
+}
 
 impl ViewEditorPanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            cached_title: "View Editor".to_string(),
+        }
     }
 }
 
@@ -67,12 +72,13 @@ impl WorkbenchPanel for ViewEditorPanel {
         "view_editor_preview"
     }
     fn title(&self) -> String {
-        "View Editor".to_string()
+        self.cached_title.clone()
     }
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("需要 World 访问");
+        ui.label("Requires World access");
     }
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        self.cached_title = t(world, "panel-view-editor");
         check_pending_open(world);
 
         let has_layout = world
@@ -84,9 +90,14 @@ impl WorkbenchPanel for ViewEditorPanel {
                 .get_resource::<ViewEditorState>()
                 .and_then(|s| s.parse_error.clone());
             if let Some(err) = err {
-                ui.colored_label(egui::Color32::RED, format!("解析错误: {err}"));
+                let mut args = bevy_workbench::i18n::FluentArgs::new();
+                args.set("err", err);
+                ui.colored_label(
+                    egui::Color32::RED,
+                    t_args(world, "label-parse-error", &args),
+                );
             } else {
-                ui.label("在 Asset Browser 中双击 .view.ron 文件来编辑");
+                ui.label(t(world, "label-no-view-open"));
             }
             return;
         }
@@ -107,12 +118,27 @@ impl WorkbenchPanel for ViewEditorPanel {
             .min_width(200.0)
             .show_inside(ui, |ui| render_inspector(ui, world));
 
+        let preview_not_init = t(world, "label-preview-not-init");
         egui::CentralPanel::default().show_inside(ui, |ui| {
+            let labels = {
+                let zoom_val = world
+                    .get_resource::<ViewPreviewState>()
+                    .map_or(1.0, |s| s.zoom);
+                let mut args = bevy_workbench::i18n::FluentArgs::new();
+                args.set("percent", format!("{:.0}", zoom_val * 100.0));
+                super::view_preview::PreviewLabels {
+                    stop: t(world, "preview-stop"),
+                    play: t(world, "preview-play"),
+                    zoom: t_args(world, "preview-zoom", &args),
+                    reset: t(world, "preview-reset"),
+                    input_active: t(world, "preview-input-active"),
+                }
+            };
             let mut preview = world.get_resource_mut::<ViewPreviewState>();
             match preview.as_mut() {
-                Some(state) => super::view_preview::render_preview_ui(ui, state),
+                Some(state) => super::view_preview::render_preview_ui(ui, state, &labels),
                 None => {
-                    ui.label("Preview 未初始化");
+                    ui.label(&preview_not_init);
                 }
             }
         });
@@ -160,9 +186,10 @@ fn render_title_bar(ui: &mut egui::Ui, world: &mut World) {
         (title, state.dirty)
     };
     let dirty = if is_dirty { " *" } else { "" };
+    let save_text = t(world, "action-save");
     ui.horizontal(|ui| {
         ui.heading(format!("{title}{dirty}"));
-        if is_dirty && ui.button("保存").clicked() {
+        if is_dirty && ui.button(&save_text).clicked() {
             save_view(world);
         }
     });
@@ -201,9 +228,11 @@ fn save_view(world: &mut World) {
 // ─── Node Tree ──────────────────────────────────────────────
 
 fn render_node_tree(ui: &mut egui::Ui, world: &mut World) {
+    let heading_text = t(world, "view-node-tree");
+    let add_root_text = t(world, "view-add-root");
     ui.horizontal(|ui| {
-        ui.heading("节点树");
-        if ui.small_button("+").on_hover_text("添加根节点").clicked() {
+        ui.heading(&heading_text);
+        if ui.small_button("+").on_hover_text(&add_root_text).clicked() {
             let mut state = world.resource_mut::<ViewEditorState>();
             if let Some(layout) = &mut state.layout {
                 layout.roots.push(new_empty_node("new_root"));
@@ -224,7 +253,7 @@ fn render_node_tree(ui: &mut egui::Ui, world: &mut World) {
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         for (i, root) in layout.roots.iter().enumerate() {
-            render_tree_node(ui, root, &[i], &selected, &mut tree_action);
+            render_tree_node(ui, root, &[i], &selected, &mut tree_action, world);
         }
     });
 
@@ -250,6 +279,7 @@ fn render_tree_node(
     path: &[usize],
     selected: &Option<Vec<usize>>,
     action: &mut Option<TreeAction>,
+    world: &World,
 ) {
     let is_sel = selected.as_ref().is_some_and(|s| s == path);
     let icon = if node.sprite.is_some() || node.state_sprite.is_some() {
@@ -272,10 +302,10 @@ fn render_tree_node(
         ui.menu_button("...", |ui| {
             let p = path.to_vec();
             for (label, act) in [
-                ("添加子节点", TreeAction::AddChild(p.clone())),
-                ("复制", TreeAction::Duplicate(p.clone())),
-                ("上移", TreeAction::MoveUp(p.clone())),
-                ("下移", TreeAction::MoveDown(p.clone())),
+                (t(world, "tree-add-child"), TreeAction::AddChild(p.clone())),
+                (t(world, "action-copy"), TreeAction::Duplicate(p.clone())),
+                (t(world, "tree-move-up"), TreeAction::MoveUp(p.clone())),
+                (t(world, "tree-move-down"), TreeAction::MoveDown(p.clone())),
             ] {
                 if ui.button(label).clicked() {
                     *action = Some(act);
@@ -284,7 +314,7 @@ fn render_tree_node(
             }
             ui.separator();
             if ui
-                .button(egui::RichText::new("删除").color(egui::Color32::RED))
+                .button(egui::RichText::new(t(world, "action-delete")).color(egui::Color32::RED))
                 .clicked()
             {
                 *action = Some(TreeAction::Delete(path.to_vec()));
@@ -314,7 +344,7 @@ fn render_tree_node(
             for (i, child) in node.children.iter().enumerate() {
                 let mut cp = path.to_vec();
                 cp.push(i);
-                render_tree_node(ui, child, &cp, selected, action);
+                render_tree_node(ui, child, &cp, selected, action, world);
             }
         });
     }
@@ -410,7 +440,7 @@ fn apply_tree_action(world: &mut World, action: TreeAction) {
 // ─── Inspector ──────────────────────────────────────────────
 
 fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
-    ui.heading("属性");
+    ui.heading(t(world, "view-properties"));
     ui.separator();
 
     // Clone layout + selected path to avoid borrow conflicts
@@ -419,34 +449,34 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
         (s.layout.clone(), s.selected_node.clone())
     };
     let Some(mut layout) = layout_opt else {
-        ui.label("无数据");
+        ui.label(t(world, "label-no-data"));
         return;
     };
 
     // Node property editing (requires selected node)
     if let Some(path) = sel {
         if find_node_by_path(&layout.roots, &path).is_none() {
-            ui.colored_label(egui::Color32::RED, "节点路径无效");
+            ui.colored_label(egui::Color32::RED, t(world, "label-node-path-invalid"));
         } else {
             let mut changed = false;
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let mut node = find_node_by_path(&layout.roots, &path).unwrap().clone();
 
-                changed |= edit_node_basics(ui, &mut node);
-                changed |= edit_node_sprite(ui, &mut node.sprite);
-                changed |= edit_node_state_sprite(ui, &mut node.state_sprite);
-                changed |= edit_node_texts(ui, &mut node.texts);
-                changed |= edit_node_view_box(ui, &mut node.view_box);
-                changed |= edit_node_repeat(ui, &mut node.repeat);
+                changed |= edit_node_basics(world, ui, &mut node);
+                changed |= edit_node_sprite(world, ui, &mut node.sprite);
+                changed |= edit_node_state_sprite(world, ui, &mut node.state_sprite);
+                changed |= edit_node_texts(world, ui, &mut node.texts);
+                changed |= edit_node_view_box(world, ui, &mut node.view_box);
+                changed |= edit_node_repeat(world, ui, &mut node.repeat);
 
                 if changed {
                     *find_node_by_path_mut(&mut layout.roots, &path).unwrap() = node;
                 }
 
                 // Layout-level sections (requires, facts)
-                changed |= edit_data_requirements(ui, &mut layout.requires);
-                changed |= edit_initial_facts(ui, &mut layout.facts);
+                changed |= edit_data_requirements(world, ui, &mut layout.requires);
+                changed |= edit_initial_facts(world, ui, &mut layout.facts);
             });
 
             if changed {
@@ -456,9 +486,8 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
             }
         }
     } else {
-        ui.label("选择节点以编辑属性");
+        ui.label(t(world, "label-select-node"));
     }
-
     ui.separator();
 
     // FRE section — always sync regardless of node selection
@@ -500,13 +529,13 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
     }
 }
 
-fn edit_node_basics(ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {
+fn edit_node_basics(world: &World, ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {
     let mut changed = false;
-    egui::CollapsingHeader::new("基本")
+    egui::CollapsingHeader::new(t(world, "view-basics"))
         .default_open(true)
         .show(ui, |ui| {
-            changed |= labeled_text(ui, "名称", &mut node.name);
-            changed |= edit_tag_list(ui, "标签", &mut node.tags);
+            changed |= labeled_text(ui, &t(world, "prop-name"), &mut node.name);
+            changed |= edit_tag_list(ui, &t(world, "prop-tags"), &mut node.tags);
             changed |= edit_expression(ui, "visible_when", &mut node.visible_when);
             ui.horizontal(|ui| {
                 ui.label("camera_anchored:");
@@ -518,7 +547,7 @@ fn edit_node_basics(ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {
     changed
 }
 
-fn edit_node_sprite(ui: &mut egui::Ui, sprite_opt: &mut Option<SpriteDef>) -> bool {
+fn edit_node_sprite(world: &World, ui: &mut egui::Ui, sprite_opt: &mut Option<SpriteDef>) -> bool {
     let mut changed = false;
     let mut has = sprite_opt.is_some();
     if ui.checkbox(&mut has, "Sprite").changed() {
@@ -558,7 +587,7 @@ fn edit_node_sprite(ui: &mut egui::Ui, sprite_opt: &mut Option<SpriteDef>) -> bo
                 }
             });
             // Color
-            changed |= edit_option_color(ui, "颜色", &mut sprite.color);
+            changed |= edit_option_color(ui, &t(world, "view-color"), &mut sprite.color);
             // Flip
             ui.horizontal(|ui| {
                 if ui.checkbox(&mut sprite.flip_x, "flip_x").changed() {
@@ -581,6 +610,7 @@ fn edit_node_sprite(ui: &mut egui::Ui, sprite_opt: &mut Option<SpriteDef>) -> bo
 }
 
 fn edit_node_state_sprite(
+    world: &World,
     ui: &mut egui::Ui,
     ss_opt: &mut Option<souprune::core::view::layout::StateSpriteConfig>,
 ) -> bool {
@@ -595,14 +625,14 @@ fn edit_node_state_sprite(
                     changed = true;
                 }
             });
-            changed |= edit_string_string_map(ui, "变体", &mut ss.variants);
+            changed |= edit_string_string_map(ui, &t(world, "prop-variants"), &mut ss.variants);
             changed |= edit_option_transform(ui, "Transform", &mut ss.transform);
             changed |= edit_expression(ui, "visible_when", &mut ss.visible_when);
         });
     changed
 }
 
-fn edit_node_texts(ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
+fn edit_node_texts(world: &World, ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
     if texts.is_empty() {
         return false;
     }
@@ -624,8 +654,8 @@ fn edit_node_texts(ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
                             }
                         });
                         changed |= edit_option_string(ui, "content", &mut text.content);
-                        changed |= edit_color(ui, "颜色", &mut text.color);
-                        changed |= edit_font_def(ui, "字体", &mut text.font);
+                        changed |= edit_color(ui, &t(world, "view-color"), &mut text.color);
+                        changed |= edit_font_def(ui, &t(world, "view-font"), &mut text.font);
                         changed |= edit_vec2(ui, "world_scale", &mut text.world_scale);
                         changed |= edit_expression(ui, "visible_when", &mut text.visible_when);
                     });
@@ -639,36 +669,31 @@ fn edit_node_texts(ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
     changed
 }
 
-fn edit_node_view_box(ui: &mut egui::Ui, vb_opt: &mut Option<ViewBoxLogicDef>) -> bool {
+fn edit_node_view_box(
+    world: &World,
+    ui: &mut egui::Ui,
+    vb_opt: &mut Option<ViewBoxLogicDef>,
+) -> bool {
     let Some(vb) = vb_opt else { return false };
     let mut changed = false;
     egui::CollapsingHeader::new("ViewBox")
         .default_open(true)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label("宽:");
-                if ui
+                ui.label(t(world, "view-width"));
+                changed |= ui
                     .add(egui::DragValue::new(&mut vb.width).speed(1.0))
-                    .changed()
-                {
-                    changed = true;
-                }
-                ui.label("高:");
-                if ui
+                    .changed();
+                ui.label(t(world, "view-height"));
+                changed |= ui
                     .add(egui::DragValue::new(&mut vb.height).speed(1.0))
-                    .changed()
-                {
-                    changed = true;
-                }
+                    .changed();
             });
             ui.horizontal(|ui| {
                 ui.label("border:");
-                if ui
+                changed |= ui
                     .add(egui::DragValue::new(&mut vb.border_width).speed(0.5))
-                    .changed()
-                {
-                    changed = true;
-                }
+                    .changed();
             });
             changed |= edit_vec3(ui, "offset", &mut vb.offset);
             changed |= edit_option_color(ui, "fill_color", &mut vb.fill_color);
@@ -677,12 +702,12 @@ fn edit_node_view_box(ui: &mut egui::Ui, vb_opt: &mut Option<ViewBoxLogicDef>) -
     changed
 }
 
-fn edit_node_repeat(ui: &mut egui::Ui, repeat_opt: &mut Option<RepeatDef>) -> bool {
+fn edit_node_repeat(world: &World, ui: &mut egui::Ui, repeat_opt: &mut Option<RepeatDef>) -> bool {
     let Some(repeat) = repeat_opt else {
         return false;
     };
     let mut changed = false;
-    egui::CollapsingHeader::new("Repeat")
+    egui::CollapsingHeader::new(t(world, "view-repeat"))
         .default_open(true)
         .show(ui, |ui| {
             changed |= labeled_text(ui, "source", &mut repeat.source);
@@ -710,12 +735,16 @@ fn edit_node_repeat(ui: &mut egui::Ui, repeat_opt: &mut Option<RepeatDef>) -> bo
     changed
 }
 
-fn edit_data_requirements(ui: &mut egui::Ui, requires: &mut Vec<DataRequirement>) -> bool {
+fn edit_data_requirements(
+    world: &World,
+    ui: &mut egui::Ui,
+    requires: &mut Vec<DataRequirement>,
+) -> bool {
     if requires.is_empty() {
         return false;
     }
     let mut changed = false;
-    egui::CollapsingHeader::new("Data Requirements")
+    egui::CollapsingHeader::new(t(world, "view-data-requirements"))
         .default_open(false)
         .show(ui, |ui| {
             let mut to_remove = None;
@@ -752,6 +781,7 @@ fn edit_data_requirements(ui: &mut egui::Ui, requires: &mut Vec<DataRequirement>
 }
 
 fn edit_initial_facts(
+    world: &World,
     ui: &mut egui::Ui,
     facts_opt: &mut Option<std::collections::HashMap<String, InitialFactValue>>,
 ) -> bool {
@@ -759,7 +789,7 @@ fn edit_initial_facts(
         return false;
     };
     let mut changed = false;
-    egui::CollapsingHeader::new("Initial Facts")
+    egui::CollapsingHeader::new(t(world, "view-initial-facts"))
         .default_open(false)
         .show(ui, |ui| {
             let keys: Vec<String> = facts.keys().cloned().collect();
@@ -811,7 +841,6 @@ fn edit_initial_fact_value(ui: &mut egui::Ui, key: &str, val: &mut InitialFactVa
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-
 fn find_node_by_path<'a>(roots: &'a [ViewNodeDef], path: &[usize]) -> Option<&'a ViewNodeDef> {
     if path.is_empty() {
         return None;

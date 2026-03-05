@@ -15,6 +15,7 @@
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
 
+use crate::i18n::{t, t_args};
 use crate::panels::sequence_timeline::EditorSequenceState;
 use crate::widgets;
 use souprune::core::sequencer::SequenceContext;
@@ -33,11 +34,15 @@ pub struct PlaybackState {
 }
 
 /// 回放控制面板。
-pub struct PlaybackPanel;
+pub struct PlaybackPanel {
+    cached_title: String,
+}
 
 impl PlaybackPanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            cached_title: "Playback Control".to_string(),
+        }
     }
 }
 
@@ -47,7 +52,7 @@ impl WorkbenchPanel for PlaybackPanel {
     }
 
     fn title(&self) -> String {
-        "回放控制".to_string()
+        self.cached_title.clone()
     }
 
     fn closable(&self) -> bool {
@@ -63,13 +68,15 @@ impl WorkbenchPanel for PlaybackPanel {
     }
 
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        self.cached_title = t(world, "panel-playback");
         let mode = *world.resource::<State<EditorMode>>().get();
         let has_sequence = world.resource::<EditorSequenceState>().current.is_some();
 
         ui.horizontal(|ui| {
             match mode {
                 EditorMode::Edit => {
-                    let play_btn = ui.add_enabled(has_sequence, egui::Button::new("▶ 播放"));
+                    let play_btn =
+                        ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-play")));
                     if play_btn.clicked() {
                         let mut pb = world.resource_mut::<PlaybackState>();
                         pb.current_chapter = 0;
@@ -79,7 +86,8 @@ impl WorkbenchPanel for PlaybackPanel {
                             .set(EditorMode::Play);
                     }
 
-                    let step_btn = ui.add_enabled(has_sequence, egui::Button::new("⏭ 单步"));
+                    let step_btn =
+                        ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-step")));
                     if step_btn.clicked() {
                         let mut pb = world.resource_mut::<PlaybackState>();
                         pb.step_mode = true;
@@ -90,24 +98,24 @@ impl WorkbenchPanel for PlaybackPanel {
                     }
                 }
                 EditorMode::Play => {
-                    if ui.button("⏸ 暂停").clicked() {
+                    if ui.button(t(world, "playback-pause")).clicked() {
                         world
                             .resource_mut::<NextState<EditorMode>>()
                             .set(EditorMode::Pause);
                     }
-                    if ui.button("⏹ 停止").clicked() {
+                    if ui.button(t(world, "playback-stop")).clicked() {
                         world
                             .resource_mut::<NextState<EditorMode>>()
                             .set(EditorMode::Edit);
                     }
                 }
                 EditorMode::Pause => {
-                    if ui.button("▶ 继续").clicked() {
+                    if ui.button(t(world, "playback-resume")).clicked() {
                         world
                             .resource_mut::<NextState<EditorMode>>()
                             .set(EditorMode::Play);
                     }
-                    if ui.button("⏹ 停止").clicked() {
+                    if ui.button(t(world, "playback-stop")).clicked() {
                         world
                             .resource_mut::<NextState<EditorMode>>()
                             .set(EditorMode::Edit);
@@ -117,9 +125,9 @@ impl WorkbenchPanel for PlaybackPanel {
 
             ui.separator();
             let mode_label = match mode {
-                EditorMode::Edit => "编辑",
-                EditorMode::Play => "▶ 播放中",
-                EditorMode::Pause => "⏸ 已暂停",
+                EditorMode::Edit => t(world, "playback-mode-edit"),
+                EditorMode::Play => t(world, "playback-mode-playing"),
+                EditorMode::Pause => t(world, "playback-mode-paused"),
             };
             ui.label(mode_label);
 
@@ -129,7 +137,10 @@ impl WorkbenchPanel for PlaybackPanel {
                 let total = pb.total_chapters;
                 let processed = total.saturating_sub(remaining);
 
-                ui.label(format!("章节 {processed}/{total}"));
+                let mut args = bevy_workbench::i18n::FluentArgs::new();
+                args.set("processed", processed as i64);
+                args.set("total", total as i64);
+                ui.label(t_args(world, "playback-chapter-progress", &args));
 
                 // 显示当前章节信息
                 if let Some(seq) = &world.resource::<EditorSequenceState>().current
@@ -148,7 +159,7 @@ impl WorkbenchPanel for PlaybackPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("需要 World 访问权限");
+        ui.label("Requires World access");
     }
 }
 

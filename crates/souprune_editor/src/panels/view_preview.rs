@@ -70,6 +70,15 @@ pub struct ViewPreviewEntity;
 #[derive(Component)]
 pub struct ViewPreviewCamera;
 
+/// Pre-translated labels for the preview toolbar (avoids borrow conflicts with World).
+pub struct PreviewLabels {
+    pub stop: String,
+    pub play: String,
+    pub zoom: String,
+    pub reset: String,
+    pub input_active: String,
+}
+
 const PREVIEW_LAYER: usize = 31;
 
 /// 初始化预览渲染目标和相机。
@@ -343,7 +352,7 @@ fn spawn_preview_node(
 }
 
 /// 在 UI 中渲染预览纹理，支持滚轮缩放和拖拽平移。
-pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
+pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState, labels: &PreviewLabels) {
     if let Some(tex_id) = state.egui_texture_id {
         let available = ui.available_size();
         let res = state.resolution;
@@ -357,21 +366,21 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
         // Toolbar
         ui.horizontal(|ui| {
             if state.playing {
-                if ui.small_button("Stop").clicked() {
+                if ui.small_button(&labels.stop).clicked() {
                     state.playing = false;
                 }
-            } else if ui.small_button("Play").clicked() {
+            } else if ui.small_button(&labels.play).clicked() {
                 state.playing = true;
             }
             ui.separator();
-            ui.label(format!("Zoom: {:.0}%", state.zoom * 100.0));
-            if ui.small_button("Reset").clicked() {
+            ui.label(&labels.zoom);
+            if ui.small_button(&labels.reset).clicked() {
                 state.zoom = 1.0;
                 state.pan_offset = Vec2::ZERO;
             }
             if state.playing && state.hovered {
                 ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 255, 100), "Input Active");
+                ui.colored_label(egui::Color32::from_rgb(100, 255, 100), &labels.input_active);
             }
         });
 
@@ -423,7 +432,7 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState) {
         ui.centered_and_justified(|ui| {
             ui.colored_label(
                 egui::Color32::from_rgb(100, 100, 120),
-                "Preview (初始化中...)",
+                "Preview (initializing...)",
             );
         });
     }

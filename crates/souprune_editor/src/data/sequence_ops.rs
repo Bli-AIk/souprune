@@ -108,8 +108,9 @@ pub enum SequenceFileEvent {
 
 /// 从文件路径加载序列（直接读取 RON，不经过 Bevy AssetServer）。
 pub fn load_sequence_from_file(path: &std::path::Path) -> Result<EditorSequence, String> {
-    let content = std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {e}"))?;
-    let asset: SequenceAsset = ron::from_str(&content).map_err(|e| format!("RON 解析失败: {e}"))?;
+    let content = std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+    let asset: SequenceAsset =
+        ron::from_str(&content).map_err(|e| format!("RON parse failed: {e}"))?;
     Ok(EditorSequence::from_asset(&asset, path.to_path_buf()))
 }
 
@@ -125,9 +126,9 @@ pub fn save_sequence_to_file(seq: &EditorSequence) -> Result<(), String> {
     let config = ron::ser::PrettyConfig::default()
         .struct_names(true)
         .enumerate_arrays(false);
-    let content =
-        ron::ser::to_string_pretty(&asset, config).map_err(|e| format!("RON 序列化失败: {e}"))?;
-    std::fs::write(&seq.file_path, content).map_err(|e| format!("写入文件失败: {e}"))?;
+    let content = ron::ser::to_string_pretty(&asset, config)
+        .map_err(|e| format!("RON serialize failed: {e}"))?;
+    std::fs::write(&seq.file_path, content).map_err(|e| format!("Failed to write file: {e}"))?;
     Ok(())
 }
 

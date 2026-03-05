@@ -43,12 +43,12 @@ impl SubEditor for FreEditor {
         &["fre.ron"]
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _world: &mut World) {
+    fn ui(&mut self, ui: &mut egui::Ui, world: &mut World) {
         ui.heading(self.title());
         ui.separator();
 
         if self.file_path.is_none() {
-            ui.label("未打开任何 FRE 文件");
+            ui.label(crate::i18n::t(world, "label-no-fre-open"));
             return;
         }
 
@@ -83,8 +83,8 @@ impl SubEditor for FreEditor {
         let path = self
             .file_path
             .as_ref()
-            .ok_or("未指定文件路径".to_string())?;
-        std::fs::write(path, &self.content).map_err(|e| format!("保存失败: {e}"))
+            .ok_or("No file path specified".to_string())?;
+        std::fs::write(path, &self.content).map_err(|e| format!("Save failed: {e}"))
     }
 
     fn is_dirty(&self) -> bool {

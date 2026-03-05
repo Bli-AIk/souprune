@@ -34,7 +34,7 @@ pub fn on_enter_play(
         let start_idx = playback.start_from.take().unwrap_or(0);
         let chapters: Vec<_> = seq.chapters.iter().skip(start_idx).cloned().collect();
         info!(
-            "[编辑器] 进入播放 — 从章节 {start_idx} 开始，加载 {} 个章节",
+            "[editor] entering play — from chapter {start_idx}, loading {} chapters",
             chapters.len()
         );
         context.chapters = chapters;

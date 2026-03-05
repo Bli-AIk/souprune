@@ -267,7 +267,7 @@ fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
     let mut changed = false;
 
     if state.simulated_facts.is_empty() {
-        ui.label("无模拟 Fact（FRE 文件未定义初始 facts）");
+        ui.label("No simulated facts");
     }
 
     let keys: Vec<String> = state.simulated_facts.keys().cloned().collect();

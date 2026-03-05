@@ -15,9 +15,12 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry};
+use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
 use souprune::extra::debug::RuleTriggerHistory;
 use std::collections::VecDeque;
+
+use crate::i18n::{t, t_args};
 
 const MAX_EVENT_HISTORY: usize = 100;
 
@@ -85,6 +88,7 @@ pub struct FrePanel {
     new_fact_value: String,
     new_fact_type: FactTypeInput,
     new_fact_layer: FactLayer,
+    cached_title: String,
 }
 
 impl FrePanel {
@@ -96,6 +100,7 @@ impl FrePanel {
             new_fact_value: String::new(),
             new_fact_type: FactTypeInput::default(),
             new_fact_layer: FactLayer::default(),
+            cached_title: "FRE Panel".to_string(),
         }
     }
 }
@@ -106,7 +111,7 @@ impl WorkbenchPanel for FrePanel {
     }
 
     fn title(&self) -> String {
-        "FRE Panel".to_string()
+        self.cached_title.clone()
     }
 
     fn needs_world(&self) -> bool {
@@ -118,16 +123,18 @@ impl WorkbenchPanel for FrePanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("Requires World access");
+        ui.label(&self.cached_title);
     }
 
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        self.cached_title = t(world, "panel-fre");
+
         // Tab bar
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.tab, FreTab::Facts, "Facts");
-            ui.selectable_value(&mut self.tab, FreTab::Rules, "Rules");
-            ui.selectable_value(&mut self.tab, FreTab::Events, "Events");
-            ui.selectable_value(&mut self.tab, FreTab::States, "States");
+            ui.selectable_value(&mut self.tab, FreTab::Facts, t(world, "fre-tabs-facts"));
+            ui.selectable_value(&mut self.tab, FreTab::Rules, t(world, "fre-tabs-rules"));
+            ui.selectable_value(&mut self.tab, FreTab::Events, t(world, "fre-tabs-events"));
+            ui.selectable_value(&mut self.tab, FreTab::States, t(world, "fre-tabs-states"));
         });
 
         ui.separator();
@@ -145,7 +152,7 @@ impl FrePanel {
     fn render_facts(&mut self, ui: &mut egui::Ui, world: &mut World) {
         // Search filter
         ui.horizontal(|ui| {
-            ui.label("Filter:");
+            ui.label(t(world, "fre-filter"));
             ui.text_edit_singleline(&mut self.search);
         });
 
@@ -153,20 +160,20 @@ impl FrePanel {
 
         let has_db = world.get_resource::<LayeredFactDatabase>().is_some();
         if !has_db {
-            ui.label("LayeredFactDatabase not available.");
+            ui.label(t(world, "fre-db-unavailable"));
             return;
         }
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Global facts
-            egui::CollapsingHeader::new("Global Layer")
+            egui::CollapsingHeader::new(t(world, "fre-global-layer"))
                 .default_open(true)
                 .show(ui, |ui| {
                     render_fact_layer(ui, world, true, &self.search);
                 });
 
             // Local facts
-            egui::CollapsingHeader::new("Local Layer")
+            egui::CollapsingHeader::new(t(world, "fre-local-layer"))
                 .default_open(true)
                 .show(ui, |ui| {
                     render_fact_layer(ui, world, false, &self.search);
@@ -175,29 +182,29 @@ impl FrePanel {
             ui.separator();
 
             // Add new fact
-            egui::CollapsingHeader::new("Add New Fact").show(ui, |ui| {
+            egui::CollapsingHeader::new(t(world, "fre-add-fact")).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label("Key:");
+                    ui.label(t(world, "fre-key"));
                     ui.text_edit_singleline(&mut self.new_fact_key);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Value:");
+                    ui.label(t(world, "fre-value"));
                     ui.text_edit_singleline(&mut self.new_fact_value);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Type:");
+                    ui.label(t(world, "fre-type"));
                     ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Int, "Int");
                     ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Float, "Float");
                     ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Bool, "Bool");
                     ui.selectable_value(&mut self.new_fact_type, FactTypeInput::String, "String");
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Layer:");
+                    ui.label(t(world, "fre-layer"));
                     ui.selectable_value(&mut self.new_fact_layer, FactLayer::Local, "Local");
                     ui.selectable_value(&mut self.new_fact_layer, FactLayer::Global, "Global");
                 });
 
-                if ui.button("Add").clicked() && !self.new_fact_key.is_empty() {
+                if ui.button(t(world, "action-add")).clicked() && !self.new_fact_key.is_empty() {
                     let value = parse_fact_value(&self.new_fact_value, self.new_fact_type);
                     if let Some(value) = value {
                         let key = self.new_fact_key.clone();
@@ -239,7 +246,7 @@ fn render_fact_layer(ui: &mut egui::Ui, world: &mut World, global: bool, search:
     };
 
     if facts.is_empty() {
-        ui.label(egui::RichText::new("(empty)").color(egui::Color32::GRAY));
+        ui.label(egui::RichText::new(t(world, "label-empty")).color(egui::Color32::GRAY));
         return;
     }
 
@@ -294,7 +301,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
         let registry = world.get_resource::<LayeredRuleRegistry>();
 
         let Some(registry) = registry else {
-            ui.label("LayeredRuleRegistry not available.");
+            ui.label(t(world, "fre-registry-unavailable"));
             return;
         };
 
@@ -302,18 +309,27 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
         let local_count = registry.local_iter().count();
         let total = global_count + local_count;
 
-        ui.label(format!(
-            "Total: {total} (Global: {global_count}, Local: {local_count})"
-        ));
+        {
+            let mut args = FluentArgs::new();
+            args.set("total", total as i64);
+            args.set("global", global_count as i64);
+            args.set("local", local_count as i64);
+            ui.label(t_args(world, "fre-rules-total", &args));
+        }
         ui.separator();
 
         if total == 0 {
-            ui.label("No rules registered.");
+            ui.label(t(world, "fre-no-rules"));
             return;
         }
 
         if global_count > 0 {
-            egui::CollapsingHeader::new(format!("Global Rules ({global_count})"))
+            let header = {
+                let mut args = FluentArgs::new();
+                args.set("count", global_count as i64);
+                t_args(world, "fre-global-rules", &args)
+            };
+            egui::CollapsingHeader::new(header)
                 .default_open(true)
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.global_iter().collect();
@@ -322,13 +338,18 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                         let triggered = trigger_history
                             .map(|h| h.was_recently_triggered(&rule.id, current_time, 1.0))
                             .unwrap_or(false);
-                        show_rule(ui, rule, triggered);
+                        show_rule(ui, world, rule, triggered);
                     }
                 });
         }
 
         if local_count > 0 {
-            egui::CollapsingHeader::new(format!("Local Rules ({local_count})"))
+            let header = {
+                let mut args = FluentArgs::new();
+                args.set("count", local_count as i64);
+                t_args(world, "fre-local-rules", &args)
+            };
+            egui::CollapsingHeader::new(header)
                 .default_open(true)
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.local_iter().collect();
@@ -337,14 +358,14 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                         let triggered = trigger_history
                             .map(|h| h.was_recently_triggered(&rule.id, current_time, 1.0))
                             .unwrap_or(false);
-                        show_rule(ui, rule, triggered);
+                        show_rule(ui, world, rule, triggered);
                     }
                 });
         }
     });
 }
 
-fn show_rule(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule, triggered: bool) {
+fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule, triggered: bool) {
     let status = if rule.enabled { "[on]" } else { "[off]" };
     let fire = if triggered { " !" } else { "" };
     let text = format!("{status} {} [P:{}]{fire}", rule.id, rule.priority);
@@ -359,7 +380,7 @@ fn show_rule(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule, triggered: bo
         .default_open(false)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Trigger:");
+                ui.label(t(world, "fre-trigger"));
                 ui.monospace(&rule.trigger.0);
             });
 
@@ -402,16 +423,20 @@ fn show_rule(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule, triggered: bo
 
 fn render_events(ui: &mut egui::Ui, world: &mut World) {
     let Some(history) = world.get_resource::<EditorFactEventHistory>() else {
-        ui.label("Event tracking not initialized.");
+        ui.label(t(world, "fre-event-tracking-not-init"));
         return;
     };
 
-    ui.label(format!("Recent events: {}", history.events.len()));
+    {
+        let mut args = FluentArgs::new();
+        args.set("count", history.events.len() as i64);
+        ui.label(t_args(world, "fre-recent-events", &args));
+    }
     ui.separator();
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         if history.events.is_empty() {
-            ui.label(egui::RichText::new("No events recorded yet.").color(egui::Color32::GRAY));
+            ui.label(egui::RichText::new(t(world, "fre-no-events")).color(egui::Color32::GRAY));
             return;
         }
 
@@ -458,7 +483,7 @@ fn render_states(ui: &mut egui::Ui, world: &mut World) {
             .show(ui, |ui| {
                 let mode = world.get_resource::<SequenceMode>().map(|m| m.0.clone());
                 ui.horizontal(|ui| {
-                    ui.label("Current:");
+                    ui.label(t(world, "fre-current"));
                     match mode.flatten() {
                         Some(m) => ui.colored_label(egui::Color32::GREEN, &m),
                         None => ui.colored_label(egui::Color32::GRAY, "None"),
@@ -497,7 +522,7 @@ fn render_states(ui: &mut egui::Ui, world: &mut World) {
                             });
                         }
                     } else {
-                        ui.label("StateConfig not loaded");
+                        ui.label(t(world, "fre-state-config-not-loaded"));
                     }
                 });
         }

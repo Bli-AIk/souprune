@@ -17,6 +17,7 @@ use bevy_workbench::prelude::*;
 
 use crate::data::EditorSequence;
 use crate::data::{InsertChapterAction, MoveChapterAction, RemoveChapterAction};
+use crate::i18n::{t, t_args};
 use crate::panels::playback::PlaybackState;
 use crate::widgets;
 
@@ -44,11 +45,15 @@ pub struct EditorSequenceState {
 }
 
 /// 序列时间线面板 — 编辑器核心工作区。
-pub struct SequenceTimelinePanel;
+pub struct SequenceTimelinePanel {
+    cached_title: String,
+}
 
 impl SequenceTimelinePanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            cached_title: "Sequence Timeline".to_string(),
+        }
     }
 }
 
@@ -58,7 +63,7 @@ impl WorkbenchPanel for SequenceTimelinePanel {
     }
 
     fn title(&self) -> String {
-        "Sequence Timeline".to_string()
+        self.cached_title.clone()
     }
 
     fn closable(&self) -> bool {
@@ -74,6 +79,7 @@ impl WorkbenchPanel for SequenceTimelinePanel {
     }
 
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        self.cached_title = t(world, "panel-sequence-timeline");
         // 工具栏
         render_toolbar(ui, world);
 
@@ -87,15 +93,15 @@ impl WorkbenchPanel for SequenceTimelinePanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("需要 World 访问权限");
+        ui.label("Requires World access");
     }
 }
 
 fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
     ui.horizontal(|ui| {
         // 打开文件
-        if ui.button("打开").clicked()
-            && let Some(path) = rfd_open_sequence()
+        if ui.button(t(world, "action-open")).clicked()
+            && let Some(path) = rfd_open_sequence(&t(world, "timeline-open-sequence"))
         {
             match crate::data::load_sequence_from_file(&path) {
                 Ok(seq) => {
@@ -111,7 +117,10 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
 
         // 保存
         let has_seq = world.resource::<EditorSequenceState>().current.is_some();
-        if ui.add_enabled(has_seq, egui::Button::new("保存")).clicked() {
+        if ui
+            .add_enabled(has_seq, egui::Button::new(t(world, "action-save")))
+            .clicked()
+        {
             let state = world.resource::<EditorSequenceState>();
             if let Some(seq) = &state.current {
                 if let Err(e) = crate::data::save_sequence_to_file(seq) {
@@ -137,7 +146,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             .is_some();
 
         if ui
-            .add_enabled(has_seq, egui::Button::new("+ 添加"))
+            .add_enabled(has_seq, egui::Button::new(t(world, "action-add-item")))
             .clicked()
         {
             let mut state = world.resource_mut::<EditorSequenceState>();
@@ -145,7 +154,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
         }
 
         if ui
-            .add_enabled(has_selection, egui::Button::new("删除"))
+            .add_enabled(has_selection, egui::Button::new(t(world, "action-delete")))
             .clicked()
         {
             let undo_info = {
@@ -173,7 +182,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
         }
 
         if ui
-            .add_enabled(has_selection, egui::Button::new("复制"))
+            .add_enabled(has_selection, egui::Button::new(t(world, "action-copy")))
             .clicked()
         {
             let mut state = world.resource_mut::<EditorSequenceState>();
@@ -187,7 +196,10 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
 
         let has_clipboard = world.resource::<EditorSequenceState>().clipboard.is_some();
         if ui
-            .add_enabled(has_clipboard && has_seq, egui::Button::new("粘贴"))
+            .add_enabled(
+                has_clipboard && has_seq,
+                egui::Button::new(t(world, "action-paste")),
+            )
             .clicked()
         {
             let undo_info = {
@@ -219,7 +231,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             .as_ref()
             .is_some_and(|s| s.dirty);
         if dirty {
-            ui.label(egui::RichText::new("● 已修改").color(egui::Color32::YELLOW));
+            ui.label(egui::RichText::new(t(world, "label-modified")).color(egui::Color32::YELLOW));
         }
     });
 }
@@ -289,7 +301,7 @@ fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
     let Some(seq) = &state.current else {
         ui.vertical_centered(|ui| {
             ui.add_space(40.0);
-            ui.label("请打开 .sequence.ron 文件开始编辑。");
+            ui.label(t(world, "label-no-sequence"));
         });
         return;
     };
@@ -317,7 +329,9 @@ fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
                 .strong(),
             );
         }
-        ui.label(format!("— {chapter_count} 个章节"));
+        let mut args = bevy_workbench::i18n::FluentArgs::new();
+        args.set("count", chapter_count as i64);
+        ui.label(t_args(world, "label-chapter-count", &args));
     });
     ui.add_space(4.0);
 
@@ -389,7 +403,7 @@ fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
 
                     // 右键菜单
                     response.context_menu(|ui| {
-                        if ui.button("从这里播放").clicked() {
+                        if ui.button(t(world, "action-play-from-here")).clicked() {
                             ui.close();
                             world.resource_mut::<PlaybackState>().start_from = Some(i);
                             world
@@ -456,12 +470,12 @@ fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
 }
 
 /// 打开文件对话框选择 .sequence.ron 文件。
-fn rfd_open_sequence() -> Option<std::path::PathBuf> {
+fn rfd_open_sequence(title: &str) -> Option<std::path::PathBuf> {
     #[cfg(not(target_os = "android"))]
     {
         rfd::FileDialog::new()
             .add_filter("Sequence RON", &["sequence.ron", "ron"])
-            .set_title("打开序列文件")
+            .set_title(title)
             .pick_file()
     }
     #[cfg(target_os = "android")]

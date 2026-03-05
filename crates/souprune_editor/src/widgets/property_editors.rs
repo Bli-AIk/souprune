@@ -13,10 +13,13 @@
 //! 通用属性编辑器：Option<T>、HashMap、列表、枚举下拉等。
 
 use bevy::prelude::*;
+use bevy_workbench::i18n::FluentArgs;
 use souprune::core::sequencer::chapter_schema::{
     CameraAction, Chapter, FactCondition, FactModificationDef, FactValueMatch, PlayerAction,
     UIAction,
 };
+
+use crate::i18n::{t, t_args};
 
 // ─── 通用编辑器组件 ───────────────────────────────────────────
 
@@ -120,7 +123,7 @@ pub fn edit_hashmap_string<V: std::fmt::Debug>(
     label: &str,
     map: &mut std::collections::HashMap<String, V>,
 ) -> bool {
-    ui.label(format!("{label}: {} 个", map.len()));
+    ui.label(format!("{label}: {}", map.len()));
     for (k, v) in map.iter() {
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(k).monospace());
@@ -134,9 +137,10 @@ pub fn edit_hashmap_string_flat(
     ui: &mut egui::Ui,
     label: &str,
     map: &mut std::collections::HashMap<String, String>,
+    world: &World,
 ) -> bool {
     let mut changed = false;
-    ui.label(format!("{label}: {} 个", map.len()));
+    ui.label(format!("{label}: {}", map.len()));
 
     let keys: Vec<String> = map.keys().cloned().collect();
     let mut to_remove = None;
@@ -159,7 +163,7 @@ pub fn edit_hashmap_string_flat(
     }
 
     ui.horizontal(|ui| {
-        if ui.small_button("+ 添加").clicked() {
+        if ui.small_button(t(world, "action-add-item")).clicked() {
             let new_key = format!("key_{}", map.len());
             map.insert(new_key, String::new());
             changed = true;
@@ -171,7 +175,12 @@ pub fn edit_hashmap_string_flat(
 
 // ─── 列表编辑器 ──────────────────────────────────────────────
 
-pub fn edit_string_list(ui: &mut egui::Ui, label: &str, list: &mut Vec<String>) -> bool {
+pub fn edit_string_list(
+    ui: &mut egui::Ui,
+    label: &str,
+    list: &mut Vec<String>,
+    world: &World,
+) -> bool {
     let mut changed = false;
     ui.label(format!("{label}:"));
 
@@ -190,7 +199,7 @@ pub fn edit_string_list(ui: &mut egui::Ui, label: &str, list: &mut Vec<String>) 
         list.remove(idx);
         changed = true;
     }
-    if ui.small_button("+ 添加").clicked() {
+    if ui.small_button(t(world, "action-add-item")).clicked() {
         list.push(String::new());
         changed = true;
     }
@@ -260,7 +269,11 @@ pub fn edit_fact_value_match(ui: &mut egui::Ui, label: &str, value: &mut FactVal
 
 // ─── FactCondition 编辑器 ────────────────────────────────────
 
-pub fn edit_fact_condition(ui: &mut egui::Ui, condition: &mut FactCondition) -> bool {
+pub fn edit_fact_condition(
+    ui: &mut egui::Ui,
+    condition: &mut FactCondition,
+    world: &World,
+) -> bool {
     let mut changed = false;
 
     let variants = [
@@ -336,15 +349,15 @@ pub fn edit_fact_condition(ui: &mut egui::Ui, condition: &mut FactCondition) -> 
 
     match condition {
         FactCondition::Equals { key, value } => {
-            changed |= labeled_text(ui, "键", key);
-            changed |= edit_fact_value_match(ui, "值", value);
+            changed |= labeled_text(ui, &t(world, "prop-key"), key);
+            changed |= edit_fact_value_match(ui, &t(world, "prop-value"), value);
         }
         FactCondition::GreaterThan { key, value }
         | FactCondition::LessThan { key, value }
         | FactCondition::GreaterOrEqual { key, value }
         | FactCondition::LessOrEqual { key, value } => {
-            changed |= labeled_text(ui, "键", key);
-            ui.label("值:");
+            changed |= labeled_text(ui, &t(world, "prop-key"), key);
+            ui.label(t(world, "fre-value"));
             if ui.add(egui::DragValue::new(value)).changed() {
                 changed = true;
             }
@@ -353,25 +366,30 @@ pub fn edit_fact_condition(ui: &mut egui::Ui, condition: &mut FactCondition) -> 
         | FactCondition::NotExists(key)
         | FactCondition::IsTrue(key)
         | FactCondition::IsFalse(key) => {
-            changed |= labeled_text(ui, "键", key);
+            changed |= labeled_text(ui, &t(world, "prop-key"), key);
         }
         FactCondition::And(subs) | FactCondition::Or(subs) => {
-            ui.label(format!("子条件: {}", subs.len()));
+            let mut args = FluentArgs::new();
+            args.set("count", subs.len() as i64);
+            ui.label(t_args(world, "widget-subconditions", &args));
             for (i, sub) in subs.iter_mut().enumerate() {
                 ui.push_id(i, |ui| {
                     ui.indent(egui::Id::new(("sub_cond", i)), |ui| {
-                        changed |= edit_fact_condition(ui, sub);
+                        changed |= edit_fact_condition(ui, sub, world);
                     });
                 });
             }
-            if ui.small_button("+ 添加子条件").clicked() {
+            if ui
+                .small_button(t(world, "action-add-subcondition"))
+                .clicked()
+            {
                 subs.push(FactCondition::Always);
                 changed = true;
             }
         }
         FactCondition::Not(inner) => {
             ui.indent("not_inner", |ui| {
-                changed |= edit_fact_condition(ui, inner);
+                changed |= edit_fact_condition(ui, inner, world);
             });
         }
         FactCondition::Always => {}
@@ -382,7 +400,7 @@ pub fn edit_fact_condition(ui: &mut egui::Ui, condition: &mut FactCondition) -> 
 
 // ─── PlayerAction 编辑器 ─────────────────────────────────────
 
-pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction) -> bool {
+pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction, world: &World) -> bool {
     let mut changed = false;
 
     let variants = ["SetMode", "Spawn", "Teleport", "SetActive", "Despawn"];
@@ -416,15 +434,18 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction) -> bool 
 
     match action {
         PlayerAction::SetMode(modes) => {
-            changed |= edit_string_list(ui, "模式", modes);
+            changed |= edit_string_list(ui, &t(world, "prop-modes"), modes, world);
         }
         PlayerAction::Spawn {
             config_path,
             position,
         } => {
-            changed |= labeled_text(ui, "配置路径", config_path);
+            changed |= labeled_text(ui, &t(world, "prop-config-path"), config_path);
             let mut has_pos = position.is_some();
-            if ui.checkbox(&mut has_pos, "指定位置").changed() {
+            if ui
+                .checkbox(&mut has_pos, t(world, "inspector-specify-position"))
+                .changed()
+            {
                 *position = if has_pos { Some(Vec2::ZERO) } else { None };
                 changed = true;
             }
@@ -447,7 +468,7 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction) -> bool 
         }
         PlayerAction::Teleport(pos) => {
             ui.horizontal(|ui| {
-                ui.label("位置:");
+                ui.label(t(world, "inspector-position"));
                 if ui
                     .add(egui::DragValue::new(&mut pos.x).prefix("X: ").speed(1.0))
                     .changed()
@@ -463,7 +484,7 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction) -> bool 
             });
         }
         PlayerAction::SetActive(active) => {
-            if ui.checkbox(active, "激活").changed() {
+            if ui.checkbox(active, t(world, "inspector-active")).changed() {
                 changed = true;
             }
         }
@@ -475,7 +496,7 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction) -> bool 
 
 // ─── CameraAction 编辑器 ─────────────────────────────────────
 
-pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction) -> bool {
+pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction, world: &World) -> bool {
     let mut changed = false;
 
     let variants = ["SetPosition", "SetZoom", "Shake", "FollowPlayer"];
@@ -526,7 +547,7 @@ pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction) -> bool 
             if ui
                 .add(
                     egui::DragValue::new(zoom)
-                        .prefix("缩放: ")
+                        .prefix("Zoom: ")
                         .range(0.1..=10.0)
                         .speed(0.05),
                 )
@@ -539,11 +560,20 @@ pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction) -> bool 
             duration,
             intensity,
         } => {
-            changed |= labeled_drag(ui, "持续时间", duration, 0.0..=f32::MAX, 0.1);
-            changed |= labeled_drag(ui, "强度", intensity, 0.0..=100.0, 0.5);
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-duration"),
+                duration,
+                0.0..=f32::MAX,
+                0.1,
+            );
+            changed |= labeled_drag(ui, &t(world, "prop-intensity"), intensity, 0.0..=100.0, 0.5);
         }
         CameraAction::FollowPlayer(follow) => {
-            if ui.checkbox(follow, "跟随玩家").changed() {
+            if ui
+                .checkbox(follow, t(world, "inspector-follow-player"))
+                .changed()
+            {
                 changed = true;
             }
         }
@@ -554,7 +584,7 @@ pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction) -> bool 
 
 // ─── UIAction 编辑器 ─────────────────────────────────────────
 
-pub fn edit_ui_action(ui: &mut egui::Ui, action: &mut UIAction) -> bool {
+pub fn edit_ui_action(ui: &mut egui::Ui, action: &mut UIAction, world: &World) -> bool {
     let mut changed = false;
 
     let variants = [
@@ -603,19 +633,19 @@ pub fn edit_ui_action(ui: &mut egui::Ui, action: &mut UIAction) -> bool {
 
     match action {
         UIAction::LoadLayout(path) | UIAction::Show(path) | UIAction::Hide(path) => {
-            changed |= labeled_text(ui, "路径/ID", path);
+            changed |= labeled_text(ui, &t(world, "prop-path-id"), path);
         }
         UIAction::SetText { id, content } => {
-            changed |= labeled_text(ui, "元素 ID", id);
-            changed |= labeled_text(ui, "内容", content);
+            changed |= labeled_text(ui, &t(world, "prop-element-id"), id);
+            changed |= labeled_text(ui, &t(world, "prop-content"), content);
         }
         UIAction::SetVariable { name, value } => {
-            changed |= labeled_text(ui, "变量名", name);
-            changed |= labeled_text(ui, "值", value);
+            changed |= labeled_text(ui, &t(world, "prop-variable-name"), name);
+            changed |= labeled_text(ui, &t(world, "prop-value"), value);
         }
         UIAction::PlayAnimation { id, clip } => {
-            changed |= labeled_text(ui, "元素 ID", id);
-            changed |= labeled_text(ui, "动画片段", clip);
+            changed |= labeled_text(ui, &t(world, "prop-element-id"), id);
+            changed |= labeled_text(ui, &t(world, "prop-anim-clip"), clip);
         }
     }
 
@@ -627,9 +657,12 @@ pub fn edit_ui_action(ui: &mut egui::Ui, action: &mut UIAction) -> bool {
 pub fn edit_fact_modifications(
     ui: &mut egui::Ui,
     modifications: &mut Vec<FactModificationDef>,
+    world: &World,
 ) -> bool {
     let mut changed = false;
-    ui.label(format!("修改: {} 个", modifications.len()));
+    let mut args = FluentArgs::new();
+    args.set("count", modifications.len() as i64);
+    ui.label(t_args(world, "label-modification-count", &args));
 
     let mut to_remove = None;
     for (i, modif) in modifications.iter_mut().enumerate() {
@@ -693,7 +726,10 @@ pub fn edit_fact_modifications(
         modifications.remove(idx);
         changed = true;
     }
-    if ui.small_button("+ 添加修改").clicked() {
+    if ui
+        .small_button(t(world, "action-add-modification"))
+        .clicked()
+    {
         modifications.push(FactModificationDef::Set {
             key: String::new(),
             value: FactValueMatch::Int(0),

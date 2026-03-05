@@ -39,7 +39,7 @@ struct ChapterTemplate {
 fn all_categories() -> Vec<CategoryDef> {
     vec![
         CategoryDef {
-            name: "流程控制",
+            name: "Flow Control",
             color: ChapterCategory::Flow.color(),
             templates: vec![
                 ChapterTemplate {
@@ -69,7 +69,7 @@ fn all_categories() -> Vec<CategoryDef> {
             ],
         },
         CategoryDef {
-            name: "场景",
+            name: "Scene",
             color: ChapterCategory::Scene.color(),
             templates: vec![
                 ChapterTemplate {
@@ -95,7 +95,7 @@ fn all_categories() -> Vec<CategoryDef> {
             ],
         },
         CategoryDef {
-            name: "界面",
+            name: "View",
             color: ChapterCategory::View.color(),
             templates: vec![
                 ChapterTemplate {
@@ -144,7 +144,7 @@ fn all_categories() -> Vec<CategoryDef> {
             ],
         },
         CategoryDef {
-            name: "逻辑",
+            name: "Logic",
             color: ChapterCategory::Logic.color(),
             templates: vec![
                 ChapterTemplate {
@@ -199,7 +199,7 @@ fn all_categories() -> Vec<CategoryDef> {
             ],
         },
         CategoryDef {
-            name: "战斗",
+            name: "Combat",
             color: ChapterCategory::Combat.color(),
             templates: vec![
                 ChapterTemplate {
@@ -222,7 +222,7 @@ fn all_categories() -> Vec<CategoryDef> {
             ],
         },
         CategoryDef {
-            name: "音频",
+            name: "Audio",
             color: ChapterCategory::Audio.color(),
             templates: vec![ChapterTemplate {
                 name: "SetBgm",
@@ -234,7 +234,7 @@ fn all_categories() -> Vec<CategoryDef> {
             }],
         },
         CategoryDef {
-            name: "扩展",
+            name: "Extension",
             color: ChapterCategory::Flow.color(),
             templates: vec![ChapterTemplate {
                 name: "Custom",

@@ -15,7 +15,12 @@
 /// 渲染文件路径编辑器：文本框 + 浏览按钮。
 ///
 /// 返回路径是否被修改。
-pub fn edit_file_path(ui: &mut egui::Ui, label: &str, path: &mut String) -> bool {
+pub fn edit_file_path(
+    ui: &mut egui::Ui,
+    label: &str,
+    path: &mut String,
+    world: &bevy::prelude::World,
+) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
@@ -23,11 +28,14 @@ pub fn edit_file_path(ui: &mut egui::Ui, label: &str, path: &mut String) -> bool
             changed = true;
         }
         #[cfg(not(target_os = "android"))]
-        if ui.small_button("...").on_hover_text("浏览文件").clicked()
+        if ui
+            .small_button("...")
+            .on_hover_text(crate::i18n::t(world, "widget-browse-file"))
+            .clicked()
             && let Some(picked) = rfd::FileDialog::new()
                 .set_title(label)
                 .add_filter("RON", &["ron"])
-                .add_filter("所有文件", &["*"])
+                .add_filter("All files", &["*"])
                 .pick_file()
         {
             *path = picked.display().to_string();

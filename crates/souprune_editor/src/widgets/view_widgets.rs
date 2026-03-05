@@ -299,7 +299,7 @@ pub fn edit_string_string_map(
             map.remove(&k);
             changed = true;
         }
-        if ui.small_button("+ 添加").clicked() {
+        if ui.small_button("+ Add").clicked() {
             let new_key = format!("state_{}", map.len());
             map.insert(new_key, String::new());
             changed = true;

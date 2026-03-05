@@ -62,13 +62,13 @@ impl AssetFileType {
 
     fn label(self) -> &'static str {
         match self {
-            Self::Sequence => "序列",
-            Self::View => "视图",
-            Self::Rule => "规则",
-            Self::Performance => "弹幕",
-            Self::Config => "配置",
-            Self::Other => "其他",
-            Self::Directory => "目录",
+            Self::Sequence => "Sequence",
+            Self::View => "View",
+            Self::Rule => "Rule",
+            Self::Performance => "Performance",
+            Self::Config => "Config",
+            Self::Other => "Other",
+            Self::Directory => "Directory",
         }
     }
 
@@ -194,11 +194,15 @@ pub struct NewFileDialog {
 }
 
 /// 资产浏览器面板。
-pub struct AssetBrowserPanel;
+pub struct AssetBrowserPanel {
+    cached_title: String,
+}
 
 impl AssetBrowserPanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            cached_title: "Asset Browser".to_string(),
+        }
     }
 }
 
@@ -208,7 +212,7 @@ impl WorkbenchPanel for AssetBrowserPanel {
     }
 
     fn title(&self) -> String {
-        "资产浏览器".to_string()
+        self.cached_title.clone()
     }
 
     fn closable(&self) -> bool {
@@ -224,6 +228,9 @@ impl WorkbenchPanel for AssetBrowserPanel {
     }
 
     fn ui_world(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        use crate::i18n::t;
+
+        self.cached_title = t(world, "panel-asset-browser");
         // 确保资源存在
         if !world.contains_resource::<AssetBrowserState>() {
             world.insert_resource(AssetBrowserState::default());
@@ -249,7 +256,7 @@ impl WorkbenchPanel for AssetBrowserPanel {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("需要 World 访问权限");
+        ui.label("Requires World access");
     }
 }
 
@@ -279,6 +286,8 @@ fn find_project_root() -> Option<PathBuf> {
 }
 
 fn render_asset_browser(ui: &mut egui::Ui, world: &mut World) {
+    use crate::i18n::t;
+
     // 渲染工具栏
     render_browser_toolbar(ui, world);
     ui.separator();
@@ -298,17 +307,24 @@ fn render_asset_browser(ui: &mut egui::Ui, world: &mut World) {
             render_file_tree(ui, world, &root, &filters, &expanded, &search);
         });
     } else {
-        ui.label("未找到项目目录");
-        if ui.button("刷新").clicked() {
+        let label_no_project = t(world, "label-no-project");
+        let action_refresh = t(world, "action-refresh");
+        ui.label(label_no_project);
+        if ui.button(action_refresh).clicked() {
             world.resource_mut::<AssetBrowserState>().file_tree = None;
         }
     }
 }
 
 fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
+    use crate::i18n::t;
+
+    let refresh_hover = t(world, "browser-refresh-tree");
+    let search_hint = t(world, "browser-search-hint");
+
     ui.horizontal(|ui| {
         // 刷新按钮
-        if ui.small_button("↻").on_hover_text("刷新文件树").clicked() {
+        if ui.small_button("↻").on_hover_text(refresh_hover).clicked() {
             world.resource_mut::<AssetBrowserState>().file_tree = None;
         }
 
@@ -316,7 +332,7 @@ fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
         let mut search = world.resource::<AssetBrowserState>().search_query.clone();
         ui.add(
             egui::TextEdit::singleline(&mut search)
-                .hint_text("搜索…")
+                .hint_text(search_hint)
                 .desired_width(120.0),
         );
         world.resource_mut::<AssetBrowserState>().search_query = search;
@@ -485,19 +501,26 @@ fn node_matches_search(node: &FileNode, search: &str) -> bool {
 }
 
 fn render_dir_context_menu(ui: &mut egui::Ui, world: &mut World, dir_path: &Path) {
-    if ui.button("新建序列").clicked() {
+    use crate::i18n::t;
+
+    let new_seq = t(world, "browser-new-sequence");
+    let new_view = t(world, "browser-new-view");
+    let new_rule = t(world, "browser-new-rule");
+    let new_folder = t(world, "browser-new-folder");
+
+    if ui.button(new_seq).clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Sequence);
         ui.close();
     }
-    if ui.button("新建视图").clicked() {
+    if ui.button(new_view).clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::View);
         ui.close();
     }
-    if ui.button("新建规则").clicked() {
+    if ui.button(new_rule).clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Rule);
         ui.close();
     }
-    if ui.button("新建目录").clicked() {
+    if ui.button(new_folder).clicked() {
         start_new_file_dialog(world, dir_path, AssetFileType::Directory);
         ui.close();
     }
@@ -509,12 +532,17 @@ fn render_file_context_menu(
     file_path: &Path,
     file_type: AssetFileType,
 ) {
-    if ui.button("打开").clicked() {
+    use crate::i18n::t;
+
+    let action_open = t(world, "action-open");
+    let action_find_refs = t(world, "action-find-refs");
+
+    if ui.button(action_open).clicked() {
         open_asset_file(world, file_path, file_type);
         ui.close();
     }
-    if ui.button("查找引用").clicked() {
-        find_and_show_references(ui, file_path);
+    if ui.button(action_find_refs).clicked() {
+        find_and_show_references(ui, world, file_path);
         ui.close();
     }
 }
@@ -536,6 +564,8 @@ fn start_new_file_dialog(world: &mut World, parent_dir: &Path, file_type: AssetF
 }
 
 fn render_new_file_dialog(ui: &mut egui::Ui, world: &mut World) {
+    use crate::i18n::{t, t_args};
+
     let dialog = world
         .resource::<AssetBrowserState>()
         .new_file_dialog
@@ -546,24 +576,34 @@ fn render_new_file_dialog(ui: &mut egui::Ui, world: &mut World) {
         return;
     };
 
-    egui::Window::new("新建文件")
+    let window_title = t(world, "browser-new-file");
+    let label_name = t(world, "browser-name");
+    let dir_label = {
+        let mut args = bevy_workbench::i18n::FluentArgs::new();
+        args.set("path", parent_dir.display().to_string());
+        t_args(world, "browser-directory", &args)
+    };
+    let action_create = t(world, "action-create");
+    let action_cancel = t(world, "action-cancel");
+
+    egui::Window::new(window_title)
         .collapsible(false)
         .resizable(false)
         .show(ui.ctx(), |ui| {
             ui.horizontal(|ui| {
-                ui.label("名称:");
+                ui.label(label_name);
                 ui.text_edit_singleline(&mut file_name);
             });
-            ui.label(format!("目录: {}", parent_dir.display()));
+            ui.label(dir_label);
 
             ui.horizontal(|ui| {
-                if ui.button("创建").clicked() {
+                if ui.button(action_create).clicked() {
                     create_new_file(world, &parent_dir, &file_name, file_type);
                     world.resource_mut::<AssetBrowserState>().new_file_dialog = None;
                     // 刷新文件树
                     world.resource_mut::<AssetBrowserState>().file_tree = None;
                 }
-                if ui.button("取消").clicked() {
+                if ui.button(action_cancel).clicked() {
                     world.resource_mut::<AssetBrowserState>().new_file_dialog = None;
                 }
             });
@@ -636,9 +676,16 @@ fn open_asset_file(world: &mut World, path: &Path, file_type: AssetFileType) {
     }
 }
 
-fn find_and_show_references(ui: &mut egui::Ui, asset_path: &Path) {
+fn find_and_show_references(ui: &mut egui::Ui, world: &World, asset_path: &Path) {
+    use crate::i18n::{t, t_args};
+
     let path_str = asset_path.display().to_string();
-    ui.label(format!("查找 '{path_str}' 的引用…"));
+    let label = {
+        let mut args = bevy_workbench::i18n::FluentArgs::new();
+        args.set("path", path_str);
+        t_args(world, "label-find-refs-for", &args)
+    };
+    ui.label(label);
     // TODO: 扫描所有 .sequence.ron 文件查找引用
-    ui.label("(交叉引用功能将在后续版本实现)");
+    ui.label(t(world, "label-crossref-todo"));
 }

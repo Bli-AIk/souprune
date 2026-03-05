@@ -84,19 +84,22 @@ impl SubEditor for RonSourceEditor {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _world: &mut World) {
+    fn ui(&mut self, ui: &mut egui::Ui, world: &mut World) {
         ui.heading(self.title());
 
         if self.file_path.is_none() {
-            ui.label("未打开文件");
+            ui.label(crate::i18n::t(world, "label-no-file-open"));
             return;
         }
 
         ui.horizontal(|ui| {
             if self.dirty {
-                ui.label(egui::RichText::new("● 未保存").color(egui::Color32::YELLOW));
+                ui.label(
+                    egui::RichText::new(crate::i18n::t(world, "label-unsaved"))
+                        .color(egui::Color32::YELLOW),
+                );
             }
-            if ui.button("保存").clicked()
+            if ui.button(crate::i18n::t(world, "action-save")).clicked()
                 && let Err(e) = self.save_inner()
             {
                 warn!("{e}");
@@ -146,7 +149,7 @@ impl RonSourceEditor {
         let path = self
             .file_path
             .as_ref()
-            .ok_or("未指定文件路径".to_string())?;
-        std::fs::write(path, &self.content).map_err(|e| format!("保存失败: {e}"))
+            .ok_or("No file path specified".to_string())?;
+        std::fs::write(path, &self.content).map_err(|e| format!("Save failed: {e}"))
     }
 }
