@@ -539,9 +539,7 @@ fn edit_node_basics(world: &World, ui: &mut egui::Ui, node: &mut ViewNodeDef) ->
             changed |= edit_expression(ui, "visible_when", &mut node.visible_when);
             ui.horizontal(|ui| {
                 ui.label("camera_anchored:");
-                if ui.checkbox(&mut node.camera_anchored, "").changed() {
-                    changed = true;
-                }
+                changed |= ui.checkbox(&mut node.camera_anchored, "").changed();
             });
         });
     changed

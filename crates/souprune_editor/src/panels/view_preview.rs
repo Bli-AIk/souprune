@@ -10,6 +10,7 @@ use bevy::render::render_resource::TextureFormat;
 
 use souprune::core::view::CameraAnchored;
 use souprune::core::view::reconcile::{SpawnContext, ViewElementSpec, build_text_config};
+use souprune::core::view::ron_view::parsing::RepeatContext;
 
 use super::view_editor::ViewEditorState;
 
@@ -233,14 +234,60 @@ fn spawn_preview_node(
     parent: Option<Entity>,
     z_offset: f32,
 ) {
+    spawn_preview_node_inner(commands, state, ctx, node, parent, z_offset, None);
+}
+
+fn spawn_preview_node_inner(
+    commands: &mut Commands,
+    state: &mut ViewPreviewState,
+    ctx: &SpawnContext,
+    node: &souprune::core::view::layout::ViewNodeDef,
+    parent: Option<Entity>,
+    z_offset: f32,
+    repeat_ctx: Option<&RepeatContext>,
+) {
+    // Handle repeat expansion: spawn N instances with RepeatContext
+    if let Some(repeat_spec) = &node.repeat {
+        let count = ctx
+            .player_data
+            .get_array_length(&format!("${}", repeat_spec.source))
+            .unwrap_or(0);
+        let limit = repeat_spec.limit.unwrap_or(usize::MAX);
+        let count = count.min(limit);
+        for i in 0..count {
+            let rctx = RepeatContext::new(i);
+            spawn_preview_node_inner(
+                commands,
+                state,
+                ctx,
+                node,
+                parent,
+                z_offset + 0.01 * i as f32,
+                Some(&rctx),
+            );
+        }
+        return;
+    }
+
     let spec = ViewElementSpec {
-        full_name: format!("preview:{}", node.name),
+        full_name: if let Some(rctx) = repeat_ctx {
+            format!("preview:{}_{}", node.name, rctx.get_index())
+        } else {
+            format!("preview:{}", node.name)
+        },
         local_name: node.name.clone(),
         namespace: "preview".to_string(),
         tags: node.tags.clone(),
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, z_offset)),
         visibility: Visibility::Inherited,
-        visible_when_expr: node.visible_when.clone(),
+        visible_when_expr: if let Some(rctx) = repeat_ctx {
+            node.visible_when.as_ref().map(|expr| {
+                expr.replace("@i", &rctx.get_index().to_string())
+                    .replace("@index", &rctx.get_index().to_string())
+            })
+        } else {
+            node.visible_when.clone()
+        },
         camera_anchored: false,
         camera_offset: Vec3::ZERO,
     };
@@ -283,7 +330,7 @@ fn spawn_preview_node(
             ctx,
             &spec,
             _sprite_def,
-            None,
+            repeat_ctx,
         );
         commands
             .entity(entity)
