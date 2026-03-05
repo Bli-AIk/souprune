@@ -334,11 +334,28 @@ pub fn process_view_actions_system(
 /// 注意：此函数现在是最小化的 - StringList.len() 通过条件中的
 /// $var.len() 语法直接评估。
 fn sync_dynamic_facts(
-    _local_facts: &mut bevy_fact_rule_event::FactDatabase,
-    _global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
 ) {
-    // Currently no facts need to be synced.
-    // StringList.len() is evaluated directly via $var.len() syntax.
+    // Sync dialogue state facts that are managed by sync_typewriter_state_to_facts_system.
+    // These facts live in LayeredFactDatabase.local and must be kept in sync with
+    // ViewRoot.local_facts so condition evaluation (which checks local first) uses
+    // up-to-date values. Without this, LocalLayer binding copies a stale snapshot
+    // and conditions like $dialogue:typewriter_playing == true never pass.
+    //
+    // 同步由 sync_typewriter_state_to_facts_system 管理的对话状态 facts。
+    // 这些 facts 存在于 LayeredFactDatabase.local 中，必须与 ViewRoot.local_facts
+    // 保持同步，以确保条件评估（优先检查 local）使用最新值。
+    for key in &[
+        fre_facts::DIALOGUE_TYPEWRITER_PLAYING,
+        fre_facts::DIALOGUE_ALL_TYPEWRITERS_FINISHED,
+        fre_facts::DIALOGUE_ANY_TYPEWRITER_FINISHED,
+        fre_facts::DIALOGUE_HAS_FOCUS,
+    ] {
+        if let Some(val) = global_facts.get_by_str(key) {
+            local_facts.set(*key, val.clone());
+        }
+    }
 }
 
 /// Execute a single FRE action on the ViewRoot's local_facts.
