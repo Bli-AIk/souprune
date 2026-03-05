@@ -23,7 +23,7 @@ use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::danmaku::BulletTarget;
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin};
 use bevy::log::error;
 use bevy::prelude::*;
 
@@ -41,13 +41,14 @@ impl Message for SpawnPlayerRequest {}
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         use systems::*;
         match config::PlayerBehavior::load() {
             Ok(behavior) => {
                 app.insert_resource(behavior)
                     .add_message::<SpawnPlayerRequest>()
                     .add_systems(
-                        Update,
+                        schedule,
                         (
                             player_direction_control_system,
                             spawn_player_on_event,

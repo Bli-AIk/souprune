@@ -113,3 +113,6 @@ bevy_debug_tracy:
 # ===============================================
 soup_debug_tracy:
     cargo run -p {{project}} --release --features "trace_tracy,debug"
+
+editor:
+    cargo run -p souprune_editor

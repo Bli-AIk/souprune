@@ -502,7 +502,7 @@ fn spawn_texts_for_filler(
 /// Update SDF-based UI geometry each time layout components change.
 ///
 /// 当布局组件变化时更新基于 SDF 的 UI 几何数据。
-pub(crate) fn update_sdf_view_shape_system(
+pub fn update_sdf_view_shape_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut commands: Commands,

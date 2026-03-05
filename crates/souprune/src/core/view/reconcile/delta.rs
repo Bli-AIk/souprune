@@ -12,6 +12,7 @@ use bevy::prelude::*;
 /// Represents a single change operation to be applied to the ECS world.
 /// 表示要应用到 ECS 世界的单个更改操作。
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ViewDelta {
     /// Spawn a new element with all its components.
     /// 生成带有所有组件的新元素。

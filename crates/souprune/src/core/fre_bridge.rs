@@ -116,6 +116,7 @@ pub fn action_to_fre_event_system(
 fn state_facts_need_sync(
     sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
     app_state: Option<Res<State<crate::app_state::AppState>>>,
+    facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) -> bool {
     if let Some(ref state) = sub_state
         && state.is_changed()
@@ -125,6 +126,17 @@ fn state_facts_need_sync(
     if let Some(ref state) = app_state
         && state.is_changed()
     {
+        return true;
+    }
+    // 编辑器 Stop 时 clear_local() 会清除状态 facts，需要在下次 Play 时重新同步
+    if sub_state.is_some()
+        && facts
+            .get_by_str(fre_facts::STATE_SEQUENCE_SUB_STATE)
+            .is_none()
+    {
+        return true;
+    }
+    if app_state.is_some() && facts.get_by_str(fre_facts::STATE_APP_STATE).is_none() {
         return true;
     }
     false
@@ -171,10 +183,8 @@ pub fn process_view_actions_system(
     asset_server: Res<AssetServer>,
     global_facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     mut pending_events: ResMut<bevy_fact_rule_event::PendingFactEvents>,
-    #[cfg(feature = "debug")] mut trigger_history: Option<
-        ResMut<crate::extra::debug::RuleTriggerHistory>,
-    >,
-    #[cfg(feature = "debug")] time: Res<Time>,
+    mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
+    time: Res<Time>,
 ) {
     let Some(action_defs) = action_defs else {
         return;
@@ -264,7 +274,6 @@ pub fn process_view_actions_system(
 
                 // Record rule trigger for debug panel visualization
                 // 记录规则触发以供调试面板可视化
-                #[cfg(feature = "debug")]
                 if let Some(ref mut history) = trigger_history {
                     history.record_trigger(&rule.id, time.elapsed_secs_f64());
                 }
@@ -480,10 +489,11 @@ pub struct FREBridgePlugin;
 
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.add_message::<FreCustomActionEvent>()
             .add_systems(Startup, register_condition_evaluator_system)
             .add_systems(
-                Update,
+                schedule,
                 (
                     sync_state_to_facts_system.run_if(state_facts_need_sync),
                     action_to_fre_event_system,

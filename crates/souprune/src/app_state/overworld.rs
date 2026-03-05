@@ -46,11 +46,12 @@ pub struct OverworldUpdate;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FRETriggerSet;
 
-pub(crate) struct OverworldPlugin;
+pub struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, OverworldUpdate.run_if(is_mode("overworld")))
+        let schedule = crate::game_schedule(app);
+        app.configure_sets(schedule, OverworldUpdate.run_if(is_mode("overworld")))
             .add_plugins((
                 tilemap::TilemapPlugin,
                 player::PlayerPlugin,
@@ -59,67 +60,69 @@ impl Plugin for OverworldPlugin {
             ))
             // Mode enter/exit systems react to ModeChanged events
             .add_systems(
-                Update,
+                schedule,
                 (on_enter_overworld_system, on_exit_overworld_system),
             )
             .add_systems(
-                Update,
+                schedule,
                 trigger::setup_action_handlers_system.run_if(on_entering_mode("overworld")),
             )
-            .add_systems(Update, bind_camera_target_system.in_set(OverworldUpdate))
+            .add_systems(schedule, bind_camera_target_system.in_set(OverworldUpdate))
             .add_systems(
-                Update,
+                schedule,
                 mark_tilemap_as_overworld_scoped.in_set(OverworldUpdate),
             )
             .add_systems(
-                Update,
+                schedule,
                 process_overworld_player_spawn_system
                     .in_set(crate::core::sequencer::SequencerUpdate),
             )
             .add_systems(
-                Update,
+                schedule,
                 collision::player_tilemap_collision_system
                     .after(character::MovementSet)
                     .before(crate::core::camera::CameraUpdateSet)
                     .in_set(OverworldUpdate),
             )
             .add_systems(
-                Update,
+                schedule,
                 force_player_idle_on_non_movable_state_system.in_set(OverworldUpdate),
             );
 
         // FRE + Danmaku integration + Chase
-        app.add_plugins(bevy_fact_rule_event::FREPlugin)
-            .add_plugins(chase::ChasePlugin)
-            .configure_sets(Update, FRETriggerSet.in_set(OverworldUpdate))
-            .configure_sets(
-                Update,
-                DanmakuUpdate
-                    .run_if(in_state(AppState::Running))
-                    .after(FRETriggerSet),
+        app.add_plugins(bevy_fact_rule_event::FREPlugin {
+            schedule: Some(schedule),
+        })
+        .add_plugins(chase::ChasePlugin)
+        .configure_sets(schedule, FRETriggerSet.in_set(OverworldUpdate))
+        .configure_sets(
+            schedule,
+            DanmakuUpdate
+                .run_if(in_state(AppState::Running))
+                .after(FRETriggerSet),
+        )
+        .init_resource::<trigger::LoadedRuleSets>()
+        .init_resource::<trigger::RuleActionDefs>()
+        .init_resource::<trigger::PendingDanmakuActions>()
+        .init_resource::<trigger::PendingViewActions>()
+        .init_resource::<trigger::FocusedInteractable>()
+        .add_systems(
+            schedule,
+            (
+                view::input_to_fre_event_bridge_system,
+                trigger::load_fre_rules_system,
+                trigger::register_loaded_rules_system,
+                trigger::trigger_zone_detection_system,
+                trigger::interactable_detection_system,
+                trigger::handle_interaction_input_system,
+                trigger::handle_overworld_custom_actions_system,
+                trigger::apply_pending_view_actions_system,
+                trigger::play_danmaku_from_actions_system,
+                trigger::log_fact_changes_system,
             )
-            .init_resource::<trigger::LoadedRuleSets>()
-            .init_resource::<trigger::RuleActionDefs>()
-            .init_resource::<trigger::PendingDanmakuActions>()
-            .init_resource::<trigger::PendingViewActions>()
-            .init_resource::<trigger::FocusedInteractable>()
-            .add_systems(
-                Update,
-                (
-                    view::input_to_fre_event_bridge_system,
-                    trigger::load_fre_rules_system,
-                    trigger::register_loaded_rules_system,
-                    trigger::trigger_zone_detection_system,
-                    trigger::interactable_detection_system,
-                    trigger::handle_interaction_input_system,
-                    trigger::handle_overworld_custom_actions_system,
-                    trigger::apply_pending_view_actions_system,
-                    trigger::play_danmaku_from_actions_system,
-                    trigger::log_fact_changes_system,
-                )
-                    .chain()
-                    .in_set(FRETriggerSet),
-            );
+                .chain()
+                .in_set(FRETriggerSet),
+        );
     }
 }
 

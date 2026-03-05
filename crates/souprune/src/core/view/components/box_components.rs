@@ -11,26 +11,15 @@ use super::text::ViewTextConfig;
 
 #[derive(Component, Debug)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) struct ViewBox {
+pub struct ViewBox {
     pub(crate) width: f32,
     pub(crate) height: f32,
     pub(crate) border_width: f32,
     pub(crate) texts: Vec<ViewTextConfig>,
-    /// Optional custom fill shader path for data-driven shader loading.
-    ///
-    /// 可选的自定义填充着色器路径，用于数据驱动的着色器加载。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) fill_shader: Option<String>,
-    /// Optional path to load a complex SDF shape structure from file.
-    /// If None, generates a single SDF shape (default behavior).
-    ///
-    /// 可选的路径，用于从文件加载复杂的 SDF shape 结构。
-    /// 如果为 None，则生成单个 SDF shape（默认行为）。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) structure_file: Option<String>,
-    /// Fill color for the shape.
-    ///
-    /// 形状的填充颜色。
     pub(crate) fill_color: Color,
 }
 
@@ -75,7 +64,7 @@ impl ViewBox {
     /// Create a new `ViewBox` component with full configuration.
     ///
     /// 创建一个带有完整配置的新 `ViewBox` 组件。
-    pub(crate) fn new_full(
+    pub fn new_full(
         width: f32,
         height: f32,
         border_width: f32,

@@ -1,0 +1,34 @@
+[package]
+name = "souprune_editor"
+version = "0.1.0"
+edition = "2024"
+authors = ["Bli-AIk <haikun2333@gmail.com>"]
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/Bli-AIk/souprune"
+homepage = "https://github.com/Bli-AIk/souprune"
+description = "An egui-based game editor for SoupRune, built on bevy_workbench."
+keywords = ["editor", "game-engine", "bevy", "souprune"]
+categories = ["game-development", "game-engines", "development-tools"]
+
+[dependencies]
+bevy = "0.18"
+bevy_workbench = { path = "../bevy_workbench" }
+bevy_egui = { version = "0.39", features = ["render"] }
+bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
+bevy_tween = "0.11"
+egui = "0.33"
+souprune = { path = "../souprune" }
+ron = "0.12"
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+icondata_core = "0.1"
+icondata_vs = "0.1"
+resvg = "0.47"
+
+[features]
+default = []
+android = ["souprune/android"]
+
+[lib]
+name = "souprune_editor"
+crate-type = ["lib", "cdylib"]

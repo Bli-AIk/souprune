@@ -21,6 +21,7 @@
 use super::components::{CameraAnchored, CameraAnchoredDynamic};
 use super::expr_eval::eval_number;
 use crate::app_state::{SequenceMode, SequenceSubState};
+use crate::core::camera::MainGameCamera;
 use crate::extra::debug::DebugCamera;
 use bevy::prelude::*;
 use std::collections::BTreeMap;
@@ -32,7 +33,15 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
     mode: Res<SequenceMode>,
     sub_state: Option<Res<State<SequenceSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>, Changed<Transform>)>,
+    camera_query: Query<
+        (&Transform, &Camera),
+        (
+            With<Camera2d>,
+            With<MainGameCamera>,
+            Without<DebugCamera>,
+            Changed<Transform>,
+        ),
+    >,
     mut anchored_ui_query: Query<
         (&CameraAnchored, &mut Transform),
         (Without<Camera2d>, Without<DebugCamera>),
@@ -55,10 +64,8 @@ pub(crate) fn update_camera_anchored_ui_on_camera_move_system(
         return;
     }
 
-    let Ok(camera_transform) = camera_query.single() else {
-        // No camera moved this frame, so there is nothing to do.
-        //
-        // 本帧摄像机未移动，无需执行任何操作。
+    let Some((camera_transform, _)) = camera_query.iter().find(|(_, c)| c.is_active) else {
+        // No active game camera moved this frame.
         return;
     };
 
@@ -86,9 +93,10 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         ),
     >,
     camera_query: Query<
-        (Ref<Transform>, ()),
+        (Ref<Transform>, &Camera),
         (
             With<Camera2d>,
+            With<MainGameCamera>,
             Without<DebugCamera>,
             Without<CameraAnchored>,
             Without<crate::app_state::overworld::character::components::PlayerControlled>,
@@ -104,7 +112,7 @@ pub(crate) fn update_dynamic_camera_anchors_system(
     let Ok((player_transform_ref, _)) = player_query.single() else {
         return;
     };
-    let Ok((camera_transform_ref, _)) = camera_query.single() else {
+    let Some((camera_transform_ref, _)) = camera_query.iter().find(|(_, c)| c.is_active) else {
         return;
     };
 
@@ -191,7 +199,10 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
     mode: Res<SequenceMode>,
     sub_state: Option<Res<State<SequenceSubState>>>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
-    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
+    camera_query: Query<
+        (&Transform, &Camera),
+        (With<Camera2d>, With<MainGameCamera>, Without<DebugCamera>),
+    >,
     mut anchored_ui_query: Query<
         (&CameraAnchored, &mut Transform),
         (
@@ -218,7 +229,7 @@ pub(crate) fn update_camera_anchored_ui_on_change_system(
         return;
     }
 
-    let Ok(camera_transform) = camera_query.single() else {
+    let Some((camera_transform, _)) = camera_query.iter().find(|(_, c)| c.is_active) else {
         warn_once!("No Camera2d available for anchoring UI");
         return;
     };

@@ -283,13 +283,9 @@ fn search_texture_recursive(
     }
 
     // Only use directory match if it's a valid frame animation directory
-    for dir in dir_matches {
-        if is_frame_animation_directory(&dir) {
-            return Some(dir);
-        }
-    }
-
-    None
+    dir_matches
+        .into_iter()
+        .find(|dir| is_frame_animation_directory(dir))
 }
 
 /// Check if a directory looks like a frame animation directory.

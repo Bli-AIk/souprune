@@ -11,6 +11,7 @@
 //! - Full screen dark overlay with 0.5 alpha
 //! - Red 1-pixel outline on player sprite using custom shader (outline only, no original image)
 //! - Heart marker (judgment indicator) attached to player as child entity
+//!
 //! All effects have a 0.5 second alpha transition.
 //!
 //! 本模块实现 Overworld 的追逐战状态视觉效果。
@@ -18,6 +19,7 @@
 //! - 全屏 0.5 透明度的黑色覆盖层
 //! - 玩家精灵使用自定义着色器的红色1像素描边（仅描边，不含原始图像）
 //! - 心形判定标记作为玩家的子实体附着
+//!
 //! 所有效果都有 0.5 秒的透明度过渡。
 
 use bevy::image::TextureAtlasLayout;
@@ -103,6 +105,7 @@ pub struct ChasePlugin;
 
 impl Plugin for ChasePlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         // Initialize chase resources (config will be loaded dynamically)
         app.init_resource::<ChaseEnabled>()
             .init_resource::<ChaseStateName>()
@@ -115,14 +118,14 @@ impl Plugin for ChasePlugin {
             // Load chase config dynamically when state config becomes available
             // Must run before FRETriggerSet so chase state actions can work
             .add_systems(
-                Update,
+                schedule,
                 load_chase_config_system
                     .run_if(|loaded: Res<ChaseConfigLoaded>| !loaded.0)
                     .before(super::FRETriggerSet),
             )
             // Dynamic state change detection (replaces OnEnter/OnExit)
             .add_systems(
-                Update,
+                schedule,
                 (
                     detect_chase_state_enter_system,
                     detect_chase_state_exit_system,
@@ -133,7 +136,7 @@ impl Plugin for ChasePlugin {
                     .run_if(chase_enabled),
             )
             .add_systems(
-                Update,
+                schedule,
                 (
                     update_chase_transition_system,
                     spawn_chase_dark_overlay_system,

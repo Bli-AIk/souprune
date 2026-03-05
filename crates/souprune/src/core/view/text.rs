@@ -26,18 +26,18 @@ use bevy_rich_text3d::{Text3d, TextAtlas};
 ///
 /// 新生成文本的标记组件，需要刷新字形
 #[derive(Component)]
-pub(crate) struct NeedsGlyphRefresh;
+pub struct NeedsGlyphRefresh;
 
 /// Marker component for text entities that need material assignment.
 ///
 /// 需要分配材质的文本实体的标记组件。
 #[derive(Component)]
-pub(crate) struct NeedsTextMaterial;
+pub struct NeedsTextMaterial;
 
 /// After spawning, change the Text3d string in PreUpdate phase to immediately render glyphs.
 ///
 /// 在 spawn 后，在 PreUpdate 阶段修改 Text3d 字符串以立刻渲染字形。
-pub(crate) fn refresh_text_glyphs_system(
+pub fn refresh_text_glyphs_system(
     mut commands: Commands,
     mut text_query: Query<(Entity, &mut Text3d), Added<NeedsGlyphRefresh>>,
 ) {
@@ -58,7 +58,7 @@ pub(crate) fn refresh_text_glyphs_system(
 ///
 /// 为需要的文本实体分配正确的 ColorMaterial。
 /// 这修复了容器文本的紫色方块问题。
-pub(crate) fn assign_text_material_system(
+pub fn assign_text_material_system(
     mut commands: Commands,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     text_query: Query<Entity, (With<Text3d>, With<NeedsTextMaterial>)>,
@@ -95,7 +95,7 @@ type TextMeshQuery<'w, 's> = Query<
     ),
 >;
 
-pub(crate) fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
+pub fn show_text_when_ready_system(mut text_query: TextMeshQuery) {
     for (mesh, mut visibility) in text_query.iter_mut() {
         if mesh.0 != Handle::default() && *visibility == Visibility::Hidden {
             *visibility = Visibility::Inherited;

@@ -119,50 +119,11 @@ pub mod debug_fre_panel {
         data_keys: Vec<String>,
     }
 
-    /// Resource to track recently triggered rules for visual feedback.
-    /// 跟踪最近触发的规则以提供视觉反馈的资源。
-    #[derive(Resource, Default)]
-    pub struct RuleTriggerHistory {
-        /// Map from rule_id to last trigger timestamp (in seconds)
-        /// 规则ID到上次触发时间戳（秒）的映射
-        pub triggered_rules: std::collections::HashMap<String, f64>,
-    }
-
-    impl RuleTriggerHistory {
-        /// Record that a rule was triggered at the current time.
-        /// 记录规则在当前时间被触发。
-        pub fn record_trigger(&mut self, rule_id: &str, current_time: f64) {
-            self.triggered_rules
-                .insert(rule_id.to_string(), current_time);
-        }
-
-        /// Check if a rule was triggered within the last N seconds.
-        /// 检查规则是否在最近 N 秒内被触发。
-        pub fn was_recently_triggered(
-            &self,
-            rule_id: &str,
-            current_time: f64,
-            duration: f64,
-        ) -> bool {
-            if let Some(&trigger_time) = self.triggered_rules.get(rule_id) {
-                current_time - trigger_time < duration
-            } else {
-                false
-            }
-        }
-
-        /// Clean up old triggers (older than 5 seconds).
-        /// 清理旧的触发记录（超过5秒的）。
-        pub fn cleanup_old_triggers(&mut self, current_time: f64) {
-            self.triggered_rules
-                .retain(|_, &mut trigger_time| current_time - trigger_time < 5.0);
-        }
-    }
+    use crate::extra::debug::RuleTriggerHistory;
 
     pub(crate) fn setup_fre_panel_debug(app: &mut App) {
         app.init_resource::<FREPanelState>()
             .init_resource::<FactEventHistory>()
-            .init_resource::<RuleTriggerHistory>()
             .add_systems(
                 Update,
                 (
@@ -173,7 +134,6 @@ pub mod debug_fre_panel {
                     app_state_changed_refresh_fre_panel_system,
                     fre_panel_refresh_system,
                     track_fact_events_system,
-                    cleanup_rule_trigger_history_system,
                 ),
             )
             .add_systems(
@@ -182,15 +142,6 @@ pub mod debug_fre_panel {
                     .after(InputManagerSystem::ManualControl),
             )
             .add_systems(FREPanelContextPass, fre_panel_ui_system);
-    }
-
-    /// System to clean up old rule trigger history entries.
-    /// 清理旧的规则触发历史记录的系统。
-    fn cleanup_rule_trigger_history_system(
-        mut history: ResMut<RuleTriggerHistory>,
-        time: Res<Time>,
-    ) {
-        history.cleanup_old_triggers(time.elapsed_secs_f64());
     }
 
     /// System to handle F7 hotkey for opening/closing the FRE panel.
@@ -514,7 +465,7 @@ pub mod debug_fre_panel {
                                 global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in global_rules {
                                     let is_triggered = trigger_history
-                                        .map(|h| {
+                                        .map(|h: &RuleTriggerHistory| {
                                             h.was_recently_triggered(&rule.id, current_time, 1.0)
                                         })
                                         .unwrap_or(false);
@@ -535,7 +486,7 @@ pub mod debug_fre_panel {
                                 local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                 for rule in local_rules {
                                     let is_triggered = trigger_history
-                                        .map(|h| {
+                                        .map(|h: &RuleTriggerHistory| {
                                             h.was_recently_triggered(&rule.id, current_time, 1.0)
                                         })
                                         .unwrap_or(false);
@@ -562,7 +513,7 @@ pub mod debug_fre_panel {
                                             view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
                                             for rule in view_rules {
                                                 let is_triggered = trigger_history
-                                                    .map(|h| {
+                                                    .map(|h: &RuleTriggerHistory| {
                                                         h.was_recently_triggered(
                                                             &rule.id,
                                                             current_time,

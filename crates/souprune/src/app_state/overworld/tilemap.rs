@@ -43,6 +43,7 @@ pub(crate) struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         use object_properties::process_map_object_properties_system;
         use systems::*;
         // Tilemap is loaded by the sequencer's LoadMap chapter, not by hardcoded OnEnter systems.
@@ -50,7 +51,7 @@ impl Plugin for TilemapPlugin {
         app.init_resource::<CurrentMapBgm>()
             .init_resource::<CurrentBgmHandle>()
             .add_systems(
-                Update,
+                schedule,
                 (
                     initialize_tilemap_system,
                     generate_collision_tiles_system,

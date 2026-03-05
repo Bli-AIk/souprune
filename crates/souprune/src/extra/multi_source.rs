@@ -37,6 +37,7 @@ impl MultiSourceAssetReader {
     }
 }
 
+#[allow(refining_impl_trait)]
 impl AssetReader for MultiSourceAssetReader {
     fn read<'a>(
         &'a self,

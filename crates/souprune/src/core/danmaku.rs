@@ -60,6 +60,7 @@ pub struct CoreDanmakuPlugin;
 
 impl Plugin for CoreDanmakuPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_asset::<DanmakuPerformance>()
             .register_asset_loader(RonAssetLoader::<DanmakuPerformance>::new(&[
                 "performance.ron",
@@ -69,7 +70,7 @@ impl Plugin for CoreDanmakuPlugin {
             .init_resource::<DanmakuSpawnContext>()
             .add_message::<PlayPerformanceEvent>()
             .add_systems(
-                Update,
+                schedule,
                 (
                     process_play_performance_events,
                     spawn_performance_players,

@@ -30,12 +30,14 @@ mod view_element;
 pub mod chapter_schema;
 
 // Re-export public types
+pub use bgm::SequencerBgm;
 pub use context::{
     ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
     SequenceRulesHandle, WaitTimer,
 };
 pub use flow::load_default_chapter_system;
 
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy_tween::BevyTweenRegisterSystems;
 use bevy_tween::tween::component_tween_system;
@@ -77,70 +79,77 @@ pub struct SequenceAsset {
     pub chapters: Vec<Chapter>,
 }
 
-/// Module for the sequencer.
+/// 初始化 Sequencer 所需的资源和资产类型。
 ///
-/// 线性序列管理器。
+/// 编辑器和游戏均可调用此函数完成资源初始化。
+pub fn init_sequencer(app: &mut App) {
+    app.init_resource::<context::SequenceContext>()
+        .init_resource::<context::SequenceRulesHandle>()
+        .init_resource::<bgm::SequencerBgm>()
+        .init_asset::<SequenceAsset>()
+        .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]));
+}
+
+/// 将 Sequencer 的章节处理系统注册到指定 Schedule。
+///
+/// 游戏使用 `Update`，编辑器使用 `GameSchedule`。
+pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + Clone) {
+    // Register custom interpolator systems for bevy_tween
+    app.add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
+        .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
+        // Chapter processing systems - split into two groups to avoid tuple size limit
+        .add_systems(
+            schedule.clone(),
+            (
+                flow::advance_battle_flow_system,
+                player::process_player_action_system,
+                camera::process_camera_action_system,
+                view_action::process_view_action_system,
+                view_action::process_set_view_fact_system,
+                interaction::process_await_fact_system,
+                view_element::process_modify_view_element_system,
+                tween::process_tween_view_element_system,
+                performance::process_danmaku_performance_system,
+                performance::process_am_performance_system,
+                flow::process_custom_chapter_system,
+                player::process_player_spawn_requests,
+            )
+                .chain()
+                .in_set(SequencerUpdate),
+        )
+        .add_systems(
+            schedule,
+            (
+                flow::process_wait_chapter_system,
+                tween::process_tween_wait_chapter_system,
+                performance::process_am_wait_chapter_system,
+                flow::process_parallel_chapter_system,
+                fact_chapter::process_conditional_chapter_system,
+                fact_chapter::process_fact_switch_chapter_system,
+                fact_chapter::process_emit_fact_event_chapter_system,
+                fact_chapter::process_modify_fact_chapter_system,
+                fact_chapter::process_load_fre_chapter_system,
+                fact_chapter::complete_load_fre_chapter_system,
+                run_sequence::process_run_sequence_system,
+                run_sequence::complete_run_sequence_system,
+                load_map::process_load_map_system,
+                bgm::process_set_bgm_system,
+                interaction::check_await_fact_completion_system,
+                flow::cleanup_finished_chapters_system,
+                flow::sync_battle_flow_system,
+            )
+                .chain()
+                .in_set(SequencerUpdate)
+                .after(flow::advance_battle_flow_system),
+        );
+}
+
+/// Sequencer 插件 — 在 `Update` 中运行章节处理系统。
 pub(crate) struct SequencerPlugin;
 
 impl Plugin for SequencerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<context::SequenceContext>()
-            .init_resource::<context::SequenceRulesHandle>()
-            .init_resource::<bgm::SequencerBgm>()
-            .init_asset::<SequenceAsset>()
-            .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]))
-            // Register custom interpolator systems for bevy_tween
-            .add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
-            .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
-            // Chapter processing systems - split into two groups to avoid tuple size limit
-            .add_systems(
-                Update,
-                (
-                    flow::advance_battle_flow_system,
-                    player::process_player_action_system,
-                    camera::process_camera_action_system,
-                    view_action::process_view_action_system,
-                    view_action::process_set_view_fact_system,
-                    // AwaitFact: mark chapters as awaiting
-                    interaction::process_await_fact_system,
-                    view_element::process_modify_view_element_system,
-                    tween::process_tween_view_element_system,
-                    performance::process_danmaku_performance_system,
-                    performance::process_am_performance_system,
-                    flow::process_custom_chapter_system,
-                    player::process_player_spawn_requests,
-                )
-                    .chain()
-                    .in_set(SequencerUpdate),
-            )
-            // More chapter processing systems (continuation)
-            .add_systems(
-                Update,
-                (
-                    flow::process_wait_chapter_system,
-                    tween::process_tween_wait_chapter_system,
-                    performance::process_am_wait_chapter_system,
-                    flow::process_parallel_chapter_system,
-                    fact_chapter::process_conditional_chapter_system,
-                    fact_chapter::process_fact_switch_chapter_system,
-                    fact_chapter::process_emit_fact_event_chapter_system,
-                    fact_chapter::process_modify_fact_chapter_system,
-                    fact_chapter::process_load_fre_chapter_system,
-                    fact_chapter::complete_load_fre_chapter_system,
-                    // RunSequence
-                    run_sequence::process_run_sequence_system,
-                    run_sequence::complete_run_sequence_system,
-                    // Scene setup chapters
-                    load_map::process_load_map_system,
-                    bgm::process_set_bgm_system,
-                    // AwaitFact: check condition completion
-                    interaction::check_await_fact_completion_system,
-                    flow::cleanup_finished_chapters_system,
-                    flow::sync_battle_flow_system,
-                )
-                    .chain()
-                    .in_set(SequencerUpdate)
-                    .after(flow::advance_battle_flow_system),
-            );
+        init_sequencer(app);
+        register_sequencer_systems(app, crate::game_schedule(app));
     }
 }
