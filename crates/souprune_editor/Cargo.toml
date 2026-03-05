@@ -2,6 +2,13 @@
 name = "souprune_editor"
 version = "0.1.0"
 edition = "2024"
+authors = ["Bli-AIk <haikun2333@gmail.com>"]
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/Bli-AIk/souprune"
+homepage = "https://github.com/Bli-AIk/souprune"
+description = "An egui-based game editor for SoupRune, built on bevy_workbench."
+keywords = ["editor", "game-engine", "bevy", "souprune"]
+categories = ["game-development", "game-engines", "development-tools"]
 
 [dependencies]
 bevy = "0.18"
