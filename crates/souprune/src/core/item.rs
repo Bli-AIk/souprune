@@ -90,6 +90,7 @@ pub enum ItemEffect {
 ///
 /// 从 `.items.ron` 文件加载的物品列表。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ItemListAsset(pub Vec<Item>);
 
 // --- Registry & Loading Logic ---
