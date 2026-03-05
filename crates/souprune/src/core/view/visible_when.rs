@@ -33,7 +33,7 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 ///
 /// 此系统仅在 fact 数据库或任何 ViewRoot 的 local_facts 变更时运行，
 /// 避免不必要的每帧计算。
-pub(crate) fn evaluate_visible_when_system(
+pub fn evaluate_visible_when_system(
     layered_db: Res<LayeredFactDatabase>,
     view_root_query: Query<&ViewRoot>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,

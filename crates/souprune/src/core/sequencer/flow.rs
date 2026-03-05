@@ -207,8 +207,9 @@ pub fn process_custom_chapter_system(
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
     handler_registry: Res<bevy_fact_rule_event::ActionHandlerRegistry>,
     fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
-    mut custom_action_writer: MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>,
+    custom_action_writer: Option<MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>>,
 ) {
+    let mut custom_action_writer = custom_action_writer;
     for (entity, active_chapter) in query.iter() {
         if let Chapter::Custom {
             action_type,
@@ -227,8 +228,8 @@ pub fn process_custom_chapter_system(
 
             if handler_registry.has_handler(action_type) {
                 handler_registry.execute(&action, &fact_db, &mut commands);
-            } else {
-                custom_action_writer.write(crate::core::fre_bridge::FreCustomActionEvent {
+            } else if let Some(ref mut writer) = custom_action_writer {
+                writer.write(crate::core::fre_bridge::FreCustomActionEvent {
                     action_type: action_type.clone(),
                     params: params.clone(),
                 });

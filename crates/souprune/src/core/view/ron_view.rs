@@ -5,7 +5,7 @@ pub mod reload;
 pub mod resources;
 pub mod setup;
 pub mod spawn;
-mod spawn_helpers;
+pub mod spawn_helpers;
 mod spawn_nodes;
 pub mod update;
 

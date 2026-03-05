@@ -49,16 +49,17 @@ pub fn process_map_object_properties_system(
     existing_interactables: Query<&TiledInteractable>,
     mut rule_registry: ResMut<LayeredRuleRegistry>,
     souprune_config: Res<crate::config::SoupruneConfig>,
-    mut processed: Local<bool>,
+    loaded_rule_sets: Res<crate::app_state::overworld::trigger::LoadedRuleSets>,
 ) {
-    // Only process once
-    if *processed {
+    // Process once per map load cycle (reset when LoadedRuleSets resets)
+    if !existing_triggers.is_empty() || !existing_interactables.is_empty() {
+        return;
+    }
+    if !loaded_rule_sets.initialized {
         return;
     }
 
     let map_count = tiled_maps_query.iter().count();
-    let trigger_count = existing_triggers.iter().count();
-    let interactable_count = existing_interactables.iter().count();
 
     // Wait for map to be available
     if map_count == 0 {
@@ -78,10 +79,7 @@ pub fn process_map_object_properties_system(
         return;
     }
 
-    info!(
-        "Object properties system processing: {} maps, {} triggers, {} interactables",
-        map_count, trigger_count, interactable_count
-    );
+    info!("Object properties system processing: {} maps", map_count);
 
     for tiled_map_handle in tiled_maps_query.iter() {
         let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) else {
@@ -162,8 +160,6 @@ pub fn process_map_object_properties_system(
         break;
     }
 
-    // Mark as processed
-    *processed = true;
     info!("Object properties system completed processing");
 }
 

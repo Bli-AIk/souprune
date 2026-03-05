@@ -16,13 +16,13 @@
 use bevy::prelude::*;
 use bevy::ui::Val as BevyVal;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub use crate::core::sequencer::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};
 
 pub type FloatOrExpr = Val<f32>;
 
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UiFlexDirection {
     #[default]
     Row,
@@ -42,7 +42,7 @@ impl From<UiFlexDirection> for FlexDirection {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SerializableVal {
     Auto,
     Px(f32),
@@ -63,7 +63,7 @@ impl From<SerializableVal> for BevyVal {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SerializablePositionType {
     Relative,
     Absolute,
@@ -78,7 +78,7 @@ impl From<SerializablePositionType> for PositionType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SerializableJustifyContent {
     Start,
     End,
@@ -101,7 +101,7 @@ impl From<SerializableJustifyContent> for JustifyContent {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SerializableAlignItems {
     Start,
     End,
@@ -241,7 +241,7 @@ pub fn is_dynamic_vec3(vec: &SerializableVec3) -> bool {
     vec.0.is_expr() || vec.1.is_expr() || vec.2.is_expr()
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
@@ -251,7 +251,7 @@ pub struct SerializableTransform {
     pub scale: Option<SerializableVec3>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum ViewFontDef {
     DeterminationMono,
     DeterminationSans,

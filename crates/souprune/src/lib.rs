@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    unexpected_cfgs
+)]
 //! # lib.rs
 //!
 //! # lib.rs 文件
@@ -34,6 +40,7 @@ use app_state::{app_setup, battle, overworld};
 use bevy::app::PluginGroupBuilder;
 use bevy::asset::io::file::{FileAssetReader, FileWatcher};
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
+use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
 use bevy::prelude::*;
 #[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
 use bevy::render::RenderPlugin;
@@ -44,7 +51,57 @@ use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 use chrono::Local;
-use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::EnvFilter;
+
+/// 游戏逻辑系统的目标调度器。
+///
+/// 游戏本体使用 `Update`，编辑器使用 `GameSchedule`（由 bevy_workbench 控制执行时机）。
+/// 所有游戏 Plugin 在 `build()` 中读取此资源，将系统注册到指定的调度器。
+#[derive(Resource, Clone)]
+pub struct GameUpdateSchedule(pub InternedScheduleLabel);
+
+impl Default for GameUpdateSchedule {
+    fn default() -> Self {
+        Self(Update.intern())
+    }
+}
+
+/// 从 App 中获取游戏逻辑调度器标签。
+/// 如果未设置 `GameUpdateSchedule` 资源，返回 `Update`。
+pub fn game_schedule(app: &App) -> InternedScheduleLabel {
+    app.world()
+        .get_resource::<GameUpdateSchedule>()
+        .map_or(Update.intern(), |s| s.0)
+}
+
+/// 初始化游戏核心状态。
+///
+/// 注册 AppState、SequenceSubState、SequenceMode、ModeChanged，
+/// 以及 ViewUpdate / SequencerUpdate 系统集的 run_if 条件。
+/// 游戏本体和编辑器共用此函数，避免重复初始化代码。
+pub fn init_game_state(app: &mut App) {
+    let schedule = game_schedule(app);
+    app.init_state::<app_state::AppState>()
+        .init_state::<app_state::SequenceSubState>()
+        .init_resource::<app_state::SequenceMode>()
+        .add_message::<app_state::ModeChanged>()
+        .add_systems(
+            PreUpdate,
+            (
+                app_state::detect_mode_changes,
+                app_state::cleanup_mode_scoped_entities,
+            )
+                .chain(),
+        )
+        .configure_sets(
+            schedule,
+            core::view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
+        )
+        .configure_sets(
+            schedule,
+            core::sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
+        );
+}
 
 /// Sets up the logging system with both stdout and file output.
 /// When `trace_tracy` feature is enabled, also adds Tracy profiler layer.
@@ -53,6 +110,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 /// 当启用 `trace_tracy` feature 时，还会添加 Tracy profiler 层。
 #[cfg(not(feature = "trace_tracy"))]
 fn setup_logging() -> anyhow::Result<tracing_appender::non_blocking::WorkerGuard> {
+    use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
     // Generate a timestamped filename for this run
     //
     // 为本次运行生成带时间戳的文件名
@@ -282,7 +340,7 @@ fn get_bevy_default_plugins(
 /// Get the file importer plugins used in the application.
 ///
 /// 获取应用程序中使用的文件导入器插件。
-fn get_file_importer_plugins() -> (
+pub fn get_file_importer_plugins() -> (
     extra::markdown::MarkdownPlugin,
     extra::toml::TomlPlugin,
     extra::mortar::MortarExtraPlugin,
@@ -297,7 +355,7 @@ fn get_file_importer_plugins() -> (
 /// Get the third-party plugins used in the application.
 ///
 /// 获取应用程序中使用的第三方插件。
-fn get_third_plugins() -> (
+pub fn get_third_plugins() -> (
     leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_rich_text3d::Text3dPlugin,
@@ -320,7 +378,7 @@ fn get_third_plugins() -> (
 /// Get the game-specific plugins.
 ///
 /// 获取特定于游戏的插件。
-fn get_game_plugins() -> (
+pub fn get_game_plugins() -> (
     CorePlugin,
     app_setup::AppSetupPlugin,
     overworld::OverworldPlugin,
@@ -336,6 +394,172 @@ fn get_game_plugins() -> (
         GlobalPlugin,
         mod_system::ModPlugin,
     )
+}
+
+/// 重置所有游戏运行时状态。
+///
+/// 停止所有音频、重置序列/FRE/模式状态、清理游戏实体，
+/// 使 App 回到可以重新开始游戏的干净状态。
+pub fn reset_game_state(world: &mut World) {
+    // 1. 通过 Audio channel 停止所有声音（包括无 handle 的 fire-and-forget 音效）
+    if let Some(audio) = world.get_resource::<bevy_kira_audio::Audio>() {
+        use bevy_kira_audio::AudioControl;
+        audio.stop();
+    }
+    // 同时逐个停止并移除 AudioInstance 资源（确保下次 Play 不复用旧实例）
+    if let Some(mut instances) = world.get_resource_mut::<Assets<bevy_kira_audio::AudioInstance>>()
+    {
+        let ids: Vec<_> = instances.ids().collect();
+        for id in ids {
+            if let Some(instance) = instances.get_mut(id) {
+                instance.stop(bevy_kira_audio::AudioTween::default());
+            }
+            instances.remove(id);
+        }
+    }
+
+    // 2. 重置 Sequencer BGM 状态
+    if let Some(mut bgm) = world.get_resource_mut::<core::sequencer::SequencerBgm>() {
+        bgm.handle = None;
+        bgm.path = None;
+    }
+
+    // 3. 重置地图 BGM 状态
+    if let Some(mut h) = world.get_resource_mut::<app_state::overworld::tilemap::CurrentBgmHandle>()
+    {
+        h.0 = None;
+    }
+    if let Some(mut m) = world.get_resource_mut::<app_state::overworld::tilemap::CurrentMapBgm>() {
+        m.0 = None;
+    }
+
+    // 4. 重置 SequenceMode → None（触发 ModeChanged 清理 ModeScoped 实体）
+    world.resource_mut::<app_state::SequenceMode>().0 = None;
+
+    // 4b. 重置 SequenceSubState → Normal
+    world
+        .resource_mut::<NextState<app_state::SequenceSubState>>()
+        .set(app_state::SequenceSubState::default());
+
+    // 5. 清理 SequenceContext
+    if let Some(mut ctx) = world.get_resource_mut::<core::sequencer::SequenceContext>() {
+        ctx.chapters.clear();
+        ctx.state = core::sequencer::SequenceExecutionState::Idle;
+    }
+
+    // 6. 移除 CurrentSequenceFlow 和 SequenceRulesHandle
+    world.remove_resource::<core::sequencer::CurrentSequenceFlow>();
+    if let Some(mut srh) = world.get_resource_mut::<core::sequencer::SequenceRulesHandle>() {
+        srh.handle = None;
+        srh.registered = false;
+    }
+
+    // 7. 清理 FRE 本地状态
+    if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
+        db.clear_local();
+    }
+    if let Some(mut reg) = world.get_resource_mut::<bevy_fact_rule_event::LayeredRuleRegistry>() {
+        reg.clear_local();
+    }
+    if let Some(mut loaded) =
+        world.get_resource_mut::<app_state::overworld::trigger::LoadedRuleSets>()
+    {
+        loaded.handles.clear();
+        loaded.initialized = false;
+        loaded.registered = false;
+    }
+    if let Some(mut action_defs) =
+        world.get_resource_mut::<app_state::overworld::trigger::RuleActionDefs>()
+    {
+        action_defs.actions_by_rule.clear();
+    }
+
+    // 8. 直接清理 ModeScoped 实体（不等待下帧 PreUpdate）
+    let scoped: Vec<Entity> = world
+        .query_filtered::<Entity, With<app_state::ModeScoped>>()
+        .iter(world)
+        .collect();
+    for entity in scoped {
+        world.despawn(entity);
+    }
+
+    // 9. 清理 ActiveChapter 实体
+    let chapters: Vec<Entity> = world
+        .query_filtered::<Entity, With<core::sequencer::ActiveChapter>>()
+        .iter(world)
+        .collect();
+    for entity in chapters {
+        world.despawn(entity);
+    }
+
+    // 10. 清理 DialogueControllerEntity（打字机/对话实体，非 ModeScoped）
+    let dialogue_entities: Vec<Entity> = world
+        .query_filtered::<Entity, With<core::dialogue::DialogueControllerEntity>>()
+        .iter(world)
+        .collect();
+    for entity in dialogue_entities {
+        world.despawn(entity);
+    }
+    if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
+        db.set(
+            core::fre_facts::DIALOGUE_ACTIVE,
+            bevy_fact_rule_event::FactValue::Bool(false),
+        );
+    }
+
+    // 11. 清理 TiledMap 实体（由 LoadMap 章节生成，无 ModeScoped 标记）
+    let tiled_maps: Vec<Entity> = world
+        .query_filtered::<Entity, With<bevy_ecs_tiled::prelude::TiledMap>>()
+        .iter(world)
+        .collect();
+    for entity in tiled_maps {
+        world.despawn(entity);
+    }
+
+    info!("已完成游戏状态重置");
+}
+
+/// 从 SoupruneConfig 加载输入配置并插入所有输入相关资源。
+///
+/// 插入：ActionRegistry, PlayerInputSettings, InputBehaviorConfig。
+/// 调用方需要先插入 `SoupruneConfig` 资源。
+pub fn insert_input_resources(app: &mut App) {
+    let config = app
+        .world()
+        .get_resource::<config::SoupruneConfig>()
+        .expect("SoupruneConfig must be inserted before calling insert_input_resources");
+    let projects_base = config::get_projects_base_path();
+    let input_config_path = projects_base
+        .join(&config.project.mod_name)
+        .join(&config.game.input_config_path);
+    let input_config = input::InputConfig::load_from_file(&input_config_path);
+    let action_registry = input_config.build_registry();
+    let player_input_settings =
+        input::PlayerInputSettings::from_config(&input_config, &action_registry);
+    let input_behavior_config = input::InputBehaviorConfig::from_config(&input_config);
+    app.insert_resource(action_registry)
+        .insert_resource(player_input_settings)
+        .insert_resource(input_behavior_config);
+}
+
+/// 从 SoupruneConfig 推断字体目录并插入 `bevy_rich_text3d::LoadFonts` 资源。
+///
+/// 调用方需要先插入 `SoupruneConfig` 资源。
+pub fn insert_font_resources(app: &mut App) {
+    let config = app
+        .world()
+        .get_resource::<config::SoupruneConfig>()
+        .expect("SoupruneConfig must be inserted before calling insert_font_resources");
+    let projects_base = config::get_projects_base_path();
+    let font_dir = projects_base
+        .join(&config.project.mod_name)
+        .join("assets/fonts")
+        .to_string_lossy()
+        .into_owned();
+    app.insert_resource(bevy_rich_text3d::LoadFonts {
+        font_directories: vec![font_dir],
+        ..Default::default()
+    });
 }
 
 pub fn run() {
@@ -546,29 +770,11 @@ pub fn run() {
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)
-        .insert_resource(input_behavior_config)
-        .init_state::<app_state::AppState>()
-        .init_state::<app_state::SequenceSubState>()
-        .init_resource::<app_state::SequenceMode>()
-        .add_message::<app_state::ModeChanged>()
-        .add_systems(
-            PreUpdate,
-            (
-                app_state::detect_mode_changes,
-                app_state::cleanup_mode_scoped_entities,
-            )
-                .chain(),
-        )
-        .configure_sets(
-            Update,
-            view::ViewUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .configure_sets(
-            Update,
-            sequencer::SequencerUpdate.run_if(in_state(app_state::AppState::Running)),
-        )
-        .add_plugins(get_game_plugins())
-        .run();
+        .insert_resource(input_behavior_config);
+
+    init_game_state(&mut app);
+
+    app.add_plugins(get_game_plugins()).run();
 }
 
 #[cfg(target_os = "android")]

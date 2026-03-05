@@ -385,7 +385,14 @@ pub fn spawn_dynamic_view_system(
             Without<ViewBox>,
         ),
     >,
-    camera_query: Query<&Transform, (With<Camera2d>, Without<DebugCamera>)>,
+    camera_query: Query<
+        (&Transform, &Camera),
+        (
+            With<Camera2d>,
+            With<crate::core::camera::MainGameCamera>,
+            Without<DebugCamera>,
+        ),
+    >,
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
@@ -416,12 +423,9 @@ pub fn spawn_dynamic_view_system(
             }
         }
 
-        let camera_transform = match camera_query.single() {
-            Ok(transform) => transform,
-            Err(_) => {
-                warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
-                continue;
-            }
+        let Some((camera_transform, _)) = camera_query.iter().find(|(_, c)| c.is_active) else {
+            warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
+            continue;
         };
 
         info!(

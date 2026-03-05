@@ -184,6 +184,46 @@ pub fn spawn_sprite_entity(
 
     let entity_id = entity_commands.id();
 
+    // Check if transform has dynamic expressions, add DynamicViewElement if so.
+    // This ensures fact-dependent transforms are re-evaluated when facts change.
+    let mut has_dynamic = false;
+    let mut has_time_dependency = false;
+    if let Some(t) = &sprite_def.transform {
+        if let Some(trans) = &t.translation {
+            if trans.0.is_dynamic() || trans.1.is_dynamic() || trans.2.is_dynamic() {
+                has_dynamic = true;
+            }
+            if crate::core::view::ron_view::parsing::vec3_tuple_depends_on_time(trans) {
+                has_time_dependency = true;
+            }
+        }
+        if let Some(s) = &t.scale {
+            if s.0.is_dynamic() || s.1.is_dynamic() || s.2.is_dynamic() {
+                has_dynamic = true;
+            }
+            if crate::core::view::ron_view::parsing::vec3_tuple_depends_on_time(s) {
+                has_time_dependency = true;
+            }
+        }
+    }
+
+    if has_dynamic {
+        let processed_sprite_def = if let Some(rctx) = repeat_ctx {
+            crate::core::view::ron_view::parsing::preprocess_sprite_def_for_repeat(sprite_def, rctx)
+        } else {
+            sprite_def.clone()
+        };
+
+        commands.entity(entity_id).insert(DynamicViewElement {
+            sprite_def: Some(processed_sprite_def),
+            text_def: None,
+        });
+
+        if has_time_dependency {
+            commands.entity(entity_id).insert(TimeDependentTransform);
+        }
+    }
+
     // Set parent if provided
     if let Some(parent_entity) = parent {
         commands.entity(entity_id).insert(ChildOf(parent_entity));

@@ -33,15 +33,15 @@
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
-pub(crate) mod camera;
+pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
-pub(crate) mod fre_bridge;
+pub mod fre_bridge;
 pub mod fre_facts;
-pub(crate) mod input;
+pub mod input;
 pub mod item;
 pub mod map_property_schema;
 pub mod mod_system;
@@ -50,8 +50,8 @@ pub mod render_layers;
 pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;
-pub(crate) mod state_config;
-pub(crate) mod view;
+pub mod state_config;
+pub mod view;
 pub mod visual;
 
 use crate::extra;
@@ -65,7 +65,7 @@ use bevy::asset::AssetApp;
 /// It should initialize global resources and register plugins that must exist before most systems run.
 ///
 /// 它负责初始化全局资源，并注册在大多数系统运行前就必须存在的插件。
-pub(crate) struct CorePlugin;
+pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
@@ -104,7 +104,7 @@ impl Plugin for CorePlugin {
 /// It registers systems that should only run after most initialization work finishes.
 ///
 /// 它注册需要在大部分初始化完成后才运行的系统。
-pub(crate) struct GlobalPlugin;
+pub struct GlobalPlugin;
 
 impl Plugin for GlobalPlugin {
     fn build(&self, _app: &mut App) {

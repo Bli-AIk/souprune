@@ -75,10 +75,13 @@ pub fn process_player_action_system(
 pub fn process_player_spawn_requests(
     mut commands: Commands,
     query: Query<(Entity, &PlayerSpawnRequest)>,
-    configs: Res<Assets<BattlePlayerConfig>>,
+    configs: Option<Res<Assets<BattlePlayerConfig>>>,
     asset_server: Res<AssetServer>,
-    mut invincibility_config: ResMut<BattleInvincibilityConfig>,
+    invincibility_config: Option<ResMut<BattleInvincibilityConfig>>,
 ) {
+    let (Some(configs), Some(mut invincibility_config)) = (configs, invincibility_config) else {
+        return;
+    };
     for (entity, req) in query.iter() {
         if let Some(config) = configs.get(&req.config_handle) {
             info!("Config loaded. Spawning player...");

@@ -12,7 +12,6 @@
 //! 使用 Bevy 原生 Gizmos 系统实现 2D 碰撞体的调试可视化。
 //! 按 F3 切换碰撞体可视化（玩家为绿色，其他为浅绿色，触发器为青色）。
 
-#[cfg(feature = "debug")]
 pub mod debug_collider {
     use crate::app_state::overworld::character::components::PlayerControlled;
     use crate::app_state::overworld::tilemap::systems::TilemapCollider;

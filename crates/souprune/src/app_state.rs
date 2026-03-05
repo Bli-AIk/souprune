@@ -8,9 +8,9 @@
 use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
 
-pub(crate) mod app_setup;
-pub(crate) mod battle;
-pub(crate) mod overworld;
+pub mod app_setup;
+pub mod battle;
+pub mod overworld;
 
 /// 应用程序生命周期状态。Loading = 资源加载，Running = 序列运行中。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]

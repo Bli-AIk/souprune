@@ -42,7 +42,7 @@
 //! 5. 所有系统通过 LayeredFactDatabase 直接读写玩家数据
 //! 6. 存档/读档时，直接序列化/反序列化事实
 
-use bevy::app::{App, Plugin, Startup, Update};
+use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::prelude::{Commands, Component, Local, Name, Res, ResMut, Resource};
 use bevy_fact_rule_event::{
@@ -53,12 +53,13 @@ pub(crate) struct DataPlugin;
 
 impl Plugin for DataPlugin {
     fn build(&self, app: &mut App) {
+        let schedule = crate::game_schedule(app);
         app.init_resource::<GlobalRulesHandle>()
             .add_systems(
                 Startup,
                 (spawn_player_entity_system, load_global_rules_system),
             )
-            .add_systems(Update, apply_global_rules_system);
+            .add_systems(schedule, apply_global_rules_system);
     }
 }
 

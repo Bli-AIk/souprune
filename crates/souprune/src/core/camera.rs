@@ -21,10 +21,11 @@
 pub(crate) mod components;
 mod systems;
 
-pub(crate) use components::*;
+pub(crate) use components::Followable;
+pub use components::MainGameCamera;
 pub use systems::CameraUpdateSet;
 
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin};
 use bevy::prelude::IntoScheduleConfigs;
 
 pub(crate) struct CameraPlugin;
@@ -37,8 +38,9 @@ impl Plugin for CameraPlugin {
         //
         // 配置 CameraUpdateSet 在 Update 调度中运行。
         // 其他系统可以使用 .before(CameraUpdateSet) 确保它们先运行。
-        app.configure_sets(Update, CameraUpdateSet).add_systems(
-            Update,
+        let schedule = crate::game_schedule(app);
+        app.configure_sets(schedule, CameraUpdateSet).add_systems(
+            schedule,
             update_followable_camera_system.in_set(CameraUpdateSet),
         );
     }

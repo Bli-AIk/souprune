@@ -6,12 +6,12 @@
 //!
 //! 该模块已重构为子模块以更好地组织。
 
-pub(crate) mod box_components;
-pub(crate) mod camera;
+pub mod box_components;
+pub mod camera;
 pub(crate) mod hpbar;
 pub mod shader_material;
 pub(crate) mod state_sprite;
-pub(crate) mod text;
+pub mod text;
 pub(crate) mod view_element;
 
 // Re-export all public types
