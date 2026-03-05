@@ -1,16 +1,4 @@
-# complexity
 cognitive-complexity-threshold = 20
 excessive-nesting-threshold = 4
 too-many-lines-threshold = 120
 too-many-arguments-threshold = 7
-
-# type
-type-complexity-threshold = 250
-too-many-trait-bounds-threshold = 3
-
-# data
-stack-size-threshold = 512
-vec-box-size-threshold = 4096
-
-# match
-match-arm-count-threshold = 10
