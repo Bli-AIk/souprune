@@ -28,10 +28,29 @@ SEARCH_DIR="${2:-crates/}"
 
 errors=0
 
+# --- Build exclude lists ---
+# Submodules are independent repos checked by their own CI.
+SUBMODULE_EXCLUDES=""
+for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
+    SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
+done
+
+# lint_ignore.txt lists third-party crates excluded from ALL checks.
+FIND_PRUNE=""
+TOKEI_EXCLUDE=""
+if [ -f lint_ignore.txt ]; then
+    while IFS= read -r crate; do
+        [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
+        SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$crate"
+        FIND_PRUNE="$FIND_PRUNE -path */$crate -prune -o"
+        TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $SEARCH_DIR$crate"
+    done < lint_ignore.txt
+fi
+
 # --- Check 1: No mod.rs files (Rust 2018+ module style) ---
 # Exclude examples/ directories: Cargo treats .rs files in examples/ as binaries,
 # so mod.rs is the only viable pattern for shared helper modules there.
-mod_files=$(find "$SEARCH_DIR" -name 'mod.rs' -type f -not -path '*/examples/*' 2>/dev/null || true)
+mod_files=$(eval "find '$SEARCH_DIR' $FIND_PRUNE -name 'mod.rs' -type f -not -path '*/examples/*' -print" 2>/dev/null || true)
 if [ -n "$mod_files" ]; then
     echo -e "${RED}${BOLD}Error:${RESET} Found mod.rs files. Use Rust 2018+ module naming instead:"
     echo "$mod_files" | while read -r f; do echo -e "  ${YELLOW}$f${RESET}"; done
@@ -39,7 +58,7 @@ if [ -n "$mod_files" ]; then
 fi
 
 # --- Check 2: No Rust file exceeds max code lines (via tokei) ---
-over_limit=$(tokei "$SEARCH_DIR" --output json --files \
+over_limit=$(tokei "$SEARCH_DIR" $TOKEI_EXCLUDE --output json --files \
     | jq -r --argjson max "$MAX_LINES" \
         '.Rust.reports[]? | select(.stats.code > $max) | "\(.name)|\(.stats.code)"')
 if [ -n "$over_limit" ]; then
@@ -59,12 +78,6 @@ fi
 # Both #[allow(clippy::...)] and #![allow(clippy::...)] are banned.
 # Global lint thresholds belong in clippy.toml.
 # Individual exceptions should use #[expect(clippy::...)] with a reason.
-# Exclude submodule directories (they are independent repos)
-SUBMODULE_EXCLUDES=""
-for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
-    SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
-done
-
 allow_hits=$(grep -rn 'allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null || true)
 if [ -n "$allow_hits" ]; then
     echo -e "${RED}${BOLD}Error:${RESET} Found allow(clippy::...). Use clippy.toml for global config or #[expect] for individual cases:"

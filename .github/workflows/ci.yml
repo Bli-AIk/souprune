@@ -62,7 +62,15 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: |
+          EXCLUDES=""
+          if [ -f lint_ignore.txt ]; then
+            while IFS= read -r crate; do
+              [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
+              EXCLUDES="$EXCLUDES --exclude $crate"
+            done < lint_ignore.txt
+          fi
+          cargo clippy --workspace --all-targets $EXCLUDES -- -D warnings
 
       - name: Lint checks
         run: bash tokei_check.sh
