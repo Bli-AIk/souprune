@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments, clippy::type_complexity, clippy::excessive_nesting)]
 //! # SoupRune Editor
 //!
 //! # SoupRune 编辑器

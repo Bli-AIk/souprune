@@ -86,7 +86,6 @@ pub fn detect_fact_changes_system(
 ///
 /// 主协调系统。
 /// 计算期望状态并应用最小更改以达到该状态。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn view_reconciliation_system(
     mut commands: Commands,
     mut pending: ResMut<PendingReconciliations>,
@@ -168,7 +167,6 @@ pub fn view_reconciliation_system(
 
 /// Build current view tree from ECS queries for a specific root entity.
 /// 从特定根实体的 ECS 查询构建当前视图树。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 fn build_current_tree_from_query(
     root_entity: Entity,
     view_element_query: &Query<(
@@ -213,7 +211,6 @@ struct CollectedElement {
 
 /// Recursively collect all view element descendants.
 /// 递归收集所有视图元素子孙。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 fn collect_descendants(
     entity: Entity,
     view_element_query: &Query<(

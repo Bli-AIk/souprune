@@ -93,7 +93,6 @@ fn resolve_tween_val_f32(
 /// System to process TweenViewElement chapters and spawn bevy_tween animations.
 ///
 /// 处理 TweenViewElement 章节并生成 bevy_tween 动画的系统。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_tween_view_element_system(
     mut commands: Commands,
     active_chapters: Query<

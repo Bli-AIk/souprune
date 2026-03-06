@@ -184,7 +184,6 @@ pub fn create_sprite_from_atlas(
     }
 }
 
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 #[allow(dead_code)]
 pub fn get_sprite_from_config(
     sprite_registry: &mut ModuleSpriteRegistry,

@@ -2,6 +2,8 @@
 //!
 //! `.character.ron` 角色动画资产测试。
 
+#![allow(clippy::excessive_nesting)]
+
 #[path = "test_support.rs"]
 mod test_support;
 

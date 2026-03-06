@@ -151,8 +151,6 @@ pub fn cleanup_player_hitbox_system(
 /// System to detect bullet collision with player hitbox in chase mode.
 ///
 /// 检测追逐战模式下弹幕与玩家判定框碰撞的系统。
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn chase_damage_detection_system(
     mut commands: Commands,
     time: Res<Time>,

@@ -28,7 +28,6 @@ pub struct FreSystemParams<'w> {
 /// Spawn view elements for a specific entity.
 ///
 /// 为特定实体生成视图元素。
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub fn spawn_ron_view_for_entity(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -371,8 +370,6 @@ pub fn spawn_ron_view_for_entity(
 ///
 /// 统一的 View 生成系统（背包、战斗、追逐、对话）。
 /// 所有 View 生成都通过 SpawnViewRequest → 此系统。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub fn spawn_dynamic_view_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,

@@ -73,7 +73,6 @@ fn load_locale_mortar_system(
 #[derive(Resource)]
 pub struct LocaleLoaded;
 
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 fn read_locale_constants_system(
     mut commands: Commands,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,

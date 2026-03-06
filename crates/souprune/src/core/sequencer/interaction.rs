@@ -29,7 +29,6 @@ pub struct AwaitingFactChapter {
 /// System to process AwaitFact chapters - mark them as awaiting.
 ///
 /// 处理 AwaitFact 章节的系统 - 标记为等待状态。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_await_fact_system(
     mut commands: Commands,
     query: Query<

@@ -56,13 +56,15 @@ else
 fi
 
 # --- Check 3: No #[allow(clippy::...)] — use #[expect(clippy::...)] instead ---
+# Crate-level #![allow(clippy::...)] in lib.rs is permitted for globally-noisy lints.
 # Exclude submodule directories (they are independent repos)
 SUBMODULE_EXCLUDES=""
 for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
     SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
 done
 
-allow_hits=$(grep -rn '#\[allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null || true)
+allow_hits=$(grep -rn '#\[allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null \
+    | grep -v '#!\[allow(clippy::' || true)
 if [ -n "$allow_hits" ]; then
     echo -e "${RED}${BOLD}Error:${RESET} Found #[allow(clippy::...)]. Use #[expect(clippy::...)] instead:"
     echo "$allow_hits" | while read -r line; do echo -e "  ${YELLOW}$line${RESET}"; done

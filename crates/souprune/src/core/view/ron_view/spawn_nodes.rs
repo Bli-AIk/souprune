@@ -14,7 +14,6 @@ use bevy::prelude::*;
 /// Spawn a single view node and its children.
 ///
 /// 生成单个视图节点及其子节点。
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub fn spawn_view_node(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -113,7 +112,6 @@ pub fn spawn_view_node(
 /// Internal function to spawn a single view node with optional repeat context.
 ///
 /// 带可选重复上下文生成单个视图节点的内部函数。
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 fn spawn_view_node_with_repeat_context(
     commands: &mut Commands,
     asset_server: &AssetServer,

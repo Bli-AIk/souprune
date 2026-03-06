@@ -2,6 +2,7 @@
     dead_code,
     clippy::too_many_arguments,
     clippy::type_complexity,
+    clippy::excessive_nesting,
     unexpected_cfgs
 )]
 //! # lib.rs

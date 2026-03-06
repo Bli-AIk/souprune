@@ -39,21 +39,33 @@ jobs:
             libxcursor-dev \
             libgl1-mesa-dev \
             pkg-config \
-            mold
+            mold \
+            jq
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "ci-test"
 
+      - name: Install tools
+        run: cargo install tokei
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
       - name: Check formatting
         run: cargo fmt -- --check
+
+      - name: Clippy
+        run: cargo clippy -p souprune -p souprune_editor --all-targets -- -D warnings -A clippy::excessive_nesting
+
+      - name: Lint checks
+        run: bash tokei_check.sh
 
       - name: Build
         run: cargo build --workspace

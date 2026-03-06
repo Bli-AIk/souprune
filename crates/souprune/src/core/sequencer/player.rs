@@ -28,7 +28,6 @@ pub struct PlayerSpawnRequest {
 /// System to process player actions.
 ///
 /// 处理玩家动作的系统。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,

@@ -221,7 +221,6 @@ pub fn spawn_sdf_box(
 }
 
 /// Helper function to spawn an SDF box with border.
-#[expect(clippy::too_many_arguments)] // reason: Bevy system with many parameters
 pub fn spawn_sdf_box_with_border(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,

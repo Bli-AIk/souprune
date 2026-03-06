@@ -25,7 +25,6 @@ pub struct SequencerBgm {
 /// System to process SetBgm chapters.
 ///
 /// 处理 SetBgm 章节的系统。
-#[expect(clippy::type_complexity)] // reason: Bevy query type complexity
 pub fn process_set_bgm_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
