@@ -23,40 +23,41 @@ pub fn process_camera_action_system(
     resolution_scale: Option<Res<crate::app_state::app_setup::ResolutionScale>>,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetCamera(action) = &active_chapter.chapter {
-            for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
-                match action {
-                    super::chapter_schema::CameraAction::SetPosition(pos) => {
-                        transform.translation = pos.extend(transform.translation.z);
-                    }
-                    super::chapter_schema::CameraAction::SetZoom(zoom) => {
-                        if let Projection::Orthographic(ortho) = &mut *proj {
-                            // On Android with ScalingMode::Fixed, scale=1.0 already shows
-                            // base resolution. On desktop with WindowSize, divide by resolution_scale.
-                            #[cfg(target_os = "android")]
-                            {
-                                ortho.scale = *zoom;
-                            }
-                            #[cfg(not(target_os = "android"))]
-                            {
-                                ortho.scale = *zoom
-                                    / resolution_scale
-                                        .as_ref()
-                                        .map(|r| r.get() as f32)
-                                        .unwrap_or(1.0);
-                            }
-                            info!(
-                                "[Battle] SetZoom: requested={}, actual={}",
-                                zoom, ortho.scale
-                            );
-                        }
-                    }
-                    _ => {
-                        warn!("Camera action {:?} not implemented yet", action);
-                    }
+        let Chapter::SetCamera(action) = &active_chapter.chapter else {
+            continue;
+        };
+        for (_cam_entity, mut transform, mut proj) in camera_query.iter_mut() {
+            match action {
+                super::chapter_schema::CameraAction::SetPosition(pos) => {
+                    transform.translation = pos.extend(transform.translation.z);
+                }
+                super::chapter_schema::CameraAction::SetZoom(zoom) => {
+                    #[cfg(target_os = "android")]
+                    let scale_factor = 1.0;
+                    #[cfg(not(target_os = "android"))]
+                    let scale_factor = resolution_scale
+                        .as_ref()
+                        .map(|r| r.get() as f32)
+                        .unwrap_or(1.0);
+                    apply_camera_zoom(&mut proj, *zoom, scale_factor);
+                }
+                _ => {
+                    warn!("Camera action {:?} not implemented yet", action);
                 }
             }
-            commands.entity(entity).insert(ChapterFinished);
         }
+        commands.entity(entity).insert(ChapterFinished);
     }
+}
+
+/// Apply zoom to an orthographic projection.
+fn apply_camera_zoom(proj: &mut Projection, zoom: f32, scale_factor: f32) {
+    let Projection::Orthographic(ortho) = proj else {
+        return;
+    };
+    ortho.scale = zoom / scale_factor;
+    info!(
+        "[Battle] SetZoom: requested={}, actual={}",
+        zoom, ortho.scale
+    );
 }

@@ -31,6 +31,41 @@ use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_rich_text3d::{SegmentStyle, Text3d, Text3dSegment, Text3dStyling, TextAtlas};
 use std::collections::VecDeque;
 
+/// Parse a `{#RRGGBB:content}` color tag, consuming characters from the iterator.
+/// Returns `(color_hex_string, content_string)`.
+fn parse_color_tag(chars: &mut std::iter::Peekable<std::str::Chars>) -> (String, String) {
+    chars.next(); // consume '#'
+    let mut color_str = String::new();
+    while let Some(&ch) = chars.peek() {
+        if ch == ':' {
+            chars.next();
+            break;
+        }
+        if let Some(c) = chars.next() {
+            color_str.push(c);
+        }
+    }
+
+    let mut content = String::new();
+    let mut depth = 1;
+    for ch in chars.by_ref() {
+        if ch == '{' {
+            depth += 1;
+            content.push(ch);
+        } else if ch == '}' {
+            depth -= 1;
+            if depth == 0 {
+                break;
+            }
+            content.push(ch);
+        } else {
+            content.push(ch);
+        }
+    }
+
+    (color_str, content)
+}
+
 /// Parse text with color tags while preserving whitespace.
 /// Supports `{#RRGGBB:text}` syntax for colored text.
 pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
@@ -51,40 +86,7 @@ pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
                 buffer.clear();
             }
 
-            // Parse color tag: {#RRGGBB:content}
-            //
-            // 解析颜色标签：{#RRGGBB:content}
-            chars.next(); // consume '#'
-            let mut color_str = String::new();
-            while let Some(&ch) = chars.peek() {
-                if ch == ':' {
-                    chars.next();
-                    break;
-                }
-                if let Some(c) = chars.next() {
-                    color_str.push(c);
-                }
-            }
-
-            // Parse content until '}'
-            //
-            // 解析内容直到 '}'
-            let mut content = String::new();
-            let mut depth = 1;
-            for ch in chars.by_ref() {
-                if ch == '{' {
-                    depth += 1;
-                    content.push(ch);
-                } else if ch == '}' {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                    content.push(ch);
-                } else {
-                    content.push(ch);
-                }
-            }
+            let (color_str, content) = parse_color_tag(&mut chars);
 
             // Add colored segment
             //
@@ -364,15 +366,11 @@ fn spawn_layer_recursive(
     // 递归生成子节点
     if let Some(spawned) = spawned_entity {
         for child_def in &layer_def.children {
-            if let Some(child_filler) =
-                spawn_layer_recursive(commands, spawned, child_def, ui_box, meshes, sdf_materials)
-            {
-                // Propagate filler entity from children
-                // 从子节点传播 filler 实体
-                if filler_entity.is_none() {
-                    filler_entity = Some(child_filler);
-                }
-            }
+            let child_filler =
+                spawn_layer_recursive(commands, spawned, child_def, ui_box, meshes, sdf_materials);
+            // Propagate filler entity from children (keep the first found)
+            // 从子节点传播 filler 实体（保留第一个找到的）
+            filler_entity = filler_entity.or(child_filler);
         }
     }
 
@@ -478,24 +476,46 @@ fn spawn_texts_for_filler(
                     cmd.insert(ViewTextTemplate(template.clone()));
                 }
 
-                // Add VisibleWhen component if text has visible_when expression
-                // 如果文本有 visible_when 表达式则添加 VisibleWhen 组件
-                // Initial visibility is Hidden, will be evaluated by evaluate_visible_when_system
-                // 初始可见性为 Hidden，将由 evaluate_visible_when_system 评估
-                if let Some(visible_when_expr) = &text_config.visible_when {
-                    let expr = visible_when_expr.trim();
-                    if !expr.is_empty() {
-                        info!(
-                            "Adding VisibleWhen to SDF text '{}': '{}'",
-                            text_config.name, expr
-                        );
-                        cmd.insert(VisibleWhen {
-                            expression: expr.to_string(),
-                        });
-                    }
+                // Add VisibleWhen component if text has non-empty visible_when expression
+                // 如果文本有非空的 visible_when 表达式则添加 VisibleWhen 组件
+                if let Some(expr) = text_config
+                    .visible_when
+                    .as_ref()
+                    .map(|e| e.trim())
+                    .filter(|e| !e.is_empty())
+                {
+                    info!(
+                        "Adding VisibleWhen to SDF text '{}': '{}'",
+                        text_config.name, expr
+                    );
+                    cmd.insert(VisibleWhen {
+                        expression: expr.to_string(),
+                    });
                 }
             }
         });
+}
+
+/// Update a single SDF shape's dimensions, material, and mesh.
+fn update_single_sdf_shape(
+    entity: Entity,
+    half_w: f32,
+    half_h: f32,
+    sdf_shape_query: &mut Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &Mesh2d)>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+) {
+    let Ok((mut shape, mat_handle, mesh_handle)) = sdf_shape_query.get_mut(entity) else {
+        return;
+    };
+    shape.half_width = half_w;
+    shape.half_height = half_h;
+    if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
+        *material = shape.to_material();
+    }
+    if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+        *mesh = shape.create_mesh();
+    }
 }
 
 /// Update SDF-based UI geometry each time layout components change.
@@ -523,113 +543,89 @@ pub fn update_sdf_view_shape_system(
         // Determine expected SDF shape count based on structure_file
         // 根据 structure_file 确定预期的 SDF 形状数量
         let expected_shapes = if let Some(structure_file) = &ui_box.structure_file {
-            // Load layer_count from the structure file
-            // 从结构文件加载 layer_count
             load_sdf_structure(structure_file)
                 .map(|s| s.layer_count)
-                .unwrap_or(1) // Fallback to single layer if loading fails
+                .unwrap_or(1)
         } else {
-            1 // Single layer (default)
+            1
         };
 
-        match children_opt {
-            Some(children) => {
-                let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
-                let mut sdf_shape_entities: Vec<Entity> = Vec::new();
+        let Some(children) = children_opt else {
+            trace!(
+                "Creating new SDF shape children for UI box at position: {:?}",
+                transform.translation
+            );
+            spawn_ui_box_children(
+                &mut commands,
+                entity,
+                ui_box,
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+            );
+            continue;
+        };
 
-                while let Some(child) = queue.pop_front() {
-                    if sdf_shape_query.get(child).is_ok() {
-                        sdf_shape_entities.push(child);
-                        if sdf_shape_entities.len() >= expected_shapes {
-                            break;
-                        }
-                    }
+        // BFS search for existing SDF shape entities
+        let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
+        let mut sdf_shape_entities: Vec<Entity> = Vec::new();
 
-                    if let Ok(grandchildren) = children_query.get(child) {
-                        queue.extend(grandchildren.to_vec());
-                    }
-                }
-
-                if sdf_shape_entities.len() >= expected_shapes {
-                    trace!("Updating existing SDF shape children for UI box");
-
-                    if expected_shapes == 1 {
-                        // Update single shape
-                        if let Ok((mut shape, mat_handle, mesh_handle)) =
-                            sdf_shape_query.get_mut(sdf_shape_entities[0])
-                        {
-                            shape.half_width = box_width / 2.0;
-                            shape.half_height = box_height / 2.0;
-                            // Update material
-                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
-                                *material = shape.to_material();
-                            }
-                            // Update mesh to match new frame size
-                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
-                                *mesh = shape.create_mesh();
-                            }
-                        }
-                    } else {
-                        // Update outer (border) and inner (filler) shapes
-                        if let Ok((mut outer_shape, mat_handle, mesh_handle)) =
-                            sdf_shape_query.get_mut(sdf_shape_entities[0])
-                        {
-                            outer_shape.half_width = (box_width + border_width * 2.0) / 2.0;
-                            outer_shape.half_height = (box_height + border_width * 2.0) / 2.0;
-                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
-                                *material = outer_shape.to_material();
-                            }
-                            // Update mesh to match new frame size
-                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
-                                *mesh = outer_shape.create_mesh();
-                            }
-                        }
-
-                        if let Ok((mut inner_shape, mat_handle, mesh_handle)) =
-                            sdf_shape_query.get_mut(sdf_shape_entities[1])
-                        {
-                            inner_shape.half_width = box_width / 2.0;
-                            inner_shape.half_height = box_height / 2.0;
-                            if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
-                                *material = inner_shape.to_material();
-                            }
-                            // Update mesh to match new frame size
-                            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
-                                *mesh = inner_shape.create_mesh();
-                            }
-                        }
-                    }
-                } else {
-                    trace!(
-                        "Adding SDF shape children to existing UI box at position: {:?}",
-                        transform.translation
-                    );
-
-                    spawn_ui_box_children(
-                        &mut commands,
-                        entity,
-                        ui_box,
-                        &mut meshes,
-                        &mut sdf_materials,
-                        &mut color_materials,
-                    );
-                }
+        while let Some(child) = queue.pop_front() {
+            if sdf_shape_query.get(child).is_ok() {
+                sdf_shape_entities.push(child);
             }
-            None => {
-                trace!(
-                    "Creating new SDF shape children for UI box at position: {:?}",
-                    transform.translation
-                );
-
-                spawn_ui_box_children(
-                    &mut commands,
-                    entity,
-                    ui_box,
-                    &mut meshes,
-                    &mut sdf_materials,
-                    &mut color_materials,
-                );
+            if sdf_shape_entities.len() >= expected_shapes {
+                break;
             }
+            if let Ok(grandchildren) = children_query.get(child) {
+                queue.extend(grandchildren.to_vec());
+            }
+        }
+
+        if sdf_shape_entities.len() < expected_shapes {
+            trace!(
+                "Adding SDF shape children to existing UI box at position: {:?}",
+                transform.translation
+            );
+            spawn_ui_box_children(
+                &mut commands,
+                entity,
+                ui_box,
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+            );
+            continue;
+        }
+
+        trace!("Updating existing SDF shape children for UI box");
+        if expected_shapes == 1 {
+            update_single_sdf_shape(
+                sdf_shape_entities[0],
+                box_width / 2.0,
+                box_height / 2.0,
+                &mut sdf_shape_query,
+                &mut sdf_materials,
+                &mut meshes,
+            );
+        } else {
+            // Update outer (border) and inner (filler) shapes
+            update_single_sdf_shape(
+                sdf_shape_entities[0],
+                (box_width + border_width * 2.0) / 2.0,
+                (box_height + border_width * 2.0) / 2.0,
+                &mut sdf_shape_query,
+                &mut sdf_materials,
+                &mut meshes,
+            );
+            update_single_sdf_shape(
+                sdf_shape_entities[1],
+                box_width / 2.0,
+                box_height / 2.0,
+                &mut sdf_shape_query,
+                &mut sdf_materials,
+                &mut meshes,
+            );
         }
     }
 }

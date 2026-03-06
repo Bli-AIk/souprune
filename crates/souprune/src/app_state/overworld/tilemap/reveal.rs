@@ -165,6 +165,25 @@ impl RippleDirection {
             RippleDirection::Right,
         ]
     }
+
+    /// Determine the primary direction from a tile delta relative to the origin.
+    /// For tiles at the origin (0, 0), defaults to Up.
+    fn from_delta(dx: i32, dy: i32) -> Self {
+        if dx == 0 && dy == 0 {
+            return RippleDirection::Up;
+        }
+        if dx.abs() >= dy.abs() {
+            if dx > 0 {
+                RippleDirection::Right
+            } else {
+                RippleDirection::Left
+            }
+        } else if dy > 0 {
+            RippleDirection::Up
+        } else {
+            RippleDirection::Down
+        }
+    }
 }
 
 /// Resource to track the reveal animation state.
@@ -402,26 +421,30 @@ fn cache_tilemap_textures_system(
 
     for (tilemap_texture, tile_size) in tilemaps_query.iter() {
         texture_cache.tile_size = Vec2::new(tile_size.x, tile_size.y);
+        cache_texture(tilemap_texture, &mut texture_cache.textures);
+    }
+}
 
-        match tilemap_texture {
-            TilemapTexture::Single(handle) => {
-                if !texture_cache.textures.contains(handle) {
-                    texture_cache.textures.push(handle.clone());
+/// Insert texture handles from a `TilemapTexture` into the cache, skipping duplicates.
+fn cache_texture(tilemap_texture: &TilemapTexture, textures: &mut Vec<Handle<Image>>) {
+    match tilemap_texture {
+        TilemapTexture::Single(handle) => {
+            if !textures.contains(handle) {
+                textures.push(handle.clone());
+            }
+        }
+        #[cfg(not(feature = "atlas"))]
+        TilemapTexture::Vector(handles) => {
+            for handle in handles {
+                if !textures.contains(handle) {
+                    textures.push(handle.clone());
                 }
             }
-            #[cfg(not(feature = "atlas"))]
-            TilemapTexture::Vector(handles) => {
-                for handle in handles {
-                    if !texture_cache.textures.contains(handle) {
-                        texture_cache.textures.push(handle.clone());
-                    }
-                }
-            }
-            #[cfg(not(feature = "atlas"))]
-            TilemapTexture::TextureContainer(handle) => {
-                if !texture_cache.textures.contains(handle) {
-                    texture_cache.textures.push(handle.clone());
-                }
+        }
+        #[cfg(not(feature = "atlas"))]
+        TilemapTexture::TextureContainer(handle) => {
+            if !textures.contains(handle) {
+                textures.push(handle.clone());
             }
         }
     }
@@ -564,23 +587,7 @@ fn create_tile_sprites_system(
                 let distance = (dx.abs() + dy.abs()) as u32;
                 max_distance = max_distance.max(distance);
 
-                // Determine the primary direction from origin to this tile
-                // For tiles at the origin, default to Up
-                // 确定从原点到此瓦片的主要方向
-                // 对于原点处的瓦片，默认为 Up
-                let direction = if dx == 0 && dy == 0 {
-                    RippleDirection::Up
-                } else if dx.abs() >= dy.abs() {
-                    if dx > 0 {
-                        RippleDirection::Right
-                    } else {
-                        RippleDirection::Left
-                    }
-                } else if dy > 0 {
-                    RippleDirection::Up
-                } else {
-                    RippleDirection::Down
-                };
+                let direction = RippleDirection::from_delta(dx, dy);
 
                 tile_positions.insert(pos_key, (Vec2::new(world_x, world_y), distance, direction));
             },
@@ -684,6 +691,16 @@ fn collect_pending_tiles_system(
     }
 }
 
+/// Advance to the next reveal step and mark as finished when all distances are covered.
+fn advance_reveal_step(reveal_state: &mut TileRevealState) {
+    reveal_state.current_step += 1;
+    reveal_state.pending_tiles_by_direction.clear();
+    if reveal_state.current_step > reveal_state.max_distance {
+        reveal_state.all_triggered = true;
+        info!("All tile reveal animations triggered");
+    }
+}
+
 /// Update the reveal animation, triggering scale tweens for tiles.
 /// On each quarter note, reveals tiles from random available directions.
 /// A direction can only be used again after all four directions have been used.
@@ -773,13 +790,7 @@ fn update_reveal_animation_system(
             if any_direction_with_tiles.is_empty() {
                 // No more tiles at current step, move to next step
                 // 当前步骤没有更多瓦片，移动到下一步
-                reveal_state.current_step += 1;
-                reveal_state.pending_tiles_by_direction.clear();
-
-                if reveal_state.current_step > reveal_state.max_distance {
-                    reveal_state.all_triggered = true;
-                    info!("All tile reveal animations triggered");
-                }
+                advance_reveal_step(&mut reveal_state);
                 return;
             }
             any_direction_with_tiles

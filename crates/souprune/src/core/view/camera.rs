@@ -146,29 +146,14 @@ pub(crate) fn update_dynamic_camera_anchors_system(
 
     for (mut anchor, dynamic, mut transform) in anchored_query.iter_mut() {
         if let Some(expr) = &dynamic.y_expression {
-            match eval_number(expr, &vars) {
-                Ok(f) => {
-                    let new_y = f as f32;
-                    if anchor.offset.y != new_y {
-                        trace!(
-                            "Updating dynamic anchor Y: expr='{}', result={}, old_y={}, new_y={}, player_y={}, camera_y={}",
-                            expr,
-                            f,
-                            anchor.offset.y,
-                            new_y,
-                            player_transform.translation.y,
-                            camera_transform.translation.y
-                        );
-                        anchor.offset.y = new_y;
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to evaluate dynamic anchor expression '{}': {}",
-                        expr, e
-                    );
-                }
-            }
+            eval_and_update_anchor(
+                expr,
+                &vars,
+                &mut anchor.offset.y,
+                "Y",
+                player_transform,
+                camera_transform,
+            );
         }
 
         // Similar logic for X and Z if needed, but for now focusing on Y as per user report.
@@ -186,6 +171,41 @@ pub(crate) fn update_dynamic_camera_anchors_system(
         let new_translation = camera_transform.translation + anchor.offset;
         if transform.translation != new_translation {
             transform.translation = new_translation;
+        }
+    }
+}
+
+/// Evaluate a dynamic anchor expression and update the corresponding offset axis.
+fn eval_and_update_anchor(
+    expr: &str,
+    vars: &BTreeMap<String, f64>,
+    current: &mut f32,
+    axis: &str,
+    player_transform: &Transform,
+    camera_transform: &Transform,
+) {
+    match eval_number(expr, vars) {
+        Ok(f) => {
+            let new_val = f as f32;
+            if *current != new_val {
+                trace!(
+                    "Updating dynamic anchor {}: expr='{}', result={}, old={}, new={}, player_y={}, camera_y={}",
+                    axis,
+                    expr,
+                    f,
+                    *current,
+                    new_val,
+                    player_transform.translation.y,
+                    camera_transform.translation.y
+                );
+            }
+            *current = new_val;
+        }
+        Err(e) => {
+            warn!(
+                "Failed to evaluate dynamic anchor expression '{}': {}",
+                expr, e
+            );
         }
     }
 }

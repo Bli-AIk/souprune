@@ -96,24 +96,29 @@ fn search_audio_recursive(
         let path = entry.path();
         let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
-        if path.is_file() {
-            if let Some(exact) = exact_name {
-                if file_name == exact {
-                    return Some(path);
-                }
-            } else {
-                let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-                let file_ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-                if file_stem == stem && AUDIO_EXTENSIONS.contains(&file_ext) {
-                    results.push(path.clone());
-                }
+        if path.is_dir() {
+            if !file_name.starts_with('.')
+                && let Some(found) = search_audio_recursive(&path, stem, exact_name)
+            {
+                return Some(found);
             }
-        } else if path.is_dir()
-            && !file_name.starts_with('.')
-            && let Some(found) = search_audio_recursive(&path, stem, exact_name)
-        {
-            return Some(found);
+            continue;
+        }
+        if !path.is_file() {
+            continue;
+        }
+
+        if let Some(exact) = exact_name {
+            if file_name == exact {
+                return Some(path);
+            }
+        } else {
+            let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            let file_ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+            if file_stem == stem && AUDIO_EXTENSIONS.contains(&file_ext) {
+                results.push(path.clone());
+            }
         }
     }
 

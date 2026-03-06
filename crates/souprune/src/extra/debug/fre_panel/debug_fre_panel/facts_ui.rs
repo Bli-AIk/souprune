@@ -2,7 +2,8 @@
 //! FRE 调试面板的事实相关 UI 渲染。
 
 use super::{
-    FREPanelState, FactEventHistory, FactLayerSelection, FactTypeSelection, MAX_EVENT_HISTORY,
+    FREPanelState, FactEventHistory, FactEventRecord, FactLayerSelection, FactTypeSelection,
+    MAX_EVENT_HISTORY,
 };
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
@@ -109,261 +110,14 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
         let mut modifications: Vec<(Entity, String, FactValue)> = Vec::new();
 
         for (entity, display_name, namespace, facts) in &view_roots {
-            let header_text = format!("🖼 {} ({})", display_name, namespace);
-            egui::CollapsingHeader::new(header_text)
-                .default_open(true)
-                .show(ui, |ui| {
-                    if facts.is_empty() {
-                        ui.label("(no local facts)");
-                        return;
-                    }
-
-                    for (key, value) in facts {
-                        ui.horizontal(|ui| {
-                            // Key label with namespace prefix indicator
-                            let key_label = if key.starts_with("view.") {
-                                format!("  {}", key)
-                            } else {
-                                format!("  ${}", key)
-                            };
-                            ui.label(&key_label);
-
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| match value {
-                                    FactValue::Int(v) => {
-                                        let mut val = *v;
-                                        if ui.add(egui::DragValue::new(&mut val)).changed() {
-                                            modifications.push((
-                                                *entity,
-                                                key.clone(),
-                                                FactValue::Int(val),
-                                            ));
-                                        }
-                                    }
-                                    FactValue::Float(v) => {
-                                        let mut val = *v;
-                                        if ui
-                                            .add(egui::DragValue::new(&mut val).speed(0.1))
-                                            .changed()
-                                        {
-                                            modifications.push((
-                                                *entity,
-                                                key.clone(),
-                                                FactValue::Float(val),
-                                            ));
-                                        }
-                                    }
-                                    FactValue::Bool(v) => {
-                                        let mut checked = *v;
-                                        if ui.checkbox(&mut checked, "").changed() {
-                                            modifications.push((
-                                                *entity,
-                                                key.clone(),
-                                                FactValue::Bool(checked),
-                                            ));
-                                        }
-                                    }
-                                    FactValue::String(s) => {
-                                        let mut text = s.clone();
-                                        let response = ui.add(
-                                            egui::TextEdit::singleline(&mut text)
-                                                .desired_width(150.0),
-                                        );
-                                        if response.changed() {
-                                            modifications.push((
-                                                *entity,
-                                                key.clone(),
-                                                FactValue::String(text.clone()),
-                                            ));
-                                        }
-                                    }
-                                    FactValue::StringList(list) => {
-                                        // Show list with editable elements
-                                        ui.push_id(format!("strlist_{}", key), |ui| {
-                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                let mut new_list = list.clone();
-                                                let mut changed = false;
-                                                let mut to_remove: Option<usize> = None;
-
-                                                for (idx, item) in new_list.iter_mut().enumerate() {
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(format!("  {}:", idx));
-                                                        let response = ui.add(
-                                                            egui::TextEdit::singleline(item)
-                                                                .desired_width(120.0),
-                                                        );
-                                                        if response.changed() {
-                                                            changed = true;
-                                                        }
-                                                        if ui.small_button("🗑").clicked() {
-                                                            to_remove = Some(idx);
-                                                        }
-                                                    });
-                                                }
-
-                                                // Handle removal
-                                                if let Some(idx) = to_remove {
-                                                    new_list.remove(idx);
-                                                    changed = true;
-                                                }
-
-                                                // Add new element button
-                                                if ui.small_button("➕ Add").clicked() {
-                                                    new_list.push(String::new());
-                                                    changed = true;
-                                                }
-
-                                                if changed {
-                                                    modifications.push((
-                                                        *entity,
-                                                        key.clone(),
-                                                        FactValue::StringList(new_list),
-                                                    ));
-                                                }
-                                            });
-                                        });
-                                    }
-                                    FactValue::IntList(list) => {
-                                        // Show int list with editable elements
-                                        ui.push_id(format!("intlist_{}", key), |ui| {
-                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                let mut new_list = list.clone();
-                                                let mut changed = false;
-                                                let mut to_remove: Option<usize> = None;
-
-                                                for (idx, item) in new_list.iter_mut().enumerate() {
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(format!("  {}:", idx));
-                                                        if ui
-                                                            .add(egui::DragValue::new(item))
-                                                            .changed()
-                                                        {
-                                                            changed = true;
-                                                        }
-                                                        if ui.small_button("🗑").clicked() {
-                                                            to_remove = Some(idx);
-                                                        }
-                                                    });
-                                                }
-
-                                                // Handle removal
-                                                if let Some(idx) = to_remove {
-                                                    new_list.remove(idx);
-                                                    changed = true;
-                                                }
-
-                                                // Add new element button
-                                                if ui.small_button("➕ Add").clicked() {
-                                                    new_list.push(0);
-                                                    changed = true;
-                                                }
-
-                                                if changed {
-                                                    modifications.push((
-                                                        *entity,
-                                                        key.clone(),
-                                                        FactValue::IntList(new_list),
-                                                    ));
-                                                }
-                                            });
-                                        });
-                                    }
-                                    FactValue::FloatList(list) => {
-                                        // Show float list with editable elements
-                                        ui.push_id(format!("floatlist_{}", key), |ui| {
-                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                let mut new_list = list.clone();
-                                                let mut changed = false;
-                                                let mut to_remove: Option<usize> = None;
-
-                                                for (idx, item) in new_list.iter_mut().enumerate() {
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(format!("  {}:", idx));
-                                                        if ui
-                                                            .add(
-                                                                egui::DragValue::new(item)
-                                                                    .speed(0.1),
-                                                            )
-                                                            .changed()
-                                                        {
-                                                            changed = true;
-                                                        }
-                                                        if ui.small_button("🗑").clicked() {
-                                                            to_remove = Some(idx);
-                                                        }
-                                                    });
-                                                }
-
-                                                // Handle removal
-                                                if let Some(idx) = to_remove {
-                                                    new_list.remove(idx);
-                                                    changed = true;
-                                                }
-
-                                                // Add new element button
-                                                if ui.small_button("➕ Add").clicked() {
-                                                    new_list.push(0.0);
-                                                    changed = true;
-                                                }
-
-                                                if changed {
-                                                    modifications.push((
-                                                        *entity,
-                                                        key.clone(),
-                                                        FactValue::FloatList(new_list),
-                                                    ));
-                                                }
-                                            });
-                                        });
-                                    }
-                                    FactValue::BoolList(list) => {
-                                        // Show bool list with editable elements
-                                        ui.push_id(format!("boollist_{}", key), |ui| {
-                                            ui.collapsing(format!("[{}]", list.len()), |ui| {
-                                                let mut new_list = list.clone();
-                                                let mut changed = false;
-                                                let mut to_remove: Option<usize> = None;
-
-                                                for (idx, item) in new_list.iter_mut().enumerate() {
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(format!("  {}:", idx));
-                                                        if ui.checkbox(item, "").changed() {
-                                                            changed = true;
-                                                        }
-                                                        if ui.small_button("🗑").clicked() {
-                                                            to_remove = Some(idx);
-                                                        }
-                                                    });
-                                                }
-
-                                                // Handle removal
-                                                if let Some(idx) = to_remove {
-                                                    new_list.remove(idx);
-                                                    changed = true;
-                                                }
-
-                                                // Add new element button
-                                                if ui.small_button("➕ Add").clicked() {
-                                                    new_list.push(false);
-                                                    changed = true;
-                                                }
-
-                                                if changed {
-                                                    modifications.push((
-                                                        *entity,
-                                                        key.clone(),
-                                                        FactValue::BoolList(new_list),
-                                                    ));
-                                                }
-                                            });
-                                        });
-                                    }
-                                },
-                            );
-                        });
-                    }
-                });
+            render_view_root_facts(
+                ui,
+                *entity,
+                display_name,
+                namespace,
+                facts,
+                &mut modifications,
+            );
         }
 
         // Apply modifications to ViewRoot local_facts
@@ -372,6 +126,162 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
                 view_root.local_facts.set(key.as_str(), value);
             }
         }
+    });
+}
+
+/// Render facts for a single ViewRoot entity.
+fn render_view_root_facts(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    display_name: &str,
+    namespace: &str,
+    facts: &[(String, FactValue)],
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    let header_text = format!("🖼 {} ({})", display_name, namespace);
+    egui::CollapsingHeader::new(header_text)
+        .default_open(true)
+        .show(ui, |ui| {
+            if facts.is_empty() {
+                ui.label("(no local facts)");
+                return;
+            }
+
+            for (key, value) in facts {
+                render_view_fact_row(ui, entity, key, value, modifications);
+            }
+        });
+}
+
+/// Render a single fact row in the view facts tab.
+fn render_view_fact_row(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    value: &FactValue,
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    let key_label = if key.starts_with("view.") {
+        format!("  {}", key)
+    } else {
+        format!("  ${}", key)
+    };
+    ui.horizontal(|ui| {
+        ui.label(&key_label);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            render_view_fact_value(ui, entity, key, value, modifications)
+        });
+    });
+}
+
+/// Render the value editor for a single view fact.
+fn render_view_fact_value(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    value: &FactValue,
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    match value {
+        FactValue::Int(v) => {
+            let mut val = *v;
+            if ui.add(egui::DragValue::new(&mut val)).changed() {
+                modifications.push((entity, key.to_string(), FactValue::Int(val)));
+            }
+        }
+        FactValue::Float(v) => {
+            let mut val = *v;
+            if ui.add(egui::DragValue::new(&mut val).speed(0.1)).changed() {
+                modifications.push((entity, key.to_string(), FactValue::Float(val)));
+            }
+        }
+        FactValue::Bool(v) => {
+            let mut checked = *v;
+            if ui.checkbox(&mut checked, "").changed() {
+                modifications.push((entity, key.to_string(), FactValue::Bool(checked)));
+            }
+        }
+        FactValue::String(s) => {
+            let mut text = s.clone();
+            let response = ui.add(egui::TextEdit::singleline(&mut text).desired_width(150.0));
+            if response.changed() {
+                modifications.push((entity, key.to_string(), FactValue::String(text)));
+            }
+        }
+        FactValue::StringList(list) => {
+            render_view_list_string(ui, entity, key, list, modifications)
+        }
+        FactValue::IntList(list) => render_view_list_int(ui, entity, key, list, modifications),
+        FactValue::FloatList(list) => render_view_list_float(ui, entity, key, list, modifications),
+        FactValue::BoolList(list) => render_view_list_bool(ui, entity, key, list, modifications),
+    }
+}
+
+/// Render an editable string list for view facts.
+fn render_view_list_string(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    list: &[String],
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    ui.push_id(format!("strlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_string_list(ui, list) {
+                modifications.push((entity, key.to_string(), FactValue::StringList(new_list)));
+            }
+        });
+    });
+}
+
+/// Render an editable int list for view facts.
+fn render_view_list_int(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    list: &[i64],
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    ui.push_id(format!("intlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_int_list(ui, list) {
+                modifications.push((entity, key.to_string(), FactValue::IntList(new_list)));
+            }
+        });
+    });
+}
+
+/// Render an editable float list for view facts.
+fn render_view_list_float(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    list: &[f64],
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    ui.push_id(format!("floatlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_float_list(ui, list) {
+                modifications.push((entity, key.to_string(), FactValue::FloatList(new_list)));
+            }
+        });
+    });
+}
+
+/// Render an editable bool list for view facts.
+fn render_view_list_bool(
+    ui: &mut egui::Ui,
+    entity: Entity,
+    key: &str,
+    list: &[bool],
+    modifications: &mut Vec<(Entity, String, FactValue)>,
+) {
+    ui.push_id(format!("boollist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_bool_list(ui, list) {
+                modifications.push((entity, key.to_string(), FactValue::BoolList(new_list)));
+            }
+        });
     });
 }
 
@@ -429,22 +339,7 @@ pub(super) fn render_layered_facts(
         egui::CollapsingHeader::new(header_text)
             .default_open(namespace != "(ungrouped)" || grouped.len() == 1)
             .show(ui, |ui| {
-                for (full_key, short_key, value) in facts_in_group {
-                    ui.horizontal(|ui| {
-                        // Show short key (without namespace prefix)
-                        // 显示短键名（不含命名空间前缀）
-                        ui.label(short_key);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            render_fact_value_editor(
-                                ui,
-                                full_key,
-                                value,
-                                layer,
-                                &mut modifications,
-                            );
-                        });
-                    });
-                }
+                render_namespace_facts(ui, facts_in_group, layer, &mut modifications);
             });
     }
 
@@ -455,6 +350,23 @@ pub(super) fn render_layered_facts(
             FactLayerSelection::Global => db.set_global(key.as_str(), value),
             FactLayerSelection::Local => db.set_local(key.as_str(), value),
         }
+    }
+}
+
+/// Render facts within a namespace group.
+fn render_namespace_facts(
+    ui: &mut egui::Ui,
+    facts_in_group: &[(String, String, FactValue)],
+    layer: FactLayerSelection,
+    modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+) {
+    for (full_key, short_key, value) in facts_in_group {
+        ui.horizontal(|ui| {
+            ui.label(short_key);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                render_fact_value_editor(ui, full_key, value, layer, modifications);
+            });
+        });
     }
 }
 
@@ -494,156 +406,207 @@ fn render_fact_value_editor(
             }
         }
         FactValue::StringList(list) => {
-            ui.push_id(format!("layered_strlist_{}", key), |ui| {
-                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                    let mut new_list = list.clone();
-                    let mut changed = false;
-                    let mut to_remove: Option<usize> = None;
-
-                    for (idx, item) in new_list.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("  {}:", idx));
-                            let response =
-                                ui.add(egui::TextEdit::singleline(item).desired_width(120.0));
-                            if response.changed() {
-                                changed = true;
-                            }
-                            if ui.small_button("🗑").clicked() {
-                                to_remove = Some(idx);
-                            }
-                        });
-                    }
-
-                    if let Some(idx) = to_remove {
-                        new_list.remove(idx);
-                        changed = true;
-                    }
-
-                    if ui.small_button("➕ Add").clicked() {
-                        new_list.push(String::new());
-                        changed = true;
-                    }
-
-                    if changed {
-                        modifications.push((
-                            key.to_string(),
-                            FactValue::StringList(new_list),
-                            layer,
-                        ));
-                    }
-                });
-            });
+            render_layered_list_string(ui, key, list, layer, modifications)
         }
-        FactValue::IntList(list) => {
-            ui.push_id(format!("layered_intlist_{}", key), |ui| {
-                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                    let mut new_list = list.clone();
-                    let mut changed = false;
-                    let mut to_remove: Option<usize> = None;
-
-                    for (idx, item) in new_list.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("  {}:", idx));
-                            if ui.add(egui::DragValue::new(item)).changed() {
-                                changed = true;
-                            }
-                            if ui.small_button("🗑").clicked() {
-                                to_remove = Some(idx);
-                            }
-                        });
-                    }
-
-                    if let Some(idx) = to_remove {
-                        new_list.remove(idx);
-                        changed = true;
-                    }
-
-                    if ui.small_button("➕ Add").clicked() {
-                        new_list.push(0);
-                        changed = true;
-                    }
-
-                    if changed {
-                        modifications.push((key.to_string(), FactValue::IntList(new_list), layer));
-                    }
-                });
-            });
-        }
+        FactValue::IntList(list) => render_layered_list_int(ui, key, list, layer, modifications),
         FactValue::FloatList(list) => {
-            ui.push_id(format!("layered_floatlist_{}", key), |ui| {
-                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                    let mut new_list = list.clone();
-                    let mut changed = false;
-                    let mut to_remove: Option<usize> = None;
-
-                    for (idx, item) in new_list.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("  {}:", idx));
-                            if ui.add(egui::DragValue::new(item).speed(0.1)).changed() {
-                                changed = true;
-                            }
-                            if ui.small_button("🗑").clicked() {
-                                to_remove = Some(idx);
-                            }
-                        });
-                    }
-
-                    if let Some(idx) = to_remove {
-                        new_list.remove(idx);
-                        changed = true;
-                    }
-
-                    if ui.small_button("➕ Add").clicked() {
-                        new_list.push(0.0);
-                        changed = true;
-                    }
-
-                    if changed {
-                        modifications.push((
-                            key.to_string(),
-                            FactValue::FloatList(new_list),
-                            layer,
-                        ));
-                    }
-                });
-            });
+            render_layered_list_float(ui, key, list, layer, modifications)
         }
-        FactValue::BoolList(list) => {
-            ui.push_id(format!("layered_boollist_{}", key), |ui| {
-                ui.collapsing(format!("[{}]", list.len()), |ui| {
-                    let mut new_list = list.clone();
-                    let mut changed = false;
-                    let mut to_remove: Option<usize> = None;
-
-                    for (idx, item) in new_list.iter_mut().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("  {}:", idx));
-                            if ui.checkbox(item, "").changed() {
-                                changed = true;
-                            }
-                            if ui.small_button("🗑").clicked() {
-                                to_remove = Some(idx);
-                            }
-                        });
-                    }
-
-                    if let Some(idx) = to_remove {
-                        new_list.remove(idx);
-                        changed = true;
-                    }
-
-                    if ui.small_button("➕ Add").clicked() {
-                        new_list.push(false);
-                        changed = true;
-                    }
-
-                    if changed {
-                        modifications.push((key.to_string(), FactValue::BoolList(new_list), layer));
-                    }
-                });
-            });
-        }
+        FactValue::BoolList(list) => render_layered_list_bool(ui, key, list, layer, modifications),
     }
+}
+
+/// Render an editable string list for layered facts.
+fn render_layered_list_string(
+    ui: &mut egui::Ui,
+    key: &str,
+    list: &[String],
+    layer: FactLayerSelection,
+    modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+) {
+    ui.push_id(format!("layered_strlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_string_list(ui, list) {
+                modifications.push((key.to_string(), FactValue::StringList(new_list), layer));
+            }
+        });
+    });
+}
+
+/// Render an editable int list for layered facts.
+fn render_layered_list_int(
+    ui: &mut egui::Ui,
+    key: &str,
+    list: &[i64],
+    layer: FactLayerSelection,
+    modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+) {
+    ui.push_id(format!("layered_intlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_int_list(ui, list) {
+                modifications.push((key.to_string(), FactValue::IntList(new_list), layer));
+            }
+        });
+    });
+}
+
+/// Render an editable float list for layered facts.
+fn render_layered_list_float(
+    ui: &mut egui::Ui,
+    key: &str,
+    list: &[f64],
+    layer: FactLayerSelection,
+    modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+) {
+    ui.push_id(format!("layered_floatlist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_float_list(ui, list) {
+                modifications.push((key.to_string(), FactValue::FloatList(new_list), layer));
+            }
+        });
+    });
+}
+
+/// Render an editable bool list for layered facts.
+fn render_layered_list_bool(
+    ui: &mut egui::Ui,
+    key: &str,
+    list: &[bool],
+    layer: FactLayerSelection,
+    modifications: &mut Vec<(String, FactValue, FactLayerSelection)>,
+) {
+    ui.push_id(format!("layered_boollist_{}", key), |ui| {
+        ui.collapsing(format!("[{}]", list.len()), |ui| {
+            if let Some(new_list) = edit_bool_list(ui, list) {
+                modifications.push((key.to_string(), FactValue::BoolList(new_list), layer));
+            }
+        });
+    });
+}
+
+/// Shared editable string list UI. Returns `Some(new_list)` if changed.
+fn edit_string_list(ui: &mut egui::Ui, list: &[String]) -> Option<Vec<String>> {
+    let mut new_list = list.to_vec();
+    let mut changed = false;
+    let mut to_remove: Option<usize> = None;
+
+    for (idx, item) in new_list.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("  {}:", idx));
+            let response = ui.add(egui::TextEdit::singleline(item).desired_width(120.0));
+            if response.changed() {
+                changed = true;
+            }
+            if ui.small_button("🗑").clicked() {
+                to_remove = Some(idx);
+            }
+        });
+    }
+
+    if let Some(idx) = to_remove {
+        new_list.remove(idx);
+        changed = true;
+    }
+
+    if ui.small_button("➕ Add").clicked() {
+        new_list.push(String::new());
+        changed = true;
+    }
+
+    changed.then_some(new_list)
+}
+
+/// Shared editable int list UI. Returns `Some(new_list)` if changed.
+fn edit_int_list(ui: &mut egui::Ui, list: &[i64]) -> Option<Vec<i64>> {
+    let mut new_list = list.to_vec();
+    let mut changed = false;
+    let mut to_remove: Option<usize> = None;
+
+    for (idx, item) in new_list.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("  {}:", idx));
+            if ui.add(egui::DragValue::new(item)).changed() {
+                changed = true;
+            }
+            if ui.small_button("🗑").clicked() {
+                to_remove = Some(idx);
+            }
+        });
+    }
+
+    if let Some(idx) = to_remove {
+        new_list.remove(idx);
+        changed = true;
+    }
+
+    if ui.small_button("➕ Add").clicked() {
+        new_list.push(0);
+        changed = true;
+    }
+
+    changed.then_some(new_list)
+}
+
+/// Shared editable float list UI. Returns `Some(new_list)` if changed.
+fn edit_float_list(ui: &mut egui::Ui, list: &[f64]) -> Option<Vec<f64>> {
+    let mut new_list = list.to_vec();
+    let mut changed = false;
+    let mut to_remove: Option<usize> = None;
+
+    for (idx, item) in new_list.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("  {}:", idx));
+            if ui.add(egui::DragValue::new(item).speed(0.1)).changed() {
+                changed = true;
+            }
+            if ui.small_button("🗑").clicked() {
+                to_remove = Some(idx);
+            }
+        });
+    }
+
+    if let Some(idx) = to_remove {
+        new_list.remove(idx);
+        changed = true;
+    }
+
+    if ui.small_button("➕ Add").clicked() {
+        new_list.push(0.0);
+        changed = true;
+    }
+
+    changed.then_some(new_list)
+}
+
+/// Shared editable bool list UI. Returns `Some(new_list)` if changed.
+fn edit_bool_list(ui: &mut egui::Ui, list: &[bool]) -> Option<Vec<bool>> {
+    let mut new_list = list.to_vec();
+    let mut changed = false;
+    let mut to_remove: Option<usize> = None;
+
+    for (idx, item) in new_list.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.label(format!("  {}:", idx));
+            if ui.checkbox(item, "").changed() {
+                changed = true;
+            }
+            if ui.small_button("🗑").clicked() {
+                to_remove = Some(idx);
+            }
+        });
+    }
+
+    if let Some(idx) = to_remove {
+        new_list.remove(idx);
+        changed = true;
+    }
+
+    if ui.small_button("➕ Add").clicked() {
+        new_list.push(false);
+        changed = true;
+    }
+
+    changed.then_some(new_list)
 }
 
 /// Render the add fact form.
@@ -755,13 +718,18 @@ pub(super) fn render_events_tab(ui: &mut egui::Ui, world: &mut World) {
         }
 
         for record in history.events.iter() {
-            ui.horizontal(|ui| {
-                ui.label(format!("[{:.2}s]", record.timestamp));
-                ui.strong(&record.event_id);
-                if !record.data_keys.is_empty() {
-                    ui.label(format!("(data: {})", record.data_keys.join(", ")));
-                }
-            });
+            render_event_record(ui, record);
+        }
+    });
+}
+
+/// Render a single event record row.
+fn render_event_record(ui: &mut egui::Ui, record: &FactEventRecord) {
+    ui.horizontal(|ui| {
+        ui.label(format!("[{:.2}s]", record.timestamp));
+        ui.strong(&record.event_id);
+        if !record.data_keys.is_empty() {
+            ui.label(format!("(data: {})", record.data_keys.join(", ")));
         }
     });
 }

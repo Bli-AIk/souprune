@@ -55,18 +55,19 @@ else
     echo -e "${GREEN}${BOLD}Tokei OK:${RESET} All Rust files under ${CYAN}$MAX_LINES${RESET} lines of code, no mod.rs found."
 fi
 
-# --- Check 3: No #[allow(clippy::...)] — use #[expect(clippy::...)] instead ---
-# Crate-level #![allow(clippy::...)] in lib.rs is permitted for globally-noisy lints.
+# --- Check 3: No allow(clippy::...) anywhere — use clippy.toml for global config ---
+# Both #[allow(clippy::...)] and #![allow(clippy::...)] are banned.
+# Global lint thresholds belong in clippy.toml.
+# Individual exceptions should use #[expect(clippy::...)] with a reason.
 # Exclude submodule directories (they are independent repos)
 SUBMODULE_EXCLUDES=""
 for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
     SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
 done
 
-allow_hits=$(grep -rn '#\[allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null \
-    | grep -v '#!\[allow(clippy::' || true)
+allow_hits=$(grep -rn 'allow(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null || true)
 if [ -n "$allow_hits" ]; then
-    echo -e "${RED}${BOLD}Error:${RESET} Found #[allow(clippy::...)]. Use #[expect(clippy::...)] instead:"
+    echo -e "${RED}${BOLD}Error:${RESET} Found allow(clippy::...). Use clippy.toml for global config or #[expect] for individual cases:"
     echo "$allow_hits" | while read -r line; do echo -e "  ${YELLOW}$line${RESET}"; done
     errors=1
 fi

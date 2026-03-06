@@ -35,34 +35,35 @@ pub fn process_player_action_system(
     mut player_query: Query<&mut Transform, (With<BehaviorParams>, With<ModeScoped>)>,
 ) {
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetPlayer(action) = &active_chapter.chapter {
-            match action {
-                PlayerAction::Spawn {
-                    config_path,
-                    position,
-                } if config_path.ends_with(".battle_player.ron") => {
-                    let handle = asset_server.load::<BattlePlayerConfig>(config_path);
-                    commands.spawn((
-                        PlayerSpawnRequest {
-                            config_handle: handle,
-                            position: position.unwrap_or(Vec2::ZERO),
-                        },
-                        ModeScoped("battle".to_string()),
-                    ));
-                    commands.entity(entity).insert(ChapterFinished);
+        let Chapter::SetPlayer(action) = &active_chapter.chapter else {
+            continue;
+        };
+        match action {
+            PlayerAction::Spawn {
+                config_path,
+                position,
+            } if config_path.ends_with(".battle_player.ron") => {
+                let handle = asset_server.load::<BattlePlayerConfig>(config_path);
+                commands.spawn((
+                    PlayerSpawnRequest {
+                        config_handle: handle,
+                        position: position.unwrap_or(Vec2::ZERO),
+                    },
+                    ModeScoped("battle".to_string()),
+                ));
+                commands.entity(entity).insert(ChapterFinished);
+            }
+            // Non-battle config_path → handled by state-specific systems (e.g., overworld)
+            PlayerAction::Spawn { .. } => {}
+            PlayerAction::Teleport(pos) => {
+                for mut transform in player_query.iter_mut() {
+                    transform.translation = pos.extend(0.0);
+                    info!("Player teleported to {}", pos);
                 }
-                // Non-battle config_path → handled by state-specific systems (e.g., overworld)
-                PlayerAction::Spawn { .. } => {}
-                PlayerAction::Teleport(pos) => {
-                    for mut transform in player_query.iter_mut() {
-                        transform.translation = pos.extend(0.0);
-                        info!("Player teleported to {}", pos);
-                    }
-                    commands.entity(entity).insert(ChapterFinished);
-                }
-                _ => {
-                    commands.entity(entity).insert(ChapterFinished);
-                }
+                commands.entity(entity).insert(ChapterFinished);
+            }
+            _ => {
+                commands.entity(entity).insert(ChapterFinished);
             }
         }
     }

@@ -34,76 +34,78 @@ pub fn process_modify_view_element_system(
     let player_data = PlayerDataView::new(&layered_db);
 
     for (chapter_entity, active_chapter) in active_chapters.iter() {
-        if let Chapter::ModifyViewElement {
+        let Chapter::ModifyViewElement {
             selector,
             modification,
         } = &active_chapter.chapter
-        {
+        else {
+            continue;
+        };
+
+        info!(
+            "[ModifyViewElement] Processing: selector={:?}, modification={:?}",
+            selector, modification
+        );
+
+        // Resolve the selector to get target entities
+        // 解析选择器以获取目标实体
+        let target_entities = match selector {
+            super::chapter_schema::ElementSelector::FullName(full_name) => {
+                if let Some(entity) =
+                    crate::core::view::find_element_by_full_name(&view_elements, full_name)
+                {
+                    info!(
+                        "[ModifyViewElement] Found element: {:?} (full_name={})",
+                        entity, full_name
+                    );
+                    vec![entity]
+                } else {
+                    warn!(
+                        "[ModifyViewElement] Element not found (full name): {}",
+                        full_name
+                    );
+                    vec![]
+                }
+            }
+            super::chapter_schema::ElementSelector::LocalName(local_name) => {
+                // For simplicity, search in all namespaces
+                // 为简单起见，在所有命名空间中搜索
+                view_elements
+                    .iter()
+                    .filter(|(_, elem)| elem.local_name == *local_name)
+                    .map(|(entity, _)| entity)
+                    .collect()
+            }
+            super::chapter_schema::ElementSelector::Tag(tag) => {
+                crate::core::view::find_elements_by_tag(&view_elements, tag)
+            }
+        };
+
+        // Apply the modification to all target entities
+        // 对所有目标实体应用修改
+        for entity in target_entities {
             info!(
-                "[ModifyViewElement] Processing: selector={:?}, modification={:?}",
-                selector, modification
+                "[ModifyViewElement] Applying modification to entity {:?}",
+                entity
             );
 
-            // Resolve the selector to get target entities
-            // 解析选择器以获取目标实体
-            let target_entities = match selector {
-                super::chapter_schema::ElementSelector::FullName(full_name) => {
-                    if let Some(entity) =
-                        crate::core::view::find_element_by_full_name(&view_elements, full_name)
-                    {
-                        info!(
-                            "[ModifyViewElement] Found element: {:?} (full_name={})",
-                            entity, full_name
-                        );
-                        vec![entity]
-                    } else {
-                        warn!(
-                            "[ModifyViewElement] Element not found (full name): {}",
-                            full_name
-                        );
-                        vec![]
-                    }
-                }
-                super::chapter_schema::ElementSelector::LocalName(local_name) => {
-                    // For simplicity, search in all namespaces
-                    // 为简单起见，在所有命名空间中搜索
-                    view_elements
-                        .iter()
-                        .filter(|(_, elem)| elem.local_name == *local_name)
-                        .map(|(entity, _)| entity)
-                        .collect()
-                }
-                super::chapter_schema::ElementSelector::Tag(tag) => {
-                    crate::core::view::find_elements_by_tag(&view_elements, tag)
-                }
-            };
-
-            // Apply the modification to all target entities
-            // 对所有目标实体应用修改
-            for entity in target_entities {
-                info!(
-                    "[ModifyViewElement] Applying modification to entity {:?}",
-                    entity
-                );
-
-                apply_modification(
-                    &mut commands,
-                    &asset_server,
-                    entity,
-                    modification,
-                    &mut transforms,
-                    &mut sprites,
-                    &mut visibilities,
-                    &mut histories,
-                    &mut ui_boxes,
-                    &player_data,
-                );
-            }
-
-            // Mark chapter as finished
-            // 标记章节为完成
-            commands.entity(chapter_entity).insert(ChapterFinished);
+            apply_modification(
+                &mut commands,
+                &asset_server,
+                entity,
+                modification,
+                &mut transforms,
+                &mut sprites,
+                &mut visibilities,
+                &mut histories,
+                &mut ui_boxes,
+                &player_data,
+            );
         }
+
+        // Mark chapter as finished
+        // 标记章节为完成
+        commands.entity(chapter_entity).insert(ChapterFinished);
     }
 }
 

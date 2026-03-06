@@ -52,91 +52,79 @@ pub mod debug_image_overlay {
         overlay_query: Query<Entity, With<DebugImageOverlay>>,
         window_query: Query<&Window>,
     ) {
-        if keyboard.just_pressed(KeyCode::F5) {
-            settings.show_overlay = !settings.show_overlay;
-
-            if settings.show_overlay {
-                // Remove any existing overlay entity before spawning a new one.
-                //
-                // 若已存在覆盖层实体，则在生成新实体前先移除。
-                for entity in overlay_query.iter() {
-                    commands.entity(entity).despawn();
-                }
-
-                // Look up the most recently modified image in the debug folder.
-                //
-                // 在 debug 文件夹中查找最近修改的图像。
-                if let Some(latest_image_path) = find_latest_debug_image() {
-                    info!("Loading debug overlay image: {}", latest_image_path);
-
-                    // Load the selected image asset.
-                    //
-                    // 加载所选的图像资源。
-                    let image_handle: Handle<Image> = asset_server.load(&latest_image_path);
-
-                    // Query the current window size for correct scaling.
-                    //
-                    // 查询当前窗口尺寸以便正确缩放。
-                    if let Ok(window) = window_query.single() {
-                        let window_width = window.width();
-                        let window_height = window.height();
-
-                        // Spawn the overlay node with a semi-transparent background.
-                        //
-                        // 创建带半透明背景的覆盖层节点。
-                        commands
-                            .spawn((
-                                Name::new("DebugImageOverlay"),
-                                DebugImageOverlay,
-                                Node {
-                                    position_type: PositionType::Absolute,
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    top: Val::Px(0.0),
-                                    left: Val::Px(0.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.3)),
-                                ZIndex(1000),
-                            ))
-                            .with_children(|parent| {
-                                parent.spawn((
-                                    ImageNode {
-                                        image: image_handle,
-                                        // Render the image as semi-transparent.
-                                        //
-                                        // 以半透明方式渲染图像。
-                                        color: Color::srgba(1.0, 1.0, 1.0, 0.7),
-                                        ..default()
-                                    },
-                                    Node {
-                                        // Scale the image to fit the window while preserving aspect ratio.
-                                        //
-                                        // 缩放图像以适配窗口并保持纵横比。
-                                        width: Val::Percent(100.0),
-                                        height: Val::Percent(100.0),
-                                        max_width: Val::Px(window_width),
-                                        max_height: Val::Px(window_height),
-                                        ..default()
-                                    },
-                                ));
-                            });
-
-                        info!("Debug image overlay: ON");
-                    }
-                }
-            } else {
-                // Remove the overlay entity.
-                //
-                // 移除覆盖层实体。
-                for entity in overlay_query.iter() {
-                    commands.entity(entity).despawn();
-                }
-                info!("Debug image overlay: OFF");
-            }
+        if !keyboard.just_pressed(KeyCode::F5) {
+            return;
         }
+
+        settings.show_overlay = !settings.show_overlay;
+
+        // Remove any existing overlay entity.
+        for entity in overlay_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        if !settings.show_overlay {
+            info!("Debug image overlay: OFF");
+            return;
+        }
+
+        spawn_debug_overlay(&mut commands, &asset_server, &window_query);
+    }
+
+    /// Spawn a debug overlay image entity.
+    fn spawn_debug_overlay(
+        commands: &mut Commands,
+        asset_server: &Res<AssetServer>,
+        window_query: &Query<&Window>,
+    ) {
+        let Some(latest_image_path) = find_latest_debug_image() else {
+            return;
+        };
+        info!("Loading debug overlay image: {}", latest_image_path);
+
+        let image_handle: Handle<Image> = asset_server.load(&latest_image_path);
+
+        let Ok(window) = window_query.single() else {
+            return;
+        };
+        let window_width = window.width();
+        let window_height = window.height();
+
+        commands
+            .spawn((
+                Name::new("DebugImageOverlay"),
+                DebugImageOverlay,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    top: Val::Px(0.0),
+                    left: Val::Px(0.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.3)),
+                ZIndex(1000),
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    ImageNode {
+                        image: image_handle,
+                        color: Color::srgba(1.0, 1.0, 1.0, 0.7),
+                        ..default()
+                    },
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        max_width: Val::Px(window_width),
+                        max_height: Val::Px(window_height),
+                        ..default()
+                    },
+                ));
+            });
+
+        info!("Debug image overlay: ON");
     }
 
     /// Maintain the overlay entity and remove it when needed.
@@ -154,13 +142,47 @@ pub mod debug_image_overlay {
         }
     }
 
+    /// Scan directory entries for the latest image file by modification time.
+    fn scan_for_latest_image(
+        entries: fs::ReadDir,
+        extensions: &[&str],
+        latest_file: &mut Option<(String, SystemTime)>,
+    ) {
+        for entry in entries.flatten() {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            if !file_type.is_file() {
+                continue;
+            }
+            let file_name_os = entry.file_name();
+            let Some(file_name) = file_name_os.to_str() else {
+                continue;
+            };
+            let Some(extension) = file_name.split('.').next_back() else {
+                continue;
+            };
+            if !extensions.contains(&extension.to_lowercase().as_str()) {
+                continue;
+            }
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            let Ok(modified) = metadata.modified() else {
+                continue;
+            };
+
+            let relative_path = format!("debug/{}", file_name);
+            if latest_file.is_none() || latest_file.as_ref().unwrap().1 < modified {
+                *latest_file = Some((relative_path, modified));
+            }
+        }
+    }
+
     /// Find the most recently modified image in the debug folder.
     ///
     /// 查找 debug 文件夹中最近修改的图像。
     fn find_latest_debug_image() -> Option<String> {
-        // Use project-relative debug folder paths.
-        //
-        // 使用项目相对的 debug 文件夹路径。
         let config = crate::config::load_config();
         let project_debug_path = format!("projects/{}/assets/debug", config.project.mod_name);
         let possible_paths = [project_debug_path.as_str(), "assets/debug"];
@@ -176,34 +198,12 @@ pub mod debug_image_overlay {
 
             found_debug_folder = true;
 
-            if let Ok(entries) = fs::read_dir(debug_path) {
-                for entry in entries.flatten() {
-                    if let Ok(file_type) = entry.file_type()
-                        && file_type.is_file()
-                        && let Some(file_name) = entry.file_name().to_str()
-                    {
-                        // Check whether the file uses a supported image extension.
-                        //
-                        // 判断文件是否使用受支持的图像扩展名。
-                        if let Some(extension) = file_name.split('.').next_back()
-                            && extensions.contains(&extension.to_lowercase().as_str())
-                            && let Ok(metadata) = entry.metadata()
-                            && let Ok(modified) = metadata.modified()
-                        {
-                            let relative_path = format!("debug/{}", file_name);
-
-                            if latest_file.is_none() || latest_file.as_ref().unwrap().1 < modified {
-                                latest_file = Some((relative_path, modified));
-                            }
-                        }
-                    }
-                }
-                // Once files are found in this path we can stop probing others.
-                //
-                // 在该路径找到文件后即可停止继续检查其他路径。
-                if latest_file.is_some() {
-                    break;
-                }
+            let Ok(entries) = fs::read_dir(debug_path) else {
+                continue;
+            };
+            scan_for_latest_image(entries, &extensions, &mut latest_file);
+            if latest_file.is_some() {
+                break;
             }
         }
 

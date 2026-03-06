@@ -116,26 +116,31 @@ fn sync_items_system(
     };
 
     for event in events.read() {
-        if let AssetEvent::LoadedWithDependencies { id } = event
-            && *id == folder_handle.0.id()
-        {
-            info!("Item folder loaded. Indexing items from .items.ron files...");
-
-            if let Some(folder) = loaded_folders.get(&folder_handle.0) {
-                for handle in &folder.handles {
-                    let id = handle.id().typed::<ItemListAsset>();
-                    if let Some(item_list) = item_assets.get(id) {
-                        for item in &item_list.0 {
-                            info!("Registered Item: [{}] {}", item.id, item.locale.name);
-                            registry.0.insert(item.id.clone(), item.clone());
-                        }
-                    }
-                }
-            }
-            info!(
-                "Item Registry initialization complete. Total items: {}",
-                registry.0.len()
-            );
+        let AssetEvent::LoadedWithDependencies { id } = event else {
+            continue;
+        };
+        if *id != folder_handle.0.id() {
+            continue;
         }
+
+        info!("Item folder loaded. Indexing items from .items.ron files...");
+
+        let Some(folder) = loaded_folders.get(&folder_handle.0) else {
+            continue;
+        };
+        for handle in &folder.handles {
+            let id = handle.id().typed::<ItemListAsset>();
+            let Some(item_list) = item_assets.get(id) else {
+                continue;
+            };
+            for item in &item_list.0 {
+                info!("Registered Item: [{}] {}", item.id, item.locale.name);
+                registry.0.insert(item.id.clone(), item.clone());
+            }
+        }
+        info!(
+            "Item Registry initialization complete. Total items: {}",
+            registry.0.len()
+        );
     }
 }

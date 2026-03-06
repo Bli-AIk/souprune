@@ -385,7 +385,7 @@ pub fn update_shader_materials_system(
 
         // Phase 1: Evaluate expressions if facts changed OR material is newly added
         // 阶段 1：当 facts 变化或材质新添加时评估表达式
-        if facts_changed || is_newly_added {
+        let expr_updates: Vec<(String, f32)> = if facts_changed || is_newly_added {
             // Find ViewRoot ancestor to access local facts (lazy evaluation)
             let view_root_result =
                 find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
@@ -397,34 +397,37 @@ pub fn update_shader_materials_system(
 
             // Evaluate parameter expressions and collect updates
             // 评估参数表达式并收集更新
-            let updates: Vec<(String, f32)> = shader_mat
+            shader_mat
                 .param_defs
                 .iter()
                 .map(|(name, param_def)| {
                     let new_value = match param_def {
                         MaterialParamValue::Static(v) => *v,
-                        MaterialParamValue::Expr(expr_str) => {
-                            let val_expr: Val<f32> = Val::Expr(expr_str.clone());
-                            evaluate_float_expr(&val_expr, &player_data, Some(elapsed_secs))
-                        }
+                        MaterialParamValue::Expr(expr_str) => evaluate_float_expr(
+                            &Val::Expr(expr_str.clone()),
+                            &player_data,
+                            Some(elapsed_secs),
+                        ),
                     };
                     (name.clone(), new_value)
                 })
-                .collect();
+                .collect()
+        } else {
+            Vec::new()
+        };
 
-            // Apply updates with change detection
-            // 应用更新并检测变化
-            for (name, new_value) in updates {
-                let should_update = shader_mat
-                    .current_values
-                    .get(&name)
-                    .map(|old| (*old - new_value).abs() > f32::EPSILON)
-                    .unwrap_or(true);
+        // Apply updates with change detection
+        // 应用更新并检测变化
+        for (name, new_value) in expr_updates {
+            let should_update = shader_mat
+                .current_values
+                .get(&name)
+                .map(|old| (*old - new_value).abs() > f32::EPSILON)
+                .unwrap_or(true);
 
-                if should_update {
-                    shader_mat.current_values.insert(name, new_value);
-                    material_changed = true;
-                }
+            if should_update {
+                shader_mat.current_values.insert(name, new_value);
+                material_changed = true;
             }
         }
 

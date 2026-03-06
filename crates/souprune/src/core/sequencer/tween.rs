@@ -118,355 +118,297 @@ pub fn process_tween_view_element_system(
     let current_time = time.elapsed_secs_f64();
 
     for (chapter_entity, active_chapter) in active_chapters.iter() {
-        if let Chapter::TweenViewElement {
+        let Chapter::TweenViewElement {
             selector,
             target,
             duration,
             easing,
             wait_for_completion,
         } = &active_chapter.chapter
-        {
-            info!(
-                "[TweenViewElement] Processing: selector={:?}, target={:?}, duration={}s",
-                selector, target, duration
-            );
+        else {
+            continue;
+        };
 
-            // Resolve the selector to get target entity
-            let target_entity = match selector {
-                super::chapter_schema::ElementSelector::FullName(full_name) => {
-                    crate::core::view::find_element_by_full_name(&view_elements, full_name)
-                }
-                super::chapter_schema::ElementSelector::LocalName(local_name) => view_elements
-                    .iter()
-                    .find(|(_, elem)| elem.local_name == *local_name)
-                    .map(|(entity, _)| entity),
-                super::chapter_schema::ElementSelector::Tag(tag) => {
-                    crate::core::view::find_elements_by_tag(&view_elements, tag)
-                        .into_iter()
-                        .next()
-                }
-            };
+        info!(
+            "[TweenViewElement] Processing: selector={:?}, target={:?}, duration={}s",
+            selector, target, duration
+        );
 
-            let Some(target_entity) = target_entity else {
-                warn!(
-                    "[TweenViewElement] Target element not found: {:?}",
-                    selector
-                );
-                commands.entity(chapter_entity).insert(ChapterFinished);
-                continue;
-            };
-
-            let duration = Duration::from_secs_f32(*duration);
-            let ease_kind = *easing;
-            let target_component = target_entity.into_target();
-
-            // Create tween based on target type
-            match target {
-                TweenTarget::Position { from, to } => {
-                    let Ok(transform) = transforms.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no Transform component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let current = transform.translation;
-
-                    let start = if let Some(from) = from {
-                        Vec3::new(
-                            resolve_tween_val_f32(
-                                &from.0,
-                                current.x,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.1,
-                                current.y,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.2,
-                                current.z,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                        )
-                    } else {
-                        current
-                    };
-
-                    let end = Vec3::new(
-                        resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
-                    );
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(translation(start, end)),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
-                TweenTarget::Scale { from, to } => {
-                    let Ok(transform) = transforms.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no Transform component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let current = transform.scale;
-
-                    let start = if let Some(from) = from {
-                        Vec3::new(
-                            resolve_tween_val_f32(
-                                &from.0,
-                                current.x,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.1,
-                                current.y,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.2,
-                                current.z,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                        )
-                    } else {
-                        current
-                    };
-
-                    let end = Vec3::new(
-                        resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
-                    );
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(scale(start, end)),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
-                TweenTarget::Rotation { from, to } => {
-                    let Ok(transform) = transforms.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no Transform component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let (_, _, z) = transform.rotation.to_euler(EulerRot::XYZ);
-
-                    let start = if let Some(from) = from {
-                        resolve_tween_val_f32(from, z, &player_data, Some(current_time))
-                    } else {
-                        z
-                    };
-
-                    let end = resolve_tween_val_f32(to, z, &player_data, Some(current_time));
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(angle_z(start, end)),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
-                TweenTarget::Color { from, to } => {
-                    let Ok(sprite) = sprites.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no Sprite component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let c = sprite.color.to_srgba();
-                    let current = Vec4::new(c.red, c.green, c.blue, c.alpha);
-
-                    let start = if let Some(from) = from {
-                        Color::srgba(
-                            resolve_tween_val_f32(
-                                &from.0,
-                                current.x,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.1,
-                                current.y,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.2,
-                                current.z,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.3,
-                                current.w,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                        )
-                    } else {
-                        sprite.color
-                    };
-
-                    let end = Color::srgba(
-                        resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
-                        resolve_tween_val_f32(&to.3, current.w, &player_data, Some(current_time)),
-                    );
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(sprite_color(start, end)),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
-                TweenTarget::Alpha { from, to } => {
-                    let Ok(sprite) = sprites.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no Sprite component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let current_alpha = sprite.color.alpha();
-
-                    let start = if let Some(from) = from {
-                        resolve_tween_val_f32(from, current_alpha, &player_data, Some(current_time))
-                    } else {
-                        current_alpha
-                    };
-
-                    let end =
-                        resolve_tween_val_f32(to, current_alpha, &player_data, Some(current_time));
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(SpriteAlphaInterpolator { start, end }),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
-                TweenTarget::BoxSize { from, to } => {
-                    let Ok(ui_box) = ui_boxes.get(target_entity) else {
-                        warn!("[TweenViewElement] Target has no ViewBox component");
-                        commands.entity(chapter_entity).insert(ChapterFinished);
-                        continue;
-                    };
-                    let current_w = ui_box.width();
-                    let current_h = ui_box.height();
-
-                    let (start_w, start_h) = if let Some(from) = from {
-                        (
-                            resolve_tween_val_f32(
-                                &from.0,
-                                current_w,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                            resolve_tween_val_f32(
-                                &from.1,
-                                current_h,
-                                &player_data,
-                                Some(current_time),
-                            ),
-                        )
-                    } else {
-                        (current_w, current_h)
-                    };
-
-                    let end_w =
-                        resolve_tween_val_f32(&to.0, current_w, &player_data, Some(current_time));
-                    let end_h =
-                        resolve_tween_val_f32(&to.1, current_h, &player_data, Some(current_time));
-
-                    let animator_entity = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(ViewBoxSizeInterpolator {
-                                start_width: start_w,
-                                start_height: start_h,
-                                end_width: end_w,
-                                end_height: end_h,
-                            }),
-                        ))
-                        .id();
-
-                    handle_wait_for_completion(
-                        &mut commands,
-                        chapter_entity,
-                        animator_entity,
-                        *wait_for_completion,
-                    );
-                }
+        // Resolve the selector to get target entity
+        let target_entity = match selector {
+            super::chapter_schema::ElementSelector::FullName(full_name) => {
+                crate::core::view::find_element_by_full_name(&view_elements, full_name)
             }
+            super::chapter_schema::ElementSelector::LocalName(local_name) => view_elements
+                .iter()
+                .find(|(_, elem)| elem.local_name == *local_name)
+                .map(|(entity, _)| entity),
+            super::chapter_schema::ElementSelector::Tag(tag) => {
+                crate::core::view::find_elements_by_tag(&view_elements, tag)
+                    .into_iter()
+                    .next()
+            }
+        };
 
-            info!(
-                "[TweenViewElement] Started bevy_tween animation for entity {:?}",
-                target_entity
+        let Some(target_entity) = target_entity else {
+            warn!(
+                "[TweenViewElement] Target element not found: {:?}",
+                selector
             );
+            commands.entity(chapter_entity).insert(ChapterFinished);
+            continue;
+        };
+
+        let duration = Duration::from_secs_f32(*duration);
+        let ease_kind = *easing;
+        let target_component = target_entity.into_target();
+
+        // Create tween based on target type
+        match target {
+            TweenTarget::Position { from, to } => {
+                let Ok(transform) = transforms.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no Transform component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let current = transform.translation;
+
+                let start = if let Some(from) = from {
+                    Vec3::new(
+                        resolve_tween_val_f32(&from.0, current.x, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.1, current.y, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.2, current.z, &player_data, Some(current_time)),
+                    )
+                } else {
+                    current
+                };
+
+                let end = Vec3::new(
+                    resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
+                );
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(translation(start, end)),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
+            TweenTarget::Scale { from, to } => {
+                let Ok(transform) = transforms.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no Transform component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let current = transform.scale;
+
+                let start = if let Some(from) = from {
+                    Vec3::new(
+                        resolve_tween_val_f32(&from.0, current.x, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.1, current.y, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.2, current.z, &player_data, Some(current_time)),
+                    )
+                } else {
+                    current
+                };
+
+                let end = Vec3::new(
+                    resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
+                );
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(scale(start, end)),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
+            TweenTarget::Rotation { from, to } => {
+                let Ok(transform) = transforms.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no Transform component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let (_, _, z) = transform.rotation.to_euler(EulerRot::XYZ);
+
+                let start = if let Some(from) = from {
+                    resolve_tween_val_f32(from, z, &player_data, Some(current_time))
+                } else {
+                    z
+                };
+
+                let end = resolve_tween_val_f32(to, z, &player_data, Some(current_time));
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(angle_z(start, end)),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
+            TweenTarget::Color { from, to } => {
+                let Ok(sprite) = sprites.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no Sprite component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let c = sprite.color.to_srgba();
+                let current = Vec4::new(c.red, c.green, c.blue, c.alpha);
+
+                let start = if let Some(from) = from {
+                    Color::srgba(
+                        resolve_tween_val_f32(&from.0, current.x, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.1, current.y, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.2, current.z, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.3, current.w, &player_data, Some(current_time)),
+                    )
+                } else {
+                    sprite.color
+                };
+
+                let end = Color::srgba(
+                    resolve_tween_val_f32(&to.0, current.x, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.1, current.y, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.2, current.z, &player_data, Some(current_time)),
+                    resolve_tween_val_f32(&to.3, current.w, &player_data, Some(current_time)),
+                );
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(sprite_color(start, end)),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
+            TweenTarget::Alpha { from, to } => {
+                let Ok(sprite) = sprites.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no Sprite component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let current_alpha = sprite.color.alpha();
+
+                let start = if let Some(from) = from {
+                    resolve_tween_val_f32(from, current_alpha, &player_data, Some(current_time))
+                } else {
+                    current_alpha
+                };
+
+                let end =
+                    resolve_tween_val_f32(to, current_alpha, &player_data, Some(current_time));
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(SpriteAlphaInterpolator { start, end }),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
+            TweenTarget::BoxSize { from, to } => {
+                let Ok(ui_box) = ui_boxes.get(target_entity) else {
+                    warn!("[TweenViewElement] Target has no ViewBox component");
+                    commands.entity(chapter_entity).insert(ChapterFinished);
+                    continue;
+                };
+                let current_w = ui_box.width();
+                let current_h = ui_box.height();
+
+                let (start_w, start_h) = if let Some(from) = from {
+                    (
+                        resolve_tween_val_f32(&from.0, current_w, &player_data, Some(current_time)),
+                        resolve_tween_val_f32(&from.1, current_h, &player_data, Some(current_time)),
+                    )
+                } else {
+                    (current_w, current_h)
+                };
+
+                let end_w =
+                    resolve_tween_val_f32(&to.0, current_w, &player_data, Some(current_time));
+                let end_h =
+                    resolve_tween_val_f32(&to.1, current_h, &player_data, Some(current_time));
+
+                let animator_entity = commands
+                    .spawn_empty()
+                    .animation()
+                    .insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(ViewBoxSizeInterpolator {
+                            start_width: start_w,
+                            start_height: start_h,
+                            end_width: end_w,
+                            end_height: end_h,
+                        }),
+                    ))
+                    .id();
+
+                handle_wait_for_completion(
+                    &mut commands,
+                    chapter_entity,
+                    animator_entity,
+                    *wait_for_completion,
+                );
+            }
         }
+
+        info!(
+            "[TweenViewElement] Started bevy_tween animation for entity {:?}",
+            target_entity
+        );
     }
 }
 

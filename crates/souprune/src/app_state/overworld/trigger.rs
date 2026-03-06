@@ -19,8 +19,7 @@ use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
-    FactEvent, FactEventId, FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry,
-    RuleActionDef,
+    FactEvent, FactEventId, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleActionDef,
 };
 use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
@@ -259,36 +258,29 @@ pub fn register_loaded_rules_system(
     }
 
     for handle in &loaded_rule_sets.handles {
-        if let Some(fre_asset) = fre_assets.get(handle) {
-            // Apply facts to Local layer (room/scene specific)
-            for (key, value) in fre_asset.get_facts() {
-                let fact_value = match value {
-                    FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
-                    FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
-                    FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
-                    FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
-                    FactValueDef::StringList(v) => {
-                        bevy_fact_rule_event::FactValue::StringList(v.clone())
-                    }
-                    FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
-                };
-                fact_db.set_local(key.as_str(), fact_value);
-                info!("FRE: Set fact '{}' to Local layer from FRE file", key);
-            }
+        let Some(fre_asset) = fre_assets.get(handle) else {
+            continue;
+        };
 
-            // Store action definitions for each rule (for custom action handling)
-            // Use the same ID generation logic as to_rule_with_index()
-            for (idx, rule_def) in fre_asset.get_rule_defs().iter().enumerate() {
-                let rule_id = rule_def.generate_id(idx);
-                action_defs
-                    .actions_by_rule
-                    .insert(rule_id, rule_def.actions.clone());
-            }
-
-            // Register all rules to layered registry
-            fre_asset.register_rules_layered(&mut registry);
-            info!("FRE: Rules registered from FRE asset");
+        // Apply facts to Local layer (room/scene specific)
+        for (key, value) in fre_asset.get_facts() {
+            let fact_value: bevy_fact_rule_event::FactValue = value.clone().into();
+            fact_db.set_local(key.as_str(), fact_value);
+            info!("FRE: Set fact '{}' to Local layer from FRE file", key);
         }
+
+        // Store action definitions for each rule (for custom action handling)
+        // Use the same ID generation logic as to_rule_with_index()
+        for (idx, rule_def) in fre_asset.get_rule_defs().iter().enumerate() {
+            let rule_id = rule_def.generate_id(idx);
+            action_defs
+                .actions_by_rule
+                .insert(rule_id, rule_def.actions.clone());
+        }
+
+        // Register all rules to layered registry
+        fre_asset.register_rules_layered(&mut registry);
+        info!("FRE: Rules registered from FRE asset");
     }
 
     loaded_rule_sets.registered = true;
@@ -333,34 +325,36 @@ pub fn setup_action_handlers_system(world: &mut World) {
     let mut handler_registry = world.resource_mut::<bevy_fact_rule_event::ActionHandlerRegistry>();
 
     handler_registry.register("SetMode", |action, _db, commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
-            if let Some(mode) = params.get("mode").cloned() {
-                info!("FRE: Setting mode to '{}' via registered handler", mode);
-                commands.queue(move |world: &mut World| {
-                    world.resource_mut::<crate::app_state::SequenceMode>().0 = Some(mode);
-                });
-            } else {
-                warn!("FRE: SetMode action missing 'mode' param");
-            }
-        }
+        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(mode) = params.get("mode").cloned() else {
+            warn!("FRE: SetMode action missing 'mode' param");
+            return;
+        };
+        info!("FRE: Setting mode to '{}' via registered handler", mode);
+        commands.queue(move |world: &mut World| {
+            world.resource_mut::<crate::app_state::SequenceMode>().0 = Some(mode);
+        });
     });
 
     handler_registry.register("SetSubState", |action, _db, commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
-            if let Some(state) = params.get("state").cloned() {
-                info!(
-                    "FRE: Setting sub-state to '{}' via registered handler",
-                    state
-                );
-                commands.queue(move |world: &mut World| {
-                    world
-                        .resource_mut::<NextState<crate::app_state::SequenceSubState>>()
-                        .set(crate::app_state::SequenceSubState::new(&state));
-                });
-            } else {
-                warn!("FRE: SetSubState action missing 'state' param");
-            }
-        }
+        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(state) = params.get("state").cloned() else {
+            warn!("FRE: SetSubState action missing 'state' param");
+            return;
+        };
+        info!(
+            "FRE: Setting sub-state to '{}' via registered handler",
+            state
+        );
+        commands.queue(move |world: &mut World| {
+            world
+                .resource_mut::<NextState<crate::app_state::SequenceSubState>>()
+                .set(crate::app_state::SequenceSubState::new(&state));
+        });
     });
 
     handler_registry.register("EnterChaseState", |_action, _db, commands| {
@@ -400,23 +394,24 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("SpawnView", |action, _db, commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
-            if let Some(path) = params.get("path").cloned() {
-                info!("FRE: Spawning view '{}' via registered handler", path);
-                commands.queue(move |world: &mut World| {
-                    world
-                        .resource_mut::<PendingViewActions>()
-                        .spawn_requests
-                        .push(crate::core::view::SpawnViewRequest {
-                            path,
-                            mode_scope: None,
-                            bindings: None,
-                        });
+        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(path) = params.get("path").cloned() else {
+            warn!("FRE: SpawnView action missing 'path' param");
+            return;
+        };
+        info!("FRE: Spawning view '{}' via registered handler", path);
+        commands.queue(move |world: &mut World| {
+            world
+                .resource_mut::<PendingViewActions>()
+                .spawn_requests
+                .push(crate::core::view::SpawnViewRequest {
+                    path,
+                    mode_scope: None,
+                    bindings: None,
                 });
-            } else {
-                warn!("FRE: SpawnView action missing 'path' param");
-            }
-        }
+        });
     });
 
     handler_registry.register("DespawnView", |action, _db, commands| {
@@ -436,19 +431,20 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("PlayDanmaku", |action, _db, commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
-            if let Some(path) = params.get("path").cloned() {
-                info!("FRE: PlayDanmaku '{}' via registered handler", path);
-                commands.queue(move |world: &mut World| {
-                    world
-                        .resource_mut::<PendingDanmakuActions>()
-                        .requests
-                        .push(path);
-                });
-            } else {
-                warn!("FRE: PlayDanmaku action missing 'path' param");
-            }
-        }
+        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(path) = params.get("path").cloned() else {
+            warn!("FRE: PlayDanmaku action missing 'path' param");
+            return;
+        };
+        info!("FRE: PlayDanmaku '{}' via registered handler", path);
+        commands.queue(move |world: &mut World| {
+            world
+                .resource_mut::<PendingDanmakuActions>()
+                .requests
+                .push(path);
+        });
     });
 
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {

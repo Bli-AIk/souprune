@@ -153,33 +153,33 @@ pub(crate) fn spawn_container_texts(
 
         // Add VisibleWhen component if text has visible_when expression
         // 如果文本有 visible_when 表达式则添加 VisibleWhen 组件
-        if let Some(visible_when_expr) = &text_def.visible_when {
-            let expr = visible_when_expr.trim();
-            if !expr.is_empty() {
-                // Evaluate initial visibility
-                let is_visible = evaluate_visible_when(expr, player_data);
+        if let Some(expr) = text_def
+            .visible_when
+            .as_deref()
+            .map(str::trim)
+            .filter(|e| !e.is_empty())
+        {
+            let is_visible = evaluate_visible_when(expr, player_data);
 
-                // Debug: check if we can access local facts
-                let depth_value = player_data.get_fact_int("depth");
-                info!(
-                    "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
-                    text_config.name,
-                    expr,
-                    is_visible,
-                    depth_value,
-                    player_data.local_facts().is_some()
-                );
+            let depth_value = player_data.get_fact_int("depth");
+            info!(
+                "Adding VisibleWhen to text '{}': '{}' -> {} (depth={:?}, has_local_facts={})",
+                text_config.name,
+                expr,
+                is_visible,
+                depth_value,
+                player_data.local_facts().is_some()
+            );
 
-                cmd.insert(VisibleWhen {
-                    expression: expr.to_string(),
-                });
-                // Set initial visibility
-                if is_visible {
-                    cmd.insert(Visibility::Inherited);
-                } else {
-                    cmd.insert(Visibility::Hidden);
-                }
-            }
+            cmd.insert(VisibleWhen {
+                expression: expr.to_string(),
+            });
+            let visibility = if is_visible {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+            cmd.insert(visibility);
         }
 
         // Add DynamicViewElement if transform has dynamic expressions

@@ -524,29 +524,25 @@ fn spawn_single_bullet(
         // Fallback: try legacy module/name lookup for backwards compatibility
         // This handles cases like "battle/bullets/spear" that might reference config.toml
         let parts: Vec<&str> = visual_path.split('/').collect();
-        if parts.len() >= 2 {
+        if parts.len() < 2 {
+            warn!("Failed to resolve visual: {}", visual_path);
+            entity_commands.insert(Sprite::default());
+        } else {
             let module = parts[0];
             let name = parts.last().unwrap_or(&"");
 
             let mut sprite_context = sprite_params.create_sprite_context();
             if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
-                if let Some(color) = effective_color {
-                    sprite.color = color;
-                }
+                apply_color_tint(&mut sprite, effective_color);
                 entity_commands.insert(sprite);
             } else if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
                 let mut sprite = Sprite::default();
-                if let Some(color) = effective_color {
-                    sprite.color = color;
-                }
+                apply_color_tint(&mut sprite, effective_color);
                 entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
             } else {
                 warn!("Failed to resolve visual: {}", visual_path);
                 entity_commands.insert(Sprite::default());
             }
-        } else {
-            warn!("Failed to resolve visual: {}", visual_path);
-            entity_commands.insert(Sprite::default());
         }
     }
 }
@@ -638,33 +634,16 @@ pub fn update_bullet_motion(
                 }
 
                 BulletBehavior::Tween(config) => {
-                    tween_state.timers[i] += dt;
-                    let t = tween_state.timers[i] - config.delay;
-
-                    if t >= 0.0 && t < config.duration {
-                        let progress = (t / config.duration).clamp(0.0, 1.0);
-                        let eased = config.ease.apply(progress);
-                        let value = config.range.0 + (config.range.1 - config.range.0) * eased;
-
-                        match config.target {
-                            TweenTarget::Opacity => opacity = Some(value),
-                            TweenTarget::Scale => scale_delta = Vec2::splat(value - 1.0),
-                            TweenTarget::ScaleX => scale_delta.x = value - 1.0,
-                            TweenTarget::ScaleY => scale_delta.y = value - 1.0,
-                            TweenTarget::PositionX => position.x += value,
-                            TweenTarget::PositionY => position.y += value,
-                            TweenTarget::Rotation => rotation_delta += value,
-                        }
-                    } else if t >= config.duration {
-                        let value = config.range.1;
-                        match config.target {
-                            TweenTarget::Opacity => opacity = Some(value),
-                            TweenTarget::Scale => scale_delta = Vec2::splat(value - 1.0),
-                            TweenTarget::ScaleX => scale_delta.x = value - 1.0,
-                            TweenTarget::ScaleY => scale_delta.y = value - 1.0,
-                            _ => {}
-                        }
-                    }
+                    apply_tween_behavior(
+                        config,
+                        &mut tween_state,
+                        i,
+                        dt,
+                        &mut opacity,
+                        &mut scale_delta,
+                        &mut position,
+                        &mut rotation_delta,
+                    );
                 }
 
                 // Custom behaviors are handled separately via ActiveDanmaku
@@ -760,5 +739,84 @@ pub fn cleanup_dead_bullets(
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Apply optional color tint to a sprite.
+fn apply_color_tint(sprite: &mut Sprite, color: Option<Color>) {
+    if let Some(color) = color {
+        sprite.color = color;
+    }
+}
+
+/// Apply a tween value to the corresponding target property (during active tween).
+/// Apply a tween behavior for a single frame, updating position/rotation/scale/opacity.
+fn apply_tween_behavior(
+    config: &TweenConfig,
+    tween_state: &mut TweenState,
+    index: usize,
+    dt: f32,
+    opacity: &mut Option<f32>,
+    scale_delta: &mut Vec2,
+    position: &mut Vec2,
+    rotation_delta: &mut f32,
+) {
+    tween_state.timers[index] += dt;
+    let t = tween_state.timers[index] - config.delay;
+
+    if t >= 0.0 && t < config.duration {
+        let progress = (t / config.duration).clamp(0.0, 1.0);
+        let eased = config.ease.apply(progress);
+        let value = config.range.0 + (config.range.1 - config.range.0) * eased;
+        apply_tween_value(
+            config.target,
+            value,
+            opacity,
+            scale_delta,
+            position,
+            rotation_delta,
+        );
+    } else if t >= config.duration {
+        let value = config.range.1;
+        apply_tween_final_value(config.target, value, opacity, scale_delta);
+    }
+}
+
+fn apply_tween_value(
+    target: TweenTarget,
+    value: f32,
+    opacity: &mut Option<f32>,
+    scale_delta: &mut Vec2,
+    position: &mut Vec2,
+    rotation_delta: &mut f32,
+) {
+    match target {
+        TweenTarget::Opacity => *opacity = Some(value),
+        TweenTarget::Scale => *scale_delta = Vec2::splat(value - 1.0),
+        TweenTarget::ScaleX => scale_delta.x = value - 1.0,
+        TweenTarget::ScaleY => scale_delta.y = value - 1.0,
+        TweenTarget::PositionX => position.x += value,
+        TweenTarget::PositionY => position.y += value,
+        TweenTarget::Rotation => *rotation_delta += value,
+    }
+}
+
+/// Apply a tween final value after the tween has completed (only persistent targets).
+fn apply_tween_final_value(
+    target: TweenTarget,
+    value: f32,
+    opacity: &mut Option<f32>,
+    scale_delta: &mut Vec2,
+) {
+    match target {
+        TweenTarget::Opacity => *opacity = Some(value),
+        TweenTarget::Scale => *scale_delta = Vec2::splat(value - 1.0),
+        TweenTarget::ScaleX => scale_delta.x = value - 1.0,
+        TweenTarget::ScaleY => scale_delta.y = value - 1.0,
+        _ => {}
     }
 }

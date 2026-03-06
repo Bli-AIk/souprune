@@ -43,32 +43,32 @@ pub fn process_set_bgm_system(
         return;
     };
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::SetBgm { path, fade_in } = &active_chapter.chapter {
-            // Stop current BGM if playing
-            if let Some(handle) = &bgm.handle {
-                if let Some(instance) = audio_instances.get_mut(handle) {
-                    let tween = if let Some(duration) = fade_in {
-                        AudioTween::linear(std::time::Duration::from_secs_f32(*duration))
-                    } else {
-                        AudioTween::default()
-                    };
-                    instance.stop(tween);
-                }
-                bgm.handle = None;
-                bgm.path = None;
+        let Chapter::SetBgm { path, fade_in } = &active_chapter.chapter else {
+            continue;
+        };
+        // Stop current BGM if playing
+        if let Some(handle) = &bgm.handle {
+            if let Some(instance) = audio_instances.get_mut(handle) {
+                let tween = fade_in
+                    .as_ref()
+                    .map(|d| AudioTween::linear(std::time::Duration::from_secs_f32(*d)))
+                    .unwrap_or_default();
+                instance.stop(tween);
             }
-
-            // Start new BGM if path is specified
-            if let Some(bgm_path) = path {
-                info!("[Sequencer] SetBgm: playing '{}'", bgm_path);
-                let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
-                bgm.handle = Some(handle);
-                bgm.path = Some(bgm_path.clone());
-            } else {
-                info!("[Sequencer] SetBgm: stopping BGM");
-            }
-
-            commands.entity(entity).insert(ChapterFinished);
+            bgm.handle = None;
+            bgm.path = None;
         }
+
+        // Start new BGM if path is specified
+        if let Some(bgm_path) = path {
+            info!("[Sequencer] SetBgm: playing '{}'", bgm_path);
+            let handle = crate::core::audio::play_bgm(&audio, &asset_server, bgm_path);
+            bgm.handle = Some(handle);
+            bgm.path = Some(bgm_path.clone());
+        } else {
+            info!("[Sequencer] SetBgm: stopping BGM");
+        }
+
+        commands.entity(entity).insert(ChapterFinished);
     }
 }

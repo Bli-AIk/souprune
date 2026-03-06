@@ -674,23 +674,27 @@ pub fn update_controller_directions(
     }
 
     // Multitouch: direct hit testing with Touches
-    if let Ok(window) = windows.single() {
-        let sf = window.scale_factor();
-        let vp_offset = cameras
-            .iter()
-            .next()
-            .and_then(|cam| cam.physical_viewport_rect())
-            .map(|rect| rect.min.as_vec2())
-            .unwrap_or(Vec2::ZERO);
-        for touch in touches.iter() {
-            let pos = touch.position() * sf - vp_offset;
-            for (_, node, transform, _) in zones.iter() {
-                if node.contains_point(*transform, pos)
-                    && let Some(normalized) = node.normalize_point(*transform, pos)
-                {
-                    insert_controller_dirs(&mut dirs.0, normalized);
-                }
-            }
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let sf = window.scale_factor();
+    let vp_offset = cameras
+        .iter()
+        .next()
+        .and_then(|cam| cam.physical_viewport_rect())
+        .map(|rect| rect.min.as_vec2())
+        .unwrap_or(Vec2::ZERO);
+    for touch in touches.iter() {
+        let pos = touch.position() * sf - vp_offset;
+        for (_, node, transform, _) in zones.iter() {
+            let Some(normalized) = node
+                .contains_point(*transform, pos)
+                .then(|| node.normalize_point(*transform, pos))
+                .flatten()
+            else {
+                continue;
+            };
+            insert_controller_dirs(&mut dirs.0, normalized);
         }
     }
 }
@@ -740,15 +744,16 @@ fn inject_touch_actions(
 
     for mut state in action_states.iter_mut() {
         for name in &currently_pressed {
-            if let Some(slot) = registry.get(name) {
-                let was_pressed = prev.0.contains(name);
-                let target_state = if was_pressed {
-                    ButtonState::Pressed
-                } else {
-                    ButtonState::JustPressed
-                };
-                set_button_state(&mut state, &slot, target_state);
-            }
+            let Some(slot) = registry.get(name) else {
+                continue;
+            };
+            let was_pressed = prev.0.contains(name);
+            let target_state = if was_pressed {
+                ButtonState::Pressed
+            } else {
+                ButtonState::JustPressed
+            };
+            set_button_state(&mut state, &slot, target_state);
         }
 
         for name in &prev.0 {
@@ -827,17 +832,20 @@ pub fn update_touch_button_visuals(
     for (interaction, action, mut anim, frames, mut img) in anim_buttons.iter_mut() {
         let is_pressed = multitouch.0.contains(&action.0)
             || (!has_touches && *interaction == Interaction::Pressed);
-        if is_pressed {
-            if anim.phase != AnimPhase::Pressing && anim.phase != AnimPhase::Held {
-                // Start press animation: show frame 1
-                anim.phase = AnimPhase::Pressing;
-                anim.current_frame = 1;
-                anim.timer.reset();
-                if let Some(handle) = frames.0.get(1) {
-                    img.image = handle.clone();
-                }
+        let should_start_press =
+            is_pressed && anim.phase != AnimPhase::Pressing && anim.phase != AnimPhase::Held;
+        let should_start_release =
+            !is_pressed && (anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held);
+
+        if should_start_press {
+            // Start press animation: show frame 1
+            anim.phase = AnimPhase::Pressing;
+            anim.current_frame = 1;
+            anim.timer.reset();
+            if let Some(handle) = frames.0.get(1) {
+                img.image = handle.clone();
             }
-        } else if anim.phase == AnimPhase::Pressing || anim.phase == AnimPhase::Held {
+        } else if should_start_release {
             // Start release animation: show frame 3
             anim.phase = AnimPhase::Releasing;
             anim.current_frame = 3;

@@ -1,10 +1,4 @@
-#![allow(
-    dead_code,
-    clippy::too_many_arguments,
-    clippy::type_complexity,
-    clippy::excessive_nesting,
-    unexpected_cfgs
-)]
+#![allow(dead_code, unexpected_cfgs)]
 //! # lib.rs
 //!
 //! # lib.rs 文件
@@ -565,6 +559,34 @@ pub fn insert_font_resources(app: &mut App) {
     });
 }
 
+/// Load touch layout from file and apply overlay-level overrides for opacity/scale.
+fn load_touch_layout(
+    input_config: &input::InputConfig,
+    projects_base: &std::path::Path,
+    mod_name: &str,
+) -> Option<input::TouchLayoutDef> {
+    let touch_cfg = input_config.touch_overlay.as_ref()?;
+    let layout_path = touch_cfg.layout.as_ref()?;
+    let full_path = projects_base.join(mod_name).join(layout_path);
+    match input::TouchLayoutDef::load_from_file(&full_path) {
+        Ok(mut layout) => {
+            info!("Loaded touch layout from {:?}", full_path);
+            // Apply overlay-level opacity/scale if explicitly set in touch_overlay config
+            if let Some(opacity) = touch_cfg.opacity {
+                layout.opacity = opacity;
+            }
+            if let Some(scale) = touch_cfg.scale {
+                layout.scale = scale;
+            }
+            Some(layout)
+        }
+        Err(e) => {
+            warn!("Failed to load touch layout: {}", e);
+            None
+        }
+    }
+}
+
 pub fn run() {
     // On Android, print early debug info before any potential panic
     //
@@ -648,34 +670,7 @@ pub fn run() {
 
     // Load touch layout config if specified
     // 如果指定了触控布局配置则加载
-    let touch_layout = if let Some(ref touch_cfg) = input_config.touch_overlay {
-        if let Some(ref layout_path) = touch_cfg.layout {
-            let full_path = projects_base
-                .join(&config.project.mod_name)
-                .join(layout_path);
-            match input::TouchLayoutDef::load_from_file(&full_path) {
-                Ok(mut layout) => {
-                    info!("Loaded touch layout from {:?}", full_path);
-                    // Apply overlay-level opacity/scale if explicitly set in touch_overlay config
-                    if let Some(opacity) = touch_cfg.opacity {
-                        layout.opacity = opacity;
-                    }
-                    if let Some(scale) = touch_cfg.scale {
-                        layout.scale = scale;
-                    }
-                    Some(layout)
-                }
-                Err(e) => {
-                    warn!("Failed to load touch layout: {}", e);
-                    None
-                }
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let touch_layout = load_touch_layout(&input_config, &projects_base, &config.project.mod_name);
 
     // Determine touch overlay enabled state: check if current OS is in platforms list
     let touch_enabled = input_config
@@ -720,27 +715,28 @@ pub fn run() {
                     ];
 
                     for path in &watch_paths {
-                        if path.exists() {
-                            info!(
-                                "[Hot Reload] Setting up file watcher for project root: {:?}",
-                                path
-                            );
-                            match FileWatcher::new(
-                                path.clone(),
-                                sender.clone(),
-                                std::time::Duration::from_millis(300),
-                            ) {
-                                Ok(watcher) => {
-                                    return Some(
-                                        Box::new(watcher) as Box<dyn bevy::asset::io::AssetWatcher>
-                                    );
-                                }
-                                Err(e) => {
-                                    warn!(
-                                        "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
-                                        path, e
-                                    );
-                                }
+                        if !path.exists() {
+                            continue;
+                        }
+                        info!(
+                            "[Hot Reload] Setting up file watcher for project root: {:?}",
+                            path
+                        );
+                        match FileWatcher::new(
+                            path.clone(),
+                            sender.clone(),
+                            std::time::Duration::from_millis(300),
+                        ) {
+                            Ok(watcher) => {
+                                return Some(
+                                    Box::new(watcher) as Box<dyn bevy::asset::io::AssetWatcher>
+                                );
+                            }
+                            Err(e) => {
+                                warn!(
+                                    "[Hot Reload] Failed to create file watcher for {:?}: {:?}",
+                                    path, e
+                                );
                             }
                         }
                     }

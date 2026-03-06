@@ -618,58 +618,59 @@ fn update_player_outline_system(
         outline_transform.translation.y = player_transform.translation.y;
 
         // Update texture, UV rect, and flip if changed
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            material.texture = sprite.image.clone();
+        let Some(material) = materials.get_mut(&material_handle.0) else {
+            continue;
+        };
+        material.texture = sprite.image.clone();
 
-            // Update flip flags
-            material.flip = Vec4::new(
-                if sprite.flip_x { 1.0 } else { 0.0 },
-                if sprite.flip_y { 1.0 } else { 0.0 },
-                0.0,
-                0.0,
-            );
+        // Update flip flags
+        material.flip = Vec4::new(
+            if sprite.flip_x { 1.0 } else { 0.0 },
+            if sprite.flip_y { 1.0 } else { 0.0 },
+            0.0,
+            0.0,
+        );
 
-            // Update UV rect and mesh size based on TextureAtlas or sprite.rect
-            if let Some(image) = images.get(&sprite.image) {
-                let tex_size = image.size().as_vec2();
-                let (new_uv_rect, sprite_size) = if let Some(ref atlas) = sprite.texture_atlas {
-                    if let Some(layout) = atlas_layouts.get(&atlas.layout) {
-                        let rect = layout.textures[atlas.index];
-                        let uv = Vec4::new(
-                            rect.min.x as f32 / tex_size.x,
-                            rect.min.y as f32 / tex_size.y,
-                            rect.max.x as f32 / tex_size.x,
-                            rect.max.y as f32 / tex_size.y,
-                        );
-                        let size = Vec2::new(rect.width() as f32, rect.height() as f32);
-                        (uv, size)
-                    } else {
-                        (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
-                    }
-                } else if let Some(rect) = sprite.rect {
-                    let uv = Vec4::new(
-                        rect.min.x / tex_size.x,
-                        rect.min.y / tex_size.y,
-                        rect.max.x / tex_size.x,
-                        rect.max.y / tex_size.y,
-                    );
-                    let size = Vec2::new(rect.width(), rect.height());
-                    (uv, size)
-                } else {
-                    (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
-                };
-
-                material.uv_rect = new_uv_rect;
-
-                // Only update mesh if sprite size changed (avoid creating new mesh every frame)
-                // 只在精灵尺寸变化时更新 mesh（避免每帧创建新 mesh）
-                if (outline_marker.current_size - sprite_size).length() > 0.01 {
-                    outline_marker.current_size = sprite_size;
-                    let outline_size = sprite_size + Vec2::splat(chase_config.outline.padding);
-                    let new_mesh = meshes.add(Rectangle::new(outline_size.x, outline_size.y));
-                    commands.entity(entity).insert(Mesh2d(new_mesh));
-                }
+        // Update UV rect and mesh size based on TextureAtlas or sprite.rect
+        let Some(image) = images.get(&sprite.image) else {
+            continue;
+        };
+        let tex_size = image.size().as_vec2();
+        let (new_uv_rect, sprite_size) = if let Some(ref atlas) = sprite.texture_atlas {
+            if let Some(layout) = atlas_layouts.get(&atlas.layout) {
+                let rect = layout.textures[atlas.index];
+                let uv = Vec4::new(
+                    rect.min.x as f32 / tex_size.x,
+                    rect.min.y as f32 / tex_size.y,
+                    rect.max.x as f32 / tex_size.x,
+                    rect.max.y as f32 / tex_size.y,
+                );
+                let size = Vec2::new(rect.width() as f32, rect.height() as f32);
+                (uv, size)
+            } else {
+                (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
             }
+        } else if let Some(rect) = sprite.rect {
+            let uv = Vec4::new(
+                rect.min.x / tex_size.x,
+                rect.min.y / tex_size.y,
+                rect.max.x / tex_size.x,
+                rect.max.y / tex_size.y,
+            );
+            let size = Vec2::new(rect.width(), rect.height());
+            (uv, size)
+        } else {
+            (Vec4::new(0.0, 0.0, 1.0, 1.0), tex_size)
+        };
+
+        material.uv_rect = new_uv_rect;
+
+        // Only update mesh if sprite size changed (avoid creating new mesh every frame)
+        if (outline_marker.current_size - sprite_size).length() > 0.01 {
+            outline_marker.current_size = sprite_size;
+            let outline_size = sprite_size + Vec2::splat(chase_config.outline.padding);
+            let new_mesh = meshes.add(Rectangle::new(outline_size.x, outline_size.y));
+            commands.entity(entity).insert(Mesh2d(new_mesh));
         }
     }
 }

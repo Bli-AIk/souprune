@@ -47,60 +47,62 @@ pub fn load_global_triggers_system(
 
     *last_processed_handle = Some(root.layout_handle.id());
 
-    if let Some(global_triggers) = &view_layout.global_triggers {
-        // DEPRECATION WARNING: global_triggers will be removed in a future version.
-        // Use FRE rules with SwitchState action instead.
-        // 弃用警告：global_triggers 将在未来版本中移除。
-        // 请改用带有 SwitchState action 的 FRE 规则。
-        warn!(
-            "[DEPRECATED] global_triggers in view_layout.ron is deprecated. \
-            Use FRE rules with SwitchState action instead. \
-            See backpack.fre.ron for examples."
-        );
+    let Some(global_triggers) = &view_layout.global_triggers else {
+        return;
+    };
 
-        for (action_str, rules_def) in global_triggers {
-            if let Some(action) = action_registry.get(action_str) {
-                let mut rules = Vec::new();
+    // DEPRECATION WARNING: global_triggers will be removed in a future version.
+    // Use FRE rules with SwitchState action instead.
+    // 弃用警告：global_triggers 将在未来版本中移除。
+    // 请改用带有 SwitchState action 的 FRE 规则。
+    warn!(
+        "[DEPRECATED] global_triggers in view_layout.ron is deprecated. \
+        Use FRE rules with SwitchState action instead. \
+        See backpack.fre.ron for examples."
+    );
 
-                for rule_def in rules_def {
-                    if let Some(target_state) = parse_sequence_state(&rule_def.target_state) {
-                        let allowed_states = rule_def
-                            .allowed_states
-                            .as_ref()
-                            .map(|states| {
-                                states
-                                    .iter()
-                                    .filter_map(|s| parse_sequence_state(s))
-                                    .collect()
-                            })
-                            .unwrap_or_default();
+    for (action_str, rules_def) in global_triggers {
+        let Some(action) = action_registry.get(action_str) else {
+            warn!("Unknown action '{}' in global triggers", action_str);
+            continue;
+        };
+        let mut rules = Vec::new();
 
-                        rules.push(GlobalTriggerRule {
-                            target_state,
+        for rule_def in rules_def {
+            let Some(target_state) = parse_sequence_state(&rule_def.target_state) else {
+                warn!(
+                    "Unknown target state '{}' in global triggers",
+                    rule_def.target_state
+                );
+                continue;
+            };
+            let allowed_states = rule_def
+                .allowed_states
+                .as_ref()
+                .map(|states| {
+                    states
+                        .iter()
+                        .filter_map(|s| parse_sequence_state(s))
+                        .collect()
+                })
+                .unwrap_or_default();
 
-                            sound: rule_def.sound.clone(),
+            rules.push(GlobalTriggerRule {
+                target_state,
 
-                            allowed_states,
-                        });
-                    } else {
-                        warn!(
-                            "Unknown target state '{}' in global triggers",
-                            rule_def.target_state
-                        );
-                    }
-                }
+                sound: rule_def.sound.clone(),
 
-                global_trigger_config.triggers.insert(action, rules);
-            } else {
-                warn!("Unknown action '{}' in global triggers", action_str);
-            }
+                allowed_states,
+            });
         }
 
-        info!(
-            "Loaded global trigger config from RON with {} triggers",
-            global_triggers.len()
-        );
+        global_trigger_config.triggers.insert(action, rules);
     }
+
+    info!(
+        "Loaded global trigger config from RON with {} triggers",
+        global_triggers.len()
+    );
 }
 
 pub fn ui_animation_init_system(

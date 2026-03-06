@@ -487,18 +487,20 @@ fn propagate_am_markers_system(
             let parent = child_of.parent();
 
             // Check if parent has markers
-            if let Ok((_, parent_bullet, parent_battle_box, parent_hidden)) =
-                am_entities.get(parent)
-            {
-                if !has_bullet && parent_bullet.is_some() {
-                    inherited_bullet = true;
-                }
-                if !has_battle_box && parent_battle_box.is_some() {
-                    inherited_battle_box = true;
-                }
-                if !has_hidden && parent_hidden.is_some() {
-                    inherited_hidden = true;
-                }
+            let Ok((_, parent_bullet, parent_battle_box, parent_hidden)) = am_entities.get(parent)
+            else {
+                current = parent;
+                continue;
+            };
+
+            if !has_bullet && parent_bullet.is_some() {
+                inherited_bullet = true;
+            }
+            if !has_battle_box && parent_battle_box.is_some() {
+                inherited_battle_box = true;
+            }
+            if !has_hidden && parent_hidden.is_some() {
+                inherited_hidden = true;
             }
 
             // If found all needed inheritance, stop

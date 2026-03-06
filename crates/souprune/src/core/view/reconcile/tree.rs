@@ -311,12 +311,10 @@ impl DesiredViewTree {
             if &element.key == key {
                 return Some(element);
             }
-            for child in &element.children {
-                if let Some(found) = find_in_element(child, key) {
-                    return Some(found);
-                }
-            }
-            None
+            element
+                .children
+                .iter()
+                .find_map(|child| find_in_element(child, key))
         }
 
         for root in &self.roots {

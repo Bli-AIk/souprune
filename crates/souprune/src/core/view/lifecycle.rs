@@ -196,7 +196,6 @@ pub(crate) fn process_pending_view_rules_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
 ) {
     use super::ron_view::spawn::load_fre_into_view_root;
-    use bevy_fact_rule_event::RuleScope;
 
     for (entity, mut pending, mut view_root) in query.iter_mut() {
         // Collect handles that are now loaded
@@ -205,57 +204,28 @@ pub(crate) fn process_pending_view_rules_system(
         let mut still_pending = Vec::new();
 
         for (path, handle) in pending.pending_handles.drain(..) {
-            if let Some(fre_asset) = fre_assets.get(&handle) {
-                // Asset loaded! Register rules
-                // 资产已加载！注册规则
-                load_fre_into_view_root(&mut view_root, fre_asset, &mortar_strings);
-
-                let rule_defs = fre_asset.get_rule_defs();
-                let scope = fre_asset.scope();
-
-                for (idx, rule_def) in rule_defs.iter().enumerate() {
-                    // For FRE files loaded via View's requires, treat Local as View
-                    // 对于通过 View 的 requires 加载的文件，将 Local 视为 View
-                    let effective_scope = if scope == RuleScope::Local {
-                        RuleScope::View
-                    } else {
-                        scope
-                    };
-
-                    let rule = rule_def.to_rule_with_index(idx, effective_scope);
-                    let rule_id = rule_def.generate_id(idx);
-
-                    // Store actions for this rule
-                    // 存储此规则的 actions
-                    if !rule_def.actions.is_empty() {
-                        action_defs
-                            .actions_by_rule
-                            .insert(rule_id.clone(), rule_def.actions.clone());
-                    }
-
-                    if effective_scope == RuleScope::View {
-                        info!(
-                            "[lifecycle] Registering View rule '{}' with {} outputs: {:?}",
-                            rule_id,
-                            rule.outputs.len(),
-                            rule.outputs
-                        );
-                        rule_registry.register_view_rule(entity, rule);
-                        info!(
-                            "[lifecycle] Registered pending View rule '{}' for entity {:?} from '{}'",
-                            rule_id, entity, path
-                        );
-                    } else {
-                        rule_registry.register(rule);
-                    }
-                }
-
-                loaded_paths.push((path, rule_defs.len()));
-            } else {
+            let Some(fre_asset) = fre_assets.get(&handle) else {
                 // Still not loaded, keep in pending (with handle to keep loading alive)
-                // 仍未加载，保留在待处理列表中（保留句柄以保持加载请求）
                 still_pending.push((path, handle));
-            }
+                continue;
+            };
+
+            // Asset loaded! Register rules
+            load_fre_into_view_root(&mut view_root, fre_asset, &mortar_strings);
+
+            let rule_defs = fre_asset.get_rule_defs();
+            let scope = fre_asset.scope();
+
+            register_fre_rules(
+                entity,
+                &path,
+                scope,
+                rule_defs,
+                &mut rule_registry,
+                &mut action_defs,
+            );
+
+            loaded_paths.push((path, rule_defs.len()));
         }
 
         // Log what we loaded
@@ -291,6 +261,53 @@ pub(crate) fn process_pending_view_rules_system(
                 "[lifecycle] All pending FRE files loaded for entity {:?}, removing PendingViewRules, set view_rules_loaded=true",
                 entity
             );
+        }
+    }
+}
+
+/// Register FRE rules from a loaded asset into the rule registry.
+fn register_fre_rules(
+    entity: Entity,
+    path: &str,
+    scope: bevy_fact_rule_event::RuleScope,
+    rule_defs: &[bevy_fact_rule_event::RuleDef],
+    rule_registry: &mut LayeredRuleRegistry,
+    action_defs: &mut crate::app_state::overworld::trigger::RuleActionDefs,
+) {
+    use bevy_fact_rule_event::RuleScope;
+
+    for (idx, rule_def) in rule_defs.iter().enumerate() {
+        // For FRE files loaded via View's requires, treat Local as View
+        let effective_scope = if scope == RuleScope::Local {
+            RuleScope::View
+        } else {
+            scope
+        };
+
+        let rule = rule_def.to_rule_with_index(idx, effective_scope);
+        let rule_id = rule_def.generate_id(idx);
+
+        // Store actions for this rule
+        if !rule_def.actions.is_empty() {
+            action_defs
+                .actions_by_rule
+                .insert(rule_id.clone(), rule_def.actions.clone());
+        }
+
+        if effective_scope == RuleScope::View {
+            info!(
+                "[lifecycle] Registering View rule '{}' with {} outputs: {:?}",
+                rule_id,
+                rule.outputs.len(),
+                rule.outputs
+            );
+            rule_registry.register_view_rule(entity, rule);
+            info!(
+                "[lifecycle] Registered pending View rule '{}' for entity {:?} from '{}'",
+                rule_id, entity, path
+            );
+        } else {
+            rule_registry.register(rule);
         }
     }
 }
