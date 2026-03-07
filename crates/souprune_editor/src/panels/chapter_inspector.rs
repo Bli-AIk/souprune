@@ -92,16 +92,15 @@ impl WorkbenchPanel for ChapterInspectorPanel {
         let changed = render_chapter_properties(ui, &mut edited_chapter, world);
 
         if changed {
+            let mut state = world.resource_mut::<EditorSequenceState>();
+            if let Some(seq) = &mut state.current
+                && let Some(ch) = seq.chapters.get_mut(idx)
             {
-                let mut state = world.resource_mut::<EditorSequenceState>();
-                if let Some(seq) = &mut state.current
-                    && let Some(ch) = seq.chapters.get_mut(idx)
-                {
-                    *ch = edited_chapter.clone();
-                    seq.dirty = true;
-                }
-                state.save_timer = Some(0.5);
+                *ch = edited_chapter.clone();
+                seq.dirty = true;
             }
+            state.save_timer = Some(0.5);
+            drop(state);
             world.resource_mut::<UndoStack>().push(ModifyChapterAction {
                 index: idx,
                 old_chapter: chapter,

@@ -266,14 +266,16 @@ fn find_project_root() -> Option<PathBuf> {
         let content = std::fs::read_to_string(&config_path).ok()?;
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with("mod_name")
-                && let Some(val) = trimmed.split('=').nth(1)
-            {
-                let name = val.trim().trim_matches('"');
-                let mod_path = PathBuf::from(format!("projects/{name}"));
-                if mod_path.exists() {
-                    return Some(mod_path);
-                }
+            if !trimmed.starts_with("mod_name") {
+                continue;
+            }
+            let Some(val) = trimmed.split('=').nth(1) else {
+                continue;
+            };
+            let name = val.trim().trim_matches('"');
+            let mod_path = PathBuf::from(format!("projects/{name}"));
+            if mod_path.exists() {
+                return Some(mod_path);
             }
         }
     }
@@ -314,6 +316,32 @@ fn render_asset_browser(ui: &mut egui::Ui, world: &mut World) {
             world.resource_mut::<AssetBrowserState>().file_tree = None;
         }
     }
+}
+
+fn render_filter_button(
+    ui: &mut egui::Ui,
+    ft: AssetFileType,
+    active: bool,
+    tex_id: Option<egui::TextureId>,
+    color: egui::Color32,
+    world: &mut World,
+) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        if let Some(id) = tex_id {
+            let size = egui::vec2(16.0, 16.0);
+            ui.add(egui::Image::new(egui::load::SizedTexture::new(id, size)).tint(color));
+        }
+        let label = egui::RichText::new(ft.label()).color(color);
+        if ui.selectable_label(active, label).clicked() {
+            let mut state = world.resource_mut::<AssetBrowserState>();
+            if active {
+                state.active_filters.remove(&ft);
+            } else {
+                state.active_filters.insert(ft);
+            }
+        }
+    });
 }
 
 fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
@@ -369,22 +397,7 @@ fn render_browser_toolbar(ui: &mut egui::Ui, world: &mut World) {
             } else {
                 egui::Color32::from_rgb(80, 80, 80)
             };
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 2.0;
-                if let Some(id) = tex_id {
-                    let size = egui::vec2(16.0, 16.0);
-                    ui.add(egui::Image::new(egui::load::SizedTexture::new(id, size)).tint(color));
-                }
-                let label = egui::RichText::new(ft.label()).color(color);
-                if ui.selectable_label(active, label).clicked() {
-                    let mut state = world.resource_mut::<AssetBrowserState>();
-                    if active {
-                        state.active_filters.remove(&ft);
-                    } else {
-                        state.active_filters.insert(ft);
-                    }
-                }
-            });
+            render_filter_button(ui, ft, active, tex_id, color, world);
         }
     });
 }

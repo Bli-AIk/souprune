@@ -270,6 +270,34 @@ enum TreeAction {
     MoveDown(Vec<usize>),
 }
 
+fn render_context_menu_items(
+    ui: &mut egui::Ui,
+    path: &[usize],
+    action: &mut Option<TreeAction>,
+    world: &World,
+) {
+    let p = path.to_vec();
+    for (label, act) in [
+        (t(world, "tree-add-child"), TreeAction::AddChild(p.clone())),
+        (t(world, "action-copy"), TreeAction::Duplicate(p.clone())),
+        (t(world, "tree-move-up"), TreeAction::MoveUp(p.clone())),
+        (t(world, "tree-move-down"), TreeAction::MoveDown(p.clone())),
+    ] {
+        if ui.button(label).clicked() {
+            *action = Some(act);
+            ui.close();
+        }
+    }
+    ui.separator();
+    if ui
+        .button(egui::RichText::new(t(world, "action-delete")).color(egui::Color32::RED))
+        .clicked()
+    {
+        *action = Some(TreeAction::Delete(path.to_vec()));
+        ui.close();
+    }
+}
+
 fn render_tree_node(
     ui: &mut egui::Ui,
     node: &ViewNodeDef,
@@ -297,26 +325,7 @@ fn render_tree_node(
 
     let show_ctx = |ui: &mut egui::Ui, path: &[usize], action: &mut Option<TreeAction>| {
         ui.menu_button("...", |ui| {
-            let p = path.to_vec();
-            for (label, act) in [
-                (t(world, "tree-add-child"), TreeAction::AddChild(p.clone())),
-                (t(world, "action-copy"), TreeAction::Duplicate(p.clone())),
-                (t(world, "tree-move-up"), TreeAction::MoveUp(p.clone())),
-                (t(world, "tree-move-down"), TreeAction::MoveDown(p.clone())),
-            ] {
-                if ui.button(label).clicked() {
-                    *action = Some(act);
-                    ui.close();
-                }
-            }
-            ui.separator();
-            if ui
-                .button(egui::RichText::new(t(world, "action-delete")).color(egui::Color32::RED))
-                .clicked()
-            {
-                *action = Some(TreeAction::Delete(path.to_vec()));
-                ui.close();
-            }
+            render_context_menu_items(ui, path, action, world);
         });
     };
 
@@ -382,17 +391,18 @@ fn apply_tree_action(world: &mut World, action: TreeAction) {
         }
         TreeAction::Duplicate(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
-            if let Some(layout) = &mut state.layout {
-                let cloned = find_node_by_path(&layout.roots, &path).cloned();
-                if let Some(mut node) = cloned {
-                    node.name = format!("{}_copy", node.name);
-                    let parent_children = parent_children_mut(&mut layout.roots, &path);
-                    if let Some((siblings, idx)) = parent_children {
-                        siblings.insert(idx + 1, node);
-                        state.dirty = true;
-                    }
-                }
-            }
+            let Some(layout) = &mut state.layout else {
+                return;
+            };
+            let cloned = find_node_by_path(&layout.roots, &path).cloned();
+            let Some(mut node) = cloned else { return };
+            node.name = format!("{}_copy", node.name);
+            let parent_children = parent_children_mut(&mut layout.roots, &path);
+            let Some((siblings, idx)) = parent_children else {
+                return;
+            };
+            siblings.insert(idx + 1, node);
+            state.dirty = true;
         }
         TreeAction::Delete(path) => {
             let mut state = world.resource_mut::<ViewEditorState>();
@@ -434,6 +444,32 @@ fn apply_tree_action(world: &mut World, action: TreeAction) {
     }
 }
 
+fn render_node_inspector(
+    ui: &mut egui::Ui,
+    world: &World,
+    layout: &mut ViewLayoutAsset,
+    path: &[usize],
+) -> bool {
+    let mut changed = false;
+    let mut node = find_node_by_path(&layout.roots, path).unwrap().clone();
+
+    changed |= edit_node_basics(world, ui, &mut node);
+    changed |= edit_node_sprite(world, ui, &mut node.sprite);
+    changed |= edit_node_state_sprite(world, ui, &mut node.state_sprite);
+    changed |= edit_node_texts(world, ui, &mut node.texts);
+    changed |= edit_node_view_box(world, ui, &mut node.view_box);
+    changed |= edit_node_repeat(world, ui, &mut node.repeat);
+
+    if changed {
+        *find_node_by_path_mut(&mut layout.roots, path).unwrap() = node;
+    }
+
+    // Layout-level sections (requires, facts)
+    changed |= edit_data_requirements(world, ui, &mut layout.requires);
+    changed |= edit_initial_facts(world, ui, &mut layout.facts);
+    changed
+}
+
 // ─── Inspector ──────────────────────────────────────────────
 
 fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
@@ -458,22 +494,7 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
             let mut changed = false;
 
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let mut node = find_node_by_path(&layout.roots, &path).unwrap().clone();
-
-                changed |= edit_node_basics(world, ui, &mut node);
-                changed |= edit_node_sprite(world, ui, &mut node.sprite);
-                changed |= edit_node_state_sprite(world, ui, &mut node.state_sprite);
-                changed |= edit_node_texts(world, ui, &mut node.texts);
-                changed |= edit_node_view_box(world, ui, &mut node.view_box);
-                changed |= edit_node_repeat(world, ui, &mut node.repeat);
-
-                if changed {
-                    *find_node_by_path_mut(&mut layout.roots, &path).unwrap() = node;
-                }
-
-                // Layout-level sections (requires, facts)
-                changed |= edit_data_requirements(world, ui, &mut layout.requires);
-                changed |= edit_initial_facts(world, ui, &mut layout.facts);
+                changed |= render_node_inspector(ui, world, &mut layout, &path);
             });
 
             if changed {
@@ -627,6 +648,33 @@ fn edit_node_state_sprite(
     changed
 }
 
+fn render_text_def_editor(
+    ui: &mut egui::Ui,
+    world: &World,
+    text: &mut TextDef,
+    i: usize,
+    to_remove: &mut Option<usize>,
+) -> bool {
+    let mut changed = false;
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("id:");
+            if ui.text_edit_singleline(&mut text.id).changed() {
+                changed = true;
+            }
+            if ui.small_button("x").clicked() {
+                *to_remove = Some(i);
+            }
+        });
+        changed |= edit_option_string(ui, "content", &mut text.content);
+        changed |= edit_color(ui, &t(world, "view-color"), &mut text.color);
+        changed |= edit_font_def(ui, &t(world, "view-font"), &mut text.font);
+        changed |= edit_vec2(ui, "world_scale", &mut text.world_scale);
+        changed |= edit_expression(ui, "visible_when", &mut text.visible_when);
+    });
+    changed
+}
+
 fn edit_node_texts(world: &World, ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -> bool {
     if texts.is_empty() {
         return false;
@@ -638,22 +686,7 @@ fn edit_node_texts(world: &World, ui: &mut egui::Ui, texts: &mut Vec<TextDef>) -
             let mut to_remove = None;
             for (i, text) in texts.iter_mut().enumerate() {
                 ui.push_id(i, |ui| {
-                    ui.group(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("id:");
-                            if ui.text_edit_singleline(&mut text.id).changed() {
-                                changed = true;
-                            }
-                            if ui.small_button("x").clicked() {
-                                to_remove = Some(i);
-                            }
-                        });
-                        changed |= edit_option_string(ui, "content", &mut text.content);
-                        changed |= edit_color(ui, &t(world, "view-color"), &mut text.color);
-                        changed |= edit_font_def(ui, &t(world, "view-font"), &mut text.font);
-                        changed |= edit_vec2(ui, "world_scale", &mut text.world_scale);
-                        changed |= edit_expression(ui, "visible_when", &mut text.visible_when);
-                    });
+                    changed |= render_text_def_editor(ui, world, text, i, &mut to_remove);
                 });
             }
             if let Some(i) = to_remove {
@@ -697,6 +730,26 @@ fn edit_node_view_box(
     changed
 }
 
+fn edit_repeat_limit(ui: &mut egui::Ui, repeat: &mut RepeatDef) -> bool {
+    let mut changed = false;
+    let mut has_limit = repeat.limit.is_some();
+    if ui.checkbox(&mut has_limit, "limit").changed() {
+        repeat.limit = if has_limit { Some(10) } else { None };
+        changed = true;
+    }
+    if let Some(limit) = &mut repeat.limit {
+        let mut v = *limit as f64;
+        if ui
+            .add(egui::DragValue::new(&mut v).speed(1.0).range(0.0..=1000.0))
+            .changed()
+        {
+            *limit = v as usize;
+            changed = true;
+        }
+    }
+    changed
+}
+
 fn edit_node_repeat(world: &World, ui: &mut egui::Ui, repeat_opt: &mut Option<RepeatDef>) -> bool {
     let Some(repeat) = repeat_opt else {
         return false;
@@ -707,26 +760,42 @@ fn edit_node_repeat(world: &World, ui: &mut egui::Ui, repeat_opt: &mut Option<Re
         .show(ui, |ui| {
             changed |= labeled_text(ui, "source", &mut repeat.source);
             // limit
-            let mut has_limit = repeat.limit.is_some();
             ui.horizontal(|ui| {
-                if ui.checkbox(&mut has_limit, "limit").changed() {
-                    repeat.limit = if has_limit { Some(10) } else { None };
-                    changed = true;
-                }
-                if let Some(limit) = &mut repeat.limit {
-                    let mut v = *limit as f64;
-                    if ui
-                        .add(egui::DragValue::new(&mut v).speed(1.0).range(0.0..=1000.0))
-                        .changed()
-                    {
-                        *limit = v as usize;
-                        changed = true;
-                    }
-                }
+                changed |= edit_repeat_limit(ui, repeat);
             });
             changed |= edit_option_string(ui, "index_var", &mut repeat.index_var);
             changed |= edit_option_string(ui, "item_var", &mut repeat.item_var);
         });
+    changed
+}
+
+fn render_data_requirement_row(
+    ui: &mut egui::Ui,
+    req: &mut DataRequirement,
+    i: usize,
+    to_remove: &mut Option<usize>,
+) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        match req {
+            DataRequirement::File(path) => {
+                ui.label("File:");
+                if ui.text_edit_singleline(path).changed() {
+                    changed = true;
+                }
+            }
+            DataRequirement::Interface { interface, expects } => {
+                ui.label("Interface:");
+                if ui.text_edit_singleline(interface).changed() {
+                    changed = true;
+                }
+                ui.label(format!("({})", expects.join(", ")));
+            }
+        }
+        if ui.small_button("x").clicked() {
+            *to_remove = Some(i);
+        }
+    });
     changed
 }
 
@@ -745,26 +814,7 @@ fn edit_data_requirements(
             let mut to_remove = None;
             for (i, req) in requires.iter_mut().enumerate() {
                 ui.push_id(i, |ui| {
-                    ui.horizontal(|ui| {
-                        match req {
-                            DataRequirement::File(path) => {
-                                ui.label("File:");
-                                if ui.text_edit_singleline(path).changed() {
-                                    changed = true;
-                                }
-                            }
-                            DataRequirement::Interface { interface, expects } => {
-                                ui.label("Interface:");
-                                if ui.text_edit_singleline(interface).changed() {
-                                    changed = true;
-                                }
-                                ui.label(format!("({})", expects.join(", ")));
-                            }
-                        }
-                        if ui.small_button("x").clicked() {
-                            to_remove = Some(i);
-                        }
-                    });
+                    changed |= render_data_requirement_row(ui, req, i, &mut to_remove);
                 });
             }
             if let Some(i) = to_remove {

@@ -398,6 +398,26 @@ fn spawn_preview_node_inner(
     }
 }
 
+fn render_preview_toolbar(ui: &mut egui::Ui, state: &mut ViewPreviewState, labels: &PreviewLabels) {
+    if state.playing {
+        if ui.small_button(&labels.stop).clicked() {
+            state.playing = false;
+        }
+    } else if ui.small_button(&labels.play).clicked() {
+        state.playing = true;
+    }
+    ui.separator();
+    ui.label(&labels.zoom);
+    if ui.small_button(&labels.reset).clicked() {
+        state.zoom = 1.0;
+        state.pan_offset = Vec2::ZERO;
+    }
+    if state.playing && state.hovered {
+        ui.separator();
+        ui.colored_label(egui::Color32::from_rgb(100, 255, 100), &labels.input_active);
+    }
+}
+
 /// 在 UI 中渲染预览纹理，支持滚轮缩放和拖拽平移。
 pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState, labels: &PreviewLabels) {
     if let Some(tex_id) = state.egui_texture_id {
@@ -412,23 +432,7 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState, labels
 
         // Toolbar
         ui.horizontal(|ui| {
-            if state.playing {
-                if ui.small_button(&labels.stop).clicked() {
-                    state.playing = false;
-                }
-            } else if ui.small_button(&labels.play).clicked() {
-                state.playing = true;
-            }
-            ui.separator();
-            ui.label(&labels.zoom);
-            if ui.small_button(&labels.reset).clicked() {
-                state.zoom = 1.0;
-                state.pan_offset = Vec2::ZERO;
-            }
-            if state.playing && state.hovered {
-                ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 255, 100), &labels.input_active);
-            }
+            render_preview_toolbar(ui, state, labels);
         });
 
         let (rect, response) = ui.allocate_exact_size(base_size, egui::Sense::click_and_drag());
@@ -586,6 +590,61 @@ pub fn preview_input_to_fre_system(
     }
 }
 
+fn load_initial_facts_into_view_root(
+    view_root: &mut souprune::core::view::components::ViewRoot,
+    layout: &souprune::core::view::layout::ViewLayoutAsset,
+) {
+    use souprune::core::view::layout::InitialFactValue;
+    let Some(facts) = &layout.facts else { return };
+    for (key, value) in facts {
+        match value {
+            InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
+            InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
+            InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
+            InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
+            InitialFactValue::StringList(list) => {
+                view_root.local_facts.set(key.clone(), list.clone());
+            }
+            InitialFactValue::IntList(list) => {
+                view_root.local_facts.set(key.clone(), list.clone());
+            }
+        }
+    }
+    info!(
+        "[ViewPreview] Loaded {} inline facts from view layout",
+        facts.len()
+    );
+}
+
+fn register_rule_def(
+    rule_def: &bevy_fact_rule_event::asset::RuleDef,
+    idx: usize,
+    scope: bevy_fact_rule_event::RuleScope,
+    rule_registry: &mut bevy_fact_rule_event::LayeredRuleRegistry,
+    action_defs: &mut souprune::app_state::overworld::trigger::RuleActionDefs,
+    view_entity: Entity,
+    registered_ids: &mut Vec<String>,
+) {
+    let effective_scope = if scope == bevy_fact_rule_event::RuleScope::Local {
+        bevy_fact_rule_event::RuleScope::View
+    } else {
+        scope
+    };
+    let rule = rule_def.to_rule_with_index(idx, effective_scope);
+    let rule_id = rule_def.generate_id(idx);
+    if !rule_def.actions.is_empty() {
+        action_defs
+            .actions_by_rule
+            .insert(rule_id.clone(), rule_def.actions.clone());
+    }
+    if effective_scope == bevy_fact_rule_event::RuleScope::View {
+        rule_registry.register_view_rule(view_entity, rule);
+    } else {
+        rule_registry.register(rule);
+    }
+    registered_ids.push(rule_id);
+}
+
 /// 检测 Play/Stop 状态变化，执行 FRE 初始化或清理。
 ///
 /// Play 启动时：初始化 ViewRoot.local_facts + 注册 FRE 规则 + 添加 ActiveView
@@ -640,36 +699,8 @@ pub fn preview_play_control_system(
         view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
 
         // Load inline facts from view layout (depth, button_selection, interactable, etc.)
-        if let Some(layout) = &editor_state.layout
-            && let Some(facts) = &layout.facts
-        {
-            use souprune::core::view::layout::InitialFactValue;
-            for (key, value) in facts {
-                match value {
-                    InitialFactValue::Int(i) => {
-                        view_root.local_facts.set(key.clone(), *i);
-                    }
-                    InitialFactValue::Float(f) => {
-                        view_root.local_facts.set(key.clone(), *f);
-                    }
-                    InitialFactValue::Bool(b) => {
-                        view_root.local_facts.set(key.clone(), *b);
-                    }
-                    InitialFactValue::String(s) => {
-                        view_root.local_facts.set(key.clone(), s.clone());
-                    }
-                    InitialFactValue::StringList(list) => {
-                        view_root.local_facts.set(key.clone(), list.clone());
-                    }
-                    InitialFactValue::IntList(list) => {
-                        view_root.local_facts.set(key.clone(), list.clone());
-                    }
-                }
-            }
-            info!(
-                "[ViewPreview] Loaded {} inline facts from view layout",
-                facts.len()
-            );
+        if let Some(layout) = &editor_state.layout {
+            load_initial_facts_into_view_root(&mut view_root, layout);
         }
 
         let mut registered_ids = Vec::new();
@@ -683,28 +714,15 @@ pub fn preview_play_control_system(
             let rule_defs = fre_asset.get_rule_defs();
             let scope = fre_asset.scope();
             for (idx, rule_def) in rule_defs.iter().enumerate() {
-                let effective_scope = if scope == bevy_fact_rule_event::RuleScope::Local {
-                    bevy_fact_rule_event::RuleScope::View
-                } else {
-                    scope
-                };
-
-                let rule = rule_def.to_rule_with_index(idx, effective_scope);
-                let rule_id = rule_def.generate_id(idx);
-
-                if !rule_def.actions.is_empty() {
-                    action_defs
-                        .actions_by_rule
-                        .insert(rule_id.clone(), rule_def.actions.clone());
-                }
-
-                registered_ids.push(rule_id.clone());
-
-                if effective_scope == bevy_fact_rule_event::RuleScope::View {
-                    rule_registry.register_view_rule(view_entity, rule);
-                } else {
-                    rule_registry.register(rule);
-                }
+                register_rule_def(
+                    rule_def,
+                    idx,
+                    scope,
+                    &mut rule_registry,
+                    &mut action_defs,
+                    view_entity,
+                    &mut registered_ids,
+                );
             }
         }
 

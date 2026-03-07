@@ -255,6 +255,40 @@ pub struct ChapterPaletteState {
     pub selected_category: usize,
 }
 
+fn render_template_card(
+    col: &mut egui::Ui,
+    template: &ChapterTemplate,
+    cat: &CategoryDef,
+    result: &mut Option<Chapter>,
+) {
+    let frame = egui::Frame::new()
+        .fill(Color32::from_gray(45))
+        .stroke(egui::Stroke::new(1.0, cat.color.gamma_multiply(0.5)))
+        .corner_radius(6.0)
+        .inner_margin(10.0);
+
+    let resp = frame
+        .show(col, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(template.icon).size(20.0));
+                ui.label(egui::RichText::new(template.name).strong().color(cat.color));
+            });
+        })
+        .response;
+
+    if resp.clicked() {
+        *result = Some((template.create)());
+    }
+    col.add_space(4.0);
+}
+
+fn render_template_columns(cols: &mut [egui::Ui], cat: &CategoryDef, result: &mut Option<Chapter>) {
+    for (i, template) in cat.templates.iter().enumerate() {
+        let col = &mut cols[i % 2];
+        render_template_card(col, template, cat, result);
+    }
+}
+
 /// 渲染章节选择面板。
 ///
 /// 返回 `Some(Chapter)` 如果用户选择了一个类型。
@@ -289,32 +323,7 @@ pub fn render_chapter_palette(
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 ui.columns(2, |cols| {
-                    for (i, template) in cat.templates.iter().enumerate() {
-                        let col = &mut cols[i % 2];
-                        let frame = egui::Frame::new()
-                            .fill(Color32::from_gray(45))
-                            .stroke(egui::Stroke::new(1.0, cat.color.gamma_multiply(0.5)))
-                            .corner_radius(6.0)
-                            .inner_margin(10.0);
-
-                        let resp = frame
-                            .show(col, |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.label(egui::RichText::new(template.icon).size(20.0));
-                                    ui.label(
-                                        egui::RichText::new(template.name)
-                                            .strong()
-                                            .color(cat.color),
-                                    );
-                                });
-                            })
-                            .response;
-
-                        if resp.clicked() {
-                            result = Some((template.create)());
-                        }
-                        col.add_space(4.0);
-                    }
+                    render_template_columns(cols, cat, &mut result);
                 });
             });
     }

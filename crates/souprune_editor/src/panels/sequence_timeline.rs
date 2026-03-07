@@ -97,6 +97,97 @@ impl WorkbenchPanel for SequenceTimelinePanel {
     }
 }
 
+fn delete_selected_chapter(world: &mut World) {
+    let mut state = world.resource_mut::<EditorSequenceState>();
+    let Some(idx) = state.selected_chapter else {
+        return;
+    };
+    let Some(seq) = &mut state.current else {
+        return;
+    };
+    let Some(removed) = seq.remove_chapter(idx) else {
+        return;
+    };
+    state.selected_chapter = if seq.chapters.is_empty() {
+        None
+    } else {
+        Some(idx.min(seq.chapters.len() - 1))
+    };
+    drop(state);
+    world.resource_mut::<UndoStack>().push(RemoveChapterAction {
+        index: idx,
+        chapter: removed,
+    });
+}
+
+fn render_chapter_item(
+    ui: &mut egui::Ui,
+    world: &mut World,
+    chapter: &souprune::core::sequencer::chapter_schema::Chapter,
+    i: usize,
+    selected: Option<usize>,
+    drag_source: Option<usize>,
+    expanded: &std::collections::HashSet<usize>,
+    new_selection: &mut Option<usize>,
+    drag_drop: &mut Option<(usize, usize)>,
+    toggle_expand: &mut Option<usize>,
+) {
+    let is_selected = selected == Some(i);
+    let is_drag_target = drag_source.is_some() && drag_source != Some(i);
+    let is_expanded = expanded.contains(&i);
+    let has_nest = widgets::has_children(chapter);
+
+    if world.resource::<EditorSequenceState>().drag_target == Some(i) && drag_source.is_some() {
+        let rect = ui.available_rect_before_wrap();
+        let line_y = rect.top();
+        ui.painter().line_segment(
+            [
+                egui::pos2(rect.left(), line_y),
+                egui::pos2(rect.right(), line_y),
+            ],
+            egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 200, 255)),
+        );
+    }
+
+    ui.horizontal(|ui| {
+        render_chapter_row(
+            ui,
+            world,
+            chapter,
+            i,
+            is_selected,
+            is_drag_target,
+            is_expanded,
+            has_nest,
+            new_selection,
+            drag_drop,
+            toggle_expand,
+        );
+    });
+
+    if has_nest && is_expanded {
+        let groups = widgets::get_children(chapter);
+        ui.indent(egui::Id::new(("nested", i)), |ui| {
+            render_nested_chapters(ui, groups);
+        });
+    }
+
+    ui.add_space(2.0);
+}
+
+fn save_current_sequence(world: &mut World) {
+    let seq_clone = world.resource::<EditorSequenceState>().current.clone();
+    let Some(seq) = seq_clone else { return };
+    if let Err(e) = crate::data::save_sequence_to_file(&seq) {
+        warn!("保存序列失败: {e}");
+    } else {
+        if let Some(current) = world.resource_mut::<EditorSequenceState>().current.as_mut() {
+            current.dirty = false;
+        }
+        info!("序列已保存");
+    }
+}
+
 fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
     ui.horizontal(|ui| {
         // 打开文件
@@ -121,20 +212,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             .add_enabled(has_seq, egui::Button::new(t(world, "action-save")))
             .clicked()
         {
-            let state = world.resource::<EditorSequenceState>();
-            if let Some(seq) = &state.current {
-                if let Err(e) = crate::data::save_sequence_to_file(seq) {
-                    warn!("保存序列失败: {e}");
-                } else {
-                    world
-                        .resource_mut::<EditorSequenceState>()
-                        .current
-                        .as_mut()
-                        .unwrap()
-                        .dirty = false;
-                    info!("序列已保存");
-                }
-            }
+            save_current_sequence(world);
         }
 
         ui.separator();
@@ -157,28 +235,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             .add_enabled(has_selection, egui::Button::new(t(world, "action-delete")))
             .clicked()
         {
-            let undo_info = {
-                let mut state = world.resource_mut::<EditorSequenceState>();
-                if let Some(idx) = state.selected_chapter
-                    && let Some(seq) = &mut state.current
-                    && let Some(removed) = seq.remove_chapter(idx)
-                {
-                    state.selected_chapter = if seq.chapters.is_empty() {
-                        None
-                    } else {
-                        Some(idx.min(seq.chapters.len() - 1))
-                    };
-                    Some((idx, removed))
-                } else {
-                    None
-                }
-            };
-            if let Some((idx, removed)) = undo_info {
-                world.resource_mut::<UndoStack>().push(RemoveChapterAction {
-                    index: idx,
-                    chapter: removed,
-                });
-            }
+            delete_selected_chapter(world);
         }
 
         if ui
@@ -202,20 +259,19 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             )
             .clicked()
         {
-            let undo_info = {
-                let mut state = world.resource_mut::<EditorSequenceState>();
-                let ch = state.clipboard.clone();
-                let idx = state.selected_chapter.unwrap_or(0);
-                if let (Some(ch), Some(seq)) = (ch, &mut state.current) {
-                    let insert_pos = (idx + 1).min(seq.chapters.len());
-                    seq.chapters.insert(insert_pos, ch.clone());
-                    seq.dirty = true;
-                    state.selected_chapter = Some(insert_pos);
-                    Some((insert_pos, ch))
-                } else {
-                    None
-                }
+            let mut state = world.resource_mut::<EditorSequenceState>();
+            let ch = state.clipboard.clone();
+            let idx = state.selected_chapter.unwrap_or(0);
+            let undo_info = if let (Some(ch), Some(seq)) = (ch, &mut state.current) {
+                let insert_pos = (idx + 1).min(seq.chapters.len());
+                seq.chapters.insert(insert_pos, ch.clone());
+                seq.dirty = true;
+                state.selected_chapter = Some(insert_pos);
+                Some((insert_pos, ch))
+            } else {
+                None
             };
+            drop(state);
             if let Some((insert_pos, ch)) = undo_info {
                 world.resource_mut::<UndoStack>().push(InsertChapterAction {
                     index: insert_pos,
@@ -295,6 +351,86 @@ fn render_palette_popup(ui: &mut egui::Ui, world: &mut World) {
     ui.separator();
 }
 
+fn render_chapter_row(
+    ui: &mut egui::Ui,
+    world: &mut World,
+    chapter: &souprune::core::sequencer::chapter_schema::Chapter,
+    i: usize,
+    is_selected: bool,
+    is_drag_target: bool,
+    is_expanded: bool,
+    has_nest: bool,
+    new_selection: &mut Option<usize>,
+    drag_drop: &mut Option<(usize, usize)>,
+    toggle_expand: &mut Option<usize>,
+) {
+    if has_nest {
+        let arrow = if is_expanded { "▼" } else { "▶" };
+        if ui.small_button(arrow).clicked() {
+            *toggle_expand = Some(i);
+        }
+    } else {
+        ui.add_space(20.0);
+    }
+
+    let response = widgets::render_chapter_card_response(ui, chapter, i, is_selected);
+
+    if response.clicked() {
+        *new_selection = Some(i);
+    }
+    if response.drag_started() {
+        world.resource_mut::<EditorSequenceState>().drag_source = Some(i);
+    }
+    if is_drag_target && response.hovered() {
+        world.resource_mut::<EditorSequenceState>().drag_target = Some(i);
+    }
+    if response.drag_stopped() {
+        let state = world.resource::<EditorSequenceState>();
+        let drag_src = state.drag_source;
+        let drag_tgt = state.drag_target;
+        if let (Some(src), Some(tgt)) = (drag_src, drag_tgt)
+            && src != tgt
+        {
+            *drag_drop = Some((src, tgt));
+        }
+        let mut state = world.resource_mut::<EditorSequenceState>();
+        state.drag_source = None;
+        state.drag_target = None;
+    }
+
+    response.context_menu(|ui| {
+        if ui.button(t(world, "action-play-from-here")).clicked() {
+            ui.close();
+            world.resource_mut::<PlaybackState>().start_from = Some(i);
+            world
+                .resource_mut::<NextState<EditorMode>>()
+                .set(EditorMode::Play);
+        }
+    });
+}
+
+fn render_nested_chapters<'a>(
+    ui: &mut egui::Ui,
+    groups: Vec<(
+        &'a str,
+        &'a [souprune::core::sequencer::chapter_schema::Chapter],
+    )>,
+) {
+    for (label, children) in groups {
+        if !label.is_empty() {
+            ui.label(
+                egui::RichText::new(label)
+                    .small()
+                    .color(egui::Color32::from_gray(140)),
+            );
+        }
+        for (ci, child) in children.iter().enumerate() {
+            widgets::render_chapter_card(ui, child, ci, false);
+            ui.add_space(1.0);
+        }
+    }
+}
+
 fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
     let state = world.resource::<EditorSequenceState>();
 
@@ -345,95 +481,18 @@ fn render_chapter_list(ui: &mut egui::Ui, world: &mut World) {
         .auto_shrink([false, false])
         .show(ui, |ui| {
             for (i, chapter) in chapters.iter().enumerate() {
-                let is_selected = selected == Some(i);
-                let is_drag_target = drag_source.is_some() && drag_source != Some(i);
-                let is_expanded = expanded.contains(&i);
-                let has_nest = widgets::has_children(chapter);
-
-                // 拖拽目标指示线
-                if world.resource::<EditorSequenceState>().drag_target == Some(i)
-                    && drag_source.is_some()
-                {
-                    let rect = ui.available_rect_before_wrap();
-                    let line_y = rect.top();
-                    ui.painter().line_segment(
-                        [
-                            egui::pos2(rect.left(), line_y),
-                            egui::pos2(rect.right(), line_y),
-                        ],
-                        egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 200, 255)),
-                    );
-                }
-
-                // 卡片行：折叠图标 + 卡片
-                ui.horizontal(|ui| {
-                    if has_nest {
-                        let arrow = if is_expanded { "▼" } else { "▶" };
-                        if ui.small_button(arrow).clicked() {
-                            toggle_expand = Some(i);
-                        }
-                    } else {
-                        ui.add_space(20.0);
-                    }
-
-                    let response =
-                        widgets::render_chapter_card_response(ui, chapter, i, is_selected);
-
-                    if response.clicked() {
-                        new_selection = Some(i);
-                    }
-                    if response.drag_started() {
-                        world.resource_mut::<EditorSequenceState>().drag_source = Some(i);
-                    }
-                    if is_drag_target && response.hovered() {
-                        world.resource_mut::<EditorSequenceState>().drag_target = Some(i);
-                    }
-                    if response.drag_stopped() {
-                        let state = world.resource::<EditorSequenceState>();
-                        if let Some(src) = state.drag_source
-                            && let Some(tgt) = state.drag_target
-                            && src != tgt
-                        {
-                            drag_drop = Some((src, tgt));
-                        }
-                        let mut state = world.resource_mut::<EditorSequenceState>();
-                        state.drag_source = None;
-                        state.drag_target = None;
-                    }
-
-                    // 右键菜单
-                    response.context_menu(|ui| {
-                        if ui.button(t(world, "action-play-from-here")).clicked() {
-                            ui.close();
-                            world.resource_mut::<PlaybackState>().start_from = Some(i);
-                            world
-                                .resource_mut::<NextState<EditorMode>>()
-                                .set(EditorMode::Play);
-                        }
-                    });
-                });
-
-                // 展开后显示子章节
-                if has_nest && is_expanded {
-                    let groups = widgets::get_children(chapter);
-                    ui.indent(egui::Id::new(("nested", i)), |ui| {
-                        for (label, children) in groups {
-                            if !label.is_empty() {
-                                ui.label(
-                                    egui::RichText::new(label)
-                                        .small()
-                                        .color(egui::Color32::from_gray(140)),
-                                );
-                            }
-                            for (ci, child) in children.iter().enumerate() {
-                                widgets::render_chapter_card(ui, child, ci, false);
-                                ui.add_space(1.0);
-                            }
-                        }
-                    });
-                }
-
-                ui.add_space(2.0);
+                render_chapter_item(
+                    ui,
+                    world,
+                    chapter,
+                    i,
+                    selected,
+                    drag_source,
+                    &expanded,
+                    &mut new_selection,
+                    &mut drag_drop,
+                    &mut toggle_expand,
+                );
             }
         });
 

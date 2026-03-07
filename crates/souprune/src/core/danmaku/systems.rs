@@ -174,13 +174,12 @@ pub fn advance_performance_timeline(
             player.next_event_index += 1;
         }
 
-        // Check if performance is finished
+        // Check if performance is finished (all events fired)
         if player.next_event_index >= performance.timeline.len() {
             player.finished = true;
-            // Despawn the container (which will automatically despawn children in Bevy)
-            if let Some(container) = player.container_entity {
-                commands.entity(container).despawn();
-            }
+            // Only despawn the player; the container and its bullet children
+            // remain alive until bullets expire via BulletLifetime.
+            // Empty containers are cleaned up by cleanup_empty_containers.
             commands.entity(entity).despawn();
         }
     }
@@ -739,6 +738,22 @@ pub fn cleanup_dead_bullets(
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+/// System to despawn bullet containers that have no remaining children.
+/// Runs after dead bullets are cleaned up so empty containers are removed.
+///
+/// 销毁没有剩余子实体的弹幕容器。
+/// 在清理死亡弹幕之后运行，以便移除空容器。
+pub fn cleanup_empty_containers(
+    mut commands: Commands,
+    container_query: Query<(Entity, &Children), With<BulletContainer>>,
+) {
+    for (entity, children) in container_query.iter() {
+        if children.is_empty() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
