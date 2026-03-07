@@ -31,13 +31,14 @@ errors=0
 # --- Build exclude lists ---
 # Submodules are independent repos checked by their own CI.
 SUBMODULE_EXCLUDES=""
+TOKEI_EXCLUDE=""
 for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
     SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
+    TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $sub"
 done
 
 # lint_ignore.txt lists third-party crates excluded from ALL checks.
 FIND_PRUNE=""
-TOKEI_EXCLUDE=""
 if [ -f lint_ignore.txt ]; then
     while IFS= read -r crate; do
         [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
