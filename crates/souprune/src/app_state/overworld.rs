@@ -214,7 +214,7 @@ fn process_overworld_player_spawn_system(
             Without<crate::core::sequencer::ChapterFinished>,
         ),
     >,
-    mut spawn_events: MessageWriter<player::SpawnPlayerRequest>,
+    mut spawn_events: Option<MessageWriter<player::SpawnPlayerRequest>>,
 ) {
     use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
 
@@ -222,7 +222,9 @@ fn process_overworld_player_spawn_system(
         if let Chapter::SetPlayer(PlayerAction::Spawn { config_path, .. }) = &active_chapter.chapter
             && !config_path.ends_with(".battle_player.ron")
         {
-            spawn_events.write(player::SpawnPlayerRequest);
+            if let Some(ref mut writer) = spawn_events {
+                writer.write(player::SpawnPlayerRequest);
+            }
             commands
                 .entity(entity)
                 .insert(crate::core::sequencer::ChapterFinished);
