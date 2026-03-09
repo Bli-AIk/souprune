@@ -16,9 +16,6 @@
 [submodule "crates/iyes_perf_ui"]
 	path = crates/iyes_perf_ui
 	url = https://github.com/Bli-AIk/iyes_perf_ui.git
-[submodule "crates/bevy_tween"]
-	path = crates/bevy_tween
-	url = https://github.com/Bli-AIk/bevy_tween.git
 [submodule "crates/flambe"]
 	path = crates/flambe
 	url = https://github.com/Bli-AIk/flambe.git
