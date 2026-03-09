@@ -96,60 +96,60 @@ pub fn init_sequencer(app: &mut App) {
 pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + Clone) {
     // Register custom interpolator systems for bevy_tween
     app.add_tween_systems(
-            PostUpdate,
-            component_tween_system::<tween::ViewBoxSizeInterpolator>(),
+        PostUpdate,
+        component_tween_system::<tween::ViewBoxSizeInterpolator>(),
+    )
+    .add_tween_systems(
+        PostUpdate,
+        component_tween_system::<tween::SpriteAlphaInterpolator>(),
+    )
+    // Chapter processing systems - split into two groups to avoid tuple size limit
+    .add_systems(
+        schedule.clone(),
+        (
+            flow::advance_battle_flow_system,
+            player::process_player_action_system,
+            camera::process_camera_action_system,
+            view_action::process_view_action_system,
+            view_action::process_set_view_fact_system,
+            interaction::process_await_fact_system,
+            view_element::process_modify_view_element_system,
+            tween::process_tween_view_element_system,
+            performance::process_danmaku_performance_system,
+            performance::process_am_performance_system,
+            flow::process_custom_chapter_system,
+            player::process_player_spawn_requests,
         )
-        .add_tween_systems(
-            PostUpdate,
-            component_tween_system::<tween::SpriteAlphaInterpolator>(),
+            .chain()
+            .in_set(SequencerUpdate),
+    )
+    .add_systems(
+        schedule,
+        (
+            flow::process_wait_chapter_system,
+            tween::process_tween_wait_chapter_system,
+            performance::process_am_wait_chapter_system,
+            flow::process_parallel_chapter_system,
+            fact_chapter::process_conditional_chapter_system,
+            fact_chapter::process_fact_switch_chapter_system,
+            fact_chapter::process_emit_fact_event_chapter_system,
+            fact_chapter::process_modify_fact_chapter_system,
+            fact_chapter::process_load_fre_chapter_system,
+            fact_chapter::complete_load_fre_chapter_system,
+            fact_chapter::process_load_enemies_chapter_system,
+            fact_chapter::complete_load_enemies_chapter_system,
+            run_sequence::process_run_sequence_system,
+            run_sequence::complete_run_sequence_system,
+            load_map::process_load_map_system,
+            bgm::process_set_bgm_system,
+            interaction::check_await_fact_completion_system,
+            flow::cleanup_finished_chapters_system,
+            flow::sync_battle_flow_system,
         )
-        // Chapter processing systems - split into two groups to avoid tuple size limit
-        .add_systems(
-            schedule.clone(),
-            (
-                flow::advance_battle_flow_system,
-                player::process_player_action_system,
-                camera::process_camera_action_system,
-                view_action::process_view_action_system,
-                view_action::process_set_view_fact_system,
-                interaction::process_await_fact_system,
-                view_element::process_modify_view_element_system,
-                tween::process_tween_view_element_system,
-                performance::process_danmaku_performance_system,
-                performance::process_am_performance_system,
-                flow::process_custom_chapter_system,
-                player::process_player_spawn_requests,
-            )
-                .chain()
-                .in_set(SequencerUpdate),
-        )
-        .add_systems(
-            schedule,
-            (
-                flow::process_wait_chapter_system,
-                tween::process_tween_wait_chapter_system,
-                performance::process_am_wait_chapter_system,
-                flow::process_parallel_chapter_system,
-                fact_chapter::process_conditional_chapter_system,
-                fact_chapter::process_fact_switch_chapter_system,
-                fact_chapter::process_emit_fact_event_chapter_system,
-                fact_chapter::process_modify_fact_chapter_system,
-                fact_chapter::process_load_fre_chapter_system,
-                fact_chapter::complete_load_fre_chapter_system,
-                fact_chapter::process_load_enemies_chapter_system,
-                fact_chapter::complete_load_enemies_chapter_system,
-                run_sequence::process_run_sequence_system,
-                run_sequence::complete_run_sequence_system,
-                load_map::process_load_map_system,
-                bgm::process_set_bgm_system,
-                interaction::check_await_fact_completion_system,
-                flow::cleanup_finished_chapters_system,
-                flow::sync_battle_flow_system,
-            )
-                .chain()
-                .in_set(SequencerUpdate)
-                .after(flow::advance_battle_flow_system),
-        );
+            .chain()
+            .in_set(SequencerUpdate)
+            .after(flow::advance_battle_flow_system),
+    );
 }
 
 /// Sequencer 插件 — 在 `Update` 中运行章节处理系统。
