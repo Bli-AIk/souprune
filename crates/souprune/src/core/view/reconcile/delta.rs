@@ -8,11 +8,12 @@
 
 use super::tree::{DesiredElement, DesiredHpBar, DesiredMaterial, DesiredSprite, DesiredText};
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
 /// Represents a single change operation to be applied to the ECS world.
 /// 表示要应用到 ECS 世界的单个更改操作。
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)] // reason: Spawn variant intentionally holds full spec inline
 pub enum ViewDelta {
     /// Spawn a new element with all its components.
     /// 生成带有所有组件的新元素。
@@ -119,17 +120,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 let entity_id = *entity;
 
                 commands.queue(move |world: &mut World| {
-                    if let Ok(mut entity_mut) = world.get_entity_mut(entity_id) {
-                        // Update sprite properties individually to preserve texture
-                        // 单独更新 sprite 属性以保留纹理
-                        if let Some(mut sprite) = entity_mut.get_mut::<Sprite>() {
-                            sprite.color = color;
-                            sprite.flip_x = flip_x;
-                            sprite.flip_y = flip_y;
-                        }
-                        // Insert or update anchor
-                        entity_mut.insert(anchor);
-                    }
+                    queue_update_sprite(world, entity_id, color, flip_x, flip_y, anchor);
                 });
             }
             ViewDelta::UpdateText {
@@ -170,12 +161,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                 let entity_id = *entity;
 
                 commands.queue(move |world: &mut World| {
-                    if let Ok(mut entity_mut) = world.get_entity_mut(entity_id)
-                        && let Some(mut camera_anchored) =
-                            entity_mut.get_mut::<crate::core::view::components::CameraAnchored>()
-                    {
-                        camera_anchored.offset = offset;
-                    }
+                    queue_update_camera_offset(world, entity_id, offset);
                 });
             }
             ViewDelta::UpdateMaterial {
@@ -190,6 +176,39 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
             }
         }
     }
+}
+
+/// Queued world command: update sprite properties on an entity.
+fn queue_update_sprite(
+    world: &mut World,
+    entity_id: Entity,
+    color: Color,
+    flip_x: bool,
+    flip_y: bool,
+    anchor: Anchor,
+) {
+    let Ok(mut entity_mut) = world.get_entity_mut(entity_id) else {
+        return;
+    };
+    if let Some(mut sprite) = entity_mut.get_mut::<Sprite>() {
+        sprite.color = color;
+        sprite.flip_x = flip_x;
+        sprite.flip_y = flip_y;
+    }
+    entity_mut.insert(anchor);
+}
+
+/// Queued world command: update camera offset on an entity.
+fn queue_update_camera_offset(world: &mut World, entity_id: Entity, offset: Vec3) {
+    let Ok(mut entity_mut) = world.get_entity_mut(entity_id) else {
+        return;
+    };
+    let Some(mut camera_anchored) =
+        entity_mut.get_mut::<crate::core::view::components::CameraAnchored>()
+    else {
+        return;
+    };
+    camera_anchored.offset = offset;
 }
 
 /// Apply a spawn delta by creating a new entity with all components.

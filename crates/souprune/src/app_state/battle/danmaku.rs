@@ -13,7 +13,6 @@
 pub use crate::core::danmaku::*;
 
 use crate::core::collision::TriggerCollider;
-use crate::core::danmaku::DanmakuSpawnContext;
 use crate::core::fre_facts;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
@@ -138,8 +137,6 @@ fn set_battle_context(mut spawn_context: ResMut<DanmakuSpawnContext>) {
 /// System to detect bullet collision with player in battle mode.
 ///
 /// 检测战斗模式下弹幕与玩家碰撞的系统。
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 fn battle_damage_detection_system(
     mut commands: Commands,
     time: Res<Time>,

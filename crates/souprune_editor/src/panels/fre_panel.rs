@@ -183,42 +183,47 @@ impl FrePanel {
 
             // Add new fact
             egui::CollapsingHeader::new(t(world, "fre-add-fact")).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(t(world, "fre-key"));
-                    ui.text_edit_singleline(&mut self.new_fact_key);
-                });
-                ui.horizontal(|ui| {
-                    ui.label(t(world, "fre-value"));
-                    ui.text_edit_singleline(&mut self.new_fact_value);
-                });
-                ui.horizontal(|ui| {
-                    ui.label(t(world, "fre-type"));
-                    ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Int, "Int");
-                    ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Float, "Float");
-                    ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Bool, "Bool");
-                    ui.selectable_value(&mut self.new_fact_type, FactTypeInput::String, "String");
-                });
-                ui.horizontal(|ui| {
-                    ui.label(t(world, "fre-layer"));
-                    ui.selectable_value(&mut self.new_fact_layer, FactLayer::Local, "Local");
-                    ui.selectable_value(&mut self.new_fact_layer, FactLayer::Global, "Global");
-                });
-
-                if ui.button(t(world, "action-add")).clicked() && !self.new_fact_key.is_empty() {
-                    let value = parse_fact_value(&self.new_fact_value, self.new_fact_type);
-                    if let Some(value) = value {
-                        let key = self.new_fact_key.clone();
-                        let mut db = world.resource_mut::<LayeredFactDatabase>();
-                        match self.new_fact_layer {
-                            FactLayer::Global => db.set_global(key, value),
-                            FactLayer::Local => db.set_local(key, value),
-                        }
-                        self.new_fact_key.clear();
-                        self.new_fact_value.clear();
-                    }
-                }
+                self.draw_add_fact_form(ui, world);
             });
         });
+    }
+
+    fn draw_add_fact_form(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        use crate::i18n::t;
+        ui.horizontal(|ui| {
+            ui.label(t(world, "fre-key"));
+            ui.text_edit_singleline(&mut self.new_fact_key);
+        });
+        ui.horizontal(|ui| {
+            ui.label(t(world, "fre-value"));
+            ui.text_edit_singleline(&mut self.new_fact_value);
+        });
+        ui.horizontal(|ui| {
+            ui.label(t(world, "fre-type"));
+            ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Int, "Int");
+            ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Float, "Float");
+            ui.selectable_value(&mut self.new_fact_type, FactTypeInput::Bool, "Bool");
+            ui.selectable_value(&mut self.new_fact_type, FactTypeInput::String, "String");
+        });
+        ui.horizontal(|ui| {
+            ui.label(t(world, "fre-layer"));
+            ui.selectable_value(&mut self.new_fact_layer, FactLayer::Local, "Local");
+            ui.selectable_value(&mut self.new_fact_layer, FactLayer::Global, "Global");
+        });
+
+        if ui.button(t(world, "action-add")).clicked() && !self.new_fact_key.is_empty() {
+            let value = parse_fact_value(&self.new_fact_value, self.new_fact_type);
+            if let Some(value) = value {
+                let key = self.new_fact_key.clone();
+                let mut db = world.resource_mut::<LayeredFactDatabase>();
+                match self.new_fact_layer {
+                    FactLayer::Global => db.set_global(key, value),
+                    FactLayer::Local => db.set_local(key, value),
+                }
+                self.new_fact_key.clear();
+                self.new_fact_value.clear();
+            }
+        }
     }
 }
 
@@ -228,6 +233,15 @@ fn parse_fact_value(s: &str, ty: FactTypeInput) -> Option<FactValue> {
         FactTypeInput::Float => s.parse::<f64>().ok().map(FactValue::Float),
         FactTypeInput::Bool => s.parse::<bool>().ok().map(FactValue::Bool),
         FactTypeInput::String => Some(FactValue::String(s.to_string())),
+    }
+}
+
+fn delete_fact(world: &mut World, global: bool, key: &str) {
+    let mut db = world.resource_mut::<LayeredFactDatabase>();
+    if global {
+        db.remove_global(key);
+    } else {
+        db.remove(key);
     }
 }
 
@@ -266,12 +280,7 @@ fn render_fact_layer(ui: &mut egui::Ui, world: &mut World, global: bool, search:
 
             // Delete button
             if ui.small_button("x").clicked() {
-                let mut db = world.resource_mut::<LayeredFactDatabase>();
-                if global {
-                    db.remove_global(key);
-                } else {
-                    db.remove(key);
-                }
+                delete_fact(world, global, key);
             }
             ui.end_row();
         }
@@ -334,12 +343,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.global_iter().collect();
                     rules.sort_by(|a, b| b.priority.cmp(&a.priority));
-                    for rule in rules {
-                        let triggered = trigger_history
-                            .map(|h| h.was_recently_triggered(&rule.id, current_time, 1.0))
-                            .unwrap_or(false);
-                        show_rule(ui, world, rule, triggered);
-                    }
+                    render_rule_list(ui, world, &rules, trigger_history, current_time);
                 });
         }
 
@@ -354,15 +358,25 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
                 .show(ui, |ui| {
                     let mut rules: Vec<_> = registry.local_iter().collect();
                     rules.sort_by(|a, b| b.priority.cmp(&a.priority));
-                    for rule in rules {
-                        let triggered = trigger_history
-                            .map(|h| h.was_recently_triggered(&rule.id, current_time, 1.0))
-                            .unwrap_or(false);
-                        show_rule(ui, world, rule, triggered);
-                    }
+                    render_rule_list(ui, world, &rules, trigger_history, current_time);
                 });
         }
     });
+}
+
+fn render_rule_list(
+    ui: &mut egui::Ui,
+    world: &World,
+    rules: &[&bevy_fact_rule_event::Rule],
+    trigger_history: Option<&RuleTriggerHistory>,
+    current_time: f64,
+) {
+    for rule in rules {
+        let triggered = trigger_history
+            .map(|h| h.was_recently_triggered(&rule.id, current_time, 1.0))
+            .unwrap_or(false);
+        show_rule(ui, world, rule, triggered);
+    }
 }
 
 fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule, triggered: bool) {
@@ -390,9 +404,7 @@ fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule
                     rule.condition_expressions.len()
                 ))
                 .show(ui, |ui| {
-                    for (i, expr) in rule.condition_expressions.iter().enumerate() {
-                        ui.monospace(format!("{}: {}", i + 1, expr));
-                    }
+                    show_rule_conditions(ui, rule);
                 });
             }
 
@@ -402,9 +414,7 @@ fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule
                     rule.modifications.len()
                 ))
                 .show(ui, |ui| {
-                    for (i, m) in rule.modifications.iter().enumerate() {
-                        ui.monospace(format!("{}: {:?}", i + 1, m));
-                    }
+                    show_rule_modifications(ui, rule);
                 });
             }
 
@@ -412,13 +422,29 @@ fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule
                 egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len())).show(
                     ui,
                     |ui| {
-                        for o in &rule.outputs {
-                            ui.monospace(&o.0);
-                        }
+                        show_rule_outputs(ui, rule);
                     },
                 );
             }
         });
+}
+
+fn show_rule_conditions(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+    for (i, expr) in rule.condition_expressions.iter().enumerate() {
+        ui.monospace(format!("{}: {}", i + 1, expr));
+    }
+}
+
+fn show_rule_modifications(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+    for (i, m) in rule.modifications.iter().enumerate() {
+        ui.monospace(format!("{}: {:?}", i + 1, m));
+    }
+}
+
+fn show_rule_outputs(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+    for o in &rule.outputs {
+        ui.monospace(&o.0);
+    }
 }
 
 fn render_events(ui: &mut egui::Ui, world: &mut World) {
@@ -442,18 +468,22 @@ fn render_events(ui: &mut egui::Ui, world: &mut World) {
 
         for record in &history.events {
             ui.horizontal(|ui| {
-                ui.label(format!("{:.1}s", record.timestamp));
-                ui.strong(&record.event_id);
-                if !record.data_keys.is_empty() {
-                    ui.label(format!("[{}]", record.data_keys.join(", ")));
-                }
+                render_event_record(ui, record);
             });
         }
     });
 }
 
+fn render_event_record(ui: &mut egui::Ui, record: &FactEventRecord) {
+    ui.label(format!("{:.1}s", record.timestamp));
+    ui.strong(&record.event_id);
+    if !record.data_keys.is_empty() {
+        ui.label(format!("[{}]", record.data_keys.join(", ")));
+    }
+}
+
 fn render_states(ui: &mut egui::Ui, world: &mut World) {
-    use souprune::app_state::{AppState, SequenceMode, SequenceSubState};
+    use souprune::app_state::{AppState, SequenceMode};
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         // AppState
@@ -466,14 +496,7 @@ fn render_states(ui: &mut egui::Ui, world: &mut World) {
                     (AppState::Running, "Running"),
                 ] {
                     let is_cur = current == Some(state);
-                    ui.horizontal(|ui| {
-                        if is_cur {
-                            ui.colored_label(egui::Color32::GREEN, format!("> {:?}", state));
-                            ui.small(desc);
-                        } else {
-                            ui.colored_label(egui::Color32::GRAY, format!("  {:?}", state));
-                        }
-                    });
+                    render_app_state_row(ui, state, is_cur, desc);
                 }
             });
 
@@ -500,31 +523,49 @@ fn render_states(ui: &mut egui::Ui, world: &mut World) {
             egui::CollapsingHeader::new("SequenceSubState")
                 .default_open(true)
                 .show(ui, |ui| {
-                    let current = world
-                        .get_resource::<State<SequenceSubState>>()
-                        .map(|s| s.name().to_string());
-
-                    let config =
-                        world.get_resource::<souprune::core::state_config::LoadedStateConfig>();
-
-                    if let Some(config) = config {
-                        let mut names: Vec<&String> = config.0.states.keys().collect();
-                        names.sort();
-
-                        for name in names {
-                            let is_cur = current.as_deref() == Some(name.as_str());
-                            ui.horizontal(|ui| {
-                                if is_cur {
-                                    ui.colored_label(egui::Color32::GREEN, format!("> {name}"));
-                                } else {
-                                    ui.colored_label(egui::Color32::GRAY, format!("  {name}"));
-                                }
-                            });
-                        }
-                    } else {
-                        ui.label(t(world, "fre-state-config-not-loaded"));
-                    }
+                    render_sequence_sub_state(ui, world);
                 });
         }
     });
+}
+
+fn render_app_state_row(
+    ui: &mut egui::Ui,
+    state: souprune::app_state::AppState,
+    is_cur: bool,
+    desc: &str,
+) {
+    ui.horizontal(|ui| {
+        if is_cur {
+            ui.colored_label(egui::Color32::GREEN, format!("> {:?}", state));
+            ui.small(desc);
+        } else {
+            ui.colored_label(egui::Color32::GRAY, format!("  {:?}", state));
+        }
+    });
+}
+
+fn render_sequence_sub_state(ui: &mut egui::Ui, world: &mut World) {
+    use souprune::app_state::SequenceSubState;
+    let current = world
+        .get_resource::<State<SequenceSubState>>()
+        .map(|s| s.name().to_string());
+    let config = world.get_resource::<souprune::core::state_config::LoadedStateConfig>();
+    if let Some(config) = config {
+        let mut names: Vec<&String> = config.0.states.keys().collect();
+        names.sort();
+        for name in names {
+            let is_cur = current.as_deref() == Some(name.as_str());
+            ui.colored_label(
+                if is_cur {
+                    egui::Color32::GREEN
+                } else {
+                    egui::Color32::GRAY
+                },
+                format!("{}{name}", if is_cur { "> " } else { "  " }),
+            );
+        }
+    } else {
+        ui.label(t(world, "fre-state-config-not-loaded"));
+    }
 }

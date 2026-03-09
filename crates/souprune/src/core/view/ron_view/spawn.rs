@@ -25,10 +25,153 @@ pub struct FreSystemParams<'w> {
     pub action_defs: ResMut<'w, RuleActionDefs>,
 }
 
+/// Register view-scoped FRE rules from a loaded FreAsset.
+/// Returns the number of rules registered.
+fn register_fre_rules_from_asset(
+    fre_asset: &FreAsset,
+    view_entity: Entity,
+    rule_registry: &mut LayeredRuleRegistry,
+    action_defs: &mut RuleActionDefs,
+) -> usize {
+    let rule_defs = fre_asset.get_rule_defs();
+    let scope = fre_asset.scope();
+    for (idx, rule_def) in rule_defs.iter().enumerate() {
+        // Use View scope for rules loaded via requires (override Local → View)
+        let effective_scope = if scope == RuleScope::Local {
+            RuleScope::View
+        } else {
+            scope
+        };
+
+        let rule = rule_def.to_rule_with_index(idx, effective_scope);
+        let rule_id = rule_def.generate_id(idx);
+
+        if !rule_def.actions.is_empty() {
+            action_defs
+                .actions_by_rule
+                .insert(rule_id, rule_def.actions.clone());
+        }
+
+        if effective_scope == RuleScope::View {
+            rule_registry.register_view_rule(view_entity, rule);
+        } else {
+            rule_registry.register(rule);
+        }
+    }
+    rule_defs.len()
+}
+
+/// Process a single interface requirement by resolving its binding.
+fn process_interface_requirement(
+    interface: &str,
+    bindings: Option<
+        &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
+    >,
+    asset_server: &AssetServer,
+    fre_assets: &Assets<FreAsset>,
+    view_root: &mut crate::core::view::components::ViewRoot,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    layered_db: &LayeredFactDatabase,
+    view_entity: Entity,
+    rule_registry: &mut LayeredRuleRegistry,
+    action_defs: &mut RuleActionDefs,
+) {
+    let Some(bindings) = bindings else {
+        warn!(
+            "[ViewRoot] Interface '{}' requires binding but none provided",
+            interface
+        );
+        return;
+    };
+    let Some(binding) = bindings.get(interface) else {
+        warn!(
+            "[ViewRoot] No binding provided for interface '{}'",
+            interface
+        );
+        return;
+    };
+    match binding {
+        crate::core::sequencer::chapter_schema::DataBinding::File(path) => {
+            let handle: Handle<FreAsset> = asset_server.load(path.clone());
+            let Some(fre_asset) = fre_assets.get(&handle) else {
+                return;
+            };
+            load_fre_into_view_root(view_root, fre_asset, mortar_strings);
+            let num_rules =
+                register_fre_rules_from_asset(fre_asset, view_entity, rule_registry, action_defs);
+            info!(
+                "[ViewRoot] Bound interface '{}' to file '{}' ({} rules)",
+                interface, path, num_rules
+            );
+        }
+        crate::core::sequencer::chapter_schema::DataBinding::Files(paths) => {
+            let mut total_rules = 0;
+            for path in paths {
+                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                let Some(fre_asset) = fre_assets.get(&handle) else {
+                    continue;
+                };
+                load_fre_into_view_root(view_root, fre_asset, mortar_strings);
+                total_rules += register_fre_rules_from_asset(
+                    fre_asset,
+                    view_entity,
+                    rule_registry,
+                    action_defs,
+                );
+            }
+            info!(
+                "[ViewRoot] Bound interface '{}' to {} files ({} rules)",
+                interface,
+                paths.len(),
+                total_rules
+            );
+        }
+        crate::core::sequencer::chapter_schema::DataBinding::LocalLayer => {
+            // Copy facts from LOCAL layer to view's local_facts.
+            // Skip dialogue:* facts — they are system-managed and updated
+            // every frame in LayeredFactDatabase. Copying them here would
+            // create stale snapshots that shadow the live values during
+            // condition evaluation (which checks local_facts first).
+            //
+            // 从 LOCAL 层复制 facts 到 view 的 local_facts。
+            // 跳过 dialogue:* facts —— 它们由系统管理并每帧更新。
+            for (key, value) in layered_db.iter_local() {
+                if key.0.starts_with("dialogue:") {
+                    continue;
+                }
+                // Resolve localization for string values
+                // 解析字符串值的本地化
+                match value {
+                    bevy_fact_rule_event::FactValue::String(s) => {
+                        let resolved = resolve_simple_localization(s, mortar_strings);
+                        view_root.local_facts.set(key.0.clone(), resolved);
+                    }
+                    bevy_fact_rule_event::FactValue::StringList(list) => {
+                        let resolved_list: Vec<String> = list
+                            .iter()
+                            .map(|s| resolve_simple_localization(s, mortar_strings))
+                            .collect();
+                        view_root.local_facts.set(key.0.clone(), resolved_list);
+                    }
+                    _ => {
+                        view_root.local_facts.set(key.0.clone(), value.clone());
+                    }
+                }
+            }
+            info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
+        }
+        crate::core::sequencer::chapter_schema::DataBinding::Expr(_expr) => {
+            warn!(
+                "[ViewRoot] Expr binding not yet implemented for interface '{}'",
+                interface
+            );
+        }
+    }
+}
+
 /// Spawn view elements for a specific entity.
 ///
 /// 为特定实体生成视图元素。
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_ron_view_for_entity(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -69,55 +212,7 @@ pub fn spawn_ron_view_for_entity(
                 // Load FRE file if already loaded
                 // 如果已加载则加载 FRE 文件
                 let handle: Handle<FreAsset> = asset_server.load(path.clone());
-                if let Some(fre_asset) = fre_assets.get(&handle) {
-                    load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
-
-                    // Register View-scoped rules from this FRE file
-                    // 从此 FRE 文件注册 View 作用域的规则
-                    let rule_defs = fre_asset.get_rule_defs();
-                    let scope = fre_asset.scope();
-                    for (idx, rule_def) in rule_defs.iter().enumerate() {
-                        // Use the FRE file's declared scope, or default to View for FRE files loaded via requires
-                        // 使用 FRE 文件声明的作用域，或对于通过 requires 加载的文件默认为 View
-                        let effective_scope = if scope == RuleScope::Local {
-                            // If the file says Local but is loaded via View's requires, treat as View
-                            // 如果文件声明为 Local 但通过 View 的 requires 加载，则视为 View
-                            RuleScope::View
-                        } else {
-                            scope
-                        };
-
-                        let rule = rule_def.to_rule_with_index(idx, effective_scope);
-                        let rule_id = rule_def.generate_id(idx);
-
-                        // Store actions for this rule in action_defs
-                        // 将此规则的 actions 存储到 action_defs 中
-                        if !rule_def.actions.is_empty() {
-                            action_defs
-                                .actions_by_rule
-                                .insert(rule_id.clone(), rule_def.actions.clone());
-                        }
-
-                        if effective_scope == RuleScope::View {
-                            rule_registry.register_view_rule(view_entity, rule);
-                            info!(
-                                "[ViewRoot] Registered View rule '{}' for entity {:?} from '{}'",
-                                rule_id, view_entity, path
-                            );
-                        } else {
-                            rule_registry.register(rule);
-                        }
-                    }
-                    if !rule_defs.is_empty() {
-                        info!(
-                            "[ViewRoot] Registered {} rules from '{}' for View entity {:?}",
-                            rule_defs.len(),
-                            path,
-                            view_entity
-                        );
-                    }
-                    info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
-                } else {
+                let Some(fre_asset) = fre_assets.get(&handle) else {
                     // FRE file not yet loaded - add to pending for delayed registration
                     // Store the handle to keep the loading request alive
                     // FRE 文件尚未加载 - 添加到待处理列表以延迟注册
@@ -127,157 +222,42 @@ pub fn spawn_ron_view_for_entity(
                         path
                     );
                     pending_fre_handles.push((path.clone(), handle));
+                    continue;
+                };
+                load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
+
+                // Register View-scoped rules from this FRE file
+                // 从此 FRE 文件注册 View 作用域的规则
+                let num_rules = register_fre_rules_from_asset(
+                    fre_asset,
+                    view_entity,
+                    rule_registry,
+                    action_defs,
+                );
+                if num_rules > 0 {
+                    info!(
+                        "[ViewRoot] Registered {} rules from '{}' for View entity {:?}",
+                        num_rules, path, view_entity
+                    );
                 }
+                info!("[ViewRoot] Loaded FRE file '{}' via requires", path);
             }
             DataRequirement::Interface {
                 interface,
                 expects: _,
             } => {
-                // Look up binding for this interface
-                // 查找此接口的绑定
-                if let Some(bindings) = bindings {
-                    if let Some(binding) = bindings.get(interface) {
-                        match binding {
-                            crate::core::sequencer::chapter_schema::DataBinding::File(path) => {
-                                let handle: Handle<FreAsset> = asset_server.load(path.clone());
-                                if let Some(fre_asset) = fre_assets.get(&handle) {
-                                    load_fre_into_view_root(
-                                        &mut view_root,
-                                        fre_asset,
-                                        mortar_strings,
-                                    );
-
-                                    // Register View-scoped rules from interface binding
-                                    // 从接口绑定注册 View 作用域的规则
-                                    let rule_defs = fre_asset.get_rule_defs();
-                                    let scope = fre_asset.scope();
-                                    for (idx, rule_def) in rule_defs.iter().enumerate() {
-                                        let effective_scope = if scope == RuleScope::Local {
-                                            RuleScope::View
-                                        } else {
-                                            scope
-                                        };
-                                        let rule =
-                                            rule_def.to_rule_with_index(idx, effective_scope);
-                                        let rule_id = rule_def.generate_id(idx);
-
-                                        // Store actions for this rule
-                                        if !rule_def.actions.is_empty() {
-                                            action_defs
-                                                .actions_by_rule
-                                                .insert(rule_id, rule_def.actions.clone());
-                                        }
-
-                                        if effective_scope == RuleScope::View {
-                                            rule_registry.register_view_rule(view_entity, rule);
-                                        } else {
-                                            rule_registry.register(rule);
-                                        }
-                                    }
-
-                                    info!(
-                                        "[ViewRoot] Bound interface '{}' to file '{}' ({} rules)",
-                                        interface,
-                                        path,
-                                        rule_defs.len()
-                                    );
-                                }
-                            }
-                            crate::core::sequencer::chapter_schema::DataBinding::Files(paths) => {
-                                let mut total_rules = 0;
-                                for path in paths {
-                                    let handle: Handle<FreAsset> = asset_server.load(path.clone());
-                                    if let Some(fre_asset) = fre_assets.get(&handle) {
-                                        load_fre_into_view_root(
-                                            &mut view_root,
-                                            fre_asset,
-                                            mortar_strings,
-                                        );
-
-                                        // Register View-scoped rules from interface binding
-                                        // 从接口绑定注册 View 作用域的规则
-                                        let rule_defs = fre_asset.get_rule_defs();
-                                        let scope = fre_asset.scope();
-                                        for (idx, rule_def) in rule_defs.iter().enumerate() {
-                                            let effective_scope = if scope == RuleScope::Local {
-                                                RuleScope::View
-                                            } else {
-                                                scope
-                                            };
-                                            let rule =
-                                                rule_def.to_rule_with_index(idx, effective_scope);
-                                            let rule_id = rule_def.generate_id(idx);
-
-                                            // Store actions for this rule
-                                            if !rule_def.actions.is_empty() {
-                                                action_defs
-                                                    .actions_by_rule
-                                                    .insert(rule_id, rule_def.actions.clone());
-                                            }
-
-                                            if effective_scope == RuleScope::View {
-                                                rule_registry.register_view_rule(view_entity, rule);
-                                            } else {
-                                                rule_registry.register(rule);
-                                            }
-                                        }
-                                        total_rules += rule_defs.len();
-                                    }
-                                }
-                                info!(
-                                    "[ViewRoot] Bound interface '{}' to {} files ({} rules)",
-                                    interface,
-                                    paths.len(),
-                                    total_rules
-                                );
-                            }
-                            crate::core::sequencer::chapter_schema::DataBinding::LocalLayer => {
-                                // Copy facts from LOCAL layer to view's local_facts
-                                // 从 LOCAL 层复制 facts 到 view 的 local_facts
-                                for (key, value) in layered_db.iter_local() {
-                                    // Resolve localization for string values
-                                    // 解析字符串值的本地化
-                                    match value {
-                                        bevy_fact_rule_event::FactValue::String(s) => {
-                                            let resolved =
-                                                resolve_simple_localization(s, mortar_strings);
-                                            view_root.local_facts.set(key.0.clone(), resolved);
-                                        }
-                                        bevy_fact_rule_event::FactValue::StringList(list) => {
-                                            let resolved_list: Vec<String> = list
-                                                .iter()
-                                                .map(|s| {
-                                                    resolve_simple_localization(s, mortar_strings)
-                                                })
-                                                .collect();
-                                            view_root.local_facts.set(key.0.clone(), resolved_list);
-                                        }
-                                        _ => {
-                                            view_root.local_facts.set(key.0.clone(), value.clone());
-                                        }
-                                    }
-                                }
-                                info!("[ViewRoot] Bound interface '{}' to LocalLayer", interface);
-                            }
-                            crate::core::sequencer::chapter_schema::DataBinding::Expr(_expr) => {
-                                warn!(
-                                    "[ViewRoot] Expr binding not yet implemented for interface '{}'",
-                                    interface
-                                );
-                            }
-                        }
-                    } else {
-                        warn!(
-                            "[ViewRoot] No binding provided for interface '{}'",
-                            interface
-                        );
-                    }
-                } else {
-                    warn!(
-                        "[ViewRoot] Interface '{}' requires binding but none provided",
-                        interface
-                    );
-                }
+                process_interface_requirement(
+                    interface,
+                    bindings,
+                    asset_server,
+                    fre_assets,
+                    &mut view_root,
+                    mortar_strings,
+                    layered_db,
+                    view_entity,
+                    rule_registry,
+                    action_defs,
+                );
             }
         }
     }
@@ -362,8 +342,6 @@ pub fn spawn_ron_view_for_entity(
 ///
 /// 统一的 View 生成系统（背包、战斗、追逐、对话）。
 /// 所有 View 生成都通过 SpawnViewRequest → 此系统。
-#[allow(clippy::type_complexity)]
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_dynamic_view_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,

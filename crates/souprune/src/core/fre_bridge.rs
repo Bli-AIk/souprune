@@ -104,12 +104,12 @@ pub fn action_to_fre_event_system(
 
 /// System that syncs Bevy state values to FRE facts.
 ///
-/// This allows FRE rules to check current state using `$@sequence_sub_state` and `$@app_state`.
+/// This allows FRE rules to check current state using `$state:sequence_sub_state` and `$state:app_state`.
 /// The `@` prefix indicates these are state-derived facts rather than user-defined facts.
 ///
 /// 将 Bevy 状态值同步到 FRE facts 的系统。
 ///
-/// 这允许 FRE 规则使用 `$@sequence_sub_state` 和 `$@app_state` 检查当前状态。
+/// 这允许 FRE 规则使用 `$state:sequence_sub_state` 和 `$state:app_state` 检查当前状态。
 /// `@` 前缀表示这些是状态派生的 facts，而不是用户定义的 facts。
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
@@ -163,6 +163,129 @@ pub fn sync_state_to_facts_system(
     }
 }
 
+/// Log matching rule details for Left/Right navigation events.
+fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&bevy_fact_rule_event::Rule>]) {
+    if !event.id.0.contains("Left") && !event.id.0.contains("Right") {
+        return;
+    }
+    debug!(
+        "FRE Bridge: Event '{}' has {} rule groups matching",
+        event.id.0,
+        rule_groups.len()
+    );
+    for (i, group) in rule_groups.iter().enumerate() {
+        for rule in group {
+            debug!(
+                "  Group {}: rule '{}' with {} conditions: {:?}",
+                i,
+                rule.id,
+                rule.condition_expressions.len(),
+                rule.condition_expressions
+            );
+        }
+    }
+}
+
+/// Log debug info when rule conditions are not met.
+fn log_condition_not_met(rule: &bevy_fact_rule_event::Rule, view_root: &ViewRoot) {
+    if rule.id.contains("act") || rule.id.contains("depth_2") {
+        debug!(
+            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
+            rule.id,
+            view_root.local_facts.get_int("depth"),
+            view_root.local_facts.get_int("menu_context"),
+            view_root.local_facts.get_int("act_selection"),
+            view_root.local_facts.get_int("act_count")
+        );
+    } else {
+        debug!(
+            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
+            rule.id,
+            view_root.local_facts.get_int("depth"),
+            view_root.local_facts.get_int("selection")
+        );
+    }
+}
+
+/// Process all matching rules for a single FRE event on view actions.
+fn process_event_view_actions(
+    event: &FactEvent,
+    rule_registry: &LayeredRuleRegistry,
+    action_defs: &RuleActionDefs,
+    active_view_query: &mut Query<&mut ViewRoot, With<ActiveView>>,
+    audio: &bevy_kira_audio::Audio,
+    asset_server: &AssetServer,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
+    pending_events: &mut bevy_fact_rule_event::PendingFactEvents,
+    trigger_history: &mut Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
+    time: &Time,
+) {
+    let rule_groups = rule_registry.get_matching_rules_grouped(event);
+    log_event_rule_matches(event, &rule_groups);
+
+    // Process rules by priority groups
+    // 按优先级分组处理规则
+    'outer: for group in rule_groups {
+        for rule in group {
+            let Ok(mut view_root) = active_view_query.single_mut() else {
+                info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
+                continue;
+            };
+
+            if !evaluate_conditions(
+                &rule.condition_expressions,
+                &view_root.local_facts,
+                global_facts,
+            ) {
+                log_condition_not_met(rule, &view_root);
+                continue;
+            }
+
+            info!(
+                "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
+                rule.id,
+                event.id.0,
+                rule.priority,
+                rule.condition_expressions.len(),
+                rule.outputs.len(),
+                rule.outputs
+            );
+
+            // Record rule trigger for debug panel visualization
+            // 记录规则触发以供调试面板可视化
+            if let Some(history) = trigger_history {
+                history.record_trigger(&rule.id, time.elapsed_secs_f64());
+            }
+
+            // Execute each action from the rule's action definitions
+            for action in action_defs
+                .actions_by_rule
+                .get(&rule.id)
+                .into_iter()
+                .flatten()
+            {
+                execute_action(
+                    action,
+                    &mut view_root.local_facts,
+                    global_facts,
+                    audio,
+                    asset_server,
+                );
+            }
+
+            // Queue output events with deduplication
+            // 使用去重队列输出事件
+            for output_id in &rule.outputs {
+                pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
+            }
+
+            if rule.consume_event {
+                break 'outer;
+            }
+        }
+    }
+}
+
 /// System that processes FRE actions that affect ViewRoot.local_facts.
 ///
 /// This system listens for FRE events, checks which rules match,
@@ -190,155 +313,22 @@ pub fn process_view_actions_system(
         return;
     };
 
-    // Collect all events first to avoid borrow issues
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
-        // Get all matching rules for this event, grouped by priority
-        let rule_groups = rule_registry.get_matching_rules_grouped(event);
-
-        // Debug: Log when we have matching rules for Left/Right events
-        if event.id.0.contains("Left") || event.id.0.contains("Right") {
-            debug!(
-                "FRE Bridge: Event '{}' has {} rule groups matching",
-                event.id.0,
-                rule_groups.len()
-            );
-            for (i, group) in rule_groups.iter().enumerate() {
-                for rule in group {
-                    debug!(
-                        "  Group {}: rule '{}' with {} conditions: {:?}",
-                        i,
-                        rule.id,
-                        rule.condition_expressions.len(),
-                        rule.condition_expressions
-                    );
-                }
-            }
-        }
-
-        if rule_groups.is_empty() {
-            continue;
-        }
-
-        // Process rules by priority groups
-        // 按优先级分组处理规则
-        'outer: for group in rule_groups {
-            for rule in group {
-                // Get the active ViewRoot to check conditions
-                let Ok(mut view_root) = active_view_query.single_mut() else {
-                    info!("FRE Bridge: No ActiveView found for rule '{}'", rule.id);
-                    continue;
-                };
-
-                // Sync dynamic facts from global database before condition evaluation
-                // 在条件评估前同步动态 facts
-                sync_dynamic_facts(&mut view_root.local_facts, &global_facts);
-
-                // Check condition expressions against local_facts and global_facts
-                if !evaluate_conditions(
-                    &rule.condition_expressions,
-                    &view_root.local_facts,
-                    &global_facts,
-                ) {
-                    // Only log for ACT navigation rules (depth 2 related)
-                    if rule.id.contains("act") || rule.id.contains("depth_2") {
-                        debug!(
-                            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
-                            rule.id,
-                            view_root.local_facts.get_int("depth"),
-                            view_root.local_facts.get_int("menu_context"),
-                            view_root.local_facts.get_int("act_selection"),
-                            view_root.local_facts.get_int("act_count")
-                        );
-                    } else {
-                        debug!(
-                            "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, selection={:?}",
-                            rule.id,
-                            view_root.local_facts.get_int("depth"),
-                            view_root.local_facts.get_int("selection")
-                        );
-                    }
-                    continue;
-                }
-
-                info!(
-                    "FRE Bridge: Rule '{}' matched event '{}' (priority: {}, conditions: {}, outputs_len: {}, outputs: {:?}), executing actions",
-                    rule.id,
-                    event.id.0,
-                    rule.priority,
-                    rule.condition_expressions.len(),
-                    rule.outputs.len(),
-                    rule.outputs
-                );
-
-                // Record rule trigger for debug panel visualization
-                // 记录规则触发以供调试面板可视化
-                if let Some(ref mut history) = trigger_history {
-                    history.record_trigger(&rule.id, time.elapsed_secs_f64());
-                }
-
-                // Look up the original action definitions for this rule
-                // Rules may have modifications without actions, so process both
-                // 查找此规则的原始动作定义
-                // 规则可能只有 modifications 而没有 actions，所以两者都要处理
-                let actions = action_defs.actions_by_rule.get(&rule.id);
-
-                // Execute each action (view_root is already mutable)
-                if let Some(actions) = actions {
-                    for action in actions {
-                        execute_action(
-                            action,
-                            &mut view_root.local_facts,
-                            &global_facts,
-                            &audio,
-                            &asset_server,
-                        );
-                    }
-                }
-
-                // Queue output events with deduplication.
-                // This system can correctly evaluate conditions with local facts,
-                // so it should handle outputs for rules that reference local facts.
-                // The queue_output method ensures no duplicates if process_rules_system
-                // already queued the same output.
-                //
-                // 使用去重队列输出事件。
-                // 此系统可以正确评估包含 local facts 的条件，
-                // 因此它应该处理引用 local facts 的规则的 outputs。
-                // queue_output 方法确保如果 process_rules_system 已排队相同输出则不会重复。
-                for output_id in &rule.outputs {
-                    pending_events.queue_output(&rule.id, FactEvent::new(output_id.clone()));
-                }
-
-                // If this rule consumes the event, stop all matching
-                // 如果此规则消费事件，停止所有匹配
-                if rule.consume_event {
-                    break 'outer;
-                }
-                // Otherwise, continue checking in this priority group
-            }
-        }
+        process_event_view_actions(
+            event,
+            &rule_registry,
+            &action_defs,
+            &mut active_view_query,
+            &audio,
+            &asset_server,
+            &global_facts,
+            &mut pending_events,
+            &mut trigger_history,
+            &time,
+        );
     }
-}
-
-/// Syncs derived facts from global database to local_facts.
-/// This allows rules to reference global data in conditions.
-///
-/// 将派生 facts 从全局数据库同步到 local_facts。
-/// 这允许规则在条件中引用全局数据。
-///
-/// NOTE: This function is now minimal - StringList.len() is evaluated
-/// directly via $var.len() syntax in conditions.
-///
-/// 注意：此函数现在是最小化的 - StringList.len() 通过条件中的
-/// $var.len() 语法直接评估。
-fn sync_dynamic_facts(
-    _local_facts: &mut bevy_fact_rule_event::FactDatabase,
-    _global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
-) {
-    // Currently no facts need to be synced.
-    // StringList.len() is evaluated directly via $var.len() syntax.
 }
 
 /// Execute a single FRE action on the ViewRoot's local_facts.
@@ -414,6 +404,84 @@ pub fn handle_switch_state_system(
     }
 }
 
+/// Dispatch a single Custom action via handler registry or as an event.
+fn dispatch_single_custom_action(
+    action: &RuleActionDef,
+    rule: &bevy_fact_rule_event::Rule,
+    fact_db: &LayeredFactDatabase,
+    handler_registry: &ActionHandlerRegistry,
+    commands: &mut Commands,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
+) {
+    let RuleActionDef::Custom {
+        action_type,
+        params,
+    } = action
+    else {
+        return;
+    };
+
+    if handler_registry.has_handler(action_type) {
+        debug!(
+            "FRE: Executing registered handler for '{}' (rule: '{}')",
+            action_type, rule.id
+        );
+        handler_registry.execute(action, fact_db, commands);
+    } else {
+        debug!(
+            "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
+            action_type, rule.id
+        );
+        custom_action_writer.write(FreCustomActionEvent {
+            action_type: action_type.clone(),
+            params: params.clone(),
+        });
+    }
+}
+
+/// Process all matching rules for a single FRE event, dispatching Custom actions.
+fn dispatch_event_custom_actions(
+    event: &FactEvent,
+    rule_registry: &LayeredRuleRegistry,
+    action_defs: &RuleActionDefs,
+    fact_db: &LayeredFactDatabase,
+    handler_registry: &ActionHandlerRegistry,
+    commands: &mut Commands,
+    custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
+) {
+    let rule_groups = rule_registry.get_matching_rules_grouped(event);
+    if rule_groups.is_empty() {
+        return;
+    }
+
+    'outer: for group in rule_groups {
+        for rule in group {
+            if !evaluate_conditions_layered(&rule.condition_expressions, fact_db) {
+                continue;
+            }
+
+            let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
+                continue;
+            };
+
+            for action in actions {
+                dispatch_single_custom_action(
+                    action,
+                    rule,
+                    fact_db,
+                    handler_registry,
+                    commands,
+                    custom_action_writer,
+                );
+            }
+
+            if rule.consume_event {
+                break 'outer;
+            }
+        }
+    }
+}
+
 /// System that reads FRE events, matches rules, evaluates global conditions,
 /// and dispatches Custom actions as `FreCustomActionEvent` messages.
 ///
@@ -434,51 +502,15 @@ pub fn dispatch_custom_actions_system(
     mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
 ) {
     for event in events.read() {
-        let rule_groups = rule_registry.get_matching_rules_grouped(event);
-        if rule_groups.is_empty() {
-            continue;
-        }
-
-        'outer: for group in rule_groups {
-            for rule in group {
-                if !evaluate_conditions_layered(&rule.condition_expressions, &fact_db) {
-                    continue;
-                }
-
-                let Some(actions) = action_defs.actions_by_rule.get(&rule.id) else {
-                    continue;
-                };
-
-                for action in actions {
-                    if let RuleActionDef::Custom {
-                        action_type,
-                        params,
-                    } = action
-                    {
-                        if handler_registry.has_handler(action_type) {
-                            debug!(
-                                "FRE: Executing registered handler for '{}' (rule: '{}')",
-                                action_type, rule.id
-                            );
-                            handler_registry.execute(action, &fact_db, &mut commands);
-                        } else {
-                            debug!(
-                                "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
-                                action_type, rule.id
-                            );
-                            custom_action_writer.write(FreCustomActionEvent {
-                                action_type: action_type.clone(),
-                                params: params.clone(),
-                            });
-                        }
-                    }
-                }
-
-                if rule.consume_event {
-                    break 'outer;
-                }
-            }
-        }
+        dispatch_event_custom_actions(
+            event,
+            &rule_registry,
+            &action_defs,
+            &fact_db,
+            &handler_registry,
+            &mut commands,
+            &mut custom_action_writer,
+        );
     }
 }
 

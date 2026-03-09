@@ -24,8 +24,6 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::{Commands, Sprite, Transform, default};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 pub fn get_or_create_texture_atlas(
     module_name: &str,
     sprite_registry: &mut ModuleSpriteRegistry,
@@ -80,8 +78,6 @@ pub fn get_or_create_texture_atlas(
     Ok((atlas_layout_handle, texture, index_map))
 }
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 pub fn create_texture_atlas(
     folder: &LoadedFolder,
     padding: Option<UVec2>,
@@ -103,31 +99,41 @@ pub fn create_texture_atlas(
     let mut added_count = 0;
 
     for handle in folder.handles.iter() {
-        if let Some(path) = handle.path() {
-            // Normalize path to use forward slashes for consistency across platforms
-            let path_str = path.to_string().replace('\\', "/");
-            if !path_str.ends_with(".png")
-                && !path_str.ends_with(".jpg")
-                && !path_str.ends_with(".jpeg")
-            {
-                if path_str.ends_with(".toml") {
-                    let toml_id = handle.id().typed_unchecked::<TomlAsset>();
-                    if let Some(toml_asset) = toml_assets.get(toml_id) {
-                        info!(
-                            "Registering TOML configuration for module '{}': {}",
-                            module_name, path_str
-                        );
-                        toml_registry.register_module_config(module_name, &toml_asset.config);
-                    } else {
-                        warn!("Unable to load TOML file: {}", path_str);
-                    }
-                }
-
+        let Some(path) = handle.path() else {
+            let id = handle.id().typed_unchecked::<Image>();
+            let Some(texture) = textures.get(id) else {
+                warn!(
+                    "{} did not resolve to an `Image` asset.",
+                    handle.path().map(|p| p.to_string()).unwrap_or_default()
+                );
                 continue;
+            };
+            texture_atlas_builder.add_texture(Some(id), texture);
+            continue;
+        };
+
+        // Normalize path to use forward slashes for consistency across platforms
+        let path_str = path.to_string().replace('\\', "/");
+        let is_image =
+            path_str.ends_with(".png") || path_str.ends_with(".jpg") || path_str.ends_with(".jpeg");
+
+        if !is_image && path_str.ends_with(".toml") {
+            let toml_id = handle.id().typed_unchecked::<TomlAsset>();
+            if let Some(toml_asset) = toml_assets.get(toml_id) {
+                info!(
+                    "Registering TOML configuration for module '{}': {}",
+                    module_name, path_str
+                );
+                toml_registry.register_module_config(module_name, &toml_asset.config);
+            } else {
+                warn!("Unable to load TOML file: {}", path_str);
             }
-            index_map.insert(path_str, added_count);
-            added_count += 1;
         }
+        if !is_image {
+            continue;
+        }
+        index_map.insert(path_str, added_count);
+        added_count += 1;
 
         let id = handle.id().typed_unchecked::<Image>();
         let Some(texture) = textures.get(id) else {
@@ -160,7 +166,6 @@ pub fn create_texture_atlas(
 }
 
 #[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 pub fn create_sprite_from_atlas(
     commands: &mut Commands,
     translation: (f32, f32, f32),
@@ -189,7 +194,6 @@ pub fn create_sprite_from_atlas(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]
 pub fn get_sprite_from_config(
     sprite_registry: &mut ModuleSpriteRegistry,

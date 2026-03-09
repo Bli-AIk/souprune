@@ -78,6 +78,7 @@ impl Plugin for CoreDanmakuPlugin {
                     update_bullet_motion,
                     update_bullet_lifetime,
                     cleanup_dead_bullets,
+                    cleanup_empty_containers,
                 )
                     .chain()
                     .in_set(DanmakuUpdate),

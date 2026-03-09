@@ -334,6 +334,70 @@ fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
         .with_context(|| format!("Failed to parse mod config file at {}", path_ref.display()))
 }
 
+/// Apply parsed mod config onto the main config, merging partial fields.
+fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
+    #[cfg(target_os = "android")]
+    eprintln!(
+        "[SoupRune] mod.toml parsed, game section: {:?}",
+        mod_cfg.game.is_some()
+    );
+
+    if let Some(game_partial) = mod_cfg.game {
+        #[cfg(target_os = "android")]
+        eprintln!(
+            "[SoupRune] game_partial.input_config_path: {:?}",
+            game_partial.input_config_path
+        );
+        if let Some(val) = game_partial.global_rules {
+            config.game.global_rules = val;
+        }
+        if let Some(val) = game_partial.initial_map_path {
+            config.game.initial_map_path = val;
+        }
+        if let Some(val) = game_partial.initial_battle_path {
+            config.game.initial_battle_path = val;
+        }
+        if let Some(val) = game_partial.initial_sequence_path {
+            config.game.initial_sequence_path = Some(val);
+        }
+        if let Some(val) = game_partial.player_behavior_path {
+            config.game.player_behavior_path = val;
+        }
+        if let Some(val) = game_partial.input_config_path {
+            config.game.input_config_path = val;
+        }
+        if let Some(val) = game_partial.states_config {
+            config.game.states_config = val;
+        }
+        if let Some(val) = game_partial.chase_config {
+            config.game.chase_config = Some(val);
+        }
+        if let Some(val) = game_partial.required_modules {
+            config.game.required_modules = val;
+        }
+        if let Some(val) = game_partial.hidden_layer_keywords {
+            config.game.hidden_layer_keywords = val;
+        }
+    }
+    // Load resource paths from [resources] section (required)
+    if let Some(res_partial) = mod_cfg.resources {
+        if let Some(val) = res_partial.textures {
+            config.resources.textures = val;
+        }
+        if let Some(val) = res_partial.audios {
+            config.resources.audios = val;
+        }
+    }
+
+    // Validate required resource paths
+    if config.resources.textures.is_empty() {
+        error!("mod.toml: [resources].textures is required");
+    }
+    if config.resources.audios.is_empty() {
+        error!("mod.toml: [resources].audios is required");
+    }
+}
+
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
     let path_ref = path.as_ref();
     let contents = fs::read_to_string(path_ref)
@@ -373,68 +437,7 @@ Falling back to default configuration (example_mod)",
 
             if mod_config_path.exists() {
                 match read_mod_config(&mod_config_path) {
-                    Ok(mod_cfg) => {
-                        #[cfg(target_os = "android")]
-                        eprintln!(
-                            "[SoupRune] mod.toml parsed, game section: {:?}",
-                            mod_cfg.game.is_some()
-                        );
-
-                        if let Some(game_partial) = mod_cfg.game {
-                            #[cfg(target_os = "android")]
-                            eprintln!(
-                                "[SoupRune] game_partial.input_config_path: {:?}",
-                                game_partial.input_config_path
-                            );
-                            if let Some(val) = game_partial.global_rules {
-                                config.game.global_rules = val;
-                            }
-                            if let Some(val) = game_partial.initial_map_path {
-                                config.game.initial_map_path = val;
-                            }
-                            if let Some(val) = game_partial.initial_battle_path {
-                                config.game.initial_battle_path = val;
-                            }
-                            if let Some(val) = game_partial.initial_sequence_path {
-                                config.game.initial_sequence_path = Some(val);
-                            }
-                            if let Some(val) = game_partial.player_behavior_path {
-                                config.game.player_behavior_path = val;
-                            }
-                            if let Some(val) = game_partial.input_config_path {
-                                config.game.input_config_path = val;
-                            }
-                            if let Some(val) = game_partial.states_config {
-                                config.game.states_config = val;
-                            }
-                            if let Some(val) = game_partial.chase_config {
-                                config.game.chase_config = Some(val);
-                            }
-                            if let Some(val) = game_partial.required_modules {
-                                config.game.required_modules = val;
-                            }
-                            if let Some(val) = game_partial.hidden_layer_keywords {
-                                config.game.hidden_layer_keywords = val;
-                            }
-                        }
-                        // Load resource paths from [resources] section (required)
-                        if let Some(res_partial) = mod_cfg.resources {
-                            if let Some(val) = res_partial.textures {
-                                config.resources.textures = val;
-                            }
-                            if let Some(val) = res_partial.audios {
-                                config.resources.audios = val;
-                            }
-                        }
-
-                        // Validate required resource paths
-                        if config.resources.textures.is_empty() {
-                            error!("mod.toml: [resources].textures is required");
-                        }
-                        if config.resources.audios.is_empty() {
-                            error!("mod.toml: [resources].audios is required");
-                        }
-                    }
+                    Ok(mod_cfg) => apply_mod_config(&mut config, mod_cfg),
                     Err(e) => {
                         #[cfg(target_os = "android")]
                         eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);

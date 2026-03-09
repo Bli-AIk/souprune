@@ -450,8 +450,6 @@ pub fn on_am_entity_spawned(
 /// System to propagate AM markers from parent groups to children.
 ///
 /// 将 AM 标记从父编组传播到子元素。
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 fn propagate_am_markers_system(
     mut commands: Commands,
     // All AM entities that might need marker inheritance
@@ -489,18 +487,20 @@ fn propagate_am_markers_system(
             let parent = child_of.parent();
 
             // Check if parent has markers
-            if let Ok((_, parent_bullet, parent_battle_box, parent_hidden)) =
-                am_entities.get(parent)
-            {
-                if !has_bullet && parent_bullet.is_some() {
-                    inherited_bullet = true;
-                }
-                if !has_battle_box && parent_battle_box.is_some() {
-                    inherited_battle_box = true;
-                }
-                if !has_hidden && parent_hidden.is_some() {
-                    inherited_hidden = true;
-                }
+            let Ok((_, parent_bullet, parent_battle_box, parent_hidden)) = am_entities.get(parent)
+            else {
+                current = parent;
+                continue;
+            };
+
+            if !has_bullet && parent_bullet.is_some() {
+                inherited_bullet = true;
+            }
+            if !has_battle_box && parent_battle_box.is_some() {
+                inherited_battle_box = true;
+            }
+            if !has_hidden && parent_hidden.is_some() {
+                inherited_hidden = true;
             }
 
             // If found all needed inheritance, stop
@@ -549,7 +549,6 @@ fn propagate_am_markers_system(
 ///
 /// 为标记的 AM 实体添加碰撞组件。
 /// 在 `propagate_am_markers_system` 和 `apply_deferred` 之后运行。
-#[allow(clippy::too_many_arguments)]
 fn add_am_collision_system(
     mut commands: Commands,
     am_config: Res<AmBattleConfig>,

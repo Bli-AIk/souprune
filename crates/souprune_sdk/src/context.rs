@@ -125,6 +125,21 @@ pub struct BulletContext {
     params_len: usize,
 }
 
+/// Parse a C string pointer and length into an owned `String`.
+///
+/// # Safety
+///
+/// `name` must be a valid pointer to `name_len` bytes, or null.
+unsafe fn parse_c_str(name: *const u8, name_len: usize) -> String {
+    if !name.is_null() && name_len > 0 {
+        // SAFETY: caller guarantees valid pointer and length
+        let slice = unsafe { std::slice::from_raw_parts(name, name_len) };
+        String::from_utf8_lossy(slice).into_owned()
+    } else {
+        String::new()
+    }
+}
+
 impl BulletContext {
     /// Create a BulletContext from raw C pointer.
     /// This is called internally by the SDK macro.
@@ -145,12 +160,8 @@ impl BulletContext {
             for i in 0..c.props_len {
                 // SAFETY: We've checked props is not null and i < props_len
                 let prop_c = unsafe { &*c.props.add(i) };
-                let name = if !prop_c.name.is_null() && prop_c.name_len > 0 {
-                    let slice = unsafe { std::slice::from_raw_parts(prop_c.name, prop_c.name_len) };
-                    String::from_utf8_lossy(slice).into_owned()
-                } else {
-                    String::new()
-                };
+                // SAFETY: parse_c_str handles null/zero-length checks
+                let name = unsafe { parse_c_str(prop_c.name, prop_c.name_len) };
                 props.push((name, prop_c.value));
             }
         }
@@ -159,7 +170,8 @@ impl BulletContext {
         let mut params = [0.0f32; 16];
         let params_len = c.params_len.min(16);
         if !c.params.is_null() && params_len > 0 {
-            #[allow(clippy::needless_range_loop)]
+            #[expect(clippy::needless_range_loop)]
+            // reason: index needed for unsafe pointer arithmetic
             for i in 0..params_len {
                 // SAFETY: We've checked params is not null and i < params_len
                 params[i] = unsafe { *c.params.add(i) };

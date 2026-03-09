@@ -128,48 +128,49 @@ pub fn process_fact_switch_chapter_system(
     layered_db: Res<LayeredFactDatabase>,
 ) {
     for (entity, active) in query.iter() {
-        if let Chapter::FactSwitch {
+        let Chapter::FactSwitch {
             fact_key,
             cases,
             default,
         } = &active.chapter
-        {
-            let fact_value = layered_db.get_by_str(fact_key);
+        else {
+            continue;
+        };
 
-            // Find matching case
-            let mut matched_chapter = None;
-            for (case_value, chapter) in cases {
-                if matches_value(fact_value, case_value) {
-                    matched_chapter = Some(chapter.clone());
-                    info!("FactSwitch Chapter: matched case for key '{}'", fact_key);
-                    break;
-                }
+        let fact_value = layered_db.get_by_str(fact_key);
+
+        // Find matching case
+        let mut matched_chapter = None;
+        for (case_value, chapter) in cases {
+            if matches_value(fact_value, case_value) {
+                matched_chapter = Some(chapter.clone());
+                info!("FactSwitch Chapter: matched case for key '{}'", fact_key);
+                break;
             }
+        }
 
-            // Use default if no match
-            let chapter_to_spawn = matched_chapter.or_else(|| {
-                default.as_ref().map(|d| {
-                    info!(
-                        "FactSwitch Chapter: no match for key '{}', using default",
-                        fact_key
-                    );
-                    (**d).clone()
-                })
-            });
+        // Use default if no match
+        let chapter_to_spawn = matched_chapter.or_else(|| {
+            let d = default.as_ref()?;
+            info!(
+                "FactSwitch Chapter: no match for key '{}', using default",
+                fact_key
+            );
+            Some((**d).clone())
+        });
 
-            if let Some(chapter) = chapter_to_spawn {
-                spawn_chapter(&mut commands, chapter, Some(entity));
-                commands
-                    .entity(entity)
-                    .insert(super::context::ParallelTracker { pending_count: 1 });
-            } else {
-                // No match and no default - just finish
-                info!(
-                    "FactSwitch Chapter: no match and no default for key '{}'",
-                    fact_key
-                );
-                commands.entity(entity).insert(ChapterFinished);
-            }
+        if let Some(chapter) = chapter_to_spawn {
+            spawn_chapter(&mut commands, chapter, Some(entity));
+            commands
+                .entity(entity)
+                .insert(super::context::ParallelTracker { pending_count: 1 });
+        } else {
+            // No match and no default - just finish
+            info!(
+                "FactSwitch Chapter: no match and no default for key '{}'",
+                fact_key
+            );
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
@@ -215,74 +216,94 @@ pub fn process_modify_fact_chapter_system(
     view_root_query: Query<&crate::core::view::ViewRoot>,
 ) {
     for (entity, active) in query.iter() {
-        if let Chapter::ModifyFact { modifications } = &active.chapter {
-            for modification in modifications {
-                match modification {
-                    FactModificationDef::Set { key, value } => {
-                        let fact_value: Option<FactValue> = match value {
-                            FactValueMatch::Int(v) => Some(FactValue::Int(*v)),
-                            FactValueMatch::Float(v) => Some(FactValue::Float(*v)),
-                            FactValueMatch::Bool(v) => Some(FactValue::Bool(*v)),
-                            FactValueMatch::String(v) => Some(FactValue::String(v.clone())),
-                            FactValueMatch::Expr(expr) => {
-                                // For simple $key references, read the fact directly
-                                // First check View's local_facts, then LayeredFactDatabase
-                                // This supports string facts unlike evaluate_expr_to_fact
-                                if let Some(fact_key) = expr.strip_prefix('$') {
-                                    // Try View's local_facts first
-                                    let view_root = view_root_query.iter().next();
-                                    info!(
-                                        "ModifyFact Expr: looking for '{}', has ViewRoot={}",
-                                        fact_key,
-                                        view_root.is_some()
-                                    );
-                                    let from_view = view_root.and_then(|vr| {
-                                        vr.local_facts.get_by_str(fact_key).cloned()
-                                    });
-                                    let from_db = layered_db.get_by_str(fact_key).cloned();
-                                    info!(
-                                        "ModifyFact Expr: '{}' -> view={:?}, db={:?}",
-                                        fact_key, from_view, from_db
-                                    );
-                                    from_view.or(from_db)
-                                } else {
-                                    // For complex expressions, use numeric evaluation
-                                    bevy_fact_rule_event::expr::evaluate_expr_to_fact(
-                                        expr,
-                                        &layered_db,
-                                    )
-                                }
-                            }
-                        };
-                        if let Some(fv) = fact_value {
-                            layered_db.set(key.as_str(), fv.clone());
-                            info!("ModifyFact Chapter: Set '{}' to {:?}", key, fv);
-                        } else {
-                            warn!(
-                                "ModifyFact Chapter: Failed to evaluate expression for '{}'",
-                                key
-                            );
-                        }
-                    }
-                    FactModificationDef::Increment { key, amount } => {
-                        layered_db.increment(key, *amount);
-                        info!("ModifyFact Chapter: Increment '{}' by {}", key, amount);
-                    }
-                    FactModificationDef::Remove(key) => {
-                        layered_db.remove(key);
-                        info!("ModifyFact Chapter: Remove '{}'", key);
-                    }
-                    FactModificationDef::Toggle(key) => {
-                        let current = layered_db.get_bool(key).unwrap_or(false);
-                        layered_db.set(key.as_str(), !current);
-                        info!("ModifyFact Chapter: Toggle '{}' (now {})", key, !current);
-                    }
-                }
-            }
+        let Chapter::ModifyFact { modifications } = &active.chapter else {
+            continue;
+        };
 
-            commands.entity(entity).insert(ChapterFinished);
+        for modification in modifications {
+            apply_fact_modification(modification, &mut layered_db, &view_root_query);
+        }
+
+        commands.entity(entity).insert(ChapterFinished);
+    }
+}
+
+/// Apply a single fact modification.
+fn apply_fact_modification(
+    modification: &FactModificationDef,
+    layered_db: &mut ResMut<LayeredFactDatabase>,
+    view_root_query: &Query<&crate::core::view::ViewRoot>,
+) {
+    match modification {
+        FactModificationDef::Set { key, value } => {
+            let fact_value = resolve_set_value(value, layered_db, view_root_query);
+            if let Some(fv) = fact_value {
+                layered_db.set(key.as_str(), fv.clone());
+                info!("ModifyFact Chapter: Set '{}' to {:?}", key, fv);
+            } else {
+                warn!(
+                    "ModifyFact Chapter: Failed to evaluate expression for '{}'",
+                    key
+                );
+            }
+        }
+        FactModificationDef::Increment { key, amount } => {
+            layered_db.increment(key, *amount);
+            info!("ModifyFact Chapter: Increment '{}' by {}", key, amount);
+        }
+        FactModificationDef::Remove(key) => {
+            layered_db.remove(key);
+            info!("ModifyFact Chapter: Remove '{}'", key);
+        }
+        FactModificationDef::Toggle(key) => {
+            let current = layered_db.get_bool(key).unwrap_or(false);
+            layered_db.set(key.as_str(), !current);
+            info!("ModifyFact Chapter: Toggle '{}' (now {})", key, !current);
         }
     }
+}
+
+/// Resolve a FactValueMatch::Set value to an actual FactValue.
+fn resolve_set_value(
+    value: &FactValueMatch,
+    layered_db: &LayeredFactDatabase,
+    view_root_query: &Query<&crate::core::view::ViewRoot>,
+) -> Option<FactValue> {
+    match value {
+        FactValueMatch::Int(v) => Some(FactValue::Int(*v)),
+        FactValueMatch::Float(v) => Some(FactValue::Float(*v)),
+        FactValueMatch::Bool(v) => Some(FactValue::Bool(*v)),
+        FactValueMatch::String(v) => Some(FactValue::String(v.clone())),
+        FactValueMatch::Expr(expr) => resolve_expr_value(expr, layered_db, view_root_query),
+    }
+}
+
+/// Resolve an expression value, checking View local_facts first, then LayeredFactDatabase.
+fn resolve_expr_value(
+    expr: &str,
+    layered_db: &LayeredFactDatabase,
+    view_root_query: &Query<&crate::core::view::ViewRoot>,
+) -> Option<FactValue> {
+    // For simple $key references, read the fact directly
+    let Some(fact_key) = expr.strip_prefix('$') else {
+        // For complex expressions, use numeric evaluation
+        return bevy_fact_rule_event::expr::evaluate_expr_to_fact(expr, layered_db);
+    };
+
+    // Try View's local_facts first, then LayeredFactDatabase
+    let view_root = view_root_query.iter().next();
+    info!(
+        "ModifyFact Expr: looking for '{}', has ViewRoot={}",
+        fact_key,
+        view_root.is_some()
+    );
+    let from_view = view_root.and_then(|vr| vr.local_facts.get_by_str(fact_key).cloned());
+    let from_db = layered_db.get_by_str(fact_key).cloned();
+    info!(
+        "ModifyFact Expr: '{}' -> view={:?}, db={:?}",
+        fact_key, from_view, from_db
+    );
+    from_view.or(from_db)
 }
 
 // =============================================================================
@@ -361,50 +382,61 @@ pub fn complete_load_fre_chapter_system(
             std::collections::HashMap::new();
 
         for handle in &state.handles {
-            if let Some(fre_asset) = fre_assets.get(handle) {
-                for (key, value_def) in fre_asset.get_facts() {
-                    let fact_value: FactValue = value_def.clone().into();
-                    all_facts.insert(key.clone(), fact_value.clone());
-                    layered_db.set(key.as_str(), fact_value);
-                }
-                info!(
-                    "LoadFre Chapter: Loaded {} facts from FRE file",
-                    fre_asset.get_facts().len()
-                );
+            let Some(fre_asset) = fre_assets.get(handle) else {
+                continue;
+            };
+            for (key, value_def) in fre_asset.get_facts() {
+                let fact_value: FactValue = value_def.clone().into();
+                all_facts.insert(key.clone(), fact_value.clone());
+                layered_db.set(key.as_str(), fact_value);
             }
+            info!(
+                "LoadFre Chapter: Loaded {} facts from FRE file",
+                fre_asset.get_facts().len()
+            );
         }
 
         // Apply aggregation rules
         for (array_name, rule) in &state.aggregate {
-            match rule {
-                AggregateRule::Collect(pattern) => {
-                    let values = collect_matching_values(&all_facts, pattern);
-                    if !values.is_empty() {
-                        apply_collected_values(array_name, &values, &mut layered_db);
-                        info!(
-                            "LoadFre Chapter: Aggregated {} values into '{}'",
-                            values.len(),
-                            array_name
-                        );
-                    }
-                }
-                AggregateRule::CollectKeys(pattern) => {
-                    let keys = collect_matching_keys(&all_facts, pattern);
-                    if !keys.is_empty() {
-                        layered_db.set(array_name.as_str(), keys.clone());
-                        info!(
-                            "LoadFre Chapter: Collected {} keys into '{}'",
-                            keys.len(),
-                            array_name
-                        );
-                    }
-                }
-            }
+            apply_aggregate_rule(array_name, rule, &all_facts, &mut layered_db);
         }
 
         state.processed = true;
         commands.entity(entity).insert(ChapterFinished);
         info!("LoadFre Chapter: Completed");
+    }
+}
+
+/// Apply a single aggregation rule to the database.
+fn apply_aggregate_rule(
+    array_name: &str,
+    rule: &AggregateRule,
+    all_facts: &std::collections::HashMap<String, FactValue>,
+    layered_db: &mut ResMut<LayeredFactDatabase>,
+) {
+    match rule {
+        AggregateRule::Collect(pattern) => {
+            let values = collect_matching_values(all_facts, pattern);
+            if !values.is_empty() {
+                apply_collected_values(array_name, &values, layered_db);
+                info!(
+                    "LoadFre Chapter: Aggregated {} values into '{}'",
+                    values.len(),
+                    array_name
+                );
+            }
+        }
+        AggregateRule::CollectKeys(pattern) => {
+            let keys = collect_matching_keys(all_facts, pattern);
+            if !keys.is_empty() {
+                layered_db.set(array_name, keys.clone());
+                info!(
+                    "LoadFre Chapter: Collected {} keys into '{}'",
+                    keys.len(),
+                    array_name
+                );
+            }
+        }
     }
 }
 
@@ -502,4 +534,100 @@ fn collect_matching_keys(
     }
 
     keys
+}
+
+// =============================================================================
+// LoadEnemies Chapter Processing
+// LoadEnemies 章节处理
+// =============================================================================
+
+/// Component to track LoadEnemies chapter state.
+#[derive(Component)]
+pub struct LoadEnemiesState {
+    pub handles: Vec<Handle<crate::core::enemy::EnemyDef>>,
+    pub processed: bool,
+}
+
+/// System to initiate LoadEnemies chapter loading.
+pub fn process_load_enemies_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), (Without<ChapterFinished>, Without<LoadEnemiesState>)>,
+    asset_server: Res<AssetServer>,
+) {
+    for (entity, active) in query.iter() {
+        if let Chapter::LoadEnemies { enemies } = &active.chapter {
+            let handles = enemies
+                .iter()
+                .map(|path| {
+                    info!("LoadEnemies Chapter: Loading '{}'", path);
+                    asset_server.load::<crate::core::enemy::EnemyDef>(path.clone())
+                })
+                .collect();
+
+            commands.entity(entity).insert(LoadEnemiesState {
+                handles,
+                processed: false,
+            });
+        }
+    }
+}
+
+/// System to complete LoadEnemies chapter after assets are loaded.
+/// Projects enemy data into the fact database and builds aggregate arrays.
+pub fn complete_load_enemies_chapter_system(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut LoadEnemiesState), Without<ChapterFinished>>,
+    mut layered_db: ResMut<LayeredFactDatabase>,
+    enemy_assets: Res<Assets<crate::core::enemy::EnemyDef>>,
+    mut enemy_registry: ResMut<crate::core::enemy::EnemyRegistry>,
+) {
+    for (entity, mut state) in query.iter_mut() {
+        if state.processed {
+            continue;
+        }
+
+        let all_loaded = state.handles.iter().all(|h| enemy_assets.contains(h));
+        if !all_loaded {
+            continue;
+        }
+
+        let mut enemy_ids = Vec::new();
+        let mut enemy_names = Vec::new();
+        let mut enemy_hps = Vec::new();
+        let mut enemy_hp_maxs = Vec::new();
+        let mut enemy_attacks = Vec::new();
+        let mut enemy_defenses = Vec::new();
+
+        for handle in &state.handles {
+            if let Some(enemy) = enemy_assets.get(handle) {
+                // Project individual enemy facts for View resolution
+                crate::core::enemy::project_enemy_facts(enemy, layered_db.local_mut());
+
+                // Collect aggregate data
+                enemy_ids.push(enemy.id.clone());
+                enemy_names.push(enemy.locale.name.clone());
+                enemy_hps.push(enemy.stats.hp);
+                enemy_hp_maxs.push(enemy.stats.hp);
+                enemy_attacks.push(enemy.stats.attack);
+                enemy_defenses.push(enemy.stats.defense);
+
+                // Register in EnemyRegistry
+                enemy_registry.0.insert(enemy.id.clone(), enemy.clone());
+
+                info!("LoadEnemies: Loaded enemy '{}'", enemy.id);
+            }
+        }
+
+        // Set aggregate arrays for View binding
+        layered_db.set("enemy_ids", FactValue::StringList(enemy_ids));
+        layered_db.set("enemy_names", FactValue::StringList(enemy_names));
+        layered_db.set("enemy_hps", FactValue::IntList(enemy_hps));
+        layered_db.set("enemy_hp_maxs", FactValue::IntList(enemy_hp_maxs));
+        layered_db.set("enemy_attacks", FactValue::IntList(enemy_attacks));
+        layered_db.set("enemy_defenses", FactValue::IntList(enemy_defenses));
+
+        state.processed = true;
+        commands.entity(entity).insert(ChapterFinished);
+        info!("LoadEnemies Chapter: Completed");
+    }
 }

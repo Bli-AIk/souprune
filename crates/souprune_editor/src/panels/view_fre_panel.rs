@@ -43,30 +43,33 @@ impl ViewFreState {
         self.loaded_for_path = Some(view_path.to_path_buf());
 
         for req in requires {
-            if let DataRequirement::File(rel_path) = req
-                && let Some(full) = souprune::config::resolve_path(rel_path)
-            {
-                match std::fs::read_to_string(&full) {
-                    Ok(content) => match ron::from_str::<FreAsset>(&content) {
-                        Ok(fre) => {
-                            // 从 FRE 的 facts 初始化模拟值
-                            for (k, v) in &fre.facts {
-                                if !self.simulated_facts.contains_key(k) {
-                                    self.simulated_facts
-                                        .insert(k.clone(), fact_value_def_to_sim(v));
-                                }
-                            }
-                            self.loaded_fre.insert(rel_path.clone(), fre);
-                        }
-                        Err(e) => {
-                            bevy::log::warn!("FRE 解析失败 {rel_path}: {e}");
-                        }
-                    },
-                    Err(e) => {
-                        bevy::log::warn!("FRE 读取失败 {rel_path}: {e}");
-                    }
+            let DataRequirement::File(rel_path) = req else {
+                continue;
+            };
+            let Some(full) = souprune::config::resolve_path(rel_path) else {
+                continue;
+            };
+            let content = match std::fs::read_to_string(&full) {
+                Ok(c) => c,
+                Err(e) => {
+                    bevy::log::warn!("FRE 读取失败 {rel_path}: {e}");
+                    continue;
                 }
+            };
+            let fre = match ron::from_str::<FreAsset>(&content) {
+                Ok(f) => f,
+                Err(e) => {
+                    bevy::log::warn!("FRE 解析失败 {rel_path}: {e}");
+                    continue;
+                }
+            };
+            // 从 FRE 的 facts 初始化模拟值
+            for (k, v) in &fre.facts {
+                self.simulated_facts
+                    .entry(k.clone())
+                    .or_insert_with(|| fact_value_def_to_sim(v));
             }
+            self.loaded_fre.insert(rel_path.clone(), fre);
         }
     }
 
@@ -138,6 +141,15 @@ fn total_rules(state: &ViewFreState) -> usize {
     state.loaded_fre.values().map(|f| f.rules.len()).sum()
 }
 
+fn render_fre_facts(ui: &mut egui::Ui, facts: &HashMap<String, FactValueDef>) {
+    for (k, v) in facts {
+        ui.horizontal(|ui| {
+            ui.label(k);
+            ui.monospace(format_fact_value_def(v));
+        });
+    }
+}
+
 fn render_fre_file(ui: &mut egui::Ui, path: &str, fre: &FreAsset) {
     let short = path.rsplit('/').next().unwrap_or(path);
     egui::CollapsingHeader::new(format!("{short} ({} rules)", fre.rules.len()))
@@ -147,12 +159,7 @@ fn render_fre_file(ui: &mut egui::Ui, path: &str, fre: &FreAsset) {
                 egui::CollapsingHeader::new(format!("Facts ({})", fre.facts.len()))
                     .default_open(false)
                     .show(ui, |ui| {
-                        for (k, v) in &fre.facts {
-                            ui.horizontal(|ui| {
-                                ui.label(k);
-                                ui.monospace(format_fact_value_def(v));
-                            });
-                        }
+                        render_fre_facts(ui, &fre.facts);
                     });
             }
             for (i, rule) in fre.rules.iter().enumerate() {
@@ -261,6 +268,35 @@ fn format_fact_value_def(v: &FactValueDef) -> String {
     }
 }
 
+fn render_sim_fact_value(ui: &mut egui::Ui, val: &mut SimFactValue) -> bool {
+    let mut changed = false;
+    match val {
+        SimFactValue::Int(v) => {
+            let mut f = *v as f64;
+            if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
+                *v = f as i64;
+                changed = true;
+            }
+        }
+        SimFactValue::Float(v) => {
+            if ui.add(egui::DragValue::new(v).speed(0.1)).changed() {
+                changed = true;
+            }
+        }
+        SimFactValue::Bool(v) => {
+            if ui.checkbox(v, "").changed() {
+                changed = true;
+            }
+        }
+        SimFactValue::String(s) => {
+            if ui.text_edit_singleline(s).changed() {
+                changed = true;
+            }
+        }
+    }
+    changed
+}
+
 // ─── Fact 模拟器 ────────────────────────────────────────────
 
 fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
@@ -275,30 +311,7 @@ fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
         if let Some(val) = state.simulated_facts.get_mut(key) {
             ui.horizontal(|ui| {
                 ui.label(key);
-                match val {
-                    SimFactValue::Int(v) => {
-                        let mut f = *v as f64;
-                        if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
-                            *v = f as i64;
-                            changed = true;
-                        }
-                    }
-                    SimFactValue::Float(v) => {
-                        if ui.add(egui::DragValue::new(v).speed(0.1)).changed() {
-                            changed = true;
-                        }
-                    }
-                    SimFactValue::Bool(v) => {
-                        if ui.checkbox(v, "").changed() {
-                            changed = true;
-                        }
-                    }
-                    SimFactValue::String(s) => {
-                        if ui.text_edit_singleline(s).changed() {
-                            changed = true;
-                        }
-                    }
-                }
+                changed |= render_sim_fact_value(ui, val);
             });
         }
     }
@@ -313,6 +326,50 @@ fn render_fact_simulator(ui: &mut egui::Ui, state: &mut ViewFreState) -> bool {
         }
     });
 
+    changed
+}
+
+fn render_live_fact_value(
+    ui: &mut egui::Ui,
+    key: &str,
+    value: &bevy_fact_rule_event::FactValue,
+    facts: &mut bevy_fact_rule_event::FactDatabase,
+) -> bool {
+    use bevy_fact_rule_event::FactValue;
+    let mut changed = false;
+    match value {
+        FactValue::Int(v) => {
+            let mut f = *v as f64;
+            if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
+                facts.set(key.to_string(), f as i64);
+                changed = true;
+            }
+        }
+        FactValue::Float(v) => {
+            let mut f = *v;
+            if ui.add(egui::DragValue::new(&mut f).speed(0.1)).changed() {
+                facts.set(key.to_string(), f);
+                changed = true;
+            }
+        }
+        FactValue::Bool(v) => {
+            let mut b = *v;
+            if ui.checkbox(&mut b, "").changed() {
+                facts.set(key.to_string(), b);
+                changed = true;
+            }
+        }
+        FactValue::String(s) => {
+            let mut s = s.clone();
+            if ui.text_edit_singleline(&mut s).changed() {
+                facts.set(key.to_string(), s);
+                changed = true;
+            }
+        }
+        other => {
+            ui.label(format!("{other:?}"));
+        }
+    }
     changed
 }
 
@@ -338,39 +395,7 @@ fn render_live_fact_simulator(
     for (key, value) in &entries {
         ui.horizontal(|ui| {
             ui.monospace(key);
-            match value {
-                FactValue::Int(v) => {
-                    let mut f = *v as f64;
-                    if ui.add(egui::DragValue::new(&mut f).speed(1.0)).changed() {
-                        facts.set(key.clone(), f as i64);
-                        changed = true;
-                    }
-                }
-                FactValue::Float(v) => {
-                    let mut f = *v;
-                    if ui.add(egui::DragValue::new(&mut f).speed(0.1)).changed() {
-                        facts.set(key.clone(), f);
-                        changed = true;
-                    }
-                }
-                FactValue::Bool(v) => {
-                    let mut b = *v;
-                    if ui.checkbox(&mut b, "").changed() {
-                        facts.set(key.clone(), b);
-                        changed = true;
-                    }
-                }
-                FactValue::String(s) => {
-                    let mut s = s.clone();
-                    if ui.text_edit_singleline(&mut s).changed() {
-                        facts.set(key.clone(), s);
-                        changed = true;
-                    }
-                }
-                other => {
-                    ui.label(format!("{other:?}"));
-                }
-            }
+            changed |= render_live_fact_value(ui, key, value, facts);
         });
     }
 

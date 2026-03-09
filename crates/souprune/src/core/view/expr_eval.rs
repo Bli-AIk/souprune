@@ -46,6 +46,45 @@ pub fn preprocess_varname(expr: &str) -> String {
         .to_string()
 }
 
+/// Evaluate `if(condition, then, else)`.
+fn eval_if(args: &[f64]) -> Option<f64> {
+    if args.len() == 3 {
+        Some(if args[0] != 0.0 { args[1] } else { args[2] })
+    } else {
+        None
+    }
+}
+
+/// Evaluate `snap(val, step)` — snap a value to the nearest step.
+fn eval_snap(args: &[f64]) -> Option<f64> {
+    if args.len() != 2 {
+        return None;
+    }
+    let (val, step) = (args[0], args[1]);
+    if step == 0.0 {
+        Some(val)
+    } else {
+        Some((val / step).floor() * step)
+    }
+}
+
+/// Evaluate `random()`, `random(max)`, or `random(min, max)`.
+fn eval_random(args: &[f64]) -> Option<f64> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
+    let rand_val = ((nanos as f64) / (u32::MAX as f64)) * 2.0 - 1.0;
+
+    match args.len() {
+        0 => Some(rand_val),
+        1 => Some(rand_val * args[0]),
+        2 => Some(args[0] + (rand_val + 1.0) * 0.5 * (args[1] - args[0])),
+        _ => None,
+    }
+}
+
 /// Create a callback function that handles custom functions and variable lookup.
 ///
 /// 创建处理自定义函数和变量查找的回调函数。
@@ -54,45 +93,9 @@ pub fn create_eval_callback<'a>(
 ) -> impl FnMut(&str, Vec<f64>) -> Option<f64> + 'a {
     move |name: &str, args: Vec<f64>| -> Option<f64> {
         match name {
-            // if(condition, then, else)
-            "if" => {
-                if args.len() == 3 {
-                    Some(if args[0] != 0.0 { args[1] } else { args[2] })
-                } else {
-                    None
-                }
-            }
-            // snap(val, step) - snap to step
-            "snap" => {
-                if args.len() == 2 {
-                    let val = args[0];
-                    let step = args[1];
-                    if step == 0.0 {
-                        Some(val)
-                    } else {
-                        Some((val / step).floor() * step)
-                    }
-                } else {
-                    None
-                }
-            }
-            // random() or random(max) or random(min, max)
-            "random" => {
-                use std::time::{SystemTime, UNIX_EPOCH};
-                let nanos = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .subsec_nanos();
-                let rand_val = ((nanos as f64) / (u32::MAX as f64)) * 2.0 - 1.0;
-
-                match args.len() {
-                    0 => Some(rand_val),
-                    1 => Some(rand_val * args[0]),
-                    2 => Some(args[0] + (rand_val + 1.0) * 0.5 * (args[1] - args[0])),
-                    _ => None,
-                }
-            }
-            // Variable lookup
+            "if" => eval_if(&args),
+            "snap" => eval_snap(&args),
+            "random" => eval_random(&args),
             _ => vars.get(name).copied(),
         }
     }
