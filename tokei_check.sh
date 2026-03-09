@@ -87,8 +87,25 @@ if [ -n "$allow_hits" ]; then
 fi
 
 # --- Check 4: #[expect(clippy::...)] must have a // reason: comment ---
-expect_no_reason=$(grep -rn '#\[expect(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null \
-    | grep -v '// reason:' || true)
+# Accepts // reason: on the same line or the immediately following line
+# (cargo fmt may move trailing comments to the next line when the line exceeds max_width).
+expect_no_reason=$(grep -rl '#\[expect(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null | \
+    xargs -r awk '
+    prev_expect && FILENAME != prev_file {
+        print prev_loc ": " prev_line
+        prev_expect = 0
+    }
+    prev_expect {
+        if (/\/\/ reason:/) { prev_expect = 0; next }
+        print prev_loc ": " prev_line
+        prev_expect = 0
+    }
+    /#\[expect\(clippy::/ {
+        if (/\/\/ reason:/) next
+        prev_expect = 1; prev_file = FILENAME; prev_loc = FILENAME ":" FNR; prev_line = $0
+    }
+    END { if (prev_expect) print prev_loc ": " prev_line }
+    ' 2>/dev/null || true)
 if [ -n "$expect_no_reason" ]; then
     echo -e "${RED}${BOLD}Error:${RESET} Found #[expect(clippy::...)] without // reason: comment:"
     echo "$expect_no_reason" | while read -r line; do echo -e "  ${YELLOW}$line${RESET}"; done
