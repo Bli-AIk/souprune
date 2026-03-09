@@ -131,3 +131,33 @@ soup_debug_tracy:
 
 editor:
     cargo run -p souprune_editor
+
+# ===============================================
+# WASM Mod 构建（编译测试 mod 为 WASM 组件）
+# ===============================================
+wasm-build:
+    cargo build -p souprune_mod_test --target wasm32-wasip2
+
+# ===============================================
+# WASM Mod 测试（用 mock host 加载运行）
+# ===============================================
+wasm-test: wasm-build
+    cargo run -p souprune_mock_host -- target/wasm32-wasip2/debug/souprune_mod_test.wasm
+
+# ===============================================
+# 构建项目 Mod 为 WASM 组件
+# Build a project mod as a WASM component
+# Usage: just mod-build example_mod
+# ===============================================
+mod-build mod_name:
+    cd projects/{{mod_name}}/code/mod_example && cargo build --target wasm32-wasip2 --release
+    @echo "Built: projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm"
+
+# ===============================================
+# 构建并安装项目 Mod（复制 .wasm 到项目目录）
+# Build and install a project mod
+# Usage: just mod-install example_mod
+# ===============================================
+mod-install mod_name: (mod-build mod_name)
+    cp projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm projects/{{mod_name}}/mod_example.wasm
+    @echo "Installed: projects/{{mod_name}}/mod_example.wasm"

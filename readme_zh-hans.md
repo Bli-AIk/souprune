@@ -247,27 +247,24 @@ SoupRune 采用多 Crate 的工作空间架构：
 | Crate                                                             | 描述                                               |
 |:------------------------------------------------------------------|:-------------------------------------------------|
 | [`souprune`](./crates/souprune)                                   | **核心框架**：框架本体，游戏的 主入口和核心逻辑实现。                    |
-| [`souprune_api`](./crates/souprune_api)                           | **协议层**：定义了 Project (Mod) 与框架核心交互的接口标准。          |
-| [`souprune_sdk`](./crates/souprune_sdk)                           | **开发工具包**：对 API 的封装，提供给外部 Project (Mod) 脚本使用。    |
-| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **样例 Mod**： 脚本系统的示例测试库。                          |
+| [`souprune_api`](./crates/souprune_api)                           | **协议层**：WIT 接口定义与共享类型，定义 WASM mod 与引擎的交互契约。          |
+| [`souprune_sdk`](./crates/souprune_sdk)                           | **开发工具包**：Rust WASM guest SDK，使用 wit-bindgen。    |
+| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **样例 Mod**： 示例 WASM mod 组件（编译目标: wasm32-wasip2）。                          |
 | [`bevy_mortar_bond`](./crates/bevy_mortar_bond)                   | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。         |
 | [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)             | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。                |
 | [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event)           | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。                  |
 | [`bevy_alight_motion`](./crates/bevy_alight_motion)               | **功能插件**：解析并播放 Alight Motion 动画工程的集成插件。          |
-| [`interoptopus_backend_haxe`](./crates/interoptopus_backend_haxe) | **工具库**：Interoptopus FFI 绑定生成器的 Haxe (hxcpp) 后端。 |
 
 ## 🧩 脚本层支持
 
-SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。我们精心挑选了一系列支持 **AOT 编译**
-的语言，旨在对应不同的开发范式，让来自其他引擎的开发者能平滑迁移经验：
+SoupRune 的模组系统基于 **WASM Component Model** 构建，实现安全沙箱化的跨平台 mod 加载。
+Mod 编译为 `.wasm` 组件，运行时通过 Wasmtime 加载。接口契约使用 WIT（WebAssembly Interface Types）定义。
 
 |           语言           | 适用人群                                 | 描述                                     |
 |:----------------------:|:-------------------------------------|:---------------------------------------|
-|        **Rust**        | 系统层开发者 / Rustacean / Bevy 用户         | 原生支持，性能最佳。                             |
-|     **.NET (C#)**      | Unity / Godot / C# 用户                | 工业标准语言。通过 **Native AOT** 技术实现无缝集成与高性能。 |
-|        **Haxe**        | **Haxe** 用户 / **GameMaker** 用户       | 强大的高级语言。其语法与 GML 有相似之处，是开发的绝佳选择。       |
-|  **Nim**(Coming Soon)  | **Python** / **GDScript** (Godot) 用户 | 类似 Python 的缩进式语法，却能编 译成 C 代码，兼具优雅与高效。  |
-| **Nelua**(Coming Soon) | **Lua** 用户                           | 继承了 Lua 的极简语法风格，但编译为原生机器码，提供极致性能。      |
+|        **Rust**        | 系统层开发者 / Rustacean / Bevy 用户         | 原生支持，通过 `souprune_sdk` + `wit-bindgen`。性能最佳。 |
+|   **JS**（计划中）    | Web 开发者 / 脚本用户                    | 通过 `jco` 工具链实现快速 mod 原型开发。              |
+|  **.NET (C#)**（计划中） | Unity / Godot / C# 用户                | 通过 .NET WASI SDK 开发 C# mod。             |
 
 如果你有兴趣为 SoupRune 的多语言支持提供帮助，欢迎参与贡献！
 
@@ -331,7 +328,6 @@ SoupRune 的脚本系统基于 **C ABI** 构建，以实现高性能互操作。
 | [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON 序列化/反序列 化                           |
 | [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 正则表达式                                    |
 | [fasteval](https://crates.io/crates/fasteval)         | 0.2             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | 快速、安全的代数表 达式求值                           |
-| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | 多语言绑定生成器                                 |
 
 ### 资源引用
 

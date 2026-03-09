@@ -1,57 +1,8 @@
 use bevy::prelude::*;
-use libloading::{Library, Symbol};
-use souprune_api::{
-    Action, BehaviorInstance, ContextHandle, CreateBehaviorFn, CreateDanmakuFn, DanmakuInstance,
-    GetAlgorithmCountFn, GetAlgorithmIdFn, GetBehaviorCountFn, GetBehaviorIdFn, HostApi,
-};
+use souprune_api::Action;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_float};
 
-// === Host API Implementation (Must be static / extern "C") ===
-
-extern "C" fn host_log(_level: u32, msg: *const u8, len: usize) {
-    unsafe {
-        let slice = std::slice::from_raw_parts(msg, len);
-        let message = String::from_utf8_lossy(slice);
-        info!("[MOD] {}", message);
-    }
-}
-
-extern "C" fn host_input_is_action_pressed(_context: *const ContextHandle, action: Action) -> bool {
-    INPUT_SNAPSHOT.with(|snapshot| snapshot.borrow().is_pressed(action))
-}
-
-extern "C" fn host_kinematics_set_velocity(context: *mut ContextHandle, x: c_float, y: c_float) {
-    unsafe {
-        let ctx = &mut *(context as *mut BehaviorContext);
-        ctx.velocity = Vec2::new(x, y);
-    }
-}
-
-// === Context Structure ===
-
-pub struct BehaviorContext {
-    pub entity: Entity,
-    pub velocity: Vec2,
-}
-
-// Thread Local Input Helper
-use std::cell::RefCell;
-
-#[derive(Default)]
-struct InputSnapshot {
-    pressed: [bool; 7], // Mapping Action enum
-}
-
-impl InputSnapshot {
-    fn is_pressed(&self, action: Action) -> bool {
-        self.pressed[action as usize]
-    }
-}
-
-thread_local! {
-    static INPUT_SNAPSHOT: RefCell<InputSnapshot> = RefCell::new(InputSnapshot::default());
-}
+use super::wasm_runtime::{self, LoadedMod, WasmRuntime, update_input_snapshot};
 
 // === Plugin ===
 
@@ -59,8 +10,13 @@ pub struct ModPlugin;
 
 impl Plugin for ModPlugin {
     fn build(&self, app: &mut App) {
+        // Initialize the WASM runtime
+        let runtime = WasmRuntime::new().expect("Failed to initialize WASM runtime");
+
         let schedule = crate::game_schedule(app);
-        app.init_resource::<BehaviorRegistry>()
+        app.insert_non_send_resource(runtime)
+            .insert_non_send_resource(LoadedMods::default())
+            .init_resource::<BehaviorRegistry>()
             .init_resource::<DanmakuRegistry>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
@@ -71,208 +27,106 @@ impl Plugin for ModPlugin {
     }
 }
 
+/// Registry for behavior factories loaded from WASM mods.
+///
+/// 从 WASM 模组加载的行为工厂注册表。
 #[derive(Resource, Default)]
 pub struct BehaviorRegistry {
-    // Keep libraries alive so symbols are valid
-    libs: Vec<Library>,
-    // Map ID to the Factory function that creates it
-    factories: HashMap<String, CreateBehaviorFn>,
+    /// Behavior ID → which mod provides it
+    behavior_mods: HashMap<String, usize>,
 }
 
-/// Registry for danmaku behavior factories loaded from mods.
-/// Stores factory functions to create stateful bullet behavior instances.
+/// Registry for danmaku factories loaded from WASM mods.
 ///
-/// 弹幕行为工厂注册表，从模组中加载。
-/// 存储创建有状态弹幕行为实例的工厂函数。
+/// 从 WASM 模组加载的弹幕工厂注册表。
 #[derive(Resource, Default)]
 pub struct DanmakuRegistry {
-    factories: HashMap<String, CreateDanmakuFn>,
+    /// Algorithm ID → which mod provides it
+    algorithm_mods: HashMap<String, usize>,
 }
 
 impl DanmakuRegistry {
-    /// Create a new danmaku behavior instance by ID.
-    /// Returns None if the ID is not registered.
-    pub fn create(&self, id: &str) -> Option<DanmakuInstance> {
-        let factory = self.factories.get(id)?;
-        let id_cstring = CString::new(id).ok()?;
-        // SAFETY: Factory function is loaded from a valid mod library
-        let instance = unsafe { factory(id_cstring.as_ptr() as *const u8) };
-        if instance.instance.is_null() {
-            None
-        } else {
-            Some(instance)
-        }
-    }
-
-    /// Check if an algorithm is registered.
     pub fn contains(&self, id: &str) -> bool {
-        self.factories.contains_key(id)
+        self.algorithm_mods.contains_key(id)
     }
 
-    /// Get all registered algorithm IDs.
     pub fn algorithm_ids(&self) -> impl Iterator<Item = &String> {
-        self.factories.keys()
+        self.algorithm_mods.keys()
     }
 }
 
+/// Resource holding all loaded WASM mod instances.
+/// Uses NonSend because wasmtime Store contains !Sync types.
+///
+/// 持有所有已加载 WASM 模组实例的资源。
+/// 使用 NonSend 因为 wasmtime Store 包含 !Sync 类型。
+#[derive(Default)]
+pub struct LoadedMods {
+    pub mods: Vec<LoadedMod>,
+}
+
 fn load_mods_system(
-    mut registry: ResMut<BehaviorRegistry>,
+    mut behavior_registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
+    runtime: NonSend<WasmRuntime>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
     let config = crate::config::load_config();
     let mod_name = &config.project.mod_name;
     let base_path = crate::config::get_projects_base_path().join(mod_name);
 
-    let mut candidate_filenames = Vec::new();
+    // Look for .wasm files
+    let wasm_filename = format!("{}.wasm", mod_name);
+    let wasm_path = base_path.join(&wasm_filename);
 
-    #[cfg(target_os = "android")]
-    {
-        candidate_filenames.push(format!("{}_android.so", mod_name));
-        candidate_filenames.push(format!("{}.so", mod_name));
-    }
-
-    // On Android, also search in app internal storage (dlopen can't load from /sdcard)
-    #[cfg(target_os = "android")]
-    let android_mods_dir = std::path::PathBuf::from("/data/data/com.bliaik.souprune/mods");
-
-    #[cfg(not(target_os = "android"))]
-    {
-        if cfg!(target_os = "windows") {
-            if cfg!(target_env = "msvc") {
-                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-                // Fallback to GNU if MSVC not found
-                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-            } else {
-                candidate_filenames.push(format!("{}_gnu.dll", mod_name));
-                candidate_filenames.push(format!("{}_msvc.dll", mod_name));
-            }
-        } else {
-            candidate_filenames.push(format!("{}.so", mod_name));
-        }
-    }
-
-    let mut loaded_path = None;
-    for filename in &candidate_filenames {
-        // On Android, first check the app internal mods directory (dlopen-accessible)
-        #[cfg(target_os = "android")]
-        {
-            let p = android_mods_dir.join(filename);
-            if p.exists() {
-                loaded_path = Some(p);
-                break;
-            }
-        }
-        // Then check the regular base path
-        let p = base_path.join(filename);
-        if p.exists() {
-            loaded_path = Some(p);
-            break;
-        }
-    }
-
-    let Some(mod_path_buf) = loaded_path else {
-        let msg = format!(
-            "Mod file not found. Checked in {:?} for {:?}",
-            base_path, candidate_filenames
+    if !wasm_path.exists() {
+        warn!(
+            "Mod WASM file not found: {:?}. Checked: {:?}",
+            wasm_filename, wasm_path
         );
-        warn!("{}", msg);
-        eprintln!("[Souprune] Warning: {}", msg);
-        return;
-    };
-
-    // Use dunce to canonicalize the path (resolves absolute path, handles Windows UNC)
-    // We pass a reference to avoid moving, though mod_path_buf is now PathBuf so it's fine.
-    let mod_path = dunce::canonicalize(&mod_path_buf).unwrap_or(mod_path_buf);
-
-    unsafe {
-        info!("Loading mod: {}", mod_path.display());
         eprintln!(
-            "[Souprune] Attempting to load mod from: {}",
-            mod_path.display()
+            "[Souprune] Warning: Mod WASM file not found: {}",
+            wasm_path.display()
         );
+        return;
+    }
 
-        let lib = match Library::new(&mod_path) {
-            Ok(l) => l,
-            Err(e) => {
-                let msg = format!("Failed to load DLL '{}': {:?}", mod_path.display(), e);
-                error!("{}", msg);
-                eprintln!("[Souprune] Error: {}", msg);
-                return;
+    info!("Loading WASM mod: {}", wasm_path.display());
+    eprintln!("[Souprune] Loading WASM mod: {}", wasm_path.display());
+
+    match runtime.load_mod(&wasm_path) {
+        Ok(loaded) => {
+            let mod_index = loaded_mods.mods.len();
+
+            for id in &loaded.behavior_ids {
+                info!("Registered Behavior: {}", id);
+                behavior_registry
+                    .behavior_mods
+                    .insert(id.clone(), mod_index);
             }
-        };
+            eprintln!("[Souprune] Loaded {} behaviors", loaded.behavior_ids.len());
 
-        // === Load Behaviors ===
-        // 1. Get Count
-        let get_count: Symbol<GetBehaviorCountFn> = match lib.get(b"get_behavior_count") {
-            Ok(s) => s,
-            Err(e) => {
-                error!("Symbol 'get_behavior_count' not found: {:?}", e);
-                return;
+            for id in &loaded.algorithm_ids {
+                info!("Registered Danmaku Algorithm: {}", id);
+                danmaku_registry
+                    .algorithm_mods
+                    .insert(id.clone(), mod_index);
             }
-        };
-        let count = get_count();
-        info!("Found {} Behaviors in DLL", count);
-        eprintln!("[Souprune] Loaded {} behaviors from DLL", count);
+            eprintln!(
+                "[Souprune] Loaded {} danmaku algorithms",
+                loaded.algorithm_ids.len()
+            );
 
-        // 2. Get IDs helper
-        let get_id_fn: Symbol<GetBehaviorIdFn> =
-            lib.get(b"get_behavior_id").expect("No ID fn found");
-
-        // 3. Get Factory
-        let create_fn: Symbol<CreateBehaviorFn> =
-            lib.get(b"create_behavior").expect("No factory found");
-        // Transmute the symbol to a function pointer so we can store it Copy
-        let create_fn_ptr: CreateBehaviorFn = *create_fn;
-
-        for i in 0..count {
-            let id_ptr = get_id_fn(i);
-            let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
-                .to_string_lossy()
-                .into_owned();
-
-            info!("Registered Behavior: {}", id);
-            registry.factories.insert(id, create_fn_ptr);
+            loaded_mods.mods.push(loaded);
         }
-
-        // === Load Danmaku Algorithms (new VTable-based API) ===
-        if let Ok(get_algo_count) = lib.get::<GetAlgorithmCountFn>(b"get_algorithm_count") {
-            let algo_count = get_algo_count();
-            info!("Found {} Danmaku Algorithms in DLL", algo_count);
-            eprintln!("[Souprune] Found {} Danmaku Algorithms", algo_count);
-
-            if let (Ok(get_algo_id), Ok(create_danmaku)) = (
-                lib.get::<GetAlgorithmIdFn>(b"get_algorithm_id"),
-                lib.get::<CreateDanmakuFn>(b"create_danmaku"),
-            ) {
-                let create_danmaku_ptr: CreateDanmakuFn = *create_danmaku;
-
-                for i in 0..algo_count {
-                    let id_ptr = get_algo_id(i);
-                    if id_ptr.is_null() {
-                        continue;
-                    }
-                    let id = CStr::from_ptr(id_ptr as *const core::ffi::c_char)
-                        .to_string_lossy()
-                        .into_owned();
-
-                    info!("Registered Danmaku Algorithm: {}", id);
-                    danmaku_registry.factories.insert(id, create_danmaku_ptr);
-                }
-            }
+        Err(e) => {
+            error!("Failed to load WASM mod: {:?}", e);
+            eprintln!("[Souprune] Error loading WASM mod: {:?}", e);
         }
-
-        registry.libs.push(lib);
     }
 }
 
-// Static instance of HostApi
-static HOST_API_INSTANCE: HostApi = HostApi {
-    log: host_log,
-    input_is_action_pressed: host_input_is_action_pressed,
-    kinematics_set_velocity: host_kinematics_set_velocity,
-};
-
-// === Runtime System ===
+// === Runtime Components ===
 
 #[derive(Component)]
 pub struct BehaviorParams {
@@ -280,69 +134,59 @@ pub struct BehaviorParams {
 }
 
 #[derive(Component, Default)]
-pub struct BehaviorState {
-    initialized: bool,
-}
+pub struct BehaviorVelocity(pub Vec2);
 
-// This component holds the raw instance pointer.
-// It implements Drop to ensure the heap memory in the SDK is freed.
+/// Active WASM behavior instance, holding a resource handle inside the WASM store.
 #[derive(Component)]
 pub struct ActiveBehavior {
-    instance: BehaviorInstance,
+    mod_index: usize,
+    resource_handle: wasmtime::component::ResourceAny,
 }
 
+// WASM instances are accessed only from the main thread
 unsafe impl Send for ActiveBehavior {}
 unsafe impl Sync for ActiveBehavior {}
-
-impl Drop for ActiveBehavior {
-    fn drop(&mut self) {
-        // Critical: Call destroy to free memory on the guest side
-        if let Some(destroy) = self.instance.vtable.destroy {
-            (destroy)(self.instance.instance);
-        }
-    }
-}
-
-// 简单的 Velocity 组件，之后应该合并到核心 Physics 组件中
-#[derive(Component, Default)]
-pub struct BehaviorVelocity(pub Vec2);
 
 /// System to initialize new behaviors
 fn init_behaviors_system(
     mut commands: Commands,
-    mut query: Query<(Entity, &BehaviorParams, &mut BehaviorVelocity), Added<BehaviorParams>>,
-    registry: Res<BehaviorRegistry>,
+    query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
+    behavior_registry: Res<BehaviorRegistry>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
-    for (entity, params, mut velocity) in query.iter_mut() {
-        if let Some(&create_fn) = registry.factories.get(&params.mode_id) {
-            let c_id = CString::new(params.mode_id.clone()).unwrap();
-
-            // Call factory to allocate instance
-            let instance = unsafe { (create_fn)(c_id.as_ptr() as *const u8, &HOST_API_INSTANCE) };
-
-            if instance.instance.is_null() {
-                error!("Failed to create behavior instance for {}", params.mode_id);
-                continue;
-            }
-
-            // Call on_enter immediately
-            let mut ctx = BehaviorContext {
-                entity,
-                velocity: velocity.0,
-            };
-            let ctx_ptr = &mut ctx as *mut BehaviorContext as *mut ContextHandle;
-
-            if let Some(on_enter) = instance.vtable.on_enter {
-                (on_enter)(instance.instance, ctx_ptr);
-            }
-
-            // Sync back velocity
-            velocity.0 = ctx.velocity;
-
-            // Insert ActiveBehavior component
-            commands.entity(entity).insert(ActiveBehavior { instance });
-        } else {
+    for (entity, params) in query.iter() {
+        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.mode_id) else {
             error!("Behavior ID not found: {}", params.mode_id);
+            continue;
+        };
+
+        let Some(loaded) = loaded_mods.mods.get_mut(mod_index) else {
+            error!("Mod index {} not loaded", mod_index);
+            continue;
+        };
+
+        let behavior_iface = loaded.bindings.souprune_plugin_behavior();
+        match behavior_iface
+            .behavior_instance()
+            .call_constructor(&mut loaded.store, &params.mode_id)
+        {
+            Ok(handle) => {
+                // Call on_enter
+                if let Err(e) = behavior_iface
+                    .behavior_instance()
+                    .call_on_enter(&mut loaded.store, handle)
+                {
+                    error!("Behavior on_enter failed for {}: {:?}", params.mode_id, e);
+                }
+
+                commands.entity(entity).insert(ActiveBehavior {
+                    mod_index,
+                    resource_handle: handle,
+                });
+            }
+            Err(e) => {
+                error!("Failed to create behavior {}: {:?}", params.mode_id, e);
+            }
         }
     }
 }
@@ -351,7 +195,7 @@ fn init_behaviors_system(
 fn update_behaviors_system(
     mut query: Query<(
         Entity,
-        &mut ActiveBehavior,
+        &ActiveBehavior,
         &mut BehaviorVelocity,
         &mut Transform,
     )>,
@@ -360,42 +204,206 @@ fn update_behaviors_system(
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
-    // 1. Update Global Input Snapshot from ActionState (works with both keyboard and touch)
-    INPUT_SNAPSHOT.with(|s| {
-        let mut snap = s.borrow_mut();
-        snap.pressed = [false; 7];
+    // 1. Update input snapshot from ActionState
+    let mut pressed = [false; 7];
+    if let Some(state) = action_states.iter().next() {
+        use crate::core::input::actions::ActionStateExt;
+        pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
+        pressed[Action::Down as usize] = state.action_pressed(&registry, "Down");
+        pressed[Action::Left as usize] = state.action_pressed(&registry, "Left");
+        pressed[Action::Right as usize] = state.action_pressed(&registry, "Right");
+        pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
+        pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
+        pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
+    }
+    update_input_snapshot(pressed);
 
-        if let Some(state) = action_states.iter().next() {
-            use crate::core::input::actions::ActionStateExt;
-            snap.pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
-            snap.pressed[Action::Down as usize] = state.action_pressed(&registry, "Down");
-            snap.pressed[Action::Left as usize] = state.action_pressed(&registry, "Left");
-            snap.pressed[Action::Right as usize] = state.action_pressed(&registry, "Right");
-            snap.pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
-            snap.pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
-            snap.pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
-        }
-    });
-
-    // 2. Iterate Active Behaviors
-    for (entity, active, mut velocity, mut transform) in query.iter_mut() {
-        let mut ctx = BehaviorContext {
-            entity,
-            velocity: velocity.0,
+    // 2. Update each active behavior
+    for (_entity, active, mut velocity, mut transform) in query.iter_mut() {
+        let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
+            continue;
         };
 
-        let ctx_ptr = &mut ctx as *mut BehaviorContext as *mut ContextHandle;
+        // Set input context for this call
+        loaded.store.data_mut().call_ctx.input_pressed = pressed;
+        loaded.store.data_mut().call_ctx.velocity = velocity.0;
 
-        // Call on_update via VTable, passing the instance pointer
-        if let Some(on_update) = active.instance.vtable.on_update {
-            (on_update)(active.instance.instance, ctx_ptr, time.delta_secs());
+        let behavior_iface = loaded.bindings.souprune_plugin_behavior();
+        if let Err(e) = behavior_iface.behavior_instance().call_on_update(
+            &mut loaded.store,
+            active.resource_handle,
+            time.delta_secs(),
+        ) {
+            error!("Behavior on_update failed: {:?}", e);
+            continue;
         }
 
-        // Sync Back
-        velocity.0 = ctx.velocity;
+        // Read back velocity changes
+        let new_velocity = loaded.store.data().call_ctx.velocity;
+        velocity.0 = new_velocity;
 
-        // Apply Velocity to Transform
+        // Apply velocity to transform
         transform.translation += velocity.0.extend(0.0) * time.delta_secs();
+    }
+}
+
+// === Danmaku WASM Support ===
+
+/// Active WASM danmaku instance.
+///
+/// 活跃的 WASM 弹幕实例。
+#[derive(Component)]
+pub struct ActiveDanmaku {
+    mod_index: usize,
+    resource_handle: wasmtime::component::ResourceAny,
+    initialized: bool,
+    pub props: HashMap<String, f32>,
+}
+
+unsafe impl Send for ActiveDanmaku {}
+unsafe impl Sync for ActiveDanmaku {}
+
+impl DanmakuRegistry {
+    /// Create a new danmaku instance by algorithm ID.
+    pub fn create(&self, id: &str, loaded_mods: &mut LoadedMods) -> Option<ActiveDanmaku> {
+        let &mod_index = self.algorithm_mods.get(id)?;
+        let loaded = loaded_mods.mods.get_mut(mod_index)?;
+
+        let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
+        let handle = danmaku_iface
+            .danmaku_instance()
+            .call_constructor(&mut loaded.store, id)
+            .ok()?;
+
+        Some(ActiveDanmaku {
+            mod_index,
+            resource_handle: handle,
+            initialized: false,
+            props: HashMap::new(),
+        })
+    }
+}
+
+impl ActiveDanmaku {
+    pub fn new_with_props(
+        mod_index: usize,
+        resource_handle: wasmtime::component::ResourceAny,
+        props: HashMap<String, f32>,
+    ) -> Self {
+        Self {
+            mod_index,
+            resource_handle,
+            initialized: false,
+            props,
+        }
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        self.initialized
+    }
+
+    /// Call on_enter via WASM.
+    pub fn call_on_enter(
+        &mut self,
+        ctx: &souprune_api::BulletContext,
+        loaded_mods: &mut LoadedMods,
+    ) {
+        if self.initialized {
+            return;
+        }
+        let Some(loaded) = loaded_mods.mods.get_mut(self.mod_index) else {
+            return;
+        };
+
+        let wit_ctx = to_wit_bullet_context(ctx);
+        let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
+        if let Err(e) = danmaku_iface.danmaku_instance().call_on_enter(
+            &mut loaded.store,
+            self.resource_handle,
+            &wit_ctx,
+        ) {
+            error!("Danmaku on_enter failed: {:?}", e);
+        }
+        self.initialized = true;
+    }
+
+    /// Call on_update via WASM and return the output.
+    pub fn call_on_update(
+        &mut self,
+        ctx: &souprune_api::BulletContext,
+        loaded_mods: &mut LoadedMods,
+    ) -> souprune_api::BulletOutput {
+        let Some(loaded) = loaded_mods.mods.get_mut(self.mod_index) else {
+            return souprune_api::BulletOutput::ZERO;
+        };
+
+        let wit_ctx = to_wit_bullet_context(ctx);
+        let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
+        match danmaku_iface.danmaku_instance().call_on_update(
+            &mut loaded.store,
+            self.resource_handle,
+            &wit_ctx,
+        ) {
+            Ok(output) => souprune_api::BulletOutput {
+                offset: souprune_api::Vec2::new(output.offset.x, output.offset.y),
+                rotation: output.rotation,
+            },
+            Err(e) => {
+                error!("Danmaku on_update failed: {:?}", e);
+                souprune_api::BulletOutput::ZERO
+            }
+        }
+    }
+
+    /// Call on_exit via WASM.
+    pub fn call_on_exit(&mut self, loaded_mods: &mut LoadedMods) {
+        if !self.initialized {
+            return;
+        }
+        let Some(loaded) = loaded_mods.mods.get_mut(self.mod_index) else {
+            return;
+        };
+
+        let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
+        if let Err(e) = danmaku_iface
+            .danmaku_instance()
+            .call_on_exit(&mut loaded.store, self.resource_handle)
+        {
+            error!("Danmaku on_exit failed: {:?}", e);
+        }
+    }
+}
+
+/// Convert souprune_api::BulletContext to WIT-generated BulletContext type.
+fn to_wit_bullet_context(
+    ctx: &souprune_api::BulletContext,
+) -> wasm_runtime::exports::souprune::plugin::danmaku::BulletContext {
+    wasm_runtime::exports::souprune::plugin::danmaku::BulletContext {
+        elapsed: ctx.elapsed,
+        delta_time: ctx.delta_time,
+        spawn_pos: wasm_runtime::souprune::plugin::host_api::Vec2 {
+            x: ctx.spawn_pos.x,
+            y: ctx.spawn_pos.y,
+        },
+        offset: wasm_runtime::souprune::plugin::host_api::Vec2 {
+            x: ctx.offset.x,
+            y: ctx.offset.y,
+        },
+        initial_angle: ctx.initial_angle,
+        initial_radius: ctx.initial_radius,
+        player_pos: wasm_runtime::souprune::plugin::host_api::Vec2 {
+            x: ctx.player_pos.x,
+            y: ctx.player_pos.y,
+        },
+        props: ctx
+            .props
+            .iter()
+            .map(|p| wasm_runtime::exports::souprune::plugin::danmaku::Prop {
+                name: p.name.clone(),
+                value: p.value,
+            })
+            .collect(),
     }
 }

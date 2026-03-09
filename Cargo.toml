@@ -9,18 +9,18 @@ members = [
     "crates/bevy_alight_motion",
     "crates/souprune_api",
     "crates/souprune_sdk",
-    "crates/souprune_mod_test",
     "crates/souprune_mock_host",
-    "crates/interoptopus_backend_haxe",
     "crates/flambe",
     "crates/bevy_workbench",
     "crates/souprune_editor",
 ]
 
 # Exclude mortar submodule - it has its own workspace
+# souprune_mod_test is WASM-target only, build with: cargo build -p souprune_mod_test --target wasm32-wasip2
 exclude = [
     "crates/mortar",
     "crates/iyes_perf_ui",
+    "crates/souprune_mod_test",
 ]
 
 # Use local mortar_compiler for bevy_mortar_bond during development

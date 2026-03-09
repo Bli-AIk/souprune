@@ -1,49 +1,42 @@
-//! Defines the `Behavior` trait that mod developers implement to create game logic.
-//! It abstracts away the low-level C ABI callbacks into standard Rust lifecycle methods like `on_update`.
+//! Defines the `Behavior` and `DanmakuBehavior` traits that mod developers implement.
 //!
-//! 定义模组开发者需要实现的 `Behavior` trait 以创建游戏逻辑。
-//! 它将底层的 C ABI 回调抽象为标准的 Rust 生命周期方法，如 `on_update`。
+//! 定义模组开发者需要实现的 `Behavior` 和 `DanmakuBehavior` trait。
 
-use crate::context::{BulletContext, BulletOutput, Context};
+use crate::context::Context;
+use crate::{BulletContext, BulletOutput};
 
-/// All Behaviors must implement this trait.
-/// Corresponds to the lifecycle in api_design.md.
+/// Player/entity behavior trait.
 ///
-/// 所有的 Behavior 都要实现这个特征
-/// 对应 api_design.md 里的生命周期
+/// 玩家/实体行为 trait。
 pub trait Behavior {
-    /// Initialization
-    /// 初始化
     fn on_enter(&mut self, _context: &mut Context) {}
-
-    /// Per-frame update
-    /// 每帧更新
     fn on_update(&mut self, context: &mut Context, dt: f32);
-
-    /// Exit cleanup
-    /// 退出清理
     fn on_exit(&mut self, _context: &mut Context) {}
 }
 
-/// Trait for danmaku (bullet pattern) behaviors.
-/// Similar to Behavior but operates on bullet context instead of player context.
+/// Danmaku (bullet pattern) behavior trait.
 ///
-/// 弹幕行为的 Trait。
-/// 类似于 Behavior，但操作弹幕上下文而非玩家上下文。
+/// 弹幕行为 trait。
 pub trait DanmakuBehavior {
-    /// Initialize behavior state when the bullet is spawned.
-    /// Use this to capture initial state (e.g., player position for aimed behaviors).
     fn on_enter(&mut self, _ctx: &BulletContext) {}
-
-    /// Called every frame to compute bullet movement.
-    /// Returns the position offset and rotation for this frame.
-    ///
-    /// 每帧调用以计算弹幕移动。
-    /// 返回本帧的位置偏移和旋转。
     fn on_update(&mut self, context: &BulletContext) -> BulletOutput;
-
-    /// Called when the bullet is despawned.
-    ///
-    /// 弹幕销毁时调用。
     fn on_exit(&mut self) {}
+}
+
+/// No-op behavior used when an unknown ID is requested.
+#[doc(hidden)]
+pub struct NoopBehavior;
+
+impl Behavior for NoopBehavior {
+    fn on_update(&mut self, _context: &mut Context, _dt: f32) {}
+}
+
+/// No-op danmaku used when an unknown ID is requested.
+#[doc(hidden)]
+pub struct NoopDanmaku;
+
+impl DanmakuBehavior for NoopDanmaku {
+    fn on_update(&mut self, _context: &BulletContext) -> BulletOutput {
+        BulletOutput::ZERO
+    }
 }

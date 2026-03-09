@@ -1,0 +1,108 @@
+/// SoupRune Mod System — WIT Interface Definition
+///
+/// This file defines the contract between the Host (game engine)
+/// and the Guest (mod). It replaces the old C ABI system.
+///
+/// SoupRune 模组系统 — WIT 接口定义
+/// 此文件定义了宿主（游戏引擎）和客体（模组）之间的契约。
+/// 替代旧的 C ABI 系统。
+
+package souprune:plugin@0.1.0;
+
+/// Host API — functions the engine exposes to mods.
+///
+/// 宿主 API — 引擎暴露给模组的函数。
+interface host-api {
+    /// Semantic input action.
+    enum action {
+        up,
+        down,
+        left,
+        right,
+        confirm,
+        cancel,
+        menu,
+    }
+
+    /// 2D vector.
+    record vec2 {
+        x: f32,
+        y: f32,
+    }
+
+    /// Print a log message to the engine console.
+    log: func(level: u32, message: string);
+
+    /// Check if a semantic action is currently pressed.
+    is-action-pressed: func(action: action) -> bool;
+
+    /// Set the entity's velocity.
+    set-velocity: func(velocity: vec2);
+}
+
+/// Behavior interface — exported by mods for player/entity control.
+///
+/// 行为接口 — 模组导出，用于玩家/实体控制。
+interface behavior {
+    use host-api.{vec2};
+
+    /// Lifecycle callbacks for a single behavior instance.
+    resource behavior-instance {
+        constructor(id: string);
+        on-enter: func();
+        on-update: func(delta-time: f32);
+        on-exit: func();
+    }
+
+    /// List all behavior IDs this mod provides.
+    list-behaviors: func() -> list<string>;
+}
+
+/// Danmaku interface — exported by mods for bullet pattern algorithms.
+///
+/// 弹幕接口 — 模组导出，用于弹幕算法。
+interface danmaku {
+    use host-api.{vec2};
+
+    /// Named float property from RON config.
+    record prop {
+        name: string,
+        value: f32,
+    }
+
+    /// Bullet context passed to danmaku callbacks each frame.
+    record bullet-context {
+        elapsed: f32,
+        delta-time: f32,
+        spawn-pos: vec2,
+        offset: vec2,
+        initial-angle: f32,
+        initial-radius: f32,
+        player-pos: vec2,
+        props: list<prop>,
+    }
+
+    /// Output from a danmaku on-update call.
+    record bullet-output {
+        offset: vec2,
+        rotation: f32,
+    }
+
+    /// Lifecycle callbacks for a single danmaku instance.
+    resource danmaku-instance {
+        constructor(id: string);
+        on-enter: func(ctx: bullet-context);
+        on-update: func(ctx: bullet-context) -> bullet-output;
+        on-exit: func();
+    }
+
+    /// List all algorithm IDs this mod provides.
+    list-algorithms: func() -> list<string>;
+}
+
+/// The world that a SoupRune mod component must target.
+world souprune-mod {
+    import host-api;
+    export behavior;
+    export danmaku;
+}

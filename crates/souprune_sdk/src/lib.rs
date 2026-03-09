@@ -1,184 +1,297 @@
-//! The main entry point for the Rust Modding SDK.
-//! It re-exports necessary types and provides the `declare_behaviors!` and `declare_danmaku!` macros
-//! to simplify mod registration.
+//! WASM Modding SDK for SoupRune.
 //!
-//! Rust 模组开发 SDK 的主要入口点。
-//! 重新导出必要的类型，并提供 `declare_behaviors!` 和 `declare_danmaku!` 宏以简化模组注册流程。
+//! Provides the guest-side bindings for the WASM Component Model interface.
+//! Mod developers implement the `Behavior` and `DanmakuBehavior` traits,
+//! then use `export_mod!` to register their implementations.
+//!
+//! SoupRune 的 WASM 模组开发 SDK。
+//! 模组开发者实现 `Behavior` 和 `DanmakuBehavior` trait，
+//! 然后使用 `export_mod!` 注册实现。
+//!
+//! # Example
+//!
+//! ```ignore
+//! use souprune_sdk::prelude::*;
+//!
+//! struct MySoul { counter: u32 }
+//!
+//! impl Behavior for MySoul {
+//!     fn on_update(&mut self, ctx: &mut Context, dt: f32) {
+//!         ctx.log("hello from wasm!");
+//!         if ctx.input().pressed(Action::Right) {
+//!             ctx.kinematics().set_velocity(100.0, 0.0);
+//!         }
+//!     }
+//! }
+//!
+//! export_mod! {
+//!     behaviors: [("my_soul", MySoul, || MySoul { counter: 0 })],
+//! }
+//! ```
 
 pub mod context;
 pub mod traits;
 
-// Re-export for user convenience
-// 重新导出，方便用户使用
-pub use context::{BulletContext, BulletOutput, Context, Vec2};
-pub use souprune_api::{
-    Action, BehaviorInstance, BehaviorVTable, BulletContextC, BulletOutputC, ContextHandle,
-    DanmakuInstance, DanmakuVTable, HostApi, Vec2C, c_float, c_void,
-};
+pub use context::{Context, Vec2};
 pub use traits::{Behavior, DanmakuBehavior};
 
-/// This macro is used to register user's Structs as Behaviors (for player/entity control).
-///
-/// 这个宏用于把用户的 Struct 注册为 Behavior（用于玩家/实体控制）
-#[macro_export]
-macro_rules! declare_behaviors {
-    ( $( ($id:literal, $mod_type:ty, $constructor:expr) ),* $(,)? ) => {
-        static mut HOST_API: Option<$crate::HostApi> = None;
+// Generate guest bindings from the WIT interface
+wit_bindgen::generate!({
+    path: "../souprune_api/wit",
+    world: "souprune-mod",
+    pub_export_macro: true,
+});
 
-        #[unsafe(no_mangle)]
-        pub extern "C" fn get_behavior_count() -> u32 {
-            let mut count = 0;
-            $( count += 1; let _ = $id; )*
-            count
-        }
-
-        #[unsafe(no_mangle)]
-        pub extern "C" fn get_behavior_id(index: u32) -> *const u8 {
-            let ids = [ $( concat!($id, "\0").as_ptr() ),* ];
-            if (index as usize) < ids.len() { ids[index as usize] } else { std::ptr::null() }
-        }
-
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn create_behavior(
-            id: *const u8,
-            api: *const $crate::HostApi,
-        ) -> $crate::BehaviorInstance {
-            unsafe { HOST_API = Some(api.read()); }
-
-            let id_str = unsafe {
-                std::ffi::CStr::from_ptr(id as *const core::ffi::c_char).to_str().unwrap_or("")
-            };
-
-            $(
-                if id_str == $id {
-                    let instance = Box::new($constructor());
-                    let instance_ptr = Box::into_raw(instance) as *mut core::ffi::c_void;
-
-                    extern "C" fn wrapper_on_enter(instance: *mut core::ffi::c_void, handle: *mut $crate::ContextHandle) {
-                        unsafe {
-                            if let Some(api) = &HOST_API {
-                                let mut context = $crate::Context::new(handle, api);
-                                let mode = &mut *(instance as *mut $mod_type);
-                                $crate::Behavior::on_enter(mode, &mut context);
-                            }
-                        }
-                    }
-
-                    extern "C" fn wrapper_on_update(instance: *mut core::ffi::c_void, handle: *mut $crate::ContextHandle, dt: $crate::c_float) {
-                        unsafe {
-                            if let Some(api) = &HOST_API {
-                                let mut context = $crate::Context::new(handle, api);
-                                let mode = &mut *(instance as *mut $mod_type);
-                                $crate::Behavior::on_update(mode, &mut context, dt);
-                            }
-                        }
-                    }
-
-                    extern "C" fn wrapper_on_exit(instance: *mut core::ffi::c_void, handle: *mut $crate::ContextHandle) {
-                        unsafe {
-                            if let Some(api) = &HOST_API {
-                                let mut context = $crate::Context::new(handle, api);
-                                let mode = &mut *(instance as *mut $mod_type);
-                                $crate::Behavior::on_exit(mode, &mut context);
-                            }
-                        }
-                    }
-
-                    extern "C" fn wrapper_destroy(instance: *mut core::ffi::c_void) {
-                         unsafe { let _ = Box::from_raw(instance as *mut $mod_type); }
-                    }
-
-                    return $crate::BehaviorInstance {
-                        instance: instance_ptr,
-                        vtable: $crate::BehaviorVTable {
-                            on_enter: Some(wrapper_on_enter),
-                            on_update: Some(wrapper_on_update),
-                            on_exit: Some(wrapper_on_exit),
-                            destroy: Some(wrapper_destroy),
-                        }
-                    };
-                }
-            )*
-
-            $crate::BehaviorInstance {
-                instance: std::ptr::null_mut(),
-                vtable: $crate::BehaviorVTable { on_enter: None, on_update: None, on_exit: None, destroy: None }
-            }
-        }
-    };
+// Re-export generated types under a `wit` module for advanced use
+pub mod wit {
+    pub use super::exports::souprune::plugin::behavior::GuestBehaviorInstance;
+    pub use super::exports::souprune::plugin::danmaku::GuestDanmakuInstance;
+    pub use super::souprune::plugin::host_api;
 }
 
-/// This macro is used to register danmaku (bullet pattern) behaviors.
+/// Semantic input action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Up,
+    Down,
+    Left,
+    Right,
+    Confirm,
+    Cancel,
+    Menu,
+}
+
+impl Action {
+    fn to_wit(self) -> souprune::plugin::host_api::Action {
+        use souprune::plugin::host_api::Action as WitAction;
+        match self {
+            Self::Up => WitAction::Up,
+            Self::Down => WitAction::Down,
+            Self::Left => WitAction::Left,
+            Self::Right => WitAction::Right,
+            Self::Confirm => WitAction::Confirm,
+            Self::Cancel => WitAction::Cancel,
+            Self::Menu => WitAction::Menu,
+        }
+    }
+}
+
+/// Bullet context for danmaku callbacks.
+#[derive(Debug, Clone)]
+pub struct BulletContext {
+    pub elapsed: f32,
+    pub delta_time: f32,
+    pub spawn_pos: Vec2,
+    pub offset: Vec2,
+    pub initial_angle: f32,
+    pub initial_radius: f32,
+    pub player_pos: Vec2,
+    props: Vec<(String, f32)>,
+}
+
+impl BulletContext {
+    #[doc(hidden)]
+    pub fn from_wit(ctx: &exports::souprune::plugin::danmaku::BulletContext) -> Self {
+        Self {
+            elapsed: ctx.elapsed,
+            delta_time: ctx.delta_time,
+            spawn_pos: Vec2::new(ctx.spawn_pos.x, ctx.spawn_pos.y),
+            offset: Vec2::new(ctx.offset.x, ctx.offset.y),
+            initial_angle: ctx.initial_angle,
+            initial_radius: ctx.initial_radius,
+            player_pos: Vec2::new(ctx.player_pos.x, ctx.player_pos.y),
+            props: ctx
+                .props
+                .iter()
+                .map(|p| (p.name.clone(), p.value))
+                .collect(),
+        }
+    }
+
+    /// Get a named property value, or None if not found.
+    pub fn get_float(&self, name: &str) -> Option<f32> {
+        self.props.iter().find(|(n, _)| n == name).map(|(_, v)| *v)
+    }
+}
+
+/// Output from a danmaku update.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BulletOutput {
+    pub offset: Vec2,
+    pub rotation: f32,
+}
+
+impl BulletOutput {
+    pub const ZERO: Self = Self {
+        offset: Vec2::ZERO,
+        rotation: 0.0,
+    };
+
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {
+            offset: Vec2::new(x, y),
+            rotation: 0.0,
+        }
+    }
+
+    pub fn with_rotation(mut self, rotation: f32) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> exports::souprune::plugin::danmaku::BulletOutput {
+        exports::souprune::plugin::danmaku::BulletOutput {
+            offset: souprune::plugin::host_api::Vec2 {
+                x: self.offset.x,
+                y: self.offset.y,
+            },
+            rotation: self.rotation,
+        }
+    }
+}
+
+/// Convenience prelude for mod developers.
+pub mod prelude {
+    pub use crate::context::{Context, Vec2};
+    pub use crate::traits::{Behavior, DanmakuBehavior};
+    pub use crate::{Action, BulletContext, BulletOutput, export_mod};
+}
+
+/// Register behavior and danmaku implementations and export them as a WASM component.
+///
+/// 注册行为和弹幕实现，并将它们导出为 WASM 组件。
+///
+/// # Syntax
+///
+/// ```ignore
+/// export_mod! {
+///     behaviors: [
+///         ("id", Type, || constructor()),
+///     ],
+///     danmaku: [
+///         ("id", Type, || constructor()),
+///     ],
+/// }
+/// ```
 #[macro_export]
-macro_rules! declare_danmaku {
-    ( $( ($id:literal, $danmaku_type:ty, $constructor:expr) ),* $(,)? ) => {
-        #[unsafe(no_mangle)]
-        pub extern "C" fn get_algorithm_count() -> u32 {
-            let mut count = 0;
-            $( count += 1; let _ = $id; )*
-            count
+macro_rules! export_mod {
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        // --- Behavior resource wrapper ---
+        struct WasmBehaviorInstance {
+            inner: Box<dyn $crate::Behavior>,
         }
 
-        #[unsafe(no_mangle)]
-        pub extern "C" fn get_algorithm_id(index: u32) -> *const u8 {
-            let ids = [ $( concat!($id, "\0").as_ptr() ),* ];
-            if (index as usize) < ids.len() { ids[index as usize] } else { std::ptr::null() }
-        }
-
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn create_danmaku(id: *const u8) -> $crate::DanmakuInstance {
-            let id_str = unsafe {
-                std::ffi::CStr::from_ptr(id as *const core::ffi::c_char).to_str().unwrap_or("")
-            };
-
-            $(
-                if id_str == $id {
-                    let instance = Box::new($constructor());
-                    let instance_ptr = Box::into_raw(instance) as *mut core::ffi::c_void;
-
-                    extern "C" fn wrapper_on_enter(instance: *mut core::ffi::c_void, ctx: *const $crate::BulletContextC) {
-                        unsafe {
-                            let context = $crate::BulletContext::from_raw(ctx);
-                            let danmaku = &mut *(instance as *mut $danmaku_type);
-                            $crate::DanmakuBehavior::on_enter(danmaku, &context);
-                        }
-                    }
-
-                    extern "C" fn wrapper_on_update(instance: *mut core::ffi::c_void, ctx: *const $crate::BulletContextC) -> $crate::BulletOutputC {
-                        unsafe {
-                            let context = $crate::BulletContext::from_raw(ctx);
-                            let danmaku = &mut *(instance as *mut $danmaku_type);
-                            $crate::DanmakuBehavior::on_update(danmaku, &context).to_output_c()
-                        }
-                    }
-
-                    extern "C" fn wrapper_on_exit(instance: *mut core::ffi::c_void) {
-                        unsafe {
-                            let danmaku = &mut *(instance as *mut $danmaku_type);
-                            $crate::DanmakuBehavior::on_exit(danmaku);
-                        }
-                    }
-
-                    extern "C" fn wrapper_destroy(instance: *mut core::ffi::c_void) {
-                        unsafe { let _ = Box::from_raw(instance as *mut $danmaku_type); }
-                    }
-
-                    return $crate::DanmakuInstance {
-                        instance: instance_ptr,
-                        vtable: $crate::DanmakuVTable {
-                            on_enter: Some(wrapper_on_enter),
-                            on_update: Some(wrapper_on_update),
-                            on_exit: Some(wrapper_on_exit),
-                            destroy: Some(wrapper_destroy),
-                        }
-                    };
-                }
-            )*
-
-            $crate::DanmakuInstance {
-                instance: std::ptr::null_mut(),
-                vtable: $crate::DanmakuVTable { on_enter: None, on_update: None, on_exit: None, destroy: None }
+        impl $crate::wit::GuestBehaviorInstance for WasmBehaviorInstance {
+            fn new(id: String) -> Self {
+                let inner: Box<dyn $crate::Behavior> = match id.as_str() {
+                    $( $b_id => Box::new($b_ctor()), )*
+                    _ => Box::new($crate::traits::NoopBehavior),
+                };
+                Self { inner }
             }
+
+            fn on_enter(&self) {
+                // SAFETY: we need &mut but WIT gives us &self for resource methods.
+                // In WASM single-threaded model this is safe.
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                let mut ctx = $crate::context::Context::new();
+                s.inner.on_enter(&mut ctx);
+            }
+
+            fn on_update(&self, delta_time: f32) {
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                let mut ctx = $crate::context::Context::new();
+                s.inner.on_update(&mut ctx, delta_time);
+            }
+
+            fn on_exit(&self) {
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                let mut ctx = $crate::context::Context::new();
+                s.inner.on_exit(&mut ctx);
+            }
+        }
+
+        // --- Danmaku resource wrapper ---
+        struct WasmDanmakuInstance {
+            inner: Box<dyn $crate::DanmakuBehavior>,
+        }
+
+        impl $crate::wit::GuestDanmakuInstance for WasmDanmakuInstance {
+            fn new(id: String) -> Self {
+                let inner: Box<dyn $crate::DanmakuBehavior> = match id.as_str() {
+                    $( $d_id => Box::new($d_ctor()), )*
+                    _ => Box::new($crate::traits::NoopDanmaku),
+                };
+                Self { inner }
+            }
+
+            fn on_enter(
+                &self,
+                ctx: $crate::exports::souprune::plugin::danmaku::BulletContext,
+            ) {
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                let bc = $crate::BulletContext::from_wit(&ctx);
+                s.inner.on_enter(&bc);
+            }
+
+            fn on_update(
+                &self,
+                ctx: $crate::exports::souprune::plugin::danmaku::BulletContext,
+            ) -> $crate::exports::souprune::plugin::danmaku::BulletOutput {
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                let bc = $crate::BulletContext::from_wit(&ctx);
+                s.inner.on_update(&bc).to_wit()
+            }
+
+            fn on_exit(&self) {
+                let s = unsafe { &mut *(self as *const Self as *mut Self) };
+                s.inner.on_exit();
+            }
+        }
+
+        // --- Module-level exports ---
+        struct ModComponent;
+
+        impl $crate::exports::souprune::plugin::behavior::Guest for ModComponent {
+            type BehaviorInstance = WasmBehaviorInstance;
+
+            fn list_behaviors() -> Vec<String> {
+                vec![ $( $b_id.to_string(), )* ]
+            }
+        }
+
+        impl $crate::exports::souprune::plugin::danmaku::Guest for ModComponent {
+            type DanmakuInstance = WasmDanmakuInstance;
+
+            fn list_algorithms() -> Vec<String> {
+                vec![ $( $d_id.to_string(), )* ]
+            }
+        }
+
+        $crate::export!(ModComponent with_types_in $crate);
+    };
+
+    // Shorthand: behaviors only
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
+            danmaku: [],
+        }
+    };
+
+    // Shorthand: danmaku only
+    (
+        danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [],
+            danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
         }
     };
 }

@@ -277,28 +277,26 @@ SoupRune adopts a multi-crate workspace architecture:
 | Crate                                                             | Description                                                                                  |
 |:------------------------------------------------------------------|:---------------------------------------------------------------------------------------------|
 | [`souprune`](./crates/souprune)                                   | **Core Framework**: The main framework body, application entry point, and core logic.        |
-| [`souprune_api`](./crates/souprune_api)                           | **Protocol Layer**: Defines interface standards for Project (Mod) interaction with the core. |
-| [`souprune_sdk`](./crates/souprune_sdk)                           | **Development Kit**: A wrapper for the API, provided for external Project (Mod) scripts.     |
-| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **Sample Mod**: Sample test library for scripting systems.                                   |
+| [`souprune_api`](./crates/souprune_api)                           | **Protocol Layer**: WIT interface definitions and shared types for the WASM mod system.      |
+| [`souprune_sdk`](./crates/souprune_sdk)                           | **Development Kit**: Rust WASM guest SDK for building mod components.                        |
+| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **Sample Mod**: Example WASM mod component (target: wasm32-wasip2).                          |
+| [`souprune_mock_host`](./crates/souprune_mock_host)               | **Tool**: Standalone test host for loading and running WASM mods via Wasmtime.                |
 | [`bevy_mortar_bond`](./crates/bevy_mortar_bond)                   | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.           |
 | [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)             | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.    |
 | [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event)           | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                       |
 | [`bevy_alight_motion`](./crates/bevy_alight_motion)               | **Plugin**: Integration for parsing and playing Alight Motion animation projects.            |
-| [`interoptopus_backend_haxe`](./crates/interoptopus_backend_haxe) | **Tool**: Haxe (hxcpp) backend for Interoptopus FFI bindings generator.                      |
 
 ## 🧩 Script Layer Support
 
-SoupRune's scripting system is built on **C ABI** to achieve high-performance interoperability. We have carefully
-selected a series of languages that support **AOT compilation**, aiming to correspond to different development paradigms
-so that developers from other engines can smoothly migrate their experience:
+SoupRune's modding system is built on the **WASM Component Model** to achieve safe, sandboxed, cross-platform
+mod loading. Mods are compiled to `.wasm` components and loaded at runtime via Wasmtime. The interface contract
+is defined using WIT (WebAssembly Interface Types).
 
 |        Language         | Target Users                                      | Description                                                                                                |
 |:-----------------------:|:--------------------------------------------------|:-----------------------------------------------------------------------------------------------------------|
-|        **Rust**         | System-level developers / Rustaceans / Bevy users | Native support, best performance.                                                                          |
-|      **.NET (C#)**      | Unity / Godot / C# users                          | Industry standard language. Seamless integration and high performance via **Native AOT**.                  |
-|        **Haxe**         | **Haxe** users / **GameMaker** users              | Powerful high-level language. Its syntax is similar to GML, making it an excellent choice for development. |
-|  **Nim** (Coming Soon)  | **Python** / **GDScript** (Godot) users           | Python-like indentation syntax, compiles to C, combining elegance with efficiency.                         |
-| **Nelua** (Coming Soon) | **Lua** users                                     | Inherits Lua's minimalist syntax style but compiles to native machine code for extreme performance.        |
+|        **Rust**         | System-level developers / Rustaceans / Bevy users | Native support via `souprune_sdk` + `wit-bindgen`. Best performance.                                       |
+|    **JS** (Planned)     | Web developers / scripting users                  | Via `jco` (JavaScript Component Object) toolchain for rapid mod prototyping.                               |
+|   **.NET (C#)** (Planned) | Unity / Godot / C# users                        | Via .NET WASI SDK for C# mod development.                                                                  |
 
 If you are interested in helping with SoupRune's multi-language support, contributions are welcome!
 
@@ -364,7 +362,7 @@ This project uses the following open-source projects as libraries, dependencies,
 | [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON serialization/deserialization                                                                             |
 | [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Regular expressions                                                                                            |
 | [fasteval](https://crates.io/crates/fasteval)         | 0.2             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | Fast and safe evaluation of algebraic expressions                                                              |
-| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | The polyglot binding generator                                                                                 |
+| [wasmtime](https://crates.io/crates/wasmtime)         | 42              | [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE)                                                                                                    | WebAssembly runtime for WASM mod loading                                                                       |
 
 ### Asset References
 

@@ -16,14 +16,13 @@ use crate::app_state::ModeScoped;
 use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
-use crate::core::mod_system::DanmakuRegistry;
+use crate::core::mod_system::{DanmakuRegistry, LoadedMods};
 use crate::core::sprite::params::SpriteParams;
 use crate::core::visual::{
     DEFAULT_FRAME_DURATION, ResolvedVisual, get_asset_path, resolve_visual_path,
 };
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
-use souprune_api::BulletContextC;
 
 // ============================================================================
 // Performance System: Event Processing and Asset Loading
@@ -117,6 +116,7 @@ pub fn advance_performance_timeline(
     time: Res<Time>,
     performances: Res<Assets<DanmakuPerformance>>,
     danmaku_registry: Res<DanmakuRegistry>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
     spawn_context: Res<DanmakuSpawnContext>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     // Use BulletTarget instead of BehaviorParams for generalized targeting
@@ -166,6 +166,7 @@ pub fn advance_performance_timeline(
                 player_pos,
                 player.container_entity,
                 &danmaku_registry,
+                &mut loaded_mods,
                 &spawn_context,
                 &mut sprite_params,
                 &asset_server,
@@ -217,6 +218,7 @@ fn spawn_bullets_from_timeline_event(
     player_pos: Vec2,
     container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
+    loaded_mods: &mut LoadedMods,
     spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
@@ -253,6 +255,7 @@ fn spawn_bullets_from_timeline_event(
             i,
             container_entity,
             danmaku_registry,
+            loaded_mods,
             spawn_context,
             sprite_params,
             asset_server,
@@ -340,6 +343,7 @@ fn spawn_single_bullet(
     index: usize,
     container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
+    loaded_mods: &mut LoadedMods,
     _spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
@@ -408,29 +412,30 @@ fn spawn_single_bullet(
     // 为 Custom 行为创建 ActiveDanmaku 实例并调用 on_enter
     for behavior in behaviors {
         if let BulletBehavior::Custom { id, props } = behavior {
-            if let Some(instance) = danmaku_registry.create(id) {
-                let mut active_danmaku = ActiveDanmaku::new(instance, props.clone(), Vec::new());
-                let (props_ptr, props_len) = active_danmaku.ffi_props();
+            if let Some(mut active_danmaku) = danmaku_registry.create(id, loaded_mods) {
+                active_danmaku.props = props.clone();
 
                 // Build initial context and call on_enter
-                // 构建初始上下文并调用 on_enter
-                let ctx = BulletContextC {
+                let ctx = souprune_api::BulletContext {
                     elapsed: 0.0,
                     delta_time: 0.0,
-                    spawn_x: spawn_center.x,
-                    spawn_y: spawn_center.y,
-                    offset_x: position.x - spawn_center.x,
-                    offset_y: position.y - spawn_center.y,
+                    spawn_pos: souprune_api::Vec2::new(spawn_center.x, spawn_center.y),
+                    offset: souprune_api::Vec2::new(
+                        position.x - spawn_center.x,
+                        position.y - spawn_center.y,
+                    ),
                     initial_angle: angle,
                     initial_radius: radius,
-                    player_x: player_pos.x,
-                    player_y: player_pos.y,
-                    props: props_ptr,
-                    props_len,
-                    params: std::ptr::null(),
-                    params_len: 0,
+                    player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
+                    props: props
+                        .iter()
+                        .map(|(name, value)| souprune_api::Prop {
+                            name: name.clone(),
+                            value: *value,
+                        })
+                        .collect(),
                 };
-                active_danmaku.call_on_enter(&ctx);
+                active_danmaku.call_on_enter(&ctx, loaded_mods);
 
                 entity_commands.insert(active_danmaku);
                 // Only support one Custom behavior per bullet for now
@@ -557,6 +562,7 @@ fn spawn_single_bullet(
 /// 同时处理内置行为和 FFI 算法调用。
 pub fn update_bullet_motion(
     time: Res<Time>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
     // Use BulletTarget for generalized targeting
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     container_query: Query<&Transform, (With<BulletContainer>, Without<Bullet>)>,
@@ -652,29 +658,28 @@ pub fn update_bullet_motion(
             }
         }
 
-        // Handle ActiveDanmaku (new VTable-based API)
-        // 处理 ActiveDanmaku（新的基于 VTable 的 API）
+        // Handle ActiveDanmaku (WASM-based API)
         if let Some(mut danmaku) = active_danmaku {
-            let (props_ptr, props_len) = danmaku.ffi_props();
-            let ctx = BulletContextC {
+            let ctx = souprune_api::BulletContext {
                 elapsed: state.elapsed,
                 delta_time: dt,
-                spawn_x: state.spawn_center.x,
-                spawn_y: state.spawn_center.y,
-                offset_x: state.initial_offset.x,
-                offset_y: state.initial_offset.y,
+                spawn_pos: souprune_api::Vec2::new(state.spawn_center.x, state.spawn_center.y),
+                offset: souprune_api::Vec2::new(state.initial_offset.x, state.initial_offset.y),
                 initial_angle: state.initial_angle,
                 initial_radius: state.initial_radius,
-                player_x: player_pos.x,
-                player_y: player_pos.y,
-                props: props_ptr,
-                props_len,
-                params: danmaku.params.as_ptr(),
-                params_len: danmaku.params.len(),
+                player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
+                props: danmaku
+                    .props
+                    .iter()
+                    .map(|(name, value)| souprune_api::Prop {
+                        name: name.clone(),
+                        value: *value,
+                    })
+                    .collect(),
             };
 
-            let output = danmaku.call_on_update(&ctx);
-            position += Vec2::new(output.offset_x, output.offset_y);
+            let output = danmaku.call_on_update(&ctx, &mut loaded_mods);
+            position += Vec2::new(output.offset.x, output.offset.y);
             rotation_delta += output.rotation;
         }
 
