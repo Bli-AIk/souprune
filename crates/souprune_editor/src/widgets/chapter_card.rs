@@ -79,6 +79,7 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
 
         Chapter::SetBgm { .. } => ChapterCategory::Audio,
         Chapter::Custom { .. } => ChapterCategory::Flow,
+        Chapter::LoadEnemies { .. } => ChapterCategory::Combat,
     }
 }
 
@@ -107,6 +108,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::LoadMap { .. } => "[M]",
         Chapter::SetBgm { .. } => "[B]",
         Chapter::Custom { .. } => "[X]",
+        Chapter::LoadEnemies { .. } => "[LE]",
     }
 }
 
@@ -136,6 +138,7 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::LoadMap { .. } => "chapter-load-map",
         Chapter::SetBgm { .. } => "chapter-set-bgm",
         Chapter::Custom { .. } => "chapter-custom",
+        Chapter::LoadEnemies { .. } => "chapter-load-enemies",
     }
 }
 
@@ -178,6 +181,7 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         Chapter::LoadMap { path, .. } => path.clone(),
         Chapter::SetBgm { path, .. } => path.as_deref().unwrap_or("(stop)").to_string(),
         Chapter::Custom { action_type, .. } => action_type.clone(),
+        Chapter::LoadEnemies { enemies } => format!("{} enemies", enemies.len()),
     }
 }
 
@@ -307,6 +311,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::LoadMap { .. } => "LoadMap",
         Chapter::SetBgm { .. } => "SetBgm",
         Chapter::Custom { .. } => "Custom",
+        Chapter::LoadEnemies { .. } => "LoadEnemies",
     }
 }
 

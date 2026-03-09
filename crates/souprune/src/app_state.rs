@@ -101,11 +101,10 @@ pub fn cleanup_mode_scoped_entities(
     query: Query<(Entity, &ModeScoped)>,
 ) {
     for event in events.read() {
-        if let Some(ref from) = event.from {
-            for (entity, scoped) in query.iter() {
-                if scoped.0 == *from {
-                    commands.entity(entity).despawn();
-                }
+        let Some(ref from) = event.from else { continue };
+        for (entity, scoped) in query.iter() {
+            if scoped.0 == *from {
+                commands.entity(entity).despawn();
             }
         }
     }

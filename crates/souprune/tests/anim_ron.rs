@@ -46,6 +46,28 @@ fn animation_configs_deserialize() {
     }
 }
 
+fn assert_mapping_clips_non_empty(state: &str, mapping: &StateAnimationMapping, file: &str) {
+    match mapping {
+        StateAnimationMapping::Directional {
+            up,
+            down,
+            left,
+            right,
+        } => {
+            for (dir_name, clip) in [("up", up), ("down", down), ("left", left), ("right", right)] {
+                assert!(
+                    !clip.is_empty(),
+                    "{state} {dir_name} clip in {file} should not be empty",
+                );
+            }
+        }
+        StateAnimationMapping::Single(clip) => assert!(
+            !clip.is_empty(),
+            "{state} single clip in {file} should not be empty",
+        ),
+    }
+}
+
 /// Validate that each state's clips are non-empty.
 ///
 /// 验证每个状态的动画片段都非空。
@@ -58,29 +80,7 @@ fn animation_states_have_clips() {
     for relative in files {
         let config: AnimationConfigAsset = test_support::parse_project_ron(&relative);
         for (state, mapping) in &config.states {
-            match mapping {
-                StateAnimationMapping::Directional {
-                    up,
-                    down,
-                    left,
-                    right,
-                } => {
-                    for (dir_name, clip) in
-                        [("up", up), ("down", down), ("left", left), ("right", right)]
-                    {
-                        assert!(
-                            !clip.is_empty(),
-                            "{state} {dir_name} clip in {} should not be empty",
-                            relative
-                        );
-                    }
-                }
-                StateAnimationMapping::Single(clip) => assert!(
-                    !clip.is_empty(),
-                    "{state} single clip in {} should not be empty",
-                    relative
-                ),
-            }
+            assert_mapping_clips_non_empty(state, mapping, &relative);
         }
     }
 }

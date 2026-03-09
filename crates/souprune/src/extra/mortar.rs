@@ -73,7 +73,24 @@ fn load_locale_mortar_system(
 #[derive(Resource)]
 pub struct LocaleLoaded;
 
-#[allow(clippy::too_many_arguments)]
+fn register_mortar_locale_strings(
+    asset: &MortarAsset,
+    namespace: &str,
+    table: &mut MortarStringTable,
+) {
+    for constant in &asset.data.constants {
+        if !constant.public {
+            continue;
+        }
+
+        if let Value::String(value) = &constant.value {
+            let key = format!("{}:{}", namespace, constant.name);
+            info!("Registered locale string: {} = {}", key, value);
+            table.values.insert(key, value.clone());
+        }
+    }
+}
+
 fn read_locale_constants_system(
     mut commands: Commands,
     mut events: MessageReader<AssetEvent<LoadedFolder>>,
@@ -89,71 +106,65 @@ fn read_locale_constants_system(
     };
 
     for event in events.read() {
-        if let AssetEvent::LoadedWithDependencies { id } = event
-            && *id == folder_handle.0.id()
-        {
-            info!("Locales folder loaded. Processing files...");
-
-            if let Some(folder) = loaded_folders.get(&folder_handle.0) {
-                for handle in &folder.handles {
-                    let id = handle.id();
-
-                    // Determine namespace from path relative to locale folder
-                    //
-                    // 从相对于 locale 文件夹的路径确定命名空间
-                    let namespace = if let Some(path) = asset_server.get_path(id) {
-                        // Normalize path to forward slashes for cross-platform consistency
-                        let full_path = path.path().to_string_lossy().replace('\\', "/");
-                        let prefix = format!("shared/locales/{}/", locale.0);
-
-                        if let Some(remaining) = full_path.strip_prefix(&prefix) {
-                            std::path::Path::new(remaining)
-                                .with_extension("")
-                                .to_string_lossy()
-                                .to_string()
-                        } else {
-                            // Fallback to filename if prefix doesn't match (shouldn't happen if logic is correct)
-                            //
-                            // 如果前缀不匹配，则回退到文件名（如果逻辑正确，不应发生这种情况）
-                            warn!("Path {} does not start with prefix {}", full_path, prefix);
-                            path.path()
-                                .file_stem()
-                                .map(|s| s.to_string_lossy().to_string())
-                                .unwrap_or_default()
-                        }
-                    } else {
-                        warn!("Could not determine path for asset {:?}", id);
-                        continue;
-                    };
-
-                    // Try to get as MortarAsset
-                    //
-                    // 尝试获取为 MortarAsset
-                    let typed_id = id.typed::<MortarAsset>();
-                    if let Some(asset) = mortar_assets.get(typed_id) {
-                        info!(
-                            "Processing locale file: {}.mortar -> namespace: {}",
-                            namespace, namespace
-                        );
-                        for constant in &asset.data.constants {
-                            if !constant.public {
-                                continue;
-                            }
-
-                            if let Value::String(value) = &constant.value {
-                                let key = format!("{}:{}", namespace, constant.name);
-                                info!("Registered locale string: {} = {}", key, value);
-                                table.values.insert(key, value.clone());
-                            }
-                        }
-                    }
-                }
-            }
-            info!(
-                "MortarStringTable initialized. Total strings: {}",
-                table.values.len()
-            );
-            commands.insert_resource(LocaleLoaded);
+        let AssetEvent::LoadedWithDependencies { id } = event else {
+            continue;
+        };
+        if *id != folder_handle.0.id() {
+            continue;
         }
+
+        info!("Locales folder loaded. Processing files...");
+
+        let Some(folder) = loaded_folders.get(&folder_handle.0) else {
+            continue;
+        };
+        for handle in &folder.handles {
+            let id = handle.id();
+
+            // Determine namespace from path relative to locale folder
+            //
+            // 从相对于 locale 文件夹的路径确定命名空间
+            let Some(path) = asset_server.get_path(id) else {
+                warn!("Could not determine path for asset {:?}", id);
+                continue;
+            };
+            // Normalize path to forward slashes for cross-platform consistency
+            let full_path = path.path().to_string_lossy().replace('\\', "/");
+            let prefix = format!("shared/locales/{}/", locale.0);
+
+            let namespace = if let Some(remaining) = full_path.strip_prefix(&prefix) {
+                std::path::Path::new(remaining)
+                    .with_extension("")
+                    .to_string_lossy()
+                    .to_string()
+            } else {
+                // Fallback to filename if prefix doesn't match (shouldn't happen if logic is correct)
+                //
+                // 如果前缀不匹配，则回退到文件名（如果逻辑正确，不应发生这种情况）
+                warn!("Path {} does not start with prefix {}", full_path, prefix);
+                path.path()
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            };
+
+            // Try to get as MortarAsset
+            //
+            // 尝试获取为 MortarAsset
+            let typed_id = id.typed::<MortarAsset>();
+            let Some(asset) = mortar_assets.get(typed_id) else {
+                continue;
+            };
+            info!(
+                "Processing locale file: {}.mortar -> namespace: {}",
+                namespace, namespace
+            );
+            register_mortar_locale_strings(asset, &namespace, &mut table);
+        }
+        info!(
+            "MortarStringTable initialized. Total strings: {}",
+            table.values.len()
+        );
+        commands.insert_resource(LocaleLoaded);
     }
 }

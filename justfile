@@ -29,10 +29,25 @@ typos:
     typos crates/{{project}}
 
 # ===============================================
-# Tokei 行数检查
+# Tokei 行数检查（主项目 + 所有子模块）
 # ===============================================
 tokei-check:
+    @echo "=== Main project ==="
     @./tokei_check.sh
+    @echo "=== bevy_alight_motion ==="
+    @cd crates/bevy_alight_motion && bash tokei_check.sh
+    @echo "=== bevy_ecs_typewriter ==="
+    @cd crates/bevy_ecs_typewriter && bash tokei_check.sh
+    @echo "=== bevy_fact_rule_event ==="
+    @cd crates/bevy_fact_rule_event && bash tokei_check.sh
+    @echo "=== bevy_mortar_bond ==="
+    @cd crates/bevy_mortar_bond && bash tokei_check.sh
+    @echo "=== bevy_workbench ==="
+    @cd crates/bevy_workbench && bash tokei_check.sh
+    @echo "=== flambe ==="
+    @cd crates/flambe && bash tokei_check.sh
+    @echo "=== mortar ==="
+    @cd crates/mortar && bash tokei_check.sh
 
 alias line := tokei-check
 

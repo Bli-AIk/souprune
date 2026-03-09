@@ -401,7 +401,6 @@ pub fn cache_shader_handles(
 
 /// Queue dynamic material meshes for rendering.
 /// 将动态材质网格入队进行渲染。
-#[allow(clippy::too_many_arguments)]
 pub fn queue_dynamic_material2d_meshes(
     pipeline: Res<DynamicMaterial2dPipeline>,
     pipeline_cache: Res<PipelineCache>,

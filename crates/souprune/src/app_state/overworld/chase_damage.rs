@@ -151,8 +151,6 @@ pub fn cleanup_player_hitbox_system(
 /// System to detect bullet collision with player hitbox in chase mode.
 ///
 /// 检测追逐战模式下弹幕与玩家判定框碰撞的系统。
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
 pub fn chase_damage_detection_system(
     mut commands: Commands,
     time: Res<Time>,

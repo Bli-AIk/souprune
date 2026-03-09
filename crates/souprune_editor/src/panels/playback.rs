@@ -33,6 +33,80 @@ pub struct PlaybackState {
     pub start_from: Option<usize>,
 }
 
+fn draw_edit_mode_buttons(ui: &mut egui::Ui, world: &mut World, has_sequence: bool) {
+    let play_btn = ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-play")));
+    if play_btn.clicked() {
+        let mut pb = world.resource_mut::<PlaybackState>();
+        pb.current_chapter = 0;
+        pb.step_mode = false;
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Play);
+    }
+
+    let step_btn = ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-step")));
+    if step_btn.clicked() {
+        let mut pb = world.resource_mut::<PlaybackState>();
+        pb.step_mode = true;
+        pb.current_chapter = 0;
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Play);
+    }
+}
+
+fn draw_play_mode_buttons(ui: &mut egui::Ui, world: &mut World) {
+    if ui.button(t(world, "playback-pause")).clicked() {
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Pause);
+    }
+    if ui.button(t(world, "playback-stop")).clicked() {
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Edit);
+    }
+}
+
+fn draw_pause_mode_buttons(ui: &mut egui::Ui, world: &mut World) {
+    if ui.button(t(world, "playback-resume")).clicked() {
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Play);
+    }
+    if ui.button(t(world, "playback-stop")).clicked() {
+        world
+            .resource_mut::<NextState<EditorMode>>()
+            .set(EditorMode::Edit);
+    }
+}
+
+fn show_playback_progress(ui: &mut egui::Ui, world: &World) {
+    let pb = world.resource::<PlaybackState>();
+    let remaining = world.resource::<SequenceContext>().chapters.len();
+    let total = pb.total_chapters;
+    let processed = total.saturating_sub(remaining);
+
+    let mut args = bevy_workbench::i18n::FluentArgs::new();
+    args.set("processed", processed as i64);
+    args.set("total", total as i64);
+    ui.label(t_args(world, "playback-chapter-progress", &args));
+
+    let seq_state = world.resource::<EditorSequenceState>();
+    let Some(seq) = &seq_state.current else {
+        return;
+    };
+    let Some(ch) = seq.chapters.get(processed) else {
+        return;
+    };
+    let type_name = widgets::chapter_type_name(ch);
+    let summary = widgets::chapter_summary(ch);
+    ui.separator();
+    ui.label(
+        egui::RichText::new(format!("{type_name}: {summary}")).color(widgets::chapter_color(ch)),
+    );
+}
+
 /// 回放控制面板。
 pub struct PlaybackPanel {
     cached_title: String,
@@ -74,53 +148,9 @@ impl WorkbenchPanel for PlaybackPanel {
 
         ui.horizontal(|ui| {
             match mode {
-                EditorMode::Edit => {
-                    let play_btn =
-                        ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-play")));
-                    if play_btn.clicked() {
-                        let mut pb = world.resource_mut::<PlaybackState>();
-                        pb.current_chapter = 0;
-                        pb.step_mode = false;
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Play);
-                    }
-
-                    let step_btn =
-                        ui.add_enabled(has_sequence, egui::Button::new(t(world, "playback-step")));
-                    if step_btn.clicked() {
-                        let mut pb = world.resource_mut::<PlaybackState>();
-                        pb.step_mode = true;
-                        pb.current_chapter = 0;
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Play);
-                    }
-                }
-                EditorMode::Play => {
-                    if ui.button(t(world, "playback-pause")).clicked() {
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Pause);
-                    }
-                    if ui.button(t(world, "playback-stop")).clicked() {
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Edit);
-                    }
-                }
-                EditorMode::Pause => {
-                    if ui.button(t(world, "playback-resume")).clicked() {
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Play);
-                    }
-                    if ui.button(t(world, "playback-stop")).clicked() {
-                        world
-                            .resource_mut::<NextState<EditorMode>>()
-                            .set(EditorMode::Edit);
-                    }
-                }
+                EditorMode::Edit => draw_edit_mode_buttons(ui, world, has_sequence),
+                EditorMode::Play => draw_play_mode_buttons(ui, world),
+                EditorMode::Pause => draw_pause_mode_buttons(ui, world),
             }
 
             ui.separator();
@@ -132,28 +162,7 @@ impl WorkbenchPanel for PlaybackPanel {
             ui.label(mode_label);
 
             if mode != EditorMode::Edit {
-                let pb = world.resource::<PlaybackState>();
-                let remaining = world.resource::<SequenceContext>().chapters.len();
-                let total = pb.total_chapters;
-                let processed = total.saturating_sub(remaining);
-
-                let mut args = bevy_workbench::i18n::FluentArgs::new();
-                args.set("processed", processed as i64);
-                args.set("total", total as i64);
-                ui.label(t_args(world, "playback-chapter-progress", &args));
-
-                // 显示当前章节信息
-                if let Some(seq) = &world.resource::<EditorSequenceState>().current
-                    && let Some(ch) = seq.chapters.get(processed)
-                {
-                    let type_name = widgets::chapter_type_name(ch);
-                    let summary = widgets::chapter_summary(ch);
-                    ui.separator();
-                    ui.label(
-                        egui::RichText::new(format!("{type_name}: {summary}"))
-                            .color(widgets::chapter_color(ch)),
-                    );
-                }
+                show_playback_progress(ui, world);
             }
         });
     }

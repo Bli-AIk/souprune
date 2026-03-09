@@ -96,35 +96,22 @@ pub mod debug_inspector {
         }
 
         fn filter_entity(&self, world: &mut World, entity: Entity) -> bool {
-            // Filter out entities with SystemIdMarker (BRP registered systems)
-            // 过滤掉带有 SystemIdMarker 的实体（BRP 注册的系统）
-            if !self.show_all {
-                if world.get::<SystemIdMarker>(entity).is_some() {
-                    return false;
-                }
-
-                // Filter out Observer entities
-                // 过滤掉 Observer 实体
-                if world.get::<bevy::ecs::observer::Observer>(entity).is_some() {
-                    return false;
-                }
+            // Filter out BRP system entities and observers
+            if !self.show_all
+                && (world.get::<SystemIdMarker>(entity).is_some()
+                    || world.get::<bevy::ecs::observer::Observer>(entity).is_some())
+            {
+                return false;
             }
 
             // Apply search filter if provided
-            // 如果提供了搜索过滤器则应用
-            if !self.search_query.is_empty() {
-                if let Some(name) = world.get::<Name>(entity) {
-                    if !name.to_lowercase().contains(&self.search_query) {
-                        return false;
-                    }
-                } else {
-                    // Entity without name - don't match search
-                    // 没有名称的实体 - 不匹配搜索
-                    return false;
-                }
+            if self.search_query.is_empty() {
+                return true;
             }
 
-            true
+            world
+                .get::<Name>(entity)
+                .is_some_and(|name| name.to_lowercase().contains(&self.search_query))
         }
     }
 
@@ -171,9 +158,10 @@ pub mod debug_inspector {
 
         app.add_plugins(PerfUiPlugin);
 
-        app.add_tween_systems(bevy_tween::tween::component_tween_system::<
-            TextColorInterpolator,
-        >());
+        app.add_tween_systems(
+            PostUpdate,
+            bevy_tween::tween::component_tween_system::<TextColorInterpolator>(),
+        );
 
         app.add_systems(Startup, setup_debug_help_text_system);
         app.add_systems(
@@ -405,15 +393,16 @@ pub mod debug_inspector {
         };
 
         for event in window_events.read() {
-            if event.window == window_entity {
-                ui_state.inspector_window = None;
-                if let Some(camera_entity) = ui_state.inspector_camera.take() {
-                    commands.entity(camera_entity).despawn();
-                }
-                ui_state.window_focused = false;
-                info!("Standalone inspector window closed");
-                break;
+            if event.window != window_entity {
+                continue;
             }
+            ui_state.inspector_window = None;
+            if let Some(camera_entity) = ui_state.inspector_camera.take() {
+                commands.entity(camera_entity).despawn();
+            }
+            ui_state.window_focused = false;
+            info!("Standalone inspector window closed");
+            break;
         }
     }
 
@@ -486,6 +475,47 @@ pub mod debug_inspector {
         }
     }
 
+    fn render_inspector_search_box(ui: &mut egui::Ui, world: &mut World) {
+        ui.label("🔍");
+        let mut search_query = world
+            .get_resource::<InspectorUiState>()
+            .map(|s| s.search_query.clone())
+            .unwrap_or_default();
+
+        let response = ui.add(
+            egui::TextEdit::singleline(&mut search_query)
+                .hint_text("Search entities by name...")
+                .desired_width(300.0),
+        );
+
+        if response.changed()
+            && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
+        {
+            state.search_query = search_query.clone();
+        }
+
+        if ui.button("✕").clicked()
+            && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
+        {
+            state.search_query.clear();
+        }
+    }
+
+    fn render_inspector_entity_filter(ui: &mut egui::Ui, world: &mut World) {
+        let mut show_all = world
+            .get_resource::<InspectorUiState>()
+            .map(|s| s.show_all_entities)
+            .unwrap_or(false);
+
+        if ui
+            .checkbox(&mut show_all, "Show all entities (BRP/System internals)")
+            .changed()
+            && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
+        {
+            state.show_all_entities = show_all;
+        }
+    }
+
     fn inspector_window_ui_system(world: &mut World) {
         // Get inspector state
         let (inspector_camera, show_all_entities) = {
@@ -510,51 +540,9 @@ pub mod debug_inspector {
         };
 
         // Top panel for controls
-        // 顶部面板用于控件
         egui::TopBottomPanel::top("inspector_controls").show(egui_context.get_mut(), |ui| {
-            // Search box
-            // 搜索框
-            ui.horizontal(|ui| {
-                ui.label("🔍");
-                let mut search_query = world
-                    .get_resource::<InspectorUiState>()
-                    .map(|s| s.search_query.clone())
-                    .unwrap_or_default();
-
-                let response = ui.add(
-                    egui::TextEdit::singleline(&mut search_query)
-                        .hint_text("Search entities by name...")
-                        .desired_width(300.0),
-                );
-
-                if response.changed()
-                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
-                {
-                    state.search_query = search_query.clone();
-                }
-
-                if ui.button("✕").clicked()
-                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
-                {
-                    state.search_query.clear();
-                }
-            });
-
-            ui.horizontal(|ui| {
-                // Get current state
-                let mut show_all = world
-                    .get_resource::<InspectorUiState>()
-                    .map(|s| s.show_all_entities)
-                    .unwrap_or(false);
-
-                if ui
-                    .checkbox(&mut show_all, "Show all entities (BRP/System internals)")
-                    .changed()
-                    && let Some(mut state) = world.get_resource_mut::<InspectorUiState>()
-                {
-                    state.show_all_entities = show_all;
-                }
-            });
+            ui.horizontal(|ui| render_inspector_search_box(ui, world));
+            ui.horizontal(|ui| render_inspector_entity_filter(ui, world));
         });
 
         // Get search query for filter
@@ -581,11 +569,9 @@ pub mod debug_inspector {
         let should_disable = ui_state.map(|state| state.window_focused).unwrap_or(false);
 
         for mut action_state in query.iter_mut() {
-            if should_disable {
-                if !action_state.disabled() {
-                    action_state.disable();
-                }
-            } else if action_state.disabled() {
+            if should_disable && !action_state.disabled() {
+                action_state.disable();
+            } else if !should_disable && action_state.disabled() {
                 action_state.enable();
             }
         }
@@ -600,11 +586,9 @@ pub mod debug_inspector {
             && debug_help.fade_out_started
         {
             let all_transparent = debug_help.text_entities.iter().all(|&entity| {
-                if let Ok(text_color) = q_text_colors.get(entity) {
-                    text_color.0.alpha() < 0.01
-                } else {
-                    true
-                }
+                q_text_colors
+                    .get(entity)
+                    .map_or(true, |text_color| text_color.0.alpha() < 0.01)
             });
 
             if all_transparent {

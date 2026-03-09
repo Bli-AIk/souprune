@@ -268,6 +268,35 @@ impl Plugin for CoreViewPlugin {
     }
 }
 
+/// Collect FRE asset handles from data bindings.
+fn collect_fre_handles(
+    bindings: &std::collections::HashMap<
+        String,
+        crate::core::sequencer::chapter_schema::DataBinding,
+    >,
+    asset_server: &AssetServer,
+) -> Vec<Handle<bevy_fact_rule_event::FreAsset>> {
+    use crate::core::sequencer::chapter_schema::DataBinding;
+
+    let mut fre_handles = Vec::new();
+    for binding in bindings.values() {
+        let paths: Vec<&String> = match binding {
+            DataBinding::File(path) => vec![path],
+            DataBinding::Files(paths) => paths.iter().collect(),
+            _ => continue,
+        };
+        for path in paths {
+            let handle = asset_server.load(path.clone());
+            info!(
+                "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
+                path
+            );
+            fre_handles.push(handle);
+        }
+    }
+    fre_handles
+}
+
 /// System to handle SpawnViewRequest messages and spawn views.
 ///
 /// 处理 SpawnViewRequest 消息并生成视图的系统。
@@ -308,35 +337,7 @@ fn handle_spawn_view_request_system(
 
         // Add PendingViewData if bindings specified
         if let Some(ref bindings) = request.bindings {
-            use crate::core::sequencer::chapter_schema::DataBinding;
-
-            let mut fre_handles = Vec::new();
-            for binding in bindings.values() {
-                match binding {
-                    DataBinding::File(path) => {
-                        let handle: Handle<bevy_fact_rule_event::FreAsset> =
-                            asset_server.load(path.clone());
-                        info!(
-                            "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
-                            path
-                        );
-                        fre_handles.push(handle);
-                    }
-                    DataBinding::Files(paths) => {
-                        for path in paths {
-                            let handle: Handle<bevy_fact_rule_event::FreAsset> =
-                                asset_server.load(path.clone());
-                            info!(
-                                "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
-                                path
-                            );
-                            fre_handles.push(handle);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
+            let fre_handles = collect_fre_handles(bindings, &asset_server);
             entity_commands.insert(components::PendingViewData {
                 bindings: bindings.clone(),
                 fre_handles,
@@ -354,31 +355,23 @@ fn handle_despawn_view_request_system(
     query: Query<(Entity, &components::ViewRoot), With<RonDrivenView>>,
 ) {
     for request in events.read() {
-        let despawned_count = if let Some(ref path) = request.path {
-            // Despawn specific view by path
-            let mut count = 0;
-            for (entity, view_root) in query.iter() {
-                if view_root.layout_path == *path {
-                    info!("Despawning view: {} (entity {:?})", path, entity);
-                    commands.entity(entity).despawn();
-                    count += 1;
-                }
-            }
-            count
-        } else {
-            // Despawn all dynamically spawned views
-            let mut count = 0;
-            for (entity, view_root) in query.iter() {
-                info!(
-                    "Despawning view: {} (entity {:?})",
-                    view_root.layout_path, entity
-                );
-                commands.entity(entity).despawn();
-                count += 1;
-            }
-            count
+        let matching: Vec<_> = match request.path {
+            Some(ref path) => query
+                .iter()
+                .filter(|(_, vr)| vr.layout_path == *path)
+                .collect(),
+            None => query.iter().collect(),
         };
 
+        for &(entity, view_root) in &matching {
+            info!(
+                "Despawning view: {} (entity {:?})",
+                view_root.layout_path, entity
+            );
+            commands.entity(entity).despawn();
+        }
+
+        let despawned_count = matching.len();
         if despawned_count == 0 {
             info!(
                 "DespawnViewRequest: no views to despawn (path: {:?})",

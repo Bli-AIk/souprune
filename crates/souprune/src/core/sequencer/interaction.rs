@@ -29,7 +29,6 @@ pub struct AwaitingFactChapter {
 /// System to process AwaitFact chapters - mark them as awaiting.
 ///
 /// 处理 AwaitFact 章节的系统 - 标记为等待状态。
-#[allow(clippy::type_complexity)]
 pub fn process_await_fact_system(
     mut commands: Commands,
     query: Query<
@@ -59,7 +58,6 @@ pub fn process_await_fact_system(
 /// System to check if fact condition is met and finish the AwaitFact chapter.
 ///
 /// 检查 Fact 条件是否满足并结束 AwaitFact 章节的系统。
-#[allow(clippy::type_complexity)]
 pub fn check_await_fact_completion_system(
     mut commands: Commands,
     awaiting_query: Query<(Entity, &AwaitingFactChapter)>,

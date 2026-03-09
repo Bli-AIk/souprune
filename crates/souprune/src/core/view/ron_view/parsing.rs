@@ -353,6 +353,222 @@ pub fn parse_sequence_state(state_str: &str) -> Option<SequenceSubState> {
     }
 }
 
+/// Resolve `{{key}}` double-brace template syntax.
+/// Looks up the key in facts, then mortar strings, and recursively resolves nested templates.
+fn resolve_double_brace_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> String {
+    let mut key = String::new();
+    let mut found_closing = false;
+
+    while let Some(ch) = chars.next() {
+        if ch == '}' && chars.peek() == Some(&'}') {
+            chars.next();
+            found_closing = true;
+            break;
+        }
+        key.push(ch);
+    }
+
+    if !found_closing {
+        return format!("{{{{{}", key);
+    }
+
+    // Preprocess $variable in the key before resolving
+    let processed_key = preprocess_fact_expressions(&key, player_data);
+    // Remove quotes from string values
+    let processed_key = processed_key.replace('"', "");
+
+    let resolved = if let Some(fact_value) = player_data.get_fact(&processed_key) {
+        match fact_value {
+            bevy_fact_rule_event::FactValue::String(s) => s.to_string(),
+            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+            _ => mortar_strings.resolve(&processed_key).to_string(),
+        }
+    } else {
+        mortar_strings.resolve(&processed_key).to_string()
+    };
+
+    // Recursively resolve if the result still contains {{...}} markers
+    if resolved.contains("{{") && resolved.contains("}}") {
+        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
+    } else {
+        resolved
+    }
+}
+
+/// Resolve `{|...|...}` lambda expression syntax.
+fn resolve_lambda_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> String {
+    let mut expr = String::from("|");
+    let mut brace_depth = 1;
+    let mut found_closing = false;
+
+    // Parse until matching closing brace, handling nested quotes
+    let mut in_quotes = false;
+    for ch in chars.by_ref() {
+        if ch == '"' {
+            in_quotes = !in_quotes;
+            expr.push(ch);
+        } else if ch == '{' && !in_quotes {
+            brace_depth += 1;
+            expr.push(ch);
+        } else if ch == '}' && !in_quotes {
+            brace_depth -= 1;
+            if brace_depth == 0 {
+                found_closing = true;
+                break;
+            }
+            expr.push(ch);
+        } else {
+            expr.push(ch);
+        }
+    }
+
+    if !found_closing {
+        return format!("{{|{}", &expr[1..]);
+    }
+
+    let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) else {
+        warn!("Failed to evaluate lambda expression: {}", expr);
+        return format!("{{{}}})", expr);
+    };
+
+    // Recursively resolve any localization markers in lambda output
+    resolve_text_content(&evaluated, mortar_strings, player_data, item_registry)
+}
+
+/// Resolve a regular (non-array) fact reference to a display string.
+fn resolve_regular_fact(key: &str, player_data: &PlayerDataView) -> String {
+    let Some(fact) = player_data.get_fact(key) else {
+        warn!("Fact '{}' not found for template substitution", key);
+        return format!("<{}>", key);
+    };
+    match fact {
+        bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+        bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+        bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+        bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+        bevy_fact_rule_event::FactValue::StringList(list) => list.join(", "),
+        bevy_fact_rule_event::FactValue::IntList(list) => list
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        bevy_fact_rule_event::FactValue::FloatList(list) => list
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        bevy_fact_rule_event::FactValue::BoolList(list) => list
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    }
+}
+
+/// Resolve an array fact element access like `array[index]`.
+fn resolve_array_fact_access(
+    key: &str,
+    bracket_pos: usize,
+    player_data: &PlayerDataView,
+) -> String {
+    let array_name = &key[..bracket_pos];
+    let index_part = &key[bracket_pos + 1..];
+
+    let Some(close_bracket) = index_part.find(']') else {
+        warn!("Malformed array access syntax: {}", key);
+        return format!("<{}>", key);
+    };
+
+    let index_str = &index_part[..close_bracket];
+    let Ok(index) = index_str.parse::<usize>() else {
+        warn!("Invalid index '{}' in array access '{}'", index_str, key);
+        return format!("<{}>", key);
+    };
+
+    // Try StringList first, then IntList
+    if let Some(list) = player_data.get_fact_string_list(array_name) {
+        list.get(index).cloned().unwrap_or_else(|| {
+            warn!(
+                "Index {} out of bounds for StringList '{}'",
+                index, array_name
+            );
+            format!("<{}[{}]>", array_name, index)
+        })
+    } else if let Some(list) = player_data.get_fact_int_list(array_name) {
+        list.get(index).map(|i| i.to_string()).unwrap_or_else(|| {
+            warn!("Index {} out of bounds for IntList '{}'", index, array_name);
+            format!("<{}[{}]>", array_name, index)
+        })
+    } else {
+        warn!("Array fact '{}' not found for index access", array_name);
+        format!("<{}[{}]>", array_name, index)
+    }
+}
+
+/// Resolve `{$var}` or `{$array[index]}` direct FRE fact access syntax.
+fn resolve_fact_access_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    player_data: &PlayerDataView,
+) -> String {
+    let mut key = String::new();
+    let mut found_closing = false;
+
+    for ch in chars.by_ref() {
+        if ch == '}' {
+            found_closing = true;
+            break;
+        }
+        key.push(ch);
+    }
+
+    if !found_closing {
+        return format!("{{${}", key);
+    }
+
+    if let Some(bracket_pos) = key.find('[') {
+        resolve_array_fact_access(&key, bracket_pos, player_data)
+    } else {
+        resolve_regular_fact(&key, player_data)
+    }
+}
+
+/// Resolve `{@path}` legacy data path syntax.
+fn resolve_legacy_at_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    let mut path = String::new();
+    let mut found_closing = false;
+
+    for ch in chars.by_ref() {
+        if ch == '}' {
+            found_closing = true;
+            break;
+        }
+        path.push(ch);
+    }
+
+    if found_closing {
+        resolve_data_path(&path, player_data, item_registry, mortar_strings)
+    } else {
+        format!("{{@{}", path)
+    }
+}
+
 pub fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
@@ -363,238 +579,45 @@ pub fn resolve_text_content(
     let mut chars = template.chars().peekable();
 
     while let Some(ch) = chars.next() {
-        if ch == '{'
-            && let Some(&next_ch) = chars.peek()
-        {
-            if next_ch == '{' {
-                chars.next();
-                let mut key = String::new();
-                let mut found_closing = false;
-
-                while let Some(ch) = chars.next() {
-                    if ch == '}'
-                        && let Some(&next_ch) = chars.peek()
-                        && next_ch == '}'
-                    {
-                        chars.next();
-                        found_closing = true;
-                        break;
-                    }
-                    key.push(ch);
-                }
-
-                if found_closing {
-                    // Preprocess $variable in the key before resolving
-                    // 在解析前预处理键中的 $variable
-                    let processed_key = preprocess_fact_expressions(&key, player_data);
-                    // Remove quotes from string values (format_fact_for_expr adds them for expressions)
-                    // 移除字符串值的引号（format_fact_for_expr 为表达式添加的）
-                    let processed_key = processed_key.replace('"', "");
-
-                    // First try to resolve from facts (for dynamic values like dialogue_text)
-                    // 首先尝试从 facts 解析（用于动态值如 dialogue_text）
-                    let resolved = if let Some(fact_value) = player_data.get_fact(&processed_key) {
-                        // Convert fact value to string
-                        match fact_value {
-                            bevy_fact_rule_event::FactValue::String(s) => s.to_string(),
-                            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
-                            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
-                            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
-                            _ => mortar_strings.resolve(&processed_key).to_string(),
-                        }
-                    } else {
-                        // Fallback to mortar string table for localization
-                        // 回退到 mortar 字符串表用于本地化
-                        mortar_strings.resolve(&processed_key).to_string()
-                    };
-
-                    // Recursively resolve if the result still contains {{...}} markers
-                    // 如果结果仍包含 {{...}} 标记，递归解析
-                    let final_resolved = if resolved.contains("{{") && resolved.contains("}}") {
-                        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
-                    } else {
-                        resolved
-                    };
-                    result.push_str(&final_resolved);
-                } else {
-                    result.push_str("{{");
-                    result.push_str(&key);
-                }
-                continue;
-            } else if next_ch == '|' {
-                // Lambda syntax: {|item, i| in $array => "template" sep "separator"}
-                // Lambda 语法：{|item, i| in $array => "template" sep "separator"}
-                chars.next(); // consume '|'
-                let mut expr = String::from("|");
-                let mut brace_depth = 1;
-                let mut found_closing = false;
-
-                // Parse until matching closing brace, handling nested quotes
-                let mut in_quotes = false;
-                for ch in chars.by_ref() {
-                    if ch == '"' && !in_quotes {
-                        in_quotes = true;
-                        expr.push(ch);
-                    } else if ch == '"' && in_quotes {
-                        in_quotes = false;
-                        expr.push(ch);
-                    } else if ch == '{' && !in_quotes {
-                        brace_depth += 1;
-                        expr.push(ch);
-                    } else if ch == '}' && !in_quotes {
-                        brace_depth -= 1;
-                        if brace_depth == 0 {
-                            found_closing = true;
-                            break;
-                        }
-                        expr.push(ch);
-                    } else {
-                        expr.push(ch);
-                    }
-                }
-
-                if found_closing {
-                    if let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) {
-                        // Recursively resolve any localization markers in lambda output
-                        // 递归处理 lambda 输出中的本地化标记
-                        let resolved = resolve_text_content(
-                            &evaluated,
-                            mortar_strings,
-                            player_data,
-                            item_registry,
-                        );
-                        result.push_str(&resolved);
-                    } else {
-                        warn!("Failed to evaluate lambda expression: {}", expr);
-                        result.push_str(&format!("{{{}}})", expr));
-                    }
-                } else {
-                    result.push_str("{|");
-                    result.push_str(&expr[1..]); // skip the '|' we already added
-                }
-                continue;
-            } else if next_ch == '$' {
-                // New syntax: {$var} or {$array[index]} - direct FRE fact access
-                // 新语法：{$var} 或 {$array[index]} - 直接访问 FRE 事实
-                chars.next();
-                let mut key = String::new();
-                let mut found_closing = false;
-
-                for ch in chars.by_ref() {
-                    if ch == '}' {
-                        found_closing = true;
-                        break;
-                    }
-                    key.push(ch);
-                }
-
-                if found_closing {
-                    // Check for array index syntax: array[index]
-                    // 检查数组索引语法：array[index]
-                    let value = if let Some(bracket_pos) = key.find('[') {
-                        let array_name = &key[..bracket_pos];
-                        let index_part = &key[bracket_pos + 1..];
-                        if let Some(close_bracket) = index_part.find(']') {
-                            let index_str = &index_part[..close_bracket];
-                            // Parse index as integer
-                            if let Ok(index) = index_str.parse::<usize>() {
-                                // Try StringList first, then IntList
-                                if let Some(list) = player_data.get_fact_string_list(array_name) {
-                                    list.get(index).cloned().unwrap_or_else(|| {
-                                        warn!(
-                                            "Index {} out of bounds for StringList '{}'",
-                                            index, array_name
-                                        );
-                                        format!("<{}[{}]>", array_name, index)
-                                    })
-                                } else if let Some(list) = player_data.get_fact_int_list(array_name)
-                                {
-                                    list.get(index).map(|i| i.to_string()).unwrap_or_else(|| {
-                                        warn!(
-                                            "Index {} out of bounds for IntList '{}'",
-                                            index, array_name
-                                        );
-                                        format!("<{}[{}]>", array_name, index)
-                                    })
-                                } else {
-                                    warn!("Array fact '{}' not found for index access", array_name);
-                                    format!("<{}[{}]>", array_name, index)
-                                }
-                            } else {
-                                warn!("Invalid index '{}' in array access '{}'", index_str, key);
-                                format!("<{}>", key)
-                            }
-                        } else {
-                            // Malformed bracket syntax
-                            warn!("Malformed array access syntax: {}", key);
-                            format!("<{}>", key)
-                        }
-                    } else {
-                        // Regular fact access (no array index)
-                        // 普通事实访问（无数组索引）
-                        if let Some(fact) = player_data.get_fact(&key) {
-                            match fact {
-                                bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
-                                bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
-                                bevy_fact_rule_event::FactValue::String(s) => s.clone(),
-                                bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
-                                bevy_fact_rule_event::FactValue::StringList(list) => {
-                                    list.join(", ")
-                                }
-                                bevy_fact_rule_event::FactValue::IntList(list) => list
-                                    .iter()
-                                    .map(|i| i.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
-                                bevy_fact_rule_event::FactValue::FloatList(list) => list
-                                    .iter()
-                                    .map(|f| f.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
-                                bevy_fact_rule_event::FactValue::BoolList(list) => list
-                                    .iter()
-                                    .map(|b| b.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
-                            }
-                        } else {
-                            warn!("Fact '{}' not found for template substitution", key);
-                            format!("<{}>", key)
-                        }
-                    };
-                    result.push_str(&value);
-                } else {
-                    result.push_str("{$");
-                    result.push_str(&key);
-                }
-                continue;
-            } else if next_ch == '@' {
-                // Legacy syntax: {@path} - uses resolve_data_path
-                // 旧语法：{@path} - 使用 resolve_data_path
-                chars.next();
-                let mut path = String::new();
-                let mut found_closing = false;
-
-                for ch in chars.by_ref() {
-                    if ch == '}' {
-                        found_closing = true;
-                        break;
-                    }
-                    path.push(ch);
-                }
-
-                if found_closing {
-                    let value =
-                        resolve_data_path(&path, player_data, item_registry, mortar_strings);
-                    result.push_str(&value);
-                } else {
-                    result.push_str("{@");
-                    result.push_str(&path);
-                }
-                continue;
-            }
+        if ch != '{' {
+            result.push(ch);
+            continue;
         }
-        result.push(ch);
+        let Some(&next_ch) = chars.peek() else {
+            result.push(ch);
+            continue;
+        };
+
+        if next_ch == '{' {
+            chars.next();
+            result.push_str(&resolve_double_brace_template(
+                &mut chars,
+                mortar_strings,
+                player_data,
+                item_registry,
+            ));
+        } else if next_ch == '|' {
+            chars.next();
+            result.push_str(&resolve_lambda_template(
+                &mut chars,
+                mortar_strings,
+                player_data,
+                item_registry,
+            ));
+        } else if next_ch == '$' {
+            chars.next();
+            result.push_str(&resolve_fact_access_template(&mut chars, player_data));
+        } else if next_ch == '@' {
+            chars.next();
+            result.push_str(&resolve_legacy_at_template(
+                &mut chars,
+                player_data,
+                item_registry,
+                mortar_strings,
+            ));
+        } else {
+            result.push(ch);
+        }
     }
 
     result
@@ -639,7 +662,7 @@ pub fn resolve_data_path(
                 .take(8)
                 .map(|item_id| {
                     if let Some(item) = item_registry.get(item_id) {
-                        let key = format!("{}:{}", item.locale_file, item.locale_name);
+                        let key = format!("{}:{}", item.locale.file, item.locale.name);
                         mortar_strings.resolve(&key).to_string()
                     } else {
                         // Use trace level to avoid log spam for undefined items
@@ -653,7 +676,7 @@ pub fn resolve_data_path(
         "player.weapon" => {
             let weapon = get_string("player:weapon");
             if let Some(item) = item_registry.get(&weapon) {
-                let key = format!("{}:{}", item.locale_file, item.locale_name);
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 weapon
@@ -684,7 +707,7 @@ pub fn resolve_data_path(
         "player.armor" => {
             let armor = get_string("player:armor");
             if let Some(item) = item_registry.get(&armor) {
-                let key = format!("{}:{}", item.locale_file, item.locale_name);
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
                 mortar_strings.resolve(&key).to_string()
             } else {
                 armor

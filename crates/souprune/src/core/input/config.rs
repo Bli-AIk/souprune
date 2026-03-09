@@ -477,31 +477,33 @@ impl InputConfig {
             };
 
             for binding in bindings {
-                match binding {
-                    InputBinding::Key(key_str) => {
-                        if let Some(keycode) = Self::parse_keycode(key_str) {
-                            map.insert(slot, keycode);
-                        } else {
-                            warn!("Unknown key code in input config: {}", key_str);
-                        }
-                    }
-                    InputBinding::Gamepad(button_str) => {
-                        if let Some(button) = Self::parse_gamepad_button(button_str) {
-                            map.insert(slot, button);
-                        } else {
-                            warn!("Unknown gamepad button in input config: {}", button_str);
-                        }
-                    }
-                    InputBinding::Touch(_) => {
-                        // Touch bindings are handled by the touch overlay system,
-                        // not leafwing InputMap. Skip silently.
-                        // 触控绑定由触控覆盖层系统处理，不通过 leafwing InputMap。
-                    }
-                }
+                self.insert_binding(&mut map, slot, binding);
             }
         }
 
         map
+    }
+
+    /// Insert a single binding into the input map for the given action slot.
+    fn insert_binding(&self, map: &mut InputMap<Action>, slot: Action, binding: &InputBinding) {
+        match binding {
+            InputBinding::Key(key_str) => {
+                if let Some(keycode) = Self::parse_keycode(key_str) {
+                    map.insert(slot, keycode);
+                } else {
+                    warn!("Unknown key code in input config: {}", key_str);
+                }
+            }
+            InputBinding::Gamepad(button_str) => {
+                if let Some(button) = Self::parse_gamepad_button(button_str) {
+                    map.insert(slot, button);
+                } else {
+                    warn!("Unknown gamepad button in input config: {}", button_str);
+                }
+            }
+            // Touch bindings are handled by the touch overlay system, not leafwing InputMap.
+            InputBinding::Touch(_) => {}
+        }
     }
 
     /// Build a reverse mapping from `KeyCode` to action name.
@@ -509,16 +511,25 @@ impl InputConfig {
     /// 构建从 `KeyCode` 到动作名称的反向映射。
     pub fn build_keycode_to_action_map(&self) -> HashMap<KeyCode, String> {
         let mut map = HashMap::new();
-        for (action_name, bindings) in &self.actions {
-            for binding in bindings {
-                if let InputBinding::Key(key_str) = binding
-                    && let Some(keycode) = Self::parse_keycode(key_str)
-                {
-                    map.insert(keycode, action_name.clone());
-                }
-            }
+        for (name, bindings) in &self.actions {
+            Self::collect_key_bindings(name, bindings, &mut map);
         }
         map
+    }
+
+    fn collect_key_bindings(
+        name: &str,
+        bindings: &[InputBinding],
+        map: &mut HashMap<KeyCode, String>,
+    ) {
+        for binding in bindings {
+            let InputBinding::Key(key_str) = binding else {
+                continue;
+            };
+            if let Some(kc) = Self::parse_keycode(key_str) {
+                map.insert(kc, name.to_owned());
+            }
+        }
     }
 
     /// Parse key code string to KeyCode enum.

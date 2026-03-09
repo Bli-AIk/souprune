@@ -46,45 +46,47 @@ pub fn process_run_sequence_system(
     view_roots: Query<&ViewRoot>,
 ) {
     for (entity, active) in query.iter() {
-        if let Chapter::RunSequence {
+        let Chapter::RunSequence {
             path,
             path_fact,
             params,
         } = &active.chapter
-        {
-            // Resolve the path
-            let resolved_path = if let Some(p) = path {
-                Some(p.clone())
-            } else if let Some(fact_key) = path_fact {
-                // Try local facts first, then global
-                let local_path = view_roots.iter().next().and_then(|vr| {
-                    vr.local_facts
-                        .get_string(fact_key)
-                        .map(|s: &str| s.to_string())
-                });
+        else {
+            continue;
+        };
 
-                local_path.or_else(|| fact_db.get_string(fact_key).map(|s: &str| s.to_string()))
-            } else {
-                None
-            };
+        // Resolve the path
+        let resolved_path = if let Some(p) = path {
+            Some(p.clone())
+        } else if let Some(fact_key) = path_fact {
+            // Try local facts first, then global
+            let local_path = view_roots.iter().next().and_then(|vr| {
+                vr.local_facts
+                    .get_string(fact_key)
+                    .map(|s: &str| s.to_string())
+            });
 
-            if let Some(seq_path) = resolved_path {
-                // Skip empty paths (placeholder for unimplemented actions)
-                if seq_path.is_empty() {
-                    info!("RunSequence: Skipping empty path");
-                    commands.entity(entity).insert(ChapterFinished);
-                    continue;
-                }
-                let handle = asset_server.load::<SequenceAsset>(&seq_path);
-                commands.entity(entity).insert(RunSequenceChapter {
-                    path: seq_path,
-                    params: params.clone(),
-                    handle,
-                });
-            } else {
-                warn!("RunSequence: Could not resolve path");
+            local_path.or_else(|| fact_db.get_string(fact_key).map(|s: &str| s.to_string()))
+        } else {
+            None
+        };
+
+        if let Some(seq_path) = resolved_path {
+            // Skip empty paths (placeholder for unimplemented actions)
+            if seq_path.is_empty() {
+                info!("RunSequence: Skipping empty path");
                 commands.entity(entity).insert(ChapterFinished);
+                continue;
             }
+            let handle = asset_server.load::<SequenceAsset>(&seq_path);
+            commands.entity(entity).insert(RunSequenceChapter {
+                path: seq_path,
+                params: params.clone(),
+                handle,
+            });
+        } else {
+            warn!("RunSequence: Could not resolve path");
+            commands.entity(entity).insert(ChapterFinished);
         }
     }
 }
@@ -103,54 +105,68 @@ pub fn complete_run_sequence_system(
     layered_db: Res<LayeredFactDatabase>,
 ) {
     for (entity, run_seq, _active) in query.iter_mut() {
-        if let Some(asset) = assets.get(&run_seq.handle) {
-            // Inject parameters into ViewRoot's local_facts
-            // Parameters are prefixed with "_param_" to avoid conflicts
-            if !run_seq.params.is_empty() {
-                if let Some(mut view_root) = view_root_query.iter_mut().next() {
-                    for (key, value) in &run_seq.params {
-                        let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
-                        let fact_value = match value {
-                            FactValueMatch::Bool(b) => Some(FactValue::Bool(*b)),
-                            FactValueMatch::Int(i) => Some(FactValue::Int(*i)),
-                            FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
-                            FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
-                            FactValueMatch::Expr(expr) => {
-                                // For Expr in RunSequence params, read from layered_db
-                                if let Some(fact_key) = expr.strip_prefix('$') {
-                                    layered_db.get_by_str(fact_key).cloned()
-                                } else {
-                                    bevy_fact_rule_event::expr::evaluate_expr_to_fact(
-                                        expr,
-                                        &layered_db,
-                                    )
-                                }
-                            }
-                        };
-                        if let Some(fv) = fact_value {
-                            view_root.local_facts.set(prefixed_key, fv.clone());
-                            info!("RunSequence: Injected param '{}' = {:?}", key, fv);
-                        } else {
-                            warn!("RunSequence: Failed to evaluate param '{}'", key);
-                        }
-                    }
-                } else {
-                    warn!("RunSequence: params provided but no ViewRoot found to inject into");
-                }
+        let Some(asset) = assets.get(&run_seq.handle) else {
+            continue;
+        };
+
+        // Inject parameters into ViewRoot's local_facts
+        // Parameters are prefixed with "_param_" to avoid conflicts
+        if !run_seq.params.is_empty() {
+            if let Some(mut view_root) = view_root_query.iter_mut().next() {
+                inject_sequence_params(&mut view_root, &run_seq.params, &layered_db);
+            } else {
+                warn!("RunSequence: params provided but no ViewRoot found to inject into");
             }
+        }
 
-            // Insert the chapters from the loaded sequence at the front of the queue
-            // This ensures they execute before any remaining chapters
-            let mut new_chapters = asset.chapters.clone();
-            new_chapters.append(&mut context.chapters);
-            context.chapters = new_chapters;
+        // Insert the chapters from the loaded sequence at the front of the queue
+        // This ensures they execute before any remaining chapters
+        let mut new_chapters = asset.chapters.clone();
+        new_chapters.append(&mut context.chapters);
+        context.chapters = new_chapters;
 
-            info!(
-                "RunSequence: Loaded {} chapters from {}",
-                asset.chapters.len(),
-                run_seq.path
-            );
-            commands.entity(entity).insert(ChapterFinished);
+        info!(
+            "RunSequence: Loaded {} chapters from {}",
+            asset.chapters.len(),
+            run_seq.path
+        );
+        commands.entity(entity).insert(ChapterFinished);
+    }
+}
+
+/// Inject sequence parameters into a ViewRoot's local_facts.
+fn inject_sequence_params(
+    view_root: &mut ViewRoot,
+    params: &HashMap<String, FactValueMatch>,
+    layered_db: &LayeredFactDatabase,
+) {
+    for (key, value) in params {
+        let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
+        let Some(fv) = resolve_fact_value(value, layered_db) else {
+            warn!("RunSequence: Failed to evaluate param '{}'", key);
+            continue;
+        };
+        view_root.local_facts.set(prefixed_key, fv.clone());
+        info!("RunSequence: Injected param '{}' = {:?}", key, fv);
+    }
+}
+
+/// Resolve a FactValueMatch to a FactValue.
+fn resolve_fact_value(
+    value: &FactValueMatch,
+    layered_db: &LayeredFactDatabase,
+) -> Option<FactValue> {
+    match value {
+        FactValueMatch::Bool(b) => Some(FactValue::Bool(*b)),
+        FactValueMatch::Int(i) => Some(FactValue::Int(*i)),
+        FactValueMatch::Float(f) => Some(FactValue::Float(*f)),
+        FactValueMatch::String(s) => Some(FactValue::String(s.clone())),
+        FactValueMatch::Expr(expr) => {
+            if let Some(fact_key) = expr.strip_prefix('$') {
+                layered_db.get_by_str(fact_key).cloned()
+            } else {
+                bevy_fact_rule_event::expr::evaluate_expr_to_fact(expr, layered_db)
+            }
         }
     }
 }

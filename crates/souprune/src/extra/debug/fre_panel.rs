@@ -222,15 +222,16 @@ pub mod debug_fre_panel {
         };
 
         for event in window_events.read() {
-            if event.window == window_entity {
-                state.window_entity = None;
-                if let Some(camera_entity) = state.camera_entity.take() {
-                    commands.entity(camera_entity).despawn();
-                }
-                state.window_focused = false;
-                info!("FRE Debug Panel closed");
-                break;
+            if event.window != window_entity {
+                continue;
             }
+            state.window_entity = None;
+            if let Some(camera_entity) = state.camera_entity.take() {
+                commands.entity(camera_entity).despawn();
+            }
+            state.window_focused = false;
+            info!("FRE Debug Panel closed");
+            break;
         }
     }
 
@@ -312,14 +313,11 @@ pub mod debug_fre_panel {
         let should_disable = state.map(|s| s.window_focused).unwrap_or(false);
 
         for mut action_state in query.iter_mut() {
-            if should_disable {
-                if !action_state.disabled() {
-                    action_state.disable();
-                }
-            } else if action_state.disabled() {
-                // Note: Don't enable here if other systems might have disabled it
-                // We rely on the Inspector's system to re-enable
+            if should_disable && !action_state.disabled() {
+                action_state.disable();
             }
+            // Note: Don't enable here if other systems might have disabled it
+            // We rely on the Inspector's system to re-enable
         }
     }
 
@@ -368,39 +366,7 @@ pub mod debug_fre_panel {
 
         // Render the panel
         egui::CentralPanel::default().show(egui_context.get_mut(), |ui| {
-            // Tab bar
-            ui.horizontal(|ui| {
-                if ui
-                    .selectable_label(current_tab == FREPanelTab::Facts, "📊 Facts")
-                    .clicked()
-                {
-                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::Facts;
-                }
-                if ui
-                    .selectable_label(current_tab == FREPanelTab::ViewFacts, "🖼 View")
-                    .clicked()
-                {
-                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::ViewFacts;
-                }
-                if ui
-                    .selectable_label(current_tab == FREPanelTab::Rules, "📜 Rules")
-                    .clicked()
-                {
-                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::Rules;
-                }
-                if ui
-                    .selectable_label(current_tab == FREPanelTab::EventHistory, "📨 Events")
-                    .clicked()
-                {
-                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::EventHistory;
-                }
-                if ui
-                    .selectable_label(current_tab == FREPanelTab::States, "🎮 States")
-                    .clicked()
-                {
-                    world.resource_mut::<FREPanelState>().current_tab = FREPanelTab::States;
-                }
-            });
+            render_tab_bar(ui, world, current_tab);
 
             ui.separator();
 
@@ -415,129 +381,109 @@ pub mod debug_fre_panel {
         });
     }
 
+    /// Render the tab bar for the FRE debug panel.
+    fn render_tab_bar(ui: &mut egui::Ui, world: &mut World, current_tab: FREPanelTab) {
+        let mut new_tab = current_tab;
+        ui.horizontal(|ui| {
+            if ui
+                .selectable_label(current_tab == FREPanelTab::Facts, "📊 Facts")
+                .clicked()
+            {
+                new_tab = FREPanelTab::Facts;
+            }
+            if ui
+                .selectable_label(current_tab == FREPanelTab::ViewFacts, "🖼 View")
+                .clicked()
+            {
+                new_tab = FREPanelTab::ViewFacts;
+            }
+            if ui
+                .selectable_label(current_tab == FREPanelTab::Rules, "📜 Rules")
+                .clicked()
+            {
+                new_tab = FREPanelTab::Rules;
+            }
+            if ui
+                .selectable_label(current_tab == FREPanelTab::EventHistory, "📨 Events")
+                .clicked()
+            {
+                new_tab = FREPanelTab::EventHistory;
+            }
+            if ui
+                .selectable_label(current_tab == FREPanelTab::States, "🎮 States")
+                .clicked()
+            {
+                new_tab = FREPanelTab::States;
+            }
+        });
+        if new_tab != current_tab {
+            world.resource_mut::<FREPanelState>().current_tab = new_tab;
+        }
+    }
+
     /// Render the Rules tab.
     fn render_rules_tab(ui: &mut egui::Ui, world: &mut World) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.label("📜 Registered Rules");
             ui.separator();
 
-            // Get time and trigger history for highlight calculation
-            // 获取时间和触发历史用于高亮计算
             let current_time = world
                 .get_resource::<Time>()
                 .map(|t| t.elapsed_secs_f64())
                 .unwrap_or(0.0);
             let trigger_history = world.get_resource::<RuleTriggerHistory>();
 
-            let rule_registry = world.get_resource::<LayeredRuleRegistry>();
+            let Some(registry) = world.get_resource::<LayeredRuleRegistry>() else {
+                ui.label("LayeredRuleRegistry not available.");
+                ui.label("Make sure FREPlugin is installed.");
+                return;
+            };
 
-            match rule_registry {
-                Some(registry) => {
-                    // Count rules across all layers
-                    let global_count = registry.global_iter().count();
-                    let local_count = registry.local_iter().count();
-                    let view_count: usize =
-                        registry.view_iter().map(|(_, r)| r.iter().count()).sum();
-                    let total_count = global_count + local_count + view_count;
+            let global_count = registry.global_iter().count();
+            let local_count = registry.local_iter().count();
+            let view_count: usize = registry.view_iter().map(|(_, r)| r.iter().count()).sum();
+            let total_count = global_count + local_count + view_count;
 
-                    ui.label(format!(
-                        "Total rules: {} (Global: {}, Local: {}, View: {})",
-                        total_count, global_count, local_count, view_count
-                    ));
-                    ui.separator();
+            ui.label(format!(
+                "Total rules: {} (Global: {}, Local: {}, View: {})",
+                total_count, global_count, local_count, view_count
+            ));
+            ui.separator();
 
-                    if total_count == 0 {
-                        ui.label("No rules registered.");
-                        ui.label("Rules are loaded from .fre.ron files.");
-                    } else {
-                        // Show rules grouped by scope
-                        // 按作用域分组显示规则
+            if total_count == 0 {
+                ui.label("No rules registered.");
+                ui.label("Rules are loaded from .fre.ron files.");
+                return;
+            }
 
-                        // Global rules
-                        if global_count > 0 {
-                            egui::CollapsingHeader::new(format!(
-                                "🌍 Global Rules ({})",
-                                global_count
-                            ))
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                let mut global_rules: Vec<_> = registry.global_iter().collect();
-                                global_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
-                                for rule in global_rules {
-                                    let is_triggered = trigger_history
-                                        .map(|h: &RuleTriggerHistory| {
-                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
-                                        })
-                                        .unwrap_or(false);
-                                    show_rule_entry(ui, rule, is_triggered);
-                                }
-                            });
-                        }
+            if global_count > 0 {
+                let mut rules: Vec<_> = registry.global_iter().collect();
+                render_rule_group(
+                    ui,
+                    "🌍 Global Rules",
+                    &mut rules,
+                    trigger_history,
+                    current_time,
+                );
+            }
 
-                        // Local rules
-                        if local_count > 0 {
-                            egui::CollapsingHeader::new(format!(
-                                "📍 Local Rules ({})",
-                                local_count
-                            ))
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                let mut local_rules: Vec<_> = registry.local_iter().collect();
-                                local_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
-                                for rule in local_rules {
-                                    let is_triggered = trigger_history
-                                        .map(|h: &RuleTriggerHistory| {
-                                            h.was_recently_triggered(&rule.id, current_time, 1.0)
-                                        })
-                                        .unwrap_or(false);
-                                    show_rule_entry(ui, rule, is_triggered);
-                                }
-                            });
-                        }
+            if local_count > 0 {
+                let mut rules: Vec<_> = registry.local_iter().collect();
+                render_rule_group(
+                    ui,
+                    "📍 Local Rules",
+                    &mut rules,
+                    trigger_history,
+                    current_time,
+                );
+            }
 
-                        // View rules
-                        if view_count > 0 {
-                            egui::CollapsingHeader::new(format!("👁 View Rules ({})", view_count))
-                                .default_open(true)
-                                .show(ui, |ui| {
-                                    for (entity, view_registry) in registry.view_iter() {
-                                        let view_rule_count = view_registry.iter().count();
-                                        egui::CollapsingHeader::new(format!(
-                                            "Entity {:?} ({} rules)",
-                                            entity, view_rule_count
-                                        ))
-                                        .default_open(true)
-                                        .show(ui, |ui| {
-                                            let mut view_rules: Vec<_> =
-                                                view_registry.iter().collect();
-                                            view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
-                                            for rule in view_rules {
-                                                let is_triggered = trigger_history
-                                                    .map(|h: &RuleTriggerHistory| {
-                                                        h.was_recently_triggered(
-                                                            &rule.id,
-                                                            current_time,
-                                                            1.0,
-                                                        )
-                                                    })
-                                                    .unwrap_or(false);
-                                                show_rule_entry(ui, rule, is_triggered);
-                                            }
-                                        });
-                                    }
-                                });
-                        }
-                    }
-                }
-                None => {
-                    ui.label("LayeredRuleRegistry not available.");
-                    ui.label("Make sure FREPlugin is installed.");
-                }
+            if view_count > 0 {
+                render_view_rules_group(ui, registry, trigger_history, current_time, view_count);
             }
 
             ui.separator();
 
-            // Show some helpful info
             egui::CollapsingHeader::new("How Rules Work").show(ui, |ui| {
                 ui.label("• Rules are defined in .fre.ron files");
                 ui.label("• Each rule has: trigger, condition, modifications, actions, outputs");
@@ -547,13 +493,72 @@ pub mod debug_fre_panel {
         });
     }
 
+    /// Render a group of rules under a collapsing header.
+    fn render_rule_group(
+        ui: &mut egui::Ui,
+        title: &str,
+        rules: &mut [&bevy_fact_rule_event::Rule],
+        trigger_history: Option<&RuleTriggerHistory>,
+        current_time: f64,
+    ) {
+        rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+        egui::CollapsingHeader::new(format!("{} ({})", title, rules.len()))
+            .default_open(true)
+            .show(ui, |ui| {
+                for rule in rules.iter() {
+                    let is_triggered = trigger_history
+                        .is_some_and(|h| h.was_recently_triggered(&rule.id, current_time, 1.0));
+                    show_rule_entry(ui, rule, is_triggered);
+                }
+            });
+    }
+
+    /// Render the view rules group with per-entity sub-groups.
+    fn render_view_rules_group(
+        ui: &mut egui::Ui,
+        registry: &LayeredRuleRegistry,
+        trigger_history: Option<&RuleTriggerHistory>,
+        current_time: f64,
+        view_count: usize,
+    ) {
+        egui::CollapsingHeader::new(format!("👁 View Rules ({})", view_count))
+            .default_open(true)
+            .show(ui, |ui| {
+                for (entity, view_registry) in registry.view_iter() {
+                    render_view_entity_rules(
+                        ui,
+                        entity,
+                        view_registry,
+                        trigger_history,
+                        current_time,
+                    );
+                }
+            });
+    }
+
+    /// Render rules for a single view entity.
+    fn render_view_entity_rules(
+        ui: &mut egui::Ui,
+        entity: Entity,
+        view_registry: &bevy_fact_rule_event::RuleRegistry,
+        trigger_history: Option<&RuleTriggerHistory>,
+        current_time: f64,
+    ) {
+        let view_rule_count = view_registry.iter().count();
+        let mut view_rules: Vec<_> = view_registry.iter().collect();
+        view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+        egui::CollapsingHeader::new(format!("Entity {:?} ({} rules)", entity, view_rule_count))
+            .default_open(true)
+            .show(ui, |ui| {
+                for rule in view_rules {
+                    let is_triggered = trigger_history
+                        .is_some_and(|h| h.was_recently_triggered(&rule.id, current_time, 1.0));
+                    show_rule_entry(ui, rule, is_triggered);
+                }
+            });
+    }
+
     /// Helper function to display a single rule entry with optional trigger highlight.
-    /// 显示单个规则条目的辅助函数，可选触发高亮。
-    ///
-    /// # Arguments
-    /// * `ui` - The egui UI context
-    /// * `rule` - The rule to display
-    /// * `is_recently_triggered` - Whether this rule was triggered in the last second
     fn show_rule_entry(
         ui: &mut egui::Ui,
         rule: &bevy_fact_rule_event::Rule,
@@ -566,13 +571,14 @@ pub mod debug_fre_panel {
             trigger_indicator, status_icon, rule.id, rule.priority
         );
 
-        // Use green color for recently triggered rules
-        // 为最近触发的规则使用绿色
         let header_color = if is_recently_triggered {
-            egui::Color32::from_rgb(100, 255, 100) // Bright green
+            egui::Color32::from_rgb(100, 255, 100)
         } else {
             ui.visuals().text_color()
         };
+
+        let enabled_text = if rule.enabled { "Yes" } else { "No" };
+        let consume_text = if rule.consume_event { "Yes" } else { "No" };
 
         let header =
             egui::CollapsingHeader::new(egui::RichText::new(header_text).color(header_color))
@@ -586,234 +592,312 @@ pub mod debug_fre_panel {
 
             ui.horizontal(|ui| {
                 ui.label("Enabled:");
-                ui.label(if rule.enabled { "Yes" } else { "No" });
+                ui.label(enabled_text);
             });
 
             ui.horizontal(|ui| {
                 ui.label("Consume Event:");
-                ui.label(if rule.consume_event { "Yes" } else { "No" });
+                ui.label(consume_text);
             });
 
-            // Condition expressions
-            if !rule.condition_expressions.is_empty() {
-                egui::CollapsingHeader::new(format!(
-                    "Conditions ({})",
-                    rule.condition_expressions.len()
-                ))
-                .default_open(false)
-                .show(ui, |ui| {
-                    for (i, expr) in rule.condition_expressions.iter().enumerate() {
-                        ui.monospace(format!("{}: {}", i + 1, expr));
-                    }
-                });
-            }
-
-            // Modifications
-            if !rule.modifications.is_empty() {
-                egui::CollapsingHeader::new(format!(
-                    "Modifications ({})",
-                    rule.modifications.len()
-                ))
-                .default_open(false)
-                .show(ui, |ui| {
-                    for (i, modification) in rule.modifications.iter().enumerate() {
-                        ui.monospace(format!("{}: {:?}", i + 1, modification));
-                    }
-                });
-            }
-
-            // Outputs
-            if !rule.outputs.is_empty() {
-                egui::CollapsingHeader::new(format!("Outputs ({})", rule.outputs.len()))
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        for output in &rule.outputs {
-                            ui.monospace(&output.0);
-                        }
-                    });
-            }
+            show_rule_conditions(ui, &rule.condition_expressions);
+            show_rule_modifications(ui, &rule.modifications);
+            show_rule_outputs(ui, &rule.outputs);
         });
     }
 
-    /// Render the States tab.
-    ///
-    /// 渲染状态标签页，显示 AppState、SequenceMode 和 SequenceSubState。
-    fn render_states_tab(ui: &mut egui::Ui, world: &mut World) {
-        use crate::app_state::{AppState, SequenceMode, SequenceSubState};
+    /// Render condition expressions for a rule.
+    fn show_rule_conditions(ui: &mut egui::Ui, expressions: &[String]) {
+        if expressions.is_empty() {
+            return;
+        }
+        egui::CollapsingHeader::new(format!("Conditions ({})", expressions.len()))
+            .default_open(false)
+            .show(ui, |ui| {
+                for (i, expr) in expressions.iter().enumerate() {
+                    ui.monospace(format!("{}: {}", i + 1, expr));
+                }
+            });
+    }
 
+    /// Render modifications for a rule.
+    fn show_rule_modifications(
+        ui: &mut egui::Ui,
+        modifications: &[bevy_fact_rule_event::FactModification],
+    ) {
+        if modifications.is_empty() {
+            return;
+        }
+        egui::CollapsingHeader::new(format!("Modifications ({})", modifications.len()))
+            .default_open(false)
+            .show(ui, |ui| {
+                for (i, modification) in modifications.iter().enumerate() {
+                    ui.monospace(format!("{}: {:?}", i + 1, modification));
+                }
+            });
+    }
+
+    /// Render output events for a rule.
+    fn show_rule_outputs(ui: &mut egui::Ui, outputs: &[bevy_fact_rule_event::FactEventId]) {
+        if outputs.is_empty() {
+            return;
+        }
+        egui::CollapsingHeader::new(format!("Outputs ({})", outputs.len()))
+            .default_open(false)
+            .show(ui, |ui| {
+                for output in outputs {
+                    ui.monospace(&output.0);
+                }
+            });
+    }
+
+    /// Render the States tab.
+    fn render_states_tab(ui: &mut egui::Ui, world: &mut World) {
         ui.heading("Game States");
         ui.separator();
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            // AppState section
-            egui::CollapsingHeader::new("AppState")
-                .default_open(true)
-                .show(ui, |ui| {
-                    let current_app_state =
-                        world.get_resource::<State<AppState>>().map(|s| *s.get());
-
-                    let all_states = [
-                        (AppState::Loading, "Resource loading"),
-                        (AppState::Running, "Running"),
-                    ];
-
-                    for (state, description) in all_states {
-                        let is_current = current_app_state == Some(state);
-                        let state_name = format!("{:?}", state);
-
-                        ui.horizontal(|ui| {
-                            if is_current {
-                                ui.colored_label(egui::Color32::GREEN, "> ");
-                                ui.colored_label(egui::Color32::GREEN, &state_name);
-                                ui.small(description);
-                            } else {
-                                ui.label("  ");
-                                ui.colored_label(egui::Color32::GRAY, &state_name);
-                            }
-                        });
-                    }
-                });
-
+            render_app_state_section(ui, world);
             ui.add_space(5.0);
-
-            // SequenceMode section
-            egui::CollapsingHeader::new("SequenceMode")
-                .default_open(true)
-                .show(ui, |ui| {
-                    let current_mode = world.get_resource::<SequenceMode>().map(|m| m.0.clone());
-
-                    ui.horizontal(|ui| {
-                        ui.label("Current:");
-                        if let Some(Some(mode)) = &current_mode {
-                            ui.colored_label(egui::Color32::GREEN, mode);
-                        } else {
-                            ui.colored_label(egui::Color32::GRAY, "None");
-                        }
-                    });
-                });
-
+            render_sequence_mode_section(ui, world);
             ui.add_space(10.0);
+            render_sequence_sub_state_section(ui, world);
+            render_chase_state_section(ui, world);
+        });
+    }
 
-            // SequenceSubState section
-            let has_mode = world
-                .get_resource::<SequenceMode>()
-                .map(|m| m.0.is_some())
-                .unwrap_or(false);
-
-            if has_mode {
-                egui::CollapsingHeader::new("SequenceSubState")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        let current_sub_state = world
-                            .get_resource::<State<SequenceSubState>>()
-                            .map(|s| s.name().to_string());
-
-                        let state_config =
-                            world.get_resource::<crate::core::state_config::LoadedStateConfig>();
-
-                        if let Some(config) = state_config {
-                            let mut state_names: Vec<&String> = config.0.states.keys().collect();
-                            state_names.sort();
-
-                            for state_name in state_names {
-                                let is_current =
-                                    current_sub_state.as_deref() == Some(state_name.as_str());
-
-                                ui.horizontal(|ui| {
-                                    if is_current {
-                                        ui.colored_label(egui::Color32::GREEN, "> ");
-                                        ui.colored_label(egui::Color32::GREEN, state_name);
-                                    } else {
-                                        ui.label("  ");
-                                        ui.colored_label(egui::Color32::GRAY, state_name);
-                                    }
-                                });
-
-                                if is_current {
-                                    let is_view_interactive =
-                                        config.is_view_interactive(state_name);
-                                    let is_player_movable = config.is_player_movable(state_name);
-                                    let view_layout = config.get_view_layout(state_name);
-                                    let chase_config = config.get_chase_config_path(state_name);
-
-                                    ui.indent(state_name, |ui| {
-                                        ui.horizontal(|ui| {
-                                            ui.label("UI Interactive:");
-                                            if is_view_interactive {
-                                                ui.colored_label(egui::Color32::GREEN, "Yes");
-                                            } else {
-                                                ui.colored_label(egui::Color32::GRAY, "No");
-                                            }
-                                        });
-
-                                        ui.horizontal(|ui| {
-                                            ui.label("Player Movable:");
-                                            if is_player_movable {
-                                                ui.colored_label(egui::Color32::GREEN, "Yes");
-                                            } else {
-                                                ui.colored_label(egui::Color32::GRAY, "No");
-                                            }
-                                        });
-
-                                        ui.horizontal(|ui| {
-                                            ui.label("View Layout:");
-                                            if let Some(layout) = view_layout {
-                                                ui.small(layout);
-                                            } else {
-                                                ui.colored_label(egui::Color32::GRAY, "None");
-                                            }
-                                        });
-
-                                        if let Some(chase_path) = chase_config {
-                                            ui.horizontal(|ui| {
-                                                ui.label("Chase Config:");
-                                                ui.small(chase_path);
-                                            });
-                                        }
-                                    });
-                                }
-                            }
-                        } else {
-                            ui.label("StateConfig not loaded");
-                        }
-                    });
+    /// Render a state indicator row with current/inactive styling.
+    fn render_state_row(
+        ui: &mut egui::Ui,
+        is_current: bool,
+        state_name: &str,
+        description: Option<&str>,
+    ) {
+        let desc_to_show = if is_current { description } else { None };
+        ui.horizontal(|ui| {
+            if is_current {
+                ui.colored_label(egui::Color32::GREEN, "> ");
+                ui.colored_label(egui::Color32::GREEN, state_name);
+            } else {
+                ui.label("  ");
+                ui.colored_label(egui::Color32::GRAY, state_name);
             }
+            if let Some(desc) = desc_to_show {
+                ui.small(desc);
+            }
+        });
+    }
 
-            // Chase state info
-            if has_mode {
-                ui.add_space(10.0);
+    /// Render the AppState section.
+    fn render_app_state_section(ui: &mut egui::Ui, world: &mut World) {
+        use crate::app_state::AppState;
 
-                egui::CollapsingHeader::new("Chase State Info")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        if let Some(chase_enabled) =
-                            world.get_resource::<crate::app_state::overworld::chase::ChaseEnabled>()
-                        {
-                            ui.horizontal(|ui| {
-                                ui.label("Chase Enabled:");
-                                if chase_enabled.0 {
-                                    ui.colored_label(egui::Color32::GREEN, "Yes");
-                                } else {
-                                    ui.colored_label(egui::Color32::GRAY, "No");
-                                }
-                            });
-                        }
+        egui::CollapsingHeader::new("AppState")
+            .default_open(true)
+            .show(ui, |ui| {
+                let current_app_state = world.get_resource::<State<AppState>>().map(|s| *s.get());
 
-                        if let Some(chase_state_name) =
-                            world
-                                .get_resource::<crate::app_state::overworld::chase::ChaseStateName>(
-                                )
-                        {
-                            ui.horizontal(|ui| {
-                                ui.label("Chase State Name:");
-                                if let Some(name) = &chase_state_name.0 {
-                                    ui.strong(name);
-                                } else {
-                                    ui.colored_label(egui::Color32::GRAY, "Not configured");
-                                }
-                            });
-                        }
-                    });
+                let all_states = [
+                    (AppState::Loading, "Resource loading"),
+                    (AppState::Running, "Running"),
+                ];
+
+                for (state, description) in all_states {
+                    let is_current = current_app_state == Some(state);
+                    render_state_row(ui, is_current, &format!("{:?}", state), Some(description));
+                }
+            });
+    }
+
+    /// Render the SequenceMode section.
+    fn render_sequence_mode_section(ui: &mut egui::Ui, world: &mut World) {
+        use crate::app_state::SequenceMode;
+
+        egui::CollapsingHeader::new("SequenceMode")
+            .default_open(true)
+            .show(ui, |ui| {
+                let current_mode = world
+                    .get_resource::<SequenceMode>()
+                    .and_then(|m| m.0.clone());
+
+                let (text, color) = match &current_mode {
+                    Some(mode) => (mode.as_str(), egui::Color32::GREEN),
+                    None => ("None", egui::Color32::GRAY),
+                };
+
+                ui.horizontal(|ui| {
+                    ui.label("Current:");
+                    ui.colored_label(color, text);
+                });
+            });
+    }
+
+    /// Render the SequenceSubState section.
+    fn render_sequence_sub_state_section(ui: &mut egui::Ui, world: &mut World) {
+        use crate::app_state::{SequenceMode, SequenceSubState};
+
+        let has_mode = world
+            .get_resource::<SequenceMode>()
+            .map(|m| m.0.is_some())
+            .unwrap_or(false);
+
+        if !has_mode {
+            return;
+        }
+
+        egui::CollapsingHeader::new("SequenceSubState")
+            .default_open(true)
+            .show(ui, |ui| {
+                let current_sub_state = world
+                    .get_resource::<State<SequenceSubState>>()
+                    .map(|s| s.name().to_string());
+
+                let state_config =
+                    world.get_resource::<crate::core::state_config::LoadedStateConfig>();
+
+                let Some(config) = state_config else {
+                    ui.label("StateConfig not loaded");
+                    return;
+                };
+
+                let mut state_names: Vec<&String> = config.0.states.keys().collect();
+                state_names.sort();
+
+                for state_name in state_names {
+                    let is_current = current_sub_state.as_deref() == Some(state_name.as_str());
+                    render_sub_state_row(ui, state_name, is_current, config);
+                }
+            });
+    }
+
+    /// Render a single sub-state row with details when current.
+    fn render_sub_state_row(
+        ui: &mut egui::Ui,
+        state_name: &str,
+        is_current: bool,
+        config: &crate::core::state_config::LoadedStateConfig,
+    ) {
+        render_state_row(ui, is_current, state_name, None);
+
+        if !is_current {
+            return;
+        }
+
+        let is_view_interactive = config.is_view_interactive(state_name);
+        let is_player_movable = config.is_player_movable(state_name);
+        let view_layout = config.get_view_layout(state_name);
+        let chase_config = config.get_chase_config_path(state_name);
+
+        let interactive_color = if is_view_interactive {
+            egui::Color32::GREEN
+        } else {
+            egui::Color32::GRAY
+        };
+        let interactive_text = if is_view_interactive { "Yes" } else { "No" };
+        let movable_color = if is_player_movable {
+            egui::Color32::GREEN
+        } else {
+            egui::Color32::GRAY
+        };
+        let movable_text = if is_player_movable { "Yes" } else { "No" };
+
+        ui.indent(state_name, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("UI Interactive:");
+                ui.colored_label(interactive_color, interactive_text);
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Player Movable:");
+                ui.colored_label(movable_color, movable_text);
+            });
+
+            render_view_layout_row(ui, view_layout);
+            render_chase_config_row(ui, chase_config);
+        });
+    }
+
+    /// Render the view layout row.
+    fn render_view_layout_row(ui: &mut egui::Ui, view_layout: Option<&str>) {
+        ui.horizontal(|ui| {
+            ui.label("View Layout:");
+            if let Some(layout) = view_layout {
+                ui.small(layout);
+            } else {
+                ui.colored_label(egui::Color32::GRAY, "None");
+            }
+        });
+    }
+
+    /// Render the chase config path row.
+    fn render_chase_config_row(ui: &mut egui::Ui, chase_config: Option<&str>) {
+        let Some(chase_path) = chase_config else {
+            return;
+        };
+        ui.horizontal(|ui| {
+            ui.label("Chase Config:");
+            ui.small(chase_path);
+        });
+    }
+
+    /// Render the Chase State Info section.
+    fn render_chase_state_section(ui: &mut egui::Ui, world: &mut World) {
+        let has_mode = world
+            .get_resource::<crate::app_state::SequenceMode>()
+            .map(|m| m.0.is_some())
+            .unwrap_or(false);
+
+        if !has_mode {
+            return;
+        }
+
+        ui.add_space(10.0);
+
+        let chase_enabled_display: Option<(&str, egui::Color32)> = world
+            .get_resource::<crate::app_state::overworld::chase::ChaseEnabled>()
+            .map(|c| {
+                if c.0 {
+                    ("Yes", egui::Color32::GREEN)
+                } else {
+                    ("No", egui::Color32::GRAY)
+                }
+            });
+
+        let chase_name_val = world
+            .get_resource::<crate::app_state::overworld::chase::ChaseStateName>()
+            .and_then(|c| c.0.clone());
+
+        egui::CollapsingHeader::new("Chase State Info")
+            .default_open(true)
+            .show(ui, |ui| {
+                render_chase_enabled_row(ui, chase_enabled_display);
+                render_chase_name_row(ui, &chase_name_val);
+            });
+    }
+
+    /// Render the chase enabled status row.
+    fn render_chase_enabled_row(ui: &mut egui::Ui, display: Option<(&str, egui::Color32)>) {
+        let Some((text, color)) = display else {
+            return;
+        };
+        ui.horizontal(|ui| {
+            ui.label("Chase Enabled:");
+            ui.colored_label(color, text);
+        });
+    }
+
+    /// Render the chase state name row.
+    fn render_chase_name_row(ui: &mut egui::Ui, name: &Option<String>) {
+        let (display_text, use_strong) = match name {
+            Some(n) => (n.as_str(), true),
+            None => ("Not configured", false),
+        };
+        ui.horizontal(|ui| {
+            ui.label("Chase State Name:");
+            if use_strong {
+                ui.strong(display_text);
+            } else {
+                ui.colored_label(egui::Color32::GRAY, display_text);
             }
         });
     }
