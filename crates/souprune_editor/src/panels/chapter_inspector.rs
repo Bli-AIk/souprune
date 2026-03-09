@@ -92,15 +92,7 @@ impl WorkbenchPanel for ChapterInspectorPanel {
         let changed = render_chapter_properties(ui, &mut edited_chapter, world);
 
         if changed {
-            let mut state = world.resource_mut::<EditorSequenceState>();
-            if let Some(seq) = &mut state.current
-                && let Some(ch) = seq.chapters.get_mut(idx)
-            {
-                *ch = edited_chapter.clone();
-                seq.dirty = true;
-            }
-            state.save_timer = Some(0.5);
-            drop(state);
+            apply_chapter_edit(world, idx, &edited_chapter);
             world.resource_mut::<UndoStack>().push(ModifyChapterAction {
                 index: idx,
                 old_chapter: chapter,
@@ -112,6 +104,17 @@ impl WorkbenchPanel for ChapterInspectorPanel {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Requires World access");
     }
+}
+
+fn apply_chapter_edit(world: &mut World, idx: usize, edited: &Chapter) {
+    let mut state = world.resource_mut::<EditorSequenceState>();
+    if let Some(seq) = &mut state.current
+        && let Some(ch) = seq.chapters.get_mut(idx)
+    {
+        *ch = edited.clone();
+        seq.dirty = true;
+    }
+    state.save_timer = Some(0.5);
 }
 
 /// 渲染章节属性编辑器。返回 true 如果有修改。

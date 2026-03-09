@@ -6,10 +6,8 @@ use crate::widgets::view_widgets::{
     edit_option_vec2_tuple, edit_string_string_map, edit_tag_list, edit_vec2, edit_vec3,
 };
 use bevy::prelude::*;
-use bevy_workbench::prelude::*;
 use souprune::core::view::layout::{
-    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, TextDef, ViewBoxLogicDef,
-    ViewLayoutAsset, ViewNodeDef,
+    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, TextDef, ViewBoxLogicDef, ViewNodeDef,
 };
 
 pub(super) fn edit_node_basics(world: &World, ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {

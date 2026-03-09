@@ -3,8 +3,6 @@ mod node_props;
 use super::view_preview::ViewPreviewState;
 use crate::editors::SubEditorManager;
 use crate::i18n::{t, t_args};
-use crate::widgets::property_editors::labeled_text;
-use crate::widgets::view_widgets::edit_expression;
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
 use node_props::{

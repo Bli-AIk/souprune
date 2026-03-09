@@ -98,26 +98,51 @@ impl WorkbenchPanel for SequenceTimelinePanel {
 }
 
 fn delete_selected_chapter(world: &mut World) {
-    let mut state = world.resource_mut::<EditorSequenceState>();
-    let Some(idx) = state.selected_chapter else {
-        return;
+    let (idx, removed) = {
+        let mut state = world.resource_mut::<EditorSequenceState>();
+        let Some(idx) = state.selected_chapter else {
+            return;
+        };
+        let Some(seq) = &mut state.current else {
+            return;
+        };
+        let Some(removed) = seq.remove_chapter(idx) else {
+            return;
+        };
+        state.selected_chapter = if seq.chapters.is_empty() {
+            None
+        } else {
+            Some(idx.min(seq.chapters.len() - 1))
+        };
+        (idx, removed)
     };
-    let Some(seq) = &mut state.current else {
-        return;
-    };
-    let Some(removed) = seq.remove_chapter(idx) else {
-        return;
-    };
-    state.selected_chapter = if seq.chapters.is_empty() {
-        None
-    } else {
-        Some(idx.min(seq.chapters.len() - 1))
-    };
-    drop(state);
     world.resource_mut::<UndoStack>().push(RemoveChapterAction {
         index: idx,
         chapter: removed,
     });
+}
+
+fn paste_chapter(world: &mut World) {
+    let undo_info = {
+        let mut state = world.resource_mut::<EditorSequenceState>();
+        let ch = state.clipboard.clone();
+        let idx = state.selected_chapter.unwrap_or(0);
+        if let (Some(ch), Some(seq)) = (ch, &mut state.current) {
+            let insert_pos = (idx + 1).min(seq.chapters.len());
+            seq.chapters.insert(insert_pos, ch.clone());
+            seq.dirty = true;
+            state.selected_chapter = Some(insert_pos);
+            Some((insert_pos, ch))
+        } else {
+            None
+        }
+    };
+    if let Some((insert_pos, ch)) = undo_info {
+        world.resource_mut::<UndoStack>().push(InsertChapterAction {
+            index: insert_pos,
+            chapter: ch,
+        });
+    }
 }
 
 fn render_chapter_item(
@@ -259,25 +284,7 @@ fn render_toolbar(ui: &mut egui::Ui, world: &mut World) {
             )
             .clicked()
         {
-            let mut state = world.resource_mut::<EditorSequenceState>();
-            let ch = state.clipboard.clone();
-            let idx = state.selected_chapter.unwrap_or(0);
-            let undo_info = if let (Some(ch), Some(seq)) = (ch, &mut state.current) {
-                let insert_pos = (idx + 1).min(seq.chapters.len());
-                seq.chapters.insert(insert_pos, ch.clone());
-                seq.dirty = true;
-                state.selected_chapter = Some(insert_pos);
-                Some((insert_pos, ch))
-            } else {
-                None
-            };
-            drop(state);
-            if let Some((insert_pos, ch)) = undo_info {
-                world.resource_mut::<UndoStack>().push(InsertChapterAction {
-                    index: insert_pos,
-                    chapter: ch,
-                });
-            }
+            paste_chapter(world);
         }
 
         // 脏标记
