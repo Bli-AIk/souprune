@@ -28,6 +28,7 @@ ai_check.sh
 
 logs/
 dev/
+dev_review/
 
 # System
 .DS_Store
