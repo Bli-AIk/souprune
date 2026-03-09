@@ -344,7 +344,10 @@ impl Plugin for TileRevealPlugin {
             .add_plugins(MaterialTilemapPlugin::<BlackWhiteTilemapMaterial>::default())
             .init_resource::<TileRevealState>()
             .init_resource::<TilemapTextureCache>()
-            .add_tween_systems(bevy_tween::tween::component_tween_system::<ScaleInterpolator>())
+            .add_tween_systems(
+                PostUpdate,
+                bevy_tween::tween::component_tween_system::<ScaleInterpolator>(),
+            )
             .add_systems(
                 schedule,
                 (

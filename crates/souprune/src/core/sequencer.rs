@@ -95,8 +95,14 @@ pub fn init_sequencer(app: &mut App) {
 /// 游戏使用 `Update`，编辑器使用 `GameSchedule`。
 pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + Clone) {
     // Register custom interpolator systems for bevy_tween
-    app.add_tween_systems(component_tween_system::<tween::ViewBoxSizeInterpolator>())
-        .add_tween_systems(component_tween_system::<tween::SpriteAlphaInterpolator>())
+    app.add_tween_systems(
+            PostUpdate,
+            component_tween_system::<tween::ViewBoxSizeInterpolator>(),
+        )
+        .add_tween_systems(
+            PostUpdate,
+            component_tween_system::<tween::SpriteAlphaInterpolator>(),
+        )
         // Chapter processing systems - split into two groups to avoid tuple size limit
         .add_systems(
             schedule.clone(),

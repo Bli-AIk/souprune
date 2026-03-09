@@ -158,9 +158,10 @@ pub mod debug_inspector {
 
         app.add_plugins(PerfUiPlugin);
 
-        app.add_tween_systems(bevy_tween::tween::component_tween_system::<
-            TextColorInterpolator,
-        >());
+        app.add_tween_systems(
+            PostUpdate,
+            bevy_tween::tween::component_tween_system::<TextColorInterpolator>(),
+        );
 
         app.add_systems(Startup, setup_debug_help_text_system);
         app.add_systems(

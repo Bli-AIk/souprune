@@ -1861,10 +1861,11 @@ dependencies = [
 [[package]]
 name = "bevy_time_runner"
 version = "0.5.2"
-source = "git+https://github.com/natepiano/bevy_time_runner?branch=bevy-0.18#d33722437e2b94280489b1afcb4bfa8a2122fcdc"
+source = "git+https://github.com/multirious/bevy_time_runner?branch=main#8949a9752052aad9cfa1e22027d17450d4d7f8cc"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
+ "bevy_log",
  "bevy_reflect",
  "bevy_time",
  "rustc_version",
@@ -1891,6 +1892,7 @@ dependencies = [
 [[package]]
 name = "bevy_tween"
 version = "0.11.0"
+source = "git+https://github.com/Multirious/bevy_tween?branch=main#6c5ccd1a1fc54e4cc81277592cb938248cbba797"
 dependencies = [
  "bevy",
  "bevy_math",

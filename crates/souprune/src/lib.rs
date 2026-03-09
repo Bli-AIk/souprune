@@ -357,7 +357,7 @@ pub fn get_third_plugins() -> (
     bevy_ecs_tiled::prelude::TiledPlugin,
     bevy_rich_text3d::Text3dPlugin,
     bevy_alight_motion::prelude::AlightMotionPlugin,
-    bevy_tween::DefaultTweenPlugins,
+    bevy_tween::DefaultTweenPlugins<()>,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
@@ -368,7 +368,7 @@ pub fn get_third_plugins() -> (
             ..Default::default()
         },
         bevy_alight_motion::prelude::AlightMotionPlugin,
-        bevy_tween::DefaultTweenPlugins,
+        bevy_tween::DefaultTweenPlugins::default(),
     )
 }
 
