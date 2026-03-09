@@ -37,6 +37,42 @@ impl MultiSourceAssetReader {
     }
 }
 
+async fn try_read_first<'a>(
+    readers: &'a [FileAssetReader],
+    path: &'a Path,
+) -> Result<Box<dyn Reader + 'a>, AssetReaderError> {
+    for reader in readers {
+        if let Ok(result) = reader.read(path).await {
+            return Ok(Box::new(result) as Box<dyn Reader + 'a>);
+        }
+    }
+    Err(AssetReaderError::NotFound(path.to_path_buf()))
+}
+
+async fn try_read_meta_first<'a>(
+    readers: &'a [FileAssetReader],
+    path: &'a Path,
+) -> Result<Box<dyn Reader + 'a>, AssetReaderError> {
+    for reader in readers {
+        if let Ok(result) = reader.read_meta(path).await {
+            return Ok(Box::new(result) as Box<dyn Reader + 'a>);
+        }
+    }
+    Err(AssetReaderError::NotFound(path.to_path_buf()))
+}
+
+async fn try_read_directory_first<'a>(
+    readers: &'a [FileAssetReader],
+    path: &'a Path,
+) -> Result<Box<PathStream>, AssetReaderError> {
+    for reader in readers {
+        if let Ok(result) = reader.read_directory(path).await {
+            return Ok(result);
+        }
+    }
+    Err(AssetReaderError::NotFound(path.to_path_buf()))
+}
+
 #[allow(refining_impl_trait)]
 impl AssetReader for MultiSourceAssetReader {
     fn read<'a>(
@@ -44,20 +80,7 @@ impl AssetReader for MultiSourceAssetReader {
         path: &'a Path,
     ) -> impl ConditionalSendFuture<Output = Result<Box<dyn Reader + 'a>, AssetReaderError>> + 'a
     {
-        Box::pin(async move {
-            for reader in &self.readers {
-                match reader.read(path).await {
-                    Ok(result) => return Ok(Box::new(result) as Box<dyn Reader + 'a>),
-                    Err(e) => {
-                        if matches!(e, AssetReaderError::NotFound(_)) {
-                            continue;
-                        }
-                        continue;
-                    }
-                }
-            }
-            Err(AssetReaderError::NotFound(path.to_path_buf()))
-        })
+        Box::pin(try_read_first(&self.readers, path))
     }
 
     fn read_meta<'a>(
@@ -65,40 +88,14 @@ impl AssetReader for MultiSourceAssetReader {
         path: &'a Path,
     ) -> impl ConditionalSendFuture<Output = Result<Box<dyn Reader + 'a>, AssetReaderError>> + 'a
     {
-        Box::pin(async move {
-            for reader in &self.readers {
-                match reader.read_meta(path).await {
-                    Ok(result) => return Ok(Box::new(result) as Box<dyn Reader + 'a>),
-                    Err(e) => {
-                        if matches!(e, AssetReaderError::NotFound(_)) {
-                            continue;
-                        }
-                        continue;
-                    }
-                }
-            }
-            Err(AssetReaderError::NotFound(path.to_path_buf()))
-        })
+        Box::pin(try_read_meta_first(&self.readers, path))
     }
 
     fn read_directory<'a>(
         &'a self,
         path: &'a Path,
     ) -> impl ConditionalSendFuture<Output = Result<Box<PathStream>, AssetReaderError>> {
-        Box::pin(async move {
-            for reader in &self.readers {
-                match reader.read_directory(path).await {
-                    Ok(result) => return Ok(result),
-                    Err(e) => {
-                        if matches!(e, AssetReaderError::NotFound(_)) {
-                            continue;
-                        }
-                        continue;
-                    }
-                }
-            }
-            Err(AssetReaderError::NotFound(path.to_path_buf()))
-        })
+        Box::pin(try_read_directory_first(&self.readers, path))
     }
 
     fn is_directory<'a>(

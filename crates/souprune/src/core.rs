@@ -38,7 +38,9 @@ pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
+pub mod definition;
 pub mod dialogue;
+pub mod enemy;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod input;
@@ -88,6 +90,7 @@ impl Plugin for CorePlugin {
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
+                enemy::EnemyPlugin,
                 fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
                 item::ItemPlugin,

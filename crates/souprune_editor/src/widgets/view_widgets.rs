@@ -271,6 +271,25 @@ pub fn edit_font_def(ui: &mut egui::Ui, label: &str, font: &mut ViewFontDef) -> 
     changed
 }
 
+fn render_string_map_row(
+    ui: &mut egui::Ui,
+    key: &str,
+    map: &mut std::collections::HashMap<String, String>,
+    to_remove: &mut Option<String>,
+) -> bool {
+    let mut changed = false;
+    ui.label(format!("{key}:"));
+    if let Some(val) = map.get_mut(key)
+        && ui.text_edit_singleline(val).changed()
+    {
+        changed = true;
+    }
+    if ui.small_button("x").clicked() {
+        *to_remove = Some(key.to_string());
+    }
+    changed
+}
+
 /// 编辑 HashMap<String, String> 键值对。
 pub fn edit_string_string_map(
     ui: &mut egui::Ui,
@@ -284,15 +303,7 @@ pub fn edit_string_string_map(
         keys.sort();
         for key in &keys {
             ui.horizontal(|ui| {
-                ui.label(format!("{key}:"));
-                if let Some(val) = map.get_mut(key)
-                    && ui.text_edit_singleline(val).changed()
-                {
-                    changed = true;
-                }
-                if ui.small_button("x").clicked() {
-                    to_remove = Some(key.clone());
-                }
+                changed |= render_string_map_row(ui, key, map, &mut to_remove);
             });
         }
         if let Some(k) = to_remove {

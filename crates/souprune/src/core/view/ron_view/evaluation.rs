@@ -463,32 +463,31 @@ pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool
     match condition {
         "player.inventory.is_empty" => get_inventory().is_empty(),
         "player.inventory.is_not_empty" => !get_inventory().is_empty(),
-        _ => {
-            if condition.starts_with("player.") {
-                let parts: Vec<&str> = condition.split('.').collect();
-                if parts.len() >= 3 {
-                    match (parts[1], parts[2]) {
-                        ("hp", "is_low") => {
-                            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-                            let hp_max = player_data.get_fact_int("player:hp_max").unwrap_or(1);
-                            hp < hp_max / 4
-                        }
-                        ("hp", "is_critical") => {
-                            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-                            hp <= 1
-                        }
-                        ("gold", "is_zero") => {
-                            player_data.get_fact_int("player:gold").unwrap_or(0) == 0
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
+        _ if condition.starts_with("player.") => {
+            let parts: Vec<&str> = condition.split('.').collect();
+            evaluate_player_property(&parts, player_data)
         }
+        _ => false,
+    }
+}
+
+/// Evaluate a player property condition like "player.hp.is_low".
+fn evaluate_player_property(parts: &[&str], player_data: &PlayerDataView) -> bool {
+    if parts.len() < 3 {
+        return false;
+    }
+    match (parts[1], parts[2]) {
+        ("hp", "is_low") => {
+            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
+            let hp_max = player_data.get_fact_int("player:hp_max").unwrap_or(1);
+            hp < hp_max / 4
+        }
+        ("hp", "is_critical") => {
+            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
+            hp <= 1
+        }
+        ("gold", "is_zero") => player_data.get_fact_int("player:gold").unwrap_or(0) == 0,
+        _ => false,
     }
 }
 
@@ -520,38 +519,38 @@ pub fn evaluate_transition_condition_unified(
     };
 
     // Handle "index == N" pattern with optional additional conditions
-    if condition.starts_with("index == ")
-        && let Some(rest) = condition.strip_prefix("index == ")
-    {
-        // Split by &&
-        let parts: Vec<&str> = rest.split("&&").map(|s| s.trim()).collect();
+    let Some(rest) = condition.strip_prefix("index == ") else {
+        // For other conditions, delegate to the existing evaluate_condition
+        return evaluate_condition(condition, player_data);
+    };
 
-        // First part should be the index number
-        if let Some(index_part) = parts.first()
-            && let Ok(target_index) = index_part.parse::<usize>()
-        {
-            if index != target_index {
-                return false;
-            }
+    // Split by &&
+    let parts: Vec<&str> = rest.split("&&").map(|s| s.trim()).collect();
 
-            // Check additional conditions
-            for part in parts.iter().skip(1) {
-                if *part == "!player.inventory.is_empty" {
-                    if get_inventory().is_empty() {
-                        return false;
-                    }
-                } else if *part == "player.inventory.is_empty" && !get_inventory().is_empty() {
-                    return false;
-                }
-                // Add more conditions as needed
-            }
+    // First part should be the index number
+    let Some(index_part) = parts.first() else {
+        return false;
+    };
+    let Ok(target_index) = index_part.parse::<usize>() else {
+        return false;
+    };
 
-            return true;
-        }
+    if index != target_index {
+        return false;
     }
 
-    // For other conditions, delegate to the existing evaluate_condition
-    evaluate_condition(condition, player_data)
+    // Check additional conditions
+    for part in parts.iter().skip(1) {
+        if *part == "!player.inventory.is_empty" && get_inventory().is_empty() {
+            return false;
+        }
+        if *part == "player.inventory.is_empty" && !get_inventory().is_empty() {
+            return false;
+        }
+        // Add more conditions as needed
+    }
+
+    true
 }
 
 /// Evaluate a DynamicColor tuple by evaluating each component expression.

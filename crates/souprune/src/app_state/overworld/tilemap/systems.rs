@@ -84,35 +84,53 @@ pub fn initialize_tilemap_system(
         let hidden_keywords = &souprune_config.game.hidden_layer_keywords;
 
         for (index, (layer_entity, layer_name)) in layers.iter().enumerate() {
-            let layer_name_str = layer_name.as_str();
-
-            let name_lower = layer_name_str.to_ascii_lowercase();
-            if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
-                if name_lower.contains("collision") {
-                    info!(
-                        "Hide collision layer: {} and generate collision tiles",
-                        layer_name_str
-                    );
-                } else {
-                    info!("Hide prototype layer: {}", layer_name_str);
-                }
-                commands.entity(*layer_entity).insert(Visibility::Hidden);
-            } else {
-                info!("Show layers: {}", layer_name_str);
-
-                let z_offset = souprune_config.render.z_layer_base
-                    - (layers.len() as f32 - 1.0 - index as f32)
-                        * souprune_config.render.z_layer_step;
-
-                commands
-                    .entity(*layer_entity)
-                    .insert(Transform::from_xyz(0.0, 0.0, z_offset));
-                info!(
-                    "Set the Z-axis position of layer {} (order {}): {}",
-                    layer_name_str, index, z_offset
-                );
-            }
+            process_tilemap_layer(
+                &mut commands,
+                *layer_entity,
+                layer_name.as_str(),
+                index,
+                layers.len(),
+                hidden_keywords,
+                &souprune_config,
+            );
         }
+    }
+}
+
+/// Process a single tilemap layer: hide prototype/collision layers, set z-offset for others.
+fn process_tilemap_layer(
+    commands: &mut Commands,
+    layer_entity: Entity,
+    layer_name_str: &str,
+    index: usize,
+    total_layers: usize,
+    hidden_keywords: &[String],
+    souprune_config: &crate::config::SoupruneConfig,
+) {
+    let name_lower = layer_name_str.to_ascii_lowercase();
+    if hidden_keywords.iter().any(|s| name_lower.contains(s)) {
+        if name_lower.contains("collision") {
+            info!(
+                "Hide collision layer: {} and generate collision tiles",
+                layer_name_str
+            );
+        } else {
+            info!("Hide prototype layer: {}", layer_name_str);
+        }
+        commands.entity(layer_entity).insert(Visibility::Hidden);
+    } else {
+        info!("Show layers: {}", layer_name_str);
+
+        let z_offset = souprune_config.render.z_layer_base
+            - (total_layers as f32 - 1.0 - index as f32) * souprune_config.render.z_layer_step;
+
+        commands
+            .entity(layer_entity)
+            .insert(Transform::from_xyz(0.0, 0.0, z_offset));
+        info!(
+            "Set the Z-axis position of layer {} (order {}): {}",
+            layer_name_str, index, z_offset
+        );
     }
 }
 
@@ -305,101 +323,79 @@ fn generate_object_colliders(
     let center_offset_y = -map_height / 2.0;
 
     for layer in tiled_map_asset.map.layers() {
-        if let Some(object_layer) = layer.as_object_layer() {
-            info!(
-                "Processing object layer '{}' with {} objects",
-                layer.name,
-                object_layer.objects().count()
-            );
+        let Some(object_layer) = layer.as_object_layer() else {
+            continue;
+        };
+        info!(
+            "Processing object layer '{}' with {} objects",
+            layer.name,
+            object_layer.objects().count()
+        );
 
-            for object_data in object_layer.objects() {
-                let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
-                    continue;
-                };
+        for object_data in object_layer.objects() {
+            let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+                continue;
+            };
 
-                // Calculate world position (same coordinate system as tilemap)
-                // Tiled uses top-left origin, convert to center-based
-                //
-                // 计算世界位置（与瓦片地图坐标系相同）
-                // Tiled 使用左上角原点，转换为基于中心
-                let world_x = center_offset_x + object_data.x + width / 2.0;
-                let world_y = center_offset_y
-                    + (tiled_map_asset.map.height as f32 * tile_height
-                        - object_data.y
-                        - height / 2.0);
+            // Calculate world position (same coordinate system as tilemap)
+            // Tiled uses top-left origin, convert to center-based
+            let world_x = center_offset_x + object_data.x + width / 2.0;
+            let world_y = center_offset_y
+                + (tiled_map_asset.map.height as f32 * tile_height - object_data.y - height / 2.0);
 
-                let size = Vec2::new(width, height);
+            let size = Vec2::new(width, height);
 
-                // Check if this object has collision property set to true (using schema key constant)
-                //
-                // 检查此对象是否将碰撞属性设置为 true（使用 schema 键常量）
-                if crate::core::map_property_schema::get_object_bool_property(
+            // Check if this object has collision property set to true (using schema key constant)
+            if crate::core::map_property_schema::get_object_bool_property(
+                &object_data.properties,
+                object_keys::COLLISION,
+            ) == Some(true)
+            {
+                info!(
+                    "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
+                    object_data.name, world_x, world_y, width, height
+                );
+
+                commands.spawn((
+                    ChildOf(parent_entity),
+                    crate::app_state::overworld::tilemap::ObjectCollider,
+                    TilemapCollider,
+                    Rect2DCollider::new(size, Vec2::ZERO),
+                    Transform::from_xyz(world_x, world_y, 0.0),
+                    Visibility::Hidden,
+                    Name::new(format!("ObjectCollision_{}", object_data.name)),
+                ));
+            }
+
+            // Check if this object has trigger property set to true (experimental feature)
+            #[cfg(feature = "experimental")]
+            if crate::core::map_property_schema::get_object_bool_property(
+                &object_data.properties,
+                object_keys::TRIGGER,
+            ) == Some(true)
+            {
+                // Get trigger ID from name or id property (using schema key constant)
+                let trigger_id = crate::core::map_property_schema::get_object_string_property(
                     &object_data.properties,
-                    object_keys::COLLISION,
-                ) == Some(true)
-                {
-                    info!(
-                        "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
-                        object_data.name, world_x, world_y, width, height
-                    );
+                    object_keys::TRIGGER_ID,
+                )
+                .map(|s| s.to_string())
+                .or_else(|| (!object_data.name.is_empty()).then(|| object_data.name.clone()))
+                .unwrap_or_else(|| format!("trigger_{}", object_data.id()));
 
-                    // Spawn object colliders as child entities.
-                    //
-                    // 作为子实体创建对象碰撞体。
-                    commands.entity(parent_entity).with_children(|parent| {
-                        parent.spawn((
-                            crate::app_state::overworld::tilemap::ObjectCollider,
-                            TilemapCollider,
-                            Rect2DCollider::new(size, Vec2::ZERO),
-                            Transform::from_xyz(world_x, world_y, 0.0),
-                            Visibility::Hidden,
-                            Name::new(format!("ObjectCollision_{}", object_data.name)),
-                        ));
-                    });
-                }
+                info!(
+                    "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
+                    trigger_id, world_x, world_y, width, height
+                );
 
-                // Check if this object has trigger property set to true (experimental feature)
-                //
-                // 检查此对象是否将触发器属性设置为 true（实验性功能）
-                #[cfg(feature = "experimental")]
-                if crate::core::map_property_schema::get_object_bool_property(
-                    &object_data.properties,
-                    object_keys::TRIGGER,
-                ) == Some(true)
-                {
-                    // Get trigger ID from name or id property (using schema key constant)
-                    let trigger_id = crate::core::map_property_schema::get_object_string_property(
-                        &object_data.properties,
-                        object_keys::TRIGGER_ID,
-                    )
-                    .map(|s| s.to_string())
-                    .or_else(|| {
-                        if !object_data.name.is_empty() {
-                            Some(object_data.name.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or_else(|| format!("trigger_{}", object_data.id()));
-
-                    info!(
-                        "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
-                        trigger_id, world_x, world_y, width, height
-                    );
-
-                    // Spawn trigger zone entity
-                    //
-                    // 创建触发区域实体
-                    commands.entity(parent_entity).with_children(|parent| {
-                        parent.spawn((
-                            crate::app_state::overworld::trigger::TriggerZone::new(&trigger_id),
-                            Rect2DCollider::new(size, Vec2::ZERO),
-                            Transform::from_xyz(world_x, world_y, 0.0),
-                            Visibility::Hidden,
-                            Name::new(format!("TriggerZone_{}", trigger_id)),
-                        ));
-                    });
-                }
+                commands.spawn((
+                    ChildOf(parent_entity),
+                    crate::app_state::overworld::trigger::TriggerZone::new(&trigger_id),
+                    Rect2DCollider::new(size, Vec2::ZERO),
+                    Transform::from_xyz(world_x, world_y, 0.0),
+                    Visibility::Hidden,
+                    Name::new(format!("TriggerZone_{}", trigger_id)),
+                ));
             }
         }
     }

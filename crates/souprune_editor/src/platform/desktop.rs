@@ -105,27 +105,36 @@ fn desktop_shortcuts_system(
 fn desktop_file_drop_system(mut dnd_events: MessageReader<FileDragAndDrop>) {
     for event in dnd_events.read() {
         if let FileDragAndDrop::DroppedFile { path_buf, .. } = event {
-            let ext = path_buf.extension().and_then(|e| e.to_str()).unwrap_or("");
-            match ext {
-                "ron" | "toml" | "png" | "jpg" | "ogg" | "wav" | "tmx" | "tsx" => {
-                    if let Some(dest) = resolve_project_asset_dir() {
-                        let file_name = path_buf
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string();
-                        let target = dest.join(&file_name);
-                        match std::fs::copy(path_buf, &target) {
-                            Ok(_) => info!("已复制文件到项目: {}", target.display()),
-                            Err(e) => warn!("复制文件失败: {e}"),
-                        }
-                    }
-                }
-                _ => {
-                    info!("忽略不支持的文件类型: .{ext}");
-                }
-            }
+            handle_dropped_file(path_buf);
         }
+    }
+}
+
+fn handle_dropped_file(path_buf: &std::path::PathBuf) {
+    let ext = path_buf.extension().and_then(|e| e.to_str()).unwrap_or("");
+    match ext {
+        "ron" | "toml" | "png" | "jpg" | "ogg" | "wav" | "tmx" | "tsx" => {
+            copy_to_project_assets(path_buf);
+        }
+        _ => {
+            info!("忽略不支持的文件类型: .{ext}");
+        }
+    }
+}
+
+fn copy_to_project_assets(path_buf: &std::path::PathBuf) {
+    let Some(dest) = resolve_project_asset_dir() else {
+        return;
+    };
+    let file_name = path_buf
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let target = dest.join(&file_name);
+    match std::fs::copy(path_buf, &target) {
+        Ok(_) => info!("已复制文件到项目: {}", target.display()),
+        Err(e) => warn!("复制文件失败: {e}"),
     }
 }
 

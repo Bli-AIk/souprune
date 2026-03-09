@@ -478,6 +478,25 @@ pub enum Chapter {
         aggregate: std::collections::HashMap<String, AggregateRule>,
     },
 
+    /// Load enemy definitions from `.enemy.ron` files and project their data
+    /// into the fact database for View dynamic resolution.
+    ///
+    /// 从 `.enemy.ron` 文件加载敌人定义，并将数据投影到 fact 数据库中供 View 动态解析。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// LoadEnemies(enemies: [
+    ///     "data/enemies/dummy.enemy.ron",
+    ///     "data/enemies/froggit.enemy.ron",
+    /// ]),
+    /// ```
+    LoadEnemies {
+        /// List of enemy definition files to load.
+        ///
+        /// 要加载的敌人定义文件列表。
+        enemies: Vec<String>,
+    },
+
     /// Run an external sequence file.
     ///
     /// Loads and executes a `.sequence.ron` file as a sub-sequence.

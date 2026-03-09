@@ -92,16 +92,7 @@ impl WorkbenchPanel for ChapterInspectorPanel {
         let changed = render_chapter_properties(ui, &mut edited_chapter, world);
 
         if changed {
-            {
-                let mut state = world.resource_mut::<EditorSequenceState>();
-                if let Some(seq) = &mut state.current
-                    && let Some(ch) = seq.chapters.get_mut(idx)
-                {
-                    *ch = edited_chapter.clone();
-                    seq.dirty = true;
-                }
-                state.save_timer = Some(0.5);
-            }
+            apply_chapter_edit(world, idx, &edited_chapter);
             world.resource_mut::<UndoStack>().push(ModifyChapterAction {
                 index: idx,
                 old_chapter: chapter,
@@ -113,6 +104,17 @@ impl WorkbenchPanel for ChapterInspectorPanel {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Requires World access");
     }
+}
+
+fn apply_chapter_edit(world: &mut World, idx: usize, edited: &Chapter) {
+    let mut state = world.resource_mut::<EditorSequenceState>();
+    if let Some(seq) = &mut state.current
+        && let Some(ch) = seq.chapters.get_mut(idx)
+    {
+        *ch = edited.clone();
+        seq.dirty = true;
+    }
+    state.save_timer = Some(0.5);
 }
 
 /// 渲染章节属性编辑器。返回 true 如果有修改。
@@ -350,6 +352,10 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             changed |= labeled_text(ui, &t(world, "prop-action-type"), action_type);
             ui.separator();
             changed |= edit_hashmap_string_flat(ui, &t(world, "prop-params"), params, world);
+        }
+
+        Chapter::LoadEnemies { enemies } => {
+            changed |= edit_string_list(ui, &t(world, "prop-files"), enemies, world);
         }
     }
 

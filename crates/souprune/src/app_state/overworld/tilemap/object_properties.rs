@@ -108,51 +108,15 @@ pub fn process_map_object_properties_system(
             );
 
             for object_data in object_layer.objects() {
-                trace!(
-                    "Checking object '{}' at ({}, {}) with shape {:?}",
-                    object_data.name, object_data.x, object_data.y, object_data.shape
+                process_tiled_object(
+                    &mut commands,
+                    &object_data,
+                    center_offset_x,
+                    center_offset_y,
+                    map_height,
+                    &mut rule_registry,
+                    &souprune_config.game.dialogue_view_default,
                 );
-
-                // Note: collision objects are handled by generate_collision_tiles_system
-                // Skip collision objects here to avoid duplicates
-                if get_object_bool_property(&object_data.properties, object_keys::COLLISION)
-                    == Some(true)
-                {
-                    continue;
-                }
-
-                // Handle trigger zones
-                if get_object_bool_property(&object_data.properties, object_keys::TRIGGER)
-                    == Some(true)
-                {
-                    spawn_trigger_zone(
-                        &mut commands,
-                        &object_data,
-                        center_offset_x,
-                        center_offset_y,
-                        map_height,
-                    );
-                    continue;
-                }
-
-                // Handle interactable objects
-                let is_interactable =
-                    get_object_bool_property(&object_data.properties, object_keys::INTERACTABLE);
-                info!(
-                    "Object '{}' interactable property: {:?}",
-                    object_data.name, is_interactable
-                );
-                if is_interactable == Some(true) {
-                    spawn_interactable(
-                        &mut commands,
-                        &object_data,
-                        center_offset_x,
-                        center_offset_y,
-                        map_height,
-                        &mut rule_registry,
-                        &souprune_config.game.dialogue_view_default,
-                    );
-                }
             }
         }
 
@@ -161,6 +125,58 @@ pub fn process_map_object_properties_system(
     }
 
     info!("Object properties system completed processing");
+}
+
+/// Process a single Tiled object, dispatching to the appropriate handler.
+fn process_tiled_object(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+    rule_registry: &mut LayeredRuleRegistry,
+    dialogue_view_default: &str,
+) {
+    trace!(
+        "Checking object '{}' at ({}, {}) with shape {:?}",
+        object_data.name, object_data.x, object_data.y, object_data.shape
+    );
+
+    // Collision objects are handled by generate_collision_tiles_system
+    if get_object_bool_property(&object_data.properties, object_keys::COLLISION) == Some(true) {
+        return;
+    }
+
+    // Handle trigger zones
+    if get_object_bool_property(&object_data.properties, object_keys::TRIGGER) == Some(true) {
+        spawn_trigger_zone(
+            commands,
+            object_data,
+            center_offset_x,
+            center_offset_y,
+            map_height,
+        );
+        return;
+    }
+
+    // Handle interactable objects
+    let is_interactable =
+        get_object_bool_property(&object_data.properties, object_keys::INTERACTABLE);
+    info!(
+        "Object '{}' interactable property: {:?}",
+        object_data.name, is_interactable
+    );
+    if is_interactable == Some(true) {
+        spawn_interactable(
+            commands,
+            object_data,
+            center_offset_x,
+            center_offset_y,
+            map_height,
+            rule_registry,
+            dialogue_view_default,
+        );
+    }
 }
 
 /// Spawn a collision entity from a Tiled object.

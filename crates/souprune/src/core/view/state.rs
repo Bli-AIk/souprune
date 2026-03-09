@@ -39,34 +39,36 @@ pub(crate) fn global_trigger_system(
     };
 
     for (action, rules) in &global_trigger_config.triggers {
-        if action_state.just_pressed(action) {
+        if !action_state.just_pressed(action) {
+            continue;
+        }
+        debug!(
+            "Action pressed: {:?}, current state: {:?}, rules count: {}",
+            action,
+            current_state.get(),
+            rules.len()
+        );
+        for rule in rules {
             debug!(
-                "Action pressed: {:?}, current state: {:?}, rules count: {}",
-                action,
-                current_state.get(),
-                rules.len()
+                "Checking rule: target={:?}, allowed={:?}",
+                rule.target_state, rule.allowed_states
             );
-            for rule in rules {
-                debug!(
-                    "Checking rule: target={:?}, allowed={:?}",
-                    rule.target_state, rule.allowed_states
-                );
-                if rule.allowed_states.iter().any(|s| s == current_state.get()) {
-                    info!(
-                        "Global trigger activated: {:?} -> {:?} via {:?}",
-                        current_state.get(),
-                        rule.target_state,
-                        action
-                    );
-
-                    if let Some(sound_path) = &rule.sound {
-                        audio::play_sound(&audio, &asset_server, sound_path);
-                    }
-
-                    next_state.set(rule.target_state.clone());
-                    return;
-                }
+            if !rule.allowed_states.iter().any(|s| s == current_state.get()) {
+                continue;
             }
+            info!(
+                "Global trigger activated: {:?} -> {:?} via {:?}",
+                current_state.get(),
+                rule.target_state,
+                action
+            );
+
+            if let Some(sound_path) = &rule.sound {
+                audio::play_sound(&audio, &asset_server, sound_path);
+            }
+
+            next_state.set(rule.target_state.clone());
+            return;
         }
     }
 }
