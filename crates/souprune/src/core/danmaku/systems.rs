@@ -16,7 +16,7 @@ use crate::app_state::ModeScoped;
 use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
-use crate::core::mod_system::{DanmakuRegistry, LoadedMods};
+use crate::core::mod_system::{ActiveDanmaku, DanmakuRegistry, LoadedMods};
 use crate::core::sprite::params::SpriteParams;
 use crate::core::visual::{
     DEFAULT_FRAME_DURATION, ResolvedVisual, get_asset_path, resolve_visual_path,
@@ -735,13 +735,19 @@ pub fn update_bullet_lifetime(
 }
 
 /// System to cleanup bullets marked for despawn.
+/// Calls WASM on_exit for any active danmaku before despawning.
 ///
 /// 清理标记为销毁的弹幕的系统。
+/// 在销毁前为活跃的 WASM 弹幕调用 on_exit。
 pub fn cleanup_dead_bullets(
     mut commands: Commands,
-    query: Query<Entity, (With<Bullet>, With<DespawnBullet>)>,
+    mut query: Query<(Entity, Option<&mut ActiveDanmaku>), (With<Bullet>, With<DespawnBullet>)>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
-    for entity in query.iter() {
+    for (entity, active_danmaku) in query.iter_mut() {
+        if let Some(mut danmaku) = active_danmaku {
+            danmaku.call_on_exit(&mut loaded_mods);
+        }
         commands.entity(entity).despawn();
     }
 }

@@ -284,10 +284,16 @@ impl DanmakuRegistry {
         let loaded = loaded_mods.mods.get_mut(mod_index)?;
 
         let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
-        let handle = danmaku_iface
+        let handle = match danmaku_iface
             .danmaku_instance()
             .call_constructor(&mut loaded.store, id)
-            .ok()?;
+        {
+            Ok(h) => h,
+            Err(e) => {
+                error!("Failed to create danmaku '{}': {:?}", id, e);
+                return None;
+            }
+        };
 
         Some(ActiveDanmaku {
             mod_index,
@@ -331,14 +337,14 @@ impl ActiveDanmaku {
 
         let wit_ctx = to_wit_bullet_context(ctx);
         let danmaku_iface = loaded.bindings.souprune_plugin_danmaku();
-        if let Err(e) = danmaku_iface.danmaku_instance().call_on_enter(
+        match danmaku_iface.danmaku_instance().call_on_enter(
             &mut loaded.store,
             self.resource_handle,
             &wit_ctx,
         ) {
-            error!("Danmaku on_enter failed: {:?}", e);
+            Ok(()) => self.initialized = true,
+            Err(e) => error!("Danmaku on_enter failed: {:?}", e),
         }
-        self.initialized = true;
     }
 
     /// Call on_update via WASM and return the output.

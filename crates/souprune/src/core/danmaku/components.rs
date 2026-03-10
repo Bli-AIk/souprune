@@ -221,21 +221,11 @@ impl BulletMotionState {
 pub struct BehaviorStack {
     /// List of active behaviors
     pub behaviors: Vec<BulletBehavior>,
-    /// Cached parameters for FFI algorithms
-    pub cached_params: Vec<f32>,
 }
 
 impl BehaviorStack {
     pub fn new(behaviors: Vec<BulletBehavior>) -> Self {
-        Self {
-            behaviors,
-            cached_params: Vec::new(),
-        }
-    }
-
-    pub fn with_cached_params(mut self, params: Vec<f32>) -> Self {
-        self.cached_params = params;
-        self
+        Self { behaviors }
     }
 }
 
