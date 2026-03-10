@@ -9,7 +9,7 @@
 
 use bevy::prelude::*;
 use souprune_api::Action;
-use std::cell::RefCell;
+
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
 use wasmtime_wasi::WasiCtxBuilder;
@@ -130,14 +130,4 @@ impl WasmRuntime {
     }
 }
 
-thread_local! {
-    static INPUT_SNAPSHOT: RefCell<[bool; 7]> = const { RefCell::new([false; 7]) };
-}
 
-pub fn update_input_snapshot(pressed: [bool; 7]) {
-    INPUT_SNAPSHOT.with(|s| *s.borrow_mut() = pressed);
-}
-
-pub fn read_input_snapshot() -> [bool; 7] {
-    INPUT_SNAPSHOT.with(|s| *s.borrow())
-}

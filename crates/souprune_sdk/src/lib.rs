@@ -187,7 +187,7 @@ macro_rules! export_mod {
     ) => {
         // --- Behavior resource wrapper ---
         struct WasmBehaviorInstance {
-            inner: Box<dyn $crate::Behavior>,
+            inner: std::cell::RefCell<Box<dyn $crate::Behavior>>,
         }
 
         impl $crate::wit::GuestBehaviorInstance for WasmBehaviorInstance {
@@ -196,33 +196,28 @@ macro_rules! export_mod {
                     $( $b_id => Box::new($b_ctor()), )*
                     _ => Box::new($crate::traits::NoopBehavior),
                 };
-                Self { inner }
+                Self { inner: std::cell::RefCell::new(inner) }
             }
 
             fn on_enter(&self) {
-                // SAFETY: we need &mut but WIT gives us &self for resource methods.
-                // In WASM single-threaded model this is safe.
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
                 let mut ctx = $crate::context::Context::new();
-                s.inner.on_enter(&mut ctx);
+                self.inner.borrow_mut().on_enter(&mut ctx);
             }
 
             fn on_update(&self, delta_time: f32) {
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
                 let mut ctx = $crate::context::Context::new();
-                s.inner.on_update(&mut ctx, delta_time);
+                self.inner.borrow_mut().on_update(&mut ctx, delta_time);
             }
 
             fn on_exit(&self) {
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
                 let mut ctx = $crate::context::Context::new();
-                s.inner.on_exit(&mut ctx);
+                self.inner.borrow_mut().on_exit(&mut ctx);
             }
         }
 
         // --- Danmaku resource wrapper ---
         struct WasmDanmakuInstance {
-            inner: Box<dyn $crate::DanmakuBehavior>,
+            inner: std::cell::RefCell<Box<dyn $crate::DanmakuBehavior>>,
         }
 
         impl $crate::wit::GuestDanmakuInstance for WasmDanmakuInstance {
@@ -231,30 +226,27 @@ macro_rules! export_mod {
                     $( $d_id => Box::new($d_ctor()), )*
                     _ => Box::new($crate::traits::NoopDanmaku),
                 };
-                Self { inner }
+                Self { inner: std::cell::RefCell::new(inner) }
             }
 
             fn on_enter(
                 &self,
                 ctx: $crate::exports::souprune::plugin::danmaku::BulletContext,
             ) {
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
                 let bc = $crate::BulletContext::from_wit(&ctx);
-                s.inner.on_enter(&bc);
+                self.inner.borrow_mut().on_enter(&bc);
             }
 
             fn on_update(
                 &self,
                 ctx: $crate::exports::souprune::plugin::danmaku::BulletContext,
             ) -> $crate::exports::souprune::plugin::danmaku::BulletOutput {
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
                 let bc = $crate::BulletContext::from_wit(&ctx);
-                s.inner.on_update(&bc).to_wit()
+                self.inner.borrow_mut().on_update(&bc).to_wit()
             }
 
             fn on_exit(&self) {
-                let s = unsafe { &mut *(self as *const Self as *mut Self) };
-                s.inner.on_exit();
+                self.inner.borrow_mut().on_exit();
             }
         }
 

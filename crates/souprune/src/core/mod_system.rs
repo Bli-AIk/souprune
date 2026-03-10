@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use souprune_api::Action;
 use std::collections::HashMap;
 
-use super::wasm_runtime::{self, LoadedMod, WasmRuntime, update_input_snapshot};
+use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
 
 // === Plugin ===
 
@@ -10,8 +10,15 @@ pub struct ModPlugin;
 
 impl Plugin for ModPlugin {
     fn build(&self, app: &mut App) {
-        // Initialize the WASM runtime
-        let runtime = WasmRuntime::new().expect("Failed to initialize WASM runtime");
+        let runtime = match WasmRuntime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                error!("WASM runtime unavailable: {e}. Mod support disabled.");
+                app.init_resource::<BehaviorRegistry>()
+                    .init_resource::<DanmakuRegistry>();
+                return;
+            }
+        };
 
         let schedule = crate::game_schedule(app);
         app.insert_non_send_resource(runtime)
@@ -224,7 +231,6 @@ fn update_behaviors_system(
         pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
         pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
     }
-    update_input_snapshot(pressed);
 
     // 2. Update each active behavior
     for (_entity, active, mut velocity, mut transform) in query.iter_mut() {
