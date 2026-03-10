@@ -129,5 +129,3 @@ impl WasmRuntime {
         })
     }
 }
-
-
