@@ -22,6 +22,7 @@ impl Plugin for ModPlugin {
             .add_systems(
                 schedule,
                 (init_behaviors_system, update_behaviors_system)
+                    .chain()
                     .in_set(crate::app_state::battle::BattleMovementSet),
             );
     }
@@ -75,8 +76,12 @@ fn load_mods_system(
     let mod_name = &config.project.mod_name;
     let base_path = crate::config::get_projects_base_path().join(mod_name);
 
-    // Look for .wasm files
-    let wasm_filename = format!("{}.wasm", mod_name);
+    // Use wasm filename from mod.toml [mod_library], fallback to {mod_name}.wasm
+    let wasm_filename = if config.mod_library.wasm.is_empty() {
+        format!("{}.wasm", mod_name)
+    } else {
+        config.mod_library.wasm.clone()
+    };
     let wasm_path = base_path.join(&wasm_filename);
 
     if !wasm_path.exists() {
@@ -201,6 +206,7 @@ fn update_behaviors_system(
     )>,
     action_states: Query<
         &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
+        With<crate::app_state::battle::BattleInputManager>,
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
