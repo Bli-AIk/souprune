@@ -47,6 +47,7 @@
       <excludeFolder url="file://$MODULE_DIR$/crates/mortar/target" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/.cargo" />
       <excludeFolder url="file://$MODULE_DIR$/projects/example_battle_mod/code/mod_example/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/souprune_mod_test/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

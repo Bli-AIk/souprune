@@ -164,6 +164,7 @@ pub mod debug_inspector {
         );
 
         app.add_systems(Startup, setup_debug_help_text_system);
+
         app.add_systems(
             Update,
             (
