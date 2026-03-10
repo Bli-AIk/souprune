@@ -90,7 +90,7 @@ fn main() -> anyhow::Result<()> {
 
     // Test each behavior
     for id in &behaviors {
-        println!("\n--- Testing '{}' ---", id);
+        println!("\n--- Testing Behavior '{}' ---", id);
 
         let instance = behavior_iface
             .behavior_instance()
@@ -109,6 +109,77 @@ fn main() -> anyhow::Result<()> {
             .call_on_exit(&mut store, instance)?;
 
         // Resource is automatically cleaned up when dropped
+        instance.resource_drop(&mut store)?;
+    }
+
+    // Test each danmaku algorithm
+    for id in &algorithms {
+        println!("\n--- Testing Danmaku '{}' ---", id);
+
+        let instance = danmaku_iface
+            .danmaku_instance()
+            .call_constructor(&mut store, id)?;
+
+        // Use known player position (100, -200) and spawn position (0, 0)
+        let test_player_pos = souprune::plugin::host_api::Vec2 {
+            x: 100.0,
+            y: -200.0,
+        };
+        let test_spawn_pos = souprune::plugin::host_api::Vec2 { x: 0.0, y: 0.0 };
+        let zero = souprune::plugin::host_api::Vec2 { x: 0.0, y: 0.0 };
+
+        let enter_ctx = exports::souprune::plugin::danmaku::BulletContext {
+            elapsed: 0.0,
+            delta_time: 0.0,
+            spawn_pos: test_spawn_pos.clone(),
+            offset: zero.clone(),
+            initial_angle: 0.0,
+            initial_radius: 0.0,
+            player_pos: test_player_pos.clone(),
+            props: vec![],
+        };
+
+        danmaku_iface
+            .danmaku_instance()
+            .call_on_enter(&mut store, instance, &enter_ctx)?;
+
+        // Simulate 3 update frames
+        for frame in 0..3 {
+            let elapsed = (frame + 1) as f32 * 0.016;
+            let update_ctx = exports::souprune::plugin::danmaku::BulletContext {
+                elapsed,
+                delta_time: 0.016,
+                spawn_pos: test_spawn_pos.clone(),
+                offset: zero.clone(),
+                initial_angle: 0.0,
+                initial_radius: 0.0,
+                player_pos: test_player_pos.clone(),
+                props: vec![],
+            };
+
+            let output = danmaku_iface.danmaku_instance().call_on_update(
+                &mut store,
+                instance,
+                &update_ctx,
+            )?;
+
+            println!(
+                "  Frame {}: offset=({:.4}, {:.4}), rotation={:.4}",
+                frame, output.offset.x, output.offset.y, output.rotation
+            );
+
+            // Verify the output makes sense: with player at (100, -200) and spawn at (0,0),
+            // offset should move toward the player direction
+            if frame == 0 && (output.offset.x.abs() < 0.0001 && output.offset.y.abs() < 0.0001) {
+                eprintln!(
+                    "  WARNING: Output offset is zero - player_pos may not be reaching the mod!"
+                );
+            }
+        }
+
+        danmaku_iface
+            .danmaku_instance()
+            .call_on_exit(&mut store, instance)?;
         instance.resource_drop(&mut store)?;
     }
 

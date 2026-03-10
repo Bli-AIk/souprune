@@ -108,6 +108,11 @@ impl BulletContext {
         }
     }
 
+    /// Get the actual spawn position of this bullet (center + offset).
+    pub fn spawn_position(&self) -> Vec2 {
+        self.spawn_pos + self.offset
+    }
+
     /// Get a named property value, or None if not found.
     pub fn get_float(&self, name: &str) -> Option<f32> {
         self.props.iter().find(|(n, _)| n == name).map(|(_, v)| *v)

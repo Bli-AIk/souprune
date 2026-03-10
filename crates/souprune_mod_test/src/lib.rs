@@ -50,10 +50,39 @@ impl Behavior for MySecondSoul {
     }
 }
 
+/// Test danmaku that logs player_pos to verify WASM data flow.
+struct DebugDanmaku {
+    captured_player_pos: Vec2,
+    captured_spawn_pos: Vec2,
+}
+
+impl DanmakuBehavior for DebugDanmaku {
+    fn on_enter(&mut self, ctx: &BulletContext) {
+        self.captured_player_pos = ctx.player_pos;
+        self.captured_spawn_pos = ctx.spawn_pos;
+    }
+
+    fn on_update(&mut self, ctx: &BulletContext) -> BulletOutput {
+        let dir = self.captured_player_pos - self.captured_spawn_pos;
+        let norm = if dir.length() > 0.001 {
+            dir.normalize()
+        } else {
+            Vec2::new(0.0, -1.0)
+        };
+        let offset = norm * 100.0 * ctx.elapsed;
+        BulletOutput::new(offset.x, offset.y)
+    }
+}
+
 export_mod! {
     behaviors: [
         ("test_soul", MyTestSoul, || MyTestSoul { counter: 0 }),
         ("second_soul", MySecondSoul, || MySecondSoul),
     ],
-    danmaku: [],
+    danmaku: [
+        ("debug_danmaku", DebugDanmaku, || DebugDanmaku {
+            captured_player_pos: Vec2::ZERO,
+            captured_spawn_pos: Vec2::ZERO,
+        }),
+    ],
 }
