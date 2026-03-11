@@ -240,16 +240,12 @@ fn spawn_bullets_from_timeline_event(
     // 追加内联行为
     behaviors.extend(event.behaviors.clone());
 
-    let spawn_positions = calculate_spawn_positions(&event.pattern, spawn_center);
-
-    for (i, (pos, angle, radius)) in spawn_positions.into_iter().enumerate() {
+    for_each_spawn_point(&event.pattern, spawn_center, |i, point| {
         spawn_single_bullet(
             commands,
             prototype,
             &behaviors,
-            pos,
-            angle,
-            radius,
+            &point,
             spawn_center,
             player_pos,
             i,
@@ -260,14 +256,36 @@ fn spawn_bullets_from_timeline_event(
             sprite_params,
             asset_server,
         );
-    }
+    });
 }
 
-/// Calculate spawn positions based on SpawnPattern configuration.
-fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2, f32, f32)> {
+/// A computed spawn point for a bullet within a pattern.
+struct SpawnPoint {
+    /// World position where the bullet should spawn
+    position: Vec2,
+    /// Initial angle in radians (from center to this point)
+    angle: f32,
+    /// Distance from pattern center
+    radius: f32,
+}
+
+/// Iterate over spawn points for a given pattern, invoking `f` for each one.
+/// Uses a callback to avoid heap allocation (especially for `Single`).
+fn for_each_spawn_point(
+    pattern: &SpawnPattern,
+    center: Vec2,
+    mut f: impl FnMut(usize, SpawnPoint),
+) {
     match pattern {
         SpawnPattern::Single => {
-            vec![(center, 0.0, 0.0)]
+            f(
+                0,
+                SpawnPoint {
+                    position: center,
+                    angle: 0.0,
+                    radius: 0.0,
+                },
+            );
         }
         SpawnPattern::RingGenerator {
             count,
@@ -275,13 +293,18 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
             start_angle,
         } => {
             let angle_step = std::f32::consts::TAU / *count as f32;
-            (0..*count)
-                .map(|i| {
-                    let angle = start_angle + angle_step * i as f32;
-                    let pos = center + Vec2::new(angle.cos(), angle.sin()) * *radius;
-                    (pos, angle, *radius)
-                })
-                .collect()
+            for i in 0..*count {
+                let angle = start_angle + angle_step * i as f32;
+                let pos = center + Vec2::from_angle(angle) * *radius;
+                f(
+                    i,
+                    SpawnPoint {
+                        position: pos,
+                        angle,
+                        radius: *radius,
+                    },
+                );
+            }
         }
         SpawnPattern::LineGenerator {
             count,
@@ -289,18 +312,23 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
             direction,
         } => {
             let dir = Vec2::new(direction.0, direction.1).normalize_or_zero();
-            let perp = Vec2::new(-dir.y, dir.x);
+            let perp = dir.perp();
             let total_width = *spacing * (*count - 1) as f32;
             let start_offset = -total_width / 2.0;
+            let angle = dir.to_angle();
 
-            (0..*count)
-                .map(|i| {
-                    let offset = start_offset + *spacing * i as f32;
-                    let pos = center + perp * offset;
-                    let angle = dir.y.atan2(dir.x);
-                    (pos, angle, 0.0)
-                })
-                .collect()
+            for i in 0..*count {
+                let offset = start_offset + *spacing * i as f32;
+                let pos = center + perp * offset;
+                f(
+                    i,
+                    SpawnPoint {
+                        position: pos,
+                        angle,
+                        radius: 0.0,
+                    },
+                );
+            }
         }
         SpawnPattern::EdgeGenerator {
             count,
@@ -310,22 +338,34 @@ fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2,
         } => {
             let move_dir = side.to_direction();
             let start_offset = side.to_offset(*margin);
-            let perp = Vec2::new(-move_dir.y, move_dir.x);
+            let perp = move_dir.perp();
             let total_width = *spacing * (*count - 1) as f32;
             let start_perp_offset = -total_width / 2.0;
+            let angle = move_dir.to_angle();
 
-            (0..*count)
-                .map(|i| {
-                    let perp_offset = start_perp_offset + *spacing * i as f32;
-                    let pos = center + start_offset + perp * perp_offset;
-                    let angle = move_dir.y.atan2(move_dir.x);
-                    (pos, angle, 0.0)
-                })
-                .collect()
+            for i in 0..*count {
+                let perp_offset = start_perp_offset + *spacing * i as f32;
+                let pos = center + start_offset + perp * perp_offset;
+                f(
+                    i,
+                    SpawnPoint {
+                        position: pos,
+                        angle,
+                        radius: 0.0,
+                    },
+                );
+            }
         }
         SpawnPattern::CustomGenerator { id, .. } => {
             warn!("Custom spawn pattern '{}' not yet implemented", id);
-            vec![(center, 0.0, 0.0)]
+            f(
+                0,
+                SpawnPoint {
+                    position: center,
+                    angle: 0.0,
+                    radius: 0.0,
+                },
+            );
         }
     }
 }
@@ -335,9 +375,7 @@ fn spawn_single_bullet(
     commands: &mut Commands,
     prototype: &BulletPrototype,
     behaviors: &[BulletBehavior],
-    position: Vec2,
-    angle: f32,
-    radius: f32,
+    point: &SpawnPoint,
     spawn_center: Vec2,
     player_pos: Vec2,
     index: usize,
@@ -382,16 +420,16 @@ fn spawn_single_bullet(
 
     let mut entity_commands = commands.spawn((
         Bullet,
-        Transform::from_translation(position.extend(prototype.z_index))
+        Transform::from_translation(point.position.extend(prototype.z_index))
             .with_scale(Vec3::splat(scale)),
         GlobalTransform::default(),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),
         BulletBaseScale(scale), // Store base scale for Tween calculations
         BulletMotionState::new(spawn_center)
-            .with_offset(position - spawn_center)
-            .with_angle(angle)
-            .with_radius(radius),
+            .with_offset(point.position - spawn_center)
+            .with_angle(point.angle)
+            .with_radius(point.radius),
         BehaviorStack::new(behaviors.to_vec()),
         TweenState::default(),
         trigger_collider,
@@ -416,16 +454,14 @@ fn spawn_single_bullet(
                 active_danmaku.props = props.clone();
 
                 // Build initial context and call on_enter
+                let offset = point.position - spawn_center;
                 let ctx = souprune_api::BulletContext {
                     elapsed: 0.0,
                     delta_time: 0.0,
                     spawn_pos: souprune_api::Vec2::new(spawn_center.x, spawn_center.y),
-                    offset: souprune_api::Vec2::new(
-                        position.x - spawn_center.x,
-                        position.y - spawn_center.y,
-                    ),
-                    initial_angle: angle,
-                    initial_radius: radius,
+                    offset: souprune_api::Vec2::new(offset.x, offset.y),
+                    initial_angle: point.angle,
+                    initial_radius: point.radius,
                     player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
                     props: props
                         .iter()
@@ -525,28 +561,45 @@ fn spawn_single_bullet(
             }
         }
     } else {
-        // Fallback: try legacy module/name lookup for backwards compatibility
-        // This handles cases like "battle/bullets/spear" that might reference config.toml
+        // Fallback: try config.toml sprite name lookup
+        // Handles both "module/name" paths and plain names like "jevel_diamonds_black"
         let parts: Vec<&str> = visual_path.split('/').collect();
-        if parts.len() < 2 {
-            warn!("Failed to resolve visual: {}", visual_path);
-            entity_commands.insert(Sprite::default());
-        } else {
+
+        let mut sprite_context = sprite_params.create_sprite_context();
+        let mut resolved = false;
+
+        if parts.len() >= 2 {
             let module = parts[0];
             let name = parts.last().unwrap_or(&"");
 
-            let mut sprite_context = sprite_params.create_sprite_context();
             if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
                 apply_color_tint(&mut sprite, effective_color);
                 entity_commands.insert(sprite);
+                resolved = true;
             } else if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
                 let mut sprite = Sprite::default();
                 apply_color_tint(&mut sprite, effective_color);
                 entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
-            } else {
-                warn!("Failed to resolve visual: {}", visual_path);
-                entity_commands.insert(Sprite::default());
+                resolved = true;
             }
+        }
+
+        // Plain name without "/": search common modules in config.toml
+        if !resolved {
+            let name = parts.last().unwrap_or(&"");
+            for module in &["battle", "common", "overworld"] {
+                if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
+                    apply_color_tint(&mut sprite, effective_color);
+                    entity_commands.insert(sprite);
+                    resolved = true;
+                    break;
+                }
+            }
+        }
+
+        if !resolved {
+            warn!("Failed to resolve visual: {}", visual_path);
+            entity_commands.insert(Sprite::default());
         }
     }
 }
