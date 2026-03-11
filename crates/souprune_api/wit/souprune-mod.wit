@@ -41,8 +41,12 @@ interface host-api {
 }
 
 /// Behavior interface — exported by mods for player/entity control.
+/// Behaviors access engine state via host-api imports (input, velocity),
+/// so lifecycle callbacks carry no per-instance context parameters.
 ///
 /// 行为接口 — 模组导出，用于玩家/实体控制。
+/// 行为通过 host-api 导入访问引擎状态（输入、速度），
+/// 因此生命周期回调不携带每实例上下文参数。
 interface behavior {
     use host-api.{vec2};
 
@@ -59,8 +63,13 @@ interface behavior {
 }
 
 /// Danmaku interface — exported by mods for bullet pattern algorithms.
+/// Unlike Behavior, each callback receives bullet-specific context
+/// (position, elapsed time, custom props) since bullets have no
+/// access to the global host-api.
 ///
 /// 弹幕接口 — 模组导出，用于弹幕算法。
+/// 与 Behavior 不同，每次回调接收子弹特定上下文
+/// （位置、时间、自定义属性），因为子弹无法访问全局 host-api。
 interface danmaku {
     use host-api.{vec2};
 

@@ -170,13 +170,16 @@ pub mod prelude {
 /// # Syntax
 ///
 /// ```ignore
+/// // 3-tuple with custom constructor:
 /// export_mod! {
-///     behaviors: [
-///         ("id", Type, || constructor()),
-///     ],
-///     danmaku: [
-///         ("id", Type, || constructor()),
-///     ],
+///     behaviors: [("id", Type, || Type { field: value })],
+///     danmaku: [("id", Type, || Type::new())],
+/// }
+///
+/// // 2-tuple for Default types (auto-constructs via Default::default()):
+/// export_mod! {
+///     behaviors: [("id", Type)],
+///     danmaku: [("id", Type)],
 /// }
 /// ```
 #[macro_export]
@@ -194,7 +197,10 @@ macro_rules! export_mod {
             fn new(id: String) -> Self {
                 let inner: Box<dyn $crate::Behavior> = match id.as_str() {
                     $( $b_id => Box::new($b_ctor()), )*
-                    _ => Box::new($crate::traits::NoopBehavior),
+                    other => {
+                        eprintln!("[souprune_sdk] WARNING: unknown behavior ID \"{other}\", using NoopBehavior");
+                        Box::new($crate::traits::NoopBehavior)
+                    }
                 };
                 Self { inner: std::cell::RefCell::new(inner) }
             }
@@ -224,7 +230,10 @@ macro_rules! export_mod {
             fn new(id: String) -> Self {
                 let inner: Box<dyn $crate::DanmakuBehavior> = match id.as_str() {
                     $( $d_id => Box::new($d_ctor()), )*
-                    _ => Box::new($crate::traits::NoopDanmaku),
+                    other => {
+                        eprintln!("[souprune_sdk] WARNING: unknown danmaku ID \"{other}\", using NoopDanmaku");
+                        Box::new($crate::traits::NoopDanmaku)
+                    }
                 };
                 Self { inner: std::cell::RefCell::new(inner) }
             }
@@ -282,13 +291,45 @@ macro_rules! export_mod {
         }
     };
 
-    // Shorthand: danmaku only
+    // Shorthand: danmaku only (3-tuple)
     (
         danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
     ) => {
         $crate::export_mod! {
             behaviors: [],
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
+        }
+    };
+
+    // 2-tuple form: uses Default::default() as constructor.
+    // For types that implement Default, no constructor lambda needed.
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
+            danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
+        }
+    };
+
+    // 2-tuple shorthand: behaviors only
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
+            danmaku: [],
+        }
+    };
+
+    // 2-tuple shorthand: danmaku only
+    (
+        danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [],
+            danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
         }
     };
 }

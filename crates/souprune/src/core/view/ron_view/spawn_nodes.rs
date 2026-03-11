@@ -158,7 +158,10 @@ fn spawn_view_node_with_repeat_context(
         // Case 0: State Sprite Node (data-driven state-based sprite)
         // =====================================================================
         if is_state_sprite {
-            let state_sprite_config = node_def.state_sprite.as_ref().unwrap();
+            let state_sprite_config = node_def
+                .state_sprite
+                .as_ref()
+                .expect("state_sprite must exist when is_state_sprite is true");
             let transform = state_sprite_config
                 .transform
                 .as_ref()
@@ -210,7 +213,10 @@ fn spawn_view_node_with_repeat_context(
         // Case 1: Standalone Sprite Node (no ViewBox, has sprite)
         // =====================================================================
         if is_standalone_sprite {
-            let sprite_def = node_def.sprite.as_ref().unwrap();
+            let sprite_def = node_def
+                .sprite
+                .as_ref()
+                .expect("sprite must exist when is_standalone_sprite is true");
             let transform = sprite_def
                 .transform
                 .as_ref()
@@ -241,7 +247,10 @@ fn spawn_view_node_with_repeat_context(
         // Case 2: ViewBox Node (has view_box)
         // =====================================================================
         if has_ui_box {
-            let view_box = node_def.view_box.as_ref().unwrap();
+            let view_box = node_def
+                .view_box
+                .as_ref()
+                .expect("view_box must exist when has_ui_box is true");
             info!(
                 "[UI Box] Creating ViewBox '{}' with dimensions: {}x{}, border: {}, offset: {:?}",
                 node_def.name,
@@ -564,7 +573,7 @@ fn spawn_standalone_sprite_node(
         &mut entity_id,
         visual_path,
     );
-    entity_id.unwrap()
+    entity_id.expect("spawn_standalone_static_sprite must set entity_id")
 }
 
 /// Spawn a sprite with a protocol path (e.g., "procedural://white_pixel").
@@ -593,7 +602,7 @@ fn spawn_protocol_sprite(
         &mut entity_id,
         visual_path,
     );
-    entity_id.unwrap()
+    entity_id.expect("spawn_standalone_static_sprite must set entity_id")
 }
 
 /// Spawn a sprite from a resolved visual path (character animation, static sprite, or frame animation).
@@ -646,7 +655,7 @@ fn spawn_resolved_sprite(
                 &mut entity_id,
                 asset_path,
             );
-            entity_id.unwrap()
+            entity_id.expect("spawn_standalone_static_sprite must set entity_id")
         }
     }
 }
@@ -670,7 +679,10 @@ fn spawn_material_sprite(
     } else {
         sprite_def.clone()
     };
-    let material_def = processed_sprite_def.material.as_ref().unwrap();
+    let material_def = processed_sprite_def
+        .material
+        .as_ref()
+        .expect("material must exist in spawn_material_sprite");
 
     let mut final_transform = Transform::from_translation(transform.translation)
         .with_scale(transform.scale)
@@ -780,7 +792,10 @@ fn apply_dynamic_element(
     node_def: &super::super::layout::view_schema::ViewNodeDef,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
-    let sprite_def = node_def.sprite.as_ref().unwrap();
+    let sprite_def = node_def
+        .sprite
+        .as_ref()
+        .expect("sprite must exist when apply_dynamic_element is called");
     let (has_dynamic, has_time_dependency) = check_sprite_dynamics(sprite_def, &node_def.name);
 
     if !has_dynamic {

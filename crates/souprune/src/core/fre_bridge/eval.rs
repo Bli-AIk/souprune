@@ -229,8 +229,9 @@ fn resolve_value(
 
     // Try parsing as string literal (single or double quotes)
     // 尝试解析字符串字面量（单引号或双引号）
-    if (expr.starts_with('\'') && expr.ends_with('\''))
-        || (expr.starts_with('"') && expr.ends_with('"'))
+    if expr.len() >= 2
+        && ((expr.starts_with('\'') && expr.ends_with('\''))
+            || (expr.starts_with('"') && expr.ends_with('"')))
     {
         let inner = &expr[1..expr.len() - 1];
         return Some(FactValue::String(inner.to_string()));

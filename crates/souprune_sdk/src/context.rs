@@ -24,19 +24,29 @@ impl Context {
         Self { _private: () }
     }
 
-    /// Print a log message to the engine console.
+    /// Print an info-level log message to the engine console.
     pub fn log(&self, msg: &str) {
         host_api::log(0, msg);
     }
 
+    /// Print a warning-level log message to the engine console.
+    pub fn warn(&self, msg: &str) {
+        host_api::log(1, msg);
+    }
+
+    /// Print an error-level log message to the engine console.
+    pub fn error(&self, msg: &str) {
+        host_api::log(2, msg);
+    }
+
     /// Access input state.
-    pub fn input(&self) -> InputHelper<'_> {
-        InputHelper { _ctx: self }
+    pub fn input(&self) -> InputHelper {
+        InputHelper
     }
 
     /// Access kinematics control.
-    pub fn kinematics(&self) -> KinematicsHelper<'_> {
-        KinematicsHelper { _ctx: self }
+    pub fn kinematics(&self) -> KinematicsHelper {
+        KinematicsHelper
     }
 }
 
@@ -46,24 +56,20 @@ impl Default for Context {
     }
 }
 
-/// Input module wrapper.
-pub struct InputHelper<'a> {
-    _ctx: &'a Context,
-}
+/// Input query helper (zero-sized, stateless).
+pub struct InputHelper;
 
-impl InputHelper<'_> {
+impl InputHelper {
     /// Check if a semantic action is currently pressed.
     pub fn pressed(&self, action: Action) -> bool {
         host_api::is_action_pressed(action.to_wit())
     }
 }
 
-/// Kinematics module wrapper.
-pub struct KinematicsHelper<'a> {
-    _ctx: &'a Context,
-}
+/// Kinematics control helper (zero-sized, stateless).
+pub struct KinematicsHelper;
 
-impl KinematicsHelper<'_> {
+impl KinematicsHelper {
     /// Set the entity's velocity.
     pub fn set_velocity(&self, x: f32, y: f32) {
         host_api::set_velocity(host_api::Vec2 { x, y });
