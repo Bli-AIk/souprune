@@ -277,11 +277,11 @@ fn for_each_spawn_point(
     mut f: impl FnMut(usize, SpawnPoint),
 ) {
     match pattern {
-        SpawnPattern::Single => {
+        SpawnPattern::Single { offset } => {
             f(
                 0,
                 SpawnPoint {
-                    position: center,
+                    position: center + Vec2::new(offset.0, offset.1),
                     angle: 0.0,
                     radius: 0.0,
                 },
