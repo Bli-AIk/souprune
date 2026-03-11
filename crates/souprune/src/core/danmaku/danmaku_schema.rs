@@ -243,10 +243,10 @@ impl Default for ColliderShape {
 // ============================================================================
 
 /// Bullet behavior definition.
-/// Supports both built-in algorithms and custom FFI algorithms.
+/// Supports both built-in algorithms and custom WASM mod algorithms.
 ///
 /// 弹幕行为定义。
-/// 同时支持内置算法和自定义 FFI 算法。
+/// 同时支持内置算法和自定义 WASM mod 算法。
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub enum BulletBehavior {
     // === Built-in Behaviors (内置行为) ===
@@ -263,7 +263,7 @@ pub enum BulletBehavior {
     Sine(SineConfig),
 
     // === Custom Behavior (自定义行为) ===
-    /// Algorithm loaded from mod system via FFI
+    /// Algorithm loaded from mod system via WASM
     Custom {
         /// Algorithm ID registered in DanmakuRegistry
         id: String,

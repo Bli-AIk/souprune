@@ -62,7 +62,7 @@ This project uses the following crates:
 
 | Crate                                             | Version | Description                 |
 | ------------------------------------------------- | ------- | --------------------------- |
-| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | FFI API layer |
+| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | WIT interface definitions and shared types |
 
 ## Warning
 

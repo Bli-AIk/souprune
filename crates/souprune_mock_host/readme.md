@@ -13,17 +13,17 @@
 
 ## Introduction
 
-`souprune_mock_host` is a minimal host environment for loading and testing SoupRune mods.  
-It solves the problem of mod testing by providing a lightweight runtime that can dynamically load mods without requiring a complete game setup.
+`souprune_mock_host` is a minimal host environment for loading and testing SoupRune WASM mods.  
+It solves the problem of mod testing by providing a lightweight Wasmtime-based runtime that can load WASM component mods without requiring a complete game setup.
 
-With `souprune_mock_host`, mod developers can quickly test their creations, verify FFI bindings, and debug mod behavior in an isolated environment.  
+With `souprune_mock_host`, mod developers can quickly test their creations, verify WIT interface bindings, and debug mod behavior in an isolated sandboxed environment.  
 It's designed for development and CI/CD testing workflows.
 
 ## Features
 
-* Dynamic mod loading via libloading
-* Minimal host implementation of souprune_api
-* Isolated testing environment
+* WASM component loading via Wasmtime
+* Minimal host implementation of souprune_api WIT interfaces
+* Sandboxed testing environment
 * Fast iteration for mod development
 * CI/CD friendly for automated testing
 * No full game engine required
@@ -35,16 +35,17 @@ It's designed for development and CI/CD testing workflows.
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. **Build your mod**:
+2. **Build your mod** (requires `wasm32-wasip2` target):
 
    ```bash
-   cargo build -p souprune_mod_test --release
+   rustup target add wasm32-wasip2
+   cargo build -p souprune_mod_test --target wasm32-wasip2
    ```
 
 3. **Run the mock host**:
 
    ```bash
-   cargo run -p souprune_mock_host -- path/to/your/mod.so
+   cargo run -p souprune_mock_host -- path/to/your/mod.wasm
    ```
 
 4. **Test mod functionality**:
@@ -57,8 +58,9 @@ This project uses the following crates:
 
 | Crate                                             | Version | Description                 |
 | ------------------------------------------------- | ------- | --------------------------- |
-| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | FFI API layer |
-| [libloading](https://crates.io/crates/libloading) | 0.9.0   | Dynamic library loading |
+| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | WIT interface definitions and shared types |
+| [wasmtime](https://crates.io/crates/wasmtime) | 42   | WebAssembly runtime for component loading |
+| [wasmtime-wasi](https://crates.io/crates/wasmtime-wasi) | 42   | WASI support for Wasmtime |
 
 ## Warning
 

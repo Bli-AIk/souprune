@@ -556,10 +556,10 @@ fn spawn_single_bullet(
 // ============================================================================
 
 /// System to update bullet motion based on BehaviorStack.
-/// Processes both built-in behaviors and FFI algorithm calls.
+/// Processes both built-in behaviors and WASM mod algorithm calls.
 ///
 /// 根据行为栈更新弹幕运动的系统。
-/// 同时处理内置行为和 FFI 算法调用。
+/// 同时处理内置行为和 WASM mod 算法调用。
 pub fn update_bullet_motion(
     time: Res<Time>,
     mut loaded_mods: NonSendMut<LoadedMods>,
