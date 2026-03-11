@@ -3,10 +3,9 @@
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune-Undertale-black?style=for-the-badge&labelColor=001225&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
-<img src="https://img.shields.io/badge/C%23-实验性支持-239120?style=for-the-badge&logo=csharp&logoColor=white" />
-<img src="https://img.shields.io/badge/Haxe-实验性支持-EA8220?style=for-the-badge&logo=haxe&logoColor=white" />
-<img src="https://img.shields.io/badge/Nim-即将支持-FFE953?style=for-the-badge&logo=nim&logoColor=black" />
-<img src="https://img.shields.io/badge/Nelua-即将支持-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
+<img src="https://img.shields.io/badge/WASM-624DE8?style=for-the-badge&logo=webassembly&logoColor=white" />
+<img src="https://img.shields.io/badge/JS-计划中-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
+<img src="https://img.shields.io/badge/.NET-计划中-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
 
 > **状态**：🚧 初始开发阶段（框架结构仍在快速演进中）
 
@@ -33,7 +32,8 @@
 * **O (Open) - 自由开源**：采用 **LGPL-3.0** 协议。核心代码库开源，但你的 Project / Mod（游戏）属于你自己。
 * **U (User-friendly) - 易于上手**：提供开箱即用的 RPG 功能（对话、战斗、地图）、弹幕序列器（STG-支持回合制）、以及可视化工具集成（支持
   Alight Motion 工程），让你专注于创意。
-* **P (Polyglot) - 多语言支持**：通过 C ABI 实现语言无关，你可以选择最顺手的“餐具”（C#、Haxe、Rust 等）来享用这碗汤。
+* **P (Polyglot) - 多语言支持**：通过 **WASM Component Model** 实现语言无关——任何能编译到 WebAssembly
+  的语言都可以成为你享用这碗汤的“餐具”，安全沙盒化且跨平台。
 
 ## 🚀 快速开始
 
@@ -44,8 +44,8 @@ SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜�
 3. **进入目录**：`cd souprune`
 4. **拉取子模块**：`git submodule update --init --recursive`
 5. **设置示例 Mod**：
-   - Linux/macOS：`./setup_mods.sh`
-   - Windows：`.\setup_mods.ps1`
+    - Linux/macOS：`./setup_mods.sh`
+    - Windows：`.\setup_mods.ps1`
 6. **在 Debug 模式下运行示例**：`cargo run --package souprune --bin souprune --features debug`
 
 <details>
@@ -70,6 +70,7 @@ SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜�
 ```
 
 在 `projects/config.toml` 中配置活动 mod：
+
 ```toml
 [project]
 mod_name = "example_mod"
@@ -106,12 +107,13 @@ mod_name = "example_mod"
 
 2. **自定义脚本 (行为与算法)**：
    当你需要实现独特的、复杂的逻辑（比如一个从未见过的螺旋追踪弹幕算法、特殊的 BOSS 机制）时，才需要编写脚本。
-   这也是 SoupRune 强大的地方——你可以选择 **Rust**, **C# (.NET)** 或 **Haxe** 来编写这些逻辑！
-    * 代码会被编译成动态库（`.dll` 或 `.so`），像插件一样“插入”到引擎中运行。
-    * 引擎通过标准接口（C ABI）与你的脚本对话，让你在享受 **高性能** 的同时，还能使用你 **最熟悉的语 言**。
+   这也是 SoupRune 强大的地方——你可以选择 **Rust**（或任何能编译到 WASM 的语言）来编写这些逻辑！
+    * 代码会被编译成 **WASM 组件**，通过沙盒化的运行时加载到引擎中运行。
+    * 引擎通过规范的 **WIT (WebAssembly Interface Types)** 契约与你的 mod 对话，让你在享受 **高性能**
+      与 **内存安全** 的同时，mod 与引擎核心完全隔离。
 
 **总结来说：SoupRune 负责把汤底熬好（底层引擎），
-你只需要看着菜谱（RON 配置），再选一把顺手的勺子（编程语言）往里加料，就能煮出属于你的美味游戏！**
+你只需要看着菜谱（RON 配置），再选一把顺手的勺子（任何 WASM 兼容语言）往里加料，就能煮出属于你的美味游戏！**
 
 <details>
 <summary><strong>那么，SoupRune 的设计初衷是什么呢？</strong></summary>
@@ -160,14 +162,19 @@ SoupRune 不仅仅是一个框架，它是一次**技术平权**。
 SoupRune 采用了 **核心 (Engine) - 项目 (Project/Mod)** 分离的架构。
 
 * **核心**：由 Rust 和 Bevy 驱动，负责所有底层的繁重工作（渲染、物理、ECS 调度）。
-* **项目**：通过标准的 **C ABI** 与核心对话。
+* **项目**：通过标准化的 **WASM Component Model** 接口与核心通信，接口由 WIT 定义。
 
-我们深知 Undertale / Deltarune 社区的开发者背景各异——
+我们深知 Undertale / Deltarune 社区的开发者背景各异——这正是我们选择 WASM 的原因。
+WASM Component Model 提供了一个通用的、标准化的编译目标，而不是绑定到某一种特定语言。
+任何具备 WASM 后端的语言都能为 SoupRune 制作 mod：
 
-* 来自 **Clickteam Fusion** 的开发者，会发现 **Ron** 只是另一种形式的事件表；
-* 来自 **GameMaker** 的爱好者，也会发觉 **Haxe** 亲切自然；
-* 习惯 **Unity/Godot** 的专业人士，可以继续享受 **C#** (通过 Native AOT 获得极佳性能)；
-* 习惯 **Lua** 或 **Python / GDScript** 的朋友，未来也能通过 **Nelua** 或 **Nim** 无缝接入。
+* **Rust** 开发者能获得接近原生的零开销性能；
+* **JavaScript / TypeScript** 开发者可以快速原型化 mod（计划通过 `jco` 工具链支持）；
+* **C# (.NET)** 开发者可以沿用 Unity/Godot 经验（计划通过 .NET WASI SDK 支持）；
+* 随着 WASM 生态的发展，**更多语言将自然而然地可用**——无需 SoupRune 做任何改动。
+
+更棒的是，WASM mod 运行在**沙盒**中。有 bug 的 mod 不会崩溃引擎、不会损坏存档、
+也无法在未授权的情况下访问文件系统。这是设计层面的安全——而非事后补救。
 
 让社区的每一位创作者都能 **用简单易上手的方式** 来定义游戏内容，是我们设计的初衷；
 让社区的每一位开发者都能 **用自己熟悉的方式** 来编写代码逻辑，是我们设计的目标。
@@ -244,34 +251,34 @@ SoupRune 能成为你手中的利器。
 
 SoupRune 采用多 Crate 的工作空间架构：
 
-| Crate                                                             | 描述                                               |
-|:------------------------------------------------------------------|:-------------------------------------------------|
-| [`souprune`](./crates/souprune)                                   | **核心框架**：框架本体，游戏的 主入口和核心逻辑实现。                    |
-| [`souprune_api`](./crates/souprune_api)                           | **协议层**：WIT 接口定义与共享类型，定义 WASM mod 与引擎的交互契约。          |
-| [`souprune_sdk`](./crates/souprune_sdk)                           | **开发工具包**：Rust WASM guest SDK，使用 wit-bindgen。    |
-| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **样例 Mod**： 示例 WASM mod 组件（编译目标: wasm32-wasip2）。                          |
-| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)                   | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。         |
-| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)             | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。                |
-| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event)           | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。                  |
-| [`bevy_alight_motion`](./crates/bevy_alight_motion)               | **功能插件**：解析并播放 Alight Motion 动画工程的集成插件。          |
+| Crate                                                   | 描述                                               |
+|:--------------------------------------------------------|:-------------------------------------------------|
+| [`souprune`](./crates/souprune)                         | **核心框架**：框架本体，游戏的 主入口和核心逻辑实现。                    |
+| [`souprune_api`](./crates/souprune_api)                 | **协议层**：WIT 接口定义与共享类型，定义 WASM mod 与引擎的交互契约。      |
+| [`souprune_sdk`](./crates/souprune_sdk)                 | **开发工具包**：Rust WASM guest SDK，使用 wit-bindgen。    |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **样例 Mod**： 示例 WASM mod 组件（编译目标: wasm32-wasip2）。 |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **功能插件**：Mortar 脚本语言与 Bevy 的桥接层，负责对话与逻辑。         |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **功能插件**：基于 ECS 的打字机实现，支持富文本与多语言。                |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **功能插件**：基于“事实-规则-事件”模型的复杂事件系统。                  |
+| [`bevy_alight_motion`](./crates/bevy_alight_motion)     | **功能插件**：解析并播放 Alight Motion 动画工程的集成插件。          |
 
 ## 🧩 脚本层支持
 
 SoupRune 的模组系统基于 **WASM Component Model** 构建，实现安全沙箱化的跨平台 mod 加载。
 Mod 编译为 `.wasm` 组件，运行时通过 Wasmtime 加载。接口契约使用 WIT（WebAssembly Interface Types）定义。
 
-|           语言           | 适用人群                                 | 描述                                     |
-|:----------------------:|:-------------------------------------|:---------------------------------------|
-|        **Rust**        | 系统层开发者 / Rustacean / Bevy 用户         | 原生支持，通过 `souprune_sdk` + `wit-bindgen`。性能最佳。 |
-|   **JS**（计划中）    | Web 开发者 / 脚本用户                    | 通过 `jco` 工具链实现快速 mod 原型开发。              |
-|  **.NET (C#)**（计划中） | Unity / Godot / C# 用户                | 通过 .NET WASI SDK 开发 C# mod。             |
+|         语言         | 适用人群                         | 描述                                           |
+|:------------------:|:-----------------------------|:---------------------------------------------|
+|      **Rust**      | 系统层开发者 / Rustacean / Bevy 用户 | 原生支持，通过 `souprune_sdk` + `wit-bindgen`。性能最佳。 |
+|    **JS**（计划中）     | Web 开发者 / 脚本用户               | 通过 `jco` 工具链实现快速 mod 原型开发。                   |
+| **.NET (C#)**（计划中） | Unity / Godot / C# 用户        | 通过 .NET WASI SDK 开发 C# mod。                  |
 
 如果你有兴趣为 SoupRune 的多语言支持提供帮助，欢迎参与贡献！
 
 > 🤝 **友情推荐 / 寻找 Lua (Love2D) 生态？**
 >
-> SoupRune 专注于 AOT 编译与静态类型语言的极致性能。
-> 如果您更偏爱 **Lua 动态脚本** 的灵活性，或者习惯 **Love2D** 的工作流，我们强烈推荐您尝试社区中另一 款优秀的框架：
+> SoupRune 围绕 WASM Component Model 构建，专注于编译式的沙盒化 mod 组件。
+> 如果您更偏爱 **Lua 动态脚本** 的灵活性，或者习惯 **Love2D** 的工作流，我们强烈推荐您尝试社区中另一款优秀的框架：
 >
 > **[SoulEngine](https://github.com/AnskiyyRenew/love2d-undertale-template)** —— 专为快速原型与动态构建设计。
 >
@@ -320,14 +327,14 @@ Mod 编译为 `.wasm` 组件，运行时通过 Wasmtime 加载。接口契约使
 
 ### Rust crates
 
-| 项目                                                    | 版本              | 许可证                                                                                                                                                                                                           | 功能                                       |
-|-------------------------------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
-| [serde](https://crates.io/crates/serde)               | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 序列化/反序列化框架，支持 `derive` 宏以方便地对结构体进行（反）序列化 |
-| [toml](https://crates.io/crates/toml)                 | 0.9.8           | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML 解析                                  |
-| [ron](https://crates.io/crates/ron)                   | 0.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation 解析                 |
-| [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON 序列化/反序列 化                           |
-| [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 正则表达式                                    |
-| [fasteval](https://crates.io/crates/fasteval)         | 0.2             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | 快速、安全的代数表 达式求值                           |
+| 项目                                                | 版本    | 许可证                                                                                                                                                                                                           | 功能                                       |
+|---------------------------------------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
+| [serde](https://crates.io/crates/serde)           | 1.0   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 序列化/反序列化框架，支持 `derive` 宏以方便地对结构体进行（反）序列化 |
+| [toml](https://crates.io/crates/toml)             | 0.9.8 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML 解析                                  |
+| [ron](https://crates.io/crates/ron)               | 0.10  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation 解析                 |
+| [serde_json](https://crates.io/crates/serde_json) | 1.0   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON 序列化/反序列 化                           |
+| [regex](https://crates.io/crates/regex)           | 1.10  | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | 正则表达式                                    |
+| [fasteval](https://crates.io/crates/fasteval)     | 0.2   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | 快速、安全的代数表 达式求值                           |
 
 ### 资源引用
 

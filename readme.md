@@ -3,10 +3,9 @@
 [![license](https://img.shields.io/github/license/Bli-AIk/souprune)](LICENSE.md) <img src="https://img.shields.io/github/repo-size/Bli-AIk/souprune.svg"/> <img src="https://img.shields.io/github/last-commit/Bli-AIk/souprune.svg"/> <br>
 <img src="https://img.shields.io/badge/Deltarune-Undertale-black?style=for-the-badge&labelColor=001225&logo=undertale&logoColor=ff0000" /> <img src="https://img.shields.io/badge/Bevy-232326?style=for-the-badge&logo=bevy&logoColor=white" /> <br>
 <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
-<img src="https://img.shields.io/badge/C%23-experimental-239120?style=for-the-badge&logo=csharp&logoColor=white" />
-<img src="https://img.shields.io/badge/Haxe-experimental-EA8220?style=for-the-badge&logo=haxe&logoColor=white" />
-<img src="https://img.shields.io/badge/Nim-Coming_Soon-FFE953?style=for-the-badge&logo=nim&logoColor=black" />
-<img src="https://img.shields.io/badge/Nelua-Coming_Soon-9CA3AF?style=for-the-badge&logo=lua&logoColor=white" />
+<img src="https://img.shields.io/badge/WASM-624DE8?style=for-the-badge&logo=webassembly&logoColor=white" />
+<img src="https://img.shields.io/badge/JS-planned-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
+<img src="https://img.shields.io/badge/.NET-planned-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
 
 > **Status**: 🚧 Initial development phase (framework structure is still evolving rapidly)
 
@@ -40,8 +39,8 @@ Our design philosophy is concentrated in a delicious bowl of **S.O.U.P**:
 * **U (User-friendly) - Easy to Start**: Provides out-of-the-box RPG features (dialogue, battle, maps), bullet
   sequencers (STG - supports turn-based), and visual tool integration (supports Alight Motion projects), allowing you to
   focus on creativity.
-* **P (Polyglot) - Multi-language Support**: Language-agnostic via C ABI. You can choose the "utensil" (C#, Haxe, Rust,
-  etc.) that suits you best to enjoy this soup.
+* **P (Polyglot) - Multi-language Support**: Language-agnostic via the **WASM Component Model**. Any language that
+  compiles to WebAssembly can be your "utensil" to enjoy this soup—safely sandboxed and cross-platform.
 
 ## 🚀 Quick Start
 
@@ -53,8 +52,8 @@ these steps:
 3. **Enter Directory**: `cd souprune`
 4. **Update Submodules**: `git submodule update --init --recursive`
 5. **Setup Example Mods**:
-   - Linux/macOS: `./setup_mods.sh`
-   - Windows: `.\setup_mods.ps1`
+    - Linux/macOS: `./setup_mods.sh`
+    - Windows: `.\setup_mods.ps1`
 6. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
 
 <details>
@@ -79,6 +78,7 @@ these steps:
 ```
 
 Configure active mod in `projects/config.toml`:
+
 ```toml
 [project]
 mod_name = "example_mod"
@@ -119,13 +119,13 @@ combining **RON configuration files** with **custom scripts**:
 2. **Custom Scripts (Behavior & Algorithms)**:
    You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a
    special boss mechanic).
-   This is where SoupRune shines—you can choose **Rust**, **C# (.NET)**, or **Haxe** to write this logic!
-    * Your code is compiled into a dynamic library (`.dll` or `.so`) and "plugged" into the engine like a plugin.
-    * The engine communicates with your script via a standard interface (C ABI), giving you **high performance** while
-      letting you use the **language you know best**.
+   This is where SoupRune shines—you can choose **Rust** (or any language that compiles to WASM) to write this logic!
+    * Your code is compiled into a **WASM component** and loaded into the engine at runtime via a sandboxed runtime.
+    * The engine communicates with your mod through a well-defined **WIT (WebAssembly Interface Types)** contract,
+      giving you **high performance** and **memory safety** while keeping mods isolated from the engine core.
 
 **In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your
-favorite spoon (programming language) to add the ingredients and cook your delicious game!**
+favorite spoon (any WASM-compatible language) to add the ingredients and cook your delicious game!**
 
 <details>
 <summary><strong>So, what was the original intention behind SoupRune?</strong></summary>
@@ -181,15 +181,20 @@ SoupRune is not just a framework; it is **technical equality**.
 SoupRune adopts a **Core (Engine) - Project (Mod)** separated architecture.
 
 * **Core**: Driven by Rust and Bevy, responsible for all underlying heavy lifting (rendering, physics, ECS scheduling).
-* **Project**: Communicates with the core via a standard **C ABI**.
+* **Project**: Communicates with the core via a standardized **WASM Component Model** interface defined in WIT.
 
-We know that developers in the Undertale / Deltarune community come from diverse backgrounds—
+We know that developers in the Undertale / Deltarune community come from diverse backgrounds—and that's exactly
+why we chose WASM. Instead of binding to one specific language, the WASM Component Model provides a universal,
+standardized compilation target. Any language with a WASM backend can produce mods for SoupRune:
 
-* Developers from **Clickteam Fusion** will find **Ron** is just another form of event table;
-* Enthusiasts from **GameMaker** will find **Haxe** familiar and natural;
-* Professionals used to **Unity/Godot** can continue to enjoy **C#** (achieving excellent performance via Native AOT);
-* Friends used to **Lua** or **Python / GDScript** will be able to join seamlessly via **Nelua** or **Nim** in the
-  future.
+* **Rust** developers get native-quality performance with zero overhead;
+* **JavaScript / TypeScript** developers can prototype mods rapidly (planned via `jco` toolchain);
+* **C# (.NET)** developers can leverage their Unity/Godot experience (planned via .NET WASI SDK);
+* And as the WASM ecosystem grows, **more languages will become available naturally**—without requiring any
+  changes to SoupRune itself.
+
+The best part? WASM mods run in a **sandbox**. A buggy mod cannot crash the engine, corrupt save data,
+or access the filesystem without permission. This is safety by design—not an afterthought.
 
 Our original intention is to let every creator in the community **define game content in a simple and easy-to-use way**;
 Our goal is to let every developer in the community **write code logic in their own familiar way**.
@@ -274,17 +279,17 @@ You're welcome to participate in the construction of **SoupRune**:
 
 SoupRune adopts a multi-crate workspace architecture:
 
-| Crate                                                             | Description                                                                                  |
-|:------------------------------------------------------------------|:---------------------------------------------------------------------------------------------|
-| [`souprune`](./crates/souprune)                                   | **Core Framework**: The main framework body, application entry point, and core logic.        |
-| [`souprune_api`](./crates/souprune_api)                           | **Protocol Layer**: WIT interface definitions and shared types for the WASM mod system.      |
-| [`souprune_sdk`](./crates/souprune_sdk)                           | **Development Kit**: Rust WASM guest SDK for building mod components.                        |
-| [`souprune_mod_test`](./crates/souprune_mod_test)                 | **Sample Mod**: Example WASM mod component (target: wasm32-wasip2).                          |
-| [`souprune_mock_host`](./crates/souprune_mock_host)               | **Tool**: Standalone test host for loading and running WASM mods via Wasmtime.                |
-| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)                   | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.           |
-| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)             | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language.    |
-| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event)           | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                       |
-| [`bevy_alight_motion`](./crates/bevy_alight_motion)               | **Plugin**: Integration for parsing and playing Alight Motion animation projects.            |
+| Crate                                                   | Description                                                                               |
+|:--------------------------------------------------------|:------------------------------------------------------------------------------------------|
+| [`souprune`](./crates/souprune)                         | **Core Framework**: The main framework body, application entry point, and core logic.     |
+| [`souprune_api`](./crates/souprune_api)                 | **Protocol Layer**: WIT interface definitions and shared types for the WASM mod system.   |
+| [`souprune_sdk`](./crates/souprune_sdk)                 | **Development Kit**: Rust WASM guest SDK for building mod components.                     |
+| [`souprune_mod_test`](./crates/souprune_mod_test)       | **Sample Mod**: Example WASM mod component (target: wasm32-wasip2).                       |
+| [`souprune_mock_host`](./crates/souprune_mock_host)     | **Tool**: Standalone test host for loading and running WASM mods via Wasmtime.            |
+| [`bevy_mortar_bond`](./crates/bevy_mortar_bond)         | **Plugin**: Bridge between Mortar scripting and Bevy, handling dialogue and logic.        |
+| [`bevy_ecs_typewriter`](./crates/bevy_ecs_typewriter)   | **Plugin**: ECS-based typewriter implementation, supporting rich text and multi-language. |
+| [`bevy_fact_rule_event`](./crates/bevy_fact_rule_event) | **Plugin**: Complex event system based on the "Fact-Rule-Event" model.                    |
+| [`bevy_alight_motion`](./crates/bevy_alight_motion)     | **Plugin**: Integration for parsing and playing Alight Motion animation projects.         |
 
 ## 🧩 Script Layer Support
 
@@ -292,17 +297,17 @@ SoupRune's modding system is built on the **WASM Component Model** to achieve sa
 mod loading. Mods are compiled to `.wasm` components and loaded at runtime via Wasmtime. The interface contract
 is defined using WIT (WebAssembly Interface Types).
 
-|        Language         | Target Users                                      | Description                                                                                                |
-|:-----------------------:|:--------------------------------------------------|:-----------------------------------------------------------------------------------------------------------|
-|        **Rust**         | System-level developers / Rustaceans / Bevy users | Native support via `souprune_sdk` + `wit-bindgen`. Best performance.                                       |
-|    **JS** (Planned)     | Web developers / scripting users                  | Via `jco` (JavaScript Component Object) toolchain for rapid mod prototyping.                               |
-|   **.NET (C#)** (Planned) | Unity / Godot / C# users                        | Via .NET WASI SDK for C# mod development.                                                                  |
+|        Language         | Target Users                                      | Description                                                                  |
+|:-----------------------:|:--------------------------------------------------|:-----------------------------------------------------------------------------|
+|        **Rust**         | System-level developers / Rustaceans / Bevy users | Native support via `souprune_sdk` + `wit-bindgen`. Best performance.         |
+|    **JS** (Planned)     | Web developers / scripting users                  | Via `jco` (JavaScript Component Object) toolchain for rapid mod prototyping. |
+| **.NET (C#)** (Planned) | Unity / Godot / C# users                          | Via .NET WASI SDK for C# mod development.                                    |
 
 If you are interested in helping with SoupRune's multi-language support, contributions are welcome!
 
 > 🤝 **Friendly Recommendation / Looking for Lua (Love2D) Ecosystem?**
 >
-> SoupRune focuses on the extreme performance of AOT compilation and statically typed languages.
+> SoupRune is built around the WASM Component Model and focuses on compiled, sandboxed mod components.
 > If you prefer the flexibility of **Lua dynamic scripting** or are used to the **Love2D** workflow, we strongly
 > recommend you try another excellent framework in the community:
 >
@@ -354,15 +359,15 @@ This project uses the following open-source projects as libraries, dependencies,
 
 ### Rust Crates
 
-| Project                                               | Version         | License                                                                                                                                                                                                       | Description                                                                                                    |
-|-------------------------------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| [serde](https://crates.io/crates/serde)               | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Serialization/deserialization framework supporting `derive` macros for convenient (de)serialization of structs |
-| [toml](https://crates.io/crates/toml)                 | 0.9.8           | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML parsing                                                                                                   |
-| [ron](https://crates.io/crates/ron)                   | 0.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation parsing                                                                                  |
-| [serde_json](https://crates.io/crates/serde_json)     | 1.0             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON serialization/deserialization                                                                             |
-| [regex](https://crates.io/crates/regex)               | 1.10            | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Regular expressions                                                                                            |
-| [fasteval](https://crates.io/crates/fasteval)         | 0.2             | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | Fast and safe evaluation of algebraic expressions                                                              |
-| [wasmtime](https://crates.io/crates/wasmtime)         | 42              | [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE)                                                                                                    | WebAssembly runtime for WASM mod loading                                                                       |
+| Project                                           | Version | License                                                                                                                                                                                                       | Description                                                                                                    |
+|---------------------------------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| [serde](https://crates.io/crates/serde)           | 1.0     | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Serialization/deserialization framework supporting `derive` macros for convenient (de)serialization of structs |
+| [toml](https://crates.io/crates/toml)             | 0.9.8   | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | TOML parsing                                                                                                   |
+| [ron](https://crates.io/crates/ron)               | 0.10    | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Rusty Object Notation parsing                                                                                  |
+| [serde_json](https://crates.io/crates/serde_json) | 1.0     | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | JSON serialization/deserialization                                                                             |
+| [regex](https://crates.io/crates/regex)           | 1.10    | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE) | Regular expressions                                                                                            |
+| [fasteval](https://crates.io/crates/fasteval)     | 0.2     | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./third_party_licenses/LICENSE-MIT)                                                                                                           | Fast and safe evaluation of algebraic expressions                                                              |
+| [wasmtime](https://crates.io/crates/wasmtime)     | 42      | [![License](https://img.shields.io/badge/license-Apache-blue.svg)](./third_party_licenses/LICENSE-APACHE)                                                                                                     | WebAssembly runtime for WASM mod loading                                                                       |
 
 ### Asset References
 
