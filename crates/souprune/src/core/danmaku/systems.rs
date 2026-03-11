@@ -655,6 +655,9 @@ pub fn update_bullet_motion(
                 BulletBehavior::Custom { .. } => {
                     // Skip - handled below
                 }
+                BulletBehavior::Stationary() => {
+                    // skip - Because it is just stationary!
+                }
             }
         }
 

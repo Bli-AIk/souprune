@@ -251,19 +251,34 @@ impl Default for ColliderShape {
 pub enum BulletBehavior {
     // === Built-in Behaviors (内置行为) ===
     /// Linear motion in a direction
+    ///
+    /// 朝一个方向进行直线运动
     Linear(LinearConfig),
 
     /// Tween animation (opacity, scale, position, etc.)
+    ///
+    /// 缓动动画（不透明度、比例、位置等）
     Tween(TweenConfig),
 
+    /// stay still
+    ///
+    /// 静止不动
+    Stationary(),
+
     /// Orbital motion around spawn center (rotation + radial movement)
+    ///
+    /// 围绕生成中心的轨道运动（旋转+径向运动）
     Orbital(OrbitalConfig),
 
     /// Sinusoidal oscillation
+    ///
+    /// 正弦波震荡
     Sine(SineConfig),
 
     // === Custom Behavior (自定义行为) ===
     /// Algorithm loaded from mod system via WASM
+    ///
+    /// 通过 WASM 从 mod 系统加载算法
     Custom {
         /// Algorithm ID registered in DanmakuRegistry
         id: String,
@@ -459,10 +474,14 @@ pub struct TimelineEvent {
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
 pub enum SpawnPattern {
     /// Spawn a single bullet at center
+    ///
+    /// 在中心生成单个弹幕
     #[default]
     Single,
 
     /// Spawn bullets in a ring/circle
+    ///
+    /// 生成环状/圆形弹幕
     RingGenerator {
         count: usize,
         #[serde(default)]
@@ -472,6 +491,8 @@ pub enum SpawnPattern {
     },
 
     /// Spawn bullets in a line
+    ///
+    /// 生成线形弹幕
     LineGenerator {
         count: usize,
         #[serde(default = "SpawnPattern::default_line_spacing")]
@@ -480,7 +501,11 @@ pub enum SpawnPattern {
         direction: (f32, f32),
     },
 
-    /// Spawn bullets from a screen edge
+    /// Generate a line of bullets along a screen edge.
+    /// Bullets are evenly spaced and fired perpendicular to that edge.
+    ///
+    /// 在屏幕边缘生成一排等距弹幕，
+    /// 子弹将沿该边缘的垂直方向发射。
     EdgeGenerator {
         count: usize,
         #[serde(default)]
@@ -492,6 +517,8 @@ pub enum SpawnPattern {
     },
 
     /// Custom spawn pattern from mod system
+    ///
+    /// 通过 mod 系统自定义弹幕样式
     CustomGenerator {
         id: String,
         #[serde(default)]
