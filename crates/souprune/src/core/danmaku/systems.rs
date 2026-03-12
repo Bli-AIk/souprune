@@ -561,8 +561,6 @@ fn spawn_single_bullet(
             }
         }
     } else {
-        // Fallback: try config.toml sprite name lookup
-        // Handles both "module/name" paths and plain names like "jevel_diamonds_black"
         let parts: Vec<&str> = visual_path.split('/').collect();
 
         let mut sprite_context = sprite_params.create_sprite_context();
