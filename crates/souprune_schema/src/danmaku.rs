@@ -235,18 +235,18 @@ pub struct TimelineEvent {
     #[serde(default)]
     pub pattern: SpawnPattern,
     #[serde(default)]
+    pub offset: (f32, f32),
+    #[serde(default)]
     pub apply: Vec<String>,
     #[serde(default)]
     pub behaviors: Vec<BulletBehavior>,
 }
 
 /// Spawn pattern for timeline events.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub enum SpawnPattern {
-    Single {
-        #[serde(default)]
-        offset: (f32, f32),
-    },
+    #[default]
+    Single,
     RingGenerator {
         count: usize,
         #[serde(default)]
@@ -275,12 +275,6 @@ pub enum SpawnPattern {
         #[serde(default)]
         params: HashMap<String, f32>,
     },
-}
-
-impl Default for SpawnPattern {
-    fn default() -> Self {
-        Self::Single { offset: (0.0, 0.0) }
-    }
 }
 
 /// Which screen edge to spawn from.

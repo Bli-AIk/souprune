@@ -240,13 +240,16 @@ fn spawn_bullets_from_timeline_event(
     // 追加内联行为
     behaviors.extend(event.behaviors.clone());
 
-    for_each_spawn_point(&event.pattern, spawn_center, |i, point| {
+    // Compute effective center with event offset
+    let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
+
+    for_each_spawn_point(&event.pattern, effective_center, |i, point| {
         spawn_single_bullet(
             commands,
             prototype,
             &behaviors,
             &point,
-            spawn_center,
+            effective_center,
             player_pos,
             i,
             container_entity,
@@ -277,11 +280,11 @@ fn for_each_spawn_point(
     mut f: impl FnMut(usize, SpawnPoint),
 ) {
     match pattern {
-        SpawnPattern::Single { offset } => {
+        SpawnPattern::Single => {
             f(
                 0,
                 SpawnPoint {
-                    position: center + Vec2::new(offset.0, offset.1),
+                    position: center,
                     angle: 0.0,
                     radius: 0.0,
                 },

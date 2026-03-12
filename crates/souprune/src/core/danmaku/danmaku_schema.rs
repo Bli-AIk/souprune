@@ -453,6 +453,14 @@ pub struct TimelineEvent {
     #[serde(default)]
     pub pattern: SpawnPattern,
 
+    /// Offset from spawn center. Shifts the entire pattern's origin.
+    /// `effective_center = spawn_center + offset`
+    ///
+    /// 相对于生成中心的偏移。移动整个模式的原点。
+    /// `effective_center = spawn_center + offset`
+    #[serde(default)]
+    pub offset: (f32, f32),
+
     /// List of behavior IDs to apply (references to `behaviors` map)
     #[serde(default)]
     pub apply: Vec<String>,
@@ -471,16 +479,13 @@ pub struct TimelineEvent {
 ///
 /// 时间轴事件的生成模式。
 /// 内置的几何图案用于弹幕排列。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
 pub enum SpawnPattern {
-    /// Spawn a single bullet at center + offset.
+    /// Spawn a single bullet at the pattern center.
     ///
-    /// 在中心 + 偏移处生成单个弹幕。
-    /// offset 默认为 (0, 0)，即中心。
-    Single {
-        #[serde(default)]
-        offset: (f32, f32),
-    },
+    /// 在模式中心生成单个弹幕。
+    #[default]
+    Single,
 
     /// Spawn bullets in a ring/circle
     ///
@@ -527,12 +532,6 @@ pub enum SpawnPattern {
         #[serde(default)]
         params: HashMap<String, f32>,
     },
-}
-
-impl Default for SpawnPattern {
-    fn default() -> Self {
-        Self::Single { offset: (0.0, 0.0) }
-    }
 }
 
 impl SpawnPattern {
