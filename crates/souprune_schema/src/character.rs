@@ -29,7 +29,6 @@ pub struct CharacterAsset {
 
 /// Defines how a state maps to directional animations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum StateAnimationMapping {
     Directional {
         up: String,

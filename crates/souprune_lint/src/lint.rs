@@ -177,17 +177,24 @@ fn validate_ron_syntax(source: &str) -> Vec<Diagnostic> {
 
 /// Convert a `SpannedError` to diagnostics.
 fn spanned_to_diagnostics(source: &str, spanned: &ron::error::SpannedError) -> Vec<Diagnostic> {
-    let line = spanned.position.line;
-    let col = spanned.position.col;
-    let offset = line_col_to_offset(source, line, col);
+    let start = &spanned.span.start;
+    let offset = line_col_to_offset(source, start.line, start.col);
 
     vec![Diagnostic {
         severity: Severity::Error,
-        line,
-        column: col,
+        line: start.line,
+        column: start.col,
         message: format!("{}", spanned.code),
         offset,
-        len: 1,
+        len: {
+            let end = &spanned.span.end;
+            let end_offset = line_col_to_offset(source, end.line, end.col);
+            if end_offset > offset {
+                end_offset - offset
+            } else {
+                1
+            }
+        },
     }]
 }
 

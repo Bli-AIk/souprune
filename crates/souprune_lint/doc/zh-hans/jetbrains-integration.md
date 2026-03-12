@@ -47,6 +47,15 @@ $FILE_PATH$:$LINE$:$COLUMN$: error: $MESSAGE$
 path/to/file.view.ron:42:5: error: unexpected field `widht`
 ```
 
+### 将错误显示为错误（而非警告）
+
+默认情况下，File Watcher Problems inspection 的严重级别为 **Warning**。若要将 lint 错误显示为红色错误：
+
+1. 打开 *Settings → Editor → Inspections*
+2. 搜索 **File Watcher Problems**（位于 *Other* 分类下）
+3. 将 **Severity** 从 `Warning` 改为 **`Error`**
+4. 点击 **Apply**
+
 ## 自定义 Scope（可选）
 
 限制 Watcher 仅对 `projects/` 下的 RON 文件生效：

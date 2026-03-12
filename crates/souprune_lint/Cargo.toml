@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 souprune_schema = { path = "../souprune_schema" }
-ron = "0.10"
+ron = "0.12"
 ariadne = "0.4"
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"

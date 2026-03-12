@@ -48,6 +48,15 @@ This matches the `jetbrains` output format:
 path/to/file.view.ron:42:5: error: unexpected field `widht`
 ```
 
+### Showing Errors as Errors (not Warnings)
+
+By default, the "File Watcher Problems" inspection severity is **Warning**. To display lint errors as red errors:
+
+1. Open *Settings → Editor → Inspections*
+2. Search for **File Watcher Problems** (under *Other*)
+3. Change **Severity** from `Warning` to **`Error`**
+4. Click **Apply**
+
 ## Custom Scope (Optional)
 
 To limit the watcher to RON files under `projects/`:
