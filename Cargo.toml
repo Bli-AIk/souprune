@@ -26,7 +26,6 @@ exclude = [
 # Use local mortar_compiler for bevy_mortar_bond during development
 [patch.crates-io]
 mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
-bevy_tween = { git = "https://github.com/Multirious/bevy_tween", branch = "main" }
 iyes_perf_ui = { path = "crates/iyes_perf_ui" }
 
 [workspace.lints.rust]

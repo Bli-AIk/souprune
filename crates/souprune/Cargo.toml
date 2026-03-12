@@ -38,6 +38,7 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_ui",
     "bevy_ui_render",
     "bevy_winit",
+    "default_font",
     "file_watcher",
     "multi_threaded",
     "png",
@@ -47,7 +48,7 @@ bevy = { version = "0.18", default-features = false, features = [
 bevy_shader = "0.18"
 leafwing-input-manager = "0.20"
 bevy_ecs_tiled = "0.11"
-bevy_tween = "0.11"
+bevy_tween = "0.12"
 iyes_perf_ui = { version = "0.5", optional = true }
 bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter", version = "0.2" }
 bevy_fact_rule_event = { path = "../bevy_fact_rule_event", version = "0.3" }

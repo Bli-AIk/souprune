@@ -22,13 +22,20 @@ pub mod debug_battle_test {
     fn debug_battle_test_system(
         input: Res<ButtonInput<KeyCode>>,
         mut sequence_mode: ResMut<SequenceMode>,
+        mut toast_events: MessageWriter<super::super::DebugToastEvent>,
     ) {
         if input.just_pressed(KeyCode::F6) {
             if sequence_mode.0.as_deref() != Some("battle") {
                 sequence_mode.0 = Some("battle".to_string());
                 info!("Debug: Switching to SequenceMode battle");
+                toast_events.write(super::super::DebugToastEvent {
+                    message: "Battle Test: Switching to battle".into(),
+                });
             } else {
                 info!("Debug: Already in battle mode");
+                toast_events.write(super::super::DebugToastEvent {
+                    message: "Battle Test: Already in battle mode".into(),
+                });
             }
         }
     }

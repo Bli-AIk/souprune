@@ -18,6 +18,14 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct MainGameCamera;
 
+/// Marker component to temporarily override normal camera control.
+/// When present on a camera entity, the `Followable` system will skip it.
+///
+/// 临时覆盖正常摄像机控制的标记组件。
+/// 当此组件存在于摄像机实体上时，`Followable` 系统将跳过该摄像机。
+#[derive(Component)]
+pub struct CameraControlOverride;
+
 #[derive(Component, Default)]
 pub(crate) struct Followable {
     pub(crate) target: Option<Entity>,

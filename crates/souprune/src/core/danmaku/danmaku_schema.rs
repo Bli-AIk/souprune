@@ -531,9 +531,7 @@ pub enum SpawnPattern {
 
 impl Default for SpawnPattern {
     fn default() -> Self {
-        Self::Single {
-            offset: (0.0, 0.0),
-        }
+        Self::Single { offset: (0.0, 0.0) }
     }
 }
 
