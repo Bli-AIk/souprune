@@ -1,0 +1,9 @@
+[package]
+name = "souprune_schema"
+version = "0.1.0"
+edition = "2024"
+description = "Pure data schema types for SoupRune RON files. No Bevy dependency."
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+ron = "0.12"
