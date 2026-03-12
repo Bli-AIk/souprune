@@ -29,6 +29,9 @@ pub mod debug_camera {
         pub active: bool,
         current_scale: f32,
         target_scale: f32,
+        /// Saved camera state before debug mode, restored on deactivation.
+        saved_transform: Option<Transform>,
+        saved_scale: Option<f32>,
     }
 
     impl Default for DebugCameraState {
@@ -37,6 +40,8 @@ pub mod debug_camera {
                 active: false,
                 current_scale: 1.0,
                 target_scale: 1.0,
+                saved_transform: None,
+                saved_scale: None,
             }
         }
     }
@@ -56,7 +61,10 @@ pub mod debug_camera {
         keyboard: Res<ButtonInput<KeyCode>>,
         mut state: ResMut<DebugCameraState>,
         mut commands: Commands,
-        camera_q: Query<(Entity, &Projection, &Camera), With<MainGameCamera>>,
+        mut camera_q: Query<
+            (Entity, &mut Projection, &mut Transform, &Camera),
+            With<MainGameCamera>,
+        >,
         mut toast_events: MessageWriter<DebugToastEvent>,
     ) {
         if !keyboard.just_pressed(KeyCode::F8) {
@@ -65,15 +73,17 @@ pub mod debug_camera {
 
         state.active = !state.active;
 
-        let Some((camera_entity, projection, _)) =
-            camera_q.iter().find(|(_, _, cam)| cam.is_active)
+        let Some((camera_entity, mut projection, mut transform, _)) =
+            camera_q.iter_mut().find(|(_, _, _, cam)| cam.is_active)
         else {
             return;
         };
 
         if state.active {
-            // Sync zoom state from current projection
-            if let Projection::Orthographic(ortho) = projection {
+            // Save current state before debug mode
+            state.saved_transform = Some(*transform);
+            if let Projection::Orthographic(ortho) = &*projection {
+                state.saved_scale = Some(ortho.scale);
                 state.current_scale = ortho.scale;
                 state.target_scale = ortho.scale;
             }
@@ -83,12 +93,23 @@ pub mod debug_camera {
                 message: "Debug Camera: ON (scroll=zoom, middle-drag=pan)".into(),
             });
         } else {
+            // Restore saved state
+            if let Some(saved) = state.saved_transform.take() {
+                *transform = saved;
+            }
+            if let Some(saved_scale) = state.saved_scale.take() {
+                if let Projection::Orthographic(ref mut ortho) = *projection {
+                    ortho.scale = saved_scale;
+                }
+                state.current_scale = saved_scale;
+                state.target_scale = saved_scale;
+            }
             commands
                 .entity(camera_entity)
                 .remove::<CameraControlOverride>();
-            info!("Debug Camera: OFF");
+            info!("Debug Camera: OFF (state restored)");
             toast_events.write(DebugToastEvent {
-                message: "Debug Camera: OFF".into(),
+                message: "Debug Camera: OFF (state restored)".into(),
             });
         }
     }
