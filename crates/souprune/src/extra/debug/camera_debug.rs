@@ -56,7 +56,7 @@ pub mod debug_camera {
         keyboard: Res<ButtonInput<KeyCode>>,
         mut state: ResMut<DebugCameraState>,
         mut commands: Commands,
-        mut camera_q: Query<(Entity, &Projection), With<MainGameCamera>>,
+        camera_q: Query<(Entity, &Projection, &Camera), With<MainGameCamera>>,
         mut toast_events: MessageWriter<DebugToastEvent>,
     ) {
         if !keyboard.just_pressed(KeyCode::F8) {
@@ -65,7 +65,9 @@ pub mod debug_camera {
 
         state.active = !state.active;
 
-        let Ok((camera_entity, projection)) = camera_q.single_mut() else {
+        let Some((camera_entity, projection, _)) =
+            camera_q.iter().find(|(_, _, cam)| cam.is_active)
+        else {
             return;
         };
 
@@ -95,7 +97,7 @@ pub mod debug_camera {
         state: ResMut<DebugCameraState>,
         mut scroll_events: MessageReader<MouseWheel>,
         time: Res<Time>,
-        mut camera_q: Query<&mut Projection, With<MainGameCamera>>,
+        mut camera_q: Query<(&mut Projection, &Camera), With<MainGameCamera>>,
     ) {
         if !state.active {
             scroll_events.clear();
@@ -103,7 +105,10 @@ pub mod debug_camera {
         }
 
         let state = state.into_inner();
-        let Ok(mut projection) = camera_q.single_mut() else {
+        let Some(mut projection) = camera_q
+            .iter_mut()
+            .find_map(|(p, cam)| cam.is_active.then_some(p))
+        else {
             return;
         };
         let Projection::Orthographic(ref mut ortho) = *projection else {
@@ -130,14 +135,16 @@ pub mod debug_camera {
         state: Res<DebugCameraState>,
         mouse_button: Res<ButtonInput<MouseButton>>,
         mut motion_events: MessageReader<MouseMotion>,
-        mut camera_q: Query<(&mut Transform, &Projection), With<MainGameCamera>>,
+        mut camera_q: Query<(&mut Transform, &Projection, &Camera), With<MainGameCamera>>,
     ) {
         if !state.active {
             motion_events.clear();
             return;
         }
 
-        let Ok((mut transform, projection)) = camera_q.single_mut() else {
+        let Some((mut transform, projection, _)) =
+            camera_q.iter_mut().find(|(_, _, cam)| cam.is_active)
+        else {
             return;
         };
 

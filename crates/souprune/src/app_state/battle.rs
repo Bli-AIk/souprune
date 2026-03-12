@@ -174,6 +174,7 @@ fn setup_battle_camera(
         projection,
         BattleCamera,
         crate::core::camera::MainGameCamera,
+        IsDefaultUiCamera,
         battle_scoped(),
         Name::new("Battle Camera2d"),
     ));

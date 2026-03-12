@@ -179,14 +179,19 @@ pub mod debug_inspector {
         let mut text_entities = Vec::new();
 
         let debug_entity = commands
-            .spawn((Node {
-                display: Display::Flex,
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(10.),
-                left: Val::Px(10.),
-                flex_direction: FlexDirection::Column,
-                ..default()
-            },))
+            .spawn((
+                Node {
+                    display: Display::Flex,
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(10.),
+                    left: Val::Px(10.),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(6.)),
+                    ..default()
+                },
+                GlobalZIndex(i32::MAX - 1),
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
+            ))
             .with_children(|builder| {
                 let texts = [
                     "Debug mode active: ",
@@ -213,6 +218,8 @@ pub mod debug_inspector {
                 }
             })
             .id();
+
+        eprintln!("[DEBUG] setup_debug_help_text_system: spawned root={debug_entity:?}");
 
         commands.entity(debug_entity).insert(DebugHelpText {
             timer: Timer::new(Duration::from_secs(3), TimerMode::Once),
@@ -577,6 +584,7 @@ pub mod debug_inspector {
                     left: Val::Px(10.),
                     ..default()
                 },
+                GlobalZIndex(i32::MAX - 1),
                 DebugToast {
                     timer: Timer::new(Duration::from_secs(2), TimerMode::Once),
                     fade_out_started: false,
