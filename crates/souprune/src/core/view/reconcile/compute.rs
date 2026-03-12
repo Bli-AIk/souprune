@@ -8,7 +8,7 @@
 
 use super::resolve::{
     process_visible_when_for_repeat, resolve_material, resolve_sprite, resolve_texts,
-    resolve_transform, resolve_visibility,
+    resolve_transform, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::sequencer::chapter_schema::Val;
@@ -105,30 +105,12 @@ fn compute_element(
     // Build element key
     let key = build_element_key(ctx, node_def, repeat_ctx);
 
-    // Extract camera offset from view_box if camera_anchored
-    // This is stored in camera_offset field, NOT applied to transform
-    // The CameraAnchored system manages transform for these elements
-    //
-    // 从 view_box 提取相机偏移（如果是 camera_anchored）
-    // 这存储在 camera_offset 字段中，而不是应用到 transform
-    // CameraAnchored 系统管理这些元素的 transform
-    let camera_offset = if node_def.camera_anchored {
-        node_def
-            .view_box
-            .as_ref()
-            .map(|logic| serializable_vec3_to_vec3(&logic.offset))
+    // Resolve transform: ViewBox uses offset, sprites use sprite.transform
+    let transform = if let Some(ref vb) = node_def.view_box {
+        resolve_viewbox_transform(vb)
     } else {
-        None
+        resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx)
     };
-
-    // Resolve transform from sprite definition
-    // For camera_anchored elements, we still compute transform but reconciliation
-    // will skip updating it since CameraAnchored system manages it
-    //
-    // 从精灵定义解析 transform
-    // 对于 camera_anchored 元素，我们仍然计算 transform，但 reconciliation
-    // 会跳过更新它，因为 CameraAnchored 系统管理它
-    let transform = resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx);
 
     let visibility = resolve_visibility(
         &ctx.player_data,
@@ -160,8 +142,6 @@ fn compute_element(
     element.sprite = sprite;
     element.texts = texts;
     element.material = material;
-    element.camera_anchored = node_def.camera_anchored;
-    element.camera_offset = camera_offset;
     element.children = children;
     element.visible_when_expr = visible_when_expr;
 
@@ -199,24 +179,16 @@ fn expand_repeat(
         let full_name = format!("{}::{}_{}", ctx.namespace, node_def.name, i);
         let key = ViewElementKey::with_repeat_index(full_name, i);
 
-        // Extract camera offset from view_box if camera_anchored
-        // This is stored in camera_offset field, NOT applied to transform
-        let camera_offset = if node_def.camera_anchored {
-            node_def
-                .view_box
-                .as_ref()
-                .map(|logic| serializable_vec3_to_vec3(&logic.offset))
+        // Resolve transform: ViewBox uses offset, sprites use sprite.transform
+        let transform = if let Some(ref vb) = node_def.view_box {
+            resolve_viewbox_transform(vb)
         } else {
-            None
+            resolve_transform(
+                &ctx.player_data,
+                node_def.sprite.as_ref(),
+                Some(&repeat_ctx),
+            )
         };
-
-        // Resolve transform from sprite definition
-        // For camera_anchored elements, reconciliation will skip updating transform
-        let transform = resolve_transform(
-            &ctx.player_data,
-            node_def.sprite.as_ref(),
-            Some(&repeat_ctx),
-        );
 
         let visibility = resolve_visibility(
             &ctx.player_data,
@@ -247,8 +219,6 @@ fn expand_repeat(
         element.sprite = sprite;
         element.texts = texts;
         element.material = material;
-        element.camera_anchored = node_def.camera_anchored;
-        element.camera_offset = camera_offset;
         element.children = children;
         element.visible_when_expr = visible_when_expr;
 

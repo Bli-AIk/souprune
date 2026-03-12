@@ -67,8 +67,6 @@ pub struct ViewElementSpec {
     pub transform: Transform,
     pub visibility: Visibility,
     pub visible_when_expr: Option<String>,
-    pub camera_anchored: bool,
-    pub camera_offset: Vec3,
 }
 
 /// Spawn a standalone sprite entity.
@@ -172,14 +170,6 @@ pub fn spawn_sprite_entity(
         entity_commands.insert(VisibleWhen {
             expression: expr.clone(),
         });
-    }
-
-    // Add camera anchored if needed
-    if spec.camera_anchored {
-        entity_commands.insert(CameraAnchoredBundle::from_camera_transform(
-            ctx.camera_transform,
-            spec.camera_offset,
-        ));
     }
 
     let entity_id = entity_commands.id();
@@ -312,7 +302,6 @@ pub fn spawn_text_entity(
         Visibility::Hidden, // Will be shown when material is ready
         InheritedVisibility::default(),
         ViewVisibility::default(),
-        CameraAnchored::new(transform.translation),
         crate::core::view::text::NeedsGlyphRefresh,
         RonDrivenView,
     ));
@@ -537,11 +526,10 @@ pub struct ShaderMaterialPendingSetup {
 pub fn spawn_viewbox_entity(
     commands: &mut Commands,
     parent: Option<Entity>,
-    ctx: &SpawnContext,
+    _ctx: &SpawnContext,
     spec: &ViewElementSpec,
     view_box: &ViewBoxLogicDef,
     texts: Vec<ViewTextConfig>,
-    is_top_level: bool,
 ) -> Entity {
     use crate::core::view::layout::serde_types::serializable_vec3_to_static;
 
@@ -576,49 +564,22 @@ pub fn spawn_viewbox_entity(
         spec.tags.clone(),
     );
 
-    let mut entity_commands = if is_top_level {
-        // Top-level nodes use CameraAnchored
-        commands.spawn((
-            view_box_component,
-            spec.visibility,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            CameraAnchoredBundle::from_camera_transform(ctx.camera_transform, offset),
-            Name::new(spec.local_name.clone()),
-            view_element,
-            RonDrivenView,
-        ))
-    } else {
-        // Child nodes use Transform relative to parent
-        commands.spawn((
-            view_box_component,
-            Transform::from_translation(offset),
-            GlobalTransform::default(),
-            spec.visibility,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            Name::new(spec.local_name.clone()),
-            view_element,
-            RonDrivenView,
-        ))
-    };
+    let mut entity_commands = commands.spawn((
+        view_box_component,
+        Transform::from_translation(offset),
+        GlobalTransform::default(),
+        spec.visibility,
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
+        Name::new(spec.local_name.clone()),
+        view_element,
+        RonDrivenView,
+    ));
 
     // Add VisibleWhen if present
     if let Some(ref expr) = spec.visible_when_expr {
         entity_commands.insert(VisibleWhen {
             expression: expr.clone(),
-        });
-    }
-
-    // Add dynamic anchor if offset has expressions
-    if view_box_def.offset.0.as_expr().is_some()
-        || view_box_def.offset.1.as_expr().is_some()
-        || view_box_def.offset.2.as_expr().is_some()
-    {
-        entity_commands.insert(CameraAnchoredDynamic {
-            x_expression: view_box_def.offset.0.as_expr().map(|s| s.to_string()),
-            y_expression: view_box_def.offset.1.as_expr().map(|s| s.to_string()),
-            z_expression: view_box_def.offset.2.as_expr().map(|s| s.to_string()),
         });
     }
 

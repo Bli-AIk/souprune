@@ -230,14 +230,6 @@ pub struct DesiredElement {
     /// 可选的材质定义（用于 DynamicMaterial2d）
     pub material: Option<DesiredMaterial>,
 
-    /// Camera anchored flag
-    /// 相机锚定标志
-    pub camera_anchored: bool,
-
-    /// Camera offset for CameraAnchored component
-    /// CameraAnchored 组件的相机偏移
-    pub camera_offset: Option<Vec3>,
-
     /// Child elements
     /// 子元素
     pub children: Vec<DesiredElement>,
@@ -261,8 +253,6 @@ impl DesiredElement {
             texts: Vec::new(),
             hp_bar: None,
             material: None,
-            camera_anchored: true,
-            camera_offset: None,
             children: Vec::new(),
             visible_when_expr: None,
         }
@@ -357,10 +347,6 @@ pub struct CurrentElement {
     /// Current visible_when expression (if entity has VisibleWhen component)
     /// 当前 visible_when 表达式（如果实体有 VisibleWhen 组件）
     pub visible_when_expr: Option<String>,
-
-    /// Current camera_anchored offset (if entity has CameraAnchored component)
-    /// 当前 camera_anchored 偏移（如果实体有 CameraAnchored 组件）
-    pub camera_offset: Option<Vec3>,
 
     /// Whether this element has ShaderMaterial component
     /// 此元素是否有 ShaderMaterial 组件

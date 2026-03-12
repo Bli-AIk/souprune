@@ -10,7 +10,7 @@ use super::compute::compute_desired_state;
 use super::delta::{DeltaStats, apply_deltas};
 use super::diff::reconcile;
 use super::tree::CurrentViewTree;
-use crate::core::view::components::{CameraAnchored, ViewElement, ViewRoot};
+use crate::core::view::components::{ViewElement, ViewRoot};
 use crate::core::view::layout::ViewLayoutAsset;
 use bevy::asset::AssetEvent;
 use bevy::ecs::prelude::MessageReader;
@@ -107,7 +107,6 @@ pub fn view_reconciliation_system(
         Option<&ChildOf>,
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
-        Option<&CameraAnchored>,
         Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: Query<&Children>,
@@ -177,7 +176,6 @@ fn build_current_tree_from_query(
         Option<&ChildOf>,
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
-        Option<&CameraAnchored>,
         Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: &Query<&Children>,
@@ -205,7 +203,6 @@ struct CollectedElement {
     parent: Option<Entity>,
     sprite: Option<super::tree::CurrentSprite>,
     visible_when_expr: Option<String>,
-    camera_offset: Option<Vec3>,
     has_shader_material: bool,
 }
 
@@ -221,7 +218,6 @@ fn collect_descendants(
         Option<&ChildOf>,
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
-        Option<&CameraAnchored>,
         Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: &Query<&Children>,
@@ -236,7 +232,6 @@ fn collect_descendants(
         child_of,
         sprite_opt,
         visible_when_opt,
-        camera_anchored_opt,
         shader_material_opt,
     )) = view_element_query.get(entity)
     {
@@ -252,9 +247,6 @@ fn collect_descendants(
         // Extract visible_when expression if present
         let visible_when_expr = visible_when_opt.map(|vw| vw.expression.clone());
 
-        // Extract camera offset if present
-        let camera_offset = camera_anchored_opt.map(|ca| ca.offset);
-
         result.push(CollectedElement {
             entity: e,
             full_name: view_element.full_name.clone(),
@@ -263,7 +255,6 @@ fn collect_descendants(
             parent,
             sprite,
             visible_when_expr,
-            camera_offset,
             has_shader_material: shader_material_opt.is_some(),
         });
     }
@@ -305,7 +296,6 @@ fn build_current_tree_with_components(
             parent: elem.parent,
             sprite: elem.sprite.clone(),
             visible_when_expr: elem.visible_when_expr.clone(),
-            camera_offset: elem.camera_offset,
             has_shader_material: elem.has_shader_material,
         });
     }

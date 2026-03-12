@@ -19,14 +19,12 @@ pub fn spawn_view_node(
     asset_server: &AssetServer,
     parent_entity: Entity,
     node_def: &ViewNodeDef,
-    camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
-    is_top_level: bool,
-    namespace: &str, // New parameter: namespace for ViewElement
+    namespace: &str,
 ) {
     // Handle repeat configuration - spawn multiple instances from array
     if let Some(repeat) = &node_def.repeat {
@@ -68,13 +66,11 @@ pub fn spawn_view_node(
                 asset_server,
                 parent_entity,
                 node_def,
-                camera_transform,
                 sprite_params,
                 animation_assets,
                 mortar_strings,
                 player_data,
                 item_registry,
-                is_top_level,
                 namespace,
                 Some(&ctx),
             );
@@ -88,13 +84,11 @@ pub fn spawn_view_node(
         asset_server,
         parent_entity,
         node_def,
-        camera_transform,
         sprite_params,
         animation_assets,
         mortar_strings,
         player_data,
         item_registry,
-        is_top_level,
         namespace,
         None,
     );
@@ -106,13 +100,11 @@ fn spawn_view_node_with_repeat_context(
     asset_server: &AssetServer,
     parent_entity: Entity,
     node_def: &ViewNodeDef,
-    camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
-    is_top_level: bool,
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
@@ -269,18 +261,6 @@ fn spawn_view_node_with_repeat_context(
                 .collect::<Vec<_>>();
 
             let offset = serializable_vec3_to_static(&view_box.offset);
-            let dynamic_anchor = if view_box.offset.0.as_expr().is_some()
-                || view_box.offset.1.as_expr().is_some()
-                || view_box.offset.2.as_expr().is_some()
-            {
-                Some(CameraAnchoredDynamic {
-                    x_expression: view_box.offset.0.as_expr().map(|s| s.to_string()),
-                    y_expression: view_box.offset.1.as_expr().map(|s| s.to_string()),
-                    z_expression: view_box.offset.2.as_expr().map(|s| s.to_string()),
-                })
-            } else {
-                None
-            };
 
             // Convert fill color from RON definition
             let fill_color = view_box
@@ -292,46 +272,24 @@ fn spawn_view_node_with_repeat_context(
                 })
                 .unwrap_or(Color::BLACK);
 
-            let mut box_entity = if is_top_level {
-                // Top-level nodes use CameraAnchored
-                parent.spawn((
-                    ViewBox::new_full(
-                        view_box.width,
-                        view_box.height,
-                        view_box.border_width,
-                        texts,
-                        view_box.fill_shader.clone(),
-                        view_box.structure_file.clone(),
-                        fill_color,
-                    ),
-                    Visibility::default(),
-                    InheritedVisibility::default(),
-                    ViewVisibility::default(),
-                    CameraAnchoredBundle::from_camera_transform(camera_transform, offset),
-                    Name::new(node_def.name.clone()),
-                    RonDrivenView,
-                ))
-            } else {
-                // Child nodes use regular Transform relative to parent
-                parent.spawn((
-                    ViewBox::new_full(
-                        view_box.width,
-                        view_box.height,
-                        view_box.border_width,
-                        texts,
-                        view_box.fill_shader.clone(),
-                        view_box.structure_file.clone(),
-                        fill_color,
-                    ),
-                    Transform::from_translation(offset),
-                    GlobalTransform::default(),
-                    Visibility::default(),
-                    InheritedVisibility::default(),
-                    ViewVisibility::default(),
-                    Name::new(node_def.name.clone()),
-                    RonDrivenView,
-                ))
-            };
+            let mut box_entity = parent.spawn((
+                ViewBox::new_full(
+                    view_box.width,
+                    view_box.height,
+                    view_box.border_width,
+                    texts,
+                    view_box.fill_shader.clone(),
+                    view_box.structure_file.clone(),
+                    fill_color,
+                ),
+                Transform::from_translation(offset),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                Name::new(node_def.name.clone()),
+                RonDrivenView,
+            ));
 
             // Attach ViewElement if the node has a name
             if let Some(ref ve) = view_element {
@@ -344,14 +302,9 @@ fn spawn_view_node_with_repeat_context(
             }
 
             info!(
-                "[UI Box] Spawned ViewBox '{}' at camera offset: {:?} with structure_file: {:?}",
+                "[UI Box] Spawned ViewBox '{}' at offset: {:?} with structure_file: {:?}",
                 node_def.name, offset, view_box.structure_file
             );
-
-            if let Some(dynamic) = dynamic_anchor {
-                box_entity.insert(dynamic);
-                info!("[UI Box] Added dynamic anchor to '{}'", node_def.name);
-            }
 
             if let Some(sprite_def) = &node_def.sprite {
                 info!(
@@ -394,7 +347,6 @@ fn spawn_view_node_with_repeat_context(
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
-                CameraAnchored::new(Vec3::ZERO),
                 Name::new(node_def.name.clone()),
                 RonDrivenView,
             ));
@@ -411,7 +363,6 @@ fn spawn_view_node_with_repeat_context(
                     mortar_strings,
                     player_data,
                     item_registry,
-                    camera_transform,
                 );
             });
 
@@ -449,13 +400,11 @@ fn spawn_view_node_with_repeat_context(
             asset_server,
             entity_id,
             child_def,
-            camera_transform,
             sprite_params,
             animation_assets,
             mortar_strings,
             player_data,
             item_registry,
-            false,
             namespace,
         );
     }

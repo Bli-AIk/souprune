@@ -53,6 +53,19 @@ pub struct ViewLayoutAsset {
     /// 加载此 View 时要设置的内联事实。
     #[serde(default)]
     pub facts: Option<HashMap<String, InitialFactValue>>,
+
+    /// When true, view root stays in world space — all nodes use plain Transform.
+    /// Use for battle scenes where camera is locked at world origin and all entities
+    /// (player, AM animations, View nodes) share the same world coordinate space.
+    /// When false (default), the view root is parented to the active camera entity,
+    /// so child nodes stay fixed on screen as the camera moves (e.g. overworld HUD).
+    ///
+    /// 为 true 时，View 根节点保持在世界空间——所有节点使用纯 Transform。
+    /// 用于战斗场景：相机锁定在世界原点，所有实体共享同一世界坐标系。
+    /// 为 false（默认）时，View 根节点被设为相机子节点，
+    /// 子节点随相机移动保持固定在屏幕上（如 overworld HUD）。
+    #[serde(default)]
+    pub world_space: bool,
 }
 
 /// Data requirement declaration for Views.
@@ -158,11 +171,6 @@ pub struct ViewNodeDef {
     #[serde(default)]
     #[allow(dead_code)]
     pub children: Vec<ViewNodeDef>,
-    /// If true, this UI node will be anchored to the camera and follow its movement.
-    /// This is useful for HUD elements that should stay fixed on screen.
-    /// Default is true for top-level nodes with view_box.
-    #[serde(default = "default_camera_anchored")]
-    pub camera_anchored: bool,
     /// Repeat configuration for generating multiple instances from an array.
     /// When present, this node will be spawned multiple times based on the array.
     ///
@@ -170,10 +178,6 @@ pub struct ViewNodeDef {
     /// 存在时，此节点将根据数组被多次生成。
     #[serde(default)]
     pub repeat: Option<RepeatDef>,
-}
-
-fn default_camera_anchored() -> bool {
-    true
 }
 
 // ============================================================================

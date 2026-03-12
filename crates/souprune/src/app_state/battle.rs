@@ -171,6 +171,9 @@ fn setup_battle_camera(
             order: inherited_order,
             ..default()
         },
+        // Explicitly position at world origin — all battle View nodes and game entities
+        // use world-space coordinates relative to (0, 0, 0).
+        Transform::from_translation(Vec3::ZERO),
         projection,
         BattleCamera,
         crate::core::camera::MainGameCamera,

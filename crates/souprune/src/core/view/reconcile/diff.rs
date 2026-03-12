@@ -94,11 +94,7 @@ fn reconcile_properties(
     deltas: &mut Vec<ViewDelta>,
 ) {
     // Transform comparison
-    // Skip for camera_anchored elements - their transform is managed by CameraAnchored system
-    // 跳过 camera_anchored 元素 - 它们的 transform 由 CameraAnchored 系统管理
-    if !desired.camera_anchored
-        && !transforms_approximately_equal(&current.transform, &desired.transform)
-    {
+    if !transforms_approximately_equal(&current.transform, &desired.transform) {
         deltas.push(ViewDelta::UpdateTransform {
             entity: current.entity,
             new_value: desired.transform,
@@ -143,21 +139,6 @@ fn reconcile_properties(
             entity: current.entity,
             new_expression: new_expr.clone(),
         });
-    }
-
-    // Camera offset comparison
-    if let Some(desired_offset) = desired.camera_offset {
-        let needs_update = match current.camera_offset {
-            Some(current_offset) => !vec3_approximately_equal(&current_offset, &desired_offset),
-            None => true, // Entity should have CameraAnchored but doesn't
-        };
-
-        if needs_update {
-            deltas.push(ViewDelta::UpdateCameraOffset {
-                entity: current.entity,
-                new_offset: desired_offset,
-            });
-        }
     }
 
     // Material comparison
@@ -249,7 +230,6 @@ pub fn build_current_tree(
             parent: *parent,
             sprite: None,
             visible_when_expr: None,
-            camera_offset: None,
             has_shader_material: false,
         });
     }
@@ -322,7 +302,6 @@ mod tests {
             parent: None,
             sprite: None,
             visible_when_expr: None,
-            camera_offset: None,
             has_shader_material: false,
         });
 
