@@ -41,11 +41,35 @@ impl<T: Default> Default for Val<T> {
     }
 }
 
-/// 3D vector tuple: (x, y, z) — each component can be static or expression.
-pub type Vec3Tuple = (Val<f32>, Val<f32>, Val<f32>);
+/// 3D vector: supports both positional `(1.0, 2.0, 3.0)` and named `(x: 1.0, y: 2.0, z: 3.0)`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Vec3Tuple {
+    Named {
+        x: Val<f32>,
+        y: Val<f32>,
+        z: Val<f32>,
+    },
+    Positional(Val<f32>, Val<f32>, Val<f32>),
+}
 
-/// 2D vector tuple: (x, y).
-pub type Vec2Tuple = (Val<f32>, Val<f32>);
+/// 2D vector: supports both positional and named syntax.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Vec2Tuple {
+    Named { x: Val<f32>, y: Val<f32> },
+    Positional(Val<f32>, Val<f32>),
+}
 
-/// RGBA color tuple: (r, g, b, a).
-pub type ColorTuple = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+/// RGBA color: supports both positional and named `(r:, g:, b:, a:)` syntax.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ColorTuple {
+    Named {
+        r: Val<f32>,
+        g: Val<f32>,
+        b: Val<f32>,
+        a: Val<f32>,
+    },
+    Positional(Val<f32>, Val<f32>, Val<f32>, Val<f32>),
+}

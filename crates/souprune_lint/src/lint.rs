@@ -56,9 +56,8 @@ pub fn check_paths(paths: &[PathBuf]) -> Vec<CheckResult> {
 
 fn is_supported_ron(path: &Path) -> bool {
     let s = path.to_string_lossy();
-    RonFileKind::all_extensions()
-        .iter()
-        .any(|ext| s.ends_with(ext))
+    // Accept ALL .ron files, not just known extensions
+    RonFileKind::is_ron_file(&s)
 }
 
 fn not_found_result(path: &Path) -> CheckResult {
@@ -102,14 +101,33 @@ fn check_file(path: &Path) -> CheckResult {
     let diagnostics = match kind {
         Some(RonFileKind::View) => validate::<souprune_schema::view::ViewLayout>(&source),
         Some(RonFileKind::SdfStructure) => validate::<souprune_schema::view::SdfStructure>(&source),
-        None => vec![Diagnostic {
-            severity: Severity::Warning,
-            line: 0,
-            column: 0,
-            message: format!("unrecognized file type: {path_str}"),
-            offset: 0,
-            len: 0,
-        }],
+        Some(RonFileKind::Performance) => {
+            validate::<souprune_schema::danmaku::DanmakuPerformance>(&source)
+        }
+        Some(RonFileKind::Sequence) => {
+            validate::<souprune_schema::sequence::SequenceAsset>(&source)
+        }
+        Some(RonFileKind::Enemy) => validate::<souprune_schema::enemy::EnemyDef>(&source),
+        Some(RonFileKind::Items) => validate::<souprune_schema::item::ItemListAsset>(&source),
+        Some(RonFileKind::BattlePlayer) => {
+            validate::<souprune_schema::battle::BattlePlayerConfig>(&source)
+        }
+        Some(RonFileKind::Fre) => validate::<souprune_schema::fre::FreAsset>(&source),
+        Some(RonFileKind::Input) => validate::<souprune_schema::config::InputConfig>(&source),
+        Some(RonFileKind::States) => validate::<souprune_schema::config::StateConfig>(&source),
+        Some(RonFileKind::TouchLayout) => {
+            validate::<souprune_schema::config::TouchLayoutDef>(&source)
+        }
+        Some(RonFileKind::AmConfig) => validate::<souprune_schema::config::AmBattleConfig>(&source),
+        Some(RonFileKind::Character) => validate_character(&source),
+        Some(RonFileKind::PlayerBehavior) => {
+            validate::<souprune_schema::overworld::PlayerBehaviorFile>(&source)
+        }
+        Some(RonFileKind::ChaseConfig) => {
+            validate::<souprune_schema::overworld::ChaseConfig>(&source)
+        }
+        // Unknown .ron file — fall back to ron::Value syntax check
+        None => validate_ron_syntax(&source),
     };
 
     CheckResult {
@@ -123,26 +141,54 @@ fn check_file(path: &Path) -> CheckResult {
 fn validate<T: serde::de::DeserializeOwned>(source: &str) -> Vec<Diagnostic> {
     match ron::from_str::<T>(source) {
         Ok(_) => Vec::new(),
-        Err(spanned) => {
-            let start_pos = &spanned.span.start;
-            let end_pos = &spanned.span.end;
-            let offset = line_col_to_offset(source, start_pos.line, start_pos.col);
-            let end_offset = line_col_to_offset(source, end_pos.line, end_pos.col);
-
-            vec![Diagnostic {
-                severity: Severity::Error,
-                line: start_pos.line,
-                column: start_pos.col,
-                message: format!("{}", spanned.code),
-                offset,
-                len: if end_offset > offset {
-                    end_offset - offset
-                } else {
-                    1
-                },
-            }]
-        }
+        Err(spanned) => spanned_to_diagnostics(source, &spanned),
     }
+}
+
+/// Validate `.character.ron` — try CharacterAsset first, then AnimationConfigAsset.
+fn validate_character(source: &str) -> Vec<Diagnostic> {
+    if ron::from_str::<souprune_schema::character::CharacterAsset>(source).is_ok() {
+        return Vec::new();
+    }
+    if ron::from_str::<souprune_schema::character::AnimationConfigAsset>(source).is_ok() {
+        return Vec::new();
+    }
+    // Both failed — report the CharacterAsset error as primary
+    match ron::from_str::<souprune_schema::character::CharacterAsset>(source) {
+        Ok(_) => Vec::new(),
+        Err(spanned) => spanned_to_diagnostics(source, &spanned),
+    }
+}
+
+/// Fallback: validate unknown `.ron` files with `ron::Value` syntax check.
+fn validate_ron_syntax(source: &str) -> Vec<Diagnostic> {
+    match ron::from_str::<ron::Value>(source) {
+        Ok(_) => vec![Diagnostic {
+            severity: Severity::Warning,
+            line: 0,
+            column: 0,
+            message: "unknown RON file type — syntax OK but no schema validation".to_string(),
+            offset: 0,
+            len: 0,
+        }],
+        Err(spanned) => spanned_to_diagnostics(source, &spanned),
+    }
+}
+
+/// Convert a `SpannedError` to diagnostics.
+fn spanned_to_diagnostics(source: &str, spanned: &ron::error::SpannedError) -> Vec<Diagnostic> {
+    let line = spanned.position.line;
+    let col = spanned.position.col;
+    let offset = line_col_to_offset(source, line, col);
+
+    vec![Diagnostic {
+        severity: Severity::Error,
+        line,
+        column: col,
+        message: format!("{}", spanned.code),
+        offset,
+        len: 1,
+    }]
 }
 
 /// Convert 1-based line/column to byte offset.
