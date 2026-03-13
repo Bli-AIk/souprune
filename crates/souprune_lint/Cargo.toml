@@ -2,7 +2,7 @@
 name = "souprune-lint"
 version = "0.1.0"
 edition = "2024"
-license = "LGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 description = "RON file linter for SoupRune projects. Validates .view.ron and .sdf.ron files."
 
 [[bin]]
