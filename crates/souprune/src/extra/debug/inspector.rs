@@ -203,6 +203,7 @@ pub mod debug_inspector {
                     "Battle Test: [F6]",
                     "Game Freeze: [F7]",
                     "Debug Camera: [F8]",
+                    "Restart Game: [F9]",
                     "Toggle this help: [F12]",
                 ];
 
