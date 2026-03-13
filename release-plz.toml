@@ -43,15 +43,18 @@ name = "souprune_sdk"
 
 [[package]]
 name = "souprune_mock_host"
+release = false
 
 [[package]]
 name = "souprune_editor"
+release = false
 
 [[package]]
 name = "souprune_schema"
 
 [[package]]
 name = "souprune-lint"
+release = false
 
 # Explicitly disable release-plz for git submodules and their sub-crates
 # These have their own release workflows in their respective repositories
