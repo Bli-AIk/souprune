@@ -1,11 +1,10 @@
 /// SoupRune Mod System — WIT Interface Definition
 ///
 /// This file defines the contract between the Host (game engine)
-/// and the Guest (mod). It replaces the old C ABI system.
+/// and the Guest (mod).
 ///
 /// SoupRune 模组系统 — WIT 接口定义
 /// 此文件定义了宿主（游戏引擎）和客体（模组）之间的契约。
-/// 替代旧的 C ABI 系统。
 
 package souprune:plugin@0.1.0;
 
@@ -95,6 +94,11 @@ interface danmaku {
     record bullet-output {
         offset: vec2,
         rotation: f32,
+        /// Opacity override. Negative means no change.
+        opacity: f32,
+        /// Scale delta (0.0 = no change from base scale).
+        scale-x: f32,
+        scale-y: f32,
     }
 
     /// Lifecycle callbacks for a single danmaku instance.
@@ -109,9 +113,56 @@ interface danmaku {
     list-algorithms: func() -> list<string>;
 }
 
+/// Spawn-pattern interface — exported by mods for custom bullet spawn patterns.
+/// Unlike danmaku (per-frame behavior), spawn patterns compute a batch of
+/// spawn points once when a TimelineEvent fires.
+///
+/// 生成模式接口 — 模组导出，用于自定义弹幕生成模式。
+/// 与弹幕行为（逐帧）不同，生成模式在 TimelineEvent 触发时
+/// 一次性批量计算生成点。
+interface spawn-pattern {
+    use host-api.{vec2};
+
+    /// A single computed spawn point.
+    record spawn-point {
+        x: f32,
+        y: f32,
+        angle: f32,
+        radius: f32,
+    }
+
+    /// Context for spawn pattern generation.
+    record spawn-context {
+        /// Effective center (battle box center + event offset).
+        center-x: f32,
+        center-y: f32,
+        /// Current player position.
+        player-x: f32,
+        player-y: f32,
+        /// Performance elapsed time.
+        time: f32,
+    }
+
+    /// Named parameter from RON config.
+    record pattern-param {
+        name: string,
+        value: f64,
+    }
+
+    /// Generate spawn points for a pattern.
+    resource pattern-instance {
+        constructor(id: string);
+        generate: func(ctx: spawn-context, params: list<pattern-param>) -> list<spawn-point>;
+    }
+
+    /// List all pattern IDs this mod provides.
+    list-patterns: func() -> list<string>;
+}
+
 /// The world that a SoupRune mod component must target.
 world souprune-mod {
     import host-api;
     export behavior;
     export danmaku;
+    export spawn-pattern;
 }

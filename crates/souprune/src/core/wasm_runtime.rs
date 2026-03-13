@@ -70,12 +70,13 @@ impl souprune::plugin::host_api::Host for HostState {
     }
 }
 
-/// A loaded WASM mod component, ready to instantiate behaviors and danmaku.
+/// A loaded WASM mod component, ready to instantiate behaviors, danmaku, and patterns.
 pub struct LoadedMod {
     pub store: Store<HostState>,
     pub bindings: SoupruneMod,
     pub behavior_ids: Vec<String>,
     pub algorithm_ids: Vec<String>,
+    pub pattern_ids: Vec<String>,
 }
 
 /// WASM runtime — holds the shared engine and linker.
@@ -120,12 +121,16 @@ impl WasmRuntime {
         let algorithm_ids = bindings
             .souprune_plugin_danmaku()
             .call_list_algorithms(&mut store)?;
+        let pattern_ids = bindings
+            .souprune_plugin_spawn_pattern()
+            .call_list_patterns(&mut store)?;
 
         Ok(LoadedMod {
             store,
             bindings,
             behavior_ids,
             algorithm_ids,
+            pattern_ids,
         })
     }
 }

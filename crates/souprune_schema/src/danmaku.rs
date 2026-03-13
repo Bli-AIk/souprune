@@ -118,6 +118,7 @@ pub enum BulletBehavior {
     Stationary(),
     Orbital(OrbitalConfig),
     Sine(SineConfig),
+    Aimed(AimedConfig),
     Custom {
         id: String,
         #[serde(default)]
@@ -176,6 +177,23 @@ impl Default for SineConfig {
             amplitude: 20.0,
             frequency: 2.0,
             phase: 0.0,
+        }
+    }
+}
+
+/// Aimed bullet configuration (自机狙).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct AimedConfig {
+    pub speed: f32,
+    pub angle_offset: f32,
+}
+
+impl Default for AimedConfig {
+    fn default() -> Self {
+        Self {
+            speed: 120.0,
+            angle_offset: 0.0,
         }
     }
 }

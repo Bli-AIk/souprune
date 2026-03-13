@@ -1,5 +1,5 @@
 [project]
-mod_name = "example_battle_mod"
+mod_name = "example_mod"
 language = "en-US"
 
 [window]

@@ -1,9 +1,11 @@
-//! Defines the `Behavior` and `DanmakuBehavior` traits that mod developers implement.
+//! Defines the `Behavior`, `DanmakuBehavior`, and `SpawnPatternBehavior` traits
+//! that mod developers implement.
 //!
-//! 定义模组开发者需要实现的 `Behavior` 和 `DanmakuBehavior` trait。
+//! 定义模组开发者需要实现的 `Behavior`、`DanmakuBehavior`
+//! 和 `SpawnPatternBehavior` trait。
 
 use crate::context::Context;
-use crate::{BulletContext, BulletOutput};
+use crate::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
 
 /// Player/entity behavior trait.
 ///
@@ -35,6 +37,18 @@ pub trait DanmakuBehavior {
     fn on_exit(&mut self) {}
 }
 
+/// Spawn pattern trait — generates a list of spawn points.
+///
+/// Unlike DanmakuBehavior (per-frame), spawn patterns are invoked once
+/// per TimelineEvent to compute where bullets should appear.
+///
+/// 生成模式 trait — 生成一组生成点。
+/// 与弹幕行为（逐帧）不同，生成模式在 TimelineEvent 触发时
+/// 一次性调用以计算子弹生成位置。
+pub trait SpawnPatternBehavior {
+    fn generate(&self, ctx: &SpawnContext, params: &[SpawnParam]) -> Vec<SpawnOutput>;
+}
+
 /// No-op behavior used when an unknown ID is requested.
 #[doc(hidden)]
 pub struct NoopBehavior;
@@ -50,5 +64,15 @@ pub struct NoopDanmaku;
 impl DanmakuBehavior for NoopDanmaku {
     fn on_update(&mut self, _context: &BulletContext) -> BulletOutput {
         BulletOutput::ZERO
+    }
+}
+
+/// No-op pattern used when an unknown ID is requested.
+#[doc(hidden)]
+pub struct NoopPattern;
+
+impl SpawnPatternBehavior for NoopPattern {
+    fn generate(&self, _ctx: &SpawnContext, _params: &[SpawnParam]) -> Vec<SpawnOutput> {
+        vec![]
     }
 }

@@ -23,6 +23,7 @@ exclude = [
     "crates/mortar",
     "crates/iyes_perf_ui",
     "crates/souprune_mod_test",
+    "crates/souprune_builtins",
 ]
 
 # Use local mortar_compiler for bevy_mortar_bond during development

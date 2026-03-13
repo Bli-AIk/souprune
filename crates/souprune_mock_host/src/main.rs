@@ -88,6 +88,11 @@ fn main() -> anyhow::Result<()> {
         algorithms
     );
 
+    // List patterns
+    let pattern_iface = bindings.souprune_plugin_spawn_pattern();
+    let patterns = pattern_iface.call_list_patterns(&mut store)?;
+    println!("[HOST] Found {} patterns: {:?}", patterns.len(), patterns);
+
     // Test each behavior
     for id in &behaviors {
         println!("\n--- Testing Behavior '{}' ---", id);
@@ -131,11 +136,11 @@ fn main() -> anyhow::Result<()> {
         let enter_ctx = exports::souprune::plugin::danmaku::BulletContext {
             elapsed: 0.0,
             delta_time: 0.0,
-            spawn_pos: test_spawn_pos.clone(),
-            offset: zero.clone(),
+            spawn_pos: test_spawn_pos,
+            offset: zero,
             initial_angle: 0.0,
             initial_radius: 0.0,
-            player_pos: test_player_pos.clone(),
+            player_pos: test_player_pos,
             props: vec![],
         };
 
@@ -149,11 +154,11 @@ fn main() -> anyhow::Result<()> {
             let update_ctx = exports::souprune::plugin::danmaku::BulletContext {
                 elapsed,
                 delta_time: 0.016,
-                spawn_pos: test_spawn_pos.clone(),
-                offset: zero.clone(),
+                spawn_pos: test_spawn_pos,
+                offset: zero,
                 initial_angle: 0.0,
                 initial_radius: 0.0,
-                player_pos: test_player_pos.clone(),
+                player_pos: test_player_pos,
                 props: vec![],
             };
 
@@ -180,6 +185,51 @@ fn main() -> anyhow::Result<()> {
         danmaku_iface
             .danmaku_instance()
             .call_on_exit(&mut store, instance)?;
+        instance.resource_drop(&mut store)?;
+    }
+
+    // Test each spawn pattern
+    for id in &patterns {
+        println!("\n--- Testing Pattern '{}' ---", id);
+
+        let instance = pattern_iface
+            .pattern_instance()
+            .call_constructor(&mut store, id)?;
+
+        let test_ctx = exports::souprune::plugin::spawn_pattern::SpawnContext {
+            center_x: 0.0,
+            center_y: 0.0,
+            player_x: 50.0,
+            player_y: -100.0,
+            time: 0.0,
+        };
+
+        let test_params = vec![
+            exports::souprune::plugin::spawn_pattern::PatternParam {
+                name: "count".to_string(),
+                value: 6.0,
+            },
+            exports::souprune::plugin::spawn_pattern::PatternParam {
+                name: "radius".to_string(),
+                value: 40.0,
+            },
+        ];
+
+        let points = pattern_iface.pattern_instance().call_generate(
+            &mut store,
+            instance,
+            test_ctx,
+            &test_params,
+        )?;
+
+        println!("  Generated {} spawn points:", points.len());
+        for (i, p) in points.iter().enumerate() {
+            println!(
+                "    [{}] pos=({:.2}, {:.2}), angle={:.3}, radius={:.1}",
+                i, p.x, p.y, p.angle, p.radius
+            );
+        }
+
         instance.resource_drop(&mut store)?;
     }
 

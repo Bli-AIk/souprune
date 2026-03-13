@@ -213,10 +213,10 @@ impl BulletMotionState {
 // ============================================================================
 
 /// Behavior stack component for a bullet.
-/// Contains a list of active behaviors that are evaluated each frame.
+/// Contains the declarative behavior list (used for to_wasm_call mapping).
 ///
 /// 弹幕的行为栈组件。
-/// 包含每帧都会评估的活跃行为列表。
+/// 包含声明式行为列表（用于 to_wasm_call 映射）。
 #[derive(Component, Clone, Default)]
 pub struct BehaviorStack {
     /// List of active behaviors
@@ -227,17 +227,6 @@ impl BehaviorStack {
     pub fn new(behaviors: Vec<BulletBehavior>) -> Self {
         Self { behaviors }
     }
-}
-
-/// Tween state for tween behaviors.
-/// Tracks the progress of tween animations.
-///
-/// 补间行为的状态。
-/// 追踪补间动画的进度。
-#[derive(Component, Default)]
-pub struct TweenState {
-    /// Current time for each tween (indexed by behavior position in stack)
-    pub timers: Vec<f32>,
 }
 
 /// Performance player component.
@@ -293,3 +282,10 @@ pub struct PerformancePlayerMarker;
 /// 持有来自 WASM 模组的活跃弹幕行为实例的组件。
 /// 管理 WASM 实例的生命周期（on_enter/on_update/on_exit）。
 pub use crate::core::mod_system::ActiveDanmaku;
+
+/// Stack of active WASM danmaku instances.
+/// Each bullet can have multiple behaviors running simultaneously.
+///
+/// 活跃 WASM 弹幕实例栈。
+/// 每个弹幕可以同时运行多个行为。
+pub use crate::core::mod_system::ActiveDanmakuStack;

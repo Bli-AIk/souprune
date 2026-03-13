@@ -74,6 +74,35 @@ impl DanmakuBehavior for DebugDanmaku {
     }
 }
 
+/// Test spawn pattern: a simple ring of N points around the center.
+struct TestRingPattern;
+
+impl SpawnPatternBehavior for TestRingPattern {
+    fn generate(&self, ctx: &SpawnContext, params: &[SpawnParam]) -> Vec<SpawnOutput> {
+        let count = params
+            .iter()
+            .find(|p| p.name == "count")
+            .map_or(8, |p| p.as_usize().max(1));
+        let radius = params
+            .iter()
+            .find(|p| p.name == "radius")
+            .map_or(50.0, |p| p.as_f32());
+
+        let step = std::f32::consts::TAU / count as f32;
+        (0..count)
+            .map(|i| {
+                let angle = step * i as f32;
+                SpawnOutput {
+                    x: ctx.center.x + angle.cos() * radius,
+                    y: ctx.center.y + angle.sin() * radius,
+                    angle,
+                    radius,
+                }
+            })
+            .collect()
+    }
+}
+
 export_mod! {
     behaviors: [
         ("test_soul", MyTestSoul, || MyTestSoul { counter: 0 }),
@@ -84,5 +113,8 @@ export_mod! {
             captured_player_pos: Vec2::ZERO,
             captured_spawn_pos: Vec2::ZERO,
         }),
+    ],
+    patterns: [
+        ("test_ring", TestRingPattern, || TestRingPattern),
     ],
 }

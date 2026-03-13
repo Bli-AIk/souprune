@@ -33,7 +33,7 @@ pub mod context;
 pub mod traits;
 
 pub use context::{Context, Vec2};
-pub use traits::{Behavior, DanmakuBehavior};
+pub use traits::{Behavior, DanmakuBehavior, SpawnPatternBehavior};
 
 // Generate guest bindings from the WIT interface
 wit_bindgen::generate!({
@@ -46,6 +46,7 @@ wit_bindgen::generate!({
 pub mod wit {
     pub use super::exports::souprune::plugin::behavior::GuestBehaviorInstance;
     pub use super::exports::souprune::plugin::danmaku::GuestDanmakuInstance;
+    pub use super::exports::souprune::plugin::spawn_pattern::GuestPatternInstance;
     pub use super::souprune::plugin::host_api;
 }
 
@@ -119,28 +120,133 @@ impl BulletContext {
     }
 }
 
+/// Context for spawn pattern generation.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnContext {
+    pub center: Vec2,
+    pub player_pos: Vec2,
+    pub time: f32,
+}
+
+impl SpawnContext {
+    #[doc(hidden)]
+    pub fn from_wit(ctx: &exports::souprune::plugin::spawn_pattern::SpawnContext) -> Self {
+        Self {
+            center: Vec2::new(ctx.center_x, ctx.center_y),
+            player_pos: Vec2::new(ctx.player_x, ctx.player_y),
+            time: ctx.time,
+        }
+    }
+}
+
+/// A computed spawn point output from a pattern.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnOutput {
+    pub x: f32,
+    pub y: f32,
+    pub angle: f32,
+    pub radius: f32,
+}
+
+impl SpawnOutput {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {
+            x,
+            y,
+            angle: 0.0,
+            radius: 0.0,
+        }
+    }
+
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn to_wit(self) -> exports::souprune::plugin::spawn_pattern::SpawnPoint {
+        exports::souprune::plugin::spawn_pattern::SpawnPoint {
+            x: self.x,
+            y: self.y,
+            angle: self.angle,
+            radius: self.radius,
+        }
+    }
+}
+
+/// Named parameter for spawn patterns.
+#[derive(Debug, Clone)]
+pub struct SpawnParam {
+    pub name: String,
+    pub value: f64,
+}
+
+impl SpawnParam {
+    #[doc(hidden)]
+    pub fn from_wit(p: &exports::souprune::plugin::spawn_pattern::PatternParam) -> Self {
+        Self {
+            name: p.name.clone(),
+            value: p.value,
+        }
+    }
+
+    /// Get as f32 for convenience.
+    pub fn as_f32(&self) -> f32 {
+        self.value as f32
+    }
+
+    /// Get as usize (clamped to 0).
+    pub fn as_usize(&self) -> usize {
+        self.value.max(0.0) as usize
+    }
+}
+
 /// Output from a danmaku update.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BulletOutput {
     pub offset: Vec2,
     pub rotation: f32,
+    /// Opacity override. Negative means no change.
+    pub opacity: f32,
+    /// Scale delta (0.0 = no change from base scale).
+    pub scale_x: f32,
+    pub scale_y: f32,
 }
 
 impl BulletOutput {
     pub const ZERO: Self = Self {
         offset: Vec2::ZERO,
         rotation: 0.0,
+        opacity: -1.0,
+        scale_x: 0.0,
+        scale_y: 0.0,
     };
 
     pub fn new(x: f32, y: f32) -> Self {
         Self {
             offset: Vec2::new(x, y),
-            rotation: 0.0,
+            ..Self::ZERO
         }
     }
 
     pub fn with_rotation(mut self, rotation: f32) -> Self {
         self.rotation = rotation;
+        self
+    }
+
+    pub fn with_opacity(mut self, opacity: f32) -> Self {
+        self.opacity = opacity;
+        self
+    }
+
+    pub fn with_scale(mut self, sx: f32, sy: f32) -> Self {
+        self.scale_x = sx;
+        self.scale_y = sy;
         self
     }
 
@@ -152,6 +258,9 @@ impl BulletOutput {
                 y: self.offset.y,
             },
             rotation: self.rotation,
+            opacity: self.opacity,
+            scale_x: self.scale_x,
+            scale_y: self.scale_y,
         }
     }
 }
@@ -159,34 +268,40 @@ impl BulletOutput {
 /// Convenience prelude for mod developers.
 pub mod prelude {
     pub use crate::context::{Context, Vec2};
-    pub use crate::traits::{Behavior, DanmakuBehavior};
-    pub use crate::{Action, BulletContext, BulletOutput, export_mod};
+    pub use crate::traits::{Behavior, DanmakuBehavior, SpawnPatternBehavior};
+    pub use crate::{
+        Action, BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod,
+    };
 }
 
-/// Register behavior and danmaku implementations and export them as a WASM component.
+/// Register behavior, danmaku, and spawn pattern implementations and export them as a WASM component.
 ///
-/// 注册行为和弹幕实现，并将它们导出为 WASM 组件。
+/// 注册行为、弹幕和生成模式实现，并将它们导出为 WASM 组件。
 ///
 /// # Syntax
 ///
 /// ```ignore
-/// // 3-tuple with custom constructor:
+/// // Full 3-tuple with custom constructor:
 /// export_mod! {
 ///     behaviors: [("id", Type, || Type { field: value })],
 ///     danmaku: [("id", Type, || Type::new())],
+///     patterns: [("id", Type, || Type::new())],
 /// }
 ///
 /// // 2-tuple for Default types (auto-constructs via Default::default()):
 /// export_mod! {
 ///     behaviors: [("id", Type)],
 ///     danmaku: [("id", Type)],
+///     patterns: [("id", Type)],
 /// }
 /// ```
 #[macro_export]
 macro_rules! export_mod {
+    // === Primary form: all three interfaces, 3-tuple constructors ===
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
         danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+        patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
     ) => {
         // --- Behavior resource wrapper ---
         struct WasmBehaviorInstance {
@@ -259,6 +374,34 @@ macro_rules! export_mod {
             }
         }
 
+        // --- Pattern resource wrapper ---
+        struct WasmPatternInstance {
+            inner: Box<dyn $crate::SpawnPatternBehavior>,
+        }
+
+        impl $crate::wit::GuestPatternInstance for WasmPatternInstance {
+            fn new(id: String) -> Self {
+                let inner: Box<dyn $crate::SpawnPatternBehavior> = match id.as_str() {
+                    $( $p_id => Box::new($p_ctor()), )*
+                    other => {
+                        eprintln!("[souprune_sdk] WARNING: unknown pattern ID \"{other}\", using NoopPattern");
+                        Box::new($crate::traits::NoopPattern)
+                    }
+                };
+                Self { inner }
+            }
+
+            fn generate(
+                &self,
+                ctx: $crate::exports::souprune::plugin::spawn_pattern::SpawnContext,
+                params: Vec<$crate::exports::souprune::plugin::spawn_pattern::PatternParam>,
+            ) -> Vec<$crate::exports::souprune::plugin::spawn_pattern::SpawnPoint> {
+                let sc = $crate::SpawnContext::from_wit(&ctx);
+                let sp: Vec<$crate::SpawnParam> = params.iter().map($crate::SpawnParam::from_wit).collect();
+                self.inner.generate(&sc, &sp).into_iter().map(|o| o.to_wit()).collect()
+            }
+        }
+
         // --- Module-level exports ---
         struct ModComponent;
 
@@ -278,16 +421,39 @@ macro_rules! export_mod {
             }
         }
 
+        impl $crate::exports::souprune::plugin::spawn_pattern::Guest for ModComponent {
+            type PatternInstance = WasmPatternInstance;
+
+            fn list_patterns() -> Vec<String> {
+                vec![ $( $p_id.to_string(), )* ]
+            }
+        }
+
         $crate::export!(ModComponent with_types_in $crate);
     };
 
-    // Shorthand: behaviors only
+    // === Legacy forms (behaviors + danmaku only) — add empty patterns ===
+
+    // 3-tuple: behaviors + danmaku only
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
+            danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
+            patterns: [],
+        }
+    };
+
+    // Shorthand: behaviors only (3-tuple)
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
     ) => {
         $crate::export_mod! {
             behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
             danmaku: [],
+            patterns: [],
         }
     };
 
@@ -298,11 +464,37 @@ macro_rules! export_mod {
         $crate::export_mod! {
             behaviors: [],
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
+            patterns: [],
         }
     };
 
-    // 2-tuple form: uses Default::default() as constructor.
-    // For types that implement Default, no constructor lambda needed.
+    // Shorthand: patterns only (3-tuple)
+    (
+        patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [],
+            danmaku: [],
+            patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
+        }
+    };
+
+    // === 2-tuple forms (Default::default() constructor) ===
+
+    // 2-tuple: all three interfaces
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
+        patterns: [ $( ($p_id:literal, $p_type:ty) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
+            danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
+            patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
+        }
+    };
+
+    // 2-tuple: behaviors + danmaku only
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
         danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
@@ -310,6 +502,7 @@ macro_rules! export_mod {
         $crate::export_mod! {
             behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
+            patterns: [],
         }
     };
 
@@ -320,6 +513,7 @@ macro_rules! export_mod {
         $crate::export_mod! {
             behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
             danmaku: [],
+            patterns: [],
         }
     };
 
@@ -330,6 +524,18 @@ macro_rules! export_mod {
         $crate::export_mod! {
             behaviors: [],
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
+            patterns: [],
+        }
+    };
+
+    // 2-tuple shorthand: patterns only
+    (
+        patterns: [ $( ($p_id:literal, $p_type:ty) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [],
+            danmaku: [],
+            patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
         }
     };
 }

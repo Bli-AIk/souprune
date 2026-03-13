@@ -75,18 +75,26 @@ pub struct BulletContext {
 pub struct BulletOutput {
     pub offset: Vec2,
     pub rotation: f32,
+    /// Opacity override. Negative means no change.
+    pub opacity: f32,
+    /// Scale delta (0.0 = no change from base scale).
+    pub scale_x: f32,
+    pub scale_y: f32,
 }
 
 impl BulletOutput {
     pub const ZERO: Self = Self {
         offset: Vec2::ZERO,
         rotation: 0.0,
+        opacity: -1.0,
+        scale_x: 0.0,
+        scale_y: 0.0,
     };
 
     pub fn new(x: f32, y: f32) -> Self {
         Self {
             offset: Vec2::new(x, y),
-            rotation: 0.0,
+            ..Self::ZERO
         }
     }
 
@@ -94,6 +102,36 @@ impl BulletOutput {
         self.rotation = rotation;
         self
     }
+}
+
+// ============================================================================
+// Spawn Pattern Types
+// ============================================================================
+
+/// A computed spawn point, mirrors the WIT `spawn-point` record.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnPoint {
+    pub x: f32,
+    pub y: f32,
+    pub angle: f32,
+    pub radius: f32,
+}
+
+/// Context for spawn pattern generation, mirrors the WIT `spawn-context` record.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnContext {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub player_x: f32,
+    pub player_y: f32,
+    pub time: f32,
+}
+
+/// Named parameter for spawn patterns, mirrors the WIT `pattern-param` record.
+#[derive(Debug, Clone)]
+pub struct PatternParam {
+    pub name: String,
+    pub value: f64,
 }
 
 /// Returns the path to the WIT directory shipped with this crate.

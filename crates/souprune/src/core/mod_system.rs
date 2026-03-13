@@ -15,7 +15,8 @@ impl Plugin for ModPlugin {
             Err(e) => {
                 error!("WASM runtime unavailable: {e}. Mod support disabled.");
                 app.init_resource::<BehaviorRegistry>()
-                    .init_resource::<DanmakuRegistry>();
+                    .init_resource::<DanmakuRegistry>()
+                    .init_resource::<SpawnPatternRegistry>();
                 return;
             }
         };
@@ -25,6 +26,7 @@ impl Plugin for ModPlugin {
             .insert_non_send_resource(LoadedMods::default())
             .init_resource::<BehaviorRegistry>()
             .init_resource::<DanmakuRegistry>()
+            .init_resource::<SpawnPatternRegistry>()
             .add_systems(Startup, load_mods_system)
             .add_systems(
                 schedule,
@@ -63,6 +65,87 @@ impl DanmakuRegistry {
     }
 }
 
+/// Registry for spawn pattern factories loaded from WASM mods.
+///
+/// 从 WASM 模组加载的生成模式工厂注册表。
+#[derive(Resource, Default)]
+pub struct SpawnPatternRegistry {
+    /// Pattern ID → which mod provides it
+    pattern_mods: HashMap<String, usize>,
+}
+
+impl SpawnPatternRegistry {
+    pub fn contains(&self, id: &str) -> bool {
+        self.pattern_mods.contains_key(id)
+    }
+
+    /// Create a pattern instance and generate spawn points.
+    pub fn generate(
+        &self,
+        id: &str,
+        ctx: &souprune_api::SpawnContext,
+        params: &[souprune_api::PatternParam],
+        loaded_mods: &mut LoadedMods,
+    ) -> Option<Vec<souprune_api::SpawnPoint>> {
+        let &mod_index = self.pattern_mods.get(id)?;
+        let loaded = loaded_mods.mods.get_mut(mod_index)?;
+
+        let pattern_iface = loaded.bindings.souprune_plugin_spawn_pattern();
+
+        let handle = match pattern_iface
+            .pattern_instance()
+            .call_constructor(&mut loaded.store, id)
+        {
+            Ok(h) => h,
+            Err(e) => {
+                error!("Failed to create pattern '{}': {:?}", id, e);
+                return None;
+            }
+        };
+
+        let wit_ctx = wasm_runtime::exports::souprune::plugin::spawn_pattern::SpawnContext {
+            center_x: ctx.center_x,
+            center_y: ctx.center_y,
+            player_x: ctx.player_x,
+            player_y: ctx.player_y,
+            time: ctx.time,
+        };
+        let wit_params: Vec<wasm_runtime::exports::souprune::plugin::spawn_pattern::PatternParam> =
+            params
+                .iter()
+                .map(
+                    |p| wasm_runtime::exports::souprune::plugin::spawn_pattern::PatternParam {
+                        name: p.name.clone(),
+                        value: p.value,
+                    },
+                )
+                .collect();
+
+        match pattern_iface.pattern_instance().call_generate(
+            &mut loaded.store,
+            handle,
+            wit_ctx,
+            &wit_params,
+        ) {
+            Ok(points) => Some(
+                points
+                    .into_iter()
+                    .map(|p| souprune_api::SpawnPoint {
+                        x: p.x,
+                        y: p.y,
+                        angle: p.angle,
+                        radius: p.radius,
+                    })
+                    .collect(),
+            ),
+            Err(e) => {
+                error!("Pattern '{}' generate failed: {:?}", id, e);
+                None
+            }
+        }
+    }
+}
+
 /// Resource holding all loaded WASM mod instances.
 /// Uses NonSend because wasmtime Store contains !Sync types.
 ///
@@ -73,12 +156,107 @@ pub struct LoadedMods {
     pub mods: Vec<LoadedMod>,
 }
 
+/// Register a loaded mod's exports into the registries.
+fn register_mod(
+    loaded: &wasm_runtime::LoadedMod,
+    mod_index: usize,
+    behavior_registry: &mut BehaviorRegistry,
+    danmaku_registry: &mut DanmakuRegistry,
+    pattern_registry: &mut SpawnPatternRegistry,
+) {
+    for id in &loaded.behavior_ids {
+        info!("Registered Behavior: {}", id);
+        behavior_registry
+            .behavior_mods
+            .insert(id.clone(), mod_index);
+    }
+    for id in &loaded.algorithm_ids {
+        info!("Registered Danmaku Algorithm: {}", id);
+        danmaku_registry
+            .algorithm_mods
+            .insert(id.clone(), mod_index);
+    }
+    for id in &loaded.pattern_ids {
+        info!("Registered Spawn Pattern: {}", id);
+        pattern_registry.pattern_mods.insert(id.clone(), mod_index);
+    }
+}
+
+/// Search for and load the builtin WASM module.
+fn load_builtin_wasm(
+    runtime: &WasmRuntime,
+    behavior_registry: &mut BehaviorRegistry,
+    danmaku_registry: &mut DanmakuRegistry,
+    pattern_registry: &mut SpawnPatternRegistry,
+    loaded_mods: &mut LoadedMods,
+) {
+    // Search multiple candidate paths for builtins.wasm
+    let candidates = [
+        std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
+        std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
+        std::path::PathBuf::from(
+            "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
+        ),
+    ];
+
+    let wasm_path = candidates.iter().find(|p| p.exists());
+    let Some(wasm_path) = wasm_path else {
+        warn!(
+            "Builtin WASM not found. Searched: {:?}",
+            candidates
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+        );
+        return;
+    };
+
+    info!("Loading builtin WASM: {}", wasm_path.display());
+    eprintln!("[Souprune] Loading builtin WASM: {}", wasm_path.display());
+
+    match runtime.load_mod(wasm_path) {
+        Ok(loaded) => {
+            let mod_index = loaded_mods.mods.len();
+            let b = loaded.behavior_ids.len();
+            let d = loaded.algorithm_ids.len();
+            let p = loaded.pattern_ids.len();
+            register_mod(
+                &loaded,
+                mod_index,
+                behavior_registry,
+                danmaku_registry,
+                pattern_registry,
+            );
+            loaded_mods.mods.push(loaded);
+            eprintln!(
+                "[Souprune] Builtins: {} behaviors, {} danmaku, {} patterns",
+                b, d, p
+            );
+        }
+        Err(e) => {
+            error!("Failed to load builtin WASM: {:?}", e);
+            eprintln!("[Souprune] Error loading builtin WASM: {:?}", e);
+        }
+    }
+}
+
 fn load_mods_system(
     mut behavior_registry: ResMut<BehaviorRegistry>,
     mut danmaku_registry: ResMut<DanmakuRegistry>,
+    mut pattern_registry: ResMut<SpawnPatternRegistry>,
     runtime: NonSend<WasmRuntime>,
     mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
+    // 1. Load builtins WASM
+    load_builtin_wasm(
+        &runtime,
+        &mut behavior_registry,
+        &mut danmaku_registry,
+        &mut pattern_registry,
+        &mut loaded_mods,
+    );
+
+    // 2. Load user mod WASM
     let config = crate::config::load_config();
     let mod_name = &config.project.mod_name;
     let base_path = crate::config::get_projects_base_path().join(mod_name);
@@ -109,27 +287,21 @@ fn load_mods_system(
     match runtime.load_mod(&wasm_path) {
         Ok(loaded) => {
             let mod_index = loaded_mods.mods.len();
-
-            for id in &loaded.behavior_ids {
-                info!("Registered Behavior: {}", id);
-                behavior_registry
-                    .behavior_mods
-                    .insert(id.clone(), mod_index);
-            }
-            eprintln!("[Souprune] Loaded {} behaviors", loaded.behavior_ids.len());
-
-            for id in &loaded.algorithm_ids {
-                info!("Registered Danmaku Algorithm: {}", id);
-                danmaku_registry
-                    .algorithm_mods
-                    .insert(id.clone(), mod_index);
-            }
-            eprintln!(
-                "[Souprune] Loaded {} danmaku algorithms",
-                loaded.algorithm_ids.len()
+            let b = loaded.behavior_ids.len();
+            let d = loaded.algorithm_ids.len();
+            let p = loaded.pattern_ids.len();
+            register_mod(
+                &loaded,
+                mod_index,
+                &mut behavior_registry,
+                &mut danmaku_registry,
+                &mut pattern_registry,
             );
-
             loaded_mods.mods.push(loaded);
+            eprintln!(
+                "[Souprune] Mod: {} behaviors, {} danmaku, {} patterns",
+                b, d, p
+            );
         }
         Err(e) => {
             error!("Failed to load WASM mod: {:?}", e);
@@ -277,6 +449,28 @@ pub struct ActiveDanmaku {
 unsafe impl Send for ActiveDanmaku {}
 unsafe impl Sync for ActiveDanmaku {}
 
+/// Stack of active WASM danmaku instances.
+/// Each bullet can have multiple behaviors running simultaneously.
+///
+/// 活跃 WASM 弹幕实例栈。
+/// 每个弹幕可以同时运行多个行为。
+#[derive(Component, Default)]
+pub struct ActiveDanmakuStack {
+    pub instances: Vec<ActiveDanmaku>,
+}
+
+// WASM instances are accessed only from the main thread
+unsafe impl Send for ActiveDanmakuStack {}
+unsafe impl Sync for ActiveDanmakuStack {}
+
+impl ActiveDanmakuStack {
+    pub fn call_on_exit_all(&mut self, loaded_mods: &mut LoadedMods) {
+        for instance in &mut self.instances {
+            instance.call_on_exit(loaded_mods);
+        }
+    }
+}
+
 impl DanmakuRegistry {
     /// Create a new danmaku instance by algorithm ID.
     pub fn create(&self, id: &str, loaded_mods: &mut LoadedMods) -> Option<ActiveDanmaku> {
@@ -367,6 +561,9 @@ impl ActiveDanmaku {
             Ok(output) => souprune_api::BulletOutput {
                 offset: souprune_api::Vec2::new(output.offset.x, output.offset.y),
                 rotation: output.rotation,
+                opacity: output.opacity,
+                scale_x: output.scale_x,
+                scale_y: output.scale_y,
             },
             Err(e) => {
                 error!("Danmaku on_update failed: {:?}", e);

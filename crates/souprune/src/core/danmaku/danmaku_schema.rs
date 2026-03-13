@@ -22,6 +22,8 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub type WasmCall = (String, HashMap<String, f32>);
+
 // ============================================================================
 // Core Types: DanmakuPerformance (Timeline & Reference Architecture)
 // ============================================================================
@@ -275,6 +277,11 @@ pub enum BulletBehavior {
     /// 正弦波震荡
     Sine(SineConfig),
 
+    /// Aimed at player position at spawn time (自机狙)
+    ///
+    /// 生成时锁定玩家位置方向，直线前进
+    Aimed(AimedConfig),
+
     // === Custom Behavior (自定义行为) ===
     /// Algorithm loaded from mod system via WASM
     ///
@@ -286,6 +293,59 @@ pub enum BulletBehavior {
         #[serde(default)]
         props: HashMap<String, f32>,
     },
+}
+
+impl BulletBehavior {
+    /// Convert to WASM call representation: (algorithm_id, props)
+    pub fn to_wasm_call(&self) -> WasmCall {
+        match self {
+            BulletBehavior::Linear(config) => (
+                "builtin.linear".into(),
+                HashMap::from([
+                    ("dir_x".into(), config.dir.0),
+                    ("dir_y".into(), config.dir.1),
+                    ("speed".into(), config.speed),
+                ]),
+            ),
+            BulletBehavior::Orbital(config) => (
+                "builtin.orbital".into(),
+                HashMap::from([
+                    ("angular_velocity".into(), config.angular_velocity),
+                    ("radial_velocity".into(), config.radial_velocity),
+                ]),
+            ),
+            BulletBehavior::Sine(config) => (
+                "builtin.sine".into(),
+                HashMap::from([
+                    ("axis_x".into(), config.axis.0),
+                    ("axis_y".into(), config.axis.1),
+                    ("amplitude".into(), config.amplitude),
+                    ("frequency".into(), config.frequency),
+                    ("phase".into(), config.phase),
+                ]),
+            ),
+            BulletBehavior::Tween(config) => (
+                "builtin.tween".into(),
+                HashMap::from([
+                    ("target".into(), config.target as u32 as f32),
+                    ("duration".into(), config.duration),
+                    ("ease".into(), config.ease as u32 as f32),
+                    ("range_start".into(), config.range.0),
+                    ("range_end".into(), config.range.1),
+                    ("delay".into(), config.delay),
+                ]),
+            ),
+            BulletBehavior::Stationary() => ("builtin.stationary".into(), HashMap::new()),
+            BulletBehavior::Aimed(config) => (
+                "builtin.aimed".into(),
+                HashMap::from([
+                    ("speed".into(), config.speed),
+                    ("angle_offset".into(), config.angle_offset),
+                ]),
+            ),
+            BulletBehavior::Custom { id, props } => (id.clone(), props.clone()),
+        }
+    }
 }
 
 /// Linear motion configuration.
@@ -345,6 +405,30 @@ impl Default for SineConfig {
     }
 }
 
+/// Aimed bullet configuration (自机狙).
+/// Locks direction toward player position at spawn time.
+/// Combined with `angle_offset`, enables fan patterns via composition.
+///
+/// 自机狙配置。生成时锁定朝向玩家位置的方向。
+/// 配合 `angle_offset` 可组合出扇形弹幕。
+#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
+#[serde(default)]
+pub struct AimedConfig {
+    /// Bullet speed in pixels/second
+    pub speed: f32,
+    /// Angle offset in radians (for fan patterns)
+    pub angle_offset: f32,
+}
+
+impl Default for AimedConfig {
+    fn default() -> Self {
+        Self {
+            speed: 120.0,
+            angle_offset: 0.0,
+        }
+    }
+}
+
 /// Tween animation configuration.
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
 pub struct TweenConfig {
@@ -375,7 +459,8 @@ pub enum TweenTarget {
     Rotation,
 }
 
-/// Easing functions for interpolation.
+/// Easing functions for interpolation (used by RON for serialization).
+/// Actual easing logic is implemented in the WASM guest.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
 pub enum Easing {
     #[default]
@@ -389,35 +474,6 @@ pub enum Easing {
     SineIn,
     SineOut,
     SineInOut,
-}
-
-impl Easing {
-    pub fn apply(self, t: f32) -> f32 {
-        match self {
-            Easing::Linear => t,
-            Easing::QuadIn => t * t,
-            Easing::QuadOut => 1.0 - (1.0 - t) * (1.0 - t),
-            Easing::QuadInOut => {
-                if t < 0.5 {
-                    2.0 * t * t
-                } else {
-                    1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
-                }
-            }
-            Easing::CubicIn => t * t * t,
-            Easing::CubicOut => 1.0 - (1.0 - t).powi(3),
-            Easing::CubicInOut => {
-                if t < 0.5 {
-                    4.0 * t * t * t
-                } else {
-                    1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
-                }
-            }
-            Easing::SineIn => 1.0 - (t * std::f32::consts::FRAC_PI_2).cos(),
-            Easing::SineOut => (t * std::f32::consts::FRAC_PI_2).sin(),
-            Easing::SineInOut => -(t * std::f32::consts::PI).cos() / 2.0 + 0.5,
-        }
-    }
 }
 
 // ============================================================================
@@ -547,9 +603,57 @@ impl SpawnPattern {
     fn default_edge_margin() -> f32 {
         200.0
     }
+
+    /// Convert to WASM call representation: (pattern_id, params)
+    pub fn to_wasm_call(&self) -> WasmCall {
+        match self {
+            SpawnPattern::Single => ("builtin.single".into(), HashMap::new()),
+            SpawnPattern::RingGenerator {
+                count,
+                radius,
+                start_angle,
+            } => (
+                "builtin.ring".into(),
+                HashMap::from([
+                    ("count".into(), *count as f32),
+                    ("radius".into(), *radius),
+                    ("start_angle".into(), *start_angle),
+                ]),
+            ),
+            SpawnPattern::LineGenerator {
+                count,
+                spacing,
+                direction,
+            } => (
+                "builtin.line".into(),
+                HashMap::from([
+                    ("count".into(), *count as f32),
+                    ("spacing".into(), *spacing),
+                    ("dir_x".into(), direction.0),
+                    ("dir_y".into(), direction.1),
+                ]),
+            ),
+            SpawnPattern::EdgeGenerator {
+                count,
+                side,
+                spacing,
+                margin,
+            } => (
+                "builtin.edge".into(),
+                HashMap::from([
+                    ("count".into(), *count as f32),
+                    ("side".into(), *side as u32 as f32),
+                    ("spacing".into(), *spacing),
+                    ("margin".into(), *margin),
+                ]),
+            ),
+            SpawnPattern::CustomGenerator { id, params } => (id.clone(), params.clone()),
+        }
+    }
 }
 
 /// Which screen edge to spawn from.
+/// Used as a semantic enum in RON; actual logic is in WASM guest.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
 pub enum EdgeSide {
     #[default]
@@ -557,26 +661,6 @@ pub enum EdgeSide {
     Right,
     Top,
     Bottom,
-}
-
-impl EdgeSide {
-    pub fn to_direction(self) -> Vec2 {
-        match self {
-            EdgeSide::Left => Vec2::new(1.0, 0.0),
-            EdgeSide::Right => Vec2::new(-1.0, 0.0),
-            EdgeSide::Top => Vec2::new(0.0, -1.0),
-            EdgeSide::Bottom => Vec2::new(0.0, 1.0),
-        }
-    }
-
-    pub fn to_offset(self, margin: f32) -> Vec2 {
-        match self {
-            EdgeSide::Left => Vec2::new(-margin, 0.0),
-            EdgeSide::Right => Vec2::new(margin, 0.0),
-            EdgeSide::Top => Vec2::new(0.0, margin),
-            EdgeSide::Bottom => Vec2::new(0.0, -margin),
-        }
-    }
 }
 
 // ============================================================================
