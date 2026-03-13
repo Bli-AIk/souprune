@@ -65,7 +65,7 @@ pub mod debug_collider {
             let (config, _) = config_store.config_mut::<ColliderGizmos>();
             config.enabled = !config.enabled;
             info!(
-                "Collider visualization: {}",
+                "Collider Gizmos: {}",
                 if config.enabled { "ON" } else { "OFF" }
             );
         }

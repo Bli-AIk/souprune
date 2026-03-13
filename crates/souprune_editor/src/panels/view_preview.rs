@@ -8,7 +8,6 @@ use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 
-use souprune::core::view::CameraAnchored;
 use souprune::core::view::reconcile::{SpawnContext, ViewElementSpec, build_text_config};
 use souprune::core::view::ron_view::parsing::RepeatContext;
 
@@ -288,8 +287,6 @@ fn spawn_preview_node_inner(
         } else {
             node.visible_when.clone()
         },
-        camera_anchored: false,
-        camera_offset: Vec3::ZERO,
     };
 
     // ViewBox: 使用游戏管线的 spawn_viewbox_entity
@@ -301,7 +298,6 @@ fn spawn_preview_node_inner(
             .collect();
         let entity = souprune::core::view::reconcile::spawn_viewbox_entity(
             commands, parent, ctx, &spec, vb, texts,
-            false, // is_top_level=false 避免 CameraAnchored
         );
         commands
             .entity(entity)
@@ -335,8 +331,6 @@ fn spawn_preview_node_inner(
         commands
             .entity(entity)
             .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity));
-        // 移除 CameraAnchored（spawn_sprite_entity 可能添加了它）
-        commands.entity(entity).remove::<CameraAnchored>();
         state.preview_entities.push(entity);
 
         for (i, child) in node.children.iter().enumerate() {
@@ -370,7 +364,7 @@ fn spawn_preview_node_inner(
     }
     state.preview_entities.push(container);
 
-    // 容器中的文本：使用 spawn_text_entity 并移除 CameraAnchored
+    // 容器中的文本：使用 spawn_text_entity
     for text_def in &node.texts {
         let entity = souprune::core::view::reconcile::spawn_text_entity(
             commands,
@@ -381,8 +375,7 @@ fn spawn_preview_node_inner(
         );
         commands
             .entity(entity)
-            .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity))
-            .remove::<CameraAnchored>();
+            .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity));
         state.preview_entities.push(entity);
     }
 

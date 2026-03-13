@@ -55,6 +55,7 @@ pub mod sprite;
 pub mod state_config;
 pub mod view;
 pub mod visual;
+pub mod wasm_runtime;
 
 use crate::extra;
 use bevy::app::*;

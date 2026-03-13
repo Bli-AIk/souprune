@@ -13,17 +13,17 @@
 
 ## 介绍
 
-`souprune_mock_host` 是一个用于加载和测试 SoupRune 模组的最小宿主环境。  
-它通过提供一个轻量级运行时来解决模组测试问题，该运行时可以动态加载模组而无需完整的游戏设置。
+`souprune_mock_host` 是一个用于加载和测试 SoupRune WASM 模组的最小宿主环境。  
+它通过提供一个基于 Wasmtime 的轻量级运行时来解决模组测试问题，可以加载 WASM 组件模组而无需完整的游戏设置。
 
-使用 `souprune_mock_host`，模组开发者可以快速测试他们的创作、验证 FFI 绑定、并在隔离环境中调试模组行为。  
+使用 `souprune_mock_host`，模组开发者可以快速测试他们的创作、验证 WIT 接口绑定、并在隔离的沙盒环境中调试模组行为。  
 它专为开发和 CI/CD 测试工作流程设计。
 
 ## 功能
 
-* 通过 libloading 实现动态模组加载
-* souprune_api 的最小宿主实现
-* 隔离测试环境
+* 通过 Wasmtime 实现 WASM 组件加载
+* souprune_api WIT 接口的最小宿主实现
+* 沙盒化测试环境
 * 快速模组开发迭代
 * 适合 CI/CD 自动化测试
 * 无需完整游戏引擎
@@ -35,16 +35,17 @@
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. **构建你的模组**：
+2. **构建你的模组**（需要 `wasm32-wasip2` 编译目标）：
 
    ```bash
-   cargo build -p souprune_mod_test --release
+   rustup target add wasm32-wasip2
+   cargo build -p souprune_mod_test --target wasm32-wasip2
    ```
 
 3. **运行模拟宿主**：
 
    ```bash
-   cargo run -p souprune_mock_host -- path/to/your/mod.so
+   cargo run -p souprune_mock_host -- path/to/your/mod.wasm
    ```
 
 4. **测试模组功能**：
@@ -57,8 +58,9 @@
 
 | Crate                                             | 版本 | 描述                 |
 | ------------------------------------------------- | ------- | --------------------------- |
-| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | FFI API 层 |
-| [libloading](https://crates.io/crates/libloading) | 0.9.0   | 动态库加载 |
+| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | WIT 接口定义与共享类型 |
+| [wasmtime](https://crates.io/crates/wasmtime) | 42   | WebAssembly 运行时，用于组件加载 |
+| [wasmtime-wasi](https://crates.io/crates/wasmtime-wasi) | 42   | Wasmtime 的 WASI 支持 |
 
 ## 警告
 

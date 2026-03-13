@@ -1,0 +1,13 @@
+[package]
+name = "souprune_builtins"
+version = "0.1.0"
+edition = "2024"
+description = "Built-in spawn patterns and bullet behaviors for SoupRune (WASM guest)"
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/Bli-AIk/souprune"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+souprune_sdk = { path = "../souprune_sdk", version = "0.2" }

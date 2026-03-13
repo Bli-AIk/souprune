@@ -46,12 +46,7 @@ pub mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
 
-use camera::{
-    update_camera_anchored_ui_on_camera_move_system, update_camera_anchored_ui_on_change_system,
-    update_dynamic_camera_anchors_system,
-};
 pub use components::box_components::ViewBox;
-pub use components::camera::CameraAnchored;
 pub use components::text::ViewTextConfig;
 pub use components::{
     ElementState, ViewElementHistory, ViewRoot, find_element_by_full_name, find_elements_by_tag,
@@ -235,9 +230,6 @@ impl Plugin for CoreViewPlugin {
                     update_sdf_view_shape_system,
                     assign_text_material_system,
                     show_text_when_ready_system,
-                    update_camera_anchored_ui_on_camera_move_system,
-                    update_camera_anchored_ui_on_change_system,
-                    update_dynamic_camera_anchors_system,
                     update_dynamic_text_system,
                     // State sprite systems (data-driven state management)
                     // 状态精灵系统（数据驱动的状态管理）
@@ -259,7 +251,6 @@ impl Plugin for CoreViewPlugin {
             // Hot reload is handled by ViewReconciliationPlugin
             // 热重载由 ViewReconciliationPlugin 处理
             app.register_type::<ViewBox>()
-                .register_type::<CameraAnchored>()
                 .register_type::<ViewElement>()
                 .register_type::<ViewRoot>()
                 .register_type::<ViewElementHistory>()

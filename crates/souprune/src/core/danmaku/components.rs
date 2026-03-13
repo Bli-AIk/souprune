@@ -8,9 +8,6 @@
 
 use super::danmaku_schema::BulletBehavior;
 use bevy::prelude::*;
-use souprune_api::{DanmakuInstance, PropC};
-use std::collections::HashMap;
-use std::ffi::CString;
 
 /// Marker component for bullet entities.
 ///
@@ -216,41 +213,20 @@ impl BulletMotionState {
 // ============================================================================
 
 /// Behavior stack component for a bullet.
-/// Contains a list of active behaviors that are evaluated each frame.
+/// Contains the declarative behavior list (used for to_wasm_call mapping).
 ///
 /// 弹幕的行为栈组件。
-/// 包含每帧都会评估的活跃行为列表。
+/// 包含声明式行为列表（用于 to_wasm_call 映射）。
 #[derive(Component, Clone, Default)]
 pub struct BehaviorStack {
     /// List of active behaviors
     pub behaviors: Vec<BulletBehavior>,
-    /// Cached parameters for FFI algorithms
-    pub cached_params: Vec<f32>,
 }
 
 impl BehaviorStack {
     pub fn new(behaviors: Vec<BulletBehavior>) -> Self {
-        Self {
-            behaviors,
-            cached_params: Vec::new(),
-        }
+        Self { behaviors }
     }
-
-    pub fn with_cached_params(mut self, params: Vec<f32>) -> Self {
-        self.cached_params = params;
-        self
-    }
-}
-
-/// Tween state for tween behaviors.
-/// Tracks the progress of tween animations.
-///
-/// 补间行为的状态。
-/// 追踪补间动画的进度。
-#[derive(Component, Default)]
-pub struct TweenState {
-    /// Current time for each tween (indexed by behavior position in stack)
-    pub timers: Vec<f32>,
 }
 
 /// Performance player component.
@@ -300,101 +276,16 @@ pub struct PerformancePlayerMarker;
 // Active Danmaku Behavior Component
 // ============================================================================
 
-/// Component that holds an active danmaku behavior instance from a mod.
-/// Manages the lifecycle of the FFI instance (on_enter/on_update/on_exit).
+/// Component that holds an active danmaku behavior instance from a WASM mod.
+/// Manages the lifecycle of the WASM instance (on_enter/on_update/on_exit).
 ///
-/// 持有来自模组的活跃弹幕行为实例的组件。
-/// 管理 FFI 实例的生命周期（on_enter/on_update/on_exit）。
-#[derive(Component)]
-pub struct ActiveDanmaku {
-    instance: DanmakuInstance,
-    /// Whether on_enter has been called
-    initialized: bool,
-    /// Properties from RON config (named)
-    pub props: HashMap<String, f32>,
-    /// Legacy parameters from RON config (indexed)
-    pub params: Vec<f32>,
+/// 持有来自 WASM 模组的活跃弹幕行为实例的组件。
+/// 管理 WASM 实例的生命周期（on_enter/on_update/on_exit）。
+pub use crate::core::mod_system::ActiveDanmaku;
 
-    /// Cached FFI-compatible properties
-    cached_props: Vec<PropC>,
-    /// Keep CStrings alive for the pointers in cached_props
-    #[allow(dead_code)]
-    cached_names: Vec<CString>,
-}
-
-// SAFETY: The DanmakuInstance is accessed only from the main thread
-unsafe impl Send for ActiveDanmaku {}
-unsafe impl Sync for ActiveDanmaku {}
-
-impl ActiveDanmaku {
-    pub fn new(instance: DanmakuInstance, props: HashMap<String, f32>, params: Vec<f32>) -> Self {
-        let mut cached_names = Vec::with_capacity(props.len());
-        let mut cached_props = Vec::with_capacity(props.len());
-
-        for (name, value) in &props {
-            let c_name = CString::new(name.as_str()).unwrap_or_default();
-            cached_props.push(PropC {
-                name: c_name.as_ptr() as *const u8,
-                name_len: name.len(),
-                value: *value,
-            });
-            cached_names.push(c_name);
-        }
-
-        Self {
-            instance,
-            initialized: false,
-            props,
-            params,
-            cached_props,
-            cached_names,
-        }
-    }
-
-    /// Check if on_enter has been called
-    pub fn is_initialized(&self) -> bool {
-        self.initialized
-    }
-
-    /// Call on_enter (should only be called once)
-    pub fn call_on_enter(&mut self, ctx: &souprune_api::BulletContextC) {
-        if !self.initialized {
-            if let Some(on_enter) = self.instance.vtable.on_enter {
-                on_enter(self.instance.instance, ctx);
-            }
-            self.initialized = true;
-        }
-    }
-
-    /// Get cached props for FFI
-    pub fn ffi_props(&self) -> (*const PropC, usize) {
-        (self.cached_props.as_ptr(), self.cached_props.len())
-    }
-
-    /// Call on_update and return the output
-    pub fn call_on_update(
-        &mut self,
-        ctx: &souprune_api::BulletContextC,
-    ) -> souprune_api::BulletOutputC {
-        if let Some(on_update) = self.instance.vtable.on_update {
-            on_update(self.instance.instance, ctx)
-        } else {
-            souprune_api::BulletOutputC::default()
-        }
-    }
-}
-
-impl Drop for ActiveDanmaku {
-    fn drop(&mut self) {
-        // Call on_exit if initialized
-        if self.initialized
-            && let Some(on_exit) = self.instance.vtable.on_exit
-        {
-            on_exit(self.instance.instance);
-        }
-        // Critical: Call destroy to free memory on the guest side
-        if let Some(destroy) = self.instance.vtable.destroy {
-            destroy(self.instance.instance);
-        }
-    }
-}
+/// Stack of active WASM danmaku instances.
+/// Each bullet can have multiple behaviors running simultaneously.
+///
+/// 活跃 WASM 弹幕实例栈。
+/// 每个弹幕可以同时运行多个行为。
+pub use crate::core::mod_system::ActiveDanmakuStack;

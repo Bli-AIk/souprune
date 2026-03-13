@@ -10,7 +10,7 @@
 //!
 //! 实现更新相机位置以追踪其 `Followable` 目标的系统，并遵守任何配置的边界。
 
-use super::components::Followable;
+use super::components::{CameraControlOverride, Followable};
 use bevy::prelude::*;
 
 /// System set for camera updates. Collision systems should run before this.
@@ -20,7 +20,7 @@ use bevy::prelude::*;
 pub struct CameraUpdateSet;
 
 pub(crate) fn update_followable_camera_system(
-    mut camera: Query<(&Followable, &mut Transform, &Camera)>,
+    mut camera: Query<(&Followable, &mut Transform, &Camera), Without<CameraControlOverride>>,
     target: Query<&Transform, Without<Camera>>,
 ) {
     for (followable, mut transform, _) in camera.iter_mut() {

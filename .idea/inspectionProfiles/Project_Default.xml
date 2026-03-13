@@ -6,5 +6,6 @@
         <language minSize="709" name="Rust" />
       </Languages>
     </inspection_tool>
+    <inspection_tool class="TaskProblemsInspection" enabled="true" level="ERROR" enabled_by_default="true" editorAttributes="ERRORS_ATTRIBUTES" />
   </profile>
 </component>

@@ -100,6 +100,16 @@ pub fn resolve_transform(
     }
 }
 
+/// Resolve the transform for a ViewBox node from its offset.
+/// ViewBox 节点的变换来自 offset 字段（仅平移，无缩放/旋转）。
+pub fn resolve_viewbox_transform(
+    view_box: &crate::core::view::layout::ViewBoxLogicDef,
+) -> Transform {
+    let offset =
+        crate::core::view::layout::serde_types::serializable_vec3_to_static(&view_box.offset);
+    Transform::from_translation(offset)
+}
+
 /// Resolve visibility from visible_when expression.
 /// 从 visible_when 表达式解析可见性。
 pub fn resolve_visibility(

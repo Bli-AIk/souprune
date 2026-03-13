@@ -18,10 +18,6 @@ pub(super) fn edit_node_basics(world: &World, ui: &mut egui::Ui, node: &mut View
             changed |= labeled_text(ui, &t(world, "prop-name"), &mut node.name);
             changed |= edit_tag_list(ui, &t(world, "prop-tags"), &mut node.tags);
             changed |= edit_expression(ui, "visible_when", &mut node.visible_when);
-            ui.horizontal(|ui| {
-                ui.label("camera_anchored:");
-                changed |= ui.checkbox(&mut node.camera_anchored, "").changed();
-            });
         });
     changed
 }
