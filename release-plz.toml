@@ -42,16 +42,23 @@ name = "souprune_api"
 name = "souprune_sdk"
 
 [[package]]
-name = "souprune_mod_test"
+name = "souprune_mock_host"
 
 [[package]]
-name = "souprune_mock_host"
+name = "souprune_editor"
+
+[[package]]
+name = "souprune_schema"
+
+[[package]]
+name = "souprune-lint"
 
 # Explicitly disable release-plz for git submodules and their sub-crates
 # These have their own release workflows in their respective repositories
 [[package]]
 name = "bevy_alight_motion"
 release = false
+changelog_update = false
 
 [[package]]
 name = "bevy_ecs_typewriter"
@@ -67,5 +74,13 @@ release = false
 
 [[package]]
 name = "bevy_mortar_bond_macros"
+release = false
+
+[[package]]
+name = "flambe"
+release = false
+
+[[package]]
+name = "bevy_workbench"
 release = false
 
