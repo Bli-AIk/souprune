@@ -9,7 +9,7 @@ use wasmtime::{Engine, Store};
 use wasmtime_wasi::WasiCtxBuilder;
 
 wasmtime::component::bindgen!({
-    path: "../souprune_api/wit",
+    path: "wit",
     world: "souprune-mod",
 });
 
