@@ -1,10 +1,18 @@
 use super::super::layout::FloatOrExpr;
 use super::super::layout::view_schema::MaterialParamValue;
+use super::evaluation::{DYNAMIC_INDEX_RE, REPEAT_VAR_RE};
 use crate::app_state::SequenceSubState;
 use crate::core::sequencer::chapter_schema::Val;
 use crate::core::view::expr_eval::create_eval_callback;
 use bevy::prelude::*;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::LazyLock;
+
+static LAMBDA_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]\s]+)(?:\s+step\s+(\d+))?\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+    ).unwrap()
+});
 
 // Re-export PlayerDataView for backward compatibility
 pub use super::player_data::PlayerDataView;
@@ -165,9 +173,7 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
             // Step 1: Handle $array[@var] dynamic index syntax FIRST
             // Convert $array[@i] to $array[N] where N is the concrete index
             // Note: Supports namespace format like $player:inventory[@i]
-            let dynamic_index_regex =
-                regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]")
-                    .unwrap();
+            let dynamic_index_regex = &*DYNAMIC_INDEX_RE;
 
             result = dynamic_index_regex
                 .replace_all(&result, |caps: &regex::Captures| {
@@ -189,7 +195,7 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
                 .to_string();
 
             // Step 2: Handle @var repeat context variables (but not @time)
-            let repeat_var_regex = regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
+            let repeat_var_regex = &*REPEAT_VAR_RE;
             result = repeat_var_regex
                 .replace_all(&result, |caps: &regex::Captures| {
                     let var_name = &caps[1];
@@ -234,11 +240,7 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
     // Format: |item, index| in $array or $array[$start..$end] or $array[$start..$end step $step] => "template" sep "separator"
     // 扩展正则表达式，支持可选范围和步进语法
     // 格式：|item, index| in $array 或 $array[$start..$end] 或 $array[$start..$end step $step] => "template" sep "separator"
-    let lambda_regex_with_range = regex::Regex::new(
-        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]\s]+)(?:\s+step\s+(\d+))?\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
-    ).ok()?;
-
-    let caps = lambda_regex_with_range.captures(expr)?;
+    let caps = LAMBDA_RE.captures(expr)?;
 
     let item_var = &caps[1];
     let index_var = caps.get(2).map(|m| m.as_str());

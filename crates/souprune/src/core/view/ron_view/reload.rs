@@ -106,7 +106,6 @@ pub fn incremental_reload_system(
     mut transform_query: Query<&mut Transform>,
     mut sprite_query: Query<&mut Sprite>,
     mut dynamic_element_query: Query<&mut crate::core::view::components::DynamicViewElement>,
-    mut camera_anchored_query: Query<&mut super::super::components::CameraAnchored>,
     children_query: Query<&Children>,
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     view_root_query: Query<&crate::core::view::components::ViewRoot>,
@@ -200,22 +199,6 @@ pub fn incremental_reload_system(
                     view_element.full_name, visible_when.expression, new_visible_when
                 );
                 visible_when.expression = new_visible_when.clone();
-                updated_count += 1;
-            }
-
-            // Update CameraAnchored offset for ViewBox nodes
-            let new_cam_offset = node_def.view_box.as_ref().map(|ui_logic| {
-                super::super::layout::serde_types::serializable_vec3_to_static(&ui_logic.offset)
-            });
-            if let Some(new_offset) = new_cam_offset
-                && let Ok(mut camera_anchored) = camera_anchored_query.get_mut(entity)
-                && camera_anchored.offset != new_offset
-            {
-                debug!(
-                    "[Hot Reload] CameraAnchored offset '{}': {:?} -> {:?}",
-                    view_element.full_name, camera_anchored.offset, new_offset
-                );
-                camera_anchored.offset = new_offset;
                 updated_count += 1;
             }
 

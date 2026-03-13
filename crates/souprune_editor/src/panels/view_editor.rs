@@ -368,7 +368,6 @@ fn new_empty_node(name: &str) -> ViewNodeDef {
         texts: Vec::new(),
         view_box: None,
         children: Vec::new(),
-        camera_anchored: false,
         repeat: None,
     }
 }

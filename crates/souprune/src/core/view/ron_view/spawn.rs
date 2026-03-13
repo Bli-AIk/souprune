@@ -177,7 +177,6 @@ pub fn spawn_ron_view_for_entity(
     asset_server: &AssetServer,
     view_entity: Entity,
     view_layout: &ViewLayoutAsset,
-    camera_transform: &Transform,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     fre_assets: &Assets<FreAsset>,
@@ -307,14 +306,12 @@ pub fn spawn_ron_view_for_entity(
                 asset_server,
                 view_entity,
                 root,
-                camera_transform,
                 sprite_params,
                 animation_assets,
                 mortar_strings,
                 &player_data_with_locals,
                 item_registry,
-                true,       // Top-level nodes
-                &namespace, // Pass namespace to children
+                &namespace,
             );
         }
     }
@@ -364,7 +361,7 @@ pub fn spawn_dynamic_view_system(
         ),
     >,
     camera_query: Query<
-        (&Transform, &Camera),
+        (Entity, &Transform, &Camera),
         (
             With<Camera2d>,
             With<crate::core::camera::MainGameCamera>,
@@ -401,7 +398,7 @@ pub fn spawn_dynamic_view_system(
             }
         }
 
-        let Some((camera_transform, _)) = camera_query.iter().find(|(_, c)| c.is_active) else {
+        let Some((camera_entity, _, _)) = camera_query.iter().find(|(_, _, c)| c.is_active) else {
             warn!("[spawn_dynamic_view] No Camera2d found for view spawning!");
             continue;
         };
@@ -419,7 +416,6 @@ pub fn spawn_dynamic_view_system(
             &asset_server,
             view_entity,
             view_layout,
-            camera_transform,
             &mut sprite_params,
             &animation_assets,
             &fre_assets,
@@ -432,6 +428,13 @@ pub fn spawn_dynamic_view_system(
             &mut fre_params.rule_registry,
             &mut fre_params.action_defs,
         );
+
+        // Camera-relative views: parent the view entity to the camera so child
+        // transforms are automatically relative to the camera position.
+        // World-space views (battle): keep the view entity as a standalone world entity.
+        if !view_layout.world_space {
+            commands.entity(view_entity).insert(ChildOf(camera_entity));
+        }
 
         // Add ViewGenerated and ReconciliationEnabled; remove PendingViewData
         commands.entity(view_entity).insert((

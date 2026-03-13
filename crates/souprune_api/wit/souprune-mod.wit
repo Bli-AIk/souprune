@@ -1,0 +1,168 @@
+/// SoupRune Mod System — WIT Interface Definition
+///
+/// This file defines the contract between the Host (game engine)
+/// and the Guest (mod).
+///
+/// SoupRune 模组系统 — WIT 接口定义
+/// 此文件定义了宿主（游戏引擎）和客体（模组）之间的契约。
+
+package souprune:plugin@0.1.0;
+
+/// Host API — functions the engine exposes to mods.
+///
+/// 宿主 API — 引擎暴露给模组的函数。
+interface host-api {
+    /// Semantic input action.
+    enum action {
+        up,
+        down,
+        left,
+        right,
+        confirm,
+        cancel,
+        menu,
+    }
+
+    /// 2D vector.
+    record vec2 {
+        x: f32,
+        y: f32,
+    }
+
+    /// Print a log message to the engine console.
+    log: func(level: u32, message: string);
+
+    /// Check if a semantic action is currently pressed.
+    is-action-pressed: func(action: action) -> bool;
+
+    /// Set the entity's velocity.
+    set-velocity: func(velocity: vec2);
+}
+
+/// Behavior interface — exported by mods for player/entity control.
+/// Behaviors access engine state via host-api imports (input, velocity),
+/// so lifecycle callbacks carry no per-instance context parameters.
+///
+/// 行为接口 — 模组导出，用于玩家/实体控制。
+/// 行为通过 host-api 导入访问引擎状态（输入、速度），
+/// 因此生命周期回调不携带每实例上下文参数。
+interface behavior {
+    use host-api.{vec2};
+
+    /// Lifecycle callbacks for a single behavior instance.
+    resource behavior-instance {
+        constructor(id: string);
+        on-enter: func();
+        on-update: func(delta-time: f32);
+        on-exit: func();
+    }
+
+    /// List all behavior IDs this mod provides.
+    list-behaviors: func() -> list<string>;
+}
+
+/// Danmaku interface — exported by mods for bullet pattern algorithms.
+/// Unlike Behavior, each callback receives bullet-specific context
+/// (position, elapsed time, custom props) since bullets have no
+/// access to the global host-api.
+///
+/// 弹幕接口 — 模组导出，用于弹幕算法。
+/// 与 Behavior 不同，每次回调接收子弹特定上下文
+/// （位置、时间、自定义属性），因为子弹无法访问全局 host-api。
+interface danmaku {
+    use host-api.{vec2};
+
+    /// Named float property from RON config.
+    record prop {
+        name: string,
+        value: f32,
+    }
+
+    /// Bullet context passed to danmaku callbacks each frame.
+    record bullet-context {
+        elapsed: f32,
+        delta-time: f32,
+        spawn-pos: vec2,
+        offset: vec2,
+        initial-angle: f32,
+        initial-radius: f32,
+        player-pos: vec2,
+        props: list<prop>,
+    }
+
+    /// Output from a danmaku on-update call.
+    record bullet-output {
+        offset: vec2,
+        rotation: f32,
+        /// Opacity override. Negative means no change.
+        opacity: f32,
+        /// Scale delta (0.0 = no change from base scale).
+        scale-x: f32,
+        scale-y: f32,
+    }
+
+    /// Lifecycle callbacks for a single danmaku instance.
+    resource danmaku-instance {
+        constructor(id: string);
+        on-enter: func(ctx: bullet-context);
+        on-update: func(ctx: bullet-context) -> bullet-output;
+        on-exit: func();
+    }
+
+    /// List all algorithm IDs this mod provides.
+    list-algorithms: func() -> list<string>;
+}
+
+/// Spawn-pattern interface — exported by mods for custom bullet spawn patterns.
+/// Unlike danmaku (per-frame behavior), spawn patterns compute a batch of
+/// spawn points once when a TimelineEvent fires.
+///
+/// 生成模式接口 — 模组导出，用于自定义弹幕生成模式。
+/// 与弹幕行为（逐帧）不同，生成模式在 TimelineEvent 触发时
+/// 一次性批量计算生成点。
+interface spawn-pattern {
+    use host-api.{vec2};
+
+    /// A single computed spawn point.
+    record spawn-point {
+        x: f32,
+        y: f32,
+        angle: f32,
+        radius: f32,
+    }
+
+    /// Context for spawn pattern generation.
+    record spawn-context {
+        /// Effective center (battle box center + event offset).
+        center-x: f32,
+        center-y: f32,
+        /// Current player position.
+        player-x: f32,
+        player-y: f32,
+        /// Performance elapsed time.
+        time: f32,
+    }
+
+    /// Named parameter from RON config.
+    record pattern-param {
+        name: string,
+        value: f64,
+    }
+
+    /// Generate spawn points for a pattern.
+    resource pattern-instance {
+        constructor(id: string);
+        generate: func(ctx: spawn-context, params: list<pattern-param>) -> list<spawn-point>;
+    }
+
+    /// List all pattern IDs this mod provides.
+    list-patterns: func() -> list<string>;
+}
+
+/// The world that a SoupRune mod component must target.
+world souprune-mod {
+    import host-api;
+    export behavior;
+    export danmaku;
+    export spawn-pattern;
+}

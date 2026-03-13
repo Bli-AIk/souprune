@@ -99,7 +99,6 @@ pub(crate) fn spawn_container_texts(
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
-    camera_transform: &Transform,
 ) {
     use bevy_rich_text3d::Text3dStyling;
 
@@ -113,13 +112,7 @@ pub(crate) fn spawn_container_texts(
 
         let text3d = parse_text_preserving_whitespace(&text_config.content);
 
-        // Calculate text position relative to camera
-        // 计算相对于相机的文本位置
-        let text_world_transform = Transform::from_translation(
-            camera_transform.translation + text_config.transform.translation,
-        )
-        .with_rotation(text_config.transform.rotation)
-        .with_scale(text_config.transform.scale);
+        let text_world_transform = text_config.transform;
 
         let mut cmd = parent.spawn((
             text_config.name.clone(),
@@ -142,7 +135,6 @@ pub(crate) fn spawn_container_texts(
             Visibility::Hidden,
             InheritedVisibility::default(),
             ViewVisibility::default(),
-            CameraAnchored::new(text_config.transform.translation),
             super::super::text::NeedsGlyphRefresh,
             RonDrivenView,
         ));

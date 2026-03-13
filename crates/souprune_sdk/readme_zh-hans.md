@@ -62,7 +62,7 @@
 
 | Crate                                             | 版本 | 描述                 |
 | ------------------------------------------------- | ------- | --------------------------- |
-| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | FFI API 层 |
+| [souprune_api](https://crates.io/crates/souprune_api) | 0.0.1   | WIT 接口定义与共享类型 |
 
 ## 警告
 

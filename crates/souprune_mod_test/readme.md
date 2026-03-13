@@ -34,15 +34,16 @@ This crate is primarily for testing and reference purposes.
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. **Build the test mod**:
+2. **Build the test mod** (requires `wasm32-wasip2` target):
 
    ```bash
-   cargo build -p souprune_mod_test --release
+   rustup target add wasm32-wasip2
+   cargo build -p souprune_mod_test --target wasm32-wasip2
    ```
 
 3. **Load into a SoupRune game**:
 
-   The compiled `.so` (Linux), `.dll` (Windows), or `.dylib` (macOS) file can be loaded by compatible SoupRune games.
+   The compiled `.wasm` component can be loaded by compatible SoupRune games or tested with `souprune_mock_host`.
 
 4. **Study the source**:
 

@@ -37,7 +37,6 @@ pub struct AnimationConfigAsset {
 ///
 /// 定义状态如何映射到方向动画。
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum StateAnimationMapping {
     Directional {
         up: String,

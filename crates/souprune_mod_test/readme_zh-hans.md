@@ -34,15 +34,16 @@
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. **构建测试模组**：
+2. **构建测试模组**（需要 `wasm32-wasip2` 编译目标）：
 
    ```bash
-   cargo build -p souprune_mod_test --release
+   rustup target add wasm32-wasip2
+   cargo build -p souprune_mod_test --target wasm32-wasip2
    ```
 
 3. **加载到 SoupRune 游戏中**：
 
-   编译后的 `.so`（Linux）、`.dll`（Windows）或 `.dylib`（macOS）文件可以被兼容的 SoupRune 游戏加载。
+   编译后的 `.wasm` 组件可以被兼容的 SoupRune 游戏加载，也可以使用 `souprune_mock_host` 进行测试。
 
 4. **学习源代码**：
 

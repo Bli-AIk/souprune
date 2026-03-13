@@ -1,34 +1,11 @@
 [package]
 name = "souprune_api"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
-description = "FFI API definitions for SoupRune game framework"
+description = "WIT interface definitions for SoupRune mod system"
 license = "LGPL-3.0-or-later"
 repository = "https://github.com/Bli-AIk/souprune"
 readme = "readme.md"
-keywords = ["game-framework", "ffi", "api", "interop"]
-
-[features]
-default = []
-bindgen = ["dep:interoptopus", "dep:interoptopus_backend_c", "dep:interoptopus_backend_csharp", "dep:interoptopus_backend_haxe"]
+keywords = ["game-framework", "wasm", "api", "wit"]
 
 [dependencies]
-interoptopus = { version = "0.15.0-alpha.24", optional = true }
-
-[dependencies.interoptopus_backend_c]
-version = "0.15.0-alpha.24"
-optional = true
-
-[dependencies.interoptopus_backend_csharp]
-version = "0.15.0-alpha.24"
-optional = true
-
-[dependencies.interoptopus_backend_haxe]
-path = "../interoptopus_backend_haxe"
-version = "0.0"
-optional = true
-
-[[bin]]
-name = "souprune_bindgen"
-path = "src/bindgen.rs"
-required-features = ["bindgen"]

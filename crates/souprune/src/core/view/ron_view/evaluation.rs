@@ -4,6 +4,31 @@ use crate::core::sequencer::chapter_schema::Val;
 use crate::core::view::expr_eval::{create_eval_callback, preprocess_varname};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+// ============================================================================
+// Cached Regex Patterns (compiled once)
+// ============================================================================
+
+pub(super) static ARRAY_INDEX_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[(\d+)\]").unwrap());
+
+pub(super) static DOLLAR_VAR_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)").unwrap());
+
+pub(super) static FACT_OR_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r#"fact_or\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\s*\)"#).unwrap()
+});
+
+pub(super) static FACT_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r#"fact\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap());
+
+pub(super) static DYNAMIC_INDEX_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]").unwrap()
+});
+
+pub(super) static REPEAT_VAR_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
 
 // ============================================================================
 // Fact Expression Preprocessing
@@ -95,8 +120,7 @@ pub(crate) fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataVi
 
     // Handle $array[index] syntax first: replace $word[number] with the array element value
     // 首先处理 $array[index] 语法：将 $word[number] 替换为数组元素值
-    let array_index_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[(\d+)\]").unwrap();
-    result = array_index_regex
+    result = ARRAY_INDEX_RE
         .replace_all(&result, |caps: &regex::Captures| {
             let array_name = &caps[1];
             let index: usize = caps[2].parse().unwrap_or(0);
@@ -107,8 +131,7 @@ pub(crate) fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataVi
     // Handle $name syntax: replace $word with the fact value (preserving type)
     // 处理 $name 语法：将 $word 替换为 fact 值（保留类型）
     // Note: Supports namespace format like $player:hp
-    let dollar_regex = regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)").unwrap();
-    result = dollar_regex
+    result = DOLLAR_VAR_RE
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
             get_fact_for_expr(player_data, key, "0")
@@ -117,9 +140,7 @@ pub(crate) fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataVi
 
     // Handle fact_or('name', default) syntax
     // 处理 fact_or('name', default) 语法
-    let fact_or_regex =
-        regex::Regex::new(r#"fact_or\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\s*\)"#).unwrap();
-    result = fact_or_regex
+    result = FACT_OR_RE
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
             let default_str = caps[2].trim();
@@ -129,8 +150,7 @@ pub(crate) fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataVi
 
     // Handle fact('name') syntax
     // 处理 fact('name') 语法
-    let fact_regex = regex::Regex::new(r#"fact\s*\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
-    result = fact_regex
+    result = FACT_RE
         .replace_all(&result, |caps: &regex::Captures| {
             let key = &caps[1];
             get_fact_for_expr(player_data, key, "0")
@@ -160,10 +180,7 @@ pub fn preprocess_fact_expressions_with_repeat(
     // 步骤 1: 首先处理 $array[@var] 动态索引语法（在 @var 替换之前）
     // Note: Supports namespace format like $player:inventory[@i]
     if let Some(ctx) = repeat_ctx {
-        let dynamic_index_regex =
-            regex::Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_:]*)\[@([a-zA-Z_][a-zA-Z0-9_]*)\]").unwrap();
-
-        result = dynamic_index_regex
+        result = DYNAMIC_INDEX_RE
             .replace_all(&result, |caps: &regex::Captures| {
                 let array_name = &caps[1];
                 let index_var = &caps[2];
@@ -183,8 +200,7 @@ pub fn preprocess_fact_expressions_with_repeat(
     // Step 2: Handle @var repeat context variables
     // 步骤 2: 处理 @var 重复上下文变量
     if let Some(ctx) = repeat_ctx {
-        let repeat_var_regex = regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
-        result = repeat_var_regex
+        result = REPEAT_VAR_RE
             .replace_all(&result, |caps: &regex::Captures| {
                 let var_name = &caps[1];
                 if var_name == "i" || var_name == "index" {

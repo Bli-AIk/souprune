@@ -17,6 +17,7 @@ pub mod debug_inspector {
     use bevy::app::App;
     use bevy::camera::RenderTarget;
 
+    use bevy::ecs::message::MessageReader;
     use bevy::ecs::schedule::ScheduleLabel;
     use bevy::ecs::system::SystemIdMarker;
     use bevy::prelude::*;
@@ -25,8 +26,6 @@ pub mod debug_inspector {
     };
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
     use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_inspector, egui};
-    use bevy_tween::interpolate::Interpolator;
-    use bevy_tween::prelude::*;
     use iyes_perf_ui::prelude::*;
     use leafwing_input_manager::action_state::ActionState;
     use leafwing_input_manager::plugin::InputManagerSystem;
@@ -123,22 +122,11 @@ pub mod debug_inspector {
         fade_out_started: bool,
     }
 
-    #[derive(Debug, Clone)]
-    struct TextColorInterpolator {
-        start: Color,
-        end: Color,
-    }
-
-    impl Interpolator for TextColorInterpolator {
-        type Item = TextColor;
-
-        fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
-            item.0 = self.start.mix(&self.end, value);
-        }
-    }
-
-    fn text_color_interpolator(start: Color, end: Color) -> TextColorInterpolator {
-        TextColorInterpolator { start, end }
+    /// Toast notification shown when debug features are toggled.
+    #[derive(Component)]
+    struct DebugToast {
+        timer: Timer,
+        fade_out_started: bool,
     }
 
     pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {
@@ -158,12 +146,11 @@ pub mod debug_inspector {
 
         app.add_plugins(PerfUiPlugin);
 
-        app.add_tween_systems(
-            PostUpdate,
-            bevy_tween::tween::component_tween_system::<TextColorInterpolator>(),
+        app.add_systems(
+            Startup,
+            (setup_debug_help_text_system, setup_debug_toast_system),
         );
 
-        app.add_systems(Startup, setup_debug_help_text_system);
         app.add_systems(
             Update,
             (
@@ -176,7 +163,8 @@ pub mod debug_inspector {
                 toggle_perf_ui_system.before(iyes_perf_ui::PerfUiSet::Setup),
                 toggle_debug_help_text_system,
                 fade_debug_help_text_system,
-                handle_fade_out_complete_system,
+                handle_debug_toast_event_system,
+                fade_debug_toast_system,
             ),
         );
         app.add_systems(InspectorWindowContextPass, inspector_window_ui_system);
@@ -191,36 +179,47 @@ pub mod debug_inspector {
         let mut text_entities = Vec::new();
 
         let debug_entity = commands
-            .spawn((Node {
-                display: Display::Flex,
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(10.),
-                left: Val::Px(10.),
-                flex_direction: FlexDirection::Column,
-                ..default()
-            },))
+            .spawn((
+                Node {
+                    display: Display::Flex,
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(10.),
+                    left: Val::Px(10.),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(6.)),
+                    ..default()
+                },
+                GlobalZIndex(i32::MAX - 1),
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
+            ))
             .with_children(|builder| {
                 let texts = [
-                    "You are now running the game in Debug feature: ",
-                    "Inspector: [F1]",
-                    "Performance monitoring: [F2]",
-                    "Show colliders: [F3]",
-                    "Debug image overlay: [F4]",
-                    "Cycle Player HP (Full/Half/1): [F5]",
-                    "Switch to Battle: [F6]",
-                    "FRE Debug Panel: [F7]",
-                    "Toggle Player Level/HP (LV 20/99HP): [F8]",
-                    "Toggle debug help: [F12]",
+                    "Debug mode active: ",
+                    "Inspector Window: [F1]",
+                    "FRE Debug Panel: [F2]",
+                    "Performance UI: [F3]",
+                    "Collider Gizmos: [F4]",
+                    "Image Overlay: [F5]",
+                    "Battle Test: [F6]",
+                    "Game Freeze: [F7]",
+                    "Debug Camera: [F8]",
+                    "Toggle this help: [F12]",
                 ];
 
                 for text in texts {
                     let text_entity = builder
-                        .spawn((Text::new(text), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.0))))
+                        .spawn((
+                            Text::new(text),
+                            TextColor(Color::WHITE),
+                            TextFont::from_font_size(14.0),
+                        ))
                         .id();
                     text_entities.push(text_entity);
                 }
             })
             .id();
+
+        eprintln!("[DEBUG] setup_debug_help_text_system: spawned root={debug_entity:?}");
 
         commands.entity(debug_entity).insert(DebugHelpText {
             timer: Timer::new(Duration::from_secs(3), TimerMode::Once),
@@ -228,31 +227,33 @@ pub mod debug_inspector {
             text_entities: text_entities.clone(),
             fade_out_started: false,
         });
-
-        fade_in_text(&mut commands, &text_entities);
     }
 
     fn toggle_perf_ui_system(
         mut commands: Commands,
         q_perf_ui: Query<Entity, With<PerfUiRoot>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
+        mut toast_events: MessageWriter<super::super::DebugToastEvent>,
     ) {
         if keyboard_input.just_pressed(KeyCode::F3) {
             let message = if let Ok(e) = q_perf_ui.single() {
                 commands.entity(e).despawn();
-                "OFF"
+                "Performance UI: OFF"
             } else {
                 commands.spawn(PerfUiAllEntries::default());
-                "ON"
+                "Performance UI: ON"
             };
-            info!("Performance monitoring: {}", message);
+            info!("{}", message);
+            toast_events.write(super::super::DebugToastEvent {
+                message: message.into(),
+            });
         }
     }
 
     fn toggle_debug_help_text_system(
         keyboard_input: Res<ButtonInput<KeyCode>>,
-        mut commands: Commands,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
+        mut q_text_colors: Query<&mut TextColor>,
     ) {
         if keyboard_input.just_pressed(KeyCode::F12)
             && let Ok((mut debug_help, mut style)) = q_debug_text.single_mut()
@@ -263,11 +264,20 @@ pub mod debug_inspector {
                 style.display = Display::Flex;
                 debug_help.timer.reset();
                 debug_help.fade_out_started = false;
-                fade_in_text(&mut commands, &debug_help.text_entities);
+                for &entity in &debug_help.text_entities {
+                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
+                        tc.0 = Color::WHITE;
+                    }
+                }
                 info!("Debug help text: ON");
             } else {
-                debug_help.fade_out_started = true;
-                fade_out_text(&mut commands, &debug_help.text_entities);
+                for &entity in &debug_help.text_entities {
+                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
+                        tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
+                    }
+                }
+                style.display = Display::None;
+                debug_help.fade_out_started = false;
                 info!("Debug help text: OFF");
             }
         }
@@ -275,10 +285,10 @@ pub mod debug_inspector {
 
     fn fade_debug_help_text_system(
         time: Res<Time>,
-        mut commands: Commands,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
+        mut q_text_colors: Query<&mut TextColor>,
     ) {
-        if let Ok((mut debug_help, _style)) = q_debug_text.single_mut()
+        if let Ok((mut debug_help, mut style)) = q_debug_text.single_mut()
             && debug_help.visible
             && !debug_help.fade_out_started
         {
@@ -286,36 +296,14 @@ pub mod debug_inspector {
 
             if debug_help.timer.is_finished() {
                 debug_help.visible = false;
-                debug_help.fade_out_started = true;
-
-                fade_out_text(&mut commands, &debug_help.text_entities);
+                debug_help.fade_out_started = false;
+                for &entity in &debug_help.text_entities {
+                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
+                        tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
+                    }
+                }
+                style.display = Display::None;
             }
-        }
-    }
-
-    fn fade_in_text(commands: &mut Commands, text_entities: &[Entity]) {
-        for &entity in text_entities {
-            commands.entity(entity).animation().insert_tween_here(
-                Duration::from_millis(400),
-                EaseKind::QuadraticOut,
-                entity.into_target().with(text_color_interpolator(
-                    Color::srgba(1.0, 1.0, 1.0, 0.0),
-                    Color::srgba(1.0, 1.0, 1.0, 1.0),
-                )),
-            );
-        }
-    }
-
-    fn fade_out_text(commands: &mut Commands, text_entities: &[Entity]) {
-        for &entity in text_entities {
-            commands.entity(entity).animation().insert_tween_here(
-                Duration::from_millis(400),
-                EaseKind::QuadraticIn,
-                entity.into_target().with(text_color_interpolator(
-                    Color::srgba(1.0, 1.0, 1.0, 1.0),
-                    Color::srgba(1.0, 1.0, 1.0, 0.0),
-                )),
-            );
         }
     }
 
@@ -323,6 +311,7 @@ pub mod debug_inspector {
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut ui_state: ResMut<InspectorUiState>,
         mut commands: Commands,
+        mut toast_events: MessageWriter<super::super::DebugToastEvent>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::F1) {
             return;
@@ -330,8 +319,14 @@ pub mod debug_inspector {
 
         if ui_state.inspector_window.is_some() {
             close_inspector_window(&mut commands, &mut ui_state);
+            toast_events.write(super::super::DebugToastEvent {
+                message: "Inspector: OFF".into(),
+            });
         } else {
             spawn_inspector_window(&mut commands, &mut ui_state);
+            toast_events.write(super::super::DebugToastEvent {
+                message: "Inspector: ON".into(),
+            });
         }
     }
 
@@ -577,24 +572,81 @@ pub mod debug_inspector {
         }
     }
 
-    fn handle_fade_out_complete_system(
-        _time: Res<Time>,
-        mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
-        q_text_colors: Query<&TextColor>,
-    ) {
-        if let Ok((mut debug_help, mut style)) = q_debug_text.single_mut()
-            && debug_help.fade_out_started
-        {
-            let all_transparent = debug_help.text_entities.iter().all(|&entity| {
-                q_text_colors
-                    .get(entity)
-                    .map_or(true, |text_color| text_color.0.alpha() < 0.01)
-            });
+    // --- Debug Toast Notification System ---
 
-            if all_transparent {
-                style.display = Display::None;
-                debug_help.fade_out_started = false;
+    fn setup_debug_toast_system(mut commands: Commands) {
+        commands
+            .spawn((
+                Node {
+                    display: Display::None,
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(10.),
+                    left: Val::Px(10.),
+                    ..default()
+                },
+                GlobalZIndex(i32::MAX - 1),
+                DebugToast {
+                    timer: Timer::new(Duration::from_secs(2), TimerMode::Once),
+                    fade_out_started: false,
+                },
+            ))
+            .with_children(|builder| {
+                builder.spawn((
+                    Text::new(""),
+                    TextColor(Color::WHITE),
+                    TextFont::from_font_size(14.0),
+                ));
+            });
+    }
+
+    fn handle_debug_toast_event_system(
+        mut events: MessageReader<super::super::DebugToastEvent>,
+        mut q_toast: Query<(&mut DebugToast, &mut Node, &Children)>,
+        mut q_text: Query<(&mut Text, &mut TextColor)>,
+    ) {
+        let Some(event) = events.read().last() else {
+            return;
+        };
+
+        let Ok((mut toast, mut style, children)) = q_toast.single_mut() else {
+            return;
+        };
+
+        for child in children.iter() {
+            if let Ok((mut text, mut tc)) = q_text.get_mut(child) {
+                **text = event.message.clone();
+                tc.0 = Color::WHITE;
             }
+        }
+
+        style.display = Display::Flex;
+        toast.timer.reset();
+        toast.fade_out_started = false;
+    }
+
+    fn fade_debug_toast_system(
+        time: Res<Time>,
+        mut q_toast: Query<(&mut DebugToast, &mut Node, &Children)>,
+        mut q_text_colors: Query<&mut TextColor>,
+    ) {
+        let Ok((mut toast, mut style, children)) = q_toast.single_mut() else {
+            return;
+        };
+
+        if toast.fade_out_started {
+            return;
+        }
+
+        toast.timer.tick(time.delta());
+
+        if toast.timer.is_finished() {
+            toast.fade_out_started = false;
+            for child in children.iter() {
+                if let Ok(mut tc) = q_text_colors.get_mut(child) {
+                    tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
+                }
+            }
+            style.display = Display::None;
         }
     }
 }
