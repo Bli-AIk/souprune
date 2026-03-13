@@ -16,14 +16,16 @@ use crate::app_state::ModeScoped;
 use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
-use crate::core::mod_system::DanmakuRegistry;
+use crate::core::mod_system::{
+    ActiveDanmakuStack, DanmakuRegistry, LoadedMods, SpawnPatternRegistry,
+};
 use crate::core::sprite::params::SpriteParams;
 use crate::core::visual::{
     DEFAULT_FRAME_DURATION, ResolvedVisual, get_asset_path, resolve_visual_path,
 };
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
-use souprune_api::BulletContextC;
+use std::collections::HashMap;
 
 // ============================================================================
 // Performance System: Event Processing and Asset Loading
@@ -117,6 +119,8 @@ pub fn advance_performance_timeline(
     time: Res<Time>,
     performances: Res<Assets<DanmakuPerformance>>,
     danmaku_registry: Res<DanmakuRegistry>,
+    pattern_registry: Res<SpawnPatternRegistry>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
     spawn_context: Res<DanmakuSpawnContext>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     // Use BulletTarget instead of BehaviorParams for generalized targeting
@@ -166,6 +170,8 @@ pub fn advance_performance_timeline(
                 player_pos,
                 player.container_entity,
                 &danmaku_registry,
+                &pattern_registry,
+                &mut loaded_mods,
                 &spawn_context,
                 &mut sprite_params,
                 &asset_server,
@@ -217,6 +223,8 @@ fn spawn_bullets_from_timeline_event(
     player_pos: Vec2,
     container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
+    pattern_registry: &SpawnPatternRegistry,
+    loaded_mods: &mut LoadedMods,
     spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
@@ -238,21 +246,30 @@ fn spawn_bullets_from_timeline_event(
     // 追加内联行为
     behaviors.extend(event.behaviors.clone());
 
-    let spawn_positions = calculate_spawn_positions(&event.pattern, spawn_center);
+    // Compute effective center with event offset
+    let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
 
-    for (i, (pos, angle, radius)) in spawn_positions.into_iter().enumerate() {
+    let points = collect_spawn_points(
+        &event.pattern,
+        effective_center,
+        player_pos,
+        0.0,
+        pattern_registry,
+        loaded_mods,
+    );
+
+    for (i, point) in points.iter().enumerate() {
         spawn_single_bullet(
             commands,
             prototype,
             &behaviors,
-            pos,
-            angle,
-            radius,
-            spawn_center,
+            point,
+            effective_center,
             player_pos,
             i,
             container_entity,
             danmaku_registry,
+            loaded_mods,
             spawn_context,
             sprite_params,
             asset_server,
@@ -260,95 +277,81 @@ fn spawn_bullets_from_timeline_event(
     }
 }
 
-/// Calculate spawn positions based on SpawnPattern configuration.
-fn calculate_spawn_positions(pattern: &SpawnPattern, center: Vec2) -> Vec<(Vec2, f32, f32)> {
-    match pattern {
-        SpawnPattern::Single => {
-            vec![(center, 0.0, 0.0)]
-        }
-        SpawnPattern::RingGenerator {
-            count,
-            radius,
-            start_angle,
-        } => {
-            let angle_step = std::f32::consts::TAU / *count as f32;
-            (0..*count)
-                .map(|i| {
-                    let angle = start_angle + angle_step * i as f32;
-                    let pos = center + Vec2::new(angle.cos(), angle.sin()) * *radius;
-                    (pos, angle, *radius)
-                })
-                .collect()
-        }
-        SpawnPattern::LineGenerator {
-            count,
-            spacing,
-            direction,
-        } => {
-            let dir = Vec2::new(direction.0, direction.1).normalize_or_zero();
-            let perp = Vec2::new(-dir.y, dir.x);
-            let total_width = *spacing * (*count - 1) as f32;
-            let start_offset = -total_width / 2.0;
+/// A computed spawn point for a bullet within a pattern.
+struct SpawnPoint {
+    /// World position where the bullet should spawn
+    position: Vec2,
+    /// Initial angle in radians (from center to this point)
+    angle: f32,
+    /// Distance from pattern center
+    radius: f32,
+}
 
-            (0..*count)
-                .map(|i| {
-                    let offset = start_offset + *spacing * i as f32;
-                    let pos = center + perp * offset;
-                    let angle = dir.y.atan2(dir.x);
-                    (pos, angle, 0.0)
-                })
-                .collect()
-        }
-        SpawnPattern::EdgeGenerator {
-            count,
-            side,
-            spacing,
-            margin,
-        } => {
-            let move_dir = side.to_direction();
-            let start_offset = side.to_offset(*margin);
-            let perp = Vec2::new(-move_dir.y, move_dir.x);
-            let total_width = *spacing * (*count - 1) as f32;
-            let start_perp_offset = -total_width / 2.0;
+/// Compute spawn points for a given pattern via WASM dispatch.
+/// All patterns (including builtins) are resolved through the SpawnPatternRegistry.
+fn collect_spawn_points(
+    pattern: &SpawnPattern,
+    center: Vec2,
+    player_pos: Vec2,
+    time: f32,
+    pattern_registry: &SpawnPatternRegistry,
+    loaded_mods: &mut LoadedMods,
+) -> Vec<SpawnPoint> {
+    let (id, params_map) = pattern.to_wasm_call();
 
-            (0..*count)
-                .map(|i| {
-                    let perp_offset = start_perp_offset + *spacing * i as f32;
-                    let pos = center + start_offset + perp * perp_offset;
-                    let angle = move_dir.y.atan2(move_dir.x);
-                    (pos, angle, 0.0)
-                })
-                .collect()
-        }
-        SpawnPattern::CustomGenerator { id, .. } => {
-            warn!("Custom spawn pattern '{}' not yet implemented", id);
-            vec![(center, 0.0, 0.0)]
+    let ctx = souprune_api::SpawnContext {
+        center_x: center.x,
+        center_y: center.y,
+        player_x: player_pos.x,
+        player_y: player_pos.y,
+        time,
+    };
+    let api_params: Vec<souprune_api::PatternParam> = params_map
+        .iter()
+        .map(|(name, value)| souprune_api::PatternParam {
+            name: name.clone(),
+            value: f64::from(*value),
+        })
+        .collect();
+
+    match pattern_registry.generate(&id, &ctx, &api_params, loaded_mods) {
+        Some(pts) => pts
+            .into_iter()
+            .map(|p| SpawnPoint {
+                position: Vec2::new(p.x, p.y),
+                angle: p.angle,
+                radius: p.radius,
+            })
+            .collect(),
+        None => {
+            warn!("Pattern '{}' not found in any loaded WASM module", id);
+            vec![SpawnPoint {
+                position: center,
+                angle: 0.0,
+                radius: 0.0,
+            }]
         }
     }
 }
 
-/// Spawn a single bullet entity with BehaviorStack.
+/// Spawn a single bullet entity with all behaviors dispatched via WASM.
 fn spawn_single_bullet(
     commands: &mut Commands,
     prototype: &BulletPrototype,
     behaviors: &[BulletBehavior],
-    position: Vec2,
-    angle: f32,
-    radius: f32,
+    point: &SpawnPoint,
     spawn_center: Vec2,
     player_pos: Vec2,
     index: usize,
     container_entity: Option<Entity>,
     danmaku_registry: &DanmakuRegistry,
+    loaded_mods: &mut LoadedMods,
     _spawn_context: &DanmakuSpawnContext,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
-    // Get scale from prototype
     let scale = prototype.scale;
 
-    // Convert ColliderShape to TriggerCollider, scaled by prototype.scale
-    // 将 ColliderShape 转换为 TriggerCollider，根据 prototype.scale 缩放
     let trigger_collider = match &prototype.collider {
         ColliderShape::CircleCollider(r) => TriggerCollider::Circle { radius: *r * scale },
         ColliderShape::BoxCollider(w, h) => TriggerCollider::Box {
@@ -356,8 +359,6 @@ fn spawn_single_bullet(
         },
     };
 
-    // Convert HitBehaviorPreset to BulletHitBehavior component
-    // 将 HitBehaviorPreset 转换为 BulletHitBehavior 组件
     let hit_behavior = match &prototype.hit_behavior {
         HitBehaviorPreset::Default => BulletHitBehavior::default_despawn(),
         HitBehaviorPreset::Persistent => BulletHitBehavior::persistent(),
@@ -376,172 +377,201 @@ fn spawn_single_bullet(
         },
     };
 
+    let motion_state = BulletMotionState::new(spawn_center)
+        .with_offset(point.position - spawn_center)
+        .with_angle(point.angle)
+        .with_radius(point.radius);
+
     let mut entity_commands = commands.spawn((
         Bullet,
-        Transform::from_translation(position.extend(prototype.z_index))
+        Transform::from_translation(point.position.extend(prototype.z_index))
             .with_scale(Vec3::splat(scale)),
         GlobalTransform::default(),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),
-        BulletBaseScale(scale), // Store base scale for Tween calculations
-        BulletMotionState::new(spawn_center)
-            .with_offset(position - spawn_center)
-            .with_angle(angle)
-            .with_radius(radius),
+        BulletBaseScale(scale),
+        motion_state,
         BehaviorStack::new(behaviors.to_vec()),
-        TweenState::default(),
         trigger_collider,
         hit_behavior,
         BulletLastHitTime::default(),
         Name::new(format!("Bullet_{}", index)),
     ));
 
-    // Set parent to container entity if available
-    // 如果容器实体可用，将其设置为父实体
     if let Some(container) = container_entity {
         entity_commands.insert(ChildOf(container));
     } else {
         warn!("No container entity available for bullet {}", index);
     }
 
-    // Create ActiveDanmaku instances for Custom behaviors and call on_enter
-    // 为 Custom 行为创建 ActiveDanmaku 实例并调用 on_enter
+    // Create ActiveDanmakuStack: each behavior becomes a WASM instance
+    let offset = point.position - spawn_center;
+    let mut stack = ActiveDanmakuStack::default();
+
     for behavior in behaviors {
-        if let BulletBehavior::Custom { id, props } = behavior {
-            if let Some(instance) = danmaku_registry.create(id) {
-                let mut active_danmaku = ActiveDanmaku::new(instance, props.clone(), Vec::new());
-                let (props_ptr, props_len) = active_danmaku.ffi_props();
+        let (id, props) = behavior.to_wasm_call();
 
-                // Build initial context and call on_enter
-                // 构建初始上下文并调用 on_enter
-                let ctx = BulletContextC {
-                    elapsed: 0.0,
-                    delta_time: 0.0,
-                    spawn_x: spawn_center.x,
-                    spawn_y: spawn_center.y,
-                    offset_x: position.x - spawn_center.x,
-                    offset_y: position.y - spawn_center.y,
-                    initial_angle: angle,
-                    initial_radius: radius,
-                    player_x: player_pos.x,
-                    player_y: player_pos.y,
-                    props: props_ptr,
-                    props_len,
-                    params: std::ptr::null(),
-                    params_len: 0,
-                };
-                active_danmaku.call_on_enter(&ctx);
+        let Some(mut active) = danmaku_registry.create(&id, loaded_mods) else {
+            warn!("Danmaku algorithm '{}' not found in registry", id);
+            continue;
+        };
+        active.props = props.clone();
 
-                entity_commands.insert(active_danmaku);
-                // Only support one Custom behavior per bullet for now
-                break;
-            } else {
-                warn!("Danmaku algorithm '{}' not found in registry", id);
-            }
-        }
+        let ctx = souprune_api::BulletContext {
+            elapsed: 0.0,
+            delta_time: 0.0,
+            spawn_pos: souprune_api::Vec2::new(spawn_center.x, spawn_center.y),
+            offset: souprune_api::Vec2::new(offset.x, offset.y),
+            initial_angle: point.angle,
+            initial_radius: point.radius,
+            player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
+            props: props
+                .iter()
+                .map(|(name, value)| souprune_api::Prop {
+                    name: name.clone(),
+                    value: *value,
+                })
+                .collect(),
+        };
+        active.call_on_enter(&ctx, loaded_mods);
+        stack.instances.push(active);
     }
 
-    // Instantiate visual using the unified Visual type
+    entity_commands.insert(stack);
+
+    // Instantiate visual
+    spawn_bullet_visual(&mut entity_commands, prototype, sprite_params, asset_server);
+}
+
+/// Resolve and attach the visual component to a bullet entity.
+fn spawn_bullet_visual(
+    entity_commands: &mut EntityCommands,
+    prototype: &BulletPrototype,
+    sprite_params: &mut SpriteParams,
+    asset_server: &AssetServer,
+) {
     let config = load_config();
     let visual_path = prototype.visual.path();
-
-    // Get rendering properties from prototype
     let effective_color = prototype.color_tint.to_color();
     let flip_x = prototype.flip_x;
     let flip_y = prototype.flip_y;
     let frame_duration = prototype.frame_duration.unwrap_or(DEFAULT_FRAME_DURATION);
 
-    // Try to resolve the visual path
     if let Some(resolved) = resolve_visual_path(visual_path, &config.project.mod_name) {
-        // Convert full path to asset-relative path
         let asset_path = get_asset_path(&resolved, &config.project.mod_name);
+        spawn_resolved_visual(
+            entity_commands,
+            resolved,
+            asset_path,
+            effective_color,
+            flip_x,
+            flip_y,
+            frame_duration,
+            sprite_params,
+            asset_server,
+            visual_path,
+        );
+        return;
+    }
 
-        match resolved {
-            ResolvedVisual::Sprite(_) => {
-                let mut sprite = Sprite {
-                    image: asset_server.load(&asset_path),
-                    flip_x,
-                    flip_y,
-                    ..default()
-                };
-                if let Some(color) = effective_color {
-                    sprite.color = color;
-                }
-                entity_commands.insert(sprite);
-            }
-            ResolvedVisual::FrameAnimation(_dir_path) => {
-                // For frame animations, we need to use the existing animation system
-                let mut sprite = Sprite {
-                    flip_x,
-                    flip_y,
-                    ..default()
-                };
-                if let Some(color) = effective_color {
-                    sprite.color = color;
-                }
+    // Fallback: try resolving as module/name path
+    let parts: Vec<&str> = visual_path.split('/').collect();
+    let mut sprite_context = sprite_params.create_sprite_context();
 
-                // Extract directory name from asset path for registry lookup
-                let dir_name = std::path::Path::new(&asset_path)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
+    if parts.len() >= 2 {
+        let module = parts[0];
+        let name = parts.last().unwrap_or(&"");
 
-                let mut sprite_context = sprite_params.create_sprite_context();
-                // Try to find animation by directory name in any module
-                if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, "battle", dir_name)
-                    .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "common", dir_name))
-                    .or_else(|_| {
-                        SpriteAnimationClip::new(&mut sprite_context, "overworld", dir_name)
-                    })
-                {
-                    entity_commands.insert((
-                        sprite,
-                        clip,
-                        SpriteAnimationTimer::new(frame_duration),
-                    ));
-                } else {
-                    // Fallback: load first image from directory using asset-relative path
-                    let fallback_path = format!("{}/0.png", asset_path);
-                    sprite.image = asset_server.load(&fallback_path);
-                    warn!(
-                        "Animation '{}' not found in registry, using static fallback",
-                        dir_name
-                    );
-                    entity_commands.insert(sprite);
-                }
-            }
-            ResolvedVisual::CharacterAnimation(_path) => {
-                // Character animations are not typically used for bullets
-                warn!(
-                    "Character animations not supported for bullets: {}",
-                    visual_path
-                );
-                entity_commands.insert(Sprite::default());
-            }
+        if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
+            apply_color_tint(&mut sprite, effective_color);
+            entity_commands.insert(sprite);
+            return;
         }
-    } else {
-        // Fallback: try legacy module/name lookup for backwards compatibility
-        // This handles cases like "battle/bullets/spear" that might reference config.toml
-        let parts: Vec<&str> = visual_path.split('/').collect();
-        if parts.len() < 2 {
-            warn!("Failed to resolve visual: {}", visual_path);
-            entity_commands.insert(Sprite::default());
-        } else {
-            let module = parts[0];
-            let name = parts.last().unwrap_or(&"");
+        if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
+            let mut sprite = Sprite::default();
+            apply_color_tint(&mut sprite, effective_color);
+            entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
+            return;
+        }
+    }
+
+    // Plain name without "/": search common modules
+    let name = parts.last().unwrap_or(&"");
+    for module in &["battle", "common", "overworld"] {
+        if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
+            apply_color_tint(&mut sprite, effective_color);
+            entity_commands.insert(sprite);
+            return;
+        }
+    }
+
+    warn!("Failed to resolve visual: {}", visual_path);
+    entity_commands.insert(Sprite::default());
+}
+
+fn spawn_resolved_visual(
+    entity_commands: &mut EntityCommands,
+    resolved: ResolvedVisual,
+    asset_path: String,
+    effective_color: Option<Color>,
+    flip_x: bool,
+    flip_y: bool,
+    frame_duration: f32,
+    sprite_params: &mut SpriteParams,
+    asset_server: &AssetServer,
+    visual_path: &str,
+) {
+    match resolved {
+        ResolvedVisual::Sprite(_) => {
+            let mut sprite = Sprite {
+                image: asset_server.load(&asset_path),
+                flip_x,
+                flip_y,
+                ..default()
+            };
+            if let Some(color) = effective_color {
+                sprite.color = color;
+            }
+            entity_commands.insert(sprite);
+        }
+        ResolvedVisual::FrameAnimation(_) => {
+            let mut sprite = Sprite {
+                flip_x,
+                flip_y,
+                ..default()
+            };
+            if let Some(color) = effective_color {
+                sprite.color = color;
+            }
+
+            let dir_name = std::path::Path::new(&asset_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown");
 
             let mut sprite_context = sprite_params.create_sprite_context();
-            if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
-                apply_color_tint(&mut sprite, effective_color);
-                entity_commands.insert(sprite);
-            } else if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
-                let mut sprite = Sprite::default();
-                apply_color_tint(&mut sprite, effective_color);
+            let clip_result = SpriteAnimationClip::new(&mut sprite_context, "battle", dir_name)
+                .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "common", dir_name))
+                .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "overworld", dir_name));
+
+            if let Ok(clip) = clip_result {
                 entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
             } else {
-                warn!("Failed to resolve visual: {}", visual_path);
-                entity_commands.insert(Sprite::default());
+                let fallback_path = format!("{}/0.png", asset_path);
+                sprite.image = asset_server.load(&fallback_path);
+                warn!(
+                    "Animation '{}' not found in registry, using static fallback",
+                    dir_name
+                );
+                entity_commands.insert(sprite);
             }
+        }
+        ResolvedVisual::CharacterAnimation(_) => {
+            warn!(
+                "Character animations not supported for bullets: {}",
+                visual_path
+            );
+            entity_commands.insert(Sprite::default());
         }
     }
 }
@@ -550,15 +580,54 @@ fn spawn_single_bullet(
 // Bullet Motion System
 // ============================================================================
 
-/// System to update bullet motion based on BehaviorStack.
-/// Processes both built-in behaviors and FFI algorithm calls.
+fn build_bullet_ctx(
+    state: &BulletMotionState,
+    dt: f32,
+    player_pos: Vec2,
+    props: &HashMap<String, f32>,
+) -> souprune_api::BulletContext {
+    souprune_api::BulletContext {
+        elapsed: state.elapsed,
+        delta_time: dt,
+        spawn_pos: souprune_api::Vec2::new(state.spawn_center.x, state.spawn_center.y),
+        offset: souprune_api::Vec2::new(state.initial_offset.x, state.initial_offset.y),
+        initial_angle: state.initial_angle,
+        initial_radius: state.initial_radius,
+        player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
+        props: props
+            .iter()
+            .map(|(name, value)| souprune_api::Prop {
+                name: name.clone(),
+                value: *value,
+            })
+            .collect(),
+    }
+}
+
+fn apply_output_extras(
+    output: &souprune_api::BulletOutput,
+    opacity: &mut Option<f32>,
+    scale_delta: &mut Vec2,
+) {
+    if output.opacity >= 0.0 {
+        *opacity = Some(output.opacity);
+    }
+    if output.scale_x != 0.0 {
+        scale_delta.x += output.scale_x;
+    }
+    if output.scale_y != 0.0 {
+        scale_delta.y += output.scale_y;
+    }
+}
+
+/// System to update bullet motion via WASM-dispatched behaviors.
+/// All behaviors (including builtins) are processed through ActiveDanmakuStack.
 ///
-/// 根据行为栈更新弹幕运动的系统。
-/// 同时处理内置行为和 FFI 算法调用。
+/// 通过 WASM 调度的行为更新弹幕运动的系统。
+/// 所有行为（包括内置行为）都通过 ActiveDanmakuStack 处理。
 pub fn update_bullet_motion(
     time: Res<Time>,
-    // Use BulletTarget for generalized targeting
-    player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
     container_query: Query<&Transform, (With<BulletContainer>, Without<Bullet>)>,
     mut query: Query<
         (
@@ -566,13 +635,13 @@ pub fn update_bullet_motion(
             &ChildOf,
             &mut BulletMotionState,
             &BehaviorStack,
-            &mut TweenState,
             &BulletBaseScale,
             Option<&mut Sprite>,
-            Option<&mut ActiveDanmaku>,
+            Option<&mut ActiveDanmakuStack>,
         ),
         With<Bullet>,
     >,
+    player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
 ) {
     let dt = time.delta_secs();
     let player_pos = player_query
@@ -581,112 +650,42 @@ pub fn update_bullet_motion(
         .map(|t| t.translation.truncate())
         .unwrap_or(Vec2::ZERO);
 
-    for (
-        mut transform,
-        parent,
-        mut state,
-        behavior_stack,
-        mut tween_state,
-        base_scale,
-        sprite,
-        active_danmaku,
-    ) in query.iter_mut()
+    for (mut transform, parent, mut state, behavior_stack, base_scale, sprite, danmaku_stack) in
+        query.iter_mut()
     {
         state.elapsed += dt;
 
-        // Calculate world position based on behaviors
         let mut position = state.spawn_center + state.initial_offset;
         let mut rotation_delta = 0.0;
         let mut scale_delta = Vec2::ZERO;
         let mut opacity: Option<f32> = None;
 
-        if tween_state.timers.len() < behavior_stack.behaviors.len() {
-            tween_state
-                .timers
-                .resize(behavior_stack.behaviors.len(), 0.0);
-        }
+        // Process all behaviors via WASM instances
+        let Some(mut stack) = danmaku_stack else {
+            continue;
+        };
+        for (i, instance) in stack.instances.iter_mut().enumerate() {
+            let props = behavior_stack
+                .behaviors
+                .get(i)
+                .map(|b| b.to_wasm_call().1)
+                .unwrap_or_else(|| instance.props.clone());
 
-        for (i, behavior) in behavior_stack.behaviors.iter().enumerate() {
-            match behavior {
-                BulletBehavior::Linear(config) => {
-                    let dir = Vec2::new(config.dir.0, config.dir.1).normalize_or_zero();
-                    position += dir * config.speed * state.elapsed;
-                }
+            let ctx = build_bullet_ctx(&state, dt, player_pos, &props);
+            let output = instance.call_on_update(&ctx, &mut loaded_mods);
 
-                BulletBehavior::Orbital(config) => {
-                    let current_angle =
-                        state.initial_angle + config.angular_velocity * state.elapsed;
-                    let current_radius =
-                        (state.initial_radius + config.radial_velocity * state.elapsed).max(0.0);
-
-                    position = state.spawn_center
-                        + Vec2::new(current_angle.cos(), current_angle.sin()) * current_radius;
-                    rotation_delta += config.angular_velocity * dt;
-                }
-
-                BulletBehavior::Sine(config) => {
-                    let axis_vec = Vec2::new(config.axis.0, config.axis.1).normalize_or_zero();
-                    let wave = (state.elapsed * config.frequency * std::f32::consts::TAU
-                        + config.phase)
-                        .sin();
-                    position += axis_vec * wave * config.amplitude;
-                }
-
-                BulletBehavior::Tween(config) => {
-                    apply_tween_behavior(
-                        config,
-                        &mut tween_state,
-                        i,
-                        dt,
-                        &mut opacity,
-                        &mut scale_delta,
-                        &mut position,
-                        &mut rotation_delta,
-                    );
-                }
-
-                // Custom behaviors are handled separately via ActiveDanmaku
-                BulletBehavior::Custom { .. } => {
-                    // Skip - handled below
-                }
-            }
-        }
-
-        // Handle ActiveDanmaku (new VTable-based API)
-        // 处理 ActiveDanmaku（新的基于 VTable 的 API）
-        if let Some(mut danmaku) = active_danmaku {
-            let (props_ptr, props_len) = danmaku.ffi_props();
-            let ctx = BulletContextC {
-                elapsed: state.elapsed,
-                delta_time: dt,
-                spawn_x: state.spawn_center.x,
-                spawn_y: state.spawn_center.y,
-                offset_x: state.initial_offset.x,
-                offset_y: state.initial_offset.y,
-                initial_angle: state.initial_angle,
-                initial_radius: state.initial_radius,
-                player_x: player_pos.x,
-                player_y: player_pos.y,
-                props: props_ptr,
-                props_len,
-                params: danmaku.params.as_ptr(),
-                params_len: danmaku.params.len(),
-            };
-
-            let output = danmaku.call_on_update(&ctx);
-            position += Vec2::new(output.offset_x, output.offset_y);
+            position += Vec2::new(output.offset.x, output.offset.y);
             rotation_delta += output.rotation;
+            apply_output_extras(&output, &mut opacity, &mut scale_delta);
         }
 
         // Convert world position to local position relative to parent container
-        // 将世界位置转换为相对于父容器的局部位置
         if let Ok(parent_transform) = container_query.get(parent.0) {
             let parent_pos = parent_transform.translation.truncate();
             let local_pos = position - parent_pos;
             transform.translation.x = local_pos.x;
             transform.translation.y = local_pos.y;
         } else {
-            // Fallback to world position if parent not found
             transform.translation.x = position.x;
             transform.translation.y = position.y;
         }
@@ -695,8 +694,6 @@ pub fn update_bullet_motion(
             transform.rotate_z(rotation_delta);
         }
 
-        // Apply scale based on base_scale * (1.0 + tween_delta)
-        // This ensures Tween scales are relative to the prototype's base scale
         if scale_delta != Vec2::ZERO {
             transform.scale.x = base_scale.0 * (1.0 + scale_delta.x);
             transform.scale.y = base_scale.0 * (1.0 + scale_delta.y);
@@ -730,13 +727,22 @@ pub fn update_bullet_lifetime(
 }
 
 /// System to cleanup bullets marked for despawn.
+/// Calls WASM on_exit for any active danmaku before despawning.
 ///
 /// 清理标记为销毁的弹幕的系统。
+/// 在销毁前为活跃的 WASM 弹幕调用 on_exit。
 pub fn cleanup_dead_bullets(
     mut commands: Commands,
-    query: Query<Entity, (With<Bullet>, With<DespawnBullet>)>,
+    mut query: Query<
+        (Entity, Option<&mut ActiveDanmakuStack>),
+        (With<Bullet>, With<DespawnBullet>),
+    >,
+    mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
-    for entity in query.iter() {
+    for (entity, danmaku_stack) in query.iter_mut() {
+        if let Some(mut stack) = danmaku_stack {
+            stack.call_on_exit_all(&mut loaded_mods);
+        }
         commands.entity(entity).despawn();
     }
 }
@@ -765,73 +771,5 @@ pub fn cleanup_empty_containers(
 fn apply_color_tint(sprite: &mut Sprite, color: Option<Color>) {
     if let Some(color) = color {
         sprite.color = color;
-    }
-}
-
-/// Apply a tween value to the corresponding target property (during active tween).
-/// Apply a tween behavior for a single frame, updating position/rotation/scale/opacity.
-fn apply_tween_behavior(
-    config: &TweenConfig,
-    tween_state: &mut TweenState,
-    index: usize,
-    dt: f32,
-    opacity: &mut Option<f32>,
-    scale_delta: &mut Vec2,
-    position: &mut Vec2,
-    rotation_delta: &mut f32,
-) {
-    tween_state.timers[index] += dt;
-    let t = tween_state.timers[index] - config.delay;
-
-    if t >= 0.0 && t < config.duration {
-        let progress = (t / config.duration).clamp(0.0, 1.0);
-        let eased = config.ease.apply(progress);
-        let value = config.range.0 + (config.range.1 - config.range.0) * eased;
-        apply_tween_value(
-            config.target,
-            value,
-            opacity,
-            scale_delta,
-            position,
-            rotation_delta,
-        );
-    } else if t >= config.duration {
-        let value = config.range.1;
-        apply_tween_final_value(config.target, value, opacity, scale_delta);
-    }
-}
-
-fn apply_tween_value(
-    target: TweenTarget,
-    value: f32,
-    opacity: &mut Option<f32>,
-    scale_delta: &mut Vec2,
-    position: &mut Vec2,
-    rotation_delta: &mut f32,
-) {
-    match target {
-        TweenTarget::Opacity => *opacity = Some(value),
-        TweenTarget::Scale => *scale_delta = Vec2::splat(value - 1.0),
-        TweenTarget::ScaleX => scale_delta.x = value - 1.0,
-        TweenTarget::ScaleY => scale_delta.y = value - 1.0,
-        TweenTarget::PositionX => position.x += value,
-        TweenTarget::PositionY => position.y += value,
-        TweenTarget::Rotation => *rotation_delta += value,
-    }
-}
-
-/// Apply a tween final value after the tween has completed (only persistent targets).
-fn apply_tween_final_value(
-    target: TweenTarget,
-    value: f32,
-    opacity: &mut Option<f32>,
-    scale_delta: &mut Vec2,
-) {
-    match target {
-        TweenTarget::Opacity => *opacity = Some(value),
-        TweenTarget::Scale => *scale_delta = Vec2::splat(value - 1.0),
-        TweenTarget::ScaleX => scale_delta.x = value - 1.0,
-        TweenTarget::ScaleY => scale_delta.y = value - 1.0,
-        _ => {}
     }
 }

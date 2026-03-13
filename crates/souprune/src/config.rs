@@ -47,6 +47,24 @@ pub struct SoupruneConfig {
     /// 资源路径配置。
     #[serde(skip)]
     pub resources: ResourcePaths,
+
+    /// Mod library configuration (WASM component path).
+    ///
+    /// Mod 库配置（WASM 组件路径）。
+    #[serde(skip)]
+    pub mod_library: ModLibraryConfig,
+}
+
+/// WASM mod library configuration from mod.toml [mod_library] section.
+///
+/// mod.toml 中 [mod_library] 节的 WASM 模组库配置。
+#[derive(Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ModLibraryConfig {
+    /// WASM component filename (e.g., "mod_example.wasm").
+    ///
+    /// WASM 组件文件名（如 "mod_example.wasm"）。
+    pub wasm: String,
 }
 
 #[derive(Clone, Deserialize)]
@@ -303,6 +321,13 @@ struct ModConfigFile {
     game: Option<GameConfigPartial>,
     #[serde(default)]
     resources: Option<ResourcePathsPartial>,
+    #[serde(default)]
+    mod_library: Option<ModLibraryConfigPartial>,
+}
+
+#[derive(Deserialize, Default)]
+struct ModLibraryConfigPartial {
+    wasm: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -388,6 +413,12 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
             config.resources.audios = val;
         }
     }
+    // Load mod library configuration from [mod_library] section
+    if let Some(lib_partial) = mod_cfg.mod_library
+        && let Some(val) = lib_partial.wasm
+    {
+        config.mod_library.wasm = val;
+    }
 
     // Validate required resource paths
     if config.resources.textures.is_empty() {
@@ -463,5 +494,6 @@ fn default_config() -> SoupruneConfig {
         game: GameConfig::default(),
         render: RenderConfig::default(),
         resources: ResourcePaths::default(),
+        mod_library: ModLibraryConfig::default(),
     }
 }

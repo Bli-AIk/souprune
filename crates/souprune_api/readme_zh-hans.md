@@ -5,7 +5,7 @@
 
 > 当前状态：🚧 早期开发中
 
-**souprune_api** — SoupRune 游戏框架的 FFI API 定义和绑定生成器。
+**souprune_api** — SoupRune 模组系统的 WIT 接口定义和共享类型。
 
 | 英语 | 简体中文 |
 |------|----------|
@@ -13,60 +13,33 @@
 
 ## 介绍
 
-`souprune_api` 是 SoupRune 游戏框架的 FFI（外部函数接口）层。  
-它解决了语言互操作性问题，让用户能够从 Rust 以外的语言（C#、Haxe、Lua 等）与 SoupRune 交互。
-
-使用 `souprune_api`，你只需要在目标语言中使用生成的绑定，就可以访问 SoupRune 的功能。  
-未来还计划支持动态插件加载和热重载。
+`souprune_api` 定义了 SoupRune 引擎（宿主）与 WASM mod 组件（客户端）之间的契约，
+使用 WIT（WebAssembly Interface Types）。它提供宿主运行时和客户端 SDK（`souprune_sdk`）共用的 Rust 类型。
 
 ## 功能
 
-* SoupRune 的 FFI 安全 API 定义
-* 多语言绑定生成（C、C#、Haxe）
-* 与 Interoptopus 集成实现自动代码生成
-* 类型安全的跨语言通信
-* （计划中）插件系统支持
-* （计划中）热重载能力
+* WIT 接口定义（`wit/souprune-mod.wit`）——单一事实来源
+* 共享 Rust 类型：`Vec2`、`BulletContext`、`BulletOutput`、`Action`
+* 宿主侧：由 `souprune`（wasmtime）使用定义导入
+* 客户端侧：由 `souprune_sdk`（wit-bindgen）使用实现导出
+
+## WIT 接口
+
+WIT 文件定义了三个接口：
+
+- **`host-api`**（由客户端导入）：`log`、`get-fact`、`set-fact`、`emit-event`
+- **`behavior`**（由客户端导出）：`on-init`、`on-update`、`on-interact`
+- **`danmaku`**（由客户端导出）：`init-bullet`、`update-bullet`
 
 ## 使用方法
 
-1. **安装 Rust**（如果尚未安装）：
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+**引擎开发**（宿主侧），添加到 `Cargo.toml`：
+```toml
+[dependencies]
+souprune_api = { path = "../souprune_api" }
+```
 
-2. **添加到 Cargo.toml**：
-
-   ```toml
-   [dependencies]
-   souprune_api = "0.1"
-   ```
-
-3. **生成绑定**（使用 bindgen 特性）：
-
-   ```bash
-   cargo run --bin souprune_bindgen --features bindgen
-   ```
-
-   这将生成：
-   - C 头文件
-   - C# 绑定
-   - Haxe 绑定
-
-4. **在你的语言中使用**：
-
-   查看输出目录中生成的绑定文件以获取使用示例。
-
-## 依赖
-
-本项目使用以下 crate：
-
-| Crate                                             | 版本 | 描述                 |
-| ------------------------------------------------- | ------- | --------------------------- |
-| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24   | FFI 绑定框架 |
-| [interoptopus_backend_c](https://crates.io/crates/interoptopus_backend_c) | 0.15.0-alpha.24   | C 后端 |
-| [interoptopus_backend_csharp](https://crates.io/crates/interoptopus_backend_csharp) | 0.15.0-alpha.24   | C# 后端 |
-| [interoptopus_backend_haxe](https://crates.io/crates/interoptopus_backend_haxe) | 0.0.1   | Haxe 后端 |
+**mod 开发**（客户端侧），使用 `souprune_sdk`，它会重新导出所需类型。
 
 ## 警告
 

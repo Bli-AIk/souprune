@@ -78,10 +78,6 @@ pub enum ViewDelta {
         new_expression: String,
     },
 
-    /// Update camera offset of an existing element.
-    /// 更新现有元素的相机偏移。
-    UpdateCameraOffset { entity: Entity, new_offset: Vec3 },
-
     /// Update material definition of an existing element.
     /// 更新现有元素的材质定义。
     UpdateMaterial {
@@ -154,16 +150,6 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                         expression: new_expression.clone(),
                     });
             }
-            ViewDelta::UpdateCameraOffset { entity, new_offset } => {
-                // Queue update to preserve existing CameraAnchored
-                // 队列更新以保留现有的 CameraAnchored
-                let offset = *new_offset;
-                let entity_id = *entity;
-
-                commands.queue(move |world: &mut World| {
-                    queue_update_camera_offset(world, entity_id, offset);
-                });
-            }
             ViewDelta::UpdateMaterial {
                 entity,
                 new_value: _,
@@ -196,19 +182,6 @@ fn queue_update_sprite(
         sprite.flip_y = flip_y;
     }
     entity_mut.insert(anchor);
-}
-
-/// Queued world command: update camera offset on an entity.
-fn queue_update_camera_offset(world: &mut World, entity_id: Entity, offset: Vec3) {
-    let Ok(mut entity_mut) = world.get_entity_mut(entity_id) else {
-        return;
-    };
-    let Some(mut camera_anchored) =
-        entity_mut.get_mut::<crate::core::view::components::CameraAnchored>()
-    else {
-        return;
-    };
-    camera_anchored.offset = offset;
 }
 
 /// Apply a spawn delta by creating a new entity with all components.
@@ -286,7 +259,6 @@ pub struct DeltaStats {
     pub text_updates: usize,
     pub hp_bar_updates: usize,
     pub visible_when_updates: usize,
-    pub camera_offset_updates: usize,
     pub material_updates: usize,
 }
 
@@ -305,7 +277,6 @@ impl DeltaStats {
                 ViewDelta::UpdateText { .. } => stats.text_updates += 1,
                 ViewDelta::UpdateHpBar { .. } => stats.hp_bar_updates += 1,
                 ViewDelta::UpdateVisibleWhen { .. } => stats.visible_when_updates += 1,
-                ViewDelta::UpdateCameraOffset { .. } => stats.camera_offset_updates += 1,
                 ViewDelta::UpdateMaterial { .. } => stats.material_updates += 1,
             }
         }
@@ -323,7 +294,6 @@ impl DeltaStats {
             || self.text_updates > 0
             || self.hp_bar_updates > 0
             || self.visible_when_updates > 0
-            || self.camera_offset_updates > 0
             || self.material_updates > 0
     }
 }

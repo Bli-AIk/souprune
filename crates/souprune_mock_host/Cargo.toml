@@ -1,13 +1,15 @@
 [package]
 name = "souprune_mock_host"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2024"
-description = "Mock host environment for testing SoupRune mods"
+description = "Mock host environment for testing SoupRune WASM mods"
 license = "LGPL-3.0-or-later"
 repository = "https://github.com/Bli-AIk/souprune"
 readme = "readme.md"
-keywords = ["game-framework", "modding", "testing"]
+keywords = ["game-framework", "modding", "testing", "wasm"]
 
 [dependencies]
-souprune_api = { path = "../souprune_api", version = "0.1" }
-libloading = "0.9.0"
+souprune_api = { path = "../souprune_api", version = "0.2" }
+wasmtime = "42"
+wasmtime-wasi = "42"
+anyhow = "1"

@@ -1,15 +1,15 @@
 [package]
 name = "souprune_mod_test"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2024"
 description = "Test mod implementation for SoupRune SDK verification"
 license = "LGPL-3.0-or-later"
 repository = "https://github.com/Bli-AIk/souprune"
 readme = "readme.md"
-keywords = ["game-framework", "modding", "testing"]
+keywords = ["game-framework", "modding", "testing", "wasm"]
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-souprune_sdk = { path = "../souprune_sdk", version = "0.1" }
+souprune_sdk = { path = "../souprune_sdk", version = "0.2" }

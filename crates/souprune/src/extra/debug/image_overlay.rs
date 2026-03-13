@@ -51,6 +51,7 @@ pub mod debug_image_overlay {
         asset_server: Res<AssetServer>,
         overlay_query: Query<Entity, With<DebugImageOverlay>>,
         window_query: Query<&Window>,
+        mut toast_events: MessageWriter<super::super::DebugToastEvent>,
     ) {
         if !keyboard.just_pressed(KeyCode::F5) {
             return;
@@ -64,11 +65,18 @@ pub mod debug_image_overlay {
         }
 
         if !settings.show_overlay {
-            info!("Debug image overlay: OFF");
+            info!("Image Overlay: OFF");
+            toast_events.write(super::super::DebugToastEvent {
+                message: "Image Overlay: OFF".into(),
+            });
             return;
         }
 
         spawn_debug_overlay(&mut commands, &asset_server, &window_query);
+        info!("Image Overlay: ON");
+        toast_events.write(super::super::DebugToastEvent {
+            message: "Image Overlay: ON".into(),
+        });
     }
 
     /// Spawn a debug overlay image entity.
@@ -123,8 +131,6 @@ pub mod debug_image_overlay {
                     },
                 ));
             });
-
-        info!("Debug image overlay: ON");
     }
 
     /// Maintain the overlay entity and remove it when needed.

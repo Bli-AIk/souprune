@@ -47,9 +47,6 @@ name = "souprune_mod_test"
 [[package]]
 name = "souprune_mock_host"
 
-[[package]]
-name = "interoptopus_backend_haxe"
-
 # Explicitly disable release-plz for git submodules and their sub-crates
 # These have their own release workflows in their respective repositories
 [[package]]

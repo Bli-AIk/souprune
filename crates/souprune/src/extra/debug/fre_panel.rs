@@ -149,6 +149,7 @@ pub mod debug_fre_panel {
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut state: ResMut<FREPanelState>,
         mut commands: Commands,
+        mut toast_events: MessageWriter<super::super::DebugToastEvent>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::F2) {
             return;
@@ -156,8 +157,14 @@ pub mod debug_fre_panel {
 
         if state.window_entity.is_some() {
             close_fre_panel(&mut commands, &mut state);
+            toast_events.write(super::super::DebugToastEvent {
+                message: "FRE Panel: OFF".into(),
+            });
         } else {
             spawn_fre_panel(&mut commands, &mut state);
+            toast_events.write(super::super::DebugToastEvent {
+                message: "FRE Panel: ON".into(),
+            });
         }
     }
 

@@ -29,10 +29,13 @@
 //! | F5 | Toggle Image Overlay | 切换图像覆盖 |
 //! | F6 | Enter Battle Test | 进入战斗测试 |
 //! | F7 | Toggle Game Freeze | 切换游戏冻结状态 |
+//! | F8 | Toggle Debug Camera | 切换调试摄像机（滚轮缩放、中键平移） |
 //! | F12 | Toggle Debug Help Text | 切换调试帮助文本 |
 
 #[cfg(feature = "debug")]
 mod battle_test;
+#[cfg(feature = "debug")]
+mod camera_debug;
 mod collider;
 #[cfg(feature = "debug")]
 mod fre_panel;
@@ -52,6 +55,15 @@ use std::collections::HashMap;
 /// 用于将调试相机排除在查询 Camera2d 的游戏系统之外。
 #[derive(Component)]
 pub struct DebugCamera;
+
+/// Event to show a debug toast notification in the top-left corner.
+///
+/// 在左上角显示调试提示通知的事件。
+#[cfg(feature = "debug")]
+#[derive(bevy::ecs::message::Message)]
+pub struct DebugToastEvent {
+    pub message: String,
+}
 
 // Collider gizmos and freeze are available without the debug feature.
 pub use collider::debug_collider::{ColliderGizmos, setup_collider_debug};
@@ -96,6 +108,8 @@ impl Plugin for DebugPlugin {
 
         #[cfg(feature = "debug")]
         {
+            app.add_message::<DebugToastEvent>();
+
             setup_collider_debug(app);
             setup_freeze_debug(app);
 
@@ -107,6 +121,8 @@ impl Plugin for DebugPlugin {
             image_overlay::debug_image_overlay::setup_image_overlay_debug(app);
 
             battle_test::debug_battle_test::setup_battle_test_debug(app);
+
+            camera_debug::debug_camera::setup_camera_debug(app);
         }
     }
 }

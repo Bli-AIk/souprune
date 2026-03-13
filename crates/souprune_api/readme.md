@@ -5,7 +5,7 @@
 
 > Current Status: 🚧 Early Development
 
-**souprune_api** — FFI API definitions and bindings generator for SoupRune game framework.
+**souprune_api** — WIT interface definitions and shared types for the SoupRune mod system.
 
 | English | Simplified Chinese          |
 |---------|-----------------------------|
@@ -13,60 +13,34 @@
 
 ## Introduction
 
-`souprune_api` is the FFI (Foreign Function Interface) layer for the SoupRune game framework.  
-It solves the problem of language interoperability, allowing users to interact with SoupRune from languages other than Rust (C#, Haxe, Lua, etc.).
-
-With `souprune_api`, you only need to use the generated bindings in your target language to access SoupRune functionality.  
-In the future, it may also support dynamic plugin loading and hot-reloading.
+`souprune_api` defines the contract between the SoupRune engine (host) and WASM mod components (guests)
+using WIT (WebAssembly Interface Types). It provides shared Rust types used by both the host runtime
+and the guest SDK (`souprune_sdk`).
 
 ## Features
 
-* FFI-safe API definitions for SoupRune
-* Multi-language binding generation (C, C#, Haxe)
-* Integration with Interoptopus for automatic code generation
-* Type-safe cross-language communication
-* (Planned) Plugin system support
-* (Planned) Hot-reload capabilities
+* WIT interface definition (`wit/souprune-mod.wit`) — single source of truth
+* Shared Rust types: `Vec2`, `BulletContext`, `BulletOutput`, `Action`
+* Host-side: used by `souprune` (wasmtime) to define imports
+* Guest-side: used by `souprune_sdk` (wit-bindgen) to implement exports
+
+## WIT Interface
+
+The WIT file defines three interfaces:
+
+- **`host-api`** (imported by guest): `log`, `get-fact`, `set-fact`, `emit-event`
+- **`behavior`** (exported by guest): `on-init`, `on-update`, `on-interact`
+- **`danmaku`** (exported by guest): `init-bullet`, `update-bullet`
 
 ## How to Use
 
-1. **Install Rust** (if not already installed):
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+For **host development** (engine side), add to `Cargo.toml`:
+```toml
+[dependencies]
+souprune_api = { path = "../souprune_api" }
+```
 
-2. **Add to Cargo.toml**:
-
-   ```toml
-   [dependencies]
-   souprune_api = "0.1"
-   ```
-
-3. **Generate bindings** (with bindgen feature):
-
-   ```bash
-   cargo run --bin souprune_bindgen --features bindgen
-   ```
-
-   This will generate:
-   - C header files
-   - C# bindings
-   - Haxe bindings
-
-4. **Use in your language**:
-
-   See the generated binding files in the output directory for usage examples.
-
-## Dependencies
-
-This project uses the following crates:
-
-| Crate                                             | Version | Description                 |
-| ------------------------------------------------- | ------- | --------------------------- |
-| [interoptopus](https://crates.io/crates/interoptopus) | 0.15.0-alpha.24   | FFI bindings framework |
-| [interoptopus_backend_c](https://crates.io/crates/interoptopus_backend_c) | 0.15.0-alpha.24   | C backend |
-| [interoptopus_backend_csharp](https://crates.io/crates/interoptopus_backend_csharp) | 0.15.0-alpha.24   | C# backend |
-| [interoptopus_backend_haxe](https://crates.io/crates/interoptopus_backend_haxe) | 0.0.1   | Haxe backend |
+For **mod development** (guest side), use `souprune_sdk` which re-exports the necessary types.
 
 ## Warning
 

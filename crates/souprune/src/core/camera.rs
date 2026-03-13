@@ -21,6 +21,7 @@
 pub(crate) mod components;
 mod systems;
 
+pub use components::CameraControlOverride;
 pub(crate) use components::Followable;
 pub use components::MainGameCamera;
 pub use systems::CameraUpdateSet;
