@@ -16,7 +16,7 @@ use wasmtime_wasi::WasiCtxBuilder;
 
 // Generate host-side bindings from the WIT interface
 wasmtime::component::bindgen!({
-    path: "../souprune_api/wit",
+    path: "wit",
     world: "souprune-mod",
 });
 

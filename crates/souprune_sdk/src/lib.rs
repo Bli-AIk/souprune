@@ -37,7 +37,7 @@ pub use traits::{Behavior, DanmakuBehavior, SpawnPatternBehavior};
 
 // Generate guest bindings from the WIT interface
 wit_bindgen::generate!({
-    path: "../souprune_api/wit",
+    path: "wit",
     world: "souprune-mod",
     pub_export_macro: true,
 });
