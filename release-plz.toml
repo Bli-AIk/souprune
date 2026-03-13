@@ -76,11 +76,3 @@ release = false
 name = "bevy_mortar_bond_macros"
 release = false
 
-[[package]]
-name = "flambe"
-release = false
-
-[[package]]
-name = "bevy_workbench"
-release = false
-
