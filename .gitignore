@@ -53,10 +53,6 @@ reports/
 # Ignore .cargo/ in mod examples (local dev config for cross-compilation)
 projects/**/code/**/.cargo/
 
-# Mod worktrees (managed by souprune_example_mods repo)
-projects/example_mod/
-projects/example_battle_mod/
-projects/example_am_mod/
 
 # Mod repo worktree manager
 .mod-repo/
@@ -65,3 +61,7 @@ android/.gradle/
 android/app/build/
 android/app/src/main/jniLibs/
 android/build/
+
+# Project mods (each is its own repo/branch, only config.toml tracked)
+projects/*/
+!projects/config.toml
