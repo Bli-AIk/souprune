@@ -20,8 +20,11 @@ use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_ev
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
-    ActionHandlerRegistry, CombinedFactReader, EnumRegistry, FactEvent, FactReader, FactValue,
-    LayeredFactDatabase, LayeredRuleRegistry, RuleActionDef,
+    CombinedFactReader, EnumRegistry, FactEvent, FactReader, FactValue, LayeredFactDatabase,
+};
+
+use crate::core::game_action::{
+    GameActionDef, GameActionHandlerRegistry, GameRule, GameRuleRegistry,
 };
 use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
@@ -163,7 +166,7 @@ pub fn sync_state_to_facts_system(
 }
 
 /// Log matching rule details for Left/Right navigation events.
-fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&bevy_fact_rule_event::Rule>]) {
+fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&GameRule>]) {
     if !event.id.0.contains("Left") && !event.id.0.contains("Right") {
         return;
     }
@@ -186,7 +189,7 @@ fn log_event_rule_matches(event: &FactEvent, rule_groups: &[Vec<&bevy_fact_rule_
 }
 
 /// Log debug info when rule conditions are not met.
-fn log_condition_not_met(rule: &bevy_fact_rule_event::Rule, view_root: &ViewRoot) {
+fn log_condition_not_met(rule: &GameRule, view_root: &ViewRoot) {
     if rule.id.contains("act") || rule.id.contains("depth_2") {
         debug!(
             "FRE Bridge: Conditions not met for rule '{}', local_facts: depth={:?}, menu_context={:?}, act_selection={:?}, act_count={:?}",
@@ -209,7 +212,7 @@ fn log_condition_not_met(rule: &bevy_fact_rule_event::Rule, view_root: &ViewRoot
 /// Process all matching rules for a single FRE event on view actions.
 fn process_event_view_actions(
     event: &FactEvent,
-    rule_registry: &LayeredRuleRegistry,
+    rule_registry: &GameRuleRegistry,
     active_view_query: &mut Query<&mut ViewRoot, With<ActiveView>>,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
@@ -293,7 +296,7 @@ fn process_event_view_actions(
 /// （SetLocalFact、PlaySound 等）。
 pub fn process_view_actions_system(
     mut events: MessageReader<FactEvent>,
-    rule_registry: Res<LayeredRuleRegistry>,
+    rule_registry: Res<GameRuleRegistry>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
     audio: Res<bevy_kira_audio::Audio>,
     asset_server: Res<AssetServer>,
@@ -329,7 +332,7 @@ pub fn process_view_actions_system(
 /// 在 ViewRoot 的 local_facts 上执行单个 FRE 动作。
 /// StartDialogue 写入全局 LayeredFactDatabase。
 fn execute_action(
-    action: &RuleActionDef,
+    action: &GameActionDef,
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
@@ -338,35 +341,35 @@ fn execute_action(
     item_registry: &crate::core::item::ItemRegistry,
 ) {
     match action {
-        RuleActionDef::PlaySound(sound_name) => {
+        GameActionDef::PlaySound(sound_name) => {
             debug!("FRE Bridge: PlaySound({})", sound_name);
             audio::play_sound(audio, asset_server, sound_name);
         }
-        RuleActionDef::PlaySoundFullPath(path) => {
+        GameActionDef::PlaySoundFullPath(path) => {
             debug!("FRE Bridge: PlaySoundFullPath({})", path);
             audio::play_sound_full_path(audio, asset_server, path);
         }
-        RuleActionDef::SetLocalFact(key, value) => {
+        GameActionDef::SetLocalFact(key, value) => {
             let combined = CombinedFactReader::new(local_facts, global_facts);
             let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
             info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
             local_facts.set(key.as_str(), fact_value);
         }
-        RuleActionDef::CloseView => {
+        GameActionDef::CloseView => {
             debug!("FRE Bridge: CloseView");
             local_facts.set(fre_facts::VIEW_CLOSE_REQUESTED, FactValue::Bool(true));
         }
-        RuleActionDef::SwitchState(state_name) => {
+        GameActionDef::SwitchState(state_name) => {
             debug!("FRE Bridge: SwitchState({})", state_name);
             local_facts.set(
                 fre_facts::VIEW_SWITCH_STATE,
                 FactValue::String(state_name.clone()),
             );
         }
-        RuleActionDef::EmitEvent(event_id) => {
+        GameActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
         }
-        RuleActionDef::StartDialogue {
+        GameActionDef::StartDialogue {
             mortar,
             node,
             view,
@@ -405,7 +408,7 @@ fn execute_action(
             }
             global_facts.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
         }
-        RuleActionDef::Custom {
+        GameActionDef::Custom {
             action_type,
             params,
         } => {
@@ -414,10 +417,10 @@ fn execute_action(
                 action_type, params
             );
         }
-        RuleActionDef::Log { message } => {
+        GameActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
         }
-        RuleActionDef::UseItem { index_expr } => {
+        GameActionDef::UseItem { index_expr } => {
             execute_use_item(
                 index_expr,
                 local_facts,
@@ -428,7 +431,7 @@ fn execute_action(
                 item_registry,
             );
         }
-        RuleActionDef::CheckItem { index_expr } => {
+        GameActionDef::CheckItem { index_expr } => {
             execute_check_item(
                 index_expr,
                 local_facts,
@@ -437,7 +440,7 @@ fn execute_action(
                 item_registry,
             );
         }
-        RuleActionDef::DropItem { index_expr } => {
+        GameActionDef::DropItem { index_expr } => {
             execute_drop_item(
                 index_expr,
                 local_facts,
@@ -773,14 +776,14 @@ pub fn handle_switch_state_system(
 
 /// Dispatch a single Custom action via handler registry or as an event.
 fn dispatch_single_custom_action(
-    action: &RuleActionDef,
-    rule: &bevy_fact_rule_event::Rule,
+    action: &GameActionDef,
+    rule: &GameRule,
     fact_db: &LayeredFactDatabase,
-    handler_registry: &ActionHandlerRegistry,
+    handler_registry: &GameActionHandlerRegistry,
     commands: &mut Commands,
     custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
-    let RuleActionDef::Custom {
+    let GameActionDef::Custom {
         action_type,
         params,
     } = action
@@ -809,9 +812,9 @@ fn dispatch_single_custom_action(
 /// Process all matching rules for a single FRE event, dispatching Custom actions.
 fn dispatch_event_custom_actions(
     event: &FactEvent,
-    rule_registry: &LayeredRuleRegistry,
+    rule_registry: &GameRuleRegistry,
     fact_db: &LayeredFactDatabase,
-    handler_registry: &ActionHandlerRegistry,
+    handler_registry: &GameActionHandlerRegistry,
     commands: &mut Commands,
     custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
     enum_registry: &EnumRegistry,
@@ -857,9 +860,9 @@ fn dispatch_event_custom_actions(
 /// 将 Custom action 作为 `FreCustomActionEvent` 消息分发。
 pub fn dispatch_custom_actions_system(
     mut events: MessageReader<FactEvent>,
-    rule_registry: Res<LayeredRuleRegistry>,
+    rule_registry: Res<GameRuleRegistry>,
     fact_db: Res<LayeredFactDatabase>,
-    handler_registry: Res<ActionHandlerRegistry>,
+    handler_registry: Res<GameActionHandlerRegistry>,
     mut commands: Commands,
     mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
     enum_registry: Res<EnumRegistry>,

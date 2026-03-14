@@ -16,7 +16,7 @@ use crate::app_state::SequenceSubState;
 use crate::core::audio;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredRuleRegistry;
+use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};
 
 use super::components::ViewRoot;
 
@@ -165,7 +165,7 @@ pub(crate) fn state_transition_sound_system(
 /// 使用 RemovedComponents 来检测 ViewRoot 实体何时被移除。
 pub(crate) fn cleanup_view_rules_system(
     mut removed_views: RemovedComponents<ViewRoot>,
-    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    mut rule_registry: ResMut<GameRuleRegistry>,
 ) {
     for entity in removed_views.read() {
         // Clear View-layer rules for this entity
@@ -185,13 +185,13 @@ pub(crate) fn cleanup_view_rules_system(
 /// 检查 PendingViewRules 组件并在资产可用时注册规则。
 pub(crate) fn process_pending_view_rules_system(
     mut commands: Commands,
-    fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     mut query: Query<(
         Entity,
         &mut super::components::PendingViewRules,
         &mut ViewRoot,
     )>,
-    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    mut rule_registry: ResMut<GameRuleRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
@@ -264,8 +264,8 @@ fn register_fre_rules(
     entity: Entity,
     path: &str,
     scope: bevy_fact_rule_event::RuleScope,
-    rule_defs: &[bevy_fact_rule_event::RuleDef],
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_defs: &[GameRuleDef],
+    rule_registry: &mut GameRuleRegistry,
 ) {
     use bevy_fact_rule_event::RuleScope;
 

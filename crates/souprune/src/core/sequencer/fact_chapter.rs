@@ -24,7 +24,9 @@ use super::chapter_schema::{
 use super::context::{ActiveChapter, ChapterFinished};
 use super::flow::spawn_chapter;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, FreAsset, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
+
+use crate::core::game_action::GameFreAsset;
 
 /// Evaluate a FactCondition against the LayeredFactDatabase.
 ///
@@ -319,7 +321,7 @@ fn resolve_expr_value(
 #[derive(Component)]
 pub struct LoadFreState {
     /// Handles to the FRE files being loaded
-    pub handles: Vec<Handle<FreAsset>>,
+    pub handles: Vec<Handle<GameFreAsset>>,
     /// Aggregation rules to apply after loading
     pub aggregate: std::collections::HashMap<String, AggregateRule>,
     /// Whether all assets have been processed
@@ -338,11 +340,11 @@ pub fn process_load_fre_chapter_system(
 ) {
     for (entity, active) in query.iter() {
         if let Chapter::LoadFre { files, aggregate } = &active.chapter {
-            let handles: Vec<Handle<FreAsset>> = files
+            let handles: Vec<Handle<GameFreAsset>> = files
                 .iter()
                 .map(|path| {
                     info!("LoadFre Chapter: Loading FRE file '{}'", path);
-                    asset_server.load::<FreAsset>(path.clone())
+                    asset_server.load::<GameFreAsset>(path.clone())
                 })
                 .collect();
 
@@ -364,7 +366,7 @@ pub fn complete_load_fre_chapter_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut LoadFreState), Without<ChapterFinished>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    fre_assets: Res<Assets<FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     for (entity, mut state) in query.iter_mut() {

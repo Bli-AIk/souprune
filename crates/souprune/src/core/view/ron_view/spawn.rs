@@ -7,7 +7,9 @@ use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
+use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
+
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
 // Re-export from sibling modules for backwards compatibility
 pub use super::spawn_helpers::{load_fre_into_view_root, load_procedural_image_handle};
@@ -20,16 +22,16 @@ pub use super::spawn_nodes::spawn_view_node;
 /// 减少系统参数数量以保持在 Bevy 的 16 参数限制内。
 #[derive(SystemParam)]
 pub struct FreSystemParams<'w> {
-    pub rule_registry: ResMut<'w, LayeredRuleRegistry>,
+    pub rule_registry: ResMut<'w, GameRuleRegistry>,
     pub enum_registry: ResMut<'w, bevy_fact_rule_event::EnumRegistry>,
 }
 
 /// Register view-scoped FRE rules from a loaded FreAsset.
 /// Returns the number of rules registered.
 fn register_fre_rules_from_asset(
-    fre_asset: &FreAsset,
+    fre_asset: &GameFreAsset,
     view_entity: Entity,
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_registry: &mut GameRuleRegistry,
 ) -> usize {
     let rule_defs = fre_asset.get_rule_defs();
     let scope = fre_asset.scope();
@@ -59,12 +61,12 @@ fn process_interface_requirement(
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
     asset_server: &AssetServer,
-    fre_assets: &Assets<FreAsset>,
+    fre_assets: &Assets<GameFreAsset>,
     view_root: &mut crate::core::view::components::ViewRoot,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     layered_db: &LayeredFactDatabase,
     view_entity: Entity,
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_registry: &mut GameRuleRegistry,
     enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
 ) {
     let Some(bindings) = bindings else {
@@ -83,7 +85,7 @@ fn process_interface_requirement(
     };
     match binding {
         crate::core::sequencer::chapter_schema::DataBinding::File(path) => {
-            let handle: Handle<FreAsset> = asset_server.load(path.clone());
+            let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
             let Some(fre_asset) = fre_assets.get(&handle) else {
                 return;
             };
@@ -97,7 +99,7 @@ fn process_interface_requirement(
         crate::core::sequencer::chapter_schema::DataBinding::Files(paths) => {
             let mut total_rules = 0;
             for path in paths {
-                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
                 let Some(fre_asset) = fre_assets.get(&handle) else {
                     continue;
                 };
@@ -164,7 +166,7 @@ pub fn spawn_ron_view_for_entity(
     view_layout: &ViewLayoutAsset,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
-    fre_assets: &Assets<FreAsset>,
+    fre_assets: &Assets<GameFreAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
@@ -173,7 +175,7 @@ pub fn spawn_ron_view_for_entity(
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
     layered_db: &LayeredFactDatabase,
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_registry: &mut GameRuleRegistry,
     enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
 ) {
     // Generate namespace from layout path
@@ -186,7 +188,7 @@ pub fn spawn_ron_view_for_entity(
 
     // Track pending FRE files that need delayed registration (store handles to keep loading alive)
     // 跟踪需要延迟注册的待处理 FRE 文件（存储句柄以保持加载请求）
-    let mut pending_fre_handles: Vec<(String, Handle<FreAsset>)> = Vec::new();
+    let mut pending_fre_handles: Vec<(String, Handle<GameFreAsset>)> = Vec::new();
 
     // Process requires declarations
     // 处理 requires 声明
@@ -195,7 +197,7 @@ pub fn spawn_ron_view_for_entity(
             DataRequirement::File(path) => {
                 // Load FRE file if already loaded
                 // 如果已加载则加载 FRE 文件
-                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
                 let Some(fre_asset) = fre_assets.get(&handle) else {
                     // FRE file not yet loaded - add to pending for delayed registration
                     // Store the handle to keep the loading request alive
@@ -325,7 +327,7 @@ pub fn spawn_dynamic_view_system(
     asset_server: Res<AssetServer>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    fre_assets: Res<Assets<FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
     // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
     dynamic_view_query: Query<

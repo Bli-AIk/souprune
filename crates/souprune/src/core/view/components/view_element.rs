@@ -367,7 +367,7 @@ pub struct PendingViewRules {
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub pending_handles: Vec<(
         String,
-        bevy::prelude::Handle<bevy_fact_rule_event::FreAsset>,
+        bevy::prelude::Handle<crate::core::game_action::GameFreAsset>,
     )>,
 }
 
@@ -382,5 +382,5 @@ pub struct PendingViewData {
     pub bindings:
         std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     /// Handles to FRE assets being loaded for bindings (keeps loading alive).
-    pub fre_handles: Vec<bevy::prelude::Handle<bevy_fact_rule_event::FreAsset>>,
+    pub fre_handles: Vec<bevy::prelude::Handle<crate::core::game_action::GameFreAsset>>,
 }

@@ -610,10 +610,10 @@ fn load_initial_facts_into_view_root(
 }
 
 fn register_rule_def(
-    rule_def: &bevy_fact_rule_event::asset::RuleDef,
+    rule_def: &souprune::core::game_action::GameRuleDef,
     idx: usize,
     scope: bevy_fact_rule_event::RuleScope,
-    rule_registry: &mut bevy_fact_rule_event::LayeredRuleRegistry,
+    rule_registry: &mut souprune::core::game_action::GameRuleRegistry,
     view_entity: Entity,
     registered_ids: &mut Vec<String>,
 ) {
@@ -640,7 +640,7 @@ pub fn preview_play_control_system(
     mut state: ResMut<ViewPreviewState>,
     editor_state: Res<ViewEditorState>,
     fre_state: Option<Res<super::view_fre_panel::ViewFreState>>,
-    mut rule_registry: ResMut<bevy_fact_rule_event::LayeredRuleRegistry>,
+    mut rule_registry: ResMut<souprune::core::game_action::GameRuleRegistry>,
     mut fact_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     mortar_strings: Res<souprune::extra::mortar::MortarStringTable>,
     mut commands: Commands,

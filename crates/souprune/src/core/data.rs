@@ -45,7 +45,9 @@
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::prelude::{Commands, Component, Local, Name, Res, ResMut, Resource};
-use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
+use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
+
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
 pub(crate) struct DataPlugin;
 
@@ -74,7 +76,7 @@ pub struct MainPlayer;
 /// 保存全局规则文件句柄的资源。
 #[derive(Resource, Default)]
 pub struct GlobalRulesHandle {
-    pub handle: Option<Handle<FreAsset>>,
+    pub handle: Option<Handle<GameFreAsset>>,
     pub loaded: bool,
 }
 
@@ -110,7 +112,7 @@ fn load_global_rules_system(
 
     // Clone the path to avoid lifetime issues with asset_server.load()
     let path: String = config.game.global_rules.clone();
-    let handle: Handle<FreAsset> = asset_server.load(path);
+    let handle: Handle<GameFreAsset> = asset_server.load(path);
     global_rules_handle.handle = Some(handle);
 
     bevy::log::info!(
@@ -128,9 +130,9 @@ fn load_global_rules_system(
 /// 现在同时注册 Global 作用域的规则。
 fn apply_global_rules_system(
     global_rules_handle: Res<GlobalRulesHandle>,
-    fre_assets: Res<Assets<FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    mut registry: ResMut<LayeredRuleRegistry>,
+    mut registry: ResMut<GameRuleRegistry>,
     mut applied: Local<bool>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {

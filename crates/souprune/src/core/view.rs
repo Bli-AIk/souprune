@@ -266,7 +266,7 @@ fn collect_fre_handles(
         crate::core::sequencer::chapter_schema::DataBinding,
     >,
     asset_server: &AssetServer,
-) -> Vec<Handle<bevy_fact_rule_event::FreAsset>> {
+) -> Vec<Handle<crate::core::game_action::GameFreAsset>> {
     use crate::core::sequencer::chapter_schema::DataBinding;
 
     let mut fre_handles = Vec::new();

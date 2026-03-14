@@ -18,8 +18,10 @@ use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
-use bevy_fact_rule_event::{
-    FactEvent, FactEventId, FreAsset, LayeredFactDatabase, LayeredRuleRegistry,
+use bevy_fact_rule_event::{FactEvent, FactEventId, LayeredFactDatabase};
+
+use crate::core::game_action::{
+    GameActionDef, GameActionHandlerRegistry, GameFreAsset, GameRuleRegistry,
 };
 use leafwing_input_manager::action_state::ActionState;
 
@@ -117,7 +119,7 @@ pub struct FocusedInteractable {
 /// 跟踪已加载规则集句柄的资源。
 #[derive(Resource, Default)]
 pub struct LoadedRuleSets {
-    pub handles: Vec<Handle<FreAsset>>,
+    pub handles: Vec<Handle<GameFreAsset>>,
     pub initialized: bool,
     pub registered: bool,
 }
@@ -196,7 +198,7 @@ pub fn load_fre_rules_system(
                 get_string_property(&map_asset.map.properties, keys::RULES_FILE)
         {
             let rules_path_owned = rules_path.to_string();
-            let handle: Handle<FreAsset> = asset_server.load(&rules_path_owned);
+            let handle: Handle<GameFreAsset> = asset_server.load(&rules_path_owned);
             loaded_rule_sets.handles.push(handle);
             loaded_rule_sets.initialized = true;
             info!(
@@ -226,8 +228,8 @@ pub fn load_fre_rules_system(
 /// 从已加载的资产注册规则的系统。
 pub fn register_loaded_rules_system(
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
-    fre_assets: Res<Assets<FreAsset>>,
-    mut registry: ResMut<LayeredRuleRegistry>,
+    fre_assets: Res<Assets<GameFreAsset>>,
+    mut registry: ResMut<GameRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
@@ -303,10 +305,10 @@ pub fn setup_action_handlers_system(world: &mut World) {
     world.init_resource::<PendingDanmakuActions>();
     world.init_resource::<PendingViewActions>();
 
-    let mut handler_registry = world.resource_mut::<bevy_fact_rule_event::ActionHandlerRegistry>();
+    let mut handler_registry = world.resource_mut::<GameActionHandlerRegistry>();
 
     handler_registry.register("SetMode", |action, _db, commands| {
-        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+        let GameActionDef::Custom { params, .. } = action else {
             return;
         };
         let Some(mode) = params.get("mode").cloned() else {
@@ -320,7 +322,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("SetSubState", |action, _db, commands| {
-        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+        let GameActionDef::Custom { params, .. } = action else {
             return;
         };
         let Some(state) = params.get("state").cloned() else {
@@ -375,7 +377,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("SpawnView", |action, _db, commands| {
-        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+        let GameActionDef::Custom { params, .. } = action else {
             return;
         };
         let Some(path) = params.get("path").cloned() else {
@@ -396,7 +398,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("DespawnView", |action, _db, commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let path = params.get("path").cloned();
             info!(
                 "FRE: Despawning view(s) via registered handler (path: {:?})",
@@ -412,7 +414,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("PlayDanmaku", |action, _db, commands| {
-        let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action else {
+        let GameActionDef::Custom { params, .. } = action else {
             return;
         };
         let Some(path) = params.get("path").cloned() else {
@@ -429,7 +431,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
     });
 
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
-        if let bevy_fact_rule_event::RuleActionDef::Custom { params, .. } = action
+        if let GameActionDef::Custom { params, .. } = action
             && let Some(value_str) = params.get("value")
             && let Ok(hp) = value_str.parse::<usize>()
         {

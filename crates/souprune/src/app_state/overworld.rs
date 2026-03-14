@@ -21,7 +21,9 @@ use bevy::prelude::*;
 
 use crate::core::camera::Followable;
 use crate::core::danmaku::{DanmakuSpawnContext, DanmakuUpdate};
-use bevy_fact_rule_event::{LayeredFactDatabase, LayeredRuleRegistry};
+use bevy_fact_rule_event::LayeredFactDatabase;
+
+use crate::core::game_action::{GameActionDef, GameRuleRegistry};
 
 pub(crate) mod character;
 pub mod chase;
@@ -90,8 +92,10 @@ impl Plugin for OverworldPlugin {
             );
 
         // FRE + Danmaku integration + Chase
-        app.add_plugins(bevy_fact_rule_event::FREPlugin {
-            schedule: Some(schedule),
+        app.add_plugins({
+            let mut plugin = bevy_fact_rule_event::FREPlugin::<GameActionDef>::default();
+            plugin.schedule = Some(schedule);
+            plugin
         })
         .add_plugins(chase::ChasePlugin)
         .configure_sets(schedule, FRETriggerSet.in_set(OverworldUpdate))
@@ -171,7 +175,7 @@ fn on_exit_overworld_system(
     mut current_map_bgm: ResMut<tilemap::CurrentMapBgm>,
     mut audio_instances: ResMut<Assets<bevy_kira_audio::AudioInstance>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    mut registry: ResMut<LayeredRuleRegistry>,
+    mut registry: ResMut<GameRuleRegistry>,
     mut loaded_rule_sets: ResMut<trigger::LoadedRuleSets>,
 ) {
     if !mode_events

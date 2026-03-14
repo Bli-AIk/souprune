@@ -14,7 +14,9 @@
 //! 提供一个可停靠面板来检查和修改事实、查看规则、跟踪事件和监控游戏状态。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase, LayeredRuleRegistry};
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
+
+use souprune::core::game_action::GameRuleRegistry;
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
 use souprune::extra::debug::RuleTriggerHistory;
@@ -307,7 +309,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
             .map(|t| t.elapsed_secs_f64())
             .unwrap_or(0.0);
         let trigger_history = world.get_resource::<RuleTriggerHistory>();
-        let registry = world.get_resource::<LayeredRuleRegistry>();
+        let registry = world.get_resource::<GameRuleRegistry>();
 
         let Some(registry) = registry else {
             ui.label(t(world, "fre-registry-unavailable"));
@@ -367,7 +369,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
 fn render_rule_list(
     ui: &mut egui::Ui,
     world: &World,
-    rules: &[&bevy_fact_rule_event::Rule],
+    rules: &[&souprune::core::game_action::GameRule],
     trigger_history: Option<&RuleTriggerHistory>,
     current_time: f64,
 ) {
@@ -379,7 +381,7 @@ fn render_rule_list(
     }
 }
 
-fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule, triggered: bool) {
+fn show_rule(ui: &mut egui::Ui, world: &World, rule: &souprune::core::game_action::GameRule, triggered: bool) {
     let status = if rule.enabled { "[on]" } else { "[off]" };
     let fire = if triggered { " !" } else { "" };
     let text = format!("{status} {} [P:{}]{fire}", rule.id, rule.priority);
@@ -429,19 +431,19 @@ fn show_rule(ui: &mut egui::Ui, world: &World, rule: &bevy_fact_rule_event::Rule
         });
 }
 
-fn show_rule_conditions(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+fn show_rule_conditions(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
     for (i, expr) in rule.condition_expressions.iter().enumerate() {
         ui.monospace(format!("{}: {}", i + 1, expr));
     }
 }
 
-fn show_rule_modifications(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+fn show_rule_modifications(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
     for (i, m) in rule.modifications.iter().enumerate() {
         ui.monospace(format!("{}: {:?}", i + 1, m));
     }
 }
 
-fn show_rule_outputs(ui: &mut egui::Ui, rule: &bevy_fact_rule_event::Rule) {
+fn show_rule_outputs(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
     for o in &rule.outputs {
         ui.monospace(&o.0);
     }

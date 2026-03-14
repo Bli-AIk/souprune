@@ -17,7 +17,9 @@ use crate::core::fre_facts;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
+use bevy_fact_rule_event::LayeredFactDatabase;
+
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{
@@ -132,8 +134,8 @@ fn setup_battle_fre_system(
 /// 注意：战斗菜单规则通过 View 的 requires 机制加载。
 fn register_battle_rules_system(
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
-    fre_assets: Res<Assets<FreAsset>>,
-    mut registry: ResMut<LayeredRuleRegistry>,
+    fre_assets: Res<Assets<GameFreAsset>>,
+    mut registry: ResMut<GameRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
@@ -184,10 +186,9 @@ fn register_battle_rules_system(
 /// 可选地将重要事实提升到全局层。
 fn cleanup_battle_fre_system(
     mut layered_db: ResMut<LayeredFactDatabase>,
-    mut registry: ResMut<LayeredRuleRegistry>,
+    mut registry: ResMut<GameRuleRegistry>,
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
 ) {
-    // TODO: Optionally promote certain facts to global layer
     // (e.g., battle results, experience gained)
 
     // Clear local layer facts

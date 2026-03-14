@@ -455,7 +455,7 @@ pub fn reset_game_state(world: &mut World) {
     if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
         db.clear_local();
     }
-    if let Some(mut reg) = world.get_resource_mut::<bevy_fact_rule_event::LayeredRuleRegistry>() {
+    if let Some(mut reg) = world.get_resource_mut::<crate::core::game_action::GameRuleRegistry>() {
         reg.clear_local();
     }
     if let Some(mut loaded) =

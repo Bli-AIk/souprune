@@ -6,16 +6,15 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bevy::prelude::Resource;
-use bevy_fact_rule_event::asset::{
-    FactModificationDef, FactValueDef, FreAsset, RuleActionDef, RuleDef, RuleEventDef,
-};
+use bevy_fact_rule_event::asset::{FactModificationDef, FactValueDef, RuleEventDef};
+use souprune::core::game_action::{GameActionDef, GameFreAsset, GameRuleDef};
 use souprune::core::view::layout::DataRequirement;
 
 /// View FRE 编辑器状态。
 #[derive(Resource, Default)]
 pub struct ViewFreState {
     /// 已加载的 FRE 资产，按路径索引。
-    pub loaded_fre: HashMap<String, FreAsset>,
+    pub loaded_fre: HashMap<String, GameFreAsset>,
     /// 模拟 Fact 值（用于预览 visible_when）。
     pub simulated_facts: HashMap<String, SimFactValue>,
     /// 上次加载 FRE 对应的 view 文件路径。
@@ -56,7 +55,7 @@ impl ViewFreState {
                     continue;
                 }
             };
-            let fre = match ron::from_str::<FreAsset>(&content) {
+            let fre = match ron::from_str::<GameFreAsset>(&content) {
                 Ok(f) => f,
                 Err(e) => {
                     bevy::log::warn!("FRE 解析失败 {rel_path}: {e}");
@@ -151,7 +150,7 @@ fn render_fre_facts(ui: &mut egui::Ui, facts: &HashMap<String, FactValueDef>) {
     }
 }
 
-fn render_fre_file(ui: &mut egui::Ui, path: &str, fre: &FreAsset) {
+fn render_fre_file(ui: &mut egui::Ui, path: &str, fre: &GameFreAsset) {
     let short = path.rsplit('/').next().unwrap_or(path);
     egui::CollapsingHeader::new(format!("{short} ({} rules)", fre.rules.len()))
         .default_open(true)
@@ -169,7 +168,7 @@ fn render_fre_file(ui: &mut egui::Ui, path: &str, fre: &FreAsset) {
         });
 }
 
-fn render_rule_def(ui: &mut egui::Ui, rule: &RuleDef, index: usize) {
+fn render_rule_def(ui: &mut egui::Ui, rule: &GameRuleDef, index: usize) {
     let id_str = if rule.id.is_empty() {
         format!("rule_{index:03}")
     } else {
@@ -219,25 +218,25 @@ fn format_event(ev: &RuleEventDef) -> String {
     }
 }
 
-fn format_action(a: &RuleActionDef) -> String {
+fn format_action(a: &GameActionDef) -> String {
     match a {
-        RuleActionDef::Log { message } => format!("Log(\"{message}\")"),
-        RuleActionDef::PlaySound(s) => format!("PlaySound(\"{s}\")"),
-        RuleActionDef::PlaySoundFullPath(s) => format!("PlaySoundFullPath(\"{s}\")"),
-        RuleActionDef::SetLocalFact(k, v) => format!("SetLocalFact(\"{k}\", {v:?})"),
-        RuleActionDef::CloseView => "CloseView".into(),
-        RuleActionDef::SwitchState(s) => format!("SwitchState(\"{s}\")"),
-        RuleActionDef::EmitEvent(s) => format!("EmitEvent(\"{s}\")"),
-        RuleActionDef::StartDialogue { mortar, node, .. } => {
+        GameActionDef::Log { message } => format!("Log(\"{message}\")"),
+        GameActionDef::PlaySound(s) => format!("PlaySound(\"{s}\")"),
+        GameActionDef::PlaySoundFullPath(s) => format!("PlaySoundFullPath(\"{s}\")"),
+        GameActionDef::SetLocalFact(k, v) => format!("SetLocalFact(\"{k}\", {v:?})"),
+        GameActionDef::CloseView => "CloseView".into(),
+        GameActionDef::SwitchState(s) => format!("SwitchState(\"{s}\")"),
+        GameActionDef::EmitEvent(s) => format!("EmitEvent(\"{s}\")"),
+        GameActionDef::StartDialogue { mortar, node, .. } => {
             format!("StartDialogue(mortar: \"{mortar}\", node: \"{node}\")")
         }
-        RuleActionDef::Custom {
+        GameActionDef::Custom {
             action_type,
             params,
         } => format!("Custom({action_type}, {params:?})"),
-        RuleActionDef::UseItem { index_expr } => format!("UseItem({index_expr})"),
-        RuleActionDef::CheckItem { index_expr } => format!("CheckItem({index_expr})"),
-        RuleActionDef::DropItem { index_expr } => format!("DropItem({index_expr})"),
+        GameActionDef::UseItem { index_expr } => format!("UseItem({index_expr})"),
+        GameActionDef::CheckItem { index_expr } => format!("CheckItem({index_expr})"),
+        GameActionDef::DropItem { index_expr } => format!("DropItem({index_expr})"),
     }
 }
 

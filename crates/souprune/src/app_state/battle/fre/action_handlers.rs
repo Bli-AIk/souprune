@@ -11,7 +11,9 @@
 //! 这些动作可以从 FRE 规则中触发。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{ActionHandlerRegistry, LayeredFactDatabase, RuleActionDef};
+use bevy_fact_rule_event::LayeredFactDatabase;
+
+use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
 
 use crate::core::fre_facts;
 
@@ -20,10 +22,10 @@ use crate::core::fre_facts;
 ///
 /// 设置战斗特定动作处理器的系统。
 /// 在进入 Battle 状态时调用。
-pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHandlerRegistry>) {
+pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<GameActionHandlerRegistry>) {
     // DealDamage - Apply damage to an entity
     handler_registry.register("DealDamage", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let target = params.get("target").map(String::as_str).unwrap_or("player");
             let amount_str = params.get("amount").map(String::as_str).unwrap_or("0");
             let amount: i64 = amount_str.parse().unwrap_or(0);
@@ -41,7 +43,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // Heal - Apply healing to an entity
     handler_registry.register("Heal", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let target = params.get("target").map(String::as_str).unwrap_or("player");
             let amount_str = params.get("amount").map(String::as_str).unwrap_or("0");
             let amount: i64 = amount_str.parse().unwrap_or(0);
@@ -52,7 +54,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // PlayDanmaku - Play a danmaku performance
     handler_registry.register("PlayDanmaku", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let performance_path = params
                 .get("performance")
                 .map(String::as_str)
@@ -66,7 +68,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // EndBattle - End the current battle
     handler_registry.register("EndBattle", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let result = params
                 .get("result")
                 .map(String::as_str)
@@ -80,7 +82,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // SetPhase - Change the current battle phase
     handler_registry.register("SetPhase", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let phase = params.get("phase").map(String::as_str).unwrap_or("unknown");
 
             info!("Battle FRE Action: SetPhase to '{}'", phase);
@@ -98,7 +100,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // SpawnEnemy - Spawn an enemy entity
     handler_registry.register("SpawnEnemy", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let enemy_type = params
                 .get("enemy_type")
                 .map(String::as_str)
@@ -123,7 +125,7 @@ pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<ActionHa
 
     // DespawnEnemy - Despawn an enemy entity
     handler_registry.register("DespawnEnemy", |action, _db, _commands| {
-        if let RuleActionDef::Custom { params, .. } = action {
+        if let GameActionDef::Custom { params, .. } = action {
             let enemy_index: usize = params
                 .get("enemy_index")
                 .and_then(|s| s.parse().ok())

@@ -8,7 +8,7 @@ use super::parsing::{
 use super::resources::RonDrivenView;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
-use bevy_fact_rule_event::FreAsset;
+use crate::core::game_action::GameFreAsset;
 
 /// Helper function to build ViewTextConfig from TextDef.
 ///
@@ -417,7 +417,7 @@ pub(super) fn resolve_simple_localization(
 /// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
 pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
-    fre_asset: &FreAsset,
+    fre_asset: &GameFreAsset,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     enum_registry: &bevy_fact_rule_event::EnumRegistry,
 ) {
