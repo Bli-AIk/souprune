@@ -6,9 +6,9 @@ use super::parsing::{
     resolve_text_content, vec3_tuple_depends_on_time,
 };
 use super::resources::RonDrivenView;
+use crate::core::game_action::GameFreAsset;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
-use crate::core::game_action::GameFreAsset;
 
 /// Helper function to build ViewTextConfig from TextDef.
 ///

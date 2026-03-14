@@ -14,9 +14,9 @@
 
 use crate::app_state::SequenceSubState;
 use crate::core::audio;
+use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
-use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};
 
 use super::components::ViewRoot;
 

@@ -22,7 +22,9 @@ use crate::core::fre_facts;
 ///
 /// 设置战斗特定动作处理器的系统。
 /// 在进入 Battle 状态时调用。
-pub fn setup_battle_action_handlers_system(mut handler_registry: ResMut<GameActionHandlerRegistry>) {
+pub fn setup_battle_action_handlers_system(
+    mut handler_registry: ResMut<GameActionHandlerRegistry>,
+) {
     // DealDamage - Apply damage to an entity
     handler_registry.register("DealDamage", |action, _db, _commands| {
         if let GameActionDef::Custom { params, .. } = action {

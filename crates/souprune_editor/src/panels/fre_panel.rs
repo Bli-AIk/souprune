@@ -16,9 +16,9 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 
-use souprune::core::game_action::GameRuleRegistry;
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
+use souprune::core::game_action::GameRuleRegistry;
 use souprune::extra::debug::RuleTriggerHistory;
 use std::collections::VecDeque;
 
@@ -381,7 +381,12 @@ fn render_rule_list(
     }
 }
 
-fn show_rule(ui: &mut egui::Ui, world: &World, rule: &souprune::core::game_action::GameRule, triggered: bool) {
+fn show_rule(
+    ui: &mut egui::Ui,
+    world: &World,
+    rule: &souprune::core::game_action::GameRule,
+    triggered: bool,
+) {
     let status = if rule.enabled { "[on]" } else { "[off]" };
     let fire = if triggered { " !" } else { "" };
     let text = format!("{status} {} [P:{}]{fire}", rule.id, rule.priority);

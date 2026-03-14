@@ -14,7 +14,9 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize, bevy::reflect::TypePath)]
 pub enum GameActionDef {
     // -- Core actions --
-    Log { message: String },
+    Log {
+        message: String,
+    },
     SetLocalFact(String, LocalFactValue),
     EmitEvent(String),
     Custom {
@@ -38,9 +40,15 @@ pub enum GameActionDef {
         #[serde(default)]
         voice: Option<String>,
     },
-    UseItem { index_expr: String },
-    CheckItem { index_expr: String },
-    DropItem { index_expr: String },
+    UseItem {
+        index_expr: String,
+    },
+    CheckItem {
+        index_expr: String,
+    },
+    DropItem {
+        index_expr: String,
+    },
 }
 
 fn default_true() -> bool {
