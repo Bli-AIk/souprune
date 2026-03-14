@@ -12,10 +12,7 @@ pub mod debug_restart {
         app.add_systems(Update, debug_restart_system);
     }
 
-    fn debug_restart_system(
-        input: Res<ButtonInput<KeyCode>>,
-        mut exit: MessageWriter<AppExit>,
-    ) {
+    fn debug_restart_system(input: Res<ButtonInput<KeyCode>>) {
         if !input.just_pressed(KeyCode::F9) {
             return;
         }
@@ -28,9 +25,15 @@ pub mod debug_restart {
         };
 
         let args: Vec<String> = std::env::args().skip(1).collect();
-        match std::process::Command::new(&exe).args(&args).spawn() {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(&args);
+
+        // Detach child's stdio so it doesn't inherit parent's terminal handles
+        cmd.stdin(std::process::Stdio::null());
+
+        match cmd.spawn() {
             Ok(_) => {
-                exit.write(AppExit::Success);
+                std::process::exit(0);
             }
             Err(e) => {
                 error!("Failed to relaunch process: {e}");

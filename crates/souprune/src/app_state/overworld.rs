@@ -102,7 +102,6 @@ impl Plugin for OverworldPlugin {
                 .after(FRETriggerSet),
         )
         .init_resource::<trigger::LoadedRuleSets>()
-        .init_resource::<trigger::RuleActionDefs>()
         .init_resource::<trigger::PendingDanmakuActions>()
         .init_resource::<trigger::PendingViewActions>()
         .init_resource::<trigger::FocusedInteractable>()

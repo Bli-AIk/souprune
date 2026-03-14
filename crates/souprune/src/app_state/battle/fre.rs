@@ -13,12 +13,11 @@ mod action_handlers;
 mod bridge;
 
 use crate::app_state::battle::BattleUpdate;
-use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::fre_facts;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
+use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry};
 use leafwing_input_manager::action_state::ActionState;
 
 pub use action_handlers::{
@@ -126,20 +125,17 @@ fn setup_battle_fre_system(
 
 /// System to register battle-specific rules when loaded.
 /// Handles custom battle rules (optional).
-/// Also populates RuleActionDefs for action execution.
 /// NOTE: Battle menu rules are loaded via View's requires mechanism.
 ///
 /// 当战斗规则加载完成时注册它们的系统。
 /// 处理自定义战斗规则（可选）。
-/// 同时填充 RuleActionDefs 以执行 action。
 /// 注意：战斗菜单规则通过 View 的 requires 机制加载。
 fn register_battle_rules_system(
-    mut commands: Commands,
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
     fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
-    existing_action_defs: Option<ResMut<RuleActionDefs>>,
+    mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     // Skip if already registered
     if sequence_rules_handle.registered {
@@ -157,54 +153,28 @@ fn register_battle_rules_system(
         return;
     }
 
-    // Initialize or get RuleActionDefs
-    let mut action_defs = match existing_action_defs {
-        Some(defs) => defs,
-        None => {
-            commands.init_resource::<RuleActionDefs>();
-            return; // Will run again next frame with the resource available
-        }
-    };
-
     // Process custom battle rules (if any)
     if let Some(handle) = &sequence_rules_handle.handle
         && let Some(fre_asset) = fre_assets.get(handle)
     {
-        for (key, value) in fre_asset.get_facts() {
-            let fact_value = match value {
-                FactValueDef::Int(v) => bevy_fact_rule_event::FactValue::Int(*v),
-                FactValueDef::Float(v) => bevy_fact_rule_event::FactValue::Float(*v),
-                FactValueDef::Bool(v) => bevy_fact_rule_event::FactValue::Bool(*v),
-                FactValueDef::String(v) => bevy_fact_rule_event::FactValue::String(v.clone()),
-                FactValueDef::StringList(v) => {
-                    bevy_fact_rule_event::FactValue::StringList(v.clone())
-                }
-                FactValueDef::IntList(v) => bevy_fact_rule_event::FactValue::IntList(v.clone()),
-            };
-            fact_db.set_local(key.as_str(), fact_value);
+        // Register enums from battle rules
+        enum_registry.register_from_asset(fre_asset);
+
+        for (key, value) in fre_asset.resolve_facts(&enum_registry) {
+            fact_db.set_local(key.as_str(), value);
             info!("Battle FRE: Set fact '{}' from battle rules", key);
         }
 
-        let rules_defs = fre_asset.get_rule_defs();
-        let scope = fre_asset.scope();
-
-        for (idx, rule_def) in rules_defs.iter().enumerate() {
-            let rule = rule_def.to_rule_with_index(idx, scope);
-            let rule_id = rule_def.generate_id(idx);
-
-            if !rule_def.actions.is_empty() {
-                action_defs
-                    .actions_by_rule
-                    .insert(rule_id.clone(), rule_def.actions.clone());
-            }
-
-            registry.register(rule);
-        }
-        info!("Battle FRE: Registered {} custom rules", rules_defs.len());
+        // Register rules (actions are now part of Rule struct)
+        fre_asset.register_rules_layered(&mut registry);
+        info!(
+            "Battle FRE: Registered {} custom rules",
+            fre_asset.get_rule_defs().len()
+        );
     }
 
     sequence_rules_handle.registered = true;
-    info!("Battle FRE: All rules registered and action_defs populated");
+    info!("Battle FRE: All rules registered");
 }
 
 /// System to clean up FRE state when exiting battle.

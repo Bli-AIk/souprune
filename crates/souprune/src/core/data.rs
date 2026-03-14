@@ -45,9 +45,7 @@
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{AssetServer, Assets, Handle};
 use bevy::prelude::{Commands, Component, Local, Name, Res, ResMut, Resource};
-use bevy_fact_rule_event::{
-    FactValue, FactValueDef, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope,
-};
+use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
 
 pub(crate) struct DataPlugin;
 
@@ -134,6 +132,7 @@ fn apply_global_rules_system(
     mut layered_db: ResMut<LayeredFactDatabase>,
     mut registry: ResMut<LayeredRuleRegistry>,
     mut applied: Local<bool>,
+    mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     if *applied || global_rules_handle.loaded {
         return;
@@ -147,17 +146,12 @@ fn apply_global_rules_system(
         return;
     };
 
+    // Register enums from this asset
+    enum_registry.register_from_asset(fre_asset);
+
     // Apply facts to Global layer (these are game-wide persistent facts)
-    for (key, value) in fre_asset.get_facts() {
-        let fact_value: FactValue = match value {
-            FactValueDef::Int(v) => FactValue::Int(*v),
-            FactValueDef::Float(v) => FactValue::Float(*v),
-            FactValueDef::Bool(v) => FactValue::Bool(*v),
-            FactValueDef::String(v) => FactValue::String(v.clone()),
-            FactValueDef::StringList(v) => FactValue::StringList(v.clone()),
-            FactValueDef::IntList(v) => FactValue::IntList(v.clone()),
-        };
-        layered_db.set_global(key.as_str(), fact_value);
+    for (key, value) in fre_asset.resolve_facts(&enum_registry) {
+        layered_db.set_global(key.as_str(), value);
         bevy::log::debug!("DataPlugin: Set global fact '{}' from FRE file", key);
     }
 

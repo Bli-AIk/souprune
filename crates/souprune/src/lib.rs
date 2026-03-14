@@ -465,11 +465,6 @@ pub fn reset_game_state(world: &mut World) {
         loaded.initialized = false;
         loaded.registered = false;
     }
-    if let Some(mut action_defs) =
-        world.get_resource_mut::<app_state::overworld::trigger::RuleActionDefs>()
-    {
-        action_defs.actions_by_rule.clear();
-    }
 
     // 8. 直接清理 ModeScoped 实体（不等待下帧 PreUpdate）
     let scoped: Vec<Entity> = world

@@ -19,10 +19,9 @@ use crate::core::map_property_schema::{get_string_property, keys};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{
-    FactEvent, FactEventId, FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleActionDef,
+    FactEvent, FactEventId, FreAsset, LayeredFactDatabase, LayeredRuleRegistry,
 };
 use leafwing_input_manager::action_state::ActionState;
-use std::collections::HashMap;
 
 /// Marker component for trigger zones.
 ///
@@ -121,17 +120,6 @@ pub struct LoadedRuleSets {
     pub handles: Vec<Handle<FreAsset>>,
     pub initialized: bool,
     pub registered: bool,
-}
-
-/// Resource to store the mapping from rule IDs to their action definitions.
-/// This is populated when rules are registered and used for custom action handling.
-///
-/// 存储规则 ID 到其 action 定义的映射的资源。
-/// 在规则注册时填充，用于自定义 action 处理。
-#[derive(Resource, Default)]
-pub struct RuleActionDefs {
-    /// Maps rule ID to its action definitions
-    pub actions_by_rule: HashMap<String, Vec<RuleActionDef>>,
 }
 
 /// System to detect player entering/exiting trigger zones and emit FRE events.
@@ -241,7 +229,7 @@ pub fn register_loaded_rules_system(
     fre_assets: Res<Assets<FreAsset>>,
     mut registry: ResMut<LayeredRuleRegistry>,
     mut fact_db: ResMut<LayeredFactDatabase>,
-    mut action_defs: ResMut<RuleActionDefs>,
+    mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     if loaded_rule_sets.registered || !loaded_rule_sets.initialized {
         return;
@@ -262,20 +250,13 @@ pub fn register_loaded_rules_system(
             continue;
         };
 
-        // Apply facts to Local layer (room/scene specific)
-        for (key, value) in fre_asset.get_facts() {
-            let fact_value: bevy_fact_rule_event::FactValue = value.clone().into();
-            fact_db.set_local(key.as_str(), fact_value);
-            info!("FRE: Set fact '{}' to Local layer from FRE file", key);
-        }
+        // Register enums from this asset
+        enum_registry.register_from_asset(fre_asset);
 
-        // Store action definitions for each rule (for custom action handling)
-        // Use the same ID generation logic as to_rule_with_index()
-        for (idx, rule_def) in fre_asset.get_rule_defs().iter().enumerate() {
-            let rule_id = rule_def.generate_id(idx);
-            action_defs
-                .actions_by_rule
-                .insert(rule_id, rule_def.actions.clone());
+        // Apply facts to Local layer (room/scene specific)
+        for (key, value) in fre_asset.resolve_facts(&enum_registry) {
+            fact_db.set_local(key.as_str(), value);
+            info!("FRE: Set fact '{}' to Local layer from FRE file", key);
         }
 
         // Register all rules to layered registry

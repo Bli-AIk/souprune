@@ -249,13 +249,13 @@ fn render_fact_layer(ui: &mut egui::Ui, world: &mut World, global: bool, search:
     let db = world.resource::<LayeredFactDatabase>();
     let facts: Vec<(String, FactValue)> = if global {
         db.iter_global()
-            .filter(|(k, _)| search.is_empty() || k.0.contains(search))
-            .map(|(k, v)| (k.0.clone(), v.clone()))
+            .filter(|(k, _)| search.is_empty() || k.contains(search))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect()
     } else {
         db.iter_local()
-            .filter(|(k, _)| search.is_empty() || k.0.contains(search))
-            .map(|(k, v)| (k.0.clone(), v.clone()))
+            .filter(|(k, _)| search.is_empty() || k.contains(search))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect()
     };
 

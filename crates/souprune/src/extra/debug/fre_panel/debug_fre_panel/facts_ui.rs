@@ -88,8 +88,8 @@ pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
             let facts: Vec<_> = view_root
                 .local_facts
                 .iter()
-                .filter(|(k, _)| search_filter.is_empty() || k.0.contains(&search_filter))
-                .map(|(k, v)| (k.0.clone(), v.clone()))
+                .filter(|(k, _)| search_filter.is_empty() || k.contains(&search_filter))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
 
             view_roots.push((entity, display_name, view_root.namespace.clone(), facts));
@@ -297,14 +297,14 @@ pub(super) fn render_layered_facts(
         FactLayerSelection::Global => db
             .global()
             .iter()
-            .filter(|(k, _)| filter.is_empty() || k.0.contains(filter))
-            .map(|(k, v)| (k.0.clone(), v.clone()))
+            .filter(|(k, _)| filter.is_empty() || k.contains(filter))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
         FactLayerSelection::Local => db
             .local()
             .iter()
-            .filter(|(k, _)| filter.is_empty() || k.0.contains(filter))
-            .map(|(k, v)| (k.0.clone(), v.clone()))
+            .filter(|(k, _)| filter.is_empty() || k.contains(filter))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
     };
 

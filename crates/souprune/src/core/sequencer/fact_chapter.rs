@@ -365,6 +365,7 @@ pub fn complete_load_fre_chapter_system(
     mut query: Query<(Entity, &mut LoadFreState), Without<ChapterFinished>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
     fre_assets: Res<Assets<FreAsset>>,
+    mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     for (entity, mut state) in query.iter_mut() {
         if state.processed {
@@ -385,8 +386,10 @@ pub fn complete_load_fre_chapter_system(
             let Some(fre_asset) = fre_assets.get(handle) else {
                 continue;
             };
-            for (key, value_def) in fre_asset.get_facts() {
-                let fact_value: FactValue = value_def.clone().into();
+            // Register enums
+            enum_registry.register_from_asset(fre_asset);
+
+            for (key, fact_value) in fre_asset.resolve_facts(&enum_registry) {
                 all_facts.insert(key.clone(), fact_value.clone());
                 layered_db.set(key.as_str(), fact_value);
             }

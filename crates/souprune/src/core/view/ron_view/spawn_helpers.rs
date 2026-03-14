@@ -419,11 +419,11 @@ pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
     fre_asset: &FreAsset,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
+    enum_registry: &bevy_fact_rule_event::EnumRegistry,
 ) {
     use bevy_fact_rule_event::FactValue;
 
-    for (key, value_def) in fre_asset.get_facts() {
-        let fact_value: FactValue = value_def.clone().into();
+    for (key, fact_value) in fre_asset.resolve_facts(enum_registry) {
         match fact_value {
             FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
             FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),

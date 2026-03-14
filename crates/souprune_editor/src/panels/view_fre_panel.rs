@@ -86,6 +86,7 @@ fn fact_value_def_to_sim(v: &FactValueDef) -> SimFactValue {
         FactValueDef::Float(f) => SimFactValue::Float(*f),
         FactValueDef::Bool(b) => SimFactValue::Bool(*b),
         FactValueDef::String(s) => SimFactValue::String(s.clone()),
+        FactValueDef::Enum(s) => SimFactValue::String(s.clone()),
         FactValueDef::StringList(_) | FactValueDef::IntList(_) => SimFactValue::Int(0),
     }
 }
@@ -227,6 +228,9 @@ fn format_action(a: &RuleActionDef) -> String {
         RuleActionDef::CloseView => "CloseView".into(),
         RuleActionDef::SwitchState(s) => format!("SwitchState(\"{s}\")"),
         RuleActionDef::EmitEvent(s) => format!("EmitEvent(\"{s}\")"),
+        RuleActionDef::StartDialogue { mortar, node, .. } => {
+            format!("StartDialogue(mortar: \"{mortar}\", node: \"{node}\")")
+        }
         RuleActionDef::Custom {
             action_type,
             params,
@@ -263,6 +267,7 @@ fn format_fact_value_def(v: &FactValueDef) -> String {
         FactValueDef::Float(f) => format!("{f}"),
         FactValueDef::Bool(b) => format!("{b}"),
         FactValueDef::String(s) => format!("\"{s}\""),
+        FactValueDef::Enum(s) => format!("Enum(\"{s}\")"),
         FactValueDef::StringList(l) => format!("{l:?}"),
         FactValueDef::IntList(l) => format!("{l:?}"),
     }
@@ -387,10 +392,8 @@ fn render_live_fact_simulator(
         return false;
     }
 
-    let entries: Vec<(String, FactValue)> = facts
-        .iter()
-        .map(|(k, v)| (k.0.clone(), v.clone()))
-        .collect();
+    let entries: Vec<(String, FactValue)> =
+        facts.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     for (key, value) in &entries {
         ui.horizontal(|ui| {
