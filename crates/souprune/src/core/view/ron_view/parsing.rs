@@ -2,7 +2,7 @@ use super::super::layout::FloatOrExpr;
 use super::super::layout::view_schema::MaterialParamValue;
 use super::evaluation::{DYNAMIC_INDEX_RE, REPEAT_VAR_RE};
 use crate::app_state::SequenceSubState;
-use crate::core::sequencer::chapter_schema::Val;
+use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::expr_eval::create_eval_callback;
 use bevy::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -127,18 +127,18 @@ fn preprocess_material_param_for_repeat(
                 return MaterialParamValue::Expr(expr_str.clone());
             }
 
-            // Reuse the same preprocessing logic as Val<f32>
-            let val = Val::Expr(expr_str.clone());
+            // Reuse the same preprocessing logic as Value<f32>
+            let val = Value::Expr(expr_str.clone());
             let processed = preprocess_val_for_repeat(&val, repeat_ctx);
             match processed {
-                Val::Static(v) => {
+                Value::Static(v) => {
                     trace!(
                         "[MaterialParam Preprocess] '{}' -> Static({}), repeat index: {}",
                         expr_str, v, repeat_ctx.index
                     );
                     MaterialParamValue::Static(v)
                 }
-                Val::Expr(s) => {
+                Value::Expr(s) => {
                     trace!(
                         "[MaterialParam Preprocess] '{}' -> Expr('{}'), repeat index: {}",
                         expr_str, s, repeat_ctx.index
@@ -150,19 +150,19 @@ fn preprocess_material_param_for_repeat(
     }
 }
 
-/// Preprocess a single Val<f32> to resolve repeat context variables.
+/// Preprocess a single Value<f32> to resolve repeat context variables.
 /// If the expression contains @i or $array[@i], they are replaced with concrete values.
 ///
-/// 预处理单个 Val<f32> 以解析 repeat 上下文变量。
+/// 预处理单个 Value<f32> 以解析 repeat 上下文变量。
 /// 如果表达式包含 @i 或 $array[@i]，它们会被替换为具体值。
-fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<f32> {
+fn preprocess_val_for_repeat(val: &Value<f32>, repeat_ctx: &RepeatContext) -> Value<f32> {
     match val {
-        Val::Static(v) => Val::Static(*v),
-        Val::Expr(expr_str) => {
+        Value::Static(v) => Value::Static(*v),
+        Value::Expr(expr_str) => {
             // Check if expression contains repeat variables
             if !expr_str.contains('@') && !expr_str.contains("[@") {
                 // No repeat variables, return as-is
-                return Val::Expr(expr_str.clone());
+                return Value::Expr(expr_str.clone());
             }
 
             // Preprocess to replace @i and $array[@i] with concrete indices
@@ -214,7 +214,7 @@ fn preprocess_val_for_repeat(val: &Val<f32>, repeat_ctx: &RepeatContext) -> Val<
                 })
                 .to_string();
 
-            Val::Expr(result)
+            Value::Expr(result)
         }
     }
 }
@@ -330,8 +330,8 @@ fn evaluate_lambda_range_expr(expr: &str, player_data: &PlayerDataView) -> Optio
 /// 如果表达式包含时间依赖的元素则返回 true。
 pub fn expression_depends_on_time(expr: &FloatOrExpr) -> bool {
     match expr {
-        Val::Static(_) => false,
-        Val::Expr(expr_str) => {
+        Value::Static(_) => false,
+        Value::Expr(expr_str) => {
             // Check for @time variable usage
             // 检查 @time 变量的使用
             expr_str.contains("@time")

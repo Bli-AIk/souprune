@@ -251,6 +251,18 @@ pub mod debug_inspector {
         }
     }
 
+    fn set_text_entities_color(
+        entities: &[Entity],
+        color: Color,
+        q_text_colors: &mut Query<&mut TextColor>,
+    ) {
+        for &entity in entities {
+            if let Ok(mut tc) = q_text_colors.get_mut(entity) {
+                tc.0 = color;
+            }
+        }
+    }
+
     fn toggle_debug_help_text_system(
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut q_debug_text: Query<(&mut DebugHelpText, &mut Node)>,
@@ -265,18 +277,18 @@ pub mod debug_inspector {
                 style.display = Display::Flex;
                 debug_help.timer.reset();
                 debug_help.fade_out_started = false;
-                for &entity in &debug_help.text_entities {
-                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
-                        tc.0 = Color::WHITE;
-                    }
-                }
+                set_text_entities_color(
+                    &debug_help.text_entities,
+                    Color::WHITE,
+                    &mut q_text_colors,
+                );
                 info!("Debug help text: ON");
             } else {
-                for &entity in &debug_help.text_entities {
-                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
-                        tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
-                    }
-                }
+                set_text_entities_color(
+                    &debug_help.text_entities,
+                    Color::srgba(1.0, 1.0, 1.0, 0.0),
+                    &mut q_text_colors,
+                );
                 style.display = Display::None;
                 debug_help.fade_out_started = false;
                 info!("Debug help text: OFF");
@@ -298,11 +310,11 @@ pub mod debug_inspector {
             if debug_help.timer.is_finished() {
                 debug_help.visible = false;
                 debug_help.fade_out_started = false;
-                for &entity in &debug_help.text_entities {
-                    if let Ok(mut tc) = q_text_colors.get_mut(entity) {
-                        tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
-                    }
-                }
+                set_text_entities_color(
+                    &debug_help.text_entities,
+                    Color::srgba(1.0, 1.0, 1.0, 0.0),
+                    &mut q_text_colors,
+                );
                 style.display = Display::None;
             }
         }
@@ -642,11 +654,12 @@ pub mod debug_inspector {
 
         if toast.timer.is_finished() {
             toast.fade_out_started = false;
-            for child in children.iter() {
-                if let Ok(mut tc) = q_text_colors.get_mut(child) {
-                    tc.0 = Color::srgba(1.0, 1.0, 1.0, 0.0);
-                }
-            }
+            let entities: Vec<Entity> = children.iter().collect();
+            set_text_entities_color(
+                &entities,
+                Color::srgba(1.0, 1.0, 1.0, 0.0),
+                &mut q_text_colors,
+            );
             style.display = Display::None;
         }
     }

@@ -4,7 +4,7 @@
 //! - `input.ron` — InputConfig
 //! - `states.ron` — StateConfig
 //! - `touch_layout.ron` — TouchLayoutDef
-//! - `am_config.ron` — AmBattleConfig
+//! - `alight_motion_config.ron` — AlightMotionBattleConfig
 //!
 //! 各种 RON 配置文件的 Schema 类型。
 
@@ -171,13 +171,13 @@ pub struct TouchLayoutDef {
 }
 
 // ============================================================================
-// AM Battle Configuration (am_config.ron)
+// AM Battle Configuration (alight_motion_config.ron)
 // ============================================================================
 
-/// AM battle configuration — top-level `am_config.ron` schema.
+/// AM battle configuration — top-level `alight_motion_config.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub struct AmBattleConfig {
+pub struct AlightMotionBattleConfig {
     pub scale: f32,
     pub offset: (f32, f32),
     pub bullet_pattern: String,
@@ -189,7 +189,7 @@ pub struct AmBattleConfig {
     pub default_battle_box_size: (f32, f32),
 }
 
-impl Default for AmBattleConfig {
+impl Default for AlightMotionBattleConfig {
     fn default() -> Self {
         Self {
             scale: 1.0,

@@ -446,11 +446,11 @@ pub fn spawn_shader_material_entity(
     }
 
     // Check if transform has dynamic expressions and add DynamicViewElement if needed.
-    // This ensures shader material elements (like HPBar) have their transforms updated
+    // This ensures shader material elements (like HealthBar) have their transforms updated
     // when facts change, fixing position offset bugs.
     //
     // 检查 transform 是否有动态表达式，如果有则添加 DynamicViewElement。
-    // 这确保着色器材质元素（如 HPBar）在 facts 变化时更新 transform，修复位置偏移 bug。
+    // 这确保着色器材质元素（如 HealthBar）在 facts 变化时更新 transform，修复位置偏移 bug。
     let mut has_dynamic = false;
     let mut has_time_dependency = false;
     if let Some(t) = &sprite_def.transform {

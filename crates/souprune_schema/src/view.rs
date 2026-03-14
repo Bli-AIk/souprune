@@ -235,13 +235,13 @@ pub struct SpriteDef {
     #[serde(default)]
     pub visible_when: Option<String>,
     #[serde(default)]
-    pub hp_bar_source: Option<HPBarSourceDef>,
+    pub health_bar_source: Option<HealthBarSourceDef>,
     #[serde(default)]
     pub material: Option<MaterialDef>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum HPBarSourceDef {
+pub enum HealthBarSourceDef {
     Player,
     Enemy,
     Custom {

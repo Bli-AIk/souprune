@@ -2,20 +2,22 @@
 //!
 //! ## Module Overview
 //!
-//! Performance (Danmaku and AM) systems for the battle sequencer.
+//! Performance (Danmaku and Alight Motion) systems for the battle sequencer.
 //!
-//! 战斗序列管理器的演出（弹幕和 AM）系统。
+//! 战斗序列管理器的演出（弹幕和 Alight Motion）系统。
 
 use super::chapter_schema::Chapter;
 use super::context::*;
-use crate::app_state::battle::am_integration::{AmPerformanceState, PlayAmPerformanceEvent};
+use crate::app_state::battle::alight_motion_integration::{
+    AlightMotionPerformanceState, PlayAlightMotionPerformanceEvent,
+};
 use bevy::prelude::*;
 
-/// Marker component for AM performance chapter tracking.
+/// Marker component for Alight Motion performance chapter tracking.
 ///
-/// AM 演出章节跟踪的标记组件。
+/// Alight Motion 演出章节跟踪的标记组件。
 #[derive(Component)]
-pub struct AmPerformanceTracker {
+pub struct AlightMotionPerformanceTracker {
     pub wait_for_completion: bool,
     /// Whether we've seen the performance start (is_playing became true)
     pub started: bool,
@@ -54,9 +56,9 @@ pub fn process_danmaku_performance_system(
     }
 }
 
-/// System to process AmPerformance chapters.
+/// System to process AlightMotionPerformance chapters.
 ///
-/// 处理 AM 演出章节的系统。
+/// 处理 Alight Motion 演出章节的系统。
 pub fn process_am_performance_system(
     mut commands: Commands,
     query: Query<
@@ -64,12 +66,12 @@ pub fn process_am_performance_system(
         (
             Without<WaitTimer>,
             Without<ChapterFinished>,
-            Without<AmPerformanceTracker>,
+            Without<AlightMotionPerformanceTracker>,
         ),
     >,
     performance_events: Option<
         bevy::ecs::message::MessageWriter<
-            crate::app_state::battle::am_integration::PlayAmPerformanceEvent,
+            crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent,
         >,
     >,
 ) {
@@ -77,26 +79,31 @@ pub fn process_am_performance_system(
         return;
     };
     for (entity, active_chapter) in query.iter() {
-        if let Chapter::AmPerformance {
+        if let Chapter::AlightMotionPerformance {
             amproj_path,
-            am_config,
+            alight_motion_config,
             wait_for_completion,
         } = &active_chapter.chapter
         {
-            info!("[Battle] Starting AM performance from: {}", amproj_path);
+            info!(
+                "[Battle] Starting Alight Motion performance from: {}",
+                amproj_path
+            );
 
-            // Send event to start the AM performance
-            performance_events.write(PlayAmPerformanceEvent::with_config(
+            // Send event to start the Alight Motion performance
+            performance_events.write(PlayAlightMotionPerformanceEvent::with_config(
                 amproj_path.clone(),
-                am_config.clone(),
+                alight_motion_config.clone(),
             ));
 
             if *wait_for_completion {
                 // Add tracker component to wait for completion
-                commands.entity(entity).insert(AmPerformanceTracker {
-                    wait_for_completion: true,
-                    started: false,
-                });
+                commands
+                    .entity(entity)
+                    .insert(AlightMotionPerformanceTracker {
+                        wait_for_completion: true,
+                        started: false,
+                    });
             } else {
                 // Not waiting, mark as finished immediately
                 commands.entity(entity).insert(ChapterFinished);
@@ -105,28 +112,30 @@ pub fn process_am_performance_system(
     }
 }
 
-/// System to check if AM performance has completed and finish the chapter.
+/// System to check if Alight Motion performance has completed and finish the chapter.
 ///
-/// 检查 AM 演出是否完成并结束章节的系统。
-pub fn process_am_wait_chapter_system(
+/// 检查 Alight Motion 演出是否完成并结束章节的系统。
+pub fn process_alight_motion_wait_chapter_system(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut AmPerformanceTracker), Without<ChapterFinished>>,
-    am_state: Option<Res<AmPerformanceState>>,
+    mut query: Query<(Entity, &mut AlightMotionPerformanceTracker), Without<ChapterFinished>>,
+    alight_motion_state: Option<Res<AlightMotionPerformanceState>>,
 ) {
-    let Some(am_state) = am_state else { return };
+    let Some(alight_motion_state) = alight_motion_state else {
+        return;
+    };
     for (entity, mut tracker) in query.iter_mut() {
         if !tracker.wait_for_completion {
             continue;
         }
 
         // Wait for performance to start first
-        if am_state.is_playing {
+        if alight_motion_state.is_playing {
             tracker.started = true;
         }
 
         // Only mark finished after performance has started and then stopped
-        if tracker.started && !am_state.is_playing {
-            info!("[Battle] AM performance chapter finished");
+        if tracker.started && !alight_motion_state.is_playing {
+            info!("[Battle] Alight Motion performance chapter finished");
             commands.entity(entity).insert(ChapterFinished);
         }
     }

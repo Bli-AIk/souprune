@@ -6,7 +6,7 @@
 //!
 //! 定义 ViewDelta 枚举和 apply_deltas 函数。
 
-use super::tree::{DesiredElement, DesiredHpBar, DesiredMaterial, DesiredSprite, DesiredText};
+use super::tree::{DesiredElement, DesiredHealthBar, DesiredMaterial, DesiredSprite, DesiredText};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
@@ -66,9 +66,9 @@ pub enum ViewDelta {
 
     /// Update HP bar parameters of an existing element.
     /// 更新现有元素的 HP 条参数。
-    UpdateHpBar {
+    UpdateHealthBar {
         entity: Entity,
-        new_value: DesiredHpBar,
+        new_value: DesiredHealthBar,
     },
 
     /// Update the visible_when expression component.
@@ -130,7 +130,7 @@ pub fn apply_deltas(commands: &mut Commands, deltas: &[ViewDelta]) {
                     .entity(*entity)
                     .insert(Text2d::new(&new_value.content));
             }
-            ViewDelta::UpdateHpBar {
+            ViewDelta::UpdateHealthBar {
                 entity,
                 new_value: _,
             } => {
@@ -257,7 +257,7 @@ pub struct DeltaStats {
     pub visibility_updates: usize,
     pub sprite_updates: usize,
     pub text_updates: usize,
-    pub hp_bar_updates: usize,
+    pub health_bar_updates: usize,
     pub visible_when_updates: usize,
     pub material_updates: usize,
 }
@@ -275,7 +275,7 @@ impl DeltaStats {
                 ViewDelta::UpdateVisibility { .. } => stats.visibility_updates += 1,
                 ViewDelta::UpdateSprite { .. } => stats.sprite_updates += 1,
                 ViewDelta::UpdateText { .. } => stats.text_updates += 1,
-                ViewDelta::UpdateHpBar { .. } => stats.hp_bar_updates += 1,
+                ViewDelta::UpdateHealthBar { .. } => stats.health_bar_updates += 1,
                 ViewDelta::UpdateVisibleWhen { .. } => stats.visible_when_updates += 1,
                 ViewDelta::UpdateMaterial { .. } => stats.material_updates += 1,
             }
@@ -292,7 +292,7 @@ impl DeltaStats {
             || self.visibility_updates > 0
             || self.sprite_updates > 0
             || self.text_updates > 0
-            || self.hp_bar_updates > 0
+            || self.health_bar_updates > 0
             || self.visible_when_updates > 0
             || self.material_updates > 0
     }

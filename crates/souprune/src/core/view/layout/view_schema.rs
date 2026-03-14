@@ -367,13 +367,13 @@ pub struct SpriteDef {
     /// 将根据指定的 HP 来源动态更新。
     #[serde(default)]
     #[deprecated(note = "Use `material` field instead for dynamic shader support")]
-    pub hp_bar_source: Option<HPBarSourceDef>,
+    pub health_bar_source: Option<HealthBarSourceDef>,
 
     /// Dynamic material definition for custom shaders.
-    /// Replaces old custom_shader + shader_params + hp_bar_source fields.
+    /// Replaces old custom_shader + shader_params + health_bar_source fields.
     ///
     /// 自定义着色器的动态材质定义。
-    /// 替代旧的 custom_shader + shader_params + hp_bar_source 字段。
+    /// 替代旧的 custom_shader + shader_params + health_bar_source 字段。
     #[serde(default)]
     pub material: Option<MaterialDef>,
 }
@@ -381,7 +381,7 @@ pub struct SpriteDef {
 /// HP bar source definition for configuring where HP values come from.
 /// HP 条来源定义，用于配置 HP 值的来源。
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum HPBarSourceDef {
+pub enum HealthBarSourceDef {
     /// Player HP source - uses player_hp and player_hp_max facts.
     /// 玩家 HP 来源 - 使用 player_hp 和 player_hp_max facts。
     Player,
@@ -574,10 +574,10 @@ pub enum StateTriggerDef {
 // ============================================================================
 
 /// Material definition for dynamic shader-based sprites.
-/// Replaces old custom_shader + shader_params + hp_bar_source fields.
+/// Replaces old custom_shader + shader_params + health_bar_source fields.
 ///
 /// 动态着色器精灵的材质定义。
-/// 替代旧的 custom_shader + shader_params + hp_bar_source 字段。
+/// 替代旧的 custom_shader + shader_params + health_bar_source 字段。
 ///
 /// Example in RON:
 /// ```ron
@@ -603,11 +603,11 @@ pub enum StateTriggerDef {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MaterialDef {
     /// Shader resource path.
-    /// Can be project-relative (e.g., "shared/shaders/hp_bar.wgsl")
+    /// Can be project-relative (e.g., "shared/shaders/health_bar.wgsl")
     /// or mod-relative (e.g., "mod://my_mod/shaders/effect.wgsl").
     ///
     /// 着色器资源路径。
-    /// 可以是项目相对路径（如 "shared/shaders/hp_bar.wgsl"）
+    /// 可以是项目相对路径（如 "shared/shaders/health_bar.wgsl"）
     /// 或 mod 相对路径（如 "mod://my_mod/shaders/effect.wgsl"）。
     pub shader: String,
 

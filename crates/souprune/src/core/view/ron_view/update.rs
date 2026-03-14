@@ -336,7 +336,7 @@ pub fn update_shader_materials_system(
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
 ) {
-    use crate::core::view::layout::Val;
+    use crate::core::view::layout::Value;
     use crate::core::view::layout::view_schema::MaterialParamValue;
 
     // Early exit: skip if no shader materials exist
@@ -404,7 +404,7 @@ pub fn update_shader_materials_system(
                     let new_value = match param_def {
                         MaterialParamValue::Static(v) => *v,
                         MaterialParamValue::Expr(expr_str) => evaluate_float_expr(
-                            &Val::Expr(expr_str.clone()),
+                            &Value::Expr(expr_str.clone()),
                             &player_data,
                             Some(elapsed_secs),
                         ),
