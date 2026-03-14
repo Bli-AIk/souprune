@@ -659,9 +659,12 @@ pub fn resolve_data_path(
             let inventory = player_data
                 .get_fact_string_list("player:inventory")
                 .unwrap_or_default();
+            let capacity = player_data
+                .get_fact_int("player:inventory_capacity")
+                .unwrap_or(8) as usize;
             inventory
                 .iter()
-                .take(8)
+                .take(capacity)
                 .map(|item_id| {
                     if let Some(item) = item_registry.get(item_id) {
                         let key = format!("{}:{}", item.locale.file, item.locale.name);

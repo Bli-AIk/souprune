@@ -235,6 +235,9 @@ fn format_action(a: &RuleActionDef) -> String {
             action_type,
             params,
         } => format!("Custom({action_type}, {params:?})"),
+        RuleActionDef::UseItem { index_expr } => format!("UseItem({index_expr})"),
+        RuleActionDef::CheckItem { index_expr } => format!("CheckItem({index_expr})"),
+        RuleActionDef::DropItem { index_expr } => format!("DropItem({index_expr})"),
     }
 }
 
