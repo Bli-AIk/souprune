@@ -1517,6 +1517,7 @@ dependencies = [
  "bevy",
  "bevy_mortar_bond_macros",
  "mortar_compiler",
+ "proptest",
  "serde_json",
 ]
 
