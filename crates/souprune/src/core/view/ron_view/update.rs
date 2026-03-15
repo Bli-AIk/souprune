@@ -6,7 +6,7 @@ use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
 use crate::core::fre_facts;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
-use bevy_rich_text3d::Text3d;
+use bevy_rich_text3d::{Text3d, Text3dSegment};
 
 /// Update time-dependent UI elements (elements with @time in expressions).
 /// Runs every frame for animation effects.
@@ -211,14 +211,34 @@ pub fn update_dynamic_text_system(
         // 注意：Text3d 不直接暴露内容用于比较，所以我们总是更新。
         // 未来改进：在组件中存储上次解析的内容用于比较。
 
-        trace!(
-            "[update_dynamic_text_system] Updating text '{}': '{}'",
-            name, new_content
-        );
+        // Debug: log when content contains newlines
+        if new_content.contains('\n') {
+            info!(
+                "[DEBUG] update_dynamic_text: '{}' has {} newlines, content={:?}",
+                name,
+                new_content.matches('\n').count(),
+                new_content
+            );
+        }
 
         // Re-parsing the text3d
         // 重新解析 text3d
         *text3d = parse_text_preserving_whitespace(&new_content);
+
+        // Debug: verify Text3d segments contain \n
+        if new_content.contains('\n') {
+            for (i, (seg, _)) in text3d.segments.iter().enumerate() {
+                if let Text3dSegment::String(s) = seg {
+                    info!(
+                        "[DEBUG] Text3d segment[{}]: contains_newline={}, len={}, text={:?}",
+                        i,
+                        s.contains('\n'),
+                        s.len(),
+                        s
+                    );
+                }
+            }
+        }
 
         // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
         // Use queue_handled to avoid panic if entity is despawned during the same frame

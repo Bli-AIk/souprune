@@ -520,14 +520,30 @@ fn start_item_dialogue(
     item_data: ItemDialogueData,
 ) {
     let (mortar_path, node) = if let Some(mortar) = &item.mortar {
-        (mortar.clone(), node_name.to_string())
+        (mortar.as_str(), node_name)
     } else {
-        (
-            "items/_defaults.mortar".to_string(),
-            default_node.to_string(),
-        )
+        ("items/_defaults.mortar", default_node)
     };
 
+    start_item_dialogue_with_path(
+        mortar_path,
+        node,
+        global_facts,
+        dialogue_view_default,
+        dialogue_voice_default,
+        item_data,
+    );
+}
+
+/// Start a dialogue with an explicit mortar path and node.
+fn start_item_dialogue_with_path(
+    mortar_path: &str,
+    node: &str,
+    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    dialogue_view_default: &str,
+    dialogue_voice_default: &str,
+    item_data: ItemDialogueData,
+) {
     info!(
         "FRE Bridge: Item dialogue — mortar: {}, node: {}",
         mortar_path, node
@@ -538,11 +554,11 @@ fn start_item_dialogue(
     );
     global_facts.set_local(
         fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
-        FactValue::String(mortar_path),
+        FactValue::String(mortar_path.to_string()),
     );
     global_facts.set_local(
         fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
-        FactValue::String(node),
+        FactValue::String(node.to_string()),
     );
     global_facts.set_local(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
     global_facts.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(true));
@@ -817,9 +833,13 @@ fn execute_check_item(
     info!("FRE Bridge: CheckItem '{}'", item_id);
     let default_node = default_check_node(&item.item_type);
     let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    start_item_dialogue(
-        item,
-        "OnCheck",
+    // CheckItem always uses the default template (stats + description).
+    // Per-item mortar files are only for OnUse/OnDrop custom behavior.
+    //
+    // CheckItem 始终使用默认模板（数值 + 描述）。
+    // 每个物品的 mortar 文件仅用于 OnUse/OnDrop 自定义行为。
+    start_item_dialogue_with_path(
+        "items/_defaults.mortar",
         default_node,
         global_facts,
         dialogue_view_default,

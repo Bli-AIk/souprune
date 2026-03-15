@@ -30,6 +30,7 @@ exclude = [
 [patch.crates-io]
 mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
 iyes_perf_ui = { path = "crates/iyes_perf_ui" }
+bevy_rich_text3d = { path = "/tmp/bevy_rich_text3d_debug" }
 
 [workspace.lints.rust]
 

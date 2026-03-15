@@ -464,8 +464,10 @@ pub fn sync_mortar_text_to_typewriter_system(
 
     for mut typewriter in &mut query {
         if typewriter.source_text != new_text {
-            trace!(
-                "sync_mortar_text_to_typewriter: updating source_text to '{}'",
+            info!(
+                "[DEBUG] sync_mortar: setting typewriter text (is_line={}, lines={}): '{}'",
+                text_data.is_line,
+                new_text.matches('\n').count() + 1,
                 new_text
             );
             typewriter.source_text = new_text.clone();
