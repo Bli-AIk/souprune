@@ -410,34 +410,57 @@ pub fn sync_mortar_text_to_typewriter_system(
         .and_then(|v| v.state.as_ref())
         .unwrap_or(&default_vs);
 
-    // Check condition before showing text — skip texts with false conditions
-    // by firing NextText events. Without this, ALL texts (including conditional
-    // if/else branches) would be shown since this system reads raw text_index.
-    //
-    // 显示文本前检查条件——通过触发 NextText 事件跳过条件为 false 的文本。
-    // 若不做此检查，所有文本（包括 if/else 分支）都会被显示，
-    // 因为本系统直接读取 text_index 处的原始文本。
     let Some(text_data) = state.current_text_data() else {
         return;
     };
-    if let Some(condition) = &text_data.condition {
-        let result = evaluate_condition_cached(
-            condition,
-            &runtime.functions,
-            variable_state,
-            &mut cached_condition,
-        );
-        if !result {
+
+    // Line groups: collect all consecutive lines, evaluate conditions per-line,
+    // join passing lines with '\n' into a single display unit.
+    //
+    // Line 组：收集所有连续 line，逐行评估条件，用 '\n' 拼接为单个显示单元。
+    let new_text = if text_data.is_line {
+        let group = state.current_line_group().unwrap_or(&[]);
+        let mut result_lines = Vec::new();
+        for line_data in group {
+            if let Some(condition) = &line_data.condition
+                && !evaluate_condition_cached(
+                    condition,
+                    &runtime.functions,
+                    variable_state,
+                    &mut cached_condition,
+                )
+            {
+                continue;
+            }
+            let line_text =
+                process_interpolated_text(line_data, &runtime.functions, &[], variable_state);
+            if !line_text.is_empty() {
+                result_lines.push(line_text);
+            }
+        }
+        if result_lines.is_empty() {
             mortar_events.write(MortarEvent::next_text());
             return;
         }
-    }
-
-    // Process interpolated text to resolve variables and function calls
-    // in template strings (e.g. {item_name}, {get_item_value()}).
-    //
-    // 处理插值文本，解析模板字符串中的变量和函数调用。
-    let new_text = process_interpolated_text(text_data, &runtime.functions, &[], variable_state);
+        result_lines.join("\n")
+    } else {
+        // Regular text: check condition, skip if false
+        //
+        // 常规 text：检查条件，条件为 false 时跳过
+        if let Some(condition) = &text_data.condition {
+            let result = evaluate_condition_cached(
+                condition,
+                &runtime.functions,
+                variable_state,
+                &mut cached_condition,
+            );
+            if !result {
+                mortar_events.write(MortarEvent::next_text());
+                return;
+            }
+        }
+        process_interpolated_text(text_data, &runtime.functions, &[], variable_state)
+    };
 
     for mut typewriter in &mut query {
         if typewriter.source_text != new_text {
