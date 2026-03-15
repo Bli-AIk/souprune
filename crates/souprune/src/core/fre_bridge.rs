@@ -29,6 +29,7 @@ use crate::core::game_action::{
 use leafwing_input_manager::action_state::ActionState;
 use std::collections::HashMap;
 
+use crate::config::SoupruneConfig;
 use crate::core::audio;
 use crate::core::fre_facts;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
@@ -222,6 +223,7 @@ fn process_event_view_actions(
     time: &Time,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    souprune_config: &SoupruneConfig,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -267,6 +269,7 @@ fn process_event_view_actions(
                     asset_server,
                     enum_registry,
                     item_registry,
+                    souprune_config,
                 );
             }
 
@@ -306,6 +309,7 @@ pub fn process_view_actions_system(
     time: Res<Time>,
     enum_registry: Res<EnumRegistry>,
     item_registry: Res<crate::core::item::ItemRegistry>,
+    souprune_config: Res<SoupruneConfig>,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
@@ -322,6 +326,7 @@ pub fn process_view_actions_system(
             &time,
             &enum_registry,
             &item_registry,
+            &souprune_config,
         );
     }
 }
@@ -339,6 +344,7 @@ fn execute_action(
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    souprune_config: &SoupruneConfig,
 ) {
     match action {
         GameActionDef::PlaySound(sound_name) => {
@@ -429,6 +435,7 @@ fn execute_action(
                 asset_server,
                 enum_registry,
                 item_registry,
+                &souprune_config.game.dialogue_view_default,
             );
         }
         GameActionDef::CheckItem { index_expr } => {
@@ -438,6 +445,7 @@ fn execute_action(
                 global_facts,
                 enum_registry,
                 item_registry,
+                &souprune_config.game.dialogue_view_default,
             );
         }
         GameActionDef::DropItem { index_expr } => {
@@ -447,6 +455,7 @@ fn execute_action(
                 global_facts,
                 enum_registry,
                 item_registry,
+                &souprune_config.game.dialogue_view_default,
             );
         }
     }
@@ -500,6 +509,7 @@ fn start_item_dialogue(
     node_name: &str,
     default_node: &str,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    dialogue_view_default: &str,
 ) {
     let (mortar_path, node) = if let Some(mortar) = &item.mortar {
         (mortar.clone(), node_name.to_string())
@@ -513,6 +523,10 @@ fn start_item_dialogue(
     info!(
         "FRE Bridge: Item dialogue — mortar: {}, node: {}",
         mortar_path, node
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_PENDING_VIEW,
+        FactValue::String(dialogue_view_default.to_string()),
     );
     global_facts.set_local(
         fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
@@ -600,6 +614,17 @@ fn default_use_node(item_type: &crate::core::item::ItemType) -> &'static str {
     }
 }
 
+/// Default OnCheck node name for each item type.
+fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
+    use crate::core::item::ItemType;
+    match item_type {
+        ItemType::Food { .. } => "OnCheckFoodDefault",
+        ItemType::Weapon { .. } => "OnCheckWeaponDefault",
+        ItemType::Armor { .. } => "OnCheckArmorDefault",
+        ItemType::KeyItem => "OnCheckDefault",
+    }
+}
+
 /// UseItem action: dispatch by item type, execute effects, start dialogue.
 fn execute_use_item(
     index_expr: &str,
@@ -609,6 +634,7 @@ fn execute_use_item(
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    dialogue_view_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -683,7 +709,13 @@ fn execute_use_item(
     }
 
     let default_node = default_use_node(&item.item_type);
-    start_item_dialogue(item, "OnUse", default_node, global_facts);
+    start_item_dialogue(
+        item,
+        "OnUse",
+        default_node,
+        global_facts,
+        dialogue_view_default,
+    );
 }
 
 /// CheckItem action: start dialogue with OnCheck node, no state change.
@@ -693,6 +725,7 @@ fn execute_check_item(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    dialogue_view_default: &str,
 ) {
     let Some(index) = resolve_index_expr(index_expr, local_facts, global_facts, enum_registry)
     else {
@@ -708,7 +741,14 @@ fn execute_check_item(
     };
 
     info!("FRE Bridge: CheckItem '{}'", item_id);
-    start_item_dialogue(item, "OnCheck", "OnCheckDefault", global_facts);
+    let default_node = default_check_node(&item.item_type);
+    start_item_dialogue(
+        item,
+        "OnCheck",
+        default_node,
+        global_facts,
+        dialogue_view_default,
+    );
 }
 
 /// DropItem action: remove from inventory and start OnDrop dialogue.
@@ -719,6 +759,7 @@ fn execute_drop_item(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    dialogue_view_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -753,7 +794,13 @@ fn execute_drop_item(
         global_facts.set_global("player:inventory", FactValue::StringList(inventory));
     }
 
-    start_item_dialogue(item, "OnDrop", "OnDropDefault", global_facts);
+    start_item_dialogue(
+        item,
+        "OnDrop",
+        "OnDropDefault",
+        global_facts,
+        dialogue_view_default,
+    );
 }
 ///
 /// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
