@@ -436,6 +436,7 @@ fn execute_action(
                 enum_registry,
                 item_registry,
                 &souprune_config.game.dialogue_view_default,
+                &souprune_config.game.dialogue_voice_default,
             );
         }
         GameActionDef::CheckItem { index_expr } => {
@@ -446,6 +447,7 @@ fn execute_action(
                 enum_registry,
                 item_registry,
                 &souprune_config.game.dialogue_view_default,
+                &souprune_config.game.dialogue_voice_default,
             );
         }
         GameActionDef::DropItem { index_expr } => {
@@ -456,6 +458,7 @@ fn execute_action(
                 enum_registry,
                 item_registry,
                 &souprune_config.game.dialogue_view_default,
+                &souprune_config.game.dialogue_voice_default,
             );
         }
     }
@@ -504,12 +507,17 @@ fn get_inventory_item_id(
 
 /// Start a dialogue for an item action (OnUse/OnCheck/OnDrop).
 /// Uses item's mortar file if available, otherwise falls back to defaults.
+///
+/// `item_data` contains pre-computed values for mortar variables/functions:
+/// locale_key, description, heal_amount, item_value.
 fn start_item_dialogue(
     item: &crate::core::item::Item,
     node_name: &str,
     default_node: &str,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     dialogue_view_default: &str,
+    dialogue_voice_default: &str,
+    item_data: ItemDialogueData,
 ) {
     let (mortar_path, node) = if let Some(mortar) = &item.mortar {
         (mortar.clone(), node_name.to_string())
@@ -538,25 +546,77 @@ fn start_item_dialogue(
     );
     global_facts.set_local(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
     global_facts.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(true));
+    if !dialogue_voice_default.is_empty() {
+        global_facts.set_local(
+            fre_facts::DIALOGUE_VOICE,
+            FactValue::String(dialogue_voice_default.to_string()),
+        );
+    }
+
+    // Store item data for mortar variable/function resolution
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_NAME,
+        FactValue::String(item_data.locale_key),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_DESCRIPTION,
+        FactValue::String(item_data.description),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT,
+        FactValue::Int(item_data.heal_amount),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_VALUE,
+        FactValue::Int(item_data.item_value),
+    );
+
     global_facts.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
 }
 
+/// Pre-computed item data for mortar dialogue variables and functions.
+struct ItemDialogueData {
+    locale_key: String,
+    description: String,
+    heal_amount: i64,
+    item_value: i64,
+}
+
+/// Compute the stat value for an item (used by mortar function `get_item_value()`).
+fn compute_item_value(item: &crate::core::item::Item) -> i64 {
+    use crate::core::item::ItemType;
+    match &item.item_type {
+        ItemType::Food { effects, .. } => effects
+            .iter()
+            .find_map(|e| match e {
+                crate::core::item::ItemEffect::Heal { amount } => Some(*amount as i64),
+                _ => None,
+            })
+            .unwrap_or(0),
+        ItemType::Weapon { damage, .. } => *damage as i64,
+        ItemType::Armor { defense } => *defense as i64,
+        ItemType::KeyItem => 0,
+    }
+}
+
 /// Execute item effects (Heal, PlayAudio, SpawnChildItem, SetFact).
+/// Returns the actual amount of HP healed (0 if no heal occurred).
 fn apply_item_effects(
     item: &crate::core::item::Item,
     index: usize,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
-) {
+) -> i64 {
     use crate::core::item::{ItemEffect, ItemType};
 
     let effects = match &item.item_type {
         ItemType::Food { effects, .. } => effects.as_slice(),
-        _ => return,
+        _ => return 0,
     };
 
     let mut spawn_child: Option<String> = None;
+    let mut total_healed: i64 = 0;
 
     for effect in effects {
         match effect {
@@ -564,6 +624,7 @@ fn apply_item_effects(
                 let hp = global_facts.get_int("player:hp").unwrap_or(0);
                 let hp_max = global_facts.get_int("player:hp_max").unwrap_or(20);
                 let new_hp = (hp + *amount as i64).min(hp_max);
+                total_healed += new_hp - hp;
                 info!("FRE Bridge: Heal {} → HP {}/{}", amount, new_hp, hp_max);
                 global_facts.set_global("player:hp", FactValue::Int(new_hp));
             }
@@ -601,6 +662,7 @@ fn apply_item_effects(
         }
         global_facts.set_global("player:inventory", FactValue::StringList(inventory));
     }
+    total_healed
 }
 
 /// Default OnUse node name for each item type.
@@ -635,6 +697,7 @@ fn execute_use_item(
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
     dialogue_view_default: &str,
+    dialogue_voice_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -658,9 +721,11 @@ fn execute_use_item(
         index
     );
 
+    let mut actual_healed: i64 = 0;
+
     match &item.item_type {
         ItemType::Food { .. } => {
-            apply_item_effects(item, index, global_facts, audio, asset_server);
+            actual_healed = apply_item_effects(item, index, global_facts, audio, asset_server);
         }
         ItemType::Weapon { .. } => {
             // Swap: current weapon goes to inventory, new weapon gets equipped
@@ -709,12 +774,20 @@ fn execute_use_item(
     }
 
     let default_node = default_use_node(&item.item_type);
+    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
     start_item_dialogue(
         item,
         "OnUse",
         default_node,
         global_facts,
         dialogue_view_default,
+        dialogue_voice_default,
+        ItemDialogueData {
+            locale_key,
+            description: item.description.clone(),
+            heal_amount: actual_healed,
+            item_value: compute_item_value(item),
+        },
     );
 }
 
@@ -726,6 +799,7 @@ fn execute_check_item(
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
     dialogue_view_default: &str,
+    dialogue_voice_default: &str,
 ) {
     let Some(index) = resolve_index_expr(index_expr, local_facts, global_facts, enum_registry)
     else {
@@ -742,12 +816,20 @@ fn execute_check_item(
 
     info!("FRE Bridge: CheckItem '{}'", item_id);
     let default_node = default_check_node(&item.item_type);
+    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
     start_item_dialogue(
         item,
         "OnCheck",
         default_node,
         global_facts,
         dialogue_view_default,
+        dialogue_voice_default,
+        ItemDialogueData {
+            locale_key,
+            description: item.description.clone(),
+            heal_amount: 0,
+            item_value: compute_item_value(item),
+        },
     );
 }
 
@@ -760,6 +842,7 @@ fn execute_drop_item(
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
     dialogue_view_default: &str,
+    dialogue_voice_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -794,12 +877,20 @@ fn execute_drop_item(
         global_facts.set_global("player:inventory", FactValue::StringList(inventory));
     }
 
+    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
     start_item_dialogue(
         item,
         "OnDrop",
         "OnDropDefault",
         global_facts,
         dialogue_view_default,
+        dialogue_voice_default,
+        ItemDialogueData {
+            locale_key,
+            description: item.description.clone(),
+            heal_amount: 0,
+            item_value: compute_item_value(item),
+        },
     );
 }
 ///

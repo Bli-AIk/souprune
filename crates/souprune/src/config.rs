@@ -143,6 +143,14 @@ pub struct GameConfig {
     /// 可通过 `dialogue_view` 属性覆盖。
     pub dialogue_view_default: String,
 
+    /// Default dialogue voice audio path for item dialogues.
+    /// Controls the typewriter sound effect when item dialogue text is revealed.
+    ///
+    /// 物品对话的默认打字机音效路径。
+    /// 控制物品对话文本逐字显示时的音效。
+    #[serde(default)]
+    pub dialogue_voice_default: String,
+
     /// Texture modules required before transitioning from AppSetup.
     ///
     /// 从 AppSetup 状态转换前需要加载的纹理模块。
@@ -166,6 +174,7 @@ impl Default for GameConfig {
             states_config: "config/states.ron".to_string(),
             chase_config: None,
             dialogue_view_default: "states/overworld/view/dialogue.view.ron".to_string(),
+            dialogue_voice_default: "audios/voice/voice_monster.wav".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
         }
@@ -348,6 +357,7 @@ struct GameConfigPartial {
     chase_config: Option<String>,
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
+    dialogue_voice_default: Option<String>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -402,6 +412,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         }
         if let Some(val) = game_partial.hidden_layer_keywords {
             config.game.hidden_layer_keywords = val;
+        }
+        if let Some(val) = game_partial.dialogue_voice_default {
+            config.game.dialogue_voice_default = val;
         }
     }
     // Load resource paths from [resources] section (required)
