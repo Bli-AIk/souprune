@@ -833,13 +833,9 @@ fn execute_check_item(
     info!("FRE Bridge: CheckItem '{}'", item_id);
     let default_node = default_check_node(&item.item_type);
     let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    // CheckItem always uses the default template (stats + description).
-    // Per-item mortar files are only for OnUse/OnDrop custom behavior.
-    //
-    // CheckItem 始终使用默认模板（数值 + 描述）。
-    // 每个物品的 mortar 文件仅用于 OnUse/OnDrop 自定义行为。
-    start_item_dialogue_with_path(
-        "items/_defaults.mortar",
+    start_item_dialogue(
+        item,
+        "OnCheck",
         default_node,
         global_facts,
         dialogue_view_default,
