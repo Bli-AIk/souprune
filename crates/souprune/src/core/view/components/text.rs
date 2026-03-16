@@ -41,15 +41,15 @@ pub(crate) enum ViewFont {
 }
 
 impl ViewFont {
-    /// Get font name and default size
+    /// Get font file stem (matches the filename loaded by bevy_bitmap_text).
     ///
-    /// 获取字体名称和默认大小
+    /// 获取字体文件名（与 bevy_bitmap_text 加载的文件名匹配）
     pub(crate) fn font_name(&self) -> &'static str {
         match self {
-            ViewFont::DeterminationMono => "Determination Mono SimSun",
-            ViewFont::DeterminationSans => "Determination Sans SimSun",
-            ViewFont::Hud => "Crypt of Tomorrow Fusion",
-            ViewFont::BattleHud => "Mars Needs Cunnilingus",
+            ViewFont::DeterminationMono => "DTM-Mono",
+            ViewFont::DeterminationSans => "DTM-Sans",
+            ViewFont::Hud => "hud",
+            ViewFont::BattleHud => "battlehud",
         }
     }
 
