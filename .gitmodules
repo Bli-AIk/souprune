@@ -24,3 +24,7 @@
 	path = crates/bevy_workbench
 	url = https://github.com/Bli-AIk/bevy_workbench.git
 	branch = feat/init
+[submodule "crates/bevy_bitmap_text"]
+	path = crates/bevy_bitmap_text
+	url = https://github.com/Bli-AIk/bevy_bitmap_text.git
+	branch = feat/init
