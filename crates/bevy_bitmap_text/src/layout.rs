@@ -117,9 +117,13 @@ pub fn compute_layout(
     }
 
     // Apply anchor offset.
+    // The anchor name describes the text flow direction, not the anchor point position:
+    //   BOTTOM_RIGHT (0.5, -0.5) → text starts at entity and extends right & down → shift (0, 0)
+    //   CENTER       (0.0,  0.0) → text centered on entity → shift (-W/2, H/2)
+    //   TOP_LEFT    (-0.5,  0.5) → text ends at entity, extends left & up → shift (-W, H)
     let dimension = Vec2::new(max_line_width, total_height);
     let shift = Vec2::new(
-        -dimension.x * (0.5 + styling.anchor.0.x),
+        dimension.x * (styling.anchor.0.x - 0.5),
         dimension.y * (0.5 + styling.anchor.0.y),
     );
 
