@@ -360,6 +360,8 @@ fn spawn_texts_for_filler(
                         align: text_config.align,
                         anchor: text_config.anchor,
                         line_height: text_config.line_height,
+                        char_spacing: text_config.char_spacing,
+                        word_spacing: text_config.word_spacing,
                         ..Default::default()
                     },
                     text_config.transform,

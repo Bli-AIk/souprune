@@ -292,6 +292,8 @@ pub fn spawn_text_entity(
             world_scale: ws_x,
             color,
             line_height: text_def.line_height.unwrap_or(1.0),
+            char_spacing: text_def.char_spacing.unwrap_or(0.0),
+            word_spacing: text_def.word_spacing.unwrap_or(0.0),
             ..default()
         },
         text_world_transform,
@@ -637,6 +639,8 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
         color,
         transform,
         line_height: text_def.line_height.unwrap_or(1.0),
+        char_spacing: text_def.char_spacing.unwrap_or(0.0),
+        word_spacing: text_def.word_spacing.unwrap_or(0.0),
         visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }

@@ -123,6 +123,10 @@ pub struct TextBlockStyling {
     pub anchor: TextAnchor,
     /// Line height multiplier (1.0 = tight, 1.375 = Undertale default).
     pub line_height: f32,
+    /// Extra horizontal spacing between characters, in pixels.
+    pub char_spacing: f32,
+    /// Extra horizontal spacing after word-separator characters (space, etc.), in pixels.
+    pub word_spacing: f32,
     /// Maximum width for auto line-wrapping (None = no wrapping).
     pub max_width: Option<f32>,
 }
@@ -137,6 +141,8 @@ impl Default for TextBlockStyling {
             align: TextAlign::default(),
             anchor: TextAnchor::default(),
             line_height: 1.375,
+            char_spacing: 0.0,
+            word_spacing: 0.0,
             max_width: None,
         }
     }

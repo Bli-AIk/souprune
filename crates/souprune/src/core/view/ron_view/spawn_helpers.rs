@@ -88,6 +88,8 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
+        char_spacing: text_def.char_spacing.unwrap_or(0.0),
+        word_spacing: text_def.word_spacing.unwrap_or(0.0),
         visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }
@@ -124,6 +126,8 @@ pub(crate) fn spawn_container_texts(
                 align: text_config.align,
                 anchor: text_config.anchor,
                 line_height: text_config.line_height,
+                char_spacing: text_config.char_spacing,
+                word_spacing: text_config.word_spacing,
                 ..Default::default()
             },
             text_world_transform,

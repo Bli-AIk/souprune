@@ -93,7 +93,10 @@ pub fn compute_layout(
                 entity: None,
             });
 
-            cursor_x += advance;
+            cursor_x += advance + styling.char_spacing;
+            if ch == ' ' {
+                cursor_x += styling.word_spacing;
+            }
             char_index += 1;
         }
     }

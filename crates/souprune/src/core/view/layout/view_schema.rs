@@ -410,6 +410,10 @@ pub struct TextDef {
     #[serde(default)]
     pub line_height: Option<f32>,
     #[serde(default)]
+    pub char_spacing: Option<f32>,
+    #[serde(default)]
+    pub word_spacing: Option<f32>,
+    #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
     /// Expression-based visibility control.
     /// Examples: "fact('depth') == 1", "$selection == 0"
