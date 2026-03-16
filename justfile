@@ -20,7 +20,15 @@ fmt:
 # clippy
 # ===============================================
 clippy:
+    cargo clippy --all-targets --all-features
+
+
+# ===============================================
+# clippy_local
+# ===============================================
+clippy_local:
     cargo clippy -p {{project}} --all-targets --all-features
+
 
 # ===============================================
 # 拼写检查
