@@ -4,7 +4,7 @@
 
 use bevy::color::Srgba;
 use bevy::prelude::*;
-use bevy_rich_text3d::{TextAlign, TextAnchor};
+use bevy_bitmap_text::{TextAlign, TextAnchor};
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;

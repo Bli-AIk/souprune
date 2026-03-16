@@ -7,6 +7,7 @@ members = [
     "crates/bevy_fact_rule_event",
     "crates/bevy_mortar_bond",
     "crates/bevy_alight_motion",
+    "crates/bevy_bitmap_text",
     "crates/souprune_api",
     "crates/souprune_sdk",
     "crates/souprune_mock_host",
@@ -30,7 +31,6 @@ exclude = [
 [patch.crates-io]
 mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
 iyes_perf_ui = { path = "crates/iyes_perf_ui" }
-bevy_rich_text3d = { path = "/tmp/bevy_rich_text3d_debug" }
 
 [workspace.lints.rust]
 

@@ -100,8 +100,6 @@ pub(crate) fn spawn_container_texts(
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
 ) {
-    use bevy_rich_text3d::Text3dStyling;
-
     for text_def in texts {
         let text_config = build_text_config(text_def, mortar_strings, player_data, item_registry);
 
@@ -110,32 +108,26 @@ pub(crate) fn spawn_container_texts(
             text_config.name
         );
 
-        let text3d = parse_text_preserving_whitespace(&text_config.content);
+        let text_block = parse_text_preserving_whitespace(&text_config.content);
 
         let text_world_transform = text_config.transform;
 
+        let view_font = &text_config.font;
         let mut cmd = parent.spawn((
             text_config.name.clone(),
-            text3d,
-            Text3dStyling {
-                font: text_config.font.font_name().into(),
-                size: text_config.font.default_size(),
-                world_scale: Some(text_config.world_scale),
+            text_block,
+            bevy_bitmap_text::TextBlockStyling {
+                font: bevy_bitmap_text::FontId::from_name(view_font.font_name()),
+                size_px: view_font.default_size() as u32,
+                world_scale: text_config.world_scale.x,
                 color: text_config.color,
                 align: text_config.align,
                 anchor: text_config.anchor,
                 line_height: text_config.line_height,
                 ..Default::default()
             },
-            Mesh2d::default(),
-            // Use NeedsTextMaterial marker instead of default handle to avoid purple box
-            // 使用 NeedsTextMaterial 标记而不是默认句柄以避免紫色方块
-            super::super::text::NeedsTextMaterial,
             text_world_transform,
             Visibility::Hidden,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            super::super::text::NeedsGlyphRefresh,
             RonDrivenView,
         ));
 

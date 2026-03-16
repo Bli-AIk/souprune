@@ -18,7 +18,6 @@ use crate::core::view::ron_view::parsing::{
 use crate::core::view::ron_view::resources::RonDrivenView;
 use crate::core::view::sdf_view_shape::parse_text_preserving_whitespace;
 use bevy::prelude::*;
-use bevy_rich_text3d::Text3dStyling;
 
 /// Context containing all resources needed for spawning view elements.
 /// This reduces the number of parameters needed by helper functions.
@@ -227,10 +226,10 @@ pub fn spawn_sprite_entity(
     entity_id
 }
 
-/// Spawn a text entity with Text3d component.
+/// Spawn a text entity with TextBlock component.
 /// Returns the spawned entity ID.
 ///
-/// 生成带有 Text3d 组件的文本实体。
+/// 生成带有 TextBlock 组件的文本实体。
 /// 返回生成的实体 ID。
 pub fn spawn_text_entity(
     commands: &mut Commands,
@@ -247,7 +246,7 @@ pub fn spawn_text_entity(
         ctx.item_registry,
     );
 
-    let text3d = parse_text_preserving_whitespace(&content);
+    let text_block = parse_text_preserving_whitespace(&content);
 
     // Build transform
     let mut transform = Transform::default();
@@ -280,29 +279,23 @@ pub fn spawn_text_entity(
     let color = Srgba::new(r, g, b, a);
 
     // Parse world_scale
-    let (ws_x, ws_y) = vec2_tuple_to_static(&text_def.world_scale);
-    let world_scale = Vec2::new(ws_x, ws_y);
+    let (ws_x, _ws_y) = vec2_tuple_to_static(&text_def.world_scale);
 
     // Spawn entity
     let view_font: crate::core::view::components::ViewFont = text_def.font.clone().into();
     let mut entity_commands = commands.spawn((
         Name::new(text_def.id.clone()),
-        text3d,
-        Text3dStyling {
-            font: view_font.font_name().into(),
-            size: view_font.default_size(),
-            world_scale: Some(world_scale),
+        text_block,
+        bevy_bitmap_text::TextBlockStyling {
+            font: bevy_bitmap_text::FontId::from_name(view_font.font_name()),
+            size_px: view_font.default_size() as u32,
+            world_scale: ws_x,
             color,
             line_height: text_def.line_height.unwrap_or(1.0),
             ..default()
         },
-        Mesh2d::default(),
-        crate::core::view::text::NeedsTextMaterial,
         text_world_transform,
-        Visibility::Hidden, // Will be shown when material is ready
-        InheritedVisibility::default(),
-        ViewVisibility::default(),
-        crate::core::view::text::NeedsGlyphRefresh,
+        Visibility::Hidden,
         RonDrivenView,
     ));
 

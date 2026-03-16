@@ -5,8 +5,8 @@ use super::super::sdf_view_shape::parse_text_preserving_whitespace;
 use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
 use crate::core::fre_facts;
 use bevy::prelude::*;
+use bevy_bitmap_text::TextBlock;
 use bevy_fact_rule_event::LayeredFactDatabase;
-use bevy_rich_text3d::{Text3d, Text3dSegment};
 
 /// Update time-dependent UI elements (elements with @time in expressions).
 /// Runs every frame for animation effects.
@@ -154,8 +154,7 @@ fn update_element_transform(
 }
 
 pub fn update_dynamic_text_system(
-    mut commands: Commands,
-    mut text_query: Query<(Entity, &ViewTextTemplate, &mut Text3d, &Name)>,
+    mut text_query: Query<(Entity, &ViewTextTemplate, &mut TextBlock, &Name)>,
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
@@ -165,8 +164,6 @@ pub fn update_dynamic_text_system(
 ) {
     use bevy::prelude::DetectChanges;
 
-    // Check if we need to update: either global DB changed or any ViewRoot's local_facts changed
-    // 检查是否需要更新：全局数据库变化或任何 ViewRoot 的 local_facts 变化
     let global_changed = layered_db.is_changed();
     let any_view_root_changed = !changed_view_roots.is_empty();
 
@@ -174,8 +171,6 @@ pub fn update_dynamic_text_system(
         return;
     }
 
-    // Base player data for fallback
-    // 用于回退的基础 player data
     let base_player_data = PlayerDataView::new(&layered_db);
 
     trace!(
@@ -190,9 +185,7 @@ pub fn update_dynamic_text_system(
             .unwrap_or(0)
     );
 
-    for (entity, template, mut text3d, name) in text_query.iter_mut() {
-        // Find ViewRoot ancestor to access local facts
-        // 查找 ViewRoot 祖先以访问局部事实
+    for (entity, template, mut text_block, _name) in text_query.iter_mut() {
         let view_root_result =
             find_view_root_ancestor_entity(entity, &parent_query, &view_root_query);
         let player_data = if let Some((_, view_root)) = view_root_result {
@@ -204,57 +197,12 @@ pub fn update_dynamic_text_system(
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
 
-        // Performance optimization: Skip if content hasn't changed
-        // 性能优化：如果内容未变化则跳过
-        // Note: Text3d doesn't directly expose content for comparison, so we always update.
-        // Future improvement: Store last resolved content in a component for comparison.
-        // 注意：Text3d 不直接暴露内容用于比较，所以我们总是更新。
-        // 未来改进：在组件中存储上次解析的内容用于比较。
-
-        // Debug: log when content contains newlines
-        if new_content.contains('\n') {
-            info!(
-                "[DEBUG] update_dynamic_text: '{}' has {} newlines, content={:?}",
-                name,
-                new_content.matches('\n').count(),
-                new_content
-            );
+        // Skip if content hasn't changed.
+        if text_block.full_text() == new_content {
+            continue;
         }
 
-        // Re-parsing the text3d
-        // 重新解析 text3d
-        *text3d = parse_text_preserving_whitespace(&new_content);
-
-        // Debug: verify Text3d segments contain \n
-        if new_content.contains('\n') {
-            for (i, (seg, _)) in text3d.segments.iter().enumerate() {
-                if let Text3dSegment::String(s) = seg {
-                    info!(
-                        "[DEBUG] Text3d segment[{}]: contains_newline={}, len={}, text={:?}",
-                        i,
-                        s.contains('\n'),
-                        s.len(),
-                        s
-                    );
-                }
-            }
-        }
-
-        // CRITICAL FIX: Add NeedsGlyphRefresh to trigger text re-rendering
-        // Use queue_handled to avoid panic if entity is despawned during the same frame
-        // 关键修复：添加 NeedsGlyphRefresh 以触发文本重新渲染
-        // 使用 queue_handled 避免在同一帧中实体被销毁时 panic
-        commands.queue(move |world: &mut World| {
-            if world.get_entity(entity).is_ok() {
-                world
-                    .entity_mut(entity)
-                    .insert(super::super::text::NeedsGlyphRefresh);
-            }
-        });
-
-        // Note: This simple update doesn't handle the "conditional_style" color change logic present in `spawn_ui_node`.
-        // To support that, we would need to store the `conditional_style` in a component too.
-        // For HP update, it is usually just text change, so this might be enough for the bug report.
+        *text_block = parse_text_preserving_whitespace(&new_content);
     }
 }
 

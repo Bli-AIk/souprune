@@ -1,0 +1,10 @@
+Source Han Sans CN (思源黑体 CN)
+==================================
+
+Font: Source Han Sans CN Light
+Copyright: Copyright 2014-2021 Adobe (http://www.adobe.com/)
+License: SIL Open Font License, Version 1.1
+URL: https://github.com/adobe-fonts/source-han-sans
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is available with a FAQ at: https://openfontlicense.org
