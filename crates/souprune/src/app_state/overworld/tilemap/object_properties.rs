@@ -18,7 +18,9 @@ use crate::core::map_property_schema::{
 };
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
-use bevy_fact_rule_event::{FactModification, FactValue, LayeredRuleRegistry, Rule, RuleScope};
+use bevy_fact_rule_event::{FactModification, FactValue, Rule, RuleScope};
+
+use crate::core::game_action::GameRuleRegistry;
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
@@ -47,7 +49,7 @@ pub fn process_map_object_properties_system(
     tiled_maps_query: Query<&TiledMap>,
     existing_triggers: Query<&TiledTriggerZone>,
     existing_interactables: Query<&TiledInteractable>,
-    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    mut rule_registry: ResMut<GameRuleRegistry>,
     souprune_config: Res<crate::config::SoupruneConfig>,
     loaded_rule_sets: Res<crate::app_state::overworld::trigger::LoadedRuleSets>,
 ) {
@@ -134,7 +136,7 @@ fn process_tiled_object(
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_registry: &mut GameRuleRegistry,
     dialogue_view_default: &str,
 ) {
     trace!(
@@ -264,7 +266,7 @@ fn spawn_interactable(
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
-    rule_registry: &mut LayeredRuleRegistry,
+    rule_registry: &mut GameRuleRegistry,
     dialogue_view_default: &str,
 ) {
     let tiled::ObjectShape::Rect { width, height } = object_data.shape else {

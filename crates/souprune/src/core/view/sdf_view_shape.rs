@@ -24,104 +24,13 @@ use super::components::{ViewBox, ViewBoxFiller, ViewTextTemplate, VisibleWhen};
 use super::layout::serde_types::color_tuple_to_static;
 use super::layout::{SdfColorSource, SdfLayerDef, SdfShapeKind, SdfStructureAsset};
 use super::sdf_shape::ViewSdfShape;
-use super::text::NeedsGlyphRefresh;
 use bevy::prelude::*;
-use bevy::sprite_render::AlphaMode2d;
 use bevy_alight_motion::sdf_material::SdfMaterial;
-use bevy_rich_text3d::{SegmentStyle, Text3d, Text3dSegment, Text3dStyling, TextAtlas};
+use bevy_bitmap_text::TextBlockStyling;
 use std::collections::VecDeque;
 
-/// Parse a `{#RRGGBB:content}` color tag, consuming characters from the iterator.
-/// Returns `(color_hex_string, content_string)`.
-fn parse_color_tag(chars: &mut std::iter::Peekable<std::str::Chars>) -> (String, String) {
-    chars.next(); // consume '#'
-    let mut color_str = String::new();
-    while let Some(&ch) = chars.peek() {
-        if ch == ':' {
-            chars.next();
-            break;
-        }
-        if let Some(c) = chars.next() {
-            color_str.push(c);
-        }
-    }
-
-    let mut content = String::new();
-    let mut depth = 1;
-    for ch in chars.by_ref() {
-        if ch == '{' {
-            depth += 1;
-            content.push(ch);
-        } else if ch == '}' {
-            depth -= 1;
-            if depth == 0 {
-                break;
-            }
-            content.push(ch);
-        } else {
-            content.push(ch);
-        }
-    }
-
-    (color_str, content)
-}
-
-/// Parse text with color tags while preserving whitespace.
-/// Supports `{#RRGGBB:text}` syntax for colored text.
-pub(crate) fn parse_text_preserving_whitespace(text: &str) -> Text3d {
-    let mut segments = Vec::new();
-    let mut buffer = String::new();
-    let mut chars = text.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '{' && chars.peek() == Some(&'#') {
-            // Push accumulated text
-            //
-            // 推送累积的文本
-            if !buffer.is_empty() {
-                segments.push((
-                    Text3dSegment::String(buffer.clone()),
-                    SegmentStyle::default(),
-                ));
-                buffer.clear();
-            }
-
-            let (color_str, content) = parse_color_tag(&mut chars);
-
-            // Add colored segment
-            //
-            // 添加着色片段
-            if let Ok(color) = Srgba::hex(&color_str) {
-                segments.push((
-                    Text3dSegment::String(content),
-                    SegmentStyle {
-                        fill_color: Some(color),
-                        ..Default::default()
-                    },
-                ));
-            } else {
-                // Fallback: treat as plain text
-                //
-                // 回退：视为纯文本
-                segments.push((
-                    Text3dSegment::String(format!("{{#{}:{}}}", color_str, content)),
-                    SegmentStyle::default(),
-                ));
-            }
-        } else {
-            buffer.push(c);
-        }
-    }
-
-    // Push remaining text
-    //
-    // 推送剩余文本
-    if !buffer.is_empty() {
-        segments.push((Text3dSegment::String(buffer), SegmentStyle::default()));
-    }
-
-    Text3d { segments }
-}
+/// Re-export from bevy_bitmap_text — parse `{#RRGGBB:content}` color tags.
+pub(crate) use bevy_bitmap_text::parse_text_to_segments as parse_text_preserving_whitespace;
 
 type ViewBoxQuery<'w, 's> = Query<
     'w,
@@ -426,7 +335,7 @@ fn spawn_texts_for_filler(
     commands: &mut Commands,
     filler_entity: Entity,
     ui_box: &ViewBox,
-    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+    _color_materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     if ui_box.texts.is_empty() {
         return;
@@ -438,38 +347,25 @@ fn spawn_texts_for_filler(
             for text_config in &ui_box.texts {
                 info!("Spawning text for UI box: {}", text_config.content);
 
-                let mat = color_materials.add(ColorMaterial {
-                    texture: Some(TextAtlas::DEFAULT_IMAGE.clone()),
-                    alpha_mode: AlphaMode2d::Blend,
-                    ..Default::default()
-                });
-
-                // Manually parse color tags to preserve whitespace
-                // Text3d::parse() collapses consecutive spaces, so we build segments manually
-                // 手动解析颜色标签以保留空格
-                // Text3d::parse() 会合并连续空格，所以我们手动构建片段
-                let text3d = parse_text_preserving_whitespace(&text_config.content);
+                let text_block = parse_text_preserving_whitespace(&text_config.content);
 
                 let mut cmd = filler_parent.spawn((
                     text_config.name.clone(),
-                    text3d,
-                    Text3dStyling {
-                        font: text_config.font.font_name().into(),
-                        size: text_config.font.default_size(),
-                        world_scale: Some(text_config.world_scale),
+                    text_block,
+                    TextBlockStyling {
+                        font: bevy_bitmap_text::FontId::from_name(text_config.font.font_name()),
+                        size_px: text_config.font.default_size() as u32,
+                        world_scale: text_config.world_scale.x,
                         color: text_config.color,
                         align: text_config.align,
                         anchor: text_config.anchor,
                         line_height: text_config.line_height,
+                        char_spacing: text_config.char_spacing,
+                        word_spacing: text_config.word_spacing,
                         ..Default::default()
                     },
-                    Mesh2d::default(),
-                    MeshMaterial2d(mat.clone()),
                     text_config.transform,
                     Visibility::Hidden,
-                    InheritedVisibility::default(),
-                    ViewVisibility::default(),
-                    NeedsGlyphRefresh,
                 ));
 
                 if let Some(template) = &text_config.template {

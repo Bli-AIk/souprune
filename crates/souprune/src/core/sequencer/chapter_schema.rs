@@ -31,24 +31,24 @@ use serde::{Deserialize, Serialize};
 /// 3D vector tuple type for coordinates like translation and scale.
 ///
 /// 三维向量元组类型，用于表示位置和缩放等坐标。
-pub type Vec3Tuple = (Val<f32>, Val<f32>, Val<f32>);
+pub type Vec3Tuple = (Value<f32>, Value<f32>, Value<f32>);
 
 /// 2D vector tuple type for coordinates.
 ///
 /// 二维向量元组类型，用于表示坐标。
-pub type Vec2Tuple = (Val<f32>, Val<f32>);
+pub type Vec2Tuple = (Value<f32>, Value<f32>);
 
 /// Color tuple type with RGBA components.
 ///
 /// RGBA 颜色元组类型。
-pub type ColorTuple = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+pub type ColorTuple = (Value<f32>, Value<f32>, Value<f32>, Value<f32>);
 
 /// Generic value that can be either static or computed from an expression.
 ///
 /// 泛型值，可以是静态值或从表达式计算得出。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum Val<T> {
+pub enum Value<T> {
     /// Static value.
     ///
     /// 静态值。
@@ -59,12 +59,12 @@ pub enum Val<T> {
     Expr(String),
 }
 
-impl<T> Val<T> {
+impl<T> Value<T> {
     /// Returns true if this is a dynamic expression.
     ///
     /// 如果是动态表达式则返回 true。
     pub fn is_expr(&self) -> bool {
-        matches!(self, Val::Expr(_))
+        matches!(self, Value::Expr(_))
     }
 
     /// Alias for `is_expr()`.
@@ -79,8 +79,8 @@ impl<T> Val<T> {
     /// 获取静态值（如果可用）。
     pub fn as_static(&self) -> Option<&T> {
         match self {
-            Val::Static(v) => Some(v),
-            Val::Expr(_) => None,
+            Value::Static(v) => Some(v),
+            Value::Expr(_) => None,
         }
     }
 
@@ -89,8 +89,8 @@ impl<T> Val<T> {
     /// 获取表达式字符串（如果是表达式）。
     pub fn as_expr(&self) -> Option<&str> {
         match self {
-            Val::Expr(s) => Some(s),
-            Val::Static(_) => None,
+            Value::Expr(s) => Some(s),
+            Value::Static(_) => None,
         }
     }
 }
@@ -206,16 +206,16 @@ pub enum Chapter {
     /// 播放 Alight Motion 项目 (.amproj) 作为战斗动画。
     /// 名称以 "#B" 开头的图层被视为弹幕（带碰撞体）。
     /// 名称以 "#C" 开头的图层被视为战斗框边界。
-    AmPerformance {
+    AlightMotionPerformance {
         /// Path to the .amproj file (e.g., "demo_turn.amproj")
         amproj_path: String,
-        /// Optional path to am_config.ron for this performance.
-        /// If not specified, uses the default path: "battle/am_config.ron"
+        /// Optional path to alight_motion_config.ron for this performance.
+        /// If not specified, uses the default path: "battle/alight_motion_config.ron"
         ///
-        /// 此演出使用的可选 am_config.ron 路径。
-        /// 如果未指定，使用默认路径："battle/am_config.ron"
-        #[serde(default)]
-        am_config: Option<String>,
+        /// 此演出使用的可选 alight_motion_config.ron 路径。
+        /// 如果未指定，使用默认路径："battle/alight_motion_config.ron"
+        #[serde(default, alias = "am_config")]
+        alight_motion_config: Option<String>,
         /// Wait for animation to complete before continuing (default: true)
         #[serde(default = "default_true")]
         wait_for_completion: bool,
@@ -923,7 +923,7 @@ pub enum ElementModification {
     /// 每个坐标可以是静态浮点数或动态表达式字符串。
     /// 表达式支持 sin/cos/snap 和 random() 函数。
     /// 使用 "@current" 保持现有坐标值。
-    SetPosition(Val<f32>, Val<f32>, Val<f32>),
+    SetPosition(Value<f32>, Value<f32>, Value<f32>),
 
     /// Set scale (x, y, z).
     ///
@@ -932,7 +932,7 @@ pub enum ElementModification {
     /// 设置缩放 (x, y, z)。
     ///
     /// 每个坐标可以是静态浮点数或动态表达式字符串。
-    SetScale(Val<f32>, Val<f32>, Val<f32>),
+    SetScale(Value<f32>, Value<f32>, Value<f32>),
 
     /// Set color (r, g, b, a) - values 0.0 to 1.0.
     ///
@@ -941,7 +941,7 @@ pub enum ElementModification {
     /// 设置颜色 (r, g, b, a) - 值范围 0.0 至 1.0。
     ///
     /// 每个通道可以是静态浮点数或动态表达式字符串。
-    SetColor(Val<f32>, Val<f32>, Val<f32>, Val<f32>),
+    SetColor(Value<f32>, Value<f32>, Value<f32>, Value<f32>),
 
     /// Set visibility (true = visible, false = hidden).
     ///
@@ -950,12 +950,12 @@ pub enum ElementModification {
     /// 设置可见性（true = 可见，false = 隐藏）。
     ///
     /// 可以是静态布尔值或动态表达式字符串。
-    SetVisibility(Val<bool>),
+    SetVisibility(Value<bool>),
 
     /// Set ViewBox dimensions (width, height).
     ///
     /// 设置 ViewBox 尺寸（宽度，高度）。
-    SetBoxSize(Val<f32>, Val<f32>),
+    SetBoxSize(Value<f32>, Value<f32>),
 
     /// Undo last modification for this element.
     ///
@@ -1151,16 +1151,16 @@ pub enum TweenTarget {
     /// 动画旋转（绕 Z 轴的弧度）。
     Rotation {
         #[serde(default)]
-        from: Option<Val<f32>>,
-        to: Val<f32>,
+        from: Option<Value<f32>>,
+        to: Value<f32>,
     },
     /// Animate alpha/opacity only.
     ///
     /// 仅动画透明度。
     Alpha {
         #[serde(default)]
-        from: Option<Val<f32>>,
-        to: Val<f32>,
+        from: Option<Value<f32>>,
+        to: Value<f32>,
     },
 }
 
@@ -1170,12 +1170,12 @@ mod tests {
 
     #[test]
     fn test_val_f32_parse() {
-        // Test that Val<f32> can parse both static and expr
+        // Test that Value<f32> can parse both static and expr
         let ron_static = "130.0";
         let ron_expr = r#""@current""#;
 
-        let result_static: Result<Val<f32>, _> = ron::from_str(ron_static);
-        let result_expr: Result<Val<f32>, _> = ron::from_str(ron_expr);
+        let result_static: Result<Value<f32>, _> = ron::from_str(ron_static);
+        let result_expr: Result<Value<f32>, _> = ron::from_str(ron_expr);
 
         println!("Static parse result: {:?}", result_static);
         println!("Expr parse result: {:?}", result_expr);

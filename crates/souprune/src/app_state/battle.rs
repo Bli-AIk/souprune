@@ -23,13 +23,13 @@
 //! 对于 UT/DR 游戏，表现为玩家和敌人轮流进行动作，直到战斗结束。
 //! 对于更复杂的 STG 游戏，线性序列可以表现为更复杂的机制。
 
-pub mod am_integration;
+pub mod alight_motion_integration;
 pub mod collision;
 pub mod danmaku;
 pub mod fre;
 pub mod player_config_schema;
 
-use crate::app_state::battle::am_integration::AmBattlePlugin;
+use crate::app_state::battle::alight_motion_integration::AlightMotionBattlePlugin;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
@@ -94,7 +94,7 @@ impl Plugin for BattlePlugin {
                 SequencerPlugin,
                 BattleCollisionPlugin,
                 DanmakuPlugin,
-                AmBattlePlugin,
+                AlightMotionBattlePlugin,
                 BattleFREPlugin,
             ))
             .add_systems(

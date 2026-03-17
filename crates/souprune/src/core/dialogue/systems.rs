@@ -5,7 +5,10 @@
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
-use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
+use bevy_mortar_bond::{
+    CachedCondition, MortarDialogueFinished, MortarDialogueVariables, MortarEvent, MortarRuntime,
+    MortarVariableState, MortarVariableValue, evaluate_condition_cached, process_interpolated_text,
+};
 
 use super::components::{MortarController, TypewriterVoice};
 use super::config::DialogueInputConfig;
@@ -323,6 +326,63 @@ pub fn dialogue_skip_typewriter_system(
     }
 }
 
+/// Syncs item dialogue data from FRE facts to Mortar runtime.
+///
+/// 将物品对话数据从 FRE facts 同步到 Mortar 运行时。
+///
+/// Registers mortar functions (`get_player_hp`, `get_player_hp_max`, etc.)
+/// and sets mortar variables (`item_name`, `heal_amount`, etc.) so that
+/// item dialogue templates can resolve their placeholders and conditions.
+///
+/// 注册 mortar 函数并设置 mortar 变量，
+/// 使物品对话模板能正确解析占位符和条件表达式。
+pub fn prepare_item_dialogue_mortar_system(
+    mut runtime: ResMut<MortarRuntime>,
+    facts: Res<LayeredFactDatabase>,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    mut variables: ResMut<MortarDialogueVariables>,
+) {
+    if !runtime.has_active_dialogues() {
+        return;
+    }
+
+    // Register mortar functions with current fact values
+    let hp = facts.get_int(fre_facts::PLAYER_HP).unwrap_or(20) as f64;
+    let hp_max = facts.get_int(fre_facts::PLAYER_HP_MAX).unwrap_or(20) as f64;
+    let heal_amount = facts
+        .get_int(fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT)
+        .unwrap_or(0) as f64;
+    let item_value = facts.get_int(fre_facts::DIALOGUE_ITEM_VALUE).unwrap_or(0) as f64;
+
+    use bevy_mortar_bond::{MortarNumber, MortarValue};
+    runtime.functions.register("get_player_hp", move |_| {
+        MortarValue::Number(MortarNumber(hp))
+    });
+    runtime.functions.register("get_player_hp_max", move |_| {
+        MortarValue::Number(MortarNumber(hp_max))
+    });
+    runtime.functions.register("get_heal_amount", move |_| {
+        MortarValue::Number(MortarNumber(heal_amount))
+    });
+    runtime.functions.register("get_item_value", move |_| {
+        MortarValue::Number(MortarNumber(item_value))
+    });
+
+    // Set mortar variables for template string interpolation
+    let vs = variables.state.get_or_insert_with(MortarVariableState::new);
+    if let Some(locale_key) = facts.get_string(fre_facts::DIALOGUE_ITEM_NAME) {
+        let display_name = mortar_strings.resolve(locale_key).to_string();
+        vs.set("item_name", MortarVariableValue::String(display_name));
+    }
+    if let Some(desc) = facts.get_string(fre_facts::DIALOGUE_ITEM_DESCRIPTION) {
+        vs.set(
+            "item_description",
+            MortarVariableValue::String(desc.to_string()),
+        );
+    }
+    vs.set("heal_amount", MortarVariableValue::Number(heal_amount));
+}
+
 /// Syncs Mortar dialogue text to Typewriter component.
 ///
 /// 将 Mortar 对话文本同步到 Typewriter 组件。
@@ -334,22 +394,83 @@ pub fn dialogue_skip_typewriter_system(
 /// 这为对话启用打字机效果。
 pub fn sync_mortar_text_to_typewriter_system(
     runtime: Res<bevy_mortar_bond::MortarRuntime>,
+    variables: Option<Res<MortarDialogueVariables>>,
     mut query: Query<&mut Typewriter, With<DialogueControllerEntity>>,
+    mut mortar_events: MessageWriter<MortarEvent>,
+    mut cached_condition: Local<Option<CachedCondition>>,
 ) {
     let Some(state) = runtime.primary_dialogue_state() else {
+        *cached_condition = None;
         return;
     };
 
-    let new_text = state.current_text().unwrap_or("");
+    let default_vs = MortarVariableState::new();
+    let variable_state = variables
+        .as_ref()
+        .and_then(|v| v.state.as_ref())
+        .unwrap_or(&default_vs);
+
+    let Some(text_data) = state.current_text_data() else {
+        return;
+    };
+
+    // Line groups: collect all consecutive lines, evaluate conditions per-line,
+    // join passing lines with '\n' into a single display unit.
+    //
+    // Line 组：收集所有连续 line，逐行评估条件，用 '\n' 拼接为单个显示单元。
+    let new_text = if text_data.is_line {
+        let group = state.current_line_group().unwrap_or(&[]);
+        let mut result_lines = Vec::new();
+        for line_data in group {
+            if let Some(condition) = &line_data.condition
+                && !evaluate_condition_cached(
+                    condition,
+                    &runtime.functions,
+                    variable_state,
+                    &mut cached_condition,
+                )
+            {
+                continue;
+            }
+            let line_text =
+                process_interpolated_text(line_data, &runtime.functions, &[], variable_state);
+            if !line_text.is_empty() {
+                result_lines.push(line_text);
+            }
+        }
+        if result_lines.is_empty() {
+            mortar_events.write(MortarEvent::next_text());
+            return;
+        }
+        result_lines.join("\n")
+    } else {
+        // Regular text: check condition, skip if false
+        //
+        // 常规 text：检查条件，条件为 false 时跳过
+        if let Some(condition) = &text_data.condition {
+            let result = evaluate_condition_cached(
+                condition,
+                &runtime.functions,
+                variable_state,
+                &mut cached_condition,
+            );
+            if !result {
+                mortar_events.write(MortarEvent::next_text());
+                return;
+            }
+        }
+        process_interpolated_text(text_data, &runtime.functions, &[], variable_state)
+    };
 
     for mut typewriter in &mut query {
-        // Only update if the source text changed
         if typewriter.source_text != new_text {
-            trace!(
-                "sync_mortar_text_to_typewriter: updating source_text to '{}'",
+            info!(
+                "[DEBUG] sync_mortar: setting typewriter text (is_line={}, lines={}): '{}'",
+                text_data.is_line,
+                new_text.matches('\n').count() + 1,
                 new_text
             );
-            typewriter.source_text = new_text.to_string();
+            typewriter.source_text = new_text.clone();
             typewriter.current_text.clear();
             typewriter.current_char_index = 0;
             typewriter.play();

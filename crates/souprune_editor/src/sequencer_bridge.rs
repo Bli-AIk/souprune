@@ -46,7 +46,7 @@ pub fn on_enter_play(
         // 加载序列级 FRE 规则
         if let Some(rules_path) = &seq.rules_file {
             let rules_handle =
-                asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
+                asset_server.load::<souprune::core::game_action::GameFreAsset>(rules_path.clone());
             commands.insert_resource(souprune::core::sequencer::SequenceRulesHandle {
                 handle: Some(rules_handle),
                 registered: false,

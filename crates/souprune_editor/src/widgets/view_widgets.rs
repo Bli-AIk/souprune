@@ -2,14 +2,14 @@
 //!
 //! 提供 Vec3Tuple、ColorTuple、Transform、Tag 列表等编辑控件。
 
-use souprune::core::sequencer::chapter_schema::Val;
+use souprune::core::sequencer::chapter_schema::Value;
 use souprune::core::view::layout::serde_types::{
     SerializableColor, SerializableTransform, SerializableVec2, SerializableVec3, ViewFontDef,
 };
 
 use super::val_editor::edit_val_f32;
 
-/// 编辑 Vec3Tuple (Val<f32>, Val<f32>, Val<f32>)。
+/// 编辑 Vec3Tuple (Value<f32>, Value<f32>, Value<f32>)。
 pub fn edit_vec3(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec3) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
@@ -23,7 +23,7 @@ pub fn edit_vec3(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec3) -> 
     changed
 }
 
-/// 编辑 Vec2Tuple (Val<f32>, Val<f32>)。
+/// 编辑 Vec2Tuple (Value<f32>, Value<f32>)。
 pub fn edit_vec2(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec2) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
@@ -36,13 +36,13 @@ pub fn edit_vec2(ui: &mut egui::Ui, label: &str, vec: &mut SerializableVec2) -> 
     changed
 }
 
-/// 编辑 ColorTuple (Val<f32>, Val<f32>, Val<f32>, Val<f32>) — RGBA。
+/// 编辑 ColorTuple (Value<f32>, Value<f32>, Value<f32>, Value<f32>) — RGBA。
 pub fn edit_color(ui: &mut egui::Ui, label: &str, color: &mut SerializableColor) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
         // 静态颜色预览方块
-        if let (Val::Static(r), Val::Static(g), Val::Static(b), Val::Static(a)) =
+        if let (Value::Static(r), Value::Static(g), Value::Static(b), Value::Static(a)) =
             (&color.0, &color.1, &color.2, &color.3)
         {
             let preview = egui::Color32::from_rgba_unmultiplied(
@@ -76,10 +76,10 @@ pub fn edit_option_color(
         if ui.checkbox(&mut enabled, label).changed() {
             if enabled {
                 *opt = Some((
-                    Val::Static(1.0),
-                    Val::Static(1.0),
-                    Val::Static(1.0),
-                    Val::Static(1.0),
+                    Value::Static(1.0),
+                    Value::Static(1.0),
+                    Value::Static(1.0),
+                    Value::Static(1.0),
                 ));
             } else {
                 *opt = None;
@@ -105,7 +105,7 @@ pub fn edit_transform(
         let mut has_t = transform.translation.is_some();
         if ui.checkbox(&mut has_t, "Translation").changed() {
             transform.translation = if has_t {
-                Some((Val::Static(0.0), Val::Static(0.0), Val::Static(0.0)))
+                Some((Value::Static(0.0), Value::Static(0.0), Value::Static(0.0)))
             } else {
                 None
             };
@@ -119,7 +119,7 @@ pub fn edit_transform(
         let mut has_s = transform.scale.is_some();
         if ui.checkbox(&mut has_s, "Scale").changed() {
             transform.scale = if has_s {
-                Some((Val::Static(1.0), Val::Static(1.0), Val::Static(1.0)))
+                Some((Value::Static(1.0), Value::Static(1.0), Value::Static(1.0)))
             } else {
                 None
             };
@@ -182,7 +182,7 @@ pub fn edit_option_vec2_tuple(
     let mut enabled = opt.is_some();
     if ui.checkbox(&mut enabled, label).changed() {
         if enabled {
-            *opt = Some((Val::Static(0.5), Val::Static(0.5)));
+            *opt = Some((Value::Static(0.5), Value::Static(0.5)));
         } else {
             *opt = None;
         }

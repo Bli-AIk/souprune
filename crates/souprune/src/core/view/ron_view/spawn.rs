@@ -3,12 +3,13 @@ use super::super::layout::*;
 use super::parsing::PlayerDataView;
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
 use super::spawn_helpers::resolve_simple_localization;
-use crate::app_state::overworld::trigger::RuleActionDefs;
 use crate::core::sprite::params::SpriteParams;
 use crate::extra::debug::DebugCamera;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FreAsset, LayeredFactDatabase, LayeredRuleRegistry, RuleScope};
+use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
+
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
 // Re-export from sibling modules for backwards compatibility
 pub use super::spawn_helpers::{load_fre_into_view_root, load_procedural_image_handle};
@@ -21,17 +22,16 @@ pub use super::spawn_nodes::spawn_view_node;
 /// 减少系统参数数量以保持在 Bevy 的 16 参数限制内。
 #[derive(SystemParam)]
 pub struct FreSystemParams<'w> {
-    pub rule_registry: ResMut<'w, LayeredRuleRegistry>,
-    pub action_defs: ResMut<'w, RuleActionDefs>,
+    pub rule_registry: ResMut<'w, GameRuleRegistry>,
+    pub enum_registry: ResMut<'w, bevy_fact_rule_event::EnumRegistry>,
 }
 
 /// Register view-scoped FRE rules from a loaded FreAsset.
 /// Returns the number of rules registered.
 fn register_fre_rules_from_asset(
-    fre_asset: &FreAsset,
+    fre_asset: &GameFreAsset,
     view_entity: Entity,
-    rule_registry: &mut LayeredRuleRegistry,
-    action_defs: &mut RuleActionDefs,
+    rule_registry: &mut GameRuleRegistry,
 ) -> usize {
     let rule_defs = fre_asset.get_rule_defs();
     let scope = fre_asset.scope();
@@ -44,13 +44,6 @@ fn register_fre_rules_from_asset(
         };
 
         let rule = rule_def.to_rule_with_index(idx, effective_scope);
-        let rule_id = rule_def.generate_id(idx);
-
-        if !rule_def.actions.is_empty() {
-            action_defs
-                .actions_by_rule
-                .insert(rule_id, rule_def.actions.clone());
-        }
 
         if effective_scope == RuleScope::View {
             rule_registry.register_view_rule(view_entity, rule);
@@ -68,13 +61,13 @@ fn process_interface_requirement(
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
     asset_server: &AssetServer,
-    fre_assets: &Assets<FreAsset>,
+    fre_assets: &Assets<GameFreAsset>,
     view_root: &mut crate::core::view::components::ViewRoot,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     layered_db: &LayeredFactDatabase,
     view_entity: Entity,
-    rule_registry: &mut LayeredRuleRegistry,
-    action_defs: &mut RuleActionDefs,
+    rule_registry: &mut GameRuleRegistry,
+    enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
 ) {
     let Some(bindings) = bindings else {
         warn!(
@@ -92,13 +85,12 @@ fn process_interface_requirement(
     };
     match binding {
         crate::core::sequencer::chapter_schema::DataBinding::File(path) => {
-            let handle: Handle<FreAsset> = asset_server.load(path.clone());
+            let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
             let Some(fre_asset) = fre_assets.get(&handle) else {
                 return;
             };
-            load_fre_into_view_root(view_root, fre_asset, mortar_strings);
-            let num_rules =
-                register_fre_rules_from_asset(fre_asset, view_entity, rule_registry, action_defs);
+            load_fre_into_view_root(view_root, fre_asset, mortar_strings, enum_registry);
+            let num_rules = register_fre_rules_from_asset(fre_asset, view_entity, rule_registry);
             info!(
                 "[ViewRoot] Bound interface '{}' to file '{}' ({} rules)",
                 interface, path, num_rules
@@ -107,17 +99,12 @@ fn process_interface_requirement(
         crate::core::sequencer::chapter_schema::DataBinding::Files(paths) => {
             let mut total_rules = 0;
             for path in paths {
-                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
                 let Some(fre_asset) = fre_assets.get(&handle) else {
                     continue;
                 };
-                load_fre_into_view_root(view_root, fre_asset, mortar_strings);
-                total_rules += register_fre_rules_from_asset(
-                    fre_asset,
-                    view_entity,
-                    rule_registry,
-                    action_defs,
-                );
+                load_fre_into_view_root(view_root, fre_asset, mortar_strings, enum_registry);
+                total_rules += register_fre_rules_from_asset(fre_asset, view_entity, rule_registry);
             }
             info!(
                 "[ViewRoot] Bound interface '{}' to {} files ({} rules)",
@@ -136,7 +123,7 @@ fn process_interface_requirement(
             // 从 LOCAL 层复制 facts 到 view 的 local_facts。
             // 跳过 dialogue:* facts —— 它们由系统管理并每帧更新。
             for (key, value) in layered_db.iter_local() {
-                if key.0.starts_with("dialogue:") {
+                if key.starts_with("dialogue:") {
                     continue;
                 }
                 // Resolve localization for string values
@@ -144,17 +131,17 @@ fn process_interface_requirement(
                 match value {
                     bevy_fact_rule_event::FactValue::String(s) => {
                         let resolved = resolve_simple_localization(s, mortar_strings);
-                        view_root.local_facts.set(key.0.clone(), resolved);
+                        view_root.local_facts.set(key.clone(), resolved);
                     }
                     bevy_fact_rule_event::FactValue::StringList(list) => {
                         let resolved_list: Vec<String> = list
                             .iter()
                             .map(|s| resolve_simple_localization(s, mortar_strings))
                             .collect();
-                        view_root.local_facts.set(key.0.clone(), resolved_list);
+                        view_root.local_facts.set(key.clone(), resolved_list);
                     }
                     _ => {
-                        view_root.local_facts.set(key.0.clone(), value.clone());
+                        view_root.local_facts.set(key.clone(), value.clone());
                     }
                 }
             }
@@ -179,7 +166,7 @@ pub fn spawn_ron_view_for_entity(
     view_layout: &ViewLayoutAsset,
     sprite_params: &mut SpriteParams,
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
-    fre_assets: &Assets<FreAsset>,
+    fre_assets: &Assets<GameFreAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
@@ -188,8 +175,8 @@ pub fn spawn_ron_view_for_entity(
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
     >,
     layered_db: &LayeredFactDatabase,
-    rule_registry: &mut LayeredRuleRegistry,
-    action_defs: &mut RuleActionDefs,
+    rule_registry: &mut GameRuleRegistry,
+    enum_registry: &mut bevy_fact_rule_event::EnumRegistry,
 ) {
     // Generate namespace from layout path
     // 从布局路径生成命名空间
@@ -201,7 +188,7 @@ pub fn spawn_ron_view_for_entity(
 
     // Track pending FRE files that need delayed registration (store handles to keep loading alive)
     // 跟踪需要延迟注册的待处理 FRE 文件（存储句柄以保持加载请求）
-    let mut pending_fre_handles: Vec<(String, Handle<FreAsset>)> = Vec::new();
+    let mut pending_fre_handles: Vec<(String, Handle<GameFreAsset>)> = Vec::new();
 
     // Process requires declarations
     // 处理 requires 声明
@@ -210,7 +197,7 @@ pub fn spawn_ron_view_for_entity(
             DataRequirement::File(path) => {
                 // Load FRE file if already loaded
                 // 如果已加载则加载 FRE 文件
-                let handle: Handle<FreAsset> = asset_server.load(path.clone());
+                let handle: Handle<GameFreAsset> = asset_server.load(path.clone());
                 let Some(fre_asset) = fre_assets.get(&handle) else {
                     // FRE file not yet loaded - add to pending for delayed registration
                     // Store the handle to keep the loading request alive
@@ -223,16 +210,12 @@ pub fn spawn_ron_view_for_entity(
                     pending_fre_handles.push((path.clone(), handle));
                     continue;
                 };
-                load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings);
+                load_fre_into_view_root(&mut view_root, fre_asset, mortar_strings, enum_registry);
 
                 // Register View-scoped rules from this FRE file
                 // 从此 FRE 文件注册 View 作用域的规则
-                let num_rules = register_fre_rules_from_asset(
-                    fre_asset,
-                    view_entity,
-                    rule_registry,
-                    action_defs,
-                );
+                let num_rules =
+                    register_fre_rules_from_asset(fre_asset, view_entity, rule_registry);
                 if num_rules > 0 {
                     info!(
                         "[ViewRoot] Registered {} rules from '{}' for View entity {:?}",
@@ -255,7 +238,7 @@ pub fn spawn_ron_view_for_entity(
                     layered_db,
                     view_entity,
                     rule_registry,
-                    action_defs,
+                    enum_registry,
                 );
             }
         }
@@ -344,7 +327,7 @@ pub fn spawn_dynamic_view_system(
     asset_server: Res<AssetServer>,
     view_layouts: Res<Assets<ViewLayoutAsset>>,
     animation_assets: Res<Assets<crate::core::character_asset::AnimationConfigAsset>>,
-    fre_assets: Res<Assets<FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     // Query for views with HotReloadableViewRoot + RonDrivenView but not yet generated
     // 查询有 HotReloadableViewRoot + RonDrivenView 但尚未生成的 View
     dynamic_view_query: Query<
@@ -426,7 +409,7 @@ pub fn spawn_dynamic_view_system(
             bindings,
             &layered_db,
             &mut fre_params.rule_registry,
-            &mut fre_params.action_defs,
+            &mut fre_params.enum_registry,
         );
 
         // Camera-relative views: parent the view entity to the camera so child

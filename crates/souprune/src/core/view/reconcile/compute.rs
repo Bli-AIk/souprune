@@ -11,7 +11,7 @@ use super::resolve::{
     resolve_transform, resolve_viewbox_transform, resolve_visibility,
 };
 use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
-use crate::core::sequencer::chapter_schema::Val;
+use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
 use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};
@@ -256,16 +256,16 @@ fn build_element_key(
 /// 表达式被视为 0.0。
 fn serializable_vec3_to_vec3(vec: &SerializableVec3) -> Vec3 {
     let x = match &vec.0 {
-        Val::Static(v) => *v,
-        Val::Expr(_) => 0.0,
+        Value::Static(v) => *v,
+        Value::Expr(_) => 0.0,
     };
     let y = match &vec.1 {
-        Val::Static(v) => *v,
-        Val::Expr(_) => 0.0,
+        Value::Static(v) => *v,
+        Value::Expr(_) => 0.0,
     };
     let z = match &vec.2 {
-        Val::Static(v) => *v,
-        Val::Expr(_) => 0.0,
+        Value::Static(v) => *v,
+        Value::Expr(_) => 0.0,
     };
     Vec3::new(x, y, z)
 }

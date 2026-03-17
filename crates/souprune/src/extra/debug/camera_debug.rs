@@ -98,11 +98,11 @@ pub mod debug_camera {
                 *transform = saved;
             }
             if let Some(saved_scale) = state.saved_scale.take() {
-                if let Projection::Orthographic(ref mut ortho) = *projection {
-                    ortho.scale = saved_scale;
-                }
                 state.current_scale = saved_scale;
                 state.target_scale = saved_scale;
+            }
+            if let Projection::Orthographic(ref mut ortho) = *projection {
+                ortho.scale = state.current_scale;
             }
             commands
                 .entity(camera_entity)

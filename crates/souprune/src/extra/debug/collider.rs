@@ -161,7 +161,7 @@ pub mod debug_collider {
         am_battle_boxes: Query<
             (
                 &GlobalTransform,
-                &crate::app_state::battle::collision::AmBattleBoxBounds,
+                &crate::app_state::battle::collision::AlightMotionBattleBoxBounds,
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,

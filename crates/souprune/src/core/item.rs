@@ -15,6 +15,7 @@
 
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
+use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -45,13 +46,17 @@ pub struct Item {
     #[serde(default)]
     pub locale: LocaleInfo,
     pub description: String,
+    /// Optional Mortar script for conditional text (OnUse/OnCheck/OnDrop nodes).
+    /// If omitted, defaults from `_defaults.mortar` are used.
+    #[serde(default)]
+    pub mortar: Option<String>,
     pub item_type: ItemType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ItemType {
     Food {
-        #[serde(default)]
+        #[serde(default = "default_true")]
         consumable: bool,
         #[serde(default)]
         effects: Vec<ItemEffect>,
@@ -66,13 +71,50 @@ pub enum ItemType {
         #[serde(default)]
         defense: i32,
     },
+    /// Key item — non-consumable, non-droppable (e.g., cell phone).
+    KeyItem,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ItemEffect {
-    Heal { amount: i32 },
-    PlayAudio { clip_path: String },
-    SpawnChildItem { item_id: String },
+    Heal {
+        amount: i32,
+    },
+    PlayAudio {
+        clip_path: String,
+    },
+    SpawnChildItem {
+        item_id: String,
+    },
+    /// Set an FRE fact (generic extension point for state mutations).
+    SetFact {
+        key: String,
+        value: ItemFactValue,
+    },
+}
+
+/// Lightweight fact value for item effects.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub enum ItemFactValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+}
+
+impl From<ItemFactValue> for FactValue {
+    fn from(v: ItemFactValue) -> Self {
+        match v {
+            ItemFactValue::Int(i) => FactValue::Int(i),
+            ItemFactValue::Float(f) => FactValue::Float(f),
+            ItemFactValue::Bool(b) => FactValue::Bool(b),
+            ItemFactValue::String(s) => FactValue::String(s),
+        }
+    }
 }
 
 // --- Asset ---
@@ -110,6 +152,7 @@ fn sync_items_system(
     loaded_folders: Res<Assets<LoadedFolder>>,
     item_assets: Res<Assets<ItemListAsset>>,
     mut registry: ResMut<ItemRegistry>,
+    mut global_facts: ResMut<LayeredFactDatabase>,
 ) {
     let Some(folder_handle) = item_folder else {
         return;
@@ -138,9 +181,49 @@ fn sync_items_system(
                 registry.0.insert(item.id.clone(), item.clone());
             }
         }
+
+        inject_item_facts(&registry, &mut global_facts);
+
         info!(
             "Item Registry initialization complete. Total items: {}",
             registry.0.len()
         );
+    }
+}
+
+/// Inject item metadata into FRE global facts so rules can query item properties.
+fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
+    for (id, item) in &registry.0 {
+        let prefix = format!("items:{id}");
+        let (type_name, extra_facts) = match &item.item_type {
+            ItemType::Food {
+                consumable,
+                effects,
+            } => {
+                let heal = effects.iter().find_map(|e| match e {
+                    ItemEffect::Heal { amount } => Some(*amount as i64),
+                    _ => None,
+                });
+                let mut facts = vec![("consumable", FactValue::Bool(*consumable))];
+                if let Some(heal) = heal {
+                    facts.push(("heal", FactValue::Int(heal)));
+                }
+                ("Food", facts)
+            }
+            ItemType::Weapon { damage, .. } => {
+                ("Weapon", vec![("damage", FactValue::Int(*damage as i64))])
+            }
+            ItemType::Armor { defense } => {
+                ("Armor", vec![("defense", FactValue::Int(*defense as i64))])
+            }
+            ItemType::KeyItem => ("KeyItem", vec![]),
+        };
+        facts.set_global(
+            format!("{prefix}.type"),
+            FactValue::String(type_name.to_string()),
+        );
+        for (suffix, value) in extra_facts {
+            facts.set_global(format!("{prefix}.{suffix}"), value);
+        }
     }
 }
