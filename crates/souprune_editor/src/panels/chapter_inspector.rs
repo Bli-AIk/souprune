@@ -357,6 +357,55 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
         Chapter::LoadEnemies { enemies } => {
             changed |= edit_string_list(ui, &t(world, "prop-files"), enemies, world);
         }
+
+        Chapter::SplitBattleBox {
+            source,
+            result,
+            axis,
+            position,
+            gap,
+        } => {
+            changed |= labeled_text(ui, &t(world, "prop-source-box"), source);
+            ui.separator();
+            changed |= labeled_text(ui, &t(world, "prop-result-left"), &mut result.0);
+            changed |= labeled_text(ui, &t(world, "prop-result-right"), &mut result.1);
+            ui.separator();
+            let axis_variants = ["Vertical", "Horizontal"];
+            let current_axis = match axis {
+                souprune::app_state::battle::collision::SplitAxis::Vertical => 0,
+                souprune::app_state::battle::collision::SplitAxis::Horizontal => 1,
+            };
+            let mut selected = current_axis;
+            egui::ComboBox::from_label(t(world, "prop-axis"))
+                .selected_text(axis_variants[selected])
+                .show_ui(ui, |ui| {
+                    for (i, label) in axis_variants.iter().enumerate() {
+                        ui.selectable_value(&mut selected, i, *label);
+                    }
+                });
+            if selected != current_axis {
+                *axis = match selected {
+                    0 => souprune::app_state::battle::collision::SplitAxis::Vertical,
+                    _ => souprune::app_state::battle::collision::SplitAxis::Horizontal,
+                };
+                changed = true;
+            }
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-position"),
+                position,
+                -500.0..=500.0,
+                1.0,
+            );
+            changed |= labeled_drag(ui, &t(world, "prop-gap"), gap, 0.0..=200.0, 1.0);
+        }
+
+        Chapter::MergeBattleBoxes { sources, result } => {
+            changed |= labeled_text(ui, &t(world, "prop-source-a"), &mut sources.0);
+            changed |= labeled_text(ui, &t(world, "prop-source-b"), &mut sources.1);
+            ui.separator();
+            changed |= labeled_text(ui, &t(world, "prop-result-box"), result);
+        }
     }
 
     changed

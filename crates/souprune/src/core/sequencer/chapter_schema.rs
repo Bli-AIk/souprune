@@ -28,6 +28,8 @@ use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 
+use crate::app_state::battle::collision::SplitAxis;
+
 /// 3D vector tuple type for coordinates like translation and scale.
 ///
 /// 三维向量元组类型，用于表示位置和缩放等坐标。
@@ -622,6 +624,76 @@ pub enum Chapter {
         /// 淡入持续时间（秒）（可选）。
         #[serde(default)]
         fade_in: Option<f32>,
+    },
+
+    // =========================================================================
+    // Battle Box Manipulation
+    // 战斗框操作
+    // =========================================================================
+    /// Split a battle box into two new boxes along an axis.
+    /// The source box is deactivated, and two new boxes are spawned.
+    /// Players bound to the source are rebound to the nearest result box.
+    /// The chapter completes immediately.
+    ///
+    /// 沿指定轴将一个战斗框分裂为两个新的战斗框。
+    /// 源框被停用，生成两个新框。
+    /// 绑定到源框的玩家会被重新绑定到最近的结果框。
+    /// 章节立即完成。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// SplitBattleBox(
+    ///     source: "main",
+    ///     result: ("left", "right"),
+    ///     axis: Vertical,
+    ///     position: 0.0,
+    ///     gap: 20.0,
+    /// ),
+    /// ```
+    SplitBattleBox {
+        /// ID of the battle box to split.
+        /// 要分裂的战斗框 ID。
+        source: String,
+        /// IDs for the two resulting boxes.
+        /// 两个结果框的 ID。
+        result: (String, String),
+        /// Axis along which to split (Vertical or Horizontal).
+        /// 分裂所沿的轴（Vertical 或 Horizontal）。
+        axis: SplitAxis,
+        /// Split position relative to box center (0.0 = exact center).
+        /// 相对于框中心的分裂位置（0.0 = 正中心）。
+        #[serde(default)]
+        position: f32,
+        /// Gap in pixels between the two resulting boxes.
+        /// 两个结果框之间的间隔（像素）。
+        #[serde(default)]
+        gap: f32,
+    },
+
+    /// Merge two battle boxes back into one.
+    /// Both source boxes are deactivated, and a new merged box is spawned.
+    /// Players bound to either source are rebound to the result box.
+    /// The chapter completes immediately.
+    ///
+    /// 将两个战斗框合并为一个。
+    /// 两个源框被停用，生成一个合并后的新框。
+    /// 绑定到任一源框的玩家会被重新绑定到结果框。
+    /// 章节立即完成。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// MergeBattleBoxes(
+    ///     sources: ("left", "right"),
+    ///     result: "main",
+    /// ),
+    /// ```
+    MergeBattleBoxes {
+        /// IDs of the two boxes to merge.
+        /// 要合并的两个框的 ID。
+        sources: (String, String),
+        /// ID of the resulting merged box.
+        /// 合并后结果框的 ID。
+        result: String,
     },
 
     /// Custom chapter type for editor/mod extensibility.

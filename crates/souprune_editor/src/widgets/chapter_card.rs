@@ -80,6 +80,8 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
         Chapter::SetBgm { .. } => ChapterCategory::Audio,
         Chapter::Custom { .. } => ChapterCategory::Flow,
         Chapter::LoadEnemies { .. } => ChapterCategory::Combat,
+        Chapter::SplitBattleBox { .. } => ChapterCategory::Combat,
+        Chapter::MergeBattleBoxes { .. } => ChapterCategory::Combat,
     }
 }
 
@@ -109,6 +111,8 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::SetBgm { .. } => "[B]",
         Chapter::Custom { .. } => "[X]",
         Chapter::LoadEnemies { .. } => "[LE]",
+        Chapter::SplitBattleBox { .. } => "[SB]",
+        Chapter::MergeBattleBoxes { .. } => "[MB]",
     }
 }
 
@@ -139,6 +143,8 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::SetBgm { .. } => "chapter-set-bgm",
         Chapter::Custom { .. } => "chapter-custom",
         Chapter::LoadEnemies { .. } => "chapter-load-enemies",
+        Chapter::SplitBattleBox { .. } => "chapter-split-battle-box",
+        Chapter::MergeBattleBoxes { .. } => "chapter-merge-battle-boxes",
     }
 }
 
@@ -182,6 +188,14 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         Chapter::SetBgm { path, .. } => path.as_deref().unwrap_or("(stop)").to_string(),
         Chapter::Custom { action_type, .. } => action_type.clone(),
         Chapter::LoadEnemies { enemies } => format!("{} enemies", enemies.len()),
+        Chapter::SplitBattleBox { source, result, .. } => {
+            format!("{source} → {} + {}", result.0, result.1)
+        }
+        Chapter::MergeBattleBoxes {
+            sources, result, ..
+        } => {
+            format!("{} + {} → {result}", sources.0, sources.1)
+        }
     }
 }
 
@@ -312,6 +326,8 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::SetBgm { .. } => "SetBgm",
         Chapter::Custom { .. } => "Custom",
         Chapter::LoadEnemies { .. } => "LoadEnemies",
+        Chapter::SplitBattleBox { .. } => "SplitBattleBox",
+        Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
     }
 }
 

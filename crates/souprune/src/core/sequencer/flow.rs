@@ -9,6 +9,7 @@
 use super::SequenceAsset;
 use super::chapter_schema::Chapter;
 use super::context::*;
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 
 /// System to load the default chapter resource.
@@ -236,6 +237,55 @@ pub fn process_custom_chapter_system(
             }
 
             commands.entity(entity).insert(ChapterFinished);
+        }
+    }
+}
+
+/// System that handles SplitBattleBox / MergeBattleBoxes chapters.
+/// Sends the corresponding messages and completes immediately.
+///
+/// 处理 SplitBattleBox / MergeBattleBoxes 章节。
+/// 发送对应的消息并立即完成。
+pub fn process_battle_box_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
+    mut split_writer: MessageWriter<crate::app_state::battle::collision::SplitBattleBox>,
+    mut merge_writer: MessageWriter<crate::app_state::battle::collision::MergeBattleBoxes>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        match &active_chapter.chapter {
+            Chapter::SplitBattleBox {
+                source,
+                result,
+                axis,
+                position,
+                gap,
+            } => {
+                info!(
+                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?})",
+                    source, result.0, result.1, axis
+                );
+                split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
+                    source_box: source.clone(),
+                    result_boxes: result.clone(),
+                    split_axis: axis.clone(),
+                    split_position: *position,
+                    gap: *gap,
+                });
+                commands.entity(entity).insert(ChapterFinished);
+            }
+            Chapter::MergeBattleBoxes { sources, result } => {
+                info!(
+                    "MergeBattleBoxes Chapter: '{}' + '{}' → '{}'",
+                    sources.0, sources.1, result
+                );
+                merge_writer.write(crate::app_state::battle::collision::MergeBattleBoxes {
+                    source_boxes: sources.clone(),
+                    result_box: result.clone(),
+                });
+                commands.entity(entity).insert(ChapterFinished);
+            }
+            _ => {}
         }
     }
 }

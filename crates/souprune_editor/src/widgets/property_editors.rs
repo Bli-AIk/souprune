@@ -785,5 +785,7 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::SetBgm { .. } => "SetBgm",
         Chapter::Custom { .. } => "Custom",
         Chapter::LoadEnemies { .. } => "LoadEnemies",
+        Chapter::SplitBattleBox { .. } => "SplitBattleBox",
+        Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
     }
 }

@@ -33,7 +33,7 @@ pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     asset_server: Res<AssetServer>,
-    mut player_query: Query<&mut Transform, (With<BehaviorParams>, With<ModeScoped>)>,
+    mut player_query: Query<(Entity, &mut Transform), (With<BehaviorParams>, With<ModeScoped>)>,
 ) {
     for (entity, active_chapter) in query.iter() {
         let Chapter::SetPlayer(action) = &active_chapter.chapter else {
@@ -57,13 +57,21 @@ pub fn process_player_action_system(
             // Non-battle config_path → handled by state-specific systems (e.g., overworld)
             PlayerAction::Spawn { .. } => {}
             PlayerAction::Teleport(pos) => {
-                for mut transform in player_query.iter_mut() {
+                for (_, mut transform) in player_query.iter_mut() {
                     transform.translation = pos.extend(0.0);
                     info!("Player teleported to {}", pos);
                 }
                 commands.entity(entity).insert(ChapterFinished);
             }
-            _ => {
+            PlayerAction::Despawn => {
+                for (player_entity, _) in player_query.iter() {
+                    commands.entity(player_entity).despawn();
+                    info!("Battle player despawned");
+                }
+                commands.entity(entity).insert(ChapterFinished);
+            }
+            PlayerAction::SetMode(_) | PlayerAction::SetActive(_) => {
+                // TODO: Implement mode switching and active state toggling
                 commands.entity(entity).insert(ChapterFinished);
             }
         }
