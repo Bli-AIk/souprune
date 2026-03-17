@@ -197,7 +197,7 @@ fn check_textures_system(
 
 fn setup_camera_system(
     mut commands: Commands,
-    resolution_scale: Res<ResolutionScale>,
+    #[cfg(not(target_os = "android"))] resolution_scale: Res<ResolutionScale>,
     game_schedule: Option<Res<crate::GameUpdateSchedule>>,
     existing: Query<(), With<crate::core::camera::MainGameCamera>>,
     #[cfg(target_os = "android")] config: Option<Res<crate::config::SoupruneConfig>>,
