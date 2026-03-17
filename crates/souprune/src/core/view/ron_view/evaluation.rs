@@ -1,6 +1,6 @@
 use super::super::layout::FloatOrExpr;
 use super::parsing::{PlayerDataView, RepeatContext};
-use crate::core::sequencer::chapter_schema::Val;
+use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::expr_eval::{create_eval_callback, preprocess_varname};
 use bevy::prelude::*;
 use std::collections::BTreeMap;
@@ -344,8 +344,8 @@ pub fn evaluate_float_expr(
     time: Option<f64>,
 ) -> f32 {
     match expr {
-        Val::Static(v) => *v,
-        Val::Expr(expr_str) => {
+        Value::Static(v) => *v,
+        Value::Expr(expr_str) => {
             // Preprocess fact expressions before evaluation
             // 在求值前预处理 fact 表达式
             let processed_expr = preprocess_fact_expressions(expr_str, player_data);
@@ -383,8 +383,8 @@ pub fn evaluate_float_expr_with_repeat(
     repeat_ctx: Option<&RepeatContext>,
 ) -> f32 {
     match expr {
-        Val::Static(v) => *v,
-        Val::Expr(expr_str) => {
+        Value::Static(v) => *v,
+        Value::Expr(expr_str) => {
             // Preprocess with repeat context support
             // 使用重复上下文支持进行预处理
             let processed_expr =
@@ -615,18 +615,18 @@ pub fn evaluate_fact_expression(expr: &str, player_data: &PlayerDataView) -> Opt
 // Val Resolution
 // ============================================================================
 
-/// Resolve a Val<f32> to an actual f32 value.
+/// Resolve a Value<f32> to an actual f32 value.
 ///
-/// 将 Val<f32> 解析为实际的 f32 值。
+/// 将 Value<f32> 解析为实际的 f32 值。
 pub fn resolve_val_f32(
-    val: &crate::core::sequencer::chapter_schema::Val<f32>,
+    val: &crate::core::sequencer::chapter_schema::Value<f32>,
     current_value: Option<f32>,
     player_data: &PlayerDataView,
     time: Option<f64>,
 ) -> f32 {
     match val {
-        crate::core::sequencer::chapter_schema::Val::Static(v) => *v,
-        crate::core::sequencer::chapter_schema::Val::Expr(expr_str) => {
+        crate::core::sequencer::chapter_schema::Value::Static(v) => *v,
+        crate::core::sequencer::chapter_schema::Value::Expr(expr_str) => {
             // Special case: pure @current
             if expr_str == "@current" {
                 return current_value.unwrap_or(0.0);
@@ -639,16 +639,16 @@ pub fn resolve_val_f32(
     }
 }
 
-/// Resolve a Val<bool> to an actual bool value.
+/// Resolve a Value<bool> to an actual bool value.
 ///
-/// 将 Val<bool> 解析为实际的 bool 值。
+/// 将 Value<bool> 解析为实际的 bool 值。
 pub fn resolve_val_bool(
-    val: &crate::core::sequencer::chapter_schema::Val<bool>,
+    val: &crate::core::sequencer::chapter_schema::Value<bool>,
     player_data: &PlayerDataView,
 ) -> bool {
     match val {
-        crate::core::sequencer::chapter_schema::Val::Static(v) => *v,
-        crate::core::sequencer::chapter_schema::Val::Expr(expr_str) => {
+        crate::core::sequencer::chapter_schema::Value::Static(v) => *v,
+        crate::core::sequencer::chapter_schema::Value::Expr(expr_str) => {
             // Evaluate condition expression
             evaluate_condition(expr_str, player_data)
         }

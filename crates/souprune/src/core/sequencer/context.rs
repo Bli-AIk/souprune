@@ -74,6 +74,6 @@ pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);
 /// 由特定状态的 FRE 插件处理。
 #[derive(Resource, Default)]
 pub struct SequenceRulesHandle {
-    pub handle: Option<Handle<bevy_fact_rule_event::FreAsset>>,
+    pub handle: Option<Handle<crate::core::game_action::GameFreAsset>>,
     pub registered: bool,
 }

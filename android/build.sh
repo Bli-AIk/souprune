@@ -10,7 +10,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR/.."
 ANDROID_DIR="$SCRIPT_DIR"
 ANDROID_MOD_BASE="/sdcard/SoupRune/projects"
-ANDROID_INTERNAL_MODS="/data/data/com.bliaik.souprune/mods"
+ANDROID_BUILTINS_DIR="/sdcard/SoupRune/builtins"
 APK_PATH="$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk"
 PACKAGE_NAME="com.bliaik.souprune"
 BUILD_DEBUG=false
@@ -293,27 +293,29 @@ do_sync_mods() {
     adb shell "mkdir -p /sdcard/SoupRune/projects" && \
     adb push "$config_file" "/sdcard/SoupRune/projects/config.toml" 2>&1
 
-    # Sync .so files to app internal storage
-    echo -e "  📤 同步 mod .so 文件到应用内部存储..."
-    adb shell "run-as $PACKAGE_NAME mkdir -p $ANDROID_INTERNAL_MODS" 2>/dev/null || true
+    # Sync builtin WASM to device
+    echo -e "  📤 同步 builtin WASM 到设备..."
+    adb shell "mkdir -p $ANDROID_BUILTINS_DIR" 2>/dev/null || true
 
-    # Find .so files for this mod
-    local so_found=false
-    for so_file in "$local_mod_dir"/*_android.so "$local_mod_dir"/*.so; do
-        if [ -f "$so_file" ]; then
-            local so_name
-            so_name=$(basename "$so_file")
-            echo -e "    📦 $so_name"
-            # Push to sdcard first, then copy to internal via run-as
-            adb push "$so_file" "/sdcard/SoupRune/$so_name" 2>/dev/null
-            adb shell "cat /sdcard/SoupRune/$so_name | run-as $PACKAGE_NAME sh -c 'cat > $ANDROID_INTERNAL_MODS/$so_name'" 2>/dev/null
-            adb shell "rm /sdcard/SoupRune/$so_name" 2>/dev/null || true
-            so_found=true
+    local builtin_wasm="$PROJECT_ROOT/crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm"
+    if [ -f "$builtin_wasm" ]; then
+        adb push "$builtin_wasm" "$ANDROID_BUILTINS_DIR/souprune_builtins.wasm" 2>&1
+        echo -e "  ${GREEN}✅ souprune_builtins.wasm 已同步${NC}"
+    else
+        echo -e "  ${YELLOW}⚠ 未找到 souprune_builtins.wasm (需要先构建: cargo build -p souprune_builtins --target wasm32-wasip2 --release)${NC}"
+    fi
+
+    # Check mod .wasm file
+    local mod_wasm_found=false
+    for wasm_file in "$local_mod_dir"/*.wasm; do
+        if [ -f "$wasm_file" ]; then
+            echo -e "    📦 $(basename "$wasm_file") (included in mod push)"
+            mod_wasm_found=true
         fi
     done
 
-    if [ "$so_found" = false ]; then
-        echo -e "  ${YELLOW}⚠ 未找到 mod .so 文件 (可能需要先构建 mod)${NC}"
+    if [ "$mod_wasm_found" = false ]; then
+        echo -e "  ${YELLOW}⚠ 未找到 mod .wasm 文件 (需要先构建 mod: cargo build -p <mod_crate> --target wasm32-wasip2 --release)${NC}"
     fi
 
     echo -e "${GREEN}✅ Mod 同步完成${NC}"

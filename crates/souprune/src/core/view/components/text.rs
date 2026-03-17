@@ -4,7 +4,7 @@
 
 use bevy::color::Srgba;
 use bevy::prelude::*;
-use bevy_rich_text3d::{TextAlign, TextAnchor};
+use bevy_bitmap_text::{TextAlign, TextAnchor};
 
 #[cfg(feature = "debug")]
 use bevy::reflect::Reflect;
@@ -41,15 +41,15 @@ pub(crate) enum ViewFont {
 }
 
 impl ViewFont {
-    /// Get font name and default size
+    /// Get font file stem (matches the filename loaded by bevy_bitmap_text).
     ///
-    /// 获取字体名称和默认大小
+    /// 获取字体文件名（与 bevy_bitmap_text 加载的文件名匹配）
     pub(crate) fn font_name(&self) -> &'static str {
         match self {
-            ViewFont::DeterminationMono => "Determination Mono SimSun",
-            ViewFont::DeterminationSans => "Determination Sans SimSun",
-            ViewFont::Hud => "Crypt of Tomorrow Fusion",
-            ViewFont::BattleHud => "Mars Needs Cunnilingus",
+            ViewFont::DeterminationMono => "DTM-Mono",
+            ViewFont::DeterminationSans => "DTM-Sans",
+            ViewFont::Hud => "hud",
+            ViewFont::BattleHud => "battlehud",
         }
     }
 
@@ -77,6 +77,8 @@ pub struct ViewTextConfig {
     pub(crate) align: TextAlign,
     pub(crate) anchor: TextAnchor,
     pub(crate) line_height: f32,
+    pub(crate) char_spacing: f32,
+    pub(crate) word_spacing: f32,
     /// Expression-based visibility control (e.g., "$depth == 1").
     /// 基于表达式的可见性控制（例如 "$depth == 1"）。
     pub(crate) visible_when: Option<String>,
@@ -95,6 +97,8 @@ impl Default for ViewTextConfig {
             align: TextAlign::Left,
             anchor: TextAnchor::BOTTOM_RIGHT,
             line_height: 1.0,
+            char_spacing: 0.0,
+            word_spacing: 0.0,
             visible_when: None,
         }
     }

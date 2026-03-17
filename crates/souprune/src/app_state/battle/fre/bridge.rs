@@ -84,8 +84,8 @@ pub fn emit_chapter_completed_events_system(
             "DanmakuPerformance" => {
                 fact_event_writer.write(FactEvent::new("danmaku_finished"));
             }
-            "AmPerformance" => {
-                fact_event_writer.write(FactEvent::new("am_performance_finished"));
+            "AlightMotionPerformance" => {
+                fact_event_writer.write(FactEvent::new("alight_motion_performance_finished"));
             }
             "Wait" => {
                 fact_event_writer.write(FactEvent::new("wait_finished"));
@@ -94,7 +94,9 @@ pub fn emit_chapter_completed_events_system(
         }
 
         // Update phase fact if needed
-        if event.chapter_type == "DanmakuPerformance" || event.chapter_type == "AmPerformance" {
+        if event.chapter_type == "DanmakuPerformance"
+            || event.chapter_type == "AlightMotionPerformance"
+        {
             layered_db.set("phase", "player_turn");
             fact_event_writer.write(FactEvent::new("phase_changed"));
         }

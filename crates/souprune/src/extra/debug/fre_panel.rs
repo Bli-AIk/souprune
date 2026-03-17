@@ -24,7 +24,9 @@ pub mod debug_fre_panel {
     use bevy::window::{
         PrimaryWindow, Window, WindowClosed, WindowFocused, WindowRef, WindowResolution,
     };
-    use bevy_fact_rule_event::{FactEvent, LayeredRuleRegistry};
+    use bevy_fact_rule_event::FactEvent;
+
+    use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
     use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule};
     use bevy_inspector_egui::egui;
     use leafwing_input_manager::action_state::ActionState;
@@ -440,7 +442,7 @@ pub mod debug_fre_panel {
                 .unwrap_or(0.0);
             let trigger_history = world.get_resource::<RuleTriggerHistory>();
 
-            let Some(registry) = world.get_resource::<LayeredRuleRegistry>() else {
+            let Some(registry) = world.get_resource::<GameRuleRegistry>() else {
                 ui.label("LayeredRuleRegistry not available.");
                 ui.label("Make sure FREPlugin is installed.");
                 return;
@@ -504,7 +506,7 @@ pub mod debug_fre_panel {
     fn render_rule_group(
         ui: &mut egui::Ui,
         title: &str,
-        rules: &mut [&bevy_fact_rule_event::Rule],
+        rules: &mut [&GameRule],
         trigger_history: Option<&RuleTriggerHistory>,
         current_time: f64,
     ) {
@@ -523,7 +525,7 @@ pub mod debug_fre_panel {
     /// Render the view rules group with per-entity sub-groups.
     fn render_view_rules_group(
         ui: &mut egui::Ui,
-        registry: &LayeredRuleRegistry,
+        registry: &GameRuleRegistry,
         trigger_history: Option<&RuleTriggerHistory>,
         current_time: f64,
         view_count: usize,
@@ -547,7 +549,7 @@ pub mod debug_fre_panel {
     fn render_view_entity_rules(
         ui: &mut egui::Ui,
         entity: Entity,
-        view_registry: &bevy_fact_rule_event::RuleRegistry,
+        view_registry: &bevy_fact_rule_event::RuleRegistry<GameActionDef>,
         trigger_history: Option<&RuleTriggerHistory>,
         current_time: f64,
     ) {
@@ -566,11 +568,7 @@ pub mod debug_fre_panel {
     }
 
     /// Helper function to display a single rule entry with optional trigger highlight.
-    fn show_rule_entry(
-        ui: &mut egui::Ui,
-        rule: &bevy_fact_rule_event::Rule,
-        is_recently_triggered: bool,
-    ) {
+    fn show_rule_entry(ui: &mut egui::Ui, rule: &GameRule, is_recently_triggered: bool) {
         let status_icon = if rule.enabled { "✅" } else { "❌" };
         let trigger_indicator = if is_recently_triggered { "🔥 " } else { "" };
         let header_text = format!(

@@ -122,10 +122,10 @@ impl Default for DesiredText {
 /// Desired state for HP bar component.
 /// HP 条组件的期望状态。
 #[derive(Clone, Debug, PartialEq)]
-pub struct DesiredHpBar {
+pub struct DesiredHealthBar {
     /// HP source type (Player, Enemy{index}, Custom)
     /// HP 来源类型
-    pub source_type: HpSourceType,
+    pub source_type: HealthSourceType,
 
     /// Current HP value (resolved)
     /// 当前 HP 值（已解析）
@@ -184,7 +184,7 @@ pub struct DesiredLagAnimation {
 /// HP source type for HP bars.
 /// HP 条的 HP 来源类型。
 #[derive(Clone, Debug, PartialEq)]
-pub enum HpSourceType {
+pub enum HealthSourceType {
     Player,
     Enemy { index: usize },
     Custom { hp_expr: String, max_expr: String },
@@ -224,7 +224,7 @@ pub struct DesiredElement {
 
     /// Optional HP bar definition
     /// 可选的 HP 条定义
-    pub hp_bar: Option<DesiredHpBar>,
+    pub health_bar: Option<DesiredHealthBar>,
 
     /// Optional material definition (for DynamicMaterial2d)
     /// 可选的材质定义（用于 DynamicMaterial2d）
@@ -251,7 +251,7 @@ impl DesiredElement {
             visibility: Visibility::Inherited,
             sprite: None,
             texts: Vec::new(),
-            hp_bar: None,
+            health_bar: None,
             material: None,
             children: Vec::new(),
             visible_when_expr: None,

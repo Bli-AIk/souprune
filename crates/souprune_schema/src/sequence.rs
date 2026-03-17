@@ -51,10 +51,10 @@ pub enum Chapter {
         #[serde(default)]
         translation: Option<(f32, f32)>,
     },
-    AmPerformance {
+    AlightMotionPerformance {
         amproj_path: String,
         #[serde(default)]
-        am_config: Option<String>,
+        alight_motion_config: Option<String>,
         #[serde(default = "default_true")]
         wait_for_completion: bool,
     },

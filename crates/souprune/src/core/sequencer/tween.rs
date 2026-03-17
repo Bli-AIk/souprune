@@ -6,7 +6,7 @@
 //!
 //! 战斗序列管理器的 TweenViewElement 系统，使用 bevy_tween。
 
-use super::chapter_schema::{Chapter, TweenTarget, Val};
+use super::chapter_schema::{Chapter, TweenTarget, Value};
 use super::context::*;
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
@@ -78,11 +78,11 @@ pub struct TweenInProgress {
 // 系统
 // ============================================================================
 
-/// Helper to resolve a Val<f32> to an f32 value using the unified expression system.
+/// Helper to resolve a Value<f32> to an f32 value using the unified expression system.
 ///
-/// 使用统一的表达式系统解析 Val<f32> 为 f32 值。
+/// 使用统一的表达式系统解析 Value<f32> 为 f32 值。
 fn resolve_tween_val_f32(
-    val: &Val<f32>,
+    val: &Value<f32>,
     current: f32,
     player_data: &crate::core::view::ron_view::parsing::PlayerDataView<'_>,
     time: Option<f64>,

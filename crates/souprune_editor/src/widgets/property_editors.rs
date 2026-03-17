@@ -766,7 +766,7 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::AwaitFact { .. } => "AwaitFact",
         Chapter::SetViewFact { .. } => "SetViewFact",
         Chapter::DanmakuPerformance { .. } => "DanmakuPerformance",
-        Chapter::AmPerformance { .. } => "AmPerformance",
+        Chapter::AlightMotionPerformance { .. } => "AlightMotionPerformance",
         Chapter::TweenViewElement { .. } => "TweenViewElement",
         Chapter::Wait(_) => "Wait",
         Chapter::Sequence(_) => "Sequence",

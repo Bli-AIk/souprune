@@ -6,9 +6,9 @@ use super::parsing::{
     resolve_text_content, vec3_tuple_depends_on_time,
 };
 use super::resources::RonDrivenView;
+use crate::core::game_action::GameFreAsset;
 use crate::core::sprite::params::SpriteParams;
 use bevy::prelude::*;
-use bevy_fact_rule_event::FreAsset;
 
 /// Helper function to build ViewTextConfig from TextDef.
 ///
@@ -88,6 +88,8 @@ pub fn build_text_config(
             t
         },
         line_height: text_def.line_height.unwrap_or(1.0),
+        char_spacing: text_def.char_spacing.unwrap_or(0.0),
+        word_spacing: text_def.word_spacing.unwrap_or(0.0),
         visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }
@@ -100,8 +102,6 @@ pub(crate) fn spawn_container_texts(
     player_data: &PlayerDataView<'_>,
     item_registry: &crate::core::item::ItemRegistry,
 ) {
-    use bevy_rich_text3d::Text3dStyling;
-
     for text_def in texts {
         let text_config = build_text_config(text_def, mortar_strings, player_data, item_registry);
 
@@ -110,32 +110,28 @@ pub(crate) fn spawn_container_texts(
             text_config.name
         );
 
-        let text3d = parse_text_preserving_whitespace(&text_config.content);
+        let text_block = parse_text_preserving_whitespace(&text_config.content);
 
         let text_world_transform = text_config.transform;
 
+        let view_font = &text_config.font;
         let mut cmd = parent.spawn((
             text_config.name.clone(),
-            text3d,
-            Text3dStyling {
-                font: text_config.font.font_name().into(),
-                size: text_config.font.default_size(),
-                world_scale: Some(text_config.world_scale),
+            text_block,
+            bevy_bitmap_text::TextBlockStyling {
+                font: bevy_bitmap_text::FontId::from_name(view_font.font_name()),
+                size_px: view_font.default_size() as u32,
+                world_scale: text_config.world_scale.x,
                 color: text_config.color,
                 align: text_config.align,
                 anchor: text_config.anchor,
                 line_height: text_config.line_height,
+                char_spacing: text_config.char_spacing,
+                word_spacing: text_config.word_spacing,
                 ..Default::default()
             },
-            Mesh2d::default(),
-            // Use NeedsTextMaterial marker instead of default handle to avoid purple box
-            // 使用 NeedsTextMaterial 标记而不是默认句柄以避免紫色方块
-            super::super::text::NeedsTextMaterial,
             text_world_transform,
             Visibility::Hidden,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            super::super::text::NeedsGlyphRefresh,
             RonDrivenView,
         ));
 
@@ -417,13 +413,13 @@ pub(super) fn resolve_simple_localization(
 /// 将 FreAsset 中的事实加载到 ViewRoot 的 local_facts 中。
 pub fn load_fre_into_view_root(
     view_root: &mut crate::core::view::components::ViewRoot,
-    fre_asset: &FreAsset,
+    fre_asset: &GameFreAsset,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
+    enum_registry: &bevy_fact_rule_event::EnumRegistry,
 ) {
     use bevy_fact_rule_event::FactValue;
 
-    for (key, value_def) in fre_asset.get_facts() {
-        let fact_value: FactValue = value_def.clone().into();
+    for (key, fact_value) in fre_asset.resolve_facts(enum_registry) {
         match fact_value {
             FactValue::Int(i) => view_root.local_facts.set(key.clone(), i),
             FactValue::Float(f) => view_root.local_facts.set(key.clone(), f),

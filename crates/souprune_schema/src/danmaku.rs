@@ -65,6 +65,8 @@ pub struct BulletPrototype {
     pub lifetime: f32,
     pub z_index: f32,
     pub scale: f32,
+    #[serde(default)]
+    pub rotation: f32,
     pub hit_behavior: HitBehaviorPreset,
     pub color_tint: ColorTint,
     #[serde(default)]
@@ -84,6 +86,7 @@ impl Default for BulletPrototype {
             lifetime: 5.0,
             z_index: 15.0,
             scale: 1.0,
+            rotation: 0.0,
             hit_behavior: HitBehaviorPreset::Default,
             color_tint: ColorTint::default(),
             flip_x: false,

@@ -44,7 +44,7 @@ pub(super) fn edit_node_sprite(
                 frame_duration: None,
                 visible_when: None,
                 #[allow(deprecated)]
-                hp_bar_source: None,
+                health_bar_source: None,
                 material: None,
             });
         } else {

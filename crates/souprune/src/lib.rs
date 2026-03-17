@@ -355,18 +355,14 @@ pub fn get_file_importer_plugins() -> (
 pub fn get_third_plugins() -> (
     leafwing_input_manager::prelude::InputManagerPlugin<Action>,
     bevy_ecs_tiled::prelude::TiledPlugin,
-    bevy_rich_text3d::Text3dPlugin,
+    bevy_bitmap_text::BitmapTextPlugin,
     bevy_alight_motion::prelude::AlightMotionPlugin,
     bevy_tween::DefaultTweenPlugins<()>,
 ) {
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
-        bevy_rich_text3d::Text3dPlugin {
-            default_atlas_dimension: (1024, 1024),
-            load_system_fonts: false,
-            ..Default::default()
-        },
+        bevy_bitmap_text::BitmapTextPlugin::default(),
         bevy_alight_motion::prelude::AlightMotionPlugin,
         bevy_tween::DefaultTweenPlugins::default(),
     )
@@ -455,7 +451,7 @@ pub fn reset_game_state(world: &mut World) {
     if let Some(mut db) = world.get_resource_mut::<bevy_fact_rule_event::LayeredFactDatabase>() {
         db.clear_local();
     }
-    if let Some(mut reg) = world.get_resource_mut::<bevy_fact_rule_event::LayeredRuleRegistry>() {
+    if let Some(mut reg) = world.get_resource_mut::<crate::core::game_action::GameRuleRegistry>() {
         reg.clear_local();
     }
     if let Some(mut loaded) =
@@ -464,11 +460,6 @@ pub fn reset_game_state(world: &mut World) {
         loaded.handles.clear();
         loaded.initialized = false;
         loaded.registered = false;
-    }
-    if let Some(mut action_defs) =
-        world.get_resource_mut::<app_state::overworld::trigger::RuleActionDefs>()
-    {
-        action_defs.actions_by_rule.clear();
     }
 
     // 8. 直接清理 ModeScoped 实体（不等待下帧 PreUpdate）
@@ -539,7 +530,7 @@ pub fn insert_input_resources(app: &mut App) {
         .insert_resource(input_behavior_config);
 }
 
-/// 从 SoupruneConfig 推断字体目录并插入 `bevy_rich_text3d::LoadFonts` 资源。
+/// 从 SoupruneConfig 推断字体目录并插入 `bevy_bitmap_text::FontDirectories` 资源。
 ///
 /// 调用方需要先插入 `SoupruneConfig` 资源。
 pub fn insert_font_resources(app: &mut App) {
@@ -553,9 +544,8 @@ pub fn insert_font_resources(app: &mut App) {
         .join("assets/fonts")
         .to_string_lossy()
         .into_owned();
-    app.insert_resource(bevy_rich_text3d::LoadFonts {
-        font_directories: vec![font_dir],
-        ..Default::default()
+    app.insert_resource(bevy_bitmap_text::FontDirectories {
+        directories: vec![font_dir],
     });
 }
 
@@ -757,15 +747,14 @@ pub fn run() {
             bevy_brp_extras::BrpExtrasPlugin,
         ))
         .insert_resource(config.clone())
-        .insert_resource(bevy_rich_text3d::LoadFonts {
-            font_directories: vec![
+        .insert_resource(bevy_bitmap_text::FontDirectories {
+            directories: vec![
                 projects_base
                     .join(&config.project.mod_name)
                     .join("assets/fonts")
                     .to_string_lossy()
                     .into_owned(),
             ],
-            ..Default::default()
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)

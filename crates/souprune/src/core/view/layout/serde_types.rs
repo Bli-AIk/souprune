@@ -18,9 +18,9 @@ use bevy::ui::Val as BevyVal;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
 use serde::{Deserialize, Serialize};
 
-pub use crate::core::sequencer::chapter_schema::{ColorTuple, Val, Vec2Tuple, Vec3Tuple};
+pub use crate::core::sequencer::chapter_schema::{ColorTuple, Value, Vec2Tuple, Vec3Tuple};
 
-pub type FloatOrExpr = Val<f32>;
+pub type FloatOrExpr = Value<f32>;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UiFlexDirection {
@@ -130,20 +130,20 @@ pub type SerializableColor = ColorTuple;
 pub fn serializable_color_to_color(color: &SerializableColor) -> Color {
     Color::srgba(
         match &color.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.2 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.3 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
     )
 }
@@ -151,12 +151,12 @@ pub fn serializable_color_to_color(color: &SerializableColor) -> Color {
 pub fn serializable_vec2_to_vec2(vec: &SerializableVec2) -> Vec2 {
     Vec2::new(
         match &vec.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &vec.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
     )
 }
@@ -164,20 +164,20 @@ pub fn serializable_vec2_to_vec2(vec: &SerializableVec2) -> Vec2 {
 pub fn color_tuple_to_static(color: &ColorTuple) -> (f32, f32, f32, f32) {
     (
         match &color.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 1.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 1.0,
         },
         match &color.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 1.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 1.0,
         },
         match &color.2 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 1.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 1.0,
         },
         match &color.3 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 1.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 1.0,
         },
     )
 }
@@ -185,12 +185,12 @@ pub fn color_tuple_to_static(color: &ColorTuple) -> (f32, f32, f32, f32) {
 pub fn vec2_tuple_to_static(vec: &Vec2Tuple) -> (f32, f32) {
     (
         match &vec.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.5,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.5,
         },
         match &vec.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.5,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.5,
         },
     )
 }
@@ -198,20 +198,20 @@ pub fn vec2_tuple_to_static(vec: &Vec2Tuple) -> (f32, f32) {
 pub fn dynamic_color_to_static(color: &DynamicColor) -> Color {
     Color::srgba(
         match &color.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.2 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &color.3 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
     )
 }
@@ -223,16 +223,16 @@ pub fn is_dynamic_color(color: &DynamicColor) -> bool {
 pub fn serializable_vec3_to_static(vec: &SerializableVec3) -> Vec3 {
     Vec3::new(
         match &vec.0 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &vec.1 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
         match &vec.2 {
-            Val::Static(v) => *v,
-            Val::Expr(_) => 0.0,
+            Value::Static(v) => *v,
+            Value::Expr(_) => 0.0,
         },
     )
 }

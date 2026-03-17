@@ -52,6 +52,7 @@ impl Plugin for DialoguePlugin {
         #[allow(deprecated)]
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<DialogueBlockingConfig>()
+            .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
             .add_systems(Startup, init_dialogue_facts)
@@ -66,6 +67,9 @@ impl Plugin for DialoguePlugin {
                     systems::spawn_dialogue_controller_system,
                     systems::despawn_dialogue_controller_system
                         .run_if(systems::should_check_dialogue_despawn),
+                    // Prepare mortar functions/variables for item dialogue templates
+                    // 为物品对话模板准备 mortar 函数和变量
+                    systems::prepare_item_dialogue_mortar_system,
                     // Sync systems
                     systems::sync_mortar_text_to_typewriter_system,
                     systems::sync_typewriter_text_to_facts_system,

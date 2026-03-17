@@ -2,8 +2,8 @@
 //!
 //! ## Module Overview
 //! This module manages the RON-driven UI system for the Overworld game state.
-//! The UI is implemented using SDF rendering provided by bevy_alight_motion SdfMaterial and mesh-based text rendering
-//! provided by bevy_rich_text3d.
+//! The UI is implemented using SDF rendering provided by bevy_alight_motion SdfMaterial and bitmap text rendering
+//! provided by bevy_bitmap_text (glyph-as-entity architecture).
 //!
 //! ## Source File Overview
 //! This file defines the `OverworldViewPlugin` which loads View layouts from RON files.
@@ -12,7 +12,7 @@
 //!
 //! ## 模块概述
 //! 该模块管理着 Overworld 游戏状态的 RON 驱动 UI 系统。此 UI 是基于 bevy_alight_motion SdfMaterial 提供的 SDF 渲染
-//! 与 bevy_rich_text3d 提供的基于 Mesh 的文本渲染实现的。
+//! 与 bevy_bitmap_text 提供的位图文本渲染（glyph-as-entity 架构）实现的。
 //!
 //! ## 源文件概述
 //! 该文件定义了从 RON 文件加载 View 布局的 `OverworldViewPlugin`。
@@ -61,7 +61,7 @@ pub use ron_view::RonDrivenView;
 use ron_view::{load_global_triggers_system, ui_animation_init_system, update_dynamic_text_system};
 use sdf_view_shape::update_sdf_view_shape_system;
 use state::global_trigger_system;
-use text::{assign_text_material_system, refresh_text_glyphs_system, show_text_when_ready_system};
+use text::show_text_when_ready_system;
 use visible_when::evaluate_visible_when_system;
 
 /// Message to request spawning a new View.
@@ -167,7 +167,6 @@ impl Plugin for CoreViewPlugin {
                 )
                     .run_if(crate::app_state::is_mode("overworld")),
             )
-            .add_systems(PreUpdate, refresh_text_glyphs_system)
             .add_systems(
                 schedule,
                 // New shader material update system (replaces old HP bar systems)
@@ -228,7 +227,6 @@ impl Plugin for CoreViewPlugin {
                     ron_view::setup_shader_materials_system
                         .run_if(resource_exists::<procedural_textures::ProceduralTextures>),
                     update_sdf_view_shape_system,
-                    assign_text_material_system,
                     show_text_when_ready_system,
                     update_dynamic_text_system,
                     // State sprite systems (data-driven state management)
@@ -266,7 +264,7 @@ fn collect_fre_handles(
         crate::core::sequencer::chapter_schema::DataBinding,
     >,
     asset_server: &AssetServer,
-) -> Vec<Handle<bevy_fact_rule_event::FreAsset>> {
+) -> Vec<Handle<crate::core::game_action::GameFreAsset>> {
     use crate::core::sequencer::chapter_schema::DataBinding;
 
     let mut fre_handles = Vec::new();

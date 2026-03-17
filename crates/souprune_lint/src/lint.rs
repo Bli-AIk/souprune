@@ -118,7 +118,9 @@ fn check_file(path: &Path) -> CheckResult {
         Some(RonFileKind::TouchLayout) => {
             validate::<souprune_schema::config::TouchLayoutDef>(&source)
         }
-        Some(RonFileKind::AmConfig) => validate::<souprune_schema::config::AmBattleConfig>(&source),
+        Some(RonFileKind::AlightMotionConfig) => {
+            validate::<souprune_schema::config::AlightMotionBattleConfig>(&source)
+        }
         Some(RonFileKind::Character) => validate_character(&source),
         Some(RonFileKind::PlayerBehavior) => {
             validate::<souprune_schema::overworld::PlayerBehaviorFile>(&source)
