@@ -14,9 +14,9 @@
 
 use crate::app_state::SequenceSubState;
 use crate::core::audio;
+use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredRuleRegistry;
 
 use super::components::ViewRoot;
 
@@ -165,7 +165,7 @@ pub(crate) fn state_transition_sound_system(
 /// 使用 RemovedComponents 来检测 ViewRoot 实体何时被移除。
 pub(crate) fn cleanup_view_rules_system(
     mut removed_views: RemovedComponents<ViewRoot>,
-    mut rule_registry: ResMut<LayeredRuleRegistry>,
+    mut rule_registry: ResMut<GameRuleRegistry>,
 ) {
     for entity in removed_views.read() {
         // Clear View-layer rules for this entity
@@ -185,15 +185,15 @@ pub(crate) fn cleanup_view_rules_system(
 /// 检查 PendingViewRules 组件并在资产可用时注册规则。
 pub(crate) fn process_pending_view_rules_system(
     mut commands: Commands,
-    fre_assets: Res<Assets<bevy_fact_rule_event::FreAsset>>,
+    fre_assets: Res<Assets<GameFreAsset>>,
     mut query: Query<(
         Entity,
         &mut super::components::PendingViewRules,
         &mut ViewRoot,
     )>,
-    mut rule_registry: ResMut<LayeredRuleRegistry>,
-    mut action_defs: ResMut<crate::app_state::overworld::trigger::RuleActionDefs>,
+    mut rule_registry: ResMut<GameRuleRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+    mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
     use super::ron_view::spawn::load_fre_into_view_root;
 
@@ -210,20 +210,14 @@ pub(crate) fn process_pending_view_rules_system(
                 continue;
             };
 
-            // Asset loaded! Register rules
-            load_fre_into_view_root(&mut view_root, fre_asset, &mortar_strings);
+            // Asset loaded! Register enums and rules
+            enum_registry.register_from_asset(fre_asset);
+            load_fre_into_view_root(&mut view_root, fre_asset, &mortar_strings, &enum_registry);
 
             let rule_defs = fre_asset.get_rule_defs();
             let scope = fre_asset.scope();
 
-            register_fre_rules(
-                entity,
-                &path,
-                scope,
-                rule_defs,
-                &mut rule_registry,
-                &mut action_defs,
-            );
+            register_fre_rules(entity, &path, scope, rule_defs, &mut rule_registry);
 
             loaded_paths.push((path, rule_defs.len()));
         }
@@ -270,9 +264,8 @@ fn register_fre_rules(
     entity: Entity,
     path: &str,
     scope: bevy_fact_rule_event::RuleScope,
-    rule_defs: &[bevy_fact_rule_event::RuleDef],
-    rule_registry: &mut LayeredRuleRegistry,
-    action_defs: &mut crate::app_state::overworld::trigger::RuleActionDefs,
+    rule_defs: &[GameRuleDef],
+    rule_registry: &mut GameRuleRegistry,
 ) {
     use bevy_fact_rule_event::RuleScope;
 
@@ -286,13 +279,6 @@ fn register_fre_rules(
 
         let rule = rule_def.to_rule_with_index(idx, effective_scope);
         let rule_id = rule_def.generate_id(idx);
-
-        // Store actions for this rule
-        if !rule_def.actions.is_empty() {
-            action_defs
-                .actions_by_rule
-                .insert(rule_id.clone(), rule_def.actions.clone());
-        }
 
         if effective_scope == RuleScope::View {
             info!(

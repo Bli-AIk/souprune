@@ -18,7 +18,6 @@ use crate::core::view::ron_view::parsing::{
 use crate::core::view::ron_view::resources::RonDrivenView;
 use crate::core::view::sdf_view_shape::parse_text_preserving_whitespace;
 use bevy::prelude::*;
-use bevy_rich_text3d::Text3dStyling;
 
 /// Context containing all resources needed for spawning view elements.
 /// This reduces the number of parameters needed by helper functions.
@@ -227,10 +226,10 @@ pub fn spawn_sprite_entity(
     entity_id
 }
 
-/// Spawn a text entity with Text3d component.
+/// Spawn a text entity with TextBlock component.
 /// Returns the spawned entity ID.
 ///
-/// 生成带有 Text3d 组件的文本实体。
+/// 生成带有 TextBlock 组件的文本实体。
 /// 返回生成的实体 ID。
 pub fn spawn_text_entity(
     commands: &mut Commands,
@@ -247,7 +246,7 @@ pub fn spawn_text_entity(
         ctx.item_registry,
     );
 
-    let text3d = parse_text_preserving_whitespace(&content);
+    let text_block = parse_text_preserving_whitespace(&content);
 
     // Build transform
     let mut transform = Transform::default();
@@ -280,29 +279,25 @@ pub fn spawn_text_entity(
     let color = Srgba::new(r, g, b, a);
 
     // Parse world_scale
-    let (ws_x, ws_y) = vec2_tuple_to_static(&text_def.world_scale);
-    let world_scale = Vec2::new(ws_x, ws_y);
+    let (ws_x, _ws_y) = vec2_tuple_to_static(&text_def.world_scale);
 
     // Spawn entity
     let view_font: crate::core::view::components::ViewFont = text_def.font.clone().into();
     let mut entity_commands = commands.spawn((
         Name::new(text_def.id.clone()),
-        text3d,
-        Text3dStyling {
-            font: view_font.font_name().into(),
-            size: view_font.default_size(),
-            world_scale: Some(world_scale),
+        text_block,
+        bevy_bitmap_text::TextBlockStyling {
+            font: bevy_bitmap_text::FontId::from_name(view_font.font_name()),
+            size_px: view_font.default_size() as u32,
+            world_scale: ws_x,
             color,
             line_height: text_def.line_height.unwrap_or(1.0),
+            char_spacing: text_def.char_spacing.unwrap_or(0.0),
+            word_spacing: text_def.word_spacing.unwrap_or(0.0),
             ..default()
         },
-        Mesh2d::default(),
-        crate::core::view::text::NeedsTextMaterial,
         text_world_transform,
-        Visibility::Hidden, // Will be shown when material is ready
-        InheritedVisibility::default(),
-        ViewVisibility::default(),
-        crate::core::view::text::NeedsGlyphRefresh,
+        Visibility::Hidden,
         RonDrivenView,
     ));
 
@@ -446,11 +441,11 @@ pub fn spawn_shader_material_entity(
     }
 
     // Check if transform has dynamic expressions and add DynamicViewElement if needed.
-    // This ensures shader material elements (like HPBar) have their transforms updated
+    // This ensures shader material elements (like HealthBar) have their transforms updated
     // when facts change, fixing position offset bugs.
     //
     // 检查 transform 是否有动态表达式，如果有则添加 DynamicViewElement。
-    // 这确保着色器材质元素（如 HPBar）在 facts 变化时更新 transform，修复位置偏移 bug。
+    // 这确保着色器材质元素（如 HealthBar）在 facts 变化时更新 transform，修复位置偏移 bug。
     let mut has_dynamic = false;
     let mut has_time_dependency = false;
     if let Some(t) = &sprite_def.transform {
@@ -644,6 +639,8 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
         color,
         transform,
         line_height: text_def.line_height.unwrap_or(1.0),
+        char_spacing: text_def.char_spacing.unwrap_or(0.0),
+        word_spacing: text_def.word_spacing.unwrap_or(0.0),
         visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }

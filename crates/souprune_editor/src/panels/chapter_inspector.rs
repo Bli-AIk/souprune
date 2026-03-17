@@ -174,9 +174,9 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             changed |= edit_option_vec2(ui, &t(world, "prop-position"), translation);
         }
 
-        Chapter::AmPerformance {
+        Chapter::AlightMotionPerformance {
             amproj_path,
-            am_config,
+            alight_motion_config,
             wait_for_completion,
         } => {
             changed |= widgets::path_picker::edit_file_path(
@@ -185,7 +185,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
                 amproj_path,
                 world,
             );
-            changed |= edit_option_string(ui, &t(world, "prop-am-config"), am_config);
+            changed |= edit_option_string(ui, &t(world, "prop-am-config"), alight_motion_config);
             if ui
                 .checkbox(wait_for_completion, t(world, "inspector-wait-completion"))
                 .changed()

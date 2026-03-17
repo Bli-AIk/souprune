@@ -58,8 +58,8 @@ pub enum RonFileKind {
     States,
     /// `touch_layout.ron` (exact filename)
     TouchLayout,
-    /// `am_config.ron` (exact filename)
-    AmConfig,
+    /// `alight_motion_config.ron` (exact filename)
+    AlightMotionConfig,
     /// `.character.ron`
     Character,
     /// `player_behavior.ron` (exact filename)
@@ -108,7 +108,7 @@ impl RonFileKind {
             "input.ron" => Some(Self::Input),
             "states.ron" => Some(Self::States),
             "touch_layout.ron" => Some(Self::TouchLayout),
-            "am_config.ron" => Some(Self::AmConfig),
+            "alight_motion_config.ron" => Some(Self::AlightMotionConfig),
             "player_behavior.ron" => Some(Self::PlayerBehavior),
             "chase_config.ron" => Some(Self::ChaseConfig),
             _ => None,
@@ -130,7 +130,7 @@ impl RonFileKind {
             "input.ron",
             "states.ron",
             "touch_layout.ron",
-            "am_config.ron",
+            "alight_motion_config.ron",
             "player_behavior.ron",
             "chase_config.ron",
         ]

@@ -84,6 +84,27 @@ pub enum RuleActionDef {
         action_type: String,
         params: HashMap<String, String>,
     },
+    StartDialogue {
+        mortar: String,
+        node: String,
+        #[serde(default)]
+        view: Option<String>,
+        #[serde(default = "default_true")]
+        typewriter: bool,
+        #[serde(default = "default_true")]
+        focus: bool,
+        #[serde(default)]
+        voice: Option<String>,
+    },
+    UseItem {
+        index_expr: String,
+    },
+    CheckItem {
+        index_expr: String,
+    },
+    DropItem {
+        index_expr: String,
+    },
 }
 
 /// Value for SetLocalFact action.
@@ -148,6 +169,10 @@ pub struct FreAsset {
 // ============================================================================
 
 fn default_enabled() -> bool {
+    true
+}
+
+fn default_true() -> bool {
     true
 }
 

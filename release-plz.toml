@@ -53,6 +53,11 @@ release = false
 name = "souprune_schema"
 
 [[package]]
+name = "bevy_bitmap_text"
+release = false
+changelog_update = false
+
+[[package]]
 name = "souprune-lint"
 release = false
 

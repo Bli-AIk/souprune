@@ -58,7 +58,7 @@ pub fn sync_battle_flow_system(
         // Load sequence-specific rules if specified
         if let Some(rules_path) = &asset.rules_file {
             let rules_handle =
-                asset_server.load::<bevy_fact_rule_event::FreAsset>(rules_path.clone());
+                asset_server.load::<crate::core::game_action::GameFreAsset>(rules_path.clone());
             sequence_rules_handle.handle = Some(rules_handle);
             sequence_rules_handle.registered = false;
             info!("Sequence FRE: Loading rules from {}", rules_path);
@@ -205,7 +205,7 @@ pub fn process_wait_chapter_system(
 pub fn process_custom_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
-    handler_registry: Res<bevy_fact_rule_event::ActionHandlerRegistry>,
+    handler_registry: Res<crate::core::game_action::GameActionHandlerRegistry>,
     fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     custom_action_writer: Option<MessageWriter<crate::core::fre_bridge::FreCustomActionEvent>>,
 ) {
@@ -221,7 +221,7 @@ pub fn process_custom_chapter_system(
                 action_type, params
             );
 
-            let action = bevy_fact_rule_event::RuleActionDef::Custom {
+            let action = crate::core::game_action::GameActionDef::Custom {
                 action_type: action_type.clone(),
                 params: params.clone(),
             };

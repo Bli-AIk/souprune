@@ -128,7 +128,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
         (
             flow::process_wait_chapter_system,
             tween::process_tween_wait_chapter_system,
-            performance::process_am_wait_chapter_system,
+            performance::process_alight_motion_wait_chapter_system,
             flow::process_parallel_chapter_system,
             fact_chapter::process_conditional_chapter_system,
             fact_chapter::process_fact_switch_chapter_system,

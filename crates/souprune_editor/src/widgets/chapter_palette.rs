@@ -16,7 +16,7 @@ use bevy_tween::interpolation::EaseKind;
 use egui::Color32;
 use souprune::core::sequencer::chapter_schema::{
     CameraAction, Chapter, ElementModification, ElementSelector, FactCondition, FactValueMatch,
-    PlayerAction, TweenTarget, UIAction, Val,
+    PlayerAction, TweenTarget, UIAction, Value,
 };
 
 use super::chapter_card::ChapterCategory;
@@ -119,7 +119,7 @@ fn all_categories() -> Vec<CategoryDef> {
                     icon: "[MV]",
                     create: || Chapter::ModifyViewElement {
                         selector: ElementSelector::LocalName(String::new()),
-                        modification: ElementModification::SetVisibility(Val::Static(true)),
+                        modification: ElementModification::SetVisibility(Value::Static(true)),
                     },
                 },
                 ChapterTemplate {
@@ -129,7 +129,7 @@ fn all_categories() -> Vec<CategoryDef> {
                         selector: ElementSelector::LocalName(String::new()),
                         target: TweenTarget::Alpha {
                             from: None,
-                            to: Val::Static(1.0),
+                            to: Value::Static(1.0),
                         },
                         duration: 0.5,
                         easing: EaseKind::Linear,
@@ -211,11 +211,11 @@ fn all_categories() -> Vec<CategoryDef> {
                     },
                 },
                 ChapterTemplate {
-                    name: "AmPerformance",
+                    name: "AlightMotionPerformance",
                     icon: "[AM]",
-                    create: || Chapter::AmPerformance {
+                    create: || Chapter::AlightMotionPerformance {
                         amproj_path: String::new(),
-                        am_config: None,
+                        alight_motion_config: None,
                         wait_for_completion: true,
                     },
                 },

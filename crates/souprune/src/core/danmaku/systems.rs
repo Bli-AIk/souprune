@@ -385,7 +385,8 @@ fn spawn_single_bullet(
     let mut entity_commands = commands.spawn((
         Bullet,
         Transform::from_translation(point.position.extend(prototype.z_index))
-            .with_scale(Vec3::splat(scale)),
+            .with_scale(Vec3::splat(scale))
+            .with_rotation(Quat::from_rotation_z(prototype.rotation.to_radians())),
         GlobalTransform::default(),
         BulletLifetime::new(prototype.lifetime),
         BulletDamage(prototype.damage),

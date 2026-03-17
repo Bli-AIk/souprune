@@ -13,7 +13,7 @@ use super::context::*;
 use crate::core::fre_bridge::evaluate_single_condition;
 use crate::core::view::components::ViewRoot;
 use bevy::prelude::*;
-use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_fact_rule_event::{EnumRegistry, LayeredFactDatabase};
 
 /// Marker component to track that this chapter is waiting for a fact condition.
 ///
@@ -63,24 +63,24 @@ pub fn check_await_fact_completion_system(
     awaiting_query: Query<(Entity, &AwaitingFactChapter)>,
     view_root_query: Query<&ViewRoot>,
     global_facts: Res<LayeredFactDatabase>,
+    enum_registry: Res<EnumRegistry>,
 ) {
     for (chapter_entity, awaiting) in awaiting_query.iter() {
         let condition_met = if awaiting.local {
-            // Use View's local_facts
+            // Use View's local_facts + global
             if let Some(view_root) = view_root_query.iter().next() {
-                evaluate_single_condition(
-                    &awaiting.condition,
+                let combined = bevy_fact_rule_event::CombinedFactReader::new(
                     &view_root.local_facts,
-                    &global_facts,
-                )
+                    &*global_facts,
+                );
+                evaluate_single_condition(&awaiting.condition, &combined, &enum_registry)
             } else {
                 warn!("[Battle] No ViewRoot found for local fact evaluation!");
                 false
             }
         } else {
             // Use global FactDatabase
-            let empty_local = bevy_fact_rule_event::FactDatabase::new();
-            evaluate_single_condition(&awaiting.condition, &empty_local, &global_facts)
+            evaluate_single_condition(&awaiting.condition, &*global_facts, &enum_registry)
         };
 
         if condition_met {

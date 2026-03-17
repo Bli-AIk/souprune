@@ -38,7 +38,7 @@ pub struct BattleBox;
 /// 存储 AM 动画战斗框尺寸的组件。
 /// 用于不使用 ViewBox 的战斗框（如 AM 动画）。
 #[derive(Component, Debug, Clone)]
-pub struct AmBattleBoxBounds {
+pub struct AlightMotionBattleBoxBounds {
     pub width: f32,
     pub height: f32,
     /// Offset from entity position to the geometric center of the battle box (Bevy coords).
@@ -63,8 +63,8 @@ pub(crate) fn constrain_player_to_battle_box_system(
         (With<BattleBox>, Without<PhysicsCollider>),
     >,
     // AM-animated battle box
-    am_battle_box_query: Query<
-        (&GlobalTransform, &AmBattleBoxBounds),
+    alight_motion_battle_box_query: Query<
+        (&GlobalTransform, &AlightMotionBattleBoxBounds),
         (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
 ) {
@@ -76,11 +76,18 @@ pub(crate) fn constrain_player_to_battle_box_system(
             ui_box.height(),
             box_transform.translation().truncate(),
         )
-    } else if let Some((box_transform, am_bounds)) = am_battle_box_query.iter().next() {
+    } else if let Some((box_transform, alight_motion_bounds)) =
+        alight_motion_battle_box_query.iter().next()
+    {
         // Create boundary from AM battle box bounds
         // Apply center_offset to get the actual geometric center of the battle box
-        let center_pos = box_transform.translation().truncate() + am_bounds.center_offset;
-        BattleBoxBoundary::from_ui_box(am_bounds.width, am_bounds.height, center_pos)
+        let center_pos =
+            box_transform.translation().truncate() + alight_motion_bounds.center_offset;
+        BattleBoxBoundary::from_ui_box(
+            alight_motion_bounds.width,
+            alight_motion_bounds.height,
+            center_pos,
+        )
     } else {
         return;
     };

@@ -610,11 +610,10 @@ fn load_initial_facts_into_view_root(
 }
 
 fn register_rule_def(
-    rule_def: &bevy_fact_rule_event::asset::RuleDef,
+    rule_def: &souprune::core::game_action::GameRuleDef,
     idx: usize,
     scope: bevy_fact_rule_event::RuleScope,
-    rule_registry: &mut bevy_fact_rule_event::LayeredRuleRegistry,
-    action_defs: &mut souprune::app_state::overworld::trigger::RuleActionDefs,
+    rule_registry: &mut souprune::core::game_action::GameRuleRegistry,
     view_entity: Entity,
     registered_ids: &mut Vec<String>,
 ) {
@@ -625,11 +624,6 @@ fn register_rule_def(
     };
     let rule = rule_def.to_rule_with_index(idx, effective_scope);
     let rule_id = rule_def.generate_id(idx);
-    if !rule_def.actions.is_empty() {
-        action_defs
-            .actions_by_rule
-            .insert(rule_id.clone(), rule_def.actions.clone());
-    }
     if effective_scope == bevy_fact_rule_event::RuleScope::View {
         rule_registry.register_view_rule(view_entity, rule);
     } else {
@@ -646,12 +640,12 @@ pub fn preview_play_control_system(
     mut state: ResMut<ViewPreviewState>,
     editor_state: Res<ViewEditorState>,
     fre_state: Option<Res<super::view_fre_panel::ViewFreState>>,
-    mut rule_registry: ResMut<bevy_fact_rule_event::LayeredRuleRegistry>,
-    mut action_defs: ResMut<souprune::app_state::overworld::trigger::RuleActionDefs>,
+    mut rule_registry: ResMut<souprune::core::game_action::GameRuleRegistry>,
     mut fact_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
     mortar_strings: Res<souprune::extra::mortar::MortarStringTable>,
     mut commands: Commands,
     mut view_roots: Query<(Entity, &mut souprune::core::view::components::ViewRoot)>,
+    enum_registry: Res<bevy_fact_rule_event::EnumRegistry>,
 ) {
     let playing = state.playing;
     let was_playing = state.was_playing;
@@ -702,6 +696,7 @@ pub fn preview_play_control_system(
                 &mut view_root,
                 fre_asset,
                 &mortar_strings,
+                &enum_registry,
             );
 
             let rule_defs = fre_asset.get_rule_defs();
@@ -712,7 +707,6 @@ pub fn preview_play_control_system(
                     idx,
                     scope,
                     &mut rule_registry,
-                    &mut action_defs,
                     view_entity,
                     &mut registered_ids,
                 );
@@ -739,9 +733,6 @@ pub fn preview_play_control_system(
             }
         }
 
-        for rule_id in &state.registered_rule_ids {
-            action_defs.actions_by_rule.remove(rule_id);
-        }
         state.registered_rule_ids.clear();
 
         fact_db.clear_local();

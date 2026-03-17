@@ -30,6 +30,7 @@
 //! | F6 | Enter Battle Test | 进入战斗测试 |
 //! | F7 | Toggle Game Freeze | 切换游戏冻结状态 |
 //! | F8 | Toggle Debug Camera | 切换调试摄像机（滚轮缩放、中键平移） |
+//! | F9 | Restart Game | 重启游戏（重新启动进程） |
 //! | F12 | Toggle Debug Help Text | 切换调试帮助文本 |
 
 #[cfg(feature = "debug")]
@@ -43,6 +44,8 @@ mod freeze;
 #[cfg(feature = "debug")]
 mod image_overlay;
 mod inspector;
+#[cfg(feature = "debug")]
+mod restart;
 
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -123,6 +126,8 @@ impl Plugin for DebugPlugin {
             battle_test::debug_battle_test::setup_battle_test_debug(app);
 
             camera_debug::debug_camera::setup_camera_debug(app);
+
+            restart::debug_restart::setup_restart_debug(app);
         }
     }
 }

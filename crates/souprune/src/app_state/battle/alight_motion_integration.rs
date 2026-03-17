@@ -1,16 +1,16 @@
 //!
-//! # AM 动画集成模块
+//! # Alight Motion 动画集成模块
 //!
 //! ## Module Overview
 //!
 //! ## 模块概述
 //!
 //! This module integrates Alight Motion animations into the battle system.
-//! It handles loading AM projects, spawning entities, and adding collision
+//! It handles loading Alight Motion projects, spawning entities, and adding collision
 //! components based on layer naming conventions.
 //!
 //! 此模块将 Alight Motion 动画集成到战斗系统中。
-//! 它处理加载 AM 项目、生成实体，以及根据图层命名约定添加碰撞组件。
+//! 它处理加载 Alight Motion 项目、生成实体，以及根据图层命名约定添加碰撞组件。
 //!
 //! ## Layer Naming Conventions / 图层命名约定
 //!
@@ -28,40 +28,40 @@ use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
 use crate::app_state::battle::battle_scoped;
-use crate::app_state::battle::collision::{AmBattleBoxBounds, BattleBox};
+use crate::app_state::battle::collision::{AlightMotionBattleBoxBounds, BattleBox};
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
     Bullet, BulletDamage, BulletHitBehavior, BulletLastHitTime, BulletMotionState,
 };
 
-/// Marker component for AM performance entities.
-/// Used to identify and clean up AM-generated entities.
+/// Marker component for Alight Motion performance entities.
+/// Used to identify and clean up Alight Motion-generated entities.
 ///
-/// AM 演出实体的标记组件。
-/// 用于识别和清理 AM 生成的实体。
+/// Alight Motion 演出实体的标记组件。
+/// 用于识别和清理 Alight Motion 生成的实体。
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmEntity;
+pub struct AlightMotionEntity;
 
 /// Marker for entities that should be treated as bullets (from #B group)
 /// Inherited from parent group if parent has this marker.
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmBulletMarker;
+pub struct AlightMotionBulletMarker;
 
 /// Marker for entities that should be treated as battle box (from #C group)
 /// Inherited from parent group if parent has this marker.
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmBattleBoxMarker;
+pub struct AlightMotionBattleBoxMarker;
 
 /// Marker for entities that should be hidden (based on hidden_pattern config)
 /// Inherited from parent group if parent has this marker.
 #[derive(Component, Debug, Clone, Default)]
-pub struct AmHiddenMarker;
+pub struct AlightMotionHiddenMarker;
 
-/// Configuration for AM battle integration.
-/// Place this in your mod's `battle/am_config.ron` file.
+/// Configuration for Alight Motion battle integration.
+/// Place this in your mod's `battle/alight_motion_config.ron` file.
 ///
-/// AM 战斗集成配置。
-/// 将此配置放在 mod 的 `battle/am_config.ron` 文件中。
+/// Alight Motion 战斗集成配置。
+/// 将此配置放在 mod 的 `battle/alight_motion_config.ron` 文件中。
 ///
 /// # Example RON file:
 /// ```ron
@@ -76,18 +76,18 @@ pub struct AmHiddenMarker;
 /// ```
 #[derive(Resource, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
-pub struct AmBattleConfig {
-    /// Scale multiplier for AM project (relative to base scale of 1.0/resolution_scale)
+pub struct AlightMotionBattleConfig {
+    /// Scale multiplier for Alight Motion project (relative to base scale of 1.0/resolution_scale)
     /// Default: 1.0 (no additional scaling)
     ///
-    /// AM 项目的缩放倍数（相对于基础缩放 1.0/resolution_scale）
+    /// Alight Motion 项目的缩放倍数（相对于基础缩放 1.0/resolution_scale）
     /// 默认：1.0（无额外缩放）
     pub scale: f32,
 
-    /// Offset position for AM project (x, y)
+    /// Offset position for Alight Motion project (x, y)
     /// Default: (0.0, 0.0)
     ///
-    /// AM 项目的偏移位置 (x, y)
+    /// Alight Motion 项目的偏移位置 (x, y)
     /// 默认：(0.0, 0.0)
     pub offset: (f32, f32),
 
@@ -145,7 +145,7 @@ fn default_battle_box_size() -> (f32, f32) {
     (565.0, 140.0)
 }
 
-impl Default for AmBattleConfig {
+impl Default for AlightMotionBattleConfig {
     fn default() -> Self {
         Self {
             scale: 1.0,
@@ -162,72 +162,72 @@ impl Default for AmBattleConfig {
 
 /// Compiled regex patterns for runtime matching
 #[derive(Resource)]
-pub struct AmBattlePatterns {
+pub struct AlightMotionBattlePatterns {
     pub bullet_regex: Option<Regex>,
     pub battle_box_regex: Option<Regex>,
     pub hidden_regex: Option<Regex>,
 }
 
-/// Resource to track active AM performance state.
+/// Resource to track active Alight Motion performance state.
 ///
-/// 追踪活跃 AM 演出状态的资源。
+/// 追踪活跃 Alight Motion 演出状态的资源。
 #[derive(Resource, Default)]
-pub struct AmPerformanceState {
-    /// Whether an AM performance is currently playing
+pub struct AlightMotionPerformanceState {
+    /// Whether an Alight Motion performance is currently playing
     pub is_playing: bool,
     /// Total duration of the performance in milliseconds
     pub total_duration_ms: f32,
-    /// Entity ID of the AM project root (if any)
+    /// Entity ID of the Alight Motion project root (if any)
     pub project_entity: Option<Entity>,
-    /// The final scale applied to the AM project (base_scale * config.scale)
+    /// The final scale applied to the Alight Motion project (base_scale * config.scale)
     /// Used for collision calculations
     pub final_scale: f32,
 }
 
-/// Event to request starting an AM performance.
+/// Event to request starting an Alight Motion performance.
 ///
-/// 请求开始 AM 演出的事件。
+/// 请求开始 Alight Motion 演出的事件。
 #[derive(bevy::ecs::message::Message, Debug, Clone)]
-pub struct PlayAmPerformanceEvent {
+pub struct PlayAlightMotionPerformanceEvent {
     pub amproj_path: String,
-    /// Optional path to am_config.ron for this performance.
-    /// If None, the default config (battle/am_config.ron) is used.
+    /// Optional path to alight_motion_config.ron for this performance.
+    /// If None, the default config (battle/alight_motion_config.ron) is used.
     ///
-    /// 此演出使用的可选 am_config.ron 路径。
-    /// 如果为 None，使用默认配置（battle/am_config.ron）。
-    pub am_config_path: Option<String>,
+    /// 此演出使用的可选 alight_motion_config.ron 路径。
+    /// 如果为 None，使用默认配置（battle/alight_motion_config.ron）。
+    pub alight_motion_config_path: Option<String>,
     pub wait_for_completion: bool,
 }
 
-impl PlayAmPerformanceEvent {
+impl PlayAlightMotionPerformanceEvent {
     pub fn new(amproj_path: String) -> Self {
         Self {
             amproj_path,
-            am_config_path: None,
+            alight_motion_config_path: None,
             wait_for_completion: true,
         }
     }
 
-    pub fn with_config(amproj_path: String, am_config_path: Option<String>) -> Self {
+    pub fn with_config(amproj_path: String, alight_motion_config_path: Option<String>) -> Self {
         Self {
             amproj_path,
-            am_config_path,
+            alight_motion_config_path,
             wait_for_completion: true,
         }
     }
 }
 
-/// Plugin for AM battle integration.
+/// Plugin for Alight Motion battle integration.
 ///
-/// AM 战斗集成插件。
-pub struct AmBattlePlugin;
+/// Alight Motion 战斗集成插件。
+pub struct AlightMotionBattlePlugin;
 
-impl Plugin for AmBattlePlugin {
+impl Plugin for AlightMotionBattlePlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
-        app.init_resource::<AmPerformanceState>()
-            .init_resource::<AmBattleConfig>()
-            .add_message::<PlayAmPerformanceEvent>()
+        app.init_resource::<AlightMotionPerformanceState>()
+            .init_resource::<AlightMotionBattleConfig>()
+            .add_message::<PlayAlightMotionPerformanceEvent>()
             .add_systems(
                 schedule,
                 load_am_battle_config.run_if(super::on_entering_battle),
@@ -238,7 +238,7 @@ impl Plugin for AmBattlePlugin {
                     handle_play_am_performance_event,
                     // Sync fit scale for mask coordinate calculation
                     sync_am_fit_scale_system,
-                    // Apply commands so observer results (AmEntity, AmHiddenMarker etc.) are available
+                    // Apply commands so observer results (AlightMotionEntity, AlightMotionHiddenMarker etc.) are available
                     ApplyDeferred,
                     propagate_am_markers_system,
                     // Apply commands before checking markers for collision
@@ -259,18 +259,23 @@ impl Plugin for AmBattlePlugin {
     }
 }
 
-/// Load and parse AM battle config from a path.
+/// Load and parse Alight Motion battle config from a path.
 /// Returns the loaded config and compiled regex patterns.
 ///
-/// 从路径加载并解析 AM 战斗配置。
+/// 从路径加载并解析 Alight Motion 战斗配置。
 /// 返回加载的配置和编译的正则表达式模式。
-fn load_am_config_from_path(
+fn load_alight_motion_config_from_path(
     config_path: &str,
-) -> (AmBattleConfig, Option<Regex>, Option<Regex>, Option<Regex>) {
-    let mut am_config = AmBattleConfig::default();
+) -> (
+    AlightMotionBattleConfig,
+    Option<Regex>,
+    Option<Regex>,
+    Option<Regex>,
+) {
+    let mut am_config = AlightMotionBattleConfig::default();
 
     match std::fs::read_to_string(config_path) {
-        Ok(content) => match ron::from_str::<AmBattleConfig>(&content) {
+        Ok(content) => match ron::from_str::<AlightMotionBattleConfig>(&content) {
             Ok(config) => {
                 am_config = config;
                 info!(
@@ -357,25 +362,25 @@ fn load_am_config_from_path(
     (am_config, bullet_regex, battle_box_regex, hidden_regex)
 }
 
-/// System to load AM battle config from the mod's battle directory.
+/// System to load Alight Motion battle config from the mod's battle directory.
 ///
-/// 从 mod 的 battle 目录加载 AM 战斗配置。
+/// 从 mod 的 battle 目录加载 Alight Motion 战斗配置。
 fn load_am_battle_config(
     mut commands: Commands,
-    mut am_config: ResMut<AmBattleConfig>,
+    mut am_config: ResMut<AlightMotionBattleConfig>,
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
     let config_path = format!(
-        "{}/{}/states/battle/am_config.ron",
+        "{}/{}/states/battle/alight_motion_config.ron",
         crate::config::get_projects_base_path().display(),
         project_config.project.mod_name
     );
 
     let (config, bullet_regex, battle_box_regex, hidden_regex) =
-        load_am_config_from_path(&config_path);
+        load_alight_motion_config_from_path(&config_path);
     *am_config = config;
 
-    commands.insert_resource(AmBattlePatterns {
+    commands.insert_resource(AlightMotionBattlePatterns {
         bullet_regex,
         battle_box_regex,
         hidden_regex,
@@ -392,7 +397,7 @@ fn load_am_battle_config(
 pub fn on_am_entity_spawned(
     trigger: On<AmEntitySpawned>,
     mut commands: Commands,
-    patterns: Option<Res<AmBattlePatterns>>,
+    patterns: Option<Res<AlightMotionBattlePatterns>>,
 ) {
     let event = trigger.event();
     let layer_name = &event.layer_name;
@@ -402,8 +407,8 @@ pub fn on_am_entity_spawned(
         layer_name, event.element_type
     );
 
-    // Add AmEntity marker to all AM entities
-    commands.entity(event.entity).insert(AmEntity);
+    // Add AlightMotionEntity marker to all AM entities
+    commands.entity(event.entity).insert(AlightMotionEntity);
 
     // Check regex patterns for bullet/battle_box/hidden markers
     if let Some(patterns) = patterns {
@@ -411,9 +416,11 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.bullet_regex
             && regex.is_match(layer_name)
         {
-            commands.entity(event.entity).insert(AmBulletMarker);
+            commands
+                .entity(event.entity)
+                .insert(AlightMotionBulletMarker);
             trace!(
-                "  → Matched bullet pattern, added AmBulletMarker to '{}'",
+                "  → Matched bullet pattern, added AlightMotionBulletMarker to '{}'",
                 layer_name
             );
         }
@@ -422,9 +429,11 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.battle_box_regex
             && regex.is_match(layer_name)
         {
-            commands.entity(event.entity).insert(AmBattleBoxMarker);
+            commands
+                .entity(event.entity)
+                .insert(AlightMotionBattleBoxMarker);
             trace!(
-                "  → Matched battle_box pattern, added AmBattleBoxMarker to '{}'",
+                "  → Matched battle_box pattern, added AlightMotionBattleBoxMarker to '{}'",
                 layer_name
             );
         }
@@ -433,14 +442,14 @@ pub fn on_am_entity_spawned(
         if let Some(ref regex) = patterns.hidden_regex
             && regex.is_match(layer_name)
         {
-            // Add both AmHiddenMarker (for propagation) and AmForceHidden (for AM library)
+            // Add both AlightMotionHiddenMarker (for propagation) and AmForceHidden (for AM library)
             commands.entity(event.entity).insert((
-                AmHiddenMarker,
+                AlightMotionHiddenMarker,
                 AmForceHidden, // Tell bevy_alight_motion to keep this hidden
                 Visibility::Hidden,
             ));
             // info!(
-            //     "  → Matched hidden pattern, added AmHiddenMarker + AmForceHidden to '{}'",
+            //     "  → Matched hidden pattern, added AlightMotionHiddenMarker + AmForceHidden to '{}'",
             //     layer_name
             // );
         }
@@ -456,11 +465,11 @@ fn propagate_am_markers_system(
     am_entities: Query<
         (
             Entity,
-            Option<&AmBulletMarker>,
-            Option<&AmBattleBoxMarker>,
-            Option<&AmHiddenMarker>,
+            Option<&AlightMotionBulletMarker>,
+            Option<&AlightMotionBattleBoxMarker>,
+            Option<&AlightMotionHiddenMarker>,
         ),
-        With<AmEntity>,
+        With<AlightMotionEntity>,
     >,
     // Parent hierarchy for inheritance
     parent_query: Query<&ChildOf>,
@@ -516,28 +525,28 @@ fn propagate_am_markers_system(
 
         // Apply inherited markers
         if inherited_bullet {
-            commands.entity(entity).insert(AmBulletMarker);
+            commands.entity(entity).insert(AlightMotionBulletMarker);
             info!(
-                "[AM Battle] Inherited AmBulletMarker to entity {:?}",
+                "[AM Battle] Inherited AlightMotionBulletMarker to entity {:?}",
                 entity
             );
         }
         if inherited_battle_box {
-            commands.entity(entity).insert(AmBattleBoxMarker);
+            commands.entity(entity).insert(AlightMotionBattleBoxMarker);
             info!(
-                "[AM Battle] Inherited AmBattleBoxMarker to entity {:?}",
+                "[AM Battle] Inherited AlightMotionBattleBoxMarker to entity {:?}",
                 entity
             );
         }
         if inherited_hidden {
-            // Add both AmHiddenMarker (for tracking) and AmForceHidden (for AM library)
+            // Add both AlightMotionHiddenMarker (for tracking) and AmForceHidden (for AM library)
             commands.entity(entity).insert((
-                AmHiddenMarker,
+                AlightMotionHiddenMarker,
                 AmForceHidden, // Tell bevy_alight_motion to keep this hidden
                 Visibility::Hidden,
             ));
             info!(
-                "[AM Battle] Inherited AmHiddenMarker + AmForceHidden to entity {:?}",
+                "[AM Battle] Inherited AlightMotionHiddenMarker + AmForceHidden to entity {:?}",
                 entity
             );
         }
@@ -551,12 +560,12 @@ fn propagate_am_markers_system(
 /// 在 `propagate_am_markers_system` 和 `apply_deferred` 之后运行。
 fn add_am_collision_system(
     mut commands: Commands,
-    am_config: Res<AmBattleConfig>,
-    am_state: Res<AmPerformanceState>,
+    am_config: Res<AlightMotionBattleConfig>,
+    am_state: Res<AlightMotionPerformanceState>,
     // Entities with bullet marker that need collision (newly added)
-    bullet_marker_query: Query<Entity, (With<AmBulletMarker>, Without<Bullet>)>,
+    bullet_marker_query: Query<Entity, (With<AlightMotionBulletMarker>, Without<Bullet>)>,
     // Entities with battle_box marker that need components (newly added)
-    battle_box_marker_query: Query<Entity, (With<AmBattleBoxMarker>, Without<BattleBox>)>,
+    battle_box_marker_query: Query<Entity, (With<AlightMotionBattleBoxMarker>, Without<BattleBox>)>,
     // AmLayerSpec query for collision size (contains actual layer dimensions)
     layer_spec_query: Query<&AmLayerSpec>,
     // AmAnimated query for layer's animated scale
@@ -744,7 +753,7 @@ fn add_am_collision_system(
 
         commands.entity(entity).insert((
             BattleBox,
-            AmBattleBoxBounds {
+            AlightMotionBattleBoxBounds {
                 width,
                 height,
                 center_offset,
@@ -758,14 +767,14 @@ fn add_am_collision_system(
     }
 }
 
-/// System to handle PlayAmPerformanceEvent.
+/// System to handle PlayAlightMotionPerformanceEvent.
 ///
-/// 处理 PlayAmPerformanceEvent 的系统。
+/// 处理 PlayAlightMotionPerformanceEvent 的系统。
 fn handle_play_am_performance_event(
     mut commands: Commands,
-    mut events: MessageReader<PlayAmPerformanceEvent>,
-    mut am_state: ResMut<AmPerformanceState>,
-    mut am_config: ResMut<AmBattleConfig>,
+    mut events: MessageReader<PlayAlightMotionPerformanceEvent>,
+    mut am_state: ResMut<AlightMotionPerformanceState>,
+    mut am_config: ResMut<AlightMotionBattleConfig>,
     asset_server: Res<AssetServer>,
     project_config: Res<crate::config::SoupruneConfig>,
 ) {
@@ -774,7 +783,7 @@ fn handle_play_am_performance_event(
 
         // If a custom am_config path is provided, reload the config
         // Otherwise, use the default config loaded at battle start
-        if let Some(custom_config_path) = &event.am_config_path {
+        if let Some(custom_config_path) = &event.alight_motion_config_path {
             let full_path = format!(
                 "{}/{}/{}",
                 crate::config::get_projects_base_path().display(),
@@ -783,21 +792,21 @@ fn handle_play_am_performance_event(
             );
             info!("[AM Battle] Using custom config: {}", full_path);
             let (config, bullet_regex, battle_box_regex, hidden_regex) =
-                load_am_config_from_path(&full_path);
+                load_alight_motion_config_from_path(&full_path);
             *am_config = config;
-            commands.insert_resource(AmBattlePatterns {
+            commands.insert_resource(AlightMotionBattlePatterns {
                 bullet_regex,
                 battle_box_regex,
                 hidden_regex,
             });
         }
 
-        // Load the AM project
+        // Load the Alight Motion project
         let entity = load_am_project(&mut commands, &asset_server, &event.amproj_path);
 
-        // Calculate scale to fit the AM project into the camera view
+        // Calculate scale to fit the Alight Motion project into the camera view
         // We use a fixed base scale of 0.25 to match the behavior at resolution_scale=4.
-        // This ensures the AM project size remains constant relative to the game world
+        // This ensures the Alight Motion project size remains constant relative to the game world
         // regardless of the actual window resolution_scale.
         let base_scale = 0.25;
         let final_scale = base_scale * am_config.scale;
@@ -852,12 +861,12 @@ fn handle_play_am_performance_event(
     }
 }
 
-/// System to check if AM performance has completed.
+/// System to check if Alight Motion performance has completed.
 ///
-/// 检查 AM 演出是否完成的系统。
+/// 检查 Alight Motion 演出是否完成的系统。
 fn check_am_performance_completion(
     playback: Option<Res<AmPlayback>>,
-    mut am_state: ResMut<AmPerformanceState>,
+    mut am_state: ResMut<AlightMotionPerformanceState>,
 ) {
     if !am_state.is_playing {
         return;
@@ -884,8 +893,8 @@ fn check_am_performance_completion(
 /// 退出战斗时清理 AM 实体的系统。
 fn cleanup_am_entities(
     mut commands: Commands,
-    query: Query<Entity, With<AmEntity>>,
-    mut am_state: ResMut<AmPerformanceState>,
+    query: Query<Entity, With<AlightMotionEntity>>,
+    mut am_state: ResMut<AlightMotionPerformanceState>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
@@ -897,13 +906,13 @@ fn cleanup_am_entities(
     info!("[AM Battle] Cleaned up AM entities");
 }
 
-/// System to apply visibility hidden to entities with AmHiddenMarker.
+/// System to apply visibility hidden to entities with AlightMotionHiddenMarker.
 /// Runs after propagate_am_markers_system and apply_deferred so all markers are propagated.
 ///
-/// 将带有 AmHiddenMarker 的实体设置为隐藏。
+/// 将带有 AlightMotionHiddenMarker 的实体设置为隐藏。
 /// 在 propagate_am_markers_system 和 apply_deferred 之后运行，确保所有标记都已传播。
 fn apply_am_hidden_visibility(
-    mut hidden_entities: Query<(Entity, &Name, &mut Visibility), With<AmHiddenMarker>>,
+    mut hidden_entities: Query<(Entity, &Name, &mut Visibility), With<AlightMotionHiddenMarker>>,
 ) {
     for (entity, name, mut visibility) in hidden_entities.iter_mut() {
         if *visibility != Visibility::Hidden {
@@ -924,8 +933,13 @@ fn apply_am_hidden_visibility(
 /// 处理带有缩放动画的战斗框（如收缩/扩展）。
 fn update_am_battle_box_bounds_system(
     playback: Option<Res<AmPlayback>>,
-    am_state: Res<AmPerformanceState>,
-    mut battle_box_query: Query<(Entity, &AmAnimated, &AmLayerSpec, &mut AmBattleBoxBounds)>,
+    am_state: Res<AlightMotionPerformanceState>,
+    mut battle_box_query: Query<(
+        Entity,
+        &AmAnimated,
+        &AmLayerSpec,
+        &mut AlightMotionBattleBoxBounds,
+    )>,
     parent_query: Query<&ChildOf>,
     animated_query: Query<&AmAnimated>,
 ) {
@@ -1034,12 +1048,12 @@ fn compute_total_scale_at_time(
 
 /// System to synchronize inv_fit_scale with the scale applied by souprune.
 /// This ensures mask coordinates are correctly calculated when souprune applies
-/// additional scaling to the AM project root entity.
+/// additional scaling to the Alight Motion project root entity.
 ///
 /// 同步 inv_fit_scale 与 souprune 应用的缩放。
-/// 确保当 souprune 对 AM 项目根实体应用额外缩放时，遮罩坐标能正确计算。
+/// 确保当 souprune 对 Alight Motion 项目根实体应用额外缩放时，遮罩坐标能正确计算。
 fn sync_am_fit_scale_system(
-    am_state: Res<AmPerformanceState>,
+    am_state: Res<AlightMotionPerformanceState>,
     mut pending_layers_query: Query<&mut AmPendingLayers>,
 ) {
     if !am_state.is_playing {

@@ -43,6 +43,7 @@ pub mod dialogue;
 pub mod enemy;
 pub mod fre_bridge;
 pub mod fre_facts;
+pub mod game_action;
 pub mod input;
 pub mod item;
 pub mod map_property_schema;
