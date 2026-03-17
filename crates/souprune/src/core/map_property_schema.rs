@@ -302,6 +302,22 @@ pub fn get_string_property<'a>(properties: &'a tiled::Properties, key: &str) -> 
     })
 }
 
+/// Escapes common escape sequences in property string values.
+///
+/// Currently supports:
+/// - `\n` -> newline
+///
+/// This is useful for Tiled string properties where literal escape sequences
+/// need to be converted to actual characters.
+///
+/// 处理属性字符串值中的常见转义序列。
+///
+/// 目前支持：
+/// - `\n` -> 换行符
+pub fn escape_property_string(s: String) -> String {
+    s.replace("\\n", "\n")
+}
+
 /// Get a bool property from the map.
 ///
 /// 从地图获取布尔属性。

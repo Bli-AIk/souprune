@@ -297,7 +297,11 @@ fn spawn_view_node_with_repeat_context(
             }
 
             if node_def.tags.contains(&"BattleBox".to_string()) {
-                box_entity.insert(crate::app_state::battle::collision::BattleBox);
+                box_entity.insert((
+                    crate::app_state::battle::collision::BattleBox,
+                    crate::app_state::battle::collision::BattleBoxId("main".to_string()),
+                    crate::app_state::battle::collision::BattleBoxState::default(),
+                ));
                 info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);
             }
 

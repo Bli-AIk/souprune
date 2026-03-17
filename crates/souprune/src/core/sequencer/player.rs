@@ -9,6 +9,7 @@
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
 use crate::app_state::ModeScoped;
+use crate::app_state::battle::collision::BoundToBattleBox;
 use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
 use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
@@ -127,6 +128,7 @@ pub fn process_player_spawn_requests(
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),
+                BoundToBattleBox(config.default_box.clone()),
                 ModeScoped("battle".to_string()),
                 Name::new("BattlePlayer"),
             ));

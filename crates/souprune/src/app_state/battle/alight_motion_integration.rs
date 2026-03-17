@@ -28,7 +28,9 @@ use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
 use crate::app_state::battle::battle_scoped;
-use crate::app_state::battle::collision::{AlightMotionBattleBoxBounds, BattleBox};
+use crate::app_state::battle::collision::{
+    AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState,
+};
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
     Bullet, BulletDamage, BulletHitBehavior, BulletLastHitTime, BulletMotionState,
@@ -753,6 +755,8 @@ fn add_am_collision_system(
 
         commands.entity(entity).insert((
             BattleBox,
+            BattleBoxId("main".to_string()),
+            BattleBoxState::default(),
             AlightMotionBattleBoxBounds {
                 width,
                 height,

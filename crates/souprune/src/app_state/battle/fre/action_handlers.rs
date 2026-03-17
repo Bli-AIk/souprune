@@ -13,6 +13,7 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 
+use crate::app_state::battle::collision::{MergeBattleBoxes, SplitAxis, SplitBattleBox};
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
 
 use crate::core::fre_facts;
@@ -137,6 +138,85 @@ pub fn setup_battle_action_handlers_system(
 
             // TODO: Despawn enemy entity
         }
+    });
+
+    // SplitBattleBox - Split a battle box into two
+    handler_registry.register("SplitBattleBox", |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let source = params
+            .get("source")
+            .cloned()
+            .unwrap_or_else(|| "main".to_string());
+        let left = params
+            .get("left")
+            .cloned()
+            .unwrap_or_else(|| "left".to_string());
+        let right = params
+            .get("right")
+            .cloned()
+            .unwrap_or_else(|| "right".to_string());
+        let axis = match params.get("axis").map(String::as_str) {
+            Some("Horizontal") => SplitAxis::Horizontal,
+            _ => SplitAxis::Vertical,
+        };
+        let position: f32 = params
+            .get("position")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+        let gap: f32 = params
+            .get("gap")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+
+        info!(
+            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?})",
+            source, left, right, axis
+        );
+
+        let msg = SplitBattleBox {
+            source_box: source,
+            result_boxes: (left, right),
+            split_axis: axis,
+            split_position: position,
+            gap,
+        };
+        commands.queue(move |world: &mut World| {
+            world.write_message(msg);
+        });
+    });
+
+    // MergeBattleBoxes - Merge two battle boxes into one
+    handler_registry.register("MergeBattleBoxes", |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let box_a = params
+            .get("box_a")
+            .cloned()
+            .unwrap_or_else(|| "left".to_string());
+        let box_b = params
+            .get("box_b")
+            .cloned()
+            .unwrap_or_else(|| "right".to_string());
+        let result = params
+            .get("result")
+            .cloned()
+            .unwrap_or_else(|| "main".to_string());
+
+        info!(
+            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}'",
+            box_a, box_b, result
+        );
+
+        let msg = MergeBattleBoxes {
+            source_boxes: (box_a, box_b),
+            result_box: result,
+        };
+        commands.queue(move |world: &mut World| {
+            world.write_message(msg);
+        });
     });
 
     info!("Battle FRE: Action handlers registered");

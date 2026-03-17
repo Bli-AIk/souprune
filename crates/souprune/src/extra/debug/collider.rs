@@ -155,13 +155,20 @@ pub mod debug_collider {
             Option<&crate::app_state::overworld::chase::ChasePlayerHitbox>,
         )>,
         battle_boxes: Query<
-            (&GlobalTransform, &crate::core::view::components::ViewBox),
+            (
+                &GlobalTransform,
+                &crate::core::view::components::ViewBox,
+                &crate::app_state::battle::collision::BattleBoxId,
+                &crate::app_state::battle::collision::BattleBoxState,
+            ),
             With<crate::app_state::battle::collision::BattleBox>,
         >,
         am_battle_boxes: Query<
             (
                 &GlobalTransform,
                 &crate::app_state::battle::collision::AlightMotionBattleBoxBounds,
+                &crate::app_state::battle::collision::BattleBoxId,
+                &crate::app_state::battle::collision::BattleBoxState,
             ),
             (
                 With<crate::app_state::battle::collision::BattleBox>,
@@ -206,19 +213,32 @@ pub mod debug_collider {
             }
         }
 
-        // Battle boxes (green)
-        for (transform, view_box) in battle_boxes.iter() {
+        // UI Battle boxes — color by ID, dim if inactive
+        for (transform, view_box, box_id, state) in battle_boxes.iter() {
             let pos = transform.translation().truncate();
             let size = Vec2::new(view_box.width(), view_box.height());
-            gizmos.rect_2d(Isometry2d::from_translation(pos), size, css::LIME);
+            let color = box_color(&box_id.0, state.active);
+            gizmos.rect_2d(Isometry2d::from_translation(pos), size, color);
         }
 
-        // AM Battle boxes (dark cyan)
-        for (transform, am_bounds) in am_battle_boxes.iter() {
+        // AM Battle boxes — color by ID, dim if inactive
+        for (transform, am_bounds, box_id, state) in am_battle_boxes.iter() {
             let pos = transform.translation().truncate() + am_bounds.center_offset;
             let size = Vec2::new(am_bounds.width, am_bounds.height);
-            gizmos.rect_2d(Isometry2d::from_translation(pos), size, css::DARK_CYAN);
+            let color = box_color(&box_id.0, state.active);
+            gizmos.rect_2d(Isometry2d::from_translation(pos), size, color);
         }
+    }
+
+    /// Deterministic color for a BattleBoxId. Inactive boxes are dimmed.
+    fn box_color(id: &str, active: bool) -> bevy::color::Color {
+        let hash = id
+            .bytes()
+            .fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
+        let hue = (hash % 360) as f32;
+        let saturation = if active { 0.85 } else { 0.3 };
+        let lightness = if active { 0.55 } else { 0.35 };
+        bevy::color::Color::hsl(hue, saturation, lightness)
     }
 
     /// Draw AM masks using Gizmos (red).
