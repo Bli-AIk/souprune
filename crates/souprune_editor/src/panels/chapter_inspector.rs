@@ -364,6 +364,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             axis,
             position,
             gap,
+            duration,
         } => {
             changed |= labeled_text(ui, &t(world, "prop-source-box"), source);
             ui.separator();
@@ -398,13 +399,31 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
                 1.0,
             );
             changed |= labeled_drag(ui, &t(world, "prop-gap"), gap, 0.0..=200.0, 1.0);
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-duration-sec"),
+                duration,
+                0.0..=10.0,
+                0.05,
+            );
         }
 
-        Chapter::MergeBattleBoxes { sources, result } => {
+        Chapter::MergeBattleBoxes {
+            sources,
+            result,
+            duration,
+        } => {
             changed |= labeled_text(ui, &t(world, "prop-source-a"), &mut sources.0);
             changed |= labeled_text(ui, &t(world, "prop-source-b"), &mut sources.1);
             ui.separator();
             changed |= labeled_text(ui, &t(world, "prop-result-box"), result);
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-duration-sec"),
+                duration,
+                0.0..=10.0,
+                0.05,
+            );
         }
     }
 

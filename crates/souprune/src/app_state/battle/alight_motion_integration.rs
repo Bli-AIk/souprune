@@ -29,7 +29,7 @@ use regex::Regex;
 
 use crate::app_state::battle::battle_scoped;
 use crate::app_state::battle::collision::{
-    AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState,
+    AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
 };
 use crate::core::collision::TriggerCollider;
 use crate::core::danmaku::{
@@ -757,6 +757,7 @@ fn add_am_collision_system(
             BattleBox,
             BattleBoxId("main".to_string()),
             BattleBoxState::default(),
+            BattleBoxVisualStyle::default(),
             AlightMotionBattleBoxBounds {
                 width,
                 height,

@@ -10,8 +10,10 @@ use crate::app_state::battle::{BattleMovementSet, BattleUpdate};
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::mod_system::BehaviorParams;
 use crate::core::view::components::ViewBox;
+use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
+use bevy_alight_motion::sdf_material::SdfMaterial;
 use serde::{Deserialize, Serialize};
 
 /// Plugin for battle collision systems
@@ -80,6 +82,51 @@ impl Default for BattleBoxState {
     }
 }
 
+/// Runtime visual style for battle box SDF rendering.
+///
+/// 战斗框 SDF 渲染的运行时视觉样式。
+#[derive(Component, Debug, Clone)]
+pub struct BattleBoxVisualStyle {
+    pub border_width: f32,
+    pub fill_shader: Option<String>,
+    pub structure_file: Option<String>,
+    pub fill_color: Color,
+}
+
+impl BattleBoxVisualStyle {
+    pub fn from_view_box(view_box: &ViewBox) -> Self {
+        Self {
+            border_width: view_box.border_width,
+            fill_shader: view_box.fill_shader.clone(),
+            structure_file: view_box.structure_file.clone(),
+            fill_color: view_box.fill_color,
+        }
+    }
+
+    fn to_view_box(&self, width: f32, height: f32) -> ViewBox {
+        ViewBox::new_full(
+            width,
+            height,
+            self.border_width,
+            Vec::new(),
+            self.fill_shader.clone(),
+            self.structure_file.clone(),
+            self.fill_color,
+        )
+    }
+}
+
+impl Default for BattleBoxVisualStyle {
+    fn default() -> Self {
+        Self {
+            border_width: 5.0,
+            fill_shader: None,
+            structure_file: None,
+            fill_color: Color::BLACK,
+        }
+    }
+}
+
 /// Component storing battle box dimensions for AM-animated battle boxes.
 /// Used when the battle box doesn't use ViewBox (e.g., AM animations).
 ///
@@ -125,6 +172,8 @@ pub struct SplitBattleBox {
     pub split_position: f32,
     /// Gap between the two new boxes (pixels)
     pub gap: f32,
+    /// Animation duration in seconds (0 = instant)
+    pub duration: f32,
 }
 
 /// Event to trigger merging two battle boxes back into one.
@@ -136,6 +185,8 @@ pub struct MergeBattleBoxes {
     pub source_boxes: (String, String),
     /// ID of the resulting merged box
     pub result_box: String,
+    /// Animation duration in seconds (0 = instant)
+    pub duration: f32,
 }
 
 // ─── Split / Merge Algorithms ───────────────────────────────────────
@@ -237,6 +288,16 @@ fn resolve_boundary(
     }
 }
 
+fn resolve_visual_style(
+    ui_box: Option<&ViewBox>,
+    style: Option<&BattleBoxVisualStyle>,
+) -> BattleBoxVisualStyle {
+    style
+        .cloned()
+        .or_else(|| ui_box.map(BattleBoxVisualStyle::from_view_box))
+        .unwrap_or_default()
+}
+
 // ─── Systems ────────────────────────────────────────────────────────
 
 /// System to constrain player position within their bound battle box.
@@ -296,6 +357,8 @@ fn handle_split_battle_box_system(
             &ViewBox,
             &BattleBoxId,
             &mut BattleBoxState,
+            Option<&BattleBoxVisualStyle>,
+            Option<&mut Visibility>,
         ),
         (With<BattleBox>, Without<PhysicsCollider>),
     >,
@@ -305,34 +368,47 @@ fn handle_split_battle_box_system(
             &AlightMotionBattleBoxBounds,
             &BattleBoxId,
             &mut BattleBoxState,
+            Option<&BattleBoxVisualStyle>,
+            Option<&mut Visibility>,
         ),
         (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for ev in events.read() {
-        // Find and deactivate source box, get its boundary
-        let source_boundary = 'find: {
-            if let Some((tf, vb, _, mut state)) = ui_boxes
+        // Find and deactivate source box, get its boundary and visual style.
+        let source_data = 'find: {
+            if let Some((tf, vb, _, mut state, style, visibility)) = ui_boxes
                 .iter_mut()
-                .find(|(_, _, id, _)| id.0 == ev.source_box)
+                .find(|(_, _, id, _, _, _)| id.0 == ev.source_box)
             {
                 let b = resolve_boundary(tf, Some(vb), None, &state);
+                let style = resolve_visual_style(Some(vb), style);
                 state.active = false;
-                break 'find b;
+                if let Some(mut visibility) = visibility {
+                    *visibility = Visibility::Hidden;
+                }
+                break 'find b.map(|boundary| (boundary, style));
             }
-            if let Some((tf, am, _, mut state)) = am_boxes
+            if let Some((tf, am, _, mut state, style, visibility)) = am_boxes
                 .iter_mut()
-                .find(|(_, _, id, _)| id.0 == ev.source_box)
+                .find(|(_, _, id, _, _, _)| id.0 == ev.source_box)
             {
                 let b = resolve_boundary(tf, None, Some(am), &state);
+                let style = resolve_visual_style(None, style);
                 state.active = false;
-                break 'find b;
+                if let Some(mut visibility) = visibility {
+                    *visibility = Visibility::Hidden;
+                }
+                break 'find b.map(|boundary| (boundary, style));
             }
             warn!("SplitBattleBox: source box '{}' not found", ev.source_box);
             None
         };
 
-        let Some(original) = source_boundary else {
+        let Some((original, style)) = source_data else {
             continue;
         };
 
@@ -340,9 +416,25 @@ fn handle_split_battle_box_system(
 
         let (id_a, id_b) = (&ev.result_boxes.0, &ev.result_boxes.1);
 
-        // Spawn two new battle box entities (standalone, no AM/View backing)
-        spawn_standalone_box(&mut commands, id_a, &box_a);
-        spawn_standalone_box(&mut commands, id_b, &box_b);
+        // Spawn two new battle box entities with their own SDF visuals.
+        spawn_standalone_box(
+            &mut commands,
+            &mut meshes,
+            &mut sdf_materials,
+            &mut color_materials,
+            id_a,
+            &box_a,
+            &style,
+        );
+        spawn_standalone_box(
+            &mut commands,
+            &mut meshes,
+            &mut sdf_materials,
+            &mut color_materials,
+            id_b,
+            &box_b,
+            &style,
+        );
 
         // Rebind players that were bound to the source box
         for (player_tf, mut bound) in player_query.iter_mut() {
@@ -353,8 +445,8 @@ fn handle_split_battle_box_system(
         }
 
         info!(
-            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={})",
-            ev.source_box, id_a, id_b, ev.split_axis, ev.split_position, ev.gap
+            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={}, duration={})",
+            ev.source_box, id_a, id_b, ev.split_axis, ev.split_position, ev.gap, ev.duration
         );
     }
 }
@@ -370,6 +462,8 @@ fn handle_merge_battle_boxes_system(
             &ViewBox,
             &BattleBoxId,
             &mut BattleBoxState,
+            Option<&BattleBoxVisualStyle>,
+            Option<&mut Visibility>,
         ),
         (With<BattleBox>, Without<PhysicsCollider>),
     >,
@@ -379,31 +473,45 @@ fn handle_merge_battle_boxes_system(
             &AlightMotionBattleBoxBounds,
             &BattleBoxId,
             &mut BattleBoxState,
+            Option<&BattleBoxVisualStyle>,
+            Option<&mut Visibility>,
         ),
         (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for ev in events.read() {
         let ids = [&ev.source_boxes.0, &ev.source_boxes.1];
         let mut boundaries: Vec<BattleBoxBoundary> = Vec::with_capacity(2);
+        let mut visual_style: Option<BattleBoxVisualStyle> = None;
 
         // Deactivate sources and collect boundaries
         for target_id in &ids {
             let found = 'find: {
-                if let Some((tf, vb, _, mut state)) = ui_boxes
+                if let Some((tf, vb, _, mut state, style, visibility)) = ui_boxes
                     .iter_mut()
-                    .find(|(_, _, id, _)| &id.0 == *target_id)
+                    .find(|(_, _, id, _, _, _)| &id.0 == *target_id)
                 {
                     let b = resolve_boundary(tf, Some(vb), None, &state);
+                    visual_style.get_or_insert_with(|| resolve_visual_style(Some(vb), style));
                     state.active = false;
+                    if let Some(mut visibility) = visibility {
+                        *visibility = Visibility::Hidden;
+                    }
                     break 'find b;
                 }
-                if let Some((tf, am, _, mut state)) = am_boxes
+                if let Some((tf, am, _, mut state, style, visibility)) = am_boxes
                     .iter_mut()
-                    .find(|(_, _, id, _)| &id.0 == *target_id)
+                    .find(|(_, _, id, _, _, _)| &id.0 == *target_id)
                 {
                     let b = resolve_boundary(tf, None, Some(am), &state);
+                    visual_style.get_or_insert_with(|| resolve_visual_style(None, style));
                     state.active = false;
+                    if let Some(mut visibility) = visibility {
+                        *visibility = Visibility::Hidden;
+                    }
                     break 'find b;
                 }
                 warn!("MergeBattleBoxes: source box '{}' not found", target_id);
@@ -424,7 +532,16 @@ fn handle_merge_battle_boxes_system(
 
         // Compute merged AABB from two boundaries
         let merged = merge_boundaries(&boundaries[0], &boundaries[1]);
-        spawn_standalone_box(&mut commands, &ev.result_box, &merged);
+        let default_visual_style = BattleBoxVisualStyle::default();
+        spawn_standalone_box(
+            &mut commands,
+            &mut meshes,
+            &mut sdf_materials,
+            &mut color_materials,
+            &ev.result_box,
+            &merged,
+            visual_style.as_ref().unwrap_or(&default_visual_style),
+        );
 
         // Rebind all players from either source to the merged box
         for mut bound in player_query.iter_mut() {
@@ -434,29 +551,53 @@ fn handle_merge_battle_boxes_system(
         }
 
         info!(
-            "Merged '{}' + '{}' → '{}'",
-            ev.source_boxes.0, ev.source_boxes.1, ev.result_box
+            "Merged '{}' + '{}' → '{}' (duration={})",
+            ev.source_boxes.0, ev.source_boxes.1, ev.result_box, ev.duration
         );
     }
 }
 
 // ─── Standalone Box Helpers ─────────────────────────────────────────
 
-/// Spawn a standalone battle box entity (not backed by AM or View).
-fn spawn_standalone_box(commands: &mut Commands, id: &str, boundary: &BattleBoxBoundary) {
-    commands.spawn((
-        BattleBox,
-        BattleBoxId(id.to_string()),
-        BattleBoxState::default(),
-        AlightMotionBattleBoxBounds {
-            width: boundary.half_size.x * 2.0,
-            height: boundary.half_size.y * 2.0,
-            center_offset: Vec2::ZERO,
-        },
-        Transform::from_translation(boundary.center.extend(0.0)),
-        GlobalTransform::default(),
-        Name::new(format!("BattleBox:{id}")),
-    ));
+/// Spawn a standalone battle box entity with its own SDF visual.
+fn spawn_standalone_box(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+    id: &str,
+    boundary: &BattleBoxBoundary,
+    visual_style: &BattleBoxVisualStyle,
+) {
+    let view_box = visual_style.to_view_box(boundary.half_size.x * 2.0, boundary.half_size.y * 2.0);
+    let entity = commands
+        .spawn((
+            BattleBox,
+            BattleBoxId(id.to_string()),
+            BattleBoxState::default(),
+            visual_style.clone(),
+            AlightMotionBattleBoxBounds {
+                width: boundary.half_size.x * 2.0,
+                height: boundary.half_size.y * 2.0,
+                center_offset: Vec2::ZERO,
+            },
+            Transform::from_translation(boundary.center.extend(0.0)),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            Name::new(format!("BattleBox:{id}")),
+        ))
+        .id();
+
+    spawn_view_box_sdf_children(
+        commands,
+        entity,
+        &view_box,
+        meshes,
+        sdf_materials,
+        color_materials,
+    );
 }
 
 /// Merge two boundaries into one AABB that encloses both.

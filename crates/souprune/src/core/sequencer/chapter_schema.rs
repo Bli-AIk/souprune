@@ -648,6 +648,7 @@ pub enum Chapter {
     ///     axis: Vertical,
     ///     position: 0.0,
     ///     gap: 20.0,
+    ///     duration: 0.3,
     /// ),
     /// ```
     SplitBattleBox {
@@ -668,6 +669,10 @@ pub enum Chapter {
         /// 两个结果框之间的间隔（像素）。
         #[serde(default)]
         gap: f32,
+        /// Animation duration in seconds. `0.0` means instant.
+        /// 动画时长（秒）。`0.0` 表示瞬时。
+        #[serde(default)]
+        duration: f32,
     },
 
     /// Merge two battle boxes back into one.
@@ -685,6 +690,7 @@ pub enum Chapter {
     /// MergeBattleBoxes(
     ///     sources: ("left", "right"),
     ///     result: "main",
+    ///     duration: 0.5,
     /// ),
     /// ```
     MergeBattleBoxes {
@@ -694,6 +700,10 @@ pub enum Chapter {
         /// ID of the resulting merged box.
         /// 合并后结果框的 ID。
         result: String,
+        /// Animation duration in seconds. `0.0` means instant.
+        /// 动画时长（秒）。`0.0` 表示瞬时。
+        #[serde(default)]
+        duration: f32,
     },
 
     /// Custom chapter type for editor/mod extensibility.

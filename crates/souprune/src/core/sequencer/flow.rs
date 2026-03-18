@@ -260,10 +260,11 @@ pub fn process_battle_box_chapter_system(
                 axis,
                 position,
                 gap,
+                duration,
             } => {
                 info!(
-                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?})",
-                    source, result.0, result.1, axis
+                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, duration={})",
+                    source, result.0, result.1, axis, duration
                 );
                 split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
                     source_box: source.clone(),
@@ -271,17 +272,23 @@ pub fn process_battle_box_chapter_system(
                     split_axis: axis.clone(),
                     split_position: *position,
                     gap: *gap,
+                    duration: *duration,
                 });
                 commands.entity(entity).insert(ChapterFinished);
             }
-            Chapter::MergeBattleBoxes { sources, result } => {
+            Chapter::MergeBattleBoxes {
+                sources,
+                result,
+                duration,
+            } => {
                 info!(
-                    "MergeBattleBoxes Chapter: '{}' + '{}' → '{}'",
-                    sources.0, sources.1, result
+                    "MergeBattleBoxes Chapter: '{}' + '{}' → '{}' (duration={})",
+                    sources.0, sources.1, result, duration
                 );
                 merge_writer.write(crate::app_state::battle::collision::MergeBattleBoxes {
                     source_boxes: sources.clone(),
                     result_box: result.clone(),
+                    duration: *duration,
                 });
                 commands.entity(entity).insert(ChapterFinished);
             }

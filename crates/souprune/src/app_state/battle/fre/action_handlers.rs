@@ -169,10 +169,14 @@ pub fn setup_battle_action_handlers_system(
             .get("gap")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
+        let duration: f32 = params
+            .get("duration")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
 
         info!(
-            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?})",
-            source, left, right, axis
+            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?}, duration={})",
+            source, left, right, axis, duration
         );
 
         let msg = SplitBattleBox {
@@ -181,6 +185,7 @@ pub fn setup_battle_action_handlers_system(
             split_axis: axis,
             split_position: position,
             gap,
+            duration,
         };
         commands.queue(move |world: &mut World| {
             world.write_message(msg);
@@ -204,15 +209,20 @@ pub fn setup_battle_action_handlers_system(
             .get("result")
             .cloned()
             .unwrap_or_else(|| "main".to_string());
+        let duration: f32 = params
+            .get("duration")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
 
         info!(
-            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}'",
-            box_a, box_b, result
+            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}' (duration={})",
+            box_a, box_b, result, duration
         );
 
         let msg = MergeBattleBoxes {
             source_boxes: (box_a, box_b),
             result_box: result,
+            duration,
         };
         commands.queue(move |world: &mut World| {
             world.write_message(msg);
