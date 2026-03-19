@@ -283,16 +283,20 @@ pub fn process_battle_box_chapter_system(
             Chapter::MergeBattleBoxes {
                 sources,
                 result,
+                gap_policy,
                 duration,
+                easing,
             } => {
                 info!(
-                    "MergeBattleBoxes Chapter: '{}' + '{}' → '{}' (duration={})",
-                    sources.0, sources.1, result, duration
+                    "MergeBattleBoxes Chapter: '{}' + '{}' → '{}' (gap_policy={:?}, duration={}, easing={:?})",
+                    sources.0, sources.1, result, gap_policy, duration, easing
                 );
                 merge_writer.write(crate::app_state::battle::collision::MergeBattleBoxes {
                     source_boxes: sources.clone(),
                     result_box: result.clone(),
+                    gap_policy: *gap_policy,
                     duration: *duration,
+                    easing: *easing,
                 });
                 commands.entity(entity).insert(ChapterFinished);
             }

@@ -220,16 +220,22 @@ pub fn setup_battle_action_handlers_system(
             .get("duration")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
+        let gap_policy = match params.get("gap_policy").map(String::as_str) {
+            Some("Includes") => GapPolicy::Includes,
+            _ => GapPolicy::Expands,
+        };
 
         info!(
-            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}' (duration={})",
-            box_a, box_b, result, duration
+            "Battle FRE Action: MergeBattleBoxes '{}' + '{}' → '{}' (gap_policy={:?}, duration={})",
+            box_a, box_b, result, gap_policy, duration
         );
 
         let msg = MergeBattleBoxes {
             source_boxes: (box_a, box_b),
             result_box: result,
+            gap_policy,
             duration,
+            easing: EaseKind::Linear,
         };
         commands.queue(move |world: &mut World| {
             world.write_message(msg);

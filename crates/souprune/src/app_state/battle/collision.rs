@@ -62,6 +62,7 @@ impl Plugin for BattleCollisionPlugin {
                     handle_split_battle_box_system,
                     handle_merge_battle_boxes_system,
                     animate_battle_box_split_system,
+                    animate_battle_box_merge_system,
                     constrain_player_to_battle_box_system,
                 )
                     .chain()
@@ -227,6 +228,51 @@ pub struct BattleBoxSplitAnimation {
     pub duration: f32,
 }
 
+/// Tracks an ongoing merge animation for a pair of battle boxes.
+/// 跟踪一对战斗框正在进行的合并动画。
+#[derive(Component)]
+pub struct BattleBoxMergeAnimation {
+    /// Source box IDs that should be rebound on completion.
+    /// 动画完成后需要重绑定的源框 ID。
+    pub source_boxes: (String, String),
+    /// ID of the final merged box.
+    /// 最终合并结果框的 ID。
+    pub result_box: String,
+    /// Entity ID for box A.
+    /// box A 的实体 ID。
+    pub box_entity_a: Entity,
+    /// Entity ID for box B.
+    /// box B 的实体 ID。
+    pub box_entity_b: Entity,
+    /// Starting boundary for box A.
+    /// box A 的起始边界。
+    pub start_boundary_a: BattleBoxBoundary,
+    /// Starting boundary for box B.
+    /// box B 的起始边界。
+    pub start_boundary_b: BattleBoxBoundary,
+    /// Target boundary for box A at the end of the merge.
+    /// merge 结束时 box A 的目标边界。
+    pub target_boundary_a: BattleBoxBoundary,
+    /// Target boundary for box B at the end of the merge.
+    /// merge 结束时 box B 的目标边界。
+    pub target_boundary_b: BattleBoxBoundary,
+    /// Final merged boundary to spawn on completion.
+    /// 动画完成后生成的最终合并边界。
+    pub merged_boundary: BattleBoxBoundary,
+    /// Visual style to apply during animation.
+    /// 动画期间应用的视觉样式。
+    pub visual_style: BattleBoxVisualStyle,
+    /// Easing function used by the merge tween.
+    /// merge tween 使用的缓动函数。
+    pub easing: EaseKind,
+    /// Animation progress (0.0 to 1.0).
+    /// 动画进度（0.0 到 1.0）。
+    pub progress: f32,
+    /// Total animation duration in seconds.
+    /// 总动画时长（秒）。
+    pub duration: f32,
+}
+
 // ─── Split / Merge Events ───────────────────────────────────────────
 
 /// Axis along which to split a battle box.
@@ -286,8 +332,12 @@ pub struct MergeBattleBoxes {
     pub source_boxes: (String, String),
     /// ID of the resulting merged box
     pub result_box: String,
+    /// Policy for how the closing gap affects the merge geometry
+    pub gap_policy: GapPolicy,
     /// Animation duration in seconds (0 = instant)
     pub duration: f32,
+    /// Easing function for animated merges.
+    pub easing: EaseKind,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -433,6 +483,188 @@ fn split_rect_box(
     }
 }
 
+#[derive(Debug, Clone)]
+struct MergeAnimationPlan {
+    axis: SplitAxis,
+    ordered_indices: (usize, usize),
+    target_boundary_a: BattleBoxBoundary,
+    target_boundary_b: BattleBoxBoundary,
+    merged_boundary: BattleBoxBoundary,
+}
+
+fn lerp_boundary(start: &BattleBoxBoundary, end: &BattleBoxBoundary, t: f32) -> BattleBoxBoundary {
+    BattleBoxBoundary {
+        center: start.center.lerp(end.center, t),
+        half_size: start.half_size.lerp(end.half_size, t),
+    }
+}
+
+fn infer_merge_axis(a: &BattleBoxBoundary, b: &BattleBoxBoundary) -> Option<SplitAxis> {
+    const EPSILON: f32 = 0.001;
+
+    let overlap_x = (a.half_size.x + b.half_size.x) - (a.center.x - b.center.x).abs();
+    let overlap_y = (a.half_size.y + b.half_size.y) - (a.center.y - b.center.y).abs();
+
+    if overlap_x + EPSILON < overlap_y {
+        return Some(SplitAxis::Vertical);
+    }
+    if overlap_y + EPSILON < overlap_x {
+        return Some(SplitAxis::Horizontal);
+    }
+
+    let delta_x = (a.center.x - b.center.x).abs();
+    let delta_y = (a.center.y - b.center.y).abs();
+
+    if delta_y + EPSILON < delta_x {
+        Some(SplitAxis::Vertical)
+    } else if delta_x + EPSILON < delta_y {
+        Some(SplitAxis::Horizontal)
+    } else {
+        None
+    }
+}
+
+fn plan_merge_animation(
+    boundaries: &[BattleBoxBoundary; 2],
+    gap_policy: GapPolicy,
+) -> Option<MergeAnimationPlan> {
+    let axis = infer_merge_axis(&boundaries[0], &boundaries[1])?;
+
+    match axis {
+        SplitAxis::Vertical => {
+            let ordered_indices = if boundaries[0].center.x <= boundaries[1].center.x {
+                (0, 1)
+            } else {
+                (1, 0)
+            };
+            let left = &boundaries[ordered_indices.0];
+            let right = &boundaries[ordered_indices.1];
+
+            let left_min = left.center.x - left.half_size.x;
+            let left_max = left.center.x + left.half_size.x;
+            let right_min = right.center.x - right.half_size.x;
+            let right_max = right.center.x + right.half_size.x;
+
+            let (target_left, target_right) = match gap_policy {
+                GapPolicy::Expands => {
+                    let split_x = (left_max + right_min) * 0.5;
+                    (
+                        BattleBoxBoundary {
+                            half_size: left.half_size,
+                            center: Vec2::new(split_x - left.half_size.x, left.center.y),
+                        },
+                        BattleBoxBoundary {
+                            half_size: right.half_size,
+                            center: Vec2::new(split_x + right.half_size.x, right.center.y),
+                        },
+                    )
+                }
+                GapPolicy::Includes => {
+                    let outer_span = right_max - left_min;
+                    let combined_width = left.half_size.x * 2.0 + right.half_size.x * 2.0;
+                    if outer_span <= 0.0 || combined_width <= 0.0 {
+                        return None;
+                    }
+
+                    let scale = combined_width / outer_span;
+                    if scale <= f32::EPSILON {
+                        return None;
+                    }
+
+                    let target_left_width = (left.half_size.x * 2.0) / scale;
+                    let target_right_width = (right.half_size.x * 2.0) / scale;
+                    (
+                        BattleBoxBoundary {
+                            half_size: Vec2::new(target_left_width * 0.5, left.half_size.y),
+                            center: Vec2::new(left_min + target_left_width * 0.5, left.center.y),
+                        },
+                        BattleBoxBoundary {
+                            half_size: Vec2::new(target_right_width * 0.5, right.half_size.y),
+                            center: Vec2::new(right_max - target_right_width * 0.5, right.center.y),
+                        },
+                    )
+                }
+            };
+
+            let merged_boundary = merge_boundaries(&target_left, &target_right);
+            Some(MergeAnimationPlan {
+                axis,
+                ordered_indices,
+                target_boundary_a: target_left,
+                target_boundary_b: target_right,
+                merged_boundary,
+            })
+        }
+        SplitAxis::Horizontal => {
+            let ordered_indices = if boundaries[0].center.y >= boundaries[1].center.y {
+                (0, 1)
+            } else {
+                (1, 0)
+            };
+            let top = &boundaries[ordered_indices.0];
+            let bottom = &boundaries[ordered_indices.1];
+
+            let top_max = top.center.y + top.half_size.y;
+            let top_min = top.center.y - top.half_size.y;
+            let bottom_max = bottom.center.y + bottom.half_size.y;
+            let bottom_min = bottom.center.y - bottom.half_size.y;
+
+            let (target_top, target_bottom) = match gap_policy {
+                GapPolicy::Expands => {
+                    let split_y = (top_min + bottom_max) * 0.5;
+                    (
+                        BattleBoxBoundary {
+                            half_size: top.half_size,
+                            center: Vec2::new(top.center.x, split_y + top.half_size.y),
+                        },
+                        BattleBoxBoundary {
+                            half_size: bottom.half_size,
+                            center: Vec2::new(bottom.center.x, split_y - bottom.half_size.y),
+                        },
+                    )
+                }
+                GapPolicy::Includes => {
+                    let outer_span = top_max - bottom_min;
+                    let combined_height = top.half_size.y * 2.0 + bottom.half_size.y * 2.0;
+                    if outer_span <= 0.0 || combined_height <= 0.0 {
+                        return None;
+                    }
+
+                    let scale = combined_height / outer_span;
+                    if scale <= f32::EPSILON {
+                        return None;
+                    }
+
+                    let target_top_height = (top.half_size.y * 2.0) / scale;
+                    let target_bottom_height = (bottom.half_size.y * 2.0) / scale;
+                    (
+                        BattleBoxBoundary {
+                            half_size: Vec2::new(top.half_size.x, target_top_height * 0.5),
+                            center: Vec2::new(top.center.x, top_max - target_top_height * 0.5),
+                        },
+                        BattleBoxBoundary {
+                            half_size: Vec2::new(bottom.half_size.x, target_bottom_height * 0.5),
+                            center: Vec2::new(
+                                bottom.center.x,
+                                bottom_min + target_bottom_height * 0.5,
+                            ),
+                        },
+                    )
+                }
+            };
+
+            let merged_boundary = merge_boundaries(&target_top, &target_bottom);
+            Some(MergeAnimationPlan {
+                axis,
+                ordered_indices,
+                target_boundary_a: target_top,
+                target_boundary_b: target_bottom,
+                merged_boundary,
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -551,6 +783,70 @@ mod tests {
         let visible_gap = (top.center.y - top.half_size.y - style.border_width)
             - (bottom.center.y + bottom.half_size.y + style.border_width);
         approx_eq(visible_gap, 0.0);
+    }
+
+    #[test]
+    fn vertical_expands_merge_recovers_original_boundary() {
+        let original = boundary(300.0, 200.0);
+        let (left, right) = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            20.0,
+            30.0,
+            GapPolicy::Expands,
+        );
+        let expected = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            20.0,
+            0.0,
+            GapPolicy::Expands,
+        );
+
+        let plan =
+            plan_merge_animation(&[left.clone(), right.clone()], GapPolicy::Expands).unwrap();
+
+        assert_eq!(plan.axis, SplitAxis::Vertical);
+        approx_eq(plan.merged_boundary.center.x, original.center.x);
+        approx_eq(plan.merged_boundary.center.y, original.center.y);
+        approx_eq(plan.merged_boundary.half_size.x, original.half_size.x);
+        approx_eq(plan.merged_boundary.half_size.y, original.half_size.y);
+        approx_eq(plan.target_boundary_a.center.x, expected.0.center.x);
+        approx_eq(plan.target_boundary_b.center.x, expected.1.center.x);
+        approx_eq(plan.target_boundary_a.half_size.x, expected.0.half_size.x);
+        approx_eq(plan.target_boundary_b.half_size.x, expected.1.half_size.x);
+    }
+
+    #[test]
+    fn horizontal_includes_merge_recovers_original_boundary() {
+        let original = boundary(300.0, 200.0);
+        let (top, bottom) = split_rect_box(
+            &original,
+            &SplitAxis::Horizontal,
+            20.0,
+            20.0,
+            GapPolicy::Includes,
+        );
+        let expected = split_rect_box(
+            &original,
+            &SplitAxis::Horizontal,
+            20.0,
+            0.0,
+            GapPolicy::Includes,
+        );
+
+        let plan =
+            plan_merge_animation(&[top.clone(), bottom.clone()], GapPolicy::Includes).unwrap();
+
+        assert_eq!(plan.axis, SplitAxis::Horizontal);
+        approx_eq(plan.merged_boundary.center.x, original.center.x);
+        approx_eq(plan.merged_boundary.center.y, original.center.y);
+        approx_eq(plan.merged_boundary.half_size.x, original.half_size.x);
+        approx_eq(plan.merged_boundary.half_size.y, original.half_size.y);
+        approx_eq(plan.target_boundary_a.center.y, expected.0.center.y);
+        approx_eq(plan.target_boundary_b.center.y, expected.1.center.y);
+        approx_eq(plan.target_boundary_a.half_size.y, expected.0.half_size.y);
+        approx_eq(plan.target_boundary_b.half_size.y, expected.1.half_size.y);
     }
 
     #[test]
@@ -1076,7 +1372,7 @@ fn handle_merge_battle_boxes_system(
         }
 
         let ids = [&ev.source_boxes.0, &ev.source_boxes.1];
-        let mut boundaries: Vec<BattleBoxBoundary> = Vec::with_capacity(2);
+        let mut resolved_sources: Vec<BattleBoxCandidate> = Vec::with_capacity(2);
         let mut visual_style: Option<BattleBoxVisualStyle> = None;
         let mut source_entities: Vec<Entity> = Vec::with_capacity(2);
 
@@ -1087,27 +1383,19 @@ fn handle_merge_battle_boxes_system(
             else {
                 continue;
             };
-            boundaries.push(
-                source_box
-                    .boundary
-                    .clone()
-                    .expect("live battle box candidate must have a boundary"),
-            );
             visual_style.get_or_insert(source_box.visual_style.clone());
             source_entities.push(source_box.entity);
+            resolved_sources.push(source_box);
         }
 
-        if boundaries.len() < 2 {
+        if resolved_sources.len() < 2 {
             warn!(
                 "MergeBattleBoxes: need 2 valid source boxes, found {}",
-                boundaries.len()
+                resolved_sources.len()
             );
             continue;
         }
 
-        for entity in &source_entities {
-            retire_battle_box(&mut commands, *entity, &children_query);
-        }
         retire_existing_battle_boxes_with_id(
             &mut commands,
             "MergeBattleBoxes",
@@ -1118,29 +1406,110 @@ fn handle_merge_battle_boxes_system(
             &am_boxes,
         );
 
-        // Compute merged AABB from two boundaries
-        let merged = merge_boundaries(&boundaries[0], &boundaries[1]);
+        let boundaries = [
+            resolved_sources[0]
+                .boundary
+                .clone()
+                .expect("live battle box candidate must have a boundary"),
+            resolved_sources[1]
+                .boundary
+                .clone()
+                .expect("live battle box candidate must have a boundary"),
+        ];
+        let merge_plan = plan_merge_animation(&boundaries, ev.gap_policy);
         let default_visual_style = BattleBoxVisualStyle::default();
-        spawn_standalone_box(
-            &mut commands,
-            &mut meshes,
-            &mut sdf_materials,
-            &mut color_materials,
-            &ev.result_box,
-            &merged,
-            visual_style.as_ref().unwrap_or(&default_visual_style),
-        );
+        let style = visual_style
+            .as_ref()
+            .unwrap_or(&default_visual_style)
+            .clone();
 
-        // Rebind all players from either source to the merged box
-        for mut bound in player_query.iter_mut() {
-            if bound.0 == ev.source_boxes.0 || bound.0 == ev.source_boxes.1 {
-                bound.0 = ev.result_box.clone();
+        if ev.duration > 0.0 {
+            let Some(plan) = merge_plan.as_ref() else {
+                warn!(
+                    "MergeBattleBoxes: failed to infer merge geometry for '{}' + '{}'; falling back to instant merge",
+                    ev.source_boxes.0, ev.source_boxes.1
+                );
+                let merged = merge_boundaries(&boundaries[0], &boundaries[1]);
+                for entity in &source_entities {
+                    retire_battle_box(&mut commands, *entity, &children_query);
+                }
+                spawn_standalone_box(
+                    &mut commands,
+                    &mut meshes,
+                    &mut sdf_materials,
+                    &mut color_materials,
+                    &ev.result_box,
+                    &merged,
+                    &style,
+                );
+                for mut bound in player_query.iter_mut() {
+                    if bound.0 == ev.source_boxes.0 || bound.0 == ev.source_boxes.1 {
+                        bound.0 = ev.result_box.clone();
+                    }
+                }
+                continue;
+            };
+
+            let source_a = &resolved_sources[plan.ordered_indices.0];
+            let source_b = &resolved_sources[plan.ordered_indices.1];
+            commands.spawn(BattleBoxMergeAnimation {
+                source_boxes: ev.source_boxes.clone(),
+                result_box: ev.result_box.clone(),
+                box_entity_a: source_a.entity,
+                box_entity_b: source_b.entity,
+                start_boundary_a: source_a
+                    .boundary
+                    .clone()
+                    .expect("live battle box candidate must have a boundary"),
+                start_boundary_b: source_b
+                    .boundary
+                    .clone()
+                    .expect("live battle box candidate must have a boundary"),
+                target_boundary_a: plan.target_boundary_a.clone(),
+                target_boundary_b: plan.target_boundary_b.clone(),
+                merged_boundary: plan.merged_boundary.clone(),
+                visual_style: style.clone(),
+                easing: ev.easing,
+                progress: 0.0,
+                duration: ev.duration,
+            });
+        } else {
+            let merged = merge_plan
+                .as_ref()
+                .map(|plan| plan.merged_boundary.clone())
+                .unwrap_or_else(|| merge_boundaries(&boundaries[0], &boundaries[1]));
+
+            for entity in &source_entities {
+                retire_battle_box(&mut commands, *entity, &children_query);
+            }
+            spawn_standalone_box(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+                &ev.result_box,
+                &merged,
+                &style,
+            );
+            for mut bound in player_query.iter_mut() {
+                if bound.0 == ev.source_boxes.0 || bound.0 == ev.source_boxes.1 {
+                    bound.0 = ev.result_box.clone();
+                }
             }
         }
 
         info!(
-            "Merged '{}' + '{}' → '{}' (duration={})",
-            ev.source_boxes.0, ev.source_boxes.1, ev.result_box, ev.duration
+            "Merged '{}' + '{}' → '{}' (axis={:?}, gap_policy={:?}, duration={}, easing={:?})",
+            ev.source_boxes.0,
+            ev.source_boxes.1,
+            ev.result_box,
+            merge_plan
+                .as_ref()
+                .map(|plan| plan.axis)
+                .unwrap_or(SplitAxis::Vertical),
+            ev.gap_policy,
+            ev.duration,
+            ev.easing
         );
     }
 }
@@ -1269,72 +1638,154 @@ fn animate_battle_box_split_system(
         );
 
         if anim.progress >= 1.0 {
-            // Animation complete - set final positions
-            if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
-                transform.translation = current_a.center.extend(0.0);
-                bounds.width = current_a.half_size.x * 2.0;
-                bounds.height = current_a.half_size.y * 2.0;
-                update_sdf_visual(
-                    &anim.box_entity_a,
-                    &current_a,
-                    &anim.visual_style,
-                    &child_query,
-                    &mut shape_query,
-                    &mut meshes,
-                    &mut sdf_materials,
-                );
-            }
-            if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_b) {
-                transform.translation = current_b.center.extend(0.0);
-                bounds.width = current_b.half_size.x * 2.0;
-                bounds.height = current_b.half_size.y * 2.0;
-                update_sdf_visual(
-                    &anim.box_entity_b,
-                    &current_b,
-                    &anim.visual_style,
-                    &child_query,
-                    &mut shape_query,
-                    &mut meshes,
-                    &mut sdf_materials,
-                );
-            }
+            apply_boundary_to_box(
+                anim.box_entity_a,
+                &current_a,
+                &anim.visual_style,
+                &mut box_query,
+                &child_query,
+                &mut shape_query,
+                &mut meshes,
+                &mut sdf_materials,
+            );
+            apply_boundary_to_box(
+                anim.box_entity_b,
+                &current_b,
+                &anim.visual_style,
+                &mut box_query,
+                &child_query,
+                &mut shape_query,
+                &mut meshes,
+                &mut sdf_materials,
+            );
             commands.entity(anim_entity).despawn();
             continue;
         }
 
-        // Update box A
-        if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
-            transform.translation = current_a.center.extend(0.0);
-            bounds.width = current_a.half_size.x * 2.0;
-            bounds.height = current_a.half_size.y * 2.0;
+        apply_boundary_to_box(
+            anim.box_entity_a,
+            &current_a,
+            &anim.visual_style,
+            &mut box_query,
+            &child_query,
+            &mut shape_query,
+            &mut meshes,
+            &mut sdf_materials,
+        );
+        apply_boundary_to_box(
+            anim.box_entity_b,
+            &current_b,
+            &anim.visual_style,
+            &mut box_query,
+            &child_query,
+            &mut shape_query,
+            &mut meshes,
+            &mut sdf_materials,
+        );
+    }
+}
 
-            update_sdf_visual(
-                &anim.box_entity_a,
-                &current_a,
-                &anim.visual_style,
-                &child_query,
-                &mut shape_query,
-                &mut meshes,
-                &mut sdf_materials,
-            );
+/// System to animate battle box merge animations.
+/// 战斗框合并动画系统。
+fn animate_battle_box_merge_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut animations: Query<(Entity, &mut BattleBoxMergeAnimation)>,
+    mut player_query: Query<&mut BoundToBattleBox, With<BehaviorParams>>,
+    mut box_query: Query<(&mut Transform, &mut AlightMotionBattleBoxBounds)>,
+    child_query: Query<&Children>,
+    mut shape_query: Query<(
+        &mut crate::core::view::sdf_shape::ViewSdfShape,
+        &MeshMaterial2d<SdfMaterial>,
+        &mut Mesh2d,
+    )>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for (anim_entity, mut anim) in animations.iter_mut() {
+        anim.progress += time.delta_secs() / anim.duration;
+        let t = anim.progress.min(1.0);
+        let eased = anim.easing.sample(t);
+
+        let current_a = lerp_boundary(&anim.start_boundary_a, &anim.target_boundary_a, eased);
+        let current_b = lerp_boundary(&anim.start_boundary_b, &anim.target_boundary_b, eased);
+
+        apply_boundary_to_box(
+            anim.box_entity_a,
+            &current_a,
+            &anim.visual_style,
+            &mut box_query,
+            &child_query,
+            &mut shape_query,
+            &mut meshes,
+            &mut sdf_materials,
+        );
+        apply_boundary_to_box(
+            anim.box_entity_b,
+            &current_b,
+            &anim.visual_style,
+            &mut box_query,
+            &child_query,
+            &mut shape_query,
+            &mut meshes,
+            &mut sdf_materials,
+        );
+
+        if anim.progress < 1.0 {
+            continue;
         }
 
-        // Update box B
-        if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_b) {
-            transform.translation = current_b.center.extend(0.0);
-            bounds.width = current_b.half_size.x * 2.0;
-            bounds.height = current_b.half_size.y * 2.0;
+        retire_battle_box(&mut commands, anim.box_entity_a, &child_query);
+        retire_battle_box(&mut commands, anim.box_entity_b, &child_query);
 
-            update_sdf_visual(
-                &anim.box_entity_b,
-                &current_b,
-                &anim.visual_style,
-                &child_query,
-                &mut shape_query,
-                &mut meshes,
-                &mut sdf_materials,
-            );
+        spawn_standalone_box(
+            &mut commands,
+            &mut meshes,
+            &mut sdf_materials,
+            &mut color_materials,
+            &anim.result_box,
+            &anim.merged_boundary,
+            &anim.visual_style,
+        );
+
+        for mut bound in player_query.iter_mut() {
+            if bound.0 == anim.source_boxes.0 || bound.0 == anim.source_boxes.1 {
+                bound.0 = anim.result_box.clone();
+            }
         }
+
+        commands.entity(anim_entity).despawn();
+    }
+}
+
+fn apply_boundary_to_box(
+    box_entity: Entity,
+    boundary: &BattleBoxBoundary,
+    visual_style: &BattleBoxVisualStyle,
+    box_query: &mut Query<(&mut Transform, &mut AlightMotionBattleBoxBounds)>,
+    child_query: &Query<&Children>,
+    shape_query: &mut Query<(
+        &mut crate::core::view::sdf_shape::ViewSdfShape,
+        &MeshMaterial2d<SdfMaterial>,
+        &mut Mesh2d,
+    )>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+) {
+    if let Ok((mut transform, mut bounds)) = box_query.get_mut(box_entity) {
+        transform.translation = boundary.center.extend(0.0);
+        bounds.width = boundary.half_size.x * 2.0;
+        bounds.height = boundary.half_size.y * 2.0;
+        update_sdf_visual(
+            &box_entity,
+            boundary,
+            visual_style,
+            child_query,
+            shape_query,
+            meshes,
+            sdf_materials,
+        );
     }
 }
 

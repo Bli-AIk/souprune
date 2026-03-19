@@ -723,7 +723,9 @@ pub enum Chapter {
     /// MergeBattleBoxes(
     ///     sources: ("left", "right"),
     ///     result: "main",
+    ///     gap_policy: Expands,
     ///     duration: 0.5,
+    ///     easing: OutCubic,
     /// ),
     /// ```
     MergeBattleBoxes {
@@ -733,10 +735,20 @@ pub enum Chapter {
         /// ID of the resulting merged box.
         /// 合并后结果框的 ID。
         result: String,
+        /// Policy for how the closing gap affects the merge geometry.
+        /// 闭合间隙时如何处理几何尺寸的策略。
+        #[serde(default)]
+        gap_policy: GapPolicy,
         /// Animation duration in seconds. `0.0` means instant.
         /// 动画时长（秒）。`0.0` 表示瞬时。
         #[serde(default)]
         duration: f32,
+        /// Easing function for the merge animation.
+        ///
+        /// Supports both sequencer-style names like `CubicOut`
+        /// and View-style aliases like `OutCubic`.
+        #[serde(default = "default_easing", with = "ease_kind_serde")]
+        easing: EaseKind,
     },
 
     /// Output a log message.
@@ -1422,6 +1434,27 @@ mod tests {
         assert!(
             result.is_ok(),
             "Failed to parse SplitBattleBox with OutCubic easing: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
+        let ron = r#"MergeBattleBoxes(
+            sources: ("left_anim", "right_anim"),
+            result: "main",
+            gap_policy: Expands,
+            duration: 0.5,
+            easing: OutCubic,
+        )"#;
+        let result: Result<Chapter, _> = ron::from_str(ron);
+        match &result {
+            Ok(v) => println!("MergeBattleBoxes easing OK: {:?}", v),
+            Err(e) => println!("MergeBattleBoxes easing ERR: {}", e),
+        }
+        assert!(
+            result.is_ok(),
+            "Failed to parse MergeBattleBoxes with OutCubic easing: {:?}",
             result.err()
         );
     }
