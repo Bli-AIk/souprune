@@ -326,6 +326,8 @@ fn split_rect_box(
             let left_width = original.half_size.x + split_pos;
             let right_width = original.half_size.x - split_pos;
             let half_gap = gap / 2.0;
+            let min_x = original.center.x - original.half_size.x;
+            let max_x = original.center.x + original.half_size.x;
 
             match gap_policy {
                 GapPolicy::Expands => {
@@ -353,42 +355,36 @@ fn split_rect_box(
 
                     let left = BattleBoxBoundary {
                         half_size: Vec2::new(left_width_scaled / 2.0, original.half_size.y),
-                        center: Vec2::new(
-                            original.center.x - half_gap - left_width_scaled / 2.0,
-                            original.center.y,
-                        ),
+                        center: Vec2::new(min_x + left_width_scaled / 2.0, original.center.y),
                     };
                     let right = BattleBoxBoundary {
                         half_size: Vec2::new(right_width_scaled / 2.0, original.half_size.y),
-                        center: Vec2::new(
-                            original.center.x + half_gap + right_width_scaled / 2.0,
-                            original.center.y,
-                        ),
+                        center: Vec2::new(max_x - right_width_scaled / 2.0, original.center.y),
                     };
                     (left, right)
                 }
             }
         }
         SplitAxis::Horizontal => {
-            let top_height = original.half_size.y + split_pos;
-            let bottom_height = original.half_size.y - split_pos;
+            // Positive split_pos moves the split line upward, making the top box smaller
+            // and the bottom box larger.
+            let top_height = original.half_size.y - split_pos;
+            let bottom_height = original.half_size.y + split_pos;
             let half_gap = gap / 2.0;
+            let min_y = original.center.y - original.half_size.y;
+            let max_y = original.center.y + original.half_size.y;
 
             match gap_policy {
                 GapPolicy::Expands => {
                     let top = BattleBoxBoundary {
                         half_size: Vec2::new(original.half_size.x, top_height / 2.0),
-                        center: Vec2::new(
-                            original.center.x,
-                            original.center.y + original.half_size.y - top_height / 2.0 + half_gap,
-                        ),
+                        center: Vec2::new(original.center.x, max_y + half_gap - top_height / 2.0),
                     };
                     let bottom = BattleBoxBoundary {
                         half_size: Vec2::new(original.half_size.x, bottom_height / 2.0),
                         center: Vec2::new(
                             original.center.x,
-                            original.center.y - original.half_size.y + bottom_height / 2.0
-                                - half_gap,
+                            min_y - half_gap + bottom_height / 2.0,
                         ),
                     };
                     (top, bottom)
@@ -401,22 +397,92 @@ fn split_rect_box(
 
                     let top = BattleBoxBoundary {
                         half_size: Vec2::new(original.half_size.x, top_height_scaled / 2.0),
-                        center: Vec2::new(
-                            original.center.x,
-                            original.center.y + half_gap + top_height_scaled / 2.0,
-                        ),
+                        center: Vec2::new(original.center.x, max_y - top_height_scaled / 2.0),
                     };
                     let bottom = BattleBoxBoundary {
                         half_size: Vec2::new(original.half_size.x, bottom_height_scaled / 2.0),
-                        center: Vec2::new(
-                            original.center.x,
-                            original.center.y - half_gap - bottom_height_scaled / 2.0,
-                        ),
+                        center: Vec2::new(original.center.x, min_y + bottom_height_scaled / 2.0),
                     };
                     (top, bottom)
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn approx_eq(a: f32, b: f32) {
+        assert!(
+            (a - b).abs() < 0.001,
+            "expected {a} ~= {b}, diff={}",
+            (a - b).abs()
+        );
+    }
+
+    fn boundary(width: f32, height: f32) -> BattleBoxBoundary {
+        BattleBoxBoundary {
+            center: Vec2::ZERO,
+            half_size: Vec2::new(width / 2.0, height / 2.0),
+        }
+    }
+
+    #[test]
+    fn horizontal_split_positive_position_makes_top_smaller() {
+        let original = boundary(300.0, 200.0);
+        let (top, bottom) = split_rect_box(
+            &original,
+            &SplitAxis::Horizontal,
+            20.0,
+            0.0,
+            GapPolicy::Expands,
+        );
+
+        approx_eq(top.half_size.y * 2.0, 80.0);
+        approx_eq(bottom.half_size.y * 2.0, 120.0);
+        assert!(top.center.y > bottom.center.y);
+    }
+
+    #[test]
+    fn horizontal_includes_preserves_outer_edges_and_gap() {
+        let original = boundary(300.0, 200.0);
+        let gap = 20.0;
+        let (top, bottom) = split_rect_box(
+            &original,
+            &SplitAxis::Horizontal,
+            20.0,
+            gap,
+            GapPolicy::Includes,
+        );
+
+        approx_eq(top.center.y + top.half_size.y, 100.0);
+        approx_eq(bottom.center.y - bottom.half_size.y, -100.0);
+        approx_eq(
+            (top.center.y - top.half_size.y) - (bottom.center.y + bottom.half_size.y),
+            gap,
+        );
+    }
+
+    #[test]
+    fn vertical_includes_preserves_outer_edges_and_gap() {
+        let original = boundary(300.0, 200.0);
+        let gap = 20.0;
+        let (left, right) = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            20.0,
+            gap,
+            GapPolicy::Includes,
+        );
+
+        approx_eq(left.center.x - left.half_size.x, -150.0);
+        approx_eq(right.center.x + right.half_size.x, 150.0);
+        approx_eq(
+            (right.center.x - right.half_size.x) - (left.center.x + left.half_size.x),
+            gap,
+        );
     }
 }
 
