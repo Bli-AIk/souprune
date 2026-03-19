@@ -552,23 +552,124 @@ mod tests {
             - (bottom.center.y + bottom.half_size.y + style.border_width);
         approx_eq(visible_gap, 0.0);
     }
+
+    #[test]
+    fn player_rebind_prefers_box_that_currently_contains_player() {
+        let original = boundary(300.0, 200.0);
+        let (left, right) = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            100.0,
+            0.0,
+            GapPolicy::Expands,
+        );
+        let player_pos = Vec2::new(70.0, 0.0);
+        let collider = PhysicsCollider::Circle { radius: 8.0 };
+
+        assert_eq!(
+            select_box_id_for_player(player_pos, &collider, &left, &right, "left", "right"),
+            "left"
+        );
+    }
+
+    #[test]
+    fn dynamic_box_choice_switches_when_current_binding_no_longer_contains_player() {
+        let original = boundary(300.0, 200.0);
+        let (left, right) = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            100.0,
+            0.0,
+            GapPolicy::Expands,
+        );
+        let player_pos = Vec2::new(70.0, 0.0);
+        let collider = PhysicsCollider::Circle { radius: 8.0 };
+        let candidates = vec![
+            ("left".to_string(), left.clone()),
+            ("right".to_string(), right.clone()),
+        ];
+
+        assert_eq!(
+            choose_box_index_for_player(Some("right"), player_pos, &collider, &candidates),
+            Some(0)
+        );
+    }
 }
 
-/// Determine which of two boxes a player should be rebound to based on distance.
-fn nearest_box_id(
+fn signed_distance_to_box_with_collider(
+    boundary: &BattleBoxBoundary,
     player_pos: Vec2,
+    collider: &PhysicsCollider,
+) -> f32 {
+    let collider_half_size = match collider {
+        PhysicsCollider::Circle { radius } => Vec2::splat(*radius),
+        PhysicsCollider::Box { half_size } => *half_size,
+    };
+    let effective_half_size = (boundary.half_size - collider_half_size).max(Vec2::ZERO);
+    BattleBoxBoundary {
+        half_size: effective_half_size,
+        center: boundary.center,
+    }
+    .sdf_distance(player_pos)
+}
+
+/// Determine which of two boxes a player should be rebound to.
+fn select_box_id_for_player(
+    player_pos: Vec2,
+    collider: &PhysicsCollider,
     box_a: &BattleBoxBoundary,
     box_b: &BattleBoxBoundary,
     id_a: &str,
     id_b: &str,
 ) -> String {
-    let dist_a = (player_pos - box_a.center).length();
-    let dist_b = (player_pos - box_b.center).length();
-    if dist_a <= dist_b {
+    let dist_a = signed_distance_to_box_with_collider(box_a, player_pos, collider);
+    let dist_b = signed_distance_to_box_with_collider(box_b, player_pos, collider);
+
+    if dist_a <= 0.0 && dist_b > 0.0 {
+        id_a.to_string()
+    } else if dist_b <= 0.0 && dist_a > 0.0 {
+        id_b.to_string()
+    } else if dist_a <= dist_b {
         id_a.to_string()
     } else {
         id_b.to_string()
     }
+}
+
+fn choose_box_index_for_player(
+    current_bound: Option<&str>,
+    player_pos: Vec2,
+    collider: &PhysicsCollider,
+    candidates: &[(String, BattleBoxBoundary)],
+) -> Option<usize> {
+    if candidates.is_empty() {
+        return None;
+    }
+
+    if let Some(current_id) = current_bound {
+        if let Some((index, _)) = candidates.iter().enumerate().find(|(_, (id, boundary))| {
+            id == current_id
+                && signed_distance_to_box_with_collider(boundary, player_pos, collider) <= 0.0
+        }) {
+            return Some(index);
+        }
+    }
+
+    if let Some((index, _)) = candidates.iter().enumerate().find(|(_, (_, boundary))| {
+        signed_distance_to_box_with_collider(boundary, player_pos, collider) <= 0.0
+    }) {
+        return Some(index);
+    }
+
+    candidates
+        .iter()
+        .enumerate()
+        .min_by(|(_, (_, a)), (_, (_, b))| {
+            signed_distance_to_box_with_collider(a, player_pos, collider).total_cmp(
+                &signed_distance_to_box_with_collider(b, player_pos, collider),
+            )
+        })
+        .map(|(index, _)| index)
 }
 
 // ─── Helper: resolve boundary from box entity ───────────────────────
@@ -695,10 +796,26 @@ fn resolve_live_battle_box(
     }
 }
 
-fn retire_battle_box(commands: &mut Commands, entity: Entity) {
+fn hide_entity_and_descendants(
+    commands: &mut Commands,
+    entity: Entity,
+    children_query: &Query<&Children>,
+) {
+    commands.entity(entity).insert(Visibility::Hidden);
+
+    let Ok(children) = children_query.get(entity) else {
+        return;
+    };
+
+    for child in children.iter() {
+        hide_entity_and_descendants(commands, child, children_query);
+    }
+}
+
+fn retire_battle_box(commands: &mut Commands, entity: Entity, children_query: &Query<&Children>) {
+    hide_entity_and_descendants(commands, entity, children_query);
     commands
         .entity(entity)
-        .insert(Visibility::Hidden)
         .remove::<(BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle)>();
 }
 
@@ -707,6 +824,7 @@ fn retire_existing_battle_boxes_with_id(
     op_name: &str,
     target_id: &str,
     keep_entities: &[Entity],
+    children_query: &Query<&Children>,
     ui_boxes: &UiBattleBoxReadQuery,
     am_boxes: &AmBattleBoxReadQuery,
 ) {
@@ -719,7 +837,7 @@ fn retire_existing_battle_boxes_with_id(
             "{op_name}: retiring pre-existing box for result id '{target_id}': {}",
             candidate.summary()
         );
-        retire_battle_box(commands, candidate.entity);
+        retire_battle_box(commands, candidate.entity, children_query);
     }
 }
 
@@ -730,7 +848,7 @@ fn retire_existing_battle_boxes_with_id(
 /// 限制玩家位置在其绑定的战斗框边界内。
 pub(crate) fn constrain_player_to_battle_box_system(
     mut player_query: Query<
-        (&mut Transform, &PhysicsCollider, &BoundToBattleBox),
+        (&mut Transform, &PhysicsCollider, &mut BoundToBattleBox),
         (With<BehaviorParams>, Without<ViewBox>),
     >,
     ui_boxes: Query<
@@ -747,24 +865,34 @@ pub(crate) fn constrain_player_to_battle_box_system(
         (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
     >,
 ) {
-    for (mut player_tf, collider, bound) in player_query.iter_mut() {
-        let target_id = &bound.0;
+    let mut live_boxes: Vec<(String, BattleBoxBoundary)> = Vec::new();
+    for (tf, vb, id, state) in ui_boxes.iter() {
+        if let Some(boundary) = resolve_boundary(tf, Some(vb), None, state) {
+            live_boxes.push((id.0.clone(), boundary));
+        }
+    }
+    for (tf, am, id, state) in am_boxes.iter() {
+        if let Some(boundary) = resolve_boundary(tf, None, Some(am), state) {
+            live_boxes.push((id.0.clone(), boundary));
+        }
+    }
 
-        let boundary = if let Some((tf, vb, _, state)) =
-            ui_boxes.iter().find(|(_, _, id, _)| id.0 == *target_id)
-        {
-            resolve_boundary(tf, Some(vb), None, state)
-        } else if let Some((tf, am, _, state)) =
-            am_boxes.iter().find(|(_, _, id, _)| id.0 == *target_id)
-        {
-            resolve_boundary(tf, None, Some(am), state)
-        } else {
-            None
-        };
-
-        let Some(boundary) = boundary else { continue };
-
+    for (mut player_tf, collider, mut bound) in player_query.iter_mut() {
         let current_pos = player_tf.translation.truncate();
+        let Some(selected_index) =
+            choose_box_index_for_player(Some(&bound.0), current_pos, collider, &live_boxes)
+        else {
+            continue;
+        };
+        let (selected_id, boundary) = &live_boxes[selected_index];
+        if bound.0 != *selected_id {
+            debug!(
+                "Rebinding moving player from battle box '{}' to '{}'",
+                bound.0, selected_id
+            );
+            bound.0 = selected_id.clone();
+        }
+
         let constrained = boundary.constrain_with_collider(current_pos, collider);
         player_tf.translation.x = constrained.x;
         player_tf.translation.y = constrained.y;
@@ -775,9 +903,13 @@ pub(crate) fn constrain_player_to_battle_box_system(
 fn handle_split_battle_box_system(
     mut commands: Commands,
     mut events: MessageReader<SplitBattleBox>,
-    mut player_query: Query<(&Transform, &mut BoundToBattleBox), With<BehaviorParams>>,
+    mut player_query: Query<
+        (&Transform, &PhysicsCollider, &mut BoundToBattleBox),
+        With<BehaviorParams>,
+    >,
     ui_boxes: UiBattleBoxReadQuery,
     am_boxes: AmBattleBoxReadQuery,
+    children_query: Query<&Children>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -799,6 +931,7 @@ fn handle_split_battle_box_system(
             "SplitBattleBox",
             &ev.result_boxes.0,
             &[],
+            &children_query,
             &ui_boxes,
             &am_boxes,
         );
@@ -807,10 +940,11 @@ fn handle_split_battle_box_system(
             "SplitBattleBox",
             &ev.result_boxes.1,
             &[],
+            &children_query,
             &ui_boxes,
             &am_boxes,
         );
-        retire_battle_box(&mut commands, source_box.entity);
+        retire_battle_box(&mut commands, source_box.entity, &children_query);
 
         let target_boundary_gap = style.boundary_gap_for_visible_gap(ev.gap);
         let (box_a, box_b) = split_rect_box(
@@ -898,10 +1032,10 @@ fn handle_split_battle_box_system(
         }
 
         // Rebind players that were bound to the source box
-        for (player_tf, mut bound) in player_query.iter_mut() {
+        for (player_tf, collider, mut bound) in player_query.iter_mut() {
             if bound.0 == ev.source_box {
                 let pos = player_tf.translation.truncate();
-                bound.0 = nearest_box_id(pos, &box_a, &box_b, id_a, id_b);
+                bound.0 = select_box_id_for_player(pos, collider, &box_a, &box_b, id_a, id_b);
             }
         }
 
@@ -927,6 +1061,7 @@ fn handle_merge_battle_boxes_system(
     mut player_query: Query<&mut BoundToBattleBox, With<BehaviorParams>>,
     ui_boxes: UiBattleBoxReadQuery,
     am_boxes: AmBattleBoxReadQuery,
+    children_query: Query<&Children>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -971,13 +1106,14 @@ fn handle_merge_battle_boxes_system(
         }
 
         for entity in &source_entities {
-            retire_battle_box(&mut commands, *entity);
+            retire_battle_box(&mut commands, *entity, &children_query);
         }
         retire_existing_battle_boxes_with_id(
             &mut commands,
             "MergeBattleBoxes",
             &ev.result_box,
             &source_entities,
+            &children_query,
             &ui_boxes,
             &am_boxes,
         );
