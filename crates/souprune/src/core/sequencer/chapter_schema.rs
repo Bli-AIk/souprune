@@ -28,6 +28,8 @@ use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 
+use crate::app_state::battle::collision::{GapPolicy, SplitAxis};
+
 /// 3D vector tuple type for coordinates like translation and scale.
 ///
 /// 三维向量元组类型，用于表示位置和缩放等坐标。
@@ -91,6 +93,27 @@ impl<T> Value<T> {
         match self {
             Value::Expr(s) => Some(s),
             Value::Static(_) => None,
+        }
+    }
+}
+
+/// Log level for Log chapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+pub enum LogLevel {
+    #[default]
+    Info,
+    Debug,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    pub fn action(&self, text: &str) {
+        match self {
+            LogLevel::Info => info!("[Chapter] {}", text),
+            LogLevel::Debug => debug!("[Chapter] {}", text),
+            LogLevel::Warn => warn!("[Chapter] {}", text),
+            LogLevel::Error => error!("[Chapter] {}", text),
         }
     }
 }
@@ -624,6 +647,120 @@ pub enum Chapter {
         fade_in: Option<f32>,
     },
 
+    // =========================================================================
+    // Battle Box Manipulation
+    // 战斗框操作
+    // =========================================================================
+    /// Split a battle box into two new boxes along an axis.
+    /// The source box is deactivated, and two new boxes are spawned.
+    /// Players bound to the source are rebound to the nearest result box.
+    /// The chapter completes immediately.
+    ///
+    /// 沿指定轴将一个战斗框分裂为两个新的战斗框。
+    /// 源框被停用，生成两个新框。
+    /// 绑定到源框的玩家会被重新绑定到最近的结果框。
+    /// 章节立即完成。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// SplitBattleBox(
+    ///     source: "main",
+    ///     result: ("left", "right"),
+    ///     axis: Vertical,
+    ///     position: 0.0,
+    ///     gap: 20.0,
+    ///     gap_policy: Expands,
+    ///     duration: 0.3,
+    ///     easing: OutCubic,
+    /// ),
+    /// ```
+    SplitBattleBox {
+        /// ID of the battle box to split.
+        /// 要分裂的战斗框 ID。
+        source: String,
+        /// IDs for the two resulting boxes.
+        /// 两个结果框的 ID。
+        result: (String, String),
+        /// Axis along which to split (Vertical or Horizontal).
+        /// 分裂所沿的轴（Vertical 或 Horizontal）。
+        axis: SplitAxis,
+        /// Split position relative to box center (0.0 = exact center).
+        /// 相对于框中心的分裂位置（0.0 = 正中心）。
+        #[serde(default)]
+        position: f32,
+        /// Gap in pixels between the two resulting boxes.
+        /// 两个结果框之间的间隔（像素）。
+        #[serde(default)]
+        gap: f32,
+        /// Policy for how gap affects dimensions.
+        /// 间隙如何影响尺寸的策略。
+        #[serde(default)]
+        gap_policy: GapPolicy,
+        /// Animation duration in seconds. `0.0` means instant.
+        /// 动画时长（秒）。`0.0` 表示瞬时。
+        #[serde(default)]
+        duration: f32,
+        /// Easing function for the split animation.
+        ///
+        /// Supports both sequencer-style names like `CubicOut`
+        /// and View-style aliases like `OutCubic`.
+        #[serde(default = "default_easing", with = "ease_kind_serde")]
+        easing: EaseKind,
+    },
+
+    /// Merge two battle boxes back into one.
+    /// Both source boxes are deactivated, and a new merged box is spawned.
+    /// Players bound to either source are rebound to the result box.
+    /// The chapter completes immediately.
+    ///
+    /// 将两个战斗框合并为一个。
+    /// 两个源框被停用，生成一个合并后的新框。
+    /// 绑定到任一源框的玩家会被重新绑定到结果框。
+    /// 章节立即完成。
+    ///
+    /// # Example / 示例
+    /// ```ron
+    /// MergeBattleBoxes(
+    ///     sources: ("left", "right"),
+    ///     result: "main",
+    ///     gap_policy: Expands,
+    ///     duration: 0.5,
+    ///     easing: OutCubic,
+    /// ),
+    /// ```
+    MergeBattleBoxes {
+        /// IDs of the two boxes to merge.
+        /// 要合并的两个框的 ID。
+        sources: (String, String),
+        /// ID of the resulting merged box.
+        /// 合并后结果框的 ID。
+        result: String,
+        /// Policy for how the closing gap affects the merge geometry.
+        /// 闭合间隙时如何处理几何尺寸的策略。
+        #[serde(default)]
+        gap_policy: GapPolicy,
+        /// Animation duration in seconds. `0.0` means instant.
+        /// 动画时长（秒）。`0.0` 表示瞬时。
+        #[serde(default)]
+        duration: f32,
+        /// Easing function for the merge animation.
+        ///
+        /// Supports both sequencer-style names like `CubicOut`
+        /// and View-style aliases like `OutCubic`.
+        #[serde(default = "default_easing", with = "ease_kind_serde")]
+        easing: EaseKind,
+    },
+
+    /// Output a log message.
+    /// 输出日志。
+    Log {
+        /// Log message text.
+        text: String,
+        /// Log level (defaults to Info).
+        #[serde(default)]
+        level: LogLevel,
+    },
+
     /// Custom chapter type for editor/mod extensibility.
     ///
     /// Dispatched as a `FreCustomActionEvent` during chapter execution.
@@ -998,15 +1135,30 @@ mod ease_kind_serde {
     #[serde(rename_all = "PascalCase")]
     enum EaseKindRepr {
         Linear,
+        #[serde(alias = "InQuad")]
         QuadIn,
+        #[serde(alias = "OutQuad")]
         QuadOut,
+        #[serde(alias = "InOutQuad")]
         QuadInOut,
+        #[serde(alias = "InCubic")]
         CubicIn,
+        #[serde(alias = "OutCubic")]
         CubicOut,
+        #[serde(alias = "InOutCubic")]
         CubicInOut,
+        #[serde(alias = "InSine")]
         SineIn,
+        #[serde(alias = "OutSine")]
         SineOut,
+        #[serde(alias = "InOutSine")]
         SineInOut,
+        #[serde(alias = "InCirc")]
+        CircularIn,
+        #[serde(alias = "OutCirc")]
+        CircularOut,
+        #[serde(alias = "InOutCirc")]
+        CircularInOut,
         ExpoIn,
         ExpoOut,
         ExpoInOut,
@@ -1034,6 +1186,9 @@ mod ease_kind_serde {
                 EaseKindRepr::SineIn => EaseKind::SineIn,
                 EaseKindRepr::SineOut => EaseKind::SineOut,
                 EaseKindRepr::SineInOut => EaseKind::SineInOut,
+                EaseKindRepr::CircularIn => EaseKind::CircularIn,
+                EaseKindRepr::CircularOut => EaseKind::CircularOut,
+                EaseKindRepr::CircularInOut => EaseKind::CircularInOut,
                 EaseKindRepr::ExpoIn => EaseKind::ExponentialIn,
                 EaseKindRepr::ExpoOut => EaseKind::ExponentialOut,
                 EaseKindRepr::ExpoInOut => EaseKind::ExponentialInOut,
@@ -1063,6 +1218,9 @@ mod ease_kind_serde {
                 EaseKind::SineIn => EaseKindRepr::SineIn,
                 EaseKind::SineOut => EaseKindRepr::SineOut,
                 EaseKind::SineInOut => EaseKindRepr::SineInOut,
+                EaseKind::CircularIn => EaseKindRepr::CircularIn,
+                EaseKind::CircularOut => EaseKindRepr::CircularOut,
+                EaseKind::CircularInOut => EaseKindRepr::CircularInOut,
                 EaseKind::ExponentialIn => EaseKindRepr::ExpoIn,
                 EaseKind::ExponentialOut => EaseKindRepr::ExpoOut,
                 EaseKind::ExponentialInOut => EaseKindRepr::ExpoInOut,
@@ -1254,6 +1412,49 @@ mod tests {
         assert!(
             result.is_ok(),
             "Failed to parse TweenTarget::BoxSize with from: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_split_battle_box_chapter_with_out_cubic_easing() {
+        let ron = r#"SplitBattleBox(
+            source: "main",
+            result: ("left_anim", "right_anim"),
+            axis: Vertical,
+            gap: 25.0,
+            duration: 0.8,
+            easing: OutCubic,
+        )"#;
+        let result: Result<Chapter, _> = ron::from_str(ron);
+        match &result {
+            Ok(v) => println!("SplitBattleBox easing OK: {:?}", v),
+            Err(e) => println!("SplitBattleBox easing ERR: {}", e),
+        }
+        assert!(
+            result.is_ok(),
+            "Failed to parse SplitBattleBox with OutCubic easing: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
+        let ron = r#"MergeBattleBoxes(
+            sources: ("left_anim", "right_anim"),
+            result: "main",
+            gap_policy: Expands,
+            duration: 0.5,
+            easing: OutCubic,
+        )"#;
+        let result: Result<Chapter, _> = ron::from_str(ron);
+        match &result {
+            Ok(v) => println!("MergeBattleBoxes easing OK: {:?}", v),
+            Err(e) => println!("MergeBattleBoxes easing ERR: {}", e),
+        }
+        assert!(
+            result.is_ok(),
+            "Failed to parse MergeBattleBoxes with OutCubic easing: {:?}",
             result.err()
         );
     }

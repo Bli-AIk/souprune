@@ -20,7 +20,9 @@ pub fn process_camera_action_system(
         (Entity, &mut Transform, &mut Projection),
         With<crate::app_state::battle::BattleCamera>,
     >,
-    resolution_scale: Option<Res<crate::app_state::app_setup::ResolutionScale>>,
+    #[cfg(not(target_os = "android"))] resolution_scale: Option<
+        Res<crate::app_state::app_setup::ResolutionScale>,
+    >,
 ) {
     for (entity, active_chapter) in query.iter() {
         let Chapter::SetCamera(action) = &active_chapter.chapter else {

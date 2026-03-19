@@ -24,6 +24,7 @@ serde = { version = "1", features = ["derive"] }
 icondata_core = "0.1"
 icondata_vs = "0.1"
 resvg = "0.47"
+log = "0.4.29"
 
 [features]
 default = []
