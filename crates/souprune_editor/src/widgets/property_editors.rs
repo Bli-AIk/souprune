@@ -14,7 +14,7 @@
 
 use bevy::prelude::*;
 use bevy_workbench::i18n::FluentArgs;
-use souprune::core::sequencer::chapter_schema::{
+use souprune_schema::sequence::{
     CameraAction, Chapter, FactCondition, FactModificationDef, FactValueMatch, PlayerAction,
     UIAction,
 };
@@ -440,7 +440,7 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction, world: &
                             config_path: String::new(),
                             position: None,
                         },
-                        2 => PlayerAction::Teleport(Vec2::ZERO),
+                        2 => PlayerAction::Teleport((0.0, 0.0)),
                         3 => PlayerAction::SetActive(true),
                         _ => PlayerAction::Despawn,
                     };
@@ -463,16 +463,16 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction, world: &
                 .checkbox(&mut has_pos, t(world, "inspector-specify-position"))
                 .changed()
             {
-                *position = if has_pos { Some(Vec2::ZERO) } else { None };
+                *position = if has_pos { Some((0.0, 0.0)) } else { None };
                 changed = true;
             }
             if let Some(pos) = position {
                 ui.horizontal(|ui| {
                     changed |= ui
-                        .add(egui::DragValue::new(&mut pos.x).prefix("X: ").speed(1.0))
+                        .add(egui::DragValue::new(&mut pos.0).prefix("X: ").speed(1.0))
                         .changed();
                     changed |= ui
-                        .add(egui::DragValue::new(&mut pos.y).prefix("Y: ").speed(1.0))
+                        .add(egui::DragValue::new(&mut pos.1).prefix("Y: ").speed(1.0))
                         .changed();
                 });
             }
@@ -481,13 +481,13 @@ pub fn edit_player_action(ui: &mut egui::Ui, action: &mut PlayerAction, world: &
             ui.horizontal(|ui| {
                 ui.label(t(world, "inspector-position"));
                 if ui
-                    .add(egui::DragValue::new(&mut pos.x).prefix("X: ").speed(1.0))
+                    .add(egui::DragValue::new(&mut pos.0).prefix("X: ").speed(1.0))
                     .changed()
                 {
                     changed = true;
                 }
                 if ui
-                    .add(egui::DragValue::new(&mut pos.y).prefix("Y: ").speed(1.0))
+                    .add(egui::DragValue::new(&mut pos.1).prefix("Y: ").speed(1.0))
                     .changed()
                 {
                     changed = true;
@@ -524,7 +524,7 @@ pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction, world: &
             for (i, v) in variants.iter().enumerate() {
                 if ui.selectable_label(current == i, *v).clicked() && current != i {
                     *action = match i {
-                        0 => CameraAction::SetPosition(Vec2::ZERO),
+                        0 => CameraAction::SetPosition((0.0, 0.0)),
                         1 => CameraAction::SetZoom(1.0),
                         2 => CameraAction::Shake {
                             duration: 0.5,
@@ -541,13 +541,13 @@ pub fn edit_camera_action(ui: &mut egui::Ui, action: &mut CameraAction, world: &
         CameraAction::SetPosition(pos) => {
             ui.horizontal(|ui| {
                 if ui
-                    .add(egui::DragValue::new(&mut pos.x).prefix("X: ").speed(1.0))
+                    .add(egui::DragValue::new(&mut pos.0).prefix("X: ").speed(1.0))
                     .changed()
                 {
                     changed = true;
                 }
                 if ui
-                    .add(egui::DragValue::new(&mut pos.y).prefix("Y: ").speed(1.0))
+                    .add(egui::DragValue::new(&mut pos.1).prefix("Y: ").speed(1.0))
                     .changed()
                 {
                     changed = true;

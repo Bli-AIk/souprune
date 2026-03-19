@@ -32,7 +32,17 @@ pub fn on_enter_play(
 ) {
     if let Some(seq) = &editor_seq.current {
         let start_idx = playback.start_from.take().unwrap_or(0);
-        let chapters: Vec<_> = seq.chapters.iter().skip(start_idx).cloned().collect();
+        let runtime_asset =
+            match souprune::core::sequencer::runtime_asset_from_schema(&seq.to_asset()) {
+                Ok(asset) => asset,
+                Err(err) => {
+                    error!("[editor] entering play failed: {err}");
+                    context.chapters.clear();
+                    context.state = SequenceExecutionState::Idle;
+                    return;
+                }
+            };
+        let chapters: Vec<_> = runtime_asset.chapters.into_iter().skip(start_idx).collect();
         info!(
             "[editor] entering play — from chapter {start_idx}, loading {} chapters",
             chapters.len()

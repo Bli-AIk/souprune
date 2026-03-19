@@ -7488,6 +7488,7 @@ dependencies = [
  "serde",
  "serde_json",
  "souprune_api",
+ "souprune_schema",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-appender",
@@ -7532,6 +7533,7 @@ dependencies = [
  "ron",
  "serde",
  "souprune",
+ "souprune_schema",
 ]
 
 [[package]]

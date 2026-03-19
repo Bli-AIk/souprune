@@ -80,6 +80,27 @@ pub struct SequenceAsset {
     pub chapters: Vec<Chapter>,
 }
 
+/// Convert the shared schema asset into the runtime Sequencer asset.
+///
+/// This keeps schema consumers away from runtime-only chapter types.
+pub fn runtime_asset_from_schema(
+    schema: &souprune_schema::sequence::SequenceAsset,
+) -> Result<SequenceAsset, String> {
+    let serialized =
+        ron::to_string(schema).map_err(|e| format!("failed to serialize sequence schema: {e}"))?;
+    ron::from_str(&serialized)
+        .map_err(|e| format!("failed to deserialize runtime sequence asset: {e}"))
+}
+
+/// Convert shared schema chapters into runtime chapters.
+pub fn runtime_chapters_from_schema(
+    chapters: &[souprune_schema::sequence::Chapter],
+) -> Result<Vec<Chapter>, String> {
+    let serialized =
+        ron::to_string(chapters).map_err(|e| format!("failed to serialize chapters: {e}"))?;
+    ron::from_str(&serialized).map_err(|e| format!("failed to deserialize runtime chapters: {e}"))
+}
+
 /// 初始化 Sequencer 所需的资源和资产类型。
 ///
 /// 编辑器和游戏均可调用此函数完成资源初始化。

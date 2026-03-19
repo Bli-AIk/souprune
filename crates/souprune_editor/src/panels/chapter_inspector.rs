@@ -15,8 +15,8 @@
 use bevy::prelude::*;
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
-use souprune::core::sequencer::chapter_schema::{
-    Chapter, ElementModification, ElementSelector, LogLevel,
+use souprune_schema::sequence::{
+    Chapter, ElementModification, ElementSelector, GapPolicy, LogLevel, SplitAxis,
 };
 
 use super::sequence_timeline::EditorSequenceState;
@@ -377,8 +377,8 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             ui.separator();
             let axis_variants = ["Vertical", "Horizontal"];
             let current_axis = match axis {
-                souprune::app_state::battle::collision::SplitAxis::Vertical => 0,
-                souprune::app_state::battle::collision::SplitAxis::Horizontal => 1,
+                SplitAxis::Vertical => 0,
+                SplitAxis::Horizontal => 1,
             };
             let mut selected = current_axis;
             egui::ComboBox::from_label(t(world, "prop-axis"))
@@ -390,8 +390,8 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
                 });
             if selected != current_axis {
                 *axis = match selected {
-                    0 => souprune::app_state::battle::collision::SplitAxis::Vertical,
-                    _ => souprune::app_state::battle::collision::SplitAxis::Horizontal,
+                    0 => SplitAxis::Vertical,
+                    _ => SplitAxis::Horizontal,
                 };
                 changed = true;
             }
@@ -405,8 +405,8 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             changed |= labeled_drag(ui, &t(world, "prop-gap"), gap, 0.0..=200.0, 1.0);
             let gap_policy_variants = ["Expands", "Includes"];
             let current_gap_policy = match gap_policy {
-                souprune::app_state::battle::collision::GapPolicy::Expands => 0,
-                souprune::app_state::battle::collision::GapPolicy::Includes => 1,
+                GapPolicy::Expands => 0,
+                GapPolicy::Includes => 1,
             };
             let mut selected_gap_policy = current_gap_policy;
             egui::ComboBox::from_label(t(world, "prop-gap-policy"))
@@ -418,8 +418,8 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
                 });
             if selected_gap_policy != current_gap_policy {
                 *gap_policy = match selected_gap_policy {
-                    0 => souprune::app_state::battle::collision::GapPolicy::Expands,
-                    _ => souprune::app_state::battle::collision::GapPolicy::Includes,
+                    0 => GapPolicy::Expands,
+                    _ => GapPolicy::Includes,
                 };
                 changed = true;
             }
@@ -435,6 +435,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
         Chapter::MergeBattleBoxes {
             sources,
             result,
+            gap_policy,
             duration,
             ..
         } => {
@@ -442,6 +443,26 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             changed |= labeled_text(ui, &t(world, "prop-source-b"), &mut sources.1);
             ui.separator();
             changed |= labeled_text(ui, &t(world, "prop-result-box"), result);
+            let gap_policy_variants = ["Expands", "Includes"];
+            let current_gap_policy = match gap_policy {
+                GapPolicy::Expands => 0,
+                GapPolicy::Includes => 1,
+            };
+            let mut selected_gap_policy = current_gap_policy;
+            egui::ComboBox::from_label(t(world, "prop-gap-policy"))
+                .selected_text(gap_policy_variants[selected_gap_policy])
+                .show_ui(ui, |ui| {
+                    for (i, label) in gap_policy_variants.iter().enumerate() {
+                        ui.selectable_value(&mut selected_gap_policy, i, *label);
+                    }
+                });
+            if selected_gap_policy != current_gap_policy {
+                *gap_policy = match selected_gap_policy {
+                    0 => GapPolicy::Expands,
+                    _ => GapPolicy::Includes,
+                };
+                changed = true;
+            }
             changed |= labeled_drag(
                 ui,
                 &t(world, "prop-duration-sec"),
