@@ -1,10 +1,85 @@
 #!/usr/bin/env bash
 # tokei_check.sh — Lint for code quality: max line count + no mod.rs files
-# Usage: ./dev/tokei_check.sh [max_lines] [search_dir]
+# Usage:
+#   ./tokei_check.sh [max_lines] [search_dir]
+#   ./tokei_check.sh --workspace [max_lines]
+#
 #   max_lines  — maximum allowed code lines per file (default: 800)
-#   search_dir — directory to scan (default: crates/)
+#   search_dir — directory to scan in local mode (default: crates/)
+#
+# Local mode checks the root repository and excludes submodules.
+# Workspace mode runs the root check plus each maintained submodule's own
+# tokei_check.sh so quality gates cover the full first-party workspace.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+workspace_mode_requested() {
+    [[ "${1:-}" == "--workspace" || "${1:-}" == "workspace" ]]
+}
+
+build_ignored_crate_map() {
+    local map_file
+    map_file="$(mktemp)"
+    if [ -f "$SCRIPT_DIR/lint_ignore.txt" ]; then
+        while IFS= read -r crate; do
+            [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
+            printf '%s\n' "$crate" >> "$map_file"
+        done < "$SCRIPT_DIR/lint_ignore.txt"
+    fi
+    echo "$map_file"
+}
+
+is_ignored_crate() {
+    local crate="$1"
+    local map_file="$2"
+    grep -qx "$crate" "$map_file" 2>/dev/null
+}
+
+run_workspace_checks() {
+    local max_lines="${1:-800}"
+    local errors=0
+    local ignored_map
+    ignored_map="$(build_ignored_crate_map)"
+    trap 'rm -f "$ignored_map"' RETURN
+
+    echo "=== Main project ==="
+    if ! bash "$SCRIPT_DIR/tokei_check.sh" "$max_lines" "crates/"; then
+        errors=1
+    fi
+
+    while IFS= read -r sub; do
+        local crate_name
+        crate_name="$(basename "$sub")"
+
+        if is_ignored_crate "$crate_name" "$ignored_map"; then
+            continue
+        fi
+
+        local sub_script="$SCRIPT_DIR/$sub/tokei_check.sh"
+        if [ ! -f "$sub_script" ]; then
+            echo "=== $crate_name ==="
+            echo "Skipping: no local tokei_check.sh in $sub"
+            continue
+        fi
+
+        echo "=== $crate_name ==="
+        if ! (
+            cd "$SCRIPT_DIR/$sub"
+            bash ./tokei_check.sh "$max_lines"
+        ); then
+            errors=1
+        fi
+    done < <(git config --file "$SCRIPT_DIR/.gitmodules" --get-regexp path | awk '{print $2}' 2>/dev/null || true)
+
+    return "$errors"
+}
+
+if workspace_mode_requested "${1:-}"; then
+    run_workspace_checks "${2:-800}"
+    exit $?
+fi
 
 # Colors (only if stdout is a terminal)
 if [ -t 1 ]; then
@@ -32,20 +107,20 @@ errors=0
 # Submodules are independent repos checked by their own CI.
 SUBMODULE_EXCLUDES=""
 TOKEI_EXCLUDE=""
-for sub in $(git config --file .gitmodules --get-regexp path | awk '{print $2}' 2>/dev/null); do
+for sub in $(git config --file "$SCRIPT_DIR/.gitmodules" --get-regexp path | awk '{print $2}' 2>/dev/null); do
     SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$(basename "$sub")"
     TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $sub"
 done
 
 # lint_ignore.txt lists third-party crates excluded from ALL checks.
 FIND_PRUNE=""
-if [ -f lint_ignore.txt ]; then
+if [ -f "$SCRIPT_DIR/lint_ignore.txt" ]; then
     while IFS= read -r crate; do
         [[ "$crate" =~ ^#.*$ || -z "$crate" ]] && continue
         SUBMODULE_EXCLUDES="$SUBMODULE_EXCLUDES --exclude-dir=$crate"
         FIND_PRUNE="$FIND_PRUNE -path */$crate -prune -o"
         TOKEI_EXCLUDE="$TOKEI_EXCLUDE -e $SEARCH_DIR$crate"
-    done < lint_ignore.txt
+    done < "$SCRIPT_DIR/lint_ignore.txt"
 fi
 
 # --- Check 1: No mod.rs files (Rust 2018+ module style) ---
