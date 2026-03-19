@@ -272,16 +272,22 @@ fn spawn_view_node_with_repeat_context(
                 })
                 .unwrap_or(Color::BLACK);
 
+            let runtime_view_box = ViewBox::new_full(
+                view_box.width,
+                view_box.height,
+                view_box.border_width,
+                texts,
+                view_box.fill_shader.clone(),
+                view_box.structure_file.clone(),
+                fill_color,
+            );
+            let battle_box_style =
+                crate::app_state::battle::collision::BattleBoxVisualStyle::from_view_box(
+                    &runtime_view_box,
+                );
+
             let mut box_entity = parent.spawn((
-                ViewBox::new_full(
-                    view_box.width,
-                    view_box.height,
-                    view_box.border_width,
-                    texts,
-                    view_box.fill_shader.clone(),
-                    view_box.structure_file.clone(),
-                    fill_color,
-                ),
+                runtime_view_box,
                 Transform::from_translation(offset),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -297,7 +303,12 @@ fn spawn_view_node_with_repeat_context(
             }
 
             if node_def.tags.contains(&"BattleBox".to_string()) {
-                box_entity.insert(crate::app_state::battle::collision::BattleBox);
+                box_entity.insert((
+                    crate::app_state::battle::collision::BattleBox,
+                    crate::app_state::battle::collision::BattleBoxId("main".to_string()),
+                    crate::app_state::battle::collision::BattleBoxState::default(),
+                    battle_box_style,
+                ));
                 info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);
             }
 

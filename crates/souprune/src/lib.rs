@@ -45,7 +45,9 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::InstanceFlags;
 #[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
 use bevy::render::settings::{RenderCreation, WgpuSettings};
-use bevy::window::{Window, WindowPlugin, WindowResolution};
+#[cfg(not(target_os = "android"))]
+use bevy::window::WindowResolution;
+use bevy::window::{Window, WindowPlugin};
 
 use chrono::Local;
 use tracing_subscriber::EnvFilter;
@@ -236,8 +238,13 @@ fn get_bevy_default_plugins(
     resolution_scale: u32,
     render_config: &config::RenderConfig,
 ) -> PluginGroupBuilder {
-    let base_width = render_config.base_resolution_width;
-    let base_height = render_config.base_resolution_height;
+    #[cfg(not(target_os = "android"))]
+    let (base_width, base_height) = (
+        render_config.base_resolution_width * resolution_scale,
+        render_config.base_resolution_height * resolution_scale,
+    );
+    #[cfg(target_os = "android")]
+    let _ = (resolution_scale, render_config);
 
     #[allow(unused_mut)]
     let mut plugins = DefaultPlugins
@@ -251,10 +258,7 @@ fn get_bevy_default_plugins(
         .set(WindowPlugin {
             primary_window: Some(Window {
                 #[cfg(not(target_os = "android"))]
-                resolution: WindowResolution::new(
-                    base_width * resolution_scale,
-                    base_height * resolution_scale,
-                ),
+                resolution: WindowResolution::new(base_width, base_height),
                 resizable: false,
                 title: "SoupRune".into(),
                 #[cfg(target_os = "android")]
@@ -326,7 +330,6 @@ fn get_bevy_default_plugins(
                 }),
                 ..default()
             })
-            .disable::<bevy::pbr::PbrPlugin>()
             .disable::<bevy::gizmos::GizmoPlugin>()
             .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
     }

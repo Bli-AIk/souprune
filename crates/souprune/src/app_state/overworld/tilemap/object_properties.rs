@@ -14,7 +14,8 @@ use crate::app_state::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
 use crate::core::fre_facts;
 use crate::core::map_property_schema::{
-    get_object_bool_property, get_object_float_property, get_string_property, object_keys,
+    escape_property_string, get_object_bool_property, get_object_float_property,
+    get_string_property, object_keys,
 };
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
@@ -388,9 +389,10 @@ fn spawn_interactable(
                 FactValue::Bool(true),
             ));
             if let Some(text) = simple_text {
+                let escaped_text = escape_property_string(text);
                 modifications.push(FactModification::Set(
                     fre_facts::DIALOGUE_SIMPLE_TEXT.to_string(),
-                    FactValue::String(text),
+                    FactValue::String(escaped_text),
                 ));
             }
         }

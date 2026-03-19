@@ -15,7 +15,9 @@
 use bevy::prelude::*;
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
-use souprune::core::sequencer::chapter_schema::{Chapter, ElementModification, ElementSelector};
+use souprune::core::sequencer::chapter_schema::{
+    Chapter, ElementModification, ElementSelector, LogLevel,
+};
 
 use super::sequence_timeline::EditorSequenceState;
 use crate::data::ModifyChapterAction;
@@ -356,6 +358,125 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
 
         Chapter::LoadEnemies { enemies } => {
             changed |= edit_string_list(ui, &t(world, "prop-files"), enemies, world);
+        }
+
+        Chapter::SplitBattleBox {
+            source,
+            result,
+            axis,
+            position,
+            gap,
+            gap_policy,
+            duration,
+            ..
+        } => {
+            changed |= labeled_text(ui, &t(world, "prop-source-box"), source);
+            ui.separator();
+            changed |= labeled_text(ui, &t(world, "prop-result-left"), &mut result.0);
+            changed |= labeled_text(ui, &t(world, "prop-result-right"), &mut result.1);
+            ui.separator();
+            let axis_variants = ["Vertical", "Horizontal"];
+            let current_axis = match axis {
+                souprune::app_state::battle::collision::SplitAxis::Vertical => 0,
+                souprune::app_state::battle::collision::SplitAxis::Horizontal => 1,
+            };
+            let mut selected = current_axis;
+            egui::ComboBox::from_label(t(world, "prop-axis"))
+                .selected_text(axis_variants[selected])
+                .show_ui(ui, |ui| {
+                    for (i, label) in axis_variants.iter().enumerate() {
+                        ui.selectable_value(&mut selected, i, *label);
+                    }
+                });
+            if selected != current_axis {
+                *axis = match selected {
+                    0 => souprune::app_state::battle::collision::SplitAxis::Vertical,
+                    _ => souprune::app_state::battle::collision::SplitAxis::Horizontal,
+                };
+                changed = true;
+            }
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-position"),
+                position,
+                -500.0..=500.0,
+                1.0,
+            );
+            changed |= labeled_drag(ui, &t(world, "prop-gap"), gap, 0.0..=200.0, 1.0);
+            let gap_policy_variants = ["Expands", "Includes"];
+            let current_gap_policy = match gap_policy {
+                souprune::app_state::battle::collision::GapPolicy::Expands => 0,
+                souprune::app_state::battle::collision::GapPolicy::Includes => 1,
+            };
+            let mut selected_gap_policy = current_gap_policy;
+            egui::ComboBox::from_label(t(world, "prop-gap-policy"))
+                .selected_text(gap_policy_variants[selected_gap_policy])
+                .show_ui(ui, |ui| {
+                    for (i, label) in gap_policy_variants.iter().enumerate() {
+                        ui.selectable_value(&mut selected_gap_policy, i, *label);
+                    }
+                });
+            if selected_gap_policy != current_gap_policy {
+                *gap_policy = match selected_gap_policy {
+                    0 => souprune::app_state::battle::collision::GapPolicy::Expands,
+                    _ => souprune::app_state::battle::collision::GapPolicy::Includes,
+                };
+                changed = true;
+            }
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-duration-sec"),
+                duration,
+                0.0..=10.0,
+                0.05,
+            );
+        }
+
+        Chapter::MergeBattleBoxes {
+            sources,
+            result,
+            duration,
+            ..
+        } => {
+            changed |= labeled_text(ui, &t(world, "prop-source-a"), &mut sources.0);
+            changed |= labeled_text(ui, &t(world, "prop-source-b"), &mut sources.1);
+            ui.separator();
+            changed |= labeled_text(ui, &t(world, "prop-result-box"), result);
+            changed |= labeled_drag(
+                ui,
+                &t(world, "prop-duration-sec"),
+                duration,
+                0.0..=10.0,
+                0.05,
+            );
+        }
+
+        Chapter::Log { text, level } => {
+            changed |= labeled_text(ui, &t(world, "prop-log-text"), text);
+            let level_variants = ["Info", "Debug", "Warn", "Error"];
+            let current_level = match level {
+                LogLevel::Info => 0,
+                LogLevel::Debug => 1,
+                LogLevel::Warn => 2,
+                LogLevel::Error => 3,
+            };
+            let mut selected = current_level;
+            egui::ComboBox::from_label(t(world, "prop-log-level"))
+                .selected_text(level_variants[selected])
+                .show_ui(ui, |ui| {
+                    for (i, label) in level_variants.iter().enumerate() {
+                        ui.selectable_value(&mut selected, i, *label);
+                    }
+                });
+            if selected != current_level {
+                *level = match selected {
+                    0 => LogLevel::Info,
+                    1 => LogLevel::Debug,
+                    2 => LogLevel::Warn,
+                    _ => LogLevel::Error,
+                };
+                changed = true;
+            }
         }
     }
 

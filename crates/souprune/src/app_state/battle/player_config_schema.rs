@@ -70,6 +70,9 @@ fn default_invincibility_duration() -> f32 {
 fn default_flash_interval() -> f32 {
     0.25
 }
+fn default_box_id() -> String {
+    "main".to_string()
+}
 fn default_normal_color() -> Color {
     Color::srgb(1.0, 0.0, 0.0)
 }
@@ -108,6 +111,13 @@ pub struct BattlePlayerConfig {
     pub default_mode_id: String,
     pub speed: f32,
     pub focus_speed_ratio: f32,
+    /// ID of the battle box this player is initially bound to.
+    /// Defaults to "main".
+    ///
+    /// 此玩家初始绑定的战斗框 ID。
+    /// 默认为 "main"。
+    #[serde(default = "default_box_id")]
+    pub default_box: String,
     /// Invincibility configuration for damage behavior.
     /// If not specified, defaults are used.
     ///
