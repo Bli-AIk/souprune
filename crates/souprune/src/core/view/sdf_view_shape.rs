@@ -114,6 +114,27 @@ fn spawn_ui_box_children(
     }
 }
 
+/// Spawn SDF visual children for a ViewBox-like definition on an arbitrary parent entity.
+///
+/// 在任意父实体上，根据 ViewBox 风格定义生成 SDF 可视子节点。
+pub(crate) fn spawn_view_box_sdf_children(
+    commands: &mut Commands,
+    entity: Entity,
+    ui_box: &ViewBox,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
+    color_materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    spawn_ui_box_children(
+        commands,
+        entity,
+        ui_box,
+        meshes,
+        sdf_materials,
+        color_materials,
+    );
+}
+
 /// Load and spawn SDF structure from external RON file.
 ///
 /// 从外部 RON 文件加载并生成 SDF 结构。

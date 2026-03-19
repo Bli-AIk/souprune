@@ -7526,6 +7526,7 @@ dependencies = [
  "egui",
  "icondata_core",
  "icondata_vs",
+ "log",
  "resvg",
  "rfd",
  "ron",
