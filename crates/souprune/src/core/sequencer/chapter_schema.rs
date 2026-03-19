@@ -671,6 +671,7 @@ pub enum Chapter {
     ///     gap: 20.0,
     ///     gap_policy: Expands,
     ///     duration: 0.3,
+    ///     easing: OutCubic,
     /// ),
     /// ```
     SplitBattleBox {
@@ -699,6 +700,12 @@ pub enum Chapter {
         /// 动画时长（秒）。`0.0` 表示瞬时。
         #[serde(default)]
         duration: f32,
+        /// Easing function for the split animation.
+        ///
+        /// Supports both sequencer-style names like `CubicOut`
+        /// and View-style aliases like `OutCubic`.
+        #[serde(default = "default_easing", with = "ease_kind_serde")]
+        easing: EaseKind,
     },
 
     /// Merge two battle boxes back into one.
@@ -1116,15 +1123,30 @@ mod ease_kind_serde {
     #[serde(rename_all = "PascalCase")]
     enum EaseKindRepr {
         Linear,
+        #[serde(alias = "InQuad")]
         QuadIn,
+        #[serde(alias = "OutQuad")]
         QuadOut,
+        #[serde(alias = "InOutQuad")]
         QuadInOut,
+        #[serde(alias = "InCubic")]
         CubicIn,
+        #[serde(alias = "OutCubic")]
         CubicOut,
+        #[serde(alias = "InOutCubic")]
         CubicInOut,
+        #[serde(alias = "InSine")]
         SineIn,
+        #[serde(alias = "OutSine")]
         SineOut,
+        #[serde(alias = "InOutSine")]
         SineInOut,
+        #[serde(alias = "InCirc")]
+        CircularIn,
+        #[serde(alias = "OutCirc")]
+        CircularOut,
+        #[serde(alias = "InOutCirc")]
+        CircularInOut,
         ExpoIn,
         ExpoOut,
         ExpoInOut,
@@ -1152,6 +1174,9 @@ mod ease_kind_serde {
                 EaseKindRepr::SineIn => EaseKind::SineIn,
                 EaseKindRepr::SineOut => EaseKind::SineOut,
                 EaseKindRepr::SineInOut => EaseKind::SineInOut,
+                EaseKindRepr::CircularIn => EaseKind::CircularIn,
+                EaseKindRepr::CircularOut => EaseKind::CircularOut,
+                EaseKindRepr::CircularInOut => EaseKind::CircularInOut,
                 EaseKindRepr::ExpoIn => EaseKind::ExponentialIn,
                 EaseKindRepr::ExpoOut => EaseKind::ExponentialOut,
                 EaseKindRepr::ExpoInOut => EaseKind::ExponentialInOut,
@@ -1181,6 +1206,9 @@ mod ease_kind_serde {
                 EaseKind::SineIn => EaseKindRepr::SineIn,
                 EaseKind::SineOut => EaseKindRepr::SineOut,
                 EaseKind::SineInOut => EaseKindRepr::SineInOut,
+                EaseKind::CircularIn => EaseKindRepr::CircularIn,
+                EaseKind::CircularOut => EaseKindRepr::CircularOut,
+                EaseKind::CircularInOut => EaseKindRepr::CircularInOut,
                 EaseKind::ExponentialIn => EaseKindRepr::ExpoIn,
                 EaseKind::ExponentialOut => EaseKindRepr::ExpoOut,
                 EaseKind::ExponentialInOut => EaseKindRepr::ExpoInOut,
@@ -1372,6 +1400,28 @@ mod tests {
         assert!(
             result.is_ok(),
             "Failed to parse TweenTarget::BoxSize with from: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_split_battle_box_chapter_with_out_cubic_easing() {
+        let ron = r#"SplitBattleBox(
+            source: "main",
+            result: ("left_anim", "right_anim"),
+            axis: Vertical,
+            gap: 25.0,
+            duration: 0.8,
+            easing: OutCubic,
+        )"#;
+        let result: Result<Chapter, _> = ron::from_str(ron);
+        match &result {
+            Ok(v) => println!("SplitBattleBox easing OK: {:?}", v),
+            Err(e) => println!("SplitBattleBox easing ERR: {}", e),
+        }
+        assert!(
+            result.is_ok(),
+            "Failed to parse SplitBattleBox with OutCubic easing: {:?}",
             result.err()
         );
     }

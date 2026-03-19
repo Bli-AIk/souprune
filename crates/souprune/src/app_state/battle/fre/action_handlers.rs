@@ -12,6 +12,7 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
+use bevy_tween::interpolation::EaseKind;
 
 use crate::app_state::battle::collision::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
@@ -191,6 +192,7 @@ pub fn setup_battle_action_handlers_system(
             gap,
             gap_policy,
             duration,
+            easing: EaseKind::Linear,
         };
         commands.queue(move |world: &mut World| {
             world.write_message(msg);

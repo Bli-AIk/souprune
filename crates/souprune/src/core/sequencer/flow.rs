@@ -262,10 +262,11 @@ pub fn process_battle_box_chapter_system(
                 gap,
                 gap_policy,
                 duration,
+                easing,
             } => {
                 info!(
-                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={})",
-                    source, result.0, result.1, axis, gap_policy, duration
+                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={}, easing={:?})",
+                    source, result.0, result.1, axis, gap_policy, duration, easing
                 );
                 split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
                     source_box: source.clone(),
@@ -275,6 +276,7 @@ pub fn process_battle_box_chapter_system(
                     gap: *gap,
                     gap_policy: *gap_policy,
                     duration: *duration,
+                    easing: *easing,
                 });
                 commands.entity(entity).insert(ChapterFinished);
             }

@@ -14,6 +14,7 @@ use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
+use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -206,6 +207,9 @@ pub struct BattleBoxSplitAnimation {
     /// Policy that determines how gap affects box size.
     /// 决定 gap 如何影响 box 尺寸的策略。
     pub gap_policy: GapPolicy,
+    /// Easing function used to animate the visible gap.
+    /// 用于驱动可见间隙动画的缓动函数。
+    pub easing: EaseKind,
     /// Entity ID for box A.
     /// box A 的实体 ID。
     pub box_entity_a: Entity,
@@ -269,6 +273,8 @@ pub struct SplitBattleBox {
     pub gap_policy: GapPolicy,
     /// Animation duration in seconds (0 = instant)
     pub duration: f32,
+    /// Easing function for animated splits.
+    pub easing: EaseKind,
 }
 
 /// Event to trigger merging two battle boxes back into one.
@@ -862,6 +868,7 @@ fn handle_split_battle_box_system(
                 split_position: ev.split_position,
                 target_visible_gap: ev.gap,
                 gap_policy: ev.gap_policy,
+                easing: ev.easing,
                 box_entity_a: entity_a,
                 box_entity_b: entity_b,
                 visual_style: style,
@@ -899,7 +906,7 @@ fn handle_split_battle_box_system(
         }
 
         info!(
-            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={}, gap_policy={:?}, duration={})",
+            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={}, gap_policy={:?}, duration={}, easing={:?})",
             ev.source_box,
             id_a,
             id_b,
@@ -907,7 +914,8 @@ fn handle_split_battle_box_system(
             ev.split_position,
             ev.gap,
             ev.gap_policy,
-            ev.duration
+            ev.duration,
+            ev.easing
         );
     }
 }
@@ -1111,7 +1119,7 @@ fn animate_battle_box_split_system(
         let t = anim.progress.min(1.0);
 
         // Easing: smooth step (ease in-out)
-        let eased = t * t * (3.0 - 2.0 * t);
+        let eased = anim.easing.sample(t);
         let current_visible_gap = anim.target_visible_gap * eased;
         let current_gap = anim
             .visual_style
