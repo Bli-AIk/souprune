@@ -1,4 +1,4 @@
-use super::chapter_schema::{Chapter, LogLevel};
+use super::chapter_schema::Chapter;
 use super::context::{ActiveChapter, ChapterFinished};
 use bevy::prelude::*;
 

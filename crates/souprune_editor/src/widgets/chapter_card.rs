@@ -115,7 +115,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "[LE]",
         Chapter::SplitBattleBox { .. } => "[SB]",
         Chapter::MergeBattleBoxes { .. } => "[MB]",
-        Chapter::Log { .. } => {"[L]"}
+        Chapter::Log { .. } => "[L]",
     }
 }
 
@@ -200,7 +200,7 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         } => {
             format!("{} + {} → {result}", sources.0, sources.1)
         }
-        Chapter::Log { text, .. } => {text.clone()},
+        Chapter::Log { text, .. } => text.clone(),
     }
 }
 
@@ -333,7 +333,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "LoadEnemies",
         Chapter::SplitBattleBox { .. } => "SplitBattleBox",
         Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
-        Chapter::Log { .. } => "Log"
+        Chapter::Log { .. } => "Log",
     }
 }
 

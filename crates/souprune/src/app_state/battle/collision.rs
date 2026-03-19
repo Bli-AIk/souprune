@@ -16,6 +16,34 @@ use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 use serde::{Deserialize, Serialize};
 
+type UiBattleBoxReadQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static GlobalTransform,
+        &'static ViewBox,
+        &'static BattleBoxId,
+        &'static BattleBoxState,
+        Option<&'static BattleBoxVisualStyle>,
+    ),
+    (With<BattleBox>, Without<PhysicsCollider>),
+>;
+
+type AmBattleBoxReadQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static GlobalTransform,
+        &'static AlightMotionBattleBoxBounds,
+        &'static BattleBoxId,
+        &'static BattleBoxState,
+        Option<&'static BattleBoxVisualStyle>,
+    ),
+    (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
+>;
+
 /// Plugin for battle collision systems
 ///
 /// Battle 碰撞系统插件
@@ -239,6 +267,50 @@ pub struct MergeBattleBoxes {
     pub duration: f32,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum BattleBoxSourceKind {
+    Ui,
+    Am,
+}
+
+impl BattleBoxSourceKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Ui => "ui",
+            Self::Am => "am",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct BattleBoxCandidate {
+    entity: Entity,
+    id: String,
+    kind: BattleBoxSourceKind,
+    active: bool,
+    collision_enabled: bool,
+    boundary: Option<BattleBoxBoundary>,
+    visual_style: BattleBoxVisualStyle,
+}
+
+impl BattleBoxCandidate {
+    fn is_live(&self) -> bool {
+        self.active && self.collision_enabled && self.boundary.is_some()
+    }
+
+    fn summary(&self) -> String {
+        format!(
+            "{}:{}@{:?}(active={}, collision={}, boundary={})",
+            self.kind.as_str(),
+            self.id,
+            self.entity,
+            self.active,
+            self.collision_enabled,
+            self.boundary.is_some()
+        )
+    }
+}
+
 // ─── Split / Merge Algorithms ───────────────────────────────────────
 
 /// Split a rectangular boundary along an axis.
@@ -402,6 +474,121 @@ fn resolve_visual_style(
         .unwrap_or_default()
 }
 
+fn collect_battle_box_candidates(
+    target_id: &str,
+    ui_boxes: &UiBattleBoxReadQuery,
+    am_boxes: &AmBattleBoxReadQuery,
+) -> Vec<BattleBoxCandidate> {
+    let mut candidates = Vec::new();
+
+    for (entity, tf, vb, box_id, state, style) in ui_boxes.iter() {
+        if box_id.0 != target_id {
+            continue;
+        }
+
+        candidates.push(BattleBoxCandidate {
+            entity,
+            id: box_id.0.clone(),
+            kind: BattleBoxSourceKind::Ui,
+            active: state.active,
+            collision_enabled: state.collision_enabled,
+            boundary: resolve_boundary(tf, Some(vb), None, state),
+            visual_style: resolve_visual_style(Some(vb), style),
+        });
+    }
+
+    for (entity, tf, am, box_id, state, style) in am_boxes.iter() {
+        if box_id.0 != target_id {
+            continue;
+        }
+
+        candidates.push(BattleBoxCandidate {
+            entity,
+            id: box_id.0.clone(),
+            kind: BattleBoxSourceKind::Am,
+            active: state.active,
+            collision_enabled: state.collision_enabled,
+            boundary: resolve_boundary(tf, None, Some(am), state),
+            visual_style: resolve_visual_style(None, style),
+        });
+    }
+
+    candidates
+}
+
+fn describe_battle_box_candidates(candidates: &[BattleBoxCandidate]) -> String {
+    candidates
+        .iter()
+        .map(BattleBoxCandidate::summary)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn resolve_live_battle_box(
+    op_name: &str,
+    target_id: &str,
+    ui_boxes: &UiBattleBoxReadQuery,
+    am_boxes: &AmBattleBoxReadQuery,
+) -> Option<BattleBoxCandidate> {
+    let candidates = collect_battle_box_candidates(target_id, ui_boxes, am_boxes);
+    if candidates.is_empty() {
+        warn!("{op_name}: source box '{target_id}' not found");
+        return None;
+    }
+
+    let live = candidates
+        .iter()
+        .filter(|candidate| candidate.is_live())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    match live.len() {
+        1 => live.into_iter().next(),
+        0 => {
+            warn!(
+                "{op_name}: source box '{target_id}' exists but has no usable live match: {}",
+                describe_battle_box_candidates(&candidates)
+            );
+            None
+        }
+        count => {
+            warn!(
+                "{op_name}: source box '{target_id}' is ambiguous; found {count} live matches: {}",
+                describe_battle_box_candidates(&live)
+            );
+            None
+        }
+    }
+}
+
+fn retire_battle_box(commands: &mut Commands, entity: Entity) {
+    commands
+        .entity(entity)
+        .insert(Visibility::Hidden)
+        .remove::<(BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle)>();
+}
+
+fn retire_existing_battle_boxes_with_id(
+    commands: &mut Commands,
+    op_name: &str,
+    target_id: &str,
+    keep_entities: &[Entity],
+    ui_boxes: &UiBattleBoxReadQuery,
+    am_boxes: &AmBattleBoxReadQuery,
+) {
+    for candidate in collect_battle_box_candidates(target_id, ui_boxes, am_boxes) {
+        if keep_entities.contains(&candidate.entity) {
+            continue;
+        }
+
+        warn!(
+            "{op_name}: retiring pre-existing box for result id '{target_id}': {}",
+            candidate.summary()
+        );
+        retire_battle_box(commands, candidate.entity);
+    }
+}
+
 // ─── Systems ────────────────────────────────────────────────────────
 
 /// System to constrain player position within their bound battle box.
@@ -455,66 +642,41 @@ fn handle_split_battle_box_system(
     mut commands: Commands,
     mut events: MessageReader<SplitBattleBox>,
     mut player_query: Query<(&Transform, &mut BoundToBattleBox), With<BehaviorParams>>,
-    mut ui_boxes: Query<
-        (
-            &GlobalTransform,
-            &ViewBox,
-            &BattleBoxId,
-            &mut BattleBoxState,
-            Option<&BattleBoxVisualStyle>,
-            Option<&mut Visibility>,
-        ),
-        (With<BattleBox>, Without<PhysicsCollider>),
-    >,
-    mut am_boxes: Query<
-        (
-            &GlobalTransform,
-            &AlightMotionBattleBoxBounds,
-            &BattleBoxId,
-            &mut BattleBoxState,
-            Option<&BattleBoxVisualStyle>,
-            Option<&mut Visibility>,
-        ),
-        (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
-    >,
+    ui_boxes: UiBattleBoxReadQuery,
+    am_boxes: AmBattleBoxReadQuery,
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for ev in events.read() {
-        // Find and deactivate source box, get its boundary and visual style.
-        let source_data = 'find: {
-            if let Some((tf, vb, _, mut state, style, visibility)) = ui_boxes
-                .iter_mut()
-                .find(|(_, _, id, _, _, _)| id.0 == ev.source_box)
-            {
-                let b = resolve_boundary(tf, Some(vb), None, &state);
-                let style = resolve_visual_style(Some(vb), style);
-                state.active = false;
-                if let Some(mut visibility) = visibility {
-                    *visibility = Visibility::Hidden;
-                }
-                break 'find b.map(|boundary| (boundary, style));
-            }
-            if let Some((tf, am, _, mut state, style, visibility)) = am_boxes
-                .iter_mut()
-                .find(|(_, _, id, _, _, _)| id.0 == ev.source_box)
-            {
-                let b = resolve_boundary(tf, None, Some(am), &state);
-                let style = resolve_visual_style(None, style);
-                state.active = false;
-                if let Some(mut visibility) = visibility {
-                    *visibility = Visibility::Hidden;
-                }
-                break 'find b.map(|boundary| (boundary, style));
-            }
-            warn!("SplitBattleBox: source box '{}' not found", ev.source_box);
-            None
-        };
-
-        let Some((original, style)) = source_data else {
+        let Some(source_box) =
+            resolve_live_battle_box("SplitBattleBox", &ev.source_box, &ui_boxes, &am_boxes)
+        else {
             continue;
         };
+        let original = source_box
+            .boundary
+            .clone()
+            .expect("live battle box candidate must have a boundary");
+        let style = source_box.visual_style.clone();
+
+        retire_existing_battle_boxes_with_id(
+            &mut commands,
+            "SplitBattleBox",
+            &ev.result_boxes.0,
+            &[],
+            &ui_boxes,
+            &am_boxes,
+        );
+        retire_existing_battle_boxes_with_id(
+            &mut commands,
+            "SplitBattleBox",
+            &ev.result_boxes.1,
+            &[],
+            &ui_boxes,
+            &am_boxes,
+        );
+        retire_battle_box(&mut commands, source_box.entity);
 
         let (box_a, box_b) = split_rect_box(
             &original,
@@ -621,70 +783,41 @@ fn handle_merge_battle_boxes_system(
     mut commands: Commands,
     mut events: MessageReader<MergeBattleBoxes>,
     mut player_query: Query<&mut BoundToBattleBox, With<BehaviorParams>>,
-    mut ui_boxes: Query<
-        (
-            &GlobalTransform,
-            &ViewBox,
-            &BattleBoxId,
-            &mut BattleBoxState,
-            Option<&BattleBoxVisualStyle>,
-            Option<&mut Visibility>,
-        ),
-        (With<BattleBox>, Without<PhysicsCollider>),
-    >,
-    mut am_boxes: Query<
-        (
-            &GlobalTransform,
-            &AlightMotionBattleBoxBounds,
-            &BattleBoxId,
-            &mut BattleBoxState,
-            Option<&BattleBoxVisualStyle>,
-            Option<&mut Visibility>,
-        ),
-        (With<BattleBox>, Without<ViewBox>, Without<PhysicsCollider>),
-    >,
+    ui_boxes: UiBattleBoxReadQuery,
+    am_boxes: AmBattleBoxReadQuery,
     mut meshes: ResMut<Assets<Mesh>>,
     mut sdf_materials: ResMut<Assets<SdfMaterial>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for ev in events.read() {
+        if ev.source_boxes.0 == ev.source_boxes.1 {
+            warn!(
+                "MergeBattleBoxes: duplicate source id '{}' is not supported",
+                ev.source_boxes.0
+            );
+            continue;
+        }
+
         let ids = [&ev.source_boxes.0, &ev.source_boxes.1];
         let mut boundaries: Vec<BattleBoxBoundary> = Vec::with_capacity(2);
         let mut visual_style: Option<BattleBoxVisualStyle> = None;
+        let mut source_entities: Vec<Entity> = Vec::with_capacity(2);
 
-        // Deactivate sources and collect boundaries
+        // Resolve sources and collect boundaries
         for target_id in &ids {
-            let found = 'find: {
-                if let Some((tf, vb, _, mut state, style, visibility)) = ui_boxes
-                    .iter_mut()
-                    .find(|(_, _, id, _, _, _)| &id.0 == *target_id)
-                {
-                    let b = resolve_boundary(tf, Some(vb), None, &state);
-                    visual_style.get_or_insert_with(|| resolve_visual_style(Some(vb), style));
-                    state.active = false;
-                    if let Some(mut visibility) = visibility {
-                        *visibility = Visibility::Hidden;
-                    }
-                    break 'find b;
-                }
-                if let Some((tf, am, _, mut state, style, visibility)) = am_boxes
-                    .iter_mut()
-                    .find(|(_, _, id, _, _, _)| &id.0 == *target_id)
-                {
-                    let b = resolve_boundary(tf, None, Some(am), &state);
-                    visual_style.get_or_insert_with(|| resolve_visual_style(None, style));
-                    state.active = false;
-                    if let Some(mut visibility) = visibility {
-                        *visibility = Visibility::Hidden;
-                    }
-                    break 'find b;
-                }
-                warn!("MergeBattleBoxes: source box '{}' not found", target_id);
-                None
+            let Some(source_box) =
+                resolve_live_battle_box("MergeBattleBoxes", target_id, &ui_boxes, &am_boxes)
+            else {
+                continue;
             };
-            if let Some(b) = found {
-                boundaries.push(b);
-            }
+            boundaries.push(
+                source_box
+                    .boundary
+                    .clone()
+                    .expect("live battle box candidate must have a boundary"),
+            );
+            visual_style.get_or_insert(source_box.visual_style.clone());
+            source_entities.push(source_box.entity);
         }
 
         if boundaries.len() < 2 {
@@ -694,6 +827,18 @@ fn handle_merge_battle_boxes_system(
             );
             continue;
         }
+
+        for entity in &source_entities {
+            retire_battle_box(&mut commands, *entity);
+        }
+        retire_existing_battle_boxes_with_id(
+            &mut commands,
+            "MergeBattleBoxes",
+            &ev.result_box,
+            &source_entities,
+            &ui_boxes,
+            &am_boxes,
+        );
 
         // Compute merged AABB from two boundaries
         let merged = merge_boundaries(&boundaries[0], &boundaries[1]);

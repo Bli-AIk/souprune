@@ -15,7 +15,9 @@
 use bevy::prelude::*;
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
-use souprune::core::sequencer::chapter_schema::{Chapter, ElementModification, ElementSelector, LogLevel};
+use souprune::core::sequencer::chapter_schema::{
+    Chapter, ElementModification, ElementSelector, LogLevel,
+};
 
 use super::sequence_timeline::EditorSequenceState;
 use crate::data::ModifyChapterAction;
