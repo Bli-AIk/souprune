@@ -14,11 +14,11 @@
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
+use souprune::editor_api::sequencer::SequenceContext;
 
 use crate::i18n::{t, t_args};
 use crate::panels::sequence_timeline::EditorSequenceState;
 use crate::widgets;
-use souprune::core::sequencer::SequenceContext;
 
 /// 回放状态资源 — 用于 UI 显示同步。
 #[derive(Resource, Default)]

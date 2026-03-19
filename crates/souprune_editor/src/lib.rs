@@ -22,6 +22,7 @@ pub mod widgets;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
+use souprune::editor_api as api;
 
 /// SoupRune 编辑器主插件。
 pub struct SoupRuneEditorPlugin;
@@ -63,10 +64,8 @@ impl Plugin for SoupRuneEditorPlugin {
 
         // 应用状态（游戏插件依赖）— 共享初始化
         souprune::init_game_state(app);
-        app.insert_resource(souprune::core::input::touch::TouchOverlayEnabled(false))
-            .insert_resource(souprune::app_state::app_setup::ResolutionScale(
-                resolution_scale,
-            ));
+        app.insert_resource(api::input::TouchOverlayEnabled(false))
+            .insert_resource(api::app::ResolutionScale(resolution_scale));
 
         // 从配置加载完整的输入资源（ActionRegistry, PlayerInputSettings, InputBehaviorConfig）
         souprune::insert_input_resources(app);
@@ -81,8 +80,7 @@ impl Plugin for SoupRuneEditorPlugin {
             let input_config_path = projects_base
                 .join(&config.project.mod_name)
                 .join(&config.game.input_config_path);
-            let input_config =
-                souprune::core::input::InputConfig::load_from_file(&input_config_path);
+            let input_config = api::input::InputConfig::load_from_file(&input_config_path);
             let key_map =
                 panels::view_preview::ViewPreviewKeyMap(input_config.build_keycode_to_action_map());
             app.insert_resource(key_map);
@@ -123,8 +121,8 @@ impl Plugin for SoupRuneEditorPlugin {
                 panels::view_preview::sync_preview_camera,
                 panels::view_preview::propagate_preview_render_layers,
                 // SDF/Text 渲染系统 — ApplyDeferred 确保 rebuild 的 despawn 已生效
-                souprune::core::view::sdf_view_shape::update_sdf_view_shape_system,
-                souprune::core::view::text::show_text_when_ready_system,
+                api::view::update_sdf_view_shape_system,
+                api::view::show_text_when_ready_system,
             )
                 .chain()
                 .run_if(in_state(EditorMode::Edit)),
@@ -138,9 +136,9 @@ impl Plugin for SoupRuneEditorPlugin {
             Update,
             (
                 panels::view_preview::preview_input_to_fre_system,
-                souprune::core::fre_bridge::process_view_actions_system,
-                souprune::core::view::visible_when::evaluate_visible_when_system,
-                souprune::core::view::ron_view::update_fact_dependent_ui_elements,
+                api::fre_bridge::process_view_actions_system,
+                api::view::evaluate_visible_when_system,
+                api::view::update_fact_dependent_ui_elements,
             )
                 .chain()
                 .run_if(in_state(EditorMode::Edit))
@@ -151,8 +149,8 @@ impl Plugin for SoupRuneEditorPlugin {
         app.add_systems(Startup, register_i18n);
 
         // Collider gizmos（编辑器中注册，debug 模式下由 DebugPlugin 注册）
-        souprune::extra::debug::setup_collider_debug(app);
-        app.init_resource::<souprune::extra::debug::RuleTriggerHistory>();
+        api::debug::setup_collider_debug(app);
+        app.init_resource::<api::debug::RuleTriggerHistory>();
         app.init_resource::<panels::fre_panel::EditorFactEventHistory>();
         app.insert_resource(bevy_workbench::game_view::GameViewToolbar {
             toggles: vec![bevy_workbench::game_view::ToolbarToggle {
@@ -202,11 +200,11 @@ fn register_i18n(mut i18n: ResMut<bevy_workbench::i18n::I18n>) {
 
 /// Play 模式启动：设置 AppState 和 SequenceMode。
 fn enter_play_mode(
-    mut next: ResMut<NextState<souprune::app_state::AppState>>,
-    mut sequence_mode: ResMut<souprune::app_state::SequenceMode>,
+    mut next: ResMut<NextState<api::app::AppState>>,
+    mut sequence_mode: ResMut<api::app::SequenceMode>,
     config: Res<souprune::config::SoupruneConfig>,
 ) {
-    next.set(souprune::app_state::AppState::Running);
+    next.set(api::app::AppState::Running);
 
     // 从配置推断 SequenceMode（与 check_textures_system 逻辑一致）
     if sequence_mode.0.is_none() {
@@ -224,7 +222,7 @@ fn enter_play_mode(
 /// 查找游戏主摄像机并注册为外部摄像机，Play 模式时 GameViewPlugin 会劫持它。
 fn register_external_game_camera(
     mut commands: Commands,
-    cameras: Query<Entity, With<souprune::core::camera::MainGameCamera>>,
+    cameras: Query<Entity, With<api::camera::MainGameCamera>>,
 ) {
     if let Some(entity) = cameras.iter().next() {
         commands.insert_resource(ExternalGameCamera(entity));
@@ -240,7 +238,7 @@ fn sync_gizmo_toggle_system(
     if toolbar.is_changed()
         && let Some(enabled) = toolbar.is_enabled("gizmos")
     {
-        let (config, _) = gizmo_store.config_mut::<souprune::extra::debug::ColliderGizmos>();
+        let (config, _) = gizmo_store.config_mut::<api::debug::ColliderGizmos>();
         config.enabled = enabled;
     }
 }

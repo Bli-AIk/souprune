@@ -10,7 +10,7 @@ use node_props::{
     edit_node_sprite, edit_node_state_sprite, edit_node_texts, edit_node_view_box,
     find_node_by_path, find_node_by_path_mut, parent_children_mut,
 };
-use souprune::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
+use souprune::editor_api::view::{ViewLayoutAsset, ViewNodeDef, ViewRoot};
 use std::path::{Path, PathBuf};
 
 /// View 编辑器状态资源。
@@ -518,11 +518,7 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
     let view_root_entity = preview_state.filter(|ps| ps.playing).and_then(|ps| {
         ps.preview_entities
             .iter()
-            .find(|e| {
-                world
-                    .get::<souprune::core::view::components::ViewRoot>(**e)
-                    .is_some()
-            })
+            .find(|e| world.get::<ViewRoot>(**e).is_some())
             .copied()
     });
 
@@ -533,9 +529,7 @@ fn render_inspector(ui: &mut egui::Ui, world: &mut World) {
             super::view_fre_panel::render_view_fre_section(ui, &mut fre, None);
         }
         // Live fact simulator bound to ViewRoot.local_facts
-        if let Some(mut view_root) =
-            world.get_mut::<souprune::core::view::components::ViewRoot>(entity)
-        {
+        if let Some(mut view_root) = world.get_mut::<ViewRoot>(entity) {
             super::view_fre_panel::render_live_facts_section(ui, &mut view_root.local_facts);
         }
     } else {

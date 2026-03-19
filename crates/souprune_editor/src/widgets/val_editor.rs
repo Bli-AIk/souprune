@@ -12,7 +12,7 @@
 //! 编辑器的 Value<T> / Val<T> 编辑器组件。
 //! 支持在静态值和 FRE 表达式两种模式之间切换。
 
-use souprune::core::sequencer::chapter_schema::Value;
+use souprune::editor_api::values::RuntimeExprValue as Value;
 use souprune_schema::Val;
 
 pub trait ExprValue<T> {

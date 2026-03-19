@@ -14,6 +14,7 @@
 pub mod app_state;
 pub mod config;
 pub mod core;
+pub mod editor_api;
 pub mod extra;
 
 pub use crate::app_state::overworld::player::config::PlayerBehavior;

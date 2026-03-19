@@ -6,8 +6,9 @@ use crate::widgets::view_widgets::{
     edit_option_vec2_tuple, edit_string_string_map, edit_tag_list, edit_vec2, edit_vec3,
 };
 use bevy::prelude::*;
-use souprune::core::view::layout::{
-    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, TextDef, ViewBoxLogicDef, ViewNodeDef,
+use souprune::editor_api::view::{
+    DataRequirement, InitialFactValue, RepeatDef, SpriteDef, StateSpriteConfig, TextDef,
+    ViewBoxLogicDef, ViewNodeDef, Visual,
 };
 
 pub(super) fn edit_node_basics(world: &World, ui: &mut egui::Ui, node: &mut ViewNodeDef) -> bool {
@@ -32,7 +33,7 @@ pub(super) fn edit_node_sprite(
     if ui.checkbox(&mut has, "Sprite").changed() {
         if has {
             *sprite_opt = Some(SpriteDef {
-                visual: souprune::core::visual::Visual::default(),
+                visual: Visual::default(),
                 initial_state: None,
                 color: None,
                 flip_x: false,
@@ -84,7 +85,7 @@ pub(super) fn edit_node_sprite(
 pub(super) fn edit_node_state_sprite(
     world: &World,
     ui: &mut egui::Ui,
-    ss_opt: &mut Option<souprune::core::view::layout::StateSpriteConfig>,
+    ss_opt: &mut Option<StateSpriteConfig>,
 ) -> bool {
     let Some(ss) = ss_opt else { return false };
     let mut changed = false;
