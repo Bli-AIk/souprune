@@ -2170,7 +2170,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_workbench"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
@@ -7458,7 +7458,7 @@ dependencies = [
 
 [[package]]
 name = "souprune"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -7546,7 +7546,7 @@ dependencies = [
 
 [[package]]
 name = "souprune_schema"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ron",
  "serde",
