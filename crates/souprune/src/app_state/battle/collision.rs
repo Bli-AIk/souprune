@@ -15,6 +15,7 @@ use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 
 type UiBattleBoxReadQuery<'w, 's> = Query<
     'w,
@@ -143,6 +144,19 @@ impl BattleBoxVisualStyle {
             self.fill_color,
         )
     }
+
+    /// Convert a user-facing visible gap into the inner boundary gap used by split geometry.
+    ///
+    /// For structured battle boxes, the white border is rendered outside the inner boundary.
+    /// To keep `gap = 0` visually flush instead of producing an overlapped middle seam,
+    /// the collision/geometry gap must include both border widths.
+    fn boundary_gap_for_visible_gap(&self, visible_gap: f32) -> f32 {
+        if self.structure_file.is_some() && self.border_width > 0.0 {
+            visible_gap + self.border_width * 2.0
+        } else {
+            visible_gap
+        }
+    }
 }
 
 impl Default for BattleBoxVisualStyle {
@@ -177,18 +191,21 @@ pub struct AlightMotionBattleBoxBounds {
 /// 跟踪一对战斗框正在进行的分裂动画。
 #[derive(Component)]
 pub struct BattleBoxSplitAnimation {
-    /// Starting boundary for box A (at animation start).
-    /// box A 的起始边界（动画开始时）。
-    pub start_boundary_a: BattleBoxBoundary,
-    /// Starting boundary for box B (at animation start).
-    /// box B 的起始边界（动画开始时）。
-    pub start_boundary_b: BattleBoxBoundary,
-    /// Target boundary for box A (at animation end).
-    /// box A 的目标边界（动画结束时）。
-    pub target_boundary_a: BattleBoxBoundary,
-    /// Target boundary for box B (at animation end).
-    /// box B 的目标边界（动画结束时）。
-    pub target_boundary_b: BattleBoxBoundary,
+    /// Original unsplit source boundary.
+    /// 原始未分裂的源边界。
+    pub original_boundary: BattleBoxBoundary,
+    /// Axis used to split the source box.
+    /// 源框分裂所用的轴。
+    pub split_axis: SplitAxis,
+    /// Split line offset from center.
+    /// 相对中心的分裂线偏移。
+    pub split_position: f32,
+    /// Final target visible gap for the animation.
+    /// 动画的目标可见间隙。
+    pub target_visible_gap: f32,
+    /// Policy that determines how gap affects box size.
+    /// 决定 gap 如何影响 box 尺寸的策略。
+    pub gap_policy: GapPolicy,
     /// Entity ID for box A.
     /// box A 的实体 ID。
     pub box_entity_a: Entity,
@@ -484,6 +501,51 @@ mod tests {
             gap,
         );
     }
+
+    #[test]
+    fn structured_vertical_split_gap_matches_requested_visible_gap() {
+        let original = boundary(300.0, 200.0);
+        let style = BattleBoxVisualStyle {
+            border_width: 5.0,
+            fill_shader: None,
+            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            fill_color: Color::BLACK,
+        };
+        let requested_visible_gap = 20.0;
+        let (left, right) = split_rect_box(
+            &original,
+            &SplitAxis::Vertical,
+            0.0,
+            style.boundary_gap_for_visible_gap(requested_visible_gap),
+            GapPolicy::Expands,
+        );
+
+        let visible_gap = (right.center.x - right.half_size.x - style.border_width)
+            - (left.center.x + left.half_size.x + style.border_width);
+        approx_eq(visible_gap, requested_visible_gap);
+    }
+
+    #[test]
+    fn structured_zero_visible_gap_keeps_outer_edges_touching() {
+        let original = boundary(300.0, 200.0);
+        let style = BattleBoxVisualStyle {
+            border_width: 5.0,
+            fill_shader: None,
+            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            fill_color: Color::BLACK,
+        };
+        let (top, bottom) = split_rect_box(
+            &original,
+            &SplitAxis::Horizontal,
+            0.0,
+            style.boundary_gap_for_visible_gap(0.0),
+            GapPolicy::Includes,
+        );
+
+        let visible_gap = (top.center.y - top.half_size.y - style.border_width)
+            - (bottom.center.y + bottom.half_size.y + style.border_width);
+        approx_eq(visible_gap, 0.0);
+    }
 }
 
 /// Determine which of two boxes a player should be rebound to based on distance.
@@ -744,34 +806,39 @@ fn handle_split_battle_box_system(
         );
         retire_battle_box(&mut commands, source_box.entity);
 
+        let target_boundary_gap = style.boundary_gap_for_visible_gap(ev.gap);
         let (box_a, box_b) = split_rect_box(
             &original,
             &ev.split_axis,
             ev.split_position,
-            ev.gap,
+            target_boundary_gap,
             ev.gap_policy,
         );
 
         let (id_a, id_b) = (&ev.result_boxes.0, &ev.result_boxes.1);
 
         if ev.duration > 0.0 {
-            // Animated split: spawn boxes at original center, then animate outward
-            let start_boundary = BattleBoxBoundary {
-                half_size: Vec2::new(original.half_size.x / 2.0, original.half_size.y / 2.0),
-                center: original.center,
-            };
+            // Animated split only animates the gap.
+            // Start from the same geometry as `gap = 0`, then open the gap over time.
+            let (start_boundary_a, start_boundary_b) = split_rect_box(
+                &original,
+                &ev.split_axis,
+                ev.split_position,
+                style.boundary_gap_for_visible_gap(0.0),
+                ev.gap_policy,
+            );
 
             let entity_a =
-                spawn_standalone_box_entity(&mut commands, id_a, &start_boundary, &style);
+                spawn_standalone_box_entity(&mut commands, id_a, &start_boundary_a, &style);
             let entity_b =
-                spawn_standalone_box_entity(&mut commands, id_b, &start_boundary, &style);
+                spawn_standalone_box_entity(&mut commands, id_b, &start_boundary_b, &style);
 
             spawn_view_box_sdf_children(
                 &mut commands,
                 entity_a,
                 &style.to_view_box(
-                    start_boundary.half_size.x * 2.0,
-                    start_boundary.half_size.y * 2.0,
+                    start_boundary_a.half_size.x * 2.0,
+                    start_boundary_a.half_size.y * 2.0,
                 ),
                 &mut meshes,
                 &mut sdf_materials,
@@ -781,8 +848,8 @@ fn handle_split_battle_box_system(
                 &mut commands,
                 entity_b,
                 &style.to_view_box(
-                    start_boundary.half_size.x * 2.0,
-                    start_boundary.half_size.y * 2.0,
+                    start_boundary_b.half_size.x * 2.0,
+                    start_boundary_b.half_size.y * 2.0,
                 ),
                 &mut meshes,
                 &mut sdf_materials,
@@ -790,10 +857,11 @@ fn handle_split_battle_box_system(
             );
 
             commands.spawn(BattleBoxSplitAnimation {
-                start_boundary_a: start_boundary.clone(),
-                start_boundary_b: start_boundary,
-                target_boundary_a: box_a.clone(),
-                target_boundary_b: box_b.clone(),
+                original_boundary: original.clone(),
+                split_axis: ev.split_axis,
+                split_position: ev.split_position,
+                target_visible_gap: ev.gap,
+                gap_policy: ev.gap_policy,
                 box_entity_a: entity_a,
                 box_entity_b: entity_b,
                 visual_style: style,
@@ -1030,35 +1098,65 @@ fn animate_battle_box_split_system(
     mut animations: Query<(Entity, &mut BattleBoxSplitAnimation)>,
     mut box_query: Query<(&mut Transform, &mut AlightMotionBattleBoxBounds)>,
     child_query: Query<&Children>,
-    mut shape_query: Query<&mut crate::core::view::sdf_shape::ViewSdfShape>,
+    mut shape_query: Query<(
+        &mut crate::core::view::sdf_shape::ViewSdfShape,
+        &MeshMaterial2d<SdfMaterial>,
+        &mut Mesh2d,
+    )>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut mesh_query: Query<&mut Mesh2d>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
 ) {
     for (anim_entity, mut anim) in animations.iter_mut() {
         anim.progress += time.delta_secs() / anim.duration;
+        let t = anim.progress.min(1.0);
+
+        // Easing: smooth step (ease in-out)
+        let eased = t * t * (3.0 - 2.0 * t);
+        let current_visible_gap = anim.target_visible_gap * eased;
+        let current_gap = anim
+            .visual_style
+            .boundary_gap_for_visible_gap(current_visible_gap);
+        let (current_a, current_b) = split_rect_box(
+            &anim.original_boundary,
+            &anim.split_axis,
+            anim.split_position,
+            current_gap,
+            anim.gap_policy,
+        );
 
         if anim.progress >= 1.0 {
             // Animation complete - set final positions
             if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
-                transform.translation = anim.target_boundary_a.center.extend(0.0);
-                bounds.width = anim.target_boundary_a.half_size.x * 2.0;
-                bounds.height = anim.target_boundary_a.half_size.y * 2.0;
+                transform.translation = current_a.center.extend(0.0);
+                bounds.width = current_a.half_size.x * 2.0;
+                bounds.height = current_a.half_size.y * 2.0;
+                update_sdf_visual(
+                    &anim.box_entity_a,
+                    &current_a,
+                    &anim.visual_style,
+                    &child_query,
+                    &mut shape_query,
+                    &mut meshes,
+                    &mut sdf_materials,
+                );
             }
             if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_b) {
-                transform.translation = anim.target_boundary_b.center.extend(0.0);
-                bounds.width = anim.target_boundary_b.half_size.x * 2.0;
-                bounds.height = anim.target_boundary_b.half_size.y * 2.0;
+                transform.translation = current_b.center.extend(0.0);
+                bounds.width = current_b.half_size.x * 2.0;
+                bounds.height = current_b.half_size.y * 2.0;
+                update_sdf_visual(
+                    &anim.box_entity_b,
+                    &current_b,
+                    &anim.visual_style,
+                    &child_query,
+                    &mut shape_query,
+                    &mut meshes,
+                    &mut sdf_materials,
+                );
             }
             commands.entity(anim_entity).despawn();
             continue;
         }
-
-        // Easing: smooth step (ease in-out)
-        let t = anim.progress * anim.progress * (3.0 - 2.0 * anim.progress);
-
-        // Interpolate boundaries
-        let current_a = interpolate_boundary(&anim.start_boundary_a, &anim.target_boundary_a, t);
-        let current_b = interpolate_boundary(&anim.start_boundary_b, &anim.target_boundary_b, t);
 
         // Update box A
         if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
@@ -1073,7 +1171,7 @@ fn animate_battle_box_split_system(
                 &child_query,
                 &mut shape_query,
                 &mut meshes,
-                &mut mesh_query,
+                &mut sdf_materials,
             );
         }
 
@@ -1090,21 +1188,9 @@ fn animate_battle_box_split_system(
                 &child_query,
                 &mut shape_query,
                 &mut meshes,
-                &mut mesh_query,
+                &mut sdf_materials,
             );
         }
-    }
-}
-
-/// Linear interpolation between two boundaries.
-fn interpolate_boundary(
-    start: &BattleBoxBoundary,
-    end: &BattleBoxBoundary,
-    t: f32,
-) -> BattleBoxBoundary {
-    BattleBoxBoundary {
-        half_size: start.half_size.lerp(end.half_size, t),
-        center: start.center.lerp(end.center, t),
     }
 }
 
@@ -1114,22 +1200,58 @@ fn update_sdf_visual(
     boundary: &BattleBoxBoundary,
     visual_style: &BattleBoxVisualStyle,
     child_query: &Query<&Children>,
-    shape_query: &mut Query<&mut crate::core::view::sdf_shape::ViewSdfShape>,
+    shape_query: &mut Query<(
+        &mut crate::core::view::sdf_shape::ViewSdfShape,
+        &MeshMaterial2d<SdfMaterial>,
+        &mut Mesh2d,
+    )>,
     meshes: &mut ResMut<Assets<Mesh>>,
-    mesh_query: &mut Query<&mut Mesh2d>,
+    sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
 ) {
     let Ok(children) = child_query.get(*box_entity) else {
         return;
     };
-    for child in children.iter() {
-        if let Ok(mut shape) = shape_query.get_mut(child) {
-            shape.half_width = boundary.half_size.x;
-            shape.half_height = boundary.half_size.y;
-            shape.color = visual_style.fill_color;
-            let new_mesh = shape.create_mesh();
-            if let Ok(mut mesh_handle) = mesh_query.get_mut(child) {
-                mesh_handle.0 = meshes.add(new_mesh);
+
+    let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
+    let mut sdf_entities = Vec::new();
+    let expected_shapes = if visual_style.structure_file.is_some() {
+        2
+    } else {
+        1
+    };
+
+    while let Some(entity) = queue.pop_front() {
+        if shape_query.get(entity).is_ok() {
+            sdf_entities.push(entity);
+            if sdf_entities.len() >= expected_shapes {
+                break;
             }
+        }
+        if let Ok(grandchildren) = child_query.get(entity) {
+            queue.extend(grandchildren.to_vec());
+        }
+    }
+
+    let box_half_width = boundary.half_size.x;
+    let box_half_height = boundary.half_size.y;
+
+    for (index, entity) in sdf_entities.into_iter().enumerate() {
+        let (half_width, half_height) = if expected_shapes == 1 || index > 0 {
+            (box_half_width, box_half_height)
+        } else {
+            (
+                box_half_width + visual_style.border_width,
+                box_half_height + visual_style.border_width,
+            )
+        };
+
+        if let Ok((mut shape, material_handle, mut mesh_handle)) = shape_query.get_mut(entity) {
+            shape.half_width = half_width;
+            shape.half_height = half_height;
+            if let Some(material) = sdf_materials.get_mut(&material_handle.0) {
+                *material = shape.to_material();
+            }
+            mesh_handle.0 = meshes.add(shape.create_mesh());
         }
     }
 }
