@@ -260,18 +260,20 @@ pub fn process_battle_box_chapter_system(
                 axis,
                 position,
                 gap,
+                gap_policy,
                 duration,
             } => {
                 info!(
-                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, duration={})",
-                    source, result.0, result.1, axis, duration
+                    "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={})",
+                    source, result.0, result.1, axis, gap_policy, duration
                 );
                 split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
                     source_box: source.clone(),
                     result_boxes: result.clone(),
-                    split_axis: axis.clone(),
+                    split_axis: *axis,
                     split_position: *position,
                     gap: *gap,
+                    gap_policy: *gap_policy,
                     duration: *duration,
                 });
                 commands.entity(entity).insert(ChapterFinished);

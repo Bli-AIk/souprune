@@ -31,6 +31,7 @@ impl Plugin for BattleCollisionPlugin {
                 (
                     handle_split_battle_box_system,
                     handle_merge_battle_boxes_system,
+                    animate_battle_box_split_system,
                     constrain_player_to_battle_box_system,
                 )
                     .chain()
@@ -144,17 +145,64 @@ pub struct AlightMotionBattleBoxBounds {
     pub center_offset: Vec2,
 }
 
+/// Tracks an ongoing split animation for a pair of battle boxes.
+/// 跟踪一对战斗框正在进行的分裂动画。
+#[derive(Component)]
+pub struct BattleBoxSplitAnimation {
+    /// Starting boundary for box A (at animation start).
+    /// box A 的起始边界（动画开始时）。
+    pub start_boundary_a: BattleBoxBoundary,
+    /// Starting boundary for box B (at animation start).
+    /// box B 的起始边界（动画开始时）。
+    pub start_boundary_b: BattleBoxBoundary,
+    /// Target boundary for box A (at animation end).
+    /// box A 的目标边界（动画结束时）。
+    pub target_boundary_a: BattleBoxBoundary,
+    /// Target boundary for box B (at animation end).
+    /// box B 的目标边界（动画结束时）。
+    pub target_boundary_b: BattleBoxBoundary,
+    /// Entity ID for box A.
+    /// box A 的实体 ID。
+    pub box_entity_a: Entity,
+    /// Entity ID for box B.
+    /// box B 的实体 ID。
+    pub box_entity_b: Entity,
+    /// Visual style to apply during animation.
+    /// 动画期间应用的视觉样式。
+    pub visual_style: BattleBoxVisualStyle,
+    /// Animation progress (0.0 to 1.0).
+    /// 动画进度（0.0 到 1.0）。
+    pub progress: f32,
+    /// Total animation duration in seconds.
+    /// 总动画时长（秒）。
+    pub duration: f32,
+}
+
 // ─── Split / Merge Events ───────────────────────────────────────────
 
 /// Axis along which to split a battle box.
 ///
 /// 分裂战斗框所沿的轴。
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
 pub enum SplitAxis {
     /// Vertical cut → produces left and right boxes
     Vertical,
     /// Horizontal cut → produces top and bottom boxes
+    #[default]
     Horizontal,
+}
+
+/// Policy for how gap affects split box dimensions.
+/// 间隙如何影响分裂后 box 尺寸的策略。
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
+pub enum GapPolicy {
+    /// Gap expands outward: two box widths sum to original width, total span increases.
+    /// 间隙向外扩展：两个 box 宽度之和等于原宽度，总跨度增加。
+    #[default]
+    Expands,
+    /// Gap includes in width: two box widths + gap = original width, total span preserved.
+    /// 间隙计入宽度：两个 box 宽度 + gap = 原宽度，总跨度保持不变。
+    Includes,
 }
 
 /// Event to trigger a battle box split.
@@ -172,6 +220,8 @@ pub struct SplitBattleBox {
     pub split_position: f32,
     /// Gap between the two new boxes (pixels)
     pub gap: f32,
+    /// Policy for how gap affects dimensions
+    pub gap_policy: GapPolicy,
     /// Animation duration in seconds (0 = instant)
     pub duration: f32,
 }
@@ -197,6 +247,7 @@ fn split_rect_box(
     axis: &SplitAxis,
     split_pos: f32,
     gap: f32,
+    gap_policy: GapPolicy,
 ) -> (BattleBoxBoundary, BattleBoxBoundary) {
     match axis {
         SplitAxis::Vertical => {
@@ -204,42 +255,95 @@ fn split_rect_box(
             let right_width = original.half_size.x - split_pos;
             let half_gap = gap / 2.0;
 
-            let left = BattleBoxBoundary {
-                half_size: Vec2::new(left_width / 2.0, original.half_size.y),
-                center: Vec2::new(
-                    original.center.x - original.half_size.x + left_width / 2.0 - half_gap,
-                    original.center.y,
-                ),
-            };
-            let right = BattleBoxBoundary {
-                half_size: Vec2::new(right_width / 2.0, original.half_size.y),
-                center: Vec2::new(
-                    original.center.x + original.half_size.x - right_width / 2.0 + half_gap,
-                    original.center.y,
-                ),
-            };
-            (left, right)
+            match gap_policy {
+                GapPolicy::Expands => {
+                    let left = BattleBoxBoundary {
+                        half_size: Vec2::new(left_width / 2.0, original.half_size.y),
+                        center: Vec2::new(
+                            original.center.x - original.half_size.x + left_width / 2.0 - half_gap,
+                            original.center.y,
+                        ),
+                    };
+                    let right = BattleBoxBoundary {
+                        half_size: Vec2::new(right_width / 2.0, original.half_size.y),
+                        center: Vec2::new(
+                            original.center.x + original.half_size.x - right_width / 2.0 + half_gap,
+                            original.center.y,
+                        ),
+                    };
+                    (left, right)
+                }
+                GapPolicy::Includes => {
+                    let total_width = original.half_size.x * 2.0;
+                    let scale = (total_width - gap) / total_width;
+                    let left_width_scaled = left_width * scale;
+                    let right_width_scaled = right_width * scale;
+
+                    let left = BattleBoxBoundary {
+                        half_size: Vec2::new(left_width_scaled / 2.0, original.half_size.y),
+                        center: Vec2::new(
+                            original.center.x - half_gap - left_width_scaled / 2.0,
+                            original.center.y,
+                        ),
+                    };
+                    let right = BattleBoxBoundary {
+                        half_size: Vec2::new(right_width_scaled / 2.0, original.half_size.y),
+                        center: Vec2::new(
+                            original.center.x + half_gap + right_width_scaled / 2.0,
+                            original.center.y,
+                        ),
+                    };
+                    (left, right)
+                }
+            }
         }
         SplitAxis::Horizontal => {
             let top_height = original.half_size.y + split_pos;
             let bottom_height = original.half_size.y - split_pos;
             let half_gap = gap / 2.0;
 
-            let top = BattleBoxBoundary {
-                half_size: Vec2::new(original.half_size.x, top_height / 2.0),
-                center: Vec2::new(
-                    original.center.x,
-                    original.center.y + original.half_size.y - top_height / 2.0 + half_gap,
-                ),
-            };
-            let bottom = BattleBoxBoundary {
-                half_size: Vec2::new(original.half_size.x, bottom_height / 2.0),
-                center: Vec2::new(
-                    original.center.x,
-                    original.center.y - original.half_size.y + bottom_height / 2.0 - half_gap,
-                ),
-            };
-            (top, bottom)
+            match gap_policy {
+                GapPolicy::Expands => {
+                    let top = BattleBoxBoundary {
+                        half_size: Vec2::new(original.half_size.x, top_height / 2.0),
+                        center: Vec2::new(
+                            original.center.x,
+                            original.center.y + original.half_size.y - top_height / 2.0 + half_gap,
+                        ),
+                    };
+                    let bottom = BattleBoxBoundary {
+                        half_size: Vec2::new(original.half_size.x, bottom_height / 2.0),
+                        center: Vec2::new(
+                            original.center.x,
+                            original.center.y - original.half_size.y + bottom_height / 2.0
+                                - half_gap,
+                        ),
+                    };
+                    (top, bottom)
+                }
+                GapPolicy::Includes => {
+                    let total_height = original.half_size.y * 2.0;
+                    let scale = (total_height - gap) / total_height;
+                    let top_height_scaled = top_height * scale;
+                    let bottom_height_scaled = bottom_height * scale;
+
+                    let top = BattleBoxBoundary {
+                        half_size: Vec2::new(original.half_size.x, top_height_scaled / 2.0),
+                        center: Vec2::new(
+                            original.center.x,
+                            original.center.y + half_gap + top_height_scaled / 2.0,
+                        ),
+                    };
+                    let bottom = BattleBoxBoundary {
+                        half_size: Vec2::new(original.half_size.x, bottom_height_scaled / 2.0),
+                        center: Vec2::new(
+                            original.center.x,
+                            original.center.y - half_gap - bottom_height_scaled / 2.0,
+                        ),
+                    };
+                    (top, bottom)
+                }
+            }
         }
     }
 }
@@ -412,29 +516,83 @@ fn handle_split_battle_box_system(
             continue;
         };
 
-        let (box_a, box_b) = split_rect_box(&original, &ev.split_axis, ev.split_position, ev.gap);
+        let (box_a, box_b) = split_rect_box(
+            &original,
+            &ev.split_axis,
+            ev.split_position,
+            ev.gap,
+            ev.gap_policy,
+        );
 
         let (id_a, id_b) = (&ev.result_boxes.0, &ev.result_boxes.1);
 
-        // Spawn two new battle box entities with their own SDF visuals.
-        spawn_standalone_box(
-            &mut commands,
-            &mut meshes,
-            &mut sdf_materials,
-            &mut color_materials,
-            id_a,
-            &box_a,
-            &style,
-        );
-        spawn_standalone_box(
-            &mut commands,
-            &mut meshes,
-            &mut sdf_materials,
-            &mut color_materials,
-            id_b,
-            &box_b,
-            &style,
-        );
+        if ev.duration > 0.0 {
+            // Animated split: spawn boxes at original center, then animate outward
+            let start_boundary = BattleBoxBoundary {
+                half_size: Vec2::new(original.half_size.x / 2.0, original.half_size.y / 2.0),
+                center: original.center,
+            };
+
+            let entity_a =
+                spawn_standalone_box_entity(&mut commands, id_a, &start_boundary, &style);
+            let entity_b =
+                spawn_standalone_box_entity(&mut commands, id_b, &start_boundary, &style);
+
+            spawn_view_box_sdf_children(
+                &mut commands,
+                entity_a,
+                &style.to_view_box(
+                    start_boundary.half_size.x * 2.0,
+                    start_boundary.half_size.y * 2.0,
+                ),
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+            );
+            spawn_view_box_sdf_children(
+                &mut commands,
+                entity_b,
+                &style.to_view_box(
+                    start_boundary.half_size.x * 2.0,
+                    start_boundary.half_size.y * 2.0,
+                ),
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+            );
+
+            commands.spawn(BattleBoxSplitAnimation {
+                start_boundary_a: start_boundary.clone(),
+                start_boundary_b: start_boundary,
+                target_boundary_a: box_a.clone(),
+                target_boundary_b: box_b.clone(),
+                box_entity_a: entity_a,
+                box_entity_b: entity_b,
+                visual_style: style,
+                progress: 0.0,
+                duration: ev.duration,
+            });
+        } else {
+            // Instant split: spawn boxes directly at target positions
+            spawn_standalone_box(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+                id_a,
+                &box_a,
+                &style,
+            );
+            spawn_standalone_box(
+                &mut commands,
+                &mut meshes,
+                &mut sdf_materials,
+                &mut color_materials,
+                id_b,
+                &box_b,
+                &style,
+            );
+        }
 
         // Rebind players that were bound to the source box
         for (player_tf, mut bound) in player_query.iter_mut() {
@@ -445,8 +603,15 @@ fn handle_split_battle_box_system(
         }
 
         info!(
-            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={}, duration={})",
-            ev.source_box, id_a, id_b, ev.split_axis, ev.split_position, ev.gap, ev.duration
+            "Split '{}' → '{}' + '{}' (axis={:?}, pos={}, gap={}, gap_policy={:?}, duration={})",
+            ev.source_box,
+            id_a,
+            id_b,
+            ev.split_axis,
+            ev.split_position,
+            ev.gap,
+            ev.gap_policy,
+            ev.duration
         );
     }
 }
@@ -613,4 +778,147 @@ fn merge_boundaries(a: &BattleBoxBoundary, b: &BattleBoxBoundary) -> BattleBoxBo
     let center = (min + max) / 2.0;
     let half_size = (max - min) / 2.0;
     BattleBoxBoundary { half_size, center }
+}
+
+/// Spawn a standalone battle box entity without SDF children.
+/// Used for animation where visual is added separately.
+fn spawn_standalone_box_entity(
+    commands: &mut Commands,
+    id: &str,
+    boundary: &BattleBoxBoundary,
+    visual_style: &BattleBoxVisualStyle,
+) -> Entity {
+    commands
+        .spawn((
+            BattleBox,
+            BattleBoxId(id.to_string()),
+            BattleBoxState::default(),
+            visual_style.clone(),
+            AlightMotionBattleBoxBounds {
+                width: boundary.half_size.x * 2.0,
+                height: boundary.half_size.y * 2.0,
+                center_offset: Vec2::ZERO,
+            },
+            Transform::from_translation(boundary.center.extend(0.0)),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            Name::new(format!("BattleBox:{id}")),
+        ))
+        .id()
+}
+
+// ─── Animation Systems ────────────────────────────────────────────────
+
+/// System to animate battle box split animations.
+/// 战斗框分裂动画系统。
+fn animate_battle_box_split_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut animations: Query<(Entity, &mut BattleBoxSplitAnimation)>,
+    mut box_query: Query<(&mut Transform, &mut AlightMotionBattleBoxBounds)>,
+    child_query: Query<&Children>,
+    mut shape_query: Query<&mut crate::core::view::sdf_shape::ViewSdfShape>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mesh_query: Query<&mut Mesh2d>,
+) {
+    for (anim_entity, mut anim) in animations.iter_mut() {
+        anim.progress += time.delta_secs() / anim.duration;
+
+        if anim.progress >= 1.0 {
+            // Animation complete - set final positions
+            if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
+                transform.translation = anim.target_boundary_a.center.extend(0.0);
+                bounds.width = anim.target_boundary_a.half_size.x * 2.0;
+                bounds.height = anim.target_boundary_a.half_size.y * 2.0;
+            }
+            if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_b) {
+                transform.translation = anim.target_boundary_b.center.extend(0.0);
+                bounds.width = anim.target_boundary_b.half_size.x * 2.0;
+                bounds.height = anim.target_boundary_b.half_size.y * 2.0;
+            }
+            commands.entity(anim_entity).despawn();
+            continue;
+        }
+
+        // Easing: smooth step (ease in-out)
+        let t = anim.progress * anim.progress * (3.0 - 2.0 * anim.progress);
+
+        // Interpolate boundaries
+        let current_a = interpolate_boundary(&anim.start_boundary_a, &anim.target_boundary_a, t);
+        let current_b = interpolate_boundary(&anim.start_boundary_b, &anim.target_boundary_b, t);
+
+        // Update box A
+        if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_a) {
+            transform.translation = current_a.center.extend(0.0);
+            bounds.width = current_a.half_size.x * 2.0;
+            bounds.height = current_a.half_size.y * 2.0;
+
+            update_sdf_visual(
+                &anim.box_entity_a,
+                &current_a,
+                &anim.visual_style,
+                &child_query,
+                &mut shape_query,
+                &mut meshes,
+                &mut mesh_query,
+            );
+        }
+
+        // Update box B
+        if let Ok((mut transform, mut bounds)) = box_query.get_mut(anim.box_entity_b) {
+            transform.translation = current_b.center.extend(0.0);
+            bounds.width = current_b.half_size.x * 2.0;
+            bounds.height = current_b.half_size.y * 2.0;
+
+            update_sdf_visual(
+                &anim.box_entity_b,
+                &current_b,
+                &anim.visual_style,
+                &child_query,
+                &mut shape_query,
+                &mut meshes,
+                &mut mesh_query,
+            );
+        }
+    }
+}
+
+/// Linear interpolation between two boundaries.
+fn interpolate_boundary(
+    start: &BattleBoxBoundary,
+    end: &BattleBoxBoundary,
+    t: f32,
+) -> BattleBoxBoundary {
+    BattleBoxBoundary {
+        half_size: start.half_size.lerp(end.half_size, t),
+        center: start.center.lerp(end.center, t),
+    }
+}
+
+/// Update SDF visual for a battle box entity during animation.
+fn update_sdf_visual(
+    box_entity: &Entity,
+    boundary: &BattleBoxBoundary,
+    visual_style: &BattleBoxVisualStyle,
+    child_query: &Query<&Children>,
+    shape_query: &mut Query<&mut crate::core::view::sdf_shape::ViewSdfShape>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    mesh_query: &mut Query<&mut Mesh2d>,
+) {
+    let Ok(children) = child_query.get(*box_entity) else {
+        return;
+    };
+    for child in children.iter() {
+        if let Ok(mut shape) = shape_query.get_mut(child) {
+            shape.half_width = boundary.half_size.x;
+            shape.half_height = boundary.half_size.y;
+            shape.color = visual_style.fill_color;
+            let new_mesh = shape.create_mesh();
+            if let Ok(mut mesh_handle) = mesh_query.get_mut(child) {
+                mesh_handle.0 = meshes.add(new_mesh);
+            }
+        }
+    }
 }

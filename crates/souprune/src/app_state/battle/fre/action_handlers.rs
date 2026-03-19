@@ -13,7 +13,7 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 
-use crate::app_state::battle::collision::{MergeBattleBoxes, SplitAxis, SplitBattleBox};
+use crate::app_state::battle::collision::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
 
 use crate::core::fre_facts;
@@ -169,14 +169,18 @@ pub fn setup_battle_action_handlers_system(
             .get("gap")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
+        let gap_policy = match params.get("gap_policy").map(String::as_str) {
+            Some("Includes") => GapPolicy::Includes,
+            _ => GapPolicy::Expands,
+        };
         let duration: f32 = params
             .get("duration")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
 
         info!(
-            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?}, duration={})",
-            source, left, right, axis, duration
+            "Battle FRE Action: SplitBattleBox '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={})",
+            source, left, right, axis, gap_policy, duration
         );
 
         let msg = SplitBattleBox {
@@ -185,6 +189,7 @@ pub fn setup_battle_action_handlers_system(
             split_axis: axis,
             split_position: position,
             gap,
+            gap_policy,
             duration,
         };
         commands.queue(move |world: &mut World| {

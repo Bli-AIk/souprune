@@ -13,6 +13,7 @@
 //! 每种 Chapter 类型对应独特的图标、颜色和摘要。
 
 use egui::Color32;
+use log::log;
 use souprune::core::sequencer::chapter_schema::Chapter;
 
 /// 章节分类颜色。
@@ -82,6 +83,7 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
         Chapter::LoadEnemies { .. } => ChapterCategory::Combat,
         Chapter::SplitBattleBox { .. } => ChapterCategory::Combat,
         Chapter::MergeBattleBoxes { .. } => ChapterCategory::Combat,
+        Chapter::Log { .. } => ChapterCategory::Flow,
     }
 }
 
@@ -113,6 +115,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "[LE]",
         Chapter::SplitBattleBox { .. } => "[SB]",
         Chapter::MergeBattleBoxes { .. } => "[MB]",
+        Chapter::Log { .. } => {"[L]"}
     }
 }
 
@@ -145,6 +148,7 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "chapter-load-enemies",
         Chapter::SplitBattleBox { .. } => "chapter-split-battle-box",
         Chapter::MergeBattleBoxes { .. } => "chapter-merge-battle-boxes",
+        Chapter::Log { .. } => "chapter-log",
     }
 }
 
@@ -196,6 +200,7 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         } => {
             format!("{} + {} → {result}", sources.0, sources.1)
         }
+        Chapter::Log { text, .. } => {text.clone()},
     }
 }
 
@@ -328,6 +333,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "LoadEnemies",
         Chapter::SplitBattleBox { .. } => "SplitBattleBox",
         Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
+        Chapter::Log { .. } => "Log"
     }
 }
 

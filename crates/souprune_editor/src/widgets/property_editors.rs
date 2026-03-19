@@ -787,5 +787,6 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "LoadEnemies",
         Chapter::SplitBattleBox { .. } => "SplitBattleBox",
         Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
+        Chapter::Log { .. } => "Log",
     }
 }

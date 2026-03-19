@@ -28,7 +28,7 @@ use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 
-use crate::app_state::battle::collision::SplitAxis;
+use crate::app_state::battle::collision::{GapPolicy, SplitAxis};
 
 /// 3D vector tuple type for coordinates like translation and scale.
 ///
@@ -93,6 +93,27 @@ impl<T> Value<T> {
         match self {
             Value::Expr(s) => Some(s),
             Value::Static(_) => None,
+        }
+    }
+}
+
+/// Log level for Log chapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+pub enum LogLevel {
+    #[default]
+    Info,
+    Debug,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    pub fn action(&self, text: &str) {
+        match self {
+            LogLevel::Info => info!("[Chapter] {}", text),
+            LogLevel::Debug => debug!("[Chapter] {}", text),
+            LogLevel::Warn => warn!("[Chapter] {}", text),
+            LogLevel::Error => error!("[Chapter] {}", text),
         }
     }
 }
@@ -648,6 +669,7 @@ pub enum Chapter {
     ///     axis: Vertical,
     ///     position: 0.0,
     ///     gap: 20.0,
+    ///     gap_policy: Expands,
     ///     duration: 0.3,
     /// ),
     /// ```
@@ -669,6 +691,10 @@ pub enum Chapter {
         /// 两个结果框之间的间隔（像素）。
         #[serde(default)]
         gap: f32,
+        /// Policy for how gap affects dimensions.
+        /// 间隙如何影响尺寸的策略。
+        #[serde(default)]
+        gap_policy: GapPolicy,
         /// Animation duration in seconds. `0.0` means instant.
         /// 动画时长（秒）。`0.0` 表示瞬时。
         #[serde(default)]
@@ -704,6 +730,16 @@ pub enum Chapter {
         /// 动画时长（秒）。`0.0` 表示瞬时。
         #[serde(default)]
         duration: f32,
+    },
+
+    /// Output a log message.
+    /// 输出日志。
+    Log {
+        /// Log message text.
+        text: String,
+        /// Log level (defaults to Info).
+        #[serde(default)]
+        level: LogLevel,
     },
 
     /// Custom chapter type for editor/mod extensibility.

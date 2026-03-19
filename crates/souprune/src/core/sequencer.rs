@@ -19,6 +19,7 @@ mod context;
 mod fact_chapter;
 mod flow;
 mod interaction;
+mod log_chapter;
 mod load_map;
 mod performance;
 mod player;
@@ -143,6 +144,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             run_sequence::complete_run_sequence_system,
             load_map::process_load_map_system,
             bgm::process_set_bgm_system,
+            log_chapter::process_log_chapter_system,
             interaction::check_await_fact_completion_system,
             flow::cleanup_finished_chapters_system,
             flow::sync_battle_flow_system,
