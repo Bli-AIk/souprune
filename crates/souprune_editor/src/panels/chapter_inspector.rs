@@ -368,6 +368,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             gap,
             gap_policy,
             duration,
+            ..
         } => {
             changed |= labeled_text(ui, &t(world, "prop-source-box"), source);
             ui.separator();
@@ -435,6 +436,7 @@ fn render_chapter_properties(ui: &mut egui::Ui, chapter: &mut Chapter, world: &W
             sources,
             result,
             duration,
+            ..
         } => {
             changed |= labeled_text(ui, &t(world, "prop-source-a"), &mut sources.0);
             changed |= labeled_text(ui, &t(world, "prop-source-b"), &mut sources.1);

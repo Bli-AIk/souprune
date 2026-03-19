@@ -13,7 +13,6 @@
 //! 每种 Chapter 类型对应独特的图标、颜色和摘要。
 
 use egui::Color32;
-use log::log;
 use souprune::core::sequencer::chapter_schema::Chapter;
 
 /// 章节分类颜色。
