@@ -179,6 +179,47 @@ This rule is enforced by `tokei_check.sh`.
 - File name matches module name: `mod fre_bridge` → `fre_bridge.rs` or `fre_bridge/mod.rs`
 - Test modules live alongside their source: `#[cfg(test)] mod tests { .. }` at the bottom of the file
 
+### 3.5 Single Responsibility and Boundary Ownership
+
+**Single Responsibility Principle is mandatory.**
+
+- A module should feel like it does **one job**. If you see schema definitions, asset loading, runtime systems, and editor helpers all living together, the module is already too broad
+- Plugin root files are wiring files. Use them to register plugins, systems, and resources, then move the real behavior into dedicated submodules
+- If a file keeps growing because unrelated changes keep landing there, split it by responsibility before line count becomes the only warning sign
+
+### 3.6 Layering Rules
+
+Directory structure is not enough; dependency direction must also match the architecture.
+
+- The directory name alone does not make something `core/`. If a module needs to know about battle, overworld, or the editor, it probably does not belong in `core/`
+- A simple rule: `app_state/` may depend on `core/`, but `core/` should not reach back up into `app_state/`
+- Editor crates should talk to **public engine APIs** or **schema crates**, not reach through deep internal paths just because it is convenient today
+- State-specific behavior belongs in the relevant game state or a dedicated shared gameplay layer, not in generic infrastructure modules
+
+### 3.7 Schema Source of Truth
+
+One asset format must have exactly **one authoritative schema type**.
+
+- Pick one schema and treat it as the source of truth
+- Do not keep one version for runtime, another for linting, and a third for the editor
+- Thin runtime wrappers are fine when they add `Asset`, `Reflect`, or conversion behavior; duplicated field definitions are not
+
+### 3.8 Imports and Re-exports for Internal Code
+
+- Make dependencies obvious when reading the file
+- Avoid blanket imports in production code except for ecosystem-standard preludes such as `bevy::prelude::*`
+- Avoid barrel-style re-exports (`pub use foo::*;`) inside internal modules; prefer explicit re-exports so readers can see what the module actually exposes
+- Re-export entire modules only at intentional public boundaries such as a crate `prelude` or a stable top-level API
+
+### 3.9 Compatibility and Deletion Policy
+
+SoupRune is in active development and does **not** prioritize backward compatibility.
+
+- Use that freedom to delete old designs instead of carrying them forever
+- When you add temporary compatibility code, also write down when it dies
+- If a migration is finished, remove the old path instead of leaving two systems half-alive
+- "We will clean it up later" is not an acceptable reason to keep dead abstractions or parallel systems
+
 ---
 
 ## 4. Public API Design
@@ -440,6 +481,15 @@ fn evaluate_conditions_returns_false_when_fact_missing() { .. }
 - Use minimal `bevy::prelude::App` setups for ECS tests
 - Prefer **deterministic assertions** — avoid frame-count dependencies
 - Test one behavior per test function
+
+### 9.4 Workspace Quality Gates
+
+Style rules must be enforceable across the workspace, not only in the main crate.
+
+- A rule only matters if the repository actually checks it
+- Line-count checks, lint checks, and structural checks should cover all maintained first-party crates
+- If a subcrate has its own quality script, the root quality entrypoint should invoke it instead of silently skipping that crate
+- A rule that cannot be checked in CI should be treated as advisory, not mandatory
 
 ---
 
