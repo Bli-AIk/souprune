@@ -220,6 +220,42 @@ SoupRune is in active development and does **not** prioritize backward compatibi
 - If a migration is finished, remove the old path instead of leaving two systems half-alive
 - "We will clean it up later" is not an acceptable reason to keep dead abstractions or parallel systems
 
+### 3.10 Bevy Plugin Shape
+
+The following Bevy-specific rules follow the direction of Bevy's plugin development guide and the `bevy_best_practices` project, but are written here in plain language for this repository.
+
+If a module is called a Bevy plugin, readers should be able to treat it like the front door of one subsystem.
+
+- A plugin file should read like wiring: register plugins, resources, assets, schedules, and state hooks, then stop
+- Do not let `Plugin::build` turn into the place where real gameplay logic, parser logic, or runtime branching quietly accumulates
+- In library crates, prefer exposing a named `Plugin` struct instead of only a free `plugin(app)` function. That keeps room for future configuration without breaking callers
+- Third-party setup should live beside the subsystem that uses it. If a feature depends on an external Bevy crate, its configuration belongs in that subsystem's plugin, not in some distant global bootstrap
+
+In plain terms: when someone opens a plugin file, they should quickly understand **what this subsystem registers**, not reverse-engineer **how the subsystem works**.
+
+### 3.11 State Boundaries, Scheduling, and Cleanup
+
+Bevy makes it easy to dump everything into `Update`. Do not do that.
+
+- Systems in `Update` should usually be gated by `State`, `run_if`, or a clearly named `SystemSet`
+- If a system should only matter while a screen, mode, or battle state is active, say that directly in scheduling instead of relying on "it probably won't do anything"
+- Register `OnEnter`, `Update`, and `OnExit` for the same state near each other. A reader should be able to see setup and cleanup in one place
+- Entities need an obvious cleanup story. Use `StateScoped` or an explicit cleanup marker; do not spawn long-lived scene entities and hope someone remembers to remove them later
+- Top-level spawned entities should usually have a `Name`, because unnamed roots make debugging and world inspection worse for no benefit
+
+The human rule is simple: if a state starts something, the code nearby should also make it obvious how that thing stops.
+
+### 3.12 Events Over Tight Coupling
+
+When two parts of the game only need to notify each other, prefer events over direct reach-through.
+
+- Use events to pass facts, requests, and results between subsystems instead of letting one system poke deeply into another subsystem's internals
+- If an event writer and reader are supposed to cooperate in the same frame, make the ordering explicit with `.before(...)`, `.after(...)`, `.chain()`, or ordered `SystemSet`s
+- If a system only exists to react to an event, make that visible in scheduling with an event-based run condition instead of running it every frame for no reason
+- Event names and payloads should describe domain meaning, not temporary implementation details
+
+Put more plainly: events are the cheap and honest way to connect systems. Hidden cross-module assumptions are not.
+
 ---
 
 ## 4. Public API Design
