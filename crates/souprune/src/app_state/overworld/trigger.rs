@@ -696,8 +696,7 @@ pub fn handle_interaction_input_system(
     // Only handle interaction when player can interact in current state
     let can_interact = state_config
         .as_ref()
-        .and_then(|config| config.0.states.get(&current_state.0))
-        .map(|def| def.can_interact())
+        .map(|config| config.can_interact(&current_state.0))
         .unwrap_or(true);
 
     if !can_interact {

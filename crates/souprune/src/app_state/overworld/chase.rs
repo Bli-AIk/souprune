@@ -272,7 +272,7 @@ fn load_chase_config_system(
     chase_loaded.0 = true;
 
     // First try to find chase state from states.ron
-    for (state_name, state_def) in &state_config.0.states {
+    for (state_name, state_def) in state_config.iter() {
         if state_def.chase_config.is_some() {
             chase_state_name.0 = Some(state_name.clone());
             info!("Chase: Found chase state '{}' in states.ron", state_name);

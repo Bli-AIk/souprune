@@ -100,6 +100,22 @@ pub struct StateDefinition {
     pub chase_config: Option<String>,
 }
 
+impl Default for StateDefinition {
+    fn default() -> Self {
+        Self {
+            view_interactive: false,
+            player_movable: true,
+            player_can_interact: None,
+            camera_follow_player: true,
+            view_layout: None,
+            initial_layer: None,
+            on_enter_sound: None,
+            on_exit_sound: None,
+            chase_config: None,
+        }
+    }
+}
+
 /// State configuration — top-level `states.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateConfig {

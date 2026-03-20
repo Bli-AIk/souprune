@@ -765,7 +765,7 @@ pub mod debug_fre_panel {
                     return;
                 };
 
-                let mut state_names: Vec<&String> = config.0.states.keys().collect();
+                let mut state_names = config.state_names();
                 state_names.sort();
 
                 for state_name in state_names {

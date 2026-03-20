@@ -293,8 +293,7 @@ fn force_player_idle_on_non_movable_state_system(
     // Check if current state allows movement
     let player_movable = state_config
         .as_ref()
-        .and_then(|config| config.0.states.get(&current_state.0))
-        .map(|def| def.player_movable)
+        .map(|config| config.is_player_movable(&current_state.0))
         .unwrap_or(true); // Default to movable if no config
 
     // Force idle if movement is not allowed - remove walking/running components

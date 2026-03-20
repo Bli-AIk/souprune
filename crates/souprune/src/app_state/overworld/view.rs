@@ -69,8 +69,7 @@ pub(crate) fn input_to_fre_event_bridge_system(
     // 其他输入仅在不可移动状态（UI 状态）中处理
     let player_movable = state_config
         .as_ref()
-        .and_then(|config| config.0.states.get(&current_state.0))
-        .map(|def| def.player_movable)
+        .map(|config| config.is_player_movable(&current_state.0))
         .unwrap_or(true);
 
     if player_movable {
