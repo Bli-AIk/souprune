@@ -124,7 +124,10 @@ pub fn ui_animation_init_system(
         };
 
         let clip_name = if let Some(mapping) = config.states.get(&anim_state.state_name) {
-            mapping.get_clip_name(&crate::core::basic_components::Direction::Down)
+            crate::core::character_asset::state_animation_clip_name(
+                mapping,
+                &crate::core::basic_components::Direction::Down,
+            )
         } else {
             warn!(
                 "State {} not found in animation config for UI entity {:?}",
