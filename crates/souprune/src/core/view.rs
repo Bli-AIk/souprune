@@ -46,6 +46,7 @@ pub mod visible_when;
 
 pub use custom_sprite_material::PixelOutlineMaterial;
 
+use crate::core::mode::{ModeScoped, is_mode};
 pub use components::box_components::ViewBox;
 pub use components::text::ViewTextConfig;
 pub use components::{
@@ -165,7 +166,7 @@ impl Plugin for CoreViewPlugin {
                     backpack_state_transition_system,
                     state_transition_sound_system,
                 )
-                    .run_if(crate::app_state::is_mode("overworld")),
+                    .run_if(is_mode("overworld")),
             )
             .add_systems(
                 schedule,
@@ -321,7 +322,7 @@ fn handle_spawn_view_request_system(
 
         // Add ModeScoped if specified
         if let Some(ref scope) = request.mode_scope {
-            entity_commands.insert(crate::app_state::ModeScoped(scope.clone()));
+            entity_commands.insert(ModeScoped(scope.clone()));
         }
 
         // Add PendingViewData if bindings specified

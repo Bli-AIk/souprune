@@ -48,6 +48,7 @@ pub mod input;
 pub mod item;
 pub mod map_property_schema;
 pub mod mod_system;
+pub mod mode;
 pub mod player_components;
 pub mod render_layers;
 pub mod ron_loader;

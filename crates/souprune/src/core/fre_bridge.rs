@@ -34,6 +34,7 @@ use crate::config::SoupruneConfig;
 use crate::core::audio;
 use crate::core::fre_facts;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
+use crate::core::mode::{AppState, SequenceSubState};
 use crate::core::view::components::{ActiveView, ViewRoot};
 
 /// Event emitted for each FRE Custom action encountered during rule evaluation.
@@ -118,8 +119,8 @@ pub fn action_to_fre_event_system(
 /// Run condition: Check if any state has changed
 /// 运行条件：检查是否有任何状态变化
 fn state_facts_need_sync(
-    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
-    app_state: Option<Res<State<crate::app_state::AppState>>>,
+    sub_state: Option<Res<State<SequenceSubState>>>,
+    app_state: Option<Res<State<AppState>>>,
     facts: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) -> bool {
     if let Some(ref state) = sub_state
@@ -147,8 +148,8 @@ fn state_facts_need_sync(
 }
 
 pub fn sync_state_to_facts_system(
-    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
-    app_state: Option<Res<State<crate::app_state::AppState>>>,
+    sub_state: Option<Res<State<SequenceSubState>>>,
+    app_state: Option<Res<State<AppState>>>,
     mut facts: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     // Sync SequenceSubState (replaces OverworldSubState)
@@ -469,7 +470,7 @@ fn execute_action(
 /// 处理来自 ViewRoot.local_facts 的 SwitchState 请求的系统。
 pub fn handle_switch_state_system(
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    mut next_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
+    mut next_state: ResMut<NextState<SequenceSubState>>,
 ) {
     for mut view_root in active_view_query.iter_mut() {
         if let Some(FactValue::String(state_name)) = view_root
@@ -478,7 +479,7 @@ pub fn handle_switch_state_system(
         {
             let state_name = state_name.clone();
             info!("FRE Bridge: Switching to state '{}'", state_name);
-            next_state.set(crate::app_state::SequenceSubState::new(&state_name));
+            next_state.set(SequenceSubState::new(&state_name));
             view_root.local_facts.remove(fre_facts::VIEW_SWITCH_STATE);
         }
     }

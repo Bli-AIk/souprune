@@ -1,7 +1,7 @@
 use super::super::layout::FloatOrExpr;
 use super::super::layout::view_schema::MaterialParamValue;
 use super::evaluation::{DYNAMIC_INDEX_RE, REPEAT_VAR_RE};
-use crate::app_state::SequenceSubState;
+use crate::core::mode::SequenceSubState;
 use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::expr_eval::create_eval_callback;
 use bevy::prelude::*;

@@ -1,6 +1,6 @@
 use super::super::layout::ViewLayoutAsset;
-use crate::app_state::SequenceSubState;
 use crate::core::input::Action;
+use crate::core::mode::SequenceSubState;
 use bevy::prelude::*;
 use std::collections::HashMap;
 

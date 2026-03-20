@@ -12,9 +12,9 @@
 //! 本模块处理 UI 实体的生成和生命周期。
 //! 所有 View 生成均通过 SpawnViewRequest/DespawnViewRequest 消息统一处理。
 
-use crate::app_state::SequenceSubState;
 use crate::core::audio;
 use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};
+use crate::core::mode::SequenceSubState;
 use crate::extra::mortar::LocaleLoaded;
 use bevy::prelude::*;
 

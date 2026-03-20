@@ -12,13 +12,13 @@ use super::DanmakuSpawnContext;
 use super::components::*;
 use super::danmaku_schema::*;
 use super::target::BulletTarget;
-use crate::app_state::ModeScoped;
 use crate::config::load_config;
 use crate::core::animation::components::{SpriteAnimationClip, SpriteAnimationTimer};
 use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::{
     ActiveDanmakuStack, DanmakuRegistry, LoadedMods, SpawnPatternRegistry,
 };
+use crate::core::mode::ModeScoped;
 use crate::core::sprite::params::SpriteParams;
 use crate::core::visual::{
     DEFAULT_FRAME_DURATION, ResolvedVisual, get_asset_path, resolve_visual_path,

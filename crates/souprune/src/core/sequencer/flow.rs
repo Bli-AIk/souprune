@@ -38,7 +38,7 @@ pub fn sync_battle_flow_system(
     assets: Res<Assets<SequenceAsset>>,
     asset_server: Res<AssetServer>,
     mut sequence_rules_handle: ResMut<SequenceRulesHandle>,
-    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
+    mut sequence_mode: ResMut<crate::core::mode::SequenceMode>,
 ) {
     if let Some(handle) = flow_handle
         && let Some(asset) = assets.get(&handle.0)

@@ -11,10 +11,9 @@
 //! 本模块处理 UI 状态转换的全局触发器。
 
 use super::ron_view::ViewGlobalTriggerConfig;
-use crate::app_state::SequenceSubState;
-use crate::app_state::overworld::character;
 use crate::core::audio;
 use crate::core::input::Action;
+use crate::core::mode::SequenceSubState;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
 
@@ -31,10 +30,10 @@ pub(crate) fn global_trigger_system(
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<SequenceSubState>>,
     current_state: Res<State<SequenceSubState>>,
-    query: Query<&ActionState<Action>, With<character::components::PlayerControlled>>,
+    query: Query<&ActionState<Action>>,
     global_trigger_config: Res<ViewGlobalTriggerConfig>,
 ) {
-    let Ok(action_state) = query.single() else {
+    let Some(action_state) = query.iter().next() else {
         return;
     };
 
