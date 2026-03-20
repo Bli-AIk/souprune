@@ -2,15 +2,7 @@ crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleInputMana
 crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleMovementSet
 crates/souprune/src/core/sequencer/camera.rs:crate::app_state::app_setup::ResolutionScale
 crates/souprune/src/core/sequencer/camera.rs:crate::app_state::battle::BattleCamera
-crates/souprune/src/core/sequencer/chapter_schema.rs:crate::app_state::battle
-crates/souprune/src/core/sequencer/flow.rs:crate::app_state::battle::collision::MergeBattleBoxes
-crates/souprune/src/core/sequencer/flow.rs:crate::app_state::battle::collision::SplitBattleBox
 crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle
 crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent
-crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::collision
 crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::danmaku
 crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::player_config_schema
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBox
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxId
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxState::default
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxVisualStyle::from_view_box

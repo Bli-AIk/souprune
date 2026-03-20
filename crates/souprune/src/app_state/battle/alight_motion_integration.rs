@@ -28,7 +28,7 @@ use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
 use crate::app_state::battle::battle_scoped;
-use crate::app_state::battle::collision::{
+use crate::core::battle_box::{
     AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
 };
 use crate::core::collision::TriggerCollider;

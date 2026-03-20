@@ -7,15 +7,18 @@
 //! 支持多个同时存在的战斗框，通过 ID 绑定玩家。
 
 use crate::app_state::battle::{BattleMovementSet, BattleUpdate};
+use crate::core::battle_box::{
+    AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
+    BoundToBattleBox, GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox,
+};
 use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
 use crate::core::mod_system::BehaviorParams;
 use crate::core::view::components::ViewBox;
 use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
-use bevy::ecs::message::{Message, MessageReader};
+use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_tween::interpolation::EaseKind;
-use serde::{Deserialize, Serialize};
 
 mod animation;
 mod geometry;
@@ -82,123 +85,6 @@ impl Plugin for BattleCollisionPlugin {
                     .in_set(BattleUpdate),
             );
     }
-}
-
-// ─── Components ─────────────────────────────────────────────────────
-
-/// Marker component for the battle box boundary
-///
-/// 战斗框边界的标记组件
-#[derive(Component)]
-pub struct BattleBox;
-
-/// Unique identifier for a battle box.
-/// Used to bind players to specific boxes and for split/merge operations.
-///
-/// 战斗框的唯一标识符。
-/// 用于将玩家绑定到特定的框以及分裂/合并操作。
-#[derive(Component, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BattleBoxId(pub String);
-
-/// Binds a player to a specific battle box by ID.
-///
-/// 通过 ID 将玩家绑定到特定的战斗框。
-#[derive(Component, Debug, Clone)]
-pub struct BoundToBattleBox(pub String);
-
-/// Runtime state of a battle box.
-///
-/// 战斗框的运行时状态。
-#[derive(Component, Debug, Clone)]
-pub struct BattleBoxState {
-    /// Whether the box is active (participates in collision and rendering)
-    pub active: bool,
-    /// Whether collision constraint is enabled (can render but not constrain)
-    pub collision_enabled: bool,
-}
-
-impl Default for BattleBoxState {
-    fn default() -> Self {
-        Self {
-            active: true,
-            collision_enabled: true,
-        }
-    }
-}
-
-/// Runtime visual style for battle box SDF rendering.
-///
-/// 战斗框 SDF 渲染的运行时视觉样式。
-#[derive(Component, Debug, Clone)]
-pub struct BattleBoxVisualStyle {
-    pub border_width: f32,
-    pub fill_shader: Option<String>,
-    pub structure_file: Option<String>,
-    pub fill_color: Color,
-}
-
-impl BattleBoxVisualStyle {
-    pub fn from_view_box(view_box: &ViewBox) -> Self {
-        Self {
-            border_width: view_box.border_width,
-            fill_shader: view_box.fill_shader.clone(),
-            structure_file: view_box.structure_file.clone(),
-            fill_color: view_box.fill_color,
-        }
-    }
-
-    fn to_view_box(&self, width: f32, height: f32) -> ViewBox {
-        ViewBox::new_full(
-            width,
-            height,
-            self.border_width,
-            Vec::new(),
-            self.fill_shader.clone(),
-            self.structure_file.clone(),
-            self.fill_color,
-        )
-    }
-
-    /// Convert a user-facing visible gap into the inner boundary gap used by split geometry.
-    ///
-    /// For structured battle boxes, the white border is rendered outside the inner boundary.
-    /// To keep `gap = 0` visually flush instead of producing an overlapped middle seam,
-    /// the collision/geometry gap must include both border widths.
-    fn boundary_gap_for_visible_gap(&self, visible_gap: f32) -> f32 {
-        if self.structure_file.is_some() && self.border_width > 0.0 {
-            visible_gap + self.border_width * 2.0
-        } else {
-            visible_gap
-        }
-    }
-}
-
-impl Default for BattleBoxVisualStyle {
-    fn default() -> Self {
-        Self {
-            border_width: 5.0,
-            fill_shader: None,
-            structure_file: None,
-            fill_color: Color::BLACK,
-        }
-    }
-}
-
-/// Component storing battle box dimensions for AM-animated battle boxes.
-/// Used when the battle box doesn't use ViewBox (e.g., AM animations).
-///
-/// 存储 AM 动画战斗框尺寸的组件。
-/// 用于不使用 ViewBox 的战斗框（如 AM 动画）。
-#[derive(Component, Debug, Clone)]
-pub struct AlightMotionBattleBoxBounds {
-    pub width: f32,
-    pub height: f32,
-    /// Offset from entity position to the geometric center of the battle box (Bevy coords).
-    /// This compensates for non-centered pivot points in AM animations.
-    ///
-    /// 从实体位置到战斗框几何中心的偏移（Bevy 坐标）。
-    /// 用于补偿 AM 动画中非居中的锚点。
-    pub center_offset: Vec2,
 }
 
 /// Tracks an ongoing split animation for a pair of battle boxes.
@@ -283,73 +169,6 @@ pub struct BattleBoxMergeAnimation {
     /// Total animation duration in seconds.
     /// 总动画时长（秒）。
     pub duration: f32,
-}
-
-// ─── Split / Merge Events ───────────────────────────────────────────
-
-/// Axis along which to split a battle box.
-///
-/// 分裂战斗框所沿的轴。
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum SplitAxis {
-    /// Vertical cut → produces left and right boxes
-    Vertical,
-    /// Horizontal cut → produces top and bottom boxes
-    #[default]
-    Horizontal,
-}
-
-/// Policy for how gap affects split box dimensions.
-/// 间隙如何影响分裂后 box 尺寸的策略。
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum GapPolicy {
-    /// Gap expands outward: two box widths sum to original width, total span increases.
-    /// 间隙向外扩展：两个 box 宽度之和等于原宽度，总跨度增加。
-    #[default]
-    Expands,
-    /// Gap includes in width: two box widths + gap = original width, total span preserved.
-    /// 间隙计入宽度：两个 box 宽度 + gap = 原宽度，总跨度保持不变。
-    Includes,
-}
-
-/// Event to trigger a battle box split.
-///
-/// 触发战斗框分裂的事件。
-#[derive(Message)]
-pub struct SplitBattleBox {
-    /// ID of the box being split
-    pub source_box: String,
-    /// IDs for the two resulting boxes
-    pub result_boxes: (String, String),
-    /// Axis along which to split
-    pub split_axis: SplitAxis,
-    /// Split position relative to box center (0.0 = exact center)
-    pub split_position: f32,
-    /// Gap between the two new boxes (pixels)
-    pub gap: f32,
-    /// Policy for how gap affects dimensions
-    pub gap_policy: GapPolicy,
-    /// Animation duration in seconds (0 = instant)
-    pub duration: f32,
-    /// Easing function for animated splits.
-    pub easing: EaseKind,
-}
-
-/// Event to trigger merging two battle boxes back into one.
-///
-/// 触发将两个战斗框合并回一个的事件。
-#[derive(Message)]
-pub struct MergeBattleBoxes {
-    /// IDs of the two boxes to merge
-    pub source_boxes: (String, String),
-    /// ID of the resulting merged box
-    pub result_box: String,
-    /// Policy for how the closing gap affects the merge geometry
-    pub gap_policy: GapPolicy,
-    /// Animation duration in seconds (0 = instant)
-    pub duration: f32,
-    /// Easing function for animated merges.
-    pub easing: EaseKind,
 }
 
 #[derive(Debug, Clone, Copy)]

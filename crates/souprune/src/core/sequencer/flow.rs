@@ -249,8 +249,8 @@ pub fn process_custom_chapter_system(
 pub fn process_battle_box_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
-    mut split_writer: MessageWriter<crate::app_state::battle::collision::SplitBattleBox>,
-    mut merge_writer: MessageWriter<crate::app_state::battle::collision::MergeBattleBoxes>,
+    mut split_writer: MessageWriter<crate::core::battle_box::SplitBattleBox>,
+    mut merge_writer: MessageWriter<crate::core::battle_box::MergeBattleBoxes>,
 ) {
     for (entity, active_chapter) in query.iter() {
         match &active_chapter.chapter {
@@ -268,7 +268,7 @@ pub fn process_battle_box_chapter_system(
                     "SplitBattleBox Chapter: '{}' → '{}' + '{}' (axis={:?}, gap_policy={:?}, duration={}, easing={:?})",
                     source, result.0, result.1, axis, gap_policy, duration, easing
                 );
-                split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
+                split_writer.write(crate::core::battle_box::SplitBattleBox {
                     source_box: source.clone(),
                     result_boxes: result.clone(),
                     split_axis: *axis,
@@ -291,7 +291,7 @@ pub fn process_battle_box_chapter_system(
                     "MergeBattleBoxes Chapter: '{}' + '{}' → '{}' (gap_policy={:?}, duration={}, easing={:?})",
                     sources.0, sources.1, result, gap_policy, duration, easing
                 );
-                merge_writer.write(crate::app_state::battle::collision::MergeBattleBoxes {
+                merge_writer.write(crate::core::battle_box::MergeBattleBoxes {
                     source_boxes: sources.clone(),
                     result_box: result.clone(),
                     gap_policy: *gap_policy,

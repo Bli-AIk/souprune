@@ -8,9 +8,9 @@
 
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
-use crate::app_state::battle::collision::BoundToBattleBox;
 use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
+use crate::core::battle_box::BoundToBattleBox;
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
 use crate::core::mode::ModeScoped;

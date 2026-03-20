@@ -33,6 +33,7 @@
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
+pub mod battle_box;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;

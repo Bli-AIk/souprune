@@ -28,7 +28,7 @@ use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 
-use crate::app_state::battle::collision::{GapPolicy, SplitAxis};
+use crate::core::battle_box::{GapPolicy, SplitAxis};
 
 /// 3D vector tuple type for coordinates like translation and scale.
 ///
