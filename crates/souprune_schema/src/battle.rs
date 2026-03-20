@@ -60,6 +60,8 @@ pub struct BattlePlayerConfig {
     pub default_mode_id: String,
     pub speed: f32,
     pub focus_speed_ratio: f32,
+    #[serde(default = "default_box_id")]
+    pub default_box: String,
     #[serde(default)]
     pub invincibility: BattleInvincibilityConfig,
 }
@@ -92,4 +94,41 @@ fn default_flash_color() -> BevyColor {
         blue: 0.0,
         alpha: 1.0,
     })
+}
+
+fn default_box_id() -> String {
+    "main".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_battle_player_config_with_default_box() {
+        let ron = r#"(
+            sprite_path: "assets/textures/common/view/heart.png",
+            color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
+            physics_collider: (
+                shape: Circle(radius: 8.0),
+                debug_z_offset: 10.0,
+            ),
+            damage_trigger: (
+                shape: Box(half_size: (2.0, 2.0)),
+                debug_z_offset: 12.0,
+            ),
+            z_position: 10.0,
+            default_mode_id: "soul_red",
+            speed: 150.0,
+            focus_speed_ratio: 0.5,
+        )"#;
+
+        let config: BattlePlayerConfig = ron::from_str(ron).expect("battle player config");
+
+        assert_eq!(config.default_box, "main");
+        match config.damage_trigger.shape {
+            BattleColliderShape::Box { half_size } => assert_eq!(half_size, (2.0, 2.0)),
+            other => panic!("unexpected collider parsed: {other:?}"),
+        }
+    }
 }

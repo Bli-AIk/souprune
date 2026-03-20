@@ -1,128 +1,167 @@
-//! # player_config_schema.rs
+//! Battle player config runtime adapter.
 //!
-//! # player_config_schema.rs 文件
-//!
-//! ## Module Overview
-//!
-//! ## 模块概述
-//!
-//! Defines the schema for Battle Player configuration in RON files.
-//! Maps to `battle_player.ron`.
-//!
-//! 定义 Battle Player 在 RON 文件中的配置 Schema。
-//! 映射到 `battle_player.ron`。
+//! `souprune_schema::battle` owns the actual `.battle_player.ron` shape.
+//! This module only provides the Bevy asset wrapper and runtime conversions.
 
+use crate::core::collision::{PhysicsCollider, TriggerCollider};
+use bevy::color::LinearRgba;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+use souprune_schema::battle::{
+    BattleColliderShape, BattleInvincibilityConfig as SchemaInvincibilityConfig,
+    BattlePlayerConfig as SchemaBattlePlayerConfig, ColliderConfig as SchemaColliderConfig,
+};
+use souprune_schema::bevy_types::BevyColor;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum ColliderShape {
-    Circle { radius: f32 },
-    Box { half_size: Vec2 },
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ColliderConfig {
-    pub shape: ColliderShape,
-    /// Z-offset for rendering the collider visualization
-    pub debug_z_offset: f32,
-}
-
-/// Configuration for player invincibility behavior after taking damage.
-///
-/// 玩家受伤后的无敌行为配置。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct InvincibilityConfig {
-    /// Duration of invincibility in seconds after taking damage
-    ///
-    /// 受伤后无敌持续时间（秒）
-    #[serde(default = "default_invincibility_duration")]
+#[derive(Debug, Clone)]
+pub struct RuntimeInvincibilityConfig {
     pub duration: f32,
-
-    /// Interval for heart color flash during invincibility (in seconds)
-    ///
-    /// 无敌期间心形颜色闪烁间隔（秒）
-    #[serde(default = "default_flash_interval")]
     pub flash_interval: f32,
-
-    /// Normal heart color (pure red by default)
-    ///
-    /// 正常心形颜色（默认纯红色）
-    #[serde(default = "default_normal_color")]
     pub normal_color: Color,
-
-    /// Flash heart color (dark red by default)
-    ///
-    /// 闪烁心形颜色（默认暗红色）
-    #[serde(default = "default_flash_color")]
     pub flash_color: Color,
-
-    /// Sound to play when taking damage (full asset path)
-    ///
-    /// 受伤时播放的音效（完整资源路径）
-    #[serde(default)]
     pub damage_sound: Option<String>,
 }
 
-fn default_invincibility_duration() -> f32 {
-    1.0
-}
-fn default_flash_interval() -> f32 {
-    0.25
-}
-fn default_box_id() -> String {
-    "main".to_string()
-}
-fn default_normal_color() -> Color {
-    Color::srgb(1.0, 0.0, 0.0)
-}
-fn default_flash_color() -> Color {
-    Color::srgb(0.5, 0.0, 0.0)
-}
+/// Runtime Bevy asset wrapper for `.battle_player.ron`.
+#[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct BattlePlayerConfig(pub SchemaBattlePlayerConfig);
 
-impl Default for InvincibilityConfig {
-    fn default() -> Self {
-        Self {
-            duration: default_invincibility_duration(),
-            flash_interval: default_flash_interval(),
-            normal_color: default_normal_color(),
-            flash_color: default_flash_color(),
-            damage_sound: None,
-        }
+impl BattlePlayerConfig {
+    pub fn sprite_path(&self) -> &str {
+        &self.0.sprite_path
+    }
+
+    pub fn sprite_color(&self) -> Color {
+        bevy_color_to_color(&self.0.color)
+    }
+
+    pub fn physics_collider(&self) -> PhysicsCollider {
+        collider_to_physics(&self.0.physics_collider)
+    }
+
+    pub fn damage_trigger(&self) -> TriggerCollider {
+        collider_to_trigger(&self.0.damage_trigger)
+    }
+
+    pub fn z_position(&self) -> f32 {
+        self.0.z_position
+    }
+
+    pub fn default_mode_id(&self) -> &str {
+        &self.0.default_mode_id
+    }
+
+    pub fn default_box(&self) -> &str {
+        &self.0.default_box
+    }
+
+    pub fn invincibility(&self) -> RuntimeInvincibilityConfig {
+        runtime_invincibility_config(&self.0.invincibility)
     }
 }
 
-#[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
-pub struct BattlePlayerConfig {
-    pub sprite_path: String,
-    pub color: Color,
-    /// Physical collider for collision detection (typically circular)
-    ///
-    /// 用于碰撞检测的物理碰撞体（通常为圆形）
-    pub physics_collider: ColliderConfig,
-    /// Trigger collider for damage detection (typically rectangular)
-    ///
-    /// 用于伤害检测的触发碰撞体（通常为矩形）
-    pub damage_trigger: ColliderConfig,
-    /// Z-axis position for the player sprite
-    ///
-    /// 玩家精灵的 Z 轴位置
-    pub z_position: f32,
-    pub default_mode_id: String,
-    pub speed: f32,
-    pub focus_speed_ratio: f32,
-    /// ID of the battle box this player is initially bound to.
-    /// Defaults to "main".
-    ///
-    /// 此玩家初始绑定的战斗框 ID。
-    /// 默认为 "main"。
-    #[serde(default = "default_box_id")]
-    pub default_box: String,
-    /// Invincibility configuration for damage behavior.
-    /// If not specified, defaults are used.
-    ///
-    /// 伤害行为的无敌配置。
-    /// 如果未指定，则使用默认值。
-    #[serde(default)]
-    pub invincibility: InvincibilityConfig,
+fn collider_to_physics(collider: &SchemaColliderConfig) -> PhysicsCollider {
+    match collider.shape {
+        BattleColliderShape::Circle { radius } => PhysicsCollider::Circle { radius },
+        BattleColliderShape::Box { half_size } => PhysicsCollider::Box {
+            half_size: Vec2::new(half_size.0, half_size.1),
+        },
+    }
+}
+
+fn collider_to_trigger(collider: &SchemaColliderConfig) -> TriggerCollider {
+    match collider.shape {
+        BattleColliderShape::Circle { radius } => TriggerCollider::Circle { radius },
+        BattleColliderShape::Box { half_size } => TriggerCollider::Box {
+            half_size: Vec2::new(half_size.0, half_size.1),
+        },
+    }
+}
+
+fn runtime_invincibility_config(config: &SchemaInvincibilityConfig) -> RuntimeInvincibilityConfig {
+    RuntimeInvincibilityConfig {
+        duration: config.duration,
+        flash_interval: config.flash_interval,
+        normal_color: bevy_color_to_color(&config.normal_color),
+        flash_color: bevy_color_to_color(&config.flash_color),
+        damage_sound: config.damage_sound.clone(),
+    }
+}
+
+fn bevy_color_to_color(color: &BevyColor) -> Color {
+    match color {
+        BevyColor::Srgba(srgba) => Color::srgba(srgba.red, srgba.green, srgba.blue, srgba.alpha),
+        BevyColor::LinearRgba(linear) => Color::LinearRgba(LinearRgba::new(
+            linear.red,
+            linear.green,
+            linear.blue,
+            linear.alpha,
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_runtime_wrapper_and_converts_battle_player_fields() {
+        let ron = r#"(
+            sprite_path: "assets/textures/common/view/heart.png",
+            color: Srgba((red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)),
+            physics_collider: (
+                shape: Circle(radius: 8.0),
+                debug_z_offset: 10.0,
+            ),
+            damage_trigger: (
+                shape: Box(half_size: (2.0, 2.0)),
+                debug_z_offset: 12.0,
+            ),
+            z_position: 10.0,
+            default_mode_id: "soul_red",
+            speed: 150.0,
+            focus_speed_ratio: 0.5,
+            invincibility: (
+                damage_sound: Some("audios/sfx/hurtsound.wav"),
+            ),
+        )"#;
+
+        let config: BattlePlayerConfig = ron::from_str(ron).expect("battle player config");
+        let invincibility = config.invincibility();
+
+        assert_eq!(config.default_box(), "main");
+        assert_eq!(config.default_mode_id(), "soul_red");
+        assert!(matches!(
+            config.physics_collider(),
+            PhysicsCollider::Circle { radius } if (radius - 8.0).abs() < f32::EPSILON
+        ));
+        assert!(matches!(
+            config.damage_trigger(),
+            TriggerCollider::Box { half_size }
+                if (half_size.x - 2.0).abs() < f32::EPSILON
+                    && (half_size.y - 2.0).abs() < f32::EPSILON
+        ));
+        let srgba = invincibility.normal_color.to_srgba();
+        assert_eq!(
+            invincibility.damage_sound.as_deref(),
+            Some("audios/sfx/hurtsound.wav")
+        );
+        assert!((srgba.red - 1.0).abs() < f32::EPSILON);
+        assert!((srgba.alpha - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn converts_linear_rgba_color() {
+        let color = bevy_color_to_color(&BevyColor::LinearRgba(
+            souprune_schema::bevy_types::SrgbaColor {
+                red: 0.1,
+                green: 0.2,
+                blue: 0.3,
+                alpha: 0.4,
+            },
+        ));
+
+        assert!(matches!(color, Color::LinearRgba(_)));
+    }
 }
