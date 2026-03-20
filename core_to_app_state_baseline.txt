@@ -1,34 +1,29 @@
-crates/souprune/src/core/danmaku/systems.rs:15:use crate::app_state::ModeScoped;
-crates/souprune/src/core/fre_bridge.rs:121:    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
-crates/souprune/src/core/fre_bridge.rs:122:    app_state: Option<Res<State<crate::app_state::AppState>>>,
-crates/souprune/src/core/fre_bridge.rs:150:    sub_state: Option<Res<State<crate::app_state::SequenceSubState>>>,
-crates/souprune/src/core/fre_bridge.rs:151:    app_state: Option<Res<State<crate::app_state::AppState>>>,
-crates/souprune/src/core/fre_bridge.rs:472:    mut next_state: ResMut<NextState<crate::app_state::SequenceSubState>>,
-crates/souprune/src/core/fre_bridge.rs:481:            next_state.set(crate::app_state::SequenceSubState::new(&state_name));
-crates/souprune/src/core/mod_system.rs:35:                    .in_set(crate::app_state::battle::BattleMovementSet),
-crates/souprune/src/core/mod_system.rs:388:        With<crate::app_state::battle::BattleInputManager>,
-crates/souprune/src/core/sequencer/camera.rs:21:        With<crate::app_state::battle::BattleCamera>,
-crates/souprune/src/core/sequencer/camera.rs:24:        Res<crate::app_state::app_setup::ResolutionScale>,
-crates/souprune/src/core/sequencer/chapter_schema.rs:31:use crate::app_state::battle::collision::{GapPolicy, SplitAxis};
-crates/souprune/src/core/sequencer/flow.rs:252:    mut split_writer: MessageWriter<crate::app_state::battle::collision::SplitBattleBox>,
-crates/souprune/src/core/sequencer/flow.rs:253:    mut merge_writer: MessageWriter<crate::app_state::battle::collision::MergeBattleBoxes>,
-crates/souprune/src/core/sequencer/flow.rs:271:                split_writer.write(crate::app_state::battle::collision::SplitBattleBox {
-crates/souprune/src/core/sequencer/flow.rs:294:                merge_writer.write(crate::app_state::battle::collision::MergeBattleBoxes {
-crates/souprune/src/core/sequencer/flow.rs:41:    mut sequence_mode: ResMut<crate::app_state::SequenceMode>,
-crates/souprune/src/core/sequencer/performance.rs:11:use crate::app_state::battle::alight_motion_integration::{
-crates/souprune/src/core/sequencer/performance.rs:74:            crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent,
-crates/souprune/src/core/sequencer/player.rs:11:use crate::app_state::ModeScoped;
-crates/souprune/src/core/sequencer/player.rs:12:use crate::app_state::battle::collision::BoundToBattleBox;
-crates/souprune/src/core/sequencer/player.rs:13:use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
-crates/souprune/src/core/sequencer/player.rs:14:use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
-crates/souprune/src/core/view.rs:168:                    .run_if(crate::app_state::is_mode("overworld")),
-crates/souprune/src/core/view.rs:324:            entity_commands.insert(crate::app_state::ModeScoped(scope.clone()));
-crates/souprune/src/core/view/lifecycle.rs:15:use crate::app_state::SequenceSubState;
-crates/souprune/src/core/view/ron_view/parsing.rs:4:use crate::app_state::SequenceSubState;
-crates/souprune/src/core/view/ron_view/resources.rs:2:use crate::app_state::SequenceSubState;
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:285:                crate::app_state::battle::collision::BattleBoxVisualStyle::from_view_box(
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:307:                    crate::app_state::battle::collision::BattleBox,
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:308:                    crate::app_state::battle::collision::BattleBoxId("main".to_string()),
-crates/souprune/src/core/view/ron_view/spawn_nodes.rs:309:                    crate::app_state::battle::collision::BattleBoxState::default(),
-crates/souprune/src/core/view/state.rs:14:use crate::app_state::SequenceSubState;
-crates/souprune/src/core/view/state.rs:15:use crate::app_state::overworld::character;
+crates/souprune/src/core/danmaku/systems.rs:crate::app_state
+crates/souprune/src/core/fre_bridge.rs:crate::app_state::AppState
+crates/souprune/src/core/fre_bridge.rs:crate::app_state::SequenceSubState
+crates/souprune/src/core/fre_bridge.rs:crate::app_state::SequenceSubState::new
+crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleInputManager
+crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleMovementSet
+crates/souprune/src/core/sequencer/camera.rs:crate::app_state::app_setup::ResolutionScale
+crates/souprune/src/core/sequencer/camera.rs:crate::app_state::battle::BattleCamera
+crates/souprune/src/core/sequencer/chapter_schema.rs:crate::app_state::battle
+crates/souprune/src/core/sequencer/flow.rs:crate::app_state::SequenceMode
+crates/souprune/src/core/sequencer/flow.rs:crate::app_state::battle::collision::MergeBattleBoxes
+crates/souprune/src/core/sequencer/flow.rs:crate::app_state::battle::collision::SplitBattleBox
+crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle
+crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent
+crates/souprune/src/core/sequencer/player.rs:crate::app_state
+crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::collision
+crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::danmaku
+crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::player_config_schema
+crates/souprune/src/core/view.rs:crate::app_state::ModeScoped
+crates/souprune/src/core/view.rs:crate::app_state::is_mode
+crates/souprune/src/core/view/lifecycle.rs:crate::app_state
+crates/souprune/src/core/view/ron_view/parsing.rs:crate::app_state
+crates/souprune/src/core/view/ron_view/resources.rs:crate::app_state
+crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBox
+crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxId
+crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxState::default
+crates/souprune/src/core/view/ron_view/spawn_nodes.rs:crate::app_state::battle::collision::BattleBoxVisualStyle::from_view_box
+crates/souprune/src/core/view/state.rs:crate::app_state
+crates/souprune/src/core/view/state.rs:crate::app_state::overworld

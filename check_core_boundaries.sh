@@ -21,7 +21,38 @@ fi
 
 (
     cd "$ROOT_DIR"
-    rg -n "crate::app_state(::|\\b)" crates/souprune/src/core | sort > "$TMP_CURRENT" || true
+    python - <<'PY' > "$TMP_CURRENT"
+import re
+import subprocess
+
+result = subprocess.run(
+    ["rg", "-n", r"crate::app_state(::|\b)", "crates/souprune/src/core"],
+    check=False,
+    capture_output=True,
+    text=True,
+)
+
+hits = set()
+for line in result.stdout.splitlines():
+    file_path, _, text = line.split(":", 2)
+    match = re.search(r"crate::app_state(?:::[A-Za-z0-9_]+)*", text)
+    if not match:
+        continue
+
+    path = match.group(0)
+
+    # Normalize imports to the module path, so changing imported symbols
+    # does not look like a brand-new dependency.
+    if text.lstrip().startswith("use "):
+        parts = path.split("::")
+        if len(parts) > 2:
+            path = "::".join(parts[:-1])
+
+    hits.add(f"{file_path}:{path}")
+
+for hit in sorted(hits):
+    print(hit)
+PY
 )
 
 new_hits="$(comm -13 "$BASELINE_FILE" "$TMP_CURRENT" || true)"
