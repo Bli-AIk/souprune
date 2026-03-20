@@ -229,15 +229,15 @@ fn default_true() -> bool {
 }
 
 fn default_btn_size() -> f32 {
-    64.0
+    56.0
 }
 
 fn default_controller_size() -> f32 {
-    128.0
+    120.0
 }
 
 fn default_touch_opacity() -> f32 {
-    0.7
+    0.5
 }
 
 fn default_touch_scale() -> f32 {
@@ -245,9 +245,33 @@ fn default_touch_scale() -> f32 {
 }
 
 fn default_mobile_scale() -> f32 {
-    1.0
+    0.75
 }
 
 fn default_battle_box_size() -> (f32, f32) {
     (566.0, 130.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn touch_layout_defaults_match_runtime_expectations() {
+        let ron = r#"(
+            buttons: [(
+                action: "Confirm",
+                anchor: BottomRight,
+            )],
+        )"#;
+
+        let layout: TouchLayoutDef = ron::from_str(ron).expect("touch layout should parse");
+        let button = &layout.buttons[0];
+
+        assert!((layout.opacity - 0.5).abs() < f32::EPSILON);
+        assert!((layout.scale - 1.0).abs() < f32::EPSILON);
+        assert!((layout.mobile_scale - 0.75).abs() < f32::EPSILON);
+        assert!((button.width - 56.0).abs() < f32::EPSILON);
+        assert!((button.height - 56.0).abs() < f32::EPSILON);
+    }
 }
