@@ -1,0 +1,123 @@
+use bevy::prelude::*;
+
+use super::layout::ViewLayoutAsset;
+use super::{RonDrivenView, components, ron_view};
+use crate::core::mode::ModeScoped;
+
+#[derive(Message, Debug, Clone)]
+pub struct SpawnViewRequest {
+    pub path: String,
+    pub mode_scope: Option<String>,
+    pub bindings: Option<
+        std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
+    >,
+}
+
+#[derive(Message, Debug, Clone)]
+pub struct DespawnViewRequest {
+    pub path: Option<String>,
+}
+
+fn collect_fre_handles(
+    bindings: &std::collections::HashMap<
+        String,
+        crate::core::sequencer::chapter_schema::DataBinding,
+    >,
+    asset_server: &AssetServer,
+) -> Vec<Handle<crate::core::game_action::GameFreAsset>> {
+    use crate::core::sequencer::chapter_schema::DataBinding;
+
+    let mut fre_handles = Vec::new();
+    for binding in bindings.values() {
+        let paths: Vec<&String> = match binding {
+            DataBinding::File(path) => vec![path],
+            DataBinding::Files(paths) => paths.iter().collect(),
+            _ => continue,
+        };
+        for path in paths {
+            let handle = asset_server.load(path.clone());
+            info!(
+                "[SpawnViewRequest] Pre-loading FRE file for binding: {}",
+                path
+            );
+            fre_handles.push(handle);
+        }
+    }
+    fre_handles
+}
+
+pub(super) fn handle_spawn_view_request_system(
+    mut events: MessageReader<SpawnViewRequest>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for request in events.read() {
+        info!("Spawning view from request: {}", request.path);
+
+        let handle: Handle<ViewLayoutAsset> = asset_server.load(&request.path);
+
+        let mut entity_commands = commands.spawn((
+            ron_view::HotReloadableViewRoot {
+                layout_path: request.path.clone(),
+                layout_handle: handle.clone(),
+            },
+            components::ViewRoot::new(request.path.clone()),
+            components::ActiveView,
+            RonDrivenView,
+            Name::new(format!("SpawnedView:{}", request.path)),
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::Visible,
+            InheritedVisibility::default(),
+        ));
+
+        if let Some(ref scope) = request.mode_scope {
+            entity_commands.insert(ModeScoped(scope.clone()));
+        }
+
+        if let Some(ref bindings) = request.bindings {
+            let fre_handles = collect_fre_handles(bindings, &asset_server);
+            entity_commands.insert(components::PendingViewData {
+                bindings: bindings.clone(),
+                fre_handles,
+            });
+        }
+    }
+}
+
+pub(super) fn handle_despawn_view_request_system(
+    mut events: MessageReader<DespawnViewRequest>,
+    mut commands: Commands,
+    query: Query<(Entity, &components::ViewRoot), With<RonDrivenView>>,
+) {
+    for request in events.read() {
+        let matching: Vec<_> = match request.path {
+            Some(ref path) => query
+                .iter()
+                .filter(|(_, vr)| vr.layout_path == *path)
+                .collect(),
+            None => query.iter().collect(),
+        };
+
+        for &(entity, view_root) in &matching {
+            info!(
+                "Despawning view: {} (entity {:?})",
+                view_root.layout_path, entity
+            );
+            commands.entity(entity).despawn();
+        }
+
+        let despawned_count = matching.len();
+        if despawned_count == 0 {
+            info!(
+                "DespawnViewRequest: no views to despawn (path: {:?})",
+                request.path
+            );
+        } else {
+            info!(
+                "DespawnViewRequest: despawned {} views (path: {:?})",
+                despawned_count, request.path
+            );
+        }
+    }
+}
