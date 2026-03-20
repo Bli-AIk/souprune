@@ -1,134 +1,163 @@
-//! # danmaku_schema.rs
+//! Runtime helpers around the shared danmaku schema.
 //!
-//! # danmaku_schema.rs 文件
-//!
-//! ## Module Overview
-//!
-//! ## 模块概述
-//!
-//! Defines the schema for Danmaku Performance assets (`.performance.ron`) and related data structures.
-//! This module provides the data contract for the timeline-based danmaku system.
-//!
-//! 定义弹幕演出资产 (`.performance.ron`) 及相关数据结构的 Schema。
-//! 本模块为基于时间轴的弹幕系统提供数据契约。
-//!
-//! Defines the DanmakuPerformance asset and related data structures for
-//! the timeline-based danmaku system.
-//!
-//! 定义基于时间轴的弹幕系统的 DanmakuPerformance 资产和相关数据结构。
+//! `.performance.ron` 的权威数据结构定义位于 `souprune_schema::danmaku`。
+//! 本模块只保留运行时资产包装、helper 和事件资源。
 
-use crate::core::visual::Visual;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
+pub use souprune_schema::danmaku::{
+    AimedConfig, BulletBehavior, BulletPrototype, ColliderShape, ColorTint, Easing, EdgeSide,
+    HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimelineEvent,
+    TweenConfig,
+};
+
+pub type TweenTarget = souprune_schema::danmaku::DanmakuTweenTarget;
 pub type WasmCall = (String, HashMap<String, f32>);
 
-// ============================================================================
-// Core Types: DanmakuPerformance (Timeline & Reference Architecture)
-// ============================================================================
+/// Runtime asset wrapper for `.performance.ron`.
+#[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct DanmakuPerformance(pub souprune_schema::danmaku::DanmakuPerformance);
 
-/// Danmaku Performance asset - defines a complete bullet pattern sequence.
-/// Corresponds to a .performance.ron file.
-///
-/// 弹幕演出资产 - 定义完整的弹幕模式序列。
-/// 对应 .performance.ron 文件。
-#[derive(Asset, Debug, Clone, Deserialize, Serialize, Reflect)]
-#[reflect(Debug)]
-pub struct DanmakuPerformance {
-    /// Bullet prototypes: ID -> visual/collision/damage data
-    #[serde(default)]
-    pub prototypes: HashMap<String, BulletPrototype>,
+impl Deref for DanmakuPerformance {
+    type Target = souprune_schema::danmaku::DanmakuPerformance;
 
-    /// Behavior definitions: ID -> BulletBehavior
-    #[serde(default)]
-    pub behaviors: HashMap<String, BulletBehavior>,
-
-    /// Timeline: sequence of timed events
-    pub timeline: Vec<TimelineEvent>,
-}
-
-// ============================================================================
-// Bullet Prototype
-// ============================================================================
-
-/// Hit behavior preset for RON configuration.
-/// Maps to BulletHitBehavior component at runtime.
-///
-/// RON 配置的命中行为预设。
-/// 在运行时映射到 BulletHitBehavior 组件。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
-pub enum HitBehaviorPreset {
-    /// Default: despawn on hit, damage always (default)
-    #[default]
-    Default,
-    /// Persistent: doesn't despawn on hit, has i-frames
-    Persistent,
-    /// Blue soul style: damage only when player is moving
-    DamageWhenMoving,
-    /// Orange soul style: damage only when player is stationary
-    DamageWhenStationary,
-    /// Custom configuration
-    Custom {
-        #[serde(default = "HitBehaviorPreset::default_true")]
-        despawn_on_hit: bool,
-        #[serde(default)]
-        damage_on_player_moving: bool,
-        #[serde(default)]
-        damage_on_player_stationary: bool,
-        #[serde(default)]
-        invincibility_duration: f32,
-    },
-}
-
-impl HitBehaviorPreset {
-    fn default_true() -> bool {
-        true
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-/// Color tint configuration for bullets.
-/// Supports hex color strings like "#FCA600".
-///
-/// 弹幕的颜色叠加配置。
-/// 支持十六进制颜色字符串如 "#FCA600"。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
-pub struct ColorTint {
-    /// Hex color string (e.g., "#FCA600" for orange, "#40FEFE" for blue)
-    #[serde(default)]
-    pub hex: String,
-    /// RGBA values (0.0-1.0), used if hex is empty
-    #[serde(default)]
-    pub rgba: Option<(f32, f32, f32, f32)>,
-}
-
-impl ColorTint {
-    /// Convert to Bevy Color
-    pub fn to_color(&self) -> Option<Color> {
-        if !self.hex.is_empty() {
-            parse_hex_color(&self.hex)
-        } else if let Some((r, g, b, a)) = self.rgba {
-            Some(Color::srgba(r, g, b, a))
-        } else {
-            None
-        }
+impl DerefMut for DanmakuPerformance {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
-/// Parse hex color string to Color.
-/// Supports formats: "#RGB", "#RGBA", "#RRGGBB", "#RRGGBBAA"
+impl From<souprune_schema::danmaku::DanmakuPerformance> for DanmakuPerformance {
+    fn from(value: souprune_schema::danmaku::DanmakuPerformance) -> Self {
+        Self(value)
+    }
+}
+
+pub fn color_tint_to_color(color_tint: &ColorTint) -> Option<Color> {
+    if !color_tint.hex.is_empty() {
+        parse_hex_color(&color_tint.hex)
+    } else if let Some((r, g, b, a)) = color_tint.rgba {
+        Some(Color::srgba(r, g, b, a))
+    } else {
+        None
+    }
+}
+
+pub fn behavior_to_wasm_call(behavior: &BulletBehavior) -> WasmCall {
+    match behavior {
+        BulletBehavior::Linear(config) => (
+            "builtin.linear".into(),
+            HashMap::from([
+                ("dir_x".into(), config.dir.0),
+                ("dir_y".into(), config.dir.1),
+                ("speed".into(), config.speed),
+            ]),
+        ),
+        BulletBehavior::Orbital(config) => (
+            "builtin.orbital".into(),
+            HashMap::from([
+                ("angular_velocity".into(), config.angular_velocity),
+                ("radial_velocity".into(), config.radial_velocity),
+            ]),
+        ),
+        BulletBehavior::Sine(config) => (
+            "builtin.sine".into(),
+            HashMap::from([
+                ("axis_x".into(), config.axis.0),
+                ("axis_y".into(), config.axis.1),
+                ("amplitude".into(), config.amplitude),
+                ("frequency".into(), config.frequency),
+                ("phase".into(), config.phase),
+            ]),
+        ),
+        BulletBehavior::Tween(config) => (
+            "builtin.tween".into(),
+            HashMap::from([
+                ("target".into(), config.target as u32 as f32),
+                ("duration".into(), config.duration),
+                ("ease".into(), config.ease as u32 as f32),
+                ("range_start".into(), config.range.0),
+                ("range_end".into(), config.range.1),
+                ("delay".into(), config.delay),
+            ]),
+        ),
+        BulletBehavior::Stationary() => ("builtin.stationary".into(), HashMap::new()),
+        BulletBehavior::Aimed(config) => (
+            "builtin.aimed".into(),
+            HashMap::from([
+                ("speed".into(), config.speed),
+                ("angle_offset".into(), config.angle_offset),
+            ]),
+        ),
+        BulletBehavior::Custom { id, props } => (id.clone(), props.clone()),
+    }
+}
+
+pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
+    match pattern {
+        SpawnPattern::Single => ("builtin.single".into(), HashMap::new()),
+        SpawnPattern::RingGenerator {
+            count,
+            radius,
+            start_angle,
+        } => (
+            "builtin.ring".into(),
+            HashMap::from([
+                ("count".into(), *count as f32),
+                ("radius".into(), *radius),
+                ("start_angle".into(), *start_angle),
+            ]),
+        ),
+        SpawnPattern::LineGenerator {
+            count,
+            spacing,
+            direction,
+        } => (
+            "builtin.line".into(),
+            HashMap::from([
+                ("count".into(), *count as f32),
+                ("spacing".into(), *spacing),
+                ("dir_x".into(), direction.0),
+                ("dir_y".into(), direction.1),
+            ]),
+        ),
+        SpawnPattern::EdgeGenerator {
+            count,
+            side,
+            spacing,
+            margin,
+        } => (
+            "builtin.edge".into(),
+            HashMap::from([
+                ("count".into(), *count as f32),
+                ("side".into(), *side as u32 as f32),
+                ("spacing".into(), *spacing),
+                ("margin".into(), *margin),
+            ]),
+        ),
+        SpawnPattern::CustomGenerator { id, params } => (id.clone(), params.clone()),
+    }
+}
+
 fn parse_hex_color(hex: &str) -> Option<Color> {
     let hex = hex.trim_start_matches('#');
     match hex.len() {
         3 => {
-            // #RGB
             let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
             let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
             let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
             Some(Color::srgb_u8(r, g, b))
         }
         4 => {
-            // #RGBA
             let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
             let g = u8::from_str_radix(&hex[1..2], 16).ok()? * 17;
             let b = u8::from_str_radix(&hex[2..3], 16).ok()? * 17;
@@ -136,14 +165,12 @@ fn parse_hex_color(hex: &str) -> Option<Color> {
             Some(Color::srgba_u8(r, g, b, a))
         }
         6 => {
-            // #RRGGBB
             let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
             let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
             let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
             Some(Color::srgb_u8(r, g, b))
         }
         8 => {
-            // #RRGGBBAA
             let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
             let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
             let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
@@ -154,524 +181,6 @@ fn parse_hex_color(hex: &str) -> Option<Color> {
     }
 }
 
-/// Bullet prototype - defines the appearance and collision of a bullet type.
-///
-/// 弹幕原型 - 定义弹幕类型的外观和碰撞。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-#[serde(default)]
-pub struct BulletPrototype {
-    /// Visual resource path (supports shorthand resolution)
-    pub visual: Visual,
-
-    /// Collision shape
-    pub collider: ColliderShape,
-
-    /// Base damage
-    pub damage: f32,
-
-    /// Lifetime in seconds
-    pub lifetime: f32,
-
-    /// Z-index for rendering order
-    pub z_index: f32,
-
-    /// Scale factor (default: 1.0)
-    pub scale: f32,
-
-    /// Initial rotation in degrees (default: 0.0)
-    #[serde(default)]
-    pub rotation: f32,
-
-    /// Hit behavior configuration (default: despawn on hit)
-    pub hit_behavior: HitBehaviorPreset,
-
-    /// Color tint overlay (for blue/orange soul bullets)
-    /// Empty hex string means no tint
-    pub color_tint: ColorTint,
-
-    /// Horizontal flip for sprite rendering
-    #[serde(default)]
-    pub flip_x: bool,
-
-    /// Vertical flip for sprite rendering
-    #[serde(default)]
-    pub flip_y: bool,
-
-    /// Frame duration for frame animations (seconds, default: 0.05)
-    #[serde(default)]
-    pub frame_duration: Option<f32>,
-}
-
-impl Default for BulletPrototype {
-    fn default() -> Self {
-        Self {
-            visual: Visual::default(),
-            collider: ColliderShape::default(),
-            damage: 1.0,
-            lifetime: 5.0,
-            z_index: 15.0,
-            scale: 1.0,
-            rotation: 0.0,
-            hit_behavior: HitBehaviorPreset::Default,
-            color_tint: ColorTint::default(),
-            flip_x: false,
-            flip_y: false,
-            frame_duration: None,
-        }
-    }
-}
-
-impl BulletPrototype {
-    pub fn new(visual: Visual) -> Self {
-        Self {
-            visual,
-            ..Default::default()
-        }
-    }
-}
-
-/// Collider shape for hit detection.
-///
-/// 碰撞形状用于命中检测。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub enum ColliderShape {
-    CircleCollider(f32),
-    BoxCollider(f32, f32),
-}
-
-impl Default for ColliderShape {
-    fn default() -> Self {
-        ColliderShape::CircleCollider(4.0)
-    }
-}
-
-// ============================================================================
-// Bullet Behavior
-// ============================================================================
-
-/// Bullet behavior definition.
-/// Supports both built-in algorithms and custom WASM mod algorithms.
-///
-/// 弹幕行为定义。
-/// 同时支持内置算法和自定义 WASM mod 算法。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub enum BulletBehavior {
-    // === Built-in Behaviors (内置行为) ===
-    /// Linear motion in a direction
-    ///
-    /// 朝一个方向进行直线运动
-    Linear(LinearConfig),
-
-    /// Tween animation (opacity, scale, position, etc.)
-    ///
-    /// 缓动动画（不透明度、比例、位置等）
-    Tween(TweenConfig),
-
-    /// stay still
-    ///
-    /// 静止不动
-    Stationary(),
-
-    /// Orbital motion around spawn center (rotation + radial movement)
-    ///
-    /// 围绕生成中心的轨道运动（旋转+径向运动）
-    Orbital(OrbitalConfig),
-
-    /// Sinusoidal oscillation
-    ///
-    /// 正弦波震荡
-    Sine(SineConfig),
-
-    /// Aimed at player position at spawn time (自机狙)
-    ///
-    /// 生成时锁定玩家位置方向，直线前进
-    Aimed(AimedConfig),
-
-    // === Custom Behavior (自定义行为) ===
-    /// Algorithm loaded from mod system via WASM
-    ///
-    /// 通过 WASM 从 mod 系统加载算法
-    Custom {
-        /// Algorithm ID registered in DanmakuRegistry
-        id: String,
-        /// Properties passed to the algorithm
-        #[serde(default)]
-        props: HashMap<String, f32>,
-    },
-}
-
-impl BulletBehavior {
-    /// Convert to WASM call representation: (algorithm_id, props)
-    pub fn to_wasm_call(&self) -> WasmCall {
-        match self {
-            BulletBehavior::Linear(config) => (
-                "builtin.linear".into(),
-                HashMap::from([
-                    ("dir_x".into(), config.dir.0),
-                    ("dir_y".into(), config.dir.1),
-                    ("speed".into(), config.speed),
-                ]),
-            ),
-            BulletBehavior::Orbital(config) => (
-                "builtin.orbital".into(),
-                HashMap::from([
-                    ("angular_velocity".into(), config.angular_velocity),
-                    ("radial_velocity".into(), config.radial_velocity),
-                ]),
-            ),
-            BulletBehavior::Sine(config) => (
-                "builtin.sine".into(),
-                HashMap::from([
-                    ("axis_x".into(), config.axis.0),
-                    ("axis_y".into(), config.axis.1),
-                    ("amplitude".into(), config.amplitude),
-                    ("frequency".into(), config.frequency),
-                    ("phase".into(), config.phase),
-                ]),
-            ),
-            BulletBehavior::Tween(config) => (
-                "builtin.tween".into(),
-                HashMap::from([
-                    ("target".into(), config.target as u32 as f32),
-                    ("duration".into(), config.duration),
-                    ("ease".into(), config.ease as u32 as f32),
-                    ("range_start".into(), config.range.0),
-                    ("range_end".into(), config.range.1),
-                    ("delay".into(), config.delay),
-                ]),
-            ),
-            BulletBehavior::Stationary() => ("builtin.stationary".into(), HashMap::new()),
-            BulletBehavior::Aimed(config) => (
-                "builtin.aimed".into(),
-                HashMap::from([
-                    ("speed".into(), config.speed),
-                    ("angle_offset".into(), config.angle_offset),
-                ]),
-            ),
-            BulletBehavior::Custom { id, props } => (id.clone(), props.clone()),
-        }
-    }
-}
-
-/// Linear motion configuration.
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-#[serde(default)]
-pub struct LinearConfig {
-    pub dir: (f32, f32),
-    pub speed: f32,
-}
-
-impl Default for LinearConfig {
-    fn default() -> Self {
-        Self {
-            dir: (0.0, -1.0),
-            speed: 100.0,
-        }
-    }
-}
-
-/// Orbital motion configuration (rotation around spawn center).
-///
-/// 轨道运动配置（围绕生成中心旋转）。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-#[serde(default)]
-pub struct OrbitalConfig {
-    pub angular_velocity: f32,
-    pub radial_velocity: f32,
-}
-
-impl Default for OrbitalConfig {
-    fn default() -> Self {
-        Self {
-            angular_velocity: 1.0,
-            radial_velocity: 0.0,
-        }
-    }
-}
-
-/// Sine wave configuration.
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-#[serde(default)]
-pub struct SineConfig {
-    pub axis: (f32, f32),
-    pub amplitude: f32,
-    pub frequency: f32,
-    pub phase: f32,
-}
-
-impl Default for SineConfig {
-    fn default() -> Self {
-        Self {
-            axis: (1.0, 0.0),
-            amplitude: 20.0,
-            frequency: 2.0,
-            phase: 0.0,
-        }
-    }
-}
-
-/// Aimed bullet configuration (自机狙).
-/// Locks direction toward player position at spawn time.
-/// Combined with `angle_offset`, enables fan patterns via composition.
-///
-/// 自机狙配置。生成时锁定朝向玩家位置的方向。
-/// 配合 `angle_offset` 可组合出扇形弹幕。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-#[serde(default)]
-pub struct AimedConfig {
-    /// Bullet speed in pixels/second
-    pub speed: f32,
-    /// Angle offset in radians (for fan patterns)
-    pub angle_offset: f32,
-}
-
-impl Default for AimedConfig {
-    fn default() -> Self {
-        Self {
-            speed: 120.0,
-            angle_offset: 0.0,
-        }
-    }
-}
-
-/// Tween animation configuration.
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub struct TweenConfig {
-    /// Target property to animate
-    pub target: TweenTarget,
-    /// Duration in seconds
-    pub duration: f32,
-    /// Easing function
-    #[serde(default)]
-    pub ease: Easing,
-    /// Value range (start, end)
-    pub range: (f32, f32),
-    /// Delay before starting
-    #[serde(default)]
-    pub delay: f32,
-}
-
-/// Tween target properties.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Reflect, Default)]
-pub enum TweenTarget {
-    #[default]
-    Opacity,
-    Scale,
-    ScaleX,
-    ScaleY,
-    PositionX,
-    PositionY,
-    Rotation,
-}
-
-/// Easing functions for interpolation (used by RON for serialization).
-/// Actual easing logic is implemented in the WASM guest.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
-pub enum Easing {
-    #[default]
-    Linear,
-    QuadIn,
-    QuadOut,
-    QuadInOut,
-    CubicIn,
-    CubicOut,
-    CubicInOut,
-    SineIn,
-    SineOut,
-    SineInOut,
-}
-
-// ============================================================================
-// Timeline Event
-// ============================================================================
-
-/// Timeline event - describes what happens at a specific time.
-///
-/// 时间轴事件 - 描述在特定时间发生的事情。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect)]
-pub struct TimelineEvent {
-    /// Time in seconds from performance start.
-    /// By default this is relative time (delta from previous event).
-    /// Set `absolute: true` to use absolute time from performance start.
-    ///
-    /// 距演出开始的时间（秒）。
-    /// 默认为相对时间（与上一事件的时间差）。
-    /// 设置 `absolute: true` 使用距演出开始的绝对时间。
-    pub t: f32,
-
-    /// Whether t is absolute time (from performance start) or relative (from previous event).
-    /// Default is false (relative time).
-    ///
-    /// t 是否为绝对时间（从演出开始）还是相对时间（从上一事件）。
-    /// 默认为 false（相对时间）。
-    #[serde(default)]
-    pub absolute: bool,
-
-    /// Prototype ID to spawn
-    pub spawn: String,
-
-    /// Spawn pattern (built-in geometric patterns)
-    #[serde(default)]
-    pub pattern: SpawnPattern,
-
-    /// Offset from spawn center. Shifts the entire pattern's origin.
-    /// `effective_center = spawn_center + offset`
-    ///
-    /// 相对于生成中心的偏移。移动整个模式的原点。
-    /// `effective_center = spawn_center + offset`
-    #[serde(default)]
-    pub offset: (f32, f32),
-
-    /// List of behavior IDs to apply (references to `behaviors` map)
-    #[serde(default)]
-    pub apply: Vec<String>,
-
-    /// Inline behavior definitions (applied after referenced behaviors)
-    /// Use this for one-off behaviors that don't need to be reused.
-    ///
-    /// 内联行为定义（在引用行为之后应用）
-    /// 用于不需要复用的一次性行为。
-    #[serde(default)]
-    pub behaviors: Vec<BulletBehavior>,
-}
-
-/// Spawn pattern for timeline events.
-/// Built-in geometric patterns for bullet arrangement.
-///
-/// 时间轴事件的生成模式。
-/// 内置的几何图案用于弹幕排列。
-#[derive(Debug, Clone, Deserialize, Serialize, Reflect, Default)]
-pub enum SpawnPattern {
-    /// Spawn a single bullet at the pattern center.
-    ///
-    /// 在模式中心生成单个弹幕。
-    #[default]
-    Single,
-
-    /// Spawn bullets in a ring/circle
-    ///
-    /// 生成环状/圆形弹幕
-    RingGenerator {
-        count: usize,
-        #[serde(default)]
-        radius: f32,
-        #[serde(default)]
-        start_angle: f32,
-    },
-
-    /// Spawn bullets in a line
-    ///
-    /// 生成线形弹幕
-    LineGenerator {
-        count: usize,
-        #[serde(default = "SpawnPattern::default_line_spacing")]
-        spacing: f32,
-        #[serde(default = "SpawnPattern::default_linear_direction")]
-        direction: (f32, f32),
-    },
-
-    /// Generate a line of bullets along a screen edge.
-    /// Bullets are evenly spaced and fired perpendicular to that edge.
-    ///
-    /// 在屏幕边缘生成一排等距弹幕，
-    /// 子弹将沿该边缘的垂直方向发射。
-    EdgeGenerator {
-        count: usize,
-        #[serde(default)]
-        side: EdgeSide,
-        #[serde(default = "SpawnPattern::default_edge_spacing")]
-        spacing: f32,
-        #[serde(default = "SpawnPattern::default_edge_margin")]
-        margin: f32,
-    },
-
-    /// Custom spawn pattern from mod system
-    ///
-    /// 通过 mod 系统自定义弹幕样式
-    CustomGenerator {
-        id: String,
-        #[serde(default)]
-        params: HashMap<String, f32>,
-    },
-}
-
-impl SpawnPattern {
-    fn default_line_spacing() -> f32 {
-        20.0
-    }
-    fn default_linear_direction() -> (f32, f32) {
-        (0.0, -1.0)
-    }
-    fn default_edge_spacing() -> f32 {
-        30.0
-    }
-    fn default_edge_margin() -> f32 {
-        200.0
-    }
-
-    /// Convert to WASM call representation: (pattern_id, params)
-    pub fn to_wasm_call(&self) -> WasmCall {
-        match self {
-            SpawnPattern::Single => ("builtin.single".into(), HashMap::new()),
-            SpawnPattern::RingGenerator {
-                count,
-                radius,
-                start_angle,
-            } => (
-                "builtin.ring".into(),
-                HashMap::from([
-                    ("count".into(), *count as f32),
-                    ("radius".into(), *radius),
-                    ("start_angle".into(), *start_angle),
-                ]),
-            ),
-            SpawnPattern::LineGenerator {
-                count,
-                spacing,
-                direction,
-            } => (
-                "builtin.line".into(),
-                HashMap::from([
-                    ("count".into(), *count as f32),
-                    ("spacing".into(), *spacing),
-                    ("dir_x".into(), direction.0),
-                    ("dir_y".into(), direction.1),
-                ]),
-            ),
-            SpawnPattern::EdgeGenerator {
-                count,
-                side,
-                spacing,
-                margin,
-            } => (
-                "builtin.edge".into(),
-                HashMap::from([
-                    ("count".into(), *count as f32),
-                    ("side".into(), *side as u32 as f32),
-                    ("spacing".into(), *spacing),
-                    ("margin".into(), *margin),
-                ]),
-            ),
-            SpawnPattern::CustomGenerator { id, params } => (id.clone(), params.clone()),
-        }
-    }
-}
-
-/// Which screen edge to spawn from.
-/// Used as a semantic enum in RON; actual logic is in WASM guest.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, Reflect)]
-pub enum EdgeSide {
-    #[default]
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-// ============================================================================
-// Runtime Resources and Events
-// ============================================================================
-
 /// Resource tracking pending performance loads.
 #[derive(Resource, Default)]
 pub struct PendingPerformanceLoads {
@@ -679,13 +188,9 @@ pub struct PendingPerformanceLoads {
 }
 
 /// Event to play a danmaku performance.
-///
-/// 播放弹幕演出的事件。
-#[derive(bevy::ecs::message::Message, Clone)]
+#[derive(Message, Clone)]
 pub struct PlayPerformanceEvent {
-    /// Path to the .performance.ron file
     pub performance_path: String,
-    /// Center position for the performance
     pub position: Vec2,
 }
 

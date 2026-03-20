@@ -297,7 +297,7 @@ fn collect_spawn_points(
     pattern_registry: &SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
 ) -> Vec<SpawnPoint> {
-    let (id, params_map) = pattern.to_wasm_call();
+    let (id, params_map) = spawn_pattern_to_wasm_call(pattern);
 
     let ctx = souprune_api::SpawnContext {
         center_x: center.x,
@@ -410,7 +410,7 @@ fn spawn_single_bullet(
     let mut stack = ActiveDanmakuStack::default();
 
     for behavior in behaviors {
-        let (id, props) = behavior.to_wasm_call();
+        let (id, props) = behavior_to_wasm_call(behavior);
 
         let Some(mut active) = danmaku_registry.create(&id, loaded_mods) else {
             warn!("Danmaku algorithm '{}' not found in registry", id);
@@ -452,8 +452,8 @@ fn spawn_bullet_visual(
     asset_server: &AssetServer,
 ) {
     let config = load_config();
-    let visual_path = prototype.visual.path();
-    let effective_color = prototype.color_tint.to_color();
+    let visual_path = prototype.visual.as_str();
+    let effective_color = color_tint_to_color(&prototype.color_tint);
     let flip_x = prototype.flip_x;
     let flip_y = prototype.flip_y;
     let frame_duration = prototype.frame_duration.unwrap_or(DEFAULT_FRAME_DURATION);
@@ -669,7 +669,7 @@ pub fn update_bullet_motion(
             let props = behavior_stack
                 .behaviors
                 .get(i)
-                .map(|b| b.to_wasm_call().1)
+                .map(|b| behavior_to_wasm_call(b).1)
                 .unwrap_or_else(|| instance.props.clone());
 
             let ctx = build_bullet_ctx(&state, dt, player_pos, &props);

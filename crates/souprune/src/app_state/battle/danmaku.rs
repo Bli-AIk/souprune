@@ -79,20 +79,8 @@ impl Plugin for DanmakuPlugin {
                     .in_set(BattleUpdate),
             );
 
-        // Register reflect types for inspector
-        app.register_type::<DanmakuPerformance>()
-            .register_type::<BulletPrototype>()
-            .register_type::<ColliderShape>()
-            .register_type::<BulletBehavior>()
-            .register_type::<LinearConfig>()
-            .register_type::<OrbitalConfig>()
-            .register_type::<SineConfig>()
-            .register_type::<TweenConfig>()
-            .register_type::<TweenTarget>()
-            .register_type::<Easing>()
-            .register_type::<TimelineEvent>()
-            .register_type::<SpawnPattern>()
-            .register_type::<EdgeSide>();
+        // Danmaku asset schema now comes from `souprune_schema`.
+        // Runtime keeps only a thin wrapper and helper layer here.
     }
 }
 
