@@ -35,6 +35,9 @@ use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::{ModeChanged, ModeScoped, is_mode};
+use crate::core::battle_runtime::{
+    BattleCamera, BattleInputManager, BattleMovementSet, BattleUpdate,
+};
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::ron_loader::RonAssetLoader;
 use crate::core::sequencer::SequencerPlugin;
@@ -47,28 +50,6 @@ use leafwing_input_manager::action_state::ActionState;
 pub(crate) fn battle_scoped() -> ModeScoped {
     ModeScoped("battle".to_string())
 }
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BattleUpdate;
-
-/// System set for battle movement (mod behaviors).
-/// Collision systems should run after this.
-///
-/// Battle移动系统集（mod行为）。
-/// 碰撞系统应在此之后运行。
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BattleMovementSet;
-
-#[derive(Component)]
-pub struct BattleCamera;
-
-/// Marker component for the Battle input manager entity.
-/// This entity holds the `ActionState<Action>` for Battle mode input handling.
-///
-/// Battle 输入管理器实体的标记组件。
-/// 该实体持有 Battle 模式下输入处理所需的 `ActionState<Action>`。
-#[derive(Component)]
-pub struct BattleInputManager;
 
 /// Helper: returns true when entering a specific mode (for run_if conditions).
 fn on_entering_battle(mut events: MessageReader<ModeChanged>) -> bool {
@@ -124,7 +105,7 @@ fn setup_battle_camera(
         ),
     >,
     q_render_targets: Query<&bevy::camera::RenderTarget>,
-    resolution_scale: Res<crate::app_state::app_setup::ResolutionScale>,
+    resolution_scale: Res<crate::core::camera::ResolutionScale>,
 ) {
     let scale_value = resolution_scale.get();
     info!(

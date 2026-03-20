@@ -17,7 +17,7 @@ use crate::core::fre_facts;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
 
-use super::BattleUpdate;
+use crate::core::battle_runtime::BattleUpdate;
 
 /// Battle invincibility configuration.
 /// Similar to chase config but for battle mode.

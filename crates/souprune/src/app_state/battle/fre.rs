@@ -12,7 +12,7 @@
 mod action_handlers;
 mod bridge;
 
-use crate::app_state::battle::BattleUpdate;
+use crate::core::battle_runtime::BattleUpdate;
 use crate::core::fre_facts;
 use crate::core::input::{Action, PlayerInputSettings};
 use crate::core::sequencer::SequenceRulesHandle;

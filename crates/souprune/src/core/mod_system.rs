@@ -32,7 +32,7 @@ impl Plugin for ModPlugin {
                 schedule,
                 (init_behaviors_system, update_behaviors_system)
                     .chain()
-                    .in_set(crate::app_state::battle::BattleMovementSet),
+                    .in_set(crate::core::battle_runtime::BattleMovementSet),
             );
     }
 }
@@ -385,7 +385,7 @@ fn update_behaviors_system(
     )>,
     action_states: Query<
         &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
-        With<crate::app_state::battle::BattleInputManager>,
+        With<crate::core::battle_runtime::BattleInputManager>,
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,

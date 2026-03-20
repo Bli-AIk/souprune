@@ -28,6 +28,8 @@ use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use std::fs;
 
+pub use crate::core::camera::ResolutionScale;
+
 pub struct AppSetupPlugin;
 
 impl Plugin for AppSetupPlugin {
@@ -370,22 +372,4 @@ fn deferred_touch_overlay_system(
         souprune_config.render.base_resolution_width,
     );
     commands.insert_resource(TouchOverlaySpawned);
-}
-
-#[derive(Resource)]
-pub struct ResolutionScale(pub u32);
-
-impl ResolutionScale {
-    pub(crate) fn get(&self) -> u32 {
-        self.0
-    }
-}
-
-impl Default for ResolutionScale {
-    fn default() -> Self {
-        // Equivalent to (320, 240) * 2 resolution.
-        //
-        // 等效于 (320, 240) * 2 的分辨率。
-        Self(5)
-    }
 }

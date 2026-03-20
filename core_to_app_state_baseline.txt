@@ -1,7 +1,3 @@
-crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleInputManager
-crates/souprune/src/core/mod_system.rs:crate::app_state::battle::BattleMovementSet
-crates/souprune/src/core/sequencer/camera.rs:crate::app_state::app_setup::ResolutionScale
-crates/souprune/src/core/sequencer/camera.rs:crate::app_state::battle::BattleCamera
 crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle
 crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent
 crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::danmaku
