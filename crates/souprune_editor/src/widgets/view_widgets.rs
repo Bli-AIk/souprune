@@ -2,8 +2,8 @@
 //!
 //! 提供 Vec3Tuple、ColorTuple、Transform、Tag 列表等编辑控件。
 
-use souprune::editor_api::values::RuntimeExprValue as Value;
-use souprune::editor_api::view::{
+use souprune_schema::Val as Value;
+use souprune_schema::view::{
     SerializableColor, SerializableTransform, SerializableVec2, SerializableVec3, ViewFontDef,
 };
 

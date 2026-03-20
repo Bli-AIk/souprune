@@ -10,7 +10,8 @@ use node_props::{
     edit_node_sprite, edit_node_state_sprite, edit_node_texts, edit_node_view_box,
     find_node_by_path, find_node_by_path_mut, parent_children_mut,
 };
-use souprune::editor_api::view::{ViewLayoutAsset, ViewNodeDef, ViewRoot};
+use souprune::editor_api::view::ViewRoot;
+use souprune_schema::view::{ViewLayoutAsset, ViewNodeDef};
 use std::path::{Path, PathBuf};
 
 /// View 编辑器状态资源。

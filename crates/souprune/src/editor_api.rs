@@ -61,7 +61,8 @@ pub mod view {
     };
     pub use crate::core::view::layout::{
         DataRequirement, InitialFactValue, RepeatDef, SpriteDef, StateSpriteConfig, TextDef,
-        ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
+        ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef, runtime_sdf_structure_from_schema,
+        runtime_view_layout_from_schema,
     };
     pub use crate::core::view::reconcile::{
         SpawnContext, ViewElementSpec, build_text_config, spawn_sprite_entity, spawn_text_entity,

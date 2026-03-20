@@ -6,7 +6,7 @@ use crate::widgets::view_widgets::{
     edit_option_vec2_tuple, edit_string_string_map, edit_tag_list, edit_vec2, edit_vec3,
 };
 use bevy::prelude::*;
-use souprune::editor_api::view::{
+use souprune_schema::view::{
     DataRequirement, InitialFactValue, RepeatDef, SpriteDef, StateSpriteConfig, TextDef,
     ViewBoxLogicDef, ViewNodeDef, Visual,
 };

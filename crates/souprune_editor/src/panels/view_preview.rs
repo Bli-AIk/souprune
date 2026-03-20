@@ -8,9 +8,10 @@ use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use souprune::editor_api::{app, game_action, mortar, view};
+use souprune_schema::view::{InitialFactValue, ViewLayoutAsset as SchemaViewLayoutAsset};
 use view::{
-    ActiveView, InitialFactValue, PlayerDataView, RepeatContext, SpawnContext, ViewElementSpec,
-    ViewLayoutAsset, ViewNodeDef, ViewRoot, build_text_config, load_fre_into_view_root,
+    ActiveView, PlayerDataView, RepeatContext, SpawnContext, ViewElementSpec,
+    ViewNodeDef as RuntimeViewNodeDef, ViewRoot, build_text_config, load_fre_into_view_root,
     spawn_sprite_entity, spawn_text_entity, spawn_viewbox_entity,
 };
 
@@ -151,6 +152,14 @@ pub fn rebuild_preview_entities(
         cleanup_preview(&mut commands, &mut preview_state);
         return;
     };
+    let runtime_layout = match view::runtime_view_layout_from_schema(layout) {
+        Ok(layout) => layout,
+        Err(err) => {
+            warn!("[ViewPreview] runtime layout conversion failed: {err}");
+            cleanup_preview(&mut commands, &mut preview_state);
+            return;
+        }
+    };
 
     // Dirty check using generation counter
     let generation = editor_state.generation;
@@ -206,7 +215,7 @@ pub fn rebuild_preview_entities(
     );
 
     // Spawn preview nodes parented to the ViewRoot entity
-    for root in &layout.roots {
+    for root in &runtime_layout.roots {
         spawn_preview_node(
             &mut commands,
             &mut preview_state,
@@ -232,7 +241,7 @@ fn spawn_preview_node(
     commands: &mut Commands,
     state: &mut ViewPreviewState,
     ctx: &SpawnContext,
-    node: &ViewNodeDef,
+    node: &RuntimeViewNodeDef,
     parent: Option<Entity>,
     z_offset: f32,
 ) {
@@ -243,7 +252,7 @@ fn spawn_preview_node_inner(
     commands: &mut Commands,
     state: &mut ViewPreviewState,
     ctx: &SpawnContext,
-    node: &ViewNodeDef,
+    node: &RuntimeViewNodeDef,
     parent: Option<Entity>,
     z_offset: f32,
     repeat_ctx: Option<&RepeatContext>,
@@ -571,7 +580,7 @@ pub fn preview_input_to_fre_system(
     }
 }
 
-fn load_initial_facts_into_view_root(view_root: &mut ViewRoot, layout: &ViewLayoutAsset) {
+fn load_initial_facts_into_view_root(view_root: &mut ViewRoot, layout: &SchemaViewLayoutAsset) {
     let Some(facts) = &layout.facts else { return };
     for (key, value) in facts {
         match value {

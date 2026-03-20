@@ -15,10 +15,10 @@ use std::collections::HashMap;
 // ============================================================================
 
 pub type FloatOrExpr = Val<f32>;
-pub type DynamicColor = ColorTuple;
-pub type SerializableVec3 = Vec3Tuple;
-pub type SerializableVec2 = Vec2Tuple;
-pub type SerializableColor = ColorTuple;
+pub type SerializableVec3 = (Val<f32>, Val<f32>, Val<f32>);
+pub type SerializableVec2 = (Val<f32>, Val<f32>);
+pub type SerializableColor = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+pub type DynamicColor = SerializableColor;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SerializableTransform {
@@ -111,6 +111,8 @@ pub struct ViewLayout {
     #[serde(default)]
     pub world_space: bool,
 }
+
+pub type ViewLayoutAsset = ViewLayout;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum DataRequirement {
@@ -262,6 +264,10 @@ pub struct TextDef {
     #[serde(default)]
     pub line_height: Option<f32>,
     #[serde(default)]
+    pub char_spacing: Option<f32>,
+    #[serde(default)]
+    pub word_spacing: Option<f32>,
+    #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
     #[serde(default)]
     pub visible_when: Option<String>,
@@ -406,6 +412,8 @@ pub struct SdfStructure {
     pub root: SdfLayerDef,
 }
 
+pub type SdfStructureAsset = SdfStructure;
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SdfLayerDef {
     pub name: String,
@@ -447,4 +455,76 @@ pub struct UIVisibilityRuleDef {
     pub rule_type: String,
     #[serde(default)]
     pub layers: Option<Vec<String>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_view_layout_with_dynamic_values_and_text_spacing() {
+        let ron = r#"(
+            roots: [
+                (
+                    name: "HudRoot",
+                    background_color: Some((0.1, 0.2, 0.3, 1.0)),
+                    texts: [(
+                        id: "label",
+                        content: Some("HP"),
+                        font: Hud,
+                        world_scale: (1.0, "$ui_scale"),
+                        color: (1.0, 1.0, 1.0, 1.0),
+                        transform: (
+                            translation: Some((8.0, "4.0 + @i", 2.0)),
+                            scale: Some((1.0, 1.0, 1.0)),
+                        ),
+                        line_height: Some(12.0),
+                        char_spacing: Some(1.5),
+                        word_spacing: Some(3.0),
+                    )],
+                ),
+            ],
+            facts: Some({
+                "enemy_names": ["Mush", "Soup"],
+            }),
+        )"#;
+
+        let layout: ViewLayoutAsset = ron::from_str(ron).expect("view layout should parse");
+        let text = &layout.roots[0].texts[0];
+
+        assert_eq!(text.char_spacing, Some(1.5));
+        assert_eq!(text.word_spacing, Some(3.0));
+        assert!(matches!(text.world_scale.1, Val::Expr(ref expr) if expr == "$ui_scale"));
+        assert!(matches!(
+            text.transform.translation.as_ref().expect("translation").1,
+            Val::Expr(ref expr) if expr == "4.0 + @i"
+        ));
+    }
+
+    #[test]
+    fn parses_sdf_structure_with_custom_color_source() {
+        let ron = r#"(
+            layer_count: 2,
+            root: (
+                name: "frame",
+                sdf_type: Outer,
+                color_source: Custom((1.0, 0.5, 0.25, "$alpha")),
+                children: [(
+                    name: "fill",
+                    sdf_type: Inner,
+                    is_filler: true,
+                )],
+            ),
+        )"#;
+
+        let sdf: SdfStructureAsset = ron::from_str(ron).expect("sdf structure should parse");
+
+        match &sdf.root.color_source {
+            SdfColorSource::Custom(color) => {
+                assert!(matches!(color.0, Val::Static(v) if (v - 1.0).abs() < f32::EPSILON));
+                assert!(matches!(color.3, Val::Expr(ref expr) if expr == "$alpha"));
+            }
+            other => panic!("unexpected color source parsed: {other:?}"),
+        }
+    }
 }
