@@ -19,6 +19,8 @@ static WORKSPACE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
 });
 
 static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| WORKSPACE_ROOT.join("projects/example_mod"));
+static PROJECT_AM_ROOT: Lazy<PathBuf> =
+    Lazy::new(|| WORKSPACE_ROOT.join("projects/example_am_mod"));
 
 /// Read a UTF-8 file as string.
 ///
@@ -35,6 +37,15 @@ pub fn project_root() -> &'static Path {
     PROJECT_ROOT.as_path()
 }
 
+/// Path to a named example project folder.
+pub fn named_project_root(project_name: &str) -> &'static Path {
+    match project_name {
+        "example_mod" => PROJECT_ROOT.as_path(),
+        "example_am_mod" => PROJECT_AM_ROOT.as_path(),
+        other => panic!("Unknown test project root: {other}"),
+    }
+}
+
 /// Parse a project-local RON file relative to the example project root.
 ///
 /// 解析示例项目根目录下的 RON 文件。
@@ -42,7 +53,15 @@ pub fn parse_project_ron<T>(relative: &str) -> T
 where
     T: DeserializeOwned,
 {
-    let path = PROJECT_ROOT.join(relative);
+    parse_project_ron_from("example_mod", relative)
+}
+
+/// Parse a RON file relative to a named project root.
+pub fn parse_project_ron_from<T>(project_name: &str, relative: &str) -> T
+where
+    T: DeserializeOwned,
+{
+    let path = named_project_root(project_name).join(relative);
     let contents = fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("Failed to read {}: {err}", path.display()));
     from_str(&contents).unwrap_or_else(|err| panic!("Failed to parse {}: {err}", path.display()))
@@ -58,12 +77,30 @@ pub fn ensure_project_asset(relative: &str) {
     }
 }
 
+/// Ensure a relative asset exists under a named project.
+pub fn ensure_project_asset_from(project_name: &str, relative: &str) {
+    let path = named_project_root(project_name).join(relative);
+    if !path.exists() {
+        panic!("Asset {} missing", path.display());
+    }
+}
+
 /// Recursively list project files under `relative_dir` whose file names end with `suffix`.
 ///
 /// 递归列出 `relative_dir` 下以 `suffix` 结尾的项目文件。
 pub fn list_project_files_with_suffix(relative_dir: &str, suffix: &str) -> Vec<String> {
+    list_project_files_with_suffix_from("example_mod", relative_dir, suffix)
+}
+
+/// Recursively list project files for a named project.
+pub fn list_project_files_with_suffix_from(
+    project_name: &str,
+    relative_dir: &str,
+    suffix: &str,
+) -> Vec<String> {
     let mut files = Vec::new();
-    let base = PROJECT_ROOT.join(relative_dir);
+    let root = named_project_root(project_name);
+    let base = root.join(relative_dir);
     if base.exists() {
         for entry in WalkDir::new(&base)
             .into_iter()
@@ -73,7 +110,7 @@ pub fn list_project_files_with_suffix(relative_dir: &str, suffix: &str) -> Vec<S
             let path = entry.path();
             if path.to_string_lossy().ends_with(suffix) {
                 let relative = path
-                    .strip_prefix(PROJECT_ROOT.as_path())
+                    .strip_prefix(root)
                     .unwrap()
                     .to_string_lossy()
                     .replace('\\', "/");

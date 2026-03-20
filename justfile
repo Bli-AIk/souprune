@@ -47,6 +47,7 @@ tokei-check:
 # ===============================================
 arch-check:
     @bash ./check_core_boundaries.sh
+    @bash ./check_editor_boundaries.sh
 
 alias line := tokei-check
 
