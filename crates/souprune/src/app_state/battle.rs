@@ -27,14 +27,13 @@ pub mod alight_motion_integration;
 pub mod collision;
 pub mod danmaku;
 pub mod fre;
-pub mod player_config_schema;
 
 use crate::app_state::battle::alight_motion_integration::AlightMotionBattlePlugin;
 use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
-use crate::app_state::battle::player_config_schema::BattlePlayerConfig;
 use crate::app_state::{ModeChanged, ModeScoped, is_mode};
+use crate::core::battle_player::BattlePlayerConfig;
 use crate::core::battle_runtime::{
     BattleCamera, BattleInputManager, BattleMovementSet, BattleUpdate,
 };

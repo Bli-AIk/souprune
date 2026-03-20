@@ -1,7 +1,6 @@
-//! Battle player config runtime adapter.
+//! Shared battle player runtime types.
 //!
-//! `souprune_schema::battle` owns the actual `.battle_player.ron` shape.
-//! This module only provides the Bevy asset wrapper and runtime conversions.
+//! battle player 资产与无敌配置属于运行时基础设施，不应挂在 app_state 下。
 
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
 use bevy::color::LinearRgba;
@@ -13,13 +12,25 @@ use souprune_schema::battle::{
 };
 use souprune_schema::bevy_types::BevyColor;
 
-#[derive(Debug, Clone)]
-pub struct RuntimeInvincibilityConfig {
+#[derive(Resource, Debug, Clone)]
+pub struct BattleInvincibilityConfig {
     pub duration: f32,
     pub flash_interval: f32,
     pub normal_color: Color,
     pub flash_color: Color,
     pub damage_sound: Option<String>,
+}
+
+impl Default for BattleInvincibilityConfig {
+    fn default() -> Self {
+        Self {
+            duration: 1.0,
+            flash_interval: 0.25,
+            normal_color: Color::srgb(1.0, 0.0, 0.0),
+            flash_color: Color::srgb(0.5, 0.0, 0.0),
+            damage_sound: None,
+        }
+    }
 }
 
 /// Runtime Bevy asset wrapper for `.battle_player.ron`.
@@ -56,7 +67,7 @@ impl BattlePlayerConfig {
         &self.0.default_box
     }
 
-    pub fn invincibility(&self) -> RuntimeInvincibilityConfig {
+    pub fn invincibility(&self) -> BattleInvincibilityConfig {
         runtime_invincibility_config(&self.0.invincibility)
     }
 }
@@ -79,8 +90,8 @@ fn collider_to_trigger(collider: &SchemaColliderConfig) -> TriggerCollider {
     }
 }
 
-fn runtime_invincibility_config(config: &SchemaInvincibilityConfig) -> RuntimeInvincibilityConfig {
-    RuntimeInvincibilityConfig {
+fn runtime_invincibility_config(config: &SchemaInvincibilityConfig) -> BattleInvincibilityConfig {
+    BattleInvincibilityConfig {
         duration: config.duration,
         flash_interval: config.flash_interval,
         normal_color: bevy_color_to_color(&config.normal_color),

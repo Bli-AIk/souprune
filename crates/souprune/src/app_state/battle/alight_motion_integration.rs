@@ -28,6 +28,9 @@ use bevy_alight_motion::prelude::*;
 use regex::Regex;
 
 use crate::app_state::battle::battle_scoped;
+use crate::core::alight_motion_runtime::{
+    AlightMotionPerformanceState, PlayAlightMotionPerformanceEvent,
+};
 use crate::core::battle_box::{
     AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
 };
@@ -168,55 +171,6 @@ pub struct AlightMotionBattlePatterns {
     pub bullet_regex: Option<Regex>,
     pub battle_box_regex: Option<Regex>,
     pub hidden_regex: Option<Regex>,
-}
-
-/// Resource to track active Alight Motion performance state.
-///
-/// 追踪活跃 Alight Motion 演出状态的资源。
-#[derive(Resource, Default)]
-pub struct AlightMotionPerformanceState {
-    /// Whether an Alight Motion performance is currently playing
-    pub is_playing: bool,
-    /// Total duration of the performance in milliseconds
-    pub total_duration_ms: f32,
-    /// Entity ID of the Alight Motion project root (if any)
-    pub project_entity: Option<Entity>,
-    /// The final scale applied to the Alight Motion project (base_scale * config.scale)
-    /// Used for collision calculations
-    pub final_scale: f32,
-}
-
-/// Event to request starting an Alight Motion performance.
-///
-/// 请求开始 Alight Motion 演出的事件。
-#[derive(bevy::ecs::message::Message, Debug, Clone)]
-pub struct PlayAlightMotionPerformanceEvent {
-    pub amproj_path: String,
-    /// Optional path to alight_motion_config.ron for this performance.
-    /// If None, the default config (battle/alight_motion_config.ron) is used.
-    ///
-    /// 此演出使用的可选 alight_motion_config.ron 路径。
-    /// 如果为 None，使用默认配置（battle/alight_motion_config.ron）。
-    pub alight_motion_config_path: Option<String>,
-    pub wait_for_completion: bool,
-}
-
-impl PlayAlightMotionPerformanceEvent {
-    pub fn new(amproj_path: String) -> Self {
-        Self {
-            amproj_path,
-            alight_motion_config_path: None,
-            wait_for_completion: true,
-        }
-    }
-
-    pub fn with_config(amproj_path: String, alight_motion_config_path: Option<String>) -> Self {
-        Self {
-            amproj_path,
-            alight_motion_config_path,
-            wait_for_completion: true,
-        }
-    }
 }
 
 /// Plugin for Alight Motion battle integration.

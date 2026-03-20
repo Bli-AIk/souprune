@@ -30,10 +30,12 @@
 //!
 //! 此处定义了 `CorePlugin` 与 `GlobalPlugin`，它们分别在应用生命周期的早期和后期运行。
 
+pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
 pub mod battle_box;
+pub mod battle_player;
 pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;

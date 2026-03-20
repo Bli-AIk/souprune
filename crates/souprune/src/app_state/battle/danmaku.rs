@@ -12,46 +12,13 @@
 
 pub use crate::core::danmaku::*;
 
+use crate::core::battle_player::BattleInvincibilityConfig;
 use crate::core::collision::TriggerCollider;
 use crate::core::fre_facts;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
 
 use crate::core::battle_runtime::BattleUpdate;
-
-/// Battle invincibility configuration.
-/// Similar to chase config but for battle mode.
-///
-/// 战斗模式的无敌时间配置。
-#[derive(Resource)]
-pub struct BattleInvincibilityConfig {
-    /// Duration of invincibility in seconds after taking damage
-    pub duration: f32,
-    /// Interval for heart color flash during invincibility (in seconds)
-    pub flash_interval: f32,
-    /// Normal heart color (pure red)
-    pub normal_color: Color,
-    /// Flash heart color (dark red)
-    pub flash_color: Color,
-    /// Sound to play when taking damage (full path, e.g., "assets/audios/sfx/hurtsound.wav")
-    /// If None, no sound is played.
-    ///
-    /// 受伤时播放的音效（完整路径，如 "assets/audios/sfx/hurtsound.wav"）
-    /// 如果为 None，则不播放音效。
-    pub damage_sound: Option<String>,
-}
-
-impl Default for BattleInvincibilityConfig {
-    fn default() -> Self {
-        Self {
-            duration: 1.0,
-            flash_interval: 0.25,
-            normal_color: Color::srgb(1.0, 0.0, 0.0), // #FF0000
-            flash_color: Color::srgb(0.5, 0.0, 0.0),  // #800000
-            damage_sound: None,
-        }
-    }
-}
 
 /// Resource to track player invincibility state in battle mode.
 ///

@@ -8,7 +8,7 @@
 
 use super::chapter_schema::Chapter;
 use super::context::*;
-use crate::app_state::battle::alight_motion_integration::{
+use crate::core::alight_motion_runtime::{
     AlightMotionPerformanceState, PlayAlightMotionPerformanceEvent,
 };
 use bevy::prelude::*;
@@ -69,11 +69,7 @@ pub fn process_am_performance_system(
             Without<AlightMotionPerformanceTracker>,
         ),
     >,
-    performance_events: Option<
-        bevy::ecs::message::MessageWriter<
-            crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent,
-        >,
-    >,
+    performance_events: Option<bevy::ecs::message::MessageWriter<PlayAlightMotionPerformanceEvent>>,
 ) {
     let Some(mut performance_events) = performance_events else {
         return;

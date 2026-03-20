@@ -1,4 +1,0 @@
-crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle
-crates/souprune/src/core/sequencer/performance.rs:crate::app_state::battle::alight_motion_integration::PlayAlightMotionPerformanceEvent
-crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::danmaku
-crates/souprune/src/core/sequencer/player.rs:crate::app_state::battle::player_config_schema
