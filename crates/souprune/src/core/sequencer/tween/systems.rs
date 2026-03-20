@@ -1,86 +1,11 @@
-//! # sequencer/tween.rs
-//!
-//! ## Module Overview
-//!
-//! TweenViewElement systems and utilities for the battle sequencer using bevy_tween.
-//!
-//! 战斗序列管理器的 TweenViewElement 系统，使用 bevy_tween。
-
-use super::chapter_schema::{Chapter, TweenTarget, Value};
-use super::context::*;
+use super::interpolators::{SpriteAlphaInterpolator, TweenInProgress, ViewBoxSizeInterpolator};
+use crate::core::sequencer::chapter_schema::{Chapter, TweenTarget, Value};
+use crate::core::sequencer::context::{ActiveChapter, ChapterFinished, WaitTimer};
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
-use bevy_tween::interpolate::Interpolator;
 use bevy_tween::prelude::*;
 use std::time::Duration;
 
-// ============================================================================
-// Custom Interpolators for ViewBox
-// ViewBox 的自定义插值器
-// ============================================================================
-
-/// Interpolator for ViewBox size.
-///
-/// ViewBox 尺寸的插值器。
-#[derive(Debug, Clone, PartialEq, Reflect)]
-pub(crate) struct ViewBoxSizeInterpolator {
-    pub start_width: f32,
-    pub start_height: f32,
-    pub end_width: f32,
-    pub end_height: f32,
-}
-
-impl Interpolator for ViewBoxSizeInterpolator {
-    type Item = ViewBox;
-
-    fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
-        item.width = self.start_width + (self.end_width - self.start_width) * value;
-        item.height = self.start_height + (self.end_height - self.start_height) * value;
-    }
-}
-
-/// Interpolator for Sprite alpha only.
-///
-/// 仅精灵透明度的插值器。
-#[derive(Debug, Clone, PartialEq, Reflect)]
-pub struct SpriteAlphaInterpolator {
-    pub start: f32,
-    pub end: f32,
-}
-
-impl Interpolator for SpriteAlphaInterpolator {
-    type Item = Sprite;
-
-    fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
-        let alpha = self.start + (self.end - self.start) * value;
-        item.color = item.color.with_alpha(alpha);
-    }
-}
-
-// ============================================================================
-// Tween Tracking Components
-// 补间跟踪组件
-// ============================================================================
-
-/// Marker component to track that a tween animation is in progress for this chapter.
-///
-/// 标记组件，用于跟踪此章节的补间动画正在进行中。
-#[derive(Component)]
-pub struct TweenInProgress {
-    /// Whether to wait for completion before marking chapter as finished.
-    pub wait_for_completion: bool,
-    /// The entity running the TimeRunner for this tween.
-    pub animator_entity: Entity,
-}
-
-// ============================================================================
-// Systems
-// 系统
-// ============================================================================
-
-/// Helper to resolve a Value<f32> to an f32 value using the unified expression system.
-///
-/// 使用统一的表达式系统解析 Value<f32> 为 f32 值。
 fn resolve_tween_val_f32(
     val: &Value<f32>,
     current: f32,
@@ -90,9 +15,6 @@ fn resolve_tween_val_f32(
     crate::core::view::ron_view::parsing::resolve_val_f32(val, Some(current), player_data, time)
 }
 
-/// System to process TweenViewElement chapters and spawn bevy_tween animations.
-///
-/// 处理 TweenViewElement 章节并生成 bevy_tween 动画的系统。
 pub fn process_tween_view_element_system(
     mut commands: Commands,
     active_chapters: Query<
@@ -134,16 +56,17 @@ pub fn process_tween_view_element_system(
             selector, target, duration
         );
 
-        // Resolve the selector to get target entity
         let target_entity = match selector {
-            super::chapter_schema::ElementSelector::FullName(full_name) => {
+            crate::core::sequencer::chapter_schema::ElementSelector::FullName(full_name) => {
                 crate::core::view::find_element_by_full_name(&view_elements, full_name)
             }
-            super::chapter_schema::ElementSelector::LocalName(local_name) => view_elements
-                .iter()
-                .find(|(_, elem)| elem.local_name == *local_name)
-                .map(|(entity, _)| entity),
-            super::chapter_schema::ElementSelector::Tag(tag) => {
+            crate::core::sequencer::chapter_schema::ElementSelector::LocalName(local_name) => {
+                view_elements
+                    .iter()
+                    .find(|(_, elem)| elem.local_name == *local_name)
+                    .map(|(entity, _)| entity)
+            }
+            crate::core::sequencer::chapter_schema::ElementSelector::Tag(tag) => {
                 crate::core::view::find_elements_by_tag(&view_elements, tag)
                     .into_iter()
                     .next()
@@ -163,7 +86,6 @@ pub fn process_tween_view_element_system(
         let ease_kind = *easing;
         let target_component = target_entity.into_target();
 
-        // Create tween based on target type
         match target {
             TweenTarget::Position { from, to } => {
                 let Ok(transform) = transforms.get(target_entity) else {
@@ -412,9 +334,6 @@ pub fn process_tween_view_element_system(
     }
 }
 
-/// Helper to handle wait_for_completion logic.
-///
-/// 处理 wait_for_completion 逻辑的辅助函数。
 fn handle_wait_for_completion(
     commands: &mut Commands,
     chapter_entity: Entity,
@@ -427,31 +346,24 @@ fn handle_wait_for_completion(
             animator_entity,
         });
     } else {
-        // Mark chapter as finished immediately
         commands.entity(chapter_entity).insert(ChapterFinished);
     }
 }
 
-/// System to check if tween animations have completed.
-///
-/// 检查补间动画是否完成的系统。
 pub fn process_tween_wait_chapter_system(
     mut commands: Commands,
     tween_chapters: Query<(Entity, &TweenInProgress), Without<ChapterFinished>>,
     time_runners: Query<&bevy_tween::bevy_time_runner::TimeRunner>,
 ) {
     for (chapter_entity, tween_progress) in tween_chapters.iter() {
-        // Check if the animator's TimeRunner has finished
         if let Ok(runner) = time_runners.get(tween_progress.animator_entity) {
             if runner.is_completed() {
                 info!("[TweenViewElement] Tween completed");
                 commands.entity(chapter_entity).insert(ChapterFinished);
                 commands.entity(chapter_entity).remove::<TweenInProgress>();
-                // Clean up the animator entity
                 commands.entity(tween_progress.animator_entity).despawn();
             }
         } else {
-            // TimeRunner doesn't exist anymore, animation must have finished
             info!("[TweenViewElement] Tween animator no longer exists, marking as completed");
             commands.entity(chapter_entity).insert(ChapterFinished);
             commands.entity(chapter_entity).remove::<TweenInProgress>();
