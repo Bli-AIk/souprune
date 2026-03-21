@@ -653,6 +653,7 @@ version = "0.3.1"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_brp_extras",
  "chrono",
  "console_error_panic_hook",
  "cosmic-text",
@@ -1381,6 +1382,7 @@ dependencies = [
  "bevy_post_process",
  "bevy_ptr",
  "bevy_reflect",
+ "bevy_remote",
  "bevy_render",
  "bevy_scene",
  "bevy_shader",
@@ -1454,6 +1456,7 @@ dependencies = [
  "tracing-subscriber",
  "tracing-tracy",
  "tracing-wasm",
+ "tracy-client",
 ]
 
 [[package]]
