@@ -60,12 +60,9 @@ pub fn sync_typewriter_text_to_facts_system(
     runtime: Res<MortarRuntime>,
     query: Query<&Typewriter, With<DialogueControllerEntity>>,
     mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
-    facts: Res<LayeredFactDatabase>,
+    _facts: Res<LayeredFactDatabase>,
 ) {
     let typewriter_count = query.iter().count();
-    let simple_text_active = facts
-        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
-        .unwrap_or(false);
 
     let new_text = if typewriter_count > 0 {
         query
@@ -75,8 +72,6 @@ pub fn sync_typewriter_text_to_facts_system(
             .unwrap_or_default()
     } else if let Some(state) = runtime.primary_dialogue_state() {
         state.current_text().unwrap_or("").to_string()
-    } else if simple_text_active {
-        return;
     } else {
         return;
     };

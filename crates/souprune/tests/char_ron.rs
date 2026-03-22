@@ -107,17 +107,19 @@ fn animation_configs_deserialize() {
 fn character_collider_bounds_cover_origin() {
     for relative in character_definition_files() {
         let asset: CharacterAsset = test_support::parse_project_ron(&relative);
-        let half = asset.collider_size * 0.5;
-        let min = asset.collider_offset - half;
-        let max = asset.collider_offset + half;
+        let half_x = asset.collider_size.x * 0.5;
+        let half_y = asset.collider_size.y * 0.5;
+        let min_x = asset.collider_offset.x - half_x;
+        let max_x = asset.collider_offset.x + half_x;
+        let max_y = asset.collider_offset.y + half_y;
 
         assert!(
-            min.x <= 0.0 && max.x >= 0.0,
+            min_x <= 0.0 && max_x >= 0.0,
             "collider must wrap X origin for {}",
             relative
         );
         assert!(
-            max.y <= 0.0,
+            max_y <= 0.0,
             "collider should sit below sprite pivot for {}",
             relative
         );
