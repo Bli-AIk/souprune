@@ -379,6 +379,10 @@ fn resolve_double_brace_template(
         return format!("{{{{{}", key);
     }
 
+    if let Some(path) = key.strip_prefix("data:") {
+        return resolve_data_path(path, player_data, item_registry, mortar_strings);
+    }
+
     // Preprocess $variable in the key before resolving
     let processed_key = preprocess_fact_expressions(&key, player_data);
     // Remove quotes from string values
@@ -546,31 +550,6 @@ fn resolve_fact_access_template(
     }
 }
 
-/// Resolve `{@path}` legacy data path syntax.
-fn resolve_legacy_at_template(
-    chars: &mut std::iter::Peekable<std::str::Chars>,
-    player_data: &PlayerDataView,
-    item_registry: &crate::core::item::ItemRegistry,
-    mortar_strings: &crate::extra::mortar::MortarStringTable,
-) -> String {
-    let mut path = String::new();
-    let mut found_closing = false;
-
-    for ch in chars.by_ref() {
-        if ch == '}' {
-            found_closing = true;
-            break;
-        }
-        path.push(ch);
-    }
-
-    if found_closing {
-        resolve_data_path(&path, player_data, item_registry, mortar_strings)
-    } else {
-        format!("{{@{}", path)
-    }
-}
-
 pub fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
@@ -609,14 +588,6 @@ pub fn resolve_text_content(
         } else if next_ch == '$' {
             chars.next();
             result.push_str(&resolve_fact_access_template(&mut chars, player_data));
-        } else if next_ch == '@' {
-            chars.next();
-            result.push_str(&resolve_legacy_at_template(
-                &mut chars,
-                player_data,
-                item_registry,
-                mortar_strings,
-            ));
         } else {
             result.push(ch);
         }
