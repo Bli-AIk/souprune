@@ -1,3 +1,16 @@
+//! Contains parsing-focused regression tests for the sequence chapter schema.
+//!
+//! 放置面向解析回归的序列章节 schema 测试。
+//!
+//! These tests exercise representative RON snippets for values, tween targets,
+//! and chapter variants so schema refactors do not silently break existing asset
+//! syntax. This file is not runtime logic; it protects the serialized language
+//! that designers and editors rely on.
+//!
+//! 这些测试会用有代表性的 RON 片段去覆盖值类型、tween 目标和章节变体，避免
+//! schema 重构时悄悄破坏现有资产语法。这个文件不是运行时代码，而是在保护
+//! 设计者与编辑器都依赖的那套序列化语言。
+
 use super::*;
 
 #[test]

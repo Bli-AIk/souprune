@@ -1,3 +1,16 @@
+//! Handles the inspector window's open/close/focus lifecycle and refresh cycle.
+//!
+//! 处理 Inspector 窗口的打开、关闭、焦点变化以及刷新周期。
+//!
+//! This file keeps the standalone inspector window behaving like a proper tool
+//! window. It reacts to hotkeys, tracks focus, tears down the secondary camera
+//! when the window closes, and performs the two-phase refresh used when the app
+//! state changes underneath the inspector.
+//!
+//! 这个文件让独立 Inspector 窗口像一个真正的工具窗口那样工作。它响应热键，
+//! 跟踪焦点，在窗口关闭时销毁配套相机，并负责应用状态变化时使用的双阶段刷新
+//! 过程。
+
 use super::{
     InspectorUiState, InspectorWindowContextPass, RefreshPhase, StandaloneInspectorCamera,
     StandaloneInspectorWindow,

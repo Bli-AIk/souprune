@@ -1,3 +1,16 @@
+//! Configures Souprune's tracing pipeline for both local debugging and shipped builds.
+//!
+//! 配置 Souprune 的 tracing 日志管线，兼顾本地调试和发布运行。
+//!
+//! This file owns startup-time logging policy: where logs are written, which
+//! crates are filtered, and whether Tracy integration is attached. It exists so
+//! the rest of the runtime can emit tracing events without caring about
+//! platform-specific log destinations or profiler setup.
+//!
+//! 这个文件负责启动期的日志策略：日志写到哪里、哪些 crate 需要过滤、以及
+//! 是否挂接 Tracy 分析。这样其他运行时模块只管产生日志事件，不需要关心
+//! 平台差异、文件输出路径或性能分析器的初始化。
+
 use chrono::Local;
 use tracing_subscriber::EnvFilter;
 

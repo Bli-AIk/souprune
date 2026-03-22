@@ -1,3 +1,18 @@
+//! Defines the marker components and reload-tracking resources used by RON-driven views.
+//!
+//! 定义 RON 驱动 View 所需的标记组件与重载跟踪资源。
+//!
+//! This file holds the lightweight state that other view runtime modules share:
+//! which entities belong to generated views, which roots can be hot reloaded,
+//! and which layout assets are waiting to be rebuilt. These types do not do the
+//! work themselves, but they are the glue that lets reload/setup/update systems
+//! talk about the same set of view entities.
+//!
+//! 这个文件保存的是其他 View 运行时模块都会共享的轻量状态：哪些实体属于生成的
+//! View，哪些根节点支持热重载，以及哪些布局资源正在等待重建。这些类型本身
+//! 不执行逻辑，但它们是重载、初始化和更新系统能够围绕同一批 View 实体协作的
+//! 基础胶水。
+
 use super::super::layout::ViewLayoutAsset;
 use bevy::prelude::*;
 

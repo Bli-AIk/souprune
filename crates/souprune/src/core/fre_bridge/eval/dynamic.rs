@@ -1,3 +1,16 @@
+//! Resolves dynamic fact-key and array-index expressions used inside FRE values.
+//!
+//! 解析 FRE 值表达式里使用的动态 fact 键名与数组索引语法。
+//!
+//! This file handles the cases where a rule cannot point at a static fact key:
+//! keys assembled from other facts, and indexed access into list-valued facts.
+//! Those features are used heavily by battle/menu logic, so they are isolated
+//! here instead of being duplicated across multiple evaluators.
+//!
+//! 这个文件处理规则无法直接写死 fact 键名时的两种情况：由其他 fact 组装出来的
+//! 动态键，以及对列表型 fact 的索引访问。这两类语法在战斗和菜单逻辑里很常见，
+//! 所以被单独隔离在这里，而不是在多个求值器里重复实现。
+
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactReader, FactValue};
 

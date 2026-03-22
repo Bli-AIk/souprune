@@ -1,3 +1,18 @@
+//! # action_handlers.rs
+//!
+//! # action_handlers.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file registers the overworld-specific custom FRE actions and applies their deferred side
+//! effects. It is the place where generic FRE action definitions are translated into Souprune's
+//! mode changes, view requests, chase transitions, and danmaku playback.
+//!
+//! 这个文件负责注册大地图专用的自定义 FRE 动作，并落地它们延迟执行的副作用。它把通用的
+//! FRE 动作定义翻译成 Souprune 里的模式切换、View 请求、追逐状态切换和弹幕播放。
+
 use super::*;
 use crate::core::danmaku::PlayPerformanceEvent;
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};

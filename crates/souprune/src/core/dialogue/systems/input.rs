@@ -1,3 +1,16 @@
+//! Converts FRE dialogue input events into typewriter and Mortar progression commands.
+//!
+//! 把 FRE 对话输入事件转换成打字机与 Mortar 运行时的推进命令。
+//!
+//! This file handles how the player advances or interrupts dialogue once a
+//! dialogue controller exists. It interprets configured input events, decides
+//! whether typewriters are ready, asks Mortar for the next line when needed, and
+//! supports force-finishing the visible typewriter text.
+//!
+//! 这个文件负责在对话控制器已经存在时，玩家输入该如何推进或打断对话。
+//! 它解释配置好的输入事件，判断打字机是否已经准备好，在需要时向 Mortar 请求
+//! 下一段文本，并支持直接把当前打字机文本跳到结尾。
+
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};

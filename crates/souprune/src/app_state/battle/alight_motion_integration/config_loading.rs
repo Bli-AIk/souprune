@@ -1,3 +1,18 @@
+//! # config_loading.rs
+//!
+//! # config_loading.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file loads the battle-specific configuration that adapts imported Alight Motion scenes to
+//! Souprune combat. It reads the project override file, parses the collision-matching regexes,
+//! and stores the compiled patterns as resources for the rest of the integration layer.
+//!
+//! 这个文件负责加载把 Alight Motion 场景适配到 Souprune 战斗系统所需的专用配置。它会读取
+//! 项目里的覆盖文件，解析用于碰撞匹配的正则表达式，并把编译后的模式存成资源供整条集成链使用。
+
 use super::{AlightMotionBattleConfig, AlightMotionBattlePatterns};
 use bevy::prelude::*;
 use regex::Regex;

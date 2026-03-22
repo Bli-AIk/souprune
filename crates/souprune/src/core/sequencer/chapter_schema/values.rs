@@ -1,3 +1,16 @@
+//! Defines shared value wrappers and helper types reused across sequence chapter schema definitions.
+//!
+//! 定义在各类序列章节 schema 中复用的值包装类型与辅助类型。
+//!
+//! This file is the low-level value vocabulary of the sequencer schema. It
+//! provides the `Value<T>` wrapper for static-versus-expression fields, tuple
+//! aliases used by element tweens, and the `LogLevel` type consumed by logging
+//! chapters.
+//!
+//! 这个文件是 sequencer schema 的底层值词汇表。它提供了 `Value<T>`，用于表示
+//! 静态值与表达式值的二选一；也提供元素过渡会用到的 tuple 别名，以及日志章节
+//! 使用的 `LogLevel` 类型。
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 

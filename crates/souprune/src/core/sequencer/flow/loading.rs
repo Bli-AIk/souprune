@@ -1,3 +1,16 @@
+//! Loads the initial sequence flow asset and syncs it into the live sequence context.
+//!
+//! 加载初始序列流程资源，并把它同步进正在运行的序列上下文。
+//!
+//! This file connects startup configuration to the sequencer runtime. It is
+//! responsible for choosing the first sequence asset, waiting for it to load,
+//! copying its chapters into the execution queue, and attaching any sequence-
+//! scoped FRE rules that should accompany that flow.
+//!
+//! 这个文件把启动配置连接到 sequencer 运行时。它负责选择首个序列资源、
+//! 等待资源加载完成、把其中的章节复制进执行队列，并接入该流程需要附带的
+//! sequence 作用域 FRE 规则。
+
 use bevy::prelude::*;
 
 use super::super::SequenceAsset;

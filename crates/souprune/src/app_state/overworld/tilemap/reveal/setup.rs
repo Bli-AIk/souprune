@@ -1,3 +1,18 @@
+//! # setup.rs
+//!
+//! # setup.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file prepares the data and proxy entities required by the overworld tile-reveal effect.
+//! It swaps the tilemap to a black-and-white material, caches the textures that will be needed
+//! later, hides the original tiles, and builds one animated proxy entity per visible tile.
+//!
+//! 这个文件负责准备大地图揭露效果所需的数据和代理实体。它会把 tilemap 切到黑白材质，
+//! 缓存后续动画需要的纹理，先隐藏原始格子，再为每个可见格子创建一个可动画化的代理实体。
+
 use super::{
     BlackWhiteTilemapMaterial, FADE_INITIAL, HasBlackWhiteMaterial, RevealTilesRoot,
     RevealedTileSprite, RippleDirection, TileRevealState, TilemapTextureCache,

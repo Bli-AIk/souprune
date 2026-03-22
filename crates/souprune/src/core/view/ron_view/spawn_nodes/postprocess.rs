@@ -1,3 +1,18 @@
+//! # postprocess.rs
+//!
+//! # postprocess.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file applies the runtime-only decorations that come after a view node is spawned. It
+//! wires up `VisibleWhen`, records dynamic sprite definitions, and marks entities that need
+//! time-dependent transform updates.
+//!
+//! 这个文件负责节点生成之后才需要补上的运行时装饰。它会挂接 `VisibleWhen`，记录动态精灵
+//! 定义，并给那些需要随时间更新变换的实体打上标记。
+
 use super::super::parsing::{
     PlayerDataView, evaluate_visible_when, preprocess_sprite_def_for_repeat,
     vec3_tuple_depends_on_time,

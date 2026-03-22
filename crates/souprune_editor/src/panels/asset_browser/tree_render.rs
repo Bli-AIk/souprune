@@ -1,3 +1,18 @@
+//! # tree_render.rs
+//!
+//! # tree_render.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file renders the recursive file tree used by the asset browser panel. It handles search
+//! filtering, directory expansion state, icon selection, and the context menus that dispatch file
+//! and folder actions.
+//!
+//! 这个文件负责渲染资源浏览器面板里的递归文件树。它会处理搜索过滤、目录展开状态、图标选择，
+//! 以及触发文件和文件夹操作的上下文菜单。
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 

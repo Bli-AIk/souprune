@@ -1,18 +1,15 @@
-//! FRE (Fact-Rule-Event) Bridge Module
+//! Bridges Souprune's runtime state and UI systems into the FRE rule engine.
 //!
-//! This module provides the bridge between game systems and the FRE rule engine.
-//! It handles:
-//! - Converting input actions to FRE events (ActionEvent)
-//! - Processing FRE actions (PlaySound, SetLocalFact, CloseView, etc.) on ViewRoot
-//! - Managing ActiveView markers
+//! 把 Souprune 的运行时状态与界面系统桥接进 FRE 规则引擎。
 //!
-//! FRE（Fact-Rule-Event）桥接模块
+//! This module is where input, state transitions, active views, and custom game
+//! actions become FRE-readable facts or FRE-triggered side effects. It is not a
+//! gameplay feature by itself; it is the translation layer that lets rules
+//! observe the running game and push decisions back into the runtime.
 //!
-//! 此模块提供游戏系统和 FRE 规则引擎之间的桥接。
-//! 它处理：
-//! - 将输入动作转换为 FRE 事件（ActionEvent）
-//! - 在 ViewRoot 上处理 FRE 动作（PlaySound、SetLocalFact、CloseView 等）
-//! - 管理 ActiveView 标记
+//! 这个模块负责把输入、状态切换、激活中的 View 以及自定义游戏动作转成
+//! FRE 可读的事实或 FRE 触发的副作用。它本身不是玩法功能，而是一层翻译器：
+//! 让规则系统看见正在运行的游戏，也让规则计算结果能够反过来驱动运行时。
 
 mod custom_dispatch;
 mod eval;

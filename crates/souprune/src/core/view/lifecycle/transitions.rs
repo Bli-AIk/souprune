@@ -1,3 +1,18 @@
+//! # transitions.rs
+//!
+//! # transitions.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file reacts to high-level state transitions that affect the View system. It decides when
+//! an interactive state should spawn or despawn a layout, and it also plays the configured enter
+//! and exit sounds so state changes stay consistent across UI and audio.
+//!
+//! 这个文件处理会影响 View 系统的高层状态切换。它决定交互状态进入或退出时何时生成、
+//! 销毁布局，同时负责播放状态配置中的进入/退出音效，让 UI 与音频的切换保持一致。
+
 use crate::core::audio;
 use crate::core::mode::SequenceSubState;
 use crate::extra::mortar::LocaleLoaded;

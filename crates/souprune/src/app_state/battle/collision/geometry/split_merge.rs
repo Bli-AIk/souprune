@@ -1,3 +1,18 @@
+//! # split_merge.rs
+//!
+//! # split_merge.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file contains the pure geometry calculations for battle-box splitting and merging. It
+//! computes the intermediate rectangles produced by a split, derives merge targets for two boxes,
+//! and keeps those calculations separate from the ECS systems that animate or apply them.
+//!
+//! 这个文件放的是战斗框分裂与合并的纯几何计算。它会求出一次分裂后产生的矩形边界，推导两个
+//! 战斗框合并时的目标形状，并把这些计算和真正驱动 ECS 动画的系统代码分离开来。
+
 use super::*;
 
 /// Split a rectangular boundary along an axis.

@@ -1,3 +1,14 @@
+//! Plays per-character dialogue voice sounds while a typewriter is revealing text.
+//!
+//! 在打字机逐字显示文本时播放对应的逐字语音音效。
+//!
+//! This file is intentionally small and specific: it watches typewriter
+//! progress, compares the newly revealed character index with the previous one,
+//! and triggers the configured voice sound whenever another character appears.
+//!
+//! 这个文件刻意保持很小也很具体：它监视打字机的推进进度，对比这次新显示的字符
+//! 索引与上一次的差值，并在出现新的字符时触发配置好的语音音效。
+
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
 

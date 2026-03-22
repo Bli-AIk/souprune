@@ -1,3 +1,16 @@
+//! Resolves literal, variable, arithmetic, and list expressions used by FRE actions.
+//!
+//! 解析 FRE 动作里会用到的字面量、变量、算术和列表表达式。
+//!
+//! This file is the value-producing side of the FRE expression layer. It turns
+//! strings from rule assets into concrete `FactValue`s or integers so actions
+//! such as `SetLocalFact` can reuse one consistent evaluator instead of each
+//! action parsing mini-expressions on its own.
+//!
+//! 这个文件是 FRE 表达式层里负责产出值的一侧。它把规则资源里的字符串表达式
+//! 解析成具体的 `FactValue` 或整数，让 `SetLocalFact` 之类的动作可以复用同一套
+//! 求值器，而不是每个动作各写一遍自己的小型解析逻辑。
+
 use super::dynamic::{try_evaluate_array_index, try_evaluate_dynamic_key};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{EnumRegistry, FactReader, FactValue, FactValueDef, LocalFactValue};

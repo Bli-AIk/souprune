@@ -1,3 +1,16 @@
+//! Resolves raw touch positions into high-level action state for the touch overlay.
+//!
+//! 把原始触摸位置解析成触控覆盖层使用的高层动作状态。
+//!
+//! This file is the input half of the touch overlay runtime. It detects which
+//! virtual buttons and controller zones are being touched, derives directional
+//! state, and injects the corresponding button states into Souprune's action
+//! system so touch input looks like ordinary gameplay input.
+//!
+//! 这个文件是触控覆盖层运行时里偏输入的一半。它负责检测当前触到了哪些虚拟按钮
+//! 与控制区、推导方向状态，并把结果注入 Souprune 的动作系统，让触摸输入在
+//! 游戏其余部分看来和普通输入来源没有区别。
+
 use super::{
     ControllerDirections, MultitouchPressed, PrevTouchPressed, TouchAction, TouchControllerZone,
     TouchOverlayEnabled,

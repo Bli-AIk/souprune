@@ -1,14 +1,15 @@
-//! # SoupRune Editor
+//! Defines the Souprune editor crate and its top-level plugin entry.
 //!
-//! # SoupRune 编辑器
+//! 定义 Souprune 编辑器 crate 以及它的顶层插件入口。
 //!
-//! ## Module Overview
+//! This crate wraps the sequence, view, asset, and FRE editing tools into a
+//! single Bevy plugin built on top of `bevy_workbench`. The file itself stays
+//! intentionally small: it names the editor-facing modules and exposes the
+//! plugin that lets another app embed the editor.
 //!
-//! ## 模块概述
-//!
-//! Sequence-driven editor built on bevy_workbench.
-//!
-//! 基于 bevy_workbench 的序列驱动编辑器。
+//! 这个 crate 把序列、View、资源和 FRE 编辑工具封装成一个建立在
+//! `bevy_workbench` 之上的 Bevy 插件。这个文件本身刻意保持很薄：它只声明
+//! 面向编辑器的模块，并暴露出可被其他应用接入的主插件。
 
 mod bootstrap;
 mod data;

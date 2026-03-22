@@ -1,3 +1,15 @@
+//! Spawns the touch-overlay entity tree from touch layout configuration.
+//!
+//! 根据触控布局配置生成触摸覆盖层的实体树。
+//!
+//! This file is the construction step for touch controls. It translates
+//! `TouchLayoutDef` data into Bevy UI nodes, controller zones, button images,
+//! fallback layouts, and the marker components that later input/visual systems
+//! rely on.
+//!
+//! 这个文件是触控控制的构建步骤。它把 `TouchLayoutDef` 数据转换成 Bevy UI 节点、
+//! 控制杆区域、按钮贴图、回退布局以及后续输入/表现系统依赖的各种标记组件。
+
 use super::{
     AnimPhase, FALLBACK_OPACITY, TouchAction, TouchAnimFrames, TouchAnimState,
     TouchControllerOverlay, TouchControllerZone, TouchNormalImage, TouchOverlayRoot,

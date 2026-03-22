@@ -1,3 +1,16 @@
+//! Executes fact-driven branching chapters such as `Conditional` and `FactSwitch`.
+//!
+//! 执行基于 facts 决定分支的章节，例如 `Conditional` 与 `FactSwitch`。
+//!
+//! This file is the branching evaluator for the sequencer's fact-oriented
+//! chapter set. It reads the current layered fact database, decides which branch
+//! should run, and then spawns the chosen child chapter back into the generic
+//! chapter lifecycle managed by the flow systems.
+//!
+//! 这个文件是 sequencer 中 fact 分支章节的求值器。它读取当前的 layered fact
+//! 数据库，决定应当执行哪个分支，然后把选中的子章节重新交回给 flow 生命周期
+//! 系统去继续推进。
+
 use super::super::chapter_schema::{Chapter, FactCondition, FactValueMatch};
 use super::super::context::{ActiveChapter, ChapterFinished, ParallelTracker};
 use super::super::flow::spawn_chapter;

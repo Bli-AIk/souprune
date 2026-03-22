@@ -1,3 +1,16 @@
+//! Executes flow-level chapter actions that complete immediately after dispatch.
+//!
+//! 执行那些分发后即可立刻完成的流程级章节动作。
+//!
+//! This file handles the chapter variants that are essentially imperative
+//! dispatch steps in the sequencer: custom actions and battle-box split/merge
+//! commands. They do not own long-lived state, so they live in the flow action
+//! executor rather than in a separate runtime module.
+//!
+//! 这个文件处理 sequencer 里那类本质上只是命令分发步骤的章节：自定义动作，
+//! 以及战斗框的拆分/合并命令。它们不会持有长期状态，因此适合放在流程动作执行器，
+//! 而不是再拆出一个独立运行时模块。
+
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;

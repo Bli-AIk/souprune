@@ -1,3 +1,17 @@
+//! Applies FRE rule results to the currently active View and related UI-side state.
+//!
+//! 把 FRE 规则计算结果应用到当前激活的 View 以及相关的界面侧状态上。
+//!
+//! This file is the UI-facing executor in the FRE bridge. It listens for fact
+//! events, finds rules that target the active view, evaluates them against
+//! local and global facts, and then performs actions such as playing sounds,
+//! mutating local view facts, switching state, starting dialogue, or queuing
+//! follow-up outputs.
+//!
+//! 这个文件是 FRE bridge 面向 UI 的执行层。它监听事实事件，找出作用于当前
+//! 活跃 View 的规则，在局部与全局事实之上评估它们，然后执行播放音效、
+//! 修改 View 局部事实、切换状态、启动对话、继续排队输出事件等动作。
+
 use super::{evaluate_conditions, evaluate_local_fact_value, item_actions};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{

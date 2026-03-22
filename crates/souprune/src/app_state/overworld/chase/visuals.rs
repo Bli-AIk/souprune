@@ -1,3 +1,18 @@
+//! # visuals.rs
+//!
+//! # visuals.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file renders the visual side of the overworld chase effect. It spawns and updates the dark
+//! overlay, player outline, and heart marker that sell the chase state, while keeping those helper
+//! entities synchronized with the player sprite and transition alpha.
+//!
+//! 这个文件负责大地图追逐效果的视觉部分。它会生成并更新黑色遮罩、玩家描边和心形标记，
+//! 用来强化 chase 状态的表现，同时让这些辅助实体持续跟随玩家精灵和过渡透明度。
+
 use super::*;
 
 /// Spawn the dark overlay when entering chase state.

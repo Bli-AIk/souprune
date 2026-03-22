@@ -1,3 +1,16 @@
+//! Manages chapter entities as they are spawned, waited on, completed, and cleaned up.
+//!
+//! 管理章节实体从生成、等待、完成到清理的整个生命周期。
+//!
+//! This file contains the generic lifecycle machinery behind the sequencer:
+//! spawning active chapters, advancing the root queue, tracking parallel
+//! branches, and retiring finished chapter entities. It is the control plane of
+//! sequence execution rather than the place where individual chapter semantics live.
+//!
+//! 这个文件放的是 sequencer 背后的通用生命周期机制：生成活动章节、推进根队列、
+//! 跟踪并行分支，以及回收已经完成的章节实体。它承担的是序列执行的控制面，
+//! 而不是某个具体章节语义本身。
+
 use bevy::prelude::*;
 
 use super::super::chapter_schema::Chapter;

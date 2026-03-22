@@ -1,3 +1,16 @@
+//! Provides parsing-time helpers shared by the RON view spawn and evaluation pipeline.
+//!
+//! 提供 RON View 生成与求值管线共用的解析期辅助逻辑。
+//!
+//! This file is where parsing-oriented support code lives: repeat-context data,
+//! helpers re-exported from the expression layer, and small parsing utilities
+//! that other spawn modules need when they interpret layout fields. It is the
+//! connective tissue between raw layout data and concrete spawning behavior.
+//!
+//! 这个文件放的是偏解析期的通用辅助逻辑：repeat 上下文数据、从表达式层重导出的
+//! 求值助手，以及其他生成模块在解释布局字段时需要的小型解析工具。它是原始布局
+//! 数据与具体生成行为之间的连接层。
+
 use super::super::layout::FloatOrExpr;
 use crate::core::mode::SequenceSubState;
 use std::collections::HashMap;

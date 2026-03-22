@@ -1,3 +1,18 @@
+//! # motion.rs
+//!
+//! # motion.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file updates live bullets by calling into the loaded WASM danmaku behaviors. It builds
+//! the per-frame bullet context, accumulates position and rotation deltas from every active
+//! behavior, and writes the resulting transform, scale, and opacity back to the ECS entities.
+//!
+//! 这个文件负责通过已加载的 WASM 弹幕行为更新存活中的子弹。它会为每帧构建子弹上下文，
+//! 汇总所有活跃行为给出的位移和旋转增量，再把结果写回实体的变换、缩放和透明度。
+
 use super::*;
 
 fn build_bullet_ctx(

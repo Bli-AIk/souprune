@@ -1,3 +1,19 @@
+//! # spawn_nodes.rs
+//!
+//! # spawn_nodes.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file is the main node-construction entry for the RON-driven View runtime. It inspects a
+//! `ViewNodeDef`, chooses the correct spawning path for boxes, sprites, state sprites, and repeat
+//! expansions, then delegates the detailed post-processing work to the local helper modules.
+//!
+//! 这个文件是 RON 驱动 View 运行时的节点构建入口。它会检查 `ViewNodeDef`，为盒子、
+//! 精灵、状态精灵以及 repeat 展开选择合适的生成路径，再把更细的后处理工作分发给本目录下
+//! 的辅助子模块。
+
 mod postprocess;
 mod repeat;
 mod sprite;

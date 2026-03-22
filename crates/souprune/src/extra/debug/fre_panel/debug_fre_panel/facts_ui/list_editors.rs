@@ -1,3 +1,16 @@
+//! Provides reusable egui editors for the list-valued fact types shown in the FRE panel.
+//!
+//! 为 FRE 面板里展示的列表型 fact 提供可复用的 egui 编辑器。
+//!
+//! This file factors out the repetitive UI needed to edit `StringList`,
+//! `IntList`, `FloatList`, and `BoolList` values. The layered-facts tab and the
+//! per-view-facts tab both depend on the same editing behavior, so it lives here
+//! instead of being duplicated in each renderer.
+//!
+//! 这个文件抽出了编辑 `StringList`、`IntList`、`FloatList` 和 `BoolList`
+//! 所需的重复 UI 逻辑。无论是 layered facts 还是每个 View 的局部 facts，
+//! 都需要同一套列表编辑行为，因此统一放在这里，而不是在多个渲染器里复制。
+
 use bevy_inspector_egui::egui;
 
 /// Shared editable string list UI. Returns `Some(new_list)` if changed.

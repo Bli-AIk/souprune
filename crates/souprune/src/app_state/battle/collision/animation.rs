@@ -1,3 +1,18 @@
+//! # animation.rs
+//!
+//! # animation.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file contains the animated split and merge operations for battle boxes. It spawns the
+//! temporary boxes used during transitions, advances their interpolated boundaries frame by frame,
+//! and finalizes the result by rebinding players and retiring superseded boxes.
+//!
+//! 这个文件负责战斗框的分裂与合并动画。它会生成过渡期间使用的临时战斗框，逐帧推进插值后的
+//! 边界变化，并在动画结束时完成玩家重绑定和旧战斗框退役。
+
 use super::geometry::{retire_battle_box, split_rect_box};
 use super::*;
 use std::collections::VecDeque;

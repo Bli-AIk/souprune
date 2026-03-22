@@ -1,3 +1,18 @@
+//! # player_selection.rs
+//!
+//! # player_selection.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file decides which battle box should own a player after geometry changes. It compares the
+//! player's collider against candidate boundaries, prefers boxes that still contain the player,
+//! and falls back to the closest valid boundary when no box cleanly contains them.
+//!
+//! 这个文件负责在几何结构变化后决定玩家应该归属哪个战斗框。它会用玩家碰撞体去比较候选边界，
+//! 优先保留仍然包含玩家的框；如果没有明确包含关系，就退回到距离最近的有效边界。
+
 use super::*;
 
 fn signed_distance_to_box_with_collider(

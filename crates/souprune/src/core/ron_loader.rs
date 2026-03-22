@@ -1,3 +1,16 @@
+//! Provides the generic RON asset loader used by Souprune runtime asset types.
+//!
+//! 提供 Souprune 运行时各类 RON 资产共用的通用加载器。
+//!
+//! This file exists so asset modules can declare their schema type once and
+//! reuse the same loader implementation for `.ron`-backed assets. It is
+//! infrastructure rather than gameplay logic: read bytes, deserialize RON, and
+//! hand Bevy a strongly typed asset.
+//!
+//! 这个文件存在的意义，是让各个资产模块只声明自己的 schema 类型，然后复用同一份
+//! `.ron` 资产加载实现。它属于基础设施而不是玩法逻辑：读取字节、反序列化 RON，
+//! 再把强类型资产交给 Bevy。
+
 use bevy::asset::io::Reader;
 use bevy::asset::{Asset, AssetLoader, LoadContext};
 use bevy::prelude::*;

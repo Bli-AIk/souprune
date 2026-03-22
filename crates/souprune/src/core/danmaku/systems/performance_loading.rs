@@ -1,3 +1,18 @@
+//! # performance_loading.rs
+//!
+//! # performance_loading.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file handles the loading edge of danmaku performances. It receives play requests, queues
+//! the referenced performance assets, and once those assets are ready it spawns the runtime player
+//! entity together with the bullet container that will own the emitted bullets.
+//!
+//! 这个文件负责弹幕演出的加载入口。它会接收播放请求并排队加载对应的演出资产，等资产准备好
+//! 后，再生成运行时播放器实体以及承载弹幕的容器实体。
+
 use super::*;
 
 /// System to process play performance events and queue asset loads.

@@ -1,3 +1,16 @@
+//! Wires the embedded View preview so edit mode can render and drive UI layouts live.
+//!
+//! 装配嵌入式 View 预览，让编辑态能够实时渲染并驱动界面布局。
+//!
+//! This file owns the startup glue for the preview sandbox used by the view
+//! editor. It initializes preview state, registers the rebuild and render sync
+//! systems, and forwards preview input into the same FRE and View update paths
+//! that the real game runtime uses.
+//!
+//! 这个文件负责 View 编辑器预览沙盒的启动期装配。它初始化预览状态，
+//! 注册重建与渲染同步系统，并把预览输入送入游戏运行时同一套 FRE 与 View
+//! 更新链路里，这样编辑器看到的行为才尽量接近真实运行效果。
+
 use bevy::prelude::*;
 use bevy_workbench::prelude::EditorMode;
 use souprune::editor_api as api;

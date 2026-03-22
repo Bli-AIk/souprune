@@ -1,3 +1,16 @@
+//! Performs one-time setup work for generated view entities after they are spawned.
+//!
+//! 在生成 View 实体之后，执行那些只需要做一次的初始化工作。
+//!
+//! This file handles setup that depends on already-created entities and loaded
+//! assets, such as attaching initial sprite animation state or turning pending
+//! shader-material placeholders into real render components. It is part of the
+//! spawn pipeline, but it runs after entity creation rather than during layout parsing.
+//!
+//! 这个文件处理那些依赖“实体已经生成且资源已经可用”的初始化步骤，例如挂上
+//! 初始精灵动画状态，或把待处理的 shader 材质占位符变成真正的渲染组件。
+//! 它属于生成链的一部分，但发生在实体创建之后，而不是布局解析阶段。
+
 use bevy::prelude::*;
 
 use super::super::components::ViewAnimationState;

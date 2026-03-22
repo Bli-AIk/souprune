@@ -1,3 +1,16 @@
+//! Assembles the full Souprune editor application on top of a caller-provided Bevy `App`.
+//!
+//! 在调用方提供的 Bevy `App` 上装配完整的 Souprune 编辑器应用。
+//!
+//! This file is the concrete startup recipe for the editor crate. It installs
+//! the workbench shell, aligns the editor with Souprune's runtime schedules and
+//! resources, wires preview support, and then layers editor-specific panels and
+//! systems on top of the same game plugins used by the actual runtime.
+//!
+//! 这个文件是编辑器 crate 的具体启动配方。它先安装 workbench 外壳，再把编辑器
+//! 对齐到 Souprune 的运行时调度与资源模型上，随后接入预览支持，并在真实游戏
+//! 运行时使用的同一套插件之上继续叠加编辑器专用的面板与系统。
+
 use crate::{
     bootstrap::{config, mode, panels as editor_panels, preview, resources},
     platform,

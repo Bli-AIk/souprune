@@ -1,3 +1,18 @@
+//! # spawn_helpers.rs
+//!
+//! # spawn_helpers.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file contains the shared building blocks used by the RON View spawn pipeline. It turns
+//! schema-level text and sprite definitions into Bevy components, and centralizes the logic that
+//! both node spawning and later reconciliation rely on.
+//!
+//! 这个文件放的是 RON View 生成流程里的共享积木。它把 schema 层的文本和精灵定义转换成
+//! Bevy 组件，并把节点生成与后续对账都会依赖的公共逻辑集中在这里。
+
 use super::super::components::*;
 use super::super::layout::*;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;

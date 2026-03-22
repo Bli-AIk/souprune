@@ -1,3 +1,16 @@
+//! Renders and edits the shared layered fact database inside the FRE debug panel.
+//!
+//! 在 FRE 调试面板中渲染并编辑共享的分层事实数据库。
+//!
+//! This file is the inspector/editor for global and local fact layers owned by
+//! `LayeredFactDatabase`. It groups facts by namespace, supports filtering and
+//! ad-hoc fact creation, and applies edits back into the selected layer so rule
+//! behavior can be tested live.
+//!
+//! 这个文件是 `LayeredFactDatabase` 的全局层与本地层检查器/编辑器。它按命名空间
+//! 分组展示事实，支持筛选与临时新增事实，并把修改回写到指定层里，方便在运行中
+//! 直接验证规则行为。
+
 use super::super::{FREPanelState, FactLayerSelection, FactTypeSelection};
 use super::list_editors::{edit_bool_list, edit_float_list, edit_int_list, edit_string_list};
 use bevy::prelude::*;

@@ -1,3 +1,18 @@
+//! # action_editors.rs
+//!
+//! # action_editors.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file provides the property-editor widgets for action-like sequence data. It contains the
+//! UI needed to edit player, camera, and UI actions, plus the helper that reports the display name
+//! for each chapter variant in list-oriented editor views.
+//!
+//! 这个文件提供了动作类序列数据的属性编辑控件。它负责编辑玩家、相机和 UI 动作，同时提供
+//! 一个辅助函数，用来给列表式编辑界面中的章节变体显示可读名称。
+
 use bevy::prelude::*;
 use souprune_schema::sequence::{CameraAction, Chapter, PlayerAction, UIAction};
 

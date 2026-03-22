@@ -1,3 +1,16 @@
+//! Defines custom interpolators and bookkeeping components used by sequence-driven tweens.
+//!
+//! 定义由序列驱动 tween 使用的自定义插值器与运行时标记组件。
+//!
+//! Bevy Tween already covers common transform cases, but some sequence chapter
+//! targets need custom interpolation state such as `ViewBox` sizing or sprite
+//! alpha. This file isolates those tween primitives and the marker used to keep
+//! track of in-flight tweens that chapters may need to wait on.
+//!
+//! Bevy Tween 已经覆盖了常见的 transform 情况，但某些序列章节目标还需要
+//! 自定义插值状态，例如 `ViewBox` 尺寸或 sprite alpha。这个文件把这些 tween
+//! 原语，以及章节等待中的 tween 跟踪标记单独收拢起来。
+
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
 use bevy_tween::interpolate::Interpolator;

@@ -1,3 +1,18 @@
+//! # markers.rs
+//!
+//! # markers.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file classifies newly spawned Alight Motion entities for the battle layer. It listens to
+//! imported layer-spawn notifications, tags entities as bullets, battle boxes, or hidden layers,
+//! and then propagates those markers through the imported hierarchy when needed.
+//!
+//! 这个文件负责给战斗层里新生成的 Alight Motion 实体打分类标记。它会监听导入图层的生成
+//! 通知，把实体标成子弹、战斗框或隐藏层，并在需要时把这些标记沿导入层级继续向下传播。
+
 use super::{
     AlightMotionBattleBoxMarker, AlightMotionBattlePatterns, AlightMotionBulletMarker,
     AlightMotionEntity, AlightMotionHiddenMarker,

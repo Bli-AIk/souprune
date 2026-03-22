@@ -1,3 +1,17 @@
+//! Provides the built-in spawn patterns and danmaku behaviors bundled with Souprune.
+//!
+//! 提供随 Souprune 一起分发的内置生成模式与弹幕行为实现。
+//!
+//! This crate is the default library of script-facing primitives used when a
+//! project wants standard bullet spawning and motion without shipping a custom
+//! WASM component. The file registers those built-ins through `souprune_sdk`
+//! exports, so it is both the module root of the crate and the concrete list of
+//! built-in behaviors that the engine can load.
+//!
+//! 这个 crate 是面向脚本层的默认内置能力库。当项目不提供自定义 WASM 组件时，
+//! 它负责提供标准的子弹生成与运动行为。这个文件既是 crate 根入口，也是通过
+//! `souprune_sdk` 导出这些内置行为的具体注册点。
+
 use souprune_sdk::prelude::*;
 use souprune_sdk::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod};
 

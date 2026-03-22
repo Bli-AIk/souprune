@@ -1,3 +1,18 @@
+//! # lifecycle.rs
+//!
+//! # lifecycle.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file owns the cleanup side of danmaku runtime entities. It advances lifetime timers,
+//! triggers despawn markers when bullets expire, runs any WASM `on_exit` hooks that still need to
+//! fire, and removes empty bullet containers once they no longer own children.
+//!
+//! 这个文件负责弹幕运行时实体的清理链路。它会推进生命周期计时器，在子弹到期时打上销毁标记，
+//! 触发仍需执行的 WASM `on_exit` 钩子，并在容器不再拥有子实体后把空弹幕容器一并移除。
+
 use super::*;
 
 /// System to update bullet lifetime timers.

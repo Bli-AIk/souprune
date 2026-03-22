@@ -1,3 +1,18 @@
+//! # file_actions.rs
+//!
+//! # file_actions.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file implements the asset browser actions that touch the filesystem or open editors. It
+//! creates new files and directories from editor templates, routes assets to the right sub-editor,
+//! and exposes the small dialogs that support those workflows.
+//!
+//! 这个文件实现了资源浏览器里那些会触及文件系统或打开子编辑器的动作。它负责根据编辑器模板
+//! 创建文件和目录，把资源路由到正确的子编辑器，并提供配套的小型对话框。
+
 use std::path::Path;
 
 use bevy::prelude::*;

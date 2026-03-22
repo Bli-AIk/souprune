@@ -1,3 +1,18 @@
+//! # state_flow.rs
+//!
+//! # state_flow.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file manages the chase-mode state machine hooks in the overworld. It detects entry and
+//! exit from the configured chase sub-state, loads the chase configuration from `states.ron`, and
+//! advances the transition timer that the visual layer consumes.
+//!
+//! 这个文件负责大地图追逐模式的状态流转钩子。它会检测何时进入或退出配置好的 chase 子状态，
+//! 从 `states.ron` 里加载追逐配置，并推进供视觉层消费的过渡计时器。
+
 use super::*;
 
 /// Run condition: check if chase is enabled.

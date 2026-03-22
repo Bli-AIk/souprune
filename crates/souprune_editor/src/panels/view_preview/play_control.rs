@@ -1,3 +1,18 @@
+//! # play_control.rs
+//!
+//! # play_control.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! This file owns the "Play mode" control logic for the View preview panel. It decides when the
+//! preview should enter or leave simulated runtime mode, forwards keyboard input into FRE events,
+//! and initializes the temporary `ViewRoot` state that the preview needs.
+//!
+//! 这个文件负责 View 预览面板里的“播放模式”控制逻辑。它决定预览何时进入或退出模拟运行时，
+//! 把键盘输入转发成 FRE 事件，并初始化预览临时使用的 `ViewRoot` 状态。
+
 use super::*;
 use std::collections::HashMap;
 
