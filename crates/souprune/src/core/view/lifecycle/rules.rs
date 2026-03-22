@@ -28,7 +28,7 @@ pub(crate) fn process_pending_view_rules_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     mut enum_registry: ResMut<bevy_fact_rule_event::EnumRegistry>,
 ) {
-    use crate::core::view::ron_view::spawn::load_fre_into_view_root;
+    use crate::core::view::ron_view::spawn_helpers::load_fre_into_view_root;
 
     for (entity, mut pending, mut view_root) in query.iter_mut() {
         let mut loaded_paths = Vec::new();

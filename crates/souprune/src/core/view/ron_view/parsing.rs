@@ -14,10 +14,10 @@ static LAMBDA_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
-// Re-export PlayerDataView for backward compatibility
+// Re-export PlayerDataView so callers can import parsing helpers from one place.
 pub use super::player_data::PlayerDataView;
 
-// Re-export evaluation functions for backward compatibility
+// Re-export evaluation helpers alongside the parsing utilities.
 #[allow(unused_imports)]
 pub use super::evaluation::{
     evaluate_condition, evaluate_dynamic_color, evaluate_fact_expression, evaluate_float_expr,

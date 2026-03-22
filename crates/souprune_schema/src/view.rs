@@ -100,9 +100,6 @@ pub struct ViewLayout {
     pub roots: Vec<ViewNodeDef>,
 
     #[serde(default)]
-    pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
-
-    #[serde(default)]
     pub requires: Vec<DataRequirement>,
 
     #[serde(default)]
@@ -133,15 +130,6 @@ pub enum InitialFactValue {
     String(String),
     StringList(Vec<String>),
     IntList(Vec<i64>),
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct GlobalTriggerRuleDef {
-    pub target_state: String,
-    #[serde(default)]
-    pub sound: Option<String>,
-    #[serde(default)]
-    pub allowed_states: Option<Vec<String>>,
 }
 
 // ============================================================================
@@ -227,29 +215,13 @@ pub struct SpriteDef {
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
     #[serde(default)]
-    pub custom_shader: Option<String>,
-    #[serde(default)]
-    pub shader_params: Option<DynamicColor>,
-    #[serde(default)]
     pub pivot: Option<SerializableVec2>,
     #[serde(default)]
     pub frame_duration: Option<f32>,
     #[serde(default)]
     pub visible_when: Option<String>,
     #[serde(default)]
-    pub health_bar_source: Option<HealthBarSourceDef>,
-    #[serde(default)]
     pub material: Option<MaterialDef>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum HealthBarSourceDef {
-    Player,
-    Enemy,
-    Custom {
-        hp_expr: String,
-        hp_max_expr: String,
-    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

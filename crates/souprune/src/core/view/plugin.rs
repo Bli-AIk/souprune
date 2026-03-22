@@ -18,10 +18,9 @@ use super::messages::{
 };
 use super::reconcile::ViewReconciliationPlugin;
 use super::ron_view::{
-    self, load_global_triggers_system, ui_animation_init_system, update_dynamic_text_system,
+    self, ui_animation_init_system, update_dynamic_text_system,
 };
 use super::sdf_view_shape::update_sdf_view_shape_system;
-use super::state::global_trigger_system;
 use super::text::show_text_when_ready_system;
 use super::visible_when::evaluate_visible_when_system;
 #[cfg(feature = "debug")]
@@ -43,7 +42,6 @@ impl Plugin for CoreViewPlugin {
             .add_plugins(Material2dPlugin::<PixelOutlineMaterial>::default())
             .add_plugins(super::dynamic_material::DynamicMaterial2dPlugin)
             .add_plugins(ViewReconciliationPlugin)
-            .init_resource::<ron_view::ViewGlobalTriggerConfig>()
             .init_resource::<UIInteractiveStateTracker>()
             .init_resource::<StateTransitionTracker>()
             .add_message::<SpawnViewRequest>()
@@ -78,12 +76,7 @@ impl Plugin for CoreViewPlugin {
             )
             .add_systems(
                 schedule,
-                (
-                    ron_view::reload::validate_map_properties_system,
-                    load_global_triggers_system,
-                    global_trigger_system,
-                )
-                    .in_set(ViewUpdate),
+                ron_view::reload::validate_map_properties_system.in_set(ViewUpdate),
             )
             .add_systems(
                 schedule,

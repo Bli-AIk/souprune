@@ -69,9 +69,8 @@ pub mod view {
         spawn_viewbox_entity,
     };
     pub use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};
-    pub use crate::core::view::ron_view::{
-        load_fre_into_view_root, update_fact_dependent_ui_elements,
-    };
+    pub use crate::core::view::ron_view::spawn_helpers::load_fre_into_view_root;
+    pub use crate::core::view::ron_view::update_fact_dependent_ui_elements;
     pub use crate::core::view::sdf_view_shape::update_sdf_view_shape_system;
     pub use crate::core::view::text::show_text_when_ready_system;
     pub use crate::core::view::visible_when::evaluate_visible_when_system;

@@ -288,7 +288,7 @@ pub(super) fn spawn_ui_sprite(
             }
         }
     } else {
-        // Fallback: try direct load (for backwards compatibility with full paths)
+        // Fallback: try a direct asset load when the visual path does not match a known scheme.
         let texture_handle = asset_server.load(&visual_path);
         spawn_static_sprite(parent, sprite_def, texture_handle, transform, node_name);
     }

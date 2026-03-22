@@ -1,8 +1,5 @@
 use super::super::layout::ViewLayoutAsset;
-use crate::core::input::Action;
-use crate::core::mode::SequenceSubState;
 use bevy::prelude::*;
-use std::collections::HashMap;
 
 /// Marker component for entities that are part of a RON-driven view.
 ///
@@ -68,18 +65,6 @@ impl PendingViewReloads {
     pub fn take_all(&mut self) -> std::collections::HashSet<bevy::asset::AssetId<ViewLayoutAsset>> {
         std::mem::take(&mut self.modified_assets)
     }
-}
-
-#[derive(Resource, Default)]
-pub struct ViewGlobalTriggerConfig {
-    pub triggers: HashMap<Action, Vec<GlobalTriggerRule>>,
-}
-
-#[derive(Clone)]
-pub struct GlobalTriggerRule {
-    pub target_state: SequenceSubState,
-    pub sound: Option<String>,
-    pub allowed_states: Vec<SequenceSubState>,
 }
 
 /// Marker component indicating the view has been generated for this entity.

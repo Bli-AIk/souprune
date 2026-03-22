@@ -33,7 +33,6 @@ mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
 pub mod trigger;
-pub(crate) mod view;
 
 /// 创建 `ModeScoped("overworld")` 标记的便捷方法。
 pub(crate) fn overworld_scoped() -> ModeScoped {
@@ -112,7 +111,6 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             schedule,
             (
-                view::input_to_fre_event_bridge_system,
                 trigger::load_fre_rules_system,
                 trigger::register_loaded_rules_system,
                 trigger::trigger_zone_detection_system,

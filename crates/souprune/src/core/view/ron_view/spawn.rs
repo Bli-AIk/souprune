@@ -10,10 +10,8 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
 
 use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
-
-// Re-export from sibling modules for backwards compatibility
-pub use super::spawn_helpers::{load_fre_into_view_root, load_procedural_image_handle};
-pub use super::spawn_nodes::spawn_view_node;
+use super::spawn_helpers::load_fre_into_view_root;
+use super::spawn_nodes::spawn_view_node;
 
 /// System parameter bundle for FRE-related resources.
 /// Reduces system parameter count to stay within Bevy's 16-parameter limit.

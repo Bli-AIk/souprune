@@ -10,7 +10,7 @@ mod spawn_nodes;
 pub mod update;
 
 // Re-export common types and systems
-pub use resources::{HotReloadableViewRoot, RonDrivenView, ViewGlobalTriggerConfig};
+pub use resources::{HotReloadableViewRoot, RonDrivenView};
 
 // Re-export RepeatContext for use in expression evaluation
 

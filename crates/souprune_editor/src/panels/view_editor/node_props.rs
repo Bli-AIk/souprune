@@ -39,13 +39,9 @@ pub(super) fn edit_node_sprite(
                 flip_x: false,
                 flip_y: false,
                 transform: None,
-                custom_shader: None,
-                shader_params: None,
                 pivot: None,
                 frame_duration: None,
                 visible_when: None,
-                #[allow(deprecated)]
-                health_bar_source: None,
                 material: None,
             });
         } else {

@@ -95,7 +95,6 @@ mod tests {
                 children: Vec::new(),
                 repeat: None,
             }],
-            global_triggers: None,
             requires: vec![souprune_schema::view::DataRequirement::Interface {
                 interface: "player".to_string(),
                 expects: vec!["player_hp".to_string()],

@@ -218,6 +218,7 @@ SoupRune is in active development and does **not** prioritize backward compatibi
 - Use that freedom to delete old designs instead of carrying them forever
 - When you add temporary compatibility code, also write down when it dies
 - If a migration is finished, remove the old path instead of leaving two systems half-alive
+- If assets or rules have already moved to the new format, delete the old field names, old event names, and old bridge systems in the same phase
 - "We will clean it up later" is not an acceptable reason to keep dead abstractions or parallel systems
 
 ### 3.10 Bevy Plugin Shape

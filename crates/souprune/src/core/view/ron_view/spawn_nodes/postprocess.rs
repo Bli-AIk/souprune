@@ -125,14 +125,5 @@ fn check_sprite_dynamics(
             }
         }
     }
-
-    if sprite_def
-        .shader_params
-        .as_ref()
-        .is_some_and(crate::core::view::layout::serde_types::is_dynamic_color)
-    {
-        has_dynamic = true;
-    }
-
     (has_dynamic, has_time_dependency)
 }
