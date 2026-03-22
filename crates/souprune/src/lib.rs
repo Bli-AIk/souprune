@@ -1,15 +1,15 @@
+//! This is the public library entry point for SoupRune. It ties together the
+//! high-level application state modules, the reusable engine-side `core`
+//! infrastructure, the editor-facing facade, and the bootstrap helpers that turn
+//! those pieces into a runnable Bevy app. Downstream code should treat this file
+//! as the stable surface of the main crate rather than reaching into bootstrap
+//! internals directly.
+//!
+//! 这是 SoupRune 的公开库入口。它把高层应用状态模块、可复用的引擎侧 `core`
+//! 基础设施、面向编辑器的门面 API，以及把这些部件组装成可运行 Bevy 应用的
+//! bootstrap 辅助函数接到一起。下游代码应把这个文件视为主 crate 的稳定表面，
+//! 而不是直接深入 bootstrap 内部路径。
 #![allow(dead_code, unexpected_cfgs)]
-//! # lib.rs
-//!
-//! # lib.rs 文件
-//!
-//! ## Module Overview
-//!
-//! ## 模块概述
-//!
-//! This is the main library entry point for the Souprune framework. It orchestrates the application startup, including logging initialization, plugin registration (Bevy defaults, third-party, and game-specific), and configuring the asset system for multi-source loading.
-//!
-//! 这是 Souprune 框架的主要库入口点。它负责协调应用程序的启动，包括日志初始化、插件注册（Bevy 默认插件、第三方插件和游戏特定插件），以及配置用于多源加载的资产系统。
 
 pub mod app_state;
 mod bootstrap;
