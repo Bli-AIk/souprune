@@ -9,9 +9,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{LayeredFactDatabase, RuleScope};
 
-use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 use super::spawn_helpers::load_fre_into_view_root;
 use super::spawn_nodes::spawn_view_node;
+use crate::core::game_action::{GameFreAsset, GameRuleRegistry};
 
 /// System parameter bundle for FRE-related resources.
 /// Reduces system parameter count to stay within Bevy's 16-parameter limit.

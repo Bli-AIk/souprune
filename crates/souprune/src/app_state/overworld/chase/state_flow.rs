@@ -1,0 +1,133 @@
+use super::*;
+
+/// Run condition: check if chase is enabled.
+pub(super) fn chase_enabled(enabled: Res<ChaseEnabled>) -> bool {
+    enabled.0
+}
+
+/// Check if current state is a chase state.
+pub fn is_in_chase_state(
+    current_state: &SequenceSubState,
+    chase_state_name: &ChaseStateName,
+) -> bool {
+    chase_state_name
+        .0
+        .as_ref()
+        .is_some_and(|name| current_state.0 == *name)
+}
+
+/// System to detect when entering chase state.
+pub(super) fn detect_chase_state_enter_system(
+    mut commands: Commands,
+    current_state: Res<State<SequenceSubState>>,
+    chase_state_name: Res<ChaseStateName>,
+    mut tracker: ResMut<ChaseStateTracker>,
+    mut transition: ResMut<ChaseTransition>,
+    chase_config: Option<Res<ChaseConfig>>,
+    asset_server: Res<AssetServer>,
+) {
+    let in_chase = is_in_chase_state(&current_state, &chase_state_name);
+
+    if in_chase && !tracker.was_in_chase {
+        tracker.was_in_chase = true;
+
+        commands.spawn((
+            ModeScoped("overworld".to_string()),
+            ChaseEffectRoot,
+            Transform::default(),
+            Visibility::default(),
+        ));
+        info!("Chase: Created effect root entity");
+
+        transition.active = true;
+        transition.timer = 0.0;
+        transition.transitioning_in = true;
+        transition.cleanup_done = false;
+        info!("Chase: Starting transition IN");
+
+        if let Some(config) = chase_config {
+            let layout_path = &config.damage_ui.layout_path;
+            if !layout_path.is_empty() {
+                let _handle: Handle<crate::core::view::layout::ViewLayoutAsset> =
+                    asset_server.load(layout_path.clone());
+                info!("Chase: Setup HUD from {}", layout_path);
+            } else {
+                warn!("Chase: No damage UI layout path configured");
+            }
+        }
+    }
+}
+
+/// System to detect when exiting chase state.
+pub(super) fn detect_chase_state_exit_system(
+    current_state: Res<State<SequenceSubState>>,
+    chase_state_name: Res<ChaseStateName>,
+    mut tracker: ResMut<ChaseStateTracker>,
+    mut transition: ResMut<ChaseTransition>,
+) {
+    let in_chase = is_in_chase_state(&current_state, &chase_state_name);
+
+    if !in_chase && tracker.was_in_chase {
+        tracker.was_in_chase = false;
+        transition.transitioning_in = false;
+        transition.timer = 0.0;
+        info!("Chase: Starting transition OUT");
+    }
+}
+
+/// Load chase configuration from the active state config.
+pub(super) fn load_chase_config_system(
+    mut commands: Commands,
+    state_config: Res<LoadedStateConfig>,
+    state_config_loaded: Res<crate::core::state_config::StateConfigLoaded>,
+    mut chase_enabled: ResMut<ChaseEnabled>,
+    mut chase_state_name: ResMut<ChaseStateName>,
+    mut chase_loaded: ResMut<ChaseConfigLoaded>,
+) {
+    if !state_config_loaded.0 {
+        return;
+    }
+
+    chase_loaded.0 = true;
+
+    for (state_name, state_def) in state_config.iter() {
+        if state_def.chase_config.is_some() {
+            chase_state_name.0 = Some(state_name.clone());
+            info!("Chase: Found chase state '{}' in states.ron", state_name);
+
+            if let Some(path) = &state_def.chase_config
+                && let Some(config) = ChaseConfig::load_from_path(Some(path.as_str()))
+            {
+                info!("Chase: Enabled with config from {}", path);
+                commands.insert_resource(config);
+                chase_enabled.0 = true;
+                return;
+            }
+        }
+    }
+
+    info!("Chase: Disabled - no chase state config found in states.ron");
+    commands.insert_resource(ChaseConfig::default());
+    chase_enabled.0 = false;
+}
+
+/// Update chase transition timer.
+pub(super) fn update_chase_transition_system(
+    time: Res<Time>,
+    mut transition: ResMut<ChaseTransition>,
+    chase_config: Res<ChaseConfig>,
+) {
+    if !transition.active && !transition.transitioning_in && transition.timer <= 0.0 {
+        return;
+    }
+
+    let duration = chase_config.transition_duration();
+    if transition.transitioning_in {
+        transition.timer = (transition.timer + time.delta_secs()).min(duration);
+    } else {
+        transition.timer = (transition.timer - time.delta_secs()).max(0.0);
+        if transition.timer <= 0.0 {
+            transition.active = false;
+        }
+    }
+}

@@ -1,0 +1,425 @@
+use super::super::evaluation::preprocess_fact_expressions;
+use super::PlayerDataView;
+use crate::core::view::expr_eval::create_eval_callback;
+use bevy::prelude::{debug, info, trace, warn};
+use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+static LAMBDA_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        r#"^\|([a-zA-Z_][a-zA-Z0-9_]*)(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\|\s+in\s+\$([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([^\]]+)\.\.([^\]\s]+)(?:\s+step\s+(\d+))?\])?\s*=>\s*"([^"]*)"\s*(?:sep\s*"([^"]*)")?$"#
+    ).unwrap()
+});
+
+fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Option<String> {
+    let caps = LAMBDA_RE.captures(expr)?;
+
+    let item_var = &caps[1];
+    let index_var = caps.get(2).map(|m| m.as_str());
+    let array_name = &caps[3];
+    let start_expr = caps.get(4).map(|m| m.as_str());
+    let end_expr = caps.get(5).map(|m| m.as_str());
+    let step_val: usize = caps
+        .get(6)
+        .and_then(|m| m.as_str().parse().ok())
+        .unwrap_or(1);
+    let template = &caps[7];
+    let separator = caps.get(8).map(|m| m.as_str()).unwrap_or("\n");
+
+    let array: Vec<String> = if let Some(list) = player_data.get_fact_string_list(array_name) {
+        list.clone()
+    } else if let Some(list) = player_data.get_fact_int_list(array_name) {
+        list.iter().map(|i| i.to_string()).collect()
+    } else {
+        debug!(
+            "Lambda array '{}' not found, returning empty string",
+            array_name
+        );
+        return Some(String::new());
+    };
+
+    let (start_idx, end_idx) = if let (Some(start), Some(end)) = (start_expr, end_expr) {
+        let start_val = evaluate_lambda_range_expr(start, player_data).unwrap_or(0);
+        let end_val = evaluate_lambda_range_expr(end, player_data).unwrap_or(array.len());
+        (start_val.max(0), end_val.min(array.len()))
+    } else {
+        (0, array.len())
+    };
+
+    let lines: Vec<String> = array
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i >= start_idx && *i < end_idx && (*i - start_idx) % step_val == 0)
+        .map(|(i, item)| {
+            let mut line = template.to_string();
+            line = line.replace(&format!("{{{}}}", item_var), item);
+            if let Some(idx_var) = index_var {
+                line = line.replace(&format!("{{{}}}", idx_var), &i.to_string());
+            }
+            line.replace("\\n", "\n")
+        })
+        .collect();
+
+    Some(lines.join(separator))
+}
+
+fn evaluate_lambda_range_expr(expr: &str, player_data: &PlayerDataView) -> Option<usize> {
+    let processed_expr = preprocess_fact_expressions(expr, player_data);
+    let vars: BTreeMap<String, f64> = BTreeMap::new();
+    let mut cb = create_eval_callback(&vars);
+
+    match fasteval::ez_eval(&processed_expr, &mut cb) {
+        Ok(val) => Some((val as i64).max(0) as usize),
+        Err(e) => {
+            warn!(
+                "[evaluate_lambda_range_expr] Failed to evaluate '{}' (processed: '{}'): {}",
+                expr, processed_expr, e
+            );
+            None
+        }
+    }
+}
+
+fn resolve_double_brace_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> String {
+    let mut key = String::new();
+    let mut found_closing = false;
+
+    while let Some(ch) = chars.next() {
+        if ch == '}' && chars.peek() == Some(&'}') {
+            chars.next();
+            found_closing = true;
+            break;
+        }
+        key.push(ch);
+    }
+
+    if !found_closing {
+        return format!("{{{{{}", key);
+    }
+
+    if let Some(path) = key.strip_prefix("data:") {
+        return resolve_data_path(path, player_data, item_registry, mortar_strings);
+    }
+
+    let processed_key = preprocess_fact_expressions(&key, player_data).replace('"', "");
+    let resolved = if let Some(fact_value) = player_data.get_fact(&processed_key) {
+        match fact_value {
+            bevy_fact_rule_event::FactValue::String(s) => s.to_string(),
+            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+            _ => mortar_strings.resolve(&processed_key).to_string(),
+        }
+    } else {
+        mortar_strings.resolve(&processed_key).to_string()
+    };
+
+    if resolved.contains("{{") && resolved.contains("}}") {
+        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
+    } else {
+        resolved
+    }
+}
+
+fn resolve_lambda_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> String {
+    let mut expr = String::from("|");
+    let mut brace_depth = 1;
+    let mut found_closing = false;
+    let mut in_quotes = false;
+
+    for ch in chars.by_ref() {
+        if ch == '"' {
+            in_quotes = !in_quotes;
+            expr.push(ch);
+        } else if ch == '{' && !in_quotes {
+            brace_depth += 1;
+            expr.push(ch);
+        } else if ch == '}' && !in_quotes {
+            brace_depth -= 1;
+            if brace_depth == 0 {
+                found_closing = true;
+                break;
+            }
+            expr.push(ch);
+        } else {
+            expr.push(ch);
+        }
+    }
+
+    if !found_closing {
+        return format!("{{|{}", &expr[1..]);
+    }
+
+    let Some(evaluated) = evaluate_lambda_expression(&expr, player_data) else {
+        warn!("Failed to evaluate lambda expression: {}", expr);
+        return format!("{{{}}})", expr);
+    };
+
+    resolve_text_content(&evaluated, mortar_strings, player_data, item_registry)
+}
+
+fn resolve_regular_fact(key: &str, player_data: &PlayerDataView) -> String {
+    let Some(fact) = player_data.get_fact(key) else {
+        warn!("Fact '{}' not found for template substitution", key);
+        return format!("<{}>", key);
+    };
+    match fact {
+        bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+        bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+        bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+        bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+        bevy_fact_rule_event::FactValue::StringList(list) => list.join(", "),
+        bevy_fact_rule_event::FactValue::IntList(list) => list
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        bevy_fact_rule_event::FactValue::FloatList(list) => list
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        bevy_fact_rule_event::FactValue::BoolList(list) => list
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    }
+}
+
+fn resolve_array_fact_access(
+    key: &str,
+    bracket_pos: usize,
+    player_data: &PlayerDataView,
+) -> String {
+    let array_name = &key[..bracket_pos];
+    let index_part = &key[bracket_pos + 1..];
+
+    let Some(close_bracket) = index_part.find(']') else {
+        warn!("Malformed array access syntax: {}", key);
+        return format!("<{}>", key);
+    };
+
+    let index_str = &index_part[..close_bracket];
+    let Ok(index) = index_str.parse::<usize>() else {
+        warn!("Invalid index '{}' in array access '{}'", index_str, key);
+        return format!("<{}>", key);
+    };
+
+    if let Some(list) = player_data.get_fact_string_list(array_name) {
+        list.get(index).cloned().unwrap_or_else(|| {
+            warn!(
+                "Index {} out of bounds for StringList '{}'",
+                index, array_name
+            );
+            format!("<{}[{}]>", array_name, index)
+        })
+    } else if let Some(list) = player_data.get_fact_int_list(array_name) {
+        list.get(index).map(|i| i.to_string()).unwrap_or_else(|| {
+            warn!("Index {} out of bounds for IntList '{}'", index, array_name);
+            format!("<{}[{}]>", array_name, index)
+        })
+    } else {
+        warn!("Array fact '{}' not found for index access", array_name);
+        format!("<{}[{}]>", array_name, index)
+    }
+}
+
+fn resolve_fact_access_template(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    player_data: &PlayerDataView,
+) -> String {
+    let mut key = String::new();
+    let mut found_closing = false;
+
+    for ch in chars.by_ref() {
+        if ch == '}' {
+            found_closing = true;
+            break;
+        }
+        key.push(ch);
+    }
+
+    if !found_closing {
+        return format!("{{${}", key);
+    }
+
+    if let Some(bracket_pos) = key.find('[') {
+        resolve_array_fact_access(&key, bracket_pos, player_data)
+    } else {
+        resolve_regular_fact(&key, player_data)
+    }
+}
+
+pub fn resolve_text_content(
+    template: &str,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+) -> String {
+    let mut result = String::new();
+    let mut chars = template.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch != '{' {
+            result.push(ch);
+            continue;
+        }
+        let Some(&next_ch) = chars.peek() else {
+            result.push(ch);
+            continue;
+        };
+
+        if next_ch == '{' {
+            chars.next();
+            result.push_str(&resolve_double_brace_template(
+                &mut chars,
+                mortar_strings,
+                player_data,
+                item_registry,
+            ));
+        } else if next_ch == '|' {
+            chars.next();
+            result.push_str(&resolve_lambda_template(
+                &mut chars,
+                mortar_strings,
+                player_data,
+                item_registry,
+            ));
+        } else if next_ch == '$' {
+            chars.next();
+            result.push_str(&resolve_fact_access_template(&mut chars, player_data));
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
+pub fn resolve_data_path(
+    path: &str,
+    player_data: &PlayerDataView,
+    item_registry: &crate::core::item::ItemRegistry,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    use crate::core::item::ItemType;
+
+    let get_string = |key: &str| player_data.get_fact_string(key).unwrap_or_default();
+    let get_int = |key: &str| player_data.get_fact_int(key).unwrap_or(0);
+
+    match path {
+        "player.name" => get_string("player:name"),
+        "player.lv" => get_int("player:lv").to_string(),
+        "player.hp" => {
+            let result = get_int("player:hp").to_string();
+            info!("[resolve_data_path] player.hp = {}", result);
+            result
+        }
+        "player.hp_max" => {
+            let result = get_int("player:hp_max").to_string();
+            info!("[resolve_data_path] player.hp_max = {}", result);
+            result
+        }
+        "player.gold" => get_int("player:gold").to_string(),
+        "player.exp" => get_int("player:exp").to_string(),
+        "player.next_exp" => get_int("player:next_exp").to_string(),
+        "player.attack" => get_int("player:attack").to_string(),
+        "player.defense" => get_int("player:defense").to_string(),
+        "player.inventory" => {
+            let inventory = player_data
+                .get_fact_string_list("player:inventory")
+                .unwrap_or_default();
+            let capacity = player_data
+                .get_fact_int("player:inventory_capacity")
+                .unwrap_or(8) as usize;
+            inventory
+                .iter()
+                .take(capacity)
+                .map(|item_id| {
+                    if let Some(item) = item_registry.get(item_id) {
+                        let key = format!("{}:{}", item.locale.file, item.locale.name);
+                        mortar_strings.resolve(&key).to_string()
+                    } else {
+                        trace!("Item ID '{}' not found in registry", item_id);
+                        format!("UNDEFINED ({})", item_id)
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("\n")
+        }
+        "player.weapon" => {
+            let weapon = get_string("player:weapon");
+            if let Some(item) = item_registry.get(&weapon) {
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
+                mortar_strings.resolve(&key).to_string()
+            } else {
+                weapon
+            }
+        }
+        "player.weapon_atk" => {
+            let weapon = get_string("player:weapon");
+            if let Some(item) = item_registry.get(&weapon)
+                && let ItemType::Weapon { damage, .. } = item.item_type
+            {
+                return damage.to_string();
+            }
+            "0".to_string()
+        }
+        "player.total_attack" => {
+            let weapon = get_string("player:weapon");
+            let weapon_atk = if let Some(item) = item_registry.get(&weapon) {
+                if let ItemType::Weapon { damage, .. } = item.item_type {
+                    damage as i64
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            (get_int("player:attack") + weapon_atk).to_string()
+        }
+        "player.armor" => {
+            let armor = get_string("player:armor");
+            if let Some(item) = item_registry.get(&armor) {
+                let key = format!("{}:{}", item.locale.file, item.locale.name);
+                mortar_strings.resolve(&key).to_string()
+            } else {
+                armor
+            }
+        }
+        "player.armor_def" => {
+            let armor = get_string("player:armor");
+            if let Some(item) = item_registry.get(&armor)
+                && let ItemType::Armor { defense } = item.item_type
+            {
+                return defense.to_string();
+            }
+            "0".to_string()
+        }
+        "player.total_defense" => {
+            let armor = get_string("player:armor");
+            let armor_def = if let Some(item) = item_registry.get(&armor) {
+                if let ItemType::Armor { defense } = item.item_type {
+                    defense as i64
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            (get_int("player:defense") + armor_def).to_string()
+        }
+        _ => format!("<unknown:{}>", path),
+    }
+}

@@ -17,9 +17,7 @@ use super::messages::{
     handle_spawn_view_request_system,
 };
 use super::reconcile::ViewReconciliationPlugin;
-use super::ron_view::{
-    self, ui_animation_init_system, update_dynamic_text_system,
-};
+use super::ron_view::{self, ui_animation_init_system, update_dynamic_text_system};
 use super::sdf_view_shape::update_sdf_view_shape_system;
 use super::text::show_text_when_ready_system;
 use super::visible_when::evaluate_visible_when_system;
