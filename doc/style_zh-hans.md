@@ -313,6 +313,26 @@ pub fn evaluate_conditions(..) -> bool { .. }
 //! 游戏与 FRE（Fact-Rule-Event）系统之间的桥接层。
 ```
 
+每个 `.rs` 文件都必须在顶部写模块级文档注释（`//!`）。这是硬性要求，不是建议。
+
+- 顶部文档必须用人话说明这个文件是干什么的
+- 不要只写 `utilities`、`helpers`、`systems` 这种标签；要说清楚这个文件到底负责什么
+- 如果这个文件同时还是一个模块边界，还必须说明这个模块在更大子系统里承担什么作用
+- 过短的占位式文档不合格。读者不应该为了弄明白文件作用，再连续点开三四个文件
+
+换成人话就是：别人打开一个 Rust 文件时，前几行就应该告诉他“这个文件为什么存在”。
+
+```rust
+//! Parses `.view.ron` nodes into runtime spawn data and applies the view-side defaults.
+//!
+//! 负责把 `.view.ron` 节点解析成运行时生成数据，并补齐 View 系统需要的默认值。
+//!
+//! This module is part of the view loading pipeline. It owns parsing and normalization,
+//! but it does not own rendering or runtime reconciliation.
+//!
+//! 这个模块属于 View 加载流程。它负责解析和规范化，但不负责渲染或运行时对账。
+```
+
 ### 5.2 文档结构
 
 对于复杂项目，使用以下结构：
@@ -323,6 +343,13 @@ pub fn evaluate_conditions(..) -> bool { .. }
 4. `# Examples` 部分（如适用）
 
 保持文档**简洁**——避免重述代码已经表达清楚的内容。链接到外部资源而非在文档中详细解释常见概念。
+
+但对文件顶部文档来说，“简洁”**不等于空话**。
+
+- 只有一行标题，不够
+- 文档应该说明这个文件做什么、它在架构中的位置，以及它真正拥有哪部分职责
+- 如果文件只是薄装配层，就直接写明它只是装配层
+- 如果文件是模块根文件，也要说明这个模块覆盖的是哪一块子领域
 
 ### 5.3 行内注释
 

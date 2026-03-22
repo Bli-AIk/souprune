@@ -318,6 +318,26 @@ For module-level docs:
 //! 游戏与 FRE（Fact-Rule-Event）系统之间的桥接层。
 ```
 
+Every `.rs` file must start with module-level documentation comments (`//!`). This is a hard rule, not a suggestion.
+
+- The top doc comment must explain what this file is for in human language
+- Do not stop at a label like "utilities", "helpers", or "systems"; say what the file actually owns
+- If the file is also a module boundary, explain what that module does in the larger subsystem
+- Very short placeholder docs are not acceptable. A reader should understand the file's role without opening three more files first
+
+In plain terms: when someone opens a Rust file, the first lines should tell them why this file exists.
+
+```rust
+//! Parses `.view.ron` nodes into runtime spawn data and applies the view-side defaults.
+//!
+//! 负责把 `.view.ron` 节点解析成运行时生成数据，并补齐 View 系统需要的默认值。
+//!
+//! This module is part of the view loading pipeline. It owns parsing and normalization,
+//! but it does not own rendering or runtime reconciliation.
+//!
+//! 这个模块属于 View 加载流程。它负责解析和规范化，但不负责渲染或运行时对账。
+```
+
 ### 5.2 Doc Structure
 
 For complex items, use this structure:
@@ -329,6 +349,13 @@ For complex items, use this structure:
 
 Keep docs **concise** — avoid restating what the code already makes obvious. Link to external resources rather than
 explaining common concepts inline.
+
+For file-top docs, "concise" does **not** mean "empty".
+
+- A one-line title alone is not enough
+- The doc should say what the file does, where it sits in the architecture, and what responsibility it owns
+- If the file is a thin wiring layer, say that directly
+- If the file is a module root, also say what sub-area that module covers
 
 ### 5.3 Inline Comments
 
