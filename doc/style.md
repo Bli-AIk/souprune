@@ -151,8 +151,9 @@ crates/souprune/src/
 
 ### 3.2 When to Split a Module
 
-- Developers should be mindful of file size once a file approaches **~500 lines**
-- **Hard limit: 800 lines of code** (enforced by `tokei_check.sh`) — files exceeding this **must** be split
+- Once a file is getting close to **~500 total lines**, stop and ask whether it is still doing one job
+- **Hard limit: 800 total lines** (enforced by `tokei_check.sh`) — files exceeding this **must** be split
+- **Hard limit: 500 lines of code via `tokei`** (also enforced by `tokei_check.sh`) — dense logic files must be split even if comments or blank lines keep the total size lower
 - A module has **distinct responsibilities** → split by responsibility
 
 ### 3.3 Module Style: Rust 2018+
@@ -176,7 +177,7 @@ This rule is enforced by `tokei_check.sh`.
 ### 3.4 File Naming
 
 - One module per file (or directory)
-- File name matches module name: `mod fre_bridge` → `fre_bridge.rs` or `fre_bridge/mod.rs`
+- File name matches module name: `mod fre_bridge` → `fre_bridge.rs`, and if it has children, place them under `fre_bridge/`
 - Test modules live alongside their source: `#[cfg(test)] mod tests { .. }` at the bottom of the file
 
 ### 3.5 Single Responsibility and Boundary Ownership

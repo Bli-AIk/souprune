@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# tokei_check.sh — Lint for code quality: max line count + no mod.rs files
+# tokei_check.sh — Lint for code quality: max total lines + max code lines + no mod.rs files
 # Usage:
-#   ./tokei_check.sh [max_lines] [search_dir]
-#   ./tokei_check.sh --workspace [max_lines]
+#   ./tokei_check.sh [max_total_lines] [max_code_lines] [search_dir]
+#   ./tokei_check.sh --workspace [max_total_lines] [max_code_lines]
 #
-#   max_lines  — maximum allowed code lines per file (default: 800)
-#   search_dir — directory to scan in local mode (default: crates/)
+#   max_total_lines — maximum allowed total lines per Rust file (default: 800)
+#   max_code_lines  — maximum allowed Rust code lines per file via tokei (default: 500)
+#   search_dir      — directory to scan in local mode (default: crates/)
 #
 # Local mode checks the root repository and excludes submodules.
 # Workspace mode runs the root check plus each maintained submodule's own
@@ -38,14 +39,15 @@ is_ignored_crate() {
 }
 
 run_workspace_checks() {
-    local max_lines="${1:-800}"
+    local max_total_lines="${1:-800}"
+    local max_code_lines="${2:-500}"
     local errors=0
     local ignored_map
     ignored_map="$(build_ignored_crate_map)"
     trap 'rm -f "$ignored_map"' RETURN
 
     echo "=== Main project ==="
-    if ! bash "$SCRIPT_DIR/tokei_check.sh" "$max_lines" "crates/"; then
+    if ! bash "$SCRIPT_DIR/tokei_check.sh" "$max_total_lines" "$max_code_lines" "crates/"; then
         errors=1
     fi
 
@@ -67,7 +69,7 @@ run_workspace_checks() {
         echo "=== $crate_name ==="
         if ! (
             cd "$SCRIPT_DIR/$sub"
-            bash ./tokei_check.sh "$max_lines"
+            bash ./tokei_check.sh "$max_total_lines" "$max_code_lines"
         ); then
             errors=1
         fi
@@ -77,7 +79,7 @@ run_workspace_checks() {
 }
 
 if workspace_mode_requested "${1:-}"; then
-    run_workspace_checks "${2:-800}"
+    run_workspace_checks "${2:-800}" "${3:-500}"
     exit $?
 fi
 
@@ -98,8 +100,9 @@ else
     RESET=''
 fi
 
-MAX_LINES="${1:-800}"
-SEARCH_DIR="${2:-crates/}"
+MAX_TOTAL_LINES="${1:-800}"
+MAX_CODE_LINES="${2:-500}"
+SEARCH_DIR="${3:-crates/}"
 
 errors=0
 
@@ -133,24 +136,44 @@ if [ -n "$mod_files" ]; then
     errors=1
 fi
 
-# --- Check 2: No Rust file exceeds max code lines (via tokei) ---
-over_limit=$(tokei "$SEARCH_DIR" $TOKEI_EXCLUDE --output json --files \
-    | jq -r --argjson max "$MAX_LINES" \
-        '.Rust.reports[]? | select(.stats.code > $max) | "\(.name)|\(.stats.code)"')
-if [ -n "$over_limit" ]; then
-    while IFS='|' read -r file lines; do
-        echo -e "${RED}${BOLD}Error:${RESET} ${YELLOW}$file${RESET} has ${CYAN}$lines${RESET} lines of code (max ${CYAN}$MAX_LINES${RESET})"
-    done <<< "$over_limit"
-    errors=1
+# --- Check 2: No Rust file exceeds max total lines ---
+rust_files=$(eval "find '$SEARCH_DIR' $FIND_PRUNE -path '*/target' -prune -o -path '*/examples' -prune -o -name '*.rs' -type f -print" 2>/dev/null || true)
+if [ -n "$rust_files" ]; then
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        lines=$(wc -l < "$file")
+        if [ "$lines" -gt "$MAX_TOTAL_LINES" ]; then
+            echo -e "${RED}${BOLD}Error:${RESET} ${YELLOW}$file${RESET} has ${CYAN}$lines${RESET} total lines (max ${CYAN}$MAX_TOTAL_LINES${RESET})"
+            errors=1
+        fi
+    done <<< "$rust_files"
+fi
+
+# --- Check 3: No Rust file exceeds max code lines (via tokei) ---
+tokei_report=$(eval "tokei '$SEARCH_DIR' --output json --files $TOKEI_EXCLUDE" 2>/dev/null || true)
+if [ -n "$tokei_report" ]; then
+    over_code_limit=$(printf '%s' "$tokei_report" | jq -r --argjson max "$MAX_CODE_LINES" '
+        .Rust.reports[]?
+        | select((.name | contains("/target/") | not) and (.name | contains("/examples/") | not))
+        | select(.stats.code > $max)
+        | "\(.name)\t\(.stats.code)"
+    ' 2>/dev/null || true)
+    if [ -n "$over_code_limit" ]; then
+        while IFS=$'\t' read -r file code_lines; do
+            [ -z "$file" ] && continue
+            echo -e "${RED}${BOLD}Error:${RESET} ${YELLOW}$file${RESET} has ${CYAN}$code_lines${RESET} lines of code via tokei (max ${CYAN}$MAX_CODE_LINES${RESET})"
+            errors=1
+        done <<< "$over_code_limit"
+    fi
 fi
 
 if [ "$errors" -ne 0 ]; then
     exit 1
 else
-    echo -e "${GREEN}${BOLD}Tokei OK:${RESET} All Rust files under ${CYAN}$MAX_LINES${RESET} lines of code, no mod.rs found."
+    echo -e "${GREEN}${BOLD}Tokei OK:${RESET} All Rust files under ${CYAN}$MAX_TOTAL_LINES${RESET} total lines and ${CYAN}$MAX_CODE_LINES${RESET} lines of code, no mod.rs found."
 fi
 
-# --- Check 3: No allow(clippy::...) anywhere — use clippy.toml for global config ---
+# --- Check 4: No allow(clippy::...) anywhere — use clippy.toml for global config ---
 # Both #[allow(clippy::...)] and #![allow(clippy::...)] are banned.
 # Global lint thresholds belong in clippy.toml.
 # Individual exceptions should use #[expect(clippy::...)] with a reason.
@@ -161,7 +184,7 @@ if [ -n "$allow_hits" ]; then
     errors=1
 fi
 
-# --- Check 4: #[expect(clippy::...)] must have a // reason: comment ---
+# --- Check 5: #[expect(clippy::...)] must have a // reason: comment ---
 # Accepts // reason: on the same line or the immediately following line
 # (cargo fmt may move trailing comments to the next line when the line exceeds max_width).
 expect_no_reason=$(grep -rl '#\[expect(clippy::' "$SEARCH_DIR" --include="*.rs" $SUBMODULE_EXCLUDES 2>/dev/null | \
