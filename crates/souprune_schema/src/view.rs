@@ -419,7 +419,7 @@ pub enum SdfColorSource {
 }
 
 // ============================================================================
-// UI Visibility Rule (legacy)
+// UI Visibility Rule
 // ============================================================================
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

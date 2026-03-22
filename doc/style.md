@@ -154,6 +154,7 @@ crates/souprune/src/
 - Once a file is getting close to **~500 total lines**, stop and ask whether it is still doing one job
 - **Hard limit: 800 total lines** (enforced by `tokei_check.sh`) — files exceeding this **must** be split
 - **Hard limit: 500 lines of code via `tokei`** (also enforced by `tokei_check.sh`) — dense logic files must be split even if comments or blank lines keep the total size lower
+- `examples/` are **not** blocked by the 800/500 gate. They are demo binaries, not production modules. Keep them readable, but do not use examples as a place to hide product complexity
 - A module has **distinct responsibilities** → split by responsibility
 
 ### 3.3 Module Style: Rust 2018+

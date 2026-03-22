@@ -309,29 +309,17 @@ pub enum ElementModification {
 pub enum EaseKindRepr {
     #[default]
     Linear,
-    #[serde(alias = "InQuad")]
     QuadIn,
-    #[serde(alias = "OutQuad")]
     QuadOut,
-    #[serde(alias = "InOutQuad")]
     QuadInOut,
-    #[serde(alias = "InCubic")]
     CubicIn,
-    #[serde(alias = "OutCubic")]
     CubicOut,
-    #[serde(alias = "InOutCubic")]
     CubicInOut,
-    #[serde(alias = "InSine")]
     SineIn,
-    #[serde(alias = "OutSine")]
     SineOut,
-    #[serde(alias = "InOutSine")]
     SineInOut,
-    #[serde(alias = "InCirc")]
     CircularIn,
-    #[serde(alias = "OutCirc")]
     CircularOut,
-    #[serde(alias = "InOutCirc")]
     CircularInOut,
     ExpoIn,
     ExpoOut,
@@ -395,7 +383,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_split_battle_box_with_legacy_easing_alias() {
+    fn parses_split_battle_box_with_canonical_easing_name() {
         let ron = r#"SplitBattleBox(
             source: "main",
             result: ("left", "right"),
@@ -404,7 +392,7 @@ mod tests {
             gap: 20.0,
             gap_policy: Expands,
             duration: 0.3,
-            easing: OutCubic,
+            easing: CubicOut,
         )"#;
 
         let chapter: Chapter = ron::from_str(ron).expect("SplitBattleBox should parse");
@@ -434,7 +422,7 @@ mod tests {
             result: "main",
             gap_policy: Includes,
             duration: 0.5,
-            easing: OutCubic,
+            easing: CubicOut,
         )"#;
         let log = r#"Log(
             text: "hello",
