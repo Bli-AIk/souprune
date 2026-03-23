@@ -11,7 +11,6 @@
 //! 触发过。它会把全局、本地以及 View 作用域的规则分组展示，并展开每条规则的
 //! trigger、conditions、modifications 和 outputs，方便排查规则行为。
 
-use super::FREPanelState;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
 use crate::extra::debug::RuleTriggerHistory;
 use bevy::prelude::*;

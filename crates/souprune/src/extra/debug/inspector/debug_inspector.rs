@@ -18,13 +18,12 @@ mod window_lifecycle;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;
+use crate::extra::debug::DebugToastEvent;
 use bevy::app::App;
-use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::ecs::system::SystemIdMarker;
 use bevy::prelude::*;
-use bevy::window::{PrimaryWindow, WindowRef};
-use bevy_inspector_egui::bevy_egui::{EguiContext, EguiMultipassSchedule, EguiPlugin};
+use bevy_inspector_egui::bevy_egui::{EguiContext, EguiPlugin};
 use bevy_inspector_egui::{DefaultInspectorConfigPlugin, bevy_inspector, egui};
 use iyes_perf_ui::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
@@ -162,7 +161,7 @@ fn toggle_perf_ui_system(
     mut commands: Commands,
     q_perf_ui: Query<Entity, With<PerfUiRoot>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut toast_events: MessageWriter<super::DebugToastEvent>,
+    mut toast_events: MessageWriter<DebugToastEvent>,
 ) {
     if keyboard_input.just_pressed(KeyCode::F3) {
         let message = if let Ok(e) = q_perf_ui.single() {
@@ -173,7 +172,7 @@ fn toggle_perf_ui_system(
             "Performance UI: ON"
         };
         info!("{}", message);
-        toast_events.write(super::DebugToastEvent {
+        toast_events.write(DebugToastEvent {
             message: message.into(),
         });
     }

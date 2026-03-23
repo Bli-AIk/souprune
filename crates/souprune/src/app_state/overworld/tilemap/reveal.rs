@@ -49,7 +49,6 @@ use bevy_ecs_tiled::prelude::*;
 use bevy_tween::interpolate::Interpolator;
 use bevy_tween::prelude::*;
 use std::collections::HashMap;
-use std::time::Duration;
 
 // ========== FADE CONFIGURATION ==========
 // 淡入配置

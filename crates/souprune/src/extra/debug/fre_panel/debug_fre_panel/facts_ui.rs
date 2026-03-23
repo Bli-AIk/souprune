@@ -11,10 +11,6 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_inspector_egui::egui;
 
-pub(super) use event_history::render_events_tab;
-pub(super) use layered_facts::{render_add_fact_form, render_layered_facts};
-pub(super) use view_facts::render_view_facts_tab;
-
 /// Render the Facts tab.
 pub(super) fn render_facts_tab(ui: &mut egui::Ui, world: &mut World) {
     let mut search_filter = world.resource::<FREPanelState>().search_filter.clone();
@@ -54,4 +50,25 @@ pub(super) fn render_facts_tab(ui: &mut egui::Ui, world: &mut World) {
             render_add_fact_form(ui, world);
         });
     });
+}
+
+pub(super) fn render_events_tab(ui: &mut egui::Ui, world: &mut World) {
+    event_history::render_events_tab(ui, world);
+}
+
+pub(super) fn render_view_facts_tab(ui: &mut egui::Ui, world: &mut World) {
+    view_facts::render_view_facts_tab(ui, world);
+}
+
+fn render_layered_facts(
+    ui: &mut egui::Ui,
+    world: &mut World,
+    layer: FactLayerSelection,
+    filter: &str,
+) {
+    layered_facts::render_layered_facts(ui, world, layer, filter);
+}
+
+fn render_add_fact_form(ui: &mut egui::Ui, world: &mut World) {
+    layered_facts::render_add_fact_form(ui, world);
 }

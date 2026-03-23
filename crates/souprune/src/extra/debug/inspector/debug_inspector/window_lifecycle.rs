@@ -15,6 +15,7 @@ use super::{
     InspectorUiState, InspectorWindowContextPass, RefreshPhase, StandaloneInspectorCamera,
     StandaloneInspectorWindow,
 };
+use crate::extra::debug::{DebugCamera, DebugToastEvent};
 use bevy::camera::RenderTarget;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
@@ -27,7 +28,7 @@ pub(super) fn handle_inspector_hotkeys_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut ui_state: ResMut<InspectorUiState>,
     mut commands: Commands,
-    mut toast_events: MessageWriter<super::super::DebugToastEvent>,
+    mut toast_events: MessageWriter<DebugToastEvent>,
 ) {
     if !keyboard_input.just_pressed(KeyCode::F1) {
         return;
@@ -35,12 +36,12 @@ pub(super) fn handle_inspector_hotkeys_system(
 
     if ui_state.inspector_window.is_some() {
         close_inspector_window(&mut commands, &mut ui_state);
-        toast_events.write(super::super::DebugToastEvent {
+        toast_events.write(DebugToastEvent {
             message: "Inspector: OFF".into(),
         });
     } else {
         spawn_inspector_window(&mut commands, &mut ui_state);
-        toast_events.write(super::super::DebugToastEvent {
+        toast_events.write(DebugToastEvent {
             message: "Inspector: ON".into(),
         });
     }
@@ -73,7 +74,7 @@ fn spawn_inspector_window(commands: &mut Commands, ui_state: &mut InspectorUiSta
             RenderTarget::Window(WindowRef::Entity(window_entity)),
             EguiMultipassSchedule::new(InspectorWindowContextPass),
             StandaloneInspectorCamera,
-            super::super::DebugCamera,
+            DebugCamera,
         ))
         .id();
 

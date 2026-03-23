@@ -10,13 +10,14 @@
 //! 更新提示文本，并在计时结束后把提示隐藏回去。
 
 use super::set_text_entities_color;
+use crate::extra::debug::DebugToastEvent;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use std::time::Duration;
 
 /// Toast notification shown when debug features are toggled.
 #[derive(Component)]
-struct DebugToast {
+pub(super) struct DebugToast {
     timer: Timer,
     fade_out_started: bool,
 }
@@ -47,7 +48,7 @@ pub(super) fn setup_debug_toast_system(mut commands: Commands) {
 }
 
 pub(super) fn handle_debug_toast_event_system(
-    mut events: MessageReader<super::super::DebugToastEvent>,
+    mut events: MessageReader<DebugToastEvent>,
     mut q_toast: Query<(&mut DebugToast, &mut Node, &Children)>,
     mut q_text: Query<(&mut Text, &mut TextColor)>,
 ) {
