@@ -1,6 +1,6 @@
 //! Shared battle player runtime types.
 //!
-//! battle player 资产与无敌配置属于运行时基础设施，不应挂在 app_state 下。
+//! 共享的战斗内玩家运行时类型。
 
 use crate::core::collision::{PhysicsCollider, TriggerCollider};
 use bevy::color::LinearRgba;

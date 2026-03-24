@@ -11,7 +11,7 @@
 //! and then propagates those markers through the imported hierarchy when needed.
 //!
 //! 这个文件负责给战斗层里新生成的 Alight Motion 实体打分类标记。它会监听导入图层的生成
-//! 通知，把实体标成子弹、战斗框或隐藏层，并在需要时把这些标记沿导入层级继续向下传播。
+//! 通知，把实体标成弹幕、战斗框或隐藏层，并在需要时把这些标记沿导入层级继续向下传播。
 
 use super::{
     AlightMotionBattleBoxMarker, AlightMotionBattlePatterns, AlightMotionBulletMarker,

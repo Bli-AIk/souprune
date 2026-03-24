@@ -225,7 +225,7 @@ SoupRune is in active development and does **not** prioritize backward compatibi
 
 ### 3.10 Bevy Plugin Shape
 
-The following Bevy-specific rules follow the direction of Bevy's plugin development guide and the `bevy_best_practices` project, but are written here in plain language for this repository.
+The following Bevy-specific rules follow the direction of Bevy's plugin development guide and the `bevy_best_practices` project, but are written here in plain language for this project.
 
 If a module is called a Bevy plugin, readers should be able to treat it like the front door of one subsystem.
 

@@ -117,7 +117,7 @@ pub fn reset_game_state(world: &mut World) {
         world.despawn(entity);
     }
 
-    info!("已完成游戏状态重置");
+    info!("Game state reset completed!");
 }
 
 pub fn insert_input_resources(app: &mut App) {
