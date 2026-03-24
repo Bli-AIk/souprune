@@ -13,6 +13,8 @@
 //! 这个文件负责战斗框的分裂与合并动画。它会生成过渡期间使用的临时战斗框，逐帧推进插值后的
 //! 边界变化，并在动画结束时完成玩家重绑定和旧战斗框退役。
 
+// TODO: 考虑在未来将此模块与复杂战斗框结合
+
 use super::geometry::{retire_battle_box, split_rect_box};
 use super::*;
 use std::collections::VecDeque;
