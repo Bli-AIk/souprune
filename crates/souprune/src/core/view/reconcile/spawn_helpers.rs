@@ -348,7 +348,7 @@ pub fn spawn_shader_material_entity(
     repeat_ctx: Option<&RepeatContext>,
 ) -> Entity {
     use crate::core::view::components::ShaderMaterial;
-    use crate::core::view::ron_view::spawn::load_procedural_image_handle;
+    use crate::core::view::ron_view::spawn_helpers::load_procedural_image_handle;
 
     let visual_path = sprite_def.visual.path().to_owned();
 

@@ -13,10 +13,10 @@
 //! 负责在 Play/Edit 模式切换时加载/清理序列上下文。
 
 use bevy::prelude::*;
+use souprune::editor_api::{app, game_action, sequencer};
 
 use crate::panels::playback::PlaybackState;
 use crate::panels::sequence_timeline::EditorSequenceState;
-use souprune::core::sequencer::{CurrentSequenceFlow, SequenceContext, SequenceExecutionState};
 
 /// 进入 Play 模式时，将编辑器中的序列加载到 SequenceContext。
 /// 若无编辑器序列，则从 SoupruneConfig 加载默认序列。
@@ -24,30 +24,38 @@ use souprune::core::sequencer::{CurrentSequenceFlow, SequenceContext, SequenceEx
 pub fn on_enter_play(
     mut commands: Commands,
     editor_seq: Res<EditorSequenceState>,
-    mut context: ResMut<SequenceContext>,
+    mut context: ResMut<sequencer::SequenceContext>,
     mut playback: ResMut<PlaybackState>,
-    mut sequence_mode: ResMut<souprune::app_state::SequenceMode>,
+    mut sequence_mode: ResMut<app::SequenceMode>,
     config: Option<Res<souprune::config::SoupruneConfig>>,
     asset_server: Res<AssetServer>,
 ) {
     if let Some(seq) = &editor_seq.current {
         let start_idx = playback.start_from.take().unwrap_or(0);
-        let chapters: Vec<_> = seq.chapters.iter().skip(start_idx).cloned().collect();
+        let runtime_asset = match sequencer::runtime_asset_from_schema(&seq.to_asset()) {
+            Ok(asset) => asset,
+            Err(err) => {
+                error!("[editor] entering play failed: {err}");
+                context.chapters.clear();
+                context.state = sequencer::SequenceExecutionState::Idle;
+                return;
+            }
+        };
+        let chapters: Vec<_> = runtime_asset.chapters.into_iter().skip(start_idx).collect();
         info!(
             "[editor] entering play — from chapter {start_idx}, loading {} chapters",
             chapters.len()
         );
         context.chapters = chapters;
-        context.state = SequenceExecutionState::Idle;
+        context.state = sequencer::SequenceExecutionState::Idle;
         // 同步 SequenceMode（与 sync_battle_flow_system 一致）
         if let Some(mode) = &seq.mode {
             sequence_mode.0 = Some(mode.clone());
         }
         // 加载序列级 FRE 规则
         if let Some(rules_path) = &seq.rules_file {
-            let rules_handle =
-                asset_server.load::<souprune::core::game_action::GameFreAsset>(rules_path.clone());
-            commands.insert_resource(souprune::core::sequencer::SequenceRulesHandle {
+            let rules_handle = asset_server.load::<game_action::GameFreAsset>(rules_path.clone());
+            commands.insert_resource(sequencer::SequenceRulesHandle {
                 handle: Some(rules_handle),
                 registered: false,
             });
@@ -56,8 +64,8 @@ pub fn on_enter_play(
         // 从 SoupruneConfig 加载默认序列
         if let Some(path) = cfg.game.initial_sequence_path.clone() {
             info!("[编辑器] 进入播放 — 加载默认序列: {}", path);
-            let handle = asset_server.load::<souprune::core::sequencer::SequenceAsset>(path);
-            commands.insert_resource(CurrentSequenceFlow(handle));
+            let handle = asset_server.load::<sequencer::SequenceAsset>(path);
+            commands.insert_resource(sequencer::CurrentSequenceFlow(handle));
         } else {
             warn!("[编辑器] 进入播放但无默认序列路径");
         }

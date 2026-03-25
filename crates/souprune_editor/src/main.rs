@@ -15,7 +15,7 @@ use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::prelude::*;
 use bevy_workbench::console::console_log_layer;
 use souprune::config;
-use souprune::extra::multi_source::MultiSourceAssetReader;
+use souprune::editor_api::multi_source::MultiSourceAssetReader;
 use souprune_editor::SoupRuneEditorPlugin;
 
 fn main() {

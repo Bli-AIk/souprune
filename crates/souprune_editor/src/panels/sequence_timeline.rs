@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
+use souprune_schema::sequence::Chapter;
 
 use crate::data::EditorSequence;
 use crate::data::{InsertChapterAction, MoveChapterAction, RemoveChapterAction};
@@ -29,7 +30,7 @@ pub struct EditorSequenceState {
     /// 选中的章节索引。
     pub selected_chapter: Option<usize>,
     /// 剪贴板（复制的章节）。
-    pub clipboard: Option<souprune::core::sequencer::chapter_schema::Chapter>,
+    pub clipboard: Option<Chapter>,
     /// 章节面板是否打开。
     pub palette_open: bool,
     /// 章节面板状态。
@@ -148,7 +149,7 @@ fn paste_chapter(world: &mut World) {
 fn render_chapter_item(
     ui: &mut egui::Ui,
     world: &mut World,
-    chapter: &souprune::core::sequencer::chapter_schema::Chapter,
+    chapter: &Chapter,
     i: usize,
     selected: Option<usize>,
     drag_source: Option<usize>,
@@ -361,7 +362,7 @@ fn render_palette_popup(ui: &mut egui::Ui, world: &mut World) {
 fn render_chapter_row(
     ui: &mut egui::Ui,
     world: &mut World,
-    chapter: &souprune::core::sequencer::chapter_schema::Chapter,
+    chapter: &Chapter,
     i: usize,
     is_selected: bool,
     is_drag_target: bool,
@@ -416,13 +417,7 @@ fn render_chapter_row(
     });
 }
 
-fn render_nested_chapters<'a>(
-    ui: &mut egui::Ui,
-    groups: Vec<(
-        &'a str,
-        &'a [souprune::core::sequencer::chapter_schema::Chapter],
-    )>,
-) {
+fn render_nested_chapters<'a>(ui: &mut egui::Ui, groups: Vec<(&'a str, &'a [Chapter])>) {
     for (label, children) in groups {
         if !label.is_empty() {
             ui.label(

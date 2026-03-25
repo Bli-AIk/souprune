@@ -17,9 +17,13 @@ use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 use ron::de::from_str;
 use serde::{Deserialize, Serialize};
+use souprune_schema::config::{
+    InputConfig as SchemaInputConfig, TouchLayoutDef as SchemaTouchLayoutDef,
+};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 /// Frame transition duration for button press/release animation (seconds).
@@ -65,186 +69,10 @@ impl fmt::Display for ConfigError {
 
 impl std::error::Error for ConfigError {}
 
-/// Input binding types supported by the configuration system.
-///
-/// 配置系统支持的输入绑定类型。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum InputBinding {
-    /// Keyboard key binding (e.g., "ArrowUp", "KeyW")
-    ///
-    /// 键盘按键绑定（例如 "ArrowUp"、"KeyW"）
-    Key(String),
-
-    /// Gamepad button binding (e.g., "DPadUp", "South")
-    ///
-    /// 手柄按钮绑定（例如 "DPadUp"、"South"）
-    Gamepad(String),
-
-    /// Touch virtual button binding (e.g., "DPadUp", "ButtonA")
-    /// Used for on-screen touch overlay controls on mobile platforms.
-    ///
-    /// 触屏虚拟按钮绑定（例如 "DPadUp"、"ButtonA"）
-    /// 用于移动平台的屏幕触控覆盖层控件。
-    Touch(String),
-}
-
-/// Touch overlay configuration.
-///
-/// 触控覆盖层配置。
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct TouchOverlayConfig {
-    /// List of platforms where the touch overlay is shown.
-    /// Uses OS names from `std::env::consts::OS`: "android", "ios", "linux", "macos", "windows".
-    /// If empty or omitted, the touch overlay is disabled on all platforms.
-    ///
-    /// 显示触控覆盖层的平台列表。
-    /// 使用 `std::env::consts::OS` 的系统名："android"、"ios"、"linux"、"macos"、"windows"。
-    /// 如果为空或省略，所有平台上均不显示。
-    #[serde(default)]
-    pub platforms: Vec<String>,
-
-    /// Path to the touch layout configuration file (RON format).
-    ///
-    /// 触控布局配置文件路径（RON 格式）。
-    #[serde(default)]
-    pub layout: Option<String>,
-
-    /// Opacity of touch controls (0.0 = transparent, 1.0 = opaque).
-    /// If not set, uses the value from the layout RON file.
-    ///
-    /// 触控控件的透明度（0.0 = 透明，1.0 = 不透明）。
-    /// 如果未设置，使用布局 RON 文件中的值。
-    #[serde(default)]
-    pub opacity: Option<f32>,
-
-    /// Scale factor for touch controls.
-    /// If not set, uses the value from the layout RON file.
-    ///
-    /// 触控控件的缩放系数。
-    /// 如果未设置，使用布局 RON 文件中的值。
-    #[serde(default)]
-    pub scale: Option<f32>,
-}
-
-fn default_touch_opacity() -> f32 {
-    0.5
-}
-
-fn default_touch_scale() -> f32 {
-    1.0
-}
-
-fn default_mobile_scale() -> f32 {
-    0.75
-}
-
-/// Screen corner anchor for touch button positioning.
-///
-/// 触控按钮定位的屏幕锚点。
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub enum TouchAnchor {
-    BottomLeft,
-    BottomRight,
-    TopLeft,
-    TopRight,
-}
-
-/// Definition of a single touch button in the layout config.
-///
-/// 布局配置中单个触控按钮的定义。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TouchButtonDef {
-    /// Action name to trigger (must be registered in ActionRegistry).
-    /// 要触发的动作名称（必须在 ActionRegistry 中注册）。
-    pub action: String,
-
-    /// Texture path for the normal state (relative to mod assets/).
-    /// If None, a semi-transparent rectangle with label is used.
-    ///
-    /// 常态贴图路径（相对于 mod assets/）。
-    /// 如果为 None，使用半透明矩形加文字标签。
-    #[serde(default)]
-    pub texture: Option<String>,
-
-    /// Texture path for the pressed state.
-    /// If None, uses a tint of the normal texture.
-    ///
-    /// 按下状态贴图路径。如果为 None，使用常态贴图的色调变化。
-    #[serde(default)]
-    pub pressed_texture: Option<String>,
-
-    /// Animation frame textures [idle, pressing, pressed, releasing].
-    /// When set, overrides `texture`/`pressed_texture`.
-    ///
-    /// 动画帧贴图 [空闲, 按下过渡, 按住, 松开过渡]。
-    /// 设置后覆盖 `texture`/`pressed_texture`。
-    #[serde(default)]
-    pub frames: Option<Vec<String>>,
-
-    /// Text label shown on the button (fallback when no texture).
-    /// 按钮上显示的文字标签（无贴图时的回退方案）。
-    #[serde(default)]
-    pub label: Option<String>,
-
-    /// Screen anchor for this button.
-    /// 此按钮的屏幕锚点。
-    pub anchor: TouchAnchor,
-
-    /// Horizontal offset from the anchor edge (in logical pixels).
-    /// 距锚点边缘的水平偏移量（逻辑像素）。
-    #[serde(default)]
-    pub offset_x: f32,
-
-    /// Vertical offset from the anchor edge (in logical pixels).
-    /// 距锚点边缘的垂直偏移量（逻辑像素）。
-    #[serde(default)]
-    pub offset_y: f32,
-
-    /// Button width (in logical pixels).
-    /// 按钮宽度（逻辑像素）。
-    #[serde(default = "default_btn_size")]
-    pub width: f32,
-
-    /// Button height (in logical pixels).
-    /// 按钮高度（逻辑像素）。
-    #[serde(default = "default_btn_size")]
-    pub height: f32,
-}
-
-fn default_btn_size() -> f32 {
-    56.0
-}
-
-/// Definition of a touch controller (D-pad) with direction overlays.
-///
-/// 触控控制器（方向键）定义，带方向叠加层。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TouchControllerDef {
-    /// Screen anchor for the controller.
-    pub anchor: TouchAnchor,
-
-    /// Horizontal offset from anchor (logical pixels).
-    #[serde(default)]
-    pub offset_x: f32,
-
-    /// Vertical offset from anchor (logical pixels).
-    #[serde(default)]
-    pub offset_y: f32,
-
-    /// Controller display size (logical pixels, square).
-    #[serde(default = "default_controller_size")]
-    pub size: f32,
-
-    /// Base texture (always shown).
-    pub base_texture: String,
-
-    /// Direction overlay textures. Keys are action names (e.g., "Up", "Down").
-    pub overlays: HashMap<String, String>,
-}
-
-fn default_controller_size() -> f32 {
-    120.0
-}
+pub use souprune_schema::config::{
+    InputBinding, NavigationConfig, TouchAnchor, TouchButtonDef, TouchControllerDef,
+    TouchOverlayConfig, UIConfig,
+};
 
 /// Touch layout definition loaded from RON config.
 /// Describes all virtual touch buttons and their layout.
@@ -252,30 +80,21 @@ fn default_controller_size() -> f32 {
 /// 从 RON 配置加载的触控布局定义。
 /// 描述所有虚拟触控按钮及其布局。
 #[derive(Debug, Clone, Deserialize, Serialize, Resource)]
-pub struct TouchLayoutDef {
-    /// Global opacity for all touch buttons (0.0–1.0).
-    /// 所有触控按钮的全局透明度（0.0–1.0）。
-    #[serde(default = "default_touch_opacity")]
-    pub opacity: f32,
+#[serde(transparent)]
+pub struct TouchLayoutDef(pub SchemaTouchLayoutDef);
 
-    /// Global scale factor applied to all button sizes.
-    /// 应用于所有按钮大小的全局缩放系数。
-    #[serde(default = "default_touch_scale")]
-    pub scale: f32,
+impl Deref for TouchLayoutDef {
+    type Target = SchemaTouchLayoutDef;
 
-    /// Additional scale factor for mobile platforms (Android/iOS).
-    /// Applied on top of the auto-scale calculation.
-    /// 移动平台（Android/iOS）的额外缩放系数。在自动缩放基础上应用。
-    #[serde(default = "default_mobile_scale")]
-    pub mobile_scale: f32,
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
-    /// Optional controller (D-pad) definition.
-    #[serde(default)]
-    pub controller: Option<TouchControllerDef>,
-
-    /// Button definitions.
-    /// 按钮定义。
-    pub buttons: Vec<TouchButtonDef>,
+impl DerefMut for TouchLayoutDef {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl TouchLayoutDef {
@@ -292,61 +111,6 @@ impl TouchLayoutDef {
         from_str::<Self>(&contents)
             .map_err(|e| ConfigError::ParseError(path.to_path_buf(), e.to_string()))
     }
-}
-
-/// Navigation behavior configuration.
-/// Maps direction names to action names.
-/// All fields are optional - if not configured, the corresponding functionality is disabled.
-///
-/// 导航行为配置。
-/// 将方向名称映射到动作名称。
-/// 所有字段都是可选的 - 如果未配置，对应的功能将被禁用。
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct NavigationConfig {
-    /// Action name for moving/navigating up
-    /// 向上移动/导航的动作名称
-    #[serde(default)]
-    pub up: Option<String>,
-
-    /// Action name for moving/navigating down
-    /// 向下移动/导航的动作名称
-    #[serde(default)]
-    pub down: Option<String>,
-
-    /// Action name for moving/navigating left
-    /// 向左移动/导航的动作名称
-    #[serde(default)]
-    pub left: Option<String>,
-
-    /// Action name for moving/navigating right
-    /// 向右移动/导航的动作名称
-    #[serde(default)]
-    pub right: Option<String>,
-}
-
-/// UI interaction behavior configuration.
-/// Maps UI actions to action names.
-/// All fields are optional - if not configured, the corresponding functionality is disabled.
-///
-/// UI 交互行为配置。
-/// 将 UI 动作映射到动作名称。
-/// 所有字段都是可选的 - 如果未配置，对应的功能将被禁用。
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct UIConfig {
-    /// Action name for confirm/select
-    /// 确认/选择的动作名称
-    #[serde(default)]
-    pub confirm: Option<String>,
-
-    /// Action name for cancel/back
-    /// 取消/返回的动作名称
-    #[serde(default)]
-    pub cancel: Option<String>,
-
-    /// Action name for opening menu
-    /// 打开菜单的动作名称
-    #[serde(default)]
-    pub menu: Option<String>,
 }
 
 /// Input configuration asset loaded from RON files.
@@ -381,37 +145,21 @@ pub struct UIConfig {
 /// )
 /// ```
 #[derive(Asset, TypePath, Debug, Clone, Deserialize, Serialize)]
-pub struct InputConfig {
-    /// Action definitions with their bindings.
-    /// Keys are action names, values are binding lists.
-    ///
-    /// 动作定义及其绑定。
-    /// 键是动作名称，值是绑定列表。
-    pub actions: HashMap<String, Vec<InputBinding>>,
+#[serde(transparent)]
+pub struct InputConfig(pub SchemaInputConfig);
 
-    /// Navigation configuration (optional).
-    /// If not provided, navigation features will be disabled with a warning.
-    ///
-    /// 导航配置（可选）。
-    /// 如果未提供，导航功能将被禁用并发出警告。
-    #[serde(default)]
-    pub navigation: NavigationConfig,
+impl Deref for InputConfig {
+    type Target = SchemaInputConfig;
 
-    /// UI configuration (optional).
-    /// If not provided, UI interaction features will be disabled with a warning.
-    ///
-    /// UI 配置（可选）。
-    /// 如果未提供，UI 交互功能将被禁用并发出警告。
-    #[serde(default)]
-    pub ui: UIConfig,
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
-    /// Touch overlay configuration (optional).
-    /// Enables on-screen virtual controls for touch/mobile platforms.
-    ///
-    /// 触控覆盖层配置（可选）。
-    /// 为触屏/移动平台启用屏幕虚拟控件。
-    #[serde(default)]
-    pub touch_overlay: Option<TouchOverlayConfig>,
+impl DerefMut for InputConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl InputConfig {
@@ -455,7 +203,7 @@ impl InputConfig {
 
         // Register all actions from the config
         // 从配置中注册所有动作
-        for action_name in self.actions.keys() {
+        for action_name in self.0.actions.keys() {
             if let Err(e) = registry.register(action_name.clone()) {
                 warn!("Failed to register action '{}': {}", action_name, e);
             }
@@ -470,7 +218,7 @@ impl InputConfig {
     pub fn build_input_map(&self, registry: &ActionRegistry) -> InputMap<Action> {
         let mut map = InputMap::default();
 
-        for (action_name, bindings) in &self.actions {
+        for (action_name, bindings) in &self.0.actions {
             let Some(slot) = registry.get(action_name) else {
                 warn!("Unknown action name in input config: {}", action_name);
                 continue;
@@ -511,7 +259,7 @@ impl InputConfig {
     /// 构建从 `KeyCode` 到动作名称的反向映射。
     pub fn build_keycode_to_action_map(&self) -> HashMap<KeyCode, String> {
         let mut map = HashMap::new();
-        for (name, bindings) in &self.actions {
+        for (name, bindings) in &self.0.actions {
             Self::collect_key_bindings(name, bindings, &mut map);
         }
         map
@@ -751,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_input_config_build_registry() {
-        let config = InputConfig {
+        let config = InputConfig(SchemaInputConfig {
             actions: [
                 ("Action1".to_string(), vec![]),
                 ("Action2".to_string(), vec![]),
@@ -761,7 +509,7 @@ mod tests {
             navigation: NavigationConfig::default(),
             ui: UIConfig::default(),
             touch_overlay: None,
-        };
+        });
 
         let registry = config.build_registry();
 

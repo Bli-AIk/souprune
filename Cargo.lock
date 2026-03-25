@@ -653,6 +653,7 @@ version = "0.3.1"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_brp_extras",
  "chrono",
  "console_error_panic_hook",
  "cosmic-text",
@@ -846,7 +847,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_bitmap_text"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bevy",
  "etagere",
@@ -1069,7 +1070,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_ecs_typewriter"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy",
 ]
@@ -1133,7 +1134,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_fact_rule_event"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bevy",
@@ -1381,6 +1382,7 @@ dependencies = [
  "bevy_post_process",
  "bevy_ptr",
  "bevy_reflect",
+ "bevy_remote",
  "bevy_render",
  "bevy_scene",
  "bevy_shader",
@@ -1454,6 +1456,7 @@ dependencies = [
  "tracing-subscriber",
  "tracing-tracy",
  "tracing-wasm",
+ "tracy-client",
 ]
 
 [[package]]
@@ -2170,7 +2173,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_workbench"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
@@ -2420,7 +2423,7 @@ dependencies = [
  "cap-primitives",
  "cap-std",
  "io-lifetimes",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2449,7 +2452,7 @@ dependencies = [
  "maybe-owned",
  "rustix 1.1.4",
  "rustix-linux-procfs",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
  "winx",
 ]
 
@@ -2653,7 +2656,7 @@ checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
 dependencies = [
  "serde",
  "termcolor",
- "unicode-width 0.2.2",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -3545,19 +3548,18 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
 name = "etagere"
-version = "0.2.15"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc89bf99e5dc15954a60f707c1e09d7540e5cd9af85fa75caa0b510bc08c5342"
+checksum = "7ecb5c40d5683a270e077688f53a99eac51c1cb1ae5ba63b55590370cb3536bf"
 dependencies = [
  "euclid",
- "svg_fmt",
 ]
 
 [[package]]
 name = "euclid"
-version = "0.22.13"
+version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df61bf483e837f88d5c2291dcf55c67be7e676b3a51acc48db3a7b163b91ed63"
+checksum = "f1a05365e3b1c6d1650318537c7460c6923f1abdd272ad6842baa2b509957a06"
 dependencies = [
  "num-traits",
 ]
@@ -3644,7 +3646,7 @@ checksum = "0ce92ff622d6dadf7349484f42c93271a0d49b7cc4d466a936405bacbe10aa78"
 dependencies = [
  "cfg-if",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3820,12 +3822,12 @@ dependencies = [
 
 [[package]]
 name = "fontdue"
-version = "0.7.3"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0793f5137567643cf65ea42043a538804ff0fbf288649e2141442b602d81f9bc"
+checksum = "2e57e16b3fe8ff4364c0661fdaac543fb38b29ea9bc9c2f45612d90adf931d2b"
 dependencies = [
- "hashbrown 0.13.2",
- "ttf-parser 0.15.2",
+ "hashbrown 0.15.5",
+ "ttf-parser 0.21.1",
 ]
 
 [[package]]
@@ -3872,7 +3874,7 @@ checksum = "94e7099f6313ecacbe1256e8ff9d617b75d1bcb16a6fddef94866d225a01a14a"
 dependencies = [
  "io-lifetimes",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4007,8 +4009,8 @@ dependencies = [
  "libc",
  "log",
  "rustversion",
- "windows-link 0.2.1",
- "windows-result 0.4.1",
+ "windows-link 0.1.3",
+ "windows-result 0.3.4",
 ]
 
 [[package]]
@@ -4365,15 +4367,6 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
-dependencies = [
- "ahash",
-]
-
-[[package]]
-name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
@@ -4573,7 +4566,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -4852,7 +4845,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2285ddfe3054097ef4b2fe909ef8c3bcd1ea52a8f0d274416caebeef39f04a65"
 dependencies = [
  "io-lifetimes",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5436,7 +5429,7 @@ dependencies = [
 
 [[package]]
 name = "mortar_compiler"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "ariadne 0.6.0",
  "chrono",
@@ -7039,7 +7032,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7488,6 +7481,7 @@ dependencies = [
  "serde",
  "serde_json",
  "souprune_api",
+ "souprune_schema",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-appender",
@@ -7532,6 +7526,7 @@ dependencies = [
  "ron",
  "serde",
  "souprune",
+ "souprune_schema",
 ]
 
 [[package]]
@@ -7605,6 +7600,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
+ "windows-sys 0.52.0",
  "windows-sys 0.59.0",
 ]
 
@@ -7861,7 +7857,7 @@ dependencies = [
  "fd-lock",
  "io-lifetimes",
  "rustix 0.38.44",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
  "winx",
 ]
 
@@ -8368,9 +8364,9 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.15.2"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b3e06c9b9d80ed6b745c7159c40b311ad2916abb34a49e9be2653b90db0d8dd"
+checksum = "2c591d83f69777866b9126b24c6dd9a18351f177e49d625920d19f989fd31cf8"
 
 [[package]]
 name = "ttf-parser"
@@ -10148,7 +10144,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f3fd376f71958b862e7afb20cfe5a22830e1963462f3a17f49d82a6c1d1f42d"
 dependencies = [
  "bitflags 2.11.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

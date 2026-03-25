@@ -1,109 +1,20 @@
-use bevy::asset::AssetEvent;
-use bevy::ecs::prelude::MessageReader;
+//! Performs one-time setup work for generated view entities after they are spawned.
+//!
+//! 在生成 View 实体之后，执行那些只需要做一次的初始化工作。
+//!
+//! Handles setup that depends on already-created entities and loaded
+//! assets, such as attaching initial sprite animation state or turning pending
+//! shader-material placeholders into real render components. It is part of the
+//! spawn pipeline, but it runs after entity creation rather than during layout parsing.
+//!
+//! 处理那些依赖“实体已经生成且资源已经可用”的初始化步骤，例如挂上
+//! 初始精灵动画状态，或把待处理的 shader 材质占位符变成真正的渲染组件。
+//! 它属于生成链的一部分，但发生在实体创建之后，而不是布局解析阶段。
+
 use bevy::prelude::*;
 
 use super::super::components::ViewAnimationState;
-use super::super::layout::ViewLayoutAsset;
-use super::parsing::parse_sequence_state;
-use super::resources::{GlobalTriggerRule, HotReloadableViewRoot, ViewGlobalTriggerConfig};
-use crate::core::input::ActionRegistry;
 use crate::core::sprite::params::SpriteParams;
-
-/// Load global trigger configuration from view layout.
-/// Reads from HotReloadableViewRoot entities.
-///
-/// 从视图布局加载全局触发器配置。
-/// 从 HotReloadableViewRoot 实体读取。
-pub fn load_global_triggers_system(
-    hot_reload_roots: Query<&HotReloadableViewRoot>,
-    view_layouts: Res<Assets<ViewLayoutAsset>>,
-    mut global_trigger_config: ResMut<ViewGlobalTriggerConfig>,
-    action_registry: Res<ActionRegistry>,
-    mut last_processed_handle: Local<Option<AssetId<ViewLayoutAsset>>>,
-    mut events: MessageReader<AssetEvent<ViewLayoutAsset>>,
-) {
-    // Find the first available view layout from any root entity
-    let Some(root) = hot_reload_roots.iter().next() else {
-        return;
-    };
-
-    // Check if asset was modified - reset last_processed_handle to force reload
-    for event in events.read() {
-        if let AssetEvent::Modified { id } = event
-            && *id == root.layout_handle.id()
-        {
-            info!("[Hot Reload] Reloading global triggers config...");
-            *last_processed_handle = None;
-        }
-    }
-
-    if last_processed_handle.as_ref() == Some(&root.layout_handle.id()) {
-        return;
-    }
-
-    let Some(view_layout) = view_layouts.get(&root.layout_handle) else {
-        return;
-    };
-
-    *last_processed_handle = Some(root.layout_handle.id());
-
-    let Some(global_triggers) = &view_layout.global_triggers else {
-        return;
-    };
-
-    // DEPRECATION WARNING: global_triggers will be removed in a future version.
-    // Use FRE rules with SwitchState action instead.
-    // 弃用警告：global_triggers 将在未来版本中移除。
-    // 请改用带有 SwitchState action 的 FRE 规则。
-    warn!(
-        "[DEPRECATED] global_triggers in view_layout.ron is deprecated. \
-        Use FRE rules with SwitchState action instead. \
-        See backpack.fre.ron for examples."
-    );
-
-    for (action_str, rules_def) in global_triggers {
-        let Some(action) = action_registry.get(action_str) else {
-            warn!("Unknown action '{}' in global triggers", action_str);
-            continue;
-        };
-        let mut rules = Vec::new();
-
-        for rule_def in rules_def {
-            let Some(target_state) = parse_sequence_state(&rule_def.target_state) else {
-                warn!(
-                    "Unknown target state '{}' in global triggers",
-                    rule_def.target_state
-                );
-                continue;
-            };
-            let allowed_states = rule_def
-                .allowed_states
-                .as_ref()
-                .map(|states| {
-                    states
-                        .iter()
-                        .filter_map(|s| parse_sequence_state(s))
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            rules.push(GlobalTriggerRule {
-                target_state,
-
-                sound: rule_def.sound.clone(),
-
-                allowed_states,
-            });
-        }
-
-        global_trigger_config.triggers.insert(action, rules);
-    }
-
-    info!(
-        "Loaded global trigger config from RON with {} triggers",
-        global_triggers.len()
-    );
-}
 
 pub fn ui_animation_init_system(
     mut commands: Commands,
@@ -124,7 +35,10 @@ pub fn ui_animation_init_system(
         };
 
         let clip_name = if let Some(mapping) = config.states.get(&anim_state.state_name) {
-            mapping.get_clip_name(&crate::core::basic_components::Direction::Down)
+            crate::core::character_asset::state_animation_clip_name(
+                mapping,
+                &crate::core::basic_components::Direction::Down,
+            )
         } else {
             warn!(
                 "State {} not found in animation config for UI entity {:?}",

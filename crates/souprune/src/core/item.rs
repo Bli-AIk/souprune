@@ -17,9 +17,10 @@ use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 use serde::{Deserialize, Serialize};
+use souprune_schema::item::ItemListAsset as SchemaItemListAsset;
+pub use souprune_schema::item::{Item, ItemEffect, ItemFactValue, ItemType};
 use std::collections::HashMap;
-
-use super::definition::LocaleInfo;
+use std::ops::{Deref, DerefMut};
 
 pub struct ItemPlugin;
 
@@ -40,80 +41,12 @@ impl Plugin for ItemPlugin {
 #[derive(Debug, Clone, Deserialize, Serialize, Reflect, PartialEq)]
 pub struct ItemId(pub String);
 
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct Item {
-    pub id: String,
-    #[serde(default)]
-    pub locale: LocaleInfo,
-    pub description: String,
-    /// Optional Mortar script for conditional text (OnUse/OnCheck/OnDrop nodes).
-    /// If omitted, defaults from `_defaults.mortar` are used.
-    #[serde(default)]
-    pub mortar: Option<String>,
-    pub item_type: ItemType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub enum ItemType {
-    Food {
-        #[serde(default = "default_true")]
-        consumable: bool,
-        #[serde(default)]
-        effects: Vec<ItemEffect>,
-    },
-    Weapon {
-        #[serde(default)]
-        damage: i32,
-        #[serde(default)]
-        on_hit_effects: Vec<ItemEffect>,
-    },
-    Armor {
-        #[serde(default)]
-        defense: i32,
-    },
-    /// Key item — non-consumable, non-droppable (e.g., cell phone).
-    KeyItem,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub enum ItemEffect {
-    Heal {
-        amount: i32,
-    },
-    PlayAudio {
-        clip_path: String,
-    },
-    SpawnChildItem {
-        item_id: String,
-    },
-    /// Set an FRE fact (generic extension point for state mutations).
-    SetFact {
-        key: String,
-        value: ItemFactValue,
-    },
-}
-
-/// Lightweight fact value for item effects.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub enum ItemFactValue {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-}
-
-impl From<ItemFactValue> for FactValue {
-    fn from(v: ItemFactValue) -> Self {
-        match v {
-            ItemFactValue::Int(i) => FactValue::Int(i),
-            ItemFactValue::Float(f) => FactValue::Float(f),
-            ItemFactValue::Bool(b) => FactValue::Bool(b),
-            ItemFactValue::String(s) => FactValue::String(s),
-        }
+pub fn fact_value_from_item_fact_value(value: &ItemFactValue) -> FactValue {
+    match value {
+        ItemFactValue::Int(i) => FactValue::Int(*i),
+        ItemFactValue::Float(f) => FactValue::Float(*f),
+        ItemFactValue::Bool(b) => FactValue::Bool(*b),
+        ItemFactValue::String(s) => FactValue::String(s.clone()),
     }
 }
 
@@ -124,7 +57,27 @@ impl From<ItemFactValue> for FactValue {
 /// 从 `.items.ron` 文件加载的物品列表。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ItemListAsset(pub Vec<Item>);
+pub struct ItemListAsset(pub SchemaItemListAsset);
+
+impl Deref for ItemListAsset {
+    type Target = SchemaItemListAsset;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ItemListAsset {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl ItemListAsset {
+    pub fn items(&self) -> &[Item] {
+        &self.0.0
+    }
+}
 
 // --- Registry & Loading Logic ---
 
@@ -176,7 +129,7 @@ fn sync_items_system(
             let Some(item_list) = item_assets.get(id) else {
                 continue;
             };
-            for item in &item_list.0 {
+            for item in item_list.items() {
                 info!("Registered Item: [{}] {}", item.id, item.locale.name);
                 registry.0.insert(item.id.clone(), item.clone());
             }
@@ -225,5 +178,55 @@ fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
         for (suffix, value) in extra_facts {
             facts.set_global(format!("{prefix}.{suffix}"), value);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_item_list_from_shared_schema() {
+        let ron = r#"[
+            (
+                id: "pie",
+                locale: (
+                    name: "item.pie",
+                    file: "items",
+                ),
+                description: "A schema-backed pie.",
+                mortar: Some("items/pie.mortar"),
+                item_type: Food(
+                    consumable: true,
+                    effects: [
+                        Heal(amount: 30),
+                    ],
+                ),
+            ),
+        ]"#;
+
+        let asset: ItemListAsset = ron::from_str(ron).expect("item list");
+
+        assert_eq!(asset.items().len(), 1);
+        assert_eq!(asset.items()[0].id, "pie");
+        assert!(matches!(
+            asset.items()[0].item_type,
+            ItemType::Food {
+                consumable: true,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn converts_schema_item_fact_value_to_fre_value() {
+        assert_eq!(
+            fact_value_from_item_fact_value(&ItemFactValue::String("pie".to_string())),
+            FactValue::String("pie".to_string())
+        );
+        assert_eq!(
+            fact_value_from_item_fact_value(&ItemFactValue::Int(30)),
+            FactValue::Int(30)
+        );
     }
 }

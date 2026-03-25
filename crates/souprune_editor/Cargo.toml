@@ -18,6 +18,7 @@ bevy_fact_rule_event = { path = "../bevy_fact_rule_event" }
 bevy_tween = "0.12"
 egui = "0.33"
 souprune = { path = "../souprune" }
+souprune_schema = { path = "../souprune_schema" }
 ron = "0.12"
 rfd = "0.17"
 serde = { version = "1", features = ["derive"] }

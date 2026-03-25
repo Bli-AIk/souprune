@@ -7,13 +7,21 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
-
-use souprune::core::view::reconcile::{SpawnContext, ViewElementSpec, build_text_config};
-use souprune::core::view::ron_view::parsing::RepeatContext;
+use souprune::editor_api::{app, game_action, mortar, view};
+use souprune_schema::view::{InitialFactValue, ViewLayoutAsset as SchemaViewLayoutAsset};
+use view::{
+    ActiveView, PlayerDataView, RepeatContext, SpawnContext, ViewElementSpec,
+    ViewNodeDef as RuntimeViewNodeDef, ViewRoot, build_text_config, load_fre_into_view_root,
+    spawn_sprite_entity, spawn_text_entity, spawn_viewbox_entity,
+};
 
 use super::view_editor::ViewEditorState;
 
-use std::collections::HashMap;
+mod play_control;
+
+pub use play_control::{
+    ViewPreviewKeyMap, preview_input_to_fre_system, preview_play_control_system,
+};
 
 /// 预览系统状态资源。
 #[derive(Resource)]
@@ -86,7 +94,7 @@ pub fn setup_view_preview(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut state: ResMut<ViewPreviewState>,
-    resolution_scale: Res<souprune::app_state::app_setup::ResolutionScale>,
+    resolution_scale: Res<app::ResolutionScale>,
 ) {
     // 创建渲染目标纹理
     let mut image = Image::new_target_texture(
@@ -140,13 +148,21 @@ pub fn rebuild_preview_entities(
     editor_state: Res<ViewEditorState>,
     mut preview_state: ResMut<ViewPreviewState>,
     asset_server: Res<AssetServer>,
-    mortar_strings: Res<souprune::extra::mortar::MortarStringTable>,
+    mortar_strings: Res<mortar::MortarStringTable>,
     item_registry: Res<souprune::ItemRegistry>,
     fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     let Some(layout) = &editor_state.layout else {
         cleanup_preview(&mut commands, &mut preview_state);
         return;
+    };
+    let runtime_layout = match view::runtime_view_layout_from_schema(layout) {
+        Ok(layout) => layout,
+        Err(err) => {
+            warn!("[ViewPreview] runtime layout conversion failed: {err}");
+            cleanup_preview(&mut commands, &mut preview_state);
+            return;
+        }
     };
 
     // Dirty check using generation counter
@@ -173,7 +189,7 @@ pub fn rebuild_preview_entities(
         .to_string();
     let view_root_entity = commands
         .spawn((
-            souprune::core::view::components::ViewRoot::new(layout_path),
+            ViewRoot::new(layout_path),
             Transform::default(),
             GlobalTransform::default(),
             Visibility::Inherited,
@@ -188,7 +204,7 @@ pub fn rebuild_preview_entities(
 
     // Build SpawnContext
     let cam_transform = Transform::default();
-    let player_data = souprune::core::view::ron_view::player_data::PlayerDataView::new(&fact_db);
+    let player_data = PlayerDataView::new(&fact_db);
     let ctx = SpawnContext::new(
         &asset_server,
         &mortar_strings,
@@ -203,7 +219,7 @@ pub fn rebuild_preview_entities(
     );
 
     // Spawn preview nodes parented to the ViewRoot entity
-    for root in &layout.roots {
+    for root in &runtime_layout.roots {
         spawn_preview_node(
             &mut commands,
             &mut preview_state,
@@ -229,7 +245,7 @@ fn spawn_preview_node(
     commands: &mut Commands,
     state: &mut ViewPreviewState,
     ctx: &SpawnContext,
-    node: &souprune::core::view::layout::ViewNodeDef,
+    node: &RuntimeViewNodeDef,
     parent: Option<Entity>,
     z_offset: f32,
 ) {
@@ -240,7 +256,7 @@ fn spawn_preview_node_inner(
     commands: &mut Commands,
     state: &mut ViewPreviewState,
     ctx: &SpawnContext,
-    node: &souprune::core::view::layout::ViewNodeDef,
+    node: &RuntimeViewNodeDef,
     parent: Option<Entity>,
     z_offset: f32,
     repeat_ctx: Option<&RepeatContext>,
@@ -296,9 +312,7 @@ fn spawn_preview_node_inner(
             .iter()
             .map(|td| build_text_config(td, ctx))
             .collect();
-        let entity = souprune::core::view::reconcile::spawn_viewbox_entity(
-            commands, parent, ctx, &spec, vb, texts,
-        );
+        let entity = spawn_viewbox_entity(commands, parent, ctx, &spec, vb, texts);
         commands
             .entity(entity)
             .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity));
@@ -320,14 +334,7 @@ fn spawn_preview_node_inner(
 
     // Sprite: 使用游戏管线的 spawn_sprite_entity
     if let Some(_sprite_def) = &node.sprite {
-        let entity = souprune::core::view::reconcile::spawn_sprite_entity(
-            commands,
-            parent,
-            ctx,
-            &spec,
-            _sprite_def,
-            repeat_ctx,
-        );
+        let entity = spawn_sprite_entity(commands, parent, ctx, &spec, _sprite_def, repeat_ctx);
         commands
             .entity(entity)
             .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity));
@@ -366,13 +373,7 @@ fn spawn_preview_node_inner(
 
     // 容器中的文本：使用 spawn_text_entity
     for text_def in &node.texts {
-        let entity = souprune::core::view::reconcile::spawn_text_entity(
-            commands,
-            Some(container),
-            ctx,
-            text_def,
-            None,
-        );
+        let entity = spawn_text_entity(commands, Some(container), ctx, text_def, None);
         commands
             .entity(entity)
             .insert((RenderLayers::layer(PREVIEW_LAYER), ViewPreviewEntity));
@@ -485,7 +486,7 @@ pub fn render_preview_ui(ui: &mut egui::Ui, state: &mut ViewPreviewState, labels
 /// 同步预览相机的缩放和平移。
 pub fn sync_preview_camera(
     mut state: ResMut<ViewPreviewState>,
-    resolution_scale: Res<souprune::app_state::app_setup::ResolutionScale>,
+    resolution_scale: Res<app::ResolutionScale>,
     mut cameras: Query<(&mut Transform, &mut Projection), With<ViewPreviewCamera>>,
 ) {
     // Cache resolution_scale for UI pan calculations
@@ -540,211 +541,5 @@ fn propagate_layers_recursive(
             }
             propagate_layers_recursive(commands, child, children_query, without_layer, layer);
         }
-    }
-}
-
-/// 预览输入映射资源：KeyCode → 动作名称。
-///
-/// 从 InputConfig 构建，用于将键盘输入转发为 FRE 事件。
-#[derive(Resource)]
-pub struct ViewPreviewKeyMap(pub HashMap<KeyCode, String>);
-
-/// Forward keyboard input to FRE events when preview is hovered during Play mode.
-pub fn preview_input_to_fre_system(
-    state: Res<ViewPreviewState>,
-    key_map: Res<ViewPreviewKeyMap>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut event_writer: MessageWriter<bevy_fact_rule_event::FactEvent>,
-) {
-    if !state.playing || !state.hovered {
-        return;
-    }
-
-    for (keycode, action_name) in key_map.0.iter() {
-        let action_lower = action_name.to_lowercase();
-
-        if keys.just_pressed(*keycode) {
-            let event_id = format!("action:{}:just_pressed", action_lower);
-            info!(
-                "[ViewPreview] FRE: {} just_pressed → {}",
-                action_name, event_id
-            );
-            event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
-        }
-
-        if keys.just_released(*keycode) {
-            let event_id = format!("action:{}:just_released", action_lower);
-            debug!(
-                "[ViewPreview] FRE: {} just_released → {}",
-                action_name, event_id
-            );
-            event_writer.write(bevy_fact_rule_event::FactEvent::new(event_id));
-        }
-    }
-}
-
-fn load_initial_facts_into_view_root(
-    view_root: &mut souprune::core::view::components::ViewRoot,
-    layout: &souprune::core::view::layout::ViewLayoutAsset,
-) {
-    use souprune::core::view::layout::InitialFactValue;
-    let Some(facts) = &layout.facts else { return };
-    for (key, value) in facts {
-        match value {
-            InitialFactValue::Int(i) => view_root.local_facts.set(key.clone(), *i),
-            InitialFactValue::Float(f) => view_root.local_facts.set(key.clone(), *f),
-            InitialFactValue::Bool(b) => view_root.local_facts.set(key.clone(), *b),
-            InitialFactValue::String(s) => view_root.local_facts.set(key.clone(), s.clone()),
-            InitialFactValue::StringList(list) => {
-                view_root.local_facts.set(key.clone(), list.clone());
-            }
-            InitialFactValue::IntList(list) => {
-                view_root.local_facts.set(key.clone(), list.clone());
-            }
-        }
-    }
-    info!(
-        "[ViewPreview] Loaded {} inline facts from view layout",
-        facts.len()
-    );
-}
-
-fn register_rule_def(
-    rule_def: &souprune::core::game_action::GameRuleDef,
-    idx: usize,
-    scope: bevy_fact_rule_event::RuleScope,
-    rule_registry: &mut souprune::core::game_action::GameRuleRegistry,
-    view_entity: Entity,
-    registered_ids: &mut Vec<String>,
-) {
-    let effective_scope = if scope == bevy_fact_rule_event::RuleScope::Local {
-        bevy_fact_rule_event::RuleScope::View
-    } else {
-        scope
-    };
-    let rule = rule_def.to_rule_with_index(idx, effective_scope);
-    let rule_id = rule_def.generate_id(idx);
-    if effective_scope == bevy_fact_rule_event::RuleScope::View {
-        rule_registry.register_view_rule(view_entity, rule);
-    } else {
-        rule_registry.register(rule);
-    }
-    registered_ids.push(rule_id);
-}
-
-/// 检测 Play/Stop 状态变化，执行 FRE 初始化或清理。
-///
-/// Play 启动时：初始化 ViewRoot.local_facts + 注册 FRE 规则 + 添加 ActiveView
-/// Stop 时：清理规则 + 重置状态 + 触发预览重建
-pub fn preview_play_control_system(
-    mut state: ResMut<ViewPreviewState>,
-    editor_state: Res<ViewEditorState>,
-    fre_state: Option<Res<super::view_fre_panel::ViewFreState>>,
-    mut rule_registry: ResMut<souprune::core::game_action::GameRuleRegistry>,
-    mut fact_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
-    mortar_strings: Res<souprune::extra::mortar::MortarStringTable>,
-    mut commands: Commands,
-    mut view_roots: Query<(Entity, &mut souprune::core::view::components::ViewRoot)>,
-    enum_registry: Res<bevy_fact_rule_event::EnumRegistry>,
-) {
-    let playing = state.playing;
-    let was_playing = state.was_playing;
-
-    // No transition — nothing to do
-    if playing == was_playing {
-        return;
-    }
-    state.was_playing = playing;
-
-    if playing && !was_playing {
-        // --- Play start ---
-        let Some(fre_state) = fre_state else {
-            warn!("[ViewPreview] Play: ViewFreState not found");
-            state.playing = false;
-            state.was_playing = false;
-            return;
-        };
-
-        fact_db.clear_local();
-
-        let mut found_entity = None;
-        for e in &state.preview_entities {
-            if view_roots.get(*e).is_ok() {
-                found_entity = Some(*e);
-                break;
-            }
-        }
-
-        let Some(view_entity) = found_entity else {
-            warn!("[ViewPreview] Play: no preview ViewRoot entity found");
-            state.playing = false;
-            state.was_playing = false;
-            return;
-        };
-
-        let mut view_root = view_roots.get_mut(view_entity).unwrap().1;
-        view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
-
-        // Load inline facts from view layout (depth, button_selection, interactable, etc.)
-        if let Some(layout) = &editor_state.layout {
-            load_initial_facts_into_view_root(&mut view_root, layout);
-        }
-
-        let mut registered_ids = Vec::new();
-        for fre_asset in fre_state.loaded_fre.values() {
-            souprune::core::view::ron_view::spawn::load_fre_into_view_root(
-                &mut view_root,
-                fre_asset,
-                &mortar_strings,
-                &enum_registry,
-            );
-
-            let rule_defs = fre_asset.get_rule_defs();
-            let scope = fre_asset.scope();
-            for (idx, rule_def) in rule_defs.iter().enumerate() {
-                register_rule_def(
-                    rule_def,
-                    idx,
-                    scope,
-                    &mut rule_registry,
-                    view_entity,
-                    &mut registered_ids,
-                );
-            }
-        }
-
-        commands
-            .entity(view_entity)
-            .insert(souprune::core::view::components::ActiveView);
-
-        info!(
-            "[ViewPreview] Play started: registered {} rules, local_facts initialized",
-            registered_ids.len()
-        );
-        state.registered_rule_ids = registered_ids;
-    } else if !playing && was_playing {
-        // --- Stop ---
-        for entity in &state.preview_entities {
-            if view_roots.get(*entity).is_ok() {
-                rule_registry.clear_view(*entity);
-                commands
-                    .entity(*entity)
-                    .remove::<souprune::core::view::components::ActiveView>();
-            }
-        }
-
-        state.registered_rule_ids.clear();
-
-        fact_db.clear_local();
-
-        for entity in &state.preview_entities {
-            if let Ok((_, mut view_root)) = view_roots.get_mut(*entity) {
-                view_root.local_facts = bevy_fact_rule_event::FactDatabase::default();
-            }
-        }
-
-        state.last_layout_hash = 0;
-
-        info!("[ViewPreview] Play stopped: rules cleaned up, preview will rebuild");
     }
 }

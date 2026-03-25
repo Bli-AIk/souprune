@@ -18,8 +18,9 @@ use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 
 use bevy_workbench::i18n::FluentArgs;
 use bevy_workbench::prelude::*;
-use souprune::core::game_action::GameRuleRegistry;
-use souprune::extra::debug::RuleTriggerHistory;
+use debug::RuleTriggerHistory;
+use souprune::editor_api::game_action::{GameRule, GameRuleRegistry};
+use souprune::editor_api::{app, debug, state_config};
 use std::collections::VecDeque;
 
 use crate::i18n::{t, t_args};
@@ -369,7 +370,7 @@ fn render_rules(ui: &mut egui::Ui, world: &mut World) {
 fn render_rule_list(
     ui: &mut egui::Ui,
     world: &World,
-    rules: &[&souprune::core::game_action::GameRule],
+    rules: &[&GameRule],
     trigger_history: Option<&RuleTriggerHistory>,
     current_time: f64,
 ) {
@@ -381,12 +382,7 @@ fn render_rule_list(
     }
 }
 
-fn show_rule(
-    ui: &mut egui::Ui,
-    world: &World,
-    rule: &souprune::core::game_action::GameRule,
-    triggered: bool,
-) {
+fn show_rule(ui: &mut egui::Ui, world: &World, rule: &GameRule, triggered: bool) {
     let status = if rule.enabled { "[on]" } else { "[off]" };
     let fire = if triggered { " !" } else { "" };
     let text = format!("{status} {} [P:{}]{fire}", rule.id, rule.priority);
@@ -436,19 +432,19 @@ fn show_rule(
         });
 }
 
-fn show_rule_conditions(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
+fn show_rule_conditions(ui: &mut egui::Ui, rule: &GameRule) {
     for (i, expr) in rule.condition_expressions.iter().enumerate() {
         ui.monospace(format!("{}: {}", i + 1, expr));
     }
 }
 
-fn show_rule_modifications(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
+fn show_rule_modifications(ui: &mut egui::Ui, rule: &GameRule) {
     for (i, m) in rule.modifications.iter().enumerate() {
         ui.monospace(format!("{}: {:?}", i + 1, m));
     }
 }
 
-fn show_rule_outputs(ui: &mut egui::Ui, rule: &souprune::core::game_action::GameRule) {
+fn show_rule_outputs(ui: &mut egui::Ui, rule: &GameRule) {
     for o in &rule.outputs {
         ui.monospace(&o.0);
     }
@@ -490,7 +486,7 @@ fn render_event_record(ui: &mut egui::Ui, record: &FactEventRecord) {
 }
 
 fn render_states(ui: &mut egui::Ui, world: &mut World) {
-    use souprune::app_state::{AppState, SequenceMode};
+    use app::{AppState, SequenceMode};
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         // AppState
@@ -536,12 +532,7 @@ fn render_states(ui: &mut egui::Ui, world: &mut World) {
     });
 }
 
-fn render_app_state_row(
-    ui: &mut egui::Ui,
-    state: souprune::app_state::AppState,
-    is_cur: bool,
-    desc: &str,
-) {
+fn render_app_state_row(ui: &mut egui::Ui, state: app::AppState, is_cur: bool, desc: &str) {
     ui.horizontal(|ui| {
         if is_cur {
             ui.colored_label(egui::Color32::GREEN, format!("> {:?}", state));
@@ -553,11 +544,11 @@ fn render_app_state_row(
 }
 
 fn render_sequence_sub_state(ui: &mut egui::Ui, world: &mut World) {
-    use souprune::app_state::SequenceSubState;
+    use app::SequenceSubState;
     let current = world
         .get_resource::<State<SequenceSubState>>()
         .map(|s| s.name().to_string());
-    let config = world.get_resource::<souprune::core::state_config::LoadedStateConfig>();
+    let config = world.get_resource::<state_config::LoadedStateConfig>();
     if let Some(config) = config {
         let mut names: Vec<&String> = config.0.states.keys().collect();
         names.sort();
