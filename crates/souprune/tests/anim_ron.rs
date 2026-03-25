@@ -120,6 +120,26 @@ fn direction_strategy() -> impl Strategy<Value = Direction> {
     ]
 }
 
+fn resolve_directional_clip<'a>(
+    mapping: &'a StateAnimationMapping,
+    direction: &Direction,
+) -> &'a str {
+    match mapping {
+        StateAnimationMapping::Directional {
+            up,
+            down,
+            left,
+            right,
+        } => match direction {
+            Direction::Up | Direction::UpLeft | Direction::UpRight => up,
+            Direction::Down | Direction::DownLeft | Direction::DownRight => down,
+            Direction::Left => left,
+            Direction::Right => right,
+        },
+        StateAnimationMapping::Single(clip) => clip,
+    }
+}
+
 /// Rehearse directional animation lookup logic using randomized state/direction pairs.
 ///
 /// 对随机状态与方向组合预演方向动画查找逻辑。
@@ -147,17 +167,14 @@ fn animation_directional_lookup_behaves() {
                     "Selected mapping should always be directional",
                 ));
             };
-            let clip = case.mapping.get_clip_name(&direction);
-            match direction {
-                Direction::Up | Direction::UpLeft | Direction::UpRight => {
-                    prop_assert_eq!(clip, up, "{}", case.state);
-                }
-                Direction::Down | Direction::DownLeft | Direction::DownRight => {
-                    prop_assert_eq!(clip, down, "{}", case.state);
-                }
-                Direction::Left => prop_assert_eq!(clip, left, "{}", case.state),
-                Direction::Right => prop_assert_eq!(clip, right, "{}", case.state),
-            }
+            let expected_clip = match direction {
+                Direction::Up | Direction::UpLeft | Direction::UpRight => up,
+                Direction::Down | Direction::DownLeft | Direction::DownRight => down,
+                Direction::Left => left,
+                Direction::Right => right,
+            };
+            let clip = resolve_directional_clip(&case.mapping, &direction);
+            prop_assert_eq!(clip, expected_clip, "{}", case.state);
             Ok(())
         })
         .expect("directional mapping rehearsal should pass");

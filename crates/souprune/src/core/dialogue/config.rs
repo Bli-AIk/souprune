@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 //! Dialogue system configuration resources.
 //!
 //! 对话系统配置资源。
@@ -32,38 +31,6 @@ impl Default for DialogueInputConfig {
         Self {
             advance_event: "dialogue_advance".to_string(),
             skip_typewriter_event: "dialogue_skip_typewriter".to_string(),
-        }
-    }
-}
-
-/// Configuration for dialogue blocking behavior with multiple focuses.
-///
-/// 多焦点场景下的对话阻塞行为配置。
-///
-/// **DEPRECATED**: This resource is deprecated. Use FRE fact `dialogue:focus_mode` instead.
-/// - `"all_finished"` - all typewriters must finish before advancing
-/// - `"first_finished"` - any typewriter finished allows advancement
-///
-/// **已弃用**：此资源已弃用。请改用 FRE fact `dialogue:focus_mode`。
-/// - `"all_finished"` - 所有打字机必须完成才能步进
-/// - `"first_finished"` - 任一打字机完成即可步进
-#[allow(deprecated)]
-#[deprecated(since = "0.5.2", note = "Use FRE fact 'dialogue:focus_mode' instead")]
-#[derive(Resource, Debug, Clone)]
-pub struct DialogueBlockingConfig {
-    /// If true, all focused typewriters must finish before dialogue can advance.
-    /// If false, any single finished typewriter allows advancement.
-    ///
-    /// 若为 true，所有焦点打字机必须完成后才能步进对话。
-    /// 若为 false，任一打字机完成即可步进。
-    pub require_all_finished: bool,
-}
-
-#[allow(deprecated)]
-impl Default for DialogueBlockingConfig {
-    fn default() -> Self {
-        Self {
-            require_all_finished: true,
         }
     }
 }

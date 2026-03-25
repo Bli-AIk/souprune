@@ -1,3 +1,18 @@
+//! # spawn_helpers.rs
+//!
+//! # spawn_helpers.rs 文件
+//!
+//! ## Module Overview
+//!
+//! ## 模块概述
+//!
+//! Contains the shared building blocks used by the RON View spawn pipeline. It turns
+//! schema-level text and sprite definitions into Bevy components, and centralizes the logic that
+//! both node spawning and later reconciliation rely on.
+//!
+//! 放的是 RON View 生成流程里的共享积木。它把 schema 层的文本和精灵定义转换成
+//! Bevy 组件，并把节点生成与后续对账都会依赖的公共逻辑集中在这里。
+
 use super::super::components::*;
 use super::super::layout::*;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
@@ -288,7 +303,7 @@ pub(super) fn spawn_ui_sprite(
             }
         }
     } else {
-        // Fallback: try direct load (for backwards compatibility with full paths)
+        // Fallback: try a direct asset load when the visual path does not match a known scheme.
         let texture_handle = asset_server.load(&visual_path);
         spawn_static_sprite(parent, sprite_def, texture_handle, transform, node_name);
     }

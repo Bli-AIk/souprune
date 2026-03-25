@@ -8,13 +8,11 @@
 
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
-use crate::app_state::ModeScoped;
-use crate::app_state::battle::collision::BoundToBattleBox;
-use crate::app_state::battle::danmaku::BattleInvincibilityConfig;
-use crate::app_state::battle::player_config_schema::{BattlePlayerConfig, ColliderShape};
-use crate::core::collision::{PhysicsCollider, TriggerCollider};
+use crate::core::battle_box::BoundToBattleBox;
+use crate::core::battle_player::{BattleInvincibilityConfig, BattlePlayerConfig};
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
+use crate::core::mode::ModeScoped;
 use bevy::prelude::*;
 
 /// Component for pending player spawn requests.
@@ -95,23 +93,15 @@ pub fn process_player_spawn_requests(
         if let Some(config) = configs.get(&req.config_handle) {
             info!("Config loaded. Spawning player...");
 
-            let physics_collider = match &config.physics_collider.shape {
-                ColliderShape::Circle { radius } => PhysicsCollider::Circle { radius: *radius },
-                ColliderShape::Box { half_size } => PhysicsCollider::Box {
-                    half_size: *half_size,
-                },
-            };
-
-            let damage_trigger = match &config.damage_trigger.shape {
-                ColliderShape::Circle { radius } => TriggerCollider::Circle { radius: *radius },
-                ColliderShape::Box { half_size } => TriggerCollider::Box {
-                    half_size: *half_size,
-                },
-            };
+            let physics_collider = config.physics_collider();
+            let damage_trigger = config.damage_trigger();
+            let sprite_path = config.sprite_path().to_string();
+            let default_mode_id = config.default_mode_id().to_string();
+            let default_box = config.default_box().to_string();
 
             // Update invincibility config from player config
             // 从玩家配置更新无敌配置
-            let inv_cfg = &config.invincibility;
+            let inv_cfg = config.invincibility();
             invincibility_config.duration = inv_cfg.duration;
             invincibility_config.flash_interval = inv_cfg.flash_interval;
             invincibility_config.normal_color = inv_cfg.normal_color;
@@ -124,26 +114,28 @@ pub fn process_player_spawn_requests(
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&config.sprite_path),
-                    color: config.color,
+                    image: asset_server.load(sprite_path),
+                    color: config.sprite_color(),
                     ..default()
                 },
-                Transform::from_translation(req.position.extend(config.z_position)),
+                Transform::from_translation(req.position.extend(config.z_position())),
                 physics_collider.clone(),
                 damage_trigger.clone(),
                 BehaviorParams {
-                    mode_id: config.default_mode_id.clone(),
+                    mode_id: default_mode_id,
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),
-                BoundToBattleBox(config.default_box.clone()),
+                BoundToBattleBox(default_box),
                 ModeScoped("battle".to_string()),
                 Name::new("BattlePlayer"),
             ));
 
             info!(
                 "Spawned player with physics collider: {:?}, damage trigger: {:?}, at z: {}",
-                physics_collider, damage_trigger, config.z_position
+                physics_collider,
+                damage_trigger,
+                config.z_position()
             );
 
             commands.entity(entity).despawn();

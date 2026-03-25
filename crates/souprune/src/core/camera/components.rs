@@ -18,6 +18,24 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct MainGameCamera;
 
+#[derive(Resource)]
+pub struct ResolutionScale(pub u32);
+
+impl ResolutionScale {
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for ResolutionScale {
+    fn default() -> Self {
+        // Equivalent to (320, 240) * 2 resolution.
+        //
+        // 等效于 (320, 240) * 2 的分辨率。
+        Self(5)
+    }
+}
+
 /// Marker component to temporarily override normal camera control.
 /// When present on a camera entity, the `Followable` system will skip it.
 ///

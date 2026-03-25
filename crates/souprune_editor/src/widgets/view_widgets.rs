@@ -2,8 +2,8 @@
 //!
 //! 提供 Vec3Tuple、ColorTuple、Transform、Tag 列表等编辑控件。
 
-use souprune::core::sequencer::chapter_schema::Value;
-use souprune::core::view::layout::serde_types::{
+use souprune_schema::Val as Value;
+use souprune_schema::view::{
     SerializableColor, SerializableTransform, SerializableVec2, SerializableVec3, ViewFontDef,
 };
 

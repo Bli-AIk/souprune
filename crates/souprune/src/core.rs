@@ -26,13 +26,17 @@
 //!
 //! # 源文件概述
 //!
-//! This file defines the `CorePlugin` and `GlobalPlugin` that run early and late in the app lifecycle.
+//! Defines the `CorePlugin` and `GlobalPlugin` that run early and late in the app lifecycle.
 //!
 //! 此处定义了 `CorePlugin` 与 `GlobalPlugin`，它们分别在应用生命周期的早期和后期运行。
 
+pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
+pub mod battle_box;
+pub mod battle_player;
+pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
@@ -48,6 +52,7 @@ pub mod input;
 pub mod item;
 pub mod map_property_schema;
 pub mod mod_system;
+pub mod mode;
 pub mod player_components;
 pub mod render_layers;
 pub mod ron_loader;

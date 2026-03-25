@@ -7,7 +7,9 @@ use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use crate::core::basic_components::Facing;
-use crate::core::character_asset::{AnimationConfigAsset, CharacterAnimator};
+use crate::core::character_asset::{
+    AnimationConfigAsset, CharacterAnimator, state_animation_clip_name,
+};
 use crate::core::sprite::params::SpriteParams;
 use bevy::log::error;
 use bevy::prelude::*;
@@ -49,7 +51,7 @@ pub(crate) fn character_animation_system(
             continue;
         };
 
-        let clip_name = state_mapping.get_clip_name(&facing.value);
+        let clip_name = state_animation_clip_name(state_mapping, &facing.value);
 
         if clip.clip_name() != clip_name {
             let new_clip = match SpriteAnimationClip::new(

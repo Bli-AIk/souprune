@@ -1,10 +1,10 @@
 /// SoupRune Mod System — WIT Interface Definition
 ///
-/// This file defines the contract between the Host (game engine)
+/// Defines the contract between the Host (game engine)
 /// and the Guest (mod).
 ///
 /// SoupRune 模组系统 — WIT 接口定义
-/// 此文件定义了宿主（游戏引擎）和客体（模组）之间的契约。
+/// 定义了宿主（游戏引擎）和客体（模组）之间的契约。
 
 package souprune:plugin@0.1.0;
 

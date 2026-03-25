@@ -151,8 +151,10 @@ crates/souprune/src/
 
 ### 3.2 When to Split a Module
 
-- Developers should be mindful of file size once a file approaches **~500 lines**
-- **Hard limit: 800 lines of code** (enforced by `tokei_check.sh`) — files exceeding this **must** be split
+- Once a file is getting close to **~500 total lines**, stop and ask whether it is still doing one job
+- **Hard limit: 800 total lines** (enforced by `tokei_check.sh`) — files exceeding this **must** be split
+- **Hard limit: 500 lines of code via `tokei`** (also enforced by `tokei_check.sh`) — dense logic files must be split even if comments or blank lines keep the total size lower
+- `examples/` are **not** blocked by the 800/500 gate. They are demo binaries, not production modules. Keep them readable, but do not use examples as a place to hide product complexity
 - A module has **distinct responsibilities** → split by responsibility
 
 ### 3.3 Module Style: Rust 2018+
@@ -176,8 +178,86 @@ This rule is enforced by `tokei_check.sh`.
 ### 3.4 File Naming
 
 - One module per file (or directory)
-- File name matches module name: `mod fre_bridge` → `fre_bridge.rs` or `fre_bridge/mod.rs`
+- File name matches module name: `mod fre_bridge` → `fre_bridge.rs`, and if it has children, place them under `fre_bridge/`
 - Test modules live alongside their source: `#[cfg(test)] mod tests { .. }` at the bottom of the file
+
+### 3.5 Single Responsibility and Boundary Ownership
+
+**Single Responsibility Principle is mandatory.**
+
+- A module should feel like it does **one job**. If you see schema definitions, asset loading, runtime systems, and editor helpers all living together, the module is already too broad
+- Plugin root files are wiring files. Use them to register plugins, systems, and resources, then move the real behavior into dedicated submodules
+- If a file keeps growing because unrelated changes keep landing there, split it by responsibility before line count becomes the only warning sign
+
+### 3.6 Layering Rules
+
+Directory structure is not enough; dependency direction must also match the architecture.
+
+- The directory name alone does not make something `core/`. If a module needs to know about battle, overworld, or the editor, it probably does not belong in `core/`
+- A simple rule: `app_state/` may depend on `core/`, but `core/` should not reach back up into `app_state/`
+- Editor crates should talk to **public engine APIs** or **schema crates**, not reach through deep internal paths just because it is convenient today
+- State-specific behavior belongs in the relevant game state or a dedicated shared gameplay layer, not in generic infrastructure modules
+
+### 3.7 Schema Source of Truth
+
+One asset format must have exactly **one authoritative schema type**.
+
+- Pick one schema and treat it as the source of truth
+- Do not keep one version for runtime, another for linting, and a third for the editor
+- Thin runtime wrappers are fine when they add `Asset`, `Reflect`, or conversion behavior; duplicated field definitions are not
+
+### 3.8 Imports and Re-exports for Internal Code
+
+- Make dependencies obvious when reading the file
+- Avoid blanket imports in production code except for ecosystem-standard preludes such as `bevy::prelude::*`
+- Avoid barrel-style re-exports (`pub use foo::*;`) inside internal modules; prefer explicit re-exports so readers can see what the module actually exposes
+- Re-export entire modules only at intentional public boundaries such as a crate `prelude` or a stable top-level API
+
+### 3.9 Compatibility and Deletion Policy
+
+SoupRune is in active development and does **not** prioritize backward compatibility.
+
+- Use that freedom to delete old designs instead of carrying them forever
+- When you add temporary compatibility code, also write down when it dies
+- If a migration is finished, remove the old path instead of leaving two systems half-alive
+- If assets or rules have already moved to the new format, delete the old field names, old event names, and old bridge systems in the same phase
+- "We will clean it up later" is not an acceptable reason to keep dead abstractions or parallel systems
+
+### 3.10 Bevy Plugin Shape
+
+The following Bevy-specific rules follow the direction of Bevy's plugin development guide and the `bevy_best_practices` project, but are written here in plain language for this project.
+
+If a module is called a Bevy plugin, readers should be able to treat it like the front door of one subsystem.
+
+- A plugin file should read like wiring: register plugins, resources, assets, schedules, and state hooks, then stop
+- Do not let `Plugin::build` turn into the place where real gameplay logic, parser logic, or runtime branching quietly accumulates
+- In library crates, prefer exposing a named `Plugin` struct instead of only a free `plugin(app)` function. That keeps room for future configuration without breaking callers
+- Third-party setup should live beside the subsystem that uses it. If a feature depends on an external Bevy crate, its configuration belongs in that subsystem's plugin, not in some distant global bootstrap
+
+In plain terms: when someone opens a plugin file, they should quickly understand **what this subsystem registers**, not reverse-engineer **how the subsystem works**.
+
+### 3.11 State Boundaries, Scheduling, and Cleanup
+
+Bevy makes it easy to dump everything into `Update`. Do not do that.
+
+- Systems in `Update` should usually be gated by `State`, `run_if`, or a clearly named `SystemSet`
+- If a system should only matter while a screen, mode, or battle state is active, say that directly in scheduling instead of relying on "it probably won't do anything"
+- Register `OnEnter`, `Update`, and `OnExit` for the same state near each other. A reader should be able to see setup and cleanup in one place
+- Entities need an obvious cleanup story. Use `StateScoped` or an explicit cleanup marker; do not spawn long-lived scene entities and hope someone remembers to remove them later
+- Top-level spawned entities should usually have a `Name`, because unnamed roots make debugging and world inspection worse for no benefit
+
+The human rule is simple: if a state starts something, the code nearby should also make it obvious how that thing stops.
+
+### 3.12 Events Over Tight Coupling
+
+When two parts of the game only need to notify each other, prefer events over direct reach-through.
+
+- Use events to pass facts, requests, and results between subsystems instead of letting one system poke deeply into another subsystem's internals
+- If an event writer and reader are supposed to cooperate in the same frame, make the ordering explicit with `.before(...)`, `.after(...)`, `.chain()`, or ordered `SystemSet`s
+- If a system only exists to react to an event, make that visible in scheduling with an event-based run condition instead of running it every frame for no reason
+- Event names and payloads should describe domain meaning, not temporary implementation details
+
+Put more plainly: events are the cheap and honest way to connect systems. Hidden cross-module assumptions are not.
 
 ---
 
@@ -238,6 +318,26 @@ For module-level docs:
 //! 游戏与 FRE（Fact-Rule-Event）系统之间的桥接层。
 ```
 
+Every `.rs` file must start with module-level documentation comments (`//!`). This is a hard rule, not a suggestion.
+
+- The top doc comment must explain what this file is for in human language
+- Do not stop at a label like "utilities", "helpers", or "systems"; say what the file actually owns
+- If the file is also a module boundary, explain what that module does in the larger subsystem
+- Very short placeholder docs are not acceptable. A reader should understand the file's role without opening three more files first
+
+In plain terms: when someone opens a Rust file, the first lines should tell them why this file exists.
+
+```rust
+//! Parses `.view.ron` nodes into runtime spawn data and applies the view-side defaults.
+//!
+//! 负责把 `.view.ron` 节点解析成运行时生成数据，并补齐 View 系统需要的默认值。
+//!
+//! This module is part of the view loading pipeline. It owns parsing and normalization,
+//! but it does not own rendering or runtime reconciliation.
+//!
+//! 这个模块属于 View 加载流程。它负责解析和规范化，但不负责渲染或运行时对账。
+```
+
 ### 5.2 Doc Structure
 
 For complex items, use this structure:
@@ -249,6 +349,13 @@ For complex items, use this structure:
 
 Keep docs **concise** — avoid restating what the code already makes obvious. Link to external resources rather than
 explaining common concepts inline.
+
+For file-top docs, "concise" does **not** mean "empty".
+
+- A one-line title alone is not enough
+- The doc should say what the file does, where it sits in the architecture, and what responsibility it owns
+- If the file is a thin wiring layer, say that directly
+- If the file is a module root, also say what sub-area that module covers
 
 ### 5.3 Inline Comments
 
@@ -440,6 +547,15 @@ fn evaluate_conditions_returns_false_when_fact_missing() { .. }
 - Use minimal `bevy::prelude::App` setups for ECS tests
 - Prefer **deterministic assertions** — avoid frame-count dependencies
 - Test one behavior per test function
+
+### 9.4 Workspace Quality Gates
+
+Style rules must be enforceable across the workspace, not only in the main crate.
+
+- A rule only matters if the repository actually checks it
+- Line-count checks, lint checks, and structural checks should cover all maintained first-party crates
+- If a subcrate has its own quality script, the root quality entrypoint should invoke it instead of silently skipping that crate
+- A rule that cannot be checked in CI should be treated as advisory, not mandatory
 
 ---
 

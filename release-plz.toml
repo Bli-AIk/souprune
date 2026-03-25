@@ -1,5 +1,5 @@
 # Release-plz configuration
-# This file excludes git submodules from release-plz management.
+# Excludes git submodules from release-plz management.
 # Submodules have their own release cycles in separate repositories.
 
 [workspace]

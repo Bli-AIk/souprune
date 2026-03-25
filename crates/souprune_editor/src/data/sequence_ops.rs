@@ -13,8 +13,7 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use souprune::core::sequencer::SequenceAsset;
-use souprune::core::sequencer::chapter_schema::Chapter;
+use souprune_schema::sequence::{Chapter, SequenceAsset};
 
 /// 编辑器内部的序列表示，不依赖 Bevy Asset 系统。
 #[derive(Debug, Clone)]
