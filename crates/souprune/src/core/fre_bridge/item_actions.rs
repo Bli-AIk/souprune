@@ -187,7 +187,7 @@ fn apply_item_effects(
                 spawn_child = Some(item_id.clone());
             }
             ItemEffect::SetFact { key, value } => {
-                let fact_value: FactValue = value.clone().into();
+                let fact_value = crate::core::item::fact_value_from_item_fact_value(value);
                 global_facts.set_global(key, fact_value);
             }
         }

@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use bevy::prelude::Resource;
 use bevy_fact_rule_event::asset::{FactModificationDef, FactValueDef, RuleEventDef};
-use souprune::core::game_action::{GameActionDef, GameFreAsset, GameRuleDef};
-use souprune::core::view::layout::DataRequirement;
+use souprune::editor_api::game_action::{GameActionDef, GameFreAsset, GameRuleDef};
+use souprune_schema::view::DataRequirement;
 
 /// View FRE 编辑器状态。
 #[derive(Resource, Default)]

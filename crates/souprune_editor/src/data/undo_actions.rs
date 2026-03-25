@@ -14,7 +14,7 @@
 
 use bevy::prelude::*;
 use bevy_workbench::prelude::*;
-use souprune::core::sequencer::chapter_schema::Chapter;
+use souprune_schema::sequence::Chapter;
 
 use crate::panels::sequence_timeline::EditorSequenceState;
 

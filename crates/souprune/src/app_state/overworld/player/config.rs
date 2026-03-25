@@ -12,7 +12,9 @@
 
 use crate::config;
 use crate::core::basic_components::Direction;
-use crate::core::character_asset::{AnimationConfigAsset, CharacterAsset};
+use crate::core::character_asset::{
+    AnimationConfigAsset, CharacterAsset, state_animation_clip_name,
+};
 use anyhow::{Context, Result, anyhow};
 use bevy::math::Vec2;
 use bevy::prelude::Resource;
@@ -94,10 +96,10 @@ impl PlayerBehavior {
             sprite_source,
             initial_state,
             initial_clip: clip_name.to_string(),
-            collider_size: character_asset.collider_size,
-            collider_offset: character_asset.collider_offset,
+            collider_size: character_asset.collider_size_vec2(),
+            collider_offset: character_asset.collider_offset_vec2(),
             base_speed: character_asset.base_speed,
-            animation_config_path: character_asset.animation_config,
+            animation_config_path: character_asset.animation_config.clone(),
             run_action,
             run_speed_multiplier,
             invincibility,
@@ -116,7 +118,7 @@ fn resolve_initial_clip<'a>(
         .or_else(|| animation_config.states.values().next())
         .ok_or_else(|| anyhow!("Animation config does not contain any states"))?;
 
-    Ok(mapping.get_clip_name(facing))
+    Ok(state_animation_clip_name(mapping, facing))
 }
 
 fn load_ron_asset<T>(relative_path: &str) -> Result<T>

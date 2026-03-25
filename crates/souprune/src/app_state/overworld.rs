@@ -33,7 +33,6 @@ mod collision;
 pub(crate) mod player;
 pub(crate) mod tilemap;
 pub mod trigger;
-pub(crate) mod view;
 
 /// 创建 `ModeScoped("overworld")` 标记的便捷方法。
 pub(crate) fn overworld_scoped() -> ModeScoped {
@@ -112,7 +111,6 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             schedule,
             (
-                view::input_to_fre_event_bridge_system,
                 trigger::load_fre_rules_system,
                 trigger::register_loaded_rules_system,
                 trigger::trigger_zone_detection_system,
@@ -293,8 +291,7 @@ fn force_player_idle_on_non_movable_state_system(
     // Check if current state allows movement
     let player_movable = state_config
         .as_ref()
-        .and_then(|config| config.0.states.get(&current_state.0))
-        .map(|def| def.player_movable)
+        .map(|config| config.is_player_movable(&current_state.0))
         .unwrap_or(true); // Default to movable if no config
 
     // Force idle if movement is not allowed - remove walking/running components

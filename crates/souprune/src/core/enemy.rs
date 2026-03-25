@@ -14,9 +14,10 @@
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+pub use souprune_schema::enemy::ActionOption;
+use souprune_schema::enemy::EnemyDef as SchemaEnemyDef;
 use std::collections::HashMap;
-
-use super::definition::{CombatStats, LocaleInfo};
+use std::ops::{Deref, DerefMut};
 
 pub struct EnemyPlugin;
 
@@ -32,45 +33,25 @@ impl Plugin for EnemyPlugin {
     }
 }
 
-// --- Data Structures ---
-
-/// An action option available to the player (ACT or MERCY).
+/// Runtime Bevy asset wrapper for `.enemy.ron`.
 ///
-/// 玩家可用的行动选项（ACT 或 MERCY）。
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct ActionOption {
-    /// Mortar localization key for display label
-    pub label: String,
-    /// Sequence path to execute when selected
-    pub sequence: String,
-    /// Mortar node name for this action's dialogue (empty if none)
-    #[serde(default)]
-    pub param: String,
+/// 共享 schema crate 负责实际文件结构；运行时层只保留资产包装和加载逻辑。
+#[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct EnemyDef(pub SchemaEnemyDef);
+
+impl Deref for EnemyDef {
+    type Target = SchemaEnemyDef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-/// Typed enemy definition loaded from `.enemy.ron` files.
-///
-/// 从 `.enemy.ron` 文件加载的类型化敌人定义。
-#[derive(Asset, Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct EnemyDef {
-    pub id: String,
-    /// Localization info (name key + locale file)
-    #[serde(default)]
-    pub locale: LocaleInfo,
-    /// Combat statistics
-    #[serde(default)]
-    pub stats: CombatStats,
-    #[serde(default)]
-    pub description: String,
-    /// Mortar dialogue file path (relative to shared/locales/{locale}/)
-    #[serde(default)]
-    pub mortar_path: String,
-    /// ACT options
-    #[serde(default)]
-    pub acts: Vec<ActionOption>,
-    /// MERCY options
-    #[serde(default)]
-    pub mercies: Vec<ActionOption>,
+impl DerefMut for EnemyDef {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 // --- Registry ---
@@ -200,6 +181,87 @@ fn sync_enemies_system(
         info!(
             "Enemy Registry initialization complete. Total enemies: {}",
             registry.0.len()
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::FactValue;
+
+    #[test]
+    fn parses_enemy_asset_from_shared_schema() {
+        let ron = r#"(
+            id: "dummy",
+            locale: (
+                name: "enemy.dummy",
+                file: "enemies",
+            ),
+            stats: (
+                hp: 30,
+                attack: 5,
+                defense: 2,
+            ),
+            description: "A schema-backed enemy.",
+            mortar_path: "battle/dummy.mortar",
+            acts: [
+                (
+                    label: "enemy.act.check",
+                    sequence: "battle/check.sequence.ron",
+                    param: "check",
+                ),
+            ],
+            mercies: [
+                (
+                    label: "enemy.mercy.spare",
+                    sequence: "battle/spare.sequence.ron",
+                ),
+            ],
+        )"#;
+
+        let enemy: EnemyDef = ron::from_str(ron).expect("enemy asset");
+
+        assert_eq!(enemy.id, "dummy");
+        assert_eq!(enemy.locale.name, "enemy.dummy");
+        assert_eq!(enemy.stats.hp, 30);
+        assert_eq!(enemy.acts[0].sequence, "battle/check.sequence.ron");
+    }
+
+    #[test]
+    fn projects_enemy_facts_from_runtime_wrapper() {
+        let enemy = EnemyDef(SchemaEnemyDef {
+            id: "dummy".to_string(),
+            locale: souprune_schema::enemy::LocaleInfo {
+                name: "enemy.dummy".to_string(),
+                file: "enemies".to_string(),
+            },
+            stats: souprune_schema::enemy::CombatStats {
+                hp: 30,
+                attack: 5,
+                defense: 2,
+            },
+            description: "A schema-backed enemy.".to_string(),
+            mortar_path: "battle/dummy.mortar".to_string(),
+            acts: vec![ActionOption {
+                label: "enemy.act.check".to_string(),
+                sequence: "battle/check.sequence.ron".to_string(),
+                param: "check".to_string(),
+            }],
+            mercies: vec![],
+        });
+        let mut facts = bevy_fact_rule_event::FactDatabase::default();
+
+        project_enemy_facts(&enemy, &mut facts);
+
+        assert_eq!(
+            facts.get_by_str("dummy.name"),
+            Some(&FactValue::String("enemy.dummy".to_string()))
+        );
+        assert_eq!(facts.get_by_str("dummy.hp"), Some(&FactValue::Int(30)));
+        assert_eq!(
+            facts.get_by_str("dummy.action_labels"),
+            Some(&FactValue::StringList(vec!["enemy.act.check".to_string()]))
         );
     }
 }

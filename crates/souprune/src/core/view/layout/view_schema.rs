@@ -34,14 +34,6 @@ pub struct ViewLayoutAsset {
     /// 根视图节点
     pub roots: Vec<ViewNodeDef>,
 
-    /// Global triggers for state transitions.
-    /// DEPRECATED: Use FRE rules with SwitchState action instead.
-    ///
-    /// 状态转换的全局触发器。
-    /// 已弃用：请改用带有 SwitchState action 的 FRE 规则。
-    #[serde(default)]
-    pub global_triggers: Option<HashMap<String, Vec<GlobalTriggerRuleDef>>>,
-
     /// Data requirements for this View.
     ///
     /// 此 View 的数据需求声明。
@@ -116,15 +108,6 @@ pub enum InitialFactValue {
     /// List of integers - useful for HP values, etc.
     /// 整数列表 - 用于 HP 值等。
     IntList(Vec<i64>),
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct GlobalTriggerRuleDef {
-    pub target_state: String,
-    #[serde(default)]
-    pub sound: Option<String>,
-    #[serde(default)]
-    pub allowed_states: Option<Vec<String>>,
 }
 
 /// View Node Definition - defines a single visual element in the view layout.
@@ -326,18 +309,6 @@ pub struct SpriteDef {
     #[serde(default)]
     pub transform: Option<SerializableTransform>,
 
-    /// Optional custom shader path for sprite material.
-    ///
-    /// 精灵材质的可选自定义着色器路径。
-    #[serde(default)]
-    pub custom_shader: Option<String>,
-
-    /// Shader parameters passed via uniform data.
-    ///
-    /// 通过 uniform 数据传递的着色器参数。
-    #[serde(default)]
-    pub shader_params: Option<DynamicColor>,
-
     /// Pivot point (anchor).
     ///
     /// 锚点。
@@ -358,44 +329,13 @@ pub struct SpriteDef {
     #[serde(default)]
     pub visible_when: Option<String>,
 
-    /// HP bar source configuration for HP bar sprites.
-    /// When set, this sprite is treated as an HP bar and its shader params
-    /// will be dynamically updated based on the specified HP source.
-    ///
-    /// HP 条来源配置。
-    /// 设置后，此精灵将被视为 HP 条，其 shader 参数
-    /// 将根据指定的 HP 来源动态更新。
-    #[serde(default)]
-    #[deprecated(note = "Use `material` field instead for dynamic shader support")]
-    pub health_bar_source: Option<HealthBarSourceDef>,
-
     /// Dynamic material definition for custom shaders.
-    /// Replaces old custom_shader + shader_params + health_bar_source fields.
+    /// Replaces old custom_shader + shader_params fields.
     ///
     /// 自定义着色器的动态材质定义。
-    /// 替代旧的 custom_shader + shader_params + health_bar_source 字段。
+    /// 替代旧的 custom_shader + shader_params 字段。
     #[serde(default)]
     pub material: Option<MaterialDef>,
-}
-
-/// HP bar source definition for configuring where HP values come from.
-/// HP 条来源定义，用于配置 HP 值的来源。
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum HealthBarSourceDef {
-    /// Player HP source - uses player_hp and player_hp_max facts.
-    /// 玩家 HP 来源 - 使用 player_hp 和 player_hp_max facts。
-    Player,
-    /// Enemy HP source - uses enemy_hps and enemy_hp_maxs arrays.
-    /// The index is resolved from the repeat context (@i variable).
-    /// 敌人 HP 来源 - 使用 enemy_hps 和 enemy_hp_maxs 数组。
-    /// 索引从 repeat 上下文（@i 变量）解析。
-    Enemy,
-    /// Custom HP source with expressions.
-    /// 自定义 HP 来源（使用表达式）。
-    Custom {
-        hp_expr: String,
-        hp_max_expr: String,
-    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -578,10 +518,10 @@ pub enum StateTriggerDef {
 // ============================================================================
 
 /// Material definition for dynamic shader-based sprites.
-/// Replaces old custom_shader + shader_params + health_bar_source fields.
+/// Replaces old custom_shader + shader_params fields.
 ///
 /// 动态着色器精灵的材质定义。
-/// 替代旧的 custom_shader + shader_params + health_bar_source 字段。
+/// 替代旧的 custom_shader + shader_params 字段。
 ///
 /// Example in RON:
 /// ```ron

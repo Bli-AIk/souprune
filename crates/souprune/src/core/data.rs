@@ -157,9 +157,8 @@ fn apply_global_rules_system(
         bevy::log::debug!("DataPlugin: Set global fact '{}' from FRE file", key);
     }
 
-    // Register rules with Global scope
-    // Rules from global.fre.ron should declare scope: Global, but we force Global here
-    // to ensure backwards compatibility
+    // Register rules with Global scope.
+    // `global.fre.ron` is treated as a global rules file regardless of per-rule declarations.
     let rule_defs = fre_asset.get_rule_defs();
     for (idx, rule_def) in rule_defs.iter().enumerate() {
         let rule = rule_def.to_rule_with_index(idx, RuleScope::Global);

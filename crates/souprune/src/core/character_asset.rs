@@ -6,67 +6,87 @@ use bevy::asset::Asset;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+pub use souprune_schema::character::StateAnimationMapping;
+use souprune_schema::character::{
+    AnimationConfigAsset as SchemaAnimationConfigAsset, CharacterAsset as SchemaCharacterAsset,
+    Vec2XY,
+};
+use std::ops::{Deref, DerefMut};
 
-/// Character asset defining all properties of a character (player or NPC).
+/// Character asset runtime wrapper.
 ///
-/// 定义角色（玩家或 NPC）所有属性的资产。
+/// `.character.ron` 的权威结构在 `souprune_schema::character`。
+/// 这里仅保留 Bevy 资产包装和运行时辅助方法。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
-pub struct CharacterAsset {
-    pub name: String,
-    #[serde(with = "vec2_xy")]
-    pub collider_size: Vec2,
-    #[serde(with = "vec2_xy")]
-    pub collider_offset: Vec2,
-    pub base_speed: f32,
-    pub animation_config: String,
-    #[serde(default)]
-    pub interaction_script: Option<String>,
+#[serde(transparent)]
+pub struct CharacterAsset(pub SchemaCharacterAsset);
+
+impl Deref for CharacterAsset {
+    type Target = SchemaCharacterAsset;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-/// Animation configuration asset mapping states to animation clips.
+impl DerefMut for CharacterAsset {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl CharacterAsset {
+    pub fn collider_size_vec2(&self) -> Vec2 {
+        vec2_xy_to_vec2(&self.0.collider_size)
+    }
+
+    pub fn collider_offset_vec2(&self) -> Vec2 {
+        vec2_xy_to_vec2(&self.0.collider_offset)
+    }
+}
+
+/// Animation configuration asset runtime wrapper.
 ///
-/// 动画配置资产，将状态映射到动画片段。
+/// `.character.ron` 的实际字段由共享 schema crate 维护。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
-pub struct AnimationConfigAsset {
-    pub sprite_source: String,
-    pub states: HashMap<String, StateAnimationMapping>,
+#[serde(transparent)]
+pub struct AnimationConfigAsset(pub SchemaAnimationConfigAsset);
+
+impl Deref for AnimationConfigAsset {
+    type Target = SchemaAnimationConfigAsset;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-/// Defines how a state maps to directional animations.
-///
-/// 定义状态如何映射到方向动画。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum StateAnimationMapping {
-    Directional {
-        up: String,
-        down: String,
-        left: String,
-        right: String,
-    },
-    Single(String),
+impl DerefMut for AnimationConfigAsset {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
-impl StateAnimationMapping {
-    pub fn get_clip_name(&self, direction: &crate::core::basic_components::Direction) -> &str {
-        match self {
-            StateAnimationMapping::Directional {
-                up,
-                down,
-                left,
-                right,
-            } => match direction {
-                crate::core::basic_components::Direction::Up
-                | crate::core::basic_components::Direction::UpLeft
-                | crate::core::basic_components::Direction::UpRight => up,
-                crate::core::basic_components::Direction::Down
-                | crate::core::basic_components::Direction::DownLeft
-                | crate::core::basic_components::Direction::DownRight => down,
-                crate::core::basic_components::Direction::Left => left,
-                crate::core::basic_components::Direction::Right => right,
-            },
-            StateAnimationMapping::Single(clip) => clip,
-        }
+pub fn state_animation_clip_name<'a>(
+    mapping: &'a StateAnimationMapping,
+    direction: &crate::core::basic_components::Direction,
+) -> &'a str {
+    match mapping {
+        StateAnimationMapping::Directional {
+            up,
+            down,
+            left,
+            right,
+        } => match direction {
+            crate::core::basic_components::Direction::Up
+            | crate::core::basic_components::Direction::UpLeft
+            | crate::core::basic_components::Direction::UpRight => up,
+            crate::core::basic_components::Direction::Down
+            | crate::core::basic_components::Direction::DownLeft
+            | crate::core::basic_components::Direction::DownRight => down,
+            crate::core::basic_components::Direction::Left => left,
+            crate::core::basic_components::Direction::Right => right,
+        },
+        StateAnimationMapping::Single(clip) => clip,
     }
 }
 
@@ -82,32 +102,50 @@ pub struct CharacterAnimator {
     pub config: Handle<AnimationConfigAsset>,
 }
 
-mod vec2_xy {
-    use bevy::math::Vec2;
-    use serde::{Deserialize, Deserializer, Serializer};
+fn vec2_xy_to_vec2(value: &Vec2XY) -> Vec2 {
+    Vec2::new(value.x, value.y)
+}
 
-    #[derive(Deserialize)]
-    struct Vec2Config {
-        x: f32,
-        y: f32,
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::basic_components::Direction;
+
+    #[test]
+    fn parses_character_asset_and_converts_colliders_to_vec2() {
+        let ron = r#"(
+            name: "hero",
+            collider_size: (x: 12.0, y: 20.0),
+            collider_offset: (x: 1.0, y: -2.0),
+            base_speed: 96.0,
+            animation_config: "characters/hero_anim.character.ron",
+            interaction_script: Some("scripts/hero_interact.mortar"),
+        )"#;
+
+        let asset: CharacterAsset = ron::from_str(ron).expect("character asset");
+
+        assert_eq!(asset.name, "hero");
+        assert_eq!(asset.collider_size_vec2(), Vec2::new(12.0, 20.0));
+        assert_eq!(asset.collider_offset_vec2(), Vec2::new(1.0, -2.0));
+        assert_eq!(asset.animation_config, "characters/hero_anim.character.ron");
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec2, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let helper = Vec2Config::deserialize(deserializer)?;
-        Ok(Vec2::new(helper.x, helper.y))
-    }
+    #[test]
+    fn resolves_directional_animation_clip_name() {
+        let mapping = StateAnimationMapping::Directional {
+            up: "walk_up".to_string(),
+            down: "walk_down".to_string(),
+            left: "walk_left".to_string(),
+            right: "walk_right".to_string(),
+        };
 
-    pub fn serialize<S>(value: &Vec2, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("Vec2", 2)?;
-        state.serialize_field("x", &value.x)?;
-        state.serialize_field("y", &value.y)?;
-        state.end()
+        assert_eq!(
+            state_animation_clip_name(&mapping, &Direction::UpLeft),
+            "walk_up"
+        );
+        assert_eq!(
+            state_animation_clip_name(&mapping, &Direction::Right),
+            "walk_right"
+        );
     }
 }

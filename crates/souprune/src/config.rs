@@ -1,14 +1,16 @@
-//! # config.rs
+//! Loads the project-level configuration that decides which content Souprune boots and where it reads assets from.
 //!
-//! # config.rs 文件
+//! 加载项目级配置，决定 Souprune 启动哪套内容，以及资源从哪里读取。
 //!
-//! ## Module Overview
+//! This module is the runtime's configuration authority. It reads
+//! `projects/config.toml`, combines it with per-mod metadata, and exposes the
+//! path helpers that the rest of the engine uses to locate assets, rules, and
+//! optional WASM components. If startup wiring needs to know "which project are
+//! we running?", the answer comes from here.
 //!
-//! ## 模块概述
-//!
-//! This module handles loading and accessing the global configuration for the engine. It reads `projects/config.toml` to determine the active project mod, language settings, and window configuration, and provides utilities for resolving asset paths.
-//!
-//! 本模块处理引擎全局配置的加载与访问。它读取 `projects/config.toml` 以确定当前激活的项目模组、语言设置和窗口配置，并提供了用于解析资产路径的实用工具。
+//! 这个模块是运行时的配置真源。它读取 `projects/config.toml`，再结合每个
+//! mod 自己的元数据，对外提供资源、规则文件以及可选 WASM 组件的路径解析。
+//! 启动层如果需要回答“当前运行的是哪一个项目”，答案就来自这里。
 
 use anyhow::{Context, Result};
 use bevy::prelude::Resource;

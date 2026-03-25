@@ -11,114 +11,15 @@
 
 use bevy::prelude::*;
 use serde::Deserialize;
+use souprune_schema::config::{StateConfig as SchemaStateConfig, StateDefinition};
 use std::collections::HashMap;
 
 /// State configuration asset loaded from RON files.
 ///
 /// 从 RON 文件加载的状态配置资产。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
-pub struct StateConfig {
-    /// Configuration for each state.
-    ///
-    /// 每个状态的配置。
-    pub states: HashMap<String, StateDefinition>,
-}
-
-/// Definition of a single state's configuration.
-///
-/// 单个状态的配置定义。
-#[derive(Debug, Deserialize, Clone)]
-pub struct StateDefinition {
-    /// Whether View is interactive in this state.
-    ///
-    /// 此状态下 View 是否可交互。
-    #[serde(default)]
-    #[serde(alias = "ui_interactive")]
-    pub view_interactive: bool,
-
-    /// Whether the player can move in this state.
-    ///
-    /// 此状态下玩家是否可移动。
-    #[serde(default)]
-    pub player_movable: bool,
-
-    /// Whether the player can interact with objects in this state.
-    /// Defaults to the value of `player_movable` if not specified.
-    ///
-    /// 此状态下玩家是否可与物体交互。
-    /// 如果未指定，默认为 `player_movable` 的值。
-    #[serde(default)]
-    pub player_can_interact: Option<bool>,
-
-    /// Whether the camera should follow the player in this state.
-    ///
-    /// 此状态下相机是否跟随玩家。
-    #[serde(default = "default_true")]
-    pub camera_follow_player: bool,
-
-    /// View layout to load when entering this state.
-    ///
-    /// 进入此状态时加载的视图布局。
-    #[serde(default)]
-    pub view_layout: Option<String>,
-
-    /// Initial interactive layer to activate.
-    ///
-    /// 要激活的初始交互层。
-    #[serde(default)]
-    pub initial_layer: Option<String>,
-
-    /// Sound to play when entering this state.
-    ///
-    /// 进入此状态时播放的声音。
-    #[serde(default)]
-    pub on_enter_sound: Option<String>,
-
-    /// Sound to play when exiting this state.
-    ///
-    /// 退出此状态时播放的声音。
-    #[serde(default)]
-    pub on_exit_sound: Option<String>,
-
-    /// Optional path to chase configuration (only for chase-like states).
-    /// If present, enables chase-specific systems for this state.
-    ///
-    /// 可选的追逐战配置路径（仅用于类似追逐战的状态）。
-    /// 如果存在，则为此状态启用追逐战特定系统。
-    #[serde(default)]
-    pub chase_config: Option<String>,
-}
-
-impl StateDefinition {
-    /// Check if player can interact in this state.
-    /// Returns `player_can_interact` if set, otherwise falls back to `player_movable`.
-    ///
-    /// 检查玩家是否可以在此状态下交互。
-    /// 如果设置了 `player_can_interact` 则返回它，否则回退到 `player_movable`。
-    pub fn can_interact(&self) -> bool {
-        self.player_can_interact.unwrap_or(self.player_movable)
-    }
-}
-
-fn default_true() -> bool {
-    true
-}
-
-impl Default for StateDefinition {
-    fn default() -> Self {
-        Self {
-            view_interactive: false,
-            player_movable: true,
-            player_can_interact: None,
-            camera_follow_player: true,
-            view_layout: None,
-            initial_layer: None,
-            on_enter_sound: None,
-            on_exit_sound: None,
-            chase_config: None,
-        }
-    }
-}
+#[serde(transparent)]
+pub struct StateConfig(pub SchemaStateConfig);
 
 /// Resource that holds the loaded state configuration.
 /// When loaded, provides direct access to StateConfig.
@@ -126,7 +27,7 @@ impl Default for StateDefinition {
 /// 保存已加载状态配置的资源。
 /// 加载后，提供对 StateConfig 的直接访问。
 #[derive(Resource)]
-pub struct LoadedStateConfig(pub StateConfig);
+pub struct LoadedStateConfig(pub SchemaStateConfig);
 
 impl Default for LoadedStateConfig {
     fn default() -> Self {
@@ -140,7 +41,7 @@ impl Default for LoadedStateConfig {
                 ..Default::default()
             },
         );
-        Self(StateConfig { states })
+        Self(SchemaStateConfig { states })
     }
 }
 
@@ -150,6 +51,15 @@ impl LoadedStateConfig {
     /// 获取特定状态的配置。
     pub fn get(&self, state_name: &str) -> Option<&StateDefinition> {
         self.0.states.get(state_name)
+    }
+
+    /// Check if player can interact in the given state.
+    ///
+    /// 检查玩家在给定状态下是否可以交互。
+    pub fn can_interact(&self, state_name: &str) -> bool {
+        self.get(state_name)
+            .map(state_definition_can_interact)
+            .unwrap_or(true)
     }
 
     /// Check if UI is interactive for the given state.
@@ -200,6 +110,20 @@ impl LoadedStateConfig {
     /// 获取给定状态的视图布局路径（如果有）。
     pub fn get_view_layout(&self, state_name: &str) -> Option<&str> {
         self.get(state_name).and_then(|s| s.view_layout.as_deref())
+    }
+
+    /// Iterate over all configured states.
+    ///
+    /// 遍历所有状态配置。
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &StateDefinition)> {
+        self.0.states.iter()
+    }
+
+    /// Collect all configured state names.
+    ///
+    /// 收集全部状态名称。
+    pub fn state_names(&self) -> Vec<&String> {
+        self.0.states.keys().collect()
     }
 }
 
@@ -276,16 +200,48 @@ fn process_loaded_state_config_system(
     {
         info!(
             "State configuration loaded with {} states",
-            config.states.len()
+            config.0.states.len()
         );
-        for (name, def) in &config.states {
+        for (name, def) in &config.0.states {
             debug!(
                 "  State '{}': view_interactive={}, player_movable={}, camera_follow={}",
                 name, def.view_interactive, def.player_movable, def.camera_follow_player
             );
         }
-        *loaded_config = LoadedStateConfig(config.clone());
+        *loaded_config = LoadedStateConfig(config.0.clone());
         config_loaded.0 = true;
         *processed = true;
+    }
+}
+
+pub fn state_definition_can_interact(def: &StateDefinition) -> bool {
+    def.player_can_interact.unwrap_or(def.player_movable)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_runtime_wrapper_and_preserves_state_behavior() {
+        let ron = r#"(
+            states: {
+                "Menu": (
+                    ui_interactive: true,
+                    player_movable: false,
+                    player_can_interact: Some(true),
+                    camera_follow_player: false,
+                    view_layout: Some("ui/menu.view.ron"),
+                ),
+            },
+        )"#;
+
+        let config: StateConfig = ron::from_str(ron).expect("state config should parse");
+        let loaded = LoadedStateConfig(config.0.clone());
+
+        assert!(loaded.is_view_interactive("Menu"));
+        assert!(!loaded.is_player_movable("Menu"));
+        assert!(loaded.can_interact("Menu"));
+        assert_eq!(loaded.get_view_layout("Menu"), Some("ui/menu.view.ron"));
     }
 }

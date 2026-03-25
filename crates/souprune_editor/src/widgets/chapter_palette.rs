@@ -12,11 +12,11 @@
 //! 编辑器的章节类型选择面板组件。
 //! 按分类展示所有 Chapter 类型，用于添加新章节。
 
-use bevy_tween::interpolation::EaseKind;
 use egui::Color32;
-use souprune::core::sequencer::chapter_schema::{
-    CameraAction, Chapter, ElementModification, ElementSelector, FactCondition, FactValueMatch,
-    PlayerAction, TweenTarget, UIAction, Value,
+use souprune_schema::Val as Value;
+use souprune_schema::sequence::{
+    CameraAction, Chapter, EaseKindRepr, ElementModification, ElementSelector, FactCondition,
+    FactValueMatch, GapPolicy, LogLevel, PlayerAction, SplitAxis, TweenTarget, UIAction,
 };
 
 use super::chapter_card::ChapterCategory;
@@ -132,7 +132,7 @@ fn all_categories() -> Vec<CategoryDef> {
                             to: Value::Static(1.0),
                         },
                         duration: 0.5,
-                        easing: EaseKind::Linear,
+                        easing: EaseKindRepr::Linear,
                         wait_for_completion: true,
                     },
                 },
@@ -219,6 +219,38 @@ fn all_categories() -> Vec<CategoryDef> {
                         wait_for_completion: true,
                     },
                 },
+                ChapterTemplate {
+                    name: "LoadEnemies",
+                    icon: "[LE]",
+                    create: || Chapter::LoadEnemies {
+                        enemies: vec![String::new()],
+                    },
+                },
+                ChapterTemplate {
+                    name: "SplitBattleBox",
+                    icon: "[SB]",
+                    create: || Chapter::SplitBattleBox {
+                        source: String::new(),
+                        result: (String::new(), String::new()),
+                        axis: SplitAxis::Horizontal,
+                        position: 0.0,
+                        gap: 0.0,
+                        gap_policy: GapPolicy::Expands,
+                        duration: 0.0,
+                        easing: EaseKindRepr::Linear,
+                    },
+                },
+                ChapterTemplate {
+                    name: "MergeBattleBoxes",
+                    icon: "[MB]",
+                    create: || Chapter::MergeBattleBoxes {
+                        sources: (String::new(), String::new()),
+                        result: String::new(),
+                        gap_policy: GapPolicy::Expands,
+                        duration: 0.0,
+                        easing: EaseKindRepr::Linear,
+                    },
+                },
             ],
         },
         CategoryDef {
@@ -236,14 +268,24 @@ fn all_categories() -> Vec<CategoryDef> {
         CategoryDef {
             name: "Extension",
             color: ChapterCategory::Flow.color(),
-            templates: vec![ChapterTemplate {
-                name: "Custom",
-                icon: "[X]",
-                create: || Chapter::Custom {
-                    action_type: String::new(),
-                    params: Default::default(),
+            templates: vec![
+                ChapterTemplate {
+                    name: "Log",
+                    icon: "[L]",
+                    create: || Chapter::Log {
+                        text: String::new(),
+                        level: LogLevel::Info,
+                    },
                 },
-            }],
+                ChapterTemplate {
+                    name: "Custom",
+                    icon: "[X]",
+                    create: || Chapter::Custom {
+                        action_type: String::new(),
+                        params: Default::default(),
+                    },
+                },
+            ],
         },
     ]
 }

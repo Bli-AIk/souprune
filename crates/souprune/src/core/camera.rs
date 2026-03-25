@@ -24,6 +24,7 @@ mod systems;
 pub use components::CameraControlOverride;
 pub(crate) use components::Followable;
 pub use components::MainGameCamera;
+pub use components::ResolutionScale;
 pub use systems::CameraUpdateSet;
 
 use bevy::app::{App, Plugin};

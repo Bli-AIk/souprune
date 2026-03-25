@@ -27,8 +27,6 @@ mod typewriter_bridge;
 
 pub use components::MortarController;
 pub use components::TypewriterVoice;
-#[allow(deprecated)]
-pub use config::DialogueBlockingConfig;
 pub use config::DialogueInputConfig;
 pub use systems::DialogueControllerEntity;
 
@@ -49,9 +47,7 @@ impl Plugin for DialoguePlugin {
         // 添加 TypewriterPlugin 作为依赖
         app.add_plugins(bevy_ecs_typewriter::TypewriterPlugin);
 
-        #[allow(deprecated)]
         app.init_resource::<DialogueInputConfig>()
-            .init_resource::<DialogueBlockingConfig>()
             .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()

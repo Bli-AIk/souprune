@@ -127,6 +127,36 @@ pub enum Chapter {
         #[serde(default)]
         fade_in: Option<f32>,
     },
+    SplitBattleBox {
+        source: String,
+        result: (String, String),
+        axis: SplitAxis,
+        #[serde(default)]
+        position: f32,
+        #[serde(default)]
+        gap: f32,
+        #[serde(default)]
+        gap_policy: GapPolicy,
+        #[serde(default)]
+        duration: f32,
+        #[serde(default)]
+        easing: EaseKindRepr,
+    },
+    MergeBattleBoxes {
+        sources: (String, String),
+        result: String,
+        #[serde(default)]
+        gap_policy: GapPolicy,
+        #[serde(default)]
+        duration: f32,
+        #[serde(default)]
+        easing: EaseKindRepr,
+    },
+    Log {
+        text: String,
+        #[serde(default)]
+        level: LogLevel,
+    },
     Custom {
         action_type: String,
         #[serde(default)]
@@ -191,6 +221,32 @@ pub enum DataBinding {
     Expr(String),
 }
 
+/// Axis along which to split a battle box.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub enum SplitAxis {
+    Vertical,
+    #[default]
+    Horizontal,
+}
+
+/// Policy for how gap affects split/merge geometry.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub enum GapPolicy {
+    #[default]
+    Expands,
+    Includes,
+}
+
+/// Log level for Log chapter.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub enum LogLevel {
+    #[default]
+    Info,
+    Debug,
+    Warn,
+    Error,
+}
+
 /// Camera action.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum CameraAction {
@@ -248,20 +304,35 @@ pub enum ElementModification {
 }
 
 /// Easing function representation (PascalCase, matches bevy_tween EaseKind).
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub enum EaseKindRepr {
     #[default]
     Linear,
+    #[serde(alias = "InQuad")]
     QuadIn,
+    #[serde(alias = "OutQuad")]
     QuadOut,
+    #[serde(alias = "InOutQuad")]
     QuadInOut,
+    #[serde(alias = "InCubic")]
     CubicIn,
+    #[serde(alias = "OutCubic")]
     CubicOut,
+    #[serde(alias = "InOutCubic")]
     CubicInOut,
+    #[serde(alias = "InSine")]
     SineIn,
+    #[serde(alias = "OutSine")]
     SineOut,
+    #[serde(alias = "InOutSine")]
     SineInOut,
+    #[serde(alias = "InCirc")]
+    CircularIn,
+    #[serde(alias = "OutCirc")]
+    CircularOut,
+    #[serde(alias = "InOutCirc")]
+    CircularInOut,
     ExpoIn,
     ExpoOut,
     ExpoInOut,
@@ -317,4 +388,106 @@ pub enum TweenTarget {
 
 fn default_true() -> bool {
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_split_battle_box_with_legacy_easing_alias() {
+        let ron = r#"SplitBattleBox(
+            source: "main",
+            result: ("left", "right"),
+            axis: Vertical,
+            position: 0.0,
+            gap: 20.0,
+            gap_policy: Expands,
+            duration: 0.3,
+            easing: OutCubic,
+        )"#;
+
+        let chapter: Chapter = ron::from_str(ron).expect("legacy easing alias should parse");
+        match chapter {
+            Chapter::SplitBattleBox { easing, .. } => {
+                assert_eq!(easing, EaseKindRepr::CubicOut);
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_split_battle_box_with_canonical_easing_name() {
+        let ron = r#"SplitBattleBox(
+            source: "main",
+            result: ("left", "right"),
+            axis: Vertical,
+            position: 0.0,
+            gap: 20.0,
+            gap_policy: Expands,
+            duration: 0.3,
+            easing: CubicOut,
+        )"#;
+
+        let chapter: Chapter = ron::from_str(ron).expect("SplitBattleBox should parse");
+        match chapter {
+            Chapter::SplitBattleBox {
+                source,
+                result,
+                axis,
+                gap_policy,
+                easing,
+                ..
+            } => {
+                assert_eq!(source, "main");
+                assert_eq!(result, ("left".to_string(), "right".to_string()));
+                assert_eq!(axis, SplitAxis::Vertical);
+                assert_eq!(gap_policy, GapPolicy::Expands);
+                assert_eq!(easing, EaseKindRepr::CubicOut);
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_merge_battle_boxes_and_log_chapters() {
+        let merge = r#"MergeBattleBoxes(
+            sources: ("left", "right"),
+            result: "main",
+            gap_policy: Includes,
+            duration: 0.5,
+            easing: CubicOut,
+        )"#;
+        let log = r#"Log(
+            text: "hello",
+            level: Warn,
+        )"#;
+
+        let merge_chapter: Chapter = ron::from_str(merge).expect("MergeBattleBoxes should parse");
+        let log_chapter: Chapter = ron::from_str(log).expect("Log should parse");
+
+        match merge_chapter {
+            Chapter::MergeBattleBoxes {
+                sources,
+                result,
+                gap_policy,
+                easing,
+                ..
+            } => {
+                assert_eq!(sources, ("left".to_string(), "right".to_string()));
+                assert_eq!(result, "main");
+                assert_eq!(gap_policy, GapPolicy::Includes);
+                assert_eq!(easing, EaseKindRepr::CubicOut);
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+
+        match log_chapter {
+            Chapter::Log { text, level } => {
+                assert_eq!(text, "hello");
+                assert_eq!(level, LogLevel::Warn);
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+    }
 }
