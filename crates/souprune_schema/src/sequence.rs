@@ -309,17 +309,29 @@ pub enum ElementModification {
 pub enum EaseKindRepr {
     #[default]
     Linear,
+    #[serde(alias = "InQuad")]
     QuadIn,
+    #[serde(alias = "OutQuad")]
     QuadOut,
+    #[serde(alias = "InOutQuad")]
     QuadInOut,
+    #[serde(alias = "InCubic")]
     CubicIn,
+    #[serde(alias = "OutCubic")]
     CubicOut,
+    #[serde(alias = "InOutCubic")]
     CubicInOut,
+    #[serde(alias = "InSine")]
     SineIn,
+    #[serde(alias = "OutSine")]
     SineOut,
+    #[serde(alias = "InOutSine")]
     SineInOut,
+    #[serde(alias = "InCirc")]
     CircularIn,
+    #[serde(alias = "OutCirc")]
     CircularOut,
+    #[serde(alias = "InOutCirc")]
     CircularInOut,
     ExpoIn,
     ExpoOut,
@@ -381,6 +393,28 @@ fn default_true() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_split_battle_box_with_legacy_easing_alias() {
+        let ron = r#"SplitBattleBox(
+            source: "main",
+            result: ("left", "right"),
+            axis: Vertical,
+            position: 0.0,
+            gap: 20.0,
+            gap_policy: Expands,
+            duration: 0.3,
+            easing: OutCubic,
+        )"#;
+
+        let chapter: Chapter = ron::from_str(ron).expect("legacy easing alias should parse");
+        match chapter {
+            Chapter::SplitBattleBox { easing, .. } => {
+                assert_eq!(easing, EaseKindRepr::CubicOut);
+            }
+            other => panic!("unexpected chapter parsed: {other:?}"),
+        }
+    }
 
     #[test]
     fn parses_split_battle_box_with_canonical_easing_name() {
