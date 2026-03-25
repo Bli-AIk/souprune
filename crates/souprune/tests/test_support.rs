@@ -6,6 +6,7 @@
 use once_cell::sync::Lazy;
 use ron::de::from_str;
 use serde::de::DeserializeOwned;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -43,6 +44,30 @@ pub fn named_project_root(project_name: &str) -> &'static Path {
         "example_mod" => PROJECT_ROOT.as_path(),
         "example_am_mod" => PROJECT_AM_ROOT.as_path(),
         other => panic!("Unknown test project root: {other}"),
+    }
+}
+
+/// Path to a named example project folder when that mod checkout is present.
+pub fn available_project_root(project_name: &str) -> Option<&'static Path> {
+    let root = named_project_root(project_name);
+    root.join("mod.toml").is_file().then_some(root)
+}
+
+/// Named example projects that are available in the current checkout.
+pub fn available_project_names<'a>(project_names: &[&'a str]) -> Vec<&'a str> {
+    project_names
+        .iter()
+        .copied()
+        .filter(|project_name| available_project_root(project_name).is_some())
+        .collect()
+}
+
+/// Emit a visible warning when a smoke test is skipped because optional project repos are absent.
+pub fn warn_missing_projects(test_name: &str, detail: &str) {
+    let message = format!("{test_name} skipped: {detail}");
+    eprintln!("{message}");
+    if env::var_os("GITHUB_ACTIONS").is_some() {
+        println!("::warning::{message}");
     }
 }
 
