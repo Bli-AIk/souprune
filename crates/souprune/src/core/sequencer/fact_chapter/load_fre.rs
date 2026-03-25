@@ -2,12 +2,12 @@
 //!
 //! 为序列章节加载 FRE 资产，并把其中的 facts 合并进运行时状态。
 //!
-//! This file covers the sequence chapter that imports FRE data. It waits for one
+//! Covers the sequence chapter that imports FRE data. It waits for one
 //! or more `.fre` assets, registers enums, writes resolved facts into the
 //! layered database, and optionally performs aggregate collection rules that
 //! turn groups of imported facts into list-like runtime values.
 //!
-//! 这个文件负责序列章节里导入 FRE 数据的那条路径。它等待一个或多个 `.fre`
+//! 负责序列章节里导入 FRE 数据的那条路径。它等待一个或多个 `.fre`
 //! 资产加载完成，注册枚举，把解析后的 facts 写入 layered 数据库，并按需执行
 //! 聚合规则，把一组导入 facts 转成运行时使用的列表值。
 

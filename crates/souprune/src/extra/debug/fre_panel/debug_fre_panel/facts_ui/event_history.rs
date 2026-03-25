@@ -2,12 +2,12 @@
 //!
 //! 渲染 FRE 调试面板捕获到的最近 `FactEvent` 历史记录。
 //!
-//! This file is intentionally narrow: it shows which events were emitted, when
+//! Its scope is intentionally narrow: it shows which events were emitted, when
 //! they fired, and what data keys they carried. That timeline is useful when a
 //! rule appears not to trigger, because it lets the debugger confirm whether the
 //! expected event was ever produced in the first place.
 //!
-//! 这个文件的职责很窄：展示发出了哪些事件、它们何时发生、以及携带了哪些数据键。
+//! 职责刻意很窄：只展示发出了哪些事件、它们何时发生、以及携带了哪些数据键。
 //! 当某条规则看起来没有触发时，这条时间线非常有用，因为它能先确认预期事件
 //! 到底有没有被发出来。
 

@@ -2,12 +2,12 @@
 //!
 //! 执行那些会发出 fact 事件或直接修改分层 fact 数据库的章节。
 //!
-//! This file is the imperative fact-operations layer of the sequencer. It turns
+//! Acts as the imperative fact-operations layer of the sequencer. It turns
 //! schema-level `EmitFactEvent` and `ModifyFact` chapters into concrete runtime
 //! side effects, including expression resolution that can read either view-local
 //! facts or the shared layered database.
 //!
-//! 这个文件是 sequencer 里偏命令式的 fact 操作层。它把 schema 里的
+//! sequencer 里偏命令式的 fact 操作层。它把 schema 里的
 //! `EmitFactEvent` 和 `ModifyFact` 章节落地成实际运行时副作用，其中表达式求值
 //! 既可以读取 view 局部 facts，也可以读取共享的 layered fact 数据库。
 

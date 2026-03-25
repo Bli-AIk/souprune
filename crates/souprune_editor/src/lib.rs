@@ -8,7 +8,7 @@
 //! plugin that lets another app embed the editor.
 //!
 //! 这个 crate 把序列、View、资源和 FRE 编辑工具封装成一个建立在
-//! `bevy_workbench` 之上的 Bevy 插件。这个文件本身刻意保持很薄：它只声明
+//! `bevy_workbench` 之上的 Bevy 插件。这个 crate 根入口刻意保持很薄：它只声明
 //! 面向编辑器的模块，并暴露出可被其他应用接入的主插件。
 
 mod bootstrap;

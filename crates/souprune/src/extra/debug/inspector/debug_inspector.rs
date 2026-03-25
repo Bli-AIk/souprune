@@ -2,13 +2,13 @@
 //!
 //! 实现 Souprune 调试模式下使用的独立 Inspector 窗口。
 //!
-//! This file owns the debug inspector shell: the window and camera markers,
+//! Owns the debug inspector shell: the window and camera markers,
 //! filter state, startup wiring, and the systems that coordinate the inspector
 //! with help overlays, toast notifications, and gameplay input blocking. The
-//! concrete helper behaviors are split into sibling modules, but this file turns
+//! concrete helper behaviors are split into sibling modules, but this module turns
 //! them into one coherent debug tool.
 //!
-//! 这个文件负责调试 Inspector 的外壳：窗口与相机标记、过滤状态、启动装配，
+//! 负责调试 Inspector 的外壳：窗口与相机标记、过滤状态、启动装配，
 //! 以及让 Inspector 与帮助覆盖层、提示气泡和玩法输入屏蔽协同工作的系统。
 //! 具体辅助行为拆在旁边的子模块里，而把它们收拢成完整调试工具的是这里。
 

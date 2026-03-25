@@ -2,12 +2,12 @@
 //!
 //! 把 mod 提供的 danmaku 实例适配到 Souprune 的战斗运行时中。
 //!
-//! This file is the danmaku-specific slice of the WASM mod system. It owns the
+//! Acts as the danmaku-specific slice of the WASM mod system. It owns the
 //! live instance wrappers, creates algorithm instances from the registry, and
 //! translates Souprune bullet context/output values to and from the generated
 //! WIT bindings.
 //!
-//! 这个文件是 WASM mod 系统里专门面向 danmaku 的一层。它负责活跃实例包装、
+//! WASM mod 系统里专门面向 danmaku 的一层。它负责活跃实例包装、
 //! 根据注册表创建算法实例，并在 Souprune 的子弹上下文/输出结构与生成出来的
 //! WIT 绑定类型之间做双向转换。
 

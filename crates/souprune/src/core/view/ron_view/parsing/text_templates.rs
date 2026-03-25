@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file implements the text-template language used by RON Views. It resolves double-brace
+//! Implements the text-template language used by RON Views. It resolves double-brace
 //! substitutions, lambda-style list rendering, array access, and nested fact lookups so authored
 //! layout text can become concrete runtime strings.
 //!
-//! 这个文件实现了 RON View 使用的文本模板语言。它负责解析双花括号替换、lambda 风格的
+//! 实现了 RON View 使用的文本模板语言。它负责解析双花括号替换、lambda 风格的
 //! 列表渲染、数组索引和嵌套事实访问，让作者写下的布局文本在运行时变成最终字符串。
 
 use super::super::evaluation::preprocess_fact_expressions;

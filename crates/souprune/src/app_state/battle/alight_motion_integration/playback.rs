@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file is the playback entry for battle-side Alight Motion performances. It reacts to
+//! Acts as the playback entry for battle-side Alight Motion performances. It reacts to
 //! play events, loads projects and optional battle config overrides, inserts the runtime entities
 //! into battle scope, and detects when the imported animation has finished.
 //!
-//! 这个文件是战斗侧 Alight Motion 演出的播放入口。它会响应播放事件，加载工程与可选的战斗
+//! 战斗侧 Alight Motion 演出的播放入口。它会响应播放事件，加载工程与可选的战斗
 //! 覆盖配置，把运行时实体放进 battle scope，并检测导入动画何时真正播放完毕。
 
 use super::config_loading::load_alight_motion_config_from_path;

@@ -2,12 +2,12 @@
 //!
 //! 根据已加载的 RON View 布局及其绑定数据，生成具体的实体树。
 //!
-//! This file is the main construction step of the RON view runtime. It loads
+//! Acts as the main construction step of the RON view runtime. It loads
 //! required FRE assets, initializes per-view fact state, applies interface
 //! bindings, and walks layout nodes to create the actual Bevy entities that the
 //! rest of the view system will later reconcile and update.
 //!
-//! 这个文件是 RON View 运行时的主要构建步骤。它负责加载所需的 FRE 资产、
+//! RON View 运行时的主要构建步骤。它负责加载所需的 FRE 资产、
 //! 初始化每个 View 自己的事实状态、应用接口绑定，并遍历布局节点生成真正的
 //! Bevy 实体树，供后续的 View 对账与更新系统继续处理。
 

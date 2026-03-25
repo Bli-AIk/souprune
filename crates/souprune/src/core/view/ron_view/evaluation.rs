@@ -2,12 +2,12 @@
 //!
 //! 负责求值 RON 定义的 View 布局里用到的表达式与派生值。
 //!
-//! This file is the calculation layer for dynamic view data. It preprocesses
+//! Acts as the calculation layer for dynamic view data. It preprocesses
 //! fact references, repeat variables, array lookups, and helper functions so
 //! layout fields such as position, color, conditionals, and text bindings can
 //! react to the current game state.
 //!
-//! 这个文件是动态 View 数据的计算层。它预处理 fact 引用、repeat 变量、
+//! 动态 View 数据的计算层。它预处理 fact 引用、repeat 变量、
 //! 数组查找和辅助函数，让布局里的位置、颜色、条件判断以及文本绑定等字段
 //! 可以根据当前游戏状态实时变化。
 

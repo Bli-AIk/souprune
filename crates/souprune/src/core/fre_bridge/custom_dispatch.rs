@@ -2,12 +2,12 @@
 //!
 //! 分发已经命中的自定义 FRE 动作，把它们交给游戏侧注册的处理器。
 //!
-//! This file covers the branch of the rule pipeline that is not generic enough
+//! Covers the branch of the rule pipeline that is not generic enough
 //! to be handled as built-in view actions. It looks up matching game rules,
 //! re-checks their conditions against the current fact set, and either executes
 //! a registered handler or emits a fallback `FreCustomActionEvent`.
 //!
-//! 这个文件负责规则流水线里那部分无法被通用 View 动作直接处理的分支。
+//! 负责规则流水线里那部分无法被通用 View 动作直接处理的分支。
 //! 它会查找匹配的游戏规则，在当前事实集合上重新确认条件，然后要么调用已注册
 //! 的处理器，要么退回成一个 `FreCustomActionEvent` 交给别的系统继续消费。
 

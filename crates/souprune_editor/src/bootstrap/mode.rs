@@ -2,12 +2,12 @@
 //!
 //! 定义编辑器在编辑态与试玩态之间切换时需要执行的模式逻辑。
 //!
-//! This file owns the behavior that is specific to `bevy_workbench` editor
+//! Owns the behavior that is specific to `bevy_workbench` editor
 //! modes: entering play mode, registering the external game camera, resetting
 //! runtime state when returning to edit mode, and keeping editor gizmo toggles
 //! in sync with the actual debug configuration.
 //!
-//! 这个文件负责 `bevy_workbench` 编辑器模式独有的切换行为：进入试玩态、
+//! 负责 `bevy_workbench` 编辑器模式独有的切换行为：进入试玩态、
 //! 注册外部游戏相机、回到编辑态时重置运行时状态，以及让编辑器工具栏里的
 //! gizmo 开关和真实调试配置保持同步。
 

@@ -2,12 +2,12 @@
 //!
 //! 为 `RunSequence` 章节加载嵌套序列资源，并把它们插入当前执行队列。
 //!
-//! This file implements the runtime half of `RunSequence`: resolve the target
+//! Implements the runtime half of `RunSequence`: resolve the target
 //! path, start loading the referenced sequence, wait until the asset is ready,
 //! inject any requested parameters, and then prepend the loaded chapters to the
 //! active sequence context.
 //!
-//! 这个文件实现了 `RunSequence` 的运行时一侧：解析目标路径、开始加载被引用的
+//! 实现了 `RunSequence` 的运行时一侧：解析目标路径、开始加载被引用的
 //! 序列、等待资源就绪、注入请求的参数，并最终把加载出的章节前插到当前序列上下文。
 
 use bevy::prelude::*;

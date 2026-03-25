@@ -2,12 +2,12 @@
 //!
 //! 保存 Souprune 编辑器界面使用的内置简体中文 Fluent 文案。
 //!
-//! Like the English bundle, this file is a compiled-in locale source rather
+//! Like the English bundle, this locale bundle is a compiled-in source rather
 //! than executable logic. It provides the editor with a shipped Simplified
 //! Chinese translation set so the UI can be localized immediately in local
 //! builds and distribution packages.
 //!
-//! 和英文语言包一样，这个文件是编译进程序的本地化数据源，而不是逻辑代码。
+//! 和英文语言包一样，这份语言包是编译进程序的本地化数据源，而不是逻辑代码。
 //! 它为编辑器提供一整套随程序分发的简体中文翻译，让本地开发和分发包都能在
 //! 不依赖额外资源下载的情况下直接完成界面本地化。
 

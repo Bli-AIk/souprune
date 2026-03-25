@@ -2,12 +2,12 @@
 //!
 //! 在当前 FRE 事实视图之上评估规则条件表达式。
 //!
-//! This file is the condition-checking half of the FRE expression layer. It
+//! Acts as the condition-checking half of the FRE expression layer. It
 //! parses comparison operators, resolves operands through the shared expression
 //! helpers, and produces the boolean answers that decide whether a rule may
 //! execute.
 //!
-//! 这个文件是 FRE 表达式层里负责条件判断的一半。它解析比较运算符，借助共享的
+//! FRE 表达式层里负责条件判断的一半。它解析比较运算符，借助共享的
 //! 表达式解析辅助逻辑求出左右两侧的值，并最终给出某条规则是否允许执行的布尔结果。
 
 use super::expressions::{resolve_int, resolve_value};

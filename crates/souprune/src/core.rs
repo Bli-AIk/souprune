@@ -26,7 +26,7 @@
 //!
 //! # 源文件概述
 //!
-//! This file defines the `CorePlugin` and `GlobalPlugin` that run early and late in the app lifecycle.
+//! Defines the `CorePlugin` and `GlobalPlugin` that run early and late in the app lifecycle.
 //!
 //! 此处定义了 `CorePlugin` 与 `GlobalPlugin`，它们分别在应用生命周期的早期和后期运行。
 

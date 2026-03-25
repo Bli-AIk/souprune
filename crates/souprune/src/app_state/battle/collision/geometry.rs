@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file is the geometry-focused submodule root for battle-box collision logic. It ties
+//! Acts as the geometry-focused submodule root for battle-box collision logic. It ties
 //! together candidate collection, player-to-box selection, and split/merge planning, and keeps
 //! the accompanying tests close to the exported geometry helpers.
 //!
-//! 这个文件是战斗框碰撞几何逻辑的子模块入口。它把候选框收集、玩家归属选择，以及分裂/合并
+//! 战斗框碰撞几何逻辑的子模块入口。它把候选框收集、玩家归属选择，以及分裂/合并
 //! 规划这些部分串在一起，同时把对应测试保留在导出的几何辅助函数旁边。
 
 use super::*;

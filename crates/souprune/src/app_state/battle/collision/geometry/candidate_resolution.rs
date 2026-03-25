@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file resolves concrete battle-box candidates from live ECS data. It translates either UI
+//! Resolves concrete battle-box candidates from live ECS data. It translates either UI
 //! view boxes or Alight Motion bounds into a common `BattleBoxBoundary`, chooses usable live
 //! matches, and provides the retirement helpers used when older boxes must be hidden and detached.
 //!
-//! 这个文件负责从实时 ECS 数据里解析出可用的战斗框候选。它会把 UI view box 和
+//! 负责从实时 ECS 数据里解析出可用的战斗框候选。它会把 UI view box 和
 //! Alight Motion 边界统一转换成 `BattleBoxBoundary`，挑出真正可用的匹配项，并提供退役旧
 //! 战斗框时会用到的隐藏与摘除辅助函数。
 

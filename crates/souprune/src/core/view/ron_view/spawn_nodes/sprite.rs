@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file handles the sprite-specific branches of the RON View node spawner. It decides
+//! Handles the sprite-specific branches of the RON View node spawner. It decides
 //! whether a sprite should be treated as a protocol texture, a resolved game asset, or a shader
 //! material node, and builds the corresponding entity bundle.
 //!
-//! 这个文件负责 RON View 节点生成里与精灵有关的分支。它会判断一个精灵应该按协议纹理、
+//! 负责 RON View 节点生成里与精灵有关的分支。它会判断一个精灵应该按协议纹理、
 //! 解析后的游戏资产，还是着色器材质节点来处理，并生成对应的实体组合。
 
 use super::super::parsing::preprocess_sprite_def_for_repeat;

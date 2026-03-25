@@ -2,12 +2,12 @@
 //!
 //! 把对话表现层状态反向同步回 facts 与当前活动 View 的局部数据。
 //!
-//! This file keeps the rest of the game aware of dialogue progress. It writes
+//! Keeps the rest of the game aware of dialogue progress. It writes
 //! typewriter completion flags into the layered fact database, mirrors visible
 //! dialogue text into active views, and handles pause/resume or replay behavior
 //! when menu depth changes interrupt dialogue flow.
 //!
-//! 这个文件让游戏其他部分能够感知对话进度。它把打字机完成状态写回分层 fact
+//! 让游戏其他部分能够感知对话进度。它把打字机完成状态写回分层 fact
 //! 数据库，把当前可见文本镜像到活动 View 中，并在菜单深度变化打断对话流程时
 //! 处理暂停、恢复或重播行为。
 

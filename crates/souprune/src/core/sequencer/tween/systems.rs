@@ -2,12 +2,12 @@
 //!
 //! 执行 `TweenViewElement` 章节，为 View 实体创建对应的运行时 tween。
 //!
-//! This file is the tween executor for sequence chapters. It resolves the target
+//! Acts as the tween executor for sequence chapters. It resolves the target
 //! element, evaluates expression-backed tween endpoints against current data, and
 //! spawns animator entities that either complete immediately or block chapter
 //! progression until the tween has finished.
 //!
-//! 这个文件是序列章节的 tween 执行器。它会解析目标元素、根据当前数据求出
+//! 序列章节的 tween 执行器。它会解析目标元素、根据当前数据求出
 //! 表达式驱动的 tween 起止值，并生成动画器实体；这些 tween 要么立刻放行章节，
 //! 要么在完成之前阻塞流程继续前进。
 

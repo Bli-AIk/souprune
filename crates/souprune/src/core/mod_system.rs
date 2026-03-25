@@ -2,12 +2,12 @@
 //!
 //! 承载 Souprune 的 WASM mod 运行时，以及对外暴露 mod 扩展能力的各类注册表。
 //!
-//! This file is the integration layer between the engine and user-provided WASM
+//! Acts as the integration layer between the engine and user-provided WASM
 //! components. It loads built-in and project mods, records which mod provides
 //! each behavior/danmaku/pattern ID, and wires the runtime update systems that
 //! let the rest of the game call into those mod-defined capabilities.
 //!
-//! 这个文件是引擎与用户提供的 WASM 组件之间的集成层。它负责加载内置与项目 mod，
+//! 引擎与用户提供的 WASM 组件之间的集成层。它负责加载内置与项目 mod，
 //! 记录每个行为、弹幕算法和生成模式 ID 由哪个 mod 提供，并接入运行时更新系统，
 //! 让游戏其余部分可以调用这些由 mod 定义的能力。
 

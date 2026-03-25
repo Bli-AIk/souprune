@@ -2,12 +2,12 @@
 //!
 //! 渲染 FRE 调试面板中用于查看已注册规则与最近触发记录的标签页。
 //!
-//! This file focuses on one question: which rules are currently active, where
+//! Focuses on one question: which rules are currently active, where
 //! they came from, and whether they have fired recently. It groups global,
 //! local, and view-scoped rules and expands each rule's trigger, conditions,
 //! modifications, and outputs for debugging.
 //!
-//! 这个文件只回答一件事：当前有哪些规则处于有效状态、它们来自哪里、最近是否
+//! 只回答一件事：当前有哪些规则处于有效状态、它们来自哪里、最近是否
 //! 触发过。它会把全局、本地以及 View 作用域的规则分组展示，并展开每条规则的
 //! trigger、conditions、modifications 和 outputs，方便排查规则行为。
 

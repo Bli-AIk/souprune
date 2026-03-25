@@ -2,12 +2,12 @@
 //!
 //! 注册 View 子系统，并把它的运行时部件接入游戏调度。
 //!
-//! This file is the plugin front door for Souprune's RON-driven UI runtime. It
+//! Acts as the plugin front door for Souprune's RON-driven UI runtime. It
 //! installs assets, messages, lifecycle tracking, reconciliation, material
 //! support, and the system sets that keep views spawning, evaluating, and
 //! updating while the game is running.
 //!
-//! 这个文件是 Souprune 的 RON 驱动 UI 运行时的插件入口。它负责安装资产、
+//! Souprune 的 RON 驱动 UI 运行时的插件入口。它负责安装资产、
 //! 消息、生命周期跟踪、对账流程、材质支持，以及一整套让 View 在游戏运行中
 //! 能够生成、求值和更新的系统。
 

@@ -2,12 +2,12 @@
 //!
 //! 定义生成与销毁 RON 驱动 View 时使用的消息边界。
 //!
-//! This file turns view creation into an explicit message flow instead of
+//! Turns view creation into an explicit message flow instead of
 //! requiring callers to know the low-level entity bundle and pending-binding
 //! setup. It also centralizes the teardown path so views can be removed by path
 //! or in bulk without every caller reimplementing the same query logic.
 //!
-//! 这个文件把 View 的创建变成显式消息流，调用方不需要知道底层实体 bundle、
+//! 把 View 的创建变成显式消息流，调用方不需要知道底层实体 bundle、
 //! 绑定数据和待加载资源应该怎么拼装。它也把销毁路径集中到一起，让系统可以按
 //! 路径或批量移除 View，而不用每个调用点都重写一遍查询逻辑。
 

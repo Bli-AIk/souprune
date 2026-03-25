@@ -2,12 +2,12 @@
 //!
 //! 初始化编辑器专用资源，以及那些不应塞进某个单独面板里的支撑系统。
 //!
-//! This file groups the shared editor services: i18n registration, debug
+//! Groups the shared editor services: i18n registration, debug
 //! overlays, toolbar toggles, editor state resources, and background systems
 //! such as autosave. These pieces support many panels at once, so keeping them
 //! here avoids scattering startup-side editor state across unrelated modules.
 //!
-//! 这个文件收拢的是多个面板共用的编辑器服务：国际化注册、调试覆盖层、
+//! 收拢的是多个面板共用的编辑器服务：国际化注册、调试覆盖层、
 //! 工具栏开关、编辑器状态资源，以及自动保存这样的后台系统。它们不是某个面板
 //! 的私产，因此集中在这里可以避免启动期的编辑器状态分散到无关模块里。
 

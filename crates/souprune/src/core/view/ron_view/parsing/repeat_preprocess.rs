@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file preprocesses repeat-aware expressions before a repeated sprite is spawned. It
+//! Preprocesses repeat-aware expressions before a repeated sprite is spawned. It
 //! resolves placeholders such as `@i` and array lookups that depend on the current repeat
 //! iteration so the downstream spawn code can operate on a concrete definition.
 //!
-//! 这个文件会在 repeat 精灵真正生成前，先预处理其中依赖 repeat 上下文的表达式。像 `@i`
+//! 会在 repeat 精灵真正生成前，先预处理其中依赖 repeat 上下文的表达式。像 `@i`
 //! 以及依赖当前索引的数组访问都会在这里被展开，好让后续生成逻辑面对的是更具体的定义。
 
 use super::super::super::layout::SpriteDef;

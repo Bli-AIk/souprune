@@ -2,13 +2,13 @@
 //!
 //! 实现一个独立的调试窗口，用于在运行时检查 FRE 的活动状态。
 //!
-//! This file owns the shell of the FRE debug panel: window lifecycle, camera,
+//! Owns the shell of the FRE debug panel: window lifecycle, camera,
 //! tab state, event-history collection, focus handling, and the systems that
 //! make the panel coexist with gameplay input. The detailed tab renderers live
-//! in sibling files, but this file is the place where that tool becomes a real
+//! in sibling files, but this module is where that tool becomes a real
 //! debug surface inside the app.
 //!
-//! 这个文件负责 FRE 调试面板的外壳：窗口生命周期、相机、标签页状态、事件历史、
+//! 负责 FRE 调试面板的外壳：窗口生命周期、相机、标签页状态、事件历史、
 //! 焦点处理，以及让它与玩法输入共存的系统。具体标签页内容放在旁边的子文件里，
 //! 但真正把这套工具变成应用内调试界面的，是这里。
 

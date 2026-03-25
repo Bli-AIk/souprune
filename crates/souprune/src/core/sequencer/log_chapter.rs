@@ -2,11 +2,11 @@
 //!
 //! 执行用于诊断的 `Log` 章节：输出消息，然后立即结束。
 //!
-//! This file is intentionally small because the chapter type is small. It keeps
+//! Keeps a narrow scope because the chapter type itself is small. It keeps
 //! the logging chapter behavior out of the main flow systems while still giving
 //! sequence authors a dedicated chapter for tracing and debugging sequence execution.
 //!
-//! 这个文件刻意很小，因为对应的章节类型本身就很小。它把日志章节的行为从主流程
+//! 对应的章节类型本身就很小，所以这里只保留很窄的职责。它把日志章节的行为从主流程
 //! 系统里剥离出来，同时为序列作者保留了一个专门用于跟踪和调试执行过程的章节类型。
 
 use super::chapter_schema::Chapter;

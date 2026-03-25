@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file renders the type-specific property editors used by the chapter inspector. It maps
+//! Renders the type-specific property editors used by the chapter inspector. It maps
 //! each sequence `Chapter` variant to the controls that can edit it, so the inspector panel can
 //! stay focused on selection and layout instead of carrying every field editor inline.
 //!
-//! 这个文件负责渲染章节检查器里按类型分派的属性编辑器。它把每个序列 `Chapter` 变体映射到
+//! 负责渲染章节检查器里按类型分派的属性编辑器。它把每个序列 `Chapter` 变体映射到
 //! 对应的编辑控件，让检查器面板本身只负责选择和布局，而不用把所有字段编辑逻辑都堆在一起。
 
 use bevy::prelude::*;

@@ -2,12 +2,12 @@
 //!
 //! 在触摸输入已经解析完成后，更新触控覆盖层的可见表现。
 //!
-//! This file is the presentation half of the touch overlay runtime. It turns
+//! Acts as the presentation half of the touch overlay runtime. It turns
 //! resolved pressed states and controller directions into button colors, frame
 //! transitions, overlay visibility, and global overlay toggling, without owning
 //! the actual input-detection logic.
 //!
-//! 这个文件是触控覆盖层运行时里偏表现的一半。它把已经解析出的按下状态和方向
+//! 触控覆盖层运行时里偏表现的一半。它把已经解析出的按下状态和方向
 //! 结果转换成按钮颜色、帧动画切换、方向覆盖层显示以及整体显隐，而不负责
 //! 真正的触摸命中检测逻辑。
 

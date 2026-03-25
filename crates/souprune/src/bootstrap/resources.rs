@@ -2,13 +2,13 @@
 //!
 //! 注入启动期资源，并提供切换流程时要用到的运行时重置辅助逻辑。
 //!
-//! This file gathers the pieces that are awkward to keep inside plugins:
+//! Gathers the pieces that are awkward to keep inside plugins:
 //! rebuilding input resources from project config, preparing font directories,
 //! loading touch overlay definitions, and clearing stateful runtime data when
 //! the game mode is restarted. It is still bootstrap code, but it touches live
 //! runtime resources, so the boundary needs to be explicit.
 //!
-//! 这个文件收拢了不适合直接塞进插件装配里的启动辅助逻辑：根据项目配置重建
+//! 收拢了不适合直接塞进插件装配里的启动辅助逻辑：根据项目配置重建
 //! 输入资源、准备字体目录、读取触控布局定义，以及在流程重开时清空有状态的
 //! 运行时数据。它仍然属于 bootstrap，但它会直接触碰运行时资源，所以需要把
 //! 这层边界写清楚。

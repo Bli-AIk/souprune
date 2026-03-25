@@ -2,12 +2,12 @@
 //!
 //! 在 FRE 调试面板里渲染每个活动 `ViewRoot` 的可编辑局部事实视图。
 //!
-//! This file is specifically about per-view local facts rather than the shared
+//! Focuses specifically on per-view local facts rather than the shared
 //! layered fact database. It lists active view roots, filters their local facts,
 //! and lets the debugger tweak values in place so UI logic can be inspected
 //! without reloading the whole game state.
 //!
-//! 这个文件只关注每个 View 自己携带的局部事实，而不是全局共享的 layered
+//! 只关注每个 View 自己携带的局部事实，而不是全局共享的 layered
 //! fact database。它会列出活动中的 view root，过滤其局部事实，并允许调试时
 //! 直接修改这些值，以便在不重开整局状态的情况下排查 UI 逻辑。
 

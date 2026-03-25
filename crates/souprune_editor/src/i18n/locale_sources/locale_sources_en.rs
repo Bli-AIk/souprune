@@ -2,12 +2,12 @@
 //!
 //! 保存 Souprune 编辑器界面使用的内置英文 Fluent 文案。
 //!
-//! This file is intentionally data-only: it keeps the editor's default English
+//! Contains only data: it keeps the editor's default English
 //! labels, panel titles, and property strings in one bundled locale source so
 //! the editor can boot with a complete translation set even before external
 //! localization tooling is introduced.
 //!
-//! 这个文件刻意只承载数据：把编辑器默认的英文标签、面板标题和属性文案放进
+//! 这里只承载数据：把编辑器默认的英文标签、面板标题和属性文案放进
 //! 一个内置语言源里，让编辑器即使还没有外部本地化工具链，也能直接带着完整的
 //! 翻译集合启动。
 

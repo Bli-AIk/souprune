@@ -2,12 +2,12 @@
 //!
 //! 把 Mortar 对话运行时中的数据同步到当前正在显示的打字机表现上。
 //!
-//! This file is the bridge from Mortar's dialogue model back into Souprune's UI.
+//! Acts as the bridge from Mortar's dialogue model back into Souprune's UI.
 //! It prepares item-dialogue variables/functions, evaluates Mortar conditions and
 //! interpolated text, and updates the dialogue typewriter whenever Mortar moves
 //! to a new piece of content.
 //!
-//! 这个文件是 Mortar 对话模型回流到 Souprune UI 的桥。它会准备物品对话需要的
+//! Mortar 对话模型回流到 Souprune UI 的桥。它会准备物品对话需要的
 //! 变量和函数，评估 Mortar 的条件与插值文本，并在 Mortar 切换到新内容时更新
 //! 对话打字机。
 

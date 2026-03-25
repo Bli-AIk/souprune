@@ -7,7 +7,7 @@
 //! You can think of a Player as a special subset of Characters.
 //!
 //! ## Source File Overview
-//! This file defines the `CharacterPlugin`,
+//! Defines the `CharacterPlugin`,
 //! which integrates systems for updating character movement and behavior in the overworld.
 //!
 //! ## 模块概述

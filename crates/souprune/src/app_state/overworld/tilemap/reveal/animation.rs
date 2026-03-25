@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file drives the time-based half of the overworld tile-reveal effect. It groups pending
+//! Drives the time-based half of the overworld tile-reveal effect. It groups pending
 //! tiles into ripple directions, advances the beat-synchronized reveal waves, and transitions each
 //! tile from a temporary sprite proxy back into the real tilemap with a fade-out tail.
 //!
-//! 这个文件负责大地图揭露效果里与时间推进相关的一半流程。它会按波纹方向整理待揭露的格子，
+//! 负责大地图揭露效果里与时间推进相关的一半流程。它会按波纹方向整理待揭露的格子，
 //! 用节拍驱动揭露波前推进，并把每个格子从临时精灵代理切换回真正的 tilemap，同时补上淡出尾声。
 
 use super::{

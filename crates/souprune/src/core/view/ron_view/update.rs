@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file keeps already-spawned RON View entities in sync with changing facts and time. It
+//! Keeps already-spawned RON View entities in sync with changing facts and time. It
 //! updates dynamic transforms, refreshes template-driven text, and walks the view hierarchy to
 //! find the right `ViewRoot` scope for each runtime element.
 //!
-//! 这个文件负责让已经生成的 RON View 实体持续与事实数据和时间同步。它会更新动态变换、
+//! 负责让已经生成的 RON View 实体持续与事实数据和时间同步。它会更新动态变换、
 //! 刷新模板驱动的文本内容，并沿层级向上找到每个运行时元素应该读取的 `ViewRoot` 作用域。
 
 use super::super::components::ViewRoot;

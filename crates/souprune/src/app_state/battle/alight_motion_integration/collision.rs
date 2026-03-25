@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file turns imported Alight Motion layers into battle collision data. It identifies bullet
+//! Turns imported Alight Motion layers into battle collision data. It identifies bullet
 //! and battle-box layers, derives their runtime bounds from animated layer specs, and keeps those
 //! bounds synchronized as the animation scale changes over time.
 //!
-//! 这个文件负责把导入的 Alight Motion 图层转换成战斗碰撞数据。它会识别子弹层和战斗框层，
+//! 负责把导入的 Alight Motion 图层转换成战斗碰撞数据。它会识别子弹层和战斗框层，
 //! 从动画化的图层规格里推导运行时边界，并在缩放随时间变化时持续同步这些边界。
 
 use super::{AlightMotionBattleBoxMarker, AlightMotionBattleConfig, AlightMotionBulletMarker};

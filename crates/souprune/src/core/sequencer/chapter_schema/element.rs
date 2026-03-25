@@ -2,12 +2,12 @@
 //!
 //! 定义序列章节里用于操作 View 元素的选择器、修改项、过渡目标以及 easing 序列化规则。
 //!
-//! This file is the part of the sequence schema that talks about individual UI
+//! Covers the part of the sequence schema that talks about individual UI
 //! elements. It describes how a chapter points at an element, which properties
 //! may be changed or tweened, and how easing names from asset files map onto the
 //! runtime tween implementation.
 //!
-//! 这个文件是序列 schema 里专门描述单个 UI 元素操作的一部分。它定义章节如何
+//! 序列 schema 里专门描述单个 UI 元素操作的一部分。它定义章节如何
 //! 选中元素、可以修改或补间哪些属性，以及资产文件里的 easing 名称如何映射到
 //! 运行时实际使用的 tween 实现。
 

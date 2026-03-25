@@ -2,11 +2,11 @@
 //!
 //! 定义序列章节里围绕 facts 使用的条件、修改与数据绑定结构。
 //!
-//! This file captures the fact-language portion of the sequence schema: how a
+//! Captures the fact-language portion of the sequence schema: how a
 //! chapter tests facts, how it mutates them, and how external data such as FRE
 //! files or local layers can be bound into a sequence-driven workflow.
 //!
-//! 这个文件承载的是 sequence schema 里和 facts 有关的那部分语言：章节如何判断
+//! 承载的是 sequence schema 里和 facts 有关的那部分语言：章节如何判断
 //! facts、如何修改它们，以及如何把 FRE 文件或局部层之类的外部数据绑定进
 //! 序列驱动的流程里。
 

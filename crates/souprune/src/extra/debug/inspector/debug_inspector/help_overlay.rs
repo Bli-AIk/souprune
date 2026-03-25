@@ -2,12 +2,12 @@
 //!
 //! 渲染 Souprune 调试模式里显示的快捷键帮助覆盖层。
 //!
-//! This file is the lightweight help system for developer-facing debug tools. It
+//! Acts as the lightweight help system for developer-facing debug tools. It
 //! spawns the text overlay, toggles it on demand, and fades it out after a short
 //! timeout so debug builds advertise their controls without permanently covering
 //! the game view.
 //!
-//! 这个文件是面向开发者调试工具的轻量帮助系统。它负责生成文本覆盖层、
+//! 面向开发者调试工具的轻量帮助系统。它负责生成文本覆盖层、
 //! 按需切换显示，并在短暂超时后淡出，这样调试构建既能提醒快捷键，又不会长期
 //! 挡住游戏画面。
 

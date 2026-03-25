@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file contains the property-editor widgets for FRE-style fact conditions and
+//! Contains the property-editor widgets for FRE-style fact conditions and
 //! modifications. It is the place where inspector panels turn structured fact expressions into
 //! editable egui controls instead of hand-building those rows everywhere.
 //!
-//! 这个文件放的是 FRE 风格事实条件和修改操作的属性编辑控件。检查器面板会在这里把结构化的
+//! 放的是 FRE 风格事实条件和修改操作的属性编辑控件。检查器面板会在这里把结构化的
 //! 事实表达式转换成可编辑的 egui 控件，而不是在各处手写这些行编辑逻辑。
 
 use bevy::prelude::*;

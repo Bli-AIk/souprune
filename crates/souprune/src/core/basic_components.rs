@@ -6,9 +6,9 @@
 //!
 //! ## 模块概述
 //!
-//! This file defines fundamental ECS components and data types used across the application, such as `Speed`, `Facing`, and the `Direction` enum.
+//! Defines fundamental ECS components and data types used across the application, such as `Speed`, `Facing`, and the `Direction` enum.
 //!
-//! 此文件定义了应用程序中通用的基础 ECS 组件和数据类型，例如 `Speed`（速度）、`Facing`（朝向）以及 `Direction`（方向）枚举。
+//! 定义了应用程序中通用的基础 ECS 组件和数据类型，例如 `Speed`（速度）、`Facing`（朝向）以及 `Direction`（方向）枚举。
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};

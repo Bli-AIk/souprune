@@ -2,12 +2,12 @@
 //!
 //! 把运行时的状态与输入同步进 FRE 事实，同时产生对应的 FRE 输入事件。
 //!
-//! This file keeps the rule engine aware of two moving pieces: which app state
+//! Keeps the rule engine aware of two moving pieces: which app state
 //! the game is currently in, and which high-level actions were just pressed or
 //! released. Without this synchronization layer, FRE rules could not react to
 //! mode changes or to the input abstraction built by Souprune's action system.
 //!
-//! 这个文件让规则引擎持续感知两类变化：游戏当前处于哪个应用状态，以及哪些
+//! 让规则引擎持续感知两类变化：游戏当前处于哪个应用状态，以及哪些
 //! 高层输入动作刚刚被按下或释放。没有这层同步，FRE 规则就无法对模式变化
 //! 或 Souprune 输入系统抽象出来的动作作出响应。
 

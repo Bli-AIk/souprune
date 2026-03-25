@@ -2,13 +2,13 @@
 //!
 //! 负责最顶层的启动流程，把配置真正变成一个可运行的应用。
 //!
-//! This file is where Souprune crosses from "startup description" into an
-//! actual `App`: it loads config, prepares asset sources and hot reload
+//! Souprune crosses from "startup description" into an actual `App` here:
+//! it loads config, prepares asset sources and hot reload
 //! watchers, installs startup resources, and finally runs the assembled plugin
 //! graph. If something only matters while the process is being constructed, it
 //! belongs here rather than in gameplay code.
 //!
-//! 这个文件是 Souprune 从“启动描述”跨到实际 `App` 实例的地方：它读取配置、
+//! 这里负责把 Souprune 从“启动描述”推进到实际 `App` 实例：读取配置、
 //! 准备资源源和热重载监听器、注入启动资源，并最终运行装配好的插件图。
 //! 只在进程构建阶段有意义的逻辑，应当放在这里，而不是混进玩法代码里。
 

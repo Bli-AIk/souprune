@@ -6,11 +6,11 @@
 //!
 //! ## 模块概述
 //!
-//! This file owns the rule-registry side of the View lifecycle. It takes FRE assets that have
+//! Owns the rule-registry side of the View lifecycle. It takes FRE assets that have
 //! finished loading for a `ViewRoot`, converts their rule definitions into runtime registrations,
 //! and removes those registrations again when the view disappears.
 //!
-//! 这个文件负责 View 生命周期里与规则注册表相关的部分。它会在 `ViewRoot` 的 FRE
+//! 负责 View 生命周期里与规则注册表相关的部分。它会在 `ViewRoot` 的 FRE
 //! 资产加载完成后，把其中的规则定义转换成运行时注册；当视图被销毁时，再把这些注册清理掉。
 
 use crate::core::game_action::{GameFreAsset, GameRuleDef, GameRuleRegistry};

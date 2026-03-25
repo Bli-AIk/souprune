@@ -2,12 +2,12 @@
 //!
 //! 管理对话控制器的创建、开始/结束切换，以及运行时清理。
 //!
-//! This file is the lifecycle layer of the dialogue subsystem. It decides when a
+//! Acts as the lifecycle layer of the dialogue subsystem. It decides when a
 //! dialogue session should spawn a controller, when pending dialogue state
 //! should turn into live view/runtime state, and when everything can be torn
 //! down again after the dialogue has ended.
 //!
-//! 这个文件是对话子系统的生命周期层。它决定何时该为一次对话会话创建控制器，
+//! 对话子系统的生命周期层。它决定何时该为一次对话会话创建控制器，
 //! 何时把待处理的对话状态转换成真实的 View/运行时状态，以及在对话结束后
 //! 何时可以把相关内容清理掉。
 

@@ -2,13 +2,13 @@
 //!
 //! 汇总启动 Souprune 运行时所需的 bootstrap 边界。
 //!
-//! This file is the narrow entry for startup-only wiring. It re-exports the
+//! Acts as the narrow entry for startup-only wiring. It re-exports the
 //! logging setup, plugin selection, resource seeding, and final runner so the
 //! crate root can start the game without knowing the details of each startup
 //! concern. Gameplay systems do not belong here; this module only gathers the
 //! pieces that assemble the app.
 //!
-//! 这个文件是启动期装配的窄入口。它把日志初始化、插件选择、资源注入和
+//! 启动期装配的窄入口。它把日志初始化、插件选择、资源注入和
 //! 最终运行入口重新汇总出来，让 crate 根入口可以启动游戏，而不需要知道各个
 //! 启动细节。这里不承载玩法系统，只负责把应用装配起来。
 

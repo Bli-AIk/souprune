@@ -2,11 +2,11 @@
 //!
 //! 在独立 Inspector 调试工具中显示短暂的提示气泡消息。
 //!
-//! This file owns the tiny notification surface used when debug features are
+//! Owns the tiny notification surface used when debug features are
 //! toggled. It creates the toast entity tree, updates the displayed message from
 //! incoming events, and hides the toast again after its timer expires.
 //!
-//! 这个文件负责调试功能切换时显示的小型提示层。它创建 toast 实体树，从事件里
+//! 负责调试功能切换时显示的小型提示层。它创建 toast 实体树，从事件里
 //! 更新提示文本，并在计时结束后把提示隐藏回去。
 
 use super::set_text_entities_color;

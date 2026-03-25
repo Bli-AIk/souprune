@@ -2,14 +2,14 @@
 //!
 //! 对 `RunSequence` 参数求值，并把结果注入到 View 局部事实作用域中。
 //!
-//! This file exists because nested sequences need a predictable way to receive
-//! call-site data. It converts `FactValueMatch` arguments into concrete
-//! `FactValue`s and stores them under a reserved local-fact prefix so the loaded
-//! sequence can read them without colliding with existing view facts.
+//! Gives nested sequences a predictable way to receive call-site data. It
+//! converts `FactValueMatch` arguments into concrete `FactValue`s and stores
+//! them under a reserved local-fact prefix so the loaded sequence can read
+//! them without colliding with existing view facts.
 //!
-//! 这个文件存在的原因，是嵌套序列需要一套稳定的入参机制。它把
-//! `FactValueMatch` 参数求值成具体 `FactValue`，并用保留的局部 fact 前缀写入
-//! 当前 View，这样被加载的子序列就能读取这些参数，同时避免和现有 view facts 冲突。
+//! 给嵌套序列提供一套稳定的入参机制。它把 `FactValueMatch`
+//! 参数求值成具体 `FactValue`，并用保留的局部 fact 前缀写入当前 View，
+//! 这样被加载的子序列就能读取这些参数，同时避免和现有 view facts 冲突。
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};

@@ -2,12 +2,12 @@
 //!
 //! 渲染 FRE 调试面板中展示应用状态、序列状态与追逐状态信息的标签页。
 //!
-//! This file turns the runtime's layered state machine into something readable
+//! Turns the runtime's layered state machine into something readable
 //! in the debug UI. It shows the current app state, sequence mode, sub-state
 //! configuration, and chase-related flags so rule debugging can be correlated
 //! with the actual mode the game believes it is in.
 //!
-//! 这个文件把运行时分层状态机整理成调试界面可读的信息。它会展示当前应用状态、
+//! 把运行时分层状态机整理成调试界面可读的信息。它会展示当前应用状态、
 //! sequence mode、子状态配置以及 chase 相关标记，让规则调试时能够对照
 //! 游戏自己认为所处的模式。
 

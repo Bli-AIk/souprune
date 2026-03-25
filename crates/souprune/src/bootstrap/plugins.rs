@@ -2,13 +2,13 @@
 //!
 //! 组装构成 Souprune 应用的各类插件集合。
 //!
-//! This file is the plugin-selection layer for startup. It decides which Bevy
+//! Acts as the plugin-selection layer for startup. It decides which Bevy
 //! defaults are patched, which third-party integrations are enabled, and which
 //! game plugins form the actual runtime. Keeping that choice here prevents the
 //! crate root and runner from turning into a long list of unrelated plugin
 //! details.
 //!
-//! 这个文件是启动期的插件选择层。它决定 Bevy 默认插件如何调整、哪些第三方
+//! 启动期的插件选择层。它决定 Bevy 默认插件如何调整、哪些第三方
 //! 集成要启用，以及哪些游戏插件组成真正的运行时。把这些选择集中在这里，
 //! 可以避免 crate 根入口和 runner 被一长串互不相干的插件细节淹没。
 
