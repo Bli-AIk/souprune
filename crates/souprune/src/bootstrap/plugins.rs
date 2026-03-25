@@ -18,7 +18,9 @@ use crate::core::input::Action;
 use crate::core::*;
 use crate::extra;
 use bevy::app::PluginGroupBuilder;
-use bevy::prelude::{ImagePlugin, PluginGroup, default, info};
+#[cfg(feature = "unsafe_gpu")]
+use bevy::prelude::info;
+use bevy::prelude::{ImagePlugin, PluginGroup, default};
 #[cfg(any(feature = "unsafe_gpu", target_os = "android"))]
 use bevy::render::RenderPlugin;
 #[cfg(feature = "unsafe_gpu")]
