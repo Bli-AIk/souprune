@@ -20,6 +20,7 @@ use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
 use bevy::image::Image;
+use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
@@ -37,6 +38,8 @@ use std::fs;
 const PREVIEW_LAYER: RenderLayers = RenderLayers::layer(2);
 const PREVIEW_TEXT_MARGIN: f32 = 18.0;
 const MANUAL_STEP_MULTIPLIERS: [f32; 7] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0];
+const GUIDE_THICKNESS: f32 = 2.0;
+const GUIDE_HIT_RADIUS: f32 = 10.0;
 
 pub fn configure_app(
     app: &mut App,
@@ -117,6 +120,10 @@ pub fn configure_app(
             reference_handle: Handle::default(),
             diff_handle: Handle::default(),
         })
+        .insert_resource(ReferenceMaskState::new(
+            reference_image.width(),
+            reference_image.height(),
+        ))
         .insert_resource(SearchController {
             plan: search_plan,
             total_candidates: task.search_plan.total_candidates(),
@@ -129,6 +136,7 @@ pub fn configure_app(
             target_similarity: task.target_similarity,
             current_candidate_index: None,
             current_parameters: initial_current,
+            current_text: task.text.clone(),
             current_score: None,
             best_score: None,
             latest_render_image: None,
@@ -138,6 +146,7 @@ pub fn configure_app(
             manual_adjustment_kind: ManualAdjustmentKind::initial_for_task(&task),
             manual_step_multiplier_index: 0,
             snap_to_grid: true,
+            text_edit_mode: false,
             show_detailed_status: false,
             pending_apply: true,
         })
@@ -148,6 +157,7 @@ pub fn configure_app(
             (
                 handle_keyboard_input,
                 handle_inspector_interactions,
+                handle_reference_mask_interactions,
                 apply_pending_candidate,
                 drive_capture_state,
                 update_preview_scene,
@@ -191,6 +201,15 @@ struct SearchController {
 }
 
 #[derive(Resource)]
+struct ReferenceMaskState {
+    vertical_split_x: f32,
+    vertical_side: MaskOcclusionSide,
+    horizontal_split_y: f32,
+    horizontal_side: MaskOcclusionSide,
+    dragging: Option<MaskGuideKind>,
+}
+
+#[derive(Resource)]
 struct ReconstructionState {
     phase: EvaluationPhase,
     display_mode: DisplayMode,
@@ -199,6 +218,7 @@ struct ReconstructionState {
     target_similarity: f32,
     current_candidate_index: Option<usize>,
     current_parameters: ConcreteTextParameters,
+    current_text: String,
     current_score: Option<ScoredCandidate>,
     best_score: Option<ScoredCandidate>,
     latest_render_image: Option<image::RgbaImage>,
@@ -208,6 +228,7 @@ struct ReconstructionState {
     manual_adjustment_kind: ManualAdjustmentKind,
     manual_step_multiplier_index: usize,
     snap_to_grid: bool,
+    text_edit_mode: bool,
     show_detailed_status: bool,
     pending_apply: bool,
 }
@@ -239,7 +260,29 @@ impl DisplayMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MaskGuideKind {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MaskOcclusionSide {
+    Negative,
+    Positive,
+}
+
+impl MaskOcclusionSide {
+    fn toggle(self) -> Self {
+        match self {
+            Self::Negative => Self::Positive,
+            Self::Positive => Self::Negative,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManualAdjustmentKind {
+    Content,
     Font,
     Align,
     Anchor,
@@ -254,7 +297,7 @@ enum ManualAdjustmentKind {
 
 impl ManualAdjustmentKind {
     fn initial_for_task(_task: &TaskConfig) -> Self {
-        Self::Font
+        Self::Content
     }
 
     fn next_for_task(self, task: &TaskConfig) -> Self {
@@ -266,6 +309,7 @@ impl ManualAdjustmentKind {
     fn cycle_for_task(self, task: &TaskConfig) -> &'static [ManualAdjustmentKind] {
         if task.world_scale_bound {
             &[
+                Self::Content,
                 Self::Font,
                 Self::Align,
                 Self::Anchor,
@@ -277,6 +321,7 @@ impl ManualAdjustmentKind {
             ]
         } else {
             &[
+                Self::Content,
                 Self::Font,
                 Self::Align,
                 Self::Anchor,
@@ -292,6 +337,7 @@ impl ManualAdjustmentKind {
 
     fn label(self) -> &'static str {
         match self {
+            Self::Content => "content",
             Self::Font => "font",
             Self::Align => "align",
             Self::Anchor => "anchor",
@@ -307,7 +353,7 @@ impl ManualAdjustmentKind {
 
     fn base_step(self, task: &TaskConfig) -> f32 {
         match self {
-            Self::Font | Self::Align | Self::Anchor => 1.0,
+            Self::Content | Self::Font | Self::Align | Self::Anchor => 1.0,
             Self::Translation => task
                 .manual_steps
                 .translation_x
@@ -323,7 +369,7 @@ impl ManualAdjustmentKind {
 
     fn current_value(self, parameters: &ConcreteTextParameters) -> f32 {
         match self {
-            Self::Font | Self::Align | Self::Anchor => 0.0,
+            Self::Content | Self::Font | Self::Align | Self::Anchor => 0.0,
             Self::Translation => parameters.translation_x,
             Self::WorldScale | Self::WorldScaleX => parameters.world_scale_x,
             Self::WorldScaleY => parameters.world_scale_y,
@@ -334,10 +380,23 @@ impl ManualAdjustmentKind {
     }
 }
 
+impl ReferenceMaskState {
+    fn new(_width: u32, _height: u32) -> Self {
+        Self {
+            vertical_split_x: 0.0,
+            vertical_side: MaskOcclusionSide::Negative,
+            horizontal_split_y: 0.0,
+            horizontal_side: MaskOcclusionSide::Negative,
+            dragging: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct ScoredCandidate {
     candidate_index: Option<usize>,
     total_candidates: usize,
+    text: String,
     parameters: ConcreteTextParameters,
     fitness_score: f32,
     global_similarity: f32,
@@ -358,6 +417,21 @@ struct PreviewRenderSprite;
 
 #[derive(Component)]
 struct PreviewDiffSprite;
+
+#[derive(Component)]
+struct PreviewCameraMarker;
+
+#[derive(Component)]
+struct PreviewVerticalOcclusionMask;
+
+#[derive(Component)]
+struct PreviewHorizontalOcclusionMask;
+
+#[derive(Component)]
+struct PreviewVerticalGuide;
+
+#[derive(Component)]
+struct PreviewHorizontalGuide;
 
 #[derive(Component)]
 struct PreviewStatusPanel;
@@ -404,7 +478,8 @@ fn setup_runtime(
     if let Some(parent_dir) = task.0.current_view_absolute_path.parent() {
         fs::create_dir_all(parent_dir).expect("failed to create generated view directory");
     }
-    let initial_ron = serialize_candidate_view_ron(&task.0, &state.current_parameters);
+    let initial_ron =
+        serialize_candidate_view_ron(&task.0, &state.current_text, &state.current_parameters);
     fs::write(&task.0.current_view_absolute_path, initial_ron)
         .expect("failed to write initial generated view RON file");
 
@@ -451,6 +526,7 @@ fn setup_runtime(
             ..default()
         },
         PREVIEW_LAYER,
+        PreviewCameraMarker,
     ));
 
     commands.spawn((
@@ -470,6 +546,36 @@ fn setup_runtime(
         Transform::from_xyz(0.0, 0.0, 0.2),
         PREVIEW_LAYER,
         PreviewDiffSprite,
+    ));
+    commands.spawn((
+        Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.92), Vec2::new(1.0, 1.0)),
+        Transform::from_xyz(0.0, 0.0, 0.05),
+        PREVIEW_LAYER,
+        PreviewVerticalOcclusionMask,
+    ));
+    commands.spawn((
+        Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.92), Vec2::new(1.0, 1.0)),
+        Transform::from_xyz(0.0, 0.0, 0.06),
+        PREVIEW_LAYER,
+        PreviewHorizontalOcclusionMask,
+    ));
+    commands.spawn((
+        Sprite::from_color(
+            Color::srgb(1.0, 0.82, 0.18),
+            Vec2::new(GUIDE_THICKNESS, 1.0),
+        ),
+        Transform::from_xyz(0.0, 0.0, 0.25),
+        PREVIEW_LAYER,
+        PreviewVerticalGuide,
+    ));
+    commands.spawn((
+        Sprite::from_color(
+            Color::srgb(0.22, 0.86, 1.0),
+            Vec2::new(1.0, GUIDE_THICKNESS),
+        ),
+        Transform::from_xyz(0.0, 0.0, 0.26),
+        PREVIEW_LAYER,
+        PreviewHorizontalGuide,
     ));
     commands
         .spawn((
@@ -594,10 +700,19 @@ fn spawn_inspector_field_row(parent: &mut ChildSpawnerCommands, field: ManualAdj
 
 fn handle_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut keyboard_inputs: MessageReader<KeyboardInput>,
     mut state: ResMut<ReconstructionState>,
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
 ) {
+    if state.text_edit_mode {
+        let text_changed = apply_text_input(&mut keyboard_inputs, &mut state);
+        if text_changed {
+            mark_text_changed(&mut state);
+        }
+        return;
+    }
+
     if keyboard.just_pressed(KeyCode::Tab) {
         state.display_mode = state.display_mode.next();
     }
@@ -629,6 +744,13 @@ fn handle_keyboard_input(
         state.show_detailed_status = !state.show_detailed_status;
     }
 
+    if keyboard.just_pressed(KeyCode::Enter)
+        && state.manual_adjustment_kind == ManualAdjustmentKind::Content
+    {
+        state.text_edit_mode = true;
+        return;
+    }
+
     if keyboard.just_pressed(KeyCode::Space) && state.auto_search {
         state.auto_search = false;
         return;
@@ -656,6 +778,7 @@ fn handle_keyboard_input(
     {
         state.auto_search = false;
         state.current_candidate_index = best_score.candidate_index;
+        state.current_text = best_score.text.clone();
         state.current_parameters = best_score.parameters.clone();
         state.current_score = Some(best_score.clone());
         state.capture_after_apply = false;
@@ -671,18 +794,76 @@ fn handle_keyboard_input(
                 .plan
                 .constrain_parameters(&mut state.current_parameters);
         }
-        state.auto_search = false;
-        state.current_candidate_index = None;
-        state.current_score = None;
-        state.persist_current_after_evaluation = true;
-        state.capture_after_apply = true;
-        state.pending_apply = true;
+        mark_parameter_changed(&mut state);
     }
+}
+
+fn mark_parameter_changed(state: &mut ReconstructionState) {
+    state.auto_search = false;
+    state.current_candidate_index = None;
+    state.current_score = None;
+    state.persist_current_after_evaluation = true;
+    state.capture_after_apply = true;
+    state.pending_apply = true;
+}
+
+fn mark_text_changed(state: &mut ReconstructionState) {
+    state.auto_search = false;
+    state.current_candidate_index = None;
+    state.current_score = None;
+    state.best_score = None;
+    state.persist_current_after_evaluation = true;
+    state.capture_after_apply = true;
+    state.pending_apply = true;
+}
+
+fn mark_reference_mask_changed(state: &mut ReconstructionState, task: &TaskConfig) {
+    state.auto_search = false;
+    state.current_candidate_index = None;
+    state.current_score = None;
+    state.best_score = None;
+    state.persist_current_after_evaluation = true;
+    state.phase = EvaluationPhase::WaitingForSettle {
+        remaining_frames: task.settle_frames,
+    };
+}
+
+fn apply_text_input(
+    keyboard_inputs: &mut MessageReader<KeyboardInput>,
+    state: &mut ReconstructionState,
+) -> bool {
+    let mut changed = false;
+    for keyboard_input in keyboard_inputs.read() {
+        if !keyboard_input.state.is_pressed() {
+            continue;
+        }
+
+        match (&keyboard_input.logical_key, &keyboard_input.text) {
+            (Key::Enter, _) | (Key::Escape, _) => {
+                state.text_edit_mode = false;
+            }
+            (Key::Backspace, _) => {
+                changed |= state.current_text.pop().is_some();
+            }
+            (_, Some(inserted_text)) => {
+                if inserted_text.chars().all(is_printable_char) {
+                    state.current_text.push_str(inserted_text);
+                    changed = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    changed
 }
 
 fn handle_inspector_interactions(
     buttons: Query<
-        (&Interaction, Option<&InspectorFieldButton>, Has<InspectorSnapButton>),
+        (
+            &Interaction,
+            Option<&InspectorFieldButton>,
+            Has<InspectorSnapButton>,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
     mut state: ResMut<ReconstructionState>,
@@ -693,10 +874,84 @@ fn handle_inspector_interactions(
         }
 
         if let Some(row_button) = row_button {
-            state.manual_adjustment_kind = row_button.field;
+            if row_button.field == state.manual_adjustment_kind
+                && row_button.field == ManualAdjustmentKind::Content
+            {
+                state.text_edit_mode = true;
+            } else {
+                state.manual_adjustment_kind = row_button.field;
+                state.text_edit_mode = false;
+            }
         } else if is_snap_button {
             state.snap_to_grid = !state.snap_to_grid;
         }
+    }
+}
+
+fn handle_reference_mask_interactions(
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    preview_camera: Query<(&Camera, &GlobalTransform), With<PreviewCameraMarker>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    reference_images: Res<ReferenceImages>,
+    task: Res<TaskResource>,
+    mut mask_state: ResMut<ReferenceMaskState>,
+    mut state: ResMut<ReconstructionState>,
+) {
+    if mouse_buttons.just_released(MouseButton::Left) {
+        mask_state.dragging = None;
+    }
+
+    if !matches!(state.phase, EvaluationPhase::Ready) {
+        return;
+    }
+
+    let Ok(window) = primary_window.single() else {
+        return;
+    };
+    let Ok((camera, camera_transform)) = preview_camera.single() else {
+        return;
+    };
+    let Some(cursor_position) = window.cursor_position() else {
+        return;
+    };
+    let Ok(cursor_world) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+        return;
+    };
+
+    let geometry = compute_preview_geometry(window, &reference_images);
+    let Some(cursor_local) = cursor_world_to_preview_local(cursor_world, &geometry) else {
+        return;
+    };
+    let hit_guide = pick_mask_guide(cursor_local, &geometry, &mask_state);
+
+    if mouse_buttons.just_pressed(MouseButton::Left) {
+        mask_state.dragging = hit_guide;
+    }
+
+    let mut changed = false;
+    if mouse_buttons.pressed(MouseButton::Left)
+        && let Some(dragging) = mask_state.dragging
+    {
+        changed |=
+            update_mask_split_from_cursor(dragging, cursor_local, &geometry, &mut mask_state);
+    }
+
+    if mouse_buttons.just_pressed(MouseButton::Right)
+        && let Some(hit_guide) = hit_guide
+    {
+        match hit_guide {
+            MaskGuideKind::Vertical => {
+                mask_state.vertical_side = mask_state.vertical_side.toggle();
+            }
+            MaskGuideKind::Horizontal => {
+                mask_state.horizontal_side = mask_state.horizontal_side.toggle();
+            }
+        }
+        changed = true;
+    }
+
+    if changed {
+        mark_reference_mask_changed(&mut state, &task.0);
     }
 }
 
@@ -707,6 +962,7 @@ fn apply_keyboard_adjustment(
     task: &TaskConfig,
 ) -> bool {
     match state.manual_adjustment_kind {
+        ManualAdjustmentKind::Content => false,
         ManualAdjustmentKind::Font => {
             apply_discrete_field_adjustment(keyboard, state, search, SearchParameterField::Font)
         }
@@ -918,7 +1174,8 @@ fn apply_pending_candidate(
             .constrain_parameters(&mut state.current_parameters);
     }
 
-    let ron_text = serialize_candidate_view_ron(&task.0, &state.current_parameters);
+    let ron_text =
+        serialize_candidate_view_ron(&task.0, &state.current_text, &state.current_parameters);
     fs::write(&task.0.current_view_absolute_path, ron_text)
         .expect("failed to write current view RON file");
 
@@ -951,8 +1208,12 @@ fn apply_pending_candidate(
     };
 }
 
-fn serialize_candidate_view_ron(task: &TaskConfig, parameters: &ConcreteTextParameters) -> String {
-    let schema_layout = build_view_layout(&task.text, parameters, task.property_defaults);
+fn serialize_candidate_view_ron(
+    task: &TaskConfig,
+    text: &str,
+    parameters: &ConcreteTextParameters,
+) -> String {
+    let schema_layout = build_view_layout(text, parameters, task.property_defaults);
     let pretty_config = ron::ser::PrettyConfig::new();
     ron::ser::to_string_pretty(&schema_layout, pretty_config)
         .expect("generated schema should serialize to RON")
@@ -990,6 +1251,7 @@ fn handle_screenshot_captured(
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
     reference_images: Res<ReferenceImages>,
+    mask_state: Res<ReferenceMaskState>,
     mut images: ResMut<Assets<Image>>,
 ) {
     let screenshot_image = trigger
@@ -1011,10 +1273,10 @@ fn handle_screenshot_captured(
         return;
     }
     let masked_screenshot = apply_bbox_mask(&screenshot_image, task.0.bbox);
-    let (comparison, diff_image) = bevy_alight_motion::image_comparison::compare_images(
-        &masked_screenshot,
-        &reference_images.compare_masked,
-    );
+    let masked_reference =
+        apply_reference_occlusion_mask(&reference_images.compare_masked, &mask_state);
+    let (comparison, diff_image) =
+        bevy_alight_motion::image_comparison::compare_images(&masked_screenshot, &masked_reference);
 
     if let Some(diff_asset) = images.get_mut(&reference_images.diff_handle) {
         *diff_asset = Image::from_dynamic(
@@ -1031,6 +1293,7 @@ fn handle_screenshot_captured(
     let scored_candidate = ScoredCandidate {
         candidate_index: state.current_candidate_index,
         total_candidates: search.total_candidates,
+        text: state.current_text.clone(),
         parameters: state.current_parameters.clone(),
         fitness_score,
         global_similarity: comparison.global_similarity,
@@ -1094,22 +1357,22 @@ fn update_preview_scene(
         Query<(&mut Sprite, &mut Transform), With<PreviewReferenceSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewRenderSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewDiffSprite>>,
+        Query<(&mut Sprite, &mut Transform), With<PreviewVerticalOcclusionMask>>,
+        Query<(&mut Sprite, &mut Transform), With<PreviewHorizontalOcclusionMask>>,
+        Query<(&mut Sprite, &mut Transform), With<PreviewVerticalGuide>>,
+        Query<(&mut Sprite, &mut Transform), With<PreviewHorizontalGuide>>,
     )>,
     reference_images: Res<ReferenceImages>,
+    mask_state: Res<ReferenceMaskState>,
     state: Res<ReconstructionState>,
 ) {
     let Ok(window) = primary_window.single() else {
         return;
     };
 
-    let fit_scale = compute_preview_scale(
-        window.width(),
-        window.height(),
-        reference_images.width as f32,
-        reference_images.height as f32,
-    );
-    let preview_center = Vec3::new(0.0, -20.0, 0.0);
-    let preview_scale = Vec3::splat(fit_scale);
+    let geometry = compute_preview_geometry(window, &reference_images);
+    let preview_center = geometry.center.extend(0.0);
+    let preview_scale = Vec3::splat(geometry.scale);
     let (reference_alpha, render_alpha, diff_alpha) = match state.display_mode {
         DisplayMode::Reference => (1.0, 0.0, 0.0),
         DisplayMode::Render => (0.0, 1.0, 0.0),
@@ -1144,6 +1407,48 @@ fn update_preview_scene(
         transform.scale = preview_scale;
         sprite.color = Color::WHITE.with_alpha(diff_alpha);
     }
+    {
+        let mut vertical_mask_query = preview_nodes.p3();
+        if let Ok((mut sprite, mut transform)) = vertical_mask_query.single_mut() {
+            apply_vertical_mask_visual(
+                &mut sprite,
+                &mut transform,
+                &geometry,
+                &mask_state,
+                matches!(
+                    state.display_mode,
+                    DisplayMode::Reference | DisplayMode::Overlay
+                ),
+            );
+        }
+    }
+    {
+        let mut horizontal_mask_query = preview_nodes.p4();
+        if let Ok((mut sprite, mut transform)) = horizontal_mask_query.single_mut() {
+            apply_horizontal_mask_visual(
+                &mut sprite,
+                &mut transform,
+                &geometry,
+                &mask_state,
+                matches!(
+                    state.display_mode,
+                    DisplayMode::Reference | DisplayMode::Overlay
+                ),
+            );
+        }
+    }
+    {
+        let mut vertical_guide_query = preview_nodes.p5();
+        if let Ok((mut sprite, mut transform)) = vertical_guide_query.single_mut() {
+            apply_vertical_guide_visual(&mut sprite, &mut transform, &geometry, &mask_state);
+        }
+    }
+    {
+        let mut horizontal_guide_query = preview_nodes.p6();
+        if let Ok((mut sprite, mut transform)) = horizontal_guide_query.single_mut() {
+            apply_horizontal_guide_visual(&mut sprite, &mut transform, &geometry, &mask_state);
+        }
+    }
 }
 
 fn update_inspector_panel(
@@ -1161,6 +1466,7 @@ fn update_inspector_panel(
     )>,
     task: Res<TaskResource>,
     state: Res<ReconstructionState>,
+    mask_state: Res<ReferenceMaskState>,
 ) {
     let current_similarity = state
         .current_score
@@ -1192,11 +1498,12 @@ fn update_inspector_panel(
         for (mut text, is_status, is_details, is_controls, is_snap, row_text) in &mut text_query {
             if is_status {
                 *text = Text::new(format!(
-                    "similarity: {:.4}\nselected: {}\nsnap: {}\nmultiplier: {}x",
+                    "similarity: {:.4}\nselected: {}\nsnap: {}\nmultiplier: {}x\ntext_edit: {}",
                     current_similarity,
                     state.manual_adjustment_kind.label(),
                     if state.snap_to_grid { "on" } else { "off" },
                     state.current_manual_multiplier(),
+                    if state.text_edit_mode { "on" } else { "off" },
                 ));
                 continue;
             }
@@ -1209,7 +1516,7 @@ fn update_inspector_panel(
                         .map(|score| score.fitness_score)
                         .unwrap_or(0.0);
                     *text = Text::new(format!(
-                        "mode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nstep: {}\nselected_value: {}",
+                        "mode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nstep: {}\nselected_value: {}\nvertical_mask: {} @ {:.3}\nhorizontal_mask: {} @ {:.3}",
                         state.display_mode,
                         state.phase,
                         state.auto_search,
@@ -1222,6 +1529,10 @@ fn update_inspector_panel(
                         best_similarity,
                         state.current_manual_step_label(&task.0),
                         state.current_selected_value_label(),
+                        mask_side_label(mask_state.vertical_side, MaskGuideKind::Vertical),
+                        mask_state.vertical_split_x,
+                        mask_side_label(mask_state.horizontal_side, MaskGuideKind::Horizontal),
+                        mask_state.horizontal_split_y,
                     ));
                 } else {
                     *text = Text::new("");
@@ -1231,7 +1542,7 @@ fn update_inspector_panel(
 
             if is_controls {
                 *text = Text::new(
-                    "Tab: display mode  Space: evolve/cancel search  C: next property  G: snap on/off\nM: step multiplier  I: toggle details  Arrows: adjust selected  R: use best  S: save current",
+                    "Tab: display mode  Space: evolve/cancel search  C: next property  G: snap on/off\nEnter/click content: edit text  M: step multiplier  I: toggle details\nArrows: adjust selected  LMB: drag guide  RMB: flip mask side  R: use best  S: save current",
                 );
                 continue;
             }
@@ -1275,6 +1586,7 @@ impl ReconstructionState {
 
     fn current_manual_step_label(&self, task: &TaskConfig) -> String {
         match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Content => "text".to_string(),
             ManualAdjustmentKind::Font
             | ManualAdjustmentKind::Align
             | ManualAdjustmentKind::Anchor => "discrete".to_string(),
@@ -1289,6 +1601,13 @@ impl ReconstructionState {
 
     fn current_selected_value_label(&self) -> String {
         match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Content => {
+                if self.text_edit_mode {
+                    format!("\"{}\" [editing]", self.current_text)
+                } else {
+                    format!("\"{}\"", self.current_text)
+                }
+            }
             ManualAdjustmentKind::Font => format!("{:?}", self.current_parameters.font),
             ManualAdjustmentKind::Align => format!("{:?}", self.current_parameters.align),
             ManualAdjustmentKind::Anchor => format!("{:?}", self.current_parameters.anchor),
@@ -1311,6 +1630,13 @@ fn inspector_field_value_label(
     task: &TaskConfig,
 ) -> String {
     match field {
+        ManualAdjustmentKind::Content => {
+            if state.text_edit_mode {
+                format!("\"{}\"  [editing]", state.current_text)
+            } else {
+                format!("\"{}\"", state.current_text)
+            }
+        }
         ManualAdjustmentKind::Font => format!("{:?}", state.current_parameters.font),
         ManualAdjustmentKind::Align => optional_enum_label(
             task.property_defaults.align_uses_default,
@@ -1344,6 +1670,250 @@ fn inspector_field_value_label(
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PreviewGeometry {
+    center: Vec2,
+    scale: f32,
+    image_size: Vec2,
+}
+
+fn compute_preview_geometry(
+    window: &Window,
+    reference_images: &ReferenceImages,
+) -> PreviewGeometry {
+    let scale = compute_preview_scale(
+        window.width(),
+        window.height(),
+        reference_images.width as f32,
+        reference_images.height as f32,
+    );
+    PreviewGeometry {
+        center: Vec2::new(0.0, -20.0),
+        scale,
+        image_size: Vec2::new(
+            reference_images.width as f32,
+            reference_images.height as f32,
+        ),
+    }
+}
+
+fn cursor_world_to_preview_local(cursor_world: Vec2, geometry: &PreviewGeometry) -> Option<Vec2> {
+    if geometry.scale <= f32::EPSILON {
+        return None;
+    }
+    let local = (cursor_world - geometry.center) / geometry.scale;
+    let half_size = geometry.image_size * 0.5;
+    if local.x.abs() <= half_size.x && local.y.abs() <= half_size.y {
+        Some(local)
+    } else {
+        None
+    }
+}
+
+fn pick_mask_guide(
+    cursor_local: Vec2,
+    geometry: &PreviewGeometry,
+    mask_state: &ReferenceMaskState,
+) -> Option<MaskGuideKind> {
+    let vertical_x = mask_state.vertical_split_x - geometry.image_size.x * 0.5;
+    let horizontal_y = geometry.image_size.y * 0.5 - mask_state.horizontal_split_y;
+    let hit_radius = GUIDE_HIT_RADIUS / geometry.scale.max(0.01);
+
+    let vertical_distance = (cursor_local.x - vertical_x).abs();
+    let horizontal_distance = (cursor_local.y - horizontal_y).abs();
+
+    let vertical_hit = vertical_distance <= hit_radius;
+    let horizontal_hit = horizontal_distance <= hit_radius;
+
+    match (vertical_hit, horizontal_hit) {
+        (true, true) => {
+            if vertical_distance <= horizontal_distance {
+                Some(MaskGuideKind::Vertical)
+            } else {
+                Some(MaskGuideKind::Horizontal)
+            }
+        }
+        (true, false) => Some(MaskGuideKind::Vertical),
+        (false, true) => Some(MaskGuideKind::Horizontal),
+        (false, false) => None,
+    }
+}
+
+fn update_mask_split_from_cursor(
+    guide: MaskGuideKind,
+    cursor_local: Vec2,
+    geometry: &PreviewGeometry,
+    mask_state: &mut ReferenceMaskState,
+) -> bool {
+    match guide {
+        MaskGuideKind::Vertical => {
+            let next = round3(
+                (cursor_local.x + geometry.image_size.x * 0.5).clamp(0.0, geometry.image_size.x),
+            );
+            if (next - mask_state.vertical_split_x).abs() > 0.0001 {
+                mask_state.vertical_split_x = next;
+                true
+            } else {
+                false
+            }
+        }
+        MaskGuideKind::Horizontal => {
+            let next = round3(
+                (geometry.image_size.y * 0.5 - cursor_local.y).clamp(0.0, geometry.image_size.y),
+            );
+            if (next - mask_state.horizontal_split_y).abs() > 0.0001 {
+                mask_state.horizontal_split_y = next;
+                true
+            } else {
+                false
+            }
+        }
+    }
+}
+
+fn apply_vertical_mask_visual(
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    geometry: &PreviewGeometry,
+    mask_state: &ReferenceMaskState,
+    visible: bool,
+) {
+    let width = match mask_state.vertical_side {
+        MaskOcclusionSide::Negative => mask_state.vertical_split_x,
+        MaskOcclusionSide::Positive => geometry.image_size.x - mask_state.vertical_split_x,
+    }
+    .max(0.0);
+    let local_center_x = match mask_state.vertical_side {
+        MaskOcclusionSide::Negative => -geometry.image_size.x * 0.5 + width * 0.5,
+        MaskOcclusionSide::Positive => mask_state.vertical_split_x * 0.5,
+    };
+    let alpha = if visible && width > 0.0 { 0.92 } else { 0.0 };
+
+    sprite.custom_size = Some(Vec2::new(width.max(1.0), geometry.image_size.y));
+    sprite.color = Color::srgba(0.0, 0.0, 0.0, alpha);
+    transform.translation = Vec3::new(
+        geometry.center.x + local_center_x * geometry.scale,
+        geometry.center.y,
+        0.05,
+    );
+    transform.scale = Vec3::splat(geometry.scale);
+}
+
+fn apply_horizontal_mask_visual(
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    geometry: &PreviewGeometry,
+    mask_state: &ReferenceMaskState,
+    visible: bool,
+) {
+    let height = match mask_state.horizontal_side {
+        MaskOcclusionSide::Negative => mask_state.horizontal_split_y,
+        MaskOcclusionSide::Positive => geometry.image_size.y - mask_state.horizontal_split_y,
+    }
+    .max(0.0);
+    let local_center_y = match mask_state.horizontal_side {
+        MaskOcclusionSide::Negative => geometry.image_size.y * 0.5 - height * 0.5,
+        MaskOcclusionSide::Positive => -mask_state.horizontal_split_y * 0.5,
+    };
+    let alpha = if visible && height > 0.0 { 0.92 } else { 0.0 };
+
+    sprite.custom_size = Some(Vec2::new(geometry.image_size.x, height.max(1.0)));
+    sprite.color = Color::srgba(0.0, 0.0, 0.0, alpha);
+    transform.translation = Vec3::new(
+        geometry.center.x,
+        geometry.center.y + local_center_y * geometry.scale,
+        0.06,
+    );
+    transform.scale = Vec3::splat(geometry.scale);
+}
+
+fn apply_vertical_guide_visual(
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    geometry: &PreviewGeometry,
+    mask_state: &ReferenceMaskState,
+) {
+    let local_x = mask_state.vertical_split_x - geometry.image_size.x * 0.5;
+    sprite.custom_size = Some(Vec2::new(GUIDE_THICKNESS, geometry.image_size.y));
+    sprite.color = match mask_state.vertical_side {
+        MaskOcclusionSide::Negative => Color::srgb(1.0, 0.82, 0.18),
+        MaskOcclusionSide::Positive => Color::srgb(1.0, 0.45, 0.18),
+    };
+    transform.translation = Vec3::new(
+        geometry.center.x + local_x * geometry.scale,
+        geometry.center.y,
+        0.25,
+    );
+    transform.scale = Vec3::splat(geometry.scale);
+}
+
+fn apply_horizontal_guide_visual(
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    geometry: &PreviewGeometry,
+    mask_state: &ReferenceMaskState,
+) {
+    let local_y = geometry.image_size.y * 0.5 - mask_state.horizontal_split_y;
+    sprite.custom_size = Some(Vec2::new(geometry.image_size.x, GUIDE_THICKNESS));
+    sprite.color = match mask_state.horizontal_side {
+        MaskOcclusionSide::Negative => Color::srgb(0.22, 0.86, 1.0),
+        MaskOcclusionSide::Positive => Color::srgb(0.12, 0.64, 0.88),
+    };
+    transform.translation = Vec3::new(
+        geometry.center.x,
+        geometry.center.y + local_y * geometry.scale,
+        0.26,
+    );
+    transform.scale = Vec3::splat(geometry.scale);
+}
+
+fn apply_reference_occlusion_mask(
+    base_image: &image::RgbaImage,
+    mask_state: &ReferenceMaskState,
+) -> image::RgbaImage {
+    let mut masked = base_image.clone();
+    let width = masked.width();
+    let height = masked.height();
+
+    let vertical_split = mask_state.vertical_split_x.clamp(0.0, width as f32) as u32;
+    match mask_state.vertical_side {
+        MaskOcclusionSide::Negative => {
+            for y in 0..height {
+                for x in 0..vertical_split {
+                    masked.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        MaskOcclusionSide::Positive => {
+            for y in 0..height {
+                for x in vertical_split..width {
+                    masked.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+    }
+
+    let horizontal_split = mask_state.horizontal_split_y.clamp(0.0, height as f32) as u32;
+    match mask_state.horizontal_side {
+        MaskOcclusionSide::Negative => {
+            for y in 0..horizontal_split {
+                for x in 0..width {
+                    masked.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        MaskOcclusionSide::Positive => {
+            for y in horizontal_split..height {
+                for x in 0..width {
+                    masked.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+    }
+
+    masked
+}
+
 fn validate_bbox(reference_image: &image::RgbaImage, bbox: CropRect) -> Result<()> {
     if bbox.x + bbox.width > reference_image.width()
         || bbox.y + bbox.height > reference_image.height()
@@ -1359,6 +1929,14 @@ fn validate_bbox(reference_image: &image::RgbaImage, bbox: CropRect) -> Result<(
         );
     }
     Ok(())
+}
+
+fn is_printable_char(chr: char) -> bool {
+    let is_in_private_use_area = ('\u{e000}'..='\u{f8ff}').contains(&chr)
+        || ('\u{f0000}'..='\u{ffffd}').contains(&chr)
+        || ('\u{100000}'..='\u{10fffd}').contains(&chr);
+
+    !is_in_private_use_area && !chr.is_ascii_control()
 }
 
 fn compute_preview_scale(
@@ -1404,7 +1982,7 @@ fn persist_best_candidate(
     render_image: &image::RgbaImage,
     diff_image: &image::RgbaImage,
 ) {
-    let schema_layout = build_view_layout(&task.text, &score.parameters, task.property_defaults);
+    let schema_layout = build_view_layout(&score.text, &score.parameters, task.property_defaults);
     let pretty_config = ron::ser::PrettyConfig::new();
     let ron_text = ron::ser::to_string_pretty(&schema_layout, pretty_config)
         .expect("best schema should serialize to RON");
@@ -1447,6 +2025,7 @@ fn persist_current_snapshot(
 struct PersistedScoredCandidate {
     candidate_index: Option<usize>,
     total_candidates: usize,
+    text: String,
     parameters: PersistedTextParameters,
     fitness_score: f32,
     global_similarity: f32,
@@ -1477,6 +2056,7 @@ fn to_persisted_candidate(task: &TaskConfig, score: &ScoredCandidate) -> Persist
     PersistedScoredCandidate {
         candidate_index: score.candidate_index,
         total_candidates: score.total_candidates,
+        text: score.text.clone(),
         parameters: PersistedTextParameters {
             font: format!("{:?}", score.parameters.font),
             align: optional_enum_label(
@@ -1515,6 +2095,15 @@ where
         "default".to_string()
     } else {
         format!("{value:?}")
+    }
+}
+
+fn mask_side_label(side: MaskOcclusionSide, guide: MaskGuideKind) -> &'static str {
+    match (guide, side) {
+        (MaskGuideKind::Vertical, MaskOcclusionSide::Negative) => "left",
+        (MaskGuideKind::Vertical, MaskOcclusionSide::Positive) => "right",
+        (MaskGuideKind::Horizontal, MaskOcclusionSide::Negative) => "top",
+        (MaskGuideKind::Horizontal, MaskOcclusionSide::Positive) => "bottom",
     }
 }
 
