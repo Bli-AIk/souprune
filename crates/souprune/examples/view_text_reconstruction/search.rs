@@ -1,4 +1,4 @@
-use crate::config::PropertyTable;
+use crate::config::{BindingTable, PropertyMode, PropertyTable};
 use anyhow::{Result, bail};
 use serde::Serialize;
 use souprune_schema::Val;
@@ -65,6 +65,7 @@ struct CandidateDomains {
     translation_ys: Vec<f32>,
     world_scale_xs: Vec<f32>,
     world_scale_ys: Vec<f32>,
+    world_scale_bound: bool,
     line_heights: Vec<f32>,
     char_spacings: Vec<f32>,
     word_spacings: Vec<f32>,
@@ -99,7 +100,10 @@ impl CandidateSearchPlan {
     pub fn build(
         assume_single_line: bool,
         properties: &PropertyTable,
+        bindings: &BindingTable,
         defaults: ConcreteTextParameters,
+        evaluation_budget_override: Option<usize>,
+        population_size_override: Option<usize>,
     ) -> Result<Self> {
         let fonts = properties.font.resolve_font_values(defaults.font)?;
         let aligns = properties.align.resolve_align_values(defaults.align)?;
@@ -110,10 +114,10 @@ impl CandidateSearchPlan {
         let translation_ys = properties
             .translation_y
             .resolve_values("translation_y", defaults.translation_y)?;
-        let world_scale_xs = properties
+        let mut world_scale_xs = properties
             .world_scale_x
             .resolve_values("world_scale_x", defaults.world_scale_x)?;
-        let world_scale_ys = properties
+        let mut world_scale_ys = properties
             .world_scale_y
             .resolve_values("world_scale_y", defaults.world_scale_y)?;
         let mut line_heights = properties
@@ -126,6 +130,19 @@ impl CandidateSearchPlan {
             .word_spacing
             .resolve_values("word_spacing", defaults.word_spacing)?;
 
+        let world_scale_bound = bindings.world_scale.is_bound();
+        if world_scale_bound {
+            let bound_world_scales = resolve_bound_numeric_values(
+                "world_scale",
+                properties.world_scale_x.mode,
+                &world_scale_xs,
+                properties.world_scale_y.mode,
+                &world_scale_ys,
+            )?;
+            world_scale_xs = bound_world_scales.clone();
+            world_scale_ys = bound_world_scales;
+        }
+
         if assume_single_line && !line_heights.is_empty() {
             line_heights.truncate(1);
         }
@@ -137,7 +154,11 @@ impl CandidateSearchPlan {
             translation_xs.len(),
             translation_ys.len(),
             world_scale_xs.len(),
-            world_scale_ys.len(),
+            if world_scale_bound {
+                1
+            } else {
+                world_scale_ys.len()
+            },
             line_heights.len(),
             char_spacings.len(),
             word_spacings.len(),
@@ -158,14 +179,20 @@ impl CandidateSearchPlan {
             translation_ys,
             world_scale_xs,
             world_scale_ys,
+            world_scale_bound,
             line_heights,
             char_spacings,
             word_spacings,
         };
-        let evaluation_budget = full_search_space.min(max_evaluation_budget(&domains));
-        let population_size = full_search_space
-            .min(default_population_size(&domains))
-            .max(1);
+        let evaluation_budget = evaluation_budget_override
+            .unwrap_or_else(|| max_evaluation_budget(&domains))
+            .max(1)
+            .min(full_search_space);
+        let population_size = population_size_override
+            .unwrap_or_else(|| default_population_size(&domains))
+            .max(1)
+            .min(full_search_space)
+            .min(evaluation_budget);
         let elite_count = population_size.clamp(1, 6);
         let rng = SimpleRng::from_entropy();
 
@@ -244,7 +271,11 @@ impl CandidateDomains {
             translation_x: self.translation_xs[genome.translation_x],
             translation_y: self.translation_ys[genome.translation_y],
             world_scale_x: self.world_scale_xs[genome.world_scale_x],
-            world_scale_y: self.world_scale_ys[genome.world_scale_y],
+            world_scale_y: self.world_scale_ys[if self.world_scale_bound {
+                genome.world_scale_x
+            } else {
+                genome.world_scale_y
+            }],
             line_height: self.line_heights[genome.line_height],
             char_spacing: self.char_spacings[genome.char_spacing],
             word_spacing: self.word_spacings[genome.word_spacing],
@@ -252,14 +283,19 @@ impl CandidateDomains {
     }
 
     fn default_genome(&self, defaults: &ConcreteTextParameters) -> CandidateGenome {
+        let world_scale_x = find_nearest_f32_index(&self.world_scale_xs, defaults.world_scale_x);
         CandidateGenome {
             font: find_exact_index(&self.fonts, &defaults.font),
             align: find_exact_index(&self.aligns, &defaults.align),
             anchor: find_exact_index(&self.anchors, &defaults.anchor),
             translation_x: find_nearest_f32_index(&self.translation_xs, defaults.translation_x),
             translation_y: find_nearest_f32_index(&self.translation_ys, defaults.translation_y),
-            world_scale_x: find_nearest_f32_index(&self.world_scale_xs, defaults.world_scale_x),
-            world_scale_y: find_nearest_f32_index(&self.world_scale_ys, defaults.world_scale_y),
+            world_scale_x,
+            world_scale_y: if self.world_scale_bound {
+                world_scale_x
+            } else {
+                find_nearest_f32_index(&self.world_scale_ys, defaults.world_scale_y)
+            },
             line_height: find_nearest_f32_index(&self.line_heights, defaults.line_height),
             char_spacing: find_nearest_f32_index(&self.char_spacings, defaults.char_spacing),
             word_spacing: find_nearest_f32_index(&self.word_spacings, defaults.word_spacing),
@@ -370,14 +406,19 @@ impl CandidateSearchPlan {
     }
 
     fn random_genome(&mut self) -> CandidateGenome {
+        let world_scale_x = self.rng.next_usize(self.domains.world_scale_xs.len());
         CandidateGenome {
             font: self.rng.next_usize(self.domains.fonts.len()),
             align: self.rng.next_usize(self.domains.aligns.len()),
             anchor: self.rng.next_usize(self.domains.anchors.len()),
             translation_x: self.rng.next_usize(self.domains.translation_xs.len()),
             translation_y: self.rng.next_usize(self.domains.translation_ys.len()),
-            world_scale_x: self.rng.next_usize(self.domains.world_scale_xs.len()),
-            world_scale_y: self.rng.next_usize(self.domains.world_scale_ys.len()),
+            world_scale_x,
+            world_scale_y: if self.domains.world_scale_bound {
+                world_scale_x
+            } else {
+                self.rng.next_usize(self.domains.world_scale_ys.len())
+            },
             line_height: self.rng.next_usize(self.domains.line_heights.len()),
             char_spacing: self.rng.next_usize(self.domains.char_spacings.len()),
             word_spacing: self.rng.next_usize(self.domains.word_spacings.len()),
@@ -406,7 +447,11 @@ impl CandidateSearchPlan {
         self.mutate_numeric_gene(&mut child.translation_x, self.domains.translation_xs.len());
         self.mutate_numeric_gene(&mut child.translation_y, self.domains.translation_ys.len());
         self.mutate_numeric_gene(&mut child.world_scale_x, self.domains.world_scale_xs.len());
-        self.mutate_numeric_gene(&mut child.world_scale_y, self.domains.world_scale_ys.len());
+        if self.domains.world_scale_bound {
+            child.world_scale_y = child.world_scale_x;
+        } else {
+            self.mutate_numeric_gene(&mut child.world_scale_y, self.domains.world_scale_ys.len());
+        }
         self.mutate_numeric_gene(&mut child.line_height, self.domains.line_heights.len());
         self.mutate_numeric_gene(&mut child.char_spacing, self.domains.char_spacings.len());
         self.mutate_numeric_gene(&mut child.word_spacing, self.domains.word_spacings.len());
@@ -518,7 +563,11 @@ fn max_evaluation_budget(domains: &CandidateDomains) -> usize {
         domains.translation_xs.len(),
         domains.translation_ys.len(),
         domains.world_scale_xs.len(),
-        domains.world_scale_ys.len(),
+        if domains.world_scale_bound {
+            1
+        } else {
+            domains.world_scale_ys.len()
+        },
         domains.line_heights.len(),
         domains.char_spacings.len(),
         domains.word_spacings.len(),
@@ -538,7 +587,11 @@ fn default_population_size(domains: &CandidateDomains) -> usize {
         domains.translation_xs.len(),
         domains.translation_ys.len(),
         domains.world_scale_xs.len(),
-        domains.world_scale_ys.len(),
+        if domains.world_scale_bound {
+            1
+        } else {
+            domains.world_scale_ys.len()
+        },
         domains.line_heights.len(),
         domains.char_spacings.len(),
         domains.word_spacings.len(),
@@ -571,6 +624,41 @@ fn find_nearest_f32_index(values: &[f32], target: f32) -> usize {
 
 fn clamp_gene_index(current: usize, delta: i32, domain_len: usize) -> usize {
     (current as i32 + delta).clamp(0, (domain_len - 1) as i32) as usize
+}
+
+fn resolve_bound_numeric_values(
+    label: &str,
+    left_mode: PropertyMode,
+    left_values: &[f32],
+    right_mode: PropertyMode,
+    right_values: &[f32],
+) -> Result<Vec<f32>> {
+    match (
+        matches!(left_mode, PropertyMode::Default),
+        matches!(right_mode, PropertyMode::Default),
+    ) {
+        (true, true) => Ok(left_values.to_vec()),
+        (false, true) => Ok(left_values.to_vec()),
+        (true, false) => Ok(right_values.to_vec()),
+        (false, false) => {
+            if approx_f32_slices_equal(left_values, right_values) {
+                Ok(left_values.to_vec())
+            } else {
+                bail!(
+                    "`bindings.{label}` is `bound`, so x/y candidate lists must match; \
+                     either keep one axis as `default` or give both axes the same values"
+                )
+            }
+        }
+    }
+}
+
+fn approx_f32_slices_equal(left_values: &[f32], right_values: &[f32]) -> bool {
+    left_values.len() == right_values.len()
+        && left_values
+            .iter()
+            .zip(right_values.iter())
+            .all(|(left, right)| (left - right).abs() <= 0.0001)
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1,6 +1,7 @@
 use crate::config::{CropRect, TaskConfig};
 use crate::search::{CandidateSearchPlan, ConcreteTextParameters, build_view_layout};
 use anyhow::{Context, Result};
+use bevy::app::AppExit;
 use bevy::asset::RenderAssetUsages;
 use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetSourceBuilder, AssetSourceId};
@@ -216,6 +217,10 @@ struct ScoredCandidate {
     global_similarity: f32,
     content_similarity: f32,
     pixel_match_rate: f32,
+    content_mask_f1: f32,
+    content_bbox_iou: f32,
+    content_size_similarity: f32,
+    content_center_similarity: f32,
     differing_pixels: u64,
 }
 
@@ -529,6 +534,8 @@ fn drive_capture_state(
 
 fn handle_screenshot_captured(
     trigger: On<ScreenshotCaptured>,
+    mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
     mut state: ResMut<ReconstructionState>,
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
@@ -542,6 +549,17 @@ fn handle_screenshot_captured(
         .try_into_dynamic()
         .expect("screenshot image should convert to a DynamicImage")
         .to_rgba8();
+    if let Some(capture_path) = &task.0.capture_reference_absolute_path {
+        if let Some(parent_dir) = capture_path.parent() {
+            fs::create_dir_all(parent_dir).expect("failed to create capture reference directory");
+        }
+        screenshot_image
+            .save(capture_path)
+            .expect("failed to save captured reference image");
+        commands.entity(trigger.entity).despawn();
+        exit.write(AppExit::Success);
+        return;
+    }
     let masked_screenshot = apply_bbox_mask(&screenshot_image, task.0.bbox);
     let (comparison, diff_image) = bevy_alight_motion::image_comparison::compare_images(
         &masked_screenshot,
@@ -567,6 +585,10 @@ fn handle_screenshot_captured(
         global_similarity: comparison.global_similarity,
         content_similarity: comparison.content_similarity,
         pixel_match_rate: comparison.pixel_match_rate,
+        content_mask_f1: comparison.content_mask_f1,
+        content_bbox_iou: comparison.content_bbox_iou,
+        content_size_similarity: comparison.content_size_similarity,
+        content_center_similarity: comparison.content_center_similarity,
         differing_pixels: comparison.differing_pixels,
     };
     state.current_score = Some(scored_candidate.clone());
@@ -581,8 +603,11 @@ fn handle_screenshot_captured(
         persist_best_candidate(&task.0, &scored_candidate, &diff_image);
     }
 
+    let target_reached = scored_candidate.fitness_score >= state.target_similarity;
+    let mut search_exhausted = false;
+
     state.phase = EvaluationPhase::Ready;
-    if state.auto_search && scored_candidate.fitness_score >= state.target_similarity {
+    if state.auto_search && target_reached {
         state.auto_search = false;
     } else if state.auto_search {
         if let Some((candidate_index, parameters)) = search.plan.next_candidate() {
@@ -591,6 +616,17 @@ fn handle_screenshot_captured(
             state.pending_apply = true;
         } else {
             state.auto_search = false;
+            search_exhausted = true;
+        }
+    }
+
+    if task.0.exit_on_completion
+        && (target_reached || search_exhausted || state.total_candidates <= 1)
+    {
+        if target_reached {
+            exit.write(AppExit::Success);
+        } else {
+            exit.write(AppExit::Error(std::num::NonZero::new(1).unwrap()));
         }
     }
 }
@@ -605,6 +641,7 @@ fn update_preview_scene(
         Query<&mut Transform, With<PreviewControlsText>>,
     )>,
     reference_images: Res<ReferenceImages>,
+    task: Res<TaskResource>,
     state: Res<ReconstructionState>,
 ) {
     let Ok(window) = primary_window.single() else {
@@ -681,7 +718,7 @@ fn update_preview_scene(
         10.0,
     );
     let status_value = format!(
-        "mode={mode_label}  phase={:?}  auto_search={}  candidate={}/{}  current={:.4}  best={:.4}  target={:.4}\nfont={:?}  align={:?}  anchor={:?}  pos=({:.2}, {:.2})  scale=({:.2}, {:.2})  line={:.2}  char={:.2}  word={:.2}",
+        "mode={mode_label}  phase={:?}  auto_search={}  candidate={}/{}  current={:.4}  best={:.4}  target={:.4}\nfont={:?}  align={}  anchor={}  pos=({:.2}, {:.2})  scale=({:.2}, {:.2})  line={:.2}  char={:.2}  word={:.2}",
         state.phase,
         state.auto_search,
         state
@@ -693,8 +730,14 @@ fn update_preview_scene(
         best_similarity,
         state.target_similarity,
         state.current_parameters.font,
-        state.current_parameters.align,
-        state.current_parameters.anchor,
+        optional_enum_label(
+            task.0.property_defaults.align_uses_default,
+            state.current_parameters.align,
+        ),
+        optional_enum_label(
+            task.0.property_defaults.anchor_uses_default,
+            state.current_parameters.anchor,
+        ),
         state.current_parameters.translation_x,
         state.current_parameters.translation_y,
         state.current_parameters.world_scale_x,
@@ -767,9 +810,11 @@ fn apply_bbox_mask(image: &image::RgbaImage, bbox: Option<CropRect>) -> image::R
 fn compute_candidate_fitness(
     comparison: bevy_alight_motion::image_comparison::ImageComparisonResult,
 ) -> f32 {
-    comparison.content_similarity * 0.65
-        + comparison.pixel_match_rate * 0.30
-        + comparison.global_similarity * 0.05
+    comparison.content_mask_f1 * 0.45
+        + comparison.content_bbox_iou * 0.25
+        + comparison.content_size_similarity * 0.15
+        + comparison.content_center_similarity * 0.10
+        + comparison.content_similarity * 0.05
 }
 
 fn persist_best_candidate(
@@ -784,7 +829,8 @@ fn persist_best_candidate(
     fs::write(&task.best_view_absolute_path, ron_text).expect("failed to write best view file");
     fs::write(
         &task.best_summary_path,
-        serde_json::to_vec_pretty(score).expect("best score should serialize to JSON"),
+        serde_json::to_vec_pretty(&to_persisted_candidate(task, score))
+            .expect("best score should serialize to JSON"),
     )
     .expect("failed to write best summary");
     diff_image
@@ -799,10 +845,86 @@ fn persist_current_snapshot(
 ) {
     fs::write(
         &task.current_summary_path,
-        serde_json::to_vec_pretty(score).expect("current score should serialize to JSON"),
+        serde_json::to_vec_pretty(&to_persisted_candidate(task, score))
+            .expect("current score should serialize to JSON"),
     )
     .expect("failed to write current summary");
     diff_image
         .save(&task.current_diff_path)
         .expect("failed to save current diff image");
+}
+
+#[derive(Debug, Serialize)]
+struct PersistedScoredCandidate {
+    candidate_index: Option<usize>,
+    total_candidates: usize,
+    parameters: PersistedTextParameters,
+    fitness_score: f32,
+    global_similarity: f32,
+    content_similarity: f32,
+    pixel_match_rate: f32,
+    content_mask_f1: f32,
+    content_bbox_iou: f32,
+    content_size_similarity: f32,
+    content_center_similarity: f32,
+    differing_pixels: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct PersistedTextParameters {
+    font: String,
+    align: String,
+    anchor: String,
+    translation_x: f32,
+    translation_y: f32,
+    world_scale_x: f32,
+    world_scale_y: f32,
+    line_height: f32,
+    char_spacing: f32,
+    word_spacing: f32,
+}
+
+fn to_persisted_candidate(task: &TaskConfig, score: &ScoredCandidate) -> PersistedScoredCandidate {
+    PersistedScoredCandidate {
+        candidate_index: score.candidate_index,
+        total_candidates: score.total_candidates,
+        parameters: PersistedTextParameters {
+            font: format!("{:?}", score.parameters.font),
+            align: optional_enum_label(
+                task.property_defaults.align_uses_default,
+                score.parameters.align,
+            ),
+            anchor: optional_enum_label(
+                task.property_defaults.anchor_uses_default,
+                score.parameters.anchor,
+            ),
+            translation_x: score.parameters.translation_x,
+            translation_y: score.parameters.translation_y,
+            world_scale_x: score.parameters.world_scale_x,
+            world_scale_y: score.parameters.world_scale_y,
+            line_height: score.parameters.line_height,
+            char_spacing: score.parameters.char_spacing,
+            word_spacing: score.parameters.word_spacing,
+        },
+        fitness_score: score.fitness_score,
+        global_similarity: score.global_similarity,
+        content_similarity: score.content_similarity,
+        pixel_match_rate: score.pixel_match_rate,
+        content_mask_f1: score.content_mask_f1,
+        content_bbox_iou: score.content_bbox_iou,
+        content_size_similarity: score.content_size_similarity,
+        content_center_similarity: score.content_center_similarity,
+        differing_pixels: score.differing_pixels,
+    }
+}
+
+fn optional_enum_label<T>(uses_default: bool, value: T) -> String
+where
+    T: std::fmt::Debug,
+{
+    if uses_default {
+        "default".to_string()
+    } else {
+        format!("{value:?}")
+    }
 }

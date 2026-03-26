@@ -1,0 +1,47 @@
+image = "../case_0/reference.png"
+capture_reference_path = "reference.png"
+text = "ITEM"
+assume_single_line = true
+settle_frames = 3
+generated_view_path = "generated/view_text_reconstruction/control_item/current.view.ron"
+
+[bindings]
+world_scale = "bound"
+
+[properties.font]
+mode = "fixed"
+value = "DeterminationSans"
+
+[properties.align]
+mode = "default"
+
+[properties.anchor]
+mode = "default"
+
+[properties.translation_x]
+mode = "fixed"
+value = -9.5
+
+[properties.translation_y]
+mode = "fixed"
+value = 27.25
+
+[properties.world_scale_x]
+mode = "fixed"
+value = 13.25
+
+[properties.world_scale_y]
+mode = "fixed"
+value = 13.25
+
+[properties.line_height]
+mode = "fixed"
+value = 1.125
+
+[properties.char_spacing]
+mode = "fixed"
+value = 1.0
+
+[properties.word_spacing]
+mode = "fixed"
+value = -7.5

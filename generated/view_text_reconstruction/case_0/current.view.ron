@@ -30,10 +30,10 @@
                     font: DeterminationMono,
                     align: None,
                     anchor: None,
-                    world_scale: (13.0, 13.0),
+                    world_scale: (23.725, 23.725),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: Some((-240.0, -80.0, 1.0)),
+                        translation: Some((-275.561, -92.451, 1.0)),
                         rotation: None,
                         scale: None,
                     ),

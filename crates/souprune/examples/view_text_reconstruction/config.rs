@@ -11,10 +11,12 @@ use std::path::{Path, PathBuf};
 pub struct TaskConfig {
     pub workspace_root: PathBuf,
     pub image_path: PathBuf,
+    pub capture_reference_absolute_path: Option<PathBuf>,
     pub text: String,
     pub bbox: Option<CropRect>,
     pub settle_frames: u32,
     pub target_similarity: f32,
+    pub exit_on_completion: bool,
     pub current_view_relative_path: String,
     pub current_view_absolute_path: PathBuf,
     pub best_view_absolute_path: PathBuf,
@@ -41,6 +43,10 @@ impl TaskConfig {
         if !image_path.exists() {
             bail!("reference image does not exist: {}", image_path.display());
         }
+        let capture_reference_absolute_path = parsed
+            .capture_reference_path
+            .as_ref()
+            .map(|path| resolve_path(&config_dir, path));
 
         let bbox = parsed
             .bbox
@@ -93,16 +99,21 @@ impl TaskConfig {
         let search_plan = CandidateSearchPlan::build(
             parsed.assume_single_line,
             &parsed.properties,
+            &parsed.bindings,
             ConcreteTextParameters::default(),
+            parsed.search_budget,
+            parsed.population_size,
         )?;
 
         Ok(Self {
             workspace_root: workspace_root.to_path_buf(),
             image_path,
+            capture_reference_absolute_path,
             text: parsed.text,
             bbox,
             settle_frames: parsed.settle_frames.unwrap_or(3),
             target_similarity: validate_target_similarity(parsed.target_similarity)?,
+            exit_on_completion: parsed.exit_on_completion,
             current_view_relative_path,
             current_view_absolute_path,
             best_view_absolute_path,
@@ -127,6 +138,8 @@ pub struct CropRect {
 #[derive(Debug, Deserialize)]
 struct TaskConfigFile {
     image: PathBuf,
+    #[serde(default)]
+    capture_reference_path: Option<PathBuf>,
     text: String,
     #[serde(default)]
     bbox: Option<[u32; 4]>,
@@ -134,12 +147,20 @@ struct TaskConfigFile {
     assume_single_line: bool,
     #[serde(default)]
     settle_frames: Option<u32>,
+    #[serde(default)]
+    search_budget: Option<usize>,
+    #[serde(default)]
+    population_size: Option<usize>,
     #[serde(default = "default_target_similarity")]
     target_similarity: f32,
+    #[serde(default)]
+    exit_on_completion: bool,
     #[serde(default = "default_generated_view_path")]
     generated_view_path: String,
     #[serde(default)]
     properties: PropertyTable,
+    #[serde(default)]
+    bindings: BindingTable,
 }
 
 fn default_generated_view_path() -> String {
@@ -180,6 +201,27 @@ pub struct PropertyTable {
     pub char_spacing: NumericPropertyConfig,
     #[serde(default)]
     pub word_spacing: NumericPropertyConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct BindingTable {
+    #[serde(default)]
+    pub world_scale: AxisBindingMode,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AxisBindingMode {
+    #[default]
+    Independent,
+    #[serde(alias = "linked")]
+    Bound,
+}
+
+impl AxisBindingMode {
+    pub fn is_bound(self) -> bool {
+        matches!(self, Self::Bound)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Default)]
