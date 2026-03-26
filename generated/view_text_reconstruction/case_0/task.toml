@@ -1,0 +1,36 @@
+image = "reference.png"
+text = "CHARA"
+assume_single_line = true
+settle_frames = 3
+target_similarity = 0.98
+generated_view_path = "generated/view_text_reconstruction/case_0/current.view.ron"
+
+[properties.font]
+mode = "fixed"
+value = "DeterminationMono"
+
+[properties.align]
+mode = "default"
+
+[properties.anchor]
+mode = "default"
+
+[properties.translation_x]
+mode = "search"
+range = [-320.0, -240.0]
+step = 4.0
+
+[properties.translation_y]
+mode = "search"
+range = [-140.0, -80.0]
+step = 4.0
+
+[properties.world_scale_x]
+mode = "search"
+range = [10.0, 18.0]
+step = 1.0
+
+[properties.world_scale_y]
+mode = "search"
+range = [10.0, 18.0]
+step = 1.0

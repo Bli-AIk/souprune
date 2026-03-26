@@ -1,0 +1,21 @@
+{
+  "candidate_index": 0,
+  "total_candidates": 192,
+  "parameters": {
+    "font": "DeterminationMono",
+    "align": "Left",
+    "anchor": "BottomRight",
+    "translation_x": -240.0,
+    "translation_y": -80.0,
+    "world_scale_x": 13.0,
+    "world_scale_y": 13.0,
+    "line_height": 1.0,
+    "char_spacing": 0.0,
+    "word_spacing": 0.0
+  },
+  "fitness_score": 0.9989909,
+  "global_similarity": 0.9977866,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 0.9970052,
+  "differing_pixels": 920
+}

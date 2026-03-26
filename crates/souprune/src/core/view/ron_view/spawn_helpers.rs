@@ -74,6 +74,8 @@ pub fn build_text_config(
         content,
         template: Some(raw_content.to_string()),
         font: text_def.font.clone().into(),
+        align: text_def.align.unwrap_or_default().into(),
+        anchor: text_def.anchor.unwrap_or_default().into(),
         world_scale: {
             let (x, y) = vec2_tuple_to_static(&text_def.world_scale);
             Vec2::new(x, y)

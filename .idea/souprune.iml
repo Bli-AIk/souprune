@@ -28,6 +28,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune_schema/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_bitmap_text/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/bevy_bitmap_text/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune/examples" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />
