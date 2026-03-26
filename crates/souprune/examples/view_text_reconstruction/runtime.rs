@@ -1,3 +1,13 @@
+//! Drives the interactive reconstruction runtime for the text reconstruction example.
+//!
+//! 负责文本重建示例的交互式运行时。
+//!
+//! This file owns window setup, real View spawning, screenshot evaluation, and the preview HUD.
+//! It keeps reconstruction feedback inside the actual Bevy + SoupRune runtime instead of using a
+//! separate mock renderer.
+//!
+//! 这个文件负责窗口初始化、真实 View 生成、截图评分，以及预览 HUD。
+//! 它把重建反馈放在真实的 Bevy + SoupRune 运行时里，而不是维护一套假的渲染实现。
 use crate::config::{CropRect, TaskConfig};
 use crate::search::{CandidateSearchPlan, ConcreteTextParameters, build_view_layout};
 use anyhow::{Context, Result};
@@ -23,6 +33,8 @@ use souprune::extra::multi_source::MultiSourceAssetReader;
 use std::fs;
 
 const PREVIEW_LAYER: RenderLayers = RenderLayers::layer(2);
+const PREVIEW_TEXT_MARGIN: f32 = 18.0;
+const MANUAL_STEP_MULTIPLIERS: [f32; 7] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0];
 
 pub fn configure_app(
     app: &mut App,
@@ -44,8 +56,8 @@ pub fn configure_app(
         validate_bbox(&reference_image, bbox)?;
     }
 
-    let mut search_plan = task.search_plan.clone();
-    let (initial_candidate_index, initial_current) = search_plan.restart();
+    let search_plan = task.search_plan.clone();
+    let initial_current = search_plan.seed_parameters();
 
     app.insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.11)))
         .insert_resource(souprune::app_state::app_setup::ResolutionScale(
@@ -110,14 +122,20 @@ pub fn configure_app(
         .insert_resource(ReconstructionState {
             phase: EvaluationPhase::Ready,
             display_mode: DisplayMode::Overlay,
-            auto_search: task.search_plan.total_candidates() > 1,
+            auto_search: false,
             total_candidates: task.search_plan.total_candidates(),
             target_similarity: task.target_similarity,
-            current_candidate_index: Some(initial_candidate_index),
+            current_candidate_index: None,
             current_parameters: initial_current,
             current_score: None,
             best_score: None,
+            latest_render_image: None,
             latest_diff_image: None,
+            persist_current_after_evaluation: false,
+            capture_after_apply: false,
+            manual_adjustment_kind: ManualAdjustmentKind::initial_for_task(&task),
+            manual_step_multiplier_index: 0,
+            show_detailed_status: false,
             pending_apply: true,
         })
         .insert_resource(CurrentViewAssetHandle::default())
@@ -178,7 +196,13 @@ struct ReconstructionState {
     current_parameters: ConcreteTextParameters,
     current_score: Option<ScoredCandidate>,
     best_score: Option<ScoredCandidate>,
+    latest_render_image: Option<image::RgbaImage>,
     latest_diff_image: Option<image::RgbaImage>,
+    persist_current_after_evaluation: bool,
+    capture_after_apply: bool,
+    manual_adjustment_kind: ManualAdjustmentKind,
+    manual_step_multiplier_index: usize,
+    show_detailed_status: bool,
     pending_apply: bool,
 }
 
@@ -208,6 +232,113 @@ impl DisplayMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManualAdjustmentKind {
+    Translation,
+    WorldScale,
+    WorldScaleX,
+    WorldScaleY,
+    LineHeight,
+    CharSpacing,
+    WordSpacing,
+}
+
+impl ManualAdjustmentKind {
+    fn initial_for_task(_task: &TaskConfig) -> Self {
+        Self::Translation
+    }
+
+    fn next_for_task(self, task: &TaskConfig) -> Self {
+        let kinds = self.cycle_for_task(task);
+        let current_index = kinds.iter().position(|kind| *kind == self).unwrap_or(0);
+        kinds[(current_index + 1) % kinds.len()]
+    }
+
+    fn cycle_for_task(self, task: &TaskConfig) -> &'static [ManualAdjustmentKind] {
+        if task.world_scale_bound {
+            &[
+                Self::Translation,
+                Self::WorldScale,
+                Self::LineHeight,
+                Self::CharSpacing,
+                Self::WordSpacing,
+            ]
+        } else {
+            &[
+                Self::Translation,
+                Self::WorldScaleX,
+                Self::WorldScaleY,
+                Self::LineHeight,
+                Self::CharSpacing,
+                Self::WordSpacing,
+            ]
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Translation => "translation",
+            Self::WorldScale => "world_scale",
+            Self::WorldScaleX => "world_scale_x",
+            Self::WorldScaleY => "world_scale_y",
+            Self::LineHeight => "line_height",
+            Self::CharSpacing => "char_spacing",
+            Self::WordSpacing => "word_spacing",
+        }
+    }
+
+    fn base_step(self, task: &TaskConfig) -> f32 {
+        match self {
+            Self::Translation => task
+                .manual_steps
+                .translation_x
+                .max(task.manual_steps.translation_y),
+            Self::WorldScale | Self::WorldScaleX | Self::WorldScaleY => {
+                task.manual_steps.world_scale
+            }
+            Self::LineHeight => task.manual_steps.line_height,
+            Self::CharSpacing => task.manual_steps.char_spacing,
+            Self::WordSpacing => task.manual_steps.word_spacing,
+        }
+    }
+
+    fn current_value(self, parameters: &ConcreteTextParameters) -> f32 {
+        match self {
+            Self::Translation => parameters.translation_x,
+            Self::WorldScale | Self::WorldScaleX => parameters.world_scale_x,
+            Self::WorldScaleY => parameters.world_scale_y,
+            Self::LineHeight => parameters.line_height,
+            Self::CharSpacing => parameters.char_spacing,
+            Self::WordSpacing => parameters.word_spacing,
+        }
+    }
+
+    fn apply_delta(self, parameters: &mut ConcreteTextParameters, task: &TaskConfig, delta: f32) {
+        match self {
+            Self::Translation => {
+                parameters.translation_x = round3(parameters.translation_x + delta)
+            }
+            Self::WorldScale => {
+                parameters.world_scale_x = round3(parameters.world_scale_x + delta);
+                parameters.world_scale_y = round3(parameters.world_scale_y + delta);
+            }
+            Self::WorldScaleX => {
+                parameters.world_scale_x = round3(parameters.world_scale_x + delta)
+            }
+            Self::WorldScaleY => {
+                parameters.world_scale_y = round3(parameters.world_scale_y + delta)
+            }
+            Self::LineHeight => parameters.line_height = round3(parameters.line_height + delta),
+            Self::CharSpacing => parameters.char_spacing = round3(parameters.char_spacing + delta),
+            Self::WordSpacing => parameters.word_spacing = round3(parameters.word_spacing + delta),
+        }
+
+        if task.world_scale_bound {
+            parameters.world_scale_y = parameters.world_scale_x;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct ScoredCandidate {
     candidate_index: Option<usize>,
@@ -232,6 +363,9 @@ struct PreviewRenderSprite;
 
 #[derive(Component)]
 struct PreviewDiffSprite;
+
+#[derive(Component)]
+struct PreviewStatusPanel;
 
 #[derive(Component)]
 struct PreviewStatusText;
@@ -323,30 +457,59 @@ fn setup_runtime(
         PREVIEW_LAYER,
         PreviewDiffSprite,
     ));
-    commands.spawn((
-        Text2d::new("Initializing view reconstruction..."),
-        TextFont {
-            font_size: 18.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
-        Transform::from_xyz(0.0, 0.0, 10.0),
-        PREVIEW_LAYER,
-        PreviewStatusText,
-    ));
-    commands.spawn((
-        Text2d::new(
-            "Tab: mode  Space: restart search  R: use best  Arrows: move  [ ]: scale  ; ': char  , .: word  - =: line  S: save",
-        ),
-        TextFont {
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.82, 0.84, 0.9)),
-        Transform::from_xyz(0.0, 0.0, 10.0),
-        PREVIEW_LAYER,
-        PreviewControlsText,
-    ));
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(PREVIEW_TEXT_MARGIN),
+                right: px(PREVIEW_TEXT_MARGIN),
+                width: px(280.0),
+                padding: UiRect::axes(px(12.0), px(10.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.03, 0.04, 0.06, 0.88)),
+            BorderColor::all(Color::srgba(0.82, 0.84, 0.9, 0.32)),
+            PreviewStatusPanel,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Initializing view reconstruction..."),
+                TextLayout::new_with_justify(Justify::Left),
+                TextFont {
+                    font_size: 16.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                PreviewStatusText,
+            ));
+        });
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(PREVIEW_TEXT_MARGIN),
+                right: px(PREVIEW_TEXT_MARGIN),
+                bottom: px(PREVIEW_TEXT_MARGIN),
+                padding: UiRect::axes(px(12.0), px(10.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.03, 0.04, 0.06, 0.84)),
+            BorderColor::all(Color::srgba(0.82, 0.84, 0.9, 0.26)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new(
+                    "Tab: display  Space: evolve  C: tweak target  M: step x1/x2/x4/x8/x16/x32/x64",
+                ),
+                TextLayout::new_with_justify(Justify::Left),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.82, 0.84, 0.9)),
+                PreviewControlsText,
+            ));
+        });
 }
 
 fn handle_keyboard_input(
@@ -360,12 +523,31 @@ fn handle_keyboard_input(
     }
 
     if keyboard.just_pressed(KeyCode::KeyS)
-        && let (Some(current_score), Some(diff_image)) = (
+        && let (Some(current_score), Some(render_image), Some(diff_image)) = (
             state.current_score.as_ref(),
+            state.latest_render_image.as_ref(),
             state.latest_diff_image.as_ref(),
         )
     {
-        persist_current_snapshot(&task.0, current_score, diff_image);
+        persist_current_snapshot(&task.0, current_score, render_image, diff_image);
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyC) {
+        state.manual_adjustment_kind = state.manual_adjustment_kind.next_for_task(&task.0);
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyM) {
+        state.manual_step_multiplier_index =
+            (state.manual_step_multiplier_index + 1) % MANUAL_STEP_MULTIPLIERS.len();
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyI) {
+        state.show_detailed_status = !state.show_detailed_status;
+    }
+
+    if keyboard.just_pressed(KeyCode::Space) && state.auto_search {
+        state.auto_search = false;
+        return;
     }
 
     if !matches!(state.phase, EvaluationPhase::Ready) {
@@ -380,6 +562,7 @@ fn handle_keyboard_input(
         state.current_candidate_index = Some(candidate_index);
         state.current_parameters = parameters;
         state.current_score = None;
+        state.capture_after_apply = true;
         state.pending_apply = true;
         return;
     }
@@ -391,72 +574,75 @@ fn handle_keyboard_input(
         state.current_candidate_index = best_score.candidate_index;
         state.current_parameters = best_score.parameters.clone();
         state.current_score = Some(best_score.clone());
+        state.capture_after_apply = false;
         state.pending_apply = true;
         return;
     }
 
-    let translation_step =
-        if keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight) {
-            4.0
-        } else {
-            1.0
-        };
+    let changed = match state.manual_adjustment_kind {
+        ManualAdjustmentKind::Translation => {
+            let mut changed = false;
+            let multiplier = state.current_manual_multiplier_value();
+            let x_step = task.0.manual_steps.translation_x * multiplier;
+            let y_step = task.0.manual_steps.translation_y * multiplier;
 
-    let mut changed = false;
-    if keyboard.just_pressed(KeyCode::ArrowLeft) {
-        state.current_parameters.translation_x -= translation_step;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::ArrowRight) {
-        state.current_parameters.translation_x += translation_step;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::ArrowUp) {
-        state.current_parameters.translation_y += translation_step;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::ArrowDown) {
-        state.current_parameters.translation_y -= translation_step;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::BracketLeft) {
-        state.current_parameters.world_scale_x -= 0.25;
-        state.current_parameters.world_scale_y -= 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::BracketRight) {
-        state.current_parameters.world_scale_x += 0.25;
-        state.current_parameters.world_scale_y += 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Semicolon) {
-        state.current_parameters.char_spacing -= 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Quote) {
-        state.current_parameters.char_spacing += 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Comma) {
-        state.current_parameters.word_spacing -= 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Period) {
-        state.current_parameters.word_spacing += 0.25;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Minus) {
-        state.current_parameters.line_height -= 0.05;
-        changed = true;
-    }
-    if keyboard.just_pressed(KeyCode::Equal) {
-        state.current_parameters.line_height += 0.05;
-        changed = true;
-    }
+            if keyboard.just_pressed(KeyCode::ArrowLeft) {
+                state.current_parameters.translation_x =
+                    round3(state.current_parameters.translation_x - x_step);
+                changed = true;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowRight) {
+                state.current_parameters.translation_x =
+                    round3(state.current_parameters.translation_x + x_step);
+                changed = true;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowUp) {
+                state.current_parameters.translation_y =
+                    round3(state.current_parameters.translation_y + y_step);
+                changed = true;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowDown) {
+                state.current_parameters.translation_y =
+                    round3(state.current_parameters.translation_y - y_step);
+                changed = true;
+            }
+            changed
+        }
+        _ => {
+            let mut direction = 0i32;
+            if keyboard.just_pressed(KeyCode::ArrowLeft)
+                || keyboard.just_pressed(KeyCode::ArrowDown)
+            {
+                direction -= 1;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::ArrowUp)
+            {
+                direction += 1;
+            }
+
+            if direction != 0 {
+                let signed_step = state.current_manual_step(&task.0) * direction as f32;
+                state.manual_adjustment_kind.apply_delta(
+                    &mut state.current_parameters,
+                    &task.0,
+                    signed_step,
+                );
+                true
+            } else {
+                false
+            }
+        }
+    };
 
     if changed {
+        search
+            .plan
+            .constrain_parameters(&mut state.current_parameters);
         state.auto_search = false;
+        state.current_candidate_index = None;
         state.current_score = None;
+        state.persist_current_after_evaluation = true;
+        state.capture_after_apply = true;
         state.pending_apply = true;
     }
 }
@@ -465,6 +651,7 @@ fn apply_pending_candidate(
     mut view_layouts: ResMut<Assets<ViewLayoutAsset>>,
     mut despawn_writer: MessageWriter<DespawnViewRequest>,
     mut spawn_writer: MessageWriter<SpawnViewRequest>,
+    search: Res<SearchController>,
     mut state: ResMut<ReconstructionState>,
     task: Res<TaskResource>,
     current_view_handle: Res<CurrentViewAssetHandle>,
@@ -472,6 +659,10 @@ fn apply_pending_candidate(
     if !state.pending_apply || !matches!(state.phase, EvaluationPhase::Ready) {
         return;
     }
+
+    search
+        .plan
+        .constrain_parameters(&mut state.current_parameters);
 
     let ron_text = serialize_candidate_view_ron(&task.0, &state.current_parameters);
     fs::write(&task.0.current_view_absolute_path, ron_text)
@@ -496,8 +687,13 @@ fn apply_pending_candidate(
     });
 
     state.pending_apply = false;
-    state.phase = EvaluationPhase::WaitingForSettle {
-        remaining_frames: task.0.settle_frames,
+    state.phase = if state.capture_after_apply {
+        state.capture_after_apply = false;
+        EvaluationPhase::WaitingForSettle {
+            remaining_frames: task.0.settle_frames,
+        }
+    } else {
+        EvaluationPhase::Ready
     };
 }
 
@@ -574,6 +770,7 @@ fn handle_screenshot_captured(
         );
     }
     state.latest_diff_image = Some(diff_image.clone());
+    state.latest_render_image = Some(screenshot_image.clone());
     let fitness_score = compute_candidate_fitness(comparison);
     search.plan.record_fitness(fitness_score);
 
@@ -600,7 +797,7 @@ fn handle_screenshot_captured(
         .unwrap_or(true);
     if is_new_best {
         state.best_score = Some(scored_candidate.clone());
-        persist_best_candidate(&task.0, &scored_candidate, &diff_image);
+        persist_best_candidate(&task.0, &scored_candidate, &screenshot_image, &diff_image);
     }
 
     let target_reached = scored_candidate.fitness_score >= state.target_similarity;
@@ -613,11 +810,17 @@ fn handle_screenshot_captured(
         if let Some((candidate_index, parameters)) = search.plan.next_candidate() {
             state.current_candidate_index = Some(candidate_index);
             state.current_parameters = parameters;
+            state.capture_after_apply = true;
             state.pending_apply = true;
         } else {
             state.auto_search = false;
             search_exhausted = true;
         }
+    }
+
+    if state.persist_current_after_evaluation || target_reached || !state.auto_search {
+        persist_current_snapshot(&task.0, &scored_candidate, &screenshot_image, &diff_image);
+        state.persist_current_after_evaluation = false;
     }
 
     if task.0.exit_on_completion
@@ -637,11 +840,12 @@ fn update_preview_scene(
         Query<(&mut Sprite, &mut Transform), With<PreviewReferenceSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewRenderSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewDiffSprite>>,
-        Query<(&mut Text2d, &mut Transform), With<PreviewStatusText>>,
-        Query<&mut Transform, With<PreviewControlsText>>,
+        Query<&mut Node, With<PreviewStatusPanel>>,
+        Query<&mut Text, With<PreviewStatusText>>,
+        Query<&mut Text, With<PreviewControlsText>>,
     )>,
-    reference_images: Res<ReferenceImages>,
     task: Res<TaskResource>,
+    reference_images: Res<ReferenceImages>,
     state: Res<ReconstructionState>,
 ) {
     let Ok(window) = primary_window.single() else {
@@ -691,75 +895,122 @@ fn update_preview_scene(
         sprite.color = Color::WHITE.with_alpha(diff_alpha);
     }
 
-    let best_similarity = state
-        .best_score
-        .as_ref()
-        .map(|score| score.fitness_score)
-        .unwrap_or(0.0);
     let current_similarity = state
         .current_score
         .as_ref()
         .map(|score| score.fitness_score)
         .unwrap_or(0.0);
-    let mode_label = match state.display_mode {
-        DisplayMode::Reference => "reference",
-        DisplayMode::Render => "render",
-        DisplayMode::Overlay => "overlay",
-        DisplayMode::Diff => "diff",
-    };
-    let status_translation = Vec3::new(
-        -window.width() * 0.5 + 18.0,
-        window.height() * 0.5 - 28.0,
-        10.0,
-    );
-    let controls_translation = Vec3::new(
-        -window.width() * 0.5 + 18.0,
-        -window.height() * 0.5 + 28.0,
-        10.0,
-    );
-    let status_value = format!(
-        "mode={mode_label}  phase={:?}  auto_search={}  candidate={}/{}  current={:.4}  best={:.4}  target={:.4}\nfont={:?}  align={}  anchor={}  pos=({:.2}, {:.2})  scale=({:.2}, {:.2})  line={:.2}  char={:.2}  word={:.2}",
-        state.phase,
-        state.auto_search,
-        state
-            .current_candidate_index
-            .map(|index| index + 1)
-            .unwrap_or(0),
-        state.total_candidates.max(1),
+    let mut status_value = format!(
+        "adjust: {}\nmultiplier: {}x\nstep: {}\nvalue: {}\nsimilarity: {:.4}",
+        state.manual_adjustment_kind.label(),
+        state.current_manual_multiplier(),
+        state.current_manual_step_label(&task.0),
+        state.current_selected_value_label(),
         current_similarity,
-        best_similarity,
-        state.target_similarity,
-        state.current_parameters.font,
-        optional_enum_label(
-            task.0.property_defaults.align_uses_default,
-            state.current_parameters.align,
-        ),
-        optional_enum_label(
-            task.0.property_defaults.anchor_uses_default,
-            state.current_parameters.anchor,
-        ),
-        state.current_parameters.translation_x,
-        state.current_parameters.translation_y,
-        state.current_parameters.world_scale_x,
-        state.current_parameters.world_scale_y,
-        state.current_parameters.line_height,
-        state.current_parameters.char_spacing,
-        state.current_parameters.word_spacing,
+    );
+    if state.show_detailed_status {
+        let best_similarity = state
+            .best_score
+            .as_ref()
+            .map(|score| score.fitness_score)
+            .unwrap_or(0.0);
+        let detail_block = format!(
+            "\n\nmode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nfont: {:?}\nalign: {}\nanchor: {}\npos: ({:.3}, {:.3})\nscale: ({:.3}, {:.3})\nline: {:.3}\nchar: {:.3}\nword: {:.3}",
+            state.display_mode,
+            state.phase,
+            state.auto_search,
+            state
+                .current_candidate_index
+                .map(|index| index + 1)
+                .unwrap_or(0),
+            state.total_candidates.max(1),
+            state.target_similarity,
+            best_similarity,
+            state.current_parameters.font,
+            optional_enum_label(
+                task.0.property_defaults.align_uses_default,
+                state.current_parameters.align,
+            ),
+            optional_enum_label(
+                task.0.property_defaults.anchor_uses_default,
+                state.current_parameters.anchor,
+            ),
+            state.current_parameters.translation_x,
+            state.current_parameters.translation_y,
+            state.current_parameters.world_scale_x,
+            state.current_parameters.world_scale_y,
+            state.current_parameters.line_height,
+            state.current_parameters.char_spacing,
+            state.current_parameters.word_spacing,
+        );
+        status_value.push_str(&detail_block);
+    }
+    let controls_value = format!(
+        "Tab: display mode  Space: evolve/cancel search  C: cycle tweak target  M: cycle step multiplier  I: toggle details\nArrows: adjust selected value  Left/Down = -step  Right/Up = +step  R: use best  S: save current"
     );
     {
-        let mut status_query = preview_nodes.p3();
-        let Ok((mut text, mut transform)) = status_query.single_mut() else {
+        let mut panel_query = preview_nodes.p3();
+        let Ok(mut panel) = panel_query.single_mut() else {
             return;
         };
-        *text = Text2d::new(status_value);
-        transform.translation = status_translation;
+        panel.width = if state.show_detailed_status {
+            px(420.0)
+        } else {
+            px(280.0)
+        };
     }
     {
-        let mut controls_query = preview_nodes.p4();
-        let Ok(mut transform) = controls_query.single_mut() else {
+        let mut status_query = preview_nodes.p4();
+        let Ok(mut text) = status_query.single_mut() else {
             return;
         };
-        transform.translation = controls_translation;
+        *text = Text::new(status_value);
+    }
+    {
+        let mut controls_query = preview_nodes.p5();
+        let Ok(mut text) = controls_query.single_mut() else {
+            return;
+        };
+        *text = Text::new(controls_value);
+    }
+}
+
+impl ReconstructionState {
+    fn current_manual_multiplier(&self) -> i32 {
+        MANUAL_STEP_MULTIPLIERS[self.manual_step_multiplier_index] as i32
+    }
+
+    fn current_manual_multiplier_value(&self) -> f32 {
+        MANUAL_STEP_MULTIPLIERS[self.manual_step_multiplier_index]
+    }
+
+    fn current_manual_step(&self, task: &TaskConfig) -> f32 {
+        self.manual_adjustment_kind.base_step(task) * self.current_manual_multiplier_value()
+    }
+
+    fn current_manual_step_label(&self, task: &TaskConfig) -> String {
+        match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Translation => format!(
+                "x={:.3}, y={:.3}",
+                task.manual_steps.translation_x * self.current_manual_multiplier_value(),
+                task.manual_steps.translation_y * self.current_manual_multiplier_value(),
+            ),
+            _ => format!("{:.3}", self.current_manual_step(task)),
+        }
+    }
+
+    fn current_selected_value_label(&self) -> String {
+        match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Translation => format!(
+                "x={:.3}, y={:.3}",
+                self.current_parameters.translation_x, self.current_parameters.translation_y,
+            ),
+            _ => format!(
+                "{:.3}",
+                self.manual_adjustment_kind
+                    .current_value(&self.current_parameters)
+            ),
+        }
     }
 }
 
@@ -820,6 +1071,7 @@ fn compute_candidate_fitness(
 fn persist_best_candidate(
     task: &TaskConfig,
     score: &ScoredCandidate,
+    render_image: &image::RgbaImage,
     diff_image: &image::RgbaImage,
 ) {
     let schema_layout = build_view_layout(&task.text, &score.parameters, task.property_defaults);
@@ -833,6 +1085,9 @@ fn persist_best_candidate(
             .expect("best score should serialize to JSON"),
     )
     .expect("failed to write best summary");
+    render_image
+        .save(&task.best_render_path)
+        .expect("failed to save best render image");
     diff_image
         .save(&task.best_diff_path)
         .expect("failed to save best diff image");
@@ -841,6 +1096,7 @@ fn persist_best_candidate(
 fn persist_current_snapshot(
     task: &TaskConfig,
     score: &ScoredCandidate,
+    render_image: &image::RgbaImage,
     diff_image: &image::RgbaImage,
 ) {
     fs::write(
@@ -849,6 +1105,9 @@ fn persist_current_snapshot(
             .expect("current score should serialize to JSON"),
     )
     .expect("failed to write current summary");
+    render_image
+        .save(&task.current_render_path)
+        .expect("failed to save current render image");
     diff_image
         .save(&task.current_diff_path)
         .expect("failed to save current diff image");
@@ -927,4 +1186,8 @@ where
     } else {
         format!("{value:?}")
     }
+}
+
+fn round3(value: f32) -> f32 {
+    (value * 1000.0).round() / 1000.0
 }

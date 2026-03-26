@@ -44,9 +44,15 @@ impl Default for ConcreteTextParameters {
 pub struct CandidateSearchPlan {
     domains: CandidateDomains,
     full_search_space: usize,
+    target_similarity: f32,
     evaluation_budget: usize,
     population_size: usize,
     elite_count: usize,
+    seed_genome: CandidateGenome,
+    best_genome: CandidateGenome,
+    best_fitness: f32,
+    generation_improved: bool,
+    generations_without_improvement: usize,
     generation: usize,
     evaluations_done: usize,
     next_population_index: usize,
@@ -96,16 +102,25 @@ struct SimpleRng {
     state: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SearchPhase {
+    Explore,
+    Focus,
+    Refine,
+    Polish,
+}
+
 impl CandidateSearchPlan {
     pub fn build(
         assume_single_line: bool,
         properties: &PropertyTable,
         bindings: &BindingTable,
         defaults: ConcreteTextParameters,
+        target_similarity: f32,
         evaluation_budget_override: Option<usize>,
         population_size_override: Option<usize>,
     ) -> Result<Self> {
-        let fonts = properties.font.resolve_font_values(defaults.font)?;
+        let fonts = properties.font.resolve_font_values(defaults.font.clone())?;
         let aligns = properties.align.resolve_align_values(defaults.align)?;
         let anchors = properties.anchor.resolve_anchor_values(defaults.anchor)?;
         let translation_xs = properties
@@ -184,6 +199,7 @@ impl CandidateSearchPlan {
             char_spacings,
             word_spacings,
         };
+        let seed_genome = domains.default_genome(&defaults);
         let evaluation_budget = evaluation_budget_override
             .unwrap_or_else(|| max_evaluation_budget(&domains))
             .max(1)
@@ -199,9 +215,15 @@ impl CandidateSearchPlan {
         Ok(Self {
             domains,
             full_search_space,
+            target_similarity,
             evaluation_budget,
             population_size,
             elite_count,
+            seed_genome,
+            best_genome: seed_genome,
+            best_fitness: f32::NEG_INFINITY,
+            generation_improved: false,
+            generations_without_improvement: 0,
             generation: 0,
             evaluations_done: 0,
             next_population_index: 0,
@@ -216,12 +238,29 @@ impl CandidateSearchPlan {
         self.evaluation_budget
     }
 
+    pub fn seed_parameters(&self) -> ConcreteTextParameters {
+        self.domains.parameters_from_genome(self.seed_genome)
+    }
+
+    pub fn constrain_parameters(&self, parameters: &mut ConcreteTextParameters) {
+        *parameters = self
+            .domains
+            .parameters_from_genome(self.domains.default_genome(parameters));
+    }
+
     pub fn record_fitness(&mut self, fitness: f32) {
         let Some(slot) = self.last_issued_slot.take() else {
             return;
         };
         if let Some(score_slot) = self.population_scores.get_mut(slot) {
             *score_slot = Some(fitness);
+        }
+        let genome = self.population[slot];
+        if fitness > self.best_fitness + 0.0001 {
+            self.best_fitness = fitness;
+            self.best_genome = genome;
+            self.generation_improved = true;
+            self.generations_without_improvement = 0;
         }
     }
 
@@ -250,6 +289,10 @@ impl CandidateSearchPlan {
     }
 
     pub fn restart(&mut self) -> (usize, ConcreteTextParameters) {
+        self.best_genome = self.seed_genome;
+        self.best_fitness = f32::NEG_INFINITY;
+        self.generation_improved = false;
+        self.generations_without_improvement = 0;
         self.generation = 0;
         self.evaluations_done = 0;
         self.next_population_index = 0;
@@ -316,12 +359,17 @@ impl CandidateSearchPlan {
             return;
         }
 
+        if !self.generation_improved {
+            self.generations_without_improvement += 1;
+        }
+        self.generation_improved = false;
         self.generation += 1;
         self.next_population_index = 0;
         self.last_issued_slot = None;
 
         let remaining_budget = self.evaluation_budget.saturating_sub(self.evaluations_done);
         let target_population_size = self.population_size.min(remaining_budget).max(1);
+        let phase = self.current_phase();
 
         let mut next_population = Vec::with_capacity(target_population_size);
         let mut unique = HashSet::with_capacity(target_population_size);
@@ -335,16 +383,36 @@ impl CandidateSearchPlan {
             }
         }
 
+        for candidate in self.local_neighbor_candidates(self.best_genome, phase) {
+            if next_population.len() >= target_population_size {
+                break;
+            }
+            if unique.insert(candidate) {
+                next_population.push(candidate);
+            }
+        }
+        if self.generations_without_improvement >= 3 {
+            for candidate in self.local_neighbor_candidates(self.seed_genome, SearchPhase::Focus) {
+                if next_population.len() >= target_population_size {
+                    break;
+                }
+                if unique.insert(candidate) {
+                    next_population.push(candidate);
+                }
+            }
+        }
+
         let mut attempts = 0usize;
         let max_attempts = target_population_size.saturating_mul(32).max(64);
+        let random_candidate_rate = self.random_candidate_rate(phase);
         while next_population.len() < target_population_size
             && unique.len() < self.full_search_space
             && attempts < max_attempts
         {
-            let candidate = if self.rng.next_f32() < 0.18 {
+            let candidate = if self.rng.next_f32() < random_candidate_rate {
                 self.random_genome()
             } else {
-                self.breed_genome(&ranked)
+                self.breed_genome(&ranked, phase)
             };
             attempts += 1;
             if unique.insert(candidate) {
@@ -369,6 +437,8 @@ impl CandidateSearchPlan {
         self.generation = 0;
         self.next_population_index = 0;
         self.last_issued_slot = None;
+        self.generation_improved = false;
+        self.generations_without_improvement = 0;
 
         let remaining_budget = self.evaluation_budget.saturating_sub(self.evaluations_done);
         let target_population_size = self.population_size.min(remaining_budget).max(1);
@@ -376,11 +446,17 @@ impl CandidateSearchPlan {
         let mut population = Vec::with_capacity(target_population_size);
         let mut unique = HashSet::with_capacity(target_population_size);
 
-        let default_genome = self
-            .domains
-            .default_genome(&ConcreteTextParameters::default());
-        unique.insert(default_genome);
-        population.push(default_genome);
+        unique.insert(self.seed_genome);
+        population.push(self.seed_genome);
+
+        for candidate in self.seed_neighbor_candidates() {
+            if population.len() >= target_population_size {
+                break;
+            }
+            if unique.insert(candidate) {
+                population.push(candidate);
+            }
+        }
 
         while population.len() < target_population_size && unique.len() < self.full_search_space {
             let genome = self.random_genome();
@@ -425,9 +501,9 @@ impl CandidateSearchPlan {
         }
     }
 
-    fn breed_genome(&mut self, ranked: &[RankedGenome]) -> CandidateGenome {
-        let parent_a = self.select_parent(ranked);
-        let parent_b = self.select_parent(ranked);
+    fn breed_genome(&mut self, ranked: &[RankedGenome], phase: SearchPhase) -> CandidateGenome {
+        let parent_a = self.select_parent(ranked, phase);
+        let parent_b = self.select_parent(ranked, phase);
         let mut child = CandidateGenome {
             font: self.mix_gene(parent_a.font, parent_b.font),
             align: self.mix_gene(parent_a.align, parent_b.align),
@@ -441,26 +517,54 @@ impl CandidateSearchPlan {
             word_spacing: self.mix_gene(parent_a.word_spacing, parent_b.word_spacing),
         };
 
-        self.mutate_enum_gene(&mut child.font, self.domains.fonts.len());
-        self.mutate_enum_gene(&mut child.align, self.domains.aligns.len());
-        self.mutate_enum_gene(&mut child.anchor, self.domains.anchors.len());
-        self.mutate_numeric_gene(&mut child.translation_x, self.domains.translation_xs.len());
-        self.mutate_numeric_gene(&mut child.translation_y, self.domains.translation_ys.len());
-        self.mutate_numeric_gene(&mut child.world_scale_x, self.domains.world_scale_xs.len());
+        self.mutate_enum_gene(&mut child.font, self.domains.fonts.len(), phase);
+        self.mutate_enum_gene(&mut child.align, self.domains.aligns.len(), phase);
+        self.mutate_enum_gene(&mut child.anchor, self.domains.anchors.len(), phase);
+        self.mutate_numeric_gene(
+            &mut child.translation_x,
+            self.domains.translation_xs.len(),
+            phase,
+        );
+        self.mutate_numeric_gene(
+            &mut child.translation_y,
+            self.domains.translation_ys.len(),
+            phase,
+        );
+        self.mutate_numeric_gene(
+            &mut child.world_scale_x,
+            self.domains.world_scale_xs.len(),
+            phase,
+        );
         if self.domains.world_scale_bound {
             child.world_scale_y = child.world_scale_x;
         } else {
-            self.mutate_numeric_gene(&mut child.world_scale_y, self.domains.world_scale_ys.len());
+            self.mutate_numeric_gene(
+                &mut child.world_scale_y,
+                self.domains.world_scale_ys.len(),
+                phase,
+            );
         }
-        self.mutate_numeric_gene(&mut child.line_height, self.domains.line_heights.len());
-        self.mutate_numeric_gene(&mut child.char_spacing, self.domains.char_spacings.len());
-        self.mutate_numeric_gene(&mut child.word_spacing, self.domains.word_spacings.len());
+        self.mutate_numeric_gene(
+            &mut child.line_height,
+            self.domains.line_heights.len(),
+            phase,
+        );
+        self.mutate_numeric_gene(
+            &mut child.char_spacing,
+            self.domains.char_spacings.len(),
+            phase,
+        );
+        self.mutate_numeric_gene(
+            &mut child.word_spacing,
+            self.domains.word_spacings.len(),
+            phase,
+        );
 
         child
     }
 
-    fn select_parent(&mut self, ranked: &[RankedGenome]) -> CandidateGenome {
-        let pool_size = ranked.len().min(self.elite_count.max(1));
+    fn select_parent(&mut self, ranked: &[RankedGenome], phase: SearchPhase) -> CandidateGenome {
+        let pool_size = ranked.len().min(self.parent_pool_size(phase)).max(1);
         let weight_sum = pool_size * (pool_size + 1) / 2;
         let mut ticket = self.rng.next_usize(weight_sum);
         for rank in 0..pool_size {
@@ -481,35 +585,338 @@ impl CandidateSearchPlan {
         }
     }
 
-    fn mutate_enum_gene(&mut self, gene: &mut usize, domain_len: usize) {
-        if domain_len <= 1 || self.rng.next_f32() >= 0.12 {
+    fn mutate_enum_gene(&mut self, gene: &mut usize, domain_len: usize, phase: SearchPhase) {
+        if domain_len <= 1 || self.rng.next_f32() >= self.enum_mutation_rate(phase) {
             return;
         }
         *gene = self.rng.next_usize(domain_len);
     }
 
-    fn mutate_numeric_gene(&mut self, gene: &mut usize, domain_len: usize) {
+    fn mutate_numeric_gene(&mut self, gene: &mut usize, domain_len: usize, phase: SearchPhase) {
         if domain_len <= 1 {
             return;
         }
-        if self.rng.next_f32() < 0.12 {
+        if self.rng.next_f32() < self.numeric_reset_rate(phase) {
             *gene = self.rng.next_usize(domain_len);
             return;
         }
-        if self.rng.next_f32() >= 0.58 {
+        if self.rng.next_f32() >= self.numeric_mutation_rate(phase) {
             return;
         }
 
-        let radius = self.mutation_radius(domain_len);
+        let radius = self.mutation_radius(domain_len, phase);
         let delta = self.rng.next_signed_offset(radius as i32);
         *gene = clamp_gene_index(*gene, delta, domain_len);
     }
 
-    fn mutation_radius(&self, domain_len: usize) -> usize {
+    fn mutation_radius(&self, domain_len: usize, phase: SearchPhase) -> usize {
         let max_radius = (domain_len / 3).max(1);
         let anneal = 0.84_f32.powi(self.generation as i32);
+        let phase_cap = match phase {
+            SearchPhase::Explore => max_radius,
+            SearchPhase::Focus => 12,
+            SearchPhase::Refine => 4,
+            SearchPhase::Polish => 1,
+        };
+        let stagnation_bonus = match self.generations_without_improvement {
+            0..=1 => 0,
+            2..=3 => 1,
+            4..=6 => 2,
+            _ => 4,
+        };
         let radius = ((max_radius as f32) * anneal).round() as usize;
+        let radius = radius.min(phase_cap).saturating_add(stagnation_bonus);
         radius.clamp(1, domain_len.saturating_sub(1).max(1))
+    }
+
+    fn current_phase(&self) -> SearchPhase {
+        let score = self.best_fitness.max(0.0);
+        let polish_threshold = (self.target_similarity - 0.01).clamp(0.89, 0.995);
+        let refine_threshold = (self.target_similarity - 0.05).clamp(0.82, polish_threshold - 0.02);
+        let focus_threshold = (self.target_similarity - 0.15).clamp(0.65, refine_threshold - 0.05);
+
+        if score >= polish_threshold {
+            SearchPhase::Polish
+        } else if score >= refine_threshold {
+            SearchPhase::Refine
+        } else if score >= focus_threshold {
+            SearchPhase::Focus
+        } else {
+            SearchPhase::Explore
+        }
+    }
+
+    fn random_candidate_rate(&self, phase: SearchPhase) -> f32 {
+        match phase {
+            SearchPhase::Explore => 0.18,
+            SearchPhase::Focus => 0.06,
+            SearchPhase::Refine => {
+                if self.generations_without_improvement >= 4 {
+                    0.02
+                } else {
+                    0.0
+                }
+            }
+            SearchPhase::Polish => {
+                if self.generations_without_improvement >= 6 {
+                    0.01
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
+    fn parent_pool_size(&self, phase: SearchPhase) -> usize {
+        match phase {
+            SearchPhase::Explore => self.population_size.clamp(4, 16),
+            SearchPhase::Focus => self.population_size.clamp(4, 10),
+            SearchPhase::Refine => self.elite_count.max(3),
+            SearchPhase::Polish => self.elite_count.max(2),
+        }
+    }
+
+    fn enum_mutation_rate(&self, phase: SearchPhase) -> f32 {
+        match phase {
+            SearchPhase::Explore => 0.12,
+            SearchPhase::Focus => 0.05,
+            SearchPhase::Refine => {
+                if self.generations_without_improvement >= 3 {
+                    0.01
+                } else {
+                    0.0
+                }
+            }
+            SearchPhase::Polish => 0.0,
+        }
+    }
+
+    fn numeric_reset_rate(&self, phase: SearchPhase) -> f32 {
+        match phase {
+            SearchPhase::Explore => 0.10,
+            SearchPhase::Focus => 0.015,
+            SearchPhase::Refine => {
+                if self.generations_without_improvement >= 5 {
+                    0.005
+                } else {
+                    0.0
+                }
+            }
+            SearchPhase::Polish => 0.0,
+        }
+    }
+
+    fn numeric_mutation_rate(&self, phase: SearchPhase) -> f32 {
+        match phase {
+            SearchPhase::Explore => 0.72,
+            SearchPhase::Focus => 0.86,
+            SearchPhase::Refine => 0.94,
+            SearchPhase::Polish => 0.98,
+        }
+    }
+
+    fn seed_neighbor_candidates(&self) -> Vec<CandidateGenome> {
+        self.local_neighbors_from_radii(self.seed_genome, &[32, 16, 8, 4, 2, 1], true)
+    }
+
+    fn local_neighbor_candidates(
+        &self,
+        center: CandidateGenome,
+        phase: SearchPhase,
+    ) -> Vec<CandidateGenome> {
+        match phase {
+            SearchPhase::Explore => Vec::new(),
+            SearchPhase::Focus => self.local_neighbors_from_radii(center, &[12, 6, 3, 1], false),
+            SearchPhase::Refine => self.local_neighbors_from_radii(center, &[4, 2, 1], true),
+            SearchPhase::Polish => self.local_neighbors_from_radii(center, &[2, 1], true),
+        }
+    }
+
+    fn local_neighbors_from_radii(
+        &self,
+        center: CandidateGenome,
+        radii: &[usize],
+        include_pair_moves: bool,
+    ) -> Vec<CandidateGenome> {
+        let mut candidates = Vec::new();
+        for &radius in radii {
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.translation_x,
+                self.domains.translation_xs.len(),
+                radius,
+                |genome, next_index| genome.translation_x = next_index,
+            );
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.translation_y,
+                self.domains.translation_ys.len(),
+                radius,
+                |genome, next_index| genome.translation_y = next_index,
+            );
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.world_scale_x,
+                self.domains.world_scale_xs.len(),
+                radius,
+                |genome, next_index| genome.world_scale_x = next_index,
+            );
+            if !self.domains.world_scale_bound {
+                self.push_index_neighbors(
+                    &mut candidates,
+                    center,
+                    center.world_scale_y,
+                    self.domains.world_scale_ys.len(),
+                    radius,
+                    |genome, next_index| genome.world_scale_y = next_index,
+                );
+            }
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.line_height,
+                self.domains.line_heights.len(),
+                radius,
+                |genome, next_index| genome.line_height = next_index,
+            );
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.char_spacing,
+                self.domains.char_spacings.len(),
+                radius,
+                |genome, next_index| genome.char_spacing = next_index,
+            );
+            self.push_index_neighbors(
+                &mut candidates,
+                center,
+                center.word_spacing,
+                self.domains.word_spacings.len(),
+                radius,
+                |genome, next_index| genome.word_spacing = next_index,
+            );
+
+            if include_pair_moves {
+                self.push_translation_pair_neighbors(&mut candidates, center, radius);
+                self.push_scale_pair_neighbors(&mut candidates, center, radius);
+            }
+        }
+        candidates
+    }
+
+    fn push_index_neighbors<F>(
+        &self,
+        candidates: &mut Vec<CandidateGenome>,
+        center: CandidateGenome,
+        current_index: usize,
+        domain_len: usize,
+        radius: usize,
+        mut set_gene: F,
+    ) where
+        F: FnMut(&mut CandidateGenome, usize),
+    {
+        if domain_len <= 1 {
+            return;
+        }
+
+        for delta in [-(radius as i32), radius as i32] {
+            let next_index = clamp_gene_index(current_index, delta, domain_len);
+            if next_index == current_index {
+                continue;
+            }
+            let mut genome = center;
+            set_gene(&mut genome, next_index);
+            if self.domains.world_scale_bound {
+                genome.world_scale_y = genome.world_scale_x;
+            }
+            candidates.push(genome);
+        }
+    }
+
+    fn push_translation_pair_neighbors(
+        &self,
+        candidates: &mut Vec<CandidateGenome>,
+        center: CandidateGenome,
+        radius: usize,
+    ) {
+        if self.domains.translation_xs.len() <= 1 || self.domains.translation_ys.len() <= 1 {
+            return;
+        }
+
+        for (dx, dy) in [
+            (-(radius as i32), -(radius as i32)),
+            (-(radius as i32), radius as i32),
+            (radius as i32, -(radius as i32)),
+            (radius as i32, radius as i32),
+        ] {
+            let next_x =
+                clamp_gene_index(center.translation_x, dx, self.domains.translation_xs.len());
+            let next_y =
+                clamp_gene_index(center.translation_y, dy, self.domains.translation_ys.len());
+            if next_x == center.translation_x && next_y == center.translation_y {
+                continue;
+            }
+            let mut genome = center;
+            genome.translation_x = next_x;
+            genome.translation_y = next_y;
+            candidates.push(genome);
+        }
+    }
+
+    fn push_scale_pair_neighbors(
+        &self,
+        candidates: &mut Vec<CandidateGenome>,
+        center: CandidateGenome,
+        radius: usize,
+    ) {
+        if self.domains.world_scale_xs.len() <= 1 {
+            return;
+        }
+
+        if self.domains.world_scale_bound {
+            for delta in [-(radius as i32), radius as i32] {
+                let next_scale = clamp_gene_index(
+                    center.world_scale_x,
+                    delta,
+                    self.domains.world_scale_xs.len(),
+                );
+                if next_scale == center.world_scale_x {
+                    continue;
+                }
+                let mut genome = center;
+                genome.world_scale_x = next_scale;
+                genome.world_scale_y = next_scale;
+                candidates.push(genome);
+            }
+            return;
+        }
+
+        if self.domains.world_scale_ys.len() <= 1 {
+            return;
+        }
+
+        for delta in [-(radius as i32), radius as i32] {
+            let next_x = clamp_gene_index(
+                center.world_scale_x,
+                delta,
+                self.domains.world_scale_xs.len(),
+            );
+            let next_y = clamp_gene_index(
+                center.world_scale_y,
+                delta,
+                self.domains.world_scale_ys.len(),
+            );
+            if next_x == center.world_scale_x && next_y == center.world_scale_y {
+                continue;
+            }
+            let mut genome = center;
+            genome.world_scale_x = next_x;
+            genome.world_scale_y = next_y;
+            candidates.push(genome);
+        }
     }
 }
 
