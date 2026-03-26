@@ -9,7 +9,9 @@
 //! 这个文件负责窗口初始化、真实 View 生成、截图评分，以及预览 HUD。
 //! 它把重建反馈放在真实的 Bevy + SoupRune 运行时里，而不是维护一套假的渲染实现。
 use crate::config::{CropRect, TaskConfig};
-use crate::search::{CandidateSearchPlan, ConcreteTextParameters, build_view_layout};
+use crate::search::{
+    CandidateSearchPlan, ConcreteTextParameters, SearchParameterField, build_view_layout,
+};
 use anyhow::{Context, Result};
 use bevy::app::AppExit;
 use bevy::asset::RenderAssetUsages;
@@ -135,6 +137,7 @@ pub fn configure_app(
             capture_after_apply: false,
             manual_adjustment_kind: ManualAdjustmentKind::initial_for_task(&task),
             manual_step_multiplier_index: 0,
+            snap_to_grid: true,
             show_detailed_status: false,
             pending_apply: true,
         })
@@ -144,9 +147,11 @@ pub fn configure_app(
             Update,
             (
                 handle_keyboard_input,
+                handle_inspector_interactions,
                 apply_pending_candidate,
                 drive_capture_state,
                 update_preview_scene,
+                update_inspector_panel,
             )
                 .chain(),
         );
@@ -202,6 +207,7 @@ struct ReconstructionState {
     capture_after_apply: bool,
     manual_adjustment_kind: ManualAdjustmentKind,
     manual_step_multiplier_index: usize,
+    snap_to_grid: bool,
     show_detailed_status: bool,
     pending_apply: bool,
 }
@@ -234,6 +240,9 @@ impl DisplayMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManualAdjustmentKind {
+    Font,
+    Align,
+    Anchor,
     Translation,
     WorldScale,
     WorldScaleX,
@@ -245,7 +254,7 @@ enum ManualAdjustmentKind {
 
 impl ManualAdjustmentKind {
     fn initial_for_task(_task: &TaskConfig) -> Self {
-        Self::Translation
+        Self::Font
     }
 
     fn next_for_task(self, task: &TaskConfig) -> Self {
@@ -257,6 +266,9 @@ impl ManualAdjustmentKind {
     fn cycle_for_task(self, task: &TaskConfig) -> &'static [ManualAdjustmentKind] {
         if task.world_scale_bound {
             &[
+                Self::Font,
+                Self::Align,
+                Self::Anchor,
                 Self::Translation,
                 Self::WorldScale,
                 Self::LineHeight,
@@ -265,6 +277,9 @@ impl ManualAdjustmentKind {
             ]
         } else {
             &[
+                Self::Font,
+                Self::Align,
+                Self::Anchor,
                 Self::Translation,
                 Self::WorldScaleX,
                 Self::WorldScaleY,
@@ -277,6 +292,9 @@ impl ManualAdjustmentKind {
 
     fn label(self) -> &'static str {
         match self {
+            Self::Font => "font",
+            Self::Align => "align",
+            Self::Anchor => "anchor",
             Self::Translation => "translation",
             Self::WorldScale => "world_scale",
             Self::WorldScaleX => "world_scale_x",
@@ -289,6 +307,7 @@ impl ManualAdjustmentKind {
 
     fn base_step(self, task: &TaskConfig) -> f32 {
         match self {
+            Self::Font | Self::Align | Self::Anchor => 1.0,
             Self::Translation => task
                 .manual_steps
                 .translation_x
@@ -304,37 +323,13 @@ impl ManualAdjustmentKind {
 
     fn current_value(self, parameters: &ConcreteTextParameters) -> f32 {
         match self {
+            Self::Font | Self::Align | Self::Anchor => 0.0,
             Self::Translation => parameters.translation_x,
             Self::WorldScale | Self::WorldScaleX => parameters.world_scale_x,
             Self::WorldScaleY => parameters.world_scale_y,
             Self::LineHeight => parameters.line_height,
             Self::CharSpacing => parameters.char_spacing,
             Self::WordSpacing => parameters.word_spacing,
-        }
-    }
-
-    fn apply_delta(self, parameters: &mut ConcreteTextParameters, task: &TaskConfig, delta: f32) {
-        match self {
-            Self::Translation => {
-                parameters.translation_x = round3(parameters.translation_x + delta)
-            }
-            Self::WorldScale => {
-                parameters.world_scale_x = round3(parameters.world_scale_x + delta);
-                parameters.world_scale_y = round3(parameters.world_scale_y + delta);
-            }
-            Self::WorldScaleX => {
-                parameters.world_scale_x = round3(parameters.world_scale_x + delta)
-            }
-            Self::WorldScaleY => {
-                parameters.world_scale_y = round3(parameters.world_scale_y + delta)
-            }
-            Self::LineHeight => parameters.line_height = round3(parameters.line_height + delta),
-            Self::CharSpacing => parameters.char_spacing = round3(parameters.char_spacing + delta),
-            Self::WordSpacing => parameters.word_spacing = round3(parameters.word_spacing + delta),
-        }
-
-        if task.world_scale_bound {
-            parameters.world_scale_y = parameters.world_scale_x;
         }
     }
 }
@@ -372,6 +367,25 @@ struct PreviewStatusText;
 
 #[derive(Component)]
 struct PreviewControlsText;
+
+#[derive(Component, Clone, Copy)]
+struct InspectorFieldButton {
+    field: ManualAdjustmentKind,
+}
+
+#[derive(Component, Clone, Copy)]
+struct InspectorFieldText {
+    field: ManualAdjustmentKind,
+}
+
+#[derive(Component)]
+struct InspectorSnapButton;
+
+#[derive(Component)]
+struct InspectorSnapText;
+
+#[derive(Component)]
+struct PreviewDetailsText;
 
 fn enter_running_state(mut next_state: ResMut<NextState<souprune::app_state::AppState>>) {
     next_state.set(souprune::app_state::AppState::Running);
@@ -463,7 +477,9 @@ fn setup_runtime(
                 position_type: PositionType::Absolute,
                 top: px(PREVIEW_TEXT_MARGIN),
                 right: px(PREVIEW_TEXT_MARGIN),
-                width: px(280.0),
+                width: px(320.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(8.0),
                 padding: UiRect::axes(px(12.0), px(10.0)),
                 ..default()
             },
@@ -481,6 +497,43 @@ fn setup_runtime(
                 },
                 TextColor(Color::WHITE),
                 PreviewStatusText,
+            ));
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        width: percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        padding: UiRect::axes(px(10.0), px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.14, 0.17, 0.22, 0.95)),
+                    InspectorSnapButton,
+                ))
+                .with_children(|button| {
+                    button.spawn((
+                        Text::new("Snap: On"),
+                        TextLayout::new_with_justify(Justify::Left),
+                        TextFont {
+                            font_size: 14.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                        InspectorSnapText,
+                    ));
+                });
+            for field in ManualAdjustmentKind::initial_for_task(&task.0).cycle_for_task(&task.0) {
+                spawn_inspector_field_row(parent, *field);
+            }
+            parent.spawn((
+                Text::new(""),
+                TextLayout::new_with_justify(Justify::Left),
+                TextFont {
+                    font_size: 13.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.72, 0.74, 0.8)),
+                PreviewDetailsText,
             ));
         });
     commands
@@ -512,6 +565,33 @@ fn setup_runtime(
         });
 }
 
+fn spawn_inspector_field_row(parent: &mut ChildSpawnerCommands, field: ManualAdjustmentKind) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: percent(100.0),
+                justify_content: JustifyContent::FlexStart,
+                padding: UiRect::axes(px(10.0), px(7.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.10, 0.12, 0.16, 0.88)),
+            InspectorFieldButton { field },
+        ))
+        .with_children(|button| {
+            button.spawn((
+                Text::new(field.label()),
+                TextLayout::new_with_justify(Justify::Left),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                InspectorFieldText { field },
+            ));
+        });
+}
+
 fn handle_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut state: ResMut<ReconstructionState>,
@@ -539,6 +619,10 @@ fn handle_keyboard_input(
     if keyboard.just_pressed(KeyCode::KeyM) {
         state.manual_step_multiplier_index =
             (state.manual_step_multiplier_index + 1) % MANUAL_STEP_MULTIPLIERS.len();
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyG) {
+        state.snap_to_grid = !state.snap_to_grid;
     }
 
     if keyboard.just_pressed(KeyCode::KeyI) {
@@ -579,65 +663,14 @@ fn handle_keyboard_input(
         return;
     }
 
-    let changed = match state.manual_adjustment_kind {
-        ManualAdjustmentKind::Translation => {
-            let mut changed = false;
-            let multiplier = state.current_manual_multiplier_value();
-            let x_step = task.0.manual_steps.translation_x * multiplier;
-            let y_step = task.0.manual_steps.translation_y * multiplier;
-
-            if keyboard.just_pressed(KeyCode::ArrowLeft) {
-                state.current_parameters.translation_x =
-                    round3(state.current_parameters.translation_x - x_step);
-                changed = true;
-            }
-            if keyboard.just_pressed(KeyCode::ArrowRight) {
-                state.current_parameters.translation_x =
-                    round3(state.current_parameters.translation_x + x_step);
-                changed = true;
-            }
-            if keyboard.just_pressed(KeyCode::ArrowUp) {
-                state.current_parameters.translation_y =
-                    round3(state.current_parameters.translation_y + y_step);
-                changed = true;
-            }
-            if keyboard.just_pressed(KeyCode::ArrowDown) {
-                state.current_parameters.translation_y =
-                    round3(state.current_parameters.translation_y - y_step);
-                changed = true;
-            }
-            changed
-        }
-        _ => {
-            let mut direction = 0i32;
-            if keyboard.just_pressed(KeyCode::ArrowLeft)
-                || keyboard.just_pressed(KeyCode::ArrowDown)
-            {
-                direction -= 1;
-            }
-            if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::ArrowUp)
-            {
-                direction += 1;
-            }
-
-            if direction != 0 {
-                let signed_step = state.current_manual_step(&task.0) * direction as f32;
-                state.manual_adjustment_kind.apply_delta(
-                    &mut state.current_parameters,
-                    &task.0,
-                    signed_step,
-                );
-                true
-            } else {
-                false
-            }
-        }
-    };
+    let changed = apply_keyboard_adjustment(&keyboard, &mut state, &search, &task.0);
 
     if changed {
-        search
-            .plan
-            .constrain_parameters(&mut state.current_parameters);
+        if state.snap_to_grid {
+            search
+                .plan
+                .constrain_parameters(&mut state.current_parameters);
+        }
         state.auto_search = false;
         state.current_candidate_index = None;
         state.current_score = None;
@@ -645,6 +678,225 @@ fn handle_keyboard_input(
         state.capture_after_apply = true;
         state.pending_apply = true;
     }
+}
+
+fn handle_inspector_interactions(
+    buttons: Query<
+        (&Interaction, Option<&InspectorFieldButton>, Has<InspectorSnapButton>),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut state: ResMut<ReconstructionState>,
+) {
+    for (interaction, row_button, is_snap_button) in &buttons {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+
+        if let Some(row_button) = row_button {
+            state.manual_adjustment_kind = row_button.field;
+        } else if is_snap_button {
+            state.snap_to_grid = !state.snap_to_grid;
+        }
+    }
+}
+
+fn apply_keyboard_adjustment(
+    keyboard: &ButtonInput<KeyCode>,
+    state: &mut ReconstructionState,
+    search: &SearchController,
+    task: &TaskConfig,
+) -> bool {
+    match state.manual_adjustment_kind {
+        ManualAdjustmentKind::Font => {
+            apply_discrete_field_adjustment(keyboard, state, search, SearchParameterField::Font)
+        }
+        ManualAdjustmentKind::Align => {
+            apply_discrete_field_adjustment(keyboard, state, search, SearchParameterField::Align)
+        }
+        ManualAdjustmentKind::Anchor => {
+            apply_discrete_field_adjustment(keyboard, state, search, SearchParameterField::Anchor)
+        }
+        ManualAdjustmentKind::Translation => {
+            apply_translation_adjustment(keyboard, state, search, task)
+        }
+        ManualAdjustmentKind::WorldScale => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::WorldScaleX,
+            |parameters, delta| {
+                parameters.world_scale_x = round3(parameters.world_scale_x + delta);
+                parameters.world_scale_y = round3(parameters.world_scale_y + delta);
+            },
+        ),
+        ManualAdjustmentKind::WorldScaleX => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::WorldScaleX,
+            |parameters, delta| parameters.world_scale_x = round3(parameters.world_scale_x + delta),
+        ),
+        ManualAdjustmentKind::WorldScaleY => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::WorldScaleY,
+            |parameters, delta| parameters.world_scale_y = round3(parameters.world_scale_y + delta),
+        ),
+        ManualAdjustmentKind::LineHeight => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::LineHeight,
+            |parameters, delta| parameters.line_height = round3(parameters.line_height + delta),
+        ),
+        ManualAdjustmentKind::CharSpacing => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::CharSpacing,
+            |parameters, delta| parameters.char_spacing = round3(parameters.char_spacing + delta),
+        ),
+        ManualAdjustmentKind::WordSpacing => apply_scalar_field_adjustment(
+            keyboard,
+            state,
+            search,
+            task,
+            SearchParameterField::WordSpacing,
+            |parameters, delta| parameters.word_spacing = round3(parameters.word_spacing + delta),
+        ),
+    }
+}
+
+fn apply_discrete_field_adjustment(
+    keyboard: &ButtonInput<KeyCode>,
+    state: &mut ReconstructionState,
+    search: &SearchController,
+    field: SearchParameterField,
+) -> bool {
+    let direction = scalar_direction_from_keyboard(keyboard);
+    if direction == 0 {
+        return false;
+    }
+    let multiplier = state.current_manual_multiplier();
+    search
+        .plan
+        .nudge_parameter(&mut state.current_parameters, field, direction * multiplier);
+    true
+}
+
+fn apply_translation_adjustment(
+    keyboard: &ButtonInput<KeyCode>,
+    state: &mut ReconstructionState,
+    search: &SearchController,
+    task: &TaskConfig,
+) -> bool {
+    let mut changed = false;
+    let multiplier = state.current_manual_multiplier_value();
+    let discrete_multiplier = state.current_manual_multiplier();
+
+    if keyboard.just_pressed(KeyCode::ArrowLeft) {
+        changed = true;
+        if state.snap_to_grid {
+            search.plan.nudge_parameter(
+                &mut state.current_parameters,
+                SearchParameterField::TranslationX,
+                -discrete_multiplier,
+            );
+        } else {
+            state.current_parameters.translation_x = round3(
+                state.current_parameters.translation_x
+                    - task.manual_steps.translation_x * multiplier,
+            );
+        }
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) {
+        changed = true;
+        if state.snap_to_grid {
+            search.plan.nudge_parameter(
+                &mut state.current_parameters,
+                SearchParameterField::TranslationX,
+                discrete_multiplier,
+            );
+        } else {
+            state.current_parameters.translation_x = round3(
+                state.current_parameters.translation_x
+                    + task.manual_steps.translation_x * multiplier,
+            );
+        }
+    }
+    if keyboard.just_pressed(KeyCode::ArrowUp) {
+        changed = true;
+        if state.snap_to_grid {
+            search.plan.nudge_parameter(
+                &mut state.current_parameters,
+                SearchParameterField::TranslationY,
+                discrete_multiplier,
+            );
+        } else {
+            state.current_parameters.translation_y = round3(
+                state.current_parameters.translation_y
+                    + task.manual_steps.translation_y * multiplier,
+            );
+        }
+    }
+    if keyboard.just_pressed(KeyCode::ArrowDown) {
+        changed = true;
+        if state.snap_to_grid {
+            search.plan.nudge_parameter(
+                &mut state.current_parameters,
+                SearchParameterField::TranslationY,
+                -discrete_multiplier,
+            );
+        } else {
+            state.current_parameters.translation_y = round3(
+                state.current_parameters.translation_y
+                    - task.manual_steps.translation_y * multiplier,
+            );
+        }
+    }
+
+    changed
+}
+
+fn apply_scalar_field_adjustment(
+    keyboard: &ButtonInput<KeyCode>,
+    state: &mut ReconstructionState,
+    search: &SearchController,
+    task: &TaskConfig,
+    field: SearchParameterField,
+    raw_adjust: impl FnOnce(&mut ConcreteTextParameters, f32),
+) -> bool {
+    let direction = scalar_direction_from_keyboard(keyboard);
+    if direction == 0 {
+        return false;
+    }
+    if state.snap_to_grid {
+        let multiplier = state.current_manual_multiplier();
+        search
+            .plan
+            .nudge_parameter(&mut state.current_parameters, field, direction * multiplier);
+    } else {
+        let signed_step = state.current_manual_step(task) * direction as f32;
+        raw_adjust(&mut state.current_parameters, signed_step);
+    }
+    true
+}
+
+fn scalar_direction_from_keyboard(keyboard: &ButtonInput<KeyCode>) -> i32 {
+    let mut direction = 0i32;
+    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::ArrowDown) {
+        direction -= 1;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::ArrowUp) {
+        direction += 1;
+    }
+    direction
 }
 
 fn apply_pending_candidate(
@@ -660,9 +912,11 @@ fn apply_pending_candidate(
         return;
     }
 
-    search
-        .plan
-        .constrain_parameters(&mut state.current_parameters);
+    if state.snap_to_grid {
+        search
+            .plan
+            .constrain_parameters(&mut state.current_parameters);
+    }
 
     let ron_text = serialize_candidate_view_ron(&task.0, &state.current_parameters);
     fs::write(&task.0.current_view_absolute_path, ron_text)
@@ -840,11 +1094,7 @@ fn update_preview_scene(
         Query<(&mut Sprite, &mut Transform), With<PreviewReferenceSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewRenderSprite>>,
         Query<(&mut Sprite, &mut Transform), With<PreviewDiffSprite>>,
-        Query<&mut Node, With<PreviewStatusPanel>>,
-        Query<&mut Text, With<PreviewStatusText>>,
-        Query<&mut Text, With<PreviewControlsText>>,
     )>,
-    task: Res<TaskResource>,
     reference_images: Res<ReferenceImages>,
     state: Res<ReconstructionState>,
 ) {
@@ -894,84 +1144,119 @@ fn update_preview_scene(
         transform.scale = preview_scale;
         sprite.color = Color::WHITE.with_alpha(diff_alpha);
     }
+}
 
+fn update_inspector_panel(
+    mut ui_queries: ParamSet<(
+        Query<&mut Node, With<PreviewStatusPanel>>,
+        Query<(
+            &mut Text,
+            Has<PreviewStatusText>,
+            Has<PreviewDetailsText>,
+            Has<PreviewControlsText>,
+            Has<InspectorSnapText>,
+            Option<&InspectorFieldText>,
+        )>,
+        Query<(&InspectorFieldButton, &mut BackgroundColor)>,
+    )>,
+    task: Res<TaskResource>,
+    state: Res<ReconstructionState>,
+) {
     let current_similarity = state
         .current_score
         .as_ref()
         .map(|score| score.fitness_score)
         .unwrap_or(0.0);
-    let mut status_value = format!(
-        "adjust: {}\nmultiplier: {}x\nstep: {}\nvalue: {}\nsimilarity: {:.4}",
-        state.manual_adjustment_kind.label(),
-        state.current_manual_multiplier(),
-        state.current_manual_step_label(&task.0),
-        state.current_selected_value_label(),
-        current_similarity,
-    );
-    if state.show_detailed_status {
-        let best_similarity = state
-            .best_score
-            .as_ref()
-            .map(|score| score.fitness_score)
-            .unwrap_or(0.0);
-        let detail_block = format!(
-            "\n\nmode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nfont: {:?}\nalign: {}\nanchor: {}\npos: ({:.3}, {:.3})\nscale: ({:.3}, {:.3})\nline: {:.3}\nchar: {:.3}\nword: {:.3}",
-            state.display_mode,
-            state.phase,
-            state.auto_search,
-            state
-                .current_candidate_index
-                .map(|index| index + 1)
-                .unwrap_or(0),
-            state.total_candidates.max(1),
-            state.target_similarity,
-            best_similarity,
-            state.current_parameters.font,
-            optional_enum_label(
-                task.0.property_defaults.align_uses_default,
-                state.current_parameters.align,
-            ),
-            optional_enum_label(
-                task.0.property_defaults.anchor_uses_default,
-                state.current_parameters.anchor,
-            ),
-            state.current_parameters.translation_x,
-            state.current_parameters.translation_y,
-            state.current_parameters.world_scale_x,
-            state.current_parameters.world_scale_y,
-            state.current_parameters.line_height,
-            state.current_parameters.char_spacing,
-            state.current_parameters.word_spacing,
-        );
-        status_value.push_str(&detail_block);
-    }
-    let controls_value = format!(
-        "Tab: display mode  Space: evolve/cancel search  C: cycle tweak target  M: cycle step multiplier  I: toggle details\nArrows: adjust selected value  Left/Down = -step  Right/Up = +step  R: use best  S: save current"
-    );
-    {
-        let mut panel_query = preview_nodes.p3();
-        let Ok(mut panel) = panel_query.single_mut() else {
-            return;
-        };
+
+    if let Ok(mut panel) = ui_queries.p0().single_mut() {
         panel.width = if state.show_detailed_status {
             px(420.0)
         } else {
-            px(280.0)
+            px(320.0)
         };
     }
+
     {
-        let mut status_query = preview_nodes.p4();
-        let Ok(mut text) = status_query.single_mut() else {
-            return;
-        };
-        *text = Text::new(status_value);
+        let mut row_button_query = ui_queries.p2();
+        for (row_button, mut background) in &mut row_button_query {
+            *background = if row_button.field == state.manual_adjustment_kind {
+                BackgroundColor(Color::srgba(0.20, 0.28, 0.38, 0.98))
+            } else {
+                BackgroundColor(Color::srgba(0.10, 0.12, 0.16, 0.88))
+            };
+        }
     }
+
     {
-        let mut controls_query = preview_nodes.p5();
-        let Ok(mut text) = controls_query.single_mut() else {
-            return;
-        };
-        *text = Text::new(controls_value);
+        let mut text_query = ui_queries.p1();
+        for (mut text, is_status, is_details, is_controls, is_snap, row_text) in &mut text_query {
+            if is_status {
+                *text = Text::new(format!(
+                    "similarity: {:.4}\nselected: {}\nsnap: {}\nmultiplier: {}x",
+                    current_similarity,
+                    state.manual_adjustment_kind.label(),
+                    if state.snap_to_grid { "on" } else { "off" },
+                    state.current_manual_multiplier(),
+                ));
+                continue;
+            }
+
+            if is_details {
+                if state.show_detailed_status {
+                    let best_similarity = state
+                        .best_score
+                        .as_ref()
+                        .map(|score| score.fitness_score)
+                        .unwrap_or(0.0);
+                    *text = Text::new(format!(
+                        "mode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nstep: {}\nselected_value: {}",
+                        state.display_mode,
+                        state.phase,
+                        state.auto_search,
+                        state
+                            .current_candidate_index
+                            .map(|index| index + 1)
+                            .unwrap_or(0),
+                        state.total_candidates.max(1),
+                        state.target_similarity,
+                        best_similarity,
+                        state.current_manual_step_label(&task.0),
+                        state.current_selected_value_label(),
+                    ));
+                } else {
+                    *text = Text::new("");
+                }
+                continue;
+            }
+
+            if is_controls {
+                *text = Text::new(
+                    "Tab: display mode  Space: evolve/cancel search  C: next property  G: snap on/off\nM: step multiplier  I: toggle details  Arrows: adjust selected  R: use best  S: save current",
+                );
+                continue;
+            }
+
+            if is_snap {
+                *text = Text::new(format!(
+                    "Snap: {} (G)",
+                    if state.snap_to_grid { "On" } else { "Off" }
+                ));
+                continue;
+            }
+
+            if let Some(row_text) = row_text {
+                let prefix = if row_text.field == state.manual_adjustment_kind {
+                    ">"
+                } else {
+                    " "
+                };
+                *text = Text::new(format!(
+                    "{prefix} {:<14} {}",
+                    row_text.field.label(),
+                    inspector_field_value_label(row_text.field, &state, &task.0),
+                ));
+            }
+        }
     }
 }
 
@@ -990,6 +1275,9 @@ impl ReconstructionState {
 
     fn current_manual_step_label(&self, task: &TaskConfig) -> String {
         match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Font
+            | ManualAdjustmentKind::Align
+            | ManualAdjustmentKind::Anchor => "discrete".to_string(),
             ManualAdjustmentKind::Translation => format!(
                 "x={:.3}, y={:.3}",
                 task.manual_steps.translation_x * self.current_manual_multiplier_value(),
@@ -1001,6 +1289,9 @@ impl ReconstructionState {
 
     fn current_selected_value_label(&self) -> String {
         match self.manual_adjustment_kind {
+            ManualAdjustmentKind::Font => format!("{:?}", self.current_parameters.font),
+            ManualAdjustmentKind::Align => format!("{:?}", self.current_parameters.align),
+            ManualAdjustmentKind::Anchor => format!("{:?}", self.current_parameters.anchor),
             ManualAdjustmentKind::Translation => format!(
                 "x={:.3}, y={:.3}",
                 self.current_parameters.translation_x, self.current_parameters.translation_y,
@@ -1010,6 +1301,45 @@ impl ReconstructionState {
                 self.manual_adjustment_kind
                     .current_value(&self.current_parameters)
             ),
+        }
+    }
+}
+
+fn inspector_field_value_label(
+    field: ManualAdjustmentKind,
+    state: &ReconstructionState,
+    task: &TaskConfig,
+) -> String {
+    match field {
+        ManualAdjustmentKind::Font => format!("{:?}", state.current_parameters.font),
+        ManualAdjustmentKind::Align => optional_enum_label(
+            task.property_defaults.align_uses_default,
+            state.current_parameters.align,
+        ),
+        ManualAdjustmentKind::Anchor => optional_enum_label(
+            task.property_defaults.anchor_uses_default,
+            state.current_parameters.anchor,
+        ),
+        ManualAdjustmentKind::Translation => format!(
+            "x={:.3}, y={:.3}",
+            state.current_parameters.translation_x, state.current_parameters.translation_y,
+        ),
+        ManualAdjustmentKind::WorldScale => format!(
+            "x={:.3}, y={:.3}",
+            state.current_parameters.world_scale_x, state.current_parameters.world_scale_y,
+        ),
+        ManualAdjustmentKind::WorldScaleX => {
+            format!("{:.3}", state.current_parameters.world_scale_x)
+        }
+        ManualAdjustmentKind::WorldScaleY => {
+            format!("{:.3}", state.current_parameters.world_scale_y)
+        }
+        ManualAdjustmentKind::LineHeight => format!("{:.3}", state.current_parameters.line_height),
+        ManualAdjustmentKind::CharSpacing => {
+            format!("{:.3}", state.current_parameters.char_spacing)
+        }
+        ManualAdjustmentKind::WordSpacing => {
+            format!("{:.3}", state.current_parameters.word_spacing)
         }
     }
 }

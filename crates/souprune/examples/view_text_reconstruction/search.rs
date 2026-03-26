@@ -62,6 +62,20 @@ pub struct CandidateSearchPlan {
     rng: SimpleRng,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SearchParameterField {
+    Font,
+    Align,
+    Anchor,
+    TranslationX,
+    TranslationY,
+    WorldScaleX,
+    WorldScaleY,
+    LineHeight,
+    CharSpacing,
+    WordSpacing,
+}
+
 #[derive(Debug, Clone)]
 struct CandidateDomains {
     fonts: Vec<ViewFontDef>,
@@ -246,6 +260,84 @@ impl CandidateSearchPlan {
         *parameters = self
             .domains
             .parameters_from_genome(self.domains.default_genome(parameters));
+    }
+
+    pub fn nudge_parameter(
+        &self,
+        parameters: &mut ConcreteTextParameters,
+        field: SearchParameterField,
+        steps: i32,
+    ) {
+        if steps == 0 {
+            return;
+        }
+
+        let mut genome = self.domains.default_genome(parameters);
+        match field {
+            SearchParameterField::Font => {
+                genome.font = clamp_gene_index(genome.font, steps, self.domains.fonts.len());
+            }
+            SearchParameterField::Align => {
+                genome.align = clamp_gene_index(genome.align, steps, self.domains.aligns.len());
+            }
+            SearchParameterField::Anchor => {
+                genome.anchor = clamp_gene_index(genome.anchor, steps, self.domains.anchors.len());
+            }
+            SearchParameterField::TranslationX => {
+                genome.translation_x = clamp_gene_index(
+                    genome.translation_x,
+                    steps,
+                    self.domains.translation_xs.len(),
+                );
+            }
+            SearchParameterField::TranslationY => {
+                genome.translation_y = clamp_gene_index(
+                    genome.translation_y,
+                    steps,
+                    self.domains.translation_ys.len(),
+                );
+            }
+            SearchParameterField::WorldScaleX => {
+                genome.world_scale_x = clamp_gene_index(
+                    genome.world_scale_x,
+                    steps,
+                    self.domains.world_scale_xs.len(),
+                );
+                if self.domains.world_scale_bound {
+                    genome.world_scale_y = genome.world_scale_x;
+                }
+            }
+            SearchParameterField::WorldScaleY => {
+                if self.domains.world_scale_bound {
+                    genome.world_scale_x = clamp_gene_index(
+                        genome.world_scale_x,
+                        steps,
+                        self.domains.world_scale_xs.len(),
+                    );
+                    genome.world_scale_y = genome.world_scale_x;
+                } else {
+                    genome.world_scale_y = clamp_gene_index(
+                        genome.world_scale_y,
+                        steps,
+                        self.domains.world_scale_ys.len(),
+                    );
+                }
+            }
+            SearchParameterField::LineHeight => {
+                genome.line_height =
+                    clamp_gene_index(genome.line_height, steps, self.domains.line_heights.len());
+            }
+            SearchParameterField::CharSpacing => {
+                genome.char_spacing =
+                    clamp_gene_index(genome.char_spacing, steps, self.domains.char_spacings.len());
+            }
+            SearchParameterField::WordSpacing => {
+                genome.word_spacing =
+                    clamp_gene_index(genome.word_spacing, steps, self.domains.word_spacings.len());
+            }
+        }
+
+        *parameters = self.domains.parameters_from_genome(genome);
     }
 
     pub fn record_fitness(&mut self, fitness: f32) {
