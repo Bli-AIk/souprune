@@ -1,0 +1,57 @@
+image = "reference.png"
+text = "CHARA"
+assume_single_line = true
+settle_frames = 3
+search_budget = 12000
+population_size = 96
+target_similarity = 0.98
+generated_view_path = "generated/view_text_reconstruction/backpack_name_text/current/view.ron"
+
+[host_view]
+path = "projects/example_mod/states/overworld/view/undertale_backpack.view.ron"
+node_path = ["InfoBox"]
+text_id = "NameText"
+show_parent_boxes = false
+
+[bindings]
+world_scale = "bound"
+
+[properties.font]
+mode = "default"
+
+[properties.align]
+mode = "default"
+
+[properties.anchor]
+mode = "default"
+
+[properties.translation_x]
+mode = "search"
+range = [-200.0, 0.0]
+step = 0.25
+
+[properties.translation_y]
+mode = "search"
+range = [-200.0, 30.0]
+step = 0.25
+
+[properties.world_scale_x]
+mode = "search"
+range = [20.0, 40.0]
+step = 0.25
+
+[properties.world_scale_y]
+mode = "default"
+
+[properties.line_height]
+mode = "default"
+
+[properties.char_spacing]
+mode = "search"
+range = [-20.0, 20.0]
+step = 0.25
+
+[properties.word_spacing]
+mode = "search"
+range = [-20.0, 20.0]
+step = 0.25

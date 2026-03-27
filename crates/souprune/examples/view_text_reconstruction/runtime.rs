@@ -10,8 +10,9 @@
 //! 它把重建反馈放在真实的 Bevy + SoupRune 运行时里，而不是维护一套假的渲染实现。
 use crate::config::{CropRect, TaskConfig};
 use crate::search::{
-    CandidateSearchPlan, ConcreteTextParameters, SearchParameterField, build_view_layout,
-    parse_text_align, parse_text_anchor, parse_view_font,
+    CandidateSearchPlan, ConcreteTextParameters, SearchParameterField, build_export_view_layout,
+    build_runtime_view_layout, find_target_text_def, parse_text_align, parse_text_anchor,
+    parse_view_font,
 };
 use anyhow::{Context, Result};
 use bevy::app::AppExit;
@@ -495,10 +496,8 @@ fn setup_runtime(
     if let Some(parent_dir) = task.0.current_view_absolute_path.parent() {
         fs::create_dir_all(parent_dir).expect("failed to create generated view directory");
     }
-    let initial_ron =
-        serialize_candidate_view_ron(&task.0, &state.current_text, &state.current_parameters);
-    fs::write(&task.0.current_view_absolute_path, initial_ron)
-        .expect("failed to write initial generated view RON file");
+    write_candidate_view_files(&task.0, &state.current_text, &state.current_parameters)
+        .expect("initial view layouts should serialize to RON");
 
     let preview_reference = Image::from_dynamic(
         DynamicImage::ImageRgba8(reference_images.original.clone()),
@@ -524,7 +523,7 @@ fn setup_runtime(
     reference_images.diff_handle = images.add(blank_diff);
     render_target.0 = images.add(render_texture);
     current_view_handle.handle =
-        asset_server.load::<ViewLayoutAsset>(task.0.current_view_relative_path.clone());
+        asset_server.load::<ViewLayoutAsset>(task.0.runtime_view_relative_path.clone());
 
     commands.spawn((
         Camera2d,
@@ -1197,25 +1196,23 @@ fn apply_pending_candidate(
     }
     state.skip_snap_on_next_apply = false;
 
-    let ron_text =
-        serialize_candidate_view_ron(&task.0, &state.current_text, &state.current_parameters);
-    fs::write(&task.0.current_view_absolute_path, ron_text)
-        .expect("failed to write current view RON file");
+    write_candidate_view_files(&task.0, &state.current_text, &state.current_parameters)
+        .expect("current candidate view layouts should serialize to RON");
 
     let runtime_layout: ViewLayoutAsset = ron::from_str(
-        &fs::read_to_string(&task.0.current_view_absolute_path)
-            .expect("generated view RON file should be readable immediately after writing"),
+        &fs::read_to_string(&task.0.runtime_view_absolute_path)
+            .expect("generated runtime view RON file should be readable immediately after writing"),
     )
-    .expect("generated view RON should deserialize into runtime asset");
+    .expect("generated runtime view RON should deserialize into runtime asset");
     view_layouts
         .insert(current_view_handle.handle.id(), runtime_layout)
         .expect("current view handle should accept asset replacement");
 
     despawn_writer.write(DespawnViewRequest {
-        path: Some(task.0.current_view_relative_path.clone()),
+        path: Some(task.0.runtime_view_relative_path.clone()),
     });
     spawn_writer.write(SpawnViewRequest {
-        path: task.0.current_view_relative_path.clone(),
+        path: task.0.runtime_view_relative_path.clone(),
         mode_scope: None,
         bindings: None,
     });
@@ -1311,11 +1308,7 @@ fn load_resume_state_from_view_ron(
             task.current_view_absolute_path.display()
         )
     })?;
-    let text_def = layout
-        .roots
-        .iter()
-        .find_map(|root| root.texts.first())
-        .context("saved view RON does not contain any text definitions")?;
+    let text_def = find_target_text_def(&layout, task.host_view.as_ref())?;
 
     let mut parameters = search_plan.seed_parameters();
     parameters.font = text_def.font.clone();
@@ -1334,10 +1327,14 @@ fn load_resume_state_from_view_ron(
     parameters.word_spacing = text_def.word_spacing.unwrap_or(parameters.word_spacing);
 
     Ok(Some(RestoredCurrentState {
-        text: text_def
-            .content
-            .clone()
-            .unwrap_or_else(|| task.text.clone()),
+        text: if task.host_view.is_some() {
+            task.text.clone()
+        } else {
+            text_def
+                .content
+                .clone()
+                .unwrap_or_else(|| task.text.clone())
+        },
         parameters,
     }))
 }
@@ -1400,15 +1397,39 @@ fn extract_static_val(value: &Val<f32>, default_value: f32) -> f32 {
     }
 }
 
-fn serialize_candidate_view_ron(
+fn write_candidate_view_files(
     task: &TaskConfig,
     text: &str,
     parameters: &ConcreteTextParameters,
-) -> String {
-    let schema_layout = build_view_layout(text, parameters, task.property_defaults);
+) -> Result<()> {
+    ensure_parent_directory(&task.current_view_absolute_path);
+    ensure_parent_directory(&task.runtime_view_absolute_path);
+
+    let export_layout = build_export_view_layout(
+        text,
+        parameters,
+        task.property_defaults,
+        task.field_override_policy,
+        task.host_view.as_ref(),
+    )?;
+    let runtime_layout = build_runtime_view_layout(
+        text,
+        parameters,
+        task.property_defaults,
+        task.field_override_policy,
+        task.host_view.as_ref(),
+    )?;
     let pretty_config = ron::ser::PrettyConfig::new();
-    ron::ser::to_string_pretty(&schema_layout, pretty_config)
-        .expect("generated schema should serialize to RON")
+    let export_ron = ron::ser::to_string_pretty(&export_layout, pretty_config.clone())
+        .context("export schema should serialize to RON")?;
+    let runtime_ron = ron::ser::to_string_pretty(&runtime_layout, pretty_config)
+        .context("runtime schema should serialize to RON")?;
+
+    fs::write(&task.current_view_absolute_path, export_ron)
+        .context("failed to write export view RON file")?;
+    fs::write(&task.runtime_view_absolute_path, runtime_ron)
+        .context("failed to write runtime view RON file")?;
+    Ok(())
 }
 
 fn drive_capture_state(
@@ -2178,7 +2199,14 @@ fn persist_best_candidate(
     ensure_parent_directory(&task.best_summary_path);
     ensure_parent_directory(&task.best_render_path);
     ensure_parent_directory(&task.best_diff_path);
-    let schema_layout = build_view_layout(&score.text, &score.parameters, task.property_defaults);
+    let schema_layout = build_export_view_layout(
+        &score.text,
+        &score.parameters,
+        task.property_defaults,
+        task.field_override_policy,
+        task.host_view.as_ref(),
+    )
+    .expect("best schema should build from task configuration");
     let pretty_config = ron::ser::PrettyConfig::new();
     let ron_text = ron::ser::to_string_pretty(&schema_layout, pretty_config)
         .expect("best schema should serialize to RON");

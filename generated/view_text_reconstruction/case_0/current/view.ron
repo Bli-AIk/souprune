@@ -38,7 +38,7 @@
                         scale: None,
                     ),
                     line_height: None,
-                    char_spacing: Some(-10.376),
+                    char_spacing: Some(-10.536),
                     word_spacing: Some(0.815),
                     conditional_style: None,
                     visible_when: None,

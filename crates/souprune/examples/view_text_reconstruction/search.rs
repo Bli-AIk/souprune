@@ -1,10 +1,10 @@
-use crate::config::{BindingTable, PropertyMode, PropertyTable};
-use anyhow::{Result, bail};
+use crate::config::{BindingTable, HostViewTemplate, PropertyMode, PropertyTable};
+use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use souprune_schema::Val;
 use souprune_schema::view::{
-    SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewFontDef, ViewLayoutAsset,
-    ViewNodeDef,
+    SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef, ViewFontDef,
+    ViewLayoutAsset, ViewNodeDef,
 };
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1198,7 +1198,112 @@ pub struct OptionalTextFieldDefaults {
     pub word_spacing_uses_default: bool,
 }
 
-pub fn build_view_layout(
+#[derive(Debug, Clone, Copy)]
+pub struct TextFieldOverridePolicy {
+    pub font: bool,
+    pub align: bool,
+    pub anchor: bool,
+    pub translation_x: bool,
+    pub translation_y: bool,
+    pub world_scale_x: bool,
+    pub world_scale_y: bool,
+    pub line_height: bool,
+    pub char_spacing: bool,
+    pub word_spacing: bool,
+}
+
+pub fn build_runtime_view_layout(
+    text: &str,
+    parameters: &ConcreteTextParameters,
+    optional_defaults: OptionalTextFieldDefaults,
+    field_override_policy: TextFieldOverridePolicy,
+    host_view: Option<&HostViewTemplate>,
+) -> Result<ViewLayoutAsset> {
+    if let Some(host_view) = host_view {
+        build_host_runtime_view_layout(text, parameters, field_override_policy, host_view)
+    } else {
+        Ok(build_isolated_view_layout(
+            text,
+            parameters,
+            optional_defaults,
+        ))
+    }
+}
+
+pub fn build_export_view_layout(
+    text: &str,
+    parameters: &ConcreteTextParameters,
+    optional_defaults: OptionalTextFieldDefaults,
+    field_override_policy: TextFieldOverridePolicy,
+    host_view: Option<&HostViewTemplate>,
+) -> Result<ViewLayoutAsset> {
+    if let Some(host_view) = host_view {
+        build_host_export_view_layout(parameters, field_override_policy, host_view)
+    } else {
+        Ok(build_isolated_view_layout(
+            text,
+            parameters,
+            optional_defaults,
+        ))
+    }
+}
+
+pub fn find_target_text_def<'a>(
+    layout: &'a ViewLayoutAsset,
+    host_view: Option<&HostViewTemplate>,
+) -> Result<&'a TextDef> {
+    if let Some(host_view) = host_view {
+        return layout
+            .roots
+            .iter()
+            .find_map(|root| {
+                find_text_in_node_path(root, &host_view.node_path, 0, &host_view.text_id)
+            })
+            .with_context(|| {
+                format!(
+                    "failed to find target text `{}` at node path {:?}",
+                    host_view.text_id, host_view.node_path
+                )
+            });
+    }
+
+    layout
+        .roots
+        .iter()
+        .find_map(|root| root.texts.first())
+        .context("view layout does not contain any text definitions")
+}
+
+pub fn text_parameters_from_text_def(text_def: &TextDef) -> ConcreteTextParameters {
+    let (translation_x, translation_y, translation_z) = text_def
+        .transform
+        .translation
+        .as_ref()
+        .map(|(x, y, z)| {
+            (
+                extract_static_number(x, 0.0),
+                extract_static_number(y, 0.0),
+                extract_static_number(z, 1.0),
+            )
+        })
+        .unwrap_or((0.0, 0.0, 1.0));
+
+    let _ = translation_z;
+    ConcreteTextParameters {
+        font: text_def.font.clone(),
+        align: text_def.align.unwrap_or(TextAlignDef::Left),
+        anchor: text_def.anchor.unwrap_or(TextAnchorDef::BottomRight),
+        translation_x,
+        translation_y,
+        world_scale_x: extract_static_number(&text_def.world_scale.0, 13.0),
+        world_scale_y: extract_static_number(&text_def.world_scale.1, 13.0),
+        line_height: text_def.line_height.unwrap_or(1.0),
+        char_spacing: text_def.char_spacing.unwrap_or(0.0),
+        word_spacing: text_def.word_spacing.unwrap_or(0.0),
+    }
+}
+
+fn build_isolated_view_layout(
     text: &str,
     parameters: &ConcreteTextParameters,
     optional_defaults: OptionalTextFieldDefaults,
@@ -1275,6 +1380,271 @@ pub fn build_view_layout(
     }
 }
 
+fn build_host_export_view_layout(
+    parameters: &ConcreteTextParameters,
+    field_override_policy: TextFieldOverridePolicy,
+    host_view: &HostViewTemplate,
+) -> Result<ViewLayoutAsset> {
+    let mut layout = host_view.layout.clone();
+    let target_text = find_target_text_def_mut(&mut layout, host_view)?;
+    apply_reconstructed_text(target_text, None, parameters, field_override_policy);
+    Ok(layout)
+}
+
+fn build_host_runtime_view_layout(
+    text: &str,
+    parameters: &ConcreteTextParameters,
+    field_override_policy: TextFieldOverridePolicy,
+    host_view: &HostViewTemplate,
+) -> Result<ViewLayoutAsset> {
+    let mut found_target = false;
+    let roots = host_view
+        .layout
+        .roots
+        .iter()
+        .filter_map(|node| {
+            build_runtime_host_branch(
+                node,
+                &host_view.node_path,
+                0,
+                &host_view.text_id,
+                text,
+                parameters,
+                field_override_policy,
+                host_view.show_parent_boxes,
+                &mut found_target,
+            )
+        })
+        .collect();
+
+    if !found_target {
+        bail!(
+            "failed to build host view layout for target `{}` at node path {:?}",
+            host_view.text_id,
+            host_view.node_path
+        );
+    }
+
+    Ok(ViewLayoutAsset {
+        roots,
+        requires: host_view.layout.requires.clone(),
+        facts: host_view.layout.facts.clone(),
+        world_space: host_view.layout.world_space,
+    })
+}
+
+fn build_runtime_host_branch(
+    node: &ViewNodeDef,
+    node_path: &[String],
+    depth: usize,
+    text_id: &str,
+    text: &str,
+    parameters: &ConcreteTextParameters,
+    field_override_policy: TextFieldOverridePolicy,
+    show_parent_boxes: bool,
+    found_target: &mut bool,
+) -> Option<ViewNodeDef> {
+    let Some(expected_name) = node_path.get(depth) else {
+        return None;
+    };
+    if expected_name != &node.name {
+        return None;
+    }
+
+    let mut runtime_node = node.clone();
+    runtime_node.visible_when = Some("true".to_string());
+    runtime_node.background_color = None;
+    runtime_node.border_color = None;
+    runtime_node.image = None;
+    runtime_node.sprite = None;
+    runtime_node.state_sprite = None;
+    if let Some(view_box) = runtime_node.view_box.as_mut() {
+        mute_view_box_visuals(view_box, show_parent_boxes);
+    }
+
+    if depth + 1 == node_path.len() {
+        let mut target_text = runtime_node
+            .texts
+            .into_iter()
+            .find(|candidate| candidate.id == text_id)?;
+        apply_reconstructed_text(
+            &mut target_text,
+            Some(text),
+            parameters,
+            field_override_policy,
+        );
+        target_text.visible_when = Some("true".to_string());
+        runtime_node.texts = vec![target_text];
+        runtime_node.children.clear();
+        *found_target = true;
+        return Some(runtime_node);
+    }
+
+    runtime_node.texts.clear();
+    runtime_node.children = runtime_node
+        .children
+        .iter()
+        .filter_map(|child| {
+            build_runtime_host_branch(
+                child,
+                node_path,
+                depth + 1,
+                text_id,
+                text,
+                parameters,
+                field_override_policy,
+                show_parent_boxes,
+                found_target,
+            )
+        })
+        .collect();
+
+    if runtime_node.children.is_empty() {
+        return None;
+    }
+
+    Some(runtime_node)
+}
+
+fn apply_reconstructed_text(
+    target_text: &mut TextDef,
+    content_override: Option<&str>,
+    parameters: &ConcreteTextParameters,
+    field_override_policy: TextFieldOverridePolicy,
+) {
+    if let Some(content_override) = content_override {
+        target_text.content = Some(content_override.to_string());
+    }
+    if field_override_policy.font {
+        target_text.font = parameters.font.clone();
+    }
+    if field_override_policy.align {
+        target_text.align = Some(parameters.align);
+    }
+    if field_override_policy.anchor {
+        target_text.anchor = Some(parameters.anchor);
+    }
+    if field_override_policy.world_scale_x {
+        target_text.world_scale.0 = Val::Static(parameters.world_scale_x);
+    }
+    if field_override_policy.world_scale_y {
+        target_text.world_scale.1 = Val::Static(parameters.world_scale_y);
+    }
+    if field_override_policy.translation_x || field_override_policy.translation_y {
+        let (current_x, current_y, current_z) = target_text
+            .transform
+            .translation
+            .clone()
+            .unwrap_or((Val::Static(0.0), Val::Static(0.0), Val::Static(1.0)));
+        target_text.transform.translation = Some((
+            if field_override_policy.translation_x {
+                Val::Static(parameters.translation_x)
+            } else {
+                current_x
+            },
+            if field_override_policy.translation_y {
+                Val::Static(parameters.translation_y)
+            } else {
+                current_y
+            },
+            current_z,
+        ));
+    }
+    if field_override_policy.line_height {
+        target_text.line_height = Some(parameters.line_height);
+    }
+    if field_override_policy.char_spacing {
+        target_text.char_spacing = Some(parameters.char_spacing);
+    }
+    if field_override_policy.word_spacing {
+        target_text.word_spacing = Some(parameters.word_spacing);
+    }
+}
+
+fn mute_view_box_visuals(view_box: &mut ViewBoxLogicDef, show_parent_boxes: bool) {
+    if show_parent_boxes {
+        return;
+    }
+
+    view_box.border_width = 0.0;
+    view_box.fill_shader = None;
+    view_box.structure_file = None;
+    view_box.fill_color = Some((
+        Val::Static(0.0),
+        Val::Static(0.0),
+        Val::Static(0.0),
+        Val::Static(0.0),
+    ));
+}
+
+fn find_text_in_node_path<'a>(
+    node: &'a ViewNodeDef,
+    node_path: &[String],
+    depth: usize,
+    text_id: &str,
+) -> Option<&'a TextDef> {
+    if node_path.get(depth)? != &node.name {
+        return None;
+    }
+
+    if depth + 1 == node_path.len() {
+        return node.texts.iter().find(|text| text.id == text_id);
+    }
+
+    node.children
+        .iter()
+        .find_map(|child| find_text_in_node_path(child, node_path, depth + 1, text_id))
+}
+
+fn find_target_text_def_mut<'a>(
+    layout: &'a mut ViewLayoutAsset,
+    host_view: &HostViewTemplate,
+) -> Result<&'a mut TextDef> {
+    for root in &mut layout.roots {
+        if let Some(text_def) =
+            find_text_in_node_path_mut(root, &host_view.node_path, 0, &host_view.text_id)
+        {
+            return Ok(text_def);
+        }
+    }
+
+    bail!(
+        "failed to find target text `{}` at node path {:?}",
+        host_view.text_id,
+        host_view.node_path
+    )
+}
+
+fn find_text_in_node_path_mut<'a>(
+    node: &'a mut ViewNodeDef,
+    node_path: &[String],
+    depth: usize,
+    text_id: &str,
+) -> Option<&'a mut TextDef> {
+    if node_path.get(depth)? != &node.name {
+        return None;
+    }
+
+    if depth + 1 == node_path.len() {
+        return node.texts.iter_mut().find(|text| text.id == text_id);
+    }
+
+    for child in &mut node.children {
+        if let Some(text_def) = find_text_in_node_path_mut(child, node_path, depth + 1, text_id) {
+            return Some(text_def);
+        }
+    }
+
+    None
+}
+
+fn extract_static_number(value: &Val<f32>, default_value: f32) -> f32 {
+    match value {
+        Val::Static(number) => *number,
+        _ => default_value,
+    }
+}
+
 pub fn parse_view_font(value: &str) -> Result<ViewFontDef> {
     let normalized = normalize_token(value);
     match normalized.as_str() {
@@ -1318,4 +1688,254 @@ fn normalize_token(value: &str) -> String {
         .filter(|character| !matches!(character, '-' | '_' | ' '))
         .flat_map(char::to_lowercase)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::HostViewTemplate;
+    use souprune_schema::view::{StyleDef, ViewBoxLogicDef};
+
+    #[test]
+    fn host_runtime_layout_keeps_only_target_branch() {
+        let host_view = HostViewTemplate {
+            layout: ViewLayoutAsset {
+                roots: vec![
+                    make_node("MenuBox", vec![], vec![], None),
+                    make_node(
+                        "InfoBox",
+                        vec![make_text("OtherText", "OTHER")],
+                        vec![make_node("IgnoredChild", vec![], vec![], None)],
+                        Some(make_view_box((-108.5, -68.5, 0.0))),
+                    ),
+                ],
+                requires: Vec::new(),
+                facts: None,
+                world_space: false,
+            },
+            node_path: vec!["InfoBox".to_string()],
+            text_id: "OtherText".to_string(),
+            show_parent_boxes: false,
+        };
+
+        let layout = build_runtime_view_layout(
+            "ITEM",
+            &ConcreteTextParameters {
+                font: ViewFontDef::DeterminationSans,
+                align: TextAlignDef::Left,
+                anchor: TextAnchorDef::BottomRight,
+                translation_x: -28.5,
+                translation_y: 22.0,
+                world_scale_x: 13.0,
+                world_scale_y: 13.0,
+                line_height: 1.0,
+                char_spacing: 1.0,
+                word_spacing: -7.5,
+            },
+            OptionalTextFieldDefaults {
+                align_uses_default: true,
+                anchor_uses_default: true,
+                line_height_uses_default: true,
+                char_spacing_uses_default: true,
+                word_spacing_uses_default: true,
+            },
+            TextFieldOverridePolicy {
+                font: true,
+                align: false,
+                anchor: false,
+                translation_x: true,
+                translation_y: true,
+                world_scale_x: true,
+                world_scale_y: true,
+                line_height: false,
+                char_spacing: false,
+                word_spacing: false,
+            },
+            Some(&host_view),
+        )
+        .expect("host layout should build");
+
+        assert_eq!(layout.roots.len(), 1);
+        let root = &layout.roots[0];
+        assert_eq!(root.name, "InfoBox");
+        assert_eq!(root.visible_when.as_deref(), Some("true"));
+        assert_eq!(root.texts.len(), 1);
+        assert_eq!(root.texts[0].id, "OtherText");
+        assert_eq!(root.texts[0].content.as_deref(), Some("ITEM"));
+        assert_eq!(root.texts[0].visible_when.as_deref(), Some("true"));
+        assert_eq!(root.view_box.as_ref().unwrap().border_width, 0.0);
+        assert!(root.view_box.as_ref().unwrap().structure_file.is_none());
+        assert!(root.children.is_empty());
+    }
+
+    #[test]
+    fn host_export_layout_keeps_original_structure_and_content() {
+        let host_view = HostViewTemplate {
+            layout: ViewLayoutAsset {
+                roots: vec![make_node(
+                    "InfoBox",
+                    vec![make_text("NameText", "{$player:name}")],
+                    vec![make_node("IgnoredChild", vec![], vec![], None)],
+                    Some(make_view_box((-108.5, -68.5, 0.0))),
+                )],
+                requires: Vec::new(),
+                facts: None,
+                world_space: false,
+            },
+            node_path: vec!["InfoBox".to_string()],
+            text_id: "NameText".to_string(),
+            show_parent_boxes: false,
+        };
+
+        let layout = build_export_view_layout(
+            "CHARA",
+            &ConcreteTextParameters {
+                font: ViewFontDef::DeterminationSans,
+                align: TextAlignDef::Left,
+                anchor: TextAnchorDef::BottomRight,
+                translation_x: -28.5,
+                translation_y: 22.0,
+                world_scale_x: 13.0,
+                world_scale_y: 13.0,
+                line_height: 1.0,
+                char_spacing: 1.0,
+                word_spacing: -7.5,
+            },
+            OptionalTextFieldDefaults {
+                align_uses_default: true,
+                anchor_uses_default: true,
+                line_height_uses_default: true,
+                char_spacing_uses_default: true,
+                word_spacing_uses_default: true,
+            },
+            TextFieldOverridePolicy {
+                font: true,
+                align: false,
+                anchor: false,
+                translation_x: true,
+                translation_y: true,
+                world_scale_x: true,
+                world_scale_y: true,
+                line_height: false,
+                char_spacing: false,
+                word_spacing: false,
+            },
+            Some(&host_view),
+        )
+        .expect("export layout should build");
+
+        let root = &layout.roots[0];
+        assert_eq!(root.name, "InfoBox");
+        assert_eq!(root.texts[0].content.as_deref(), Some("{$player:name}"));
+        let (translation_x, translation_y, translation_z) = root.texts[0]
+            .transform
+            .translation
+            .as_ref()
+            .expect("export text should keep translation");
+        assert_eq!(extract_static_number(translation_x, 0.0), -28.5);
+        assert_eq!(extract_static_number(translation_y, 0.0), 22.0);
+        assert_eq!(extract_static_number(translation_z, 0.0), 1.0);
+        assert_eq!(root.view_box.as_ref().unwrap().border_width, 3.0);
+        assert_eq!(
+            root.view_box.as_ref().unwrap().structure_file.as_deref(),
+            Some("shared/view_structures/view_box.sdf.ron")
+        );
+        assert_eq!(root.children.len(), 1);
+    }
+
+    #[test]
+    fn find_target_text_def_uses_host_node_path() {
+        let host_view = HostViewTemplate {
+            layout: ViewLayoutAsset {
+                roots: vec![make_node(
+                    "Root",
+                    vec![],
+                    vec![make_node(
+                        "InfoBox",
+                        vec![make_text("NameText", "{$player:name}")],
+                        vec![],
+                        Some(make_view_box((1.0, 2.0, 0.0))),
+                    )],
+                    None,
+                )],
+                requires: Vec::new(),
+                facts: None,
+                world_space: false,
+            },
+            node_path: vec!["Root".to_string(), "InfoBox".to_string()],
+            text_id: "NameText".to_string(),
+            show_parent_boxes: false,
+        };
+
+        let text_def =
+            find_target_text_def(&host_view.layout, Some(&host_view)).expect("target should exist");
+        assert_eq!(text_def.id, "NameText");
+        assert_eq!(text_def.content.as_deref(), Some("{$player:name}"));
+    }
+
+    fn make_node(
+        name: &str,
+        texts: Vec<TextDef>,
+        children: Vec<ViewNodeDef>,
+        view_box: Option<ViewBoxLogicDef>,
+    ) -> ViewNodeDef {
+        ViewNodeDef {
+            name: name.to_string(),
+            tags: Vec::new(),
+            style: StyleDef::default(),
+            visible_when: None,
+            background_color: None,
+            border_color: None,
+            image: None,
+            sprite: None,
+            state_sprite: None,
+            texts,
+            view_box,
+            children,
+            repeat: None,
+        }
+    }
+
+    fn make_text(id: &str, content: &str) -> TextDef {
+        TextDef {
+            id: id.to_string(),
+            content: Some(content.to_string()),
+            font: ViewFontDef::DeterminationMono,
+            align: None,
+            anchor: None,
+            world_scale: (Val::Static(13.0), Val::Static(13.0)),
+            color: (
+                Val::Static(1.0),
+                Val::Static(1.0),
+                Val::Static(1.0),
+                Val::Static(1.0),
+            ),
+            transform: SerializableTransform {
+                translation: Some((Val::Static(0.0), Val::Static(0.0), Val::Static(1.0))),
+                rotation: None,
+                scale: None,
+            },
+            line_height: Some(1.0),
+            char_spacing: Some(0.0),
+            word_spacing: Some(0.0),
+            conditional_style: None,
+            visible_when: None,
+        }
+    }
+
+    fn make_view_box(offset: (f32, f32, f32)) -> ViewBoxLogicDef {
+        ViewBoxLogicDef {
+            width: 65.0,
+            height: 49.0,
+            border_width: 3.0,
+            offset: (
+                Val::Static(offset.0),
+                Val::Static(offset.1),
+                Val::Static(offset.2),
+            ),
+            fill_shader: None,
+            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            fill_color: None,
+        }
+    }
 }

@@ -1,9 +1,11 @@
 use crate::search::{
-    CandidateSearchPlan, ConcreteTextParameters, OptionalTextFieldDefaults, parse_text_align,
-    parse_text_anchor, parse_view_font,
+    CandidateSearchPlan, ConcreteTextParameters, OptionalTextFieldDefaults,
+    TextFieldOverridePolicy, find_target_text_def, parse_text_align, parse_text_anchor,
+    parse_view_font, text_parameters_from_text_def,
 };
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
+use souprune_schema::view::ViewLayoutAsset as SchemaViewLayoutAsset;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,8 +19,9 @@ pub struct TaskConfig {
     pub settle_frames: u32,
     pub target_similarity: f32,
     pub exit_on_completion: bool,
-    pub current_view_relative_path: String,
     pub current_view_absolute_path: PathBuf,
+    pub runtime_view_relative_path: String,
+    pub runtime_view_absolute_path: PathBuf,
     pub best_view_absolute_path: PathBuf,
     pub current_summary_path: PathBuf,
     pub best_summary_path: PathBuf,
@@ -29,6 +32,8 @@ pub struct TaskConfig {
     pub world_scale_bound: bool,
     pub manual_steps: ManualAdjustmentSteps,
     pub property_defaults: OptionalTextFieldDefaults,
+    pub field_override_policy: TextFieldOverridePolicy,
+    pub host_view: Option<HostViewTemplate>,
     pub search_plan: CandidateSearchPlan,
 }
 
@@ -51,6 +56,11 @@ impl TaskConfig {
             .capture_reference_path
             .as_ref()
             .map(|path| resolve_path(&config_dir, path));
+        let host_view = parsed
+            .host_view
+            .as_ref()
+            .map(|host_view| load_host_view_template(host_view, workspace_root, &config_dir))
+            .transpose()?;
 
         let bbox = parsed
             .bbox
@@ -75,6 +85,14 @@ impl TaskConfig {
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("view.ron");
+        let runtime_view_relative_path = current_output_dir
+            .strip_prefix(workspace_root)
+            .ok()
+            .map(|relative_dir| relative_dir.join("runtime.view.ron"))
+            .unwrap_or_else(|| PathBuf::from("generated/view_text_reconstruction/runtime.view.ron"))
+            .to_string_lossy()
+            .replace('\\', "/");
+        let runtime_view_absolute_path = current_output_dir.join("runtime.view.ron");
         let best_output_dir = current_output_dir
             .file_name()
             .and_then(|name| name.to_str())
@@ -90,6 +108,11 @@ impl TaskConfig {
         let current_diff_path = current_output_dir.join("diff.png");
         let best_diff_path = best_output_dir.join("diff.png");
         let target_similarity = validate_target_similarity(parsed.target_similarity)?;
+        let base_defaults = if let Some(host_view) = &host_view {
+            text_parameters_from_text_def(find_target_text_def(&host_view.layout, Some(host_view))?)
+        } else {
+            ConcreteTextParameters::default()
+        };
 
         let property_defaults = OptionalTextFieldDefaults {
             align_uses_default: matches!(parsed.properties.align.mode, PropertyMode::Default),
@@ -107,6 +130,7 @@ impl TaskConfig {
                 PropertyMode::Default
             ),
         };
+        let field_override_policy = parsed.properties.text_field_override_policy();
         let world_scale_bound = parsed.bindings.world_scale.is_bound();
         let manual_steps = ManualAdjustmentSteps {
             translation_x: parsed.properties.translation_x.preferred_step(1.0),
@@ -118,7 +142,7 @@ impl TaskConfig {
         };
         let search_defaults = parsed
             .properties
-            .resolve_search_defaults(&parsed.bindings, ConcreteTextParameters::default())?;
+            .resolve_search_defaults(&parsed.bindings, base_defaults)?;
 
         let search_plan = CandidateSearchPlan::build(
             parsed.assume_single_line,
@@ -139,8 +163,9 @@ impl TaskConfig {
             settle_frames: parsed.settle_frames.unwrap_or(3),
             target_similarity,
             exit_on_completion: parsed.exit_on_completion,
-            current_view_relative_path,
             current_view_absolute_path,
+            runtime_view_relative_path,
+            runtime_view_absolute_path,
             best_view_absolute_path,
             current_summary_path,
             best_summary_path,
@@ -151,6 +176,8 @@ impl TaskConfig {
             world_scale_bound,
             manual_steps,
             property_defaults,
+            field_override_policy,
+            host_view,
             search_plan,
         })
     }
@@ -179,6 +206,8 @@ struct TaskConfigFile {
     image: PathBuf,
     #[serde(default)]
     capture_reference_path: Option<PathBuf>,
+    #[serde(default)]
+    host_view: Option<HostViewConfigFile>,
     text: String,
     #[serde(default)]
     bbox: Option<[u32; 4]>,
@@ -200,6 +229,23 @@ struct TaskConfigFile {
     properties: PropertyTable,
     #[serde(default)]
     bindings: BindingTable,
+}
+
+#[derive(Debug, Clone)]
+pub struct HostViewTemplate {
+    pub layout: SchemaViewLayoutAsset,
+    pub node_path: Vec<String>,
+    pub text_id: String,
+    pub show_parent_boxes: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct HostViewConfigFile {
+    path: PathBuf,
+    node_path: Vec<String>,
+    text_id: String,
+    #[serde(default)]
+    show_parent_boxes: bool,
 }
 
 fn default_generated_view_path() -> String {
@@ -280,6 +326,21 @@ impl PropertyTable {
         }
 
         Ok(defaults)
+    }
+
+    fn text_field_override_policy(&self) -> TextFieldOverridePolicy {
+        TextFieldOverridePolicy {
+            font: self.font.is_overridden(),
+            align: self.align.is_overridden(),
+            anchor: self.anchor.is_overridden(),
+            translation_x: self.translation_x.is_overridden(),
+            translation_y: self.translation_y.is_overridden(),
+            world_scale_x: self.world_scale_x.is_overridden(),
+            world_scale_y: self.world_scale_y.is_overridden(),
+            line_height: self.line_height.is_overridden(),
+            char_spacing: self.char_spacing.is_overridden(),
+            word_spacing: self.word_spacing.is_overridden(),
+        }
     }
 }
 
@@ -390,6 +451,10 @@ impl EnumPropertyConfig {
     ) -> Result<souprune_schema::view::TextAnchorDef> {
         resolve_enum_seed(self, default_value, parse_text_anchor)
     }
+
+    fn is_overridden(&self) -> bool {
+        !matches!(self.mode, PropertyMode::Default)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -483,6 +548,10 @@ impl NumericPropertyConfig {
     fn preferred_step(&self, default_step: f32) -> f32 {
         self.step.filter(|step| *step > 0.0).unwrap_or(default_step)
     }
+
+    fn is_overridden(&self) -> bool {
+        !matches!(self.mode, PropertyMode::Default)
+    }
 }
 
 fn round_numeric_candidate(value: f32) -> f32 {
@@ -567,5 +636,50 @@ fn resolve_path(base_dir: &Path, path: &Path) -> PathBuf {
         path.to_path_buf()
     } else {
         base_dir.join(path)
+    }
+}
+
+fn load_host_view_template(
+    parsed: &HostViewConfigFile,
+    workspace_root: &Path,
+    config_dir: &Path,
+) -> Result<HostViewTemplate> {
+    if parsed.node_path.is_empty() {
+        bail!("`host_view.node_path` must contain at least one node name");
+    }
+
+    let absolute_path = resolve_workspace_or_config_path(workspace_root, config_dir, &parsed.path);
+    if !absolute_path.exists() {
+        bail!("host view file does not exist: {}", absolute_path.display());
+    }
+
+    let raw = fs::read_to_string(&absolute_path)
+        .with_context(|| format!("failed to read host view file: {}", absolute_path.display()))?;
+    let layout: SchemaViewLayoutAsset = ron::from_str(&raw)
+        .with_context(|| format!("failed to parse host view RON: {}", absolute_path.display()))?;
+    let host_view = HostViewTemplate {
+        layout,
+        node_path: parsed.node_path.clone(),
+        text_id: parsed.text_id.clone(),
+        show_parent_boxes: parsed.show_parent_boxes,
+    };
+    let _ = find_target_text_def(&host_view.layout, Some(&host_view))?;
+    Ok(host_view)
+}
+
+fn resolve_workspace_or_config_path(
+    workspace_root: &Path,
+    config_dir: &Path,
+    path: &Path,
+) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    let workspace_candidate = workspace_root.join(path);
+    if workspace_candidate.exists() {
+        workspace_candidate
+    } else {
+        config_dir.join(path)
     }
 }
