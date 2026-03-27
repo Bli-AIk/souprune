@@ -26,19 +26,16 @@ range = [-320.0, -240.0]
 step = 0.025
 
 [properties.translation_y]
-mode = "search"
-range = [-140.0, -80.0]
-step = 0.025
+mode = "fixed"
+value = -89.55
 
 [properties.world_scale_x]
-mode = "search"
-range = [12.5, 27.0]
-step = 0.025
+mode = "fixed"
+value = 27.0
 
 [properties.world_scale_y]
-mode = "search"
-range = [12.5, 27.0]
-step = 0.025
+mode = "fixed"
+value = 27.0
 
 [properties.char_spacing]
 mode = "search"
