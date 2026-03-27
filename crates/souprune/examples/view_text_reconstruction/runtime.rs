@@ -725,6 +725,7 @@ fn handle_keyboard_input(
     if state.text_edit_mode {
         let text_changed = apply_text_input(&mut keyboard_inputs, &mut state);
         if text_changed {
+            search.plan.clear_evaluation_history();
             mark_text_changed(&mut state);
         }
         return;
@@ -913,6 +914,7 @@ fn handle_reference_mask_interactions(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reference_images: Res<ReferenceImages>,
     task: Res<TaskResource>,
+    mut search: ResMut<SearchController>,
     mut mask_state: ResMut<ReferenceMaskState>,
     mut state: ResMut<ReconstructionState>,
 ) {
@@ -970,6 +972,7 @@ fn handle_reference_mask_interactions(
     }
 
     if changed {
+        search.plan.clear_evaluation_history();
         mark_reference_mask_changed(&mut state, &task.0);
     }
 }

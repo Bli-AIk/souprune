@@ -6,7 +6,7 @@ use souprune_schema::view::{
     SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewFontDef, ViewLayoutAsset,
     ViewNodeDef,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize)]
@@ -58,6 +58,7 @@ pub struct CandidateSearchPlan {
     next_population_index: usize,
     population: Vec<CandidateGenome>,
     population_scores: Vec<Option<f32>>,
+    evaluated_scores: HashMap<CandidateGenome, f32>,
     last_issued_slot: Option<usize>,
     rng: SimpleRng,
 }
@@ -243,6 +244,7 @@ impl CandidateSearchPlan {
             next_population_index: 0,
             population: Vec::new(),
             population_scores: Vec::new(),
+            evaluated_scores: HashMap::new(),
             last_issued_slot: None,
             rng,
         })
@@ -344,40 +346,42 @@ impl CandidateSearchPlan {
         let Some(slot) = self.last_issued_slot.take() else {
             return;
         };
-        if let Some(score_slot) = self.population_scores.get_mut(slot) {
-            *score_slot = Some(fitness);
-        }
         let genome = self.population[slot];
-        if fitness > self.best_fitness + 0.0001 {
-            self.best_fitness = fitness;
-            self.best_genome = genome;
-            self.generation_improved = true;
-            self.generations_without_improvement = 0;
-        }
+        self.apply_fitness(slot, genome, fitness);
+        self.evaluated_scores.insert(genome, fitness);
     }
 
     pub fn next_candidate(&mut self) -> Option<(usize, ConcreteTextParameters)> {
-        if self.evaluations_done >= self.evaluation_budget {
-            return None;
-        }
+        loop {
+            if self.evaluations_done >= self.evaluation_budget {
+                return None;
+            }
 
-        if self.population.is_empty() || self.next_population_index >= self.population.len() {
-            self.prepare_next_population();
-        }
-        if self.population.is_empty() {
-            return None;
-        }
+            if self.population.is_empty() || self.next_population_index >= self.population.len() {
+                self.prepare_next_population();
+            }
+            if self.population.is_empty() {
+                return None;
+            }
 
-        let evaluation_index = self.evaluations_done;
-        let slot = self.next_population_index;
-        self.next_population_index += 1;
-        self.evaluations_done += 1;
-        self.last_issued_slot = Some(slot);
+            let evaluation_index = self.evaluations_done;
+            let slot = self.next_population_index;
+            self.next_population_index += 1;
+            let genome = self.population[slot];
 
-        Some((
-            evaluation_index,
-            self.domains.parameters_from_genome(self.population[slot]),
-        ))
+            if let Some(cached_fitness) = self.evaluated_scores.get(&genome).copied() {
+                self.apply_fitness(slot, genome, cached_fitness);
+                continue;
+            }
+
+            self.evaluations_done += 1;
+            self.last_issued_slot = Some(slot);
+
+            return Some((
+                evaluation_index,
+                self.domains.parameters_from_genome(genome),
+            ));
+        }
     }
 
     pub fn restart_from_parameters(
@@ -385,23 +389,40 @@ impl CandidateSearchPlan {
         parameters: &ConcreteTextParameters,
     ) -> (usize, ConcreteTextParameters) {
         self.seed_genome = self.domains.default_genome(parameters);
-        self.best_genome = self.seed_genome;
         self.reset_search_state();
         self.next_candidate()
             .expect("search plan always contains at least one candidate")
     }
 
-    fn reset_search_state(&mut self) {
+    pub fn clear_evaluation_history(&mut self) {
+        self.evaluated_scores.clear();
+        self.best_genome = self.seed_genome;
         self.best_fitness = f32::NEG_INFINITY;
+        self.reset_search_state();
+    }
+
+    fn reset_search_state(&mut self) {
         self.generation_improved = false;
         self.generations_without_improvement = 0;
         self.generation = 0;
-        self.evaluations_done = 0;
+        self.evaluations_done = self.evaluated_scores.len().min(self.evaluation_budget);
         self.next_population_index = 0;
         self.population.clear();
         self.population_scores.clear();
         self.last_issued_slot = None;
         self.rng = SimpleRng::from_entropy();
+    }
+
+    fn apply_fitness(&mut self, slot: usize, genome: CandidateGenome, fitness: f32) {
+        if let Some(score_slot) = self.population_scores.get_mut(slot) {
+            *score_slot = Some(fitness);
+        }
+        if fitness > self.best_fitness + 0.0001 {
+            self.best_fitness = fitness;
+            self.best_genome = genome;
+            self.generation_improved = true;
+            self.generations_without_improvement = 0;
+        }
     }
 }
 
@@ -478,27 +499,21 @@ impl CandidateSearchPlan {
             .iter()
             .take(self.elite_count.min(target_population_size))
         {
-            if unique.insert(ranked_genome.genome) {
-                next_population.push(ranked_genome.genome);
-            }
+            self.push_candidate_if_unseen(&mut next_population, &mut unique, ranked_genome.genome);
         }
 
         for candidate in self.local_neighbor_candidates(self.best_genome, phase) {
             if next_population.len() >= target_population_size {
                 break;
             }
-            if unique.insert(candidate) {
-                next_population.push(candidate);
-            }
+            self.push_candidate_if_unseen(&mut next_population, &mut unique, candidate);
         }
         if self.generations_without_improvement >= 3 {
             for candidate in self.local_neighbor_candidates(self.seed_genome, SearchPhase::Focus) {
                 if next_population.len() >= target_population_size {
                     break;
                 }
-                if unique.insert(candidate) {
-                    next_population.push(candidate);
-                }
+                self.push_candidate_if_unseen(&mut next_population, &mut unique, candidate);
             }
         }
 
@@ -515,18 +530,14 @@ impl CandidateSearchPlan {
                 self.breed_genome(&ranked, phase)
             };
             attempts += 1;
-            if unique.insert(candidate) {
-                next_population.push(candidate);
-            }
+            self.push_candidate_if_unseen(&mut next_population, &mut unique, candidate);
         }
 
         while next_population.len() < target_population_size
             && unique.len() < self.full_search_space
         {
             let candidate = self.random_genome();
-            if unique.insert(candidate) {
-                next_population.push(candidate);
-            }
+            self.push_candidate_if_unseen(&mut next_population, &mut unique, candidate);
         }
 
         self.population = next_population;
@@ -546,23 +557,18 @@ impl CandidateSearchPlan {
         let mut population = Vec::with_capacity(target_population_size);
         let mut unique = HashSet::with_capacity(target_population_size);
 
-        unique.insert(self.seed_genome);
-        population.push(self.seed_genome);
+        self.push_candidate_if_unseen(&mut population, &mut unique, self.seed_genome);
 
         for candidate in self.seed_neighbor_candidates() {
             if population.len() >= target_population_size {
                 break;
             }
-            if unique.insert(candidate) {
-                population.push(candidate);
-            }
+            self.push_candidate_if_unseen(&mut population, &mut unique, candidate);
         }
 
         while population.len() < target_population_size && unique.len() < self.full_search_space {
             let genome = self.random_genome();
-            if unique.insert(genome) {
-                population.push(genome);
-            }
+            self.push_candidate_if_unseen(&mut population, &mut unique, genome);
         }
 
         self.population = population;
@@ -817,6 +823,21 @@ impl CandidateSearchPlan {
 
     fn seed_neighbor_candidates(&self) -> Vec<CandidateGenome> {
         self.local_neighbors_from_radii(self.seed_genome, &[32, 16, 8, 4, 2, 1], true)
+    }
+
+    fn push_candidate_if_unseen(
+        &self,
+        population: &mut Vec<CandidateGenome>,
+        unique: &mut HashSet<CandidateGenome>,
+        candidate: CandidateGenome,
+    ) {
+        if !unique.insert(candidate) {
+            return;
+        }
+        if self.evaluated_scores.contains_key(&candidate) {
+            return;
+        }
+        population.push(candidate);
     }
 
     fn local_neighbor_candidates(
