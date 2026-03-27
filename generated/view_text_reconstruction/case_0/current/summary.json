@@ -1,0 +1,26 @@
+{
+  "candidate_index": null,
+  "total_candidates": 12000,
+  "text": "C",
+  "parameters": {
+    "font": "DeterminationMono",
+    "align": "default",
+    "anchor": "default",
+    "translation_x": -276.236,
+    "translation_y": -89.551,
+    "world_scale_x": 27.0,
+    "world_scale_y": 27.0,
+    "line_height": 1.0,
+    "char_spacing": 0.0,
+    "word_spacing": 0.0
+  },
+  "fitness_score": 0.36853498,
+  "global_similarity": 0.99851334,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 0.9979948,
+  "content_mask_f1": 0.28301886,
+  "content_bbox_iou": 0.1764706,
+  "content_size_similarity": 0.5882353,
+  "content_center_similarity": 0.58823526,
+  "differing_pixels": 616
+}

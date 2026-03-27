@@ -380,8 +380,18 @@ impl CandidateSearchPlan {
         ))
     }
 
-    pub fn restart(&mut self) -> (usize, ConcreteTextParameters) {
+    pub fn restart_from_parameters(
+        &mut self,
+        parameters: &ConcreteTextParameters,
+    ) -> (usize, ConcreteTextParameters) {
+        self.seed_genome = self.domains.default_genome(parameters);
         self.best_genome = self.seed_genome;
+        self.reset_search_state();
+        self.next_candidate()
+            .expect("search plan always contains at least one candidate")
+    }
+
+    fn reset_search_state(&mut self) {
         self.best_fitness = f32::NEG_INFINITY;
         self.generation_improved = false;
         self.generations_without_improvement = 0;
@@ -392,8 +402,6 @@ impl CandidateSearchPlan {
         self.population_scores.clear();
         self.last_issued_slot = None;
         self.rng = SimpleRng::from_entropy();
-        self.next_candidate()
-            .expect("search plan always contains at least one candidate")
     }
 }
 

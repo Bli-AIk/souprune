@@ -11,6 +11,7 @@
 use crate::config::{CropRect, TaskConfig};
 use crate::search::{
     CandidateSearchPlan, ConcreteTextParameters, SearchParameterField, build_view_layout,
+    parse_text_align, parse_text_anchor, parse_view_font,
 };
 use anyhow::{Context, Result};
 use bevy::app::AppExit;
@@ -26,13 +27,15 @@ use bevy::render::render_resource::TextureFormat;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use bevy::window::{PrimaryWindow, WindowPlugin};
 use image::DynamicImage;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use souprune::ViewLayoutAsset;
 use souprune::config::SoupruneConfig;
 use souprune::core::camera::MainGameCamera;
 use souprune::core::game_action::GameActionDef;
 use souprune::core::view::{CoreViewPlugin, DespawnViewRequest, SpawnViewRequest};
 use souprune::extra::multi_source::MultiSourceAssetReader;
+use souprune_schema::Val;
+use souprune_schema::view::ViewLayoutAsset as SchemaViewLayoutAsset;
 use std::fs;
 
 const PREVIEW_LAYER: RenderLayers = RenderLayers::layer(2);
@@ -62,7 +65,13 @@ pub fn configure_app(
     }
 
     let search_plan = task.search_plan.clone();
-    let initial_current = search_plan.seed_parameters();
+    let restored_current = load_saved_resume_state(&task, &search_plan);
+    let (initial_current, initial_text, skip_initial_snap) =
+        if let Some(restored_current) = restored_current {
+            (restored_current.parameters, restored_current.text, true)
+        } else {
+            (search_plan.seed_parameters(), task.text.clone(), false)
+        };
 
     app.insert_resource(ClearColor(Color::srgb(0.08, 0.09, 0.11)))
         .insert_resource(souprune::app_state::app_setup::ResolutionScale(
@@ -136,7 +145,7 @@ pub fn configure_app(
             target_similarity: task.target_similarity,
             current_candidate_index: None,
             current_parameters: initial_current,
-            current_text: task.text.clone(),
+            current_text: initial_text,
             current_score: None,
             best_score: None,
             latest_render_image: None,
@@ -148,6 +157,7 @@ pub fn configure_app(
             snap_to_grid: true,
             text_edit_mode: false,
             show_detailed_status: false,
+            skip_snap_on_next_apply: skip_initial_snap,
             pending_apply: true,
         })
         .insert_resource(CurrentViewAssetHandle::default())
@@ -230,6 +240,7 @@ struct ReconstructionState {
     snap_to_grid: bool,
     text_edit_mode: bool,
     show_detailed_status: bool,
+    skip_snap_on_next_apply: bool,
     pending_apply: bool,
 }
 
@@ -407,6 +418,12 @@ struct ScoredCandidate {
     content_size_similarity: f32,
     content_center_similarity: f32,
     differing_pixels: u64,
+}
+
+#[derive(Debug, Clone)]
+struct RestoredCurrentState {
+    text: String,
+    parameters: ConcreteTextParameters,
 }
 
 #[derive(Component)]
@@ -761,7 +778,9 @@ fn handle_keyboard_input(
     }
 
     if keyboard.just_pressed(KeyCode::Space) {
-        let (candidate_index, parameters) = search.plan.restart();
+        let (candidate_index, parameters) = search
+            .plan
+            .restart_from_parameters(&state.current_parameters);
         state.auto_search = search.total_candidates > 1;
         state.total_candidates = search.total_candidates;
         state.target_similarity = task.0.target_similarity;
@@ -1168,11 +1187,12 @@ fn apply_pending_candidate(
         return;
     }
 
-    if state.snap_to_grid {
+    if state.snap_to_grid && !state.skip_snap_on_next_apply {
         search
             .plan
             .constrain_parameters(&mut state.current_parameters);
     }
+    state.skip_snap_on_next_apply = false;
 
     let ron_text =
         serialize_candidate_view_ron(&task.0, &state.current_text, &state.current_parameters);
@@ -1206,6 +1226,175 @@ fn apply_pending_candidate(
     } else {
         EvaluationPhase::Ready
     };
+}
+
+fn load_saved_resume_state(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+) -> Option<RestoredCurrentState> {
+    if task.current_summary_path.exists() {
+        match load_resume_state_from_summary(task, search_plan) {
+            Ok(Some(restored_state)) => return Some(restored_state),
+            Ok(None) => {}
+            Err(error) => {
+                eprintln!(
+                    "[view_text_reconstruction] failed to restore {}: {error:#}",
+                    task.current_summary_path.display()
+                );
+            }
+        }
+    }
+
+    if task.current_view_absolute_path.exists() {
+        match load_resume_state_from_view_ron(task, search_plan) {
+            Ok(Some(restored_state)) => return Some(restored_state),
+            Ok(None) => {}
+            Err(error) => {
+                eprintln!(
+                    "[view_text_reconstruction] failed to restore {}: {error:#}",
+                    task.current_view_absolute_path.display()
+                );
+            }
+        }
+    }
+
+    None
+}
+
+fn load_resume_state_from_summary(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+) -> Result<Option<RestoredCurrentState>> {
+    if !task.current_summary_path.exists() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(&task.current_summary_path).with_context(|| {
+        format!(
+            "failed to read saved summary: {}",
+            task.current_summary_path.display()
+        )
+    })?;
+    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse saved summary JSON: {}",
+            task.current_summary_path.display()
+        )
+    })?;
+
+    Ok(Some(RestoredCurrentState {
+        text: persisted.text,
+        parameters: decode_persisted_parameters(task, search_plan, &persisted.parameters)?,
+    }))
+}
+
+fn load_resume_state_from_view_ron(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+) -> Result<Option<RestoredCurrentState>> {
+    if !task.current_view_absolute_path.exists() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(&task.current_view_absolute_path).with_context(|| {
+        format!(
+            "failed to read saved view RON: {}",
+            task.current_view_absolute_path.display()
+        )
+    })?;
+    let layout: SchemaViewLayoutAsset = ron::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse saved view RON: {}",
+            task.current_view_absolute_path.display()
+        )
+    })?;
+    let text_def = layout
+        .roots
+        .iter()
+        .find_map(|root| root.texts.first())
+        .context("saved view RON does not contain any text definitions")?;
+
+    let mut parameters = search_plan.seed_parameters();
+    parameters.font = text_def.font.clone();
+    parameters.align = text_def.align.unwrap_or(parameters.align);
+    parameters.anchor = text_def.anchor.unwrap_or(parameters.anchor);
+    parameters.world_scale_x =
+        extract_static_val(&text_def.world_scale.0, parameters.world_scale_x);
+    parameters.world_scale_y =
+        extract_static_val(&text_def.world_scale.1, parameters.world_scale_y);
+    if let Some((translation_x, translation_y, _)) = &text_def.transform.translation {
+        parameters.translation_x = extract_static_val(translation_x, parameters.translation_x);
+        parameters.translation_y = extract_static_val(translation_y, parameters.translation_y);
+    }
+    parameters.line_height = text_def.line_height.unwrap_or(parameters.line_height);
+    parameters.char_spacing = text_def.char_spacing.unwrap_or(parameters.char_spacing);
+    parameters.word_spacing = text_def.word_spacing.unwrap_or(parameters.word_spacing);
+
+    Ok(Some(RestoredCurrentState {
+        text: text_def
+            .content
+            .clone()
+            .unwrap_or_else(|| task.text.clone()),
+        parameters,
+    }))
+}
+
+fn decode_persisted_parameters(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+    persisted: &PersistedTextParameters,
+) -> Result<ConcreteTextParameters> {
+    let mut parameters = search_plan.seed_parameters();
+    parameters.font = parse_view_font(&persisted.font)?;
+    parameters.align = parse_optional_align_label(
+        &persisted.align,
+        task.property_defaults.align_uses_default,
+        parameters.align,
+    )?;
+    parameters.anchor = parse_optional_anchor_label(
+        &persisted.anchor,
+        task.property_defaults.anchor_uses_default,
+        parameters.anchor,
+    )?;
+    parameters.translation_x = persisted.translation_x;
+    parameters.translation_y = persisted.translation_y;
+    parameters.world_scale_x = persisted.world_scale_x;
+    parameters.world_scale_y = persisted.world_scale_y;
+    parameters.line_height = persisted.line_height;
+    parameters.char_spacing = persisted.char_spacing;
+    parameters.word_spacing = persisted.word_spacing;
+    Ok(parameters)
+}
+
+fn parse_optional_align_label(
+    value: &str,
+    default_allowed: bool,
+    default_value: souprune_schema::view::TextAlignDef,
+) -> Result<souprune_schema::view::TextAlignDef> {
+    if default_allowed && value.eq_ignore_ascii_case("default") {
+        Ok(default_value)
+    } else {
+        parse_text_align(value)
+    }
+}
+
+fn parse_optional_anchor_label(
+    value: &str,
+    default_allowed: bool,
+    default_value: souprune_schema::view::TextAnchorDef,
+) -> Result<souprune_schema::view::TextAnchorDef> {
+    if default_allowed && value.eq_ignore_ascii_case("default") {
+        Ok(default_value)
+    } else {
+        parse_text_anchor(value)
+    }
+}
+
+fn extract_static_val(value: &Val<f32>, default_value: f32) -> f32 {
+    match value {
+        Val::Static(number) => *number,
+        _ => default_value,
+    }
 }
 
 fn serialize_candidate_view_ron(
@@ -1982,6 +2171,10 @@ fn persist_best_candidate(
     render_image: &image::RgbaImage,
     diff_image: &image::RgbaImage,
 ) {
+    ensure_parent_directory(&task.best_view_absolute_path);
+    ensure_parent_directory(&task.best_summary_path);
+    ensure_parent_directory(&task.best_render_path);
+    ensure_parent_directory(&task.best_diff_path);
     let schema_layout = build_view_layout(&score.text, &score.parameters, task.property_defaults);
     let pretty_config = ron::ser::PrettyConfig::new();
     let ron_text = ron::ser::to_string_pretty(&schema_layout, pretty_config)
@@ -2007,6 +2200,9 @@ fn persist_current_snapshot(
     render_image: &image::RgbaImage,
     diff_image: &image::RgbaImage,
 ) {
+    ensure_parent_directory(&task.current_summary_path);
+    ensure_parent_directory(&task.current_render_path);
+    ensure_parent_directory(&task.current_diff_path);
     fs::write(
         &task.current_summary_path,
         serde_json::to_vec_pretty(&to_persisted_candidate(task, score))
@@ -2021,7 +2217,13 @@ fn persist_current_snapshot(
         .expect("failed to save current diff image");
 }
 
-#[derive(Debug, Serialize)]
+fn ensure_parent_directory(path: &std::path::Path) {
+    if let Some(parent_dir) = path.parent() {
+        fs::create_dir_all(parent_dir).expect("failed to create output directory");
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 struct PersistedScoredCandidate {
     candidate_index: Option<usize>,
     total_candidates: usize,
@@ -2038,7 +2240,7 @@ struct PersistedScoredCandidate {
     differing_pixels: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct PersistedTextParameters {
     font: String,
     align: String,

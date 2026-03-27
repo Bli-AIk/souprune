@@ -67,23 +67,28 @@ impl TaskConfig {
             bail!("`generated_view_path` must be relative to the workspace root");
         }
         let current_view_absolute_path = workspace_root.join(&current_view_relative_path);
-        let generated_dir = current_view_absolute_path
+        let current_output_dir = current_view_absolute_path
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_else(|| workspace_root.to_path_buf());
         let current_view_file_name = current_view_absolute_path
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("current.view.ron");
-        let best_view_file_name = current_view_file_name.replace("current", "best");
-        let best_view_absolute_path = generated_dir.join(best_view_file_name);
+            .unwrap_or("view.ron");
+        let best_output_dir = current_output_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| *name == "current")
+            .and_then(|_| current_output_dir.parent().map(|path| path.join("best")))
+            .unwrap_or_else(|| current_output_dir.join("best"));
+        let best_view_absolute_path = best_output_dir.join(current_view_file_name);
 
-        let current_summary_path = generated_dir.join("current.json");
-        let best_summary_path = generated_dir.join("best.json");
-        let current_render_path = generated_dir.join("current.render.png");
-        let best_render_path = generated_dir.join("best.render.png");
-        let current_diff_path = generated_dir.join("current.diff.png");
-        let best_diff_path = generated_dir.join("best.diff.png");
+        let current_summary_path = current_output_dir.join("summary.json");
+        let best_summary_path = best_output_dir.join("summary.json");
+        let current_render_path = current_output_dir.join("render.png");
+        let best_render_path = best_output_dir.join("render.png");
+        let current_diff_path = current_output_dir.join("diff.png");
+        let best_diff_path = best_output_dir.join("diff.png");
         let target_similarity = validate_target_similarity(parsed.target_similarity)?;
 
         let property_defaults = OptionalTextFieldDefaults {
