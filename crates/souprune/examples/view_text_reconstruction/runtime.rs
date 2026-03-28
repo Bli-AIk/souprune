@@ -67,6 +67,7 @@ pub fn configure_app(
 
     let search_plan = task.search_plan.clone();
     let restored_current = load_saved_resume_state(&task, &search_plan);
+    let restored_best = load_saved_best_score(&task, &search_plan);
     let (initial_current, initial_text, skip_initial_snap) =
         if let Some(restored_current) = restored_current {
             (restored_current.parameters, restored_current.text, true)
@@ -149,7 +150,7 @@ pub fn configure_app(
             current_parameters: initial_current,
             current_text: initial_text,
             current_score: None,
-            best_score: None,
+            best_score: restored_best,
             latest_render_image: None,
             latest_diff_image: None,
             persist_current_after_evaluation: false,
@@ -1216,10 +1217,18 @@ fn apply_pending_session_transition(
 
     current_view_handle.handle =
         asset_server.load::<ViewLayoutAsset>(next_task.runtime_view_relative_path.clone());
-    search.plan = next_task.search_plan.clone();
+    let next_search_plan = next_task.search_plan.clone();
+    let restored_current = load_saved_resume_state(&next_task, &next_search_plan);
+    let restored_best = load_saved_best_score(&next_task, &next_search_plan);
+    let (initial_parameters, initial_text, skip_initial_snap) =
+        if let Some(restored_current) = restored_current {
+            (restored_current.parameters, restored_current.text, true)
+        } else {
+            (next_search_plan.seed_parameters(), next_task.text.clone(), false)
+        };
+    search.plan = next_search_plan;
     search.total_candidates = next_task.search_plan.total_candidates();
 
-    let initial_parameters = next_task.search_plan.seed_parameters();
     task.0 = next_task.clone();
     state.phase = EvaluationPhase::Ready;
     state.display_mode = DisplayMode::Overlay;
@@ -1228,9 +1237,9 @@ fn apply_pending_session_transition(
     state.target_similarity = next_task.target_similarity;
     state.current_candidate_index = None;
     state.current_parameters = initial_parameters;
-    state.current_text = next_task.text.clone();
+    state.current_text = initial_text;
     state.current_score = None;
-    state.best_score = None;
+    state.best_score = restored_best;
     state.latest_render_image = None;
     state.latest_diff_image = None;
     state.persist_current_after_evaluation = false;
@@ -1240,7 +1249,7 @@ fn apply_pending_session_transition(
     state.snap_to_grid = true;
     state.text_edit_mode = false;
     state.show_detailed_status = false;
-    state.skip_snap_on_next_apply = true;
+    state.skip_snap_on_next_apply = skip_initial_snap;
     state.pending_apply = true;
     state.awaiting_user_step = None;
 }
@@ -1536,6 +1545,27 @@ fn load_saved_resume_state(
     None
 }
 
+fn load_saved_best_score(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+) -> Option<ScoredCandidate> {
+    if !task.best_summary_path.exists() {
+        return None;
+    }
+
+    match load_scored_candidate_from_summary(task, search_plan, &task.best_summary_path) {
+        Ok(Some(score)) => Some(score),
+        Ok(None) => None,
+        Err(error) => {
+            eprintln!(
+                "[view_text_reconstruction] failed to restore {}: {error:#}",
+                task.best_summary_path.display()
+            );
+            None
+        }
+    }
+}
+
 fn load_resume_state_from_summary(
     task: &TaskConfig,
     search_plan: &CandidateSearchPlan,
@@ -1553,6 +1583,37 @@ fn load_resume_state_from_summary(
     Ok(Some(RestoredCurrentState {
         text: persisted.text,
         parameters: decode_persisted_parameters(task, search_plan, &persisted.parameters)?,
+    }))
+}
+
+fn load_scored_candidate_from_summary(
+    task: &TaskConfig,
+    search_plan: &CandidateSearchPlan,
+    summary_path: &Path,
+) -> Result<Option<ScoredCandidate>> {
+    if !summary_path.exists() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(summary_path)
+        .with_context(|| format!("failed to read saved summary: {}", summary_path.display()))?;
+    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw)
+        .with_context(|| format!("failed to parse saved summary JSON: {}", summary_path.display()))?;
+
+    Ok(Some(ScoredCandidate {
+        candidate_index: persisted.candidate_index,
+        total_candidates: persisted.total_candidates,
+        text: persisted.text,
+        parameters: decode_persisted_parameters(task, search_plan, &persisted.parameters)?,
+        fitness_score: persisted.fitness_score,
+        global_similarity: persisted.global_similarity,
+        content_similarity: persisted.content_similarity,
+        pixel_match_rate: persisted.pixel_match_rate,
+        content_mask_f1: persisted.content_mask_f1,
+        content_bbox_iou: persisted.content_bbox_iou,
+        content_size_similarity: persisted.content_size_similarity,
+        content_center_similarity: persisted.content_center_similarity,
+        differing_pixels: persisted.differing_pixels,
     }))
 }
 
@@ -1586,6 +1647,7 @@ fn load_resume_state_from_view_ron(
     parameters.line_height = text_def.line_height.unwrap_or(parameters.line_height);
     parameters.char_spacing = text_def.char_spacing.unwrap_or(parameters.char_spacing);
     parameters.word_spacing = text_def.word_spacing.unwrap_or(parameters.word_spacing);
+    search_plan.constrain_parameters(&mut parameters);
 
     Ok(Some(RestoredCurrentState {
         text: if task.host_view.is_some() {
@@ -1624,6 +1686,7 @@ fn decode_persisted_parameters(
     parameters.line_height = persisted.line_height;
     parameters.char_spacing = persisted.char_spacing;
     parameters.word_spacing = persisted.word_spacing;
+    search_plan.constrain_parameters(&mut parameters);
     Ok(parameters)
 }
 
@@ -2781,6 +2844,142 @@ mod tests {
         assert_eq!(restored.parameters.translation_x, 7.25);
         assert_eq!(restored.parameters.translation_y, 9.5);
         assert_eq!(restored.parameters.world_scale_x, 19.0);
+    }
+
+    #[test]
+    fn load_saved_best_score_reads_persisted_best_summary() {
+        let workspace_root = create_test_workspace("load_saved_best_score");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: Single,
+    image: "reference.png",
+    text: "CHARA",
+    target_similarity: 0.95,
+    properties: (
+        translation_x: SearchRange((-50.0, 50.0, 0.25)),
+        translation_y: SearchRange((-50.0, 50.0, 0.25)),
+        world_scale_x: SearchRange((1.0, 30.0, 0.25)),
+        world_scale_y: SearchRange((1.0, 30.0, 0.25)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, None)
+            .expect("stage config should load");
+        let search_plan = task.search_plan.clone();
+
+        write_persisted_candidate(
+            &task.best_summary_path,
+            "BEST",
+            ConcreteTextParameters {
+                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                align: souprune_schema::view::TextAlignDef::Left,
+                anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                translation_x: 4.5,
+                translation_y: -7.25,
+                world_scale_x: 18.0,
+                world_scale_y: 18.0,
+                line_height: 1.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+        );
+
+        let best = load_saved_best_score(&task, &search_plan).expect("best score should restore");
+
+        assert_eq!(best.text, "BEST");
+        assert_eq!(best.fitness_score, 1.0);
+        assert_eq!(best.parameters.translation_x, 4.5);
+        assert_eq!(best.parameters.translation_y, -7.25);
+        assert_eq!(best.parameters.world_scale_x, 18.0);
+    }
+
+    #[test]
+    fn load_saved_resume_state_reconstrains_stale_stage_two_geometry_to_inherited_seed() {
+        let workspace_root = create_test_workspace("stage_two_reconstrains_restored_geometry");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage_2_refine_spacing.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: RefineSpacing,
+    image: "reference.png",
+    text: "CHARA",
+    target_similarity: 0.95,
+    properties: (
+        font: InheritFixed,
+        align: InheritFixed,
+        anchor: InheritFixed,
+        translation_x: InheritFixed,
+        translation_y: InheritFixed,
+        world_scale_x: InheritFixed,
+        world_scale_y: InheritFixed,
+        line_height: InheritFixed,
+        char_spacing: SearchRange((-2.0, 2.0, 0.5)),
+        word_spacing: SearchRange((-2.0, 2.0, 0.5)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let inherited_seed = ConcreteTextParameters {
+            font: souprune_schema::view::ViewFontDef::DeterminationSans,
+            align: souprune_schema::view::TextAlignDef::Left,
+            anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+            translation_x: -28.5,
+            translation_y: 23.25,
+            world_scale_x: 13.0,
+            world_scale_y: 13.0,
+            line_height: 1.125,
+            char_spacing: 0.0,
+            word_spacing: 0.0,
+        };
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, Some(&inherited_seed))
+            .expect("stage config should load");
+        let search_plan = task.search_plan.clone();
+
+        write_persisted_candidate(
+            &task.current_summary_path,
+            "CHARA",
+            ConcreteTextParameters {
+                translation_x: -11.0,
+                translation_y: 6.5,
+                world_scale_x: 22.0,
+                world_scale_y: 22.0,
+                char_spacing: 1.5,
+                word_spacing: -1.0,
+                ..inherited_seed.clone()
+            },
+        );
+
+        let restored =
+            load_saved_resume_state(&task, &search_plan).expect("saved state should restore");
+
+        assert_eq!(restored.parameters.translation_x, inherited_seed.translation_x);
+        assert_eq!(restored.parameters.translation_y, inherited_seed.translation_y);
+        assert_eq!(restored.parameters.world_scale_x, inherited_seed.world_scale_x);
+        assert_eq!(restored.parameters.world_scale_y, inherited_seed.world_scale_y);
+        assert_eq!(restored.parameters.char_spacing, 1.5);
+        assert_eq!(restored.parameters.word_spacing, -1.0);
     }
 
     fn create_test_workspace(label: &str) -> PathBuf {

@@ -1,15 +1,15 @@
 {
-  "candidate_index": 655,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "\"",
   "parameters": {
     "font": "DeterminationSans",
     "align": "default",
     "anchor": "default",
-    "translation_x": -72.25,
-    "translation_y": 88.0,
-    "world_scale_x": 12.5,
-    "world_scale_y": 12.5,
+    "translation_x": -72.5,
+    "translation_y": 88.25,
+    "world_scale_x": 22.0,
+    "world_scale_y": 22.0,
     "line_height": 1.15,
     "char_spacing": 0.0,
     "word_spacing": 0.0

@@ -540,8 +540,8 @@
     ],
     facts: Some({
         "depth": 0,
-        "selection": 0,
         "interactable": true,
+        "selection": 0,
     }),
     world_space: false,
 )

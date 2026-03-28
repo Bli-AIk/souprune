@@ -146,7 +146,7 @@
                     font: DeterminationSans,
                     align: Some(Left),
                     anchor: Some(BottomRight),
-                    world_scale: (21.75, 21.75),
+                    world_scale: (13.0, 13.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: Some((-28.5, 23.25, 1.0)),
@@ -539,9 +539,9 @@
         File("states/overworld/rules/backpack.fre.ron"),
     ],
     facts: Some({
-        "interactable": true,
-        "selection": 0,
         "depth": 0,
+        "selection": 0,
+        "interactable": true,
     }),
     world_space: false,
 )
