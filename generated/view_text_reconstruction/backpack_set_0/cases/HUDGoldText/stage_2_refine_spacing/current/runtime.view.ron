@@ -187,7 +187,7 @@
                     world_scale: (8.0, 8.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: Some((-28.5, -12.25, 1.0)),
+                        translation: Some((-28.74, -14.545, 1.0)),
                         rotation: None,
                         scale: None,
                     ),
@@ -558,8 +558,8 @@
         File("states/overworld/rules/backpack.fre.ron"),
     ],
     facts: Some({
-        "interactable": true,
         "depth": 0,
+        "interactable": true,
         "selection": 0,
     }),
     world_space: false,

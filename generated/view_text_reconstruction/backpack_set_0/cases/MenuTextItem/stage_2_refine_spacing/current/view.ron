@@ -36,8 +36,8 @@
                         scale: None,
                     ),
                     line_height: Some(1.125),
-                    char_spacing: Some(-2.502),
-                    word_spacing: Some(-7.501),
+                    char_spacing: Some(-0.167),
+                    word_spacing: Some(17.319),
                     conditional_style: Some((
                         condition: "player.inventory.is_empty",
                         color: (0.5, 0.5, 0.5, 1.0),

@@ -1,5 +1,5 @@
 {
-  "candidate_index": null,
+  "candidate_index": 3,
   "total_candidates": 12000,
   "text": "S",
   "parameters": {
@@ -7,7 +7,7 @@
     "align": "default",
     "anchor": "default",
     "translation_x": -9.501,
-    "translation_y": 9.25,
+    "translation_y": 9.09,
     "world_scale_x": 13.25,
     "world_scale_y": 13.25,
     "line_height": 1.125,
