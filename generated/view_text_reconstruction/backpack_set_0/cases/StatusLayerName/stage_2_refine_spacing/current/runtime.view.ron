@@ -432,7 +432,7 @@
                     font: DeterminationSans,
                     align: Some(Left),
                     anchor: Some(BottomRight),
-                    world_scale: (22.0, 22.0),
+                    world_scale: (12.9, 12.9),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: Some((-72.5, 88.25, 1.0)),
@@ -440,8 +440,8 @@
                         scale: None,
                     ),
                     line_height: Some(1.15),
-                    char_spacing: Some(10.6),
-                    word_spacing: Some(-0.85),
+                    char_spacing: Some(2.0),
+                    word_spacing: Some(-0.35),
                     conditional_style: None,
                     visible_when: Some("true"),
                 ),
@@ -539,9 +539,9 @@
         File("states/overworld/rules/backpack.fre.ron"),
     ],
     facts: Some({
-        "selection": 0,
-        "interactable": true,
         "depth": 0,
+        "interactable": true,
+        "selection": 0,
     }),
     world_space: false,
 )

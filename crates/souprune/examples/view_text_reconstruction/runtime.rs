@@ -1224,7 +1224,11 @@ fn apply_pending_session_transition(
         if let Some(restored_current) = restored_current {
             (restored_current.parameters, restored_current.text, true)
         } else {
-            (next_search_plan.seed_parameters(), next_task.text.clone(), false)
+            (
+                next_search_plan.seed_parameters(),
+                next_task.text.clone(),
+                false,
+            )
         };
     search.plan = next_search_plan;
     search.total_candidates = next_task.search_plan.total_candidates();
@@ -1526,7 +1530,10 @@ fn load_saved_resume_state(
         }
     }
 
-    for view_path in [&task.best_view_absolute_path, &task.current_view_absolute_path] {
+    for view_path in [
+        &task.best_view_absolute_path,
+        &task.current_view_absolute_path,
+    ] {
         if !view_path.exists() {
             continue;
         }
@@ -1577,8 +1584,12 @@ fn load_resume_state_from_summary(
 
     let raw = fs::read_to_string(summary_path)
         .with_context(|| format!("failed to read saved summary: {}", summary_path.display()))?;
-    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw)
-        .with_context(|| format!("failed to parse saved summary JSON: {}", summary_path.display()))?;
+    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse saved summary JSON: {}",
+            summary_path.display()
+        )
+    })?;
 
     Ok(Some(RestoredCurrentState {
         text: persisted.text,
@@ -1597,8 +1608,12 @@ fn load_scored_candidate_from_summary(
 
     let raw = fs::read_to_string(summary_path)
         .with_context(|| format!("failed to read saved summary: {}", summary_path.display()))?;
-    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw)
-        .with_context(|| format!("failed to parse saved summary JSON: {}", summary_path.display()))?;
+    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse saved summary JSON: {}",
+            summary_path.display()
+        )
+    })?;
 
     Ok(Some(ScoredCandidate {
         candidate_index: persisted.candidate_index,
@@ -2627,8 +2642,13 @@ fn persist_session_final_view(
     } else {
         host_view.layout.clone()
     };
-    apply_export_text_patch(&mut layout, parameters, task.field_override_policy, host_view)
-        .expect("session final view should accept host text patch");
+    apply_export_text_patch(
+        &mut layout,
+        parameters,
+        task.field_override_policy,
+        host_view,
+    )
+    .expect("session final view should accept host text patch");
     let ron_text = ron::ser::to_string_pretty(&layout, ron::ser::PrettyConfig::new())
         .expect("session final view should serialize to RON");
     fs::write(final_view_absolute_path, ron_text).expect("failed to write session final view");
@@ -2974,10 +2994,22 @@ mod tests {
         let restored =
             load_saved_resume_state(&task, &search_plan).expect("saved state should restore");
 
-        assert_eq!(restored.parameters.translation_x, inherited_seed.translation_x);
-        assert_eq!(restored.parameters.translation_y, inherited_seed.translation_y);
-        assert_eq!(restored.parameters.world_scale_x, inherited_seed.world_scale_x);
-        assert_eq!(restored.parameters.world_scale_y, inherited_seed.world_scale_y);
+        assert_eq!(
+            restored.parameters.translation_x,
+            inherited_seed.translation_x
+        );
+        assert_eq!(
+            restored.parameters.translation_y,
+            inherited_seed.translation_y
+        );
+        assert_eq!(
+            restored.parameters.world_scale_x,
+            inherited_seed.world_scale_x
+        );
+        assert_eq!(
+            restored.parameters.world_scale_y,
+            inherited_seed.world_scale_y
+        );
         assert_eq!(restored.parameters.char_spacing, 1.5);
         assert_eq!(restored.parameters.word_spacing, -1.0);
     }

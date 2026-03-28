@@ -1,5 +1,5 @@
 {
-  "candidate_index": 92,
+  "candidate_index": 0,
   "total_candidates": 12000,
   "text": "\"CHARA\"",
   "parameters": {
@@ -7,20 +7,20 @@
     "align": "Left",
     "anchor": "BottomRight",
     "translation_x": -72.5,
-    "translation_y": 88.5,
-    "world_scale_x": 13.0,
-    "world_scale_y": 13.0,
+    "translation_y": 88.25,
+    "world_scale_x": 12.9,
+    "world_scale_y": 12.9,
     "line_height": 1.15,
     "char_spacing": 2.0,
     "word_spacing": 1.25
   },
-  "fitness_score": 0.96311504,
-  "global_similarity": 0.99982494,
+  "fitness_score": 0.98438555,
+  "global_similarity": 0.9998586,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.99949545,
-  "content_mask_f1": 0.96432966,
-  "content_bbox_iou": 0.9444444,
-  "content_size_similarity": 0.9722222,
-  "content_center_similarity": 0.9722222,
-  "differing_pixels": 155
+  "pixel_match_rate": 0.99954426,
+  "content_mask_f1": 0.974359,
+  "content_bbox_iou": 0.98913044,
+  "content_size_similarity": 0.99456525,
+  "content_center_similarity": 0.9945652,
+  "differing_pixels": 140
 }

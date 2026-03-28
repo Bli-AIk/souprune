@@ -7,7 +7,7 @@
     settle_frames: Some(3),
     search_budget: Some(12000),
     population_size: Some(96),
-    target_similarity: 1.0,
+    target_similarity: 0.95,
     host_view: Some((
         path: "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
         node_path: ["StatusBox"],

@@ -172,9 +172,9 @@
                         rotation: None,
                         scale: None,
                     ),
-                    line_height: Some(2.905),
-                    char_spacing: Some(-3.08),
-                    word_spacing: Some(3.59),
+                    line_height: Some(2.955),
+                    char_spacing: Some(2.575),
+                    word_spacing: Some(-7.795),
                     conditional_style: None,
                     visible_when: None,
                 ),
@@ -539,9 +539,9 @@
         File("states/overworld/rules/backpack.fre.ron"),
     ],
     facts: Some({
-        "depth": 0,
         "selection": 0,
         "interactable": true,
+        "depth": 0,
     }),
     world_space: false,
 )

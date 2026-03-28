@@ -1733,7 +1733,9 @@ mod tests {
     #[test]
     fn host_runtime_layout_preserves_host_structure_and_hides_non_target_content() {
         let host_view = HostViewTemplate {
-            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
+            source_path: PathBuf::from(
+                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+            ),
             layout: ViewLayoutAsset {
                 roots: vec![
                     make_node(
@@ -1832,7 +1834,9 @@ mod tests {
     #[test]
     fn host_export_layout_keeps_original_structure_and_content() {
         let host_view = HostViewTemplate {
-            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
+            source_path: PathBuf::from(
+                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+            ),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
                     "InfoBox",
@@ -1908,7 +1912,9 @@ mod tests {
     #[test]
     fn find_target_text_def_uses_host_node_path() {
         let host_view = HostViewTemplate {
-            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
+            source_path: PathBuf::from(
+                "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
+            ),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
                     "Root",
