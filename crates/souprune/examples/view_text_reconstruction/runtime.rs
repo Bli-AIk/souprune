@@ -144,6 +144,7 @@ pub fn configure_app(
             phase: EvaluationPhase::Ready,
             display_mode: DisplayMode::Overlay,
             auto_search: false,
+            yolo_mode: false,
             total_candidates: task.search_plan.total_candidates(),
             target_similarity: task.target_similarity,
             current_candidate_index: None,
@@ -298,6 +299,7 @@ struct ReconstructionState {
     phase: EvaluationPhase,
     display_mode: DisplayMode,
     auto_search: bool,
+    yolo_mode: bool,
     total_candidates: usize,
     target_similarity: f32,
     current_candidate_index: Option<usize>,
@@ -903,19 +905,28 @@ fn handle_keyboard_input(
         state.show_detailed_status = !state.show_detailed_status;
     }
 
+    if keyboard.just_pressed(KeyCode::KeyY) {
+        if state.yolo_mode {
+            state.yolo_mode = false;
+            state.auto_search = false;
+            return;
+        }
+
+        state.yolo_mode = true;
+        if matches!(state.phase, EvaluationPhase::Ready)
+            && !drive_yolo_mode(&mut state, &mut search, &task.0, session.0.as_mut())
+        {
+            state.yolo_mode = false;
+        }
+        return;
+    }
+
     if keyboard.just_pressed(KeyCode::KeyN)
         && matches!(state.phase, EvaluationPhase::Ready)
-        && let Some(awaiting_user_step) = state.awaiting_user_step
         && let Some(session_controller) = session.0.as_mut()
+        && let Some(awaiting_user_step) = state.awaiting_user_step
     {
-        session_controller.pending_transition = match awaiting_user_step {
-            AwaitingUserStep::NextStage => Some(PendingSessionTransition::NextStage),
-            AwaitingUserStep::NextText => Some(PendingSessionTransition::NextText),
-            AwaitingUserStep::SessionComplete => None,
-        };
-        if session_controller.pending_transition.is_some() {
-            state.awaiting_user_step = None;
-        }
+        queue_pending_session_transition(&mut state, session_controller, awaiting_user_step);
         return;
     }
 
@@ -936,30 +947,7 @@ fn handle_keyboard_input(
     }
 
     if keyboard.just_pressed(KeyCode::Space) {
-        match search
-            .plan
-            .restart_from_parameters(&state.current_parameters)
-        {
-            RestartSearchResult::SearchCandidate {
-                candidate_index,
-                parameters,
-            } => {
-                state.auto_search = search.total_candidates > 1;
-                state.current_candidate_index = Some(candidate_index);
-                state.current_parameters = parameters;
-            }
-            RestartSearchResult::ReevaluateCurrent { parameters } => {
-                state.auto_search = false;
-                state.current_candidate_index = None;
-                state.current_parameters = parameters;
-            }
-        }
-        state.total_candidates = search.total_candidates;
-        state.target_similarity = task.0.target_similarity;
-        state.current_score = None;
-        state.awaiting_user_step = None;
-        state.capture_after_apply = true;
-        state.pending_apply = true;
+        restart_search_from_current(&mut state, &mut search, &task.0, true);
         return;
     }
 
@@ -1020,6 +1008,91 @@ fn mark_reference_mask_changed(state: &mut ReconstructionState, task: &TaskConfi
     state.phase = EvaluationPhase::WaitingForSettle {
         remaining_frames: task.settle_frames,
     };
+}
+
+fn queue_pending_session_transition(
+    state: &mut ReconstructionState,
+    session_controller: &mut SessionController,
+    awaiting_user_step: AwaitingUserStep,
+) -> bool {
+    session_controller.pending_transition = match awaiting_user_step {
+        AwaitingUserStep::NextStage => Some(PendingSessionTransition::NextStage),
+        AwaitingUserStep::NextText => Some(PendingSessionTransition::NextText),
+        AwaitingUserStep::SessionComplete => None,
+    };
+    if session_controller.pending_transition.is_some() {
+        state.awaiting_user_step = None;
+        true
+    } else {
+        false
+    }
+}
+
+fn restart_search_from_current(
+    state: &mut ReconstructionState,
+    search: &mut SearchController,
+    task: &TaskConfig,
+    allow_reevaluate_current: bool,
+) -> bool {
+    match search
+        .plan
+        .restart_from_parameters(&state.current_parameters)
+    {
+        RestartSearchResult::SearchCandidate {
+            candidate_index,
+            parameters,
+        } => {
+            state.auto_search = search.total_candidates > 1;
+            state.current_candidate_index = Some(candidate_index);
+            state.current_parameters = parameters;
+        }
+        RestartSearchResult::ReevaluateCurrent { parameters } => {
+            if !allow_reevaluate_current {
+                return false;
+            }
+            state.auto_search = false;
+            state.current_candidate_index = None;
+            state.current_parameters = parameters;
+        }
+    }
+
+    state.total_candidates = search.total_candidates;
+    state.target_similarity = task.target_similarity;
+    state.current_score = None;
+    state.awaiting_user_step = None;
+    state.capture_after_apply = true;
+    state.pending_apply = true;
+    true
+}
+
+fn drive_yolo_mode(
+    state: &mut ReconstructionState,
+    search: &mut SearchController,
+    task: &TaskConfig,
+    session_controller: Option<&mut SessionController>,
+) -> bool {
+    if !state.yolo_mode || !matches!(state.phase, EvaluationPhase::Ready) {
+        return true;
+    }
+
+    if let Some(awaiting_user_step) = state.awaiting_user_step {
+        if let Some(session_controller) = session_controller {
+            return queue_pending_session_transition(state, session_controller, awaiting_user_step);
+        }
+        return false;
+    }
+
+    if let Some(current_score) = state.current_score.as_ref()
+        && current_score.fitness_score >= state.target_similarity
+    {
+        return false;
+    }
+
+    if state.auto_search {
+        return true;
+    }
+
+    restart_search_from_current(state, search, task, false)
 }
 
 fn apply_text_input(
@@ -1802,7 +1875,7 @@ fn handle_screenshot_captured(
     mut state: ResMut<ReconstructionState>,
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
-    session: Res<OptionalSessionController>,
+    mut session: ResMut<OptionalSessionController>,
     reference_images: Res<ReferenceImages>,
     mask_state: Res<ReferenceMaskState>,
     mut images: ResMut<Assets<Image>>,
@@ -1907,6 +1980,33 @@ fn handle_screenshot_captured(
                 }
             }
         });
+    }
+
+    if state.yolo_mode {
+        if target_reached {
+            let should_continue = if let Some(session_controller) = session.0.as_mut() {
+                if let Some(awaiting_user_step) = state.awaiting_user_step {
+                    queue_pending_session_transition(
+                        &mut state,
+                        session_controller,
+                        awaiting_user_step,
+                    )
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            if !should_continue {
+                state.yolo_mode = false;
+            }
+        } else if search_exhausted {
+            state.yolo_mode = false;
+        } else if !state.auto_search
+            && !drive_yolo_mode(&mut state, &mut search, &task.0, session.0.as_mut())
+        {
+            state.yolo_mode = false;
+        }
     }
 
     if state.persist_current_after_evaluation || target_reached || !state.auto_search {
@@ -2089,13 +2189,20 @@ fn update_inspector_panel(
                     Some(AwaitingUserStep::NextStage) => "ready: press N for stage 2",
                     Some(AwaitingUserStep::NextText) => "ready: press N for next text",
                     Some(AwaitingUserStep::SessionComplete) => "session complete",
-                    None => "ready: keep tuning or press Space",
+                    None => {
+                        if state.yolo_mode {
+                            "ready: YOLO is driving"
+                        } else {
+                            "ready: keep tuning or press Space/Y"
+                        }
+                    }
                 };
                 *text = Text::new(format!(
-                    "{session_label}\nsimilarity: {:.4}\n{advance_label}\nselected: {}\nsnap: {}\nmultiplier: {}x\ntext_edit: {}",
+                    "{session_label}\nsimilarity: {:.4}\n{advance_label}\nselected: {}\nsnap: {}\nyolo: {}\nmultiplier: {}x\ntext_edit: {}",
                     current_similarity,
                     state.manual_adjustment_kind.label(),
                     if state.snap_to_grid { "on" } else { "off" },
+                    if state.yolo_mode { "on" } else { "off" },
                     state.current_manual_multiplier(),
                     if state.text_edit_mode { "on" } else { "off" },
                 ));
@@ -2110,10 +2217,11 @@ fn update_inspector_panel(
                         .map(|score| score.fitness_score)
                         .unwrap_or(0.0);
                     *text = Text::new(format!(
-                        "mode: {:?}\nphase: {:?}\nauto_search: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nstep: {}\nselected_value: {}\nvertical_mask: {} @ {:.3}\nhorizontal_mask: {} @ {:.3}",
+                        "mode: {:?}\nphase: {:?}\nauto_search: {}\nyolo: {}\ncandidate: {}/{}\ntarget: {:.4}\nbest: {:.4}\nstep: {}\nselected_value: {}\nvertical_mask: {} @ {:.3}\nhorizontal_mask: {} @ {:.3}",
                         state.display_mode,
                         state.phase,
                         state.auto_search,
+                        state.yolo_mode,
                         state
                             .current_candidate_index
                             .map(|index| index + 1)
@@ -2136,7 +2244,7 @@ fn update_inspector_panel(
 
             if is_controls {
                 *text = Text::new(
-                    "Tab: display mode  Space: evolve/cancel search  N: next stage/text  C: next property  G: snap on/off\nEnter/click content: edit text  M: step multiplier  I: toggle details\nArrows: adjust selected  LMB: drag guide  RMB: flip mask side  R: use best  S: save current",
+                    "Tab: display mode  Space: evolve/cancel search  Y: yolo on/off  N: next stage/text  C: next property  G: snap on/off\nEnter/click content: edit text  M: step multiplier  I: toggle details\nArrows: adjust selected  LMB: drag guide  RMB: flip mask side  R: use best  S: save current",
                 );
                 continue;
             }

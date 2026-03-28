@@ -1,7 +1,7 @@
 (
     stage_kind: RefineSpacing,
-    image: "/home/aik/Pictures/Assets/0/StatusLayerCombat.png",
-    text: "AT  0 (0)            EXP: 0\nDF  0 (0)            NEXT: 10",
+    image: "/home/aik/Pictures/Assets/0/StatusLayerCombatRight.png",
+    text: "EXP: 0\nNEXT: 10",
     assume_single_line: false,
     settle_frames: Some(3),
     search_budget: Some(12000),
@@ -10,7 +10,7 @@
     host_view: Some((
         path: "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
         node_path: ["StatusBox"],
-        text_id: "StatusLayerCombat",
+        text_id: "StatusLayerCombatRight",
         show_parent_boxes: false,
     )),
     properties: (
@@ -21,9 +21,9 @@
         translation_y: InheritFixed,
         world_scale_x: InheritFixed,
         world_scale_y: InheritFixed,
-        line_height: InheritFixed,
-        char_spacing: SearchRange((-30.0, 30.0, 0.25)),
-        word_spacing: SearchRange((-30.0, 30.0, 0.25)),
+        line_height: SearchRange((-10.0, 10.0, 0.005)),
+        char_spacing: SearchRange((-30.0, 30.0, 0.005)),
+        word_spacing: SearchRange((-30.0, 30.0, 0.005)),
     ),
     bindings: (
         world_scale: bound,

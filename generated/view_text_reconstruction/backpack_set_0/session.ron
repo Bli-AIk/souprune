@@ -37,9 +37,14 @@
             stage_two: "cases/StatusLayerLvHp/stage_2_refine_spacing.ron",
         ),
         (
-            id: Some("StatusLayerCombat"),
-            stage_one: "cases/StatusLayerCombat/stage_1_align_first_glyph.ron",
-            stage_two: "cases/StatusLayerCombat/stage_2_refine_spacing.ron",
+            id: Some("StatusLayerCombatLeft"),
+            stage_one: "cases/StatusLayerCombatLeft/stage_1_align_first_glyph.ron",
+            stage_two: "cases/StatusLayerCombatLeft/stage_2_refine_spacing.ron",
+        ),
+        (
+            id: Some("StatusLayerCombatRight"),
+            stage_one: "cases/StatusLayerCombatRight/stage_1_align_first_glyph.ron",
+            stage_two: "cases/StatusLayerCombatRight/stage_2_refine_spacing.ron",
         ),
         (
             id: Some("StatusLayerEquipment"),

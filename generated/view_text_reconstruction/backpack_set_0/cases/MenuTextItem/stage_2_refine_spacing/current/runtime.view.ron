@@ -31,13 +31,13 @@
                     world_scale: (13.75, 13.75),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: Some((-9.5, 27.25, 1.0)),
+                        translation: Some((-9.501, 27.248, 1.0)),
                         rotation: None,
                         scale: None,
                     ),
                     line_height: Some(1.125),
-                    char_spacing: Some(-2.5),
-                    word_spacing: Some(-7.5),
+                    char_spacing: Some(-2.502),
+                    word_spacing: Some(-7.501),
                     conditional_style: Some((
                         condition: "player.inventory.is_empty",
                         color: (0.5, 0.5, 0.5, 1.0),
@@ -465,8 +465,8 @@
                     visible_when: Some("false"),
                 ),
                 (
-                    id: "StatusLayerCombat",
-                    content: Some("{{overworld/ui:ATK}}  {{data:player.total_attack}} ({{data:player.weapon_atk}})            {{overworld/ui:EXP}}: {$player:exp}\n{{overworld/ui:DEF}}  {{data:player.total_defense}} ({{data:player.armor_def}})            {{overworld/ui:NEXT}}: {$player:next_exp}"),
+                    id: "StatusLayerCombatLeft",
+                    content: Some("{{overworld/ui:ATK}}  {{data:player.total_attack}} ({{data:player.weapon_atk}})\n{{overworld/ui:DEF}}  {{data:player.total_defense}} ({{data:player.armor_def}})"),
                     font: DeterminationSans,
                     align: None,
                     anchor: None,
@@ -474,6 +474,25 @@
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: Some((-72.5, 10.0, 1.0)),
+                        rotation: None,
+                        scale: None,
+                    ),
+                    line_height: Some(1.15),
+                    char_spacing: None,
+                    word_spacing: None,
+                    conditional_style: None,
+                    visible_when: Some("false"),
+                ),
+                (
+                    id: "StatusLayerCombatRight",
+                    content: Some("{{overworld/ui:EXP}}: {$player:exp}\n{{overworld/ui:NEXT}}: {$player:next_exp}"),
+                    font: DeterminationSans,
+                    align: None,
+                    anchor: None,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: Some((-30.5, 10.0, 1.0)),
                         rotation: None,
                         scale: None,
                     ),
@@ -540,8 +559,8 @@
     ],
     facts: Some({
         "depth": 0,
-        "interactable": true,
         "selection": 0,
+        "interactable": true,
     }),
     world_space: false,
 )

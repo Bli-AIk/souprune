@@ -22,8 +22,8 @@
         world_scale_x: InheritFixed,
         world_scale_y: InheritFixed,
         line_height: InheritFixed,
-        char_spacing: SearchRange((-30.0, 30.0, 0.25)),
-        word_spacing: SearchRange((-30.0, 30.0, 0.25)),
+        char_spacing: SearchRange((-30.0, 30.0, 0.005)),
+        word_spacing: SearchRange((-30.0, 30.0, 0.005)),
     ),
     bindings: (
         world_scale: bound,

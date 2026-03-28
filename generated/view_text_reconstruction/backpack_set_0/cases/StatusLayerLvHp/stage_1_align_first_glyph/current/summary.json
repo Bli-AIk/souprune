@@ -1,12 +1,12 @@
 {
-  "candidate_index": 366,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "L",
   "parameters": {
     "font": "DeterminationSans",
     "align": "default",
     "anchor": "default",
-    "translation_x": -72.5,
+    "translation_x": -72.501,
     "translation_y": 58.5,
     "world_scale_x": 13.5,
     "world_scale_y": 13.5,

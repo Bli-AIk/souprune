@@ -1,0 +1,26 @@
+{
+  "candidate_index": 502,
+  "total_candidates": 12000,
+  "text": "WEAPON: Stick\nARMOR: Bandage",
+  "parameters": {
+    "font": "DeterminationSans",
+    "align": "Left",
+    "anchor": "BottomRight",
+    "translation_x": -72.387,
+    "translation_y": -35.895,
+    "world_scale_x": 12.685,
+    "world_scale_y": 12.685,
+    "line_height": 1.085,
+    "char_spacing": 1.853,
+    "word_spacing": 14.883
+  },
+  "fitness_score": 0.89735097,
+  "global_similarity": 0.99666524,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 0.9947005,
+  "content_mask_f1": 0.7765207,
+  "content_bbox_iou": 0.99444443,
+  "content_size_similarity": 0.9972222,
+  "content_center_similarity": 0.99722224,
+  "differing_pixels": 1628
+}

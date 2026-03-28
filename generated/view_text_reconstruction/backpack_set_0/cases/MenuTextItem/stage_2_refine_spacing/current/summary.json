@@ -6,13 +6,13 @@
     "font": "DeterminationSans",
     "align": "Left",
     "anchor": "BottomRight",
-    "translation_x": -9.5,
-    "translation_y": 27.25,
+    "translation_x": -9.501,
+    "translation_y": 27.248,
     "world_scale_x": 13.75,
     "world_scale_y": 13.75,
     "line_height": 1.125,
-    "char_spacing": -2.5,
-    "word_spacing": -7.5
+    "char_spacing": -2.502,
+    "word_spacing": -7.501
   },
   "fitness_score": 1.0,
   "global_similarity": 1.0,

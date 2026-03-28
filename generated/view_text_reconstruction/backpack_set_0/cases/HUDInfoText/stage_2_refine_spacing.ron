@@ -21,7 +21,7 @@
         translation_y: InheritFixed,
         world_scale_x: InheritFixed,
         world_scale_y: InheritFixed,
-        line_height: SearchRange((0.0, 10.0, 0.005)),
+        line_height: SearchRange((-10.0, 10.0, 0.005)),
         char_spacing: SearchRange((-20.0, 20.0, 0.005)),
         word_spacing: SearchRange((-20.0, 20.0, 0.005)),
     ),
