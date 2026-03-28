@@ -1,26 +1,26 @@
 {
-  "candidate_index": 13,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "W",
   "parameters": {
     "font": "DeterminationSans",
     "align": "default",
     "anchor": "default",
-    "translation_x": -72.472,
-    "translation_y": -35.435,
-    "world_scale_x": 13.16,
-    "world_scale_y": 13.16,
+    "translation_x": -72.387,
+    "translation_y": -35.895,
+    "world_scale_x": 13.5,
+    "world_scale_y": 13.5,
     "line_height": 1.15,
     "char_spacing": 0.0,
     "word_spacing": 0.0
   },
-  "fitness_score": 0.97222227,
-  "global_similarity": 0.99994606,
+  "fitness_score": 0.90146196,
+  "global_similarity": 0.9998805,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.99990886,
-  "content_mask_f1": 0.9382716,
-  "content_bbox_iou": 1.0,
+  "pixel_match_rate": 0.99980795,
+  "content_mask_f1": 0.8518519,
+  "content_bbox_iou": 0.8947368,
   "content_size_similarity": 1.0,
-  "content_center_similarity": 1.0,
-  "differing_pixels": 28
+  "content_center_similarity": 0.9444444,
+  "differing_pixels": 59
 }

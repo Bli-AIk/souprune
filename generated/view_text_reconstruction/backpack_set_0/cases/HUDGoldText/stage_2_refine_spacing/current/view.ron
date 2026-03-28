@@ -184,7 +184,7 @@
                     font: Hud,
                     align: Some(Left),
                     anchor: Some(BottomRight),
-                    world_scale: (19.25, 19.25),
+                    world_scale: (8.0, 8.0),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: Some((-28.5, -12.25, 1.0)),
@@ -559,8 +559,8 @@
     ],
     facts: Some({
         "interactable": true,
-        "selection": 0,
         "depth": 0,
+        "selection": 0,
     }),
     world_space: false,
 )

@@ -14,13 +14,13 @@
     "char_spacing": -0.0,
     "word_spacing": -0.0
   },
-  "fitness_score": 0.97996575,
-  "global_similarity": 0.9998716,
+  "fitness_score": 1.0,
+  "global_similarity": 0.99998677,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.999694,
-  "content_mask_f1": 0.95547944,
+  "pixel_match_rate": 0.9998503,
+  "content_mask_f1": 1.0,
   "content_bbox_iou": 1.0,
   "content_size_similarity": 1.0,
   "content_center_similarity": 1.0,
-  "differing_pixels": 94
+  "differing_pixels": 46
 }

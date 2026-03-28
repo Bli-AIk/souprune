@@ -1,5 +1,5 @@
 {
-  "candidate_index": null,
+  "candidate_index": 290,
   "total_candidates": 12000,
   "text": "EXP: 0\nNEXT: 10",
   "parameters": {
@@ -8,19 +8,19 @@
     "anchor": "BottomRight",
     "translation_x": 11.485,
     "translation_y": 10.66,
-    "world_scale_x": 13.7,
-    "world_scale_y": 13.7,
-    "line_height": 0.975,
-    "char_spacing": -4.137,
-    "word_spacing": 15.788
+    "world_scale_x": 13.5,
+    "world_scale_y": 13.5,
+    "line_height": 0.985,
+    "char_spacing": -3.937,
+    "word_spacing": 15.808
   },
-  "fitness_score": 0.954596,
-  "global_similarity": 0.99933475,
+  "fitness_score": 0.92657834,
+  "global_similarity": 0.998964,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.9989681,
-  "content_mask_f1": 0.8991023,
-  "content_bbox_iou": 1.0,
-  "content_size_similarity": 1.0,
-  "content_center_similarity": 1.0,
-  "differing_pixels": 317
+  "pixel_match_rate": 0.99853516,
+  "content_mask_f1": 0.8457059,
+  "content_bbox_iou": 0.9893617,
+  "content_size_similarity": 0.9946809,
+  "content_center_similarity": 0.9946808,
+  "differing_pixels": 450
 }

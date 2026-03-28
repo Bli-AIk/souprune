@@ -432,10 +432,10 @@
                     font: DeterminationSans,
                     align: None,
                     anchor: None,
-                    world_scale: (14.5, 14.5),
+                    world_scale: (13.5, 13.5),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
-                        translation: Some((-72.501, 88.248, 1.0)),
+                        translation: Some((-72.501, 88.408, 1.0)),
                         rotation: None,
                         scale: None,
                     ),
@@ -559,8 +559,8 @@
     ],
     facts: Some({
         "depth": 0,
-        "interactable": true,
         "selection": 0,
+        "interactable": true,
     }),
     world_space: false,
 )

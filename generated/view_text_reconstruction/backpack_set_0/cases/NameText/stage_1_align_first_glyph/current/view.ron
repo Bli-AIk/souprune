@@ -558,9 +558,9 @@
         File("states/overworld/rules/backpack.fre.ron"),
     ],
     facts: Some({
-        "interactable": true,
         "depth": 0,
         "selection": 0,
+        "interactable": true,
     }),
     world_space: false,
 )

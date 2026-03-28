@@ -50,7 +50,7 @@
                     font: DeterminationSans,
                     align: Some(Left),
                     anchor: Some(BottomRight),
-                    world_scale: (13.75, 13.75),
+                    world_scale: (13.25, 13.25),
                     color: (1.0, 1.0, 1.0, 1.0),
                     transform: (
                         translation: Some((-9.501, 9.25, 1.0)),

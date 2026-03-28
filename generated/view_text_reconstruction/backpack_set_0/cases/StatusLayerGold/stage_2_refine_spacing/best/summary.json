@@ -1,0 +1,26 @@
+{
+  "candidate_index": 115,
+  "total_candidates": 12000,
+  "text": "GOLD: 0",
+  "parameters": {
+    "font": "DeterminationSans",
+    "align": "Left",
+    "anchor": "BottomRight",
+    "translation_x": -72.377,
+    "translation_y": -71.352,
+    "world_scale_x": 13.5,
+    "world_scale_y": 13.5,
+    "line_height": 1.15,
+    "char_spacing": -0.632,
+    "word_spacing": -0.007
+  },
+  "fitness_score": 0.9820919,
+  "global_similarity": 0.99989325,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 0.9995768,
+  "content_mask_f1": 0.9705094,
+  "content_bbox_iou": 0.9876543,
+  "content_size_similarity": 0.99382716,
+  "content_center_similarity": 0.99375,
+  "differing_pixels": 130
+}
