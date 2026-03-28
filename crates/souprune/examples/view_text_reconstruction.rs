@@ -5,12 +5,14 @@
 //! This is not a traditional example. It is a reconstruction helper tool.
 //! This example is for aligning a View text block against a screenshot.
 //! It can also use an evolutionary search loop to help fine-tune the alignment.
+//! The preferred workflow is now a staged RON session instead of a single legacy TOML task.
 //!
 //! ## 太长不看
 //!
 //! 这不是传统意义上的示例，而是一个重建辅助工具。
 //! 这个示例就是拿来根据截图对齐 View 文本块的。
 //! 同时也可以用进化搜索算法来辅助微调和对齐。
+//! 现在更推荐使用分阶段的 RON 会话，而不是旧的单个 TOML 任务。
 //!
 //! ---
 //!
@@ -63,49 +65,54 @@
 //!
 //! ## Basic Usage
 //!
-//! 1. Prepare a task TOML with a reference image and a `generated_view_path`.
-//! 2. Run the example with `--config <task.toml>`.
-//! 3. Adjust values manually in the inspector, or press `Space` to start and stop evolution.
-//! 4. Press `S` to save the current state.
-//! 5. Reopen the example later to continue from the saved current result.
+//! 1. Prefer a `session.ron` that points to `stage_1_*.ron` and `stage_2_*.ron`.
+//! 2. Run the example with `--config <session.ron>`.
+//! 3. In stage 1, align the first glyph, then keep fine-tuning manually if needed.
+//! 4. Press `N` when the current stage is accepted and you want to advance.
+//! 5. In stage 2, refine spacing for the full text, then press `N` again for the next text.
+//! 6. Press `S` at any time to save the current state.
 //!
 //! ## 基本使用方式
 //!
-//! 1. 准备任务 TOML，提供参考图和 `generated_view_path`。
-//! 2. 使用 `--config <task.toml>` 启动示例。
-//! 3. 在 Inspector 里手调，或者按 `Space` 启动 / 停止进化搜索。
-//! 4. 按 `S` 保存当前状态。
-//! 5. 下次重新打开时，会从已保存的当前结果继续。
+//! 1. 优先准备一个 `session.ron`，再让它指向 `stage_1_*.ron` 和 `stage_2_*.ron`。
+//! 2. 使用 `--config <session.ron>` 启动示例。
+//! 3. 阶段一先对齐首字，必要时继续手动微调。
+//! 4. 当前阶段确认无误后，按 `N` 进入下一阶段。
+//! 5. 阶段二再对完整文本做 spacing 微调，然后再按 `N` 进入下一个文本。
+//! 6. 任意时刻都可以按 `S` 保存当前结果。
 //!
 //! ## Saved Outputs
 //!
-//! Outputs are grouped by role instead of being flattened into one directory:
+//! Outputs are grouped by stage and role instead of being flattened into one directory:
 //!
-//! - `current/view.ron`
-//! - `current/summary.json`
-//! - `current/render.png`
-//! - `current/diff.png`
-//! - `best/view.ron`
-//! - `best/summary.json`
-//! - `best/render.png`
-//! - `best/diff.png`
+//! - `stage_1_.../current/view.ron`
+//! - `stage_1_.../current/runtime.view.ron`
+//! - `stage_2_.../current/view.ron`
+//! - `stage_2_.../current/runtime.view.ron`
+//! - `.../summary.json`
+//! - `.../render.png`
+//! - `.../diff.png`
+//!
+//! Legacy single-task mode still writes `current/` and `best/`.
 //!
 //! ## 保存产物
 //!
-//! 产物会按职责分组，而不是全部堆在同一层目录：
+//! 产物会按阶段和职责分组，而不是全部堆在同一层目录：
 //!
-//! - `current/view.ron`
-//! - `current/summary.json`
-//! - `current/render.png`
-//! - `current/diff.png`
-//! - `best/view.ron`
-//! - `best/summary.json`
-//! - `best/render.png`
-//! - `best/diff.png`
+//! - `stage_1_.../current/view.ron`
+//! - `stage_1_.../current/runtime.view.ron`
+//! - `stage_2_.../current/view.ron`
+//! - `stage_2_.../current/runtime.view.ron`
+//! - `.../summary.json`
+//! - `.../render.png`
+//! - `.../diff.png`
+//!
+//! 旧的单任务模式仍然会写到 `current/` 和 `best/`。
 //!
 //! ## Main Controls
 //!
 //! - `Space`: start or cancel evolution
+//! - `N`: accept the current stage and advance to the next stage or next text
 //! - `S`: save the current result
 //! - `R`: restore the current best result
 //! - `C`: switch the selected property
@@ -117,6 +124,7 @@
 //! ## 主要操作
 //!
 //! - `Space`：启动或取消进化搜索
+//! - `N`：确认当前阶段，进入下一阶段或下一个文本
 //! - `S`：保存当前结果
 //! - `R`：恢复当前最佳结果
 //! - `C`：切换当前选中的属性
@@ -129,24 +137,24 @@
 //!
 //! ```bash
 //! cargo run -p souprune --example view_text_reconstruction -- \
-//!   --config generated/view_text_reconstruction/case_0/task.toml
+//!   --config generated/view_text_reconstruction/backpack_name_text/session.ron
 //! ```
 //!
 //! ```bash
 //! cargo run -p souprune --example view_text_reconstruction -- \
-//!   --config path/to/task.toml
+//!   --config path/to/session.ron
 //! ```
 //!
 //! ## 示例
 //!
 //! ```bash
 //! cargo run -p souprune --example view_text_reconstruction -- \
-//!   --config generated/view_text_reconstruction/case_0/task.toml
+//!   --config generated/view_text_reconstruction/backpack_name_text/session.ron
 //! ```
 //!
 //! ```bash
 //! cargo run -p souprune --example view_text_reconstruction -- \
-//!   --config path/to/task.toml
+//!   --config path/to/session.ron
 //! ```
 #[path = "view_text_reconstruction/config.rs"]
 mod config;
@@ -170,10 +178,10 @@ fn main() {
 fn try_main() -> Result<()> {
     let config_path = parse_config_path()?;
     let souprune_config = souprune::config::load_config();
-    let task_config = config::TaskConfig::load(&config_path, &workspace_root())?;
+    let loaded_config = config::load_config(&config_path, &workspace_root())?;
 
     let mut app = bevy::prelude::App::new();
-    runtime::configure_app(&mut app, souprune_config, task_config)?;
+    runtime::configure_app(&mut app, souprune_config, loaded_config)?;
     let _ = app.run();
 
     Ok(())
@@ -194,6 +202,6 @@ fn parse_config_path() -> Result<PathBuf> {
     }
 
     anyhow::bail!(
-        "usage: cargo run -p souprune --example view_text_reconstruction -- --config <task.toml>"
+        "usage: cargo run -p souprune --example view_text_reconstruction -- --config <task.toml|session.ron|stage.ron>"
     );
 }

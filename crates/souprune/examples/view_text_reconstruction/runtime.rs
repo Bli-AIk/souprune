@@ -8,7 +8,9 @@
 //!
 //! 这个文件负责窗口初始化、真实 View 生成、截图评分，以及预览 HUD。
 //! 它把重建反馈放在真实的 Bevy + SoupRune 运行时里，而不是维护一套假的渲染实现。
-use crate::config::{CropRect, TaskConfig};
+use crate::config::{
+    CropRect, LoadedConfig, SessionCaseConfig, SessionConfig, StageKind, TaskConfig,
+};
 use crate::search::{
     CandidateSearchPlan, ConcreteTextParameters, RestartSearchResult, SearchParameterField,
     build_export_view_layout, build_runtime_view_layout, find_target_text_def, parse_text_align,
@@ -38,6 +40,7 @@ use souprune::extra::multi_source::MultiSourceAssetReader;
 use souprune_schema::Val;
 use souprune_schema::view::ViewLayoutAsset as SchemaViewLayoutAsset;
 use std::fs;
+use std::path::PathBuf;
 
 const PREVIEW_LAYER: RenderLayers = RenderLayers::layer(2);
 const PREVIEW_TEXT_MARGIN: f32 = 18.0;
@@ -48,18 +51,15 @@ const GUIDE_HIT_RADIUS: f32 = 10.0;
 pub fn configure_app(
     app: &mut App,
     souprune_config: SoupruneConfig,
-    task: TaskConfig,
+    loaded_config: LoadedConfig,
 ) -> Result<()> {
+    let (task, session) = match loaded_config {
+        LoadedConfig::Single(task) => (task, None),
+        LoadedConfig::Session(session) => (session.initial_task.clone(), Some(session)),
+    };
     let current_project_name = souprune_config.project.mod_name.clone();
     let workspace_root = task.workspace_root.clone();
-    let reference_image = image::open(&task.image_path)
-        .with_context(|| {
-            format!(
-                "failed to open reference image: {}",
-                task.image_path.display()
-            )
-        })?
-        .to_rgba8();
+    let reference_image = load_reference_image(&task.image_path)?;
 
     if let Some(bbox) = task.bbox {
         validate_bbox(&reference_image, bbox)?;
@@ -121,6 +121,7 @@ pub fn configure_app(
             souprune::core::mod_system::ModPlugin,
         ))
         .insert_resource(TaskResource(task.clone()))
+        .insert_resource(OptionalSessionController::from_loaded_session(session))
         .insert_resource(RenderTargetImage::default())
         .insert_resource(ReferenceImages {
             original: reference_image.clone(),
@@ -160,6 +161,7 @@ pub fn configure_app(
             show_detailed_status: false,
             skip_snap_on_next_apply: skip_initial_snap,
             pending_apply: true,
+            awaiting_user_step: None,
         })
         .insert_resource(CurrentViewAssetHandle::default())
         .add_systems(Startup, setup_runtime)
@@ -167,6 +169,7 @@ pub fn configure_app(
             Update,
             (
                 handle_keyboard_input,
+                apply_pending_session_transition,
                 handle_inspector_interactions,
                 handle_reference_mask_interactions,
                 apply_pending_candidate,
@@ -185,6 +188,74 @@ pub fn configure_app(
 
 #[derive(Resource, Clone)]
 struct TaskResource(TaskConfig);
+
+#[derive(Resource, Default)]
+struct OptionalSessionController(Option<SessionController>);
+
+impl OptionalSessionController {
+    fn from_loaded_session(session: Option<SessionConfig>) -> Self {
+        Self(session.map(SessionController::new))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SessionController {
+    cases: Vec<SessionCaseConfig>,
+    current_case_index: usize,
+    current_stage: SessionStageSlot,
+    pending_transition: Option<PendingSessionTransition>,
+}
+
+impl SessionController {
+    fn new(session: SessionConfig) -> Self {
+        Self {
+            cases: session.cases,
+            current_case_index: 0,
+            current_stage: SessionStageSlot::StageOne,
+            pending_transition: None,
+        }
+    }
+
+    fn current_case(&self) -> &SessionCaseConfig {
+        &self.cases[self.current_case_index]
+    }
+
+    fn current_case_label(&self) -> &str {
+        &self.current_case().id
+    }
+
+    fn has_next_text(&self) -> bool {
+        self.current_case_index + 1 < self.cases.len()
+    }
+
+    fn current_stage_path(&self) -> &PathBuf {
+        match self.current_stage {
+            SessionStageSlot::StageOne => &self.current_case().stage_one_path,
+            SessionStageSlot::StageTwo => &self.current_case().stage_two_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionStageSlot {
+    StageOne,
+    StageTwo,
+}
+
+impl SessionStageSlot {
+    fn label(self) -> &'static str {
+        match self {
+            Self::StageOne => "stage_1",
+            Self::StageTwo => "stage_2",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PendingSessionTransition {
+    NextStage,
+    NextText,
+}
 
 #[derive(Resource, Default)]
 struct CurrentViewAssetHandle {
@@ -242,6 +313,14 @@ struct ReconstructionState {
     show_detailed_status: bool,
     skip_snap_on_next_apply: bool,
     pending_apply: bool,
+    awaiting_user_step: Option<AwaitingUserStep>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AwaitingUserStep {
+    NextStage,
+    NextText,
+    SessionComplete,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -700,6 +779,52 @@ fn setup_runtime(
         });
 }
 
+fn replace_reference_images(
+    images: &mut Assets<Image>,
+    reference_images: &mut ReferenceImages,
+    render_target_handle: &Handle<Image>,
+    task: &TaskConfig,
+) -> Result<()> {
+    let reference_image = load_reference_image(&task.image_path)
+        .with_context(|| "failed to open reference image for task switch")?;
+    if let Some(bbox) = task.bbox {
+        validate_bbox(&reference_image, bbox)?;
+    }
+
+    reference_images.original = reference_image.clone();
+    reference_images.compare_masked = apply_bbox_mask(&reference_image, task.bbox);
+    reference_images.width = reference_image.width();
+    reference_images.height = reference_image.height();
+
+    if let Some(reference_asset) = images.get_mut(&reference_images.reference_handle) {
+        *reference_asset = Image::from_dynamic(
+            DynamicImage::ImageRgba8(reference_image),
+            true,
+            RenderAssetUsages::all(),
+        );
+    }
+    if let Some(diff_asset) = images.get_mut(&reference_images.diff_handle) {
+        *diff_asset = Image::from_dynamic(
+            DynamicImage::ImageRgba8(image::RgbaImage::new(
+                reference_images.width,
+                reference_images.height,
+            )),
+            true,
+            RenderAssetUsages::all(),
+        );
+    }
+    if let Some(render_target_asset) = images.get_mut(render_target_handle) {
+        *render_target_asset = Image::new_target_texture(
+            reference_images.width,
+            reference_images.height,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        );
+    }
+
+    Ok(())
+}
+
 fn spawn_inspector_field_row(parent: &mut ChildSpawnerCommands, field: ManualAdjustmentKind) {
     parent
         .spawn((
@@ -733,6 +858,7 @@ fn handle_keyboard_input(
     mut state: ResMut<ReconstructionState>,
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
+    mut session: ResMut<OptionalSessionController>,
 ) {
     if state.text_edit_mode {
         let text_changed = apply_text_input(&mut keyboard_inputs, &mut state);
@@ -774,6 +900,22 @@ fn handle_keyboard_input(
         state.show_detailed_status = !state.show_detailed_status;
     }
 
+    if keyboard.just_pressed(KeyCode::KeyN)
+        && matches!(state.phase, EvaluationPhase::Ready)
+        && let Some(awaiting_user_step) = state.awaiting_user_step
+        && let Some(session_controller) = session.0.as_mut()
+    {
+        session_controller.pending_transition = match awaiting_user_step {
+            AwaitingUserStep::NextStage => Some(PendingSessionTransition::NextStage),
+            AwaitingUserStep::NextText => Some(PendingSessionTransition::NextText),
+            AwaitingUserStep::SessionComplete => None,
+        };
+        if session_controller.pending_transition.is_some() {
+            state.awaiting_user_step = None;
+        }
+        return;
+    }
+
     if keyboard.just_pressed(KeyCode::Enter)
         && state.manual_adjustment_kind == ManualAdjustmentKind::Content
     {
@@ -812,6 +954,7 @@ fn handle_keyboard_input(
         state.total_candidates = search.total_candidates;
         state.target_similarity = task.0.target_similarity;
         state.current_score = None;
+        state.awaiting_user_step = None;
         state.capture_after_apply = true;
         state.pending_apply = true;
         return;
@@ -825,6 +968,7 @@ fn handle_keyboard_input(
         state.current_text = best_score.text.clone();
         state.current_parameters = best_score.parameters.clone();
         state.current_score = Some(best_score.clone());
+        state.awaiting_user_step = None;
         state.capture_after_apply = false;
         state.pending_apply = true;
         return;
@@ -846,6 +990,7 @@ fn mark_parameter_changed(state: &mut ReconstructionState) {
     state.auto_search = false;
     state.current_candidate_index = None;
     state.current_score = None;
+    state.awaiting_user_step = None;
     state.persist_current_after_evaluation = true;
     state.capture_after_apply = true;
     state.pending_apply = true;
@@ -856,6 +1001,7 @@ fn mark_text_changed(state: &mut ReconstructionState) {
     state.current_candidate_index = None;
     state.current_score = None;
     state.best_score = None;
+    state.awaiting_user_step = None;
     state.persist_current_after_evaluation = true;
     state.capture_after_apply = true;
     state.pending_apply = true;
@@ -866,6 +1012,7 @@ fn mark_reference_mask_changed(state: &mut ReconstructionState, task: &TaskConfi
     state.current_candidate_index = None;
     state.current_score = None;
     state.best_score = None;
+    state.awaiting_user_step = None;
     state.persist_current_after_evaluation = true;
     state.phase = EvaluationPhase::WaitingForSettle {
         remaining_frames: task.settle_frames,
@@ -999,6 +1146,101 @@ fn handle_reference_mask_interactions(
         search.plan.clear_evaluation_history();
         mark_reference_mask_changed(&mut state, &task.0);
     }
+}
+
+fn apply_pending_session_transition(
+    mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
+    mut despawn_writer: MessageWriter<DespawnViewRequest>,
+    mut task: ResMut<TaskResource>,
+    mut session: ResMut<OptionalSessionController>,
+    mut search: ResMut<SearchController>,
+    mut state: ResMut<ReconstructionState>,
+    mut reference_images: ResMut<ReferenceImages>,
+    mut reference_mask_state: ResMut<ReferenceMaskState>,
+    mut current_view_handle: ResMut<CurrentViewAssetHandle>,
+    render_target: Res<RenderTargetImage>,
+) {
+    let Some(session_controller) = session.0.as_mut() else {
+        return;
+    };
+    let Some(pending_transition) = session_controller.pending_transition.take() else {
+        return;
+    };
+
+    let next_task = match pending_transition {
+        PendingSessionTransition::NextStage => {
+            session_controller.current_stage = SessionStageSlot::StageTwo;
+            TaskConfig::load_stage_ron(
+                session_controller.current_stage_path(),
+                &task.0.workspace_root,
+                Some(&state.current_parameters),
+            )
+        }
+        PendingSessionTransition::NextText => {
+            if !session_controller.has_next_text() {
+                state.awaiting_user_step = Some(AwaitingUserStep::SessionComplete);
+                return;
+            }
+            session_controller.current_case_index += 1;
+            session_controller.current_stage = SessionStageSlot::StageOne;
+            TaskConfig::load_stage_ron(
+                session_controller.current_stage_path(),
+                &task.0.workspace_root,
+                None,
+            )
+        }
+    };
+
+    let Ok(next_task) = next_task else {
+        session_controller.pending_transition = Some(pending_transition);
+        return;
+    };
+
+    let previous_runtime_path = task.0.runtime_view_relative_path.clone();
+    despawn_writer.write(DespawnViewRequest {
+        path: Some(previous_runtime_path),
+    });
+
+    replace_reference_images(
+        &mut images,
+        &mut reference_images,
+        &render_target.0,
+        &next_task,
+    )
+    .expect("next stage reference image should load");
+    *reference_mask_state =
+        ReferenceMaskState::new(reference_images.width, reference_images.height);
+
+    current_view_handle.handle =
+        asset_server.load::<ViewLayoutAsset>(next_task.runtime_view_relative_path.clone());
+    search.plan = next_task.search_plan.clone();
+    search.total_candidates = next_task.search_plan.total_candidates();
+
+    let initial_parameters = next_task.search_plan.seed_parameters();
+    task.0 = next_task.clone();
+    state.phase = EvaluationPhase::Ready;
+    state.display_mode = DisplayMode::Overlay;
+    state.auto_search = false;
+    state.total_candidates = search.total_candidates;
+    state.target_similarity = next_task.target_similarity;
+    state.current_candidate_index = None;
+    state.current_parameters = initial_parameters;
+    state.current_text = next_task.text.clone();
+    state.current_score = None;
+    state.best_score = None;
+    state.latest_render_image = None;
+    state.latest_diff_image = None;
+    state.persist_current_after_evaluation = false;
+    state.capture_after_apply = false;
+    state.manual_adjustment_kind = ManualAdjustmentKind::initial_for_task(&next_task);
+    state.manual_step_multiplier_index = 0;
+    state.snap_to_grid = true;
+    state.text_edit_mode = false;
+    state.show_detailed_status = false;
+    state.skip_snap_on_next_apply = true;
+    state.pending_apply = true;
+    state.awaiting_user_step = None;
 }
 
 fn apply_keyboard_adjustment(
@@ -1488,6 +1730,7 @@ fn handle_screenshot_captured(
     mut state: ResMut<ReconstructionState>,
     mut search: ResMut<SearchController>,
     task: Res<TaskResource>,
+    session: Res<OptionalSessionController>,
     reference_images: Res<ReferenceImages>,
     mask_state: Res<ReferenceMaskState>,
     mut images: ResMut<Assets<Image>>,
@@ -1559,6 +1802,7 @@ fn handle_screenshot_captured(
     let mut search_exhausted = false;
 
     state.phase = EvaluationPhase::Ready;
+    state.awaiting_user_step = None;
     if state.auto_search && target_reached {
         state.auto_search = false;
     } else if state.auto_search {
@@ -1571,6 +1815,19 @@ fn handle_screenshot_captured(
             state.auto_search = false;
             search_exhausted = true;
         }
+    }
+
+    if target_reached && let Some(session_controller) = session.0.as_ref() {
+        state.awaiting_user_step = Some(match task.0.stage_kind {
+            StageKind::AlignFirstGlyph => AwaitingUserStep::NextStage,
+            StageKind::Single | StageKind::RefineSpacing => {
+                if session_controller.has_next_text() {
+                    AwaitingUserStep::NextText
+                } else {
+                    AwaitingUserStep::SessionComplete
+                }
+            }
+        });
     }
 
     if state.persist_current_after_evaluation || target_reached || !state.auto_search {
@@ -1703,6 +1960,7 @@ fn update_inspector_panel(
         Query<(&InspectorFieldButton, &mut BackgroundColor)>,
     )>,
     task: Res<TaskResource>,
+    session: Res<OptionalSessionController>,
     state: Res<ReconstructionState>,
     mask_state: Res<ReferenceMaskState>,
 ) {
@@ -1735,8 +1993,27 @@ fn update_inspector_panel(
         let mut text_query = ui_queries.p1();
         for (mut text, is_status, is_details, is_controls, is_snap, row_text) in &mut text_query {
             if is_status {
+                let session_label = session
+                    .0
+                    .as_ref()
+                    .map(|session_controller| {
+                        format!(
+                            "case: {} ({}/{})\nstage: {}",
+                            session_controller.current_case_label(),
+                            session_controller.current_case_index + 1,
+                            session_controller.cases.len(),
+                            session_controller.current_stage.label(),
+                        )
+                    })
+                    .unwrap_or_else(|| format!("stage: {}", task.0.stage_kind.label()));
+                let advance_label = match state.awaiting_user_step {
+                    Some(AwaitingUserStep::NextStage) => "ready: press N for stage 2",
+                    Some(AwaitingUserStep::NextText) => "ready: press N for next text",
+                    Some(AwaitingUserStep::SessionComplete) => "session complete",
+                    None => "ready: keep tuning or press Space",
+                };
                 *text = Text::new(format!(
-                    "similarity: {:.4}\nselected: {}\nsnap: {}\nmultiplier: {}x\ntext_edit: {}",
+                    "{session_label}\nsimilarity: {:.4}\n{advance_label}\nselected: {}\nsnap: {}\nmultiplier: {}x\ntext_edit: {}",
                     current_similarity,
                     state.manual_adjustment_kind.label(),
                     if state.snap_to_grid { "on" } else { "off" },
@@ -1780,7 +2057,7 @@ fn update_inspector_panel(
 
             if is_controls {
                 *text = Text::new(
-                    "Tab: display mode  Space: evolve/cancel search  C: next property  G: snap on/off\nEnter/click content: edit text  M: step multiplier  I: toggle details\nArrows: adjust selected  LMB: drag guide  RMB: flip mask side  R: use best  S: save current",
+                    "Tab: display mode  Space: evolve/cancel search  N: next stage/text  C: next property  G: snap on/off\nEnter/click content: edit text  M: step multiplier  I: toggle details\nArrows: adjust selected  LMB: drag guide  RMB: flip mask side  R: use best  S: save current",
                 );
                 continue;
             }
@@ -2204,6 +2481,25 @@ fn apply_bbox_mask(image: &image::RgbaImage, bbox: Option<CropRect>) -> image::R
     masked
 }
 
+fn load_reference_image(path: &std::path::Path) -> Result<image::RgbaImage> {
+    let reference_image = image::open(path)
+        .with_context(|| format!("failed to open reference image: {}", path.display()))?
+        .to_rgba8();
+    Ok(flatten_reference_alpha_against_black(&reference_image))
+}
+
+fn flatten_reference_alpha_against_black(image: &image::RgbaImage) -> image::RgbaImage {
+    let mut flattened = image::RgbaImage::new(image.width(), image.height());
+    for (x, y, pixel) in image.enumerate_pixels() {
+        let alpha = pixel[3] as u16;
+        let red = ((pixel[0] as u16 * alpha) / 255) as u8;
+        let green = ((pixel[1] as u16 * alpha) / 255) as u8;
+        let blue = ((pixel[2] as u16 * alpha) / 255) as u8;
+        flattened.put_pixel(x, y, image::Rgba([red, green, blue, 255]));
+    }
+    flattened
+}
+
 fn compute_candidate_fitness(
     comparison: bevy_alight_motion::image_comparison::ImageComparisonResult,
 ) -> f32 {
@@ -2367,4 +2663,21 @@ fn mask_side_label(side: MaskOcclusionSide, guide: MaskGuideKind) -> &'static st
 
 fn round3(value: f32) -> f32 {
     (value * 1000.0).round() / 1000.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flatten_reference_alpha_against_black_turns_transparent_into_black() {
+        let mut image = image::RgbaImage::new(2, 1);
+        image.put_pixel(0, 0, image::Rgba([255, 255, 255, 0]));
+        image.put_pixel(1, 0, image::Rgba([200, 100, 50, 128]));
+
+        let flattened = flatten_reference_alpha_against_black(&image);
+
+        assert_eq!(flattened.get_pixel(0, 0), &image::Rgba([0, 0, 0, 255]));
+        assert_eq!(flattened.get_pixel(1, 0), &image::Rgba([100, 50, 25, 255]));
+    }
 }

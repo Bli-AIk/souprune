@@ -10,8 +10,45 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
+pub enum LoadedConfig {
+    Single(TaskConfig),
+    Session(SessionConfig),
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionConfig {
+    pub cases: Vec<SessionCaseConfig>,
+    pub initial_task: TaskConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionCaseConfig {
+    pub id: String,
+    pub stage_one_path: PathBuf,
+    pub stage_two_path: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+pub enum StageKind {
+    Single,
+    AlignFirstGlyph,
+    RefineSpacing,
+}
+
+impl StageKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Single => "single",
+            Self::AlignFirstGlyph => "align_first_glyph",
+            Self::RefineSpacing => "refine_spacing",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct TaskConfig {
     pub workspace_root: PathBuf,
+    pub stage_kind: StageKind,
     pub image_path: PathBuf,
     pub capture_reference_absolute_path: Option<PathBuf>,
     pub text: String,
@@ -37,12 +74,116 @@ pub struct TaskConfig {
     pub search_plan: CandidateSearchPlan,
 }
 
+pub fn load_config(config_path: &Path, workspace_root: &Path) -> Result<LoadedConfig> {
+    let extension = config_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    match extension.as_str() {
+        "toml" => Ok(LoadedConfig::Single(TaskConfig::load_legacy_toml(
+            config_path,
+            workspace_root,
+        )?)),
+        "ron" => {
+            let raw = fs::read_to_string(config_path)
+                .with_context(|| format!("failed to read config: {}", config_path.display()))?;
+            if let Ok(session_file) = ron::from_str::<SessionConfigFile>(&raw) {
+                return Ok(LoadedConfig::Session(load_session_config(
+                    config_path,
+                    workspace_root,
+                    session_file,
+                )?));
+            }
+
+            Ok(LoadedConfig::Single(TaskConfig::load_stage_ron(
+                config_path,
+                workspace_root,
+                None,
+            )?))
+        }
+        _ => bail!(
+            "unsupported config extension for `{}`; expected .toml or .ron",
+            config_path.display()
+        ),
+    }
+}
+
 impl TaskConfig {
-    pub fn load(config_path: &Path, workspace_root: &Path) -> Result<Self> {
+    pub fn load_legacy_toml(config_path: &Path, workspace_root: &Path) -> Result<Self> {
         let raw = fs::read_to_string(config_path)
             .with_context(|| format!("failed to read task config: {}", config_path.display()))?;
         let parsed: TaskConfigFile = toml::from_str(&raw)
             .with_context(|| format!("failed to parse TOML: {}", config_path.display()))?;
+        Self::from_source(
+            config_path,
+            workspace_root,
+            TaskConfigSource {
+                stage_kind: StageKind::Single,
+                image: parsed.image,
+                capture_reference_path: parsed.capture_reference_path,
+                host_view: parsed.host_view,
+                text: parsed.text,
+                bbox: parsed.bbox,
+                assume_single_line: parsed.assume_single_line,
+                settle_frames: parsed.settle_frames,
+                search_budget: parsed.search_budget,
+                population_size: parsed.population_size,
+                target_similarity: parsed.target_similarity,
+                exit_on_completion: parsed.exit_on_completion,
+                generated_view_path: Some(parsed.generated_view_path),
+                properties: parsed.properties,
+                bindings: parsed.bindings,
+            },
+            None,
+        )
+    }
+
+    pub fn load_stage_ron(
+        config_path: &Path,
+        workspace_root: &Path,
+        inherited_seed: Option<&ConcreteTextParameters>,
+    ) -> Result<Self> {
+        let raw = fs::read_to_string(config_path)
+            .with_context(|| format!("failed to read stage config: {}", config_path.display()))?;
+        let parsed: StageConfigFile = ron::from_str(&raw)
+            .with_context(|| format!("failed to parse RON: {}", config_path.display()))?;
+        let stage_text = resolve_stage_text(parsed.stage_kind, &parsed.text, parsed.first_glyph)?;
+        let properties = parsed
+            .properties
+            .into_runtime_table(inherited_seed)
+            .context("failed to resolve stage properties")?;
+        Self::from_source(
+            config_path,
+            workspace_root,
+            TaskConfigSource {
+                stage_kind: parsed.stage_kind,
+                image: parsed.image,
+                capture_reference_path: parsed.capture_reference_path,
+                host_view: parsed.host_view,
+                text: stage_text,
+                bbox: parsed.bbox,
+                assume_single_line: parsed.assume_single_line,
+                settle_frames: parsed.settle_frames,
+                search_budget: parsed.search_budget,
+                population_size: parsed.population_size,
+                target_similarity: parsed.target_similarity,
+                exit_on_completion: parsed.exit_on_completion,
+                generated_view_path: parsed.generated_view_path,
+                properties,
+                bindings: parsed.bindings,
+            },
+            inherited_seed,
+        )
+    }
+
+    fn from_source(
+        config_path: &Path,
+        workspace_root: &Path,
+        parsed: TaskConfigSource,
+        inherited_seed: Option<&ConcreteTextParameters>,
+    ) -> Result<Self> {
         let config_dir = config_path
             .parent()
             .unwrap_or_else(|| Path::new("."))
@@ -72,7 +213,8 @@ impl TaskConfig {
             })
             .filter(|bbox| bbox.width > 0 && bbox.height > 0);
 
-        let current_view_relative_path = parsed.generated_view_path;
+        let current_view_relative_path =
+            resolve_generated_view_path(config_path, workspace_root, parsed.generated_view_path)?;
         if Path::new(&current_view_relative_path).is_absolute() {
             bail!("`generated_view_path` must be relative to the workspace root");
         }
@@ -113,6 +255,7 @@ impl TaskConfig {
         } else {
             ConcreteTextParameters::default()
         };
+        let base_defaults = inherited_seed.cloned().unwrap_or(base_defaults);
 
         let property_defaults = OptionalTextFieldDefaults {
             align_uses_default: matches!(parsed.properties.align.mode, PropertyMode::Default),
@@ -156,6 +299,7 @@ impl TaskConfig {
 
         Ok(Self {
             workspace_root: workspace_root.to_path_buf(),
+            stage_kind: parsed.stage_kind,
             image_path,
             capture_reference_absolute_path,
             text: parsed.text,
@@ -181,6 +325,25 @@ impl TaskConfig {
             search_plan,
         })
     }
+}
+
+#[derive(Debug)]
+struct TaskConfigSource {
+    stage_kind: StageKind,
+    image: PathBuf,
+    capture_reference_path: Option<PathBuf>,
+    host_view: Option<HostViewConfigFile>,
+    text: String,
+    bbox: Option<[u32; 4]>,
+    assume_single_line: bool,
+    settle_frames: Option<u32>,
+    search_budget: Option<usize>,
+    population_size: Option<usize>,
+    target_similarity: f32,
+    exit_on_completion: bool,
+    generated_view_path: Option<String>,
+    properties: PropertyTable,
+    bindings: BindingTable,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -231,6 +394,218 @@ struct TaskConfigFile {
     bindings: BindingTable,
 }
 
+#[derive(Debug, Deserialize)]
+struct SessionConfigFile {
+    cases: Vec<SessionCaseFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SessionCaseFile {
+    id: Option<String>,
+    stage_one: PathBuf,
+    stage_two: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+struct StageConfigFile {
+    stage_kind: StageKind,
+    image: PathBuf,
+    #[serde(default)]
+    capture_reference_path: Option<PathBuf>,
+    #[serde(default)]
+    host_view: Option<HostViewConfigFile>,
+    text: String,
+    #[serde(default)]
+    first_glyph: Option<String>,
+    #[serde(default)]
+    bbox: Option<[u32; 4]>,
+    #[serde(default)]
+    assume_single_line: bool,
+    #[serde(default)]
+    settle_frames: Option<u32>,
+    #[serde(default)]
+    search_budget: Option<usize>,
+    #[serde(default)]
+    population_size: Option<usize>,
+    #[serde(default = "default_target_similarity")]
+    target_similarity: f32,
+    #[serde(default)]
+    exit_on_completion: bool,
+    #[serde(default)]
+    generated_view_path: Option<String>,
+    #[serde(default)]
+    properties: StagePropertyTable,
+    #[serde(default)]
+    bindings: BindingTable,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct StagePropertyTable {
+    #[serde(default)]
+    font: StageEnumPropertyConfig,
+    #[serde(default)]
+    align: StageEnumPropertyConfig,
+    #[serde(default)]
+    anchor: StageEnumPropertyConfig,
+    #[serde(default)]
+    translation_x: StageNumericPropertyConfig,
+    #[serde(default)]
+    translation_y: StageNumericPropertyConfig,
+    #[serde(default)]
+    world_scale_x: StageNumericPropertyConfig,
+    #[serde(default)]
+    world_scale_y: StageNumericPropertyConfig,
+    #[serde(default)]
+    line_height: StageNumericPropertyConfig,
+    #[serde(default)]
+    char_spacing: StageNumericPropertyConfig,
+    #[serde(default)]
+    word_spacing: StageNumericPropertyConfig,
+}
+
+impl StagePropertyTable {
+    fn into_runtime_table(
+        self,
+        inherited_seed: Option<&ConcreteTextParameters>,
+    ) -> Result<PropertyTable> {
+        Ok(PropertyTable {
+            font: self.font.into_runtime_enum(
+                "font",
+                inherited_seed.map(|seed| format!("{:?}", seed.font)),
+            )?,
+            align: self.align.into_runtime_enum(
+                "align",
+                inherited_seed.map(|seed| format!("{:?}", seed.align)),
+            )?,
+            anchor: self.anchor.into_runtime_enum(
+                "anchor",
+                inherited_seed.map(|seed| format!("{:?}", seed.anchor)),
+            )?,
+            translation_x: self.translation_x.into_runtime_numeric(
+                "translation_x",
+                inherited_seed.map(|seed| seed.translation_x),
+            )?,
+            translation_y: self.translation_y.into_runtime_numeric(
+                "translation_y",
+                inherited_seed.map(|seed| seed.translation_y),
+            )?,
+            world_scale_x: self.world_scale_x.into_runtime_numeric(
+                "world_scale_x",
+                inherited_seed.map(|seed| seed.world_scale_x),
+            )?,
+            world_scale_y: self.world_scale_y.into_runtime_numeric(
+                "world_scale_y",
+                inherited_seed.map(|seed| seed.world_scale_y),
+            )?,
+            line_height: self
+                .line_height
+                .into_runtime_numeric("line_height", inherited_seed.map(|seed| seed.line_height))?,
+            char_spacing: self.char_spacing.into_runtime_numeric(
+                "char_spacing",
+                inherited_seed.map(|seed| seed.char_spacing),
+            )?,
+            word_spacing: self.word_spacing.into_runtime_numeric(
+                "word_spacing",
+                inherited_seed.map(|seed| seed.word_spacing),
+            )?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+enum StageEnumPropertyConfig {
+    #[default]
+    Default,
+    Fixed(String),
+    Search(Vec<String>),
+    InheritFixed,
+}
+
+impl StageEnumPropertyConfig {
+    fn into_runtime_enum(
+        self,
+        label: &str,
+        inherited_value: Option<String>,
+    ) -> Result<EnumPropertyConfig> {
+        Ok(match self {
+            Self::Default => EnumPropertyConfig::default(),
+            Self::Fixed(value) => EnumPropertyConfig {
+                mode: PropertyMode::Fixed,
+                value: Some(value),
+                candidates: None,
+            },
+            Self::Search(candidates) => EnumPropertyConfig {
+                mode: PropertyMode::Search,
+                value: None,
+                candidates: Some(candidates),
+            },
+            Self::InheritFixed => EnumPropertyConfig {
+                mode: PropertyMode::Fixed,
+                value: Some(inherited_value.with_context(|| {
+                    format!(
+                        "`{label}` requested InheritFixed but no previous-stage seed was provided"
+                    )
+                })?),
+                candidates: None,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+enum StageNumericPropertyConfig {
+    #[default]
+    Default,
+    Fixed(f32),
+    SearchCandidates(Vec<f32>),
+    SearchRange((f32, f32, f32)),
+    InheritFixed,
+}
+
+impl StageNumericPropertyConfig {
+    fn into_runtime_numeric(
+        self,
+        label: &str,
+        inherited_value: Option<f32>,
+    ) -> Result<NumericPropertyConfig> {
+        Ok(match self {
+            Self::Default => NumericPropertyConfig::default(),
+            Self::Fixed(value) => NumericPropertyConfig {
+                mode: PropertyMode::Fixed,
+                value: Some(value),
+                candidates: None,
+                range: None,
+                step: None,
+            },
+            Self::SearchCandidates(candidates) => NumericPropertyConfig {
+                mode: PropertyMode::Search,
+                value: None,
+                candidates: Some(candidates),
+                range: None,
+                step: None,
+            },
+            Self::SearchRange((start, end, step)) => NumericPropertyConfig {
+                mode: PropertyMode::Search,
+                value: None,
+                candidates: None,
+                range: Some([start, end]),
+                step: Some(step),
+            },
+            Self::InheritFixed => NumericPropertyConfig {
+                mode: PropertyMode::Fixed,
+                value: Some(inherited_value.with_context(|| {
+                    format!(
+                        "`{label}` requested InheritFixed but no previous-stage seed was provided"
+                    )
+                })?),
+                candidates: None,
+                range: None,
+                step: None,
+            },
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HostViewTemplate {
     pub layout: SchemaViewLayoutAsset,
@@ -250,6 +625,103 @@ struct HostViewConfigFile {
 
 fn default_generated_view_path() -> String {
     "generated/view_text_reconstruction/current.view.ron".to_string()
+}
+
+fn load_session_config(
+    session_path: &Path,
+    workspace_root: &Path,
+    parsed: SessionConfigFile,
+) -> Result<SessionConfig> {
+    if parsed.cases.is_empty() {
+        bail!("session must contain at least one text case");
+    }
+
+    let session_dir = session_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    let mut cases = Vec::with_capacity(parsed.cases.len());
+    for (index, case) in parsed.cases.into_iter().enumerate() {
+        let case_id = case.id.unwrap_or_else(|| format!("case_{index:03}"));
+        let stage_one_path =
+            resolve_workspace_or_config_path(workspace_root, &session_dir, &case.stage_one);
+        let stage_two_path =
+            resolve_workspace_or_config_path(workspace_root, &session_dir, &case.stage_two);
+        cases.push(SessionCaseConfig {
+            id: case_id,
+            stage_one_path,
+            stage_two_path,
+        });
+    }
+
+    let initial_task = TaskConfig::load_stage_ron(&cases[0].stage_one_path, workspace_root, None)?;
+    Ok(SessionConfig {
+        cases,
+        initial_task,
+    })
+}
+
+fn resolve_generated_view_path(
+    config_path: &Path,
+    workspace_root: &Path,
+    configured_path: Option<String>,
+) -> Result<String> {
+    if let Some(configured_path) = configured_path {
+        return Ok(configured_path);
+    }
+
+    let absolute_config_path = if config_path.is_absolute() {
+        config_path.to_path_buf()
+    } else {
+        workspace_root.join(config_path)
+    };
+
+    let config_relative_dir = absolute_config_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .strip_prefix(workspace_root)
+        .with_context(|| {
+            format!(
+                "config path `{}` must live inside the workspace root to derive output paths",
+                config_path.display()
+            )
+        })?;
+    let stage_dir = config_relative_dir.join(
+        config_path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("task"),
+    );
+    Ok(stage_dir
+        .join("current/view.ron")
+        .to_string_lossy()
+        .replace('\\', "/"))
+}
+
+fn resolve_stage_text(
+    stage_kind: StageKind,
+    full_text: &str,
+    first_glyph_override: Option<String>,
+) -> Result<String> {
+    match stage_kind {
+        StageKind::AlignFirstGlyph => {
+            if let Some(first_glyph_override) = first_glyph_override {
+                if first_glyph_override.is_empty() {
+                    bail!("`first_glyph` must not be empty");
+                }
+                Ok(first_glyph_override)
+            } else {
+                full_text
+                    .chars()
+                    .next()
+                    .map(|character| character.to_string())
+                    .with_context(|| {
+                        "stage `AlignFirstGlyph` requires `text` to contain at least one character"
+                    })
+            }
+        }
+        StageKind::Single | StageKind::RefineSpacing => Ok(full_text.to_string()),
+    }
 }
 
 fn default_target_similarity() -> f32 {
@@ -681,5 +1153,219 @@ fn resolve_workspace_or_config_path(
         workspace_candidate
     } else {
         config_dir.join(path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::RgbaImage;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn stage_align_first_glyph_uses_stage_directory_output_and_first_character() {
+        let workspace_root = create_test_workspace("stage_align_first_glyph");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage_1_align_first_glyph.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: AlignFirstGlyph,
+    image: "reference.png",
+    text: "CHARA",
+    assume_single_line: true,
+    target_similarity: 0.95,
+    properties: (
+        char_spacing: Fixed(0.0),
+        word_spacing: Fixed(0.0),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, None)
+            .expect("stage config should load");
+
+        assert_eq!(task.stage_kind, StageKind::AlignFirstGlyph);
+        assert_eq!(task.text, "C");
+        assert_eq!(
+            task.current_view_absolute_path,
+            workspace_root.join(
+                "generated/view_text_reconstruction/demo_case/stage_1_align_first_glyph/current/view.ron"
+            )
+        );
+        assert_eq!(
+            task.runtime_view_relative_path,
+            "generated/view_text_reconstruction/demo_case/stage_1_align_first_glyph/current/runtime.view.ron"
+        );
+    }
+
+    #[test]
+    fn session_loads_cases_and_initial_stage_from_relative_paths() {
+        let workspace_root = create_test_workspace("session_load");
+        let session_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        fs::create_dir_all(&session_dir).expect("session dir should be created");
+        write_test_reference_image(&session_dir.join("reference.png"));
+        fs::write(
+            session_dir.join("stage_1_align_first_glyph.ron"),
+            r#"
+(
+    stage_kind: AlignFirstGlyph,
+    image: "reference.png",
+    text: "CHARA",
+    first_glyph: Some("C"),
+    target_similarity: 0.95,
+)
+"#,
+        )
+        .expect("stage one config should be written");
+        fs::write(
+            session_dir.join("stage_2_refine_spacing.ron"),
+            r#"
+(
+    stage_kind: RefineSpacing,
+    image: "reference.png",
+    text: "CHARA",
+    target_similarity: 0.95,
+    properties: (
+        font: InheritFixed,
+        translation_x: InheritFixed,
+        translation_y: InheritFixed,
+        world_scale_x: InheritFixed,
+        world_scale_y: InheritFixed,
+        line_height: InheritFixed,
+        char_spacing: SearchRange((-2.0, 2.0, 0.5)),
+        word_spacing: SearchRange((-2.0, 2.0, 0.5)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage two config should be written");
+        fs::write(
+            session_dir.join("session.ron"),
+            r#"
+(
+    cases: [
+        (
+            id: Some("demo_case"),
+            stage_one: "stage_1_align_first_glyph.ron",
+            stage_two: "stage_2_refine_spacing.ron",
+        ),
+    ],
+)
+"#,
+        )
+        .expect("session config should be written");
+
+        let loaded = load_config(&session_dir.join("session.ron"), &workspace_root)
+            .expect("session config should load");
+        let LoadedConfig::Session(session) = loaded else {
+            panic!("expected session config");
+        };
+
+        assert_eq!(session.cases.len(), 1);
+        assert_eq!(session.cases[0].id, "demo_case");
+        assert_eq!(session.initial_task.stage_kind, StageKind::AlignFirstGlyph);
+        assert_eq!(session.initial_task.text, "C");
+        assert_eq!(
+            session.initial_task.current_view_absolute_path,
+            workspace_root.join(
+                "generated/view_text_reconstruction/demo_case/stage_1_align_first_glyph/current/view.ron"
+            )
+        );
+    }
+
+    #[test]
+    fn stage_two_inherit_fixed_uses_previous_stage_seed() {
+        let workspace_root = create_test_workspace("stage_two_inherit_fixed");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage_2_refine_spacing.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: RefineSpacing,
+    image: "reference.png",
+    text: "CHARA",
+    target_similarity: 0.95,
+    properties: (
+        font: InheritFixed,
+        align: InheritFixed,
+        anchor: InheritFixed,
+        translation_x: InheritFixed,
+        translation_y: InheritFixed,
+        world_scale_x: InheritFixed,
+        world_scale_y: InheritFixed,
+        line_height: InheritFixed,
+        char_spacing: SearchRange((-2.0, 2.0, 0.5)),
+        word_spacing: SearchRange((-2.0, 2.0, 0.5)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let inherited_seed = ConcreteTextParameters {
+            font: souprune_schema::view::ViewFontDef::DeterminationSans,
+            align: souprune_schema::view::TextAlignDef::Center,
+            anchor: souprune_schema::view::TextAnchorDef::BottomLeft,
+            translation_x: -28.5,
+            translation_y: 22.0,
+            world_scale_x: 13.0,
+            world_scale_y: 13.0,
+            line_height: 1.125,
+            char_spacing: 0.0,
+            word_spacing: 0.0,
+        };
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, Some(&inherited_seed))
+            .expect("stage two config should load with inherited seed");
+        let seed = task.search_plan.seed_parameters();
+
+        assert_eq!(task.stage_kind, StageKind::RefineSpacing);
+        assert_eq!(task.text, "CHARA");
+        assert!(same_enum_variant(&seed.font, &inherited_seed.font));
+        assert!(same_enum_variant(&seed.align, &inherited_seed.align));
+        assert!(same_enum_variant(&seed.anchor, &inherited_seed.anchor));
+        assert_eq!(seed.translation_x, inherited_seed.translation_x);
+        assert_eq!(seed.translation_y, inherited_seed.translation_y);
+        assert_eq!(seed.world_scale_x, inherited_seed.world_scale_x);
+        assert_eq!(seed.world_scale_y, inherited_seed.world_scale_y);
+        assert_eq!(seed.line_height, inherited_seed.line_height);
+    }
+
+    fn create_test_workspace(label: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be valid")
+            .as_nanos();
+        let workspace_root = std::env::temp_dir().join(format!(
+            "souprune_view_text_reconstruction_{label}_{unique}"
+        ));
+        fs::create_dir_all(&workspace_root).expect("workspace root should be created");
+        workspace_root
+    }
+
+    fn write_test_reference_image(path: &Path) {
+        fs::create_dir_all(path.parent().expect("image parent should exist"))
+            .expect("image parent should be created");
+        RgbaImage::new(2, 2)
+            .save(path)
+            .expect("reference image should be written");
     }
 }
