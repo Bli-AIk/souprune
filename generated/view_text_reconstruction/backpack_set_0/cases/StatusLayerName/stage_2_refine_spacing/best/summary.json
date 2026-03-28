@@ -1,0 +1,26 @@
+{
+  "candidate_index": 108,
+  "total_candidates": 12000,
+  "text": "\"CHARA\"",
+  "parameters": {
+    "font": "DeterminationSans",
+    "align": "Left",
+    "anchor": "BottomRight",
+    "translation_x": -72.25,
+    "translation_y": 88.0,
+    "world_scale_x": 12.5,
+    "world_scale_y": 12.5,
+    "line_height": 1.15,
+    "char_spacing": 4.25,
+    "word_spacing": 0.0
+  },
+  "fitness_score": 0.9535249,
+  "global_similarity": 0.9996684,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 0.999095,
+  "content_mask_f1": 0.9430182,
+  "content_bbox_iou": 0.9444444,
+  "content_size_similarity": 0.9722222,
+  "content_center_similarity": 0.9722222,
+  "differing_pixels": 278
+}

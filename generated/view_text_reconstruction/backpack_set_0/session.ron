@@ -1,4 +1,5 @@
 (
+    final_view_path: Some("final/undertale_backpack.view.ron"),
     cases: [
         (
             id: Some("MenuTextItem"),
@@ -16,9 +17,14 @@
             stage_two: "cases/NameText/stage_2_refine_spacing.ron",
         ),
         (
-            id: Some("HUDText"),
-            stage_one: "cases/HUDText/stage_1_align_first_glyph.ron",
-            stage_two: "cases/HUDText/stage_2_refine_spacing.ron",
+            id: Some("HUDInfoText"),
+            stage_one: "cases/HUDInfoText/stage_1_align_first_glyph.ron",
+            stage_two: "cases/HUDInfoText/stage_2_refine_spacing.ron",
+        ),
+        (
+            id: Some("HUDGoldText"),
+            stage_one: "cases/HUDGoldText/stage_1_align_first_glyph.ron",
+            stage_two: "cases/HUDGoldText/stage_2_refine_spacing.ron",
         ),
         (
             id: Some("StatusLayerName"),

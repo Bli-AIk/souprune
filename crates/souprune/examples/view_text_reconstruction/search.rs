@@ -1405,9 +1405,19 @@ fn build_host_export_view_layout(
     host_view: &HostViewTemplate,
 ) -> Result<ViewLayoutAsset> {
     let mut layout = host_view.layout.clone();
-    let target_text = find_target_text_def_mut(&mut layout, host_view)?;
-    apply_reconstructed_text(target_text, None, parameters, field_override_policy);
+    apply_export_text_patch(&mut layout, parameters, field_override_policy, host_view)?;
     Ok(layout)
+}
+
+pub fn apply_export_text_patch(
+    layout: &mut ViewLayoutAsset,
+    parameters: &ConcreteTextParameters,
+    field_override_policy: TextFieldOverridePolicy,
+    host_view: &HostViewTemplate,
+) -> Result<()> {
+    let target_text = find_target_text_def_mut(layout, host_view)?;
+    apply_reconstructed_text(target_text, None, parameters, field_override_policy);
+    Ok(())
 }
 
 fn build_host_runtime_view_layout(
@@ -1723,6 +1733,7 @@ mod tests {
     #[test]
     fn host_runtime_layout_preserves_host_structure_and_hides_non_target_content() {
         let host_view = HostViewTemplate {
+            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
             layout: ViewLayoutAsset {
                 roots: vec![
                     make_node(
@@ -1821,6 +1832,7 @@ mod tests {
     #[test]
     fn host_export_layout_keeps_original_structure_and_content() {
         let host_view = HostViewTemplate {
+            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
                     "InfoBox",
@@ -1896,6 +1908,7 @@ mod tests {
     #[test]
     fn find_target_text_def_uses_host_node_path() {
         let host_view = HostViewTemplate {
+            source_path: PathBuf::from("projects/example_mod/states/overworld/view/undertale_backpack.view.ron"),
             layout: ViewLayoutAsset {
                 roots: vec![make_node(
                     "Root",
@@ -1937,6 +1950,7 @@ mod tests {
         let host_layout: ViewLayoutAsset =
             ron::from_str(&raw).expect("host view should deserialize for test");
         let host_view = HostViewTemplate {
+            source_path: host_view_path,
             layout: host_layout,
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -2014,12 +2028,19 @@ mod tests {
         assert_eq!(extract_static_number(&translation.1, 0.0), 22.0);
         assert_eq!(name_text.visible_when.as_deref(), Some("true"));
 
-        let hud_text = info_box
+        let hud_info_text = info_box
             .texts
             .iter()
-            .find(|text| text.id == "HUDText")
-            .expect("HUDText should remain for hidden runtime masking");
-        assert_eq!(hud_text.visible_when.as_deref(), Some("false"));
+            .find(|text| text.id == "HUDInfoText")
+            .expect("HUDInfoText should remain for hidden runtime masking");
+        assert_eq!(hud_info_text.visible_when.as_deref(), Some("false"));
+
+        let hud_gold_text = info_box
+            .texts
+            .iter()
+            .find(|text| text.id == "HUDGoldText")
+            .expect("HUDGoldText should remain for hidden runtime masking");
+        assert_eq!(hud_gold_text.visible_when.as_deref(), Some("false"));
     }
 
     #[test]

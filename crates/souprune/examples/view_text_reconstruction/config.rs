@@ -19,6 +19,7 @@ pub enum LoadedConfig {
 pub struct SessionConfig {
     pub cases: Vec<SessionCaseConfig>,
     pub initial_task: TaskConfig,
+    pub final_view_absolute_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -396,6 +397,8 @@ struct TaskConfigFile {
 
 #[derive(Debug, Deserialize)]
 struct SessionConfigFile {
+    #[serde(default)]
+    final_view_path: Option<PathBuf>,
     cases: Vec<SessionCaseFile>,
 }
 
@@ -608,6 +611,7 @@ impl StageNumericPropertyConfig {
 
 #[derive(Debug, Clone)]
 pub struct HostViewTemplate {
+    pub source_path: PathBuf,
     pub layout: SchemaViewLayoutAsset,
     pub node_path: Vec<String>,
     pub text_id: String,
@@ -655,9 +659,22 @@ fn load_session_config(
     }
 
     let initial_task = TaskConfig::load_stage_ron(&cases[0].stage_one_path, workspace_root, None)?;
+    let final_view_absolute_path = if let Some(final_view_path) = parsed.final_view_path {
+        resolve_workspace_or_config_path(workspace_root, &session_dir, &final_view_path)
+    } else if let Some(host_view) = initial_task.host_view.as_ref() {
+        session_dir.join("final").join(
+            host_view
+                .source_path
+                .file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new("final.view.ron")),
+        )
+    } else {
+        session_dir.join("final.view.ron")
+    };
     Ok(SessionConfig {
         cases,
         initial_task,
+        final_view_absolute_path,
     })
 }
 
@@ -1130,6 +1147,7 @@ fn load_host_view_template(
     let layout: SchemaViewLayoutAsset = ron::from_str(&raw)
         .with_context(|| format!("failed to parse host view RON: {}", absolute_path.display()))?;
     let host_view = HostViewTemplate {
+        source_path: absolute_path,
         layout,
         node_path: parsed.node_path.clone(),
         text_id: parsed.text_id.clone(),

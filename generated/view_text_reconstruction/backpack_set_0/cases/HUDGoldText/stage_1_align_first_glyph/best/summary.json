@@ -1,0 +1,26 @@
+{
+  "candidate_index": 1075,
+  "total_candidates": 12000,
+  "text": "g",
+  "parameters": {
+    "font": "Hud",
+    "align": "default",
+    "anchor": "default",
+    "translation_x": -28.5,
+    "translation_y": -14.5,
+    "world_scale_x": 8.25,
+    "world_scale_y": 8.25,
+    "line_height": 1.125,
+    "char_spacing": 0.0,
+    "word_spacing": 0.0
+  },
+  "fitness_score": 1.0,
+  "global_similarity": 1.0,
+  "content_similarity": 1.0,
+  "pixel_match_rate": 1.0,
+  "content_mask_f1": 1.0,
+  "content_bbox_iou": 1.0,
+  "content_size_similarity": 1.0,
+  "content_center_similarity": 1.0,
+  "differing_pixels": 0
+}

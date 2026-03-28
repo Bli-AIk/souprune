@@ -1,8 +1,8 @@
 (
     stage_kind: AlignFirstGlyph,
-    image: "/home/aik/Pictures/Assets/0/first/HUDText.png",
-    text: "LV  1\nHP  20/20\nG   0",
-    first_glyph: Some("L"),
+    image: "/home/aik/Pictures/Assets/0/first/HUDGoldText.png",
+    text: "g   0",
+    first_glyph: Some("g"),
     assume_single_line: true,
     settle_frames: Some(3),
     search_budget: Some(12000),
@@ -11,7 +11,7 @@
     host_view: Some((
         path: "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
         node_path: ["InfoBox"],
-        text_id: "HUDText",
+        text_id: "HUDGoldText",
         show_parent_boxes: false,
     )),
     properties: (
@@ -19,7 +19,7 @@
         align: Default,
         anchor: Default,
         translation_x: SearchRange((-58.5, 1.5, 0.25)),
-        translation_y: SearchRange((-24.25, 35.75, 0.25)),
+        translation_y: SearchRange((-42.25, 17.75, 0.25)),
         world_scale_x: SearchRange((0.25, 38.0, 0.25)),
         world_scale_y: SearchRange((0.25, 38.0, 0.25)),
         line_height: Fixed(1.125),

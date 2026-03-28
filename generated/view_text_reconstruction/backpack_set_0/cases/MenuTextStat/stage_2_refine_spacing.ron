@@ -6,7 +6,7 @@
     settle_frames: Some(3),
     search_budget: Some(12000),
     population_size: Some(96),
-    target_similarity: 0.98,
+    target_similarity: 1.0,
     host_view: Some((
         path: "projects/example_mod/states/overworld/view/undertale_backpack.view.ron",
         node_path: ["MenuBox"],
@@ -21,7 +21,7 @@
         translation_y: InheritFixed,
         world_scale_x: InheritFixed,
         world_scale_y: InheritFixed,
-        line_height: InheritFixed,
+        line_height: SearchRange((0.0, 30.0, 0.05)),
         char_spacing: SearchRange((-29.0, 31.0, 0.25)),
         word_spacing: SearchRange((-37.5, 22.5, 0.25)),
     ),

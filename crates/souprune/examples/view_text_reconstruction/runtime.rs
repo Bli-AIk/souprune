@@ -13,8 +13,8 @@ use crate::config::{
 };
 use crate::search::{
     CandidateSearchPlan, ConcreteTextParameters, RestartSearchResult, SearchParameterField,
-    build_export_view_layout, build_runtime_view_layout, find_target_text_def, parse_text_align,
-    parse_text_anchor, parse_view_font,
+    apply_export_text_patch, build_export_view_layout, build_runtime_view_layout,
+    find_target_text_def, parse_text_align, parse_text_anchor, parse_view_font,
 };
 use anyhow::{Context, Result};
 use bevy::app::AppExit;
@@ -40,7 +40,7 @@ use souprune::extra::multi_source::MultiSourceAssetReader;
 use souprune_schema::Val;
 use souprune_schema::view::ViewLayoutAsset as SchemaViewLayoutAsset;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const PREVIEW_LAYER: RenderLayers = RenderLayers::layer(2);
 const PREVIEW_TEXT_MARGIN: f32 = 18.0;
@@ -153,7 +153,7 @@ pub fn configure_app(
             latest_render_image: None,
             latest_diff_image: None,
             persist_current_after_evaluation: false,
-            capture_after_apply: false,
+            capture_after_apply: true,
             manual_adjustment_kind: ManualAdjustmentKind::initial_for_task(&task),
             manual_step_multiplier_index: 0,
             snap_to_grid: true,
@@ -204,6 +204,7 @@ struct SessionController {
     current_case_index: usize,
     current_stage: SessionStageSlot,
     pending_transition: Option<PendingSessionTransition>,
+    final_view_absolute_path: PathBuf,
 }
 
 impl SessionController {
@@ -213,6 +214,7 @@ impl SessionController {
             current_case_index: 0,
             current_stage: SessionStageSlot::StageOne,
             pending_transition: None,
+            final_view_absolute_path: session.final_view_absolute_path,
         }
     }
 
@@ -1232,7 +1234,7 @@ fn apply_pending_session_transition(
     state.latest_render_image = None;
     state.latest_diff_image = None;
     state.persist_current_after_evaluation = false;
-    state.capture_after_apply = false;
+    state.capture_after_apply = true;
     state.manual_adjustment_kind = ManualAdjustmentKind::initial_for_task(&next_task);
     state.manual_step_multiplier_index = 0;
     state.snap_to_grid = true;
@@ -1499,27 +1501,33 @@ fn load_saved_resume_state(
     task: &TaskConfig,
     search_plan: &CandidateSearchPlan,
 ) -> Option<RestoredCurrentState> {
-    if task.current_summary_path.exists() {
-        match load_resume_state_from_summary(task, search_plan) {
+    for summary_path in [&task.best_summary_path, &task.current_summary_path] {
+        if !summary_path.exists() {
+            continue;
+        }
+        match load_resume_state_from_summary(task, search_plan, summary_path) {
             Ok(Some(restored_state)) => return Some(restored_state),
             Ok(None) => {}
             Err(error) => {
                 eprintln!(
                     "[view_text_reconstruction] failed to restore {}: {error:#}",
-                    task.current_summary_path.display()
+                    summary_path.display()
                 );
             }
         }
     }
 
-    if task.current_view_absolute_path.exists() {
-        match load_resume_state_from_view_ron(task, search_plan) {
+    for view_path in [&task.best_view_absolute_path, &task.current_view_absolute_path] {
+        if !view_path.exists() {
+            continue;
+        }
+        match load_resume_state_from_view_ron(task, search_plan, view_path) {
             Ok(Some(restored_state)) => return Some(restored_state),
             Ok(None) => {}
             Err(error) => {
                 eprintln!(
                     "[view_text_reconstruction] failed to restore {}: {error:#}",
-                    task.current_view_absolute_path.display()
+                    view_path.display()
                 );
             }
         }
@@ -1531,23 +1539,16 @@ fn load_saved_resume_state(
 fn load_resume_state_from_summary(
     task: &TaskConfig,
     search_plan: &CandidateSearchPlan,
+    summary_path: &Path,
 ) -> Result<Option<RestoredCurrentState>> {
-    if !task.current_summary_path.exists() {
+    if !summary_path.exists() {
         return Ok(None);
     }
 
-    let raw = fs::read_to_string(&task.current_summary_path).with_context(|| {
-        format!(
-            "failed to read saved summary: {}",
-            task.current_summary_path.display()
-        )
-    })?;
-    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw).with_context(|| {
-        format!(
-            "failed to parse saved summary JSON: {}",
-            task.current_summary_path.display()
-        )
-    })?;
+    let raw = fs::read_to_string(summary_path)
+        .with_context(|| format!("failed to read saved summary: {}", summary_path.display()))?;
+    let persisted: PersistedScoredCandidate = serde_json::from_str(&raw)
+        .with_context(|| format!("failed to parse saved summary JSON: {}", summary_path.display()))?;
 
     Ok(Some(RestoredCurrentState {
         text: persisted.text,
@@ -1558,23 +1559,16 @@ fn load_resume_state_from_summary(
 fn load_resume_state_from_view_ron(
     task: &TaskConfig,
     search_plan: &CandidateSearchPlan,
+    view_path: &Path,
 ) -> Result<Option<RestoredCurrentState>> {
-    if !task.current_view_absolute_path.exists() {
+    if !view_path.exists() {
         return Ok(None);
     }
 
-    let raw = fs::read_to_string(&task.current_view_absolute_path).with_context(|| {
-        format!(
-            "failed to read saved view RON: {}",
-            task.current_view_absolute_path.display()
-        )
-    })?;
-    let layout: SchemaViewLayoutAsset = ron::from_str(&raw).with_context(|| {
-        format!(
-            "failed to parse saved view RON: {}",
-            task.current_view_absolute_path.display()
-        )
-    })?;
+    let raw = fs::read_to_string(view_path)
+        .with_context(|| format!("failed to read saved view RON: {}", view_path.display()))?;
+    let layout: SchemaViewLayoutAsset = ron::from_str(&raw)
+        .with_context(|| format!("failed to parse saved view RON: {}", view_path.display()))?;
     let text_def = find_target_text_def(&layout, task.host_view.as_ref())?;
 
     let mut parameters = search_plan.seed_parameters();
@@ -1796,6 +1790,13 @@ fn handle_screenshot_captured(
     if is_new_best {
         state.best_score = Some(scored_candidate.clone());
         persist_best_candidate(&task.0, &scored_candidate, &screenshot_image, &diff_image);
+        if let Some(session_controller) = session.0.as_ref() {
+            persist_session_final_view(
+                &session_controller.final_view_absolute_path,
+                &task.0,
+                &scored_candidate.parameters,
+            );
+        }
     }
 
     let target_reached = scored_candidate.fitness_score >= state.target_similarity;
@@ -2546,6 +2547,30 @@ fn persist_best_candidate(
         .expect("failed to save best diff image");
 }
 
+fn persist_session_final_view(
+    final_view_absolute_path: &Path,
+    task: &TaskConfig,
+    parameters: &ConcreteTextParameters,
+) {
+    let Some(host_view) = task.host_view.as_ref() else {
+        return;
+    };
+
+    ensure_parent_directory(final_view_absolute_path);
+    let mut layout = if final_view_absolute_path.exists() {
+        let raw = fs::read_to_string(final_view_absolute_path)
+            .expect("session final view should be readable");
+        ron::from_str(&raw).expect("session final view should deserialize")
+    } else {
+        host_view.layout.clone()
+    };
+    apply_export_text_patch(&mut layout, parameters, task.field_override_policy, host_view)
+        .expect("session final view should accept host text patch");
+    let ron_text = ron::ser::to_string_pretty(&layout, ron::ser::PrettyConfig::new())
+        .expect("session final view should serialize to RON");
+    fs::write(final_view_absolute_path, ron_text).expect("failed to write session final view");
+}
+
 fn persist_current_snapshot(
     task: &TaskConfig,
     score: &ScoredCandidate,
@@ -2668,6 +2693,8 @@ fn round3(value: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::RgbaImage;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn flatten_reference_alpha_against_black_turns_transparent_into_black() {
@@ -2679,5 +2706,135 @@ mod tests {
 
         assert_eq!(flattened.get_pixel(0, 0), &image::Rgba([0, 0, 0, 255]));
         assert_eq!(flattened.get_pixel(1, 0), &image::Rgba([100, 50, 25, 255]));
+    }
+
+    #[test]
+    fn load_saved_resume_state_prefers_best_over_current() {
+        let workspace_root = create_test_workspace("resume_prefers_best");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: Single,
+    image: "reference.png",
+    text: "CHARA",
+    target_similarity: 0.95,
+    properties: (
+        translation_x: SearchRange((-50.0, 50.0, 0.25)),
+        translation_y: SearchRange((-50.0, 50.0, 0.25)),
+        world_scale_x: SearchRange((1.0, 30.0, 0.25)),
+        world_scale_y: SearchRange((1.0, 30.0, 0.25)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, None)
+            .expect("stage config should load");
+        let search_plan = task.search_plan.clone();
+
+        write_persisted_candidate(
+            &task.current_summary_path,
+            "CURRENT",
+            ConcreteTextParameters {
+                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                align: souprune_schema::view::TextAlignDef::Left,
+                anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                translation_x: -11.0,
+                translation_y: 3.0,
+                world_scale_x: 12.0,
+                world_scale_y: 12.0,
+                line_height: 1.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+        );
+        write_persisted_candidate(
+            &task.best_summary_path,
+            "BEST",
+            ConcreteTextParameters {
+                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                align: souprune_schema::view::TextAlignDef::Left,
+                anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                translation_x: 7.25,
+                translation_y: 9.5,
+                world_scale_x: 19.0,
+                world_scale_y: 19.0,
+                line_height: 1.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+        );
+
+        let restored =
+            load_saved_resume_state(&task, &search_plan).expect("saved state should restore");
+
+        assert_eq!(restored.text, "BEST");
+        assert_eq!(restored.parameters.translation_x, 7.25);
+        assert_eq!(restored.parameters.translation_y, 9.5);
+        assert_eq!(restored.parameters.world_scale_x, 19.0);
+    }
+
+    fn create_test_workspace(label: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be valid")
+            .as_nanos();
+        let workspace_root = std::env::temp_dir().join(format!(
+            "souprune_view_text_reconstruction_runtime_{label}_{unique}"
+        ));
+        fs::create_dir_all(&workspace_root).expect("workspace root should be created");
+        workspace_root
+    }
+
+    fn write_test_reference_image(path: &Path) {
+        fs::create_dir_all(path.parent().expect("image parent should exist"))
+            .expect("image parent should be created");
+        RgbaImage::new(2, 2)
+            .save(path)
+            .expect("reference image should be written");
+    }
+
+    fn write_persisted_candidate(path: &Path, text: &str, parameters: ConcreteTextParameters) {
+        ensure_parent_directory(path);
+        let persisted = PersistedScoredCandidate {
+            candidate_index: Some(0),
+            total_candidates: 1,
+            text: text.to_string(),
+            parameters: PersistedTextParameters {
+                font: format!("{:?}", parameters.font),
+                align: format!("{:?}", parameters.align),
+                anchor: format!("{:?}", parameters.anchor),
+                translation_x: parameters.translation_x,
+                translation_y: parameters.translation_y,
+                world_scale_x: parameters.world_scale_x,
+                world_scale_y: parameters.world_scale_y,
+                line_height: parameters.line_height,
+                char_spacing: parameters.char_spacing,
+                word_spacing: parameters.word_spacing,
+            },
+            fitness_score: 1.0,
+            global_similarity: 1.0,
+            content_similarity: 1.0,
+            pixel_match_rate: 1.0,
+            content_mask_f1: 1.0,
+            content_bbox_iou: 1.0,
+            content_size_similarity: 1.0,
+            content_center_similarity: 1.0,
+            differing_pixels: 0,
+        };
+        fs::write(
+            path,
+            serde_json::to_string(&persisted).expect("persisted candidate should serialize"),
+        )
+        .expect("persisted candidate should be written");
     }
 }
