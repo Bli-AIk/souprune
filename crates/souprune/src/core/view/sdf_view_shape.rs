@@ -386,7 +386,7 @@ fn spawn_texts_for_filler(
                         ..Default::default()
                     },
                     text_config.transform,
-                    Visibility::Hidden,
+                    text_config.initial_visibility,
                 ));
 
                 if let Some(template) = &text_config.template {

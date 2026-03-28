@@ -10,9 +10,9 @@
 //! 它把重建反馈放在真实的 Bevy + SoupRune 运行时里，而不是维护一套假的渲染实现。
 use crate::config::{CropRect, TaskConfig};
 use crate::search::{
-    CandidateSearchPlan, ConcreteTextParameters, SearchParameterField, build_export_view_layout,
-    build_runtime_view_layout, find_target_text_def, parse_text_align, parse_text_anchor,
-    parse_view_font,
+    CandidateSearchPlan, ConcreteTextParameters, RestartSearchResult, SearchParameterField,
+    build_export_view_layout, build_runtime_view_layout, find_target_text_def, parse_text_align,
+    parse_text_anchor, parse_view_font,
 };
 use anyhow::{Context, Result};
 use bevy::app::AppExit;
@@ -176,7 +176,6 @@ pub fn configure_app(
             )
                 .chain(),
         );
-
     souprune::init_game_state(app);
     souprune::insert_font_resources(app);
     souprune::insert_input_resources(app);
@@ -483,6 +482,16 @@ fn enter_running_state(mut next_state: ResMut<NextState<souprune::app_state::App
     next_state.set(souprune::app_state::AppState::Running);
 }
 
+fn build_reconstruction_game_projection(souprune_config: &SoupruneConfig) -> Projection {
+    Projection::Orthographic(OrthographicProjection {
+        scaling_mode: bevy::camera::ScalingMode::Fixed {
+            width: souprune_config.render.base_resolution_width as f32,
+            height: souprune_config.render.base_resolution_height as f32,
+        },
+        ..OrthographicProjection::default_2d()
+    })
+}
+
 fn setup_runtime(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
@@ -492,6 +501,7 @@ fn setup_runtime(
     state: Res<ReconstructionState>,
     task: Res<TaskResource>,
     asset_server: Res<AssetServer>,
+    souprune_config: Res<SoupruneConfig>,
 ) {
     if let Some(parent_dir) = task.0.current_view_absolute_path.parent() {
         fs::create_dir_all(parent_dir).expect("failed to create generated view directory");
@@ -525,12 +535,15 @@ fn setup_runtime(
     current_view_handle.handle =
         asset_server.load::<ViewLayoutAsset>(task.0.runtime_view_relative_path.clone());
 
+    let game_projection = build_reconstruction_game_projection(&souprune_config);
+
     commands.spawn((
         Camera2d,
         Camera {
             clear_color: bevy::camera::ClearColorConfig::Custom(Color::BLACK),
             ..default()
         },
+        game_projection,
         RenderTarget::Image(render_target.0.clone().into()),
         MainGameCamera,
     ));
@@ -778,14 +791,26 @@ fn handle_keyboard_input(
     }
 
     if keyboard.just_pressed(KeyCode::Space) {
-        let (candidate_index, parameters) = search
+        match search
             .plan
-            .restart_from_parameters(&state.current_parameters);
-        state.auto_search = search.total_candidates > 1;
+            .restart_from_parameters(&state.current_parameters)
+        {
+            RestartSearchResult::SearchCandidate {
+                candidate_index,
+                parameters,
+            } => {
+                state.auto_search = search.total_candidates > 1;
+                state.current_candidate_index = Some(candidate_index);
+                state.current_parameters = parameters;
+            }
+            RestartSearchResult::ReevaluateCurrent { parameters } => {
+                state.auto_search = false;
+                state.current_candidate_index = None;
+                state.current_parameters = parameters;
+            }
+        }
         state.total_candidates = search.total_candidates;
         state.target_similarity = task.0.target_similarity;
-        state.current_candidate_index = Some(candidate_index);
-        state.current_parameters = parameters;
         state.current_score = None;
         state.capture_after_apply = true;
         state.pending_apply = true;

@@ -26,19 +26,17 @@ mode = "default"
 mode = "default"
 
 [properties.translation_x]
-mode = "search"
-range = [-200.0, 0.0]
-step = 0.25
+mode = "fixed"
+value = -28.5
 
 [properties.translation_y]
-mode = "search"
-range = [-200.0, 30.0]
-step = 0.25
+mode = "fixed"
+value = 23.25
+
 
 [properties.world_scale_x]
-mode = "search"
-range = [20.0, 40.0]
-step = 0.25
+mode = "fixed"
+value = 13.0
 
 [properties.world_scale_y]
 mode = "default"

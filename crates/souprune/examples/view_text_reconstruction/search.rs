@@ -63,6 +63,17 @@ pub struct CandidateSearchPlan {
     rng: SimpleRng,
 }
 
+#[derive(Debug, Clone)]
+pub enum RestartSearchResult {
+    SearchCandidate {
+        candidate_index: usize,
+        parameters: ConcreteTextParameters,
+    },
+    ReevaluateCurrent {
+        parameters: ConcreteTextParameters,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SearchParameterField {
     Font,
@@ -387,11 +398,19 @@ impl CandidateSearchPlan {
     pub fn restart_from_parameters(
         &mut self,
         parameters: &ConcreteTextParameters,
-    ) -> (usize, ConcreteTextParameters) {
+    ) -> RestartSearchResult {
         self.seed_genome = self.domains.default_genome(parameters);
         self.reset_search_state();
-        self.next_candidate()
-            .expect("search plan always contains at least one candidate")
+        if let Some((candidate_index, parameters)) = self.next_candidate() {
+            RestartSearchResult::SearchCandidate {
+                candidate_index,
+                parameters,
+            }
+        } else {
+            RestartSearchResult::ReevaluateCurrent {
+                parameters: self.domains.parameters_from_genome(self.seed_genome),
+            }
+        }
     }
 
     pub fn clear_evaluation_history(&mut self) {
@@ -1397,25 +1416,25 @@ fn build_host_runtime_view_layout(
     field_override_policy: TextFieldOverridePolicy,
     host_view: &HostViewTemplate,
 ) -> Result<ViewLayoutAsset> {
+    let mut layout = host_view.layout.clone();
     let mut found_target = false;
-    let roots = host_view
-        .layout
-        .roots
-        .iter()
-        .filter_map(|node| {
-            build_runtime_host_branch(
-                node,
-                &host_view.node_path,
-                0,
-                &host_view.text_id,
-                text,
-                parameters,
-                field_override_policy,
-                host_view.show_parent_boxes,
-                &mut found_target,
-            )
-        })
-        .collect();
+
+    for root in &mut layout.roots {
+        let on_target_path = prepare_runtime_host_layout(
+            root,
+            &host_view.node_path,
+            0,
+            &host_view.text_id,
+            text,
+            parameters,
+            field_override_policy,
+            host_view.show_parent_boxes,
+            &mut found_target,
+        );
+        if !on_target_path {
+            hide_runtime_node(root);
+        }
+    }
 
     if !found_target {
         bail!(
@@ -1425,16 +1444,11 @@ fn build_host_runtime_view_layout(
         );
     }
 
-    Ok(ViewLayoutAsset {
-        roots,
-        requires: host_view.layout.requires.clone(),
-        facts: host_view.layout.facts.clone(),
-        world_space: host_view.layout.world_space,
-    })
+    Ok(layout)
 }
 
-fn build_runtime_host_branch(
-    node: &ViewNodeDef,
+fn prepare_runtime_host_layout(
+    node: &mut ViewNodeDef,
     node_path: &[String],
     depth: usize,
     text_id: &str,
@@ -1443,67 +1457,91 @@ fn build_runtime_host_branch(
     field_override_policy: TextFieldOverridePolicy,
     show_parent_boxes: bool,
     found_target: &mut bool,
-) -> Option<ViewNodeDef> {
+) -> bool {
     let Some(expected_name) = node_path.get(depth) else {
-        return None;
+        return false;
     };
     if expected_name != &node.name {
-        return None;
+        return false;
     }
 
-    let mut runtime_node = node.clone();
-    runtime_node.visible_when = Some("true".to_string());
-    runtime_node.background_color = None;
-    runtime_node.border_color = None;
-    runtime_node.image = None;
-    runtime_node.sprite = None;
-    runtime_node.state_sprite = None;
-    if let Some(view_box) = runtime_node.view_box.as_mut() {
-        mute_view_box_visuals(view_box, show_parent_boxes);
+    node.visible_when = Some("true".to_string());
+    if let Some(view_box) = node.view_box.as_mut() {
+        mute_runtime_view_box_visuals(view_box, show_parent_boxes);
     }
 
     if depth + 1 == node_path.len() {
-        let mut target_text = runtime_node
-            .texts
-            .into_iter()
-            .find(|candidate| candidate.id == text_id)?;
-        apply_reconstructed_text(
-            &mut target_text,
-            Some(text),
+        let mut has_target_text = false;
+        for candidate in &mut node.texts {
+            if candidate.id == text_id {
+                apply_reconstructed_text(candidate, Some(text), parameters, field_override_policy);
+                candidate.visible_when = Some("true".to_string());
+                has_target_text = true;
+            } else {
+                candidate.visible_when = Some("false".to_string());
+            }
+        }
+        if !has_target_text {
+            return false;
+        }
+        for child in &mut node.children {
+            hide_runtime_node(child);
+        }
+        *found_target = true;
+        return true;
+    }
+
+    for text in &mut node.texts {
+        text.visible_when = Some("false".to_string());
+    }
+
+    let mut found_child_on_target_path = false;
+    for child in &mut node.children {
+        let on_target_path = prepare_runtime_host_layout(
+            child,
+            node_path,
+            depth + 1,
+            text_id,
+            text,
             parameters,
             field_override_policy,
+            show_parent_boxes,
+            found_target,
         );
-        target_text.visible_when = Some("true".to_string());
-        runtime_node.texts = vec![target_text];
-        runtime_node.children.clear();
-        *found_target = true;
-        return Some(runtime_node);
+        if !on_target_path {
+            hide_runtime_node(child);
+        } else {
+            found_child_on_target_path = true;
+        }
     }
 
-    runtime_node.texts.clear();
-    runtime_node.children = runtime_node
-        .children
-        .iter()
-        .filter_map(|child| {
-            build_runtime_host_branch(
-                child,
-                node_path,
-                depth + 1,
-                text_id,
-                text,
-                parameters,
-                field_override_policy,
-                show_parent_boxes,
-                found_target,
-            )
-        })
-        .collect();
+    found_child_on_target_path
+}
 
-    if runtime_node.children.is_empty() {
-        return None;
+fn hide_runtime_node(node: &mut ViewNodeDef) {
+    node.visible_when = Some("false".to_string());
+    for text in &mut node.texts {
+        text.visible_when = Some("false".to_string());
+    }
+    for child in &mut node.children {
+        hide_runtime_node(child);
+    }
+}
+
+fn mute_runtime_view_box_visuals(view_box: &mut ViewBoxLogicDef, show_parent_boxes: bool) {
+    if show_parent_boxes {
+        return;
     }
 
-    Some(runtime_node)
+    view_box.border_width = 0.0;
+    view_box.fill_shader = None;
+    view_box.structure_file = None;
+    view_box.fill_color = Some((
+        Val::Static(0.0),
+        Val::Static(0.0),
+        Val::Static(0.0),
+        Val::Static(0.0),
+    ));
 }
 
 fn apply_reconstructed_text(
@@ -1559,22 +1597,6 @@ fn apply_reconstructed_text(
     if field_override_policy.word_spacing {
         target_text.word_spacing = Some(parameters.word_spacing);
     }
-}
-
-fn mute_view_box_visuals(view_box: &mut ViewBoxLogicDef, show_parent_boxes: bool) {
-    if show_parent_boxes {
-        return;
-    }
-
-    view_box.border_width = 0.0;
-    view_box.fill_shader = None;
-    view_box.structure_file = None;
-    view_box.fill_color = Some((
-        Val::Static(0.0),
-        Val::Static(0.0),
-        Val::Static(0.0),
-        Val::Static(0.0),
-    ));
 }
 
 fn find_text_in_node_path<'a>(
@@ -1695,16 +1717,26 @@ mod tests {
     use super::*;
     use crate::config::HostViewTemplate;
     use souprune_schema::view::{StyleDef, ViewBoxLogicDef};
+    use std::fs;
+    use std::path::PathBuf;
 
     #[test]
-    fn host_runtime_layout_keeps_only_target_branch() {
+    fn host_runtime_layout_preserves_host_structure_and_hides_non_target_content() {
         let host_view = HostViewTemplate {
             layout: ViewLayoutAsset {
                 roots: vec![
-                    make_node("MenuBox", vec![], vec![], None),
+                    make_node(
+                        "MenuBox",
+                        vec![make_text("MenuText", "ITEM")],
+                        vec![],
+                        Some(make_view_box((12.0, 8.0, 0.0))),
+                    ),
                     make_node(
                         "InfoBox",
-                        vec![make_text("OtherText", "OTHER")],
+                        vec![
+                            make_text("NameText", "{$player:name}"),
+                            make_text("HUDText", "LV 20"),
+                        ],
                         vec![make_node("IgnoredChild", vec![], vec![], None)],
                         Some(make_view_box((-108.5, -68.5, 0.0))),
                     ),
@@ -1714,12 +1746,12 @@ mod tests {
                 world_space: false,
             },
             node_path: vec!["InfoBox".to_string()],
-            text_id: "OtherText".to_string(),
+            text_id: "NameText".to_string(),
             show_parent_boxes: false,
         };
 
         let layout = build_runtime_view_layout(
-            "ITEM",
+            "CHARA",
             &ConcreteTextParameters {
                 font: ViewFontDef::DeterminationSans,
                 align: TextAlignDef::Left,
@@ -1755,17 +1787,35 @@ mod tests {
         )
         .expect("host layout should build");
 
-        assert_eq!(layout.roots.len(), 1);
-        let root = &layout.roots[0];
-        assert_eq!(root.name, "InfoBox");
-        assert_eq!(root.visible_when.as_deref(), Some("true"));
-        assert_eq!(root.texts.len(), 1);
-        assert_eq!(root.texts[0].id, "OtherText");
-        assert_eq!(root.texts[0].content.as_deref(), Some("ITEM"));
-        assert_eq!(root.texts[0].visible_when.as_deref(), Some("true"));
-        assert_eq!(root.view_box.as_ref().unwrap().border_width, 0.0);
-        assert!(root.view_box.as_ref().unwrap().structure_file.is_none());
-        assert!(root.children.is_empty());
+        assert_eq!(layout.roots.len(), 2);
+
+        let menu_box = &layout.roots[0];
+        assert_eq!(menu_box.name, "MenuBox");
+        assert_eq!(menu_box.visible_when.as_deref(), Some("false"));
+        assert_eq!(menu_box.texts[0].visible_when.as_deref(), Some("false"));
+        assert_eq!(menu_box.view_box.as_ref().unwrap().border_width, 3.0);
+
+        let info_box = &layout.roots[1];
+        assert_eq!(info_box.name, "InfoBox");
+        assert_eq!(info_box.visible_when.as_deref(), Some("true"));
+        assert_eq!(info_box.texts.len(), 2);
+        assert_eq!(info_box.texts[0].id, "NameText");
+        assert_eq!(info_box.texts[0].content.as_deref(), Some("CHARA"));
+        assert_eq!(info_box.texts[0].visible_when.as_deref(), Some("true"));
+        assert_eq!(info_box.texts[1].id, "HUDText");
+        assert_eq!(info_box.texts[1].visible_when.as_deref(), Some("false"));
+        assert_eq!(info_box.view_box.as_ref().unwrap().border_width, 0.0);
+        assert!(info_box.view_box.as_ref().unwrap().structure_file.is_none());
+        assert_eq!(
+            (
+                extract_static_number(&info_box.view_box.as_ref().unwrap().offset.0, 0.0),
+                extract_static_number(&info_box.view_box.as_ref().unwrap().offset.1, 0.0),
+                extract_static_number(&info_box.view_box.as_ref().unwrap().offset.2, 0.0),
+            ),
+            (-108.5, -68.5, 0.0)
+        );
+        assert_eq!(info_box.children.len(), 1);
+        assert_eq!(info_box.children[0].visible_when.as_deref(), Some("false"));
     }
 
     #[test]
@@ -1871,6 +1921,149 @@ mod tests {
             find_target_text_def(&host_view.layout, Some(&host_view)).expect("target should exist");
         assert_eq!(text_def.id, "NameText");
         assert_eq!(text_def.content.as_deref(), Some("{$player:name}"));
+    }
+
+    #[test]
+    fn real_backpack_runtime_layout_mutes_infobox_visuals_but_keeps_offset() {
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("example crate should have workspace parent")
+            .parent()
+            .expect("workspace root should exist")
+            .to_path_buf();
+        let host_view_path = workspace_root
+            .join("projects/example_mod/states/overworld/view/undertale_backpack.view.ron");
+        let raw = fs::read_to_string(&host_view_path).expect("host view should be readable");
+        let host_layout: ViewLayoutAsset =
+            ron::from_str(&raw).expect("host view should deserialize for test");
+        let host_view = HostViewTemplate {
+            layout: host_layout,
+            node_path: vec!["InfoBox".to_string()],
+            text_id: "NameText".to_string(),
+            show_parent_boxes: false,
+        };
+
+        let runtime_layout = build_runtime_view_layout(
+            "CHARA",
+            &ConcreteTextParameters {
+                font: ViewFontDef::DeterminationSans,
+                align: TextAlignDef::Left,
+                anchor: TextAnchorDef::BottomRight,
+                translation_x: -28.5,
+                translation_y: 22.0,
+                world_scale_x: 13.0,
+                world_scale_y: 13.0,
+                line_height: 1.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+            OptionalTextFieldDefaults {
+                align_uses_default: true,
+                anchor_uses_default: true,
+                line_height_uses_default: true,
+                char_spacing_uses_default: true,
+                word_spacing_uses_default: true,
+            },
+            TextFieldOverridePolicy {
+                font: false,
+                align: false,
+                anchor: false,
+                translation_x: true,
+                translation_y: true,
+                world_scale_x: true,
+                world_scale_y: true,
+                line_height: false,
+                char_spacing: false,
+                word_spacing: false,
+            },
+            Some(&host_view),
+        )
+        .expect("runtime layout should build from real backpack view");
+
+        let info_box = runtime_layout
+            .roots
+            .iter()
+            .find(|root| root.name == "InfoBox")
+            .expect("InfoBox should remain in runtime layout");
+        let view_box = info_box
+            .view_box
+            .as_ref()
+            .expect("InfoBox should keep its view_box");
+        assert_eq!(view_box.border_width, 0.0);
+        assert!(view_box.structure_file.is_none());
+        assert_eq!(
+            (
+                extract_static_number(&view_box.offset.0, 0.0),
+                extract_static_number(&view_box.offset.1, 0.0),
+                extract_static_number(&view_box.offset.2, 0.0),
+            ),
+            (-108.5, -68.5, 0.0)
+        );
+
+        let name_text = info_box
+            .texts
+            .iter()
+            .find(|text| text.id == "NameText")
+            .expect("NameText should remain in runtime layout");
+        let translation = name_text
+            .transform
+            .translation
+            .as_ref()
+            .expect("NameText should keep translation");
+        assert_eq!(extract_static_number(&translation.0, 0.0), -28.5);
+        assert_eq!(extract_static_number(&translation.1, 0.0), 22.0);
+        assert_eq!(name_text.visible_when.as_deref(), Some("true"));
+
+        let hud_text = info_box
+            .texts
+            .iter()
+            .find(|text| text.id == "HUDText")
+            .expect("HUDText should remain for hidden runtime masking");
+        assert_eq!(hud_text.visible_when.as_deref(), Some("false"));
+    }
+
+    #[test]
+    fn restart_from_parameters_reuses_current_value_when_budget_is_exhausted() {
+        let defaults = ConcreteTextParameters::default();
+        let mut plan = CandidateSearchPlan::build(
+            true,
+            &PropertyTable::default(),
+            &BindingTable::default(),
+            defaults.clone(),
+            0.98,
+            Some(1),
+            Some(1),
+        )
+        .expect("single-candidate search plan should build");
+
+        let first = plan.restart_from_parameters(&defaults);
+        match first {
+            RestartSearchResult::SearchCandidate {
+                candidate_index,
+                parameters,
+            } => {
+                assert_eq!(candidate_index, 0);
+                assert_eq!(parameters.translation_x, defaults.translation_x);
+                assert_eq!(parameters.translation_y, defaults.translation_y);
+            }
+            RestartSearchResult::ReevaluateCurrent { .. } => {
+                panic!("first restart should still issue the only candidate");
+            }
+        }
+        plan.record_fitness(0.95);
+
+        let second = plan.restart_from_parameters(&defaults);
+        match second {
+            RestartSearchResult::SearchCandidate { .. } => {
+                panic!("budget-exhausted restart should not issue a fresh candidate");
+            }
+            RestartSearchResult::ReevaluateCurrent { parameters } => {
+                assert_eq!(parameters.translation_x, defaults.translation_x);
+                assert_eq!(parameters.translation_y, defaults.translation_y);
+                assert_eq!(parameters.world_scale_x, defaults.world_scale_x);
+                assert_eq!(parameters.world_scale_y, defaults.world_scale_y);
+            }
+        }
     }
 
     fn make_node(

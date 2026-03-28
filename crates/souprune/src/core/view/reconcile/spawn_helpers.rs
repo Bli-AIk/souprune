@@ -645,6 +645,19 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
         line_height: text_def.line_height.unwrap_or(1.0),
         char_spacing: text_def.char_spacing.unwrap_or(0.0),
         word_spacing: text_def.word_spacing.unwrap_or(0.0),
+        initial_visibility: text_def
+            .visible_when
+            .as_deref()
+            .map(str::trim)
+            .filter(|expr| !expr.is_empty())
+            .map(|expr| {
+                if evaluate_visible_when(expr, &ctx.player_data) {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                }
+            })
+            .unwrap_or(Visibility::Inherited),
         visible_when: text_def.visible_when.clone(),
         ..Default::default()
     }
