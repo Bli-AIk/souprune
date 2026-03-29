@@ -43,6 +43,11 @@ pub(super) static DYNAMIC_INDEX_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 pub(super) static REPEAT_VAR_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
 
+/// `max_strlen($list_name)` — maximum display width of strings in a StringList.
+pub(super) static MAX_STRLEN_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"max_strlen\(\$([a-zA-Z_][a-zA-Z0-9_:]*)\)").unwrap()
+});
+
 // ============================================================================
 // Fact Expression Preprocessing
 // ============================================================================
@@ -118,6 +123,40 @@ fn get_array_element_for_expr(
     default.to_string()
 }
 
+/// String display width: ASCII = 1, non-ASCII = 2.
+///
+/// 字符串显示宽度：半角=1，全角=2。
+fn unicode_display_width(s: &str) -> usize {
+    s.chars().map(|c| if c.is_ascii() { 1 } else { 2 }).sum()
+}
+
+/// Compute the maximum display width across all strings in a StringList fact.
+///
+/// 计算 StringList 事实中所有字符串的最大显示宽度。
+fn compute_max_strlen(player_data: &PlayerDataView, list_name: &str) -> f64 {
+    player_data
+        .get_fact_string_list(list_name)
+        .map(|list| {
+            list.iter()
+                .map(|s| unicode_display_width(s))
+                .max()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0) as f64
+}
+
+/// Preprocess `max_strlen($list)` calls by replacing them with numeric values.
+///
+/// 预处理 `max_strlen($list)` 调用，替换为数值。
+fn preprocess_list_aggregates(expr: &str, player_data: &PlayerDataView) -> String {
+    MAX_STRLEN_RE
+        .replace_all(expr, |caps: &regex::Captures| {
+            let list_name = &caps[1];
+            compute_max_strlen(player_data, list_name).to_string()
+        })
+        .to_string()
+}
+
 /// Preprocess expression string to handle `$name` and `fact('name')` syntax.
 /// - `$name` is converted to the actual fact value
 /// - `fact('name')` is converted to the actual fact value
@@ -130,6 +169,10 @@ fn get_array_element_for_expr(
 /// - `fact_or('name', default)` 会被转换为实际的 fact 值或默认值
 pub(crate) fn preprocess_fact_expressions(expr: &str, player_data: &PlayerDataView) -> String {
     let mut result = expr.to_string();
+
+    // Step 0: List aggregate functions (before $var replacement)
+    // 步骤 0: 列表聚合函数（在 $var 替换前处理）
+    result = preprocess_list_aggregates(&result, player_data);
 
     // Handle $array[index] syntax first: replace $word[number] with the array element value
     // 首先处理 $array[index] 语法：将 $word[number] 替换为数组元素值
@@ -188,6 +231,10 @@ pub fn preprocess_fact_expressions_with_repeat(
     repeat_ctx: Option<&RepeatContext>,
 ) -> String {
     let mut result = expr.to_string();
+
+    // Step 0: List aggregate functions (before any variable replacement)
+    // 步骤 0: 列表聚合函数（在任何变量替换之前）
+    result = preprocess_list_aggregates(&result, player_data);
 
     // Step 1: Handle $array[@var] dynamic index syntax FIRST (before @var replacement)
     // 步骤 1: 首先处理 $array[@var] 动态索引语法（在 @var 替换之前）
@@ -665,5 +712,73 @@ pub fn resolve_val_bool(
             // Evaluate condition expression
             evaluate_condition(expr_str, player_data)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+
+    fn make_player_data_with_names(names: Vec<&str>) -> (LayeredFactDatabase, FactDatabase) {
+        let mut layered = LayeredFactDatabase::default();
+        let local = FactDatabase::default();
+        layered.set(
+            "enemy_names",
+            FactValue::StringList(names.into_iter().map(|s| s.to_string()).collect()),
+        );
+        (layered, local)
+    }
+
+    #[test]
+    fn test_unicode_display_width_ascii() {
+        assert_eq!(unicode_display_width("Mush"), 4);
+        assert_eq!(unicode_display_width("Froggit"), 7);
+        assert_eq!(unicode_display_width(""), 0);
+    }
+
+    #[test]
+    fn test_unicode_display_width_cjk() {
+        assert_eq!(unicode_display_width("蘑菇怪"), 6);
+        assert_eq!(unicode_display_width("AB蘑菇"), 6);
+    }
+
+    #[test]
+    fn test_max_strlen_basic() {
+        let (layered, local) = make_player_data_with_names(vec!["Mush", "Froggit", "Soup"]);
+        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        assert_eq!(compute_max_strlen(&pv, "enemy_names"), 7.0);
+    }
+
+    #[test]
+    fn test_max_strlen_empty_list() {
+        let (layered, local) = make_player_data_with_names(vec![]);
+        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        assert_eq!(compute_max_strlen(&pv, "enemy_names"), 0.0);
+    }
+
+    #[test]
+    fn test_max_strlen_missing_fact() {
+        let layered = LayeredFactDatabase::default();
+        let local = FactDatabase::default();
+        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        assert_eq!(compute_max_strlen(&pv, "nonexistent"), 0.0);
+    }
+
+    #[test]
+    fn test_max_strlen_preprocessing() {
+        let (layered, local) = make_player_data_with_names(vec!["Mush", "Froggit"]);
+        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        let result = preprocess_list_aggregates("max_strlen($enemy_names)", &pv);
+        assert_eq!(result, "7");
+    }
+
+    #[test]
+    fn test_max_strlen_in_expression() {
+        let (layered, local) = make_player_data_with_names(vec!["Hello", "Hi"]);
+        let pv = PlayerDataView::with_local_facts(&layered, &local);
+        // "Hello" = 5 chars, 15 * 5 - 125 = -50
+        let result = preprocess_fact_expressions("15 * max_strlen($enemy_names) - 125", &pv);
+        assert_eq!(result, "15 * 5 - 125");
     }
 }
