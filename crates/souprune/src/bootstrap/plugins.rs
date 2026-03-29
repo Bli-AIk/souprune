@@ -133,7 +133,12 @@ pub fn get_third_plugins() -> (
     (
         leafwing_input_manager::prelude::InputManagerPlugin::<Action>::default(),
         bevy_ecs_tiled::prelude::TiledPlugin::default(),
-        bevy_bitmap_text::BitmapTextPlugin::default(),
+        bevy_bitmap_text::BitmapTextPlugin {
+            atlas_config: bevy_bitmap_text::GlyphCacheConfig {
+                alpha_mode: bevy_bitmap_text::GlyphAlphaMode::Binary { threshold: 128 },
+                ..default()
+            },
+        },
         bevy_alight_motion::prelude::AlightMotionPlugin,
         bevy_tween::DefaultTweenPlugins::default(),
     )

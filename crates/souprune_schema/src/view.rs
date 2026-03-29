@@ -81,6 +81,28 @@ pub enum ViewFontDef {
     BattleHud,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAlignDef {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAnchorDef {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    #[default]
+    BottomRight,
+}
+
 /// Visual resource path (transparent string wrapper).
 ///
 /// 视觉资源路径（透明字符串包装）。
@@ -230,6 +252,10 @@ pub struct TextDef {
     #[serde(default)]
     pub content: Option<String>,
     pub font: ViewFontDef,
+    #[serde(default)]
+    pub align: Option<TextAlignDef>,
+    #[serde(default)]
+    pub anchor: Option<TextAnchorDef>,
     pub world_scale: SerializableVec2,
     pub color: SerializableColor,
     pub transform: SerializableTransform,
@@ -444,6 +470,8 @@ mod tests {
                         id: "label",
                         content: Some("HP"),
                         font: Hud,
+                        align: Some(Center),
+                        anchor: Some(TopLeft),
                         world_scale: (1.0, "$ui_scale"),
                         color: (1.0, 1.0, 1.0, 1.0),
                         transform: (
@@ -466,6 +494,8 @@ mod tests {
 
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
+        assert!(matches!(text.align, Some(TextAlignDef::Center)));
+        assert!(matches!(text.anchor, Some(TextAnchorDef::TopLeft)));
         assert!(matches!(text.world_scale.1, Val::Expr(ref expr) if expr == "$ui_scale"));
         assert!(matches!(
             text.transform.translation.as_ref().expect("translation").1,

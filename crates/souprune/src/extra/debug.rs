@@ -31,6 +31,7 @@
 //! | F7 | Toggle Game Freeze | 切换游戏冻结状态 |
 //! | F8 | Toggle Debug Camera | 切换调试摄像机（滚轮缩放、中键平移） |
 //! | F9 | Restart Game | 重启游戏（重新启动进程） |
+//! | F10 | Toggle Image Diff | 切换图像 diff 对比 |
 //! | F12 | Toggle Debug Help Text | 切换调试帮助文本 |
 
 #[cfg(feature = "debug")]

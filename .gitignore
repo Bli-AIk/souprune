@@ -44,6 +44,8 @@ yarn-error.log*
 ignore_music.wav
 
 reports/
+generated/*
+!generated/.gitignore
 
 # Ignore .cargo/ except audit.toml and config.toml (needed for CI)
 .cargo/*

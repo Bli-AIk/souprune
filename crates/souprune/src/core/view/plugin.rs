@@ -31,7 +31,7 @@ use super::messages::{
 };
 use super::reconcile::ViewReconciliationPlugin;
 use super::ron_view::{self, ui_animation_init_system, update_dynamic_text_system};
-use super::sdf_view_shape::update_sdf_view_shape_system;
+use super::sdf_view_shape::{sync_view_box_child_visibility_system, update_sdf_view_shape_system};
 use super::text::show_text_when_ready_system;
 use super::visible_when::evaluate_visible_when_system;
 #[cfg(feature = "debug")]
@@ -115,6 +115,7 @@ impl Plugin for CoreViewPlugin {
                     update_state_sprite_textures_system,
                     evaluate_visible_when_system
                         .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
+                    sync_view_box_child_visibility_system.after(evaluate_visible_when_system),
                 )
                     .in_set(ViewUpdate),
             );
