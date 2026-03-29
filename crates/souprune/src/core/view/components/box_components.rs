@@ -21,6 +21,10 @@ pub struct ViewBox {
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub(crate) structure_file: Option<String>,
     pub(crate) fill_color: Color,
+    /// Overall alpha multiplier applied to all SDF layers.
+    ///
+    /// SDF 层的整体透明度乘数。
+    pub(crate) alpha: f32,
 }
 
 impl ViewBox {
@@ -37,6 +41,7 @@ impl ViewBox {
             fill_shader: None,
             structure_file: None,
             fill_color: Color::BLACK,
+            alpha: 1.0,
         }
     }
 
@@ -58,6 +63,7 @@ impl ViewBox {
             fill_shader: None,
             structure_file: None,
             fill_color: Color::BLACK,
+            alpha: 1.0,
         }
     }
 
@@ -81,6 +87,7 @@ impl ViewBox {
             fill_shader,
             structure_file,
             fill_color,
+            alpha: 1.0,
         }
     }
 
@@ -144,6 +151,13 @@ impl ViewBox {
     #[allow(dead_code)]
     pub(crate) fn set_border_width(&mut self, border_width: f32) {
         self.border_width = border_width;
+    }
+
+    /// Get the alpha multiplier.
+    ///
+    /// 获取透明度乘数。
+    pub(crate) fn alpha(&self) -> f32 {
+        self.alpha
     }
 }
 

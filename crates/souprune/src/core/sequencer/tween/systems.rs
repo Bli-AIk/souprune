@@ -11,7 +11,9 @@
 //! 表达式驱动的 tween 起止值，并生成动画器实体；这些 tween 要么立刻放行章节，
 //! 要么在完成之前阻塞流程继续前进。
 
-use super::interpolators::{SpriteAlphaInterpolator, TweenInProgress, ViewBoxSizeInterpolator};
+use super::interpolators::{
+    SpriteAlphaInterpolator, TweenInProgress, ViewBoxAlphaInterpolator, ViewBoxSizeInterpolator,
+};
 use crate::core::sequencer::chapter_schema::{Chapter, TweenTarget, Value};
 use crate::core::sequencer::context::{ActiveChapter, ChapterFinished, WaitTimer};
 use crate::core::view::components::ViewBox;
@@ -26,6 +28,39 @@ fn resolve_tween_val_f32(
     time: Option<f64>,
 ) -> f32 {
     crate::core::view::ron_view::parsing::resolve_val_f32(val, Some(current), player_data, time)
+}
+
+enum AlphaTweenKind {
+    Sprite(f32, f32),
+    ViewBox(f32, f32),
+}
+
+fn resolve_alpha_tween(
+    entity: Entity,
+    from: Option<&Value<f32>>,
+    to: &Value<f32>,
+    sprites: &Query<&Sprite>,
+    ui_boxes: &Query<&ViewBox>,
+    player_data: &crate::core::view::ron_view::parsing::PlayerDataView<'_>,
+    time: f64,
+) -> Option<AlphaTweenKind> {
+    if let Ok(sprite) = sprites.get(entity) {
+        let cur = sprite.color.alpha();
+        let start = from.map_or(cur, |f| {
+            resolve_tween_val_f32(f, cur, player_data, Some(time))
+        });
+        let end = resolve_tween_val_f32(to, cur, player_data, Some(time));
+        return Some(AlphaTweenKind::Sprite(start, end));
+    }
+    if let Ok(ui_box) = ui_boxes.get(entity) {
+        let cur = ui_box.alpha();
+        let start = from.map_or(cur, |f| {
+            resolve_tween_val_f32(f, cur, player_data, Some(time))
+        });
+        let end = resolve_tween_val_f32(to, cur, player_data, Some(time));
+        return Some(AlphaTweenKind::ViewBox(start, end));
+    }
+    None
 }
 
 pub fn process_tween_view_element_system(
@@ -260,38 +295,43 @@ pub fn process_tween_view_element_system(
                 );
             }
             TweenTarget::Alpha { from, to } => {
-                let Ok(sprite) = sprites.get(target_entity) else {
-                    warn!("[TweenViewElement] Target has no Sprite component");
+                let alpha_result = resolve_alpha_tween(
+                    target_entity,
+                    from.as_ref(),
+                    to,
+                    &sprites,
+                    &ui_boxes,
+                    &player_data,
+                    current_time,
+                );
+                let Some((animator_entity, wait)) = alpha_result.map(|r| {
+                    let id = match r {
+                        AlphaTweenKind::Sprite(start, end) => commands
+                            .spawn_empty()
+                            .animation()
+                            .insert(tween(
+                                duration,
+                                ease_kind,
+                                target_component.with(SpriteAlphaInterpolator { start, end }),
+                            ))
+                            .id(),
+                        AlphaTweenKind::ViewBox(start, end) => commands
+                            .spawn_empty()
+                            .animation()
+                            .insert(tween(
+                                duration,
+                                ease_kind,
+                                target_component.with(ViewBoxAlphaInterpolator { start, end }),
+                            ))
+                            .id(),
+                    };
+                    (id, *wait_for_completion)
+                }) else {
+                    warn!("[TweenViewElement] Target has neither Sprite nor ViewBox component");
                     commands.entity(chapter_entity).insert(ChapterFinished);
                     continue;
                 };
-                let current_alpha = sprite.color.alpha();
-
-                let start = if let Some(from) = from {
-                    resolve_tween_val_f32(from, current_alpha, &player_data, Some(current_time))
-                } else {
-                    current_alpha
-                };
-
-                let end =
-                    resolve_tween_val_f32(to, current_alpha, &player_data, Some(current_time));
-
-                let animator_entity = commands
-                    .spawn_empty()
-                    .animation()
-                    .insert(tween(
-                        duration,
-                        ease_kind,
-                        target_component.with(SpriteAlphaInterpolator { start, end }),
-                    ))
-                    .id();
-
-                handle_wait_for_completion(
-                    &mut commands,
-                    chapter_entity,
-                    animator_entity,
-                    *wait_for_completion,
-                );
+                handle_wait_for_completion(&mut commands, chapter_entity, animator_entity, wait);
             }
             TweenTarget::BoxSize { from, to } => {
                 let Ok(ui_box) = ui_boxes.get(target_entity) else {

@@ -125,6 +125,10 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
         PostUpdate,
         component_tween_system::<tween::SpriteAlphaInterpolator>(),
     )
+    .add_tween_systems(
+        PostUpdate,
+        component_tween_system::<tween::ViewBoxAlphaInterpolator>(),
+    )
     // Chapter processing systems - split into two groups to avoid tuple size limit
     .add_systems(
         schedule.clone(),

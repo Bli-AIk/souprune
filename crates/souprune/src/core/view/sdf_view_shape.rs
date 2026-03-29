@@ -418,6 +418,7 @@ fn update_single_sdf_shape(
     entity: Entity,
     half_w: f32,
     half_h: f32,
+    alpha: f32,
     sdf_shape_query: &mut Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &Mesh2d)>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -429,6 +430,16 @@ fn update_single_sdf_shape(
     shape.half_height = half_h;
     if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
         *material = shape.to_material();
+        if alpha < 1.0 {
+            material.uniform_data.color.w *= alpha;
+            // Also apply to stroke color (packed as bits in params.w)
+            if material.uniform_data.params.z > 0.0 {
+                let packed = material.uniform_data.params.w;
+                let orig_a = (packed.to_bits() & 0xFF) as f32 / 255.0;
+                material.uniform_data.params.w =
+                    bevy_alight_motion::sdf::repack_with_alpha(packed, orig_a * alpha);
+            }
+        }
     }
     if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
         *mesh = shape.create_mesh();
@@ -516,11 +527,13 @@ pub fn update_sdf_view_shape_system(
         }
 
         trace!("Updating existing SDF shape children for UI box");
+        let alpha = ui_box.alpha();
         if expected_shapes == 1 {
             update_single_sdf_shape(
                 sdf_shape_entities[0],
                 box_width / 2.0,
                 box_height / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,
@@ -531,6 +544,7 @@ pub fn update_sdf_view_shape_system(
                 sdf_shape_entities[0],
                 (box_width + border_width * 2.0) / 2.0,
                 (box_height + border_width * 2.0) / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,
@@ -539,6 +553,7 @@ pub fn update_sdf_view_shape_system(
                 sdf_shape_entities[1],
                 box_width / 2.0,
                 box_height / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,
