@@ -1,13 +1,13 @@
 #![expect(clippy::excessive_nesting)]
 
 use crate::config::{BindingTable, HostViewTemplate, PropertyMode, PropertyTable};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::Serialize;
+use souprune_schema::Val;
 use souprune_schema::view::{
     SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef, ViewFontDef,
     ViewLayoutAsset, ViewNodeDef,
 };
-use souprune_schema::Val;
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
