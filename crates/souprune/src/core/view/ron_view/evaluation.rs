@@ -44,9 +44,8 @@ pub(super) static REPEAT_VAR_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"@([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
 
 /// `max_strlen($list_name)` — maximum display width of strings in a StringList.
-pub(super) static MAX_STRLEN_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"max_strlen\(\$([a-zA-Z_][a-zA-Z0-9_:]*)\)").unwrap()
-});
+pub(super) static MAX_STRLEN_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"max_strlen\(\$([a-zA-Z_][a-zA-Z0-9_:]*)\)").unwrap());
 
 // ============================================================================
 // Fact Expression Preprocessing

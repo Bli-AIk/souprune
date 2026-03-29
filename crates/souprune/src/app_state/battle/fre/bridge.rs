@@ -236,15 +236,10 @@ pub fn sync_item_display_names_system(
     }
 
     // Update page info every frame in item mode
-    let item_selection = view_root
-        .local_facts
-        .get_int("item_selection")
-        .unwrap_or(0);
+    let item_selection = view_root.local_facts.get_int("item_selection").unwrap_or(0);
     let page = item_selection / 4 + 1;
     let page_count = ((inv_len as i64) + 3) / 4;
-    view_root
-        .local_facts
-        .set("item_page", FactValue::Int(page));
+    view_root.local_facts.set("item_page", FactValue::Int(page));
     view_root
         .local_facts
         .set("item_page_count", FactValue::Int(page_count));
