@@ -16,6 +16,7 @@
 use bevy::prelude::*;
 use bevy::ui::Val as BevyVal;
 use bevy::ui::{AlignItems, FlexDirection, JustifyContent, PositionType};
+use bevy_bitmap_text::{TextAlign, TextAnchor};
 use serde::{Deserialize, Serialize};
 
 pub use crate::core::sequencer::chapter_schema::{ColorTuple, Value, Vec2Tuple, Vec3Tuple};
@@ -257,6 +258,54 @@ pub enum ViewFontDef {
     DeterminationSans,
     Hud,
     BattleHud,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAlignDef {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+impl From<TextAlignDef> for TextAlign {
+    fn from(value: TextAlignDef) -> Self {
+        match value {
+            TextAlignDef::Left => TextAlign::Left,
+            TextAlignDef::Center => TextAlign::Center,
+            TextAlignDef::Right => TextAlign::Right,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextAnchorDef {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    #[default]
+    BottomRight,
+}
+
+impl From<TextAnchorDef> for TextAnchor {
+    fn from(value: TextAnchorDef) -> Self {
+        match value {
+            TextAnchorDef::TopLeft => TextAnchor::TOP_LEFT,
+            TextAnchorDef::TopCenter => TextAnchor::TOP_CENTER,
+            TextAnchorDef::TopRight => TextAnchor::TOP_RIGHT,
+            TextAnchorDef::CenterLeft => TextAnchor::CENTER_LEFT,
+            TextAnchorDef::Center => TextAnchor::CENTER,
+            TextAnchorDef::CenterRight => TextAnchor::CENTER_RIGHT,
+            TextAnchorDef::BottomLeft => TextAnchor::BOTTOM_LEFT,
+            TextAnchorDef::BottomCenter => TextAnchor::BOTTOM_CENTER,
+            TextAnchorDef::BottomRight => TextAnchor::BOTTOM_RIGHT,
+        }
+    }
 }
 
 impl From<ViewFontDef> for crate::core::view::components::ViewFont {

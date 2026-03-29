@@ -1,0 +1,4 @@
+# Local generated artifacts for reconstruction/debug workflows.
+# These files are intentionally kept out of Git.
+*
+!.gitignore

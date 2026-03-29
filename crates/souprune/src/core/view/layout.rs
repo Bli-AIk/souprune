@@ -69,6 +69,8 @@ mod tests {
                     id: "label".to_string(),
                     content: Some("HP".to_string()),
                     font: souprune_schema::view::ViewFontDef::Hud,
+                    align: Some(souprune_schema::view::TextAlignDef::Center),
+                    anchor: Some(souprune_schema::view::TextAnchorDef::TopLeft),
                     world_scale: (Val::Static(1.0), Val::Expr("$ui_scale".to_string())),
                     color: (
                         Val::Static(1.0),
@@ -115,6 +117,8 @@ mod tests {
         assert!(runtime.world_space);
         assert_eq!(text.char_spacing, Some(1.5));
         assert_eq!(text.word_spacing, Some(3.0));
+        assert!(matches!(text.align, Some(TextAlignDef::Center)));
+        assert!(matches!(text.anchor, Some(TextAnchorDef::TopLeft)));
         assert!(matches!(text.world_scale.1, Value::Expr(ref expr) if expr == "$ui_scale"));
         assert!(matches!(
             text.transform.translation.as_ref().expect("translation").1,

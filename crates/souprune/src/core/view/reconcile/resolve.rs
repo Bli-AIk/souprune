@@ -13,12 +13,32 @@ use super::tree::{
 use crate::core::view::layout::serde_types::serializable_color_to_color;
 use crate::core::view::layout::view_schema::MaterialParamValue;
 use crate::core::view::layout::{SpriteDef, TextDef};
+use crate::core::view::layout::{TextAlignDef, TextAnchorDef};
 use crate::core::view::ron_view::parsing::{
     PlayerDataView, RepeatContext, evaluate_float_expr, evaluate_float_expr_with_repeat,
     evaluate_visible_when,
 };
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy_bitmap_text::{TextAlign, TextAnchor};
+
+fn resolve_text_anchor(anchor: Option<TextAnchorDef>) -> TextAnchor {
+    match anchor.unwrap_or_default() {
+        TextAnchorDef::TopLeft => TextAnchor::TOP_LEFT,
+        TextAnchorDef::TopCenter => TextAnchor::TOP_CENTER,
+        TextAnchorDef::TopRight => TextAnchor::TOP_RIGHT,
+        TextAnchorDef::CenterLeft => TextAnchor::CENTER_LEFT,
+        TextAnchorDef::Center => TextAnchor::CENTER,
+        TextAnchorDef::CenterRight => TextAnchor::CENTER_RIGHT,
+        TextAnchorDef::BottomLeft => TextAnchor::BOTTOM_LEFT,
+        TextAnchorDef::BottomCenter => TextAnchor::BOTTOM_CENTER,
+        TextAnchorDef::BottomRight => TextAnchor::BOTTOM_RIGHT,
+    }
+}
+
+fn resolve_text_align(align: Option<TextAlignDef>) -> TextAlign {
+    align.unwrap_or_default().into()
+}
 
 /// Resolve the transform for a node definition.
 /// 解析节点定义的变换。
@@ -199,7 +219,8 @@ pub fn resolve_single_text(
         font: font_name,
         font_size: 16.0, // TextDef doesn't have font_size, using default
         color: serializable_color_to_color(&text_def.color),
-        anchor: Anchor::CENTER, // Default, could be extended
+        align: resolve_text_align(text_def.align),
+        anchor: resolve_text_anchor(text_def.anchor),
     }
 }
 

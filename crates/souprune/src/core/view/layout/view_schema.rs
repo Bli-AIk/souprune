@@ -344,6 +344,10 @@ pub struct TextDef {
     #[serde(default)]
     pub content: Option<String>,
     pub font: ViewFontDef,
+    #[serde(default)]
+    pub align: Option<TextAlignDef>,
+    #[serde(default)]
+    pub anchor: Option<TextAnchorDef>,
     pub world_scale: SerializableVec2,
     pub color: SerializableColor,
     pub transform: SerializableTransform,
