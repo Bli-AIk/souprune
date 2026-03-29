@@ -8,6 +8,7 @@
 
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy_bitmap_text::{TextAlign, TextAnchor};
 use std::collections::HashMap;
 
 use crate::core::view::layout::view_schema::EasingDef;
@@ -102,9 +103,13 @@ pub struct DesiredText {
     /// 文本颜色
     pub color: Color,
 
+    /// Horizontal alignment
+    /// 水平对齐
+    pub align: TextAlign,
+
     /// Text anchor
     /// 文本锚点
-    pub anchor: Anchor,
+    pub anchor: TextAnchor,
 }
 
 impl Default for DesiredText {
@@ -114,7 +119,8 @@ impl Default for DesiredText {
             font: "default".into(),
             font_size: 16.0,
             color: Color::WHITE,
-            anchor: Anchor::CENTER,
+            align: TextAlign::Left,
+            anchor: TextAnchor::CENTER,
         }
     }
 }

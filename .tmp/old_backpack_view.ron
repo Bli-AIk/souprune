@@ -1,0 +1,295 @@
+#![enable(implicit_some)]
+// Undertale Backpack View Layout
+// Undertale 背包视图布局
+//
+// DEPTH MAPPING / 深度映射:
+// - depth 0: Main menu (ITEM/STAT)
+// - depth 1: Item list (with USE/INFO/DROP options shown)
+// - depth 2: Item options focused (USE/INFO/DROP selection active)
+// - depth 3: Status page
+//
+// Navigation is handled by FRE rules in backpack.fre.ron
+// 导航由 backpack.fre.ron 中的 FRE 规则处理
+
+(
+    // Data requirements - FRE rules loaded when this View is spawned
+    // 数据需求 - 当此 View 生成时加载的 FRE 规则
+    requires: [
+        File("states/overworld/rules/backpack.fre.ron"),
+    ],
+
+    // View-local facts initialized when this layout is spawned
+    // View 局部事实，在此布局生成时初始化
+    facts: {
+        "depth": 0,
+        "selection": 0,
+        "interactable": true,
+    },
+
+    roots: [
+        // ========================================
+        // MENU BOX (ITEM/STAT) - Always visible
+        // 菜单框（物品/状态）- 始终可见
+        // ========================================
+        (
+            name: "MenuBox",
+            visible_when: "true",
+            view_box: (
+                width: 65.0,
+                height: 68.0,
+                border_width: 3.0,
+                offset: (-108.5, -1.0, 0.0),
+                structure_file: "shared/view_structures/view_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "MenuTextItem",
+                    content: "{{overworld/ui:ITEM}}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-9.5, 28.25, 1.0),
+                    ),
+                    line_height: 1.375,
+                    conditional_style: (
+                        condition: "player.inventory.is_empty",
+                        color: (0.5, 0.5, 0.5, 1.0),
+                    ),
+                ),
+                (
+                    id: "MenuTextStat",
+                    content: "{{overworld/ui:STAT}}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-9.5, 10.25, 1.0),
+                    ),
+                    line_height: 1.375,
+                ),
+            ],
+            children: [
+                (
+                    name: "MenuCursor",
+                    visible_when: "$depth == 0",
+                    sprite: (
+                        visual: "common/view/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),
+                        transform: (
+                            translation: ("-19.0", "18.5 + (-18.0 * $selection)", "6.0"),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+
+        // ========================================
+        // INFO BOX (Name, LV, HP, Gold) - Always visible
+        // 信息框（名称、等级、HP、金币）- 始终可见
+        // ========================================
+        (
+            name: "InfoBox",
+            visible_when: "true",
+            view_box: (
+                width: 65.0,
+                height: 49.0,
+                border_width: 3.0,
+                offset: (-108.5, -68.5, 0.0),
+                structure_file: "shared/view_structures/view_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "NameText",
+                    content: "{$player:name}",
+                    font: DeterminationSans,
+                    world_scale: (13.0, 13.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-28.5, 22.0, 1.0),
+                    ),
+                    line_height: 1.0,
+                ),
+                (
+                    id: "HUDText",
+                    content: "{{overworld/ui:LV}}  {$player:lv}\n{{overworld/ui:HP}}  {$player:hp}/{$player:hp_max}\ng   {$player:gold}",
+                    font: Hud,
+                    world_scale: (8.0, 8.0),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-28.5, 5.75, 1.0),
+                    ),
+                    line_height: 1.125,
+                ),
+            ],
+            children: [],
+        ),
+
+        // ========================================
+        // ITEM BOX - Visible at depth 1 or 2
+        // 物品框 - 在深度 1 或 2 时可见
+        // ========================================
+        (
+            name: "ItemBox",
+            visible_when: "$depth == 1 || $depth == 2",
+            view_box: (
+                width: 167.0,
+                height: 175.0,
+                border_width: 3.0,
+                offset: (20.5, 3.5, 0.0),
+                structure_file: "shared/view_structures/view_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "ItemLayerList",
+                    content: "{@player.inventory}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-64.25, 76.5, 1.0),
+                    ),
+                    line_height: 1.2,
+                ),
+                (
+                    id: "ItemLayerOptionUse",
+                    content: "{{overworld/ui:USE}}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-64.25, -63.5, 1.0),
+                    ),
+                    line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
+                ),
+                (
+                    id: "ItemLayerOptionInfo",
+                    content: "{{overworld/ui:INFO}}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-16.25, -63.5, 1.0),
+                    ),
+                    line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
+                ),
+                (
+                    id: "ItemLayerOptionDrop",
+                    content: "{{overworld/ui:DROP}}",
+                    font: DeterminationSans,
+                    world_scale: (13.25, 13.25),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (40.75, -63.5, 1.0),
+                    ),
+                    line_height: 1.2,
+                    visible_when: "$depth == 1 || $depth == 2",
+                ),
+            ],
+            children: [
+                (
+                    name: "ItemCursor",
+                    visible_when: "$depth == 1",
+                    sprite: (
+                        visual: "common/view/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),
+                        transform: (
+                            translation: (
+                                "-72.0",
+                                "68 + (-16.0 * $selection)",
+                                "6.0",
+                            ),
+                        ),
+                    ),
+                ),
+                (
+                    name: "OptionsCursor",
+                    visible_when: "$depth == 2",
+                    sprite: (
+                        visual: "common/view/heartsmall",
+                        color: (1.0, 0.0, 0.0, 1.0),
+                        transform: (
+                            translation: ("if($selection == 0, -72.0, if($selection == 1, -24.25, 33.0))", "-72.0", "6.0"),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+
+        // ========================================
+        // STATUS BOX - Visible at depth 3
+        // 状态框 - 在深度 3 时可见
+        // ========================================
+        (
+            name: "StatusBox",
+            visible_when: "$depth == 3",
+            view_box: (
+                width: 167.0,
+                height: 202.5,
+                border_width: 3.0,
+                offset: (20.5, -10.5, 0.0),
+                structure_file: "shared/view_structures/view_box.sdf.ron",
+            ),
+            texts: [
+                (
+                    id: "StatusLayerName",
+                    content: "\"{$player:name}\"",
+                    font: DeterminationSans,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-72.5, 88.25, 1.0),
+                    ),
+                    line_height: 1.15,
+                ),
+                (
+                    id: "StatusLayerLvHp",
+                    content: "{{overworld/ui:LV}}   {$player:lv}\n{{overworld/ui:HP}}  {$player:hp} / {$player:hp_max}",
+                    font: DeterminationSans,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-72.5, 57.75, 1.0),
+                    ),
+                    line_height: 1.15,
+                ),
+                (
+                    id: "StatusLayerCombat",
+                    content: "{{overworld/ui:ATK}}  {@player.total_attack} ({@player.weapon_atk})            {{overworld/ui:EXP}}: {$player:exp}\n{{overworld/ui:DEF}}  {@player.total_defense} ({@player.armor_def})            {{overworld/ui:NEXT}}: {$player:next_exp}",
+                    font: DeterminationSans,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-72.5, 10.0, 1.0),
+                    ),
+                    line_height: 1.15,
+                ),
+                (
+                    id: "StatusLayerEquipment",
+                    content: "{{overworld/ui:WEAPON}}: {@player.weapon}\n{{overworld/ui:ARMOR}}: {@player.armor}",
+                    font: DeterminationSans,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-72.5, -36.0, 1.0),
+                    ),
+                    line_height: 1.15,
+                ),
+                (
+                    id: "StatusLayerGold",
+                    content: "{{overworld/ui:GOLD}}: {$player:gold}",
+                    font: DeterminationSans,
+                    world_scale: (13.5, 13.5),
+                    color: (1.0, 1.0, 1.0, 1.0),
+                    transform: (
+                        translation: (-72.5, -72.0, 1.0),
+                    ),
+                    line_height: 1.15,
+                ),
+            ],
+            children: [],
+        ),
+    ],
+)

@@ -79,6 +79,7 @@ pub struct ViewTextConfig {
     pub(crate) line_height: f32,
     pub(crate) char_spacing: f32,
     pub(crate) word_spacing: f32,
+    pub(crate) initial_visibility: Visibility,
     /// Expression-based visibility control (e.g., "$depth == 1").
     /// 基于表达式的可见性控制（例如 "$depth == 1"）。
     pub(crate) visible_when: Option<String>,
@@ -99,6 +100,7 @@ impl Default for ViewTextConfig {
             line_height: 1.0,
             char_spacing: 0.0,
             word_spacing: 0.0,
+            initial_visibility: Visibility::Inherited,
             visible_when: None,
         }
     }
