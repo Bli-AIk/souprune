@@ -1,11 +1,11 @@
-#![allow(clippy::excessive_nesting)]
+#![expect(clippy::excessive_nesting)]
 
 use crate::search::{
-    CandidateSearchPlan, ConcreteTextParameters, OptionalTextFieldDefaults,
-    TextFieldOverridePolicy, find_target_text_def, parse_text_align, parse_text_anchor,
-    parse_view_font, text_parameters_from_text_def,
+    find_target_text_def, parse_text_align, parse_text_anchor, parse_view_font,
+    text_parameters_from_text_def, CandidateSearchPlan, ConcreteTextParameters,
+    OptionalTextFieldDefaults, TextFieldOverridePolicy,
 };
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use souprune_schema::view::ViewLayoutAsset as SchemaViewLayoutAsset;
 use std::fs;
