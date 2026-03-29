@@ -10,17 +10,17 @@
     "translation_y": 3.5,
     "world_scale_x": 8.0,
     "world_scale_y": 8.0,
-    "line_height": 5.0,
+    "line_height": 3.015,
     "char_spacing": -0.0,
     "word_spacing": -0.0
   },
   "fitness_score": 1.0,
-  "global_similarity": 0.999941,
+  "global_similarity": 1.0,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.99959636,
+  "pixel_match_rate": 1.0,
   "content_mask_f1": 1.0,
   "content_bbox_iou": 1.0,
   "content_size_similarity": 1.0,
   "content_center_similarity": 1.0,
-  "differing_pixels": 124
+  "differing_pixels": 0
 }

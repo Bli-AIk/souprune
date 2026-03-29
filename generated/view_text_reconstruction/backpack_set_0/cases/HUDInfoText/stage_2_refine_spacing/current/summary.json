@@ -1,5 +1,5 @@
 {
-  "candidate_index": 1063,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "LV  1\nHP  20/20",
   "parameters": {
@@ -10,17 +10,17 @@
     "translation_y": 3.5,
     "world_scale_x": 8.0,
     "world_scale_y": 8.0,
-    "line_height": 2.92,
-    "char_spacing": 0.015,
-    "word_spacing": 0.065
+    "line_height": 3.015,
+    "char_spacing": -0.0,
+    "word_spacing": -0.0
   },
   "fitness_score": 1.0,
-  "global_similarity": 0.9999705,
+  "global_similarity": 1.0,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.9998503,
+  "pixel_match_rate": 1.0,
   "content_mask_f1": 1.0,
   "content_bbox_iou": 1.0,
   "content_size_similarity": 1.0,
   "content_center_similarity": 1.0,
-  "differing_pixels": 46
+  "differing_pixels": 0
 }

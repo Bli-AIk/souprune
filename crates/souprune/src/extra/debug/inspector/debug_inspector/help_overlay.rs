@@ -52,6 +52,7 @@ pub(super) fn setup_debug_help_text_system(mut commands: Commands) {
                 "Game Freeze: [F7]",
                 "Debug Camera: [F8]",
                 "Restart Game: [F9]",
+                "Image Diff: [F10]",
                 "Toggle this help: [F12]",
             ];
 

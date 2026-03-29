@@ -11,16 +11,16 @@
     "world_scale_x": 13.25,
     "world_scale_y": 13.25,
     "line_height": 1.125,
-    "char_spacing": -2.502,
-    "word_spacing": -7.501
+    "char_spacing": 0.693,
+    "word_spacing": 15.889
   },
-  "fitness_score": 0.998077,
-  "global_similarity": 0.9999734,
+  "fitness_score": 1.0,
+  "global_similarity": 0.99998444,
   "content_similarity": 1.0,
-  "pixel_match_rate": 0.9998047,
-  "content_mask_f1": 0.99572647,
+  "pixel_match_rate": 0.99982744,
+  "content_mask_f1": 1.0,
   "content_bbox_iou": 1.0,
   "content_size_similarity": 1.0,
   "content_center_similarity": 1.0,
-  "differing_pixels": 60
+  "differing_pixels": 53
 }
