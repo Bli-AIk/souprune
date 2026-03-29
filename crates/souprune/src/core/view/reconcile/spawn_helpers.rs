@@ -659,6 +659,5 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
             })
             .unwrap_or(Visibility::Inherited),
         visible_when: text_def.visible_when.clone(),
-        ..Default::default()
     }
 }

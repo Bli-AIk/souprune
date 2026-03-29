@@ -1,3 +1,9 @@
+#![allow(
+    clippy::excessive_nesting,
+    clippy::if_same_then_else,
+    clippy::type_complexity
+)]
+
 //! Drives the interactive reconstruction runtime for the text reconstruction example.
 //!
 //! 负责文本重建示例的交互式运行时。

@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_nesting)]
+
 use crate::config::{BindingTable, HostViewTemplate, PropertyMode, PropertyTable};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
@@ -692,10 +694,10 @@ impl CandidateSearchPlan {
         let pool_size = ranked.len().min(self.parent_pool_size(phase)).max(1);
         let weight_sum = pool_size * (pool_size + 1) / 2;
         let mut ticket = self.rng.next_usize(weight_sum);
-        for rank in 0..pool_size {
-            let weight = pool_size - rank;
+        for (idx, ranked_item) in ranked.iter().take(pool_size).enumerate() {
+            let weight = pool_size - idx;
             if ticket < weight {
-                return ranked[rank].genome;
+                return ranked_item.genome;
             }
             ticket -= weight;
         }

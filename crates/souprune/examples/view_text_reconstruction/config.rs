@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_nesting)]
+
 use crate::search::{
     CandidateSearchPlan, ConcreteTextParameters, OptionalTextFieldDefaults,
     TextFieldOverridePolicy, find_target_text_def, parse_text_align, parse_text_anchor,
