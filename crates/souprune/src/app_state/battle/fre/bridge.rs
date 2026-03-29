@@ -224,14 +224,7 @@ pub fn sync_item_display_names_system(
     if entered || changed {
         let display_names: Vec<String> = inventory
             .iter()
-            .map(|item_id| {
-                if let Some(item) = item_registry.get(item_id) {
-                    let key = format!("{}:{}", item.locale.file, item.locale.name);
-                    mortar_strings.resolve(&key).to_string()
-                } else {
-                    format!("??? ({})", item_id)
-                }
-            })
+            .map(|item_id| resolve_item_display_name(item_id, &item_registry, &mortar_strings))
             .collect();
 
         view_root
@@ -258,6 +251,27 @@ pub fn sync_item_display_names_system(
 
     tracker.last_in_item_mode = true;
     tracker.last_inventory_len = inv_len;
+}
+
+/// Resolve an item's display name for the battle menu.
+/// Checks for a `battle_name` constant in the item's mortar file; falls back to locale name.
+fn resolve_item_display_name(
+    item_id: &str,
+    item_registry: &crate::core::item::ItemRegistry,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    let Some(item) = item_registry.get(item_id) else {
+        return format!("??? ({})", item_id);
+    };
+    if let Some(mortar_path) = &item.mortar {
+        let namespace = mortar_path.strip_suffix(".mortar").unwrap_or(mortar_path);
+        let battle_key = format!("{namespace}:battle_name");
+        if let Some(name) = mortar_strings.get(&battle_key) {
+            return name.to_string();
+        }
+    }
+    let key = format!("{}:{}", item.locale.file, item.locale.name);
+    mortar_strings.resolve(&key).to_string()
 }
 
 /// Copy the selected enemy's ACT data from the layered database into ViewRoot local_facts.
