@@ -1,5 +1,5 @@
 {
-  "candidate_index": 75,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "STAT",
   "parameters": {
@@ -7,12 +7,12 @@
     "align": "Left",
     "anchor": "BottomRight",
     "translation_x": -9.501,
-    "translation_y": 9.09,
+    "translation_y": 9.25,
     "world_scale_x": 13.25,
     "world_scale_y": 13.25,
     "line_height": 0.0,
-    "char_spacing": -0.732,
-    "word_spacing": -11.596
+    "char_spacing": -2.752,
+    "word_spacing": -10.501
   },
   "fitness_score": 0.96041816,
   "global_similarity": 0.99982315,

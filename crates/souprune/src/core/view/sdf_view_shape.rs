@@ -546,3 +546,48 @@ pub fn update_sdf_view_shape_system(
         }
     }
 }
+
+/// Restore SDF child visibility when a `ViewBox` root becomes visible after spawning hidden.
+///
+/// `ViewBox` roots often start hidden behind `visible_when`. Their SDF children can retain
+/// `Visibility::Hidden` from that first spawn frame, so later depth changes reveal the root but
+/// keep the border/filler subtree dark. We normalize those descendants back to inherited mode
+/// whenever the box visibility flips.
+pub fn sync_view_box_child_visibility_system(
+    children_query: Query<&Children>,
+    mut visibility_queries: ParamSet<(
+        Query<(Entity, &Visibility), (With<ViewBox>, Changed<Visibility>)>,
+        Query<&mut Visibility, With<ViewSdfShape>>,
+        Query<(), With<ViewSdfShape>>,
+    )>,
+) {
+    let view_boxes = visibility_queries
+        .p0()
+        .iter()
+        .map(|(entity, visibility)| (entity, *visibility))
+        .collect::<Vec<_>>();
+
+    for (entity, visibility) in view_boxes {
+        if visibility == Visibility::Hidden {
+            continue;
+        }
+
+        let Ok(children) = children_query.get(entity) else {
+            continue;
+        };
+
+        let mut queue: VecDeque<Entity> = VecDeque::from(children.to_vec());
+        while let Some(child) = queue.pop_front() {
+            if visibility_queries.p2().get(child).is_ok()
+                && let Ok(mut child_visibility) = visibility_queries.p1().get_mut(child)
+                && *child_visibility != Visibility::Inherited
+            {
+                *child_visibility = Visibility::Inherited;
+            }
+
+            if let Ok(grandchildren) = children_query.get(child) {
+                queue.extend(grandchildren.to_vec());
+            }
+        }
+    }
+}

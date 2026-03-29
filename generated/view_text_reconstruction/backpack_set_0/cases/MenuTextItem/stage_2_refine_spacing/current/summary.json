@@ -1,5 +1,5 @@
 {
-  "candidate_index": 235,
+  "candidate_index": null,
   "total_candidates": 12000,
   "text": "ITEM",
   "parameters": {
@@ -11,8 +11,8 @@
     "world_scale_x": 13.25,
     "world_scale_y": 13.25,
     "line_height": 1.125,
-    "char_spacing": -0.167,
-    "word_spacing": 17.319
+    "char_spacing": -2.502,
+    "word_spacing": -7.501
   },
   "fitness_score": 0.998077,
   "global_similarity": 0.9999734,

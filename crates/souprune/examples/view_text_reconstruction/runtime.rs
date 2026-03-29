@@ -120,6 +120,8 @@ pub fn configure_app(
             souprune::core::CorePlugin,
             CoreViewPlugin,
             souprune::core::mod_system::ModPlugin,
+            #[cfg(feature = "debug")]
+            bevy_brp_extras::BrpExtrasPlugin,
         ))
         .insert_resource(TaskResource(task.clone()))
         .insert_resource(OptionalSessionController::from_loaded_session(session))
@@ -926,6 +928,7 @@ fn handle_keyboard_input(
         && let Some(session_controller) = session.0.as_mut()
         && let Some(awaiting_user_step) = state.awaiting_user_step
     {
+        persist_confirmed_current_candidate(&mut state, &task.0, Some(session_controller));
         queue_pending_session_transition(&mut state, session_controller, awaiting_user_step);
         return;
     }
@@ -1093,6 +1096,32 @@ fn drive_yolo_mode(
     }
 
     restart_search_from_current(state, search, task, false)
+}
+
+fn persist_confirmed_current_candidate(
+    state: &mut ReconstructionState,
+    task: &TaskConfig,
+    session_controller: Option<&SessionController>,
+) {
+    let Some(current_score) = state.current_score.clone() else {
+        return;
+    };
+    let Some(render_image) = state.latest_render_image.as_ref() else {
+        return;
+    };
+    let Some(diff_image) = state.latest_diff_image.as_ref() else {
+        return;
+    };
+
+    state.best_score = Some(current_score.clone());
+    persist_best_candidate(task, &current_score, render_image, diff_image);
+    if let Some(session_controller) = session_controller {
+        persist_session_final_view(
+            &session_controller.final_view_absolute_path,
+            task,
+            &current_score.parameters,
+        );
+    }
 }
 
 fn apply_text_input(
@@ -1933,11 +1962,7 @@ fn handle_screenshot_captured(
     };
     state.current_score = Some(scored_candidate.clone());
 
-    let is_new_best = state
-        .best_score
-        .as_ref()
-        .map(|best| scored_candidate.fitness_score > best.fitness_score)
-        .unwrap_or(true);
+    let is_new_best = should_replace_best(state.best_score.as_ref(), &scored_candidate);
     if is_new_best {
         state.best_score = Some(scored_candidate.clone());
         persist_best_candidate(&task.0, &scored_candidate, &screenshot_image, &diff_image);
@@ -1984,6 +2009,9 @@ fn handle_screenshot_captured(
 
     if state.yolo_mode {
         if target_reached {
+            if let Some(session_controller) = session.0.as_ref() {
+                persist_confirmed_current_candidate(&mut state, &task.0, Some(session_controller));
+            }
             let should_continue = if let Some(session_controller) = session.0.as_mut() {
                 if let Some(awaiting_user_step) = state.awaiting_user_step {
                     queue_pending_session_transition(
@@ -2697,6 +2725,37 @@ fn compute_candidate_fitness(
         + comparison.content_similarity * 0.05
 }
 
+fn should_replace_best(best: Option<&ScoredCandidate>, candidate: &ScoredCandidate) -> bool {
+    let Some(best) = best else {
+        return true;
+    };
+
+    if candidate.fitness_score > best.fitness_score {
+        return true;
+    }
+
+    if (candidate.fitness_score - best.fitness_score).abs() > f32::EPSILON {
+        return false;
+    }
+
+    !same_scored_candidate(best, candidate)
+}
+
+fn same_scored_candidate(left: &ScoredCandidate, right: &ScoredCandidate) -> bool {
+    left.text == right.text
+        && left.candidate_index == right.candidate_index
+        && format!("{:?}", left.parameters.font) == format!("{:?}", right.parameters.font)
+        && format!("{:?}", left.parameters.align) == format!("{:?}", right.parameters.align)
+        && format!("{:?}", left.parameters.anchor) == format!("{:?}", right.parameters.anchor)
+        && left.parameters.translation_x == right.parameters.translation_x
+        && left.parameters.translation_y == right.parameters.translation_y
+        && left.parameters.world_scale_x == right.parameters.world_scale_x
+        && left.parameters.world_scale_y == right.parameters.world_scale_y
+        && left.parameters.line_height == right.parameters.line_height
+        && left.parameters.char_spacing == right.parameters.char_spacing
+        && left.parameters.word_spacing == right.parameters.word_spacing
+}
+
 fn persist_best_candidate(
     task: &TaskConfig,
     score: &ScoredCandidate,
@@ -3120,6 +3179,183 @@ mod tests {
         );
         assert_eq!(restored.parameters.char_spacing, 1.5);
         assert_eq!(restored.parameters.word_spacing, -1.0);
+    }
+
+    #[test]
+    fn should_replace_best_when_score_is_equal_but_candidate_differs() {
+        let best = ScoredCandidate {
+            candidate_index: Some(0),
+            total_candidates: 10,
+            text: "g   0".to_string(),
+            parameters: ConcreteTextParameters {
+                font: souprune_schema::view::ViewFontDef::Hud,
+                align: souprune_schema::view::TextAlignDef::Left,
+                anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                translation_x: -28.5,
+                translation_y: -12.25,
+                world_scale_x: 19.25,
+                world_scale_y: 19.25,
+                line_height: 0.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+            fitness_score: 1.0,
+            global_similarity: 1.0,
+            content_similarity: 1.0,
+            pixel_match_rate: 1.0,
+            content_mask_f1: 1.0,
+            content_bbox_iou: 1.0,
+            content_size_similarity: 1.0,
+            content_center_similarity: 1.0,
+            differing_pixels: 0,
+        };
+        let candidate = ScoredCandidate {
+            candidate_index: Some(0),
+            total_candidates: 10,
+            text: "g   0".to_string(),
+            parameters: ConcreteTextParameters {
+                font: souprune_schema::view::ViewFontDef::Hud,
+                align: souprune_schema::view::TextAlignDef::Left,
+                anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                translation_x: -28.74,
+                translation_y: -14.545,
+                world_scale_x: 8.0,
+                world_scale_y: 8.0,
+                line_height: 0.0,
+                char_spacing: 0.0,
+                word_spacing: 0.0,
+            },
+            fitness_score: 1.0,
+            global_similarity: 1.0,
+            content_similarity: 1.0,
+            pixel_match_rate: 1.0,
+            content_mask_f1: 1.0,
+            content_bbox_iou: 1.0,
+            content_size_similarity: 1.0,
+            content_center_similarity: 1.0,
+            differing_pixels: 0,
+        };
+
+        assert!(should_replace_best(Some(&best), &candidate));
+    }
+
+    #[test]
+    fn persist_confirmed_current_candidate_promotes_current_to_best() {
+        let workspace_root = create_test_workspace("confirm_current_promotes_best");
+        let stage_dir = workspace_root.join("generated/view_text_reconstruction/demo_case");
+        let config_path = stage_dir.join("stage.ron");
+        fs::create_dir_all(&stage_dir).expect("stage dir should be created");
+        write_test_reference_image(&stage_dir.join("reference.png"));
+        fs::write(
+            &config_path,
+            r#"
+(
+    stage_kind: Single,
+    image: "reference.png",
+    text: "HUD",
+    target_similarity: 0.95,
+    properties: (
+        translation_x: SearchRange((-50.0, 50.0, 0.25)),
+        translation_y: SearchRange((-50.0, 50.0, 0.25)),
+        world_scale_x: SearchRange((1.0, 30.0, 0.25)),
+        world_scale_y: SearchRange((1.0, 30.0, 0.25)),
+        line_height: SearchRange((0.0, 10.0, 0.25)),
+        char_spacing: SearchRange((-2.0, 2.0, 0.25)),
+        word_spacing: SearchRange((-2.0, 2.0, 0.25)),
+    ),
+    bindings: (
+        world_scale: bound,
+    ),
+)
+"#,
+        )
+        .expect("stage config should be written");
+
+        let task = TaskConfig::load_stage_ron(&config_path, &workspace_root, None)
+            .expect("stage config should load");
+        let mut state = ReconstructionState {
+            phase: EvaluationPhase::Ready,
+            display_mode: DisplayMode::Overlay,
+            auto_search: false,
+            yolo_mode: false,
+            total_candidates: 1,
+            target_similarity: 0.95,
+            current_candidate_index: Some(0),
+            current_parameters: ConcreteTextParameters::default(),
+            current_text: "HUD".to_string(),
+            current_score: Some(ScoredCandidate {
+                candidate_index: Some(0),
+                total_candidates: 1,
+                text: "HUD".to_string(),
+                parameters: ConcreteTextParameters {
+                    font: souprune_schema::view::ViewFontDef::Hud,
+                    align: souprune_schema::view::TextAlignDef::Left,
+                    anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                    translation_x: -28.74,
+                    translation_y: -14.545,
+                    world_scale_x: 8.0,
+                    world_scale_y: 8.0,
+                    line_height: 0.0,
+                    char_spacing: 0.0,
+                    word_spacing: 0.0,
+                },
+                fitness_score: 1.0,
+                global_similarity: 1.0,
+                content_similarity: 1.0,
+                pixel_match_rate: 1.0,
+                content_mask_f1: 1.0,
+                content_bbox_iou: 1.0,
+                content_size_similarity: 1.0,
+                content_center_similarity: 1.0,
+                differing_pixels: 0,
+            }),
+            best_score: Some(ScoredCandidate {
+                candidate_index: Some(0),
+                total_candidates: 1,
+                text: "HUD".to_string(),
+                parameters: ConcreteTextParameters {
+                    font: souprune_schema::view::ViewFontDef::Hud,
+                    align: souprune_schema::view::TextAlignDef::Left,
+                    anchor: souprune_schema::view::TextAnchorDef::BottomRight,
+                    translation_x: -28.5,
+                    translation_y: -12.25,
+                    world_scale_x: 19.25,
+                    world_scale_y: 19.25,
+                    line_height: 0.0,
+                    char_spacing: 0.0,
+                    word_spacing: 0.0,
+                },
+                fitness_score: 1.0,
+                global_similarity: 1.0,
+                content_similarity: 1.0,
+                pixel_match_rate: 1.0,
+                content_mask_f1: 1.0,
+                content_bbox_iou: 1.0,
+                content_size_similarity: 1.0,
+                content_center_similarity: 1.0,
+                differing_pixels: 0,
+            }),
+            latest_render_image: Some(RgbaImage::new(2, 2)),
+            latest_diff_image: Some(RgbaImage::new(2, 2)),
+            persist_current_after_evaluation: false,
+            capture_after_apply: false,
+            manual_adjustment_kind: ManualAdjustmentKind::Content,
+            manual_step_multiplier_index: 0,
+            snap_to_grid: true,
+            text_edit_mode: false,
+            show_detailed_status: false,
+            skip_snap_on_next_apply: false,
+            pending_apply: false,
+            awaiting_user_step: Some(AwaitingUserStep::NextText),
+        };
+
+        persist_confirmed_current_candidate(&mut state, &task, None);
+
+        let restored_best =
+            load_saved_best_score(&task, &task.search_plan).expect("best score should restore");
+        assert_eq!(restored_best.parameters.translation_x, -28.75);
+        assert_eq!(restored_best.parameters.translation_y, -14.5);
+        assert_eq!(restored_best.parameters.world_scale_x, 8.0);
     }
 
     fn create_test_workspace(label: &str) -> PathBuf {
