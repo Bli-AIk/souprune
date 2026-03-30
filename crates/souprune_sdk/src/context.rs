@@ -48,6 +48,32 @@ impl Context {
     pub fn kinematics(&self) -> KinematicsHelper {
         KinematicsHelper
     }
+
+    /// Get the current entity's world position.
+    pub fn entity_position(&self) -> Vec2 {
+        let pos = host_api::get_entity_position();
+        Vec2::new(pos.x, pos.y)
+    }
+
+    /// Get the frame delta time in seconds.
+    pub fn delta_time(&self) -> f32 {
+        host_api::delta_time()
+    }
+
+    /// Get a FRE fact by key. Returns None if not set.
+    pub fn get_fact(&self, key: &str) -> Option<String> {
+        host_api::get_fact(key)
+    }
+
+    /// Set a FRE fact by key. Applied after the current callback returns.
+    pub fn set_fact(&self, key: &str, value: &str) {
+        host_api::set_fact(key, value);
+    }
+
+    /// Emit a FRE event by name. Applied after the current callback returns.
+    pub fn emit_event(&self, event: &str) {
+        host_api::emit_event(event);
+    }
 }
 
 impl Default for Context {
@@ -63,6 +89,11 @@ impl InputHelper {
     /// Check if a semantic action is currently pressed.
     pub fn pressed(&self, action: Action) -> bool {
         host_api::is_action_pressed(action.to_wit())
+    }
+
+    /// Check if a semantic action was just pressed this frame.
+    pub fn just_pressed(&self, action: Action) -> bool {
+        host_api::is_action_just_pressed(action.to_wit())
     }
 }
 

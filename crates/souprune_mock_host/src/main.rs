@@ -37,8 +37,36 @@ impl souprune::plugin::host_api::Host for MockHostState {
         matches!(action, souprune::plugin::host_api::Action::Right)
     }
 
+    fn is_action_just_pressed(&mut self, _action: souprune::plugin::host_api::Action) -> bool {
+        false
+    }
+
     fn set_velocity(&mut self, velocity: souprune::plugin::host_api::Vec2) {
         println!("[HOST] Set velocity: ({}, {})", velocity.x, velocity.y);
+    }
+
+    fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
+        souprune::plugin::host_api::Vec2 { x: 0.0, y: 0.0 }
+    }
+
+    fn delta_time(&mut self) -> f32 {
+        0.016
+    }
+
+    fn get_fact(&mut self, key: String) -> Option<String> {
+        match key.as_str() {
+            "player:pos_x" => Some("100.0".to_string()),
+            "player:pos_y" => Some("-200.0".to_string()),
+            _ => None,
+        }
+    }
+
+    fn set_fact(&mut self, key: String, value: String) {
+        println!("[HOST] set_fact: {}={}", key, value);
+    }
+
+    fn emit_event(&mut self, event_name: String) {
+        println!("[HOST] emit_event: {}", event_name);
     }
 }
 
@@ -234,5 +262,23 @@ fn main() -> anyhow::Result<()> {
     }
 
     println!("\n--- End Simulation ---");
+
+    // Test custom action handler
+    let ca_iface = bindings.souprune_plugin_custom_action_handler();
+    let handled = ca_iface.call_list_handled_actions(&mut store)?;
+    println!("\n[HOST] Custom action types handled: {:?}", handled);
+
+    for action_type in &handled {
+        let params = vec![
+            exports::souprune::plugin::custom_action_handler::ActionParam {
+                name: "message".to_string(),
+                value: format!("test call to '{}'", action_type),
+            },
+        ];
+        let result = ca_iface.call_handle_action(&mut store, action_type, &params)?;
+        println!("[HOST] handle_action '{}' -> {}", action_type, result);
+    }
+
+    println!("\n--- Done ---");
     Ok(())
 }

@@ -9,6 +9,7 @@
 
 use bevy::prelude::*;
 use souprune_api::Action;
+use std::collections::HashMap;
 
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
@@ -24,7 +25,16 @@ wasmtime::component::bindgen!({
 #[derive(Default)]
 pub struct CallContext {
     pub input_pressed: [bool; 7],
+    pub input_just_pressed: [bool; 7],
     pub velocity: Vec2,
+    pub entity_position: Vec2,
+    pub delta_time: f32,
+    /// Snapshot of the current FRE fact database (key → string value).
+    pub fact_snapshot: HashMap<String, String>,
+    /// Fact mutations queued by the mod during a callback; applied afterwards.
+    pub pending_fact_mutations: Vec<(String, String)>,
+    /// FRE events queued by the mod during a callback; emitted afterwards.
+    pub pending_events: Vec<String>,
 }
 
 /// Host state stored inside the Wasmtime `Store`.
@@ -53,20 +63,52 @@ impl souprune::plugin::host_api::Host for HostState {
     }
 
     fn is_action_pressed(&mut self, action: souprune::plugin::host_api::Action) -> bool {
-        let idx = match action {
-            souprune::plugin::host_api::Action::Up => Action::Up as usize,
-            souprune::plugin::host_api::Action::Down => Action::Down as usize,
-            souprune::plugin::host_api::Action::Left => Action::Left as usize,
-            souprune::plugin::host_api::Action::Right => Action::Right as usize,
-            souprune::plugin::host_api::Action::Confirm => Action::Confirm as usize,
-            souprune::plugin::host_api::Action::Cancel => Action::Cancel as usize,
-            souprune::plugin::host_api::Action::Menu => Action::Menu as usize,
-        };
+        let idx = action_to_index(action);
         self.call_ctx.input_pressed[idx]
+    }
+
+    fn is_action_just_pressed(&mut self, action: souprune::plugin::host_api::Action) -> bool {
+        let idx = action_to_index(action);
+        self.call_ctx.input_just_pressed[idx]
     }
 
     fn set_velocity(&mut self, velocity: souprune::plugin::host_api::Vec2) {
         self.call_ctx.velocity = Vec2::new(velocity.x, velocity.y);
+    }
+
+    fn get_entity_position(&mut self) -> souprune::plugin::host_api::Vec2 {
+        souprune::plugin::host_api::Vec2 {
+            x: self.call_ctx.entity_position.x,
+            y: self.call_ctx.entity_position.y,
+        }
+    }
+
+    fn delta_time(&mut self) -> f32 {
+        self.call_ctx.delta_time
+    }
+
+    fn get_fact(&mut self, key: String) -> Option<String> {
+        self.call_ctx.fact_snapshot.get(&key).cloned()
+    }
+
+    fn set_fact(&mut self, key: String, value: String) {
+        self.call_ctx.pending_fact_mutations.push((key, value));
+    }
+
+    fn emit_event(&mut self, event_name: String) {
+        self.call_ctx.pending_events.push(event_name);
+    }
+}
+
+fn action_to_index(action: souprune::plugin::host_api::Action) -> usize {
+    match action {
+        souprune::plugin::host_api::Action::Up => Action::Up as usize,
+        souprune::plugin::host_api::Action::Down => Action::Down as usize,
+        souprune::plugin::host_api::Action::Left => Action::Left as usize,
+        souprune::plugin::host_api::Action::Right => Action::Right as usize,
+        souprune::plugin::host_api::Action::Confirm => Action::Confirm as usize,
+        souprune::plugin::host_api::Action::Cancel => Action::Cancel as usize,
+        souprune::plugin::host_api::Action::Menu => Action::Menu as usize,
     }
 }
 
@@ -77,6 +119,8 @@ pub struct LoadedMod {
     pub behavior_ids: Vec<String>,
     pub algorithm_ids: Vec<String>,
     pub pattern_ids: Vec<String>,
+    /// Custom FRE action types handled by this mod.
+    pub handled_action_ids: Vec<String>,
 }
 
 /// WASM runtime — holds the shared engine and linker.
@@ -124,6 +168,9 @@ impl WasmRuntime {
         let pattern_ids = bindings
             .souprune_plugin_spawn_pattern()
             .call_list_patterns(&mut store)?;
+        let handled_action_ids = bindings
+            .souprune_plugin_custom_action_handler()
+            .call_list_handled_actions(&mut store)?;
 
         Ok(LoadedMod {
             store,
@@ -131,6 +178,7 @@ impl WasmRuntime {
             behavior_ids,
             algorithm_ids,
             pattern_ids,
+            handled_action_ids,
         })
     }
 }

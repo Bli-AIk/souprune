@@ -12,10 +12,12 @@
 //! 让游戏其余部分可以调用这些由 mod 定义的能力。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use souprune_api::Action;
 use std::collections::HashMap;
 
 use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
+use crate::core::fre_bridge::FreCustomActionEvent;
 
 mod danmaku_runtime;
 
@@ -50,6 +52,11 @@ impl Plugin for ModPlugin {
                 (init_behaviors_system, update_behaviors_system)
                     .chain()
                     .in_set(crate::core::battle_runtime::BattleMovementSet),
+            )
+            .add_systems(
+                schedule,
+                dispatch_wasm_custom_actions_system
+                    .after(crate::core::fre_bridge::dispatch_custom_actions_system),
             );
     }
 }
@@ -379,8 +386,11 @@ fn update_behaviors_system(
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
     mut loaded_mods: NonSendMut<LoadedMods>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
 ) {
     let mut pressed = [false; 7];
+    let mut just_pressed = [false; 7];
     if let Some(state) = action_states.iter().next() {
         use crate::core::input::actions::ActionStateExt;
         pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
@@ -390,21 +400,41 @@ fn update_behaviors_system(
         pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
         pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
         pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
+
+        just_pressed[Action::Up as usize] = state.action_just_pressed(&registry, "Up");
+        just_pressed[Action::Down as usize] = state.action_just_pressed(&registry, "Down");
+        just_pressed[Action::Left as usize] = state.action_just_pressed(&registry, "Left");
+        just_pressed[Action::Right as usize] = state.action_just_pressed(&registry, "Right");
+        just_pressed[Action::Confirm as usize] = state.action_just_pressed(&registry, "Confirm");
+        just_pressed[Action::Cancel as usize] = state.action_just_pressed(&registry, "Cancel");
+        just_pressed[Action::Menu as usize] = state.action_just_pressed(&registry, "Menu");
     }
+
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+    let dt = time.delta_secs();
 
     for (_entity, active, mut velocity, mut transform) in query.iter_mut() {
         let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
             continue;
         };
 
-        loaded.store.data_mut().call_ctx.input_pressed = pressed;
-        loaded.store.data_mut().call_ctx.velocity = velocity.0;
+        {
+            let ctx = loaded.store.data_mut();
+            ctx.call_ctx.input_pressed = pressed;
+            ctx.call_ctx.input_just_pressed = just_pressed;
+            ctx.call_ctx.velocity = velocity.0;
+            ctx.call_ctx.entity_position = transform.translation.truncate();
+            ctx.call_ctx.delta_time = dt;
+            ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+            ctx.call_ctx.pending_fact_mutations.clear();
+            ctx.call_ctx.pending_events.clear();
+        }
 
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
         if let Err(e) = behavior_iface.behavior_instance().call_on_update(
             &mut loaded.store,
             active.resource_handle,
-            time.delta_secs(),
+            dt,
         ) {
             error!("Behavior on_update failed: {:?}", e);
             continue;
@@ -412,6 +442,118 @@ fn update_behaviors_system(
 
         let new_velocity = loaded.store.data().call_ctx.velocity;
         velocity.0 = new_velocity;
-        transform.translation += velocity.0.extend(0.0) * time.delta_secs();
+        transform.translation += velocity.0.extend(0.0) * dt;
+
+        let mutations =
+            std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
+        let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
+        apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
+    }
+}
+
+fn dispatch_wasm_custom_actions_system(
+    mut events: MessageReader<FreCustomActionEvent>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
+) {
+    let events: Vec<FreCustomActionEvent> = events.read().cloned().collect();
+    if events.is_empty() {
+        return;
+    }
+
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+
+    for event in &events {
+        let wit_params: Vec<
+            wasm_runtime::exports::souprune::plugin::custom_action_handler::ActionParam,
+        > = event
+            .params
+            .iter()
+            .map(|(k, v)| {
+                wasm_runtime::exports::souprune::plugin::custom_action_handler::ActionParam {
+                    name: k.clone(),
+                    value: v.clone(),
+                }
+            })
+            .collect();
+
+        for loaded in &mut loaded_mods.mods {
+            if !loaded.handled_action_ids.contains(&event.action_type) {
+                continue;
+            }
+
+            {
+                let ctx = loaded.store.data_mut();
+                ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+                ctx.call_ctx.pending_fact_mutations.clear();
+                ctx.call_ctx.pending_events.clear();
+            }
+
+            let iface = loaded.bindings.souprune_plugin_custom_action_handler();
+            match iface.call_handle_action(&mut loaded.store, &event.action_type, &wit_params) {
+                Ok(handled) => {
+                    if !handled {
+                        debug!("WASM mod did not handle action '{}'", event.action_type);
+                    }
+                }
+                Err(e) => {
+                    error!("WASM handle-action '{}' failed: {:?}", event.action_type, e);
+                }
+            }
+
+            let mutations =
+                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
+            let pending_events =
+                std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
+            apply_pending_side_effects(mutations, pending_events, &mut fact_db, &mut fact_writer);
+        }
+    }
+}
+
+fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> HashMap<String, String> {
+    fact_db
+        .iter_local()
+        .chain(fact_db.iter_global())
+        .map(|(k, v)| (k.clone(), fact_value_to_string(v)))
+        .collect()
+}
+
+fn apply_pending_side_effects(
+    mutations: Vec<(String, String)>,
+    events: Vec<String>,
+    fact_db: &mut LayeredFactDatabase,
+    fact_writer: &mut MessageWriter<FactEvent>,
+) {
+    for (key, value) in mutations {
+        fact_db.set(key, value);
+    }
+    for event_name in events {
+        fact_writer.write(FactEvent::new(event_name));
+    }
+}
+
+fn fact_value_to_string(v: &FactValue) -> String {
+    match v {
+        FactValue::Int(n) => n.to_string(),
+        FactValue::Float(f) => f.to_string(),
+        FactValue::Bool(b) => b.to_string(),
+        FactValue::String(s) => s.clone(),
+        FactValue::StringList(list) => list.join(","),
+        FactValue::IntList(list) => list
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        FactValue::FloatList(list) => list
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        FactValue::BoolList(list) => list
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
     }
 }

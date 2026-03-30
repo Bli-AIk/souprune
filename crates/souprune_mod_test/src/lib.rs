@@ -25,6 +25,11 @@ impl Behavior for MyTestSoul {
         } else {
             context.kinematics().set_velocity(0.0, 0.0);
         }
+
+        if context.input().just_pressed(Action::Confirm) {
+            context.log("Confirm just pressed — emitting test_confirm event");
+            context.emit_event("test_confirm");
+        }
     }
 
     fn on_exit(&mut self, context: &mut Context) {
@@ -103,6 +108,41 @@ impl SpawnPatternBehavior for TestRingPattern {
     }
 }
 
+/// Demo custom action handler — handles "test_action" and "debug_print".
+#[derive(Default)]
+struct TestActionHandler;
+
+impl CustomActionHandler for TestActionHandler {
+    fn handled_actions() -> Vec<String> {
+        vec!["test_action".to_string(), "debug_print".to_string()]
+    }
+
+    fn handle_action(&self, ctx: &Context, action_type: &str, params: &[ActionParam]) -> bool {
+        match action_type {
+            "test_action" => {
+                let message = params
+                    .iter()
+                    .find(|p| p.name == "message")
+                    .map(|p| p.value.as_str())
+                    .unwrap_or("(no message)");
+                ctx.log(&format!("[TestActionHandler] test_action: {}", message));
+                ctx.set_fact("test:last_action_message", message);
+                true
+            }
+            "debug_print" => {
+                let pos_x = ctx.get_fact("player:pos_x").unwrap_or_default();
+                let pos_y = ctx.get_fact("player:pos_y").unwrap_or_default();
+                ctx.log(&format!(
+                    "[TestActionHandler] debug_print — player pos: ({}, {})",
+                    pos_x, pos_y
+                ));
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
 export_mod! {
     behaviors: [
         ("test_soul", MyTestSoul, || MyTestSoul { counter: 0 }),
@@ -117,4 +157,5 @@ export_mod! {
     patterns: [
         ("test_ring", TestRingPattern, || TestRingPattern),
     ],
+    custom_actions: TestActionHandler,
 }

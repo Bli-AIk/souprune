@@ -17,6 +17,7 @@ mod item_actions;
 mod state_sync;
 mod view_actions;
 
+pub use custom_dispatch::dispatch_custom_actions_system;
 pub use eval::evaluate_single_condition;
 use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_evaluator_system};
 pub use view_actions::process_view_actions_system;

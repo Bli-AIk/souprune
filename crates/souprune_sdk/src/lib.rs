@@ -33,7 +33,9 @@ pub mod context;
 pub mod traits;
 
 pub use context::{Context, Vec2};
-pub use traits::{Behavior, DanmakuBehavior, SpawnPatternBehavior};
+pub use traits::{
+    ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
+};
 
 // Generate guest bindings from the WIT interface
 wit_bindgen::generate!({
@@ -268,27 +270,31 @@ impl BulletOutput {
 /// Convenience prelude for mod developers.
 pub mod prelude {
     pub use crate::context::{Context, Vec2};
-    pub use crate::traits::{Behavior, DanmakuBehavior, SpawnPatternBehavior};
+    pub use crate::traits::{
+        ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
+    };
     pub use crate::{
         Action, BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod,
     };
 }
 
-/// Register behavior, danmaku, and spawn pattern implementations and export them as a WASM component.
+/// Register behavior, danmaku, spawn pattern, and custom action handler implementations
+/// and export them as a WASM component.
 ///
-/// 注册行为、弹幕和生成模式实现，并将它们导出为 WASM 组件。
+/// 注册行为、弹幕、生成模式和自定义 action 处理器实现，并将它们导出为 WASM 组件。
 ///
 /// # Syntax
 ///
 /// ```ignore
-/// // Full 3-tuple with custom constructor:
+/// // Full form with custom action handler:
 /// export_mod! {
 ///     behaviors: [("id", Type, || Type { field: value })],
 ///     danmaku: [("id", Type, || Type::new())],
 ///     patterns: [("id", Type, || Type::new())],
+///     custom_actions: MyActionHandler,
 /// }
 ///
-/// // 2-tuple for Default types (auto-constructs via Default::default()):
+/// // Without custom actions (defaults to no-op handler):
 /// export_mod! {
 ///     behaviors: [("id", Type)],
 ///     danmaku: [("id", Type)],
@@ -297,11 +303,14 @@ pub mod prelude {
 /// ```
 #[macro_export]
 macro_rules! export_mod {
-    // === Primary form: all three interfaces, 3-tuple constructors ===
+    // =========================================================================
+    // PRIMARY FORM — generates all code (requires explicit custom_actions type)
+    // =========================================================================
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
         danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
         patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
+        custom_actions: $ca_type:ty $(,)?
     ) => {
         // --- Behavior resource wrapper ---
         struct WasmBehaviorInstance {
@@ -429,10 +438,45 @@ macro_rules! export_mod {
             }
         }
 
+        impl $crate::exports::souprune::plugin::custom_action_handler::Guest for ModComponent {
+            fn list_handled_actions() -> Vec<String> {
+                <$ca_type as $crate::CustomActionHandler>::handled_actions()
+            }
+
+            fn handle_action(
+                action_type: String,
+                params: Vec<$crate::exports::souprune::plugin::custom_action_handler::ActionParam>,
+            ) -> bool {
+                let handler = <$ca_type as Default>::default();
+                let sdk_params: Vec<$crate::ActionParam> = params
+                    .into_iter()
+                    .map(|p| $crate::ActionParam { name: p.name, value: p.value })
+                    .collect();
+                let ctx = $crate::context::Context::new();
+                handler.handle_action(&ctx, &action_type, &sdk_params)
+            }
+        }
+
         $crate::export!(ModComponent with_types_in $crate);
     };
 
-    // === Legacy forms (behaviors + danmaku only) — add empty patterns ===
+    // =========================================================================
+    // ALL REMAINING FORMS — delegate to primary with NoopCustomActionHandler
+    // =========================================================================
+
+    // 3-tuple: all 3 interfaces, no custom_actions
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+        patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
+            danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
+            patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
+        }
+    };
 
     // 3-tuple: behaviors + danmaku only
     (
@@ -443,6 +487,7 @@ macro_rules! export_mod {
             behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -454,6 +499,7 @@ macro_rules! export_mod {
             behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
             danmaku: [],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -465,6 +511,7 @@ macro_rules! export_mod {
             behaviors: [],
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -476,12 +523,30 @@ macro_rules! export_mod {
             behaviors: [],
             danmaku: [],
             patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
-    // === 2-tuple forms (Default::default() constructor) ===
+    // =========================================================================
+    // 2-TUPLE FORMS (Default::default() constructor)
+    // =========================================================================
 
-    // 2-tuple: all three interfaces
+    // 2-tuple: all 3 interfaces with custom_actions
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
+        patterns: [ $( ($p_id:literal, $p_type:ty) ),* $(,)? ] $(,)?
+        custom_actions: $ca_type:ty $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
+            danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
+            patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
+            custom_actions: $ca_type,
+        }
+    };
+
+    // 2-tuple: all 3 interfaces, no custom_actions
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty) ),* $(,)? ] $(,)?
         danmaku: [ $( ($d_id:literal, $d_type:ty) ),* $(,)? ] $(,)?
@@ -491,6 +556,7 @@ macro_rules! export_mod {
             behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -503,6 +569,7 @@ macro_rules! export_mod {
             behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -514,6 +581,7 @@ macro_rules! export_mod {
             behaviors: [ $( ($b_id, $b_type, || <$b_type as Default>::default()), )* ],
             danmaku: [],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -525,6 +593,7 @@ macro_rules! export_mod {
             behaviors: [],
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 
@@ -536,6 +605,7 @@ macro_rules! export_mod {
             behaviors: [],
             danmaku: [],
             patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
+            custom_actions: $crate::traits::NoopCustomActionHandler,
         }
     };
 }
