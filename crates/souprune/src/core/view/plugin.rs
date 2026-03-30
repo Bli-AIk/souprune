@@ -85,8 +85,13 @@ impl Plugin for CoreViewPlugin {
                 (
                     ron_view::update_time_dependent_ui_elements,
                     ron_view::update_fact_dependent_ui_elements,
-                    update_fact_toggle_sdf_colors_system,
                 )
+                    .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
+            )
+            .add_systems(
+                schedule,
+                update_fact_toggle_sdf_colors_system
+                    .after(update_sdf_view_shape_system)
                     .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
             )
             .add_systems(
