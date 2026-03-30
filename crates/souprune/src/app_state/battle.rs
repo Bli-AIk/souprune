@@ -26,6 +26,7 @@
 pub mod alight_motion_integration;
 pub mod collision;
 pub mod danmaku;
+pub mod fight_bar;
 pub mod fre;
 
 use crate::app_state::battle::alight_motion_integration::AlightMotionBattlePlugin;
@@ -70,6 +71,7 @@ impl Plugin for BattlePlugin {
             .register_asset_loader(RonAssetLoader::<BattlePlayerConfig>::new(&[
                 "battle_player.ron",
             ]))
+            .init_resource::<fight_bar::FightBarFlashTimer>()
             .add_plugins((
                 SequencerPlugin,
                 BattleCollisionPlugin,
@@ -85,6 +87,22 @@ impl Plugin for BattlePlugin {
                     setup_battle_input_manager,
                 )
                     .run_if(on_entering_battle),
+            )
+            .add_systems(
+                schedule,
+                (
+                    fight_bar::fight_bar_sweep_system,
+                    fight_bar::fight_bar_flash_system,
+                )
+                    .in_set(BattleUpdate),
+            )
+            .add_systems(
+                PostUpdate,
+                (
+                    fight_bar::fight_bar_fact_sync_system,
+                    fight_bar::fight_bar_position_restore_system,
+                )
+                    .run_if(is_mode("battle")),
             )
             .add_systems(
                 schedule,
