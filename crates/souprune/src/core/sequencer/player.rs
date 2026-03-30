@@ -123,6 +123,7 @@ pub fn process_player_spawn_requests(
                 damage_trigger.clone(),
                 BehaviorParams {
                     behavior_id: default_mode_id,
+                    context: crate::core::mod_system::BehaviorContext::Battle,
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),

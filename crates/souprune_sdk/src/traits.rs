@@ -106,6 +106,7 @@ impl SpawnPatternBehavior for NoopPattern {
 
 /// No-op custom action handler — used when `export_mod!` omits `custom_actions`.
 #[doc(hidden)]
+#[derive(Default)]
 pub struct NoopCustomActionHandler;
 
 impl CustomActionHandler for NoopCustomActionHandler {

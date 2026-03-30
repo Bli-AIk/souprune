@@ -99,6 +99,7 @@ pub(super) fn apply_dynamic_element(
         .insert(crate::core::view::components::DynamicViewElement {
             sprite_def: Some(processed_sprite_def),
             text_def: None,
+            view_box_def: None,
         });
 
     if has_time_dependency {

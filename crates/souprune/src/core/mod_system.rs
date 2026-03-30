@@ -309,9 +309,47 @@ fn load_mods_system(
 
 // === Runtime Components ===
 
+/// Which game context a WASM behavior is allowed to run in.
+/// `update_behaviors_system` skips behaviors whose context does not match the current mode.
+///
+/// WASM 行为允许运行的游戏上下文。
+/// `update_behaviors_system` 会跳过上下文与当前模式不匹配的行为。
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BehaviorContext {
+    Battle,
+    Overworld,
+    #[default]
+    Any,
+}
+
+impl BehaviorContext {
+    fn matches(&self, mode: &crate::core::mode::SequenceMode) -> bool {
+        match self {
+            BehaviorContext::Any => true,
+            BehaviorContext::Battle => mode.is("battle"),
+            BehaviorContext::Overworld => mode.is("overworld"),
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct BehaviorParams {
     pub behavior_id: String,
+    pub context: BehaviorContext,
+}
+
+impl BehaviorParams {
+    pub fn new(behavior_id: impl Into<String>) -> Self {
+        Self {
+            behavior_id: behavior_id.into(),
+            context: BehaviorContext::Any,
+        }
+    }
+
+    pub fn with_context(mut self, context: BehaviorContext) -> Self {
+        self.context = context;
+        self
+    }
 }
 
 #[derive(Component, Default)]
@@ -360,10 +398,13 @@ fn init_behaviors_system(
                     );
                 }
 
-                commands.entity(entity).insert(ActiveBehavior {
-                    mod_index,
-                    resource_handle: handle,
-                });
+                commands.entity(entity).insert((
+                    ActiveBehavior {
+                        mod_index,
+                        resource_handle: handle,
+                    },
+                    params.context,
+                ));
             }
             Err(e) => {
                 error!("Failed to create behavior {}: {:?}", params.behavior_id, e);
@@ -375,6 +416,7 @@ fn init_behaviors_system(
 fn update_behaviors_system(
     mut query: Query<(
         Entity,
+        &BehaviorContext,
         &ActiveBehavior,
         &mut BehaviorVelocity,
         &mut Transform,
@@ -385,6 +427,7 @@ fn update_behaviors_system(
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
+    mode: Res<crate::core::mode::SequenceMode>,
     mut loaded_mods: NonSendMut<LoadedMods>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
@@ -413,7 +456,11 @@ fn update_behaviors_system(
     let fact_snapshot = build_fact_snapshot(&fact_db);
     let dt = time.delta_secs();
 
-    for (_entity, active, mut velocity, mut transform) in query.iter_mut() {
+    for (_entity, ctx, active, mut velocity, mut transform) in query.iter_mut() {
+        if !ctx.matches(&mode) {
+            continue;
+        }
+
         let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
             continue;
         };
@@ -526,11 +573,32 @@ fn apply_pending_side_effects(
     fact_writer: &mut MessageWriter<FactEvent>,
 ) {
     for (key, value) in mutations {
-        fact_db.set(key, value);
+        fact_db.set(key, parse_fact_string(&value));
     }
     for event_name in events {
         fact_writer.write(FactEvent::new(event_name));
     }
+}
+
+/// Parse a WASM fact string into the appropriate `FactValue`.
+/// Attempts bool → int → float → string, in that order.
+///
+/// 将 WASM fact 字符串解析为合适的 `FactValue`。
+/// 按 bool → int → float → string 的顺序尝试。
+fn parse_fact_string(s: &str) -> FactValue {
+    if s == "true" {
+        return FactValue::Bool(true);
+    }
+    if s == "false" {
+        return FactValue::Bool(false);
+    }
+    if let Ok(n) = s.parse::<i64>() {
+        return FactValue::Int(n);
+    }
+    if let Ok(f) = s.parse::<f64>() {
+        return FactValue::Float(f);
+    }
+    FactValue::String(s.to_string())
 }
 
 fn fact_value_to_string(v: &FactValue) -> String {

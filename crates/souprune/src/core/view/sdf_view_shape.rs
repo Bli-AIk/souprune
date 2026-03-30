@@ -27,7 +27,20 @@ use super::sdf_shape::ViewSdfShape;
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_bitmap_text::TextBlockStyling;
+use bevy_fact_rule_event::LayeredFactDatabase;
 use std::collections::VecDeque;
+
+/// Marks an SDF layer whose color is controlled by a boolean FRE fact.
+/// Stores the colors to apply when the fact is on or off.
+///
+/// 标记颜色由布尔 FRE fact 控制的 SDF 层。
+/// 存储 fact 为真/假时应用的颜色。
+#[derive(Component, Clone)]
+pub struct FactToggleSdfColor {
+    pub key: String,
+    pub on: Color,
+    pub off: Color,
+}
 
 /// Re-export from bevy_bitmap_text — parse `{#RRGGBB:content}` color tags.
 pub(crate) use bevy_bitmap_text::parse_text_to_segments as parse_text_preserving_whitespace;
@@ -249,12 +262,24 @@ fn spawn_layer_recursive(
 
     // Determine color based on layer definition
     // 根据层定义确定颜色
-    let color = match &layer_def.color_source {
-        SdfColorSource::FillColor => ui_box.fill_color,
-        SdfColorSource::White => Color::WHITE,
+    let (color, fact_toggle) = match &layer_def.color_source {
+        SdfColorSource::FillColor => (ui_box.fill_color, None),
+        SdfColorSource::White => (Color::WHITE, None),
         SdfColorSource::Custom(c) => {
             let (r, g, b, a) = color_tuple_to_static(c);
-            Color::srgba(r, g, b, a)
+            (Color::srgba(r, g, b, a), None)
+        }
+        SdfColorSource::FactToggle { key, on, off } => {
+            let (or, og, ob, oa) = color_tuple_to_static(off);
+            let off_color = Color::srgba(or, og, ob, oa);
+            let (nr, ng, nb, na) = color_tuple_to_static(on);
+            let on_color = Color::srgba(nr, ng, nb, na);
+            let toggle = FactToggleSdfColor {
+                key: key.clone(),
+                on: on_color,
+                off: off_color,
+            };
+            (off_color, Some(toggle))
         }
     };
 
@@ -277,6 +302,10 @@ fn spawn_layer_recursive(
             ViewVisibility::default(),
             Name::new(layer_def.name.clone()),
         ));
+
+        if let Some(toggle) = fact_toggle {
+            entity_cmd.insert(toggle);
+        }
 
         // Add ViewBoxFiller marker if this is the filler layer
         // 如果这是 filler 层，添加 ViewBoxFiller 标记
@@ -604,5 +633,31 @@ pub fn sync_view_box_child_visibility_system(
                 queue.extend(grandchildren.to_vec());
             }
         }
+    }
+}
+
+/// Update SDF layer colors driven by FRE facts (`FactToggle` color source).
+/// Runs when `LayeredFactDatabase` changes.
+///
+/// 更新由 FRE fact 驱动的 SDF 层颜色（`FactToggle` 颜色源）。
+/// 当 `LayeredFactDatabase` 变化时运行。
+pub fn update_fact_toggle_sdf_colors_system(
+    fact_db: Res<LayeredFactDatabase>,
+    query: Query<(&FactToggleSdfColor, &MeshMaterial2d<SdfMaterial>)>,
+    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
+) {
+    if !fact_db.is_changed() {
+        return;
+    }
+
+    for (toggle, mat_handle) in query.iter() {
+        let Some(material) = sdf_materials.get_mut(&mat_handle.0) else {
+            continue;
+        };
+        let is_on = fact_db.get_bool(&toggle.key).unwrap_or(false);
+        let target = if is_on { toggle.on } else { toggle.off };
+        let alpha = material.uniform_data.color.w;
+        let srgba = target.to_srgba();
+        material.uniform_data.color = Vec4::new(srgba.red, srgba.green, srgba.blue, alpha);
     }
 }

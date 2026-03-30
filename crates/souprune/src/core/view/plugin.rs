@@ -31,7 +31,10 @@ use super::messages::{
 };
 use super::reconcile::ViewReconciliationPlugin;
 use super::ron_view::{self, ui_animation_init_system, update_dynamic_text_system};
-use super::sdf_view_shape::{sync_view_box_child_visibility_system, update_sdf_view_shape_system};
+use super::sdf_view_shape::{
+    sync_view_box_child_visibility_system, update_fact_toggle_sdf_colors_system,
+    update_sdf_view_shape_system,
+};
 use super::text::show_text_when_ready_system;
 use super::visible_when::evaluate_visible_when_system;
 #[cfg(feature = "debug")]
@@ -82,6 +85,7 @@ impl Plugin for CoreViewPlugin {
                 (
                     ron_view::update_time_dependent_ui_elements,
                     ron_view::update_fact_dependent_ui_elements,
+                    update_fact_toggle_sdf_colors_system,
                 )
                     .run_if(resource_exists::<bevy_fact_rule_event::LayeredFactDatabase>),
             )

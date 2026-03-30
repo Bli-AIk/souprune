@@ -145,6 +145,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             performance::process_am_performance_system,
             flow::process_custom_chapter_system,
             flow::process_battle_box_chapter_system,
+            flow::process_spawn_behavior_chapter_system,
             player::process_player_spawn_requests,
         )
             .chain()
