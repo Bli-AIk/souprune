@@ -15,10 +15,11 @@
 use anyhow::{Context, Result};
 use bevy::prelude::Resource;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone, Deserialize, Resource)]
 pub struct SoupruneConfig {
@@ -55,6 +56,30 @@ pub struct SoupruneConfig {
     /// Mod 库配置（WASM 组件路径）。
     #[serde(skip)]
     pub mod_library: ModLibraryConfig,
+
+    /// Resolved mod dependencies (populated from `[dependencies]` in mod.toml).
+    /// Ordered so that transitive dependencies come before direct ones.
+    ///
+    /// 已解析的 mod 依赖列表（来自 mod.toml 的 `[dependencies]` 节）。
+    /// 传递依赖排在直接依赖之前。
+    #[serde(skip)]
+    pub resolved_dependencies: Vec<ResolvedDependency>,
+}
+
+/// A resolved mod dependency with its name and WASM path.
+///
+/// 已解析的 mod 依赖，包含名称和 WASM 路径。
+#[derive(Clone, Debug)]
+pub struct ResolvedDependency {
+    /// Mod name (matches a directory under `projects/`).
+    ///
+    /// Mod 名称（对应 `projects/` 下的目录）。
+    pub name: String,
+
+    /// WASM component filename from the dependency's mod.toml.
+    ///
+    /// 依赖的 mod.toml 中的 WASM 组件文件名。
+    pub wasm: String,
 }
 
 /// WASM mod library configuration from mod.toml [mod_library] section.
@@ -288,9 +313,22 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     roots
 }
 
-pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
+/// Returns all asset roots for the current project and its dependencies.
+/// Search priority: current mod first, then dependencies in order.
+///
+/// 返回当前项目及其依赖的所有资产根目录。
+/// 搜索优先级：当前 mod 优先，然后按顺序搜索依赖。
+pub fn get_all_asset_roots() -> Vec<PathBuf> {
     let config = load_config();
-    let roots = get_asset_roots(&config.project.mod_name);
+    let mut all_roots = get_asset_roots(&config.project.mod_name);
+    for dep in &config.resolved_dependencies {
+        all_roots.extend(get_asset_roots(&dep.name));
+    }
+    all_roots
+}
+
+pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
+    let roots = get_all_asset_roots();
 
     for root in roots {
         let candidate = root.join(relative_path);
@@ -326,6 +364,8 @@ struct ModConfigFile {
     resources: Option<ResourcePathsPartial>,
     #[serde(default)]
     mod_library: Option<ModLibraryConfigPartial>,
+    #[serde(default)]
+    dependencies: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -442,6 +482,55 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
     }
 }
 
+/// Resolve mod dependencies by reading each dependency's mod.toml.
+/// Returns a flat list of dependencies (no transitive resolution yet).
+///
+/// 通过读取每个依赖的 mod.toml 解析 mod 依赖。
+/// 返回扁平的依赖列表（暂无传递依赖解析）。
+fn resolve_dependencies(
+    dependencies: &HashMap<String, String>,
+    projects_base: &Path,
+) -> Vec<ResolvedDependency> {
+    let mut resolved = Vec::new();
+
+    for (dep_name, dep_version) in dependencies {
+        let dep_dir = projects_base.join(dep_name);
+        let dep_mod_toml = dep_dir.join("mod.toml");
+
+        if !dep_mod_toml.exists() {
+            error!(
+                "Dependency '{}' v{} not found at {}",
+                dep_name,
+                dep_version,
+                dep_mod_toml.display()
+            );
+            continue;
+        }
+
+        let wasm = match read_mod_config(&dep_mod_toml) {
+            Ok(dep_cfg) => dep_cfg
+                .mod_library
+                .and_then(|lib| lib.wasm)
+                .unwrap_or_else(|| format!("{dep_name}.wasm")),
+            Err(e) => {
+                error!("Failed to read dependency '{}' mod.toml: {}", dep_name, e);
+                continue;
+            }
+        };
+
+        info!(
+            "Resolved dependency: {} v{} (wasm: {})",
+            dep_name, dep_version, wasm
+        );
+        resolved.push(ResolvedDependency {
+            name: dep_name.clone(),
+            wasm,
+        });
+    }
+
+    resolved
+}
+
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
     let path_ref = path.as_ref();
     let contents = fs::read_to_string(path_ref)
@@ -481,7 +570,11 @@ Falling back to default configuration (example_mod)",
 
             if mod_config_path.exists() {
                 match read_mod_config(&mod_config_path) {
-                    Ok(mod_cfg) => apply_mod_config(&mut config, mod_cfg),
+                    Ok(mod_cfg) => {
+                        let deps = resolve_dependencies(&mod_cfg.dependencies, &projects_base);
+                        apply_mod_config(&mut config, mod_cfg);
+                        config.resolved_dependencies = deps;
+                    }
                     Err(e) => {
                         #[cfg(target_os = "android")]
                         eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
@@ -508,5 +601,6 @@ fn default_config() -> SoupruneConfig {
         render: RenderConfig::default(),
         resources: ResourcePaths::default(),
         mod_library: ModLibraryConfig::default(),
+        resolved_dependencies: Vec::new(),
     }
 }

@@ -29,6 +29,14 @@ interface host-api {
         y: f32,
     }
 
+    /// Typed value for FRE facts.
+    variant fact-value {
+        int-val(s64),
+        float-val(f64),
+        bool-val(bool),
+        text-val(string),
+    }
+
     /// Print a log message to the engine console.
     log: func(level: u32, message: string);
 
@@ -48,10 +56,10 @@ interface host-api {
     delta-time: func() -> f32;
 
     /// Get a FRE fact by key. Returns none if not set.
-    get-fact: func(key: string) -> option<string>;
+    get-fact: func(key: string) -> option<fact-value>;
 
-    /// Set a FRE fact by key. Value is always stored as a string.
-    set-fact: func(key: string, value: string);
+    /// Set a FRE fact by key. Applied after the current callback returns.
+    set-fact: func(key: string, value: fact-value);
 
     /// Emit a FRE event by name.
     emit-event: func(event-name: string);

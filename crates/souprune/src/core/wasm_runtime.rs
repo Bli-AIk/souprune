@@ -8,6 +8,7 @@
 //! 提供 WIT host-api 导入与 Bevy ECS 之间的桥梁。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::FactValue;
 use souprune_api::Action;
 use std::collections::HashMap;
 
@@ -29,10 +30,10 @@ pub struct CallContext {
     pub velocity: Vec2,
     pub entity_position: Vec2,
     pub delta_time: f32,
-    /// Snapshot of the current FRE fact database (key → string value).
-    pub fact_snapshot: HashMap<String, String>,
+    /// Snapshot of the current FRE fact database (key → typed value).
+    pub fact_snapshot: HashMap<String, FactValue>,
     /// Fact mutations queued by the mod during a callback; applied afterwards.
-    pub pending_fact_mutations: Vec<(String, String)>,
+    pub pending_fact_mutations: Vec<(String, FactValue)>,
     /// FRE events queued by the mod during a callback; emitted afterwards.
     pub pending_events: Vec<String>,
 }
@@ -87,12 +88,14 @@ impl souprune::plugin::host_api::Host for HostState {
         self.call_ctx.delta_time
     }
 
-    fn get_fact(&mut self, key: String) -> Option<String> {
-        self.call_ctx.fact_snapshot.get(&key).cloned()
+    fn get_fact(&mut self, key: String) -> Option<souprune::plugin::host_api::FactValue> {
+        self.call_ctx.fact_snapshot.get(&key).map(fre_to_wit_fact)
     }
 
-    fn set_fact(&mut self, key: String, value: String) {
-        self.call_ctx.pending_fact_mutations.push((key, value));
+    fn set_fact(&mut self, key: String, value: souprune::plugin::host_api::FactValue) {
+        self.call_ctx
+            .pending_fact_mutations
+            .push((key, wit_to_fre_fact(value)));
     }
 
     fn emit_event(&mut self, event_name: String) {
@@ -109,6 +112,47 @@ fn action_to_index(action: souprune::plugin::host_api::Action) -> usize {
         souprune::plugin::host_api::Action::Confirm => Action::Confirm as usize,
         souprune::plugin::host_api::Action::Cancel => Action::Cancel as usize,
         souprune::plugin::host_api::Action::Menu => Action::Menu as usize,
+    }
+}
+
+/// Convert FRE `FactValue` to the WIT-generated `FactValue` variant.
+fn fre_to_wit_fact(v: &FactValue) -> souprune::plugin::host_api::FactValue {
+    use souprune::plugin::host_api::FactValue as WitFact;
+    match v {
+        FactValue::Int(n) => WitFact::IntVal(*n),
+        FactValue::Float(f) => WitFact::FloatVal(*f),
+        FactValue::Bool(b) => WitFact::BoolVal(*b),
+        FactValue::String(s) => WitFact::TextVal(s.clone()),
+        FactValue::StringList(list) => WitFact::TextVal(list.join(",")),
+        FactValue::IntList(list) => WitFact::TextVal(
+            list.iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
+        FactValue::FloatList(list) => WitFact::TextVal(
+            list.iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
+        FactValue::BoolList(list) => WitFact::TextVal(
+            list.iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
+    }
+}
+
+/// Convert WIT-generated `FactValue` variant to FRE `FactValue`.
+fn wit_to_fre_fact(v: souprune::plugin::host_api::FactValue) -> FactValue {
+    use souprune::plugin::host_api::FactValue as WitFact;
+    match v {
+        WitFact::IntVal(n) => FactValue::Int(n),
+        WitFact::FloatVal(f) => FactValue::Float(f),
+        WitFact::BoolVal(b) => FactValue::Bool(b),
+        WitFact::TextVal(s) => FactValue::String(s),
     }
 }
 

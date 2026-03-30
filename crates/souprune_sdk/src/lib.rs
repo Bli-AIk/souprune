@@ -32,7 +32,7 @@
 pub mod context;
 pub mod traits;
 
-pub use context::{Context, Vec2};
+pub use context::{Context, FactValue, Vec2};
 pub use traits::{
     ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
 };
@@ -269,7 +269,7 @@ impl BulletOutput {
 
 /// Convenience prelude for mod developers.
 pub mod prelude {
-    pub use crate::context::{Context, Vec2};
+    pub use crate::context::{Context, FactValue, Vec2};
     pub use crate::traits::{
         ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
     };

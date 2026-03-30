@@ -265,8 +265,50 @@ fn load_mods_system(
     );
 
     let config = crate::config::load_config();
+    let projects_base = crate::config::get_projects_base_path();
+
+    // Load dependency WASMs first (lower priority — main mod can override)
+    for dep in &config.resolved_dependencies {
+        let dep_path = projects_base.join(&dep.name).join(&dep.wasm);
+        if !dep_path.exists() {
+            warn!("Dependency '{}' WASM not found: {:?}", dep.name, dep_path);
+            continue;
+        }
+
+        info!(
+            "Loading dependency WASM: {} ({})",
+            dep.name,
+            dep_path.display()
+        );
+
+        match runtime.load_mod(&dep_path) {
+            Ok(loaded) => {
+                let mod_index = loaded_mods.mods.len();
+                let b = loaded.behavior_ids.len();
+                let d = loaded.algorithm_ids.len();
+                let p = loaded.pattern_ids.len();
+                register_mod(
+                    &loaded,
+                    mod_index,
+                    &mut behavior_registry,
+                    &mut danmaku_registry,
+                    &mut pattern_registry,
+                );
+                loaded_mods.mods.push(loaded);
+                info!(
+                    "Dependency '{}' loaded: {} behaviors, {} danmaku, {} patterns",
+                    dep.name, b, d, p
+                );
+            }
+            Err(e) => {
+                error!("Failed to load dependency '{}' WASM: {:?}", dep.name, e);
+            }
+        }
+    }
+
+    // Load the main mod WASM (highest priority — can override dependencies)
     let mod_name = &config.project.mod_name;
-    let base_path = crate::config::get_projects_base_path().join(mod_name);
+    let base_path = projects_base.join(mod_name);
 
     let wasm_filename = if config.mod_library.wasm.is_empty() {
         format!("{}.wasm", mod_name)
@@ -432,7 +474,7 @@ fn update_behaviors_system(
         Entity,
         &BehaviorContext,
         &ActiveBehavior,
-        &mut BehaviorVelocity,
+        Option<&mut BehaviorVelocity>,
         &mut Transform,
     )>,
     action_states: Query<
@@ -483,7 +525,7 @@ fn update_behaviors_system(
             let ctx = loaded.store.data_mut();
             ctx.call_ctx.input_pressed = pressed;
             ctx.call_ctx.input_just_pressed = just_pressed;
-            ctx.call_ctx.velocity = velocity.0;
+            ctx.call_ctx.velocity = velocity.as_ref().map_or(Vec2::ZERO, |v| v.0);
             ctx.call_ctx.entity_position = transform.translation.truncate();
             ctx.call_ctx.delta_time = dt;
             ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
@@ -501,9 +543,12 @@ fn update_behaviors_system(
             continue;
         }
 
-        let new_velocity = loaded.store.data().call_ctx.velocity;
-        velocity.0 = new_velocity;
-        transform.translation += velocity.0.extend(0.0) * dt;
+        // Only apply velocity-based movement when BehaviorVelocity is present.
+        if let Some(ref mut vel) = velocity {
+            let new_velocity = loaded.store.data().call_ctx.velocity;
+            vel.0 = new_velocity;
+            transform.translation += vel.0.extend(0.0) * dt;
+        }
 
         let mutations =
             std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
@@ -574,70 +619,24 @@ fn dispatch_wasm_custom_actions_system(
     }
 }
 
-fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> HashMap<String, String> {
+fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> HashMap<String, FactValue> {
     fact_db
         .iter_local()
         .chain(fact_db.iter_global())
-        .map(|(k, v)| (k.clone(), fact_value_to_string(v)))
+        .map(|(k, v)| (k.clone(), v.clone()))
         .collect()
 }
 
 fn apply_pending_side_effects(
-    mutations: Vec<(String, String)>,
+    mutations: Vec<(String, FactValue)>,
     events: Vec<String>,
     fact_db: &mut LayeredFactDatabase,
     fact_writer: &mut MessageWriter<FactEvent>,
 ) {
     for (key, value) in mutations {
-        fact_db.set(key, parse_fact_string(&value));
+        fact_db.set(key, value);
     }
     for event_name in events {
         fact_writer.write(FactEvent::new(event_name));
-    }
-}
-
-/// Parse a WASM fact string into the appropriate `FactValue`.
-/// Attempts bool → int → float → string, in that order.
-///
-/// 将 WASM fact 字符串解析为合适的 `FactValue`。
-/// 按 bool → int → float → string 的顺序尝试。
-fn parse_fact_string(s: &str) -> FactValue {
-    if s == "true" {
-        return FactValue::Bool(true);
-    }
-    if s == "false" {
-        return FactValue::Bool(false);
-    }
-    if let Ok(n) = s.parse::<i64>() {
-        return FactValue::Int(n);
-    }
-    if let Ok(f) = s.parse::<f64>() {
-        return FactValue::Float(f);
-    }
-    FactValue::String(s.to_string())
-}
-
-fn fact_value_to_string(v: &FactValue) -> String {
-    match v {
-        FactValue::Int(n) => n.to_string(),
-        FactValue::Float(f) => f.to_string(),
-        FactValue::Bool(b) => b.to_string(),
-        FactValue::String(s) => s.clone(),
-        FactValue::StringList(list) => list.join(","),
-        FactValue::IntList(list) => list
-            .iter()
-            .map(|n| n.to_string())
-            .collect::<Vec<_>>()
-            .join(","),
-        FactValue::FloatList(list) => list
-            .iter()
-            .map(|f| f.to_string())
-            .collect::<Vec<_>>()
-            .join(","),
-        FactValue::BoolList(list) => list
-            .iter()
-            .map(|b| b.to_string())
-            .collect::<Vec<_>>()
-            .join(","),
     }
 }

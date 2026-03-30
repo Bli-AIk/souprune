@@ -53,16 +53,17 @@ impl souprune::plugin::host_api::Host for MockHostState {
         0.016
     }
 
-    fn get_fact(&mut self, key: String) -> Option<String> {
+    fn get_fact(&mut self, key: String) -> Option<souprune::plugin::host_api::FactValue> {
+        use souprune::plugin::host_api::FactValue;
         match key.as_str() {
-            "player:pos_x" => Some("100.0".to_string()),
-            "player:pos_y" => Some("-200.0".to_string()),
+            "player:pos_x" => Some(FactValue::FloatVal(100.0)),
+            "player:pos_y" => Some(FactValue::FloatVal(-200.0)),
             _ => None,
         }
     }
 
-    fn set_fact(&mut self, key: String, value: String) {
-        println!("[HOST] set_fact: {}={}", key, value);
+    fn set_fact(&mut self, key: String, value: souprune::plugin::host_api::FactValue) {
+        println!("[HOST] set_fact: {}={:?}", key, value);
     }
 
     fn emit_event(&mut self, event_name: String) {

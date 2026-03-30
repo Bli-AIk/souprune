@@ -69,7 +69,6 @@ pub fn run() {
     eprintln!("[SoupRune] Config loaded: mod={}", config.project.mod_name);
 
     let resolution_scale = config.window.resolution_scale;
-    let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
     let render_config = config.render.clone();
 
@@ -113,7 +112,7 @@ pub fn run() {
         .register_asset_source(
             AssetSourceId::Default,
             AssetSourceBuilder::new(move || {
-                let roots = config::get_asset_roots(&project_name);
+                let roots = config::get_all_asset_roots();
                 let readers = roots.into_iter().map(FileAssetReader::new).collect();
                 Box::new(MultiSourceAssetReader::new(readers))
             })
