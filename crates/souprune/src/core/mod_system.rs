@@ -370,7 +370,14 @@ fn init_behaviors_system(
     query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
     behavior_registry: Res<BehaviorRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
+    fact_db: Res<LayeredFactDatabase>,
 ) {
+    if query.is_empty() {
+        return;
+    }
+
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+
     for (entity, params) in query.iter() {
         let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.behavior_id) else {
             error!("Behavior ID not found: {}", params.behavior_id);
@@ -388,6 +395,13 @@ fn init_behaviors_system(
             .call_constructor(&mut loaded.store, &params.behavior_id)
         {
             Ok(handle) => {
+                {
+                    let ctx = loaded.store.data_mut();
+                    ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+                    ctx.call_ctx.pending_fact_mutations.clear();
+                    ctx.call_ctx.pending_events.clear();
+                }
+
                 if let Err(e) = behavior_iface
                     .behavior_instance()
                     .call_on_enter(&mut loaded.store, handle)

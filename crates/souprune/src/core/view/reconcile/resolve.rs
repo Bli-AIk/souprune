@@ -122,11 +122,16 @@ pub fn resolve_transform(
 
 /// Resolve the transform for a ViewBox node from its offset.
 /// ViewBox 节点的变换来自 offset 字段（仅平移，无缩放/旋转）。
+/// Evaluates dynamic expressions against the current facts.
 pub fn resolve_viewbox_transform(
     view_box: &crate::core::view::layout::ViewBoxLogicDef,
+    player_data: &PlayerDataView,
 ) -> Transform {
-    let offset =
-        crate::core::view::layout::serde_types::serializable_vec3_to_static(&view_box.offset);
+    let offset = Vec3::new(
+        evaluate_float_expr(&view_box.offset.0, player_data, None),
+        evaluate_float_expr(&view_box.offset.1, player_data, None),
+        evaluate_float_expr(&view_box.offset.2, player_data, None),
+    );
     Transform::from_translation(offset)
 }
 

@@ -81,8 +81,12 @@ struct FightBarBehavior {
 }
 
 impl Behavior for FightBarBehavior {
-    fn on_enter(&mut self, _ctx: &mut Context) {
-        self.sweep_x = 0.0;
+    fn on_enter(&mut self, ctx: &mut Context) {
+        let start_x: f32 = ctx
+            .get_fact("fight:bar_start_x")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(-274.0);
+        self.sweep_x = start_x;
         self.flash_elapsed = 0.0;
         self.flash_active = false;
         self.sweep_done = false;
