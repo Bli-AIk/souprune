@@ -216,7 +216,6 @@ fn load_builtin_wasm(
     };
 
     info!("Loading builtin WASM: {}", wasm_path.display());
-    eprintln!("[Souprune] Loading builtin WASM: {}", wasm_path.display());
 
     match runtime.load_mod(wasm_path) {
         Ok(loaded) => {
@@ -232,14 +231,13 @@ fn load_builtin_wasm(
                 pattern_registry,
             );
             loaded_mods.mods.push(loaded);
-            eprintln!(
-                "[Souprune] Builtins: {} behaviors, {} danmaku, {} patterns",
+            info!(
+                "Builtins loaded: {} behaviors, {} danmaku, {} patterns",
                 b, d, p
             );
         }
         Err(e) => {
             error!("Failed to load builtin WASM: {:?}", e);
-            eprintln!("[Souprune] Error loading builtin WASM: {:?}", e);
         }
     }
 }
@@ -275,15 +273,10 @@ fn load_mods_system(
             "Mod WASM file not found: {:?}. Checked: {:?}",
             wasm_filename, wasm_path
         );
-        eprintln!(
-            "[Souprune] Warning: Mod WASM file not found: {}",
-            wasm_path.display()
-        );
         return;
     }
 
     info!("Loading WASM mod: {}", wasm_path.display());
-    eprintln!("[Souprune] Loading WASM mod: {}", wasm_path.display());
 
     match runtime.load_mod(&wasm_path) {
         Ok(loaded) => {
@@ -299,14 +292,10 @@ fn load_mods_system(
                 &mut pattern_registry,
             );
             loaded_mods.mods.push(loaded);
-            eprintln!(
-                "[Souprune] Mod: {} behaviors, {} danmaku, {} patterns",
-                b, d, p
-            );
+            info!("Mod loaded: {} behaviors, {} danmaku, {} patterns", b, d, p);
         }
         Err(e) => {
             error!("Failed to load WASM mod: {:?}", e);
-            eprintln!("[Souprune] Error loading WASM mod: {:?}", e);
         }
     }
 }
@@ -315,7 +304,7 @@ fn load_mods_system(
 
 #[derive(Component)]
 pub struct BehaviorParams {
-    pub mode_id: String,
+    pub behavior_id: String,
 }
 
 #[derive(Component, Default)]
@@ -338,8 +327,8 @@ fn init_behaviors_system(
     mut loaded_mods: NonSendMut<LoadedMods>,
 ) {
     for (entity, params) in query.iter() {
-        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.mode_id) else {
-            error!("Behavior ID not found: {}", params.mode_id);
+        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.behavior_id) else {
+            error!("Behavior ID not found: {}", params.behavior_id);
             continue;
         };
 
@@ -351,14 +340,17 @@ fn init_behaviors_system(
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
         match behavior_iface
             .behavior_instance()
-            .call_constructor(&mut loaded.store, &params.mode_id)
+            .call_constructor(&mut loaded.store, &params.behavior_id)
         {
             Ok(handle) => {
                 if let Err(e) = behavior_iface
                     .behavior_instance()
                     .call_on_enter(&mut loaded.store, handle)
                 {
-                    error!("Behavior on_enter failed for {}: {:?}", params.mode_id, e);
+                    error!(
+                        "Behavior on_enter failed for {}: {:?}",
+                        params.behavior_id, e
+                    );
                 }
 
                 commands.entity(entity).insert(ActiveBehavior {
@@ -367,7 +359,7 @@ fn init_behaviors_system(
                 });
             }
             Err(e) => {
-                error!("Failed to create behavior {}: {:?}", params.mode_id, e);
+                error!("Failed to create behavior {}: {:?}", params.behavior_id, e);
             }
         }
     }

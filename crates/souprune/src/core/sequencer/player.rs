@@ -122,7 +122,7 @@ pub fn process_player_spawn_requests(
                 physics_collider.clone(),
                 damage_trigger.clone(),
                 BehaviorParams {
-                    mode_id: default_mode_id,
+                    behavior_id: default_mode_id,
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),

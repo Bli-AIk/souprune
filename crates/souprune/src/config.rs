@@ -93,18 +93,11 @@ pub struct GameConfig {
     /// 包含初始玩家数据和游戏全局事实。
     pub global_rules: String,
 
-    /// Initial map path to load when entering Overworld.
-    /// If empty and `initial_battle_path` is set, the game will start in Battle mode.
-    /// Ignored when `initial_sequence_path` is set (sequence-driven mode).
+    /// Initial sequence path for the Battle state.
+    /// When set and `initial_sequence_path` is absent, the game starts directly in Battle mode.
     ///
-    /// 进入 Overworld 时加载的初始地图路径。
-    /// 如果为空且设置了 `initial_battle_path`，游戏将以 Battle 模式启动。
-    /// 当设置了 `initial_sequence_path` 时此项被忽略（序列驱动模式）。
-    pub initial_map_path: String,
-
-    /// Debug battle chapter path to load when entering Battle state.
-    ///
-    /// 进入 Battle 状态时加载的调试用战斗章节路径。
+    /// 战斗状态的初始序列路径。
+    /// 当设置此项且 `initial_sequence_path` 未设置时，游戏直接以 Battle 模式启动。
     pub initial_battle_path: String,
 
     /// Optional sequence path to load when entering Overworld.
@@ -168,7 +161,6 @@ impl Default for GameConfig {
     fn default() -> Self {
         Self {
             global_rules: String::new(),
-            initial_map_path: String::new(),
             initial_battle_path: String::new(),
             initial_sequence_path: None,
             player_behavior_path: String::new(),
@@ -329,7 +321,7 @@ pub struct ResourcePaths {
 
 #[derive(Deserialize)]
 struct ModConfigFile {
-    game: Option<GameConfigPartial>,
+    game: Option<ModGameConfig>,
     #[serde(default)]
     resources: Option<ResourcePathsPartial>,
     #[serde(default)]
@@ -347,19 +339,25 @@ struct ResourcePathsPartial {
     audios: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct GameConfigPartial {
+/// Overlay struct for `[game]` in `mod.toml`.
+/// All fields are `Option` so that missing entries do not overwrite runtime defaults.
+///
+/// `mod.toml` 中 `[game]` 节的覆盖结构体。
+/// 所有字段均为 `Option`，缺失项不会覆盖运行时默认值。
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ModGameConfig {
     global_rules: Option<String>,
-    initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
     initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
     states_config: Option<String>,
     chase_config: Option<String>,
+    dialogue_view_default: Option<String>,
+    dialogue_voice_default: Option<String>,
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
-    dialogue_voice_default: Option<String>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -388,9 +386,6 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         if let Some(val) = game_partial.global_rules {
             config.game.global_rules = val;
         }
-        if let Some(val) = game_partial.initial_map_path {
-            config.game.initial_map_path = val;
-        }
         if let Some(val) = game_partial.initial_battle_path {
             config.game.initial_battle_path = val;
         }
@@ -409,14 +404,17 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         if let Some(val) = game_partial.chase_config {
             config.game.chase_config = Some(val);
         }
+        if let Some(val) = game_partial.dialogue_view_default {
+            config.game.dialogue_view_default = val;
+        }
+        if let Some(val) = game_partial.dialogue_voice_default {
+            config.game.dialogue_voice_default = val;
+        }
         if let Some(val) = game_partial.required_modules {
             config.game.required_modules = val;
         }
         if let Some(val) = game_partial.hidden_layer_keywords {
             config.game.hidden_layer_keywords = val;
-        }
-        if let Some(val) = game_partial.dialogue_voice_default {
-            config.game.dialogue_voice_default = val;
         }
     }
     // Load resource paths from [resources] section (required)

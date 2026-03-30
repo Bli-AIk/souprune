@@ -181,11 +181,10 @@ fn check_textures_system(
             next_state.set(AppState::Running);
 
             if souprune_config.game.initial_sequence_path.is_none()
-                && souprune_config.game.initial_map_path.is_empty()
                 && !souprune_config.game.initial_battle_path.is_empty()
             {
                 info!(
-                    "No initial map path, but initial battle path found. Entering Battle: {}",
+                    "No initial_sequence_path; initial_battle_path found. Entering Battle: {}",
                     souprune_config.game.initial_battle_path
                 );
                 sequence_mode.0 = Some("battle".to_string());
