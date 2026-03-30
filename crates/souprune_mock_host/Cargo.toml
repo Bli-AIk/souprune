@@ -10,6 +10,6 @@ keywords = ["game-framework", "modding", "testing", "wasm"]
 
 [dependencies]
 souprune_api = { path = "../souprune_api", version = "0.2" }
-wasmtime = "42"
+wasmtime = "43"
 wasmtime-wasi = "42"
 anyhow = "1"
