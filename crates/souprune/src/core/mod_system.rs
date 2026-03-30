@@ -508,7 +508,9 @@ fn update_behaviors_system(
         let mutations =
             std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
         let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-        apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
+        if !mutations.is_empty() || !events.is_empty() {
+            apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
+        }
     }
 }
 
