@@ -126,9 +126,12 @@ pub fn insert_input_resources(app: &mut App) {
         .get_resource::<config::SoupruneConfig>()
         .expect("SoupruneConfig must be inserted before calling insert_input_resources");
     let projects_base = config::get_projects_base_path();
-    let input_config_path = projects_base
-        .join(&config.project.mod_name)
-        .join(&config.game.input_config_path);
+    let input_config_path = config::resolve_path(&config.game.input_config_path)
+        .unwrap_or_else(|| {
+            projects_base
+                .join(&config.project.mod_name)
+                .join(&config.game.input_config_path)
+        });
     let input_config = input::InputConfig::load_from_file(&input_config_path);
     let action_registry = input_config.build_registry();
     let player_input_settings =
@@ -162,7 +165,8 @@ pub(crate) fn load_touch_layout(
 ) -> Option<input::TouchLayoutDef> {
     let touch_cfg = input_config.touch_overlay.as_ref()?;
     let layout_path = touch_cfg.layout.as_ref()?;
-    let full_path = projects_base.join(mod_name).join(layout_path);
+    let full_path = crate::config::resolve_path(layout_path)
+        .unwrap_or_else(|| projects_base.join(mod_name).join(layout_path));
     match input::TouchLayoutDef::load_from_file(&full_path) {
         Ok(mut layout) => {
             info!("Loaded touch layout from {:?}", full_path);

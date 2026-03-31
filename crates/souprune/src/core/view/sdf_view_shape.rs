@@ -214,9 +214,11 @@ fn spawn_structure_from_file(
 /// 从 RON 文件同步加载 SdfStructureAsset。
 fn load_sdf_structure(structure_file: &str) -> Option<SdfStructureAsset> {
     let config = crate::config::load_config();
-    let full_path = crate::config::get_projects_base_path()
-        .join(&config.project.mod_name)
-        .join(structure_file);
+    let full_path = crate::config::resolve_path(structure_file).unwrap_or_else(|| {
+        crate::config::get_projects_base_path()
+            .join(&config.project.mod_name)
+            .join(structure_file)
+    });
 
     let content = std::fs::read_to_string(&full_path)
         .map_err(|e| {
