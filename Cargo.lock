@@ -7471,6 +7471,7 @@ dependencies = [
  "chrono",
  "dunce",
  "fasteval",
+ "futures-lite",
  "image",
  "iyes_perf_ui",
  "leafwing-input-manager",
