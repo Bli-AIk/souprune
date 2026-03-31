@@ -143,18 +143,11 @@ pub fn insert_input_resources(app: &mut App) {
 }
 
 pub fn insert_font_resources(app: &mut App) {
-    let config = app
-        .world()
-        .get_resource::<config::SoupruneConfig>()
-        .expect("SoupruneConfig must be inserted before calling insert_font_resources");
-    let projects_base = config::get_projects_base_path();
-    let font_dir = projects_base
-        .join(&config.project.mod_name)
-        .join("assets/fonts")
-        .to_string_lossy()
-        .into_owned();
     app.insert_resource(bevy_bitmap_text::FontDirectories {
-        directories: vec![font_dir],
+        directories: config::get_all_asset_roots()
+            .iter()
+            .map(|root| root.join("fonts").to_string_lossy().into_owned())
+            .collect(),
     });
 }
 

@@ -173,13 +173,10 @@ pub fn run() {
         ))
         .insert_resource(config.clone())
         .insert_resource(bevy_bitmap_text::FontDirectories {
-            directories: vec![
-                projects_base
-                    .join(&config.project.mod_name)
-                    .join("assets/fonts")
-                    .to_string_lossy()
-                    .into_owned(),
-            ],
+            directories: config::get_all_asset_roots()
+                .iter()
+                .map(|root| root.join("fonts").to_string_lossy().into_owned())
+                .collect(),
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)

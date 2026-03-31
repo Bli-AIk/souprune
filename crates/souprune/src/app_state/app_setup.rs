@@ -73,6 +73,7 @@ impl Plugin for AppSetupPlugin {
 /// 通过扫描 textures 目录发现纹理模块。
 fn discover_texture_modules() -> Vec<String> {
     let roots = config::get_all_asset_roots();
+    let mut all_modules = Vec::new();
 
     for root in roots {
         let textures_path = root.join("textures");
@@ -93,9 +94,17 @@ fn discover_texture_modules() -> Vec<String> {
                     textures_path,
                     modules
                 );
-                return modules;
+                for m in modules {
+                    if !all_modules.contains(&m) {
+                        all_modules.push(m);
+                    }
+                }
             }
         }
+    }
+
+    if !all_modules.is_empty() {
+        return all_modules;
     }
 
     // Fallback to default modules if no modules discovered
