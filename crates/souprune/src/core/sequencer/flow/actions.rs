@@ -147,9 +147,8 @@ pub fn process_spawn_behavior_chapter_system(
         };
 
         let behavior_context = match context.as_deref() {
-            Some("battle") => crate::core::mod_system::BehaviorContext::Battle,
-            Some("overworld") => crate::core::mod_system::BehaviorContext::Overworld,
-            _ => crate::core::mod_system::BehaviorContext::Any,
+            Some(tag) => crate::core::mod_system::BehaviorContext::new(tag),
+            None => crate::core::mod_system::BehaviorContext::any(),
         };
 
         let mode_name = mode.0.clone().unwrap_or_default();

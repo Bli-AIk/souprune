@@ -417,44 +417,34 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         mod_cfg.game.is_some()
     );
 
-    if let Some(game_partial) = mod_cfg.game {
+    if let Some(g) = mod_cfg.game {
         #[cfg(target_os = "android")]
         eprintln!(
             "[SoupRune] game_partial.input_config_path: {:?}",
-            game_partial.input_config_path
+            g.input_config_path
         );
-        if let Some(val) = game_partial.global_rules {
-            config.game.global_rules = val;
+        macro_rules! merge {
+            ($field:ident) => {
+                if let Some(val) = g.$field {
+                    config.game.$field = val;
+                }
+            };
         }
-        if let Some(val) = game_partial.initial_battle_path {
-            config.game.initial_battle_path = val;
-        }
-        if let Some(val) = game_partial.initial_sequence_path {
+        merge!(global_rules);
+        merge!(initial_battle_path);
+        merge!(player_behavior_path);
+        merge!(input_config_path);
+        merge!(states_config);
+        merge!(dialogue_view_default);
+        merge!(dialogue_voice_default);
+        merge!(required_modules);
+        merge!(hidden_layer_keywords);
+        // Option<T> fields: wrap in Some
+        if let Some(val) = g.initial_sequence_path {
             config.game.initial_sequence_path = Some(val);
         }
-        if let Some(val) = game_partial.player_behavior_path {
-            config.game.player_behavior_path = val;
-        }
-        if let Some(val) = game_partial.input_config_path {
-            config.game.input_config_path = val;
-        }
-        if let Some(val) = game_partial.states_config {
-            config.game.states_config = val;
-        }
-        if let Some(val) = game_partial.chase_config {
+        if let Some(val) = g.chase_config {
             config.game.chase_config = Some(val);
-        }
-        if let Some(val) = game_partial.dialogue_view_default {
-            config.game.dialogue_view_default = val;
-        }
-        if let Some(val) = game_partial.dialogue_voice_default {
-            config.game.dialogue_voice_default = val;
-        }
-        if let Some(val) = game_partial.required_modules {
-            config.game.required_modules = val;
-        }
-        if let Some(val) = game_partial.hidden_layer_keywords {
-            config.game.hidden_layer_keywords = val;
         }
     }
     // Load resource paths from [resources] section (required)

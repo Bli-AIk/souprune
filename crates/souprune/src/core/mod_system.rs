@@ -352,25 +352,25 @@ fn load_mods_system(
 // === Runtime Components ===
 
 /// Which game context a WASM behavior is allowed to run in.
-/// `update_behaviors_system` skips behaviors whose context does not match the current mode.
+/// An empty string means "any mode". Otherwise, the tag is matched against
+/// the current `SequenceMode` name (e.g. `"battle"`, `"overworld"`).
 ///
 /// WASM 行为允许运行的游戏上下文。
-/// `update_behaviors_system` 会跳过上下文与当前模式不匹配的行为。
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum BehaviorContext {
-    Battle,
-    Overworld,
-    #[default]
-    Any,
-}
+/// 空字符串表示"任何模式"。否则标签与当前 `SequenceMode` 名称匹配。
+#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+pub struct BehaviorContext(pub String);
 
 impl BehaviorContext {
+    pub fn any() -> Self {
+        Self(String::new())
+    }
+
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self(tag.into())
+    }
+
     fn matches(&self, mode: &crate::core::mode::SequenceMode) -> bool {
-        match self {
-            BehaviorContext::Any => true,
-            BehaviorContext::Battle => mode.is("battle"),
-            BehaviorContext::Overworld => mode.is("overworld"),
-        }
+        self.0.is_empty() || mode.is(&self.0)
     }
 }
 
@@ -384,7 +384,7 @@ impl BehaviorParams {
     pub fn new(behavior_id: impl Into<String>) -> Self {
         Self {
             behavior_id: behavior_id.into(),
-            context: BehaviorContext::Any,
+            context: BehaviorContext::any(),
         }
     }
 
@@ -459,7 +459,7 @@ fn init_behaviors_system(
                         mod_index,
                         resource_handle: handle,
                     },
-                    params.context,
+                    params.context.clone(),
                 ));
             }
             Err(e) => {

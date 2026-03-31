@@ -1,12 +1,27 @@
 //! WASM Modding SDK for SoupRune.
 //!
 //! Provides the guest-side bindings for the WASM Component Model interface.
-//! Mod developers implement the `Behavior` and `DanmakuBehavior` traits,
-//! then use `export_mod!` to register their implementations.
+//! Mod developers implement the `Behavior`, `DanmakuBehavior`, and
+//! `SpawnPatternBehavior` traits, then use `export_mod!` to register them.
 //!
 //! SoupRune 的 WASM 模组开发 SDK。
-//! 模组开发者实现 `Behavior` 和 `DanmakuBehavior` trait，
+//! 模组开发者实现 `Behavior`、`DanmakuBehavior` 和 `SpawnPatternBehavior` trait，
 //! 然后使用 `export_mod!` 注册实现。
+//!
+//! ## Key Concepts / 核心概念
+//!
+//! - **Typed Facts**: Facts are typed values (`FactValue`: Bool, Int, Float, Text).
+//!   Use `ctx.get_fact_bool()`, `ctx.set_fact_float()`, etc. for type-safe access.
+//!   类型化 Fact：通过 `get_fact_bool/int/float/string` 和对应 set 方法进行类型安全访问。
+//!
+//! - **Optional Velocity**: Behaviors can be pure logic (e.g. FightBar) without
+//!   any movement component. Calling `ctx.kinematics().set_velocity()` is a no-op
+//!   when the entity has no `BehaviorVelocity`.
+//!   可选速度：纯逻辑行为无需运动组件，调用 set_velocity 在无组件时安全忽略。
+//!
+//! - **Custom Actions**: Implement `CustomActionHandler` to handle FRE custom
+//!   actions from WASM, enabling data-driven game logic.
+//!   自定义 Action：实现 `CustomActionHandler` 处理 FRE 自定义动作。
 //!
 //! # Example
 //!
@@ -18,8 +33,9 @@
 //! impl Behavior for MySoul {
 //!     fn on_update(&mut self, ctx: &mut Context, dt: f32) {
 //!         ctx.log("hello from wasm!");
+//!         let speed = ctx.get_fact_float("move:speed").unwrap_or(100.0);
 //!         if ctx.input().pressed(Action::Right) {
-//!             ctx.kinematics().set_velocity(100.0, 0.0);
+//!             ctx.kinematics().set_velocity(speed as f32, 0.0);
 //!         }
 //!     }
 //! }

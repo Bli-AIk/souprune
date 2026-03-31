@@ -9,13 +9,13 @@ use crate::{BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam};
 
 /// Player/entity behavior trait.
 ///
-/// Behavior controls entity actions using host-api (input, velocity).
-/// Unlike DanmakuBehavior, it accesses engine state through the global
-/// host-api imports (via Context), not through per-instance parameters.
+/// Implement this to define behaviors driven by host-api (input, facts, events).
+/// Velocity is optional — pure-logic behaviors (e.g. fight bar, UI controllers)
+/// can skip `kinematics()` entirely; the host gracefully handles missing velocity.
 ///
 /// 玩家/实体行为 trait。
-/// 通过 host-api 全局导入（经由 Context）访问引擎状态，
-/// 与 DanmakuBehavior 不同，不依赖每实例参数。
+/// 实现此 trait 定义通过 host-api（输入、Fact、事件）驱动的行为。
+/// 速度是可选的 — 纯逻辑行为（如攻击条、UI 控制器）可省略 `kinematics()` 调用。
 pub trait Behavior {
     fn on_enter(&mut self, _context: &mut Context) {}
     fn on_update(&mut self, context: &mut Context, dt: f32);
