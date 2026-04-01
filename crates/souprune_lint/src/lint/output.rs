@@ -10,6 +10,7 @@ pub fn print_pretty(result: &CheckResult) {
     }
 
     let path_str = result.path.to_string_lossy().to_string();
+    let path: &str = &path_str;
 
     for diag in &result.diagnostics {
         // If we have no source content, fall back to simple text output.
@@ -35,15 +36,15 @@ pub fn print_pretty(result: &CheckResult) {
         let end = (diag.offset + diag.len).min(result.source.len());
         let start = diag.offset.min(end);
 
-        Report::build(kind, &path_str, start)
+        Report::build(kind, (path, start..end))
             .with_message(&diag.message)
             .with_label(
-                Label::new((&path_str, start..end))
+                Label::new((path, start..end))
                     .with_message(&diag.message)
                     .with_color(color),
             )
             .finish()
-            .eprint((&path_str, Source::from(&result.source)))
+            .eprint((path, Source::from(&result.source)))
             .ok();
     }
 }
