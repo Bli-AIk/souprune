@@ -27,21 +27,94 @@ pub struct CharacterAsset {
     pub interaction_script: Option<String>,
 }
 
+fn default_frame_duration() -> f32 {
+    0.15
+}
+
+fn default_looping() -> bool {
+    true
+}
+
+/// A single animation entry — either a plain path or a full descriptor.
+///
+/// In RON:
+/// - `"characters/frisk/walk/down"` → simple path, no flip, defaults
+/// - `(path: "characters/frisk/walk/side", flip_x: true)` → with flip
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum AnimationEntry {
+    /// Just a path (relative to module texture root).
+    Path(String),
+    /// Full descriptor with path + optional flip / timing overrides.
+    Full {
+        path: String,
+        #[serde(default)]
+        flip_x: bool,
+        #[serde(default)]
+        flip_y: bool,
+        #[serde(default)]
+        frame_duration: Option<f32>,
+        #[serde(default)]
+        looping: Option<bool>,
+    },
+}
+
+impl AnimationEntry {
+    pub fn path(&self) -> &str {
+        match self {
+            Self::Path(p) => p,
+            Self::Full { path, .. } => path,
+        }
+    }
+
+    pub fn flip_x(&self) -> bool {
+        match self {
+            Self::Path(_) => false,
+            Self::Full { flip_x, .. } => *flip_x,
+        }
+    }
+
+    pub fn flip_y(&self) -> bool {
+        match self {
+            Self::Path(_) => false,
+            Self::Full { flip_y, .. } => *flip_y,
+        }
+    }
+
+    pub fn frame_duration_override(&self) -> Option<f32> {
+        match self {
+            Self::Path(_) => None,
+            Self::Full { frame_duration, .. } => *frame_duration,
+        }
+    }
+
+    pub fn looping_override(&self) -> Option<bool> {
+        match self {
+            Self::Path(_) => None,
+            Self::Full { looping, .. } => *looping,
+        }
+    }
+}
+
 /// Defines how a state maps to directional animations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StateAnimationMapping {
     Directional {
-        up: String,
-        down: String,
-        left: String,
-        right: String,
+        up: AnimationEntry,
+        down: AnimationEntry,
+        left: AnimationEntry,
+        right: AnimationEntry,
     },
-    Single(String),
+    Single(AnimationEntry),
 }
 
 /// Animation configuration asset — another form of `.character.ron` schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimationConfigAsset {
     pub sprite_source: String,
+    #[serde(default = "default_frame_duration")]
+    pub default_frame_duration: f32,
+    #[serde(default = "default_looping")]
+    pub default_looping: bool,
     pub states: HashMap<String, StateAnimationMapping>,
 }

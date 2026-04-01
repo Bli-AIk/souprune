@@ -106,7 +106,6 @@ pub(crate) fn update_sprite_animation_system(
 
 pub(crate) fn setup_sprite_animation_clip_system(
     mut commands: Commands,
-    mut sprite_params: crate::core::sprite::params::SpriteParams,
     mut query: Query<
         (
             Entity,
@@ -120,12 +119,7 @@ pub(crate) fn setup_sprite_animation_clip_system(
     for (entity, mut sprite, mut clip, current_frame) in query.iter_mut() {
         apply_sprite_animation(&mut sprite, &mut clip, current_frame);
 
-        // Get frame duration from configuration
-        //
-        // 从配置获取帧持续时间
-        let frame_duration = sprite_params
-            .create_sprite_context()
-            .get_animation_frame_duration(clip.clip_name());
+        let frame_duration = clip.frame_duration;
         commands
             .entity(entity)
             .insert(SpriteAnimationTimer::new(frame_duration));

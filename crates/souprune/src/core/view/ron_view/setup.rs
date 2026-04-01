@@ -34,8 +34,8 @@ pub fn ui_animation_init_system(
             continue;
         };
 
-        let clip_name = if let Some(mapping) = config.states.get(&anim_state.state_name) {
-            crate::core::character_asset::state_animation_clip_name(
+        let entry = if let Some(mapping) = config.states.get(&anim_state.state_name) {
+            crate::core::character_asset::state_animation_entry(
                 mapping,
                 &crate::core::basic_components::Direction::Down,
             )
@@ -47,29 +47,37 @@ pub fn ui_animation_init_system(
             continue;
         };
 
+        let looping = entry
+            .looping_override()
+            .unwrap_or(config.default_looping);
+        let frame_duration = entry
+            .frame_duration_override()
+            .unwrap_or(config.default_frame_duration);
+
         let clip = match crate::core::animation::components::SpriteAnimationClip::new(
             &mut sprite_params.create_sprite_context(),
             &config.sprite_source,
-            clip_name,
+            entry.path(),
+            entry.flip_x(),
+            entry.flip_y(),
+            looping,
+            frame_duration,
         ) {
             Ok(c) => c,
             Err(e) => {
                 error!(
                     "Failed to load initial UI animation clip {}: {}. Using fallback.",
-                    clip_name, e
+                    entry.path(), e
                 );
                 crate::core::animation::components::SpriteAnimationClip::fallback(
                     &mut sprite_params.create_sprite_context(),
-                    &config.sprite_source,
-                    clip_name,
+                    entry.path(),
+                    frame_duration,
                 )
             }
         };
 
         let sprite = clip.get_current_sprite().clone();
-        let frame_duration = sprite_params
-            .create_sprite_context()
-            .get_animation_frame_duration(clip.clip_name());
 
         commands.entity(entity).insert((
             sprite,
