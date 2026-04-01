@@ -41,7 +41,10 @@ fn input_config_assets_parse() {
         );
         parsed_any = true;
     }
-    assert!(parsed_any, "at least one project should have config/input.ron");
+    assert!(
+        parsed_any,
+        "at least one project should have config/input.ron"
+    );
 }
 
 #[test]
