@@ -15,10 +15,11 @@
 use anyhow::{Context, Result};
 use bevy::prelude::Resource;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone, Deserialize, Resource)]
 pub struct SoupruneConfig {
@@ -55,6 +56,30 @@ pub struct SoupruneConfig {
     /// Mod 库配置（WASM 组件路径）。
     #[serde(skip)]
     pub mod_library: ModLibraryConfig,
+
+    /// Resolved mod dependencies (populated from `[dependencies]` in mod.toml).
+    /// Ordered so that transitive dependencies come before direct ones.
+    ///
+    /// 已解析的 mod 依赖列表（来自 mod.toml 的 `[dependencies]` 节）。
+    /// 传递依赖排在直接依赖之前。
+    #[serde(skip)]
+    pub resolved_dependencies: Vec<ResolvedDependency>,
+}
+
+/// A resolved mod dependency with its name and WASM path.
+///
+/// 已解析的 mod 依赖，包含名称和 WASM 路径。
+#[derive(Clone, Debug)]
+pub struct ResolvedDependency {
+    /// Mod name (matches a directory under `projects/`).
+    ///
+    /// Mod 名称（对应 `projects/` 下的目录）。
+    pub name: String,
+
+    /// WASM component filename from the dependency's mod.toml.
+    ///
+    /// 依赖的 mod.toml 中的 WASM 组件文件名。
+    pub wasm: String,
 }
 
 /// WASM mod library configuration from mod.toml [mod_library] section.
@@ -93,18 +118,11 @@ pub struct GameConfig {
     /// 包含初始玩家数据和游戏全局事实。
     pub global_rules: String,
 
-    /// Initial map path to load when entering Overworld.
-    /// If empty and `initial_battle_path` is set, the game will start in Battle mode.
-    /// Ignored when `initial_sequence_path` is set (sequence-driven mode).
+    /// Initial sequence path for the Battle state.
+    /// When set and `initial_sequence_path` is absent, the game starts directly in Battle mode.
     ///
-    /// 进入 Overworld 时加载的初始地图路径。
-    /// 如果为空且设置了 `initial_battle_path`，游戏将以 Battle 模式启动。
-    /// 当设置了 `initial_sequence_path` 时此项被忽略（序列驱动模式）。
-    pub initial_map_path: String,
-
-    /// Debug battle chapter path to load when entering Battle state.
-    ///
-    /// 进入 Battle 状态时加载的调试用战斗章节路径。
+    /// 战斗状态的初始序列路径。
+    /// 当设置此项且 `initial_sequence_path` 未设置时，游戏直接以 Battle 模式启动。
     pub initial_battle_path: String,
 
     /// Optional sequence path to load when entering Overworld.
@@ -168,7 +186,6 @@ impl Default for GameConfig {
     fn default() -> Self {
         Self {
             global_rules: String::new(),
-            initial_map_path: String::new(),
             initial_battle_path: String::new(),
             initial_sequence_path: None,
             player_behavior_path: String::new(),
@@ -296,9 +313,22 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
     roots
 }
 
-pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
+/// Returns all asset roots for the current project and its dependencies.
+/// Search priority: current mod first, then dependencies in order.
+///
+/// 返回当前项目及其依赖的所有资产根目录。
+/// 搜索优先级：当前 mod 优先，然后按顺序搜索依赖。
+pub fn get_all_asset_roots() -> Vec<PathBuf> {
     let config = load_config();
-    let roots = get_asset_roots(&config.project.mod_name);
+    let mut all_roots = get_asset_roots(&config.project.mod_name);
+    for dep in &config.resolved_dependencies {
+        all_roots.extend(get_asset_roots(&dep.name));
+    }
+    all_roots
+}
+
+pub fn resolve_path(relative_path: &str) -> Option<PathBuf> {
+    let roots = get_all_asset_roots();
 
     for root in roots {
         let candidate = root.join(relative_path);
@@ -329,11 +359,13 @@ pub struct ResourcePaths {
 
 #[derive(Deserialize)]
 struct ModConfigFile {
-    game: Option<GameConfigPartial>,
+    game: Option<ModGameConfig>,
     #[serde(default)]
     resources: Option<ResourcePathsPartial>,
     #[serde(default)]
     mod_library: Option<ModLibraryConfigPartial>,
+    #[serde(default)]
+    dependencies: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -347,19 +379,25 @@ struct ResourcePathsPartial {
     audios: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct GameConfigPartial {
+/// Overlay struct for `[game]` in `mod.toml`.
+/// All fields are `Option` so that missing entries do not overwrite runtime defaults.
+///
+/// `mod.toml` 中 `[game]` 节的覆盖结构体。
+/// 所有字段均为 `Option`，缺失项不会覆盖运行时默认值。
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ModGameConfig {
     global_rules: Option<String>,
-    initial_map_path: Option<String>,
     initial_battle_path: Option<String>,
     initial_sequence_path: Option<String>,
     player_behavior_path: Option<String>,
     input_config_path: Option<String>,
     states_config: Option<String>,
     chase_config: Option<String>,
+    dialogue_view_default: Option<String>,
+    dialogue_voice_default: Option<String>,
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
-    dialogue_voice_default: Option<String>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -379,44 +417,34 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         mod_cfg.game.is_some()
     );
 
-    if let Some(game_partial) = mod_cfg.game {
+    if let Some(g) = mod_cfg.game {
         #[cfg(target_os = "android")]
         eprintln!(
             "[SoupRune] game_partial.input_config_path: {:?}",
-            game_partial.input_config_path
+            g.input_config_path
         );
-        if let Some(val) = game_partial.global_rules {
-            config.game.global_rules = val;
+        macro_rules! merge {
+            ($field:ident) => {
+                if let Some(val) = g.$field {
+                    config.game.$field = val;
+                }
+            };
         }
-        if let Some(val) = game_partial.initial_map_path {
-            config.game.initial_map_path = val;
-        }
-        if let Some(val) = game_partial.initial_battle_path {
-            config.game.initial_battle_path = val;
-        }
-        if let Some(val) = game_partial.initial_sequence_path {
+        merge!(global_rules);
+        merge!(initial_battle_path);
+        merge!(player_behavior_path);
+        merge!(input_config_path);
+        merge!(states_config);
+        merge!(dialogue_view_default);
+        merge!(dialogue_voice_default);
+        merge!(required_modules);
+        merge!(hidden_layer_keywords);
+        // Option<T> fields: wrap in Some
+        if let Some(val) = g.initial_sequence_path {
             config.game.initial_sequence_path = Some(val);
         }
-        if let Some(val) = game_partial.player_behavior_path {
-            config.game.player_behavior_path = val;
-        }
-        if let Some(val) = game_partial.input_config_path {
-            config.game.input_config_path = val;
-        }
-        if let Some(val) = game_partial.states_config {
-            config.game.states_config = val;
-        }
-        if let Some(val) = game_partial.chase_config {
+        if let Some(val) = g.chase_config {
             config.game.chase_config = Some(val);
-        }
-        if let Some(val) = game_partial.required_modules {
-            config.game.required_modules = val;
-        }
-        if let Some(val) = game_partial.hidden_layer_keywords {
-            config.game.hidden_layer_keywords = val;
-        }
-        if let Some(val) = game_partial.dialogue_voice_default {
-            config.game.dialogue_voice_default = val;
         }
     }
     // Load resource paths from [resources] section (required)
@@ -442,6 +470,55 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
     if config.resources.audios.is_empty() {
         error!("mod.toml: [resources].audios is required");
     }
+}
+
+/// Resolve mod dependencies by reading each dependency's mod.toml.
+/// Returns a flat list of dependencies (no transitive resolution yet).
+///
+/// 通过读取每个依赖的 mod.toml 解析 mod 依赖。
+/// 返回扁平的依赖列表（暂无传递依赖解析）。
+fn resolve_dependencies(
+    dependencies: &HashMap<String, String>,
+    projects_base: &Path,
+) -> Vec<ResolvedDependency> {
+    let mut resolved = Vec::new();
+
+    for (dep_name, dep_version) in dependencies {
+        let dep_dir = projects_base.join(dep_name);
+        let dep_mod_toml = dep_dir.join("mod.toml");
+
+        if !dep_mod_toml.exists() {
+            error!(
+                "Dependency '{}' v{} not found at {}",
+                dep_name,
+                dep_version,
+                dep_mod_toml.display()
+            );
+            continue;
+        }
+
+        let wasm = match read_mod_config(&dep_mod_toml) {
+            Ok(dep_cfg) => dep_cfg
+                .mod_library
+                .and_then(|lib| lib.wasm)
+                .unwrap_or_else(|| format!("{dep_name}.wasm")),
+            Err(e) => {
+                error!("Failed to read dependency '{}' mod.toml: {}", dep_name, e);
+                continue;
+            }
+        };
+
+        info!(
+            "Resolved dependency: {} v{} (wasm: {})",
+            dep_name, dep_version, wasm
+        );
+        resolved.push(ResolvedDependency {
+            name: dep_name.clone(),
+            wasm,
+        });
+    }
+
+    resolved
 }
 
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
@@ -483,7 +560,11 @@ Falling back to default configuration (example_mod)",
 
             if mod_config_path.exists() {
                 match read_mod_config(&mod_config_path) {
-                    Ok(mod_cfg) => apply_mod_config(&mut config, mod_cfg),
+                    Ok(mod_cfg) => {
+                        let deps = resolve_dependencies(&mod_cfg.dependencies, &projects_base);
+                        apply_mod_config(&mut config, mod_cfg);
+                        config.resolved_dependencies = deps;
+                    }
                     Err(e) => {
                         #[cfg(target_os = "android")]
                         eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
@@ -510,5 +591,6 @@ fn default_config() -> SoupruneConfig {
         render: RenderConfig::default(),
         resources: ResourcePaths::default(),
         mod_library: ModLibraryConfig::default(),
+        resolved_dependencies: Vec::new(),
     }
 }

@@ -22,6 +22,8 @@ static WORKSPACE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
 static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| WORKSPACE_ROOT.join("projects/example_mod"));
 static PROJECT_AM_ROOT: Lazy<PathBuf> =
     Lazy::new(|| WORKSPACE_ROOT.join("projects/example_am_mod"));
+static PROJECT_PRESET_ROOT: Lazy<PathBuf> =
+    Lazy::new(|| WORKSPACE_ROOT.join("projects/undertale_preset"));
 
 /// Read a UTF-8 file as string.
 ///
@@ -43,6 +45,7 @@ pub fn named_project_root(project_name: &str) -> &'static Path {
     match project_name {
         "example_mod" => PROJECT_ROOT.as_path(),
         "example_am_mod" => PROJECT_AM_ROOT.as_path(),
+        "undertale_preset" => PROJECT_PRESET_ROOT.as_path(),
         other => panic!("Unknown test project root: {other}"),
     }
 }

@@ -29,6 +29,8 @@ use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_bitmap_text::TextBlockStyling;
 use std::collections::VecDeque;
 
+pub use super::fact_toggle_color::FactToggleSdfColor;
+
 /// Re-export from bevy_bitmap_text — parse `{#RRGGBB:content}` color tags.
 pub(crate) use bevy_bitmap_text::parse_text_to_segments as parse_text_preserving_whitespace;
 
@@ -201,9 +203,11 @@ fn spawn_structure_from_file(
 /// 从 RON 文件同步加载 SdfStructureAsset。
 fn load_sdf_structure(structure_file: &str) -> Option<SdfStructureAsset> {
     let config = crate::config::load_config();
-    let full_path = crate::config::get_projects_base_path()
-        .join(&config.project.mod_name)
-        .join(structure_file);
+    let full_path = crate::config::resolve_path(structure_file).unwrap_or_else(|| {
+        crate::config::get_projects_base_path()
+            .join(&config.project.mod_name)
+            .join(structure_file)
+    });
 
     let content = std::fs::read_to_string(&full_path)
         .map_err(|e| {
@@ -249,12 +253,24 @@ fn spawn_layer_recursive(
 
     // Determine color based on layer definition
     // 根据层定义确定颜色
-    let color = match &layer_def.color_source {
-        SdfColorSource::FillColor => ui_box.fill_color,
-        SdfColorSource::White => Color::WHITE,
+    let (color, fact_toggle) = match &layer_def.color_source {
+        SdfColorSource::FillColor => (ui_box.fill_color, None),
+        SdfColorSource::White => (Color::WHITE, None),
         SdfColorSource::Custom(c) => {
             let (r, g, b, a) = color_tuple_to_static(c);
-            Color::srgba(r, g, b, a)
+            (Color::srgba(r, g, b, a), None)
+        }
+        SdfColorSource::FactToggle { key, on, off } => {
+            let (or, og, ob, oa) = color_tuple_to_static(off);
+            let off_color = Color::srgba(or, og, ob, oa);
+            let (nr, ng, nb, na) = color_tuple_to_static(on);
+            let on_color = Color::srgba(nr, ng, nb, na);
+            let toggle = FactToggleSdfColor {
+                key: key.clone(),
+                on: on_color,
+                off: off_color,
+            };
+            (off_color, Some(toggle))
         }
     };
 
@@ -277,6 +293,10 @@ fn spawn_layer_recursive(
             ViewVisibility::default(),
             Name::new(layer_def.name.clone()),
         ));
+
+        if let Some(toggle) = fact_toggle {
+            entity_cmd.insert(toggle);
+        }
 
         // Add ViewBoxFiller marker if this is the filler layer
         // 如果这是 filler 层，添加 ViewBoxFiller 标记
@@ -418,6 +438,7 @@ fn update_single_sdf_shape(
     entity: Entity,
     half_w: f32,
     half_h: f32,
+    alpha: f32,
     sdf_shape_query: &mut Query<(&mut ViewSdfShape, &MeshMaterial2d<SdfMaterial>, &Mesh2d)>,
     sdf_materials: &mut ResMut<Assets<SdfMaterial>>,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -429,6 +450,16 @@ fn update_single_sdf_shape(
     shape.half_height = half_h;
     if let Some(material) = sdf_materials.get_mut(&mat_handle.0) {
         *material = shape.to_material();
+        if alpha < 1.0 {
+            material.uniform_data.color.w *= alpha;
+            // Also apply to stroke color (packed as bits in params.w)
+            if material.uniform_data.params.z > 0.0 {
+                let packed = material.uniform_data.params.w;
+                let orig_a = (packed.to_bits() & 0xFF) as f32 / 255.0;
+                material.uniform_data.params.w =
+                    bevy_alight_motion::sdf::repack_with_alpha(packed, orig_a * alpha);
+            }
+        }
     }
     if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
         *mesh = shape.create_mesh();
@@ -516,11 +547,13 @@ pub fn update_sdf_view_shape_system(
         }
 
         trace!("Updating existing SDF shape children for UI box");
+        let alpha = ui_box.alpha();
         if expected_shapes == 1 {
             update_single_sdf_shape(
                 sdf_shape_entities[0],
                 box_width / 2.0,
                 box_height / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,
@@ -531,6 +564,7 @@ pub fn update_sdf_view_shape_system(
                 sdf_shape_entities[0],
                 (box_width + border_width * 2.0) / 2.0,
                 (box_height + border_width * 2.0) / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,
@@ -539,6 +573,7 @@ pub fn update_sdf_view_shape_system(
                 sdf_shape_entities[1],
                 box_width / 2.0,
                 box_height / 2.0,
+                alpha,
                 &mut sdf_shape_query,
                 &mut sdf_materials,
                 &mut meshes,

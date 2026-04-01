@@ -7,6 +7,7 @@ pub mod components;
 mod custom_sprite_material;
 pub mod dynamic_material;
 pub(crate) mod expr_eval;
+pub mod fact_toggle_color;
 pub mod layout;
 mod lifecycle;
 mod messages;

@@ -1,14 +1,6 @@
-//! # components.rs
+//! ECS components for sprite animation.
 //!
-//! # components.rs 文件
-//!
-//! ## Module Overview
-//!
-//! ## 模块概述
-//!
-//! Defines ECS components for sprite animation, including `SpriteAnimationClip` (holding frames), `SpriteAnimationTimer` (controlling timing), and `SpriteAnimationCurrentFrame`.
-//!
-//! 定义用于精灵动画的 ECS 组件，包括 `SpriteAnimationClip`（保存帧）、`SpriteAnimationTimer`（控制时序）和 `SpriteAnimationCurrentFrame`。
+//! 精灵动画 ECS 组件。
 
 use crate::core::sprite::load_context::SpriteLoadContext;
 use anyhow::Result;
@@ -53,44 +45,47 @@ pub(crate) struct SpriteAnimationClip {
     sprites: Vec<Sprite>,
     pub(crate) frame: usize,
     looping: bool,
-    clip_name: String,
-    #[allow(dead_code)]
-    module_name: String,
+    /// Path used as identity to detect animation switches.
+    clip_path: String,
+    pub(crate) frame_duration: f32,
 }
 
 impl SpriteAnimationClip {
+    /// Create a new animation clip from a module-relative path.
+    ///
+    /// `relative_path` — e.g. `"characters/frisk/walk/down"` (directory) or single file.
     pub fn new(
         sprite_context: &mut SpriteLoadContext,
         module_name: &str,
-        clip_name: &str,
+        relative_path: &str,
+        flip_x: bool,
+        flip_y: bool,
+        looping: bool,
+        frame_duration: f32,
     ) -> Result<Self> {
-        let (sprites, looping) =
-            sprite_context.get_sprite_animations_with_config(module_name, clip_name)?;
+        let sprites =
+            sprite_context.get_sprite_animations(module_name, relative_path, flip_x, flip_y)?;
         Ok(Self {
             sprites,
             frame: 0,
             looping,
-            clip_name: clip_name.to_string(),
-            module_name: module_name.to_string(),
+            clip_path: relative_path.to_string(),
+            frame_duration,
         })
     }
 
-    /// Creates a fallback animation clip with a single default sprite.
-    /// Used when the requested animation fails to load, preventing repeated load attempts.
-    ///
-    /// 创建带有单个默认精灵的回退动画片段。
-    /// 当请求的动画加载失败时使用，防止重复加载尝试。
+    /// Fallback animation clip with a single missing-texture sprite.
     pub fn fallback(
         sprite_context: &mut SpriteLoadContext,
-        module_name: &str,
-        clip_name: &str,
+        relative_path: &str,
+        frame_duration: f32,
     ) -> Self {
         Self {
             sprites: vec![sprite_context.get_missing_sprite()],
             frame: 0,
             looping: false,
-            clip_name: clip_name.to_string(),
-            module_name: module_name.to_string(),
+            clip_path: relative_path.to_string(),
+            frame_duration,
         }
     }
 
@@ -106,7 +101,7 @@ impl SpriteAnimationClip {
         self.looping
     }
 
-    pub fn clip_name(&self) -> &str {
-        &self.clip_name
+    pub fn clip_path(&self) -> &str {
+        &self.clip_path
     }
 }

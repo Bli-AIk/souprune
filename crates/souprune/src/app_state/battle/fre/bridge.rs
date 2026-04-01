@@ -180,6 +180,95 @@ pub fn copy_enemy_act_data_system(
     tracker.last_menu_context = Some(current_menu_context);
 }
 
+/// Resource to track item display name sync state.
+///
+/// 追踪物品显示名称同步状态的资源。
+#[derive(Resource, Default)]
+pub struct ItemDisplayTracker {
+    last_in_item_mode: bool,
+    last_inventory_len: usize,
+}
+
+/// System to sync `item_display_names` and page info to ViewRoot local facts when in ITEM mode.
+///
+/// 在 ITEM 模式下同步 `item_display_names` 和分页信息到 ViewRoot 局部事实的系统。
+pub fn sync_item_display_names_system(
+    mut tracker: ResMut<ItemDisplayTracker>,
+    mut view_roots: Query<&mut ViewRoot>,
+    layered_db: Res<LayeredFactDatabase>,
+    item_registry: Res<crate::core::item::ItemRegistry>,
+    mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
+) {
+    let Ok(mut view_root) = view_roots.single_mut() else {
+        return;
+    };
+
+    let depth = view_root.local_facts.get_int("depth").unwrap_or(0);
+    let menu_context = view_root.local_facts.get_int("menu_context").unwrap_or(0);
+    let in_item_mode = depth == 1 && menu_context == 2;
+
+    if !in_item_mode {
+        tracker.last_in_item_mode = false;
+        return;
+    }
+
+    let inventory = layered_db
+        .get_string_list("player:inventory")
+        .map(|v| v.to_vec())
+        .unwrap_or_default();
+    let inv_len = inventory.len();
+
+    let entered = !tracker.last_in_item_mode;
+    let changed = inv_len != tracker.last_inventory_len;
+
+    if entered || changed {
+        let display_names: Vec<String> = inventory
+            .iter()
+            .map(|item_id| resolve_item_display_name(item_id, &item_registry, &mortar_strings))
+            .collect();
+
+        view_root
+            .local_facts
+            .set("item_display_names", FactValue::StringList(display_names));
+        view_root
+            .local_facts
+            .set("item_count", FactValue::Int(inv_len as i64));
+    }
+
+    // Update page info every frame in item mode
+    let item_selection = view_root.local_facts.get_int("item_selection").unwrap_or(0);
+    let page = item_selection / 4 + 1;
+    let page_count = ((inv_len as i64) + 3) / 4;
+    view_root.local_facts.set("item_page", FactValue::Int(page));
+    view_root
+        .local_facts
+        .set("item_page_count", FactValue::Int(page_count));
+
+    tracker.last_in_item_mode = true;
+    tracker.last_inventory_len = inv_len;
+}
+
+/// Resolve an item's display name for the battle menu.
+/// Checks for a `battle_name` constant in the item's mortar file; falls back to locale name.
+fn resolve_item_display_name(
+    item_id: &str,
+    item_registry: &crate::core::item::ItemRegistry,
+    mortar_strings: &crate::extra::mortar::MortarStringTable,
+) -> String {
+    let Some(item) = item_registry.get(item_id) else {
+        return format!("??? ({})", item_id);
+    };
+    if let Some(mortar_path) = &item.mortar {
+        let namespace = mortar_path.strip_suffix(".mortar").unwrap_or(mortar_path);
+        let battle_key = format!("{namespace}:battle_name");
+        if let Some(name) = mortar_strings.get(&battle_key) {
+            return name.to_string();
+        }
+    }
+    let key = format!("{}:{}", item.locale.file, item.locale.name);
+    mortar_strings.resolve(&key).to_string()
+}
+
 /// Copy the selected enemy's ACT data from the layered database into ViewRoot local_facts.
 /// Looks up action_labels, action_sequences, action_params, and act_count using
 /// multiple naming patterns (global, id-prefixed, index-prefixed).

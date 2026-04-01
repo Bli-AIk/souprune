@@ -72,31 +72,42 @@ impl Plugin for AppSetupPlugin {
 ///
 /// 通过扫描 textures 目录发现纹理模块。
 fn discover_texture_modules() -> Vec<String> {
-    let config = config::load_config();
-    let roots = config::get_asset_roots(&config.project.mod_name);
+    let roots = config::get_all_asset_roots();
+    let mut all_modules = Vec::new();
 
     for root in roots {
         let textures_path = root.join("textures");
-        if textures_path.exists()
-            && textures_path.is_dir()
-            && let Ok(entries) = fs::read_dir(&textures_path)
-        {
-            let modules: Vec<String> = entries
-                .filter_map(|entry| entry.ok())
-                .filter(|entry| entry.path().is_dir())
-                .filter_map(|entry| entry.file_name().into_string().ok())
-                .collect();
+        let Ok(entries) = fs::read_dir(&textures_path) else {
+            continue;
+        };
+        if !textures_path.is_dir() {
+            continue;
+        }
 
-            if !modules.is_empty() {
-                info!(
-                    "Discovered {} texture modules in {:?}: {:?}",
-                    modules.len(),
-                    textures_path,
-                    modules
-                );
-                return modules;
+        let modules: Vec<String> = entries
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.path().is_dir())
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .collect();
+
+        if modules.is_empty() {
+            continue;
+        }
+        info!(
+            "Discovered {} texture modules in {:?}: {:?}",
+            modules.len(),
+            textures_path,
+            modules
+        );
+        for m in modules {
+            if !all_modules.contains(&m) {
+                all_modules.push(m);
             }
         }
+    }
+
+    if !all_modules.is_empty() {
+        return all_modules;
     }
 
     // Fallback to default modules if no modules discovered
@@ -181,11 +192,10 @@ fn check_textures_system(
             next_state.set(AppState::Running);
 
             if souprune_config.game.initial_sequence_path.is_none()
-                && souprune_config.game.initial_map_path.is_empty()
                 && !souprune_config.game.initial_battle_path.is_empty()
             {
                 info!(
-                    "No initial map path, but initial battle path found. Entering Battle: {}",
+                    "No initial_sequence_path; initial_battle_path found. Entering Battle: {}",
                     souprune_config.game.initial_battle_path
                 );
                 sequence_mode.0 = Some("battle".to_string());

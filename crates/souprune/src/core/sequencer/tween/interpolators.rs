@@ -47,6 +47,20 @@ impl Interpolator for SpriteAlphaInterpolator {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Reflect)]
+pub(crate) struct ViewBoxAlphaInterpolator {
+    pub start: f32,
+    pub end: f32,
+}
+
+impl Interpolator for ViewBoxAlphaInterpolator {
+    type Item = ViewBox;
+
+    fn interpolate(&self, item: &mut Self::Item, value: f32, _previous_value: f32) {
+        item.alpha = self.start + (self.end - self.start) * value;
+    }
+}
+
 #[derive(Component)]
 pub struct TweenInProgress {
     pub wait_for_completion: bool,

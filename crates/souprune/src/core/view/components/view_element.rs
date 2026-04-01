@@ -222,6 +222,11 @@ pub struct ElementState {
     ///
     /// 贴图路径（如果 Sprite 有图片）。
     pub texture: Option<String>,
+
+    /// ViewBox alpha (if ViewBox present).
+    ///
+    /// ViewBox 透明度（如果有 ViewBox）。
+    pub view_box_alpha: Option<f32>,
 }
 
 impl ViewElementHistory {
@@ -317,12 +322,14 @@ impl ElementState {
         transform: Option<&Transform>,
         sprite: Option<&Sprite>,
         visibility: Option<&Visibility>,
+        view_box: Option<&super::box_components::ViewBox>,
     ) -> Self {
         Self {
             transform: transform.map(|t| (t.translation, t.rotation, t.scale)),
             color: sprite.map(|s| s.color),
             visibility: visibility.copied(),
             texture: None,
+            view_box_alpha: view_box.map(|vb| vb.alpha()),
         }
     }
 }

@@ -8,7 +8,7 @@ use crate::core::animation::components::{
 };
 use crate::core::basic_components::Facing;
 use crate::core::character_asset::{
-    AnimationConfigAsset, CharacterAnimator, state_animation_clip_name,
+    AnimationConfigAsset, CharacterAnimator, state_animation_entry,
 };
 use crate::core::sprite::params::SpriteParams;
 use bevy::log::error;
@@ -51,24 +51,34 @@ pub(crate) fn character_animation_system(
             continue;
         };
 
-        let clip_name = state_animation_clip_name(state_mapping, &facing.value);
+        let entry = state_animation_entry(state_mapping, &facing.value);
+        let entry_path = entry.path();
 
-        if clip.clip_name() != clip_name {
+        if clip.clip_path() != entry_path {
+            let looping = entry.looping_override().unwrap_or(config.default_looping);
+            let frame_duration = entry
+                .frame_duration_override()
+                .unwrap_or(config.default_frame_duration);
+
             let new_clip = match SpriteAnimationClip::new(
                 &mut sprite_params.create_sprite_context(),
                 &config.sprite_source,
-                clip_name,
+                entry_path,
+                entry.flip_x(),
+                entry.flip_y(),
+                looping,
+                frame_duration,
             ) {
                 Ok(clip) => clip,
                 Err(e) => {
                     error!(
                         "Failed to change animation to {}: {}. Using fallback.",
-                        clip_name, e
+                        entry_path, e
                     );
                     SpriteAnimationClip::fallback(
                         &mut sprite_params.create_sprite_context(),
-                        &config.sprite_source,
-                        clip_name,
+                        entry_path,
+                        frame_duration,
                     )
                 }
             };

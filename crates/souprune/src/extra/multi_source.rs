@@ -22,6 +22,8 @@ use bevy::asset::io::file::FileAssetReader;
 use bevy::asset::io::{AssetReader, AssetReaderError, PathStream, Reader};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
+use futures_lite::stream;
+use std::collections::HashSet;
 use std::path::Path;
 
 /// A composite asset reader that tries to read from multiple sources in order.
@@ -61,16 +63,39 @@ async fn try_read_meta_first<'a>(
     Err(AssetReaderError::NotFound(path.to_path_buf()))
 }
 
-async fn try_read_directory_first<'a>(
-    readers: &'a [FileAssetReader],
-    path: &'a Path,
+/// Merge directory listings from all readers that have the given path.
+/// Earlier readers take priority (their entries come first), but all unique
+/// entries across all readers are included.
+///
+/// 合并所有拥有给定路径的读取器的目录列表。
+/// 靠前的读取器优先（其条目排在前面），但所有读取器的唯一条目都会被包含。
+async fn try_read_directory_merged(
+    readers: &[FileAssetReader],
+    path: &Path,
 ) -> Result<Box<PathStream>, AssetReaderError> {
+    let mut all_paths = Vec::new();
+    let mut seen = HashSet::new();
+    let mut found_any = false;
+
     for reader in readers {
-        if let Ok(result) = reader.read_directory(path).await {
-            return Ok(result);
+        let Ok(dir_stream) = reader.read_directory(path).await else {
+            continue;
+        };
+        found_any = true;
+        use futures_lite::StreamExt;
+        let mut stream = dir_stream;
+        while let Some(entry) = stream.next().await {
+            if seen.insert(entry.clone()) {
+                all_paths.push(entry);
+            }
         }
     }
-    Err(AssetReaderError::NotFound(path.to_path_buf()))
+
+    if found_any {
+        Ok(Box::new(stream::iter(all_paths)))
+    } else {
+        Err(AssetReaderError::NotFound(path.to_path_buf()))
+    }
 }
 
 #[allow(refining_impl_trait)]
@@ -95,7 +120,7 @@ impl AssetReader for MultiSourceAssetReader {
         &'a self,
         path: &'a Path,
     ) -> impl ConditionalSendFuture<Output = Result<Box<PathStream>, AssetReaderError>> {
-        Box::pin(try_read_directory_first(&self.readers, path))
+        Box::pin(try_read_directory_merged(&self.readers, path))
     }
 
     fn is_directory<'a>(
