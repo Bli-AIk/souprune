@@ -451,11 +451,10 @@ fn spawn_resolved_visual(
 /// `"assets/textures/battle/danmaku/spear"` → `"danmaku/spear"`
 fn extract_module_relative_path(asset_path: &str) -> String {
     let normalized = asset_path.replace('\\', "/");
-    // Strip "assets/textures/{module}/" prefix
-    if let Some(rest) = normalized.strip_prefix("assets/textures/") {
-        if let Some(slash_pos) = rest.find('/') {
-            return rest[slash_pos + 1..].to_string();
-        }
+    if let Some(rest) = normalized.strip_prefix("assets/textures/")
+        && let Some(slash_pos) = rest.find('/')
+    {
+        return rest[slash_pos + 1..].to_string();
     }
     normalized
 }

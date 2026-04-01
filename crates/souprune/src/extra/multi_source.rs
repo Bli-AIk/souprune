@@ -78,14 +78,15 @@ async fn try_read_directory_merged(
     let mut found_any = false;
 
     for reader in readers {
-        if let Ok(dir_stream) = reader.read_directory(path).await {
-            found_any = true;
-            use futures_lite::StreamExt;
-            let mut stream = dir_stream;
-            while let Some(entry) = stream.next().await {
-                if seen.insert(entry.clone()) {
-                    all_paths.push(entry);
-                }
+        let Ok(dir_stream) = reader.read_directory(path).await else {
+            continue;
+        };
+        found_any = true;
+        use futures_lite::StreamExt;
+        let mut stream = dir_stream;
+        while let Some(entry) = stream.next().await {
+            if seen.insert(entry.clone()) {
+                all_paths.push(entry);
             }
         }
     }

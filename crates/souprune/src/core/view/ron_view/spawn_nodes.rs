@@ -291,17 +291,17 @@ fn spawn_view_node_with_repeat_context(
             }
 
             if is_dynamic_offset {
-                let uses_time = super::parsing::vec3_tuple_depends_on_time(&view_box.offset);
                 let dynamic_elem = DynamicViewElement {
                     sprite_def: None,
                     text_def: None,
                     view_box_def: Some(view_box.clone()),
                 };
-                if uses_time {
-                    box_entity.insert((dynamic_elem, TimeDependentTransform));
-                } else {
-                    box_entity.insert(dynamic_elem);
-                }
+                box_entity.insert(dynamic_elem);
+            }
+            let needs_time_transform =
+                is_dynamic_offset && super::parsing::vec3_tuple_depends_on_time(&view_box.offset);
+            if needs_time_transform {
+                box_entity.insert(TimeDependentTransform);
             }
 
             if node_def.tags.contains(&"BattleBox".to_string()) {

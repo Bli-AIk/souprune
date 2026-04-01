@@ -64,17 +64,14 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
         if let Some(found) =
             search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
         {
-            // Strip any mod's assets prefix to get a relative path
-            for search_root in &all_roots {
-                if let Ok(relative) = found.strip_prefix(search_root) {
-                    return Some(relative.to_string_lossy().to_string());
-                }
-            }
-            // Fallback: strip projects base
-            if let Ok(relative) = found.strip_prefix(&projects_base) {
-                return Some(relative.to_string_lossy().to_string());
-            }
-            return Some(found.to_string_lossy().to_string());
+            let relative = all_roots
+                .iter()
+                .find_map(|r| found.strip_prefix(r).ok())
+                .or_else(|| found.strip_prefix(&projects_base).ok());
+            return Some(match relative {
+                Some(rel) => rel.to_string_lossy().to_string(),
+                None => found.to_string_lossy().to_string(),
+            });
         }
     }
 

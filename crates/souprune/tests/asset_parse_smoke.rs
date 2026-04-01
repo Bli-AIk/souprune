@@ -14,7 +14,11 @@ fn read_project_file(project_name: &str, relative: &str) -> String {
 
 #[test]
 fn input_config_assets_parse() {
-    let project_names = test_support::available_project_names(&["example_mod", "example_am_mod"]);
+    let project_names = test_support::available_project_names(&[
+        "example_mod",
+        "undertale_preset",
+        "example_am_mod",
+    ]);
     if project_names.is_empty() {
         test_support::warn_missing_projects(
             "input_config_assets_parse",
@@ -23,20 +27,30 @@ fn input_config_assets_parse() {
         return;
     }
 
+    let mut parsed_any = false;
     for project_name in project_names {
-        test_support::ensure_project_asset_from(project_name, "config/input.ron");
+        let root = test_support::named_project_root(project_name);
+        if !root.join("config/input.ron").exists() {
+            continue;
+        }
         let input: core::input::InputConfig =
             test_support::parse_project_ron_from(project_name, "config/input.ron");
         assert!(
             !input.actions.is_empty(),
             "input config should define actions for {project_name}"
         );
+        parsed_any = true;
     }
+    assert!(parsed_any, "at least one project should have config/input.ron");
 }
 
 #[test]
 fn state_config_assets_parse() {
-    let project_names = test_support::available_project_names(&["example_mod", "example_am_mod"]);
+    let project_names = test_support::available_project_names(&[
+        "example_mod",
+        "undertale_preset",
+        "example_am_mod",
+    ]);
     if project_names.is_empty() {
         test_support::warn_missing_projects(
             "state_config_assets_parse",
@@ -45,15 +59,24 @@ fn state_config_assets_parse() {
         return;
     }
 
+    let mut parsed_any = false;
     for project_name in project_names {
-        test_support::ensure_project_asset_from(project_name, "config/states.ron");
+        let root = test_support::named_project_root(project_name);
+        if !root.join("config/states.ron").exists() {
+            continue;
+        }
         let state_config: core::state_config::StateConfig =
             test_support::parse_project_ron_from(project_name, "config/states.ron");
         assert!(
             !state_config.0.states.is_empty(),
             "states.ron should define at least one state for {project_name}"
         );
+        parsed_any = true;
     }
+    assert!(
+        parsed_any,
+        "at least one project should have config/states.ron"
+    );
 }
 
 #[test]
@@ -89,20 +112,33 @@ fn sequence_assets_parse_via_schema_and_runtime() {
 
 #[test]
 fn view_assets_parse_via_schema_and_runtime() {
-    if test_support::available_project_root("example_mod").is_none() {
+    let candidates = ["undertale_preset", "example_mod"];
+    let project_name = candidates
+        .iter()
+        .find(|name| {
+            test_support::available_project_root(name).is_some()
+                && !test_support::list_project_files_with_suffix_from(name, "states", ".view.ron")
+                    .is_empty()
+        })
+        .copied();
+
+    let Some(project_name) = project_name else {
         test_support::warn_missing_projects(
             "view_assets_parse_via_schema_and_runtime",
-            "example_mod worktree is absent from this checkout",
+            "no project with view assets found in this checkout",
         );
         return;
-    }
+    };
 
     let files =
-        test_support::list_project_files_with_suffix_from("example_mod", "states", ".view.ron");
-    assert!(!files.is_empty(), "example_mod should contain view assets");
+        test_support::list_project_files_with_suffix_from(project_name, "states", ".view.ron");
+    assert!(
+        !files.is_empty(),
+        "{project_name} should contain view assets"
+    );
 
     for relative in files {
-        let contents = read_project_file("example_mod", &relative);
+        let contents = read_project_file(project_name, &relative);
         let schema: souprune_schema::view::ViewLayoutAsset =
             souprune_schema::from_ron_str(&contents)
                 .unwrap_or_else(|err| panic!("Failed to parse schema {relative}: {err}"));

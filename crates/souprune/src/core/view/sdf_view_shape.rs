@@ -27,20 +27,9 @@ use super::sdf_shape::ViewSdfShape;
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;
 use bevy_bitmap_text::TextBlockStyling;
-use bevy_fact_rule_event::LayeredFactDatabase;
 use std::collections::VecDeque;
 
-/// Marks an SDF layer whose color is controlled by a boolean FRE fact.
-/// Stores the colors to apply when the fact is on or off.
-///
-/// 标记颜色由布尔 FRE fact 控制的 SDF 层。
-/// 存储 fact 为真/假时应用的颜色。
-#[derive(Component, Clone)]
-pub struct FactToggleSdfColor {
-    pub key: String,
-    pub on: Color,
-    pub off: Color,
-}
+pub use super::fact_toggle_color::FactToggleSdfColor;
 
 /// Re-export from bevy_bitmap_text — parse `{#RRGGBB:content}` color tags.
 pub(crate) use bevy_bitmap_text::parse_text_to_segments as parse_text_preserving_whitespace;
@@ -635,31 +624,5 @@ pub fn sync_view_box_child_visibility_system(
                 queue.extend(grandchildren.to_vec());
             }
         }
-    }
-}
-
-/// Update SDF layer colors driven by FRE facts (`FactToggle` color source).
-/// Runs when `LayeredFactDatabase` changes.
-///
-/// 更新由 FRE fact 驱动的 SDF 层颜色（`FactToggle` 颜色源）。
-/// 当 `LayeredFactDatabase` 变化时运行。
-pub fn update_fact_toggle_sdf_colors_system(
-    fact_db: Res<LayeredFactDatabase>,
-    query: Query<(&FactToggleSdfColor, &MeshMaterial2d<SdfMaterial>)>,
-    mut sdf_materials: ResMut<Assets<SdfMaterial>>,
-) {
-    if !fact_db.is_changed() {
-        return;
-    }
-
-    for (toggle, mat_handle) in query.iter() {
-        let Some(material) = sdf_materials.get_mut(&mat_handle.0) else {
-            continue;
-        };
-        let is_on = fact_db.get_bool(&toggle.key).unwrap_or(false);
-        let target = if is_on { toggle.on } else { toggle.off };
-        let alpha = material.uniform_data.color.w;
-        let srgba = target.to_srgba();
-        material.uniform_data.color = Vec4::new(srgba.red, srgba.green, srgba.blue, alpha);
     }
 }
