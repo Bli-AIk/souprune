@@ -27,10 +27,15 @@ exclude = [
     "crates/souprune_builtins",
 ]
 
-# Use local mortar_compiler for bevy_mortar_bond during development
+# Use local submodule/workspace crates during development
 [patch.crates-io]
 mortar_compiler = { path = "crates/mortar/crates/mortar_compiler" }
 iyes_perf_ui = { path = "crates/iyes_perf_ui" }
+bevy_fact_rule_event = { path = "crates/bevy_fact_rule_event" }
+bevy_mortar_bond = { path = "crates/bevy_mortar_bond" }
+bevy_ecs_typewriter = { path = "crates/bevy_ecs_typewriter" }
+bevy_alight_motion = { path = "crates/bevy_alight_motion" }
+bevy_bitmap_text = { path = "crates/bevy_bitmap_text" }
 
 [workspace.lints.rust]
 
