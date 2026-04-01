@@ -9,4 +9,4 @@ readme = "readme.md"
 keywords = ["game-framework", "modding", "sdk", "wasm"]
 
 [dependencies]
-wit-bindgen = "0.53"
+wit-bindgen = "0.54"
