@@ -50,17 +50,17 @@ leafwing-input-manager = "0.20"
 bevy_ecs_tiled = "0.11"
 bevy_tween = "0.12"
 iyes_perf_ui = { version = "0.5", optional = true }
-bevy_ecs_typewriter = { path = "../bevy_ecs_typewriter", version = "0.2" }
-bevy_fact_rule_event = { path = "../bevy_fact_rule_event", version = "0.4" }
-bevy_mortar_bond = { path = "../bevy_mortar_bond", version = "0.3" }
-bevy_alight_motion = { path = "../bevy_alight_motion", version = "0.3" }
+bevy_ecs_typewriter = "0.2"
+bevy_fact_rule_event = "0.4"
+bevy_mortar_bond = "0.3"
+bevy_alight_motion = "0.3"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ron = "0.12"
 toml = "0.9.8"
 regex = "1.10"
-bevy_bitmap_text = { path = "../bevy_bitmap_text" }
+bevy_bitmap_text = "0.1"
 bevy_kira_audio = { version = "0.25", features = ["wav", "ogg", "flac", "mp3"] }
 anyhow = "1.0.100"
 async-channel = "2"
