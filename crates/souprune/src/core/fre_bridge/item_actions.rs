@@ -239,7 +239,11 @@ fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
     }
 }
 
-/// UseItem action: dispatch by item type, execute effects, start dialogue.
+/// UseItem action: dispatch by item type, execute effects, prepare dialogue data.
+///
+/// Sets `mortar_path` and `action_param` on view local facts so the narration
+/// sequence can start dialogue with proper UI state (like ACT does).
+/// Does NOT start dialogue directly — the narration sequence handles that.
 pub(super) fn execute_use_item(
     index_expr: &str,
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
@@ -248,8 +252,6 @@ pub(super) fn execute_use_item(
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
-    dialogue_view_default: &str,
-    dialogue_voice_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -324,21 +326,54 @@ pub(super) fn execute_use_item(
         }
     }
 
+    // Compute mortar path and node for dialogue
     let default_node = default_use_node(&item.item_type);
+    let (mortar_path, action_param) = if let Some(mortar) = &item.mortar {
+        (mortar.as_str(), "OnUse")
+    } else {
+        ("items/_defaults.mortar", default_node)
+    };
+
+    // Set on view local facts so narration sequence can read $mortar_path / $action_param
+    local_facts.set("mortar_path", FactValue::String(mortar_path.to_string()));
+    local_facts.set("action_param", FactValue::String(action_param.to_string()));
+
+    // Set item-specific data on global facts for mortar dialogue variables
     let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    start_item_dialogue(
-        item,
-        "OnUse",
-        default_node,
+    set_item_dialogue_data(
         global_facts,
-        dialogue_view_default,
-        dialogue_voice_default,
         ItemDialogueData {
             locale_key,
             description: item.description.clone(),
             heal_amount: actual_healed,
             item_value: compute_item_value(item),
         },
+    );
+}
+
+/// Set item-specific data on global facts for mortar dialogue variables.
+///
+/// Does NOT start dialogue — only prepares `dialogue:item_*` facts so the
+/// mortar script can access item name, heal amount, etc.
+fn set_item_dialogue_data(
+    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    item_data: ItemDialogueData,
+) {
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_NAME,
+        FactValue::String(item_data.locale_key),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_DESCRIPTION,
+        FactValue::String(item_data.description),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT,
+        FactValue::Int(item_data.heal_amount),
+    );
+    global_facts.set_local(
+        fre_facts::DIALOGUE_ITEM_VALUE,
+        FactValue::Int(item_data.item_value),
     );
 }
 

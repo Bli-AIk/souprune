@@ -125,3 +125,49 @@ pub fn process_battle_box_chapter_system(
         }
     }
 }
+
+/// System that handles SpawnBehavior chapters — spawns a headless entity
+/// with BehaviorParams and BehaviorVelocity, scoped to the current mode.
+/// The chapter completes immediately after spawning.
+///
+/// 处理 SpawnBehavior 章节 — 生成一个带有 BehaviorParams 和 BehaviorVelocity 的无头实体，
+/// 作用域为当前模式。章节在生成后立即完成。
+pub fn process_spawn_behavior_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
+    mode: Res<crate::core::mode::SequenceMode>,
+) {
+    for (entity, active_chapter) in query.iter() {
+        let Chapter::SpawnBehavior {
+            behavior_id,
+            context,
+        } = &active_chapter.chapter
+        else {
+            continue;
+        };
+
+        let behavior_context = match context.as_deref() {
+            Some(tag) => crate::core::mod_system::BehaviorContext::new(tag),
+            None => crate::core::mod_system::BehaviorContext::any(),
+        };
+
+        let mode_name = mode.0.clone().unwrap_or_default();
+        info!(
+            "SpawnBehavior: spawning '{}' with context {:?} in mode '{}'",
+            behavior_id, behavior_context, mode_name
+        );
+
+        commands.spawn((
+            crate::core::mod_system::BehaviorParams {
+                behavior_id: behavior_id.clone(),
+                context: behavior_context,
+            },
+            crate::core::mod_system::BehaviorVelocity::default(),
+            Transform::default(),
+            crate::core::mode::ModeScoped(mode_name),
+            Name::new(format!("Behavior:{}", behavior_id)),
+        ));
+
+        commands.entity(entity).insert(ChapterFinished);
+    }
+}

@@ -121,6 +121,10 @@ pub fn spawn_overworld_player(
         &mut sprite_params.create_sprite_context(),
         &player_behavior.sprite_source,
         &player_behavior.initial_clip,
+        false,
+        false,
+        true,
+        0.15,
     ) {
         Ok(clip) => clip,
         Err(e) => {
@@ -130,8 +134,8 @@ pub fn spawn_overworld_player(
             );
             SpriteAnimationClip::fallback(
                 &mut sprite_params.create_sprite_context(),
-                &player_behavior.sprite_source,
                 &player_behavior.initial_clip,
+                0.15,
             )
         }
     };

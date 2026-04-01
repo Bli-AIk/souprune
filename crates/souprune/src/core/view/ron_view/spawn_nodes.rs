@@ -253,6 +253,7 @@ fn spawn_view_node_with_repeat_context(
                 .collect::<Vec<_>>();
 
             let offset = serializable_vec3_to_static(&view_box.offset);
+            let is_dynamic_offset = is_dynamic_vec3(&view_box.offset);
             let fill_color = view_box
                 .fill_color
                 .as_ref()
@@ -287,6 +288,20 @@ fn spawn_view_node_with_repeat_context(
 
             if let Some(ref view_element) = view_element {
                 box_entity.insert(view_element.clone());
+            }
+
+            if is_dynamic_offset {
+                let dynamic_elem = DynamicViewElement {
+                    sprite_def: None,
+                    text_def: None,
+                    view_box_def: Some(view_box.clone()),
+                };
+                box_entity.insert(dynamic_elem);
+            }
+            let needs_time_transform =
+                is_dynamic_offset && super::parsing::vec3_tuple_depends_on_time(&view_box.offset);
+            if needs_time_transform {
+                box_entity.insert(TimeDependentTransform);
             }
 
             if node_def.tags.contains(&"BattleBox".to_string()) {

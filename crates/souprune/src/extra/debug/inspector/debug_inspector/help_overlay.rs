@@ -69,7 +69,7 @@ pub(super) fn setup_debug_help_text_system(mut commands: Commands) {
         })
         .id();
 
-    eprintln!("[DEBUG] setup_debug_help_text_system: spawned root={debug_entity:?}");
+    debug!("setup_debug_help_text_system: spawned root={debug_entity:?}");
 
     commands.entity(debug_entity).insert(DebugHelpText {
         timer: Timer::new(Duration::from_secs(3), TimerMode::Once),

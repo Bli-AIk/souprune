@@ -6,11 +6,11 @@ use bevy::asset::Asset;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use serde::{Deserialize, Serialize};
-pub use souprune_schema::character::StateAnimationMapping;
 use souprune_schema::character::{
     AnimationConfigAsset as SchemaAnimationConfigAsset, CharacterAsset as SchemaCharacterAsset,
     Vec2XY,
 };
+pub use souprune_schema::character::{AnimationEntry, StateAnimationMapping};
 use std::ops::{Deref, DerefMut};
 
 /// Character asset runtime wrapper.
@@ -66,10 +66,10 @@ impl DerefMut for AnimationConfigAsset {
     }
 }
 
-pub fn state_animation_clip_name<'a>(
+pub fn state_animation_entry<'a>(
     mapping: &'a StateAnimationMapping,
     direction: &crate::core::basic_components::Direction,
-) -> &'a str {
+) -> &'a AnimationEntry {
     match mapping {
         StateAnimationMapping::Directional {
             up,
@@ -86,7 +86,7 @@ pub fn state_animation_clip_name<'a>(
             crate::core::basic_components::Direction::Left => left,
             crate::core::basic_components::Direction::Right => right,
         },
-        StateAnimationMapping::Single(clip) => clip,
+        StateAnimationMapping::Single(entry) => entry,
     }
 }
 
@@ -131,20 +131,20 @@ mod tests {
     }
 
     #[test]
-    fn resolves_directional_animation_clip_name() {
+    fn resolves_directional_animation_entry() {
         let mapping = StateAnimationMapping::Directional {
-            up: "walk_up".to_string(),
-            down: "walk_down".to_string(),
-            left: "walk_left".to_string(),
-            right: "walk_right".to_string(),
+            up: AnimationEntry::Path("walk_up".to_string()),
+            down: AnimationEntry::Path("walk_down".to_string()),
+            left: AnimationEntry::Path("walk_left".to_string()),
+            right: AnimationEntry::Path("walk_right".to_string()),
         };
 
         assert_eq!(
-            state_animation_clip_name(&mapping, &Direction::UpLeft),
+            state_animation_entry(&mapping, &Direction::UpLeft).path(),
             "walk_up"
         );
         assert_eq!(
-            state_animation_clip_name(&mapping, &Direction::Right),
+            state_animation_entry(&mapping, &Direction::Right).path(),
             "walk_right"
         );
     }

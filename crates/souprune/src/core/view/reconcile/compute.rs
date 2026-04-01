@@ -107,7 +107,7 @@ fn compute_element(
 
     // Resolve transform: ViewBox uses offset, sprites use sprite.transform
     let transform = if let Some(ref vb) = node_def.view_box {
-        resolve_viewbox_transform(vb)
+        resolve_viewbox_transform(vb, &ctx.player_data)
     } else {
         resolve_transform(&ctx.player_data, node_def.sprite.as_ref(), repeat_ctx)
     };
@@ -181,7 +181,7 @@ fn expand_repeat(
 
         // Resolve transform: ViewBox uses offset, sprites use sprite.transform
         let transform = if let Some(ref vb) = node_def.view_box {
-            resolve_viewbox_transform(vb)
+            resolve_viewbox_transform(vb, &ctx.player_data)
         } else {
             resolve_transform(
                 &ctx.player_data,

@@ -152,6 +152,7 @@ fn apply_modification(
                         Some(&*transform),
                         sprites.get(entity).ok(),
                         visibilities.get(entity).ok(),
+                        ui_boxes.get(entity).ok(),
                     );
                     commands
                         .entity(entity)
@@ -173,6 +174,7 @@ fn apply_modification(
                         Some(&*transform),
                         sprites.get(entity).ok(),
                         visibilities.get(entity).ok(),
+                        ui_boxes.get(entity).ok(),
                     );
                     history.push(new_state);
                 }
@@ -303,6 +305,11 @@ fn apply_modification(
                     && let Ok(mut visibility) = visibilities.get_mut(entity)
                 {
                     *visibility = vis;
+                }
+                if let Some(alpha) = original_state.view_box_alpha
+                    && let Ok(mut vb) = ui_boxes.get_mut(entity)
+                {
+                    vb.alpha = alpha;
                 }
             }
         }

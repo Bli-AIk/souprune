@@ -69,7 +69,6 @@ pub fn run() {
     eprintln!("[SoupRune] Config loaded: mod={}", config.project.mod_name);
 
     let resolution_scale = config.window.resolution_scale;
-    let project_name = config.project.mod_name.clone();
     let language = config.project.language.clone();
     let render_config = config.render.clone();
 
@@ -79,9 +78,12 @@ pub fn run() {
         "[SoupRune] input_config_path parts: base={:?}, mod={:?}, input={:?}",
         projects_base, config.project.mod_name, config.game.input_config_path
     );
-    let input_config_path = projects_base
-        .join(&config.project.mod_name)
-        .join(&config.game.input_config_path);
+    let input_config_path =
+        config::resolve_path(&config.game.input_config_path).unwrap_or_else(|| {
+            projects_base
+                .join(&config.project.mod_name)
+                .join(&config.game.input_config_path)
+        });
     #[cfg(target_os = "android")]
     eprintln!(
         "[SoupRune] input_config_path joined: {:?}",
@@ -113,7 +115,7 @@ pub fn run() {
         .register_asset_source(
             AssetSourceId::Default,
             AssetSourceBuilder::new(move || {
-                let roots = config::get_asset_roots(&project_name);
+                let roots = config::get_all_asset_roots();
                 let readers = roots.into_iter().map(FileAssetReader::new).collect();
                 Box::new(MultiSourceAssetReader::new(readers))
             })
@@ -171,13 +173,10 @@ pub fn run() {
         ))
         .insert_resource(config.clone())
         .insert_resource(bevy_bitmap_text::FontDirectories {
-            directories: vec![
-                projects_base
-                    .join(&config.project.mod_name)
-                    .join("assets/fonts")
-                    .to_string_lossy()
-                    .into_owned(),
-            ],
+            directories: config::get_all_asset_roots()
+                .iter()
+                .map(|root| root.join("fonts").to_string_lossy().into_owned())
+                .collect(),
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)

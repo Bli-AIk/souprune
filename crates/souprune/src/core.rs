@@ -63,7 +63,6 @@ pub mod view;
 pub mod visual;
 pub mod wasm_runtime;
 
-use crate::extra;
 use bevy::app::*;
 use bevy::asset::AssetApp;
 
@@ -78,8 +77,7 @@ pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<extra::toml::config::TomlConfigRegistry>()
-            .init_asset::<character_asset::CharacterAsset>()
+        app.init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
             .register_asset_loader(
                 ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&[
