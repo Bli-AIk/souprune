@@ -126,8 +126,8 @@ pub fn insert_input_resources(app: &mut App) {
         .get_resource::<config::SoupruneConfig>()
         .expect("SoupruneConfig must be inserted before calling insert_input_resources");
     let projects_base = config::get_projects_base_path();
-    let input_config_path = config::resolve_path(&config.game.input_config_path)
-        .unwrap_or_else(|| {
+    let input_config_path =
+        config::resolve_path(&config.game.input_config_path).unwrap_or_else(|| {
             projects_base
                 .join(&config.project.mod_name)
                 .join(&config.game.input_config_path)

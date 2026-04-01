@@ -252,7 +252,10 @@ fn build_texture_path(mod_name: &str, resources: &ResourcePaths, relative: &str)
     // Search dependency mod directories
     let config = crate::config::load_config();
     for dep in &config.resolved_dependencies {
-        let dep_path = base.join(&dep.name).join(&resources.textures).join(relative);
+        let dep_path = base
+            .join(&dep.name)
+            .join(&resources.textures)
+            .join(relative);
         if dep_path.exists() {
             return dep_path;
         }

@@ -7,7 +7,9 @@ use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
 use crate::core::basic_components::Facing;
-use crate::core::character_asset::{AnimationConfigAsset, CharacterAnimator, state_animation_entry};
+use crate::core::character_asset::{
+    AnimationConfigAsset, CharacterAnimator, state_animation_entry,
+};
 use crate::core::sprite::params::SpriteParams;
 use bevy::log::error;
 use bevy::prelude::*;
@@ -53,9 +55,7 @@ pub(crate) fn character_animation_system(
         let entry_path = entry.path();
 
         if clip.clip_path() != entry_path {
-            let looping = entry
-                .looping_override()
-                .unwrap_or(config.default_looping);
+            let looping = entry.looping_override().unwrap_or(config.default_looping);
             let frame_duration = entry
                 .frame_duration_override()
                 .unwrap_or(config.default_frame_duration);

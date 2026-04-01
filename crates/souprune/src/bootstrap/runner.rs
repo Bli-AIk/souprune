@@ -78,8 +78,8 @@ pub fn run() {
         "[SoupRune] input_config_path parts: base={:?}, mod={:?}, input={:?}",
         projects_base, config.project.mod_name, config.game.input_config_path
     );
-    let input_config_path = config::resolve_path(&config.game.input_config_path)
-        .unwrap_or_else(|| {
+    let input_config_path =
+        config::resolve_path(&config.game.input_config_path).unwrap_or_else(|| {
             projects_base
                 .join(&config.project.mod_name)
                 .join(&config.game.input_config_path)

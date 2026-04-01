@@ -49,8 +49,7 @@ fn assert_mapping_entries_non_empty(state: &str, mapping: &StateAnimationMapping
             left,
             right,
         } => {
-            for (dir_name, entry) in
-                [("up", up), ("down", down), ("left", left), ("right", right)]
+            for (dir_name, entry) in [("up", up), ("down", down), ("left", left), ("right", right)]
             {
                 assert!(
                     !entry.path().is_empty(),

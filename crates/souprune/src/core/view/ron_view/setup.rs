@@ -47,9 +47,7 @@ pub fn ui_animation_init_system(
             continue;
         };
 
-        let looping = entry
-            .looping_override()
-            .unwrap_or(config.default_looping);
+        let looping = entry.looping_override().unwrap_or(config.default_looping);
         let frame_duration = entry
             .frame_duration_override()
             .unwrap_or(config.default_frame_duration);
@@ -67,7 +65,8 @@ pub fn ui_animation_init_system(
             Err(e) => {
                 error!(
                     "Failed to load initial UI animation clip {}: {}. Using fallback.",
-                    entry.path(), e
+                    entry.path(),
+                    e
                 );
                 crate::core::animation::components::SpriteAnimationClip::fallback(
                     &mut sprite_params.create_sprite_context(),

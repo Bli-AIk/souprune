@@ -6,11 +6,11 @@ use bevy::asset::Asset;
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use serde::{Deserialize, Serialize};
-pub use souprune_schema::character::{AnimationEntry, StateAnimationMapping};
 use souprune_schema::character::{
     AnimationConfigAsset as SchemaAnimationConfigAsset, CharacterAsset as SchemaCharacterAsset,
     Vec2XY,
 };
+pub use souprune_schema::character::{AnimationEntry, StateAnimationMapping};
 use std::ops::{Deref, DerefMut};
 
 /// Character asset runtime wrapper.

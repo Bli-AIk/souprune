@@ -12,9 +12,7 @@
 
 use crate::config;
 use crate::core::basic_components::Direction;
-use crate::core::character_asset::{
-    AnimationConfigAsset, CharacterAsset, state_animation_entry,
-};
+use crate::core::character_asset::{AnimationConfigAsset, CharacterAsset, state_animation_entry};
 use anyhow::{Context, Result, anyhow};
 use bevy::math::Vec2;
 use bevy::prelude::Resource;
