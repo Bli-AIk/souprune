@@ -70,8 +70,8 @@ tracing = "0.1.43"
 chrono = "0.4.42"
 fasteval = "0.2"
 proptest = "1.9.0"
-wasmtime = "42"
-wasmtime-wasi = "42"
+wasmtime = "43"
+wasmtime-wasi = "43"
 souprune_api = { path = "../souprune_api", version = "0.2" }
 souprune_schema = { path = "../souprune_schema", version = "0.1" }
 dunce = "1.0.5"
