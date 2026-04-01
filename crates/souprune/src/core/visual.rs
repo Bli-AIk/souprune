@@ -243,10 +243,26 @@ pub fn resolve_visual_path_with_resources(
 ///
 /// 从 mod 名称和相对路径构建完整的纹理路径。
 fn build_texture_path(mod_name: &str, resources: &ResourcePaths, relative: &str) -> PathBuf {
-    crate::config::get_projects_base_path()
-        .join(mod_name)
-        .join(&resources.textures)
-        .join(relative)
+    let base = crate::config::get_projects_base_path();
+    let primary = base.join(mod_name).join(&resources.textures).join(relative);
+    if primary.exists() {
+        return primary;
+    }
+
+    // Search dependency mod directories
+    let config = crate::config::load_config();
+    for dep in &config.resolved_dependencies {
+        let dep_path = base
+            .join(&dep.name)
+            .join(&resources.textures)
+            .join(relative);
+        if dep_path.exists() {
+            return dep_path;
+        }
+    }
+
+    // Return primary even if not found (caller checks existence)
+    primary
 }
 
 /// Search for a file or directory by name recursively in the textures directory.
@@ -259,17 +275,23 @@ fn search_texture_recursive(
     resources: &ResourcePaths,
     name: &str,
 ) -> Option<PathBuf> {
-    let textures_root = crate::config::get_projects_base_path()
-        .join(mod_name)
-        .join(&resources.textures);
+    let base = crate::config::get_projects_base_path();
 
-    if !textures_root.exists() {
-        return None;
+    // Collect all texture roots to search (main mod + dependencies)
+    let config = crate::config::load_config();
+    let mut roots = vec![base.join(mod_name).join(&resources.textures)];
+    for dep in &config.resolved_dependencies {
+        roots.push(base.join(&dep.name).join(&resources.textures));
     }
 
     let mut file_matches = Vec::new();
     let mut dir_matches = Vec::new();
-    search_recursive_inner(&textures_root, name, &mut file_matches, &mut dir_matches);
+
+    for textures_root in &roots {
+        if textures_root.exists() {
+            search_recursive_inner(textures_root, name, &mut file_matches, &mut dir_matches);
+        }
+    }
 
     // Prioritize file matches over directory matches
     if !file_matches.is_empty() {
@@ -360,15 +382,31 @@ pub fn get_asset_path(resolved: &ResolvedVisual, mod_name: &str) -> String {
         ResolvedVisual::CharacterAnimation(p) => p,
     };
 
-    // Strip projects base prefix for asset server
-    let projects_prefix = crate::config::get_projects_base_path().join(mod_name);
-    let prefix_str = projects_prefix.to_string_lossy().to_string();
+    let projects_base = crate::config::get_projects_base_path();
     let path_str = path.to_string_lossy().to_string();
+
+    // Try stripping main mod prefix first
+    let main_prefix = projects_base.join(mod_name).to_string_lossy().to_string();
+    if let Some(stripped) = path_str.strip_prefix(main_prefix.as_str()) {
+        return stripped
+            .trim_start_matches('/')
+            .trim_start_matches('\\')
+            .to_string();
+    }
+
+    // Try stripping dependency mod prefixes
+    let config = crate::config::load_config();
+    for dep in &config.resolved_dependencies {
+        let dep_prefix = projects_base.join(&dep.name).to_string_lossy().to_string();
+        if let Some(stripped) = path_str.strip_prefix(dep_prefix.as_str()) {
+            return stripped
+                .trim_start_matches('/')
+                .trim_start_matches('\\')
+                .to_string();
+        }
+    }
+
     path_str
-        .strip_prefix(prefix_str.as_str())
-        .map(|s| s.trim_start_matches('/').trim_start_matches('\\'))
-        .unwrap_or(&path_str)
-        .to_string()
 }
 
 #[cfg(test)]

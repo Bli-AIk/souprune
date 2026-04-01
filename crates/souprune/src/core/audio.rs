@@ -34,21 +34,13 @@ use tracing::warn;
 const AUDIO_EXTENSIONS: &[&str] = &["wav", "ogg", "mp3", "flac"];
 
 /// Resolve a sound name to its asset path by searching in the audios directory.
+/// Searches main mod first, then dependency mods.
 ///
 /// 通过搜索 audios 目录将音效名称解析为资源路径。
+/// 先搜索主 mod，再搜索依赖 mod。
 fn resolve_sound_path(sound_name: &str) -> Option<String> {
     let config = load_config();
-    let mod_name = &config.project.mod_name;
     let audios_dir = &config.resources.audios;
-
-    let audios_root = crate::config::get_projects_base_path()
-        .join(mod_name)
-        .join(audios_dir);
-
-    if !audios_root.exists() {
-        warn!("Audios directory does not exist: {:?}", audios_root);
-        return None;
-    }
 
     let stem = Path::new(sound_name)
         .file_stem()
@@ -60,20 +52,33 @@ fn resolve_sound_path(sound_name: &str) -> Option<String> {
         .map(|e| AUDIO_EXTENSIONS.contains(&e.to_str().unwrap_or("")))
         .unwrap_or(false);
 
-    if let Some(found) =
-        search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
-    {
-        // Strip the assets root prefix to get a path relative to asset source roots
-        let assets_prefix = crate::config::get_projects_base_path()
-            .join(mod_name)
-            .join("assets");
-        let asset_path = found.strip_prefix(&assets_prefix).unwrap_or(&found);
-        return Some(asset_path.to_string_lossy().to_string());
+    let projects_base = crate::config::get_projects_base_path();
+    let all_roots = crate::config::get_all_asset_roots();
+
+    for root in &all_roots {
+        let audios_root = root.join(audios_dir.trim_start_matches("assets/"));
+        if !audios_root.exists() {
+            continue;
+        }
+
+        if let Some(found) =
+            search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
+        {
+            let relative = all_roots
+                .iter()
+                .find_map(|r| found.strip_prefix(r).ok())
+                .or_else(|| found.strip_prefix(&projects_base).ok());
+            return Some(match relative {
+                Some(rel) => rel.to_string_lossy().to_string(),
+                None => found.to_string_lossy().to_string(),
+            });
+        }
     }
 
     warn!(
-        "Sound file not found: {} (searched in {:?})",
-        sound_name, audios_root
+        "Sound file not found: {} (searched in {} roots)",
+        sound_name,
+        all_roots.len()
     );
     None
 }

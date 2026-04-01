@@ -52,7 +52,6 @@ fn enter_play_mode(
 
     if sequence_mode.0.is_none() {
         if config.game.initial_sequence_path.is_none()
-            && config.game.initial_map_path.is_empty()
             && !config.game.initial_battle_path.is_empty()
         {
             sequence_mode.0 = Some("battle".to_string());

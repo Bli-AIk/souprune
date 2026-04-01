@@ -206,6 +206,7 @@ pub fn spawn_sprite_entity(
         commands.entity(entity_id).insert(DynamicViewElement {
             sprite_def: Some(processed_sprite_def),
             text_def: None,
+            view_box_def: None,
         });
 
         if has_time_dependency {
@@ -481,6 +482,7 @@ pub fn spawn_shader_material_entity(
         entity_commands.insert(DynamicViewElement {
             sprite_def: Some(processed_sprite_def),
             text_def: None,
+            view_box_def: None,
         });
 
         // Add TimeDependentTransform marker if expression uses @time

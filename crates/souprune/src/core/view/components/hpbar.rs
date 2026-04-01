@@ -18,6 +18,7 @@ use bevy::prelude::*;
 pub struct DynamicViewElement {
     pub sprite_def: Option<crate::core::view::layout::SpriteDef>,
     pub text_def: Option<crate::core::view::layout::TextDef>,
+    pub view_box_def: Option<crate::core::view::layout::view_schema::ViewBoxLogicDef>,
 }
 
 /// Marker component for UI elements whose transform depends on time (@time).

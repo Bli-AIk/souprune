@@ -12,12 +12,17 @@
 //! 让游戏其余部分可以调用这些由 mod 定义的能力。
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
 use souprune_api::Action;
 use std::collections::HashMap;
 
 use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
 
+use custom_actions::{apply_pending_side_effects, build_fact_snapshot};
+
 mod danmaku_runtime;
+
+mod custom_actions;
 
 pub use danmaku_runtime::{ActiveDanmaku, ActiveDanmakuStack};
 
@@ -50,6 +55,11 @@ impl Plugin for ModPlugin {
                 (init_behaviors_system, update_behaviors_system)
                     .chain()
                     .in_set(crate::core::battle_runtime::BattleMovementSet),
+            )
+            .add_systems(
+                schedule,
+                custom_actions::dispatch_wasm_custom_actions_system
+                    .after(crate::core::fre_bridge::dispatch_custom_actions_system),
             );
     }
 }
@@ -216,7 +226,6 @@ fn load_builtin_wasm(
     };
 
     info!("Loading builtin WASM: {}", wasm_path.display());
-    eprintln!("[Souprune] Loading builtin WASM: {}", wasm_path.display());
 
     match runtime.load_mod(wasm_path) {
         Ok(loaded) => {
@@ -232,14 +241,13 @@ fn load_builtin_wasm(
                 pattern_registry,
             );
             loaded_mods.mods.push(loaded);
-            eprintln!(
-                "[Souprune] Builtins: {} behaviors, {} danmaku, {} patterns",
+            info!(
+                "Builtins loaded: {} behaviors, {} danmaku, {} patterns",
                 b, d, p
             );
         }
         Err(e) => {
             error!("Failed to load builtin WASM: {:?}", e);
-            eprintln!("[Souprune] Error loading builtin WASM: {:?}", e);
         }
     }
 }
@@ -260,8 +268,50 @@ fn load_mods_system(
     );
 
     let config = crate::config::load_config();
+    let projects_base = crate::config::get_projects_base_path();
+
+    // Load dependency WASMs first (lower priority — main mod can override)
+    for dep in &config.resolved_dependencies {
+        let dep_path = projects_base.join(&dep.name).join(&dep.wasm);
+        if !dep_path.exists() {
+            warn!("Dependency '{}' WASM not found: {:?}", dep.name, dep_path);
+            continue;
+        }
+
+        info!(
+            "Loading dependency WASM: {} ({})",
+            dep.name,
+            dep_path.display()
+        );
+
+        match runtime.load_mod(&dep_path) {
+            Ok(loaded) => {
+                let mod_index = loaded_mods.mods.len();
+                let b = loaded.behavior_ids.len();
+                let d = loaded.algorithm_ids.len();
+                let p = loaded.pattern_ids.len();
+                register_mod(
+                    &loaded,
+                    mod_index,
+                    &mut behavior_registry,
+                    &mut danmaku_registry,
+                    &mut pattern_registry,
+                );
+                loaded_mods.mods.push(loaded);
+                info!(
+                    "Dependency '{}' loaded: {} behaviors, {} danmaku, {} patterns",
+                    dep.name, b, d, p
+                );
+            }
+            Err(e) => {
+                error!("Failed to load dependency '{}' WASM: {:?}", dep.name, e);
+            }
+        }
+    }
+
+    // Load the main mod WASM (highest priority — can override dependencies)
     let mod_name = &config.project.mod_name;
-    let base_path = crate::config::get_projects_base_path().join(mod_name);
+    let base_path = projects_base.join(mod_name);
 
     let wasm_filename = if config.mod_library.wasm.is_empty() {
         format!("{}.wasm", mod_name)
@@ -275,15 +325,10 @@ fn load_mods_system(
             "Mod WASM file not found: {:?}. Checked: {:?}",
             wasm_filename, wasm_path
         );
-        eprintln!(
-            "[Souprune] Warning: Mod WASM file not found: {}",
-            wasm_path.display()
-        );
         return;
     }
 
     info!("Loading WASM mod: {}", wasm_path.display());
-    eprintln!("[Souprune] Loading WASM mod: {}", wasm_path.display());
 
     match runtime.load_mod(&wasm_path) {
         Ok(loaded) => {
@@ -299,23 +344,57 @@ fn load_mods_system(
                 &mut pattern_registry,
             );
             loaded_mods.mods.push(loaded);
-            eprintln!(
-                "[Souprune] Mod: {} behaviors, {} danmaku, {} patterns",
-                b, d, p
-            );
+            info!("Mod loaded: {} behaviors, {} danmaku, {} patterns", b, d, p);
         }
         Err(e) => {
             error!("Failed to load WASM mod: {:?}", e);
-            eprintln!("[Souprune] Error loading WASM mod: {:?}", e);
         }
     }
 }
 
 // === Runtime Components ===
 
+/// Which game context a WASM behavior is allowed to run in.
+/// An empty string means "any mode". Otherwise, the tag is matched against
+/// the current `SequenceMode` name (e.g. `"battle"`, `"overworld"`).
+///
+/// WASM 行为允许运行的游戏上下文。
+/// 空字符串表示"任何模式"。否则标签与当前 `SequenceMode` 名称匹配。
+#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+pub struct BehaviorContext(pub String);
+
+impl BehaviorContext {
+    pub fn any() -> Self {
+        Self(String::new())
+    }
+
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self(tag.into())
+    }
+
+    fn matches(&self, mode: &crate::core::mode::SequenceMode) -> bool {
+        self.0.is_empty() || mode.is(&self.0)
+    }
+}
+
 #[derive(Component)]
 pub struct BehaviorParams {
-    pub mode_id: String,
+    pub behavior_id: String,
+    pub context: BehaviorContext,
+}
+
+impl BehaviorParams {
+    pub fn new(behavior_id: impl Into<String>) -> Self {
+        Self {
+            behavior_id: behavior_id.into(),
+            context: BehaviorContext::any(),
+        }
+    }
+
+    pub fn with_context(mut self, context: BehaviorContext) -> Self {
+        self.context = context;
+        self
+    }
 }
 
 #[derive(Component, Default)]
@@ -336,10 +415,17 @@ fn init_behaviors_system(
     query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
     behavior_registry: Res<BehaviorRegistry>,
     mut loaded_mods: NonSendMut<LoadedMods>,
+    fact_db: Res<LayeredFactDatabase>,
 ) {
+    if query.is_empty() {
+        return;
+    }
+
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+
     for (entity, params) in query.iter() {
-        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.mode_id) else {
-            error!("Behavior ID not found: {}", params.mode_id);
+        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.behavior_id) else {
+            error!("Behavior ID not found: {}", params.behavior_id);
             continue;
         };
 
@@ -351,23 +437,36 @@ fn init_behaviors_system(
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
         match behavior_iface
             .behavior_instance()
-            .call_constructor(&mut loaded.store, &params.mode_id)
+            .call_constructor(&mut loaded.store, &params.behavior_id)
         {
             Ok(handle) => {
+                {
+                    let ctx = loaded.store.data_mut();
+                    ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+                    ctx.call_ctx.pending_fact_mutations.clear();
+                    ctx.call_ctx.pending_events.clear();
+                }
+
                 if let Err(e) = behavior_iface
                     .behavior_instance()
                     .call_on_enter(&mut loaded.store, handle)
                 {
-                    error!("Behavior on_enter failed for {}: {:?}", params.mode_id, e);
+                    error!(
+                        "Behavior on_enter failed for {}: {:?}",
+                        params.behavior_id, e
+                    );
                 }
 
-                commands.entity(entity).insert(ActiveBehavior {
-                    mod_index,
-                    resource_handle: handle,
-                });
+                commands.entity(entity).insert((
+                    ActiveBehavior {
+                        mod_index,
+                        resource_handle: handle,
+                    },
+                    params.context.clone(),
+                ));
             }
             Err(e) => {
-                error!("Failed to create behavior {}: {:?}", params.mode_id, e);
+                error!("Failed to create behavior {}: {:?}", params.behavior_id, e);
             }
         }
     }
@@ -376,8 +475,9 @@ fn init_behaviors_system(
 fn update_behaviors_system(
     mut query: Query<(
         Entity,
+        &BehaviorContext,
         &ActiveBehavior,
-        &mut BehaviorVelocity,
+        Option<&mut BehaviorVelocity>,
         &mut Transform,
     )>,
     action_states: Query<
@@ -386,9 +486,13 @@ fn update_behaviors_system(
     >,
     registry: Res<crate::core::input::actions::ActionRegistry>,
     time: Res<Time>,
+    mode: Res<crate::core::mode::SequenceMode>,
     mut loaded_mods: NonSendMut<LoadedMods>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
+    mut fact_writer: MessageWriter<FactEvent>,
 ) {
     let mut pressed = [false; 7];
+    let mut just_pressed = [false; 7];
     if let Some(state) = action_states.iter().next() {
         use crate::core::input::actions::ActionStateExt;
         pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
@@ -398,28 +502,62 @@ fn update_behaviors_system(
         pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
         pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
         pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
+
+        just_pressed[Action::Up as usize] = state.action_just_pressed(&registry, "Up");
+        just_pressed[Action::Down as usize] = state.action_just_pressed(&registry, "Down");
+        just_pressed[Action::Left as usize] = state.action_just_pressed(&registry, "Left");
+        just_pressed[Action::Right as usize] = state.action_just_pressed(&registry, "Right");
+        just_pressed[Action::Confirm as usize] = state.action_just_pressed(&registry, "Confirm");
+        just_pressed[Action::Cancel as usize] = state.action_just_pressed(&registry, "Cancel");
+        just_pressed[Action::Menu as usize] = state.action_just_pressed(&registry, "Menu");
     }
 
-    for (_entity, active, mut velocity, mut transform) in query.iter_mut() {
+    let fact_snapshot = build_fact_snapshot(&fact_db);
+    let dt = time.delta_secs();
+
+    for (_entity, ctx, active, mut velocity, mut transform) in query.iter_mut() {
+        if !ctx.matches(&mode) {
+            continue;
+        }
+
         let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
             continue;
         };
 
-        loaded.store.data_mut().call_ctx.input_pressed = pressed;
-        loaded.store.data_mut().call_ctx.velocity = velocity.0;
+        {
+            let ctx = loaded.store.data_mut();
+            ctx.call_ctx.input_pressed = pressed;
+            ctx.call_ctx.input_just_pressed = just_pressed;
+            ctx.call_ctx.velocity = velocity.as_ref().map_or(Vec2::ZERO, |v| v.0);
+            ctx.call_ctx.entity_position = transform.translation.truncate();
+            ctx.call_ctx.delta_time = dt;
+            ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+            ctx.call_ctx.pending_fact_mutations.clear();
+            ctx.call_ctx.pending_events.clear();
+        }
 
         let behavior_iface = loaded.bindings.souprune_plugin_behavior();
         if let Err(e) = behavior_iface.behavior_instance().call_on_update(
             &mut loaded.store,
             active.resource_handle,
-            time.delta_secs(),
+            dt,
         ) {
             error!("Behavior on_update failed: {:?}", e);
             continue;
         }
 
-        let new_velocity = loaded.store.data().call_ctx.velocity;
-        velocity.0 = new_velocity;
-        transform.translation += velocity.0.extend(0.0) * time.delta_secs();
+        // Only apply velocity-based movement when BehaviorVelocity is present.
+        if let Some(ref mut vel) = velocity {
+            let new_velocity = loaded.store.data().call_ctx.velocity;
+            vel.0 = new_velocity;
+            transform.translation += vel.0.extend(0.0) * dt;
+        }
+
+        let mutations =
+            std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
+        let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
+        if !mutations.is_empty() || !events.is_empty() {
+            apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
+        }
     }
 }

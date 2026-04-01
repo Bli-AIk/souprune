@@ -429,6 +429,16 @@ pub enum SdfColorSource {
     FillColor,
     White,
     Custom(SerializableColor),
+    /// Toggle between two colors based on a boolean FRE fact.
+    /// `on` is used when the fact is truthy; `off` is used otherwise.
+    ///
+    /// 根据布尔 FRE fact 在两种颜色间切换。
+    /// fact 为真值时使用 `on`；否则使用 `off`。
+    FactToggle {
+        key: String,
+        on: SerializableColor,
+        off: SerializableColor,
+    },
 }
 
 // ============================================================================

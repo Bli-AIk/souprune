@@ -348,35 +348,6 @@ fn spawn_bullet_visual(
         return;
     }
 
-    let parts: Vec<&str> = visual_path.split('/').collect();
-    let mut sprite_context = sprite_params.create_sprite_context();
-
-    if parts.len() >= 2 {
-        let module = parts[0];
-        let name = parts.last().unwrap_or(&"");
-
-        if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
-            apply_color_tint(&mut sprite, effective_color);
-            entity_commands.insert(sprite);
-            return;
-        }
-        if let Ok(clip) = SpriteAnimationClip::new(&mut sprite_context, module, name) {
-            let mut sprite = Sprite::default();
-            apply_color_tint(&mut sprite, effective_color);
-            entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
-            return;
-        }
-    }
-
-    let name = parts.last().unwrap_or(&"");
-    for module in &["battle", "common", "overworld"] {
-        if let Ok(mut sprite) = sprite_context.get_sprite(module, name) {
-            apply_color_tint(&mut sprite, effective_color);
-            entity_commands.insert(sprite);
-            return;
-        }
-    }
-
     warn!("Failed to resolve visual: {}", visual_path);
     entity_commands.insert(Sprite::default());
 }
@@ -416,15 +387,42 @@ fn spawn_resolved_visual(
                 sprite.color = color;
             }
 
-            let dir_name = std::path::Path::new(&asset_path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown");
+            // Extract the module-relative path from the full asset_path.
+            // asset_path format: "assets/textures/{module}/{relative_path}"
+            let relative_path = extract_module_relative_path(&asset_path);
 
             let mut sprite_context = sprite_params.create_sprite_context();
-            let clip_result = SpriteAnimationClip::new(&mut sprite_context, "battle", dir_name)
-                .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "common", dir_name))
-                .or_else(|_| SpriteAnimationClip::new(&mut sprite_context, "overworld", dir_name));
+            let clip_result = SpriteAnimationClip::new(
+                &mut sprite_context,
+                "battle",
+                &relative_path,
+                flip_x,
+                flip_y,
+                true,
+                frame_duration,
+            )
+            .or_else(|_| {
+                SpriteAnimationClip::new(
+                    &mut sprite_context,
+                    "common",
+                    &relative_path,
+                    flip_x,
+                    flip_y,
+                    true,
+                    frame_duration,
+                )
+            })
+            .or_else(|_| {
+                SpriteAnimationClip::new(
+                    &mut sprite_context,
+                    "overworld",
+                    &relative_path,
+                    flip_x,
+                    flip_y,
+                    true,
+                    frame_duration,
+                )
+            });
 
             if let Ok(clip) = clip_result {
                 entity_commands.insert((sprite, clip, SpriteAnimationTimer::new(frame_duration)));
@@ -432,8 +430,8 @@ fn spawn_resolved_visual(
                 let fallback_path = format!("{}/0.png", asset_path);
                 sprite.image = asset_server.load(&fallback_path);
                 warn!(
-                    "Animation '{}' not found in registry, using static fallback",
-                    dir_name
+                    "Animation '{}' not found in atlas, using static fallback",
+                    relative_path
                 );
                 entity_commands.insert(sprite);
             }
@@ -446,6 +444,19 @@ fn spawn_resolved_visual(
             entity_commands.insert(Sprite::default());
         }
     }
+}
+
+/// Extract module-relative path from a full asset path.
+///
+/// `"assets/textures/battle/danmaku/spear"` → `"danmaku/spear"`
+fn extract_module_relative_path(asset_path: &str) -> String {
+    let normalized = asset_path.replace('\\', "/");
+    if let Some(rest) = normalized.strip_prefix("assets/textures/")
+        && let Some(slash_pos) = rest.find('/')
+    {
+        return rest[slash_pos + 1..].to_string();
+    }
+    normalized
 }
 
 fn apply_color_tint(sprite: &mut Sprite, color: Option<Color>) {

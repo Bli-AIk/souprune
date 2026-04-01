@@ -158,6 +158,16 @@ pub enum Chapter {
         #[serde(default)]
         params: HashMap<String, String>,
     },
+    /// Spawn a headless entity with a WASM behavior attached.
+    /// The entity lives until the current mode is cleaned up (ModeScoped).
+    ///
+    /// 生成一个附带 WASM 行为的无头实体。
+    /// 实体在当前模式被清理时销毁（ModeScoped）。
+    SpawnBehavior {
+        behavior_id: String,
+        #[serde(default)]
+        context: Option<String>,
+    },
 }
 
 fn default_true() -> bool {

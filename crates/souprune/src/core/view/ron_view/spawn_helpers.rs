@@ -228,6 +228,7 @@ pub(crate) fn spawn_container_texts(
             cmd.insert(super::super::components::DynamicViewElement {
                 sprite_def: None,
                 text_def: Some(text_def.clone()),
+                view_box_def: None,
             });
 
             // Add TimeDependentTransform marker if expression uses @time

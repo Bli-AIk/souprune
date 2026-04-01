@@ -113,12 +113,10 @@ pub(crate) fn get_bevy_default_plugins(
 
 pub fn get_file_importer_plugins() -> (
     extra::markdown::MarkdownPlugin,
-    extra::toml::TomlPlugin,
     extra::mortar::MortarExtraPlugin,
 ) {
     (
         extra::markdown::MarkdownPlugin,
-        extra::toml::TomlPlugin,
         extra::mortar::MortarExtraPlugin,
     )
 }

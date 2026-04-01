@@ -1,27 +1,11 @@
 //! # params.rs
 //!
-//! # params.rs 文件
+//! `SpriteParams` system parameter — provides sprite loading context to ECS systems.
 //!
-//! ## Module Overview
-//!
-//! ## 模块概述
-//!
-//! This module provides the `SpriteParams` system parameter.
-//!
-//! 该模块提供 `SpriteParams` 系统参数。
-//!
-//! ## Source File Overview
-//!
-//! ## 源文件概述
-//!
-//! It simplifies accessing sprite-related resources in Bevy systems.
-//!
-//! 它简化了在 Bevy 系统中访问精灵相关资源的过程。
+//! `SpriteParams` 系统参数 — 向 ECS 系统提供精灵加载上下文。
 
 use crate::core::sprite::load_context::SpriteLoadContext;
 use crate::core::sprite::resources::ModuleSpriteRegistry;
-use crate::extra::toml::TomlAsset;
-use crate::extra::toml::config::TomlConfigRegistry;
 use bevy::asset::{Assets, LoadedFolder};
 use bevy::ecs::system::SystemParam;
 use bevy::image::{Image, TextureAtlasLayout};
@@ -33,8 +17,6 @@ pub struct SpriteParams<'w> {
     texture_atlases: ResMut<'w, Assets<TextureAtlasLayout>>,
     loaded_folders: Res<'w, Assets<LoadedFolder>>,
     textures: ResMut<'w, Assets<Image>>,
-    toml_assets: Res<'w, Assets<TomlAsset>>,
-    toml_registry: ResMut<'w, TomlConfigRegistry>,
 }
 
 impl<'w> SpriteParams<'w> {
@@ -44,8 +26,6 @@ impl<'w> SpriteParams<'w> {
             &mut self.texture_atlases,
             &self.loaded_folders,
             &mut self.textures,
-            &self.toml_assets,
-            &mut self.toml_registry,
         )
     }
 }

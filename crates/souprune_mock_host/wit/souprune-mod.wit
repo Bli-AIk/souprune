@@ -29,14 +29,40 @@ interface host-api {
         y: f32,
     }
 
+    /// Typed value for FRE facts.
+    variant fact-value {
+        int-val(s64),
+        float-val(f64),
+        bool-val(bool),
+        text-val(string),
+    }
+
     /// Print a log message to the engine console.
     log: func(level: u32, message: string);
 
     /// Check if a semantic action is currently pressed.
     is-action-pressed: func(action: action) -> bool;
 
+    /// Check if a semantic action was just pressed this frame.
+    is-action-just-pressed: func(action: action) -> bool;
+
     /// Set the entity's velocity.
     set-velocity: func(velocity: vec2);
+
+    /// Get the current entity's world position.
+    get-entity-position: func() -> vec2;
+
+    /// Get the frame delta time in seconds.
+    delta-time: func() -> f32;
+
+    /// Get a FRE fact by key. Returns none if not set.
+    get-fact: func(key: string) -> option<fact-value>;
+
+    /// Set a FRE fact by key. Applied after the current callback returns.
+    set-fact: func(key: string, value: fact-value);
+
+    /// Emit a FRE event by name.
+    emit-event: func(event-name: string);
 }
 
 /// Behavior interface — exported by mods for player/entity control.
@@ -159,10 +185,31 @@ interface spawn-pattern {
     list-patterns: func() -> list<string>;
 }
 
+/// Custom action handler — exported by mods that handle FRE custom actions.
+/// Mods that do not handle any actions implement this with an empty
+/// `list-handled-actions` return value.
+///
+/// 自定义 action 处理器 — 由需要处理 FRE Custom action 的模组导出。
+/// 不处理任何 action 的模组只需让 `list-handled-actions` 返回空列表。
+interface custom-action-handler {
+    /// A key-value parameter carried by a custom FRE action.
+    record action-param {
+        name: string,
+        value: string,
+    }
+
+    /// List all FRE custom action types this mod handles.
+    list-handled-actions: func() -> list<string>;
+
+    /// Dispatch a custom FRE action to this mod. Returns true if handled.
+    handle-action: func(action-type: string, params: list<action-param>) -> bool;
+}
+
 /// The world that a SoupRune mod component must target.
 world souprune-mod {
     import host-api;
     export behavior;
     export danmaku;
     export spawn-pattern;
+    export custom-action-handler;
 }

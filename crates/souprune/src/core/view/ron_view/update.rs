@@ -166,6 +166,16 @@ fn update_element_transform(
             );
         }
     }
+
+    // Update view_box offset if present (fact-driven position for view_box elements)
+    // 如果存在 view_box 定义则更新偏移（fact 驱动的 view_box 元素位置）
+    if let Some(view_box_def) = &dynamic_elem.view_box_def {
+        transform.translation = Vec3::new(
+            evaluate_float_expr(&view_box_def.offset.0, player_data, time),
+            evaluate_float_expr(&view_box_def.offset.1, player_data, time),
+            evaluate_float_expr(&view_box_def.offset.2, player_data, time),
+        );
+    }
 }
 
 pub fn update_dynamic_text_system(

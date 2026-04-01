@@ -122,7 +122,8 @@ pub fn process_player_spawn_requests(
                 physics_collider.clone(),
                 damage_trigger.clone(),
                 BehaviorParams {
-                    mode_id: default_mode_id,
+                    behavior_id: default_mode_id,
+                    context: crate::core::mod_system::BehaviorContext::new("battle"),
                 },
                 BehaviorVelocity::default(),
                 BulletTarget::new(),

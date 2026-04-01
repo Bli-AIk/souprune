@@ -1,6 +1,11 @@
 [repo]
 url = "https://github.com/Bli-AIk/souprune_example_mods.git"
 
+[mods.undertale_preset]
+branch = "mod/undertale_preset"
+path = "projects/undertale_preset"
+description = "Undertale-style game preset — reusable views, rules, sequences, and behaviors"
+
 [mods.example_mod]
 branch = "mod/example_mod"
 path = "projects/example_mod"
