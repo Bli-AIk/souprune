@@ -123,7 +123,12 @@ const docsPlugin = () => {
       const docsDir = path.resolve(__dirname, 'docs');
       server.watcher.add(docsDir);
 
-      const reload = () => {
+      const reloadDocs = () => {
+        // Invalidate the virtual module so generateDocs() re-runs
+        const mod = server.moduleGraph.getModuleById(resolvedVirtualModuleId);
+        if (mod) {
+          server.moduleGraph.invalidateModule(mod);
+        }
         server.ws.send({
           type: 'full-reload',
           path: '*'
@@ -131,19 +136,13 @@ const docsPlugin = () => {
       };
 
       server.watcher.on('add', (file) => {
-        if (file.startsWith(docsDir)) {
-          reload();
-        }
+        if (file.startsWith(docsDir)) reloadDocs();
       });
       server.watcher.on('change', (file) => {
-        if (file.startsWith(docsDir)) {
-          reload();
-        }
+        if (file.startsWith(docsDir)) reloadDocs();
       });
       server.watcher.on('unlink', (file) => {
-        if (file.startsWith(docsDir)) {
-          reload();
-        }
+        if (file.startsWith(docsDir)) reloadDocs();
       });
     }
   };
