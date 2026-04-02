@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-container">
+  <div class="markdown-container" @click="handleClick">
     <div v-html="renderedContent" />
   </div>
 </template>
@@ -13,6 +13,29 @@ import miHighlight from 'markdown-it-highlightjs';
 const props = defineProps<{
   content: string;
 }>();
+
+const emit = defineEmits<{
+  (e: 'navigate-doc', docId: string): void;
+}>();
+
+// Handle clicks on doc-link anchors (delegated)
+const handleClick = (e: MouseEvent) => {
+  const target = (e.target as HTMLElement).closest('a[data-doc-id]');
+  if (target) {
+    e.preventDefault();
+    const docId = target.getAttribute('data-doc-id');
+    if (docId) emit('navigate-doc', docId);
+  }
+};
+
+// Preprocess wiki-links: [[docId]] or [[docId|Display Text]]
+const preprocessWikiLinks = (content: string): string => {
+  return content.replace(/\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g, (_match, docId: string, text?: string) => {
+    const display = text?.trim() || docId.trim();
+    const id = docId.trim();
+    return `<a href="javascript:void(0)" class="doc-link text-yellow-300 hover:text-white hover:underline decoration-2 underline-offset-4 transition-colors cursor-pointer" data-doc-id="${id}">${display}</a>`;
+  });
+};
 
 // RON (Rust Object Notation) uses Rust-like syntax
 hljs.registerAliases('ron', { languageName: 'rust' });
@@ -211,7 +234,7 @@ md.renderer.rules.link_open = (tokens, idx) => {
 };
 
 const renderedContent = computed(() => {
-  return md.render(props.content);
+  return md.render(preprocessWikiLinks(props.content));
 });
 </script>
 
