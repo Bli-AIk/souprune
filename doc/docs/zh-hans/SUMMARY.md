@@ -12,6 +12,7 @@
 - [撒点胡椒粉](part1_spicy_main_course/1.2_danmaku.md)
 - [视觉盛宴](part1_spicy_main_course/1.3_animation.md)
 - [话疗环节](part1_spicy_main_course/1.4_act.md)
+- [念念有词](part1_spicy_main_course/1.5_mortar.md)
 
 ## 精致摆盘
 - [铺上桌布](part2_plating_the_world/2.1_maps.md)
