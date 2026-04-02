@@ -14,6 +14,9 @@ const props = defineProps<{
   content: string;
 }>();
 
+// RON (Rust Object Notation) uses Rust-like syntax
+hljs.registerAliases('ron', { languageName: 'rust' });
+
 const md = new MarkdownIt({
   html: true,
   linkify: true,
