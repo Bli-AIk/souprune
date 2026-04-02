@@ -15,11 +15,11 @@
         <!-- Serious Mode Toggle -->
         <button 
           @click="isSerious = !isSerious" 
-          class="text-white hover:text-yellow-300 transition-colors"
+          class="transition-colors"
+          :class="isSerious ? 'text-yellow-300 hover:text-white' : 'text-white hover:text-yellow-300'"
           :title="isSerious ? 'Switch to Lively Mode' : 'Switch to Serious Mode'"
         >
-          <Briefcase v-if="!isSerious" :size="20" />
-          <PartyPopper v-else :size="20" class="text-yellow-300" />
+          <Briefcase :size="20" />
         </button>
 
         <!-- Language Switcher -->
@@ -196,7 +196,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
+import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase } from 'lucide-vue-next';
 import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA, SOUPRUNE_VERSION } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
@@ -215,11 +215,14 @@ const direction = ref(0); // -1 for prev, 1 for next
 const transitionName = ref('slide-left');
 let suppressHashUpdate = false;
 
-// Parse URL hash: #/lang/docId or #/docId
-const parseHash = (): { lang?: string; id?: string } => {
+// Parse URL hash: #/lang/docId or #/lang/docId/serious
+const parseHash = (): { lang?: string; id?: string; serious?: boolean } => {
   const hash = window.location.hash.replace(/^#\/?/, '');
   if (!hash) return {};
   const parts = hash.split('/');
+  if (parts.length >= 3 && parts[parts.length - 1] === 'serious') {
+    return { lang: parts[0], id: parts.slice(1, -1).join('/'), serious: true };
+  }
   if (parts.length >= 2) {
     return { lang: parts[0], id: parts.slice(1).join('/') };
   }
@@ -229,7 +232,8 @@ const parseHash = (): { lang?: string; id?: string } => {
 // Update URL hash from current state
 const updateHash = () => {
   if (suppressHashUpdate) return;
-  const newHash = `#/${currentLang.value}/${activeId.value}`;
+  let newHash = `#/${currentLang.value}/${activeId.value}`;
+  if (isSerious.value) newHash += '/serious';
   if (window.location.hash !== newHash) {
     history.replaceState(null, '', newHash);
   }
@@ -300,13 +304,16 @@ const updateMilliseconds = () => {
 
 onMounted(() => {
   // Initialize from URL hash
-  const { lang, id } = parseHash();
+  const { lang, id, serious } = parseHash();
   if (lang && (lang === 'en' || lang === 'zh-hans')) {
     currentLang.value = lang;
   }
   if (id) {
     const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === id);
     if (exists) activeId.value = id;
+  }
+  if (serious) {
+    isSerious.value = true;
   }
   updateHash();
 
@@ -321,6 +328,7 @@ onMounted(() => {
       const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === parsed.id);
       if (exists) activeId.value = parsed.id!;
     }
+    isSerious.value = !!parsed.serious;
     suppressHashUpdate = false;
   };
   window.addEventListener('hashchange', onHashChange);
@@ -432,6 +440,16 @@ watch(currentLang, () => {
     updateHash();
 });
 
+watch(isSerious, () => {
+  updateHash();
+});
+
+const buildHash = (lang: string, id: string) => {
+  let h = `#/${lang}/${id}`;
+  if (isSerious.value) h += '/serious';
+  return h;
+};
+
 const navigate = (dir: 'next' | 'prev') => {
   const currentIndex = flatNavOrder.value.findIndex(item => item.id === activeId.value);
   if (currentIndex === -1) return;
@@ -443,7 +461,7 @@ const navigate = (dir: 'next' | 'prev') => {
     direction.value = dir === 'next' ? 1 : -1;
     transitionName.value = dir === 'next' ? 'slide-left' : 'slide-right';
     const newId = flatNavOrder.value[nextIndex].id;
-    history.pushState(null, '', `#/${currentLang.value}/${newId}`);
+    history.pushState(null, '', buildHash(currentLang.value, newId));
     suppressHashUpdate = true;
     activeId.value = newId;
     suppressHashUpdate = false;
@@ -456,7 +474,7 @@ const handleNavSelect = (id: string) => {
   
   direction.value = nextIndex > currentIndex ? 1 : -1;
   transitionName.value = nextIndex > currentIndex ? 'slide-left' : 'slide-right';
-  history.pushState(null, '', `#/${currentLang.value}/${id}`);
+  history.pushState(null, '', buildHash(currentLang.value, id));
   suppressHashUpdate = true;
   activeId.value = id;
   suppressHashUpdate = false;
