@@ -12,6 +12,9 @@ declare module 'virtual:docs' {
     title: string;
     category: string;
     content: string;
+    contentSerious?: string;
+    metadata?: Record<string, any>;
+    metadataSerious?: Record<string, any>;
   }
 
   export interface NavItem {
@@ -23,4 +26,5 @@ declare module 'virtual:docs' {
 
   export const DOCS_DATA: Record<string, DocItem[]>;
   export const NAV_ITEMS: Record<string, NavItem[]>;
+  export const SOUPRUNE_VERSION: string;
 }

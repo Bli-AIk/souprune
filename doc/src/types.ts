@@ -1,8 +1,17 @@
+export interface DocMetadata {
+  version?: string;
+  date?: string;
+  author?: string;
+  tags?: string[];
+}
+
 export interface DocPage {
   id: string;
   title: string;
   content: string;
   contentSerious?: string;
+  metadata?: DocMetadata;
+  metadataSerious?: DocMetadata;
   category: 'guide' | 'api' | 'examples';
 }
 

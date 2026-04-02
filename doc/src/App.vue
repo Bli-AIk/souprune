@@ -116,6 +116,41 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
+                <!-- Document Metadata Bar -->
+                <div v-if="activeMetadata" class="mb-6 border-2 border-gray-700 bg-gray-900/50 px-4 py-3 text-sm font-pixel">
+                  <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-400">
+                    <span v-if="activeMetadata.author" class="flex items-center gap-1">
+                      <span class="text-gray-500">Author</span>
+                      <span class="text-white">{{ activeMetadata.author }}</span>
+                    </span>
+                    <span v-if="activeMetadata.version" class="flex items-center gap-1">
+                      <span class="text-gray-500">Doc</span>
+                      <span class="text-white">v{{ activeMetadata.version }}</span>
+                    </span>
+                    <span v-if="activeMetadata.version" class="flex items-center gap-1">
+                      <span class="text-gray-500">Engine</span>
+                      <span class="text-white">v{{ SOUPRUNE_VERSION }}</span>
+                    </span>
+                    <span v-if="activeMetadata.date" class="flex items-center gap-1">
+                      <span class="text-gray-500">Date</span>
+                      <span class="text-white">{{ activeMetadata.date }}</span>
+                    </span>
+                    <div v-if="activeMetadata.tags?.length" class="flex items-center gap-1 flex-wrap">
+                      <span v-for="tag in activeMetadata.tags" :key="tag" class="bg-gray-800 text-yellow-300 px-2 py-0.5 text-xs border border-gray-600">{{ tag }}</span>
+                    </div>
+                  </div>
+                  <!-- Version Mismatch Warning -->
+                  <div v-if="versionStatus === 'stale'" class="mt-2 text-yellow-400 border-t border-gray-700 pt-2">
+                    ⚠ {{ currentLang === 'zh-hans'
+                      ? `此文档基于 v${activeMetadata.version} 编写，当前引擎版本为 v${SOUPRUNE_VERSION}。内容可能已过时。`
+                      : `This doc was written for v${activeMetadata.version}, but the current engine version is v${SOUPRUNE_VERSION}. Content may be outdated.` }}
+                  </div>
+                  <div v-if="versionStatus === 'ahead'" class="mt-2 text-cyan-400 border-t border-gray-700 pt-2">
+                    ℹ {{ currentLang === 'zh-hans'
+                      ? `此文档基于 v${activeMetadata.version} 编写，领先于当前引擎版本 v${SOUPRUNE_VERSION}。部分内容可能尚未实现。`
+                      : `This doc targets v${activeMetadata.version}, ahead of the current engine v${SOUPRUNE_VERSION}. Some features may not be implemented yet.` }}
+                  </div>
+                </div>
                 <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
                 
                 <!-- Page Footer with Navigation Hints -->
@@ -151,10 +186,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
 import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
-import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
+import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA, SOUPRUNE_VERSION } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
-import { DocPage, NavItem } from './types';
+import { DocPage, DocMetadata, NavItem } from './types';
 import { SERIOUS_TITLES } from './titles';
 
 // Cast the imported data to Record<string, ...>
@@ -184,6 +219,32 @@ const currentNavItems = computed(() => {
 
 // Active doc based on ID and current data
 const activeDoc = computed(() => currentDocsData.value.find(d => d.id === activeId.value));
+
+// Active metadata (switches between normal and serious mode metadata)
+const activeMetadata = computed((): DocMetadata | undefined => {
+  if (!activeDoc.value) return undefined;
+  if (isSerious.value && activeDoc.value.metadataSerious) {
+    return activeDoc.value.metadataSerious as DocMetadata;
+  }
+  return activeDoc.value.metadata as DocMetadata | undefined;
+});
+
+// Version comparison status
+const versionStatus = computed((): 'match' | 'stale' | 'ahead' | null => {
+  const meta = activeMetadata.value;
+  if (!meta?.version) return null;
+  
+  const docParts = meta.version.split('.').map(Number);
+  const curParts = SOUPRUNE_VERSION.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(docParts.length, curParts.length); i++) {
+    const d = docParts[i] || 0;
+    const c = curParts[i] || 0;
+    if (d < c) return 'stale';
+    if (d > c) return 'ahead';
+  }
+  return 'match';
+});
 
 // Toggle Language
 const toggleLang = () => {

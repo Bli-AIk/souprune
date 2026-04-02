@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "fast-glob": "^3.3.3",
+    "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "lucide-vue-next": "^0.460.0",
     "markdown-it": "^14.1.0",
