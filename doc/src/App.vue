@@ -213,6 +213,27 @@ const activeId = ref<string>('intro');
 const menuOpen = ref(false);
 const direction = ref(0); // -1 for prev, 1 for next
 const transitionName = ref('slide-left');
+let suppressHashUpdate = false;
+
+// Parse URL hash: #/lang/docId or #/docId
+const parseHash = (): { lang?: string; id?: string } => {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  if (!hash) return {};
+  const parts = hash.split('/');
+  if (parts.length >= 2) {
+    return { lang: parts[0], id: parts.slice(1).join('/') };
+  }
+  return { id: parts[0] };
+};
+
+// Update URL hash from current state
+const updateHash = () => {
+  if (suppressHashUpdate) return;
+  const newHash = `#/${currentLang.value}/${activeId.value}`;
+  if (window.location.hash !== newHash) {
+    history.replaceState(null, '', newHash);
+  }
+};
 
 // Computed data based on language
 const currentDocsData = computed(() => docsDataMap[currentLang.value] || []);
@@ -278,6 +299,33 @@ const updateMilliseconds = () => {
 // No updateScrollProgress function anymore
 
 onMounted(() => {
+  // Initialize from URL hash
+  const { lang, id } = parseHash();
+  if (lang && (lang === 'en' || lang === 'zh-hans')) {
+    currentLang.value = lang;
+  }
+  if (id) {
+    const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === id);
+    if (exists) activeId.value = id;
+  }
+  updateHash();
+
+  // Listen for browser back/forward
+  const onHashChange = () => {
+    const parsed = parseHash();
+    suppressHashUpdate = true;
+    if (parsed.lang && (parsed.lang === 'en' || parsed.lang === 'zh-hans')) {
+      currentLang.value = parsed.lang;
+    }
+    if (parsed.id) {
+      const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === parsed.id);
+      if (exists) activeId.value = parsed.id!;
+    }
+    suppressHashUpdate = false;
+  };
+  window.addEventListener('hashchange', onHashChange);
+  window.addEventListener('popstate', onHashChange);
+
   timeInterval = setInterval(() => {
     const now = new Date();
     day.value = String(now.getDate()).padStart(2, '0');
@@ -369,8 +417,8 @@ watch(activeId, async () => {
   if (contentScrollContainer.value) {
     contentScrollContainer.value.scrollTop = 0;
   }
-  // Update global progress
   updateGlobalProgress();
+  updateHash();
 });
 
 // Also watch language change to ensure we don't get stuck on invalid ID if sets differ
@@ -381,6 +429,7 @@ watch(currentLang, () => {
         activeId.value = currentDocsData.value[0].id;
     }
     updateGlobalProgress();
+    updateHash();
 });
 
 const navigate = (dir: 'next' | 'prev') => {
@@ -393,7 +442,11 @@ const navigate = (dir: 'next' | 'prev') => {
   if (nextIndex >= 0 && nextIndex < flatNavOrder.value.length) {
     direction.value = dir === 'next' ? 1 : -1;
     transitionName.value = dir === 'next' ? 'slide-left' : 'slide-right';
-    activeId.value = flatNavOrder.value[nextIndex].id;
+    const newId = flatNavOrder.value[nextIndex].id;
+    history.pushState(null, '', `#/${currentLang.value}/${newId}`);
+    suppressHashUpdate = true;
+    activeId.value = newId;
+    suppressHashUpdate = false;
   }
 };
 
@@ -403,7 +456,10 @@ const handleNavSelect = (id: string) => {
   
   direction.value = nextIndex > currentIndex ? 1 : -1;
   transitionName.value = nextIndex > currentIndex ? 'slide-left' : 'slide-right';
+  history.pushState(null, '', `#/${currentLang.value}/${id}`);
+  suppressHashUpdate = true;
   activeId.value = id;
+  suppressHashUpdate = false;
   menuOpen.value = false;
 };
 
