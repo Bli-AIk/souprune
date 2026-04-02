@@ -67,3 +67,7 @@ android/build/
 # Project mods (each is its own repo/branch, only config.toml tracked)
 projects/*/
 !projects/config.toml
+
+# Local work directories
+.workbench/
+.tmp/
