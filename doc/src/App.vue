@@ -97,7 +97,7 @@
 
       <!-- Right Column: The "Content Box" -->
       <main 
-        class="flex-1 min-w-0 relative h-full flex flex-col"
+        class="flex-1 min-w-0 relative h-full flex flex-col overflow-hidden"
         @touchstart="onTouchStart"
         @touchmove="onTouchMove"
         @touchend="onTouchEnd"
@@ -541,38 +541,36 @@ const onTouchEnd = () => {
   transform: translateX(50px) scale(0.95);
 }
 
-/* Nav mode switch transition (sidebar: slide down out, slide down in from top) */
+/* Nav mode switch transition (sidebar: fly out/in beyond viewport) */
 .nav-mode-switch-enter-active,
 .nav-mode-switch-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-mode-switch-leave-to {
   opacity: 0;
-  transform: translateY(40px);
+  transform: translateY(100vh);
 }
 
 .nav-mode-switch-enter-from {
   opacity: 0;
-  transform: translateY(-40px);
+  transform: translateY(-100vh);
 }
 
-/* Mode switch transition (serious ↔ lively) */
+/* Mode switch transition — serious mode toggle (content: fly up out, fly down in) */
 .mode-switch-enter-active,
 .mode-switch-leave-active {
-  transition: all 0.25s ease;
-}
-
-.mode-switch-enter-from {
-  opacity: 0;
-  filter: brightness(1.5);
-  transform: scale(0.98);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mode-switch-leave-to {
   opacity: 0;
-  filter: brightness(0.5);
-  transform: scale(0.98);
+  transform: translateY(-100vh);
+}
+
+.mode-switch-enter-from {
+  opacity: 0;
+  transform: translateY(100vh);
 }
 
 @keyframes spin-slow {
