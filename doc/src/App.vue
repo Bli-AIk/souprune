@@ -116,8 +116,27 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
-                <!-- Document Metadata Bar -->
-                <div v-if="activeMetadata" class="mb-6 border-2 border-gray-700 bg-gray-900/50 px-4 py-3 text-sm font-pixel">
+                <!-- Version Mismatch Warning (top of page) -->
+                <div v-if="versionStatus === 'stale' && activeMetadata" class="mb-6 border-2 border-yellow-700 bg-yellow-900/20 px-4 py-3 text-sm font-pixel text-yellow-400">
+                  ⚠ {{ currentLang === 'zh-hans'
+                    ? `此文档基于 v${activeMetadata.version} 编写，当前引擎版本为 v${SOUPRUNE_VERSION}。内容可能已过时。`
+                    : `This doc was written for v${activeMetadata.version}, but the current engine version is v${SOUPRUNE_VERSION}. Content may be outdated.` }}
+                  <span class="ml-2">
+                    [<span class="text-red-400">v{{ activeMetadata.version }}</span> → <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>]
+                  </span>
+                </div>
+                <div v-if="versionStatus === 'ahead' && activeMetadata" class="mb-6 border-2 border-cyan-700 bg-cyan-900/20 px-4 py-3 text-sm font-pixel text-cyan-400">
+                  ℹ {{ currentLang === 'zh-hans'
+                    ? `此文档基于 v${activeMetadata.version} 编写，领先于当前引擎版本 v${SOUPRUNE_VERSION}。部分内容可能尚未实现。`
+                    : `This doc targets v${activeMetadata.version}, ahead of the current engine v${SOUPRUNE_VERSION}. Some features may not be implemented yet.` }}
+                  <span class="ml-2">
+                    [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
+                  </span>
+                </div>
+                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
+                
+                <!-- Document Metadata (bottom of page) -->
+                <div v-if="activeMetadata" class="mt-12 border-2 border-gray-700 bg-gray-900/50 px-4 py-3 text-sm font-pixel">
                   <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-400">
                     <span v-if="activeMetadata.author" class="flex items-center gap-1">
                       <span class="text-gray-500">Author</span>
@@ -125,11 +144,11 @@
                     </span>
                     <span v-if="activeMetadata.version" class="flex items-center gap-1">
                       <span class="text-gray-500">Doc</span>
-                      <span class="text-white">v{{ activeMetadata.version }}</span>
+                      <span :class="versionStatus === 'stale' ? 'text-red-400' : versionStatus === 'ahead' ? 'text-green-400' : 'text-white'">v{{ activeMetadata.version }}</span>
                     </span>
                     <span v-if="activeMetadata.version" class="flex items-center gap-1">
                       <span class="text-gray-500">Engine</span>
-                      <span class="text-white">v{{ SOUPRUNE_VERSION }}</span>
+                      <span :class="versionStatus === 'stale' ? 'text-green-400' : versionStatus === 'ahead' ? 'text-red-400' : 'text-white'">v{{ SOUPRUNE_VERSION }}</span>
                     </span>
                     <span v-if="activeMetadata.date" class="flex items-center gap-1">
                       <span class="text-gray-500">Date</span>
@@ -139,20 +158,8 @@
                       <span v-for="tag in activeMetadata.tags" :key="tag" class="bg-gray-800 text-yellow-300 px-2 py-0.5 text-xs border border-gray-600">{{ tag }}</span>
                     </div>
                   </div>
-                  <!-- Version Mismatch Warning -->
-                  <div v-if="versionStatus === 'stale'" class="mt-2 text-yellow-400 border-t border-gray-700 pt-2">
-                    ⚠ {{ currentLang === 'zh-hans'
-                      ? `此文档基于 v${activeMetadata.version} 编写，当前引擎版本为 v${SOUPRUNE_VERSION}。内容可能已过时。`
-                      : `This doc was written for v${activeMetadata.version}, but the current engine version is v${SOUPRUNE_VERSION}. Content may be outdated.` }}
-                  </div>
-                  <div v-if="versionStatus === 'ahead'" class="mt-2 text-cyan-400 border-t border-gray-700 pt-2">
-                    ℹ {{ currentLang === 'zh-hans'
-                      ? `此文档基于 v${activeMetadata.version} 编写，领先于当前引擎版本 v${SOUPRUNE_VERSION}。部分内容可能尚未实现。`
-                      : `This doc targets v${activeMetadata.version}, ahead of the current engine v${SOUPRUNE_VERSION}. Some features may not be implemented yet.` }}
-                  </div>
                 </div>
-                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
-                
+
                 <!-- Page Footer with Navigation Hints -->
                 <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">
                   <button 
