@@ -119,21 +119,21 @@
                 <!-- Version Mismatch Warning (top of page) -->
                 <div v-if="versionStatus === 'stale' && activeMetadata" class="mb-6 border-2 border-yellow-700 bg-yellow-900/20 px-4 py-3 text-sm font-pixel text-yellow-400">
                   <template v-if="currentLang === 'zh-hans'">
-                    此文档基于 <span class="text-red-400">v{{ activeMetadata.version }}</span> 编写，当前引擎版本为 <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>。内容可能已过时。
+                    此文档基于 <span class="text-red-400">v{{ activeMetadata.version }}</span> 编写，当前框架版本为 <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>。内容可能已过时。
                     [<span class="text-red-400">v{{ activeMetadata.version }}</span> → <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>]
                   </template>
                   <template v-else>
-                    This doc was written for <span class="text-red-400">v{{ activeMetadata.version }}</span>, but the current engine version is <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>. Content may be outdated.
+                    This doc was written for <span class="text-red-400">v{{ activeMetadata.version }}</span>, but the current framework version is <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>. Content may be outdated.
                     [<span class="text-red-400">v{{ activeMetadata.version }}</span> → <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>]
                   </template>
                 </div>
                 <div v-if="versionStatus === 'ahead' && activeMetadata" class="mb-6 border-2 border-cyan-700 bg-cyan-900/20 px-4 py-3 text-sm font-pixel text-cyan-400">
                   <template v-if="currentLang === 'zh-hans'">
-                    此文档基于 <span class="text-green-400">v{{ activeMetadata.version }}</span> 编写，领先于当前引擎版本 <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>。部分内容可能尚未实现。
+                    此文档基于 <span class="text-green-400">v{{ activeMetadata.version }}</span> 编写，领先于当前框架版本 <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>。部分内容可能尚未实现。
                     [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
                   </template>
                   <template v-else>
-                    This doc targets <span class="text-green-400">v{{ activeMetadata.version }}</span>, ahead of the current engine <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>. Some features may not be implemented yet.
+                    This doc targets <span class="text-green-400">v{{ activeMetadata.version }}</span>, ahead of the current framework <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>. Some features may not be implemented yet.
                     [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
                   </template>
                 </div>
@@ -151,7 +151,7 @@
                       <span :class="versionStatus === 'stale' ? 'text-red-400' : versionStatus === 'ahead' ? 'text-green-400' : 'text-white'">v{{ activeMetadata.version }}</span>
                     </span>
                     <span v-if="activeMetadata.version" class="flex items-center gap-1">
-                      <span class="text-gray-500">Engine</span>
+                      <span class="text-gray-500">Framework</span>
                       <span :class="versionStatus === 'stale' ? 'text-green-400' : versionStatus === 'ahead' ? 'text-red-400' : 'text-white'">v{{ SOUPRUNE_VERSION }}</span>
                     </span>
                     <span v-if="activeMetadata.date" class="flex items-center gap-1">
