@@ -118,6 +118,10 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
+                <!-- Custom Warning (from front matter) -->
+                <div v-if="activeMetadata?.warning" class="mb-6 border-2 border-orange-700 bg-orange-900/20 px-4 py-3 text-sm font-pixel text-orange-400">
+                  {{ activeMetadata.warning }}
+                </div>
                 <!-- Version Mismatch Warning (top of page) -->
                 <div v-if="versionStatus === 'stale' && activeMetadata" class="mb-6 border-2 border-yellow-700 bg-yellow-900/20 px-4 py-3 text-sm font-pixel text-yellow-400">
                   <template v-if="currentLang === 'zh-hans'">

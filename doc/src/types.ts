@@ -3,6 +3,7 @@ export interface DocMetadata {
   date?: string;
   author?: string;
   tags?: string[];
+  warning?: string;
 }
 
 export interface DocPage {
