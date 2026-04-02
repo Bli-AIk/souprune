@@ -54,11 +54,12 @@
       <nav 
         :class="[
           'fixed md:static inset-0 top-16 bg-black/95 md:bg-transparent z-40',
-          'flex flex-col gap-6 w-full md:w-80 shrink-0 transition-transform duration-300',
+          'flex flex-col gap-6 w-full md:w-80 shrink-0 transition-transform duration-300 overflow-hidden',
           menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         ]"
       >
-        <div class="p-4 md:p-0 overflow-y-auto h-full">
+        <Transition name="nav-mode-switch" mode="out-in">
+        <div class="p-4 md:p-0 overflow-y-auto h-full" :key="isSerious ? 'serious' : 'lively'">
           <!-- User Card -->
           <div class="border-4 border-white bg-black p-4 mb-6 shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]">
             <div class="flex items-center gap-4 mb-2">
@@ -91,6 +92,7 @@
           
 
         </div>
+        </Transition>
       </nav>
 
       <!-- Right Column: The "Content Box" -->
@@ -106,7 +108,7 @@
         >
           <div 
             v-if="activeDoc"
-            :key="activeDoc.id"
+            :key="activeDoc.id + (isSerious ? '-serious' : '')"
             class="flex-1 flex flex-col h-full pb-16 md:pb-0"
           >
             <div class="hud-box flex-1 flex flex-col relative overflow-hidden">
@@ -441,6 +443,7 @@ watch(currentLang, () => {
 });
 
 watch(isSerious, () => {
+  transitionName.value = 'mode-switch';
   updateHash();
 });
 
@@ -536,6 +539,40 @@ const onTouchEnd = () => {
 .slide-right-leave-to {
   opacity: 0;
   transform: translateX(50px) scale(0.95);
+}
+
+/* Nav mode switch transition (sidebar: slide down out, slide down in from top) */
+.nav-mode-switch-enter-active,
+.nav-mode-switch-leave-active {
+  transition: all 0.3s ease;
+}
+
+.nav-mode-switch-leave-to {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+.nav-mode-switch-enter-from {
+  opacity: 0;
+  transform: translateY(-40px);
+}
+
+/* Mode switch transition (serious ↔ lively) */
+.mode-switch-enter-active,
+.mode-switch-leave-active {
+  transition: all 0.25s ease;
+}
+
+.mode-switch-enter-from {
+  opacity: 0;
+  filter: brightness(1.5);
+  transform: scale(0.98);
+}
+
+.mode-switch-leave-to {
+  opacity: 0;
+  filter: brightness(0.5);
+  transform: scale(0.98);
 }
 
 @keyframes spin-slow {
