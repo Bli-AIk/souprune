@@ -139,7 +139,7 @@
                     [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
                   </template>
                 </div>
-                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
+                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" @navigate-doc="handleDocLink" />
                 
                 <!-- Document Metadata (bottom of page) -->
                 <div v-if="activeMetadata" class="mt-12 border-2 border-gray-700 bg-gray-900/50 px-4 py-3 text-sm font-pixel">
@@ -482,6 +482,13 @@ const handleNavSelect = (id: string) => {
   activeId.value = id;
   suppressHashUpdate = false;
   menuOpen.value = false;
+};
+
+const handleDocLink = (docId: string) => {
+  const exists = currentDocsData.value.some(d => d.id === docId);
+  if (exists) {
+    handleNavSelect(docId);
+  }
 };
 
 const onTouchStart = (e: TouchEvent) => {
