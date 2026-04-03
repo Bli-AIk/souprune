@@ -69,7 +69,6 @@ pub(super) fn handle_spawn_view_request_system(
 
         let handle: Handle<ViewLayoutAsset> = asset_server.load(&request.path);
 
-        // TODO: 未来扩展：如果需要多个 同时交互 的 View，可以引入 `PrimaryView` / `SecondaryView` 概念
         let mut entity_commands = commands.spawn((
             ron_view::HotReloadableViewRoot {
                 layout_path: request.path.clone(),
@@ -89,8 +88,6 @@ pub(super) fn handle_spawn_view_request_system(
         }
 
         if let Some(ref bindings) = request.bindings {
-            // 只有带 bindings 的 View 才标记为 ActiveView（接收 FRE 规则和交互）
-            entity_commands.insert(components::ActiveView);
             let fre_handles = collect_fre_handles(bindings, &asset_server);
             entity_commands.insert(components::PendingViewData {
                 bindings: bindings.clone(),
