@@ -52,8 +52,7 @@ pub(super) fn build_transform(
         );
     }
     if let Some(rotation) = &transform_def.rotation {
-        let rot_degrees =
-            evaluate_float_expr_with_repeat(rotation, player_data, None, repeat_ctx);
+        let rot_degrees = evaluate_float_expr_with_repeat(rotation, player_data, None, repeat_ctx);
         transform.rotation = Quat::from_rotation_z(rot_degrees.to_radians());
     }
     transform

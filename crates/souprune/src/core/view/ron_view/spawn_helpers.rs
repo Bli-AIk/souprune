@@ -100,9 +100,8 @@ pub fn build_text_config(
                 );
             }
             if let Some(rot) = &text_def.transform.rotation {
-                t.rotation = Quat::from_rotation_z(
-                    evaluate_float_expr(rot, player_data, None).to_radians(),
-                );
+                t.rotation =
+                    Quat::from_rotation_z(evaluate_float_expr(rot, player_data, None).to_radians());
             }
             t
         },

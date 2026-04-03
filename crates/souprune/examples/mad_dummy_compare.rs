@@ -193,8 +193,7 @@ fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
     let refe = flatten_alpha_black(&reference_rgba);
 
     // Compare
-    let (result, diff_img) =
-        bevy_alight_motion::image_comparison::compare_images(&shot, &refe);
+    let (result, diff_img) = bevy_alight_motion::image_comparison::compare_images(&shot, &refe);
 
     // Save artefacts
     diff_img
@@ -213,8 +212,14 @@ fn handle_comparison(trigger: On<ScreenshotCaptured>, mut commands: Commands) {
     info!("  Pixel match rate:   {:.4}", result.pixel_match_rate);
     info!("  Content mask F1:    {:.4}", result.content_mask_f1);
     info!("  Content bbox IoU:   {:.4}", result.content_bbox_iou);
-    info!("  Size similarity:    {:.4}", result.content_size_similarity);
-    info!("  Center similarity:  {:.4}", result.content_center_similarity);
+    info!(
+        "  Size similarity:    {:.4}",
+        result.content_size_similarity
+    );
+    info!(
+        "  Center similarity:  {:.4}",
+        result.content_center_similarity
+    );
     info!("  Differing pixels:   {}", result.differing_pixels);
     info!("════════════════════════════════════════════════════");
     info!("  Output → {}/", OUTPUT_DIR);

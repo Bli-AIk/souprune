@@ -19,8 +19,8 @@
 //! - `facts`: 初始 fact 值（可选）
 
 use super::serde_types::*;
-use bevy::prelude::*;
 use crate::core::sequencer::chapter_schema::Value;
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
