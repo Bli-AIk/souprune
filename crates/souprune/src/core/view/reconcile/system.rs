@@ -68,15 +68,30 @@ pub fn detect_asset_changes_system(
 }
 
 /// System to detect fact changes and mark views for reconciliation.
+/// Only marks views with `ActiveView` — non-interactive views (e.g., pure animation)
+/// don't reference facts and shouldn't be re-evaluated on fact changes.
+///
 /// 检测事实变化并标记视图需要协调的系统。
+/// 仅标记有 `ActiveView` 的视图——纯动画等非交互视图不引用事实，
+/// 不应在事实变化时被重新求值。
 pub fn detect_fact_changes_system(
     layered_db: Res<LayeredFactDatabase>,
     mut pending: ResMut<PendingReconciliations>,
+    active_views: Query<
+        &crate::core::view::ron_view::HotReloadableViewRoot,
+        (
+            With<ReconciliationEnabled>,
+            With<crate::core::view::components::ActiveView>,
+        ),
+    >,
 ) {
     if layered_db.is_changed() {
-        pending.force_reconcile_all();
+        for hot_reload_root in active_views.iter() {
+            pending.mark_asset(hot_reload_root.layout_handle.id());
+        }
         debug!(
-            "[Reconciliation] LayeredFactDatabase changed, forcing reconciliation for all views"
+            "[Reconciliation] LayeredFactDatabase changed, marking {} active views for reconciliation",
+            active_views.iter().count()
         );
     }
 }
