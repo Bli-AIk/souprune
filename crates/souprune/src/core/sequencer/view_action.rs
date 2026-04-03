@@ -10,7 +10,7 @@
 
 use super::chapter_schema::{Chapter, FactValueMatch};
 use super::context::*;
-use crate::core::view::components::ViewRoot;
+use crate::core::view::components::{ActiveView, ViewRoot};
 use bevy::prelude::*;
 use bevy_fact_rule_event::FactValue;
 
@@ -68,7 +68,7 @@ pub fn process_view_action_system(
 pub fn process_set_view_fact_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    mut view_root_query: Query<&mut ViewRoot>,
+    mut view_root_query: Query<&mut ViewRoot, With<ActiveView>>,
 ) {
     for (chapter_entity, active_chapter) in query.iter() {
         let Chapter::SetViewFact { key, value } = &active_chapter.chapter else {
