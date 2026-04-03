@@ -247,7 +247,7 @@ pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
     #[serde(default)]
-    pub rotation: Option<f32>,
+    pub rotation: Option<FloatOrExpr>,
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
 }

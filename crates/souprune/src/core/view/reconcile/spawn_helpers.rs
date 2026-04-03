@@ -104,8 +104,11 @@ pub fn spawn_sprite_entity(
                 evaluate_float_expr_with_repeat(&scale.2, &ctx.player_data, None, repeat_ctx),
             );
         }
-        if let Some(rot) = t_def.rotation {
-            transform.rotation = Quat::from_rotation_z(rot.to_radians());
+        if let Some(rot) = &t_def.rotation {
+            transform.rotation = Quat::from_rotation_z(
+                evaluate_float_expr_with_repeat(rot, &ctx.player_data, None, repeat_ctx)
+                    .to_radians(),
+            );
         }
     }
 
@@ -265,8 +268,10 @@ pub fn spawn_text_entity(
             evaluate_float_expr_with_repeat(&scale.2, &ctx.player_data, None, repeat_ctx),
         );
     }
-    if let Some(rot) = text_def.transform.rotation {
-        transform.rotation = Quat::from_rotation_z(rot.to_radians());
+    if let Some(rot) = &text_def.transform.rotation {
+        transform.rotation = Quat::from_rotation_z(
+            evaluate_float_expr_with_repeat(rot, &ctx.player_data, None, repeat_ctx).to_radians(),
+        );
     }
 
     // Calculate world position
@@ -372,8 +377,11 @@ pub fn spawn_shader_material_entity(
                 evaluate_float_expr_with_repeat(&scale.2, &ctx.player_data, None, repeat_ctx),
             );
         }
-        if let Some(rot) = t_def.rotation {
-            transform.rotation = Quat::from_rotation_z(rot.to_radians());
+        if let Some(rot) = &t_def.rotation {
+            transform.rotation = Quat::from_rotation_z(
+                evaluate_float_expr_with_repeat(rot, &ctx.player_data, None, repeat_ctx)
+                    .to_radians(),
+            );
         }
     }
 
@@ -630,8 +638,9 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
             evaluate_float_expr(&scale.2, &ctx.player_data, None),
         );
     }
-    if let Some(rot) = text_def.transform.rotation {
-        transform.rotation = Quat::from_rotation_z(rot.to_radians());
+    if let Some(rot) = &text_def.transform.rotation {
+        transform.rotation =
+            Quat::from_rotation_z(evaluate_float_expr(rot, &ctx.player_data, None).to_radians());
     }
 
     ViewTextConfig {

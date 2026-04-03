@@ -94,8 +94,13 @@ pub fn resolve_transform(
     };
 
     // Resolve rotation (single value for Z-axis rotation)
-    let rotation = if let Some(rot_z) = tr.rotation {
-        Quat::from_rotation_z(rot_z.to_radians())
+    let rotation = if let Some(ref rot_z) = tr.rotation {
+        let degrees = if let Some(ctx) = repeat_ctx {
+            evaluate_float_expr_with_repeat(rot_z, player_data, None, Some(ctx))
+        } else {
+            evaluate_float_expr(rot_z, player_data, None)
+        };
+        Quat::from_rotation_z(degrees.to_radians())
     } else {
         Quat::IDENTITY
     };

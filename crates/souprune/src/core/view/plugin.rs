@@ -41,13 +41,52 @@ use super::{PixelOutlineMaterial, SdfStructureAsset, ViewUpdate};
 use crate::core::mode::is_mode;
 use crate::core::ron_loader::RonAssetLoader;
 
+/// Asset loader for ViewLayoutAsset that applies coordinate system preprocessing.
+///
+/// ViewLayoutAsset 的资产加载器，加载后自动应用坐标系预处理。
+struct ViewLayoutAssetLoader;
+
+impl bevy::reflect::TypePath for ViewLayoutAssetLoader {
+    fn type_path() -> &'static str {
+        "souprune::core::view::plugin::ViewLayoutAssetLoader"
+    }
+    fn short_type_path() -> &'static str {
+        "ViewLayoutAssetLoader"
+    }
+}
+
+impl bevy::asset::AssetLoader for ViewLayoutAssetLoader {
+    type Asset = ViewLayoutAsset;
+    type Settings = ();
+    type Error = anyhow::Error;
+
+    fn load(
+        &self,
+        reader: &mut dyn bevy::asset::io::Reader,
+        _settings: &Self::Settings,
+        _load_context: &mut bevy::asset::LoadContext,
+    ) -> impl bevy::tasks::ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
+        Box::pin(async move {
+            let mut bytes = Vec::new();
+            bevy::asset::io::Reader::read_to_end(reader, &mut bytes).await?;
+            let mut asset = ron::de::from_bytes::<ViewLayoutAsset>(&bytes)?;
+            asset.apply_coordinate_system();
+            Ok(asset)
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["view.ron"]
+    }
+}
+
 pub struct CoreViewPlugin;
 
 impl Plugin for CoreViewPlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
         app.init_asset::<ViewLayoutAsset>()
-            .register_asset_loader(RonAssetLoader::<ViewLayoutAsset>::new(&["view.ron"]))
+            .register_asset_loader(ViewLayoutAssetLoader)
             .init_asset::<SdfStructureAsset>()
             .register_asset_loader(RonAssetLoader::<SdfStructureAsset>::new(&["sdf.ron"]))
             .register_type::<super::components::ShaderMaterial>()
