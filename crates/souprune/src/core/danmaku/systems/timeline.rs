@@ -283,38 +283,53 @@ fn spawn_single_bullet(
     }
 
     let offset = point.position - spawn_center;
-    let mut stack = ActiveDanmakuStack::default();
+    let mut builtin_stack =
+        crate::core::danmaku::builtin_motion::BuiltinMotionStack::default();
+    let mut wasm_stack = ActiveDanmakuStack::default();
 
     for behavior in behaviors {
-        let (id, props) = behavior_to_wasm_call(behavior);
+        if crate::core::danmaku::builtin_motion::is_builtin(behavior) {
+            // Builtin: initialize state directly in Rust
+            if let Some(bs) = crate::core::danmaku::builtin_motion::init_builtin_behavior(
+                behavior,
+                spawn_center,
+                offset,
+                player_pos,
+            ) {
+                builtin_stack.states.push(bs);
+            }
+        } else {
+            // Custom: create WASM instance
+            let (id, props) = behavior_to_wasm_call(behavior);
+            let Some(mut active) = danmaku_registry.create(&id, loaded_mods) else {
+                warn!("Danmaku algorithm '{}' not found in registry", id);
+                continue;
+            };
+            active.props = props.clone();
 
-        let Some(mut active) = danmaku_registry.create(&id, loaded_mods) else {
-            warn!("Danmaku algorithm '{}' not found in registry", id);
-            continue;
-        };
-        active.props = props.clone();
-
-        let ctx = souprune_api::BulletContext {
-            elapsed: 0.0,
-            delta_time: 0.0,
-            spawn_pos: souprune_api::Vec2::new(spawn_center.x, spawn_center.y),
-            offset: souprune_api::Vec2::new(offset.x, offset.y),
-            initial_angle: point.angle,
-            initial_radius: point.radius,
-            player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
-            props: props
-                .iter()
-                .map(|(name, value)| souprune_api::Prop {
-                    name: name.clone(),
-                    value: *value,
-                })
-                .collect(),
-        };
-        active.call_on_enter(&ctx, loaded_mods);
-        stack.instances.push(active);
+            let ctx = souprune_api::BulletContext {
+                elapsed: 0.0,
+                delta_time: 0.0,
+                spawn_pos: souprune_api::Vec2::new(spawn_center.x, spawn_center.y),
+                offset: souprune_api::Vec2::new(offset.x, offset.y),
+                initial_angle: point.angle,
+                initial_radius: point.radius,
+                player_pos: souprune_api::Vec2::new(player_pos.x, player_pos.y),
+                props: props
+                    .iter()
+                    .map(|(name, value)| souprune_api::Prop {
+                        name: name.clone(),
+                        value: *value,
+                    })
+                    .collect(),
+            };
+            active.call_on_enter(&ctx, loaded_mods);
+            wasm_stack.instances.push(active);
+        }
     }
 
-    entity_commands.insert(stack);
+    entity_commands.insert(builtin_stack);
+    entity_commands.insert(wasm_stack);
     spawn_bullet_visual(&mut entity_commands, prototype, sprite_params, asset_server);
 }
 

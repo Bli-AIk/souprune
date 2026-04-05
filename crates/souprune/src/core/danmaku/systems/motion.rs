@@ -55,9 +55,12 @@ fn apply_output_extras(
     }
 }
 
-/// System to update bullet motion via WASM-dispatched behaviors.
+/// System to update bullet motion.
 ///
-/// 通过 WASM 调度的行为更新弹幕运动的系统。
+/// Builtin behaviors (Linear, Orbital, Sine, Tween, Stationary, Aimed)
+/// are computed directly in Rust. Only `Custom` behaviors go through WASM.
+///
+/// 更新弹幕运动的系统。内置行为直接在 Rust 计算，仅 Custom 经 WASM 调度。
 pub fn update_bullet_motion(
     time: Res<Time>,
     mut loaded_mods: NonSendMut<LoadedMods>,
@@ -67,9 +70,9 @@ pub fn update_bullet_motion(
             &mut Transform,
             &ChildOf,
             &mut BulletMotionState,
-            &BehaviorStack,
             &BulletBaseScale,
             Option<&mut Sprite>,
+            Option<&mut super::super::builtin_motion::BuiltinMotionStack>,
             Option<&mut ActiveDanmakuStack>,
         ),
         With<Bullet>,
@@ -77,6 +80,8 @@ pub fn update_bullet_motion(
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
     mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
 ) {
+    use super::super::builtin_motion::compute_builtin_output;
+
     let dt = time.delta_secs();
     let player_pos = player_query
         .iter()
@@ -84,7 +89,7 @@ pub fn update_bullet_motion(
         .map(|t| t.translation.truncate())
         .unwrap_or(Vec2::ZERO);
 
-    for (mut transform, parent, mut state, behavior_stack, base_scale, sprite, danmaku_stack) in
+    for (mut transform, parent, mut state, base_scale, sprite, builtin_stack, danmaku_stack) in
         query.iter_mut()
     {
         state.elapsed += dt;
@@ -94,31 +99,50 @@ pub fn update_bullet_motion(
         let mut scale_delta = Vec2::ZERO;
         let mut opacity: Option<f32> = None;
 
-        let Some(mut stack) = danmaku_stack else {
-            continue;
-        };
-        for (i, instance) in stack.instances.iter_mut().enumerate() {
-            let props = behavior_stack
-                .behaviors
-                .get(i)
-                .map(|b| behavior_to_wasm_call(b).1)
-                .unwrap_or_else(|| instance.props.clone());
+        // --- Builtin behaviors: pure Rust ---
+        if let Some(mut builtin) = builtin_stack {
+            for bs in builtin.states.iter_mut() {
+                let out = compute_builtin_output(
+                    bs,
+                    state.elapsed,
+                    dt,
+                    state.initial_offset,
+                    state.initial_angle,
+                    state.initial_radius,
+                );
+                position += out.offset;
+                rotation_delta += out.rotation;
+                if out.opacity >= 0.0 {
+                    opacity = Some(out.opacity);
+                }
+                if out.scale_x != 0.0 {
+                    scale_delta.x += out.scale_x;
+                }
+                if out.scale_y != 0.0 {
+                    scale_delta.y += out.scale_y;
+                }
+            }
+        }
 
-            let ctx = build_bullet_ctx(&state, dt, player_pos, &props);
-            let start = std::time::Instant::now();
-            let output = instance.call_on_update(&ctx, &mut loaded_mods);
-            let elapsed = start.elapsed();
+        // --- Custom behaviors: WASM ---
+        if let Some(mut stack) = danmaku_stack {
+            for instance in stack.instances.iter_mut() {
+                let ctx = build_bullet_ctx(&state, dt, player_pos, &instance.props);
+                let start = std::time::Instant::now();
+                let output = instance.call_on_update(&ctx, &mut loaded_mods);
+                let elapsed_dur = start.elapsed();
 
-            let mod_name = loaded_mods
-                .mods
-                .get(instance.mod_index())
-                .map(|m| m.name.as_str())
-                .unwrap_or("unknown");
-            wasm_tracer.record(mod_name, "danmaku", "on_update", elapsed);
+                let mod_name = loaded_mods
+                    .mods
+                    .get(instance.mod_index())
+                    .map(|m| m.name.as_str())
+                    .unwrap_or("unknown");
+                wasm_tracer.record(mod_name, "danmaku", "on_update", elapsed_dur);
 
-            position += Vec2::new(output.offset.x, output.offset.y);
-            rotation_delta += output.rotation;
-            apply_output_extras(&output, &mut opacity, &mut scale_delta);
+                position += Vec2::new(output.offset.x, output.offset.y);
+                rotation_delta += output.rotation;
+                apply_output_extras(&output, &mut opacity, &mut scale_delta);
+            }
         }
 
         if let Ok(parent_transform) = container_query.get(parent.0) {
