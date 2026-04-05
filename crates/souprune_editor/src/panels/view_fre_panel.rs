@@ -234,7 +234,7 @@ fn format_action(a: &GameActionDef) -> String {
             action_type,
             params,
         } => format!("Custom({action_type}, {params:?})"),
-        GameActionDef::UseItem { index_expr } => format!("UseItem({index_expr})"),
+        GameActionDef::UseItem { index_expr, .. } => format!("UseItem({index_expr})"),
         GameActionDef::CheckItem { index_expr } => format!("CheckItem({index_expr})"),
         GameActionDef::DropItem { index_expr } => format!("DropItem({index_expr})"),
     }

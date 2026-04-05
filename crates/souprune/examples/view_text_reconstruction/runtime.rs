@@ -3001,7 +3001,7 @@ mod tests {
             &task.current_summary_path,
             "CURRENT",
             ConcreteTextParameters {
-                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                font: souprune_schema::view::"DTM-Sans".to_string(),
                 align: souprune_schema::view::TextAlignDef::Left,
                 anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                 translation_x: -11.0,
@@ -3017,7 +3017,7 @@ mod tests {
             &task.best_summary_path,
             "BEST",
             ConcreteTextParameters {
-                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                font: souprune_schema::view::"DTM-Sans".to_string(),
                 align: souprune_schema::view::TextAlignDef::Left,
                 anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                 translation_x: 7.25,
@@ -3076,7 +3076,7 @@ mod tests {
             &task.best_summary_path,
             "BEST",
             ConcreteTextParameters {
-                font: souprune_schema::view::ViewFontDef::DeterminationSans,
+                font: souprune_schema::view::"DTM-Sans".to_string(),
                 align: souprune_schema::view::TextAlignDef::Left,
                 anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                 translation_x: 4.5,
@@ -3134,7 +3134,7 @@ mod tests {
         .expect("stage config should be written");
 
         let inherited_seed = ConcreteTextParameters {
-            font: souprune_schema::view::ViewFontDef::DeterminationSans,
+            font: souprune_schema::view::"DTM-Sans".to_string(),
             align: souprune_schema::view::TextAlignDef::Left,
             anchor: souprune_schema::view::TextAnchorDef::BottomRight,
             translation_x: -28.5,
@@ -3194,7 +3194,7 @@ mod tests {
             total_candidates: 10,
             text: "g   0".to_string(),
             parameters: ConcreteTextParameters {
-                font: souprune_schema::view::ViewFontDef::Hud,
+                font: souprune_schema::view::"hud".to_string(),
                 align: souprune_schema::view::TextAlignDef::Left,
                 anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                 translation_x: -28.5,
@@ -3220,7 +3220,7 @@ mod tests {
             total_candidates: 10,
             text: "g   0".to_string(),
             parameters: ConcreteTextParameters {
-                font: souprune_schema::view::ViewFontDef::Hud,
+                font: souprune_schema::view::"hud".to_string(),
                 align: souprune_schema::view::TextAlignDef::Left,
                 anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                 translation_x: -28.74,
@@ -3294,7 +3294,7 @@ mod tests {
                 total_candidates: 1,
                 text: "HUD".to_string(),
                 parameters: ConcreteTextParameters {
-                    font: souprune_schema::view::ViewFontDef::Hud,
+                    font: souprune_schema::view::"hud".to_string(),
                     align: souprune_schema::view::TextAlignDef::Left,
                     anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                     translation_x: -28.74,
@@ -3320,7 +3320,7 @@ mod tests {
                 total_candidates: 1,
                 text: "HUD".to_string(),
                 parameters: ConcreteTextParameters {
-                    font: souprune_schema::view::ViewFontDef::Hud,
+                    font: souprune_schema::view::"hud".to_string(),
                     align: souprune_schema::view::TextAlignDef::Left,
                     anchor: souprune_schema::view::TextAnchorDef::BottomRight,
                     translation_x: -28.5,

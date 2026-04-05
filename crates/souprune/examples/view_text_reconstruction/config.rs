@@ -1341,7 +1341,7 @@ mod tests {
         .expect("stage config should be written");
 
         let inherited_seed = ConcreteTextParameters {
-            font: souprune_schema::view::ViewFontDef::DeterminationSans,
+            font: souprune_schema::view::"DTM-Sans".to_string(),
             align: souprune_schema::view::TextAlignDef::Center,
             anchor: souprune_schema::view::TextAnchorDef::BottomLeft,
             translation_x: -28.5,

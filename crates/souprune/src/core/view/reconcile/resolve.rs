@@ -221,8 +221,8 @@ pub fn resolve_single_text(
         raw_content
     };
 
-    // Convert ViewFontDef to string representation
-    let font_name = format!("{:?}", text_def.font);
+    // Font identifier is now a plain string
+    let font_name = text_def.font.clone();
 
     DesiredText {
         content,
