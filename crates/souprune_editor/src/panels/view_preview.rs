@@ -149,7 +149,6 @@ pub fn rebuild_preview_entities(
     mut preview_state: ResMut<ViewPreviewState>,
     asset_server: Res<AssetServer>,
     mortar_strings: Res<mortar::MortarStringTable>,
-    item_registry: Res<souprune::ItemRegistry>,
     fact_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
 ) {
     let Some(layout) = &editor_state.layout else {
@@ -209,7 +208,6 @@ pub fn rebuild_preview_entities(
         &asset_server,
         &mortar_strings,
         player_data,
-        &item_registry,
         &cam_transform,
         editor_state
             .file_path

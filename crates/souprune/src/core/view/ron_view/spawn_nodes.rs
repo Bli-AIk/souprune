@@ -42,7 +42,6 @@ pub fn spawn_view_node(
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
     namespace: &str,
 ) {
     if let Some(repeat) = &node_def.repeat {
@@ -84,7 +83,6 @@ pub fn spawn_view_node(
                 animation_assets,
                 mortar_strings,
                 player_data,
-                item_registry,
                 namespace,
                 Some(&ctx),
             );
@@ -101,7 +99,6 @@ pub fn spawn_view_node(
         animation_assets,
         mortar_strings,
         player_data,
-        item_registry,
         namespace,
         None,
     );
@@ -116,7 +113,6 @@ fn spawn_view_node_with_repeat_context(
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
@@ -248,7 +244,7 @@ fn spawn_view_node_with_repeat_context(
                 .texts
                 .iter()
                 .map(|text_def| {
-                    build_text_config(text_def, mortar_strings, player_data, item_registry)
+                    build_text_config(text_def, mortar_strings, player_data)
                 })
                 .collect::<Vec<_>>();
 
@@ -368,7 +364,6 @@ fn spawn_view_node_with_repeat_context(
                     &node_def.texts,
                     mortar_strings,
                     player_data,
-                    item_registry,
                 );
             });
 
@@ -405,7 +400,6 @@ fn spawn_view_node_with_repeat_context(
             animation_assets,
             mortar_strings,
             player_data,
-            item_registry,
             namespace,
         );
     }

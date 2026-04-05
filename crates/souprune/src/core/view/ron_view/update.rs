@@ -186,7 +186,6 @@ fn update_element_transform(
 pub fn update_dynamic_text_system(
     mut text_query: Query<(Entity, &ViewTextTemplate, &mut TextBlock, &Name)>,
     layered_db: Res<LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
@@ -225,7 +224,7 @@ pub fn update_dynamic_text_system(
         };
 
         let new_content =
-            resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
+            resolve_text_content(&template.0, &mortar_strings, &player_data);
 
         // Skip if content hasn't changed.
         if text_block.full_text() == new_content {

@@ -144,10 +144,28 @@ fn sync_items_system(
     }
 }
 
-/// Inject item metadata into FRE global facts so rules can query item properties.
+/// Inject item metadata into FRE global facts so rules and View templates can
+/// query item properties without depending on `ItemRegistry`.
 fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
     for (id, item) in &registry.0 {
         let prefix = format!("items:{id}");
+
+        // Locale key for mortar string resolution (e.g. "items:item.pie")
+        let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
+        facts.set_global(
+            format!("{prefix}.locale_key"),
+            FactValue::String(locale_key),
+        );
+
+        // Optional mortar script namespace (for dialogue/battle_name lookup)
+        if let Some(mortar) = &item.mortar {
+            let ns = mortar.strip_suffix(".mortar").unwrap_or(mortar);
+            facts.set_global(
+                format!("{prefix}.mortar_ns"),
+                FactValue::String(ns.to_string()),
+            );
+        }
+
         let (type_name, extra_facts) = match &item.item_type {
             ItemType::Food {
                 consumable,

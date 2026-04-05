@@ -28,7 +28,6 @@ pub struct SpawnContext<'a> {
     pub asset_server: &'a AssetServer,
     pub mortar_strings: &'a crate::extra::mortar::MortarStringTable,
     pub player_data: PlayerDataView<'a>,
-    pub item_registry: &'a crate::core::item::ItemRegistry,
     pub camera_transform: &'a Transform,
     pub namespace: &'a str,
 }
@@ -38,7 +37,6 @@ impl<'a> SpawnContext<'a> {
         asset_server: &'a AssetServer,
         mortar_strings: &'a crate::extra::mortar::MortarStringTable,
         player_data: PlayerDataView<'a>,
-        item_registry: &'a crate::core::item::ItemRegistry,
         camera_transform: &'a Transform,
         namespace: &'a str,
     ) -> Self {
@@ -46,7 +44,6 @@ impl<'a> SpawnContext<'a> {
             asset_server,
             mortar_strings,
             player_data,
-            item_registry,
             camera_transform,
             namespace,
         }
@@ -247,7 +244,7 @@ pub fn spawn_text_entity(
         raw_content,
         ctx.mortar_strings,
         &ctx.player_data,
-        ctx.item_registry,
+        
     );
 
     let text_block = parse_text_preserving_whitespace(&content);
@@ -429,7 +426,7 @@ pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConf
         raw_content,
         ctx.mortar_strings,
         &ctx.player_data,
-        ctx.item_registry,
+        
     );
 
     let (r, g, b, a) = color_tuple_to_static(&text_def.color);
