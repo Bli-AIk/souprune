@@ -260,7 +260,10 @@ fn execute_action(
         GameActionDef::Log { message } => {
             info!("FRE Bridge: Log: {}", message);
         }
-        GameActionDef::UseItem { index_expr } => {
+        GameActionDef::UseItem {
+            index_expr,
+            start_dialogue,
+        } => {
             item_actions::execute_use_item(
                 index_expr,
                 local_facts,
@@ -269,6 +272,7 @@ fn execute_action(
                 asset_server,
                 enum_registry,
                 item_registry,
+                *start_dialogue,
                 &souprune_config.game.dialogue_view_default,
                 &souprune_config.game.dialogue_voice_default,
             );

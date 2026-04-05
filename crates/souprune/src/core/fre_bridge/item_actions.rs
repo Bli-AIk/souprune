@@ -241,8 +241,9 @@ fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
 
 /// UseItem action: dispatch by item type, execute effects, prepare dialogue data.
 ///
-/// Applies item effects, then starts dialogue through global facts
-/// (same mechanism as CheckItem/DropItem).
+/// When `start_dialogue` is true, starts dialogue through global facts directly
+/// (for contexts like overworld backpack where no narration sequence runs).
+/// When false (default), only sets local_facts for the narration sequence to read.
 pub(super) fn execute_use_item(
     index_expr: &str,
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
@@ -251,6 +252,7 @@ pub(super) fn execute_use_item(
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    start_dialogue: bool,
     dialogue_view_default: &str,
     dialogue_voice_default: &str,
 ) {
@@ -339,21 +341,28 @@ pub(super) fn execute_use_item(
     local_facts.set("mortar_path", FactValue::String(mortar_path.to_string()));
     local_facts.set("action_param", FactValue::String(action_param.to_string()));
 
-    // Start dialogue through global facts (like CheckItem/DropItem)
     let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    start_item_dialogue_with_path(
-        mortar_path,
-        action_param,
-        global_facts,
-        dialogue_view_default,
-        dialogue_voice_default,
-        ItemDialogueData {
-            locale_key,
-            description: item.description.clone(),
-            heal_amount: actual_healed,
-            item_value: compute_item_value(item),
-        },
-    );
+    let item_data = ItemDialogueData {
+        locale_key,
+        description: item.description.clone(),
+        heal_amount: actual_healed,
+        item_value: compute_item_value(item),
+    };
+
+    if start_dialogue {
+        // Start dialogue through global facts (overworld backpack, no narration sequence)
+        start_item_dialogue_with_path(
+            mortar_path,
+            action_param,
+            global_facts,
+            dialogue_view_default,
+            dialogue_voice_default,
+            item_data,
+        );
+    } else {
+        // Only set item data on global facts; narration sequence handles dialogue start
+        set_item_dialogue_data(global_facts, item_data);
+    }
 }
 
 /// Set item-specific data on global facts for mortar dialogue variables.
