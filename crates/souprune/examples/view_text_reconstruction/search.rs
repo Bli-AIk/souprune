@@ -28,7 +28,7 @@ pub struct ConcreteTextParameters {
 impl Default for ConcreteTextParameters {
     fn default() -> Self {
         Self {
-            font: ViewFontDef::DeterminationMono,
+            font: "DTM-Mono".to_string(),
             align: TextAlignDef::Left,
             anchor: TextAnchorDef::BottomRight,
             translation_x: 0.0,
@@ -1682,11 +1682,11 @@ fn extract_static_number(value: &Val<f32>, default_value: f32) -> f32 {
 pub fn parse_view_font(value: &str) -> Result<ViewFontDef> {
     let normalized = normalize_token(value);
     match normalized.as_str() {
-        "determinationmono" | "dtmmono" => Ok(ViewFontDef::DeterminationMono),
-        "determinationsans" | "dtmsans" => Ok(ViewFontDef::DeterminationSans),
-        "hud" => Ok(ViewFontDef::Hud),
-        "battlehud" => Ok(ViewFontDef::BattleHud),
-        _ => bail!("unsupported font candidate `{value}`"),
+        "determinationmono" | "dtmmono" => Ok("DTM-Mono".to_string()),
+        "determinationsans" | "dtmsans" => Ok("DTM-Sans".to_string()),
+        "hud" => Ok("hud".to_string()),
+        "battlehud" => Ok("battlehud".to_string()),
+        _ => Ok(value.to_string()),
     }
 }
 
@@ -1768,7 +1768,7 @@ mod tests {
         let layout = build_runtime_view_layout(
             "CHARA",
             &ConcreteTextParameters {
-                font: ViewFontDef::DeterminationSans,
+                font: "DTM-Sans".to_string(),
                 align: TextAlignDef::Left,
                 anchor: TextAnchorDef::BottomRight,
                 translation_x: -28.5,
@@ -1858,7 +1858,7 @@ mod tests {
         let layout = build_export_view_layout(
             "CHARA",
             &ConcreteTextParameters {
-                font: ViewFontDef::DeterminationSans,
+                font: "DTM-Sans".to_string(),
                 align: TextAlignDef::Left,
                 anchor: TextAnchorDef::BottomRight,
                 translation_x: -28.5,
@@ -1968,7 +1968,7 @@ mod tests {
         let runtime_layout = build_runtime_view_layout(
             "CHARA",
             &ConcreteTextParameters {
-                font: ViewFontDef::DeterminationSans,
+                font: "DTM-Sans".to_string(),
                 align: TextAlignDef::Left,
                 anchor: TextAnchorDef::BottomRight,
                 translation_x: -28.5,
@@ -2122,7 +2122,7 @@ mod tests {
         TextDef {
             id: id.to_string(),
             content: Some(content.to_string()),
-            font: ViewFontDef::DeterminationMono,
+            font: "DTM-Mono".to_string(),
             align: None,
             anchor: None,
             world_scale: (Val::Static(13.0), Val::Static(13.0)),

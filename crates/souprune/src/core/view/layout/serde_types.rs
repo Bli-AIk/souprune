@@ -247,18 +247,13 @@ pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
     #[serde(default)]
-    pub rotation: Option<f32>,
+    pub rotation: Option<FloatOrExpr>,
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum ViewFontDef {
-    DeterminationMono,
-    DeterminationSans,
-    Hud,
-    BattleHud,
-}
+/// Re-export from schema — font identifier is now a plain String.
+pub type ViewFontDef = String;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TextAlignDef {
@@ -310,15 +305,6 @@ impl From<TextAnchorDef> for TextAnchor {
 
 impl From<ViewFontDef> for crate::core::view::components::ViewFont {
     fn from(val: ViewFontDef) -> Self {
-        match val {
-            ViewFontDef::DeterminationMono => {
-                crate::core::view::components::ViewFont::DeterminationMono
-            }
-            ViewFontDef::DeterminationSans => {
-                crate::core::view::components::ViewFont::DeterminationSans
-            }
-            ViewFontDef::Hud => crate::core::view::components::ViewFont::Hud,
-            ViewFontDef::BattleHud => crate::core::view::components::ViewFont::BattleHud,
-        }
+        crate::core::view::components::ViewFont(val)
     }
 }

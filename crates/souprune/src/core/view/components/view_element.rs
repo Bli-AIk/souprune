@@ -87,7 +87,6 @@ pub struct ViewRoot {
     ///
     /// 此 View 实例的局部事实存储。
     /// 当 View 被销毁时自动清空。
-    #[cfg_attr(feature = "debug", reflect(ignore))]
     pub local_facts: FactDatabase,
 }
 

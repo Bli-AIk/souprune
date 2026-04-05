@@ -73,13 +73,10 @@ pub enum SerializableAlignItems {
     Stretch,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum ViewFontDef {
-    DeterminationMono,
-    DeterminationSans,
-    Hud,
-    BattleHud,
-}
+/// Font identifier — file name stem of the font file (e.g., "DTM-Mono", "hud").
+///
+/// 字体标识符 — 字体文件名（不含扩展名，如 "DTM-Mono"、"hud"）。
+pub type ViewFontDef = String;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TextAlignDef {
@@ -469,7 +466,7 @@ mod tests {
                     texts: [(
                         id: "label",
                         content: Some("HP"),
-                        font: Hud,
+                        font: "hud",
                         align: Some(Center),
                         anchor: Some(TopLeft),
                         world_scale: (1.0, "$ui_scale"),

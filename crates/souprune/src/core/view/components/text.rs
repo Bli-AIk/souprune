@@ -28,29 +28,19 @@ pub struct ViewAnimationState {
     pub(crate) state_name: String,
 }
 
-/// Font configuration for UI text
+/// Font identifier for UI text — wraps the font file name stem.
 ///
-/// UI 文本的字体配置
+/// UI 文本的字体标识符 — 包装字体文件名（不含扩展名）。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
-pub(crate) enum ViewFont {
-    DeterminationMono,
-    DeterminationSans,
-    Hud,
-    BattleHud,
-}
+pub(crate) struct ViewFont(pub(crate) String);
 
 impl ViewFont {
     /// Get font file stem (matches the filename loaded by bevy_bitmap_text).
     ///
     /// 获取字体文件名（与 bevy_bitmap_text 加载的文件名匹配）
-    pub(crate) fn font_name(&self) -> &'static str {
-        match self {
-            ViewFont::DeterminationMono => "DTM-Mono",
-            ViewFont::DeterminationSans => "DTM-Sans",
-            ViewFont::Hud => "hud",
-            ViewFont::BattleHud => "battlehud",
-        }
+    pub(crate) fn font_name(&self) -> &str {
+        &self.0
     }
 
     /// Get default rendering size (for texture atlas)
@@ -91,7 +81,7 @@ impl Default for ViewTextConfig {
             name: Name::new("Text"),
             content: "Text".to_string(),
             template: None,
-            font: ViewFont::DeterminationMono,
+            font: ViewFont("DTM-Mono".to_string()),
             world_scale: Vec2::splat(13.),
             color: Srgba::WHITE,
             transform: Transform::default(),

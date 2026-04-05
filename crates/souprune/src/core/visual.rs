@@ -34,7 +34,8 @@
 //! - 相对路径：`"battle/bullets/spear"` → 相对于纹理目录
 //! - 文件扩展名可选：自动检测
 
-use crate::config::{ResourcePaths, load_config};
+use crate::config::load_config;
+use crate::core::resource_resolver;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -169,27 +170,17 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp"];
 /// 2. 如果路径指向文件 → Sprite
 /// 3. 如果路径指向包含2+图片的目录 → FrameAnimation
 /// 4. 如果没有扩展名，搜索匹配的文件/目录
-pub fn resolve_visual_path(input: &str, mod_name: &str) -> Option<ResolvedVisual> {
+pub fn resolve_visual_path(input: &str, _mod_name: &str) -> Option<ResolvedVisual> {
     let config = load_config();
-    resolve_visual_path_with_resources(input, mod_name, &config.resources)
-}
+    let category_dir = &config.resources.textures;
 
-/// Resolve a visual path using the provided resource paths configuration.
-///
-/// 使用提供的资源路径配置解析视觉路径。
-pub fn resolve_visual_path_with_resources(
-    input: &str,
-    mod_name: &str,
-    resources: &ResourcePaths,
-) -> Option<ResolvedVisual> {
     // Character animation files are identified by extension
     if input.ends_with(".character.ron") {
-        let full_path = build_texture_path(mod_name, resources, input);
+        let full_path = resource_resolver::build_resource_path(category_dir, input);
         if full_path.exists() {
             return Some(ResolvedVisual::CharacterAnimation(full_path));
         }
-        // Also search recursively
-        if let Some(found) = search_texture_recursive(mod_name, resources, input) {
+        if let Some(found) = resource_resolver::search_files(category_dir, input, &[]) {
             return Some(ResolvedVisual::CharacterAnimation(found));
         }
         return None;
@@ -202,112 +193,75 @@ pub fn resolve_visual_path_with_resources(
         .unwrap_or(false);
 
     if has_extension {
-        // Direct file path with extension
-        let full_path = build_texture_path(mod_name, resources, input);
+        let full_path = resource_resolver::build_resource_path(category_dir, input);
         if full_path.exists() {
             return Some(ResolvedVisual::Sprite(full_path));
         }
     }
 
     // Try to find as a directory (frame animation)
-    let dir_path = build_texture_path(mod_name, resources, input);
+    let dir_path = resource_resolver::build_resource_path(category_dir, input);
     if dir_path.is_dir() && is_frame_animation_directory(&dir_path) {
         return Some(ResolvedVisual::FrameAnimation(dir_path));
     }
 
     // Try adding common extensions
     for ext in IMAGE_EXTENSIONS {
-        let with_ext = format!("{}.{}", input, ext);
-        let full_path = build_texture_path(mod_name, resources, &with_ext);
+        let with_ext = format!("{input}.{ext}");
+        let full_path = resource_resolver::build_resource_path(category_dir, &with_ext);
         if full_path.exists() {
             return Some(ResolvedVisual::Sprite(full_path));
         }
     }
 
     // If simple name (no path separator), search recursively
-    if !input.contains('/')
-        && !input.contains('\\')
-        && let Some(found) = search_texture_recursive(mod_name, resources, input)
-    {
-        if found.is_dir() && is_frame_animation_directory(&found) {
+    if !input.contains('/') && !input.contains('\\') {
+        let result = resource_resolver::search_all(category_dir, input, &[]);
+        // Prioritize file matches
+        if let Some(found) = result.files.first() {
+            if result.files.len() > 1 {
+                warn!(
+                    "Multiple file matches found for '{}': {:?}. Using first match.",
+                    input, result.files
+                );
+            }
+            return Some(ResolvedVisual::Sprite(found.clone()));
+        }
+        // Then check directory matches for frame animation
+        if let Some(found) = result
+            .dirs
+            .into_iter()
+            .find(|dir| is_frame_animation_directory(dir))
+        {
             return Some(ResolvedVisual::FrameAnimation(found));
-        } else if found.is_file() {
-            return Some(ResolvedVisual::Sprite(found));
         }
     }
 
     None
 }
 
-/// Build the full texture path from mod name and relative path.
+/// Resolve a visual path using the provided resource paths configuration.
 ///
-/// 从 mod 名称和相对路径构建完整的纹理路径。
-fn build_texture_path(mod_name: &str, resources: &ResourcePaths, relative: &str) -> PathBuf {
-    let base = crate::config::get_projects_base_path();
-    let primary = base.join(mod_name).join(&resources.textures).join(relative);
-    if primary.exists() {
-        return primary;
-    }
-
-    // Search dependency mod directories
-    let config = crate::config::load_config();
-    for dep in &config.resolved_dependencies {
-        let dep_path = base
-            .join(&dep.name)
-            .join(&resources.textures)
-            .join(relative);
-        if dep_path.exists() {
-            return dep_path;
-        }
-    }
-
-    // Return primary even if not found (caller checks existence)
-    primary
+/// 使用提供的资源路径配置解析视觉路径。
+pub fn resolve_visual_path_with_resources(
+    input: &str,
+    mod_name: &str,
+    _resources: &crate::config::ResourcePaths,
+) -> Option<ResolvedVisual> {
+    resolve_visual_path(input, mod_name)
 }
 
-/// Search for a file or directory by name recursively in the textures directory.
-/// Prioritizes files over directories to avoid mistaking a single-image directory as frame animation.
+/// Get the relative path for asset loading from a resolved visual.
 ///
-/// 在纹理目录中按名称递归搜索文件或目录。
-/// 优先返回文件而非目录，以避免将单图片目录误判为帧动画。
-fn search_texture_recursive(
-    mod_name: &str,
-    resources: &ResourcePaths,
-    name: &str,
-) -> Option<PathBuf> {
-    let base = crate::config::get_projects_base_path();
+/// 从解析的视觉获取用于资源加载的相对路径。
+pub fn get_asset_path(resolved: &ResolvedVisual, _mod_name: &str) -> String {
+    let path = match resolved {
+        ResolvedVisual::Sprite(p) => p,
+        ResolvedVisual::FrameAnimation(p) => p,
+        ResolvedVisual::CharacterAnimation(p) => p,
+    };
 
-    // Collect all texture roots to search (main mod + dependencies)
-    let config = crate::config::load_config();
-    let mut roots = vec![base.join(mod_name).join(&resources.textures)];
-    for dep in &config.resolved_dependencies {
-        roots.push(base.join(&dep.name).join(&resources.textures));
-    }
-
-    let mut file_matches = Vec::new();
-    let mut dir_matches = Vec::new();
-
-    for textures_root in &roots {
-        if textures_root.exists() {
-            search_recursive_inner(textures_root, name, &mut file_matches, &mut dir_matches);
-        }
-    }
-
-    // Prioritize file matches over directory matches
-    if !file_matches.is_empty() {
-        if file_matches.len() > 1 {
-            warn!(
-                "Multiple file matches found for '{}': {:?}. Using first match.",
-                name, file_matches
-            );
-        }
-        return file_matches.into_iter().next();
-    }
-
-    // Only use directory match if it's a valid frame animation directory
-    dir_matches
-        .into_iter()
-        .find(|dir| is_frame_animation_directory(dir))
+    resource_resolver::to_relative_asset_path(path)
 }
 
 /// Check if a directory looks like a frame animation directory.
@@ -332,81 +286,7 @@ fn is_frame_animation_directory(dir: &Path) -> bool {
         }
     }
 
-    // A valid frame animation has multiple images (2 or more)
     image_count >= 2
-}
-
-/// Inner recursive search function.
-/// Separates file matches and directory matches.
-///
-/// 内部递归搜索函数。
-/// 将文件匹配和目录匹配分开。
-fn search_recursive_inner(
-    dir: &Path,
-    name: &str,
-    file_results: &mut Vec<PathBuf>,
-    dir_results: &mut Vec<PathBuf>,
-) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-
-    for entry in entries.filter_map(Result::ok) {
-        let path = entry.path();
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let stem = path.file_stem().and_then(|n| n.to_str()).unwrap_or("");
-
-        // Check for exact match (with or without extension)
-        if stem == name {
-            if path.is_dir() {
-                dir_results.push(path.clone());
-            } else {
-                file_results.push(path.clone());
-            }
-        }
-
-        // Recurse into directories
-        if path.is_dir() && !file_name.starts_with('.') {
-            search_recursive_inner(&path, name, file_results, dir_results);
-        }
-    }
-}
-
-/// Get the relative path for asset loading from a resolved visual.
-///
-/// 从解析的视觉获取用于资源加载的相对路径。
-pub fn get_asset_path(resolved: &ResolvedVisual, mod_name: &str) -> String {
-    let path = match resolved {
-        ResolvedVisual::Sprite(p) => p,
-        ResolvedVisual::FrameAnimation(p) => p,
-        ResolvedVisual::CharacterAnimation(p) => p,
-    };
-
-    let projects_base = crate::config::get_projects_base_path();
-    let path_str = path.to_string_lossy().to_string();
-
-    // Try stripping main mod prefix first
-    let main_prefix = projects_base.join(mod_name).to_string_lossy().to_string();
-    if let Some(stripped) = path_str.strip_prefix(main_prefix.as_str()) {
-        return stripped
-            .trim_start_matches('/')
-            .trim_start_matches('\\')
-            .to_string();
-    }
-
-    // Try stripping dependency mod prefixes
-    let config = crate::config::load_config();
-    for dep in &config.resolved_dependencies {
-        let dep_prefix = projects_base.join(&dep.name).to_string_lossy().to_string();
-        if let Some(stripped) = path_str.strip_prefix(dep_prefix.as_str()) {
-            return stripped
-                .trim_start_matches('/')
-                .trim_start_matches('\\')
-                .to_string();
-        }
-    }
-
-    path_str
 }
 
 #[cfg(test)]

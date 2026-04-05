@@ -96,7 +96,7 @@ optional = true
 
 [features]
 default = []
-debug = ["dep:bevy-inspector-egui", "dep:bevy_brp_extras", "dep:iyes_perf_ui"]
+debug = ["dep:bevy-inspector-egui", "dep:bevy_brp_extras", "dep:iyes_perf_ui", "bevy_fact_rule_event/debug"]
 experimental = []
 unsafe_gpu = []
 # Tracy profiling with minimal overhead (no GUI)
