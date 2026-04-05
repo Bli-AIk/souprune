@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::FactValue;
 use souprune_api::Action;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
@@ -31,7 +32,7 @@ pub struct CallContext {
     pub entity_position: Vec2,
     pub delta_time: f32,
     /// Snapshot of the current FRE fact database (key → typed value).
-    pub fact_snapshot: HashMap<String, FactValue>,
+    pub fact_snapshot: Arc<HashMap<String, FactValue>>,
     /// Fact mutations queued by the mod during a callback; applied afterwards.
     pub pending_fact_mutations: Vec<(String, FactValue)>,
     /// FRE events queued by the mod during a callback; emitted afterwards.

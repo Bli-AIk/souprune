@@ -12,9 +12,10 @@
 //! 让游戏其余部分可以调用这些由 mod 定义的能力。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use souprune_api::Action;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
 
@@ -442,7 +443,7 @@ fn init_behaviors_system(
             Ok(handle) => {
                 {
                     let ctx = loaded.store.data_mut();
-                    ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+                    ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
                     ctx.call_ctx.pending_fact_mutations.clear();
                     ctx.call_ctx.pending_events.clear();
                 }
@@ -492,6 +493,7 @@ fn update_behaviors_system(
     mut fact_writer: MessageWriter<FactEvent>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
+    mut cached_snapshot: Local<Arc<HashMap<String, FactValue>>>,
 ) {
     let mut pressed = [false; 7];
     let mut just_pressed = [false; 7];
@@ -514,7 +516,10 @@ fn update_behaviors_system(
         just_pressed[Action::Menu as usize] = state.action_just_pressed(&registry, "Menu");
     }
 
-    let fact_snapshot = build_fact_snapshot(&fact_db);
+    // Rebuild snapshot only when facts changed; reuse cached copy otherwise.
+    if fact_db.is_changed() || cached_snapshot.is_empty() {
+        *cached_snapshot = build_fact_snapshot(&fact_db);
+    }
     let dt = time.delta_secs();
 
     for (_entity, ctx, active, mut velocity, mut transform) in query.iter_mut() {
@@ -533,7 +538,7 @@ fn update_behaviors_system(
             ctx.call_ctx.velocity = velocity.as_ref().map_or(Vec2::ZERO, |v| v.0);
             ctx.call_ctx.entity_position = transform.translation.truncate();
             ctx.call_ctx.delta_time = dt;
-            ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+            ctx.call_ctx.fact_snapshot = Arc::clone(&cached_snapshot);
             ctx.call_ctx.pending_fact_mutations.clear();
             ctx.call_ctx.pending_events.clear();
         }

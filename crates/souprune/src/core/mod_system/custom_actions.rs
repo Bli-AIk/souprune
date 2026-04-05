@@ -6,6 +6,8 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use std::collections::HashMap;
 
+use std::sync::Arc;
+
 use super::LoadedMods;
 use crate::core::fre_bridge::FreCustomActionEvent;
 use crate::core::wasm_runtime;
@@ -47,7 +49,7 @@ pub fn dispatch_wasm_custom_actions_system(
 
             {
                 let ctx = loaded.store.data_mut();
-                ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
+                ctx.call_ctx.fact_snapshot = Arc::clone(&fact_snapshot);
                 ctx.call_ctx.pending_fact_mutations.clear();
                 ctx.call_ctx.pending_events.clear();
             }
@@ -85,12 +87,14 @@ pub fn dispatch_wasm_custom_actions_system(
     }
 }
 
-pub(super) fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> HashMap<String, FactValue> {
-    fact_db
-        .iter_local()
-        .chain(fact_db.iter_global())
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect()
+pub(super) fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> Arc<HashMap<String, FactValue>> {
+    Arc::new(
+        fact_db
+            .iter_local()
+            .chain(fact_db.iter_global())
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    )
 }
 
 pub(super) fn apply_pending_side_effects(
