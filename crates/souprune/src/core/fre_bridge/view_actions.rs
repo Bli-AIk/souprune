@@ -269,6 +269,8 @@ fn execute_action(
                 asset_server,
                 enum_registry,
                 item_registry,
+                &souprune_config.game.dialogue_view_default,
+                &souprune_config.game.dialogue_voice_default,
             );
         }
         GameActionDef::CheckItem { index_expr } => {

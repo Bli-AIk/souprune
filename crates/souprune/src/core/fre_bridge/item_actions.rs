@@ -241,9 +241,8 @@ fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
 
 /// UseItem action: dispatch by item type, execute effects, prepare dialogue data.
 ///
-/// Sets `mortar_path` and `action_param` on view local facts so the narration
-/// sequence can start dialogue with proper UI state (like ACT does).
-/// Does NOT start dialogue directly — the narration sequence handles that.
+/// Applies item effects, then starts dialogue through global facts
+/// (same mechanism as CheckItem/DropItem).
 pub(super) fn execute_use_item(
     index_expr: &str,
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
@@ -252,6 +251,8 @@ pub(super) fn execute_use_item(
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
     item_registry: &crate::core::item::ItemRegistry,
+    dialogue_view_default: &str,
+    dialogue_voice_default: &str,
 ) {
     use crate::core::item::ItemType;
 
@@ -334,14 +335,18 @@ pub(super) fn execute_use_item(
         ("items/_defaults.mortar", default_node)
     };
 
-    // Set on view local facts so narration sequence can read $mortar_path / $action_param
+    // Set on view local facts (used by battle narration sequence)
     local_facts.set("mortar_path", FactValue::String(mortar_path.to_string()));
     local_facts.set("action_param", FactValue::String(action_param.to_string()));
 
-    // Set item-specific data on global facts for mortar dialogue variables
+    // Start dialogue through global facts (like CheckItem/DropItem)
     let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    set_item_dialogue_data(
+    start_item_dialogue_with_path(
+        mortar_path,
+        action_param,
         global_facts,
+        dialogue_view_default,
+        dialogue_voice_default,
         ItemDialogueData {
             locale_key,
             description: item.description.clone(),
