@@ -180,6 +180,19 @@ pub struct GameConfig {
     ///
     /// 需要隐藏的图层名关键字（如 prototype、collision）。
     pub hidden_layer_keywords: Vec<String>,
+
+    /// Initial mode to enter after loading completes.
+    /// Determined from config: if `initial_sequence_path` is set, the mode is
+    /// inferred from the sequence; otherwise falls back to this value.
+    ///
+    /// 加载完成后进入的初始模式。
+    /// 若 `initial_sequence_path` 已设置，模式从序列中推导；否则使用此值。
+    #[serde(default = "default_initial_mode")]
+    pub initial_mode: String,
+}
+
+fn default_initial_mode() -> String {
+    "overworld".to_string()
 }
 
 impl Default for GameConfig {
@@ -196,6 +209,7 @@ impl Default for GameConfig {
             dialogue_voice_default: "audios/voice/voice_monster.wav".to_string(),
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
+            initial_mode: default_initial_mode(),
         }
     }
 }
@@ -404,6 +418,7 @@ struct ModGameConfig {
     dialogue_voice_default: Option<String>,
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
+    initial_mode: Option<String>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -445,6 +460,7 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         merge!(dialogue_voice_default);
         merge!(required_modules);
         merge!(hidden_layer_keywords);
+        merge!(initial_mode);
         // Option<T> fields: wrap in Some
         if let Some(val) = g.initial_sequence_path {
             config.game.initial_sequence_path = Some(val);

@@ -108,3 +108,34 @@ pub fn cleanup_entities_system<T: Component>(
         commands.entity(entity).despawn();
     }
 }
+
+/// Registry of mode names known to the engine.
+///
+/// Presets register modes here during plugin initialization.
+/// The engine core uses this to validate mode transitions without
+/// knowing specific mode names.
+///
+/// 引擎已知模式名注册表。Preset 在初始化时注册模式。
+/// 引擎核心通过此注册表验证模式切换，而无需了解具体模式名。
+#[derive(Resource, Default, Debug)]
+pub struct ModeRegistry {
+    /// Set of registered mode names.
+    modes: std::collections::HashSet<String>,
+}
+
+impl ModeRegistry {
+    /// Register a mode name. Call during plugin initialization.
+    pub fn register(&mut self, mode: impl Into<String>) {
+        self.modes.insert(mode.into());
+    }
+
+    /// Check if a mode is registered.
+    pub fn is_registered(&self, mode: &str) -> bool {
+        self.modes.contains(mode)
+    }
+
+    /// Get all registered mode names.
+    pub fn modes(&self) -> impl Iterator<Item = &str> {
+        self.modes.iter().map(|s| s.as_str())
+    }
+}

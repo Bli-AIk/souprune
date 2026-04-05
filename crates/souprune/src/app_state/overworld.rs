@@ -51,6 +51,11 @@ pub struct OverworldPlugin;
 
 impl Plugin for OverworldPlugin {
     fn build(&self, app: &mut App) {
+        // Register this mode in the global ModeRegistry.
+        app.world_mut()
+            .get_resource_or_init::<crate::core::mode::ModeRegistry>()
+            .register("overworld");
+
         let schedule = crate::game_schedule(app);
         app.configure_sets(schedule, OverworldUpdate.run_if(is_mode("overworld")))
             .add_plugins((

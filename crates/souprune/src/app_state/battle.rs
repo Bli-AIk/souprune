@@ -63,6 +63,11 @@ pub struct BattlePlugin;
 
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut App) {
+        // Register this mode in the global ModeRegistry.
+        app.world_mut()
+            .get_resource_or_init::<crate::core::mode::ModeRegistry>()
+            .register("battle");
+
         let schedule = crate::game_schedule(app);
         app.configure_sets(schedule, BattleUpdate.run_if(is_mode("battle")))
             .configure_sets(schedule, BattleMovementSet.in_set(BattleUpdate))

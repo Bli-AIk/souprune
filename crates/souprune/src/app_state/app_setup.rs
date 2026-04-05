@@ -191,17 +191,21 @@ fn check_textures_system(
 
             next_state.set(AppState::Running);
 
-            if souprune_config.game.initial_sequence_path.is_none()
+            // Mode is data-driven: prefer initial_sequence_path inference,
+            // fall back to config's initial_mode (defaults to "overworld").
+            let mode = if souprune_config.game.initial_sequence_path.is_none()
                 && !souprune_config.game.initial_battle_path.is_empty()
             {
+                // Legacy compat: when only initial_battle_path is set, infer "battle".
                 info!(
-                    "No initial_sequence_path; initial_battle_path found. Entering Battle: {}",
-                    souprune_config.game.initial_battle_path
+                    "No initial_sequence_path; initial_battle_path found. Using initial_mode from battle path."
                 );
-                sequence_mode.0 = Some("battle".to_string());
+                "battle".to_string()
             } else {
-                sequence_mode.0 = Some("overworld".to_string());
-            }
+                souprune_config.game.initial_mode.clone()
+            };
+            info!("Setting initial SequenceMode: {:?}", mode);
+            sequence_mode.0 = Some(mode);
             break;
         }
     }

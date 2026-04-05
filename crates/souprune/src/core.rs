@@ -45,6 +45,7 @@ pub(crate) mod data;
 pub mod definition;
 pub mod dialogue;
 pub mod enemy;
+pub mod event_phase;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod game_action;
@@ -82,6 +83,7 @@ impl Plugin for CorePlugin {
         app.init_resource::<trace::EventTraceLog>()
             .init_resource::<trace::WasmCallTracer>()
             .init_resource::<trace::FactChangeHistory>()
+            .init_resource::<mode::ModeRegistry>()
             .add_systems(Last, trace::flush_trace_buffers_system)
             .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
@@ -102,6 +104,7 @@ impl Plugin for CorePlugin {
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
                 enemy::EnemyPlugin,
+                event_phase::EventPhasePlugin,
                 fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
                 item::ItemPlugin,
