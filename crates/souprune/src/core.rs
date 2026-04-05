@@ -55,6 +55,7 @@ pub mod mod_system;
 pub mod mode;
 pub mod player_components;
 pub mod render_layers;
+pub mod resource_resolver;
 pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;

@@ -142,6 +142,11 @@ fn update_element_transform(
         } else {
             transform.translation = new_translation;
         }
+
+        if let Some(rot) = &t_def.rotation {
+            transform.rotation =
+                Quat::from_rotation_z(evaluate_float_expr(rot, player_data, time).to_radians());
+        }
     }
 
     // Update text transform if present

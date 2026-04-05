@@ -99,8 +99,9 @@ pub fn build_text_config(
                     evaluate_float_expr(&scale.2, player_data, None),
                 );
             }
-            if let Some(rot) = text_def.transform.rotation {
-                t.rotation = Quat::from_rotation_z(rot.to_radians());
+            if let Some(rot) = &text_def.transform.rotation {
+                t.rotation =
+                    Quat::from_rotation_z(evaluate_float_expr(rot, player_data, None).to_radians());
             }
             t
         },
@@ -268,8 +269,9 @@ pub(super) fn spawn_ui_sprite(
                 evaluate_float_expr(&scale.2, player_data, None),
             );
         }
-        if let Some(rot) = t_def.rotation {
-            transform.rotation = Quat::from_rotation_z(rot.to_radians());
+        if let Some(rot) = &t_def.rotation {
+            transform.rotation =
+                Quat::from_rotation_z(evaluate_float_expr(rot, player_data, None).to_radians());
         }
     }
 

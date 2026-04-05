@@ -68,7 +68,7 @@ mod tests {
                 texts: vec![souprune_schema::view::TextDef {
                     id: "label".to_string(),
                     content: Some("HP".to_string()),
-                    font: souprune_schema::view::ViewFontDef::Hud,
+                    font: "hud".to_string(),
                     align: Some(souprune_schema::view::TextAlignDef::Center),
                     anchor: Some(souprune_schema::view::TextAnchorDef::TopLeft),
                     world_scale: (Val::Static(1.0), Val::Expr("$ui_scale".to_string())),

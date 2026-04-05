@@ -20,6 +20,7 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactReader, FactValue, LayeredFactDatabase};
 
 use crate::core::view::ViewRoot;
+use crate::core::view::components::ActiveView;
 
 /// Event emitted when a Chapter completes.
 /// This is an internal Bevy event used to bridge Sequencer → FRE.
@@ -132,7 +133,7 @@ pub struct ActOptionsTracker {
 /// current_enemy_* 局部 facts。同时确保设置 act_count 以正确导航。
 pub fn copy_enemy_act_data_system(
     mut tracker: ResMut<ActOptionsTracker>,
-    mut view_roots: Query<&mut ViewRoot>,
+    mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
 ) {
     // Get current depth and menu_context from ViewRoot local_facts
@@ -194,7 +195,7 @@ pub struct ItemDisplayTracker {
 /// 在 ITEM 模式下同步 `item_display_names` 和分页信息到 ViewRoot 局部事实的系统。
 pub fn sync_item_display_names_system(
     mut tracker: ResMut<ItemDisplayTracker>,
-    mut view_roots: Query<&mut ViewRoot>,
+    mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
     item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,

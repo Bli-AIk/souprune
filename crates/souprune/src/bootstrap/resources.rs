@@ -143,10 +143,12 @@ pub fn insert_input_resources(app: &mut App) {
 }
 
 pub fn insert_font_resources(app: &mut App) {
+    let cfg = config::load_config();
     app.insert_resource(bevy_bitmap_text::FontDirectories {
-        directories: config::get_all_asset_roots()
+        directories: crate::core::resource_resolver::all_category_roots(&cfg.resources.fonts)
             .iter()
-            .map(|root| root.join("fonts").to_string_lossy().into_owned())
+            .filter(|root| root.exists())
+            .map(|root| root.to_string_lossy().into_owned())
             .collect(),
     });
 }

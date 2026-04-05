@@ -355,6 +355,11 @@ pub struct ResourcePaths {
     ///
     /// 音频目录路径，相对于 mod 根目录。
     pub audios: String,
+
+    /// Path to fonts directory relative to mod root.
+    ///
+    /// 字体目录路径，相对于 mod 根目录。
+    pub fonts: String,
 }
 
 #[derive(Deserialize)]
@@ -377,6 +382,7 @@ struct ModLibraryConfigPartial {
 struct ResourcePathsPartial {
     textures: Option<String>,
     audios: Option<String>,
+    fonts: Option<String>,
 }
 
 /// Overlay struct for `[game]` in `mod.toml`.
@@ -455,6 +461,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         if let Some(val) = res_partial.audios {
             config.resources.audios = val;
         }
+        if let Some(val) = res_partial.fonts {
+            config.resources.fonts = val;
+        }
     }
     // Load mod library configuration from [mod_library] section
     if let Some(lib_partial) = mod_cfg.mod_library
@@ -470,6 +479,10 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
     if config.resources.audios.is_empty() {
         error!("mod.toml: [resources].audios is required");
     }
+    // Fonts default to "assets/fonts" when not specified
+    if config.resources.fonts.is_empty() {
+        config.resources.fonts = "assets/fonts".to_string();
+    }
 }
 
 /// Resolve mod dependencies by reading each dependency's mod.toml.
@@ -480,8 +493,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
 fn resolve_dependencies(
     dependencies: &HashMap<String, String>,
     projects_base: &Path,
-) -> Vec<ResolvedDependency> {
+) -> (Vec<ResolvedDependency>, Vec<ModConfigFile>) {
     let mut resolved = Vec::new();
+    let mut dep_configs = Vec::new();
 
     for (dep_name, dep_version) in dependencies {
         let dep_dir = projects_base.join(dep_name);
@@ -497,28 +511,32 @@ fn resolve_dependencies(
             continue;
         }
 
-        let wasm = match read_mod_config(&dep_mod_toml) {
-            Ok(dep_cfg) => dep_cfg
-                .mod_library
-                .and_then(|lib| lib.wasm)
-                .unwrap_or_else(|| format!("{dep_name}.wasm")),
+        match read_mod_config(&dep_mod_toml) {
+            Ok(dep_cfg) => {
+                let wasm = dep_cfg
+                    .mod_library
+                    .as_ref()
+                    .and_then(|lib| lib.wasm.clone())
+                    .unwrap_or_else(|| format!("{dep_name}.wasm"));
+
+                info!(
+                    "Resolved dependency: {} v{} (wasm: {})",
+                    dep_name, dep_version, wasm
+                );
+                resolved.push(ResolvedDependency {
+                    name: dep_name.clone(),
+                    wasm,
+                });
+                dep_configs.push(dep_cfg);
+            }
             Err(e) => {
                 error!("Failed to read dependency '{}' mod.toml: {}", dep_name, e);
                 continue;
             }
         };
-
-        info!(
-            "Resolved dependency: {} v{} (wasm: {})",
-            dep_name, dep_version, wasm
-        );
-        resolved.push(ResolvedDependency {
-            name: dep_name.clone(),
-            wasm,
-        });
     }
 
-    resolved
+    (resolved, dep_configs)
 }
 
 fn read_config_from_disk<P: AsRef<Path>>(path: P) -> Result<SoupruneConfig> {
@@ -558,18 +576,28 @@ Falling back to default configuration (example_mod)",
                 mod_config_path.exists()
             );
 
-            if mod_config_path.exists() {
-                match read_mod_config(&mod_config_path) {
-                    Ok(mod_cfg) => {
-                        let deps = resolve_dependencies(&mod_cfg.dependencies, &projects_base);
-                        apply_mod_config(&mut config, mod_cfg);
-                        config.resolved_dependencies = deps;
+            if !mod_config_path.exists() {
+                return config;
+            }
+
+            match read_mod_config(&mod_config_path) {
+                Ok(mod_cfg) => {
+                    let (deps, dep_configs) =
+                        resolve_dependencies(&mod_cfg.dependencies, &projects_base);
+
+                    // Apply dependency configs first (lower priority)
+                    for dep_cfg in dep_configs {
+                        apply_mod_config(&mut config, dep_cfg);
                     }
-                    Err(e) => {
-                        #[cfg(target_os = "android")]
-                        eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
-                        error!("Failed to load mod.toml: {}", e);
-                    }
+
+                    // Apply main mod config last (highest priority, overwrites)
+                    apply_mod_config(&mut config, mod_cfg);
+                    config.resolved_dependencies = deps;
+                }
+                Err(e) => {
+                    #[cfg(target_os = "android")]
+                    eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
+                    error!("Failed to load mod.toml: {}", e);
                 }
             }
 
