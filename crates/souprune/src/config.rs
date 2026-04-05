@@ -355,6 +355,11 @@ pub struct ResourcePaths {
     ///
     /// 音频目录路径，相对于 mod 根目录。
     pub audios: String,
+
+    /// Path to fonts directory relative to mod root.
+    ///
+    /// 字体目录路径，相对于 mod 根目录。
+    pub fonts: String,
 }
 
 #[derive(Deserialize)]
@@ -377,6 +382,7 @@ struct ModLibraryConfigPartial {
 struct ResourcePathsPartial {
     textures: Option<String>,
     audios: Option<String>,
+    fonts: Option<String>,
 }
 
 /// Overlay struct for `[game]` in `mod.toml`.
@@ -455,6 +461,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         if let Some(val) = res_partial.audios {
             config.resources.audios = val;
         }
+        if let Some(val) = res_partial.fonts {
+            config.resources.fonts = val;
+        }
     }
     // Load mod library configuration from [mod_library] section
     if let Some(lib_partial) = mod_cfg.mod_library
@@ -469,6 +478,10 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
     }
     if config.resources.audios.is_empty() {
         error!("mod.toml: [resources].audios is required");
+    }
+    // Fonts default to "assets/fonts" when not specified
+    if config.resources.fonts.is_empty() {
+        config.resources.fonts = "assets/fonts".to_string();
     }
 }
 

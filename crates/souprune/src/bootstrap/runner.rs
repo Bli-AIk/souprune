@@ -173,10 +173,13 @@ pub fn run() {
         ))
         .insert_resource(config.clone())
         .insert_resource(bevy_bitmap_text::FontDirectories {
-            directories: config::get_all_asset_roots()
-                .iter()
-                .map(|root| root.join("fonts").to_string_lossy().into_owned())
-                .collect(),
+            directories: crate::core::resource_resolver::all_category_roots(
+                &config.resources.fonts,
+            )
+            .iter()
+            .filter(|root| root.exists())
+            .map(|root| root.to_string_lossy().into_owned())
+            .collect(),
         })
         .insert_resource(action_registry)
         .insert_resource(player_input_settings)

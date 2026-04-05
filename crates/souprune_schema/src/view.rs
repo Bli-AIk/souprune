@@ -466,7 +466,7 @@ mod tests {
                     texts: [(
                         id: "label",
                         content: Some("HP"),
-                        font: Hud,
+                        font: "hud",
                         align: Some(Center),
                         anchor: Some(TopLeft),
                         world_scale: (1.0, "$ui_scale"),

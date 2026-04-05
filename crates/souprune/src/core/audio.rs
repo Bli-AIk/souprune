@@ -23,9 +23,9 @@
 //! - 扩展名可选：`"choice"` 或 `"choice.wav"` 都可以
 
 use crate::config::load_config;
+use crate::core::resource_resolver;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
-use std::path::Path;
 use tracing::warn;
 
 /// Supported audio extensions for automatic detection.
@@ -40,101 +40,10 @@ const AUDIO_EXTENSIONS: &[&str] = &["wav", "ogg", "mp3", "flac"];
 /// 先搜索主 mod，再搜索依赖 mod。
 fn resolve_sound_path(sound_name: &str) -> Option<String> {
     let config = load_config();
-    let audios_dir = &config.resources.audios;
+    let category_dir = &config.resources.audios;
 
-    let stem = Path::new(sound_name)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(sound_name);
-
-    let has_extension = Path::new(sound_name)
-        .extension()
-        .map(|e| AUDIO_EXTENSIONS.contains(&e.to_str().unwrap_or("")))
-        .unwrap_or(false);
-
-    let projects_base = crate::config::get_projects_base_path();
-    let all_roots = crate::config::get_all_asset_roots();
-
-    for root in &all_roots {
-        let audios_root = root.join(audios_dir.trim_start_matches("assets/"));
-        if !audios_root.exists() {
-            continue;
-        }
-
-        if let Some(found) =
-            search_audio_recursive(&audios_root, stem, has_extension.then_some(sound_name))
-        {
-            let relative = all_roots
-                .iter()
-                .find_map(|r| found.strip_prefix(r).ok())
-                .or_else(|| found.strip_prefix(&projects_base).ok());
-            return Some(match relative {
-                Some(rel) => rel.to_string_lossy().to_string(),
-                None => found.to_string_lossy().to_string(),
-            });
-        }
-    }
-
-    warn!(
-        "Sound file not found: {} (searched in {} roots)",
-        sound_name,
-        all_roots.len()
-    );
-    None
-}
-
-/// Recursively search for an audio file in a directory.
-///
-/// 在目录中递归搜索音频文件。
-fn search_audio_recursive(
-    dir: &Path,
-    stem: &str,
-    exact_name: Option<&str>,
-) -> Option<std::path::PathBuf> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return None;
-    };
-
-    let mut results = Vec::new();
-
-    for entry in entries.filter_map(Result::ok) {
-        let path = entry.path();
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-        if path.is_dir() {
-            if !file_name.starts_with('.')
-                && let Some(found) = search_audio_recursive(&path, stem, exact_name)
-            {
-                return Some(found);
-            }
-            continue;
-        }
-        if !path.is_file() {
-            continue;
-        }
-
-        if let Some(exact) = exact_name {
-            if file_name == exact {
-                return Some(path);
-            }
-        } else {
-            let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let file_ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-            if file_stem == stem && AUDIO_EXTENSIONS.contains(&file_ext) {
-                results.push(path.clone());
-            }
-        }
-    }
-
-    if results.len() > 1 {
-        warn!(
-            "Multiple audio files found for '{}': {:?}. Using first match.",
-            stem, results
-        );
-    }
-
-    results.into_iter().next()
+    let resolved = resource_resolver::resolve_resource(category_dir, sound_name, AUDIO_EXTENSIONS)?;
+    Some(resource_resolver::to_relative_asset_path(&resolved))
 }
 
 // ============================================================================
