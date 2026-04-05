@@ -356,8 +356,11 @@ fn apply_transform_reload(
         }
     }
 
-    if let Some(rot) = t_def.rotation {
-        let new_rotation = Quat::from_rotation_z(f32::to_radians(rot));
+    if let Some(rot) = &t_def.rotation {
+        let new_rotation = Quat::from_rotation_z(
+            super::parsing::evaluate_float_expr_with_repeat(rot, player_data, None, repeat_ctx)
+                .to_radians(),
+        );
         if transform.rotation != new_rotation {
             debug!(
                 "[Hot Reload] rotation '{}': {:?} -> {:?}",

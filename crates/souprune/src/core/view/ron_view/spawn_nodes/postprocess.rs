@@ -14,8 +14,8 @@
 //! 定义，并给那些需要随时间更新变换的实体打上标记。
 
 use super::super::parsing::{
-    PlayerDataView, evaluate_visible_when, preprocess_sprite_def_for_repeat,
-    vec3_tuple_depends_on_time,
+    PlayerDataView, evaluate_visible_when, expression_depends_on_time,
+    preprocess_sprite_def_for_repeat, vec3_tuple_depends_on_time,
 };
 use bevy::prelude::*;
 
@@ -137,6 +137,14 @@ fn check_sprite_dynamics(
                 has_dynamic = true;
             }
             if vec3_tuple_depends_on_time(scale) {
+                has_time_dependency = true;
+            }
+        }
+        if let Some(rotation) = &transform.rotation {
+            if rotation.is_dynamic() {
+                has_dynamic = true;
+            }
+            if expression_depends_on_time(rotation) {
                 has_time_dependency = true;
             }
         }

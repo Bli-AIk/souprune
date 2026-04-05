@@ -40,6 +40,7 @@ mod delta;
 mod diff;
 mod resolve;
 mod spawn_helpers;
+mod spawn_shader;
 mod system;
 mod tree;
 
@@ -61,9 +62,11 @@ pub use resolve::*;
 // ViewReconciliationPlugin 被 CoreViewPlugin 使用
 #[allow(unused_imports)]
 pub use spawn_helpers::{
-    ShaderMaterialPendingSetup, SpawnContext, ViewElementSpec, build_text_config,
-    spawn_shader_material_entity, spawn_sprite_entity, spawn_text_entity, spawn_viewbox_entity,
+    SpawnContext, ViewElementSpec, build_text_config, spawn_sprite_entity, spawn_text_entity,
+    spawn_viewbox_entity,
 };
+#[allow(unused_imports)]
+pub use spawn_shader::{ShaderMaterialPendingSetup, spawn_shader_material_entity};
 pub use system::ViewReconciliationPlugin;
 #[allow(unused_imports)]
 pub use system::{

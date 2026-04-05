@@ -430,6 +430,13 @@ pub fn spawn_dynamic_view_system(
             commands.entity(view_entity).insert(ChildOf(camera_entity));
         }
 
+        // 自动推断 ActiveView：有 requires（FRE 规则声明）或 bindings（外部数据绑定）
+        // → 标记为 ActiveView，接收 FRE 规则和交互
+        // TODO: 未来扩展：如果需要多个 同时交互 的 View，可以引入 `PrimaryView` / `SecondaryView` 概念
+        if !view_layout.requires.is_empty() || pending_view_data.is_some() {
+            commands.entity(view_entity).insert(ActiveView);
+        }
+
         // Add ViewGenerated and ReconciliationEnabled; remove PendingViewData
         commands.entity(view_entity).insert((
             ViewGenerated,

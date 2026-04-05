@@ -218,55 +218,14 @@ pub fn edit_tag_list(ui: &mut egui::Ui, label: &str, tags: &mut Vec<String>) -> 
     changed
 }
 
-/// 编辑 ViewFontDef 枚举。
+/// 编辑字体名称（字符串输入）。
 pub fn edit_font_def(ui: &mut egui::Ui, label: &str, font: &mut ViewFontDef) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label(format!("{label}:"));
-        let current = match font {
-            ViewFontDef::DeterminationMono => "DeterminationMono",
-            ViewFontDef::DeterminationSans => "DeterminationSans",
-            ViewFontDef::Hud => "Hud",
-            ViewFontDef::BattleHud => "BattleHud",
-        };
-        egui::ComboBox::from_id_salt(label)
-            .selected_text(current)
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(
-                        matches!(font, ViewFontDef::DeterminationMono),
-                        "DeterminationMono",
-                    )
-                    .clicked()
-                {
-                    *font = ViewFontDef::DeterminationMono;
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(
-                        matches!(font, ViewFontDef::DeterminationSans),
-                        "DeterminationSans",
-                    )
-                    .clicked()
-                {
-                    *font = ViewFontDef::DeterminationSans;
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(font, ViewFontDef::Hud), "Hud")
-                    .clicked()
-                {
-                    *font = ViewFontDef::Hud;
-                    changed = true;
-                }
-                if ui
-                    .selectable_label(matches!(font, ViewFontDef::BattleHud), "BattleHud")
-                    .clicked()
-                {
-                    *font = ViewFontDef::BattleHud;
-                    changed = true;
-                }
-            });
+        if ui.text_edit_singleline(font).changed() {
+            changed = true;
+        }
     });
     changed
 }

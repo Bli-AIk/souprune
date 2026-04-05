@@ -19,10 +19,40 @@
 //! - `facts`: 初始 fact 值（可选）
 
 use super::serde_types::*;
+use crate::core::sequencer::chapter_schema::Value;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// ============================================================================
+// Coordinate System
+// ============================================================================
+/// Coordinate system preset for View layouts.
+/// Defines how coordinates in RON files are transformed to Bevy's y-up world space.
+///
+/// View 布局的坐标系预设。
+/// 定义 RON 文件中的坐标如何转换为 Bevy 的 y-up 世界坐标。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CoordinateSystem {
+    /// Bevy standard: y-up, pivot(0,0)=bottom-left. No transformation.
+    ///
+    /// Bevy 标准坐标系：y-up, pivot(0,0)=左下角。不做任何转换。
+    #[default]
+    Standard,
+
+    /// Screen-space / y-down coordinate system.
+    /// Used by GMS, LÖVE, HTML Canvas, Pygame, and most 2D game engines.
+    /// Transformation: translation.y negated, pivot.y flipped to 1.0 - y.
+    ///
+    /// 屏幕坐标系（y-down）。
+    /// 适用于 GMS、LÖVE、HTML Canvas、Pygame 等 y-down 引擎的坐标。
+    /// 转换规则：translation.y 取反，pivot.y 翻转为 1.0 - y。
+    YDown,
+}
+
+// ============================================================================
+// ViewLayoutAsset
+// ============================================================================
 /// View Layout Asset - represents a complete view layout configuration.
 /// Loaded from `.view.ron` files.
 ///
@@ -58,6 +88,16 @@ pub struct ViewLayoutAsset {
     /// 子节点随相机移动保持固定在屏幕上（如 overworld HUD）。
     #[serde(default)]
     pub world_space: bool,
+
+    /// Coordinate system preset.
+    /// Determines how coordinates in this file are interpreted.
+    /// Default: `Standard` (Bevy y-up). Use `YDown` for screen-space coordinates.
+    ///
+    /// 坐标系预设。
+    /// 决定本文件中的坐标如何被解释。
+    /// 默认：`Standard`（Bevy y-up）。使用 `YDown` 表示屏幕坐标。
+    #[serde(default)]
+    pub coordinate_system: CoordinateSystem,
 }
 
 /// Data requirement declaration for Views.
@@ -102,11 +142,7 @@ pub enum InitialFactValue {
     Float(f64),
     Bool(bool),
     String(String),
-    /// List of strings - useful for enemy names, etc.
-    /// 字符串列表 - 用于敌人名称等。
     StringList(Vec<String>),
-    /// List of integers - useful for HP values, etc.
-    /// 整数列表 - 用于 HP 值等。
     IntList(Vec<i64>),
 }
 
@@ -445,7 +481,6 @@ pub enum SdfColorSource {
 // State Sprite Configuration (Data-Driven State Management)
 // 状态精灵配置（数据驱动的状态管理）
 // ============================================================================
-
 /// State-based sprite configuration.
 /// Allows sprite textures to change based on rules (e.g., selection state).
 ///
@@ -530,7 +565,6 @@ pub enum StateTriggerDef {
 // Material Configuration (Dynamic Shader System)
 // 材质配置（动态着色器系统）
 // ============================================================================
-
 /// Material definition for dynamic shader-based sprites.
 /// Replaces old custom_shader + shader_params fields.
 ///
@@ -694,4 +728,73 @@ pub enum EasingDef {
     InCirc,
     OutCirc,
     InOutCirc,
+}
+
+// ============================================================================
+// CoordinateSystem Preprocessing
+// 坐标系预处理
+// ============================================================================
+
+impl ViewLayoutAsset {
+    /// Apply coordinate system transformation to all nodes.
+    /// Called once after deserialization; converts all coordinates to Standard (y-up).
+    ///
+    /// 对所有节点应用坐标系变换。
+    /// 反序列化后调用一次，将所有坐标转换为 Standard（y-up）。
+    pub fn apply_coordinate_system(&mut self) {
+        match self.coordinate_system {
+            CoordinateSystem::Standard => {}
+            CoordinateSystem::YDown => {
+                for root in &mut self.roots {
+                    Self::flip_node_y(root);
+                }
+                self.coordinate_system = CoordinateSystem::Standard;
+            }
+        }
+    }
+
+    fn flip_node_y(node: &mut ViewNodeDef) {
+        if let Some(sprite) = &mut node.sprite {
+            Self::flip_sprite_y(sprite);
+        }
+        if let Some(state_sprite) = &mut node.state_sprite
+            && let Some(transform) = &mut state_sprite.transform
+        {
+            Self::flip_transform_y(transform);
+        }
+        for text in &mut node.texts {
+            Self::flip_transform_y(&mut text.transform);
+        }
+        if let Some(view_box) = &mut node.view_box {
+            Self::flip_value_y(&mut view_box.offset.1);
+        }
+        for child in &mut node.children {
+            Self::flip_node_y(child);
+        }
+    }
+
+    fn flip_sprite_y(sprite: &mut SpriteDef) {
+        if let Some(transform) = &mut sprite.transform {
+            Self::flip_transform_y(transform);
+        }
+        if let Some(pivot) = &mut sprite.pivot {
+            pivot.1 = match &pivot.1 {
+                Value::Static(v) => Value::Static(1.0 - v),
+                Value::Expr(s) => Value::Expr(format!("1.0 - ({})", s)),
+            };
+        }
+    }
+
+    fn flip_transform_y(transform: &mut SerializableTransform) {
+        if let Some(translation) = &mut transform.translation {
+            Self::flip_value_y(&mut translation.1);
+        }
+    }
+
+    fn flip_value_y(value: &mut Value<f32>) {
+        *value = match value {
+            Value::Static(v) => Value::Static(-*v),
+            Value::Expr(s) => Value::Expr(format!("-({})", s)),
+        };
+    }
 }

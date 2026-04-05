@@ -42,6 +42,8 @@ pub enum GameActionDef {
     },
     UseItem {
         index_expr: String,
+        #[serde(default)]
+        start_dialogue: bool,
     },
     CheckItem {
         index_expr: String,

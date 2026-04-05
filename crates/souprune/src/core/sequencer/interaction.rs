@@ -11,7 +11,7 @@
 use super::chapter_schema::Chapter;
 use super::context::*;
 use crate::core::fre_bridge::evaluate_single_condition;
-use crate::core::view::components::ViewRoot;
+use crate::core::view::components::{ActiveView, ViewRoot};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{EnumRegistry, LayeredFactDatabase};
 
@@ -61,7 +61,7 @@ pub fn process_await_fact_system(
 pub fn check_await_fact_completion_system(
     mut commands: Commands,
     awaiting_query: Query<(Entity, &AwaitingFactChapter)>,
-    view_root_query: Query<&ViewRoot>,
+    view_root_query: Query<&ViewRoot, With<ActiveView>>,
     global_facts: Res<LayeredFactDatabase>,
     enum_registry: Res<EnumRegistry>,
 ) {

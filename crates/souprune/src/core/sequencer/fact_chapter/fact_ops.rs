@@ -13,6 +13,7 @@
 
 use super::super::chapter_schema::{Chapter, FactModificationDef, FactValueMatch};
 use super::super::context::{ActiveChapter, ChapterFinished};
+use crate::core::view::components::ActiveView;
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 
@@ -40,7 +41,7 @@ pub fn process_modify_fact_chapter_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), Without<ChapterFinished>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    view_root_query: Query<&crate::core::view::ViewRoot>,
+    view_root_query: Query<&crate::core::view::ViewRoot, With<ActiveView>>,
 ) {
     for (entity, active) in query.iter() {
         let Chapter::ModifyFact { modifications } = &active.chapter else {
@@ -58,7 +59,7 @@ pub fn process_modify_fact_chapter_system(
 fn apply_fact_modification(
     modification: &FactModificationDef,
     layered_db: &mut ResMut<LayeredFactDatabase>,
-    view_root_query: &Query<&crate::core::view::ViewRoot>,
+    view_root_query: &Query<&crate::core::view::ViewRoot, With<ActiveView>>,
 ) {
     match modification {
         FactModificationDef::Set { key, value } => {
@@ -92,7 +93,7 @@ fn apply_fact_modification(
 fn resolve_set_value(
     value: &FactValueMatch,
     layered_db: &LayeredFactDatabase,
-    view_root_query: &Query<&crate::core::view::ViewRoot>,
+    view_root_query: &Query<&crate::core::view::ViewRoot, With<ActiveView>>,
 ) -> Option<FactValue> {
     match value {
         FactValueMatch::Int(v) => Some(FactValue::Int(*v)),
@@ -106,7 +107,7 @@ fn resolve_set_value(
 fn resolve_expr_value(
     expr: &str,
     layered_db: &LayeredFactDatabase,
-    view_root_query: &Query<&crate::core::view::ViewRoot>,
+    view_root_query: &Query<&crate::core::view::ViewRoot, With<ActiveView>>,
 ) -> Option<FactValue> {
     let Some(fact_key) = expr.strip_prefix('$') else {
         return bevy_fact_rule_event::expr::evaluate_expr_to_fact(expr, layered_db);

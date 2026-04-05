@@ -51,8 +51,9 @@ pub(super) fn build_transform(
             evaluate_float_expr_with_repeat(&scale.2, player_data, None, repeat_ctx),
         );
     }
-    if let Some(rotation) = transform_def.rotation {
-        transform.rotation = Quat::from_rotation_z(rotation.to_radians());
+    if let Some(rotation) = &transform_def.rotation {
+        let rot_degrees = evaluate_float_expr_with_repeat(rotation, player_data, None, repeat_ctx);
+        transform.rotation = Quat::from_rotation_z(rot_degrees.to_radians());
     }
     transform
 }

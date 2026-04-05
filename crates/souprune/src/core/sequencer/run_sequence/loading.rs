@@ -15,7 +15,7 @@ use bevy_fact_rule_event::LayeredFactDatabase;
 use std::collections::HashMap;
 
 use super::params::inject_sequence_params;
-use crate::core::view::ViewRoot;
+use crate::core::view::{ActiveView, ViewRoot};
 
 use super::super::SequenceAsset;
 use super::super::chapter_schema::{Chapter, FactValueMatch};
@@ -41,7 +41,7 @@ pub fn process_run_sequence_system(
     query: Query<(Entity, &ActiveChapter), (Without<ChapterFinished>, Without<RunSequenceChapter>)>,
     asset_server: Res<AssetServer>,
     fact_db: Res<LayeredFactDatabase>,
-    view_roots: Query<&ViewRoot>,
+    view_roots: Query<&ViewRoot, With<ActiveView>>,
 ) {
     for (entity, active) in query.iter() {
         let Chapter::RunSequence {
@@ -97,7 +97,7 @@ pub fn complete_run_sequence_system(
     mut query: Query<(Entity, &RunSequenceChapter, &ActiveChapter), Without<ChapterFinished>>,
     assets: Res<Assets<SequenceAsset>>,
     mut context: ResMut<SequenceContext>,
-    mut view_root_query: Query<&mut ViewRoot>,
+    mut view_root_query: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
 ) {
     for (entity, run_seq, _active) in query.iter_mut() {

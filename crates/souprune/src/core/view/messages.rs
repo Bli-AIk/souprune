@@ -75,7 +75,6 @@ pub(super) fn handle_spawn_view_request_system(
                 layout_handle: handle.clone(),
             },
             components::ViewRoot::new(request.path.clone()),
-            components::ActiveView,
             RonDrivenView,
             Name::new(format!("SpawnedView:{}", request.path)),
             Transform::default(),
