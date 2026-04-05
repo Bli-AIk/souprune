@@ -15,6 +15,9 @@
 mod facts_ui;
 mod rules_ui;
 mod states_ui;
+mod events_ui;
+mod wasm_ui;
+mod timeline_ui;
 
 use crate::app_state::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;
@@ -86,6 +89,9 @@ enum FREPanelTab {
     Rules,
     EventHistory,
     States,
+    TraceEvents,
+    WasmProfiler,
+    FactTimeline,
 }
 
 /// Fact type selection for adding new facts.
@@ -372,6 +378,9 @@ fn fre_panel_ui_system(world: &mut World) {
             FREPanelTab::Rules => rules_ui::render_rules_tab(ui, world),
             FREPanelTab::EventHistory => facts_ui::render_events_tab(ui, world),
             FREPanelTab::States => states_ui::render_states_tab(ui, world),
+            FREPanelTab::TraceEvents => events_ui::render_trace_events_tab(ui, world),
+            FREPanelTab::WasmProfiler => wasm_ui::render_wasm_tab(ui, world),
+            FREPanelTab::FactTimeline => timeline_ui::render_timeline_tab(ui, world),
         }
     });
 }
@@ -409,6 +418,24 @@ fn render_tab_bar(ui: &mut egui::Ui, world: &mut World, current_tab: FREPanelTab
             .clicked()
         {
             new_tab = FREPanelTab::States;
+        }
+        if ui
+            .selectable_label(current_tab == FREPanelTab::TraceEvents, "📡 Trace")
+            .clicked()
+        {
+            new_tab = FREPanelTab::TraceEvents;
+        }
+        if ui
+            .selectable_label(current_tab == FREPanelTab::WasmProfiler, "⚡ WASM")
+            .clicked()
+        {
+            new_tab = FREPanelTab::WasmProfiler;
+        }
+        if ui
+            .selectable_label(current_tab == FREPanelTab::FactTimeline, "📈 Timeline")
+            .clicked()
+        {
+            new_tab = FREPanelTab::FactTimeline;
         }
     });
     if new_tab != current_tab {
