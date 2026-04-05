@@ -765,10 +765,10 @@ impl ViewLayoutAsset {
         if let Some(sprite) = &mut node.sprite {
             Self::flip_sprite_y(sprite);
         }
-        if let Some(state_sprite) = &mut node.state_sprite {
-            if let Some(transform) = &mut state_sprite.transform {
-                Self::flip_transform_y(transform);
-            }
+        if let Some(state_sprite) = &mut node.state_sprite
+            && let Some(transform) = &mut state_sprite.transform
+        {
+            Self::flip_transform_y(transform);
         }
         for text in &mut node.texts {
             Self::flip_transform_y(&mut text.transform);

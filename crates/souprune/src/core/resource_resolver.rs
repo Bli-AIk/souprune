@@ -167,15 +167,12 @@ fn search_recursive_inner(
         let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         let stem = path.file_stem().and_then(|n| n.to_str()).unwrap_or("");
 
-        if stem == name {
-            if path.is_dir() {
-                dir_results.push(path.clone());
-            } else if path.is_file() {
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if extensions.is_empty() || extensions.contains(&ext) {
-                    file_results.push(path.clone());
-                    continue;
-                }
+        if stem == name && path.is_dir() {
+            dir_results.push(path.clone());
+        } else if stem == name && path.is_file() {
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if extensions.is_empty() || extensions.contains(&ext) {
+                file_results.push(path.clone());
             }
         }
 

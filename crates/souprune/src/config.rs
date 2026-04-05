@@ -576,26 +576,28 @@ Falling back to default configuration (example_mod)",
                 mod_config_path.exists()
             );
 
-            if mod_config_path.exists() {
-                match read_mod_config(&mod_config_path) {
-                    Ok(mod_cfg) => {
-                        let (deps, dep_configs) =
-                            resolve_dependencies(&mod_cfg.dependencies, &projects_base);
+            if !mod_config_path.exists() {
+                return config;
+            }
 
-                        // Apply dependency configs first (lower priority)
-                        for dep_cfg in dep_configs {
-                            apply_mod_config(&mut config, dep_cfg);
-                        }
+            match read_mod_config(&mod_config_path) {
+                Ok(mod_cfg) => {
+                    let (deps, dep_configs) =
+                        resolve_dependencies(&mod_cfg.dependencies, &projects_base);
 
-                        // Apply main mod config last (highest priority, overwrites)
-                        apply_mod_config(&mut config, mod_cfg);
-                        config.resolved_dependencies = deps;
+                    // Apply dependency configs first (lower priority)
+                    for dep_cfg in dep_configs {
+                        apply_mod_config(&mut config, dep_cfg);
                     }
-                    Err(e) => {
-                        #[cfg(target_os = "android")]
-                        eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
-                        error!("Failed to load mod.toml: {}", e);
-                    }
+
+                    // Apply main mod config last (highest priority, overwrites)
+                    apply_mod_config(&mut config, mod_cfg);
+                    config.resolved_dependencies = deps;
+                }
+                Err(e) => {
+                    #[cfg(target_os = "android")]
+                    eprintln!("[SoupRune] Failed to load mod.toml: {:#}", e);
+                    error!("Failed to load mod.toml: {}", e);
                 }
             }
 
