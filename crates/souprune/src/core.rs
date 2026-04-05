@@ -60,6 +60,7 @@ pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;
 pub mod state_config;
+pub mod trace;
 pub mod view;
 pub mod visual;
 pub mod wasm_runtime;
@@ -78,7 +79,11 @@ pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<character_asset::CharacterAsset>()
+        app.init_resource::<trace::EventTraceLog>()
+            .init_resource::<trace::WasmCallTracer>()
+            .init_resource::<trace::FactChangeHistory>()
+            .add_systems(Last, trace::flush_trace_buffers_system)
+            .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
             .register_asset_loader(
                 ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&[

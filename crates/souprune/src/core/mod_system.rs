@@ -490,6 +490,8 @@ fn update_behaviors_system(
     mut loaded_mods: NonSendMut<LoadedMods>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let mut pressed = [false; 7];
     let mut just_pressed = [false; 7];
@@ -553,11 +555,21 @@ fn update_behaviors_system(
             transform.translation += vel.0.extend(0.0) * dt;
         }
 
+        let mod_name = loaded.name.clone();
+
         let mutations =
             std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
         let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
         if !mutations.is_empty() || !events.is_empty() {
-            apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
+            apply_pending_side_effects(
+                mutations,
+                events,
+                &mut fact_db,
+                &mut fact_writer,
+                &mut fact_history,
+                frame_count.0 as u64,
+                &format!("behavior:{mod_name}"),
+            );
         }
     }
 }

@@ -81,6 +81,9 @@ fn process_event_view_actions(
     enum_registry: &EnumRegistry,
     item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
+    event_trace: &mut crate::core::trace::EventTraceLog,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -112,6 +115,24 @@ fn process_event_view_actions(
                 history.record_trigger(&rule.id, time.elapsed_secs_f64());
             }
 
+            // Record the rule match in the event trace as a causal child of the FactEvent.
+            let parent_idx = event_trace
+                .current_frame_events
+                .len()
+                .checked_sub(1);
+            event_trace.record(
+                crate::core::trace::EventPhase::Logic,
+                "RuleTriggered",
+                format!(
+                    "rule '{}' → {} actions, {} outputs",
+                    rule.id,
+                    rule.actions.len(),
+                    rule.outputs.len()
+                ),
+                time.elapsed_secs_f64(),
+                parent_idx,
+            );
+
             for action in &rule.actions {
                 execute_action(
                     action,
@@ -122,6 +143,9 @@ fn process_event_view_actions(
                     enum_registry,
                     item_registry,
                     souprune_config,
+                    fact_history,
+                    frame_number,
+                    &rule.id,
                 );
             }
 
@@ -149,10 +173,22 @@ pub fn process_view_actions_system(
     enum_registry: Res<EnumRegistry>,
     item_registry: Res<ItemRegistry>,
     souprune_config: Res<SoupruneConfig>,
+    mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
+        let ts = time.elapsed_secs_f64();
+        event_trace.record(
+            crate::core::trace::EventPhase::Logic,
+            "FactEvent",
+            format!("event '{}'", event.id.0),
+            ts,
+            None,
+        );
+
         process_event_view_actions(
             event,
             &rule_registry,
@@ -166,6 +202,9 @@ pub fn process_view_actions_system(
             &enum_registry,
             &item_registry,
             &souprune_config,
+            &mut event_trace,
+            &mut fact_history,
+            frame_count.0 as u64,
         );
     }
 }
@@ -179,6 +218,9 @@ fn execute_action(
     enum_registry: &EnumRegistry,
     item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    rule_id: &str,
 ) {
     match action {
         GameActionDef::PlaySound(sound_name) => {
@@ -192,6 +234,14 @@ fn execute_action(
         GameActionDef::SetLocalFact(key, value) => {
             let combined = CombinedFactReader::new(local_facts, global_facts);
             let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
+            let old = local_facts.get_by_str(key).cloned();
+            fact_history.record(
+                format!("local:{key}"),
+                old,
+                fact_value.clone(),
+                rule_id,
+                frame_number,
+            );
             info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
             local_facts.set(key.as_str(), fact_value);
         }

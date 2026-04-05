@@ -165,6 +165,8 @@ pub struct LoadedMod {
     pub pattern_ids: Vec<String>,
     /// Custom FRE action types handled by this mod.
     pub handled_action_ids: Vec<String>,
+    /// Human-readable name for this mod (used in diagnostics/tracing).
+    pub name: String,
 }
 
 /// WASM runtime — holds the shared engine and linker.
@@ -189,6 +191,11 @@ impl WasmRuntime {
 
     /// Load a WASM component from a file path.
     pub fn load_mod(&self, path: &std::path::Path) -> anyhow::Result<LoadedMod> {
+        let mod_name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
         let component = Component::from_file(&self.engine, path)?;
 
         let wasi = WasiCtxBuilder::new().build();
@@ -223,6 +230,7 @@ impl WasmRuntime {
             algorithm_ids,
             pattern_ids,
             handled_action_ids,
+            name: mod_name,
         })
     }
 }

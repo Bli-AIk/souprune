@@ -61,6 +61,8 @@ fn dispatch_event_custom_actions(
     commands: &mut Commands,
     custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
     enum_registry: &EnumRegistry,
+    event_trace: &mut crate::core::trace::EventTraceLog,
+    time: &Time,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     if rule_groups.is_empty() {
@@ -72,6 +74,14 @@ fn dispatch_event_custom_actions(
             if !evaluate_conditions(&rule.condition_expressions, fact_db, enum_registry) {
                 continue;
             }
+
+            event_trace.record(
+                crate::core::trace::EventPhase::Logic,
+                "CustomRuleTriggered",
+                format!("rule '{}' dispatching {} custom actions", rule.id, rule.actions.len()),
+                time.elapsed_secs_f64(),
+                None,
+            );
 
             for action in &rule.actions {
                 dispatch_single_custom_action(
@@ -99,6 +109,8 @@ pub fn dispatch_custom_actions_system(
     mut commands: Commands,
     mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
     enum_registry: Res<EnumRegistry>,
+    mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
+    time: Res<Time>,
 ) {
     for event in events.read() {
         dispatch_event_custom_actions(
@@ -109,6 +121,8 @@ pub fn dispatch_custom_actions_system(
             &mut commands,
             &mut custom_action_writer,
             &enum_registry,
+            &mut event_trace,
+            &time,
         );
     }
 }

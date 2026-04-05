@@ -15,6 +15,9 @@ pub fn dispatch_wasm_custom_actions_system(
     mut loaded_mods: NonSendMut<LoadedMods>,
     mut fact_db: ResMut<LayeredFactDatabase>,
     mut fact_writer: MessageWriter<FactEvent>,
+    mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
 ) {
     let events: Vec<FreCustomActionEvent> = events.read().cloned().collect();
     if events.is_empty() {
@@ -50,8 +53,11 @@ pub fn dispatch_wasm_custom_actions_system(
             }
 
             let iface = loaded.bindings.souprune_plugin_custom_action_handler();
+            let start = std::time::Instant::now();
             let result =
                 iface.call_handle_action(&mut loaded.store, &event.action_type, &wit_params);
+            let elapsed = start.elapsed();
+            wasm_tracer.record(&loaded.name, "custom-action", "handle_action", elapsed);
             match result {
                 Ok(false) => {
                     debug!("WASM mod did not handle action '{}'", event.action_type);
@@ -66,7 +72,15 @@ pub fn dispatch_wasm_custom_actions_system(
                 std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
             let pending_events =
                 std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-            apply_pending_side_effects(mutations, pending_events, &mut fact_db, &mut fact_writer);
+            apply_pending_side_effects(
+                mutations,
+                pending_events,
+                &mut fact_db,
+                &mut fact_writer,
+                &mut fact_history,
+                frame_count.0 as u64,
+                &format!("wasm:{}", loaded.name),
+            );
         }
     }
 }
@@ -84,8 +98,13 @@ pub(super) fn apply_pending_side_effects(
     events: Vec<String>,
     fact_db: &mut LayeredFactDatabase,
     fact_writer: &mut MessageWriter<FactEvent>,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    caused_by: &str,
 ) {
     for (key, value) in mutations {
+        let old = fact_db.get_by_str(&key).cloned();
+        fact_history.record(&key, old, value.clone(), caused_by, frame_number);
         fact_db.set(key, value);
     }
     for event_name in events {

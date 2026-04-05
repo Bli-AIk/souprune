@@ -75,6 +75,7 @@ pub fn update_bullet_motion(
         With<Bullet>,
     >,
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
+    mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
 ) {
     let dt = time.delta_secs();
     let player_pos = player_query
@@ -104,7 +105,16 @@ pub fn update_bullet_motion(
                 .unwrap_or_else(|| instance.props.clone());
 
             let ctx = build_bullet_ctx(&state, dt, player_pos, &props);
+            let start = std::time::Instant::now();
             let output = instance.call_on_update(&ctx, &mut loaded_mods);
+            let elapsed = start.elapsed();
+
+            let mod_name = loaded_mods
+                .mods
+                .get(instance.mod_index())
+                .map(|m| m.name.as_str())
+                .unwrap_or("unknown");
+            wasm_tracer.record(mod_name, "danmaku", "on_update", elapsed);
 
             position += Vec2::new(output.offset.x, output.offset.y);
             rotation_delta += output.rotation;
