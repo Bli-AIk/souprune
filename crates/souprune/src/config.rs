@@ -506,14 +506,6 @@ fn resolve_dependencies(
                     .and_then(|lib| lib.wasm.clone())
                     .unwrap_or_else(|| format!("{dep_name}.wasm"));
 
-        info!(
-            "Resolved dependency: {} v{} (wasm: {})",
-            dep_name, dep_version, wasm
-        );
-        resolved.push(ResolvedDependency {
-            name: dep_name.clone(),
-            wasm,
-        });
                 info!(
                     "Resolved dependency: {} v{} (wasm: {})",
                     dep_name, dep_version, wasm
