@@ -1,6 +1,9 @@
 //! Item action handlers for FRE bridge (UseItem, CheckItem, DropItem).
 //!
 //! FRE 桥接的物品动作处理器（UseItem、CheckItem、DropItem）。
+//!
+//! All item properties are read from FRE facts (injected by `inject_item_facts`)
+//! — no `ItemRegistry` dependency.
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{CombinedFactReader, EnumRegistry, FactReader, FactValue};
@@ -45,31 +48,107 @@ fn get_inventory_item_id(
         .and_then(|inv| inv.get(index).cloned())
 }
 
-/// Start a dialogue for an item action (OnUse/OnCheck/OnDrop).
-/// Uses item's mortar file if available, otherwise falls back to defaults.
-fn start_item_dialogue(
-    item: &crate::core::item::Item,
-    node_name: &str,
-    default_node: &str,
-    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
-    dialogue_view_default: &str,
-    dialogue_voice_default: &str,
-    item_data: ItemDialogueData,
-) {
-    let (mortar_path, node) = if let Some(mortar) = &item.mortar {
-        (mortar.as_str(), node_name)
-    } else {
-        ("items/_defaults.mortar", default_node)
-    };
+// --- Fact-based item property helpers ---
 
-    start_item_dialogue_with_path(
-        mortar_path,
-        node,
-        global_facts,
-        dialogue_view_default,
-        dialogue_voice_default,
-        item_data,
-    );
+fn item_type(item_id: &str, facts: &bevy_fact_rule_event::LayeredFactDatabase) -> Option<String> {
+    facts
+        .get_string(&format!("items:{item_id}.type"))
+        .map(|s| s.to_string())
+}
+
+fn item_mortar(item_id: &str, facts: &bevy_fact_rule_event::LayeredFactDatabase) -> Option<String> {
+    facts
+        .get_string(&format!("items:{item_id}.mortar"))
+        .map(|s| s.to_string())
+}
+
+fn item_locale_key(
+    item_id: &str,
+    facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> Option<String> {
+    facts
+        .get_string(&format!("items:{item_id}.locale_key"))
+        .map(|s| s.to_string())
+}
+
+fn item_description(
+    item_id: &str,
+    facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> String {
+    facts
+        .get_string(&format!("items:{item_id}.description"))
+        .map(|s| s.to_string())
+        .unwrap_or_default()
+}
+
+fn item_heal(item_id: &str, facts: &bevy_fact_rule_event::LayeredFactDatabase) -> Option<i64> {
+    facts.get_int(&format!("items:{item_id}.heal"))
+}
+
+fn item_consumable(item_id: &str, facts: &bevy_fact_rule_event::LayeredFactDatabase) -> bool {
+    facts
+        .get_bool(&format!("items:{item_id}.consumable"))
+        .unwrap_or(false)
+}
+
+fn item_use_audio(
+    item_id: &str,
+    facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> Option<String> {
+    facts
+        .get_string(&format!("items:{item_id}.use_audio"))
+        .map(|s| s.to_string())
+}
+
+fn item_child_item(
+    item_id: &str,
+    facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> Option<String> {
+    facts
+        .get_string(&format!("items:{item_id}.child_item"))
+        .map(|s| s.to_string())
+}
+
+/// Compute the stat value for an item (used by mortar function `get_item_value()`).
+fn compute_item_value(
+    item_id: &str,
+    item_type_str: &str,
+    facts: &bevy_fact_rule_event::LayeredFactDatabase,
+) -> i64 {
+    match item_type_str {
+        "Food" => item_heal(item_id, facts).unwrap_or(0),
+        "Weapon" => facts.get_int(&format!("items:{item_id}.damage")).unwrap_or(0),
+        "Armor" => facts.get_int(&format!("items:{item_id}.defense")).unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// Default OnUse node name for each item type.
+fn default_use_node(item_type_str: &str) -> &'static str {
+    match item_type_str {
+        "Food" => "OnUseFoodDefault",
+        "Weapon" => "OnUseWeaponDefault",
+        "Armor" => "OnUseArmorDefault",
+        _ => "OnUseKeyItemDefault",
+    }
+}
+
+/// Default OnCheck node name for each item type.
+fn default_check_node(item_type_str: &str) -> &'static str {
+    match item_type_str {
+        "Food" => "OnCheckFoodDefault",
+        "Weapon" => "OnCheckWeaponDefault",
+        "Armor" => "OnCheckArmorDefault",
+        _ => "OnCheckDefault",
+    }
+}
+
+/// Pre-computed item data for mortar dialogue variables and functions.
+struct ItemDialogueData {
+    locale_key: String,
+    description: String,
+    heal_amount: i64,
+    item_value: i64,
 }
 
 /// Start a dialogue with an explicit mortar path and node.
@@ -106,269 +185,12 @@ fn start_item_dialogue_with_path(
         );
     }
 
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_NAME,
-        FactValue::String(item_data.locale_key),
-    );
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_DESCRIPTION,
-        FactValue::String(item_data.description),
-    );
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT,
-        FactValue::Int(item_data.heal_amount),
-    );
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_VALUE,
-        FactValue::Int(item_data.item_value),
-    );
+    set_item_dialogue_data(global_facts, item_data);
 
     global_facts.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
 }
 
-/// Pre-computed item data for mortar dialogue variables and functions.
-struct ItemDialogueData {
-    locale_key: String,
-    description: String,
-    heal_amount: i64,
-    item_value: i64,
-}
-
-/// Compute the stat value for an item (used by mortar function `get_item_value()`).
-fn compute_item_value(item: &crate::core::item::Item) -> i64 {
-    use crate::core::item::ItemType;
-    match &item.item_type {
-        ItemType::Food { effects, .. } => effects
-            .iter()
-            .find_map(|e| match e {
-                crate::core::item::ItemEffect::Heal { amount } => Some(*amount as i64),
-                _ => None,
-            })
-            .unwrap_or(0),
-        ItemType::Weapon { damage, .. } => *damage as i64,
-        ItemType::Armor { defense } => *defense as i64,
-        ItemType::KeyItem => 0,
-    }
-}
-
-/// Execute item effects (Heal, PlayAudio, SpawnChildItem, SetFact).
-/// Returns the actual amount of HP healed (0 if no heal occurred).
-fn apply_item_effects(
-    item: &crate::core::item::Item,
-    index: usize,
-    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
-    audio: &bevy_kira_audio::Audio,
-    asset_server: &AssetServer,
-) -> i64 {
-    use crate::core::item::{ItemEffect, ItemType};
-
-    let effects = match &item.item_type {
-        ItemType::Food { effects, .. } => effects.as_slice(),
-        _ => return 0,
-    };
-
-    let mut spawn_child: Option<String> = None;
-    let mut total_healed: i64 = 0;
-
-    for effect in effects {
-        match effect {
-            ItemEffect::Heal { amount } => {
-                let hp = global_facts.get_int("player:hp").unwrap_or(0);
-                let hp_max = global_facts.get_int("player:hp_max").unwrap_or(20);
-                let new_hp = (hp + *amount as i64).min(hp_max);
-                total_healed += new_hp - hp;
-                info!("FRE Bridge: Heal {} → HP {}/{}", amount, new_hp, hp_max);
-                global_facts.set_global("player:hp", FactValue::Int(new_hp));
-            }
-            ItemEffect::PlayAudio { clip_path } => {
-                audio::play_sound_full_path(audio, asset_server, clip_path);
-            }
-            ItemEffect::SpawnChildItem { item_id } => {
-                spawn_child = Some(item_id.clone());
-            }
-            ItemEffect::SetFact { key, value } => {
-                let fact_value = crate::core::item::fact_value_from_item_fact_value(value);
-                global_facts.set_global(key, fact_value);
-            }
-        }
-    }
-
-    // Handle inventory mutation: consume or replace with child item
-    let mut inventory = global_facts
-        .get_string_list("player:inventory")
-        .map(|s| s.to_vec())
-        .unwrap_or_default();
-    if index < inventory.len() {
-        if let Some(child_id) = spawn_child {
-            info!(
-                "FRE Bridge: SpawnChildItem '{}' at index {}",
-                child_id, index
-            );
-            inventory[index] = child_id;
-        } else if let ItemType::Food {
-            consumable: true, ..
-        } = &item.item_type
-        {
-            info!("FRE Bridge: Consuming item at index {}", index);
-            inventory.remove(index);
-        }
-        global_facts.set_global("player:inventory", FactValue::StringList(inventory));
-    }
-    total_healed
-}
-
-/// Default OnUse node name for each item type.
-fn default_use_node(item_type: &crate::core::item::ItemType) -> &'static str {
-    use crate::core::item::ItemType;
-    match item_type {
-        ItemType::Food { .. } => "OnUseFoodDefault",
-        ItemType::Weapon { .. } => "OnUseWeaponDefault",
-        ItemType::Armor { .. } => "OnUseArmorDefault",
-        ItemType::KeyItem => "OnUseKeyItemDefault",
-    }
-}
-
-/// Default OnCheck node name for each item type.
-fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
-    use crate::core::item::ItemType;
-    match item_type {
-        ItemType::Food { .. } => "OnCheckFoodDefault",
-        ItemType::Weapon { .. } => "OnCheckWeaponDefault",
-        ItemType::Armor { .. } => "OnCheckArmorDefault",
-        ItemType::KeyItem => "OnCheckDefault",
-    }
-}
-
-/// UseItem action: dispatch by item type, execute effects, prepare dialogue data.
-///
-/// When `start_dialogue` is true, starts dialogue through global facts directly
-/// (for contexts like overworld backpack where no narration sequence runs).
-/// When false (default), only sets local_facts for the narration sequence to read.
-pub(crate) fn execute_use_item(
-    index_expr: &str,
-    local_facts: &mut bevy_fact_rule_event::FactDatabase,
-    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
-    audio: &bevy_kira_audio::Audio,
-    asset_server: &AssetServer,
-    enum_registry: &EnumRegistry,
-    item_registry: &crate::core::item::ItemRegistry,
-    start_dialogue: bool,
-    dialogue_view_default: &str,
-    dialogue_voice_default: &str,
-) {
-    use crate::core::item::ItemType;
-
-    let Some(index) = resolve_index_expr(index_expr, local_facts, global_facts, enum_registry)
-    else {
-        return;
-    };
-    let Some(item_id) = get_inventory_item_id(index, global_facts) else {
-        warn!("FRE Bridge: UseItem — no item at index {}", index);
-        return;
-    };
-    let Some(item) = item_registry.get(&item_id) else {
-        warn!("FRE Bridge: UseItem — item '{}' not in registry", item_id);
-        return;
-    };
-
-    info!(
-        "FRE Bridge: UseItem '{}' (type: {:?}) at index {}",
-        item_id,
-        std::mem::discriminant(&item.item_type),
-        index
-    );
-
-    let mut actual_healed: i64 = 0;
-
-    match &item.item_type {
-        ItemType::Food { .. } => {
-            actual_healed = apply_item_effects(item, index, global_facts, audio, asset_server);
-        }
-        ItemType::Weapon { .. } => {
-            let old_weapon = global_facts
-                .get_string("player:weapon")
-                .unwrap_or_default()
-                .to_string();
-            global_facts.set_global("player:weapon", FactValue::String(item_id.clone()));
-            let mut inventory = global_facts
-                .get_string_list("player:inventory")
-                .map(|s| s.to_vec())
-                .unwrap_or_default();
-            if index < inventory.len() {
-                if old_weapon.is_empty() {
-                    inventory.remove(index);
-                } else {
-                    inventory[index] = old_weapon;
-                }
-                global_facts.set_global("player:inventory", FactValue::StringList(inventory));
-            }
-            info!("FRE Bridge: Equipped weapon '{}'", item_id);
-        }
-        ItemType::Armor { .. } => {
-            let old_armor = global_facts
-                .get_string("player:armor")
-                .unwrap_or_default()
-                .to_string();
-            global_facts.set_global("player:armor", FactValue::String(item_id.clone()));
-            let mut inventory = global_facts
-                .get_string_list("player:inventory")
-                .map(|s| s.to_vec())
-                .unwrap_or_default();
-            if index < inventory.len() {
-                if old_armor.is_empty() {
-                    inventory.remove(index);
-                } else {
-                    inventory[index] = old_armor;
-                }
-                global_facts.set_global("player:inventory", FactValue::StringList(inventory));
-            }
-            info!("FRE Bridge: Equipped armor '{}'", item_id);
-        }
-        ItemType::KeyItem => {
-            // No state change for key items
-        }
-    }
-
-    // Compute mortar path and node for dialogue
-    let default_node = default_use_node(&item.item_type);
-    let (mortar_path, action_param) = if let Some(mortar) = &item.mortar {
-        (mortar.as_str(), "OnUse")
-    } else {
-        ("items/_defaults.mortar", default_node)
-    };
-
-    // Set on view local facts (used by battle narration sequence)
-    local_facts.set("mortar_path", FactValue::String(mortar_path.to_string()));
-    local_facts.set("action_param", FactValue::String(action_param.to_string()));
-
-    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    let item_data = ItemDialogueData {
-        locale_key,
-        description: item.description.clone(),
-        heal_amount: actual_healed,
-        item_value: compute_item_value(item),
-    };
-
-    if start_dialogue {
-        // Start dialogue through global facts (overworld backpack, no narration sequence)
-        start_item_dialogue_with_path(
-            mortar_path,
-            action_param,
-            global_facts,
-            dialogue_view_default,
-            dialogue_voice_default,
-            item_data,
-        );
-    } else {
-        // Only set item data on global facts; narration sequence handles dialogue start
-        set_item_dialogue_data(global_facts, item_data);
-    }
-}
-
 /// Set item-specific data on global facts for mortar dialogue variables.
-///
-/// Does NOT start dialogue — only prepares `dialogue:item_*` facts so the
-/// mortar script can access item name, heal amount, etc.
 fn set_item_dialogue_data(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     item_data: ItemDialogueData,
@@ -391,13 +213,187 @@ fn set_item_dialogue_data(
     );
 }
 
+/// Execute item effects for a Food item (heal, audio, child spawn).
+/// Returns the actual amount of HP healed.
+fn apply_food_effects(
+    item_id: &str,
+    index: usize,
+    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    audio: &bevy_kira_audio::Audio,
+    asset_server: &AssetServer,
+) -> i64 {
+    let mut total_healed: i64 = 0;
+
+    if let Some(heal_amount) = item_heal(item_id, global_facts) {
+        let hp = global_facts.get_int("player:hp").unwrap_or(0);
+        let hp_max = global_facts.get_int("player:hp_max").unwrap_or(20);
+        let new_hp = (hp + heal_amount).min(hp_max);
+        total_healed = new_hp - hp;
+        info!(
+            "FRE Bridge: Heal {} → HP {}/{}",
+            heal_amount, new_hp, hp_max
+        );
+        global_facts.set_global("player:hp", FactValue::Int(new_hp));
+    }
+
+    if let Some(clip_path) = item_use_audio(item_id, global_facts) {
+        audio::play_sound_full_path(audio, asset_server, &clip_path);
+    }
+
+    // Handle inventory mutation: consume or replace with child item
+    let child_item = item_child_item(item_id, global_facts);
+    let consumable = item_consumable(item_id, global_facts);
+
+    let mut inventory = global_facts
+        .get_string_list("player:inventory")
+        .map(|s| s.to_vec())
+        .unwrap_or_default();
+    if index < inventory.len() {
+        if let Some(child_id) = child_item {
+            info!(
+                "FRE Bridge: SpawnChildItem '{}' at index {}",
+                child_id, index
+            );
+            inventory[index] = child_id;
+        } else if consumable {
+            info!("FRE Bridge: Consuming item at index {}", index);
+            inventory.remove(index);
+        }
+        global_facts.set_global("player:inventory", FactValue::StringList(inventory));
+    }
+    total_healed
+}
+
+/// UseItem action: dispatch by item type, execute effects, prepare dialogue data.
+///
+/// When `start_dialogue` is true, starts dialogue through global facts directly
+/// (for contexts like overworld backpack where no narration sequence runs).
+/// When false (default), only sets local_facts for the narration sequence to read.
+pub(crate) fn execute_use_item(
+    index_expr: &str,
+    local_facts: &mut bevy_fact_rule_event::FactDatabase,
+    global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
+    audio: &bevy_kira_audio::Audio,
+    asset_server: &AssetServer,
+    enum_registry: &EnumRegistry,
+    start_dialogue: bool,
+    dialogue_view_default: &str,
+    dialogue_voice_default: &str,
+) {
+    let Some(index) = resolve_index_expr(index_expr, local_facts, global_facts, enum_registry)
+    else {
+        return;
+    };
+    let Some(item_id) = get_inventory_item_id(index, global_facts) else {
+        warn!("FRE Bridge: UseItem — no item at index {}", index);
+        return;
+    };
+    let Some(type_str) = item_type(&item_id, global_facts) else {
+        warn!(
+            "FRE Bridge: UseItem — item '{}' has no type fact",
+            item_id
+        );
+        return;
+    };
+
+    info!(
+        "FRE Bridge: UseItem '{}' (type: {}) at index {}",
+        item_id, type_str, index
+    );
+
+    let mut actual_healed: i64 = 0;
+
+    match type_str.as_str() {
+        "Food" => {
+            actual_healed = apply_food_effects(&item_id, index, global_facts, audio, asset_server);
+        }
+        "Weapon" => {
+            let old_weapon = global_facts
+                .get_string("player:weapon")
+                .unwrap_or_default()
+                .to_string();
+            global_facts.set_global("player:weapon", FactValue::String(item_id.clone()));
+            let mut inventory = global_facts
+                .get_string_list("player:inventory")
+                .map(|s| s.to_vec())
+                .unwrap_or_default();
+            if index < inventory.len() {
+                if old_weapon.is_empty() {
+                    inventory.remove(index);
+                } else {
+                    inventory[index] = old_weapon;
+                }
+                global_facts.set_global("player:inventory", FactValue::StringList(inventory));
+            }
+            info!("FRE Bridge: Equipped weapon '{}'", item_id);
+        }
+        "Armor" => {
+            let old_armor = global_facts
+                .get_string("player:armor")
+                .unwrap_or_default()
+                .to_string();
+            global_facts.set_global("player:armor", FactValue::String(item_id.clone()));
+            let mut inventory = global_facts
+                .get_string_list("player:inventory")
+                .map(|s| s.to_vec())
+                .unwrap_or_default();
+            if index < inventory.len() {
+                if old_armor.is_empty() {
+                    inventory.remove(index);
+                } else {
+                    inventory[index] = old_armor;
+                }
+                global_facts.set_global("player:inventory", FactValue::StringList(inventory));
+            }
+            info!("FRE Bridge: Equipped armor '{}'", item_id);
+        }
+        _ => {
+            // KeyItem or unknown — no state change
+        }
+    }
+
+    // Compute mortar path and node for dialogue
+    let mortar = item_mortar(&item_id, global_facts);
+    let default_node = default_use_node(&type_str);
+    let (mortar_path, action_param) = if let Some(ref mortar) = mortar {
+        (mortar.as_str(), "OnUse")
+    } else {
+        ("items/_defaults.mortar", default_node)
+    };
+
+    // Set on view local facts (used by battle narration sequence)
+    local_facts.set("mortar_path", FactValue::String(mortar_path.to_string()));
+    local_facts.set("action_param", FactValue::String(action_param.to_string()));
+
+    let locale_key = item_locale_key(&item_id, global_facts).unwrap_or_default();
+    let description = item_description(&item_id, global_facts);
+    let item_data = ItemDialogueData {
+        locale_key,
+        description,
+        heal_amount: actual_healed,
+        item_value: compute_item_value(&item_id, &type_str, global_facts),
+    };
+
+    if start_dialogue {
+        start_item_dialogue_with_path(
+            mortar_path,
+            action_param,
+            global_facts,
+            dialogue_view_default,
+            dialogue_voice_default,
+            item_data,
+        );
+    } else {
+        set_item_dialogue_data(global_facts, item_data);
+    }
+}
+
 /// CheckItem action: start dialogue with OnCheck node, no state change.
 pub(crate) fn execute_check_item(
     index_expr: &str,
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     enum_registry: &EnumRegistry,
-    item_registry: &crate::core::item::ItemRegistry,
     dialogue_view_default: &str,
     dialogue_voice_default: &str,
 ) {
@@ -409,26 +405,36 @@ pub(crate) fn execute_check_item(
         warn!("FRE Bridge: CheckItem — no item at index {}", index);
         return;
     };
-    let Some(item) = item_registry.get(&item_id) else {
-        warn!("FRE Bridge: CheckItem — item '{}' not in registry", item_id);
+    let Some(type_str) = item_type(&item_id, global_facts) else {
+        warn!(
+            "FRE Bridge: CheckItem — item '{}' has no type fact",
+            item_id
+        );
         return;
     };
 
     info!("FRE Bridge: CheckItem '{}'", item_id);
-    let default_node = default_check_node(&item.item_type);
-    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    start_item_dialogue(
-        item,
-        "OnCheck",
-        default_node,
+    let default_node = default_check_node(&type_str);
+    let mortar = item_mortar(&item_id, global_facts);
+    let (mortar_path, node) = if let Some(ref mortar) = mortar {
+        (mortar.as_str(), "OnCheck")
+    } else {
+        ("items/_defaults.mortar", default_node)
+    };
+
+    let locale_key = item_locale_key(&item_id, global_facts).unwrap_or_default();
+    let description = item_description(&item_id, global_facts);
+    start_item_dialogue_with_path(
+        mortar_path,
+        node,
         global_facts,
         dialogue_view_default,
         dialogue_voice_default,
         ItemDialogueData {
             locale_key,
-            description: item.description.clone(),
+            description,
             heal_amount: 0,
-            item_value: compute_item_value(item),
+            item_value: compute_item_value(&item_id, &type_str, global_facts),
         },
     );
 }
@@ -440,12 +446,9 @@ pub(crate) fn execute_drop_item(
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     enum_registry: &EnumRegistry,
-    item_registry: &crate::core::item::ItemRegistry,
     dialogue_view_default: &str,
     dialogue_voice_default: &str,
 ) {
-    use crate::core::item::ItemType;
-
     let Some(index) = resolve_index_expr(index_expr, local_facts, global_facts, enum_registry)
     else {
         return;
@@ -454,12 +457,15 @@ pub(crate) fn execute_drop_item(
         warn!("FRE Bridge: DropItem — no item at index {}", index);
         return;
     };
-    let Some(item) = item_registry.get(&item_id) else {
-        warn!("FRE Bridge: DropItem — item '{}' not in registry", item_id);
+    let Some(type_str) = item_type(&item_id, global_facts) else {
+        warn!(
+            "FRE Bridge: DropItem — item '{}' has no type fact",
+            item_id
+        );
         return;
     };
 
-    if matches!(item.item_type, ItemType::KeyItem) {
+    if type_str == "KeyItem" {
         info!(
             "FRE Bridge: DropItem — '{}' is a KeyItem (non-droppable), ignoring",
             item_id
@@ -477,19 +483,26 @@ pub(crate) fn execute_drop_item(
         global_facts.set_global("player:inventory", FactValue::StringList(inventory));
     }
 
-    let locale_key = format!("{}:{}", item.locale.file, item.locale.name);
-    start_item_dialogue(
-        item,
-        "OnDrop",
-        "OnDropDefault",
+    let mortar = item_mortar(&item_id, global_facts);
+    let (mortar_path, node) = if let Some(ref mortar) = mortar {
+        (mortar.as_str(), "OnDrop")
+    } else {
+        ("items/_defaults.mortar", "OnDropDefault")
+    };
+
+    let locale_key = item_locale_key(&item_id, global_facts).unwrap_or_default();
+    let description = item_description(&item_id, global_facts);
+    start_item_dialogue_with_path(
+        mortar_path,
+        node,
         global_facts,
         dialogue_view_default,
         dialogue_voice_default,
         ItemDialogueData {
             locale_key,
-            description: item.description.clone(),
+            description,
             heal_amount: 0,
-            item_value: compute_item_value(item),
+            item_value: compute_item_value(&item_id, &type_str, global_facts),
         },
     );
 }

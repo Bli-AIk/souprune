@@ -23,7 +23,6 @@ use crate::config::SoupruneConfig;
 use crate::core::audio;
 use crate::core::fre_facts;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
-use crate::core::item::ItemRegistry;
 use crate::core::mode::SequenceSubState;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
@@ -80,7 +79,6 @@ fn process_event_view_actions(
     trigger_history: &mut Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
     time: &Time,
     enum_registry: &EnumRegistry,
-    item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
     event_trace: &mut crate::core::trace::EventTraceLog,
     fact_history: &mut crate::core::trace::FactChangeHistory,
@@ -143,7 +141,6 @@ fn process_event_view_actions(
                     audio,
                     asset_server,
                     enum_registry,
-                    item_registry,
                     souprune_config,
                     fact_history,
                     frame_number,
@@ -174,7 +171,6 @@ pub fn process_view_actions_system(
     mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
     time: Res<Time>,
     enum_registry: Res<EnumRegistry>,
-    item_registry: Res<ItemRegistry>,
     souprune_config: Res<SoupruneConfig>,
     mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
@@ -204,7 +200,6 @@ pub fn process_view_actions_system(
             &mut trigger_history,
             &time,
             &enum_registry,
-            &item_registry,
             &souprune_config,
             &mut event_trace,
             &mut fact_history,
@@ -221,7 +216,6 @@ fn execute_action(
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
-    item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
     fact_history: &mut crate::core::trace::FactChangeHistory,
     frame_number: u64,
@@ -318,7 +312,6 @@ fn execute_action(
                 fact_history,
                 frame_number,
                 rule_id,
-                item_registry,
             };
             if !extensions.handle(action_type, params, &mut ctx) {
                 debug!(

@@ -197,7 +197,6 @@ pub fn sync_item_display_names_system(
     mut tracker: ResMut<ItemDisplayTracker>,
     mut view_roots: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
 ) {
     let Ok(mut view_root) = view_roots.single_mut() else {
@@ -225,7 +224,7 @@ pub fn sync_item_display_names_system(
     if entered || changed {
         let display_names: Vec<String> = inventory
             .iter()
-            .map(|item_id| resolve_item_display_name(item_id, &item_registry, &mortar_strings))
+            .map(|item_id| resolve_item_display_name(item_id, &layered_db, &mortar_strings))
             .collect();
 
         view_root
@@ -253,21 +252,21 @@ pub fn sync_item_display_names_system(
 /// Checks for a `battle_name` constant in the item's mortar file; falls back to locale name.
 fn resolve_item_display_name(
     item_id: &str,
-    item_registry: &crate::core::item::ItemRegistry,
+    global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
 ) -> String {
-    let Some(item) = item_registry.get(item_id) else {
-        return format!("??? ({})", item_id);
-    };
-    if let Some(mortar_path) = &item.mortar {
-        let namespace = mortar_path.strip_suffix(".mortar").unwrap_or(mortar_path);
-        let battle_key = format!("{namespace}:battle_name");
+    // Try mortar-based battle_name first
+    if let Some(mortar_ns) = global_facts.get_string(&format!("items:{item_id}.mortar_ns")) {
+        let battle_key = format!("{mortar_ns}:battle_name");
         if let Some(name) = mortar_strings.get(&battle_key) {
             return name.to_string();
         }
     }
-    let key = format!("{}:{}", item.locale.file, item.locale.name);
-    mortar_strings.resolve(&key).to_string()
+    // Fall back to locale key
+    if let Some(locale_key) = global_facts.get_string(&format!("items:{item_id}.locale_key")) {
+        return mortar_strings.resolve(locale_key).to_string();
+    }
+    format!("??? ({})", item_id)
 }
 
 /// Copy the selected enemy's ACT data from the layered database into ViewRoot local_facts.

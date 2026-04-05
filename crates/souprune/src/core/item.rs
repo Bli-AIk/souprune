@@ -157,8 +157,18 @@ fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
             FactValue::String(locale_key),
         );
 
-        // Optional mortar script namespace (for dialogue/battle_name lookup)
+        // Description text
+        facts.set_global(
+            format!("{prefix}.description"),
+            FactValue::String(item.description.clone()),
+        );
+
+        // Mortar file path (full path with .mortar extension)
         if let Some(mortar) = &item.mortar {
+            facts.set_global(
+                format!("{prefix}.mortar"),
+                FactValue::String(mortar.clone()),
+            );
             let ns = mortar.strip_suffix(".mortar").unwrap_or(mortar);
             facts.set_global(
                 format!("{prefix}.mortar_ns"),
@@ -166,35 +176,69 @@ fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
             );
         }
 
-        let (type_name, extra_facts) = match &item.item_type {
+        match &item.item_type {
             ItemType::Food {
                 consumable,
                 effects,
             } => {
-                let heal = effects.iter().find_map(|e| match e {
-                    ItemEffect::Heal { amount } => Some(*amount as i64),
-                    _ => None,
-                });
-                let mut facts = vec![("consumable", FactValue::Bool(*consumable))];
-                if let Some(heal) = heal {
-                    facts.push(("heal", FactValue::Int(heal)));
+                facts.set_global(
+                    format!("{prefix}.type"),
+                    FactValue::String("Food".to_string()),
+                );
+                facts.set_global(format!("{prefix}.consumable"), FactValue::Bool(*consumable));
+                for effect in effects {
+                    match effect {
+                        ItemEffect::Heal { amount } => {
+                            facts.set_global(
+                                format!("{prefix}.heal"),
+                                FactValue::Int(*amount as i64),
+                            );
+                        }
+                        ItemEffect::PlayAudio { clip_path } => {
+                            facts.set_global(
+                                format!("{prefix}.use_audio"),
+                                FactValue::String(clip_path.clone()),
+                            );
+                        }
+                        ItemEffect::SpawnChildItem { item_id } => {
+                            facts.set_global(
+                                format!("{prefix}.child_item"),
+                                FactValue::String(item_id.clone()),
+                            );
+                        }
+                        ItemEffect::SetFact { key, value } => {
+                            // SetFact effects are rare; apply them at load time.
+                            facts.set_global(key, fact_value_from_item_fact_value(value));
+                        }
+                    }
                 }
-                ("Food", facts)
             }
             ItemType::Weapon { damage, .. } => {
-                ("Weapon", vec![("damage", FactValue::Int(*damage as i64))])
+                facts.set_global(
+                    format!("{prefix}.type"),
+                    FactValue::String("Weapon".to_string()),
+                );
+                facts.set_global(
+                    format!("{prefix}.damage"),
+                    FactValue::Int(*damage as i64),
+                );
             }
             ItemType::Armor { defense } => {
-                ("Armor", vec![("defense", FactValue::Int(*defense as i64))])
+                facts.set_global(
+                    format!("{prefix}.type"),
+                    FactValue::String("Armor".to_string()),
+                );
+                facts.set_global(
+                    format!("{prefix}.defense"),
+                    FactValue::Int(*defense as i64),
+                );
             }
-            ItemType::KeyItem => ("KeyItem", vec![]),
-        };
-        facts.set_global(
-            format!("{prefix}.type"),
-            FactValue::String(type_name.to_string()),
-        );
-        for (suffix, value) in extra_facts {
-            facts.set_global(format!("{prefix}.{suffix}"), value);
+            ItemType::KeyItem => {
+                facts.set_global(
+                    format!("{prefix}.type"),
+                    FactValue::String("KeyItem".to_string()),
+                );
+            }
         }
     }
 }

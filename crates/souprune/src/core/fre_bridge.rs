@@ -88,7 +88,6 @@ fn register_item_action_extensions(extensions: &mut ViewActionExtensions) {
             ctx.audio,
             ctx.asset_server,
             ctx.enum_registry,
-            ctx.item_registry,
             start_dialogue,
             &ctx.config.game.dialogue_view_default,
             &ctx.config.game.dialogue_voice_default,
@@ -102,7 +101,6 @@ fn register_item_action_extensions(extensions: &mut ViewActionExtensions) {
             ctx.local_facts,
             ctx.global_facts,
             ctx.enum_registry,
-            ctx.item_registry,
             &ctx.config.game.dialogue_view_default,
             &ctx.config.game.dialogue_voice_default,
         );
@@ -115,7 +113,6 @@ fn register_item_action_extensions(extensions: &mut ViewActionExtensions) {
             ctx.local_facts,
             ctx.global_facts,
             ctx.enum_registry,
-            ctx.item_registry,
             &ctx.config.game.dialogue_view_default,
             &ctx.config.game.dialogue_voice_default,
         );

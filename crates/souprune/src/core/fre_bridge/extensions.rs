@@ -27,7 +27,6 @@ pub struct ViewActionExecCtx<'a> {
     pub fact_history: &'a mut crate::core::trace::FactChangeHistory,
     pub frame_number: u64,
     pub rule_id: &'a str,
-    pub item_registry: &'a crate::core::item::ItemRegistry,
 }
 
 type ViewActionHandlerFn =
