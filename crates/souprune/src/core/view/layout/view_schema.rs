@@ -27,7 +27,6 @@ use std::collections::HashMap;
 // ============================================================================
 // Coordinate System
 // ============================================================================
-
 /// Coordinate system preset for View layouts.
 /// Defines how coordinates in RON files are transformed to Bevy's y-up world space.
 ///
@@ -54,7 +53,6 @@ pub enum CoordinateSystem {
 // ============================================================================
 // ViewLayoutAsset
 // ============================================================================
-
 /// View Layout Asset - represents a complete view layout configuration.
 /// Loaded from `.view.ron` files.
 ///
@@ -144,11 +142,7 @@ pub enum InitialFactValue {
     Float(f64),
     Bool(bool),
     String(String),
-    /// List of strings - useful for enemy names, etc.
-    /// 字符串列表 - 用于敌人名称等。
     StringList(Vec<String>),
-    /// List of integers - useful for HP values, etc.
-    /// 整数列表 - 用于 HP 值等。
     IntList(Vec<i64>),
 }
 
@@ -487,7 +481,6 @@ pub enum SdfColorSource {
 // State Sprite Configuration (Data-Driven State Management)
 // 状态精灵配置（数据驱动的状态管理）
 // ============================================================================
-
 /// State-based sprite configuration.
 /// Allows sprite textures to change based on rules (e.g., selection state).
 ///
@@ -572,7 +565,6 @@ pub enum StateTriggerDef {
 // Material Configuration (Dynamic Shader System)
 // 材质配置（动态着色器系统）
 // ============================================================================
-
 /// Material definition for dynamic shader-based sprites.
 /// Replaces old custom_shader + shader_params fields.
 ///
