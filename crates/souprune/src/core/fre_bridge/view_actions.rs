@@ -12,7 +12,8 @@
 //! 活跃 View 的规则，在局部与全局事实之上评估它们，然后执行播放音效、
 //! 修改 View 局部事实、切换状态、启动对话、继续排队输出事件等动作。
 
-use super::{evaluate_conditions, evaluate_local_fact_value, item_actions};
+use super::{evaluate_conditions, evaluate_local_fact_value};
+use super::extensions::{ViewActionExecCtx, ViewActionExtensions};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     CombinedFactReader, EnumRegistry, FactEvent, FactValue, LayeredFactDatabase, PendingFactEvents,
@@ -84,6 +85,7 @@ fn process_event_view_actions(
     event_trace: &mut crate::core::trace::EventTraceLog,
     fact_history: &mut crate::core::trace::FactChangeHistory,
     frame_number: u64,
+    extensions: &ViewActionExtensions,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -146,6 +148,7 @@ fn process_event_view_actions(
                     fact_history,
                     frame_number,
                     &rule.id,
+                    extensions,
                 );
             }
 
@@ -176,6 +179,7 @@ pub fn process_view_actions_system(
     mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
     mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
     frame_count: Res<bevy::diagnostic::FrameCount>,
+    extensions: Res<ViewActionExtensions>,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
@@ -205,6 +209,7 @@ pub fn process_view_actions_system(
             &mut event_trace,
             &mut fact_history,
             frame_count.0 as u64,
+            &extensions,
         );
     }
 }
@@ -221,6 +226,7 @@ fn execute_action(
     fact_history: &mut crate::core::trace::FactChangeHistory,
     frame_number: u64,
     rule_id: &str,
+    extensions: &ViewActionExtensions,
 ) {
     match action {
         GameActionDef::PlaySound(sound_name) => {
@@ -302,52 +308,27 @@ fn execute_action(
             action_type,
             params,
         } => {
-            debug!(
-                "FRE Bridge: Custom action {} with params {:?}",
-                action_type, params
-            );
-        }
-        GameActionDef::Log { message } => {
-            info!("FRE Bridge: Log: {}", message);
-        }
-        GameActionDef::UseItem {
-            index_expr,
-            start_dialogue,
-        } => {
-            item_actions::execute_use_item(
-                index_expr,
+            let mut ctx = ViewActionExecCtx {
                 local_facts,
                 global_facts,
                 audio,
                 asset_server,
                 enum_registry,
+                config: souprune_config,
+                fact_history,
+                frame_number,
+                rule_id,
                 item_registry,
-                *start_dialogue,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
+            };
+            if !extensions.handle(action_type, params, &mut ctx) {
+                debug!(
+                    "FRE Bridge: Unhandled custom action '{}' with params {:?}",
+                    action_type, params
+                );
+            }
         }
-        GameActionDef::CheckItem { index_expr } => {
-            item_actions::execute_check_item(
-                index_expr,
-                local_facts,
-                global_facts,
-                enum_registry,
-                item_registry,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
-        }
-        GameActionDef::DropItem { index_expr } => {
-            item_actions::execute_drop_item(
-                index_expr,
-                local_facts,
-                global_facts,
-                enum_registry,
-                item_registry,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
+        GameActionDef::Log { message } => {
+            info!("FRE Bridge: Log: {}", message);
         }
     }
 }

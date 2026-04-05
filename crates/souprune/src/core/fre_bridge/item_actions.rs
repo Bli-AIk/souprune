@@ -9,7 +9,7 @@ use super::eval::evaluate_local_fact_value;
 use crate::core::{audio, fre_facts};
 
 /// Resolve an index expression (e.g., "$item_selection") to a usize index.
-pub(super) fn resolve_index_expr(
+pub(crate) fn resolve_index_expr(
     index_expr: &str,
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &bevy_fact_rule_event::LayeredFactDatabase,
@@ -244,7 +244,7 @@ fn default_check_node(item_type: &crate::core::item::ItemType) -> &'static str {
 /// When `start_dialogue` is true, starts dialogue through global facts directly
 /// (for contexts like overworld backpack where no narration sequence runs).
 /// When false (default), only sets local_facts for the narration sequence to read.
-pub(super) fn execute_use_item(
+pub(crate) fn execute_use_item(
     index_expr: &str,
     local_facts: &mut bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
@@ -392,7 +392,7 @@ fn set_item_dialogue_data(
 }
 
 /// CheckItem action: start dialogue with OnCheck node, no state change.
-pub(super) fn execute_check_item(
+pub(crate) fn execute_check_item(
     index_expr: &str,
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
@@ -435,7 +435,7 @@ pub(super) fn execute_check_item(
 
 /// DropItem action: remove from inventory and start OnDrop dialogue.
 /// KeyItem is non-droppable — this action is silently ignored.
-pub(super) fn execute_drop_item(
+pub(crate) fn execute_drop_item(
     index_expr: &str,
     local_facts: &bevy_fact_rule_event::FactDatabase,
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
