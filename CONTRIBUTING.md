@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to SoupRune! Whether you're a game creator, artist, musician, translator, or
 developer — there's a place for you here.
 
-Every type of contribution makes SoupRune better! We don't rank contributions by "difficulty" — we organize them by 
+Every type of contribution makes SoupRune better! We don't rank contributions by "difficulty" — we organize them by
 **what you want to do**.
 
 **Not sure where to start?** Join our [Discord](https://discord.gg/5YXK5DRjPZ) and say hi!
@@ -55,7 +55,8 @@ Use the [Bug Report template](https://github.com/Bli-AIk/souprune/issues/new?tem
 Use the [Feature Request template](https://github.com/Bli-AIk/souprune/issues/new?template=feature-request.md) and
 describe:
 
-- The problem you're trying to solve or the workflow you want to improve
+- The problem you're trying to solve or the workflow you want to improve, or simply talk about what new features you
+  want the framework to have!
 - Your proposed solution and any alternatives you've considered
 
 ### Suggesting a Refactor
@@ -85,12 +86,12 @@ SoupRune is built for creating Deltarune/Undertale-style fangames. Here's what y
 - **Level design** — Create maps with the [Tiled](https://www.mapeditor.org/) map editor
 - **WASM Mods** — Build Mods in any language that compiles to WebAssembly
 
-📚 **Getting started**: See [Mod Development Guide](./doc/mod_development.md) and
-the [example mods repository](https://github.com/Bli-AIk/souprune_example_mods).
+📚 **Getting started**: See official documentation
+or [example mods repository](https://github.com/Bli-AIk/souprune_example_mods).
 
 ### A2. Contribute to Community Mods
 
-- Create high-quality Mod templates or prerequisite Mods for the community
+- Create Mod templates or prerequisite Mods for the community
 - Contribute reusable game resource packs
 - Write Mod development tutorials and best practices
 
@@ -117,12 +118,13 @@ the [example mods repository](https://github.com/Bli-AIk/souprune_example_mods).
 
 **For**: Rust developers (Rustaceans)
 
-**You'll need**: Rust, familiarity with [Bevy](https://bevyengine.org/) and ECS (Entity-Component-System) architecture
+**You'll need**: Rust language basics, familiarity with [Bevy](https://bevyengine.org/) and ECS (
+Entity-Component-System) architecture
 
 ### Getting Started
 
 1. **Set up your environment**: See [Quick Start](./readme.md#-quick-start) in the README
-2. **Read the style guide**: [`doc/style.md`](./doc/style.md) — this is mandatory before writing any code
+2. **Read the style guide**: [`doc/style.md`](./style.md) — this is mandatory before writing any code
 3. **Understand the architecture**: [`doc/architecture.md`](./doc/docs/architecture.md) — how SoupRune is structured
 
 ### What You Can Work On
@@ -139,7 +141,7 @@ Look for issues labeled [`good first issue`](https://github.com/Bli-AIk/souprune
 
 ### Learning Resources
 
-New to Rust or Bevy? Here are some recommended resources (we won't write our own tutorials — these are better):
+New to Rust or Bevy? Here are some recommended resources:
 
 - [The Rust Programming Language](https://doc.rust-lang.org/book/) (official book)
 - [Bevy Book](https://bevyengine.org/learn/book/introduction/) (official Bevy guide)
@@ -156,8 +158,8 @@ New to Rust or Bevy? Here are some recommended resources (we won't write our own
 
 ### C1. Bevy Crate Family
 
-The following independent Bevy crates are maintained by the same team (Bli-AIk) and integrated into SoupRune as git
-submodules. Each has its own repository and issue tracker:
+The following independent Bevy crates are maintained by the souprune maintainers and integrated into SoupRune as git
+submodules. Each crate has its own repository and issue tracker:
 
 | Crate                    | Description                                                            | Repository                                                |
 |--------------------------|------------------------------------------------------------------------|-----------------------------------------------------------|

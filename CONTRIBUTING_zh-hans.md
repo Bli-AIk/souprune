@@ -50,7 +50,7 @@ Rust/Bevy 生态的社区——不同背景之间的互相尊重至关重要。
 
 使用[功能请求模板](https://github.com/Bli-AIk/souprune/issues/new?template=feature-request.md)，描述：
 
-- 你想解决的问题或改善的工作流
+- 你想解决的问题或改善的工作流，或者单纯说说你想让框架有什么新功能！
 - 你的建议方案，以及你考虑过的替代方案
 
 ### 提出重构建议
@@ -79,12 +79,11 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 - **关卡设计** — 使用 [Tiled](https://www.mapeditor.org/) 地图编辑器创建地图
 - **WASM Mod** — 用任何能编译到 WebAssembly 的语言来构建 Mod
 
-📚 **入门指南**：参见 [Mod 开发指南](./doc/mod_development.md)
-和[示例 Mod 仓库](https://github.com/Bli-AIk/souprune_example_mods)。
+📚 **入门指南**：参见 官方文档 与 [示例 Mod 仓库](https://github.com/Bli-AIk/souprune_example_mods)。
 
 ### A2. 贡献社区 Mod
 
-- 为社区制作高质量的 Mod 模板或前置 Mod
+- 为社区制作 Mod 模板或前置 Mod
 - 贡献可复用的游戏资源包
 - 编写 Mod 开发教程和最佳实践
 
@@ -110,13 +109,13 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 
 **适合**：Rust 开发者（Rustaceans）
 
-**你需要**：Rust 基础、了解 [Bevy](https://bevyengine.org/) 和 ECS（Entity-Component-System，实体-组件-系统）架构
+**你需要**：Rust 语言基础、了解 [Bevy](https://bevyengine.org/) 和 ECS（Entity-Component-System，实体-组件-系统）架构
 
 ### 如何开始
 
 1. **搭建开发环境**：参见 README 中的[快速开始](./readme_zh-hans.md#-快速开始)
-2. **阅读代码风格指南**：[`doc/style.md`](./doc/style.md) — 写代码前必读
-3. **了解架构**：[`doc/architecture.md`](./doc/docs/architecture.md) — SoupRune 的整体结构
+2. **阅读代码风格指南**：[`doc/style.md`](./style_zh-hans.md) — 写代码前必读
+3. **了解架构**：[`doc/architecture.md`](./architecture.md) — SoupRune 的整体结构
 
 ### 可以参与的方向
 
@@ -127,20 +126,20 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 
 ### 寻找 Issue
 
-查看标记为 [`good first issue`](https://github.com/Bli-AIk/souprune/labels/good%20first%20issue) 或 [
-`help wanted`](https://github.com/Bli-AIk/souprune/labels/help%20wanted) 的 Issue。
+查看标记为 [`good first issue`](https://github.com/Bli-AIk/souprune/labels/good%20first%20issue) 或 
+[`help wanted`](https://github.com/Bli-AIk/souprune/labels/help%20wanted) 的 Issue。
 
 ### 学习资源
 
-刚接触 Rust 或 Bevy？以下是推荐资源（我们不自己写教程——这些更专业）：
+刚接触 Rust 或 Bevy？以下是推荐资源：
 
 - [The Rust Programming Language](https://doc.rust-lang.org/book/)（Rust 官方书籍）
 - [Rust 语言圣经](https://course.rs/)（中文 Rust 教程）
 - [Bevy Book](https://bevyengine.org/learn/book/introduction/)（Bevy 官方指南）
 - [Unofficial Bevy Cheat Book](https://bevy-cheatbook.github.io/)（非官方 Bevy 速查手册）
 
-> ⚖️ **路径 B 需要签署 CLA。** 向核心代码库（`crates/`）提交 PR 需要签署[贡献者许可协议](./CLA.md)
-> 。详见[许可证与 CLA](#%EF%B8%8F-许可证与-cla)。
+> ⚖️ **路径 B 需要签署 CLA。** 向核心代码库（`crates/`）提交 PR 需要签署 [贡献者许可协议](./CLA.md)
+> 。详见[许可证与 CLA](#-许可证与-cla)。
 
 ---
 
@@ -150,7 +149,7 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 
 ### C1. Bevy Crate 家族
 
-以下独立 Bevy crate 由同一团队（Bli-AIk）维护，作为 git submodule 集成到 SoupRune。每个 crate 有自己的仓库和 Issue 跟踪：
+以下独立 Bevy crate 由 souprune 维护者进行维护，作为 git submodule 集成到 SoupRune。每个 crate 有自己的仓库和 Issue 跟踪：
 
 | Crate                    | 描述                            | 仓库                                                        |
 |--------------------------|-------------------------------|-----------------------------------------------------------|
