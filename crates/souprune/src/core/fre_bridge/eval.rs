@@ -149,7 +149,7 @@ mod tests {
     fn test_evaluate_string_list_len() {
         let mut global_facts = LayeredFactDatabase::default();
         global_facts.set_global(
-            "player:inventory",
+            "test:string_list",
             FactValue::StringList(vec![
                 "item1".to_string(),
                 "item2".to_string(),
@@ -158,10 +158,10 @@ mod tests {
         );
         let enums = empty_enums();
 
-        let conditions = vec!["$player:inventory.len() == 3".to_string()];
+        let conditions = vec!["$test:string_list.len() == 3".to_string()];
         assert!(evaluate_conditions(&conditions, &global_facts, &enums));
 
-        let conditions2 = vec!["$player:inventory.len() > 2".to_string()];
+        let conditions2 = vec!["$test:string_list.len() > 2".to_string()];
         assert!(evaluate_conditions(&conditions2, &global_facts, &enums));
     }
 
