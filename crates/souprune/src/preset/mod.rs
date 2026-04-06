@@ -9,6 +9,7 @@
 //! In a multi-preset architecture, different game presets would provide
 //! their own implementations of these modules.
 
+pub mod battle;
 pub mod battle_box;
 mod battle_box_chapter;
 pub mod battle_player;
@@ -19,6 +20,7 @@ pub mod enemy;
 pub mod item;
 mod item_actions;
 mod load_enemies_chapter;
+pub mod overworld;
 
 use bevy::app::*;
 use bevy::prelude::IntoScheduleConfigs;
@@ -34,7 +36,12 @@ pub struct PresetPlugin;
 
 impl Plugin for PresetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((enemy::EnemyPlugin, item::ItemPlugin));
+        app.add_plugins((
+            enemy::EnemyPlugin,
+            item::ItemPlugin,
+            battle::BattlePlugin,
+            overworld::OverworldPlugin,
+        ));
 
         // Register computed data path resolvers
         let mut data_resolvers = DataPathResolvers::default();

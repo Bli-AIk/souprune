@@ -19,7 +19,7 @@ mod events_ui;
 mod wasm_ui;
 mod timeline_ui;
 
-use crate::app_state::overworld::character::components::PlayerControlled;
+use crate::preset::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;

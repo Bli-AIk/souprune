@@ -19,7 +19,7 @@ pub mod editor_api;
 pub mod extra;
 pub mod preset;
 
-pub use crate::app_state::overworld::player::config::PlayerBehavior;
+pub use crate::preset::overworld::player::config::PlayerBehavior;
 pub use crate::bootstrap::{
     get_file_importer_plugins, get_game_plugins, get_third_plugins, insert_font_resources,
     insert_input_resources, reset_game_state, run,

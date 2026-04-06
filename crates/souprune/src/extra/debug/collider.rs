@@ -13,10 +13,10 @@
 //! 按 F3 切换碰撞体可视化（玩家为绿色，其他为浅绿色，触发器为青色）。
 
 pub mod debug_collider {
-    use crate::app_state::overworld::character::components::PlayerControlled;
-    use crate::app_state::overworld::tilemap::systems::TilemapCollider;
-    use crate::app_state::overworld::tilemap::*;
-    use crate::app_state::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
+    use crate::preset::overworld::character::components::PlayerControlled;
+    use crate::preset::overworld::tilemap::systems::TilemapCollider;
+    use crate::preset::overworld::tilemap::*;
+    use crate::preset::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
     use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::color::palettes::css;
@@ -167,7 +167,7 @@ pub mod debug_collider {
             &GlobalTransform,
             &TriggerCollider,
             Option<&HitboxOffset>,
-            Option<&crate::app_state::overworld::chase::ChasePlayerHitbox>,
+            Option<&crate::preset::overworld::chase::ChasePlayerHitbox>,
         )>,
         battle_boxes: Query<
             (

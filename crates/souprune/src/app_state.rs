@@ -1,19 +1,14 @@
-//! Organizes the concrete gameplay states that sit on top of Souprune's core infrastructure.
+//! Application state management — re-exports core mode/state primitives.
 //!
-//! 组织建立在 Souprune 核心基础设施之上的具体游戏状态。
+//! 应用状态管理 — 重导出核心模式/状态基元。
 //!
-//! Acts as the boundary between generic runtime systems and game-specific
-//! flows. It pulls together the setup, overworld, and battle state modules, and
-//! re-exports the shared mode/state primitives that the rest of the game uses to
-//! move between those flows.
+//! Game-specific state flows (battle, overworld) are in the preset module.
+//! This module provides the shared infrastructure for state transitions.
 //!
-//! 通用运行时系统与具体游戏流程之间的边界。它汇总了 setup、
-//! overworld 和 battle 这些状态模块，同时重导出全局共用的模式与状态基元，
-//! 让其他系统可以围绕这些流程进行切换。
+//! 游戏特定的状态流程（战斗、大世界）在 preset 模块中。
+//! 此模块提供状态切换的共享基础设施。
 
 pub mod app_setup;
-pub mod battle;
-pub mod overworld;
 
 pub use crate::core::mode::{
     AppState, ModeChanged, ModeScoped, SequenceMode, SequenceSubState, cleanup_entities_system,
