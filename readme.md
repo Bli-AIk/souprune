@@ -25,7 +25,7 @@ designed specifically for creating RPG / STG games similar to
 for creating RPG and Danmaku (STG)
 games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
-It strives to be the next-generation community-driven Fangame engine—bringing a unique flavor while embracing high
+It strives to be the next-generation community-driven Fangame framework—bringing a unique flavor while embracing high
 performance and modern development paradigms at its core.
 
 ## 🧭 S.O.U.P Principles
@@ -120,11 +120,11 @@ combining **RON configuration files** with **custom scripts**:
    You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a
    special boss mechanic).
    This is where SoupRune shines—you can choose **Rust** (or any language that compiles to WASM) to write this logic!
-    * Your code is compiled into a **WASM component** and loaded into the engine at runtime via a sandboxed runtime.
-    * The engine communicates with your mod through a well-defined **WIT (WebAssembly Interface Types)** contract,
-      giving you **high performance** and **memory safety** while keeping mods isolated from the engine core.
+    * Your code is compiled into a **WASM component** and loaded into the framework at runtime via a sandboxed runtime.
+    * The framework communicates with your mod through a well-defined **WIT (WebAssembly Interface Types)** contract,
+      giving you **high performance** and **memory safety** while keeping mods isolated from the framework core.
 
-**In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your
+**In short: SoupRune prepares the broth (underlying framework); you just follow the recipe (RON configs) and pick your
 favorite spoon (any WASM-compatible language) to add the ingredients and cook your delicious game!**
 
 <details>
@@ -193,7 +193,7 @@ standardized compilation target. Any language with a WASM backend can produce mo
 * And as the WASM ecosystem grows, **more languages will become available naturally**—without requiring any
   changes to SoupRune itself.
 
-The best part? WASM mods run in a **sandbox**. A buggy mod cannot crash the engine, corrupt save data,
+The best part? WASM mods run in a **sandbox**. A buggy mod cannot crash the framework, corrupt save data,
 or access the filesystem without permission. This is safety by design—not an afterthought.
 
 Our original intention is to let every creator in the community **define game content in a simple and easy-to-use way**;

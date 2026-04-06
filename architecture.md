@@ -9,7 +9,7 @@ This document describes the internal architecture of SoupRune.
 ## The Big Picture: Three Tiers
 
 SoupRune separates concerns into three distinct layers.
-Think of it as **hardware → firmware → game cartridge**:
+Think of it as **game console → firmware → game cartridge**:
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -21,7 +21,7 @@ Think of it as **hardware → firmware → game cartridge**:
 │  crates/souprune/src/preset/                  │
 │  ── Battle, overworld, items, enemies ──────  │
 ├──────────────────────────────────────────────┤
-│  Core Engine (Rust native)                    │
+│  Core Layer (Rust native)                     │
 │  crates/souprune/src/core/                    │
 │  ── FRE, View, Mortar, danmaku, collision ──  │
 └──────────────────────────────────────────────┘
@@ -32,7 +32,7 @@ Core never imports from preset. Preset never imports from user mods.
 
 ---
 
-## Core Engine (`core/`)
+## Core Layer (`core/`)
 
 The core layer is SoupRune's "runtime" — it knows **how** things work,
 but not **what** they mean. It provides danmaku motion, collision detection,
@@ -80,10 +80,10 @@ and timed event sequences — keeping this complexity out of both FRE rules and 
 Mortar scripts emit abstract events; FRE captures those events to update game state.
 Text content lives in Mortar; game logic lives in FRE rules.
 
-### Danmaku — The STG Engine
+### Danmaku — The STG Core
 
 SoupRune is a **RPG/STG framework at its core**. The danmaku system is not an afterthought —
-it's a first-class engine feature with privileged status in `core/`.
+it's a first-class framework feature with privileged status in `core/`.
 
 - **Bullet lifecycle**: spawn → behavior stack → per-frame motion update → despawn
 - **Builtin motions** (native Rust, zero WASM overhead):
@@ -108,7 +108,7 @@ mode lifecycle hooks, and rule providers — all through well-defined WIT interf
 
 ## Preset Layer (`preset/`)
 
-The preset layer transforms the generic core engine into a complete UT/DR experience.
+The preset layer transforms the generic core layer into a complete UT/DR experience.
 It is written in **native Rust** (not WASM) for maximum performance and type safety.
 
 This layer is intentionally **monolithic** — the target audience (fangame creators)
@@ -161,7 +161,7 @@ WASM is the **extension point for mod authors** — not a replacement for Rust.
 | Mod-specific game logic | Rendering & UI layout  |
 | Special boss mechanics  | FRE rule evaluation    |
 
-**WIT interfaces** define the contract between engine and mods:
+**WIT interfaces** define the contract between the framework and mods:
 `behavior`, `danmaku`, `spawn-pattern`, `custom-action-handler`,
 `mode-lifecycle`, `rule-provider`
 
@@ -191,8 +191,8 @@ These are the architectural invariants that keep SoupRune maintainable:
 crates/
 ├── souprune/                     # Main framework crate
 │   └── src/
-│       ├── core/                 # Tier 1: Engine infrastructure
-│       │   ├── danmaku/          #   ★ STG bullet engine (privileged)
+│       ├── core/                 # Tier 1: Framework infrastructure
+│       │   ├── danmaku/          #   ★ STG bullet system (privileged)
 │       │   ├── dialogue/         #   Dialogue UI & Mortar integration
 │       │   ├── view/             #   RON-driven declarative UI
 │       │   │   └── ron_view/

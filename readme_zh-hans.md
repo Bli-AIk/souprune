@@ -22,7 +22,7 @@
 **SoupRune** 是一个独树一帜的现代化框架，它基于 `bevy` 引擎制作，为次世代同人游戏而生，
 专为创作类似 **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)** 风格的 RPG / 弹幕射击游戏而设计。
 
-它致力于成为下一代社区驱动的 Fangame 引擎——既带来了独特的味道，又在底层架构上拥抱了高性能与现代开发范式。
+它致力于成为下一代社区驱动的 Fangame 框架——既带来了独特的味道，又在底层架构上拥抱了高性能与现代开发范式。
 
 ## 🧭 S.O.U.P 原则
 
@@ -85,7 +85,7 @@ mod_name = "example_mod"
 * 核心使用 **Bevy 引擎** 与 **Rust 语言** 实现，保证性能与可扩展性；
 * 设计目标是：**结构清晰、可模块化扩展、易于定制**；
 
-在项目架构上，SoupRune 采用了 **Engine (引擎)** 与 **Project (项目)** 分离的设计。
+在项目架构上，SoupRune 采用了 **Framework (框架)** 与 **Project (项目)** 分离的设计。
 
 你可以把这想象成 **“游戏机”** 与 **“游戏卡带”** 的关系：
 
@@ -108,11 +108,11 @@ mod_name = "example_mod"
 2. **自定义脚本 (行为与算法)**：
    当你需要实现独特的、复杂的逻辑（比如一个从未见过的螺旋追踪弹幕算法、特殊的 BOSS 机制）时，才需要编写脚本。
    这也是 SoupRune 强大的地方——你可以选择 **Rust**（或任何能编译到 WASM 的语言）来编写这些逻辑！
-    * 代码会被编译成 **WASM 组件**，通过沙盒化的运行时加载到引擎中运行。
-    * 引擎通过规范的 **WIT (WebAssembly Interface Types)** 契约与你的 mod 对话，让你在享受 **高性能**
-      与 **内存安全** 的同时，mod 与引擎核心完全隔离。
+    * 代码会被编译成 **WASM 组件**，通过沙盒化的运行时加载到框架中运行。
+    * 框架通过规范的 **WIT (WebAssembly Interface Types)** 契约与你的 mod 对话，让你在享受 **高性能**
+      与 **内存安全** 的同时，mod 与框架核心完全隔离。
 
-**总结来说：SoupRune 负责把汤底熬好（底层引擎），
+**总结来说：SoupRune 负责把汤底熬好（底层框架），
 你只需要看着菜谱（RON 配置），再选一把顺手的勺子（任何 WASM 兼容语言）往里加料，就能煮出属于你的美味游戏！**
 
 <details>
@@ -173,7 +173,7 @@ WASM Component Model 提供了一个通用的、标准化的编译目标，而�
 * **C# (.NET)** 开发者可以沿用 Unity/Godot 经验（计划通过 .NET WASI SDK 支持）；
 * 随着 WASM 生态的发展，**更多语言将自然而然地可用**——无需 SoupRune 做任何改动。
 
-更棒的是，WASM mod 运行在**沙盒**中。有 bug 的 mod 不会崩溃引擎、不会损坏存档、
+更棒的是，WASM mod 运行在**沙盒**中。有 bug 的 mod 不会崩溃框架、不会损坏存档、
 也无法在未授权的情况下访问文件系统。这是设计层面的安全——而非事后补救。
 
 让社区的每一位创作者都能 **用简单易上手的方式** 来定义游戏内容，是我们设计的初衷；
@@ -254,7 +254,7 @@ SoupRune 采用多 Crate 的工作空间架构：
 | Crate                                                   | 描述                                                              |
 |:--------------------------------------------------------|:----------------------------------------------------------------|
 | [`souprune`](./crates/souprune)                         | **核心框架**：框架本体，游戏的 主入口和核心逻辑实现。                                   |
-| [`souprune_api`](./crates/souprune_api)                 | **协议层**：WIT 接口定义与共享类型，定义 WASM mod 与引擎的交互契约。                     |
+| [`souprune_api`](./crates/souprune_api)                 | **协议层**：WIT 接口定义与共享类型，定义 WASM mod 与框架的交互契约。                     |
 | [`souprune_sdk`](./crates/souprune_sdk)                 | **开发工具包**：Rust WASM guest SDK，使用 wit-bindgen。                   |
 | [`souprune_mod_test`](./crates/souprune_mod_test)       | **样例 Mod**： 示例 WASM mod 组件（编译目标: wasm32-wasip2）。                |
 | [`souprune_mock_host`](./crates/souprune_mock_host)     | **工具**：独立的 WASM mod 测试宿主，通过 Wasmtime 加载并运行。                     |
