@@ -177,7 +177,7 @@ pub struct LoadedMods {
 }
 
 fn register_mod(
-    loaded: &wasm_runtime::LoadedMod,
+    loaded: &LoadedMod,
     mod_index: usize,
     behavior_registry: &mut BehaviorRegistry,
     danmaku_registry: &mut DanmakuRegistry,
@@ -208,13 +208,21 @@ fn load_builtin_wasm(
     pattern_registry: &mut SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
 ) {
-    let candidates = [
+    // CWD-relative candidates (development)
+    let mut candidates = vec![
         std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
         std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
         std::path::PathBuf::from(
             "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
         ),
     ];
+
+    // Exe-relative candidates (packaged distribution)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
+        }
+    }
 
     let wasm_path = candidates.iter().find(|p| p.exists());
     let Some(wasm_path) = wasm_path else {

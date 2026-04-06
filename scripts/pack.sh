@@ -128,6 +128,16 @@ mkdir -p "dist/${DIST}/projects"
 
 cp "$SRC_BINARY" "dist/${DIST}/"
 
+# Copy builtin WASM
+BUILTIN_WASM="crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm"
+if [ -f "$BUILTIN_WASM" ]; then
+    echo "📦 Including builtin WASM"
+    mkdir -p "dist/${DIST}/builtins"
+    cp "$BUILTIN_WASM" "dist/${DIST}/builtins/"
+else
+    echo "⚠️  Builtin WASM not found: $BUILTIN_WASM (danmaku patterns will not work)"
+fi
+
 # Copy projects config
 cp projects/config.toml "dist/${DIST}/projects/"
 
