@@ -26,7 +26,7 @@ pub trait Behavior {
 ///
 /// Each callback receives a BulletContext with bullet-specific state
 /// (position, elapsed time, props). This is different from Behavior,
-/// which uses the global host-api for engine interaction.
+/// which uses the global host-api for framework interaction.
 ///
 /// 弹幕行为 trait。
 /// 每次回调接收 BulletContext（含子弹位置、时间、属性），
@@ -128,10 +128,10 @@ impl CustomActionHandler for NoopCustomActionHandler {
 /// 模式生命周期 trait — 响应模式切换。
 /// 实现此 trait 让模组对模式变化做出响应（如进入战斗模式）。
 pub trait ModeLifecycle {
-    /// Called when the engine enters a new mode.
+    /// Called when the host enters a new mode.
     fn on_mode_enter(&self, _mode: &str) {}
 
-    /// Called when the engine exits the current mode.
+    /// Called when the host exits the current mode.
     fn on_mode_exit(&self, _mode: &str) {}
 
     /// Called when the sub-state changes within the current mode.
@@ -176,11 +176,11 @@ pub struct RuleDef {
 
 /// Rule provider trait — supply FRE rules programmatically.
 ///
-/// Implement this to have your mod provide FRE rules that the engine
+/// Implement this to have your mod provide FRE rules that the framework
 /// registers into the layered rule registry at mod load time.
 ///
 /// 规则提供者 trait — 程序化提供 FRE 规则。
-/// 实现此 trait 让模组在加载时向引擎注册 FRE 规则。
+/// 实现此 trait 让模组在加载时向框架注册 FRE 规则。
 pub trait RuleProvider {
     /// Return all FRE rule definitions this mod provides.
     fn list_rules() -> Vec<RuleDef>

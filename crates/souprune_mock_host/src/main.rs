@@ -1,7 +1,7 @@
-//! A standalone test host application that simulates the game engine.
+//! A standalone test host application that simulates the game framework.
 //! Uses Wasmtime to load and run a WASM mod component.
 //!
-//! 一个独立的测试宿主应用程序，模拟游戏引擎。
+//! 一个独立的测试宿主应用程序，模拟游戏框架。
 //! 使用 Wasmtime 加载和运行 WASM 模组组件。
 
 use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};

@@ -2,7 +2,7 @@
 //!
 //! SoupRune 的 FRE 动作定义。
 //!
-//! 只包含引擎核心动作。游戏特定动作（如 UseItem、CheckItem、DropItem）
+//! 只包含框架核心动作。游戏特定动作（如 UseItem、CheckItem、DropItem）
 //! 通过 `Custom` 变体 + [`ViewActionExtensions`] 分发机制处理，
 //! 不再作为枚举变体出现在此处。
 //!

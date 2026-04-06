@@ -21,9 +21,9 @@ pub enum CollisionType {
     Boundary,
 }
 
-/// A collision event — the engine's generic collision report.
+/// A collision event — the framework's generic collision report.
 ///
-/// 碰撞事件 — 引擎核心的通用碰撞报告。
+/// 碰撞事件 — 框架核心的通用碰撞报告。
 #[derive(Message, Debug, Clone)]
 pub struct CollisionEvent {
     pub entity_a: Entity,

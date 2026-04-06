@@ -1,6 +1,6 @@
-//! Generic runtime mode and state types shared across the engine.
+//! Generic runtime mode and state types shared across the framework.
 //!
-//! 通用运行时模式与状态类型，供整个引擎共享。
+//! 通用运行时模式与状态类型，供整个框架共享。
 
 use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
@@ -109,14 +109,14 @@ pub fn cleanup_entities_system<T: Component>(
     }
 }
 
-/// Registry of mode names known to the engine.
+/// Registry of mode names known to the framework.
 ///
 /// Presets register modes here during plugin initialization.
-/// The engine core uses this to validate mode transitions without
+/// The framework core uses this to validate mode transitions without
 /// knowing specific mode names.
 ///
-/// 引擎已知模式名注册表。Preset 在初始化时注册模式。
-/// 引擎核心通过此注册表验证模式切换，而无需了解具体模式名。
+/// 框架已知模式名注册表。Preset 在初始化时注册模式。
+/// 框架核心通过此注册表验证模式切换，而无需了解具体模式名。
 #[derive(Resource, Default, Debug)]
 pub struct ModeRegistry {
     /// Set of registered mode names.

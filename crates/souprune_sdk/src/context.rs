@@ -1,9 +1,9 @@
 //! Provides a safe wrapper around the WIT host-api imports.
-//! Mod developers use `Context` to interact with the game engine
+//! Mod developers use `Context` to interact with the host framework
 //! (logging, input, kinematics) without touching raw WIT types.
 //!
 //! 对 WIT host-api 导入的安全封装。
-//! 模组开发者使用 `Context` 与引擎交互（日志、输入、运动学），
+//! 模组开发者使用 `Context` 与宿主框架交互（日志、输入、运动学），
 //! 无需接触原始 WIT 类型。
 
 use crate::Action;
@@ -30,10 +30,10 @@ impl FactValue {
     }
 }
 
-/// Context is the mod's window into the engine.
+/// Context is the mod's window into the host framework.
 /// It wraps the WIT host-api imports in an ergonomic Rust API.
 ///
-/// Context 是模组与引擎交互的窗口。
+/// Context 是模组与宿主框架交互的窗口。
 /// 将 WIT host-api 导入封装为符合 Rust 习惯的 API。
 pub struct Context {
     _private: (),
@@ -45,17 +45,17 @@ impl Context {
         Self { _private: () }
     }
 
-    /// Print an info-level log message to the engine console.
+    /// Print an info-level log message to the host console.
     pub fn log(&self, msg: &str) {
         host_api::log(0, msg);
     }
 
-    /// Print a warning-level log message to the engine console.
+    /// Print a warning-level log message to the host console.
     pub fn warn(&self, msg: &str) {
         host_api::log(1, msg);
     }
 
-    /// Print an error-level log message to the engine console.
+    /// Print an error-level log message to the host console.
     pub fn error(&self, msg: &str) {
         host_api::log(2, msg);
     }

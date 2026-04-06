@@ -4,7 +4,7 @@
 //!
 //! This module is the runtime's configuration authority. It reads
 //! `projects/config.toml`, combines it with per-mod metadata, and exposes the
-//! path helpers that the rest of the engine uses to locate assets, rules, and
+//! path helpers that the rest of the framework uses to locate assets, rules, and
 //! optional WASM components. If startup wiring needs to know "which project are
 //! we running?", the answer comes from here.
 //!

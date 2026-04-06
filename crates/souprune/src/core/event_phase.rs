@@ -14,9 +14,9 @@ use bevy::prelude::*;
 /// 后一层只能消费前一层产生的事件，不允许反向传播。
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EventPhaseSet {
-    /// Physics-layer events (collisions, boundaries) — high frequency, engine-internal.
+    /// Physics-layer events (collisions, boundaries) — high frequency, core-internal.
     ///
-    /// 物理层事件（碰撞、边界）— 高频，引擎内部消费。
+    /// 物理层事件（碰撞、边界）— 高频，核心内部消费。
     Physics,
     /// Logic-layer events (FRE rule evaluation) — medium frequency, rule engine.
     ///

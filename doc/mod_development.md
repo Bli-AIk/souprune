@@ -97,11 +97,11 @@ just wasm-test    # 编译并通过 mock_host 运行
 
 ### Context
 
-`Context` 是 mod 与引擎交互的唯一入口：
+`Context` 是 mod 与框架交互的唯一入口：
 
 | 方法 | 描述 |
 |------|------|
-| `ctx.log(msg)` | 输出日志到引擎控制台 |
+| `ctx.log(msg)` | 输出日志到宿主控制台 |
 | `ctx.input().pressed(action)` | 检查语义输入是否按下 |
 | `ctx.kinematics().set_velocity(x, y)` | 设置实体速度 |
 
@@ -164,7 +164,7 @@ export_mod! {
 }
 ```
 
-- 第一个元素是字符串 ID（引擎通过此 ID 查找）
+- 第一个元素是字符串 ID（框架通过此 ID 查找）
 - 第二个是实现类型
 - 第三个是构造闭包
 
@@ -186,6 +186,6 @@ export_mod! {
 ## 注意事项
 
 - Mod 运行在 WASM 沙箱中，无法直接访问文件系统或网络
-- 所有与引擎的交互必须通过 `Context` API
+- 所有与框架的交互必须通过 `Context` API
 - WIT 文件（`souprune-mod.wit`）是接口的单一事实来源
 - `souprune_mod_test` 是完整的参考实现，可作为模板

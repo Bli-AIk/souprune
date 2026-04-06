@@ -1,10 +1,10 @@
 //! # preset — Game-Specific Plugins
 //!
 //! Contains Undertale/Deltarune-specific data types, loaders, and systems
-//! that are NOT part of the generic engine core.
+//! that are NOT part of the generic framework core.
 //!
 //! 包含 Undertale/Deltarune 特有的数据类型、加载器和系统，
-//! 这些不属于通用引擎核心。
+//! 这些不属于通用框架核心。
 //!
 //! In a multi-preset architecture, different game presets would provide
 //! their own implementations of these modules.
