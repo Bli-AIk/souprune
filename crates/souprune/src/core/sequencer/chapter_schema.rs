@@ -59,7 +59,7 @@ pub enum Chapter {
     },
     DanmakuPerformance {
         performance: String,
-        #[serde(default)]
+        #[serde(default, alias = "position")]
         translation: Option<(f32, f32)>,
     },
     AlightMotionPerformance {
