@@ -71,7 +71,7 @@ impl CollisionCooldowns {
         let pair = (a.min(b), a.max(b));
         self.last_collision
             .get(&pair)
-            .map_or(true, |&last| now - last >= cooldown as f64)
+            .is_none_or(|&last| now - last >= cooldown as f64)
     }
 
     /// Record a collision occurrence.

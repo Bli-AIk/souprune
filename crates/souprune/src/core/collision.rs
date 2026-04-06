@@ -19,7 +19,7 @@ pub mod systems;
 
 pub use battle_collision::*;
 pub use components::*;
-pub use events::{CollisionEvent, CollisionEventBuffer, CollisionType};
+pub use events::{CollisionEventBuffer, CollisionType};
 pub use systems::{SdfCollisionConfig, collect_nearby_colliders, resolve_sdf_collision};
 
 use bevy::app::*;

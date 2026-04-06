@@ -102,21 +102,22 @@ pub fn prepare_item_dialogue_mortar_system(
     vs.set("heal_amount", MortarVariableValue::Number(heal_amount));
 
     // Configurable variable bindings
-    if let Some(bindings) = bindings.as_ref() {
-        for (var_name, fact_key, resolve_locale) in &bindings.string_variables {
-            if let Some(value) = facts.get_string(fact_key) {
-                let resolved = if *resolve_locale {
-                    mortar_strings.resolve(value).to_string()
-                } else {
-                    value.to_string()
-                };
-                vs.set(var_name, MortarVariableValue::String(resolved));
-            }
+    let Some(bindings) = bindings.as_ref() else {
+        return;
+    };
+    for (var_name, fact_key, resolve_locale) in &bindings.string_variables {
+        if let Some(value) = facts.get_string(fact_key) {
+            let resolved = if *resolve_locale {
+                mortar_strings.resolve(value).to_string()
+            } else {
+                value.to_string()
+            };
+            vs.set(var_name, MortarVariableValue::String(resolved));
         }
-        for (var_name, fact_key) in &bindings.number_variables {
-            if let Some(value) = facts.get_int(fact_key) {
-                vs.set(var_name, MortarVariableValue::Number(value as f64));
-            }
+    }
+    for (var_name, fact_key) in &bindings.number_variables {
+        if let Some(value) = facts.get_int(fact_key) {
+            vs.set(var_name, MortarVariableValue::Number(value as f64));
         }
     }
 }

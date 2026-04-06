@@ -55,6 +55,27 @@ fn apply_output_extras(
     }
 }
 
+/// Accumulates output values from a behavior into mutable accumulators.
+fn accumulate_output(
+    out: &super::super::builtin_motion::MotionOutput,
+    position: &mut Vec2,
+    rotation_delta: &mut f32,
+    opacity: &mut Option<f32>,
+    scale_delta: &mut Vec2,
+) {
+    *position += out.offset;
+    *rotation_delta += out.rotation;
+    if out.opacity >= 0.0 {
+        *opacity = Some(out.opacity);
+    }
+    if out.scale_x != 0.0 {
+        scale_delta.x += out.scale_x;
+    }
+    if out.scale_y != 0.0 {
+        scale_delta.y += out.scale_y;
+    }
+}
+
 /// System to update bullet motion.
 ///
 /// Builtin behaviors (Linear, Orbital, Sine, Tween, Stationary, Aimed)
@@ -110,17 +131,7 @@ pub fn update_bullet_motion(
                     state.initial_angle,
                     state.initial_radius,
                 );
-                position += out.offset;
-                rotation_delta += out.rotation;
-                if out.opacity >= 0.0 {
-                    opacity = Some(out.opacity);
-                }
-                if out.scale_x != 0.0 {
-                    scale_delta.x += out.scale_x;
-                }
-                if out.scale_y != 0.0 {
-                    scale_delta.y += out.scale_y;
-                }
+                accumulate_output(&out, &mut position, &mut rotation_delta, &mut opacity, &mut scale_delta);
             }
         }
 

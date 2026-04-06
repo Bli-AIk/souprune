@@ -274,7 +274,7 @@ pub fn is_builtin(behavior: &souprune_schema::danmaku::BulletBehavior) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use souprune_schema::danmaku::{LinearConfig, OrbitalConfig, SineConfig, TweenConfig};
+    use souprune_schema::danmaku::LinearConfig;
 
     #[test]
     fn linear_motion_correct() {

@@ -97,7 +97,7 @@ fn register_item_action_extensions(app: &mut App) {
 
     extensions.register("UseItem", |params, ctx| {
         let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
-        let start_dialogue = params.get("start_dialogue").map_or(false, |v| v == "true");
+        let start_dialogue = params.get("start_dialogue").is_some_and(|v| v == "true");
         item_actions::execute_use_item(
             index_expr,
             ctx.local_facts,

@@ -13,10 +13,10 @@ use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
 /// Helper: read string fact from layered DB with optional local override.
 fn get_string(db: &LayeredFactDatabase, local: Option<&FactDatabase>, key: &str) -> String {
-    if let Some(local) = local {
-        if let Some(FactValue::String(s)) = local.get_by_str(key) {
-            return s.clone();
-        }
+    if let Some(local) = local
+        && let Some(FactValue::String(s)) = local.get_by_str(key)
+    {
+        return s.clone();
     }
     match db.get_by_str(key) {
         Some(FactValue::String(s)) => s.clone(),
@@ -27,10 +27,10 @@ fn get_string(db: &LayeredFactDatabase, local: Option<&FactDatabase>, key: &str)
 
 /// Helper: read int fact from layered DB with optional local override.
 fn get_int(db: &LayeredFactDatabase, local: Option<&FactDatabase>, key: &str) -> i64 {
-    if let Some(local) = local {
-        if let Some(FactValue::Int(i)) = local.get_by_str(key) {
-            return *i;
-        }
+    if let Some(local) = local
+        && let Some(FactValue::Int(i)) = local.get_by_str(key)
+    {
+        return *i;
     }
     match db.get_by_str(key) {
         Some(FactValue::Int(i)) => *i,

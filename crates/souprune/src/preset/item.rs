@@ -144,6 +144,31 @@ fn sync_items_system(
     }
 }
 
+fn register_item_effects(facts: &mut LayeredFactDatabase, prefix: &str, effects: &[ItemEffect]) {
+    for effect in effects {
+        match effect {
+            ItemEffect::Heal { amount } => {
+                facts.set_global(format!("{prefix}.heal"), FactValue::Int(*amount as i64));
+            }
+            ItemEffect::PlayAudio { clip_path } => {
+                facts.set_global(
+                    format!("{prefix}.use_audio"),
+                    FactValue::String(clip_path.clone()),
+                );
+            }
+            ItemEffect::SpawnChildItem { item_id } => {
+                facts.set_global(
+                    format!("{prefix}.child_item"),
+                    FactValue::String(item_id.clone()),
+                );
+            }
+            ItemEffect::SetFact { key, value } => {
+                facts.set_global(key, fact_value_from_item_fact_value(value));
+            }
+        }
+    }
+}
+
 /// Inject item metadata into FRE global facts so rules and View templates can
 /// query item properties without depending on `ItemRegistry`.
 fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
@@ -186,32 +211,7 @@ fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
                     FactValue::String("Food".to_string()),
                 );
                 facts.set_global(format!("{prefix}.consumable"), FactValue::Bool(*consumable));
-                for effect in effects {
-                    match effect {
-                        ItemEffect::Heal { amount } => {
-                            facts.set_global(
-                                format!("{prefix}.heal"),
-                                FactValue::Int(*amount as i64),
-                            );
-                        }
-                        ItemEffect::PlayAudio { clip_path } => {
-                            facts.set_global(
-                                format!("{prefix}.use_audio"),
-                                FactValue::String(clip_path.clone()),
-                            );
-                        }
-                        ItemEffect::SpawnChildItem { item_id } => {
-                            facts.set_global(
-                                format!("{prefix}.child_item"),
-                                FactValue::String(item_id.clone()),
-                            );
-                        }
-                        ItemEffect::SetFact { key, value } => {
-                            // SetFact effects are rare; apply them at load time.
-                            facts.set_global(key, fact_value_from_item_fact_value(value));
-                        }
-                    }
-                }
+                register_item_effects(facts, &prefix, effects);
             }
             ItemType::Weapon { damage, .. } => {
                 facts.set_global(

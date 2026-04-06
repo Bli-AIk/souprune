@@ -37,17 +37,9 @@ type ConditionResolverFn =
 /// Preset modules register game-specific resolvers here.
 ///
 /// 计算数据路径解析器注册表。预设模块在此注册游戏特定的解析器。
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct DataPathResolvers {
     resolvers: HashMap<String, DataPathResolverFn>,
-}
-
-impl Default for DataPathResolvers {
-    fn default() -> Self {
-        Self {
-            resolvers: HashMap::new(),
-        }
-    }
 }
 
 impl DataPathResolvers {
@@ -83,17 +75,9 @@ impl DataPathResolvers {
 /// Preset modules register game-specific conditions here.
 ///
 /// 视图条件解析器注册表。预设模块在此注册游戏特定的条件。
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct ConditionResolvers {
     resolvers: HashMap<String, ConditionResolverFn>,
-}
-
-impl Default for ConditionResolvers {
-    fn default() -> Self {
-        Self {
-            resolvers: HashMap::new(),
-        }
-    }
 }
 
 impl ConditionResolvers {
@@ -128,17 +112,9 @@ type ExprFunctionResolverFn =
 ///
 /// `visible_when` 及其他 fasteval 表达式中的函数解析器注册表。
 /// 将函数名（无括号）映射到返回 f64 值的解析器。
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct ExprFunctionResolvers {
     resolvers: HashMap<String, ExprFunctionResolverFn>,
-}
-
-impl Default for ExprFunctionResolvers {
-    fn default() -> Self {
-        Self {
-            resolvers: HashMap::new(),
-        }
-    }
 }
 
 impl ExprFunctionResolvers {
