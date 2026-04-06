@@ -269,7 +269,7 @@ fn spawn_view_node_with_repeat_context(
                 fill_color,
             );
             let battle_box_style =
-                crate::core::battle_box::BattleBoxVisualStyle::from_view_box(&runtime_view_box);
+                crate::preset::battle_box::BattleBoxVisualStyle::from_view_box(&runtime_view_box);
 
             let mut box_entity = parent.spawn((
                 runtime_view_box,
@@ -302,9 +302,9 @@ fn spawn_view_node_with_repeat_context(
 
             if node_def.tags.contains(&"BattleBox".to_string()) {
                 box_entity.insert((
-                    crate::core::battle_box::BattleBox,
-                    crate::core::battle_box::BattleBoxId("main".to_string()),
-                    crate::core::battle_box::BattleBoxState::default(),
+                    crate::preset::battle_box::BattleBox,
+                    crate::preset::battle_box::BattleBoxId("main".to_string()),
+                    crate::preset::battle_box::BattleBoxState::default(),
                     battle_box_style,
                 ));
                 info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);

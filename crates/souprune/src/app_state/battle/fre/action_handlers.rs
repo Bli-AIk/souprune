@@ -14,7 +14,7 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_tween::interpolation::EaseKind;
 
-use crate::core::battle_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
+use crate::preset::battle_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
 
 

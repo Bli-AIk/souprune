@@ -21,7 +21,7 @@ pub use facts::{AggregateRule, DataBinding, FactCondition, FactModificationDef, 
 pub use values::{ColorTuple, LogLevel, Value, Vec2Tuple, Vec3Tuple};
 
 use self::element::{default_easing, ease_kind_serde};
-use crate::core::battle_box::{GapPolicy, SplitAxis};
+use crate::preset::battle_box::{GapPolicy, SplitAxis};
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

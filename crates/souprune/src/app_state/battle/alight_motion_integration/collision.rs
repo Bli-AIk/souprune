@@ -20,7 +20,7 @@ use bevy_alight_motion::prelude::{
 };
 
 use crate::core::alight_motion_runtime::AlightMotionPerformanceState;
-use crate::core::battle_box::{
+use crate::preset::battle_box::{
     AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
 };
 use crate::core::collision::TriggerCollider;

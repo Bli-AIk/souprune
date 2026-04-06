@@ -12,12 +12,12 @@
 
 pub use crate::core::danmaku::*;
 
-use crate::core::battle_player::BattleInvincibilityConfig;
+use crate::preset::battle_player::BattleInvincibilityConfig;
 use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
 
-use crate::core::battle_runtime::BattleUpdate;
+use crate::preset::battle_runtime::BattleUpdate;
 
 /// Resource to track player invincibility state in battle mode.
 ///

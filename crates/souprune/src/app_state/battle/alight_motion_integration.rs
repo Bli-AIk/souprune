@@ -129,7 +129,7 @@ impl Plugin for AlightMotionBattlePlugin {
                     playback::check_am_performance_completion,
                 )
                     .chain()
-                    .in_set(crate::core::battle_runtime::BattleUpdate),
+                    .in_set(crate::preset::battle_runtime::BattleUpdate),
             )
             .add_systems(
                 schedule,

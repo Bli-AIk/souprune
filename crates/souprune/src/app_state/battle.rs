@@ -33,8 +33,8 @@ use crate::app_state::battle::collision::BattleCollisionPlugin;
 use crate::app_state::battle::danmaku::DanmakuPlugin;
 use crate::app_state::battle::fre::BattleFREPlugin;
 use crate::app_state::{ModeChanged, ModeScoped, is_mode};
-use crate::core::battle_player::BattlePlayerConfig;
-use crate::core::battle_runtime::{
+use crate::preset::battle_player::BattlePlayerConfig;
+use crate::preset::battle_runtime::{
     BattleCamera, BattleInputManager, BattleMovementSet, BattleUpdate,
 };
 use crate::core::input::{Action, PlayerInputSettings};

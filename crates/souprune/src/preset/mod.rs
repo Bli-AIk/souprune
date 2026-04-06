@@ -9,6 +9,9 @@
 //! In a multi-preset architecture, different game presets would provide
 //! their own implementations of these modules.
 
+pub mod battle_box;
+pub mod battle_player;
+pub mod battle_runtime;
 pub mod enemy;
 pub mod item;
 mod load_enemies_chapter;
