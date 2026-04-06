@@ -110,6 +110,7 @@ pub fn incremental_reload_system(
     layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     view_root_query: Query<&crate::core::view::components::ViewRoot>,
     data_resolvers: Option<Res<super::parsing::DataPathResolvers>>,
+    expr_func_resolvers: Option<Res<super::parsing::ExprFunctionResolvers>>,
 ) {
     if !pending_reloads.has_pending() {
         return;
@@ -162,7 +163,8 @@ pub fn incremental_reload_system(
         } else {
             super::parsing::PlayerDataView::new(&layered_db)
         }
-        .with_resolvers(data_resolvers.as_deref(), None);
+        .with_resolvers(data_resolvers.as_deref(), None)
+        .with_expr_functions(expr_func_resolvers.as_deref());
 
         // Find all ViewElement entities that are descendants of this root
         let descendants = collect_descendants(root_entity, &children_query);

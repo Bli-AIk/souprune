@@ -19,7 +19,9 @@ mod load_enemies_chapter;
 
 use bevy::app::*;
 use bevy::prelude::IntoScheduleConfigs;
-use crate::core::view::ron_view::parsing::{ConditionResolvers, DataPathResolvers};
+use crate::core::view::ron_view::parsing::{
+    ConditionResolvers, DataPathResolvers, ExprFunctionResolvers,
+};
 
 /// Plugin that registers game-specific data loaders and sequencer chapter handlers.
 ///
@@ -39,6 +41,11 @@ impl Plugin for PresetPlugin {
         let mut cond_resolvers = ConditionResolvers::default();
         data_paths::register_condition_resolvers(&mut cond_resolvers);
         app.insert_resource(cond_resolvers);
+
+        // Register expression function resolvers
+        let mut expr_func_resolvers = ExprFunctionResolvers::default();
+        data_paths::register_expr_function_resolvers(&mut expr_func_resolvers);
+        app.insert_resource(expr_func_resolvers);
 
         // Register LoadEnemies chapter handler in the sequencer's system set.
         let schedule = crate::game_schedule(app);

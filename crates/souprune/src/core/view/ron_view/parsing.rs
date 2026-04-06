@@ -20,7 +20,7 @@ mod text_templates;
 
 // Re-export PlayerDataView and resolver types so callers can import from one place.
 pub use super::player_data::{
-    ConditionResolvers, DataPathResolvers, PlayerDataView,
+    ConditionResolvers, DataPathResolvers, ExprFunctionResolvers, PlayerDataView,
 };
 
 // Re-export evaluation helpers alongside the parsing utilities.

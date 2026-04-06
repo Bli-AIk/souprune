@@ -6,7 +6,9 @@
 //! and view conditions (e.g. "player.hp.is_low") that depend on
 //! game-specific knowledge like equipment, inventory, and stats.
 
-use crate::core::view::ron_view::parsing::{ConditionResolvers, DataPathResolvers};
+use crate::core::view::ron_view::parsing::{
+    ConditionResolvers, DataPathResolvers, ExprFunctionResolvers,
+};
 use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
 /// Helper: read string fact from layered DB with optional local override.
@@ -158,5 +160,23 @@ pub fn register_condition_resolvers(resolvers: &mut ConditionResolvers) {
 
     resolvers.register("player.gold.is_zero", |db, local| {
         get_int(db, local, "player:gold") == 0
+    });
+}
+
+/// Register expression functions for fasteval expressions (e.g. `inventory_is_empty()`).
+///
+/// 注册 fasteval 表达式函数（如 `inventory_is_empty()`）。
+pub fn register_expr_function_resolvers(resolvers: &mut ExprFunctionResolvers) {
+    resolvers.register("inventory_is_empty", |db, _local| {
+        match db.get_by_str("player:inventory") {
+            Some(FactValue::StringList(list)) => {
+                if list.is_empty() {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            _ => 1.0,
+        }
     });
 }

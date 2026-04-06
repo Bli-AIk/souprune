@@ -366,14 +366,8 @@ pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
     // 预处理事实表达式 - 处理 $var 语法
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
-    // Preprocess special functions
-    // 预处理特殊函数
-    let is_empty = player_data
-        .get_fact_string_list("player:inventory")
-        .map(|list| list.is_empty())
-        .unwrap_or(true);
-    let processed_expr =
-        processed_expr.replace("inventory_is_empty()", if is_empty { "1" } else { "0" });
+    // Preprocess registered expression functions (e.g. inventory_is_empty())
+    let processed_expr = player_data.preprocess_expr_functions(&processed_expr);
 
     // Preprocess boolean literals for fasteval compatibility
     // 预处理布尔字面量以兼容 fasteval
@@ -570,13 +564,6 @@ pub fn evaluate_transition_condition_unified(
 ) -> bool {
     let condition = condition.trim();
 
-    // Helper to get inventory
-    let get_inventory = || {
-        player_data
-            .get_fact_string_list("player:inventory")
-            .unwrap_or_default()
-    };
-
     // Handle "index == N" pattern with optional additional conditions
     let Some(rest) = condition.strip_prefix("index == ") else {
         // For other conditions, delegate to the existing evaluate_condition
@@ -598,15 +585,21 @@ pub fn evaluate_transition_condition_unified(
         return false;
     }
 
-    // Check additional conditions
+    // Check additional conditions generically via evaluate_condition
     for part in parts.iter().skip(1) {
-        if *part == "!player.inventory.is_empty" && get_inventory().is_empty() {
+        let part = part.trim();
+        let (negated, cond) = if let Some(stripped) = part.strip_prefix('!') {
+            (true, stripped.trim())
+        } else {
+            (false, part)
+        };
+        let result = evaluate_condition(cond, player_data);
+        if negated && result {
             return false;
         }
-        if *part == "player.inventory.is_empty" && !get_inventory().is_empty() {
+        if !negated && !result {
             return false;
         }
-        // Add more conditions as needed
     }
 
     true
