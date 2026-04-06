@@ -131,7 +131,7 @@ pub(super) fn resolve_int(expr: &str, facts: &dyn FactReader) -> Option<i64> {
 /// Evaluate a LocalFactValue to a FactValue.
 ///
 /// 将 LocalFactValue 评估为 FactValue。
-pub(in crate::core::fre_bridge) fn evaluate_local_fact_value(
+pub(crate) fn evaluate_local_fact_value(
     key: &str,
     value: &LocalFactValue,
     facts: &dyn FactReader,

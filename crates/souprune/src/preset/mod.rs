@@ -17,10 +17,12 @@ pub mod battle_runtime;
 mod data_paths;
 pub mod enemy;
 pub mod item;
+mod item_actions;
 mod load_enemies_chapter;
 
 use bevy::app::*;
 use bevy::prelude::IntoScheduleConfigs;
+use crate::core::fre_bridge::ViewActionExtensions;
 use crate::core::view::ron_view::parsing::{
     ConditionResolvers, DataPathResolvers, ExprFunctionResolvers,
 };
@@ -49,6 +51,9 @@ impl Plugin for PresetPlugin {
         data_paths::register_expr_function_resolvers(&mut expr_func_resolvers);
         app.insert_resource(expr_func_resolvers);
 
+        // Register item action handlers (UseItem, CheckItem, DropItem)
+        register_item_action_extensions(app);
+
         // Register LoadEnemies and BattleBox chapter handlers in the sequencer's system set.
         let schedule = crate::game_schedule(app);
         app.add_systems(
@@ -75,4 +80,53 @@ impl Plugin for PresetPlugin {
             ),
         );
     }
+}
+
+/// Register item-specific Custom action handlers (UseItem, CheckItem, DropItem).
+fn register_item_action_extensions(app: &mut App) {
+    let mut extensions = app
+        .world_mut()
+        .get_resource_or_insert_with(ViewActionExtensions::default);
+
+    extensions.register("UseItem", |params, ctx| {
+        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
+        let start_dialogue = params
+            .get("start_dialogue")
+            .map_or(false, |v| v == "true");
+        item_actions::execute_use_item(
+            index_expr,
+            ctx.local_facts,
+            ctx.global_facts,
+            ctx.audio,
+            ctx.asset_server,
+            ctx.enum_registry,
+            start_dialogue,
+            &ctx.config.game.dialogue_view_default,
+            &ctx.config.game.dialogue_voice_default,
+        );
+    });
+
+    extensions.register("CheckItem", |params, ctx| {
+        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
+        item_actions::execute_check_item(
+            index_expr,
+            ctx.local_facts,
+            ctx.global_facts,
+            ctx.enum_registry,
+            &ctx.config.game.dialogue_view_default,
+            &ctx.config.game.dialogue_voice_default,
+        );
+    });
+
+    extensions.register("DropItem", |params, ctx| {
+        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
+        item_actions::execute_drop_item(
+            index_expr,
+            ctx.local_facts,
+            ctx.global_facts,
+            ctx.enum_registry,
+            &ctx.config.game.dialogue_view_default,
+            &ctx.config.game.dialogue_voice_default,
+        );
+    });
 }

@@ -286,53 +286,6 @@ pub fn preprocess_fact_expressions_with_repeat(
 // Expression Evaluation Functions
 // ============================================================================
 
-fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize {
-    let expr = expr.trim();
-
-    if expr == "inventory.len()" {
-        return player_data
-            .get_fact_string_list("player:inventory")
-            .map(|list| list.len())
-            .unwrap_or(0);
-    }
-
-    if expr == "inventory_capacity" {
-        return player_data
-            .get_fact_int("player:inventory_capacity")
-            .unwrap_or(8) as usize;
-    }
-
-    if expr.starts_with("min(") && expr.ends_with(")") {
-        let inner = &expr[4..expr.len() - 1];
-        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 2 {
-            let a = evaluate_index_expression(parts[0], player_data);
-            let b = evaluate_index_expression(parts[1], player_data);
-            return a.min(b);
-        }
-    }
-
-    if expr.starts_with("max(") && expr.ends_with(")") {
-        let inner = &expr[4..expr.len() - 1];
-        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 2 {
-            let a = evaluate_index_expression(parts[0], player_data);
-            let b = evaluate_index_expression(parts[1], player_data);
-            return a.max(b);
-        }
-    }
-
-    if let Ok(value) = expr.parse::<usize>() {
-        return value;
-    }
-
-    warn!(
-        "Unable to evaluate index expression: {}, defaulting to 1",
-        expr
-    );
-    1
-}
-
 /// Evaluate a `visible_when` expression to determine visibility.
 /// Returns true if the element should be visible, false otherwise.
 ///

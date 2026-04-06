@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 use bevy_fact_rule_event::{CombinedFactReader, EnumRegistry, FactReader, FactValue};
 
-use super::eval::evaluate_local_fact_value;
+use crate::core::fre_bridge::eval::evaluate_local_fact_value;
 use crate::core::{audio, fre_facts};
 
 /// Resolve an index expression (e.g., "$item_selection") to a usize index.

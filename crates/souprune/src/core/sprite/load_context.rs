@@ -35,7 +35,7 @@ impl<'a> SpriteLoadContext<'a> {
     /// Load a single sprite by module-relative path.
     ///
     /// `relative_path` is relative to `assets/textures/{module}/`,
-    /// e.g. `"characters/frisk/walk/down/0.png"`.
+    /// e.g. `"characters/hero/walk/down/0.png"`.
     pub(crate) fn get_sprite(
         &mut self,
         module_name: &str,
@@ -78,8 +78,8 @@ impl<'a> SpriteLoadContext<'a> {
 
     /// Load animation frames by module-relative directory path.
     ///
-    /// `relative_path` is a directory prefix (e.g. `"characters/frisk/walk/down"`)
-    /// or a single file (e.g. `"characters/frisk/walk/down/0.png"`).
+    /// `relative_path` is a directory prefix (e.g. `"characters/hero/walk/down"`)
+    /// or a single file (e.g. `"characters/hero/walk/down/0.png"`).
     pub(crate) fn get_sprite_animations(
         &mut self,
         module_name: &str,

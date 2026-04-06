@@ -16,7 +16,7 @@ use bevy_fact_rule_event::EnumRegistry;
 
 pub(super) use conditions::evaluate_conditions;
 pub use conditions::evaluate_single_condition;
-pub(super) use expressions::evaluate_local_fact_value;
+pub(crate) use expressions::evaluate_local_fact_value;
 
 /// Souprune's implementation of condition evaluation.
 /// This evaluator is registered with the FRE system to evaluate rule conditions.

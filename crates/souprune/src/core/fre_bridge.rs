@@ -13,9 +13,8 @@
 
 mod collision_bridge;
 mod custom_dispatch;
-mod eval;
+pub(crate) mod eval;
 pub mod extensions;
-mod item_actions;
 mod state_sync;
 mod view_actions;
 
@@ -48,9 +47,7 @@ impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
 
-        let mut extensions = ViewActionExtensions::default();
-        register_item_action_extensions(&mut extensions);
-        app.insert_resource(extensions);
+        app.init_resource::<ViewActionExtensions>();
 
         app.add_message::<FreCustomActionEvent>()
             .add_systems(Startup, register_condition_evaluator_system)
@@ -69,52 +66,4 @@ impl Plugin for FREBridgePlugin {
                     .chain(),
             );
     }
-}
-
-/// Register item-specific Custom action handlers (UseItem, CheckItem, DropItem).
-///
-/// These handlers are invoked synchronously during view rule processing,
-/// maintaining fact visibility for subsequent actions in the same rule.
-fn register_item_action_extensions(extensions: &mut ViewActionExtensions) {
-    extensions.register("UseItem", |params, ctx| {
-        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
-        let start_dialogue = params
-            .get("start_dialogue")
-            .map_or(false, |v| v == "true");
-        item_actions::execute_use_item(
-            index_expr,
-            ctx.local_facts,
-            ctx.global_facts,
-            ctx.audio,
-            ctx.asset_server,
-            ctx.enum_registry,
-            start_dialogue,
-            &ctx.config.game.dialogue_view_default,
-            &ctx.config.game.dialogue_voice_default,
-        );
-    });
-
-    extensions.register("CheckItem", |params, ctx| {
-        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
-        item_actions::execute_check_item(
-            index_expr,
-            ctx.local_facts,
-            ctx.global_facts,
-            ctx.enum_registry,
-            &ctx.config.game.dialogue_view_default,
-            &ctx.config.game.dialogue_voice_default,
-        );
-    });
-
-    extensions.register("DropItem", |params, ctx| {
-        let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
-        item_actions::execute_drop_item(
-            index_expr,
-            ctx.local_facts,
-            ctx.global_facts,
-            ctx.enum_registry,
-            &ctx.config.game.dialogue_view_default,
-            &ctx.config.game.dialogue_voice_default,
-        );
-    });
 }
