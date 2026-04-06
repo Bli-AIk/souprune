@@ -15,11 +15,11 @@
         <!-- Serious Mode Toggle -->
         <button 
           @click="isSerious = !isSerious" 
-          class="text-white hover:text-yellow-300 transition-colors"
+          class="transition-colors"
+          :class="isSerious ? 'text-yellow-300 hover:text-white' : 'text-white hover:text-yellow-300'"
           :title="isSerious ? 'Switch to Lively Mode' : 'Switch to Serious Mode'"
         >
-          <Briefcase v-if="!isSerious" :size="20" />
-          <PartyPopper v-else :size="20" class="text-yellow-300" />
+          <Briefcase :size="20" />
         </button>
 
         <!-- Language Switcher -->
@@ -54,11 +54,12 @@
       <nav 
         :class="[
           'fixed md:static inset-0 top-16 bg-black/95 md:bg-transparent z-40',
-          'flex flex-col gap-6 w-full md:w-80 shrink-0 transition-transform duration-300',
+          'flex flex-col gap-6 w-full md:w-80 shrink-0 transition-transform duration-300 overflow-hidden',
           menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         ]"
       >
-        <div class="p-4 md:p-0 overflow-y-auto h-full">
+        <Transition name="nav-mode-switch" mode="out-in">
+        <div class="p-4 md:p-0 overflow-y-auto h-full" :key="isSerious ? 'serious' : 'lively'">
           <!-- User Card -->
           <div class="border-4 border-white bg-black p-4 mb-6 shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]">
             <div class="flex items-center gap-4 mb-2">
@@ -91,11 +92,12 @@
           
 
         </div>
+        </Transition>
       </nav>
 
       <!-- Right Column: The "Content Box" -->
       <main 
-        class="flex-1 min-w-0 relative h-full flex flex-col"
+        class="flex-1 min-w-0 relative h-full flex flex-col overflow-hidden"
         @touchstart="onTouchStart"
         @touchmove="onTouchMove"
         @touchend="onTouchEnd"
@@ -106,7 +108,7 @@
         >
           <div 
             v-if="activeDoc"
-            :key="activeDoc.id"
+            :key="activeDoc.id + (isSerious ? '-serious' : '')"
             class="flex-1 flex flex-col h-full pb-16 md:pb-0"
           >
             <div class="hud-box flex-1 flex flex-col relative overflow-hidden">
@@ -116,8 +118,58 @@
                 ref="contentScrollContainer"
                 class="p-4 md:p-12 overflow-y-auto flex-1 custom-scrollbar relative"
               >
-                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" />
+                <!-- Custom Warning (from front matter) -->
+                <div v-if="activeMetadata?.warning" class="mb-6 border-2 border-orange-700 bg-orange-900/20 px-4 py-3 text-sm font-pixel text-orange-400">
+                  {{ activeMetadata.warning }}
+                </div>
+                <!-- Version Mismatch Warning (top of page) -->
+                <div v-if="versionStatus === 'stale' && activeMetadata" class="mb-6 border-2 border-yellow-700 bg-yellow-900/20 px-4 py-3 text-sm font-pixel text-yellow-400">
+                  <template v-if="currentLang === 'zh-hans'">
+                    此文档基于 <span class="text-red-400">v{{ activeMetadata.version }}</span> 编写，当前框架版本为 <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>。内容可能已过时。
+                    [<span class="text-red-400">v{{ activeMetadata.version }}</span> → <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>]
+                  </template>
+                  <template v-else>
+                    This doc was written for <span class="text-red-400">v{{ activeMetadata.version }}</span>, but the current framework version is <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>. Content may be outdated.
+                    [<span class="text-red-400">v{{ activeMetadata.version }}</span> → <span class="text-green-400">v{{ SOUPRUNE_VERSION }}</span>]
+                  </template>
+                </div>
+                <div v-if="versionStatus === 'ahead' && activeMetadata" class="mb-6 border-2 border-cyan-700 bg-cyan-900/20 px-4 py-3 text-sm font-pixel text-cyan-400">
+                  <template v-if="currentLang === 'zh-hans'">
+                    此文档基于 <span class="text-green-400">v{{ activeMetadata.version }}</span> 编写，领先于当前框架版本 <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>。部分内容可能尚未实现。
+                    [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
+                  </template>
+                  <template v-else>
+                    This doc targets <span class="text-green-400">v{{ activeMetadata.version }}</span>, ahead of the current framework <span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span>. Some features may not be implemented yet.
+                    [<span class="text-red-400">v{{ SOUPRUNE_VERSION }}</span> → <span class="text-green-400">v{{ activeMetadata.version }}</span>]
+                  </template>
+                </div>
+                <MarkdownRenderer :content="(isSerious && activeDoc?.contentSerious) ? activeDoc.contentSerious : (activeDoc?.content || '')" @navigate-doc="handleDocLink" />
                 
+                <!-- Document Metadata (bottom of page) -->
+                <div v-if="activeMetadata" class="mt-12 border-2 border-gray-700 bg-gray-900/50 px-4 py-3 text-sm font-pixel">
+                  <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-400">
+                    <span v-if="activeMetadata.author" class="flex items-center gap-1">
+                      <span class="text-gray-500">Author</span>
+                      <span class="text-white">{{ activeMetadata.author }}</span>
+                    </span>
+                    <span v-if="activeMetadata.version" class="flex items-center gap-1">
+                      <span class="text-gray-500">Doc</span>
+                      <span :class="versionStatus === 'stale' ? 'text-red-400' : versionStatus === 'ahead' ? 'text-green-400' : 'text-white'">v{{ activeMetadata.version }}</span>
+                    </span>
+                    <span v-if="activeMetadata.version" class="flex items-center gap-1">
+                      <span class="text-gray-500">Framework</span>
+                      <span :class="versionStatus === 'stale' ? 'text-green-400' : versionStatus === 'ahead' ? 'text-red-400' : 'text-white'">v{{ SOUPRUNE_VERSION }}</span>
+                    </span>
+                    <span v-if="activeMetadata.date" class="flex items-center gap-1">
+                      <span class="text-gray-500">Date</span>
+                      <span class="text-white">{{ activeMetadata.date }}</span>
+                    </span>
+                    <div v-if="activeMetadata.tags?.length" class="flex items-center gap-1 flex-wrap">
+                      <span v-for="tag in activeMetadata.tags" :key="tag" class="bg-gray-800 text-yellow-300 px-2 py-0.5 text-xs border border-gray-600">{{ tag }}</span>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Page Footer with Navigation Hints -->
                 <div class="mt-16 pt-8 border-t-2 border-dashed border-gray-700 flex justify-between text-gray-500 text-xl items-center">
                   <button 
@@ -150,11 +202,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase, PartyPopper } from 'lucide-vue-next';
-import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA } from 'virtual:docs';
+import { Menu, X, Shield, ChevronLeft, ChevronRight, Utensils, Flame, Map, Sparkles, FlaskConical, Scroll, Briefcase } from 'lucide-vue-next';
+import { NAV_ITEMS as ALL_NAV_ITEMS, DOCS_DATA as ALL_DOCS_DATA, SOUPRUNE_VERSION } from 'virtual:docs';
 import MarkdownRenderer from './components/MarkdownRenderer.vue';
 import NavGroup from './components/NavGroup.vue';
-import { DocPage, NavItem } from './types';
+import { DocPage, DocMetadata, NavItem } from './types';
 import { SERIOUS_TITLES } from './titles';
 
 // Cast the imported data to Record<string, ...>
@@ -167,6 +219,31 @@ const activeId = ref<string>('intro');
 const menuOpen = ref(false);
 const direction = ref(0); // -1 for prev, 1 for next
 const transitionName = ref('slide-left');
+let suppressHashUpdate = false;
+
+// Parse URL hash: #/lang/docId or #/lang/docId/serious
+const parseHash = (): { lang?: string; id?: string; serious?: boolean } => {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  if (!hash) return {};
+  const parts = hash.split('/');
+  if (parts.length >= 3 && parts[parts.length - 1] === 'serious') {
+    return { lang: parts[0], id: parts.slice(1, -1).join('/'), serious: true };
+  }
+  if (parts.length >= 2) {
+    return { lang: parts[0], id: parts.slice(1).join('/') };
+  }
+  return { id: parts[0] };
+};
+
+// Update URL hash from current state
+const updateHash = () => {
+  if (suppressHashUpdate) return;
+  let newHash = `#/${currentLang.value}/${activeId.value}`;
+  if (isSerious.value) newHash += '/serious';
+  if (window.location.hash !== newHash) {
+    history.replaceState(null, '', newHash);
+  }
+};
 
 // Computed data based on language
 const currentDocsData = computed(() => docsDataMap[currentLang.value] || []);
@@ -184,6 +261,32 @@ const currentNavItems = computed(() => {
 
 // Active doc based on ID and current data
 const activeDoc = computed(() => currentDocsData.value.find(d => d.id === activeId.value));
+
+// Active metadata (switches between normal and serious mode metadata)
+const activeMetadata = computed((): DocMetadata | undefined => {
+  if (!activeDoc.value) return undefined;
+  if (isSerious.value && activeDoc.value.metadataSerious) {
+    return activeDoc.value.metadataSerious as DocMetadata;
+  }
+  return activeDoc.value.metadata as DocMetadata | undefined;
+});
+
+// Version comparison status
+const versionStatus = computed((): 'match' | 'stale' | 'ahead' | null => {
+  const meta = activeMetadata.value;
+  if (!meta?.version) return null;
+  
+  const docParts = meta.version.split('.').map(Number);
+  const curParts = SOUPRUNE_VERSION.split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(docParts.length, curParts.length); i++) {
+    const d = docParts[i] || 0;
+    const c = curParts[i] || 0;
+    if (d < c) return 'stale';
+    if (d > c) return 'ahead';
+  }
+  return 'match';
+});
 
 // Toggle Language
 const toggleLang = () => {
@@ -206,6 +309,37 @@ const updateMilliseconds = () => {
 // No updateScrollProgress function anymore
 
 onMounted(() => {
+  // Initialize from URL hash
+  const { lang, id, serious } = parseHash();
+  if (lang && (lang === 'en' || lang === 'zh-hans')) {
+    currentLang.value = lang;
+  }
+  if (id) {
+    const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === id);
+    if (exists) activeId.value = id;
+  }
+  if (serious) {
+    isSerious.value = true;
+  }
+  updateHash();
+
+  // Listen for browser back/forward
+  const onHashChange = () => {
+    const parsed = parseHash();
+    suppressHashUpdate = true;
+    if (parsed.lang && (parsed.lang === 'en' || parsed.lang === 'zh-hans')) {
+      currentLang.value = parsed.lang;
+    }
+    if (parsed.id) {
+      const exists = (docsDataMap[currentLang.value] || []).some(d => d.id === parsed.id);
+      if (exists) activeId.value = parsed.id!;
+    }
+    isSerious.value = !!parsed.serious;
+    suppressHashUpdate = false;
+  };
+  window.addEventListener('hashchange', onHashChange);
+  window.addEventListener('popstate', onHashChange);
+
   timeInterval = setInterval(() => {
     const now = new Date();
     day.value = String(now.getDate()).padStart(2, '0');
@@ -297,8 +431,8 @@ watch(activeId, async () => {
   if (contentScrollContainer.value) {
     contentScrollContainer.value.scrollTop = 0;
   }
-  // Update global progress
   updateGlobalProgress();
+  updateHash();
 });
 
 // Also watch language change to ensure we don't get stuck on invalid ID if sets differ
@@ -309,7 +443,19 @@ watch(currentLang, () => {
         activeId.value = currentDocsData.value[0].id;
     }
     updateGlobalProgress();
+    updateHash();
 });
+
+watch(isSerious, () => {
+  transitionName.value = 'mode-switch';
+  updateHash();
+});
+
+const buildHash = (lang: string, id: string) => {
+  let h = `#/${lang}/${id}`;
+  if (isSerious.value) h += '/serious';
+  return h;
+};
 
 const navigate = (dir: 'next' | 'prev') => {
   const currentIndex = flatNavOrder.value.findIndex(item => item.id === activeId.value);
@@ -321,7 +467,11 @@ const navigate = (dir: 'next' | 'prev') => {
   if (nextIndex >= 0 && nextIndex < flatNavOrder.value.length) {
     direction.value = dir === 'next' ? 1 : -1;
     transitionName.value = dir === 'next' ? 'slide-left' : 'slide-right';
-    activeId.value = flatNavOrder.value[nextIndex].id;
+    const newId = flatNavOrder.value[nextIndex].id;
+    history.pushState(null, '', buildHash(currentLang.value, newId));
+    suppressHashUpdate = true;
+    activeId.value = newId;
+    suppressHashUpdate = false;
   }
 };
 
@@ -331,8 +481,18 @@ const handleNavSelect = (id: string) => {
   
   direction.value = nextIndex > currentIndex ? 1 : -1;
   transitionName.value = nextIndex > currentIndex ? 'slide-left' : 'slide-right';
+  history.pushState(null, '', buildHash(currentLang.value, id));
+  suppressHashUpdate = true;
   activeId.value = id;
+  suppressHashUpdate = false;
   menuOpen.value = false;
+};
+
+const handleDocLink = (docId: string) => {
+  const exists = currentDocsData.value.some(d => d.id === docId);
+  if (exists) {
+    handleNavSelect(docId);
+  }
 };
 
 const onTouchStart = (e: TouchEvent) => {
@@ -390,6 +550,38 @@ const onTouchEnd = () => {
 .slide-right-leave-to {
   opacity: 0;
   transform: translateX(50px) scale(0.95);
+}
+
+/* Nav mode switch transition (sidebar: fly out/in beyond viewport) */
+.nav-mode-switch-enter-active,
+.nav-mode-switch-leave-active {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-mode-switch-leave-to {
+  opacity: 0;
+  transform: translateY(100vh);
+}
+
+.nav-mode-switch-enter-from {
+  opacity: 0;
+  transform: translateY(-100vh);
+}
+
+/* Mode switch transition — serious mode toggle (content: fly up out, fly down in) */
+.mode-switch-enter-active,
+.mode-switch-leave-active {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-switch-leave-to {
+  opacity: 0;
+  transform: translateY(-100vh);
+}
+
+.mode-switch-enter-from {
+  opacity: 0;
+  transform: translateY(100vh);
 }
 
 @keyframes spin-slow {

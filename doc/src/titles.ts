@@ -21,6 +21,7 @@ export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
     '1.2_danmaku': 'Danmaku Patterns',
     '1.3_animation': 'Animation Integration',
     '1.4_act': 'Interaction Logic (ACT)',
+    '1.5_mortar': 'Battle Dialogues (Mortar)',
     // Part 2
     '2.1_maps': 'Map Design',
     '2.2_mortar': 'Mortar Scripting',
@@ -60,6 +61,7 @@ export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
     '1.2_danmaku': '编排弹幕演出',
     '1.3_animation': '导入动画资源',
     '1.4_act': '编写交互逻辑',
+    '1.5_mortar': '编写战斗对话',
     // Part 2
     '2.1_maps': '地图绘制',
     '2.2_mortar': 'Mortar 脚本系统',
