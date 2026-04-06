@@ -11,7 +11,31 @@ keywords = ["editor", "game-engine", "bevy", "souprune"]
 categories = ["game-development", "game-engines", "development-tools"]
 
 [dependencies]
-bevy = "0.18"
+bevy = { version = "0.18", default-features = false, features = [
+    "bevy_asset",
+    "bevy_camera",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_image",
+    "bevy_log",
+    "bevy_mesh",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_shader",
+    "bevy_sprite",
+    "bevy_sprite_render",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_render",
+    "bevy_window",
+    "bevy_winit",
+    "default_font",
+    "multi_threaded",
+    "png",
+    "x11",
+    "wayland",
+] }
 bevy_workbench = { path = "../bevy_workbench" }
 bevy_egui = { version = "0.39", features = ["render"] }
 bevy_fact_rule_event = "0.4"
