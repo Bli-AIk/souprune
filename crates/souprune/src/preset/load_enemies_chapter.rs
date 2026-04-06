@@ -11,14 +11,15 @@
 //! 填充 enemy registry，并把推导出来的敌人 ID、名称、HP、攻击与防御写入
 //! layered fact 数据库，供后续战斗流程继续使用。
 
-use super::super::chapter_schema::Chapter;
-use super::super::context::{ActiveChapter, ChapterFinished};
+use super::enemy::{EnemyDef, EnemyRegistry};
+use crate::core::sequencer::chapter_schema::Chapter;
+use crate::core::sequencer::{ActiveChapter, ChapterFinished};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 
 #[derive(Component)]
 pub struct LoadEnemiesState {
-    pub handles: Vec<Handle<crate::core::enemy::EnemyDef>>,
+    pub handles: Vec<Handle<EnemyDef>>,
     pub processed: bool,
 }
 
@@ -33,7 +34,7 @@ pub fn process_load_enemies_chapter_system(
                 .iter()
                 .map(|path| {
                     info!("LoadEnemies Chapter: Loading '{}'", path);
-                    asset_server.load::<crate::core::enemy::EnemyDef>(path.clone())
+                    asset_server.load::<EnemyDef>(path.clone())
                 })
                 .collect();
 
@@ -49,8 +50,8 @@ pub fn complete_load_enemies_chapter_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut LoadEnemiesState), Without<ChapterFinished>>,
     mut layered_db: ResMut<LayeredFactDatabase>,
-    enemy_assets: Res<Assets<crate::core::enemy::EnemyDef>>,
-    mut enemy_registry: ResMut<crate::core::enemy::EnemyRegistry>,
+    enemy_assets: Res<Assets<EnemyDef>>,
+    mut enemy_registry: ResMut<EnemyRegistry>,
 ) {
     for (entity, mut state) in query.iter_mut() {
         if state.processed {
@@ -71,7 +72,7 @@ pub fn complete_load_enemies_chapter_system(
 
         for handle in &state.handles {
             if let Some(enemy) = enemy_assets.get(handle) {
-                crate::core::enemy::project_enemy_facts(enemy, layered_db.local_mut());
+                super::enemy::project_enemy_facts(enemy, layered_db.local_mut());
 
                 enemy_ids.push(enemy.id.clone());
                 enemy_names.push(enemy.locale.name.clone());

@@ -43,13 +43,11 @@ pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
 pub mod dialogue;
-pub mod enemy;
 pub mod event_phase;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod game_action;
 pub mod input;
-pub mod item;
 pub mod map_property_schema;
 pub mod mod_system;
 pub mod mode;
@@ -101,11 +99,9 @@ impl Plugin for CorePlugin {
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
-                enemy::EnemyPlugin,
                 event_phase::EventPhasePlugin,
                 fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
-                item::ItemPlugin,
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
             ));

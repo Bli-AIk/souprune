@@ -144,6 +144,7 @@ pub fn get_third_plugins() -> (
 
 pub fn get_game_plugins() -> (
     CorePlugin,
+    crate::preset::PresetPlugin,
     app_setup::AppSetupPlugin,
     overworld::OverworldPlugin,
     battle::BattlePlugin,
@@ -152,6 +153,7 @@ pub fn get_game_plugins() -> (
 ) {
     (
         CorePlugin,
+        crate::preset::PresetPlugin,
         app_setup::AppSetupPlugin,
         overworld::OverworldPlugin,
         battle::BattlePlugin,
