@@ -61,6 +61,10 @@ impl Plugin for ModPlugin {
                 schedule,
                 custom_actions::dispatch_wasm_custom_actions_system
                     .after(crate::core::fre_bridge::dispatch_custom_actions_system),
+            )
+            .add_systems(
+                schedule,
+                dispatch_mode_lifecycle_system,
             );
     }
 }
@@ -575,6 +579,60 @@ fn update_behaviors_system(
                 frame_count.0 as u64,
                 &format!("behavior:{mod_name}"),
             );
+        }
+    }
+}
+
+// === E4: Mode Lifecycle Bridge ===
+
+/// Dispatches mode lifecycle events (enter/exit) to all loaded WASM mods.
+fn dispatch_mode_lifecycle_system(
+    mut mode_events: MessageReader<crate::core::mode::ModeChanged>,
+    mut loaded_mods: NonSendMut<LoadedMods>,
+    mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
+) {
+    let events: Vec<crate::core::mode::ModeChanged> = mode_events.read().cloned().collect();
+    if events.is_empty() {
+        return;
+    }
+
+    for event in &events {
+        // Call on-mode-exit for the old mode
+        if let Some(ref from) = event.from {
+            for loaded in &mut loaded_mods.mods {
+                if !loaded.has_mode_lifecycle {
+                    continue;
+                }
+                let iface = loaded.bindings.souprune_plugin_mode_lifecycle();
+                let start = std::time::Instant::now();
+                if let Err(e) = iface.call_on_mode_exit(&mut loaded.store, from) {
+                    error!(
+                        "WASM mod '{}' on-mode-exit('{}') failed: {:?}",
+                        loaded.name, from, e
+                    );
+                }
+                let elapsed = start.elapsed();
+                wasm_tracer.record(&loaded.name, "mode-lifecycle", "on_mode_exit", elapsed);
+            }
+        }
+
+        // Call on-mode-enter for the new mode
+        if let Some(ref to) = event.to {
+            for loaded in &mut loaded_mods.mods {
+                if !loaded.has_mode_lifecycle {
+                    continue;
+                }
+                let iface = loaded.bindings.souprune_plugin_mode_lifecycle();
+                let start = std::time::Instant::now();
+                if let Err(e) = iface.call_on_mode_enter(&mut loaded.store, to) {
+                    error!(
+                        "WASM mod '{}' on-mode-enter('{}') failed: {:?}",
+                        loaded.name, to, e
+                    );
+                }
+                let elapsed = start.elapsed();
+                wasm_tracer.record(&loaded.name, "mode-lifecycle", "on_mode_enter", elapsed);
+            }
         }
     }
 }

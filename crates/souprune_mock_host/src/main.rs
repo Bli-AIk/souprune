@@ -69,6 +69,40 @@ impl souprune::plugin::host_api::Host for MockHostState {
     fn emit_event(&mut self, event_name: String) {
         println!("[HOST] emit_event: {}", event_name);
     }
+
+    fn get_entity_position_by_tag(&mut self, tag: String) -> Option<souprune::plugin::host_api::Vec2> {
+        println!("[HOST] get_entity_position_by_tag: {}", tag);
+        None
+    }
+
+    fn spawn_emitter(&mut self, pattern_id: String, position: souprune::plugin::host_api::Vec2) -> u64 {
+        println!("[HOST] spawn_emitter: {} at ({}, {})", pattern_id, position.x, position.y);
+        0
+    }
+
+    fn despawn_emitter(&mut self, handle: u64) {
+        println!("[HOST] despawn_emitter: {}", handle);
+    }
+
+    fn open_view(&mut self, view_id: String) {
+        println!("[HOST] open_view: {}", view_id);
+    }
+
+    fn close_view(&mut self) {
+        println!("[HOST] close_view");
+    }
+
+    fn play_sound(&mut self, sound_key: String) {
+        println!("[HOST] play_sound: {}", sound_key);
+    }
+
+    fn get_current_mode(&mut self) -> Option<String> {
+        Some("overworld".to_string())
+    }
+
+    fn get_current_sub_state(&mut self) -> String {
+        "Normal".to_string()
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -278,6 +312,30 @@ fn main() -> anyhow::Result<()> {
         ];
         let result = ca_iface.call_handle_action(&mut store, action_type, &params)?;
         println!("[HOST] handle_action '{}' -> {}", action_type, result);
+    }
+
+    // Test mode lifecycle
+    let ml_iface = bindings.souprune_plugin_mode_lifecycle();
+    println!("\n[HOST] Testing mode-lifecycle...");
+    ml_iface.call_on_mode_enter(&mut store, "battle")?;
+    ml_iface.call_on_sub_state_change(&mut store, "battle", "Normal", "Attack")?;
+    ml_iface.call_on_mode_exit(&mut store, "battle")?;
+    println!("[HOST] mode-lifecycle calls completed");
+
+    // Test rule provider
+    let rp_iface = bindings.souprune_plugin_rule_provider();
+    let rules = rp_iface.call_list_rules(&mut store)?;
+    println!("\n[HOST] Rule provider returned {} rule(s):", rules.len());
+    for rule in &rules {
+        println!(
+            "  Rule '{}': trigger='{}', priority={}, conditions={}, actions={}, outputs={}",
+            rule.id,
+            rule.trigger_event,
+            rule.priority,
+            rule.conditions.len(),
+            rule.actions.len(),
+            rule.outputs.len(),
+        );
     }
 
     println!("\n--- Done ---");

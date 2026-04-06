@@ -142,6 +142,50 @@ impl Context {
     pub fn emit_event(&self, event: &str) {
         host_api::emit_event(event);
     }
+
+    // === E6: Extended host-api helpers ===
+
+    /// Get the position of a named entity by tag. Returns None if not found.
+    pub fn get_entity_position_by_tag(&self, tag: &str) -> Option<Vec2> {
+        host_api::get_entity_position_by_tag(tag)
+            .map(|pos| Vec2::new(pos.x, pos.y))
+    }
+
+    /// Spawn a bullet emitter with the given pattern ID at a position.
+    /// Returns an opaque handle that can be used to despawn it later.
+    pub fn spawn_emitter(&self, pattern_id: &str, x: f32, y: f32) -> u64 {
+        host_api::spawn_emitter(pattern_id, host_api::Vec2 { x, y })
+    }
+
+    /// Despawn a previously spawned emitter by handle.
+    pub fn despawn_emitter(&self, handle: u64) {
+        host_api::despawn_emitter(handle);
+    }
+
+    /// Open a named view (must be defined in a `.view_layout.ron` file).
+    pub fn open_view(&self, view_id: &str) {
+        host_api::open_view(view_id);
+    }
+
+    /// Close the currently active view (if any).
+    pub fn close_view(&self) {
+        host_api::close_view();
+    }
+
+    /// Play a sound effect by asset key.
+    pub fn play_sound(&self, sound_key: &str) {
+        host_api::play_sound(sound_key);
+    }
+
+    /// Get the current mode name. Returns None if no mode is active.
+    pub fn get_current_mode(&self) -> Option<String> {
+        host_api::get_current_mode()
+    }
+
+    /// Get the current sub-state name within the active mode.
+    pub fn get_current_sub_state(&self) -> String {
+        host_api::get_current_sub_state()
+    }
 }
 
 impl Default for Context {

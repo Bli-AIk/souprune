@@ -37,6 +37,24 @@ pub struct CallContext {
     pub pending_fact_mutations: Vec<(String, FactValue)>,
     /// FRE events queued by the mod during a callback; emitted afterwards.
     pub pending_events: Vec<String>,
+    /// Named entity positions for `get-entity-position-by-tag` queries.
+    pub entity_positions_by_tag: HashMap<String, Vec2>,
+    /// Current mode name for `get-current-mode`.
+    pub current_mode: Option<String>,
+    /// Current sub-state name for `get-current-sub-state`.
+    pub current_sub_state: String,
+    /// Pending view open requests (view-id strings).
+    pub pending_view_opens: Vec<String>,
+    /// Whether a close-view was requested.
+    pub pending_view_close: bool,
+    /// Pending sound play requests (sound-key strings).
+    pub pending_sounds: Vec<String>,
+    /// Pending emitter spawn requests: (pattern_id, position) → assigned handle.
+    pub pending_emitter_spawns: Vec<(String, Vec2)>,
+    /// Pending emitter despawn requests (handles).
+    pub pending_emitter_despawns: Vec<u64>,
+    /// Counter for assigning emitter handles within a single callback invocation.
+    pub emitter_handle_counter: u64,
 }
 
 /// Host state stored inside the Wasmtime `Store`.
@@ -102,6 +120,46 @@ impl souprune::plugin::host_api::Host for HostState {
     fn emit_event(&mut self, event_name: String) {
         self.call_ctx.pending_events.push(event_name);
     }
+
+    fn get_entity_position_by_tag(&mut self, tag: String) -> Option<souprune::plugin::host_api::Vec2> {
+        self.call_ctx
+            .entity_positions_by_tag
+            .get(&tag)
+            .map(|pos| souprune::plugin::host_api::Vec2 { x: pos.x, y: pos.y })
+    }
+
+    fn spawn_emitter(&mut self, pattern_id: String, position: souprune::plugin::host_api::Vec2) -> u64 {
+        let handle = self.call_ctx.emitter_handle_counter;
+        self.call_ctx.emitter_handle_counter += 1;
+        self.call_ctx
+            .pending_emitter_spawns
+            .push((pattern_id, Vec2::new(position.x, position.y)));
+        handle
+    }
+
+    fn despawn_emitter(&mut self, handle: u64) {
+        self.call_ctx.pending_emitter_despawns.push(handle);
+    }
+
+    fn open_view(&mut self, view_id: String) {
+        self.call_ctx.pending_view_opens.push(view_id);
+    }
+
+    fn close_view(&mut self) {
+        self.call_ctx.pending_view_close = true;
+    }
+
+    fn play_sound(&mut self, sound_key: String) {
+        self.call_ctx.pending_sounds.push(sound_key);
+    }
+
+    fn get_current_mode(&mut self) -> Option<String> {
+        self.call_ctx.current_mode.clone()
+    }
+
+    fn get_current_sub_state(&mut self) -> String {
+        self.call_ctx.current_sub_state.clone()
+    }
 }
 
 fn action_to_index(action: souprune::plugin::host_api::Action) -> usize {
@@ -166,6 +224,8 @@ pub struct LoadedMod {
     pub pattern_ids: Vec<String>,
     /// Custom FRE action types handled by this mod.
     pub handled_action_ids: Vec<String>,
+    /// Whether this mod exports mode-lifecycle callbacks.
+    pub has_mode_lifecycle: bool,
     /// Human-readable name for this mod (used in diagnostics/tracing).
     pub name: String,
 }
@@ -224,6 +284,19 @@ impl WasmRuntime {
             .souprune_plugin_custom_action_handler()
             .call_list_handled_actions(&mut store)?;
 
+        // E5: Collect rules from the rule-provider interface.
+        let provided_rules = bindings
+            .souprune_plugin_rule_provider()
+            .call_list_rules(&mut store)?;
+        let has_rules = !provided_rules.is_empty();
+        if has_rules {
+            info!(
+                "WASM mod '{}' provides {} FRE rule(s)",
+                mod_name,
+                provided_rules.len()
+            );
+        }
+
         Ok(LoadedMod {
             store,
             bindings,
@@ -231,7 +304,19 @@ impl WasmRuntime {
             algorithm_ids,
             pattern_ids,
             handled_action_ids,
+            has_mode_lifecycle: true,
             name: mod_name,
         })
+    }
+
+    /// Collect FRE rule definitions from a loaded mod.
+    pub fn collect_rules(
+        loaded: &mut LoadedMod,
+    ) -> anyhow::Result<Vec<exports::souprune::plugin::rule_provider::RuleDef>> {
+        let rules = loaded
+            .bindings
+            .souprune_plugin_rule_provider()
+            .call_list_rules(&mut loaded.store)?;
+        Ok(rules)
     }
 }

@@ -50,7 +50,8 @@ pub mod traits;
 
 pub use context::{Context, FactValue, Vec2};
 pub use traits::{
-    ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
+    ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
+    RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
 };
 
 // Generate guest bindings from the WIT interface
@@ -65,6 +66,8 @@ pub mod wit {
     pub use super::exports::souprune::plugin::behavior::GuestBehaviorInstance;
     pub use super::exports::souprune::plugin::danmaku::GuestDanmakuInstance;
     pub use super::exports::souprune::plugin::spawn_pattern::GuestPatternInstance;
+    pub use super::exports::souprune::plugin::mode_lifecycle::Guest as GuestModeLifecycle;
+    pub use super::exports::souprune::plugin::rule_provider::Guest as GuestRuleProvider;
     pub use super::souprune::plugin::host_api;
 }
 
@@ -287,7 +290,8 @@ impl BulletOutput {
 pub mod prelude {
     pub use crate::context::{Context, FactValue, Vec2};
     pub use crate::traits::{
-        ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, SpawnPatternBehavior,
+        ActionParam, Behavior, CustomActionHandler, DanmakuBehavior, ModeLifecycle, RuleAction,
+        RuleDef, RuleModification, RuleProvider, SpawnPatternBehavior,
     };
     pub use crate::{
         Action, BulletContext, BulletOutput, SpawnContext, SpawnOutput, SpawnParam, export_mod,
@@ -320,13 +324,15 @@ pub mod prelude {
 #[macro_export]
 macro_rules! export_mod {
     // =========================================================================
-    // PRIMARY FORM — generates all code (requires explicit custom_actions type)
+    // PRIMARY FORM — generates all code (requires all explicit types)
     // =========================================================================
     (
         behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
         danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
         patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
-        custom_actions: $ca_type:ty $(,)?
+        custom_actions: $ca_type:ty,
+        mode_lifecycle: $ml_type:ty,
+        rule_provider: $rp_type:ty $(,)?
     ) => {
         // --- Behavior resource wrapper ---
         struct WasmBehaviorInstance {
@@ -473,12 +479,79 @@ macro_rules! export_mod {
             }
         }
 
+        impl $crate::exports::souprune::plugin::mode_lifecycle::Guest for ModComponent {
+            fn on_mode_enter(mode: String) {
+                let handler = <$ml_type as Default>::default();
+                <$ml_type as $crate::ModeLifecycle>::on_mode_enter(&handler, &mode);
+            }
+
+            fn on_mode_exit(mode: String) {
+                let handler = <$ml_type as Default>::default();
+                <$ml_type as $crate::ModeLifecycle>::on_mode_exit(&handler, &mode);
+            }
+
+            fn on_sub_state_change(mode: String, old_state: String, new_state: String) {
+                let handler = <$ml_type as Default>::default();
+                <$ml_type as $crate::ModeLifecycle>::on_sub_state_change(
+                    &handler, &mode, &old_state, &new_state,
+                );
+            }
+        }
+
+        impl $crate::exports::souprune::plugin::rule_provider::Guest for ModComponent {
+            fn list_rules() -> Vec<$crate::exports::souprune::plugin::rule_provider::RuleDef> {
+                let rules = <$rp_type as $crate::RuleProvider>::list_rules();
+                rules
+                    .into_iter()
+                    .map(|r| $crate::exports::souprune::plugin::rule_provider::RuleDef {
+                        id: r.id,
+                        priority: r.priority,
+                        trigger_event: r.trigger_event,
+                        conditions: r.conditions,
+                        actions: r.actions
+                            .into_iter()
+                            .map(|a| $crate::exports::souprune::plugin::rule_provider::RuleAction {
+                                action_type: a.action_type,
+                                params: a.params,
+                            })
+                            .collect(),
+                        modifications: r.modifications
+                            .into_iter()
+                            .map(|m| $crate::exports::souprune::plugin::rule_provider::RuleModification {
+                                key: m.key,
+                                op: m.op,
+                                value: m.value,
+                            })
+                            .collect(),
+                        outputs: r.outputs,
+                    })
+                    .collect()
+            }
+        }
+
         $crate::export!(ModComponent with_types_in $crate);
     };
 
     // =========================================================================
-    // ALL REMAINING FORMS — delegate to primary with NoopCustomActionHandler
+    // ALL REMAINING FORMS — delegate to primary with defaults for new fields
     // =========================================================================
+
+    // custom_actions only (no mode_lifecycle/rule_provider) — backward compatible
+    (
+        behaviors: [ $( ($b_id:literal, $b_type:ty, $b_ctor:expr) ),* $(,)? ] $(,)?
+        danmaku: [ $( ($d_id:literal, $d_type:ty, $d_ctor:expr) ),* $(,)? ] $(,)?
+        patterns: [ $( ($p_id:literal, $p_type:ty, $p_ctor:expr) ),* $(,)? ] $(,)?
+        custom_actions: $ca_type:ty $(,)?
+    ) => {
+        $crate::export_mod! {
+            behaviors: [ $( ($b_id, $b_type, $b_ctor), )* ],
+            danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
+            patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
+            custom_actions: $ca_type,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
+        }
+    };
 
     // 3-tuple: all 3 interfaces, no custom_actions
     (
@@ -491,6 +564,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
             patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -504,6 +579,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -516,6 +593,8 @@ macro_rules! export_mod {
             danmaku: [],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -528,6 +607,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, $d_ctor), )* ],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -540,6 +621,8 @@ macro_rules! export_mod {
             danmaku: [],
             patterns: [ $( ($p_id, $p_type, $p_ctor), )* ],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -559,6 +642,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
             custom_actions: $ca_type,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -573,6 +658,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -586,6 +673,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -598,6 +687,8 @@ macro_rules! export_mod {
             danmaku: [],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -610,6 +701,8 @@ macro_rules! export_mod {
             danmaku: [ $( ($d_id, $d_type, || <$d_type as Default>::default()), )* ],
             patterns: [],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 
@@ -622,6 +715,8 @@ macro_rules! export_mod {
             danmaku: [],
             patterns: [ $( ($p_id, $p_type, || <$p_type as Default>::default()), )* ],
             custom_actions: $crate::traits::NoopCustomActionHandler,
+            mode_lifecycle: $crate::traits::NoopModeLifecycle,
+            rule_provider: $crate::traits::NoopRuleProvider,
         }
     };
 }
