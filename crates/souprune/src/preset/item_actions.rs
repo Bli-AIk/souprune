@@ -11,6 +11,20 @@ use bevy_fact_rule_event::{CombinedFactReader, EnumRegistry, FactReader, FactVal
 use crate::core::fre_bridge::eval::evaluate_local_fact_value;
 use crate::core::{audio, fre_facts};
 
+// ── Item dialogue fact keys ─────────────────────────────────────────
+// These are game-specific fact keys set by the preset item system
+// and consumed by the dialogue system via MortarFactBindings.
+
+/// Item locale key (e.g. "items:MONSTER_CANDY"), for mortar variable {item_name}.
+pub const DIALOGUE_ITEM_NAME: &str = "dialogue:item_name";
+/// Item description text, for mortar variable {item_description}.
+pub const DIALOGUE_ITEM_DESCRIPTION: &str = "dialogue:item_description";
+/// Actual heal amount (computed post-heal), for mortar variable {heal_amount}.
+pub const DIALOGUE_ITEM_HEAL_AMOUNT: &str = "dialogue:item_heal_amount";
+/// Item numeric value (Food heal / Weapon damage / Armor defense),
+/// for mortar function get_item_value().
+pub const DIALOGUE_ITEM_VALUE: &str = "dialogue:item_value";
+
 /// Resolve an index expression (e.g., "$item_selection") to a usize index.
 pub(crate) fn resolve_index_expr(
     index_expr: &str,
@@ -196,22 +210,16 @@ fn set_item_dialogue_data(
     global_facts: &mut bevy_fact_rule_event::LayeredFactDatabase,
     item_data: ItemDialogueData,
 ) {
+    global_facts.set_local(DIALOGUE_ITEM_NAME, FactValue::String(item_data.locale_key));
     global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_NAME,
-        FactValue::String(item_data.locale_key),
-    );
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_DESCRIPTION,
+        DIALOGUE_ITEM_DESCRIPTION,
         FactValue::String(item_data.description),
     );
     global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT,
+        DIALOGUE_ITEM_HEAL_AMOUNT,
         FactValue::Int(item_data.heal_amount),
     );
-    global_facts.set_local(
-        fre_facts::DIALOGUE_ITEM_VALUE,
-        FactValue::Int(item_data.item_value),
-    );
+    global_facts.set_local(DIALOGUE_ITEM_VALUE, FactValue::Int(item_data.item_value));
 }
 
 /// Execute item effects for a Food item (heal, audio, child spawn).

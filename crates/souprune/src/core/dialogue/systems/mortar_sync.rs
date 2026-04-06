@@ -20,7 +20,6 @@ use bevy_mortar_bond::{
 };
 
 use super::lifecycle::DialogueControllerEntity;
-use crate::core::fre_facts;
 
 /// Configurable bindings between FRE facts and Mortar runtime functions/variables.
 ///
@@ -59,52 +58,23 @@ pub fn prepare_item_dialogue_mortar_system(
         return;
     }
 
-    // Core dialogue item facts — always available
-    let heal_amount = facts
-        .get_int(fre_facts::DIALOGUE_ITEM_HEAL_AMOUNT)
-        .unwrap_or(0) as f64;
-    let item_value = facts.get_int(fre_facts::DIALOGUE_ITEM_VALUE).unwrap_or(0) as f64;
-
-    runtime.functions.register("get_heal_amount", move |_| {
-        MortarValue::Number(MortarNumber(heal_amount))
-    });
-    runtime.functions.register("get_item_value", move |_| {
-        MortarValue::Number(MortarNumber(item_value))
-    });
-
-    // Configurable bindings — registered by game/preset
-    if let Some(bindings) = bindings.as_ref() {
-        for (func_name, fact_key, default) in &bindings.number_functions {
-            let value = facts
-                .get_int(fact_key)
-                .map(|v| v as f64)
-                .unwrap_or(*default);
-            let func_name = func_name.clone();
-            runtime.functions.register(&func_name, move |_| {
-                MortarValue::Number(MortarNumber(value))
-            });
-        }
-    }
-
-    let vs = variables.state.get_or_insert_with(MortarVariableState::new);
-
-    // Core dialogue item variables
-    if let Some(locale_key) = facts.get_string(fre_facts::DIALOGUE_ITEM_NAME) {
-        let display_name = mortar_strings.resolve(locale_key).to_string();
-        vs.set("item_name", MortarVariableValue::String(display_name));
-    }
-    if let Some(desc) = facts.get_string(fre_facts::DIALOGUE_ITEM_DESCRIPTION) {
-        vs.set(
-            "item_description",
-            MortarVariableValue::String(desc.to_string()),
-        );
-    }
-    vs.set("heal_amount", MortarVariableValue::Number(heal_amount));
-
-    // Configurable variable bindings
     let Some(bindings) = bindings.as_ref() else {
         return;
     };
+
+    // Number function bindings (e.g. get_heal_amount → dialogue:item_heal_amount)
+    for (func_name, fact_key, default) in &bindings.number_functions {
+        let value = facts
+            .get_int(fact_key)
+            .map(|v| v as f64)
+            .unwrap_or(*default);
+        let func_name = func_name.clone();
+        runtime.functions.register(&func_name, move |_| {
+            MortarValue::Number(MortarNumber(value))
+        });
+    }
+
+    let vs = variables.state.get_or_insert_with(MortarVariableState::new);
     for (var_name, fact_key, resolve_locale) in &bindings.string_variables {
         if let Some(value) = facts.get_string(fact_key) {
             let resolved = if *resolve_locale {

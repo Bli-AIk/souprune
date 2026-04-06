@@ -18,7 +18,7 @@ pub mod battle_runtime;
 mod data_paths;
 pub mod enemy;
 pub mod item;
-mod item_actions;
+pub(crate) mod item_actions;
 mod load_enemies_chapter;
 pub mod overworld;
 

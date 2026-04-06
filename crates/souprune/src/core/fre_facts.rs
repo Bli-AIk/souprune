@@ -57,18 +57,6 @@ pub const DIALOGUE_REPLAY_ON_RESUME: &str = "dialogue:replay_on_resume";
 /// 停止打字机事件前缀（匹配 "dialogue:stop*"）
 pub const DIALOGUE_STOP_PREFIX: &str = "dialogue:stop";
 
-// ── Item dialogue facts (set by fre_bridge, read by mortar sync system) ──
-
-/// 物品本地化键（e.g. "items:MONSTER_CANDY"），用于 mortar 变量 {item_name}
-pub const DIALOGUE_ITEM_NAME: &str = "dialogue:item_name";
-/// 物品描述文本，用于 mortar 变量 {item_description}
-pub const DIALOGUE_ITEM_DESCRIPTION: &str = "dialogue:item_description";
-/// 实际治愈量（heal 后计算的值），用于 mortar 变量 {heal_amount}
-pub const DIALOGUE_ITEM_HEAL_AMOUNT: &str = "dialogue:item_heal_amount";
-/// 物品数值（Food 的 heal 定义值 / Weapon 的 damage / Armor 的 defense），
-/// 用于 mortar 函数 get_item_value()
-pub const DIALOGUE_ITEM_VALUE: &str = "dialogue:item_value";
-
 // ── State facts (synced from Bevy states) ──────────────────────────
 
 /// 当前 SequenceSubState 名称

@@ -291,7 +291,7 @@ impl WasmRuntime {
             .souprune_plugin_custom_action_handler()
             .call_list_handled_actions(&mut store)?;
 
-        // E5: Collect rules from the rule-provider interface.
+        // Collect rules from the rule-provider interface.
         let provided_rules = bindings
             .souprune_plugin_rule_provider()
             .call_list_rules(&mut store)?;
