@@ -64,8 +64,6 @@ interface host-api {
     /// Emit a FRE event by name.
     emit-event: func(event-name: string);
 
-    // === E6 Extensions: entity, emitter, view, sound ===
-
     /// Query the position of a named entity (by tag or marker fact).
     /// Returns none if the entity is not found.
     get-entity-position-by-tag: func(tag: string) -> option<vec2>;
