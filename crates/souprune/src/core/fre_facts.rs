@@ -1,19 +1,12 @@
 //! Centralized FRE fact key constants.
 //!
 //! 集中管理的 FRE fact key 常量。
-//! 所有在代码中引用的 fact key 字符串都应在此定义，
+//! 所有在 core/ 代码中引用的 fact key 字符串都应在此定义，
 //! 以避免拼写错误和方便全局搜索。
 //!
-//! ## 分区说明
-//!
-//! - **Core facts** (`dialogue:*`, `state:*`, `view:*`):
-//!   核心基础设施所需，属于引擎固有功能，不随 preset 变化。
-//!
-//! - **Game-specific facts** (`player:*`, `enemy:*`):
-//!   游戏逻辑相关，理想状态下应由 preset 的 `schema.fre.ron` 定义。
-//!   目前仍在 core 中，因为 `mortar_sync` 和 `view/update` 系统需要
-//!   读取 `player:hp` 等值。Stage D 将通过可配置的 fact schema 机制
-//!   消除这些硬编码。
+//! 本文件只包含引擎基础设施所需的 core facts。
+//! 游戏特定的 fact key（如 `player:hp`、`enemy:*`）
+//! 由各 app_state 模块自行定义或直接使用字符串字面量。
 
 // ============================================================================
 // Core Facts — 引擎基础设施，不随 preset 变化
@@ -89,32 +82,3 @@ pub const STATE_APP_STATE: &str = "state:app_state";
 pub const VIEW_CLOSE_REQUESTED: &str = "view:close_requested";
 /// 请求切换状态的局部标志（值为目标状态名）
 pub const VIEW_SWITCH_STATE: &str = "view:switch_state";
-
-// ============================================================================
-// Game-Specific Facts — 应由 preset 的 schema.fre.ron 定义
-// Stage D 将引入可配置的 fact schema 机制来取代这些硬编码常量。
-// ============================================================================
-
-// ── Player facts ───────────────────────────────────────────────────
-
-/// 玩家当前 HP
-pub const PLAYER_HP: &str = "player:hp";
-/// 玩家最大 HP
-pub const PLAYER_HP_MAX: &str = "player:hp_max";
-/// 待处理的玩家伤害
-pub const PENDING_PLAYER_DAMAGE: &str = "player:pending_damage";
-
-// ── Enemy facts ────────────────────────────────────────────────────
-
-/// Generate an enemy fact key by slot index and field name.
-/// e.g. `enemy_fact_key(0, "hp")` → `"enemy:0:hp"`
-///
-/// 根据敌人槽位索引和字段名生成 fact key。
-pub fn enemy_fact_key(index: usize, field: &str) -> String {
-    format!("enemy:{index}:{field}")
-}
-
-/// 敌人 0 的当前 HP
-pub const ENEMY_0_HP: &str = "enemy:0:hp";
-/// 待处理的敌人 0 伤害
-pub const PENDING_ENEMY_0_DAMAGE: &str = "enemy:0:pending_damage";

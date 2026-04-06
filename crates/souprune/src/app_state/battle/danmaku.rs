@@ -14,7 +14,6 @@ pub use crate::core::danmaku::*;
 
 use crate::core::battle_player::BattleInvincibilityConfig;
 use crate::core::collision::TriggerCollider;
-use crate::core::fre_facts;
 use crate::core::mod_system::BehaviorParams;
 use bevy::prelude::*;
 
@@ -216,10 +215,10 @@ fn battle_damage_detection_system(
 
             // Apply damage to player HP (fixed integer damage)
             let damage = bullet_damage.0 as usize;
-            let current_hp = layered_db.get_int(fre_facts::PLAYER_HP).unwrap_or(20) as usize;
-            let hp_max = layered_db.get_int(fre_facts::PLAYER_HP_MAX).unwrap_or(20) as usize;
+            let current_hp = layered_db.get_int("player:hp").unwrap_or(20) as usize;
+            let hp_max = layered_db.get_int("player:hp_max").unwrap_or(20) as usize;
             let new_hp = current_hp.saturating_sub(damage);
-            layered_db.set_global(fre_facts::PLAYER_HP, new_hp as i64);
+            layered_db.set_global("player:hp", new_hp as i64);
 
             // Start player invincibility
             player_invincibility.start(invincibility_config.duration);

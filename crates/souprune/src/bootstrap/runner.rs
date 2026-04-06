@@ -186,5 +186,21 @@ pub fn run() {
         .insert_resource(input_behavior_config);
 
     init_game_state(&mut app);
+
+    // Register game-specific mortar fact bindings.
+    // These map FRE fact keys → Mortar dialogue functions/variables.
+    use crate::core::dialogue::MortarFactBindings;
+    app.insert_resource(MortarFactBindings {
+        number_functions: vec![
+            ("get_player_hp".to_string(), "player:hp".to_string(), 20.0),
+            (
+                "get_player_hp_max".to_string(),
+                "player:hp_max".to_string(),
+                20.0,
+            ),
+        ],
+        ..Default::default()
+    });
+
     app.add_plugins(get_game_plugins()).run();
 }
