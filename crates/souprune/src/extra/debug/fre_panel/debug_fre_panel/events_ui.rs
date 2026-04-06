@@ -40,31 +40,33 @@ pub(super) fn render_trace_events_tab(ui: &mut egui::Ui, world: &mut World) {
             );
             egui::CollapsingHeader::new(header)
                 .default_open(total_frames <= 5)
-                .show(ui, |ui| {
-                    for (i, event) in frame.events.iter().enumerate() {
-                        let phase_icon = match event.phase {
-                            EventPhase::Physics => "⚙",
-                            EventPhase::Logic => "🧠",
-                            EventPhase::Presentation => "🎨",
-                        };
-                        let indent = if event.caused_by.is_some() {
-                            "  └─ "
-                        } else {
-                            ""
-                        };
-                        let causal = event
-                            .caused_by
-                            .map(|idx| format!(" (← #{idx})"))
-                            .unwrap_or_default();
-
-                        ui.horizontal(|ui| {
-                            ui.label(format!(
-                                "{}#{} {} [{}] {}{}",
-                                indent, i, phase_icon, event.event_type, event.detail, causal
-                            ));
-                        });
-                    }
-                });
+                .show(ui, |ui| render_frame_events(ui, &frame.events));
         }
     });
+}
+
+fn render_frame_events(ui: &mut egui::Ui, events: &[crate::core::trace::TracedEvent]) {
+    for (i, event) in events.iter().enumerate() {
+        let phase_icon = match event.phase {
+            EventPhase::Physics => "⚙",
+            EventPhase::Logic => "🧠",
+            EventPhase::Presentation => "🎨",
+        };
+        let indent = if event.caused_by.is_some() {
+            "  └─ "
+        } else {
+            ""
+        };
+        let causal = event
+            .caused_by
+            .map(|idx| format!(" (← #{idx})"))
+            .unwrap_or_default();
+
+        ui.horizontal(|ui| {
+            ui.label(format!(
+                "{}#{} {} [{}] {}{}",
+                indent, i, phase_icon, event.event_type, event.detail, causal
+            ));
+        });
+    }
 }

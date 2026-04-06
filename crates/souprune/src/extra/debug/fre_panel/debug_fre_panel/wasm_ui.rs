@@ -52,18 +52,7 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
         > = std::collections::HashMap::new();
 
         for summary in &recent {
-            for (mod_name, mod_summary) in &summary.by_module {
-                let entry = module_totals
-                    .entry(mod_name.clone())
-                    .or_insert_with(|| (0, 0.0, std::collections::HashMap::new()));
-                entry.0 += mod_summary.calls;
-                entry.1 += mod_summary.total_us;
-                for (method, &(count, us)) in &mod_summary.by_method {
-                    let me = entry.2.entry(method.clone()).or_insert((0, 0.0));
-                    me.0 += count;
-                    me.1 += us;
-                }
-            }
+            aggregate_module_stats(summary, &mut module_totals);
         }
 
         ui.label(format!("📊 Aggregated over last {} frames:", window));
@@ -87,14 +76,7 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
                         "  × {total_calls} calls ({:.0}/frame)  total {:.1}μs  avg {:.1}μs/call",
                         calls_per_frame, total_us, avg_per_call
                     ));
-
-                    let mut sorted_methods: Vec<_> = methods.iter().collect();
-                    sorted_methods.sort_by(|a, b| b.1.1.partial_cmp(&a.1.1).unwrap());
-
-                    for (method, (count, us)) in &sorted_methods {
-                        let avg = if *count > 0 { us / *count as f64 } else { 0.0 };
-                        ui.monospace(format!("    {method}  × {count}  avg {avg:.1}μs"));
-                    }
+                    render_method_breakdown(ui, methods);
                 });
         }
 
@@ -113,4 +95,38 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
             );
         }
     });
+}
+
+fn aggregate_module_stats(
+    summary: &crate::core::trace::WasmFrameSummary,
+    module_totals: &mut std::collections::HashMap<
+        String,
+        (usize, f64, std::collections::HashMap<String, (usize, f64)>),
+    >,
+) {
+    for (mod_name, mod_summary) in &summary.by_module {
+        let entry = module_totals
+            .entry(mod_name.clone())
+            .or_insert_with(|| (0, 0.0, std::collections::HashMap::new()));
+        entry.0 += mod_summary.calls;
+        entry.1 += mod_summary.total_us;
+        for (method, &(count, us)) in &mod_summary.by_method {
+            let me = entry.2.entry(method.clone()).or_insert((0, 0.0));
+            me.0 += count;
+            me.1 += us;
+        }
+    }
+}
+
+fn render_method_breakdown(
+    ui: &mut egui::Ui,
+    methods: &std::collections::HashMap<String, (usize, f64)>,
+) {
+    let mut sorted_methods: Vec<_> = methods.iter().collect();
+    sorted_methods.sort_by(|a, b| b.1.1.partial_cmp(&a.1.1).unwrap());
+
+    for (method, (count, us)) in &sorted_methods {
+        let avg = if *count > 0 { us / *count as f64 } else { 0.0 };
+        ui.monospace(format!("    {method}  × {count}  avg {avg:.1}μs"));
+    }
 }

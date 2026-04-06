@@ -73,27 +73,7 @@ pub(super) fn render_timeline_tab(ui: &mut egui::Ui, world: &mut World) {
             egui::CollapsingHeader::new(format!("🔑 {key} = {latest_str}"))
                 .default_open(false)
                 .show(ui, |ui| {
-                    ui.label(format!(
-                        "{} changes recorded (max {})",
-                        changes.len(),
-                        history.max_changes_per_key
-                    ));
-
-                    for (i, change) in changes.iter().enumerate().rev() {
-                        let old_str = change
-                            .old_value
-                            .as_ref()
-                            .map(format_fact_value)
-                            .unwrap_or_else(|| "∅".to_string());
-                        let new_str = format_fact_value(&change.new_value);
-
-                        ui.horizontal(|ui| {
-                            ui.monospace(format!(
-                                "  #{} F{}: {} → {}  [{}]",
-                                i, change.frame_number, old_str, new_str, change.caused_by
-                            ));
-                        });
-                    }
+                    render_fact_changes(ui, changes, history.max_changes_per_key)
                 });
         }
     });
@@ -109,5 +89,33 @@ fn format_fact_value(value: &FactValue) -> String {
         FactValue::IntList(v) => format!("{v:?}"),
         FactValue::FloatList(v) => format!("{v:?}"),
         FactValue::BoolList(v) => format!("{v:?}"),
+    }
+}
+
+fn render_fact_changes(
+    ui: &mut egui::Ui,
+    changes: &std::collections::VecDeque<crate::core::trace::FactChange>,
+    max_changes_per_key: usize,
+) {
+    ui.label(format!(
+        "{} changes recorded (max {})",
+        changes.len(),
+        max_changes_per_key
+    ));
+
+    for (i, change) in changes.iter().enumerate().rev() {
+        let old_str = change
+            .old_value
+            .as_ref()
+            .map(format_fact_value)
+            .unwrap_or_else(|| "∅".to_string());
+        let new_str = format_fact_value(&change.new_value);
+
+        ui.horizontal(|ui| {
+            ui.monospace(format!(
+                "  #{} F{}: {} → {}  [{}]",
+                i, change.frame_number, old_str, new_str, change.caused_by
+            ));
+        });
     }
 }
