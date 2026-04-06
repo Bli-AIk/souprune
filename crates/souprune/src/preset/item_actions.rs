@@ -71,10 +71,7 @@ fn item_locale_key(
         .map(|s| s.to_string())
 }
 
-fn item_description(
-    item_id: &str,
-    facts: &bevy_fact_rule_event::LayeredFactDatabase,
-) -> String {
+fn item_description(item_id: &str, facts: &bevy_fact_rule_event::LayeredFactDatabase) -> String {
     facts
         .get_string(&format!("items:{item_id}.description"))
         .map(|s| s.to_string())
@@ -117,8 +114,12 @@ fn compute_item_value(
 ) -> i64 {
     match item_type_str {
         "Food" => item_heal(item_id, facts).unwrap_or(0),
-        "Weapon" => facts.get_int(&format!("items:{item_id}.damage")).unwrap_or(0),
-        "Armor" => facts.get_int(&format!("items:{item_id}.defense")).unwrap_or(0),
+        "Weapon" => facts
+            .get_int(&format!("items:{item_id}.damage"))
+            .unwrap_or(0),
+        "Armor" => facts
+            .get_int(&format!("items:{item_id}.defense"))
+            .unwrap_or(0),
         _ => 0,
     }
 }
@@ -289,10 +290,7 @@ pub(crate) fn execute_use_item(
         return;
     };
     let Some(type_str) = item_type(&item_id, global_facts) else {
-        warn!(
-            "FRE Bridge: UseItem — item '{}' has no type fact",
-            item_id
-        );
+        warn!("FRE Bridge: UseItem — item '{}' has no type fact", item_id);
         return;
     };
 
@@ -458,10 +456,7 @@ pub(crate) fn execute_drop_item(
         return;
     };
     let Some(type_str) = item_type(&item_id, global_facts) else {
-        warn!(
-            "FRE Bridge: DropItem — item '{}' has no type fact",
-            item_id
-        );
+        warn!("FRE Bridge: DropItem — item '{}' has no type fact", item_id);
         return;
     };
 

@@ -28,18 +28,18 @@ pub mod collision;
 pub mod danmaku;
 pub mod fre;
 
+use crate::core::input::{Action, PlayerInputSettings};
+use crate::core::mode::{ModeChanged, ModeScoped, is_mode};
+use crate::core::ron_loader::RonAssetLoader;
+use crate::core::sequencer::SequencerPlugin;
 use crate::preset::battle::alight_motion_integration::AlightMotionBattlePlugin;
 use crate::preset::battle::collision::BattleCollisionPlugin;
 use crate::preset::battle::danmaku::DanmakuPlugin;
 use crate::preset::battle::fre::BattleFREPlugin;
-use crate::core::mode::{ModeChanged, ModeScoped, is_mode};
 use crate::preset::battle_player::BattlePlayerConfig;
 use crate::preset::battle_runtime::{
     BattleCamera, BattleInputManager, BattleMovementSet, BattleUpdate,
 };
-use crate::core::input::{Action, PlayerInputSettings};
-use crate::core::ron_loader::RonAssetLoader;
-use crate::core::sequencer::SequencerPlugin;
 use bevy::app::{App, Plugin};
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;

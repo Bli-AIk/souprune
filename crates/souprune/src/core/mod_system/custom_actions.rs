@@ -87,7 +87,9 @@ pub fn dispatch_wasm_custom_actions_system(
     }
 }
 
-pub(super) fn build_fact_snapshot(fact_db: &LayeredFactDatabase) -> Arc<HashMap<String, FactValue>> {
+pub(super) fn build_fact_snapshot(
+    fact_db: &LayeredFactDatabase,
+) -> Arc<HashMap<String, FactValue>> {
     Arc::new(
         fact_db
             .iter_local()

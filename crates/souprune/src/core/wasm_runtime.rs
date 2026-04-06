@@ -121,14 +121,21 @@ impl souprune::plugin::host_api::Host for HostState {
         self.call_ctx.pending_events.push(event_name);
     }
 
-    fn get_entity_position_by_tag(&mut self, tag: String) -> Option<souprune::plugin::host_api::Vec2> {
+    fn get_entity_position_by_tag(
+        &mut self,
+        tag: String,
+    ) -> Option<souprune::plugin::host_api::Vec2> {
         self.call_ctx
             .entity_positions_by_tag
             .get(&tag)
             .map(|pos| souprune::plugin::host_api::Vec2 { x: pos.x, y: pos.y })
     }
 
-    fn spawn_emitter(&mut self, pattern_id: String, position: souprune::plugin::host_api::Vec2) -> u64 {
+    fn spawn_emitter(
+        &mut self,
+        pattern_id: String,
+        position: souprune::plugin::host_api::Vec2,
+    ) -> u64 {
         let handle = self.call_ctx.emitter_handle_counter;
         self.call_ctx.emitter_handle_counter += 1;
         self.call_ctx

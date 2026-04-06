@@ -60,12 +60,7 @@ pub(super) fn render_trace_events_tab(ui: &mut egui::Ui, world: &mut World) {
                         ui.horizontal(|ui| {
                             ui.label(format!(
                                 "{}#{} {} [{}] {}{}",
-                                indent,
-                                i,
-                                phase_icon,
-                                event.event_type,
-                                event.detail,
-                                causal
+                                indent, i, phase_icon, event.event_type, event.detail, causal
                             ));
                         });
                     }

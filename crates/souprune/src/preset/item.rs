@@ -218,20 +218,14 @@ fn inject_item_facts(registry: &ItemRegistry, facts: &mut LayeredFactDatabase) {
                     format!("{prefix}.type"),
                     FactValue::String("Weapon".to_string()),
                 );
-                facts.set_global(
-                    format!("{prefix}.damage"),
-                    FactValue::Int(*damage as i64),
-                );
+                facts.set_global(format!("{prefix}.damage"), FactValue::Int(*damage as i64));
             }
             ItemType::Armor { defense } => {
                 facts.set_global(
                     format!("{prefix}.type"),
                     FactValue::String("Armor".to_string()),
                 );
-                facts.set_global(
-                    format!("{prefix}.defense"),
-                    FactValue::Int(*defense as i64),
-                );
+                facts.set_global(format!("{prefix}.defense"), FactValue::Int(*defense as i64));
             }
             ItemType::KeyItem => {
                 facts.set_global(

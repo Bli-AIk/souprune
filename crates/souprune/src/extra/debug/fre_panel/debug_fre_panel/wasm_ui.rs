@@ -70,7 +70,7 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
         ui.separator();
 
         let mut sorted_modules: Vec<_> = module_totals.iter().collect();
-        sorted_modules.sort_by(|a, b| b.1 .1.partial_cmp(&a.1 .1).unwrap());
+        sorted_modules.sort_by(|a, b| b.1.1.partial_cmp(&a.1.1).unwrap());
 
         for (mod_name, (total_calls, total_us, methods)) in &sorted_modules {
             let avg_per_call = if *total_calls > 0 {
@@ -89,17 +89,11 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
                     ));
 
                     let mut sorted_methods: Vec<_> = methods.iter().collect();
-                    sorted_methods.sort_by(|a, b| b.1 .1.partial_cmp(&a.1 .1).unwrap());
+                    sorted_methods.sort_by(|a, b| b.1.1.partial_cmp(&a.1.1).unwrap());
 
                     for (method, (count, us)) in &sorted_methods {
-                        let avg = if *count > 0 {
-                            us / *count as f64
-                        } else {
-                            0.0
-                        };
-                        ui.monospace(format!(
-                            "    {method}  × {count}  avg {avg:.1}μs"
-                        ));
+                        let avg = if *count > 0 { us / *count as f64 } else { 0.0 };
+                        ui.monospace(format!("    {method}  × {count}  avg {avg:.1}μs"));
                     }
                 });
         }

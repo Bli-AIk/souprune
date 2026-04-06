@@ -18,12 +18,12 @@
 //!
 //! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
 
-use crate::core::mode::ModeScoped;
-use crate::preset::overworld::character;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::camera::components::Followable;
 use crate::core::collision::Rect2DCollider;
 use crate::core::map_property_schema::{get_string_property, keys, object_keys};
+use crate::core::mode::ModeScoped;
+use crate::preset::overworld::character;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{

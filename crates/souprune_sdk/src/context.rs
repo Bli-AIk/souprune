@@ -147,8 +147,7 @@ impl Context {
 
     /// Get the position of a named entity by tag. Returns None if not found.
     pub fn get_entity_position_by_tag(&self, tag: &str) -> Option<Vec2> {
-        host_api::get_entity_position_by_tag(tag)
-            .map(|pos| Vec2::new(pos.x, pos.y))
+        host_api::get_entity_position_by_tag(tag).map(|pos| Vec2::new(pos.x, pos.y))
     }
 
     /// Spawn a bullet emitter with the given pattern ID at a position.

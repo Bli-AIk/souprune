@@ -41,11 +41,14 @@ pub fn reset_game_state(world: &mut World) {
         bgm.path = None;
     }
 
-    if let Some(mut h) = world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentBgmHandle>()
+    if let Some(mut h) =
+        world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentBgmHandle>()
     {
         h.0 = None;
     }
-    if let Some(mut m) = world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentMapBgm>() {
+    if let Some(mut m) =
+        world.get_resource_mut::<crate::preset::overworld::tilemap::CurrentMapBgm>()
+    {
         m.0 = None;
     }
 

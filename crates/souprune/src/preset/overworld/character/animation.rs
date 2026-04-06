@@ -2,7 +2,6 @@
 //!
 //! 通用角色动画系统。
 
-use crate::preset::overworld::character::components::{StateIdle, StateRunning, StateWalking};
 use crate::core::animation::components::{
     SpriteAnimationClip, SpriteAnimationCurrentFrame, SpriteAnimationTimer,
 };
@@ -11,6 +10,7 @@ use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAnimator, state_animation_entry,
 };
 use crate::core::sprite::params::SpriteParams;
+use crate::preset::overworld::character::components::{StateIdle, StateRunning, StateWalking};
 use bevy::log::error;
 use bevy::prelude::*;
 

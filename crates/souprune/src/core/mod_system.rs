@@ -62,10 +62,7 @@ impl Plugin for ModPlugin {
                 custom_actions::dispatch_wasm_custom_actions_system
                     .after(crate::core::fre_bridge::dispatch_custom_actions_system),
             )
-            .add_systems(
-                schedule,
-                dispatch_mode_lifecycle_system,
-            );
+            .add_systems(schedule, dispatch_mode_lifecycle_system);
     }
 }
 

@@ -2,11 +2,11 @@
 //!
 //! FRE-based trigger zones and interactable objects for overworld areas.
 
-use crate::preset::overworld::character::components::PlayerControlled;
 use crate::core::basic_components::{Direction, Facing};
 use crate::core::collision::Rect2DCollider;
 use crate::core::input::{Action, ActionRegistry, ActionStateExt};
 use crate::core::map_property_schema::{get_string_property, keys};
+use crate::preset::overworld::character::components::PlayerControlled;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset};
 use bevy_fact_rule_event::{FactEvent, FactEventId, LayeredFactDatabase};

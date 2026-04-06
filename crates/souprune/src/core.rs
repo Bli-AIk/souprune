@@ -33,8 +33,8 @@
 pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
-pub mod battle_runtime;
 pub(crate) mod basic_components;
+pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;

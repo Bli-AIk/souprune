@@ -65,9 +65,9 @@ wit_bindgen::generate!({
 pub mod wit {
     pub use super::exports::souprune::plugin::behavior::GuestBehaviorInstance;
     pub use super::exports::souprune::plugin::danmaku::GuestDanmakuInstance;
-    pub use super::exports::souprune::plugin::spawn_pattern::GuestPatternInstance;
     pub use super::exports::souprune::plugin::mode_lifecycle::Guest as GuestModeLifecycle;
     pub use super::exports::souprune::plugin::rule_provider::Guest as GuestRuleProvider;
+    pub use super::exports::souprune::plugin::spawn_pattern::GuestPatternInstance;
     pub use super::souprune::plugin::host_api;
 }
 

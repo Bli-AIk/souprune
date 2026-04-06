@@ -78,7 +78,11 @@ fn dispatch_event_custom_actions(
             event_trace.record(
                 crate::core::trace::EventPhase::Logic,
                 "CustomRuleTriggered",
-                format!("rule '{}' dispatching {} custom actions", rule.id, rule.actions.len()),
+                format!(
+                    "rule '{}' dispatching {} custom actions",
+                    rule.id,
+                    rule.actions.len()
+                ),
                 time.elapsed_secs_f64(),
                 None,
             );

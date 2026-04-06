@@ -22,12 +22,12 @@ mod item_actions;
 mod load_enemies_chapter;
 pub mod overworld;
 
-use bevy::app::*;
-use bevy::prelude::IntoScheduleConfigs;
 use crate::core::fre_bridge::ViewActionExtensions;
 use crate::core::view::ron_view::parsing::{
     ConditionResolvers, DataPathResolvers, ExprFunctionResolvers,
 };
+use bevy::app::*;
+use bevy::prelude::IntoScheduleConfigs;
 
 /// Plugin that registers game-specific data loaders and sequencer chapter handlers.
 ///
@@ -97,9 +97,7 @@ fn register_item_action_extensions(app: &mut App) {
 
     extensions.register("UseItem", |params, ctx| {
         let index_expr = params.get("index_expr").map(|s| s.as_str()).unwrap_or("");
-        let start_dialogue = params
-            .get("start_dialogue")
-            .map_or(false, |v| v == "true");
+        let start_dialogue = params.get("start_dialogue").map_or(false, |v| v == "true");
         item_actions::execute_use_item(
             index_expr,
             ctx.local_facts,

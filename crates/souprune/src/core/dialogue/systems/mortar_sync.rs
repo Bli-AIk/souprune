@@ -75,11 +75,14 @@ pub fn prepare_item_dialogue_mortar_system(
     // Configurable bindings — registered by game/preset
     if let Some(bindings) = bindings.as_ref() {
         for (func_name, fact_key, default) in &bindings.number_functions {
-            let value = facts.get_int(fact_key).map(|v| v as f64).unwrap_or(*default);
+            let value = facts
+                .get_int(fact_key)
+                .map(|v| v as f64)
+                .unwrap_or(*default);
             let func_name = func_name.clone();
-            runtime
-                .functions
-                .register(&func_name, move |_| MortarValue::Number(MortarNumber(value)));
+            runtime.functions.register(&func_name, move |_| {
+                MortarValue::Number(MortarNumber(value))
+            });
         }
     }
 

@@ -18,11 +18,11 @@
 //!
 //! 文件定义了 `PlayerPlugin`，负责连接方向控制以及空闲/行走/奔跑动画系统。
 
-use crate::preset::overworld::player::config::PlayerBehavior;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::danmaku::BulletTarget;
 use crate::core::input::PlayerInputSettings;
 use crate::core::sprite::params::SpriteParams;
+use crate::preset::overworld::player::config::PlayerBehavior;
 use bevy::app::{App, Plugin};
 use bevy::log::error;
 use bevy::prelude::*;
@@ -108,10 +108,10 @@ pub fn spawn_overworld_player(
     asset_server: &Res<AssetServer>,
     player_behavior: &Res<PlayerBehavior>,
 ) {
-    use crate::preset::overworld::character::components::*;
     use crate::core::character_asset::{AnimationConfigAsset, CharacterAnimator};
     use crate::core::collision::Rect2DCollider;
     use crate::core::input::Action;
+    use crate::preset::overworld::character::components::*;
     use leafwing_input_manager::action_state::ActionState;
 
     let anim_config: Handle<AnimationConfigAsset> =
@@ -190,8 +190,8 @@ pub fn player_state_transition_system(
     player_behavior: Res<PlayerBehavior>,
     state_config: Option<Res<crate::core::state_config::LoadedStateConfig>>,
 ) {
-    use crate::preset::overworld::character::components::*;
     use crate::core::input::ActionStateExt;
+    use crate::preset::overworld::character::components::*;
 
     // Check if current state allows player movement
     let player_movable = state_config

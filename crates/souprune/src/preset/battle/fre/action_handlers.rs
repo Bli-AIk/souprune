@@ -14,9 +14,8 @@ use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 use bevy_tween::interpolation::EaseKind;
 
-use crate::preset::battle_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
-
+use crate::preset::battle_box::{GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox};
 
 /// System to set up battle-specific action handlers.
 /// Called when entering Battle state.

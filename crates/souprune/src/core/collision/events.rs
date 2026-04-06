@@ -44,7 +44,10 @@ pub struct CollisionEventBuffer {
 impl CollisionEventBuffer {
     /// Report a collision. Duplicates (same entity pair, any order) are ignored.
     pub fn report(&mut self, event: CollisionEvent) {
-        let pair = (event.entity_a.min(event.entity_b), event.entity_a.max(event.entity_b));
+        let pair = (
+            event.entity_a.min(event.entity_b),
+            event.entity_a.max(event.entity_b),
+        );
         if self.seen_pairs.insert(pair) {
             self.events.push(event);
         }

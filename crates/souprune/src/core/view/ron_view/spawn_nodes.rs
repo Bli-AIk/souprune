@@ -243,9 +243,7 @@ fn spawn_view_node_with_repeat_context(
             let texts = node_def
                 .texts
                 .iter()
-                .map(|text_def| {
-                    build_text_config(text_def, mortar_strings, player_data)
-                })
+                .map(|text_def| build_text_config(text_def, mortar_strings, player_data))
                 .collect::<Vec<_>>();
 
             let offset = serializable_vec3_to_static(&view_box.offset);

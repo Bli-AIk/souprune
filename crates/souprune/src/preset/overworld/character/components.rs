@@ -18,10 +18,10 @@
 //!
 //! 包括空闲、行走和奔跑状态的组件。
 
-use crate::core::mode::ModeScoped;
 use crate::core::animation::components::SpriteAnimationClip;
 use crate::core::basic_components::{Direction, Facing, Speed};
 use crate::core::character_asset::CharacterAnimator;
+use crate::core::mode::ModeScoped;
 use bevy::prelude::*;
 
 #[derive(Component)]

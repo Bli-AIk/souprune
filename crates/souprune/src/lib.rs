@@ -19,7 +19,6 @@ pub mod editor_api;
 pub mod extra;
 pub mod preset;
 
-pub use crate::preset::overworld::player::config::PlayerBehavior;
 pub use crate::bootstrap::{
     get_file_importer_plugins, get_game_plugins, get_third_plugins, insert_font_resources,
     insert_input_resources, reset_game_state, run,
@@ -34,6 +33,7 @@ pub use crate::core::view::layout::{
 };
 pub use crate::preset::enemy::{ActionOption, EnemyDef, EnemyRegistry};
 pub use crate::preset::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
+pub use crate::preset::overworld::player::config::PlayerBehavior;
 pub use souprune_schema::enemy::{CombatStats, LocaleInfo};
 
 use std::default::Default;

@@ -13,12 +13,12 @@
 //! 按 F3 切换碰撞体可视化（玩家为绿色，其他为浅绿色，触发器为青色）。
 
 pub mod debug_collider {
+    use crate::core::basic_components::Facing;
+    use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
     use crate::preset::overworld::character::components::PlayerControlled;
     use crate::preset::overworld::tilemap::systems::TilemapCollider;
     use crate::preset::overworld::tilemap::*;
     use crate::preset::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
-    use crate::core::basic_components::Facing;
-    use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
     use bevy::color::palettes::css;
     use bevy::math::Isometry2d;
     use bevy::prelude::*;

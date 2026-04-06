@@ -9,8 +9,8 @@
 use bevy::ecs::message::{Message, MessageReader, MessageWriter};
 use bevy::prelude::*;
 
-use crate::preset::overworld::character::components::PlayerControlled;
 use crate::core::mode::{ModeScoped, SequenceSubState};
+use crate::preset::overworld::character::components::PlayerControlled;
 
 use super::chase::{
     ChaseConfig, ChaseHeartMarker, ChaseStateName, ChaseTransition, HitboxShapeConfig,

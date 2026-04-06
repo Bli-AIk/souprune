@@ -18,10 +18,10 @@ use super::{AlightMotionBattleConfig, AlightMotionBattlePatterns, AlightMotionEn
 use bevy::prelude::*;
 use bevy_alight_motion::prelude::{AmPendingLayers, AmPlayback, load_am_project};
 
-use crate::preset::battle::battle_scoped;
 use crate::core::alight_motion_runtime::{
     AlightMotionPerformanceState, PlayAlightMotionPerformanceEvent,
 };
+use crate::preset::battle::battle_scoped;
 
 /// System to handle PlayAlightMotionPerformanceEvent.
 pub(super) fn handle_play_am_performance_event(

@@ -204,8 +204,7 @@ pub fn update_dynamic_text_system(
 
     trace!(
         "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={})",
-        global_changed,
-        any_view_root_changed,
+        global_changed, any_view_root_changed,
     );
 
     for (entity, template, mut text_block, _name) in text_query.iter_mut() {
@@ -218,8 +217,7 @@ pub fn update_dynamic_text_system(
         }
         .with_resolvers(data_resolvers.as_deref(), None);
 
-        let new_content =
-            resolve_text_content(&template.0, &mortar_strings, &player_data);
+        let new_content = resolve_text_content(&template.0, &mortar_strings, &player_data);
 
         // Skip if content hasn't changed.
         if text_block.full_text() == new_content {

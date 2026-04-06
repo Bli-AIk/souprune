@@ -265,7 +265,10 @@ fn apply_tween(target: DanmakuTweenTarget, value: f32) -> MotionOutput {
 
 /// Returns true if the behavior is a builtin variant (not Custom).
 pub fn is_builtin(behavior: &souprune_schema::danmaku::BulletBehavior) -> bool {
-    !matches!(behavior, souprune_schema::danmaku::BulletBehavior::Custom { .. })
+    !matches!(
+        behavior,
+        souprune_schema::danmaku::BulletBehavior::Custom { .. }
+    )
 }
 
 #[cfg(test)]
@@ -332,13 +335,8 @@ mod tests {
                 angle_offset: 0.0,
             },
         );
-        let state = init_builtin_behavior(
-            &behavior,
-            Vec2::ZERO,
-            Vec2::ZERO,
-            Vec2::new(100.0, 0.0),
-        )
-        .unwrap();
+        let state = init_builtin_behavior(&behavior, Vec2::ZERO, Vec2::ZERO, Vec2::new(100.0, 0.0))
+            .unwrap();
         let BuiltinBehaviorState::Aimed { dir, speed } = state else {
             panic!("Expected Aimed");
         };
@@ -366,9 +364,9 @@ mod tests {
 
     #[test]
     fn is_builtin_correctly_identifies() {
-        assert!(is_builtin(&souprune_schema::danmaku::BulletBehavior::Linear(
-            LinearConfig::default()
-        )));
+        assert!(is_builtin(
+            &souprune_schema::danmaku::BulletBehavior::Linear(LinearConfig::default())
+        ));
         assert!(is_builtin(
             &souprune_schema::danmaku::BulletBehavior::Stationary()
         ));

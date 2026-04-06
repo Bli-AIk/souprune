@@ -336,9 +336,24 @@ mod tests {
     #[test]
     fn wasm_call_tracer_summarizes() {
         let mut tracer = WasmCallTracer::default();
-        tracer.record("mod_a", "danmaku", "on_update", std::time::Duration::from_micros(10));
-        tracer.record("mod_a", "danmaku", "on_update", std::time::Duration::from_micros(20));
-        tracer.record("mod_b", "custom", "handle", std::time::Duration::from_micros(50));
+        tracer.record(
+            "mod_a",
+            "danmaku",
+            "on_update",
+            std::time::Duration::from_micros(10),
+        );
+        tracer.record(
+            "mod_a",
+            "danmaku",
+            "on_update",
+            std::time::Duration::from_micros(20),
+        );
+        tracer.record(
+            "mod_b",
+            "custom",
+            "handle",
+            std::time::Duration::from_micros(50),
+        );
         tracer.flush_frame(1);
 
         assert_eq!(tracer.history.len(), 1);

@@ -70,13 +70,23 @@ impl souprune::plugin::host_api::Host for MockHostState {
         println!("[HOST] emit_event: {}", event_name);
     }
 
-    fn get_entity_position_by_tag(&mut self, tag: String) -> Option<souprune::plugin::host_api::Vec2> {
+    fn get_entity_position_by_tag(
+        &mut self,
+        tag: String,
+    ) -> Option<souprune::plugin::host_api::Vec2> {
         println!("[HOST] get_entity_position_by_tag: {}", tag);
         None
     }
 
-    fn spawn_emitter(&mut self, pattern_id: String, position: souprune::plugin::host_api::Vec2) -> u64 {
-        println!("[HOST] spawn_emitter: {} at ({}, {})", pattern_id, position.x, position.y);
+    fn spawn_emitter(
+        &mut self,
+        pattern_id: String,
+        position: souprune::plugin::host_api::Vec2,
+    ) -> u64 {
+        println!(
+            "[HOST] spawn_emitter: {} at ({}, {})",
+            pattern_id, position.x, position.y
+        );
         0
     }
 

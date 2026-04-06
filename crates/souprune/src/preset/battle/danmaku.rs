@@ -12,9 +12,9 @@
 
 pub use crate::core::danmaku::*;
 
-use crate::preset::battle_player::BattleInvincibilityConfig;
 use crate::core::collision::TriggerCollider;
 use crate::core::mod_system::BehaviorParams;
+use crate::preset::battle_player::BattleInvincibilityConfig;
 use bevy::prelude::*;
 
 use crate::preset::battle_runtime::BattleUpdate;

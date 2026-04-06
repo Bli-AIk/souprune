@@ -8,15 +8,15 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
-use crate::core::mode::ModeScoped;
-use crate::preset::overworld::tilemap::systems::TilemapCollider;
-use crate::preset::overworld::trigger::{Interactable, TriggerZone};
 use crate::core::collision::Rect2DCollider;
 use crate::core::fre_facts;
 use crate::core::map_property_schema::{
     escape_property_string, get_object_bool_property, get_object_float_property,
     get_string_property, object_keys,
 };
+use crate::core::mode::ModeScoped;
+use crate::preset::overworld::tilemap::systems::TilemapCollider;
+use crate::preset::overworld::trigger::{Interactable, TriggerZone};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
 use bevy_fact_rule_event::{FactModification, FactValue, Rule, RuleScope};

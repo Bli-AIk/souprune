@@ -12,8 +12,8 @@
 //! 活跃 View 的规则，在局部与全局事实之上评估它们，然后执行播放音效、
 //! 修改 View 局部事实、切换状态、启动对话、继续排队输出事件等动作。
 
-use super::{evaluate_conditions, evaluate_local_fact_value};
 use super::extensions::{ViewActionExecCtx, ViewActionExtensions};
+use super::{evaluate_conditions, evaluate_local_fact_value};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     CombinedFactReader, EnumRegistry, FactEvent, FactValue, LayeredFactDatabase, PendingFactEvents,
@@ -116,10 +116,7 @@ fn process_event_view_actions(
             }
 
             // Record the rule match in the event trace as a causal child of the FactEvent.
-            let parent_idx = event_trace
-                .current_frame_events
-                .len()
-                .checked_sub(1);
+            let parent_idx = event_trace.current_frame_events.len().checked_sub(1);
             event_trace.record(
                 crate::core::trace::EventPhase::Logic,
                 "RuleTriggered",

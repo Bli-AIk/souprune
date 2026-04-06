@@ -6,15 +6,15 @@
 //! Battle 碰撞系统，用于限制玩家在战斗框内移动。
 //! 支持多个同时存在的战斗框，通过 ID 绑定玩家。
 
+use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
+use crate::core::mod_system::BehaviorParams;
+use crate::core::view::components::ViewBox;
+use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
 use crate::preset::battle_box::{
     AlightMotionBattleBoxBounds, BattleBox, BattleBoxId, BattleBoxState, BattleBoxVisualStyle,
     BoundToBattleBox, GapPolicy, MergeBattleBoxes, SplitAxis, SplitBattleBox,
 };
 use crate::preset::battle_runtime::{BattleMovementSet, BattleUpdate};
-use crate::core::collision::{BattleBoxBoundary, PhysicsCollider};
-use crate::core::mod_system::BehaviorParams;
-use crate::core::view::components::ViewBox;
-use crate::core::view::sdf_view_shape::spawn_view_box_sdf_children;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use bevy_alight_motion::sdf_material::SdfMaterial;

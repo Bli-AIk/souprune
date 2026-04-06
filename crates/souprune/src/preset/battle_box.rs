@@ -126,7 +126,11 @@ pub struct MergeBattleBoxes {
 pub(crate) fn apply_battle_box_tag_system(
     mut commands: Commands,
     query: Query<
-        (Entity, &crate::core::view::components::ViewNodeTags, &ViewBox),
+        (
+            Entity,
+            &crate::core::view::components::ViewNodeTags,
+            &ViewBox,
+        ),
         Added<crate::core::view::components::ViewNodeTags>,
     >,
 ) {

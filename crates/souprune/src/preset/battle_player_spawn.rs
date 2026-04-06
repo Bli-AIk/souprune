@@ -6,8 +6,8 @@
 use crate::core::danmaku::BulletTarget;
 use crate::core::mod_system::{BehaviorContext, BehaviorParams, BehaviorVelocity};
 use crate::core::mode::ModeScoped;
-use crate::core::sequencer::context::*;
 use crate::core::sequencer::chapter_schema::{Chapter, PlayerAction};
+use crate::core::sequencer::context::*;
 use crate::preset::battle_box::BoundToBattleBox;
 use crate::preset::battle_player::{BattleInvincibilityConfig, BattlePlayerConfig};
 use bevy::prelude::*;

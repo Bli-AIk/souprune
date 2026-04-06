@@ -18,10 +18,10 @@
 //!
 //! 根据输入和游戏状态管理状态转换。
 
-use crate::preset::overworld::character::components::{StateRunning, StateWalking};
-use crate::preset::overworld::player::config::PlayerBehavior;
 use crate::core::basic_components::{Facing, Speed};
 use crate::core::input::{Action, ActionRegistry, ActionStateExt, InputBehaviorConfig};
+use crate::preset::overworld::character::components::{StateRunning, StateWalking};
+use crate::preset::overworld::player::config::PlayerBehavior;
 use bevy::prelude::*;
 use leafwing_input_manager::action_state::*;
 

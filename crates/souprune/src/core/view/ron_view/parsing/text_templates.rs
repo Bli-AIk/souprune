@@ -350,15 +350,21 @@ pub fn resolve_data_path(
             bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
             bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
             bevy_fact_rule_event::FactValue::StringList(list) => list.join("\n"),
-            bevy_fact_rule_event::FactValue::IntList(list) => {
-                list.iter().map(|i| i.to_string()).collect::<Vec<_>>().join("\n")
-            }
-            bevy_fact_rule_event::FactValue::FloatList(list) => {
-                list.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("\n")
-            }
-            bevy_fact_rule_event::FactValue::BoolList(list) => {
-                list.iter().map(|b| b.to_string()).collect::<Vec<_>>().join("\n")
-            }
+            bevy_fact_rule_event::FactValue::IntList(list) => list
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            bevy_fact_rule_event::FactValue::FloatList(list) => list
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            bevy_fact_rule_event::FactValue::BoolList(list) => list
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
         };
     }
 

@@ -12,15 +12,15 @@
 //! 焦点处理，以及让它与玩法输入共存的系统。具体标签页内容放在旁边的子文件里，
 //! 但真正把这套工具变成应用内调试界面的，是这里。
 
+mod events_ui;
 mod facts_ui;
 mod rules_ui;
 mod states_ui;
-mod events_ui;
-mod wasm_ui;
 mod timeline_ui;
+mod wasm_ui;
 
-use crate::preset::overworld::character::components::PlayerControlled;
 use crate::core::input::Action;
+use crate::preset::overworld::character::components::PlayerControlled;
 use bevy::camera::RenderTarget;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;

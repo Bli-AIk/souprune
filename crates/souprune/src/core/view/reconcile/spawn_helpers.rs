@@ -240,12 +240,7 @@ pub fn spawn_text_entity(
     repeat_ctx: Option<&RepeatContext>,
 ) -> Entity {
     let raw_content = text_def.content.as_deref().unwrap_or("");
-    let content = resolve_text_content(
-        raw_content,
-        ctx.mortar_strings,
-        &ctx.player_data,
-        
-    );
+    let content = resolve_text_content(raw_content, ctx.mortar_strings, &ctx.player_data);
 
     let text_block = parse_text_preserving_whitespace(&content);
 
@@ -422,12 +417,7 @@ pub fn spawn_viewbox_entity(
 /// 从 TextDef 构建 ViewTextConfig（从 spawn.rs 提取）。
 pub fn build_text_config(text_def: &TextDef, ctx: &SpawnContext) -> ViewTextConfig {
     let raw_content = text_def.content.as_deref().unwrap_or("");
-    let content = resolve_text_content(
-        raw_content,
-        ctx.mortar_strings,
-        &ctx.player_data,
-        
-    );
+    let content = resolve_text_content(raw_content, ctx.mortar_strings, &ctx.player_data);
 
     let (r, g, b, a) = color_tuple_to_static(&text_def.color);
     let color = Srgba::new(r, g, b, a);

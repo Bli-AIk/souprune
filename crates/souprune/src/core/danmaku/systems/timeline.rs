@@ -283,8 +283,7 @@ fn spawn_single_bullet(
     }
 
     let offset = point.position - spawn_center;
-    let mut builtin_stack =
-        crate::core::danmaku::builtin_motion::BuiltinMotionStack::default();
+    let mut builtin_stack = crate::core::danmaku::builtin_motion::BuiltinMotionStack::default();
     let mut wasm_stack = ActiveDanmakuStack::default();
 
     for behavior in behaviors {

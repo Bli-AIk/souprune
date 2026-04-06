@@ -17,7 +17,11 @@ use std::collections::HashMap;
 ///
 /// 计算数据路径的解析器函数（如 "player.total_attack"）。
 type DataPathResolverFn = Box<
-    dyn Fn(&LayeredFactDatabase, Option<&FactDatabase>, &crate::extra::mortar::MortarStringTable) -> String
+    dyn Fn(
+            &LayeredFactDatabase,
+            Option<&FactDatabase>,
+            &crate::extra::mortar::MortarStringTable,
+        ) -> String
         + Send
         + Sync,
 >;
@@ -50,10 +54,14 @@ impl DataPathResolvers {
     pub fn register(
         &mut self,
         path: impl Into<String>,
-        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>, &crate::extra::mortar::MortarStringTable) -> String
-            + Send
-            + Sync
-            + 'static,
+        resolver: impl Fn(
+            &LayeredFactDatabase,
+            Option<&FactDatabase>,
+            &crate::extra::mortar::MortarStringTable,
+        ) -> String
+        + Send
+        + Sync
+        + 'static,
     ) {
         self.resolvers.insert(path.into(), Box::new(resolver));
     }
@@ -103,9 +111,7 @@ impl ConditionResolvers {
         db: &LayeredFactDatabase,
         local_facts: Option<&FactDatabase>,
     ) -> Option<bool> {
-        self.resolvers
-            .get(condition)
-            .map(|f| f(db, local_facts))
+        self.resolvers.get(condition).map(|f| f(db, local_facts))
     }
 }
 
@@ -139,10 +145,7 @@ impl ExprFunctionResolvers {
     pub fn register(
         &mut self,
         name: impl Into<String>,
-        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> f64
-            + Send
-            + Sync
-            + 'static,
+        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> f64 + Send + Sync + 'static,
     ) {
         self.resolvers.insert(name.into(), Box::new(resolver));
     }

@@ -12,11 +12,7 @@ use crate::core::view::ron_view::parsing::{
 use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
 
 /// Helper: read string fact from layered DB with optional local override.
-fn get_string(
-    db: &LayeredFactDatabase,
-    local: Option<&FactDatabase>,
-    key: &str,
-) -> String {
+fn get_string(db: &LayeredFactDatabase, local: Option<&FactDatabase>, key: &str) -> String {
     if let Some(local) = local {
         if let Some(FactValue::String(s)) = local.get_by_str(key) {
             return s.clone();
@@ -30,11 +26,7 @@ fn get_string(
 }
 
 /// Helper: read int fact from layered DB with optional local override.
-fn get_int(
-    db: &LayeredFactDatabase,
-    local: Option<&FactDatabase>,
-    key: &str,
-) -> i64 {
+fn get_int(db: &LayeredFactDatabase, local: Option<&FactDatabase>, key: &str) -> i64 {
     if let Some(local) = local {
         if let Some(FactValue::Int(i)) = local.get_by_str(key) {
             return *i;
