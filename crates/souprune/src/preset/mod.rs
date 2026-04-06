@@ -10,7 +10,9 @@
 //! their own implementations of these modules.
 
 pub mod battle_box;
+mod battle_box_chapter;
 pub mod battle_player;
+mod battle_player_spawn;
 pub mod battle_runtime;
 mod data_paths;
 pub mod enemy;
@@ -47,17 +49,30 @@ impl Plugin for PresetPlugin {
         data_paths::register_expr_function_resolvers(&mut expr_func_resolvers);
         app.insert_resource(expr_func_resolvers);
 
-        // Register LoadEnemies chapter handler in the sequencer's system set.
+        // Register LoadEnemies and BattleBox chapter handlers in the sequencer's system set.
         let schedule = crate::game_schedule(app);
         app.add_systems(
             schedule,
             (
                 load_enemies_chapter::process_load_enemies_chapter_system,
                 load_enemies_chapter::complete_load_enemies_chapter_system,
+                battle_box_chapter::process_battle_box_chapter_system,
             )
                 .chain()
                 .in_set(crate::core::sequencer::SequencerUpdate)
                 .after(crate::core::sequencer::load_default_chapter_system),
+        );
+
+        // Register tag-based component injection systems.
+        app.add_systems(
+            schedule,
+            (
+                battle_box::apply_battle_box_tag_system,
+                battle_player_spawn::process_battle_player_spawn_system
+                    .in_set(crate::core::sequencer::SequencerUpdate),
+                battle_player_spawn::process_player_spawn_requests
+                    .in_set(crate::core::sequencer::SequencerUpdate),
+            ),
         );
     }
 }

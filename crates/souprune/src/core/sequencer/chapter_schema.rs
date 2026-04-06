@@ -21,10 +21,25 @@ pub use facts::{AggregateRule, DataBinding, FactCondition, FactModificationDef, 
 pub use values::{ColorTuple, LogLevel, Value, Vec2Tuple, Vec3Tuple};
 
 use self::element::{default_easing, ease_kind_serde};
-use crate::preset::battle_box::{GapPolicy, SplitAxis};
 use bevy_tween::interpolation::EaseKind;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// Axis along which to split a box.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
+pub enum SplitAxis {
+    Vertical,
+    #[default]
+    Horizontal,
+}
+
+/// Policy for how gap affects split box dimensions.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
+pub enum GapPolicy {
+    #[default]
+    Expands,
+    Includes,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {

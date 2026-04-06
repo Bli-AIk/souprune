@@ -18,7 +18,7 @@ pub fn process_camera_action_system(
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
     mut camera_query: Query<
         (Entity, &mut Transform, &mut Projection),
-        With<crate::preset::battle_runtime::BattleCamera>,
+        With<crate::core::battle_runtime::BattleCamera>,
     >,
     #[cfg(not(target_os = "android"))] resolution_scale: Option<
         Res<crate::core::camera::ResolutionScale>,

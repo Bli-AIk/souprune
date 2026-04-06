@@ -268,9 +268,6 @@ fn spawn_view_node_with_repeat_context(
                 view_box.structure_file.clone(),
                 fill_color,
             );
-            let battle_box_style =
-                crate::preset::battle_box::BattleBoxVisualStyle::from_view_box(&runtime_view_box);
-
             let mut box_entity = parent.spawn((
                 runtime_view_box,
                 Transform::from_translation(offset),
@@ -300,14 +297,10 @@ fn spawn_view_node_with_repeat_context(
                 box_entity.insert(TimeDependentTransform);
             }
 
-            if node_def.tags.contains(&"BattleBox".to_string()) {
-                box_entity.insert((
-                    crate::preset::battle_box::BattleBox,
-                    crate::preset::battle_box::BattleBoxId("main".to_string()),
-                    crate::preset::battle_box::BattleBoxState::default(),
-                    battle_box_style,
+            if !node_def.tags.is_empty() {
+                box_entity.insert(super::super::components::ViewNodeTags(
+                    node_def.tags.clone(),
                 ));
-                info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);
             }
 
             info!(

@@ -6,7 +6,6 @@ use crate::core::view::components::ViewBox;
 use bevy::ecs::message::Message;
 use bevy::prelude::*;
 use bevy_tween::interpolation::EaseKind;
-use serde::{Deserialize, Serialize};
 
 /// Marker component for a battle box boundary.
 #[derive(Component)]
@@ -96,21 +95,8 @@ pub struct AlightMotionBattleBoxBounds {
     pub center_offset: Vec2,
 }
 
-/// Axis along which to split a battle box.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum SplitAxis {
-    Vertical,
-    #[default]
-    Horizontal,
-}
-
-/// Policy for how gap affects split box dimensions.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq)]
-pub enum GapPolicy {
-    #[default]
-    Expands,
-    Includes,
-}
+// Re-export from core where SplitAxis/GapPolicy are now canonically defined.
+pub use crate::core::sequencer::chapter_schema::{GapPolicy, SplitAxis};
 
 /// Event to trigger a battle box split.
 #[derive(Message)]
@@ -133,4 +119,27 @@ pub struct MergeBattleBoxes {
     pub gap_policy: GapPolicy,
     pub duration: f32,
     pub easing: EaseKind,
+}
+
+/// System that detects newly spawned ViewBox entities with a "BattleBox" tag
+/// and adds game-specific battle box components.
+pub(crate) fn apply_battle_box_tag_system(
+    mut commands: Commands,
+    query: Query<
+        (Entity, &crate::core::view::components::ViewNodeTags, &ViewBox),
+        Added<crate::core::view::components::ViewNodeTags>,
+    >,
+) {
+    for (entity, tags, view_box) in query.iter() {
+        if tags.0.contains(&"BattleBox".to_string()) {
+            let style = BattleBoxVisualStyle::from_view_box(view_box);
+            commands.entity(entity).insert((
+                BattleBox,
+                BattleBoxId("main".to_string()),
+                BattleBoxState::default(),
+                style,
+            ));
+            info!("[UI Box] Added BattleBox marker via tag handler");
+        }
+    }
 }

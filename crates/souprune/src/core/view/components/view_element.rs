@@ -27,6 +27,18 @@ use bevy::reflect::Reflect;
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ActiveView;
 
+/// Tags from a `.view_layout.ron` node definition.
+///
+/// Preset systems can query for entities with specific tags
+/// and add game-specific components accordingly.
+///
+/// 来自 `.view_layout.ron` 节点定义的标签。
+///
+/// Preset 系统可以查询具有特定标签的实体，
+/// 并据此添加游戏特定的组件。
+#[derive(Component, Debug, Clone)]
+pub struct ViewNodeTags(pub Vec<String>);
+
 /// View Element - represents a referenceable element in a view layout.
 ///
 /// Each element spawned from a `.view_layout.ron` file receives this component,

@@ -15,7 +15,7 @@ mod lifecycle;
 mod loading;
 
 pub use actions::{
-    process_battle_box_chapter_system, process_custom_chapter_system,
+    process_custom_chapter_system,
     process_spawn_behavior_chapter_system,
 };
 pub use lifecycle::{
