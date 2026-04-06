@@ -44,8 +44,8 @@ SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜�
 3. **进入目录**：`cd souprune`
 4. **拉取子模块**：`git submodule update --init --recursive`
 5. **设置示例 Mod**：
-    - Linux/macOS：`./setup_mods.sh`
-    - Windows：`.\setup_mods.ps1`
+    - Linux/macOS：`./scripts/setup_mods.sh`
+    - Windows：`.\scripts\setup_mods.ps1`
 6. **在 Debug 模式下运行示例**：`cargo run --package souprune --bin souprune --features debug`
 
 <details>
@@ -54,19 +54,19 @@ SoupRune 目前仍处于 **🚧 初始开发阶段**，但如果你渴望尝鲜�
 ```bash
 # 安装所有示例 mod
 # 示例 mod 位于 https://github.com/Bli-AIk/souprune_example_mods 仓库
-./setup_mods.sh
+./scripts/setup_mods.sh
 
 # 安装指定示例 mod
-./setup_mods.sh example_mod
+./scripts/setup_mods.sh example_mod
 
 # 列出可用 mod
-./setup_mods.sh --list
+./scripts/setup_mods.sh --list
 
 # 从远程更新 mod
-./setup_mods.sh --update
+./scripts/setup_mods.sh --update
 
 # 移除所有 mod worktree
-./setup_mods.sh --clean
+./scripts/setup_mods.sh --clean
 ```
 
 在 `projects/config.toml` 中配置活动 mod：

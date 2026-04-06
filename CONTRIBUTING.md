@@ -124,8 +124,8 @@ Entity-Component-System) architecture
 ### Getting Started
 
 1. **Set up your environment**: See [Quick Start](./readme.md#-quick-start) in the README
-2. **Read the style guide**: [`doc/style.md`](./style.md) — this is mandatory before writing any code
-3. **Understand the architecture**: [`doc/architecture.md`](./doc/docs/architecture.md) — how SoupRune is structured
+2. **Read the style guide**: [`doc/style.md`](./doc/style.md) — this is mandatory before writing any code
+3. **Understand the architecture**: [`doc/architecture.md`](./doc/architecture.md) — how SoupRune is structured
 
 ### What You Can Work On
 

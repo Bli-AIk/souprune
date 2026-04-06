@@ -12,8 +12,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ModsToml = Join-Path $ScriptDir "mods.toml"
-$ModRepo = Join-Path $ScriptDir ".mod-repo"
+$RepoRoot = Split-Path -Parent $ScriptDir
+$ModsToml = Join-Path $RepoRoot "mods.toml"
+$ModRepo = Join-Path $RepoRoot ".mod-repo"
 
 function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Green }
 function Write-Warn { Write-Host "[WARN] $args" -ForegroundColor Yellow }
@@ -91,7 +92,7 @@ function Setup-Worktree {
     
     $branch = Get-ModProperty $ModName "branch"
     $path = Get-ModProperty $ModName "path"
-    $fullPath = Join-Path $ScriptDir $path
+    $fullPath = Join-Path $RepoRoot $path
 
     if (Test-Path $fullPath) {
         Write-Warn "Worktree already exists at $path"
@@ -109,7 +110,7 @@ function Remove-Worktree {
     param($ModName)
     
     $path = Get-ModProperty $ModName "path"
-    $fullPath = Join-Path $ScriptDir $path
+    $fullPath = Join-Path $RepoRoot $path
 
     if (-not (Test-Path $fullPath)) {
         Write-Warn "Worktree does not exist at $path"

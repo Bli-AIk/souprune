@@ -40,14 +40,14 @@ typos:
 # Tokei 行数检查（主项目 + 所有子模块）
 # ===============================================
 tokei-check:
-    @./tokei_check.sh --workspace
+    @./scripts/tokei_check.sh --workspace
 
 # ===============================================
 # 架构边界检查
 # ===============================================
 arch-check:
-    @bash ./check_core_boundaries.sh
-    @bash ./check_editor_boundaries.sh
+    @bash ./scripts/check_core_boundaries.sh
+    @bash ./scripts/check_editor_boundaries.sh
 
 alias line := tokei-check
 
@@ -173,3 +173,75 @@ mod-build mod_name:
 mod-install mod_name: (mod-build mod_name)
     cp projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm projects/{{mod_name}}/mod_example.wasm
     @echo "Installed: projects/{{mod_name}}/mod_example.wasm"
+
+# ===============================================
+# 打包 Linux x86_64 Release 版本
+# 构建 release 二进制 + 仅白名单 Mod（mods.toml）+ 仅 git 跟踪文件 → tar.gz
+# Pack Linux x86_64 release with whitelisted mods (tracked files only)
+# ===============================================
+pack-linux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="x86_64-unknown-linux-gnu"
+    VERSION=$(grep '^version' crates/souprune/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+    DIST="souprune-${VERSION}-linux-x86_64"
+    echo "🔨 Building release for ${TARGET}..."
+    cargo build -p {{project}} --release --target "${TARGET}"
+    rm -rf "dist/${DIST}"
+    mkdir -p "dist/${DIST}/projects"
+    cp "target/${TARGET}/release/souprune" "dist/${DIST}/"
+    cp projects/config.toml "dist/${DIST}/projects/"
+    # Only package mods listed in mods.toml (whitelist)
+    for mod_name in $(grep -oP '^\[mods\.\K[^]]+' mods.toml); do
+        mod_dir="projects/${mod_name}"
+        if [ ! -d "${mod_dir}" ]; then
+            echo "⚠️  Mod not found (not installed?): ${mod_name}"
+            continue
+        fi
+        echo "📦 Including mod: ${mod_name}"
+        mkdir -p "dist/${DIST}/${mod_dir}"
+        # Copy only git-tracked files (excludes gitignored files)
+        git -C "${mod_dir}" ls-files -z | while IFS= read -r -d '' file; do
+            dir_part=$(dirname "${file}")
+            mkdir -p "dist/${DIST}/${mod_dir}/${dir_part}"
+            cp "${mod_dir}/${file}" "dist/${DIST}/${mod_dir}/${file}"
+        done
+    done
+    cd dist && tar czf "${DIST}.tar.gz" "${DIST}"
+    echo "✅ Packaged: dist/${DIST}.tar.gz"
+
+# ===============================================
+# 打包 Windows x86_64 Release 版本
+# 交叉编译 release 二进制 + 仅白名单 Mod（mods.toml）+ 仅 git 跟踪文件 → zip
+# Pack Windows x86_64 release with whitelisted mods (tracked files only)
+# ===============================================
+pack-windows:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="x86_64-pc-windows-gnu"
+    VERSION=$(grep '^version' crates/souprune/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+    DIST="souprune-${VERSION}-windows-x86_64"
+    echo "🔨 Building release for ${TARGET}..."
+    cargo build -p {{project}} --release --target "${TARGET}"
+    rm -rf "dist/${DIST}"
+    mkdir -p "dist/${DIST}/projects"
+    cp "target/${TARGET}/release/souprune.exe" "dist/${DIST}/"
+    cp projects/config.toml "dist/${DIST}/projects/"
+    # Only package mods listed in mods.toml (whitelist)
+    for mod_name in $(grep -oP '^\[mods\.\K[^]]+' mods.toml); do
+        mod_dir="projects/${mod_name}"
+        if [ ! -d "${mod_dir}" ]; then
+            echo "⚠️  Mod not found (not installed?): ${mod_name}"
+            continue
+        fi
+        echo "📦 Including mod: ${mod_name}"
+        mkdir -p "dist/${DIST}/${mod_dir}"
+        # Copy only git-tracked files (excludes gitignored files)
+        git -C "${mod_dir}" ls-files -z | while IFS= read -r -d '' file; do
+            dir_part=$(dirname "${file}")
+            mkdir -p "dist/${DIST}/${mod_dir}/${dir_part}"
+            cp "${mod_dir}/${file}" "dist/${DIST}/${mod_dir}/${file}"
+        done
+    done
+    cd dist && zip -r "${DIST}.zip" "${DIST}"
+    echo "✅ Packaged: dist/${DIST}.zip"

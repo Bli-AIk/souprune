@@ -115,8 +115,8 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 ### 如何开始
 
 1. **搭建开发环境**：参见 README 中的[快速开始](./readme_zh-hans.md#-快速开始)
-2. **阅读代码风格指南**：[`doc/style.md`](./style_zh-hans.md) — 写代码前必读
-3. **了解架构**：[`doc/architecture.md`](./architecture.md) — SoupRune 的整体结构
+2. **阅读代码风格指南**：[`doc/style.md`](./doc/style_zh-hans.md) — 写代码前必读
+3. **了解架构**：[`doc/architecture.md`](./doc/architecture_zh-hans.md) — SoupRune 的整体结构
 
 ### 可以参与的方向
 

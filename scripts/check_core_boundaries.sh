@@ -9,7 +9,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BASELINE_FILE="$ROOT_DIR/core_to_app_state_baseline.txt"
 TMP_CURRENT="$(mktemp)"
 trap 'rm -f "$TMP_CURRENT"' EXIT

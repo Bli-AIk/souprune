@@ -2,8 +2,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODS_TOML="$SCRIPT_DIR/mods.toml"
-MOD_REPO="$SCRIPT_DIR/.mod-repo"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MODS_TOML="$REPO_ROOT/mods.toml"
+MOD_REPO="$REPO_ROOT/.mod-repo"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -73,7 +74,7 @@ setup_worktree() {
     branch=$(get_mod_property "$mod_name" "branch")
     path=$(get_mod_property "$mod_name" "path")
 
-    local full_path="$SCRIPT_DIR/$path"
+    local full_path="$REPO_ROOT/$path"
 
     if [ -d "$full_path" ]; then
         log_warn "Worktree already exists at $path"
@@ -91,7 +92,7 @@ remove_worktree() {
     local path
 
     path=$(get_mod_property "$mod_name" "path")
-    local full_path="$SCRIPT_DIR/$path"
+    local full_path="$REPO_ROOT/$path"
 
     if [ ! -d "$full_path" ]; then
         log_warn "Worktree does not exist at $path"
