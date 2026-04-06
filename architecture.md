@@ -2,133 +2,221 @@
 
 > For the Simplified Chinese version, see [architecture_zh-hans.md](architecture_zh-hans.md).
 
-SoupRune is a Rust/Bevy framework for RPG+STG fangames (Deltarune/Undertale style).
-This document describes its layered architecture.
+This document describes the internal architecture of SoupRune.
 
 ---
 
-## Three-Tier Architecture
+## The Big Picture: Three Tiers
+
+SoupRune separates concerns into three distinct layers.
+Think of it as **hardware → firmware → game cartridge**:
 
 ```
-┌──────────────────────────────────────────┐
-│  User Content (Mod / Game Project)       │  RON, Mortar scripts,
-│  projects/<mod>/                         │  WASM components, assets
-├──────────────────────────────────────────┤
-│  Preset Layer (Rust)                     │  Game-specific logic:
-│  crates/souprune/src/preset/             │  battle, overworld, items,
-│                                          │  enemies, UI layouts
-├──────────────────────────────────────────┤
-│  Core Engine (Rust)                      │  Generic infrastructure:
-│  crates/souprune/src/core/               │  FRE, View, Mortar, danmaku,
-│                                          │  collision, WASM runtime
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  User Content (Mod / Game Project)            │
+│  projects/<mod>/                              │
+│  ── RON configs, Mortar scripts, WASM mods ── │
+├──────────────────────────────────────────────┤
+│  Preset Layer (Rust native)                   │
+│  crates/souprune/src/preset/                  │
+│  ── Battle, overworld, items, enemies ──────  │
+├──────────────────────────────────────────────┤
+│  Core Engine (Rust native)                    │
+│  crates/souprune/src/core/                    │
+│  ── FRE, View, Mortar, danmaku, collision ──  │
+└──────────────────────────────────────────────┘
 ```
 
-**Dependency rule**: Core ← Preset ← User Content. The arrow is strictly one-directional.
-
-### Core (`core/`)
-
-The engine layer. Knows mechanics, not meaning.
-
-- **FRE** (Fact-Rule-Event): Data-driven rule engine. Events trigger rules; rules mutate facts; Views react to facts.
-- **View**: RON-driven declarative UI with SDF rendering and reactive updates.
-- **Mortar VM**: Bytecode VM for branching dialogue and scripted sequences.
-- **Danmaku**: High-performance bullet engine — lifecycle, behavior stack, builtin motions.
-- **Collision**: SDF-based detection with event buffering and cooldown deduplication.
-- **Mod System**: WASM runtime (wasmtime) for user-defined behaviors and patterns.
-
-Core provides danmaku, collision, dialogue, and View — but does not know what "HP", "item", or "battle phase" means.
-
-### Preset (`preset/`)
-
-The game logic layer. Transforms the generic core into a complete RPG+STG framework.
-
-- Battle state machine, turn flow, damage calculation
-- Overworld: player controller, NPC interaction, tilemap
-- Item/enemy registries, FRE action handlers
-- DataPath/Condition/ExprFunction resolvers for View
-- MortarFactBindings for dialogue variable injection
-
-Preset is intentionally monolithic — the target audience needs a complete kit.
-
-### User Content (`projects/`)
-
-Game-specific content authored via data and scripts:
-
-- RON: item/enemy definitions, View layouts, danmaku performances
-- Mortar: dialogue, cutscenes, event sequences
-- FRE rules: game logic, state transitions
-- WASM components: custom bullet behaviors, special mechanics
-- Assets: sprites, audio, tilemaps
+**The dependency arrow is strictly one-directional**: Core ← Preset ← User Content.
+Core never imports from preset. Preset never imports from user mods.
 
 ---
 
-## Core Subsystems
+## Core Engine (`core/`)
 
-### FRE (Fact-Rule-Event)
+The core layer is SoupRune's "runtime" — it knows **how** things work,
+but not **what** they mean. It provides danmaku motion, collision detection,
+dialogue rendering, and reactive UI — but has no concept of "HP", "items",
+"enemies", or "battle phases".
 
-The engine's heart. Decouples data from behavior:
+### FRE (Fact-Rule-Event) — The Heart
 
-| Concept   | Role                                               | Example                        |
-|-----------|----------------------------------------------------|--------------------------------|
-| **Fact**  | Global key-value store                             | `"player:hp" = 20`             |
-| **Event** | Signal that something happened                     | `CollisionEnter { a, b }`      |
-| **Rule**  | Declarative logic binding events to fact mutations | `On TakeDamage → hp -= amount` |
+FRE is SoupRune's data-driven rule engine. It decouples data from behavior
+using three simple concepts:
 
-Flow: Event → Rule evaluation → Fact mutation → Reactive View update.
+| Concept   | What it does                                              | Example                        |
+|-----------|-----------------------------------------------------------|--------------------------------|
+| **Fact**  | A global key-value store — the single source of truth     | `"player:hp" = 20`             |
+| **Event** | A signal that something happened — carries no logic       | `CollisionEnter { a, b }`      |
+| **Rule**  | Declarative logic that reacts to events and mutates facts | `On TakeDamage → hp -= amount` |
 
-### View System
+**How it flows**: An event fires → the FRE engine evaluates matching rules →
+rules mutate facts → the View system reactively updates the UI.
 
-RON-driven UI with resolver registries. Views respond to Fact changes, not imperative calls.
-Preset injects game-specific data via `DataPathResolvers`, `ConditionResolvers`, and `ExprFunctionResolvers`.
+This means you never write `button.set_color(gray)`. Instead, the fact that
+controls the button changes, and the View reacts automatically.
 
-### Danmaku
+### View System — Declarative UI
 
-First-class STG support — SoupRune's competitive advantage:
+Views are defined in `.view_layout.ron` files — not in Rust code.
+The system uses SDF rendering (via `bevy_alight_motion`) and mesh-based text
+(via `bevy_rich_text3d`) to produce high-quality visuals.
 
-- Builtin motions: Linear, Orbital, Sine, Tween, Stationary, Aimed
-- Custom motions: WASM components for exotic patterns
-- Timeline-driven spawn sequences
+Preset injects game-specific data into Views through **resolver registries**:
+
+- `DataPathResolvers` — resolve data paths like `"player.hp"` to actual values
+- `ConditionResolvers` — evaluate conditions like `"has_item('sword')"`
+- `ExprFunctionResolvers` — provide custom expression functions
+
+This means core's View system is fully generic — it doesn't know what
+`"player.hp"` means until preset tells it how to resolve that path.
+
+### Mortar VM — Dialog system virtual machine
+
+Mortar is a bytecode VM designed for branching dialogue and scripted sequences.
+It handles the inherently complex logic of dialogue trees, conditional text,
+and timed event sequences — keeping this complexity out of both FRE rules and Rust code.
+
+Mortar scripts emit abstract events; FRE captures those events to update game state.
+Text content lives in Mortar; game logic lives in FRE rules.
+
+### Danmaku — The STG Engine
+
+SoupRune is a **RPG/STG framework at its core**. The danmaku system is not an afterthought —
+it's a first-class engine feature with privileged status in `core/`.
+
+- **Bullet lifecycle**: spawn → behavior stack → per-frame motion update → despawn
+- **Builtin motions** (native Rust, zero WASM overhead):
+  Linear, Orbital, Sine, Tween, Stationary, Aimed
+- **Custom motions**: user-defined WASM components for exotic bullet patterns
+- **Timeline performances**: RON-driven spawn sequences with configurable patterns
+- **Performance**: optimized for thousands of simultaneous bullets at 60fps
+
+### Collision System
+
+SDF-based collision detection with `EventPhase` buffering that provides
+cooldown-based deduplication. The system emits generic collision events —
+it's up to the preset layer to interpret them (e.g., "collision with player = take damage").
+
+### Mod System (WASM Runtime)
+
+A wasmtime-based runtime that loads user-provided WASM components.
+Mods can provide custom bullet behaviors, spawn patterns, action handlers,
+mode lifecycle hooks, and rule providers — all through well-defined WIT interfaces.
+
+---
+
+## Preset Layer (`preset/`)
+
+The preset layer transforms the generic core engine into a complete UT/DR experience.
+It is written in **native Rust** (not WASM) for maximum performance and type safety.
+
+This layer is intentionally **monolithic** — the target audience (fangame creators)
+needs a complete RPG+STG toolkit, not a puzzle of optional micro-crates.
+
+### What preset provides
+
+- **Battle system**: turn-based state machine, HP/damage, enemy AI, battle box
+- **Overworld**: player controller, NPC interaction, tilemap, area triggers, chase sequences
+- **Item system**: `ItemRegistry`, item effects (heal, equip, audio), FRE fact injection
+- **Enemy system**: `EnemyRegistry`, enemy data, encounter configuration
+- **FRE integration**: game-specific action handlers and rule definitions
+- **View integration**: DataPath/Condition/ExprFunction resolvers for reactive UI
+- **Dialogue integration**: `MortarFactBindings` for injecting game data into dialogue variables
+
+### How preset talks to core
+
+Preset communicates with core exclusively through standard Bevy and FRE mechanisms:
+
+1. **Bevy ECS**: Components, Resources, Events, Systems, Plugins
+2. **FRE**: Rules, Facts, Events, Action handlers
+3. **Resolver registries**: Dynamic registration of data resolvers
+4. **ViewActionExtensions**: Extensible action dispatch for View events
+5. **MortarFactBindings**: Dynamic Mortar function/variable bindings
+
+---
+
+## User Content Layer (`projects/`)
+
+This is where game creators work. Content is authored entirely through data and scripts:
+
+| Format        | Purpose              | Example                                                           |
+|---------------|----------------------|-------------------------------------------------------------------|
+| **RON**       | Structured game data | Item definitions, enemy stats, View layouts, danmaku performances |
+| **Mortar**    | Scripted sequences   | Dialogue trees, cutscenes, event chains                           |
+| **FRE rules** | Game logic           | State transitions, conditional behaviors, damage formulas         |
+| **WASM**      | Custom code          | Exotic bullet patterns, special boss mechanics                    |
+| **Assets**    | Media files          | Sprites, audio, tilemaps, Alight Motion projects                  |
 
 ---
 
 ## WASM Extension Model
 
-WASM is the extension point for mod authors, not a replacement for Rust systems.
+WASM is the **extension point for mod authors** — not a replacement for Rust.
 
-- **Use WASM for**: custom bullet behaviors, exotic spawn patterns, mod-specific logic
-- **Keep in Rust for**: core motions, collision, rendering, UI layout
-- **WIT interfaces**: `behavior`, `danmaku`, `spawn-pattern`, `custom-action-handler`, `mode-lifecycle`, `rule-provider`
+| Use WASM for            | Keep in Rust           |
+|-------------------------|------------------------|
+| Custom bullet behaviors | Core motion primitives |
+| Exotic spawn patterns   | Collision detection    |
+| Mod-specific game logic | Rendering & UI layout  |
+| Special boss mechanics  | FRE rule evaluation    |
+
+**WIT interfaces** define the contract between engine and mods:
+`behavior`, `danmaku`, `spawn-pattern`, `custom-action-handler`,
+`mode-lifecycle`, `rule-provider`
+
+**Performance note**: WASM has serialization overhead at the boundary.
+Hot-path code (bullet updates × thousands of bullets × 60fps) should stay in Rust.
 
 ---
 
 ## Boundary Rules
 
-✅ Core **may**: define danmaku primitives, collision, dialogue rendering, View layout, FRE evaluation, generic
-scheduling
+These are the architectural invariants that keep SoupRune maintainable:
 
-❌ Core **must not**: import from preset, hardcode game-specific fact keys, know about specific entities (Item, Enemy),
-define game state machines
+| ✅ Core may                              | ❌ Core must not                         |
+|-----------------------------------------|-----------------------------------------|
+| Define danmaku motion primitives        | Import from `preset/`                   |
+| Define collision shapes and events      | Hardcode game-specific fact keys        |
+| Define dialogue rendering and Mortar VM | Know about Items, Enemies, or BattleBox |
+| Define View layout and reactive updates | Define game state machines              |
+| Define FRE rule evaluation              | Register game-specific Mortar functions |
+| Define generic scheduling primitives    | Contain UT/DR-specific vocabulary       |
 
 ---
 
-## Directory Map
+## Crate Map
 
 ```
 crates/
-├── souprune/src/
-│   ├── core/               # Engine infrastructure
-│   │   ├── danmaku/        #   Bullet engine (privileged)
-│   │   ├── dialogue/       #   Dialogue + Mortar integration
-│   │   ├── view/           #   RON-driven UI
-│   │   ├── collision.rs    #   SDF collision
-│   │   ├── fre_bridge.rs   #   FRE ↔ ECS bridge
-│   │   └── mod_system.rs   #   WASM mod loading
-│   ├── preset/             # Game logic (battle, overworld, items)
-│   └── app_state/          # Application state management
-├── bevy_fact_rule_event/   # FRE engine (submodule)
-├── bevy_mortar_bond/       # Mortar scripting (submodule)
-├── bevy_alight_motion/     # Alight Motion + SDF (submodule)
-├── souprune_api/           # WIT interface definitions
-└── souprune_sdk/           # Rust WASM guest SDK
+├── souprune/                     # Main framework crate
+│   └── src/
+│       ├── core/                 # Tier 1: Engine infrastructure
+│       │   ├── danmaku/          #   ★ STG bullet engine (privileged)
+│       │   ├── dialogue/         #   Dialogue UI & Mortar integration
+│       │   ├── view/             #   RON-driven declarative UI
+│       │   │   └── ron_view/
+│       │   │       └── player_data.rs  # Resolver registries
+│       │   ├── collision.rs      #   SDF collision detection
+│       │   ├── fre_bridge.rs     #   FRE ↔ ECS bridge
+│       │   ├── fre_facts.rs      #   Core fact key constants
+│       │   ├── mod_system.rs     #   WASM mod loading & registries
+│       │   └── sequencer.rs      #   Chapter-based game flow
+│       ├── preset/               # Tier 2: UT/DR game logic
+│       │   ├── battle/           #   Battle state machine
+│       │   ├── overworld/        #   Overworld exploration
+│       │   ├── item.rs           #   Item registry & data
+│       │   ├── item_actions.rs   #   Item FRE action handlers
+│       │   └── enemy.rs          #   Enemy registry & data
+│       └── app_state/            # Application state management
+│
+├── bevy_fact_rule_event/         # FRE engine (git submodule)
+├── bevy_mortar_bond/             # Mortar scripting (git submodule)
+├── bevy_ecs_typewriter/          # Typewriter text effect (git submodule)
+├── bevy_alight_motion/           # Alight Motion + SDF rendering (git submodule)
+│
+├── souprune_api/                 # WIT interface definitions
+├── souprune_sdk/                 # Rust WASM guest SDK
+├── souprune_mod_test/            # Example WASM mod
+└── souprune_mock_host/           # Standalone WASM test host
 ```
