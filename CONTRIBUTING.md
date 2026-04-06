@@ -172,6 +172,9 @@ submodules. Each crate has its own repository and issue tracker:
 **Please submit Issues and PRs to the respective repositories**, not to the main SoupRune repo. Improvements to these
 crates benefit both SoupRune and any other projects using them.
 
+> 📝 These crates are licensed under **MIT OR Apache-2.0** (the standard Bevy ecosystem license). Contributing to them
+> does **not** require signing a CLA — they follow standard open-source contribution practices.
+
 ### C2. Editor (souprune_editor)
 
 > ⚠️ **Experimental** — The editor is not currently a development priority, but it's a fascinating exploration
@@ -186,7 +189,7 @@ crates benefit both SoupRune and any other projects using them.
 
 - `souprune_sdk` — Rust WASM guest SDK
 - C# (.NET AOT) bindings
-- Haxe bindings
+- JavaScript bindings (planned)
 - **Want to add a new language?** Go, Python, Zig, and more are welcome!
 
 ### C4. CI / Build / Toolchain
@@ -195,7 +198,8 @@ crates benefit both SoupRune and any other projects using them.
 - CI pipeline improvements
 - Developer experience tools (justfile recipes, scaffolding, etc.)
 
-> ⚖️ **CLA required for Path C** (for crates maintained by Bli-AIk). See [License & CLA](#-license--cla) for details.
+> ⚖️ **CLA required for Path C** only when contributing to the SoupRune core (`crates/souprune`, LGPL-3.0). The
+> independent Bevy crates (mortar, FRE, alight_motion, etc.) are MIT/Apache-2.0 and do **not** require a CLA.
 
 ---
 
@@ -323,9 +327,9 @@ licenses. Thank you for your understanding and commitment!
 
 #### What Signing the CLA Does NOT Mean
 
-- ❌ Does not transfer your copyright
-- ❌ Does not restrict you from using the same code in other projects
-- ❌ Does not affect any of your rights in the open source community
+- ❌ CLA does not transfer your copyright
+- ❌ CLA does not restrict you from using the same code in other projects
+- ❌ CLA does not affect any of your rights in the open source community
 
 📄 **Read the full CLA**: [CLA.md](./CLA.md)
 

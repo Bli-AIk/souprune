@@ -73,7 +73,6 @@ When an incident does occur, it is important to report it promptly. To report a 
 
 - **Discord**: Contact a moderator in the [SoupRune Discord server](https://discord.gg/5YXK5DRjPZ) via direct message.
 - **Email**: Send a report to the project maintainer (see the project's GitHub profile for contact information).
-- **GitHub**: Open a confidential issue or contact the maintainers directly.
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They
 will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing

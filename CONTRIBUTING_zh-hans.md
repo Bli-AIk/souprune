@@ -26,7 +26,8 @@
 
 ## 📜 行为准则
 
-请阅读并遵守我们的[行为准则](./CODE_OF_CONDUCT.md)（基于 Contributor Covenant 3.0）。我们是一个连接 UTDR 同人社区和
+请阅读并遵守我们的[行为准则](./CODE_OF_CONDUCT.md)（[中文版](./CODE_OF_CONDUCT_zh-hans.md)，基于 Contributor Covenant
+3.0）。我们是一个连接 UTDR 同人社区和
 Rust/Bevy 生态的社区——不同背景之间的互相尊重至关重要。
 
 ---
@@ -126,7 +127,7 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 
 ### 寻找 Issue
 
-查看标记为 [`good first issue`](https://github.com/Bli-AIk/souprune/labels/good%20first%20issue) 或 
+查看标记为 [`good first issue`](https://github.com/Bli-AIk/souprune/labels/good%20first%20issue) 或
 [`help wanted`](https://github.com/Bli-AIk/souprune/labels/help%20wanted) 的 Issue。
 
 ### 学习资源
@@ -161,6 +162,8 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 
 **请到对应的独立仓库提交 Issue 和 PR**，而不是 SoupRune 主仓库。改进这些 crate 会同时惠及 SoupRune 和其他使用它们的项目。
 
+> 📝 这些 crate 采用 **MIT OR Apache-2.0** 许可（Bevy 生态的标准许可）。向它们贡献代码**不需要**签署 CLA——遵循标准的开源贡献流程即可。
+
 ### C2. 编辑器 (souprune_editor)
 
 > ⚠️ **实验性项目** — 编辑器目前不是开发重点，但这是一个非常有趣的探索方向。
@@ -173,9 +176,9 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 ### C3. SDK 与多语言绑定
 
 - `souprune_sdk` — Rust WASM guest SDK
-- C# (.NET AOT) 绑定
-- Haxe 绑定
-- **想添加新语言支持？** Go、Python、Zig 等都欢迎！
+- C# (.NET AOT) 绑定 （计划中）
+- JavaScript 绑定（计划中）
+- **想添加新语言支持？** Go、Python、Zig 等……我们都欢迎！
 
 ### C4. CI / 构建 / 工具链
 
@@ -183,7 +186,8 @@ SoupRune 是为创作 Deltarune / Undertale 风格同人游戏而生的框架。
 - CI 流水线改进
 - 开发者体验工具（justfile 配方、脚手架等）
 
-> ⚖️ **路径 C 需要签署 CLA**（针对 Bli-AIk 维护的 crate）。详见[许可证与 CLA](#%EF%B8%8F-许可证与-cla)。
+> ⚖️ **路径 C 仅在贡献 SoupRune 核心代码时需要签署 CLA**（`crates/souprune`，LGPL-3.0）。独立 Bevy
+> crate（mortar、FRE、alight_motion 等）采用 MIT/Apache-2.0 许可，**不需要** CLA。
 
 ---
 
@@ -300,11 +304,11 @@ Bli-AIk），并用于以下途径：
 
 #### 签署 CLA 不意味着什么
 
-- ❌ 不转让你的版权
-- ❌ 不限制你在其他项目中使用相同代码
-- ❌ 不影响你在开源社区的任何权利
+- ❌ CLA 不会转让你的版权
+- ❌ CLA 不限制你在其他项目中使用相同代码
+- ❌ CLA 不影响你在开源社区的任何权利
 
-📄 **阅读完整 CLA**：[CLA.md](./CLA.md)
+📄 **阅读完整 CLA**：[CLA.md](./CLA.md)（[中文版](./CLA_zh-hans.md)）
 
 ---
 

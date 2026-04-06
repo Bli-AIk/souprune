@@ -84,15 +84,17 @@ representations inaccurate in any respect.
 
 ## 10. Scope
 
-This Agreement applies to Contributions submitted to the Core Codebase (`crates/` directory) and all Bevy crates
-maintained by the Maintainer (including but not limited to `bevy_mortar_bond`, `bevy_fact_rule_event`,
-`bevy_ecs_typewriter`, `bevy_alight_motion`, and `bevy_bitmap_text`).
+This Agreement applies to Contributions submitted to the **SoupRune core framework** — specifically, the
+`crates/souprune` crate and any other crates within the SoupRune repository that are licensed under LGPL-3.0-or-later.
 
 **This Agreement does NOT apply to:**
 
 - Game projects, Mods, or content created under `projects/` directory
 - Assets, scripts, or configurations that interact with SoupRune through its public API (WIT interfaces, RON data files,
   Mortar scripts, WASM modules)
+- Independent Bevy crates maintained by the same team but licensed under MIT/Apache-2.0 (such as `bevy_mortar_bond`,
+  `bevy_fact_rule_event`, `bevy_ecs_typewriter`, `bevy_alight_motion`, `bevy_bitmap_text`) — these follow standard
+  open-source contribution practices and do not require a CLA
 
 ---
 
