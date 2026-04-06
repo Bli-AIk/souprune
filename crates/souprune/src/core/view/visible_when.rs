@@ -20,7 +20,7 @@
 //! 本模块提供评估 `visible_when` 表达式并相应更新实体可见性的系统。
 
 use super::components::{ViewRoot, VisibleWhen};
-use super::ron_view::parsing::PlayerDataView;
+use super::ron_view::parsing::{ConditionResolvers, PlayerDataView};
 use bevy::prelude::*;
 use bevy_fact_rule_event::LayeredFactDatabase;
 
@@ -39,6 +39,7 @@ pub fn evaluate_visible_when_system(
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
     child_of_query: Query<&ChildOf>,
     mut query: Query<(Entity, &VisibleWhen, &mut Visibility)>,
+    cond_resolvers: Option<Res<ConditionResolvers>>,
 ) {
     // Performance optimization: Only evaluate when data actually changes
     // 性能优化：仅在数据实际变更时评估
@@ -55,12 +56,12 @@ pub fn evaluate_visible_when_system(
         let view_root = find_view_root_ancestor(entity, &view_root_query, &child_of_query);
 
         let is_visible = if let Some(view_root) = view_root {
-            let player_data = PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts);
+            let player_data = PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
+                .with_resolvers(None, cond_resolvers.as_deref());
             evaluate_visible_when_expr(&visible_when.expression, &player_data)
         } else {
-            // No ViewRoot found, use base player data
-            // 未找到 ViewRoot，使用基础 player data
-            let player_data = PlayerDataView::new(&layered_db);
+            let player_data = PlayerDataView::new(&layered_db)
+                .with_resolvers(None, cond_resolvers.as_deref());
             evaluate_visible_when_expr(&visible_when.expression, &player_data)
         };
 

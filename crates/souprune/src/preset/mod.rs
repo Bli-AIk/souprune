@@ -12,12 +12,14 @@
 pub mod battle_box;
 pub mod battle_player;
 pub mod battle_runtime;
+mod data_paths;
 pub mod enemy;
 pub mod item;
 mod load_enemies_chapter;
 
 use bevy::app::*;
 use bevy::prelude::IntoScheduleConfigs;
+use crate::core::view::ron_view::parsing::{ConditionResolvers, DataPathResolvers};
 
 /// Plugin that registers game-specific data loaders and sequencer chapter handlers.
 ///
@@ -27,6 +29,16 @@ pub struct PresetPlugin;
 impl Plugin for PresetPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((enemy::EnemyPlugin, item::ItemPlugin));
+
+        // Register computed data path resolvers
+        let mut data_resolvers = DataPathResolvers::default();
+        data_paths::register_data_path_resolvers(&mut data_resolvers);
+        app.insert_resource(data_resolvers);
+
+        // Register condition resolvers
+        let mut cond_resolvers = ConditionResolvers::default();
+        data_paths::register_condition_resolvers(&mut cond_resolvers);
+        app.insert_resource(cond_resolvers);
 
         // Register LoadEnemies chapter handler in the sequencer's system set.
         let schedule = crate::game_schedule(app);

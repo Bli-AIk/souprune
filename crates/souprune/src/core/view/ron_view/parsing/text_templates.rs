@@ -16,7 +16,7 @@
 use super::super::evaluation::preprocess_fact_expressions;
 use super::PlayerDataView;
 use crate::core::view::expr_eval::create_eval_callback;
-use bevy::prelude::{debug, info, trace, warn};
+use bevy::prelude::{debug, warn};
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
@@ -319,102 +319,49 @@ pub fn resolve_text_content(
 
 /// Resolve `{{data:path}}` template expressions using FRE facts.
 ///
-/// Item properties (locale, damage, defense) are resolved from global facts
-/// injected by `inject_item_facts()` — no ItemRegistry dependency needed.
+/// Generic resolution: converts `a.b.c` → fact key `a:b.c` (first dot becomes colon)
+/// and reads from the fact database. Custom resolvers registered in
+/// `DataPathResolvers` are checked first for computed values.
+///
+/// 解析 `{{data:path}}` 模板表达式。
+/// 通用解析：将 `a.b.c` 转换为事实键 `a:b.c`，从事实数据库读取。
+/// 注册在 `DataPathResolvers` 中的自定义解析器优先检查。
 pub fn resolve_data_path(
     path: &str,
     player_data: &PlayerDataView,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
 ) -> String {
-    let get_string = |key: &str| player_data.get_fact_string(key).unwrap_or_default();
-    let get_int = |key: &str| player_data.get_fact_int(key).unwrap_or(0);
-
-    /// Resolve an item's display name via FRE facts.
-    /// Looks up `items:{id}.locale_key` and resolves via mortar strings.
-    fn resolve_item_name(
-        item_id: &str,
-        player_data: &PlayerDataView,
-        mortar_strings: &crate::extra::mortar::MortarStringTable,
-    ) -> Option<String> {
-        let locale_key =
-            player_data.get_fact_string(&format!("items:{item_id}.locale_key"))?;
-        Some(mortar_strings.resolve(&locale_key).to_string())
+    // Check custom resolvers first
+    if let Some(result) = player_data.resolve_data_path(path, mortar_strings) {
+        return result;
     }
 
-    match path {
-        "player.name" => get_string("player:name"),
-        "player.lv" => get_int("player:lv").to_string(),
-        "player.hp" => {
-            let result = get_int("player:hp").to_string();
-            info!("[resolve_data_path] player.hp = {}", result);
-            result
-        }
-        "player.hp_max" => {
-            let result = get_int("player:hp_max").to_string();
-            info!("[resolve_data_path] player.hp_max = {}", result);
-            result
-        }
-        "player.gold" => get_int("player:gold").to_string(),
-        "player.exp" => get_int("player:exp").to_string(),
-        "player.next_exp" => get_int("player:next_exp").to_string(),
-        "player.attack" => get_int("player:attack").to_string(),
-        "player.defense" => get_int("player:defense").to_string(),
-        "player.inventory" => {
-            let inventory = player_data
-                .get_fact_string_list("player:inventory")
-                .unwrap_or_default();
-            let capacity = player_data
-                .get_fact_int("player:inventory_capacity")
-                .unwrap_or(8) as usize;
-            inventory
-                .iter()
-                .take(capacity)
-                .map(|item_id| {
-                    resolve_item_name(item_id, player_data, mortar_strings)
-                        .unwrap_or_else(|| {
-                            trace!("Item ID '{}' not found in facts", item_id);
-                            format!("UNDEFINED ({})", item_id)
-                        })
-                })
-                .collect::<Vec<String>>()
-                .join("\n")
-        }
-        "player.weapon" => {
-            let weapon = get_string("player:weapon");
-            resolve_item_name(&weapon, player_data, mortar_strings).unwrap_or(weapon)
-        }
-        "player.weapon_atk" => {
-            let weapon = get_string("player:weapon");
-            player_data
-                .get_fact_int(&format!("items:{weapon}.damage"))
-                .unwrap_or(0)
-                .to_string()
-        }
-        "player.total_attack" => {
-            let weapon = get_string("player:weapon");
-            let weapon_atk = player_data
-                .get_fact_int(&format!("items:{weapon}.damage"))
-                .unwrap_or(0);
-            (get_int("player:attack") + weapon_atk).to_string()
-        }
-        "player.armor" => {
-            let armor = get_string("player:armor");
-            resolve_item_name(&armor, player_data, mortar_strings).unwrap_or(armor)
-        }
-        "player.armor_def" => {
-            let armor = get_string("player:armor");
-            player_data
-                .get_fact_int(&format!("items:{armor}.defense"))
-                .unwrap_or(0)
-                .to_string()
-        }
-        "player.total_defense" => {
-            let armor = get_string("player:armor");
-            let armor_def = player_data
-                .get_fact_int(&format!("items:{armor}.defense"))
-                .unwrap_or(0);
-            (get_int("player:defense") + armor_def).to_string()
-        }
-        _ => format!("<unknown:{}>", path),
+    // Generic: convert first dot to colon for fact key lookup
+    let fact_key = if let Some(dot_pos) = path.find('.') {
+        format!("{}:{}", &path[..dot_pos], &path[dot_pos + 1..])
+    } else {
+        path.to_string()
+    };
+
+    if let Some(value) = player_data.get_fact(&fact_key) {
+        return match value {
+            bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+            bevy_fact_rule_event::FactValue::StringList(list) => list.join("\n"),
+            bevy_fact_rule_event::FactValue::IntList(list) => {
+                list.iter().map(|i| i.to_string()).collect::<Vec<_>>().join("\n")
+            }
+            bevy_fact_rule_event::FactValue::FloatList(list) => {
+                list.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("\n")
+            }
+            bevy_fact_rule_event::FactValue::BoolList(list) => {
+                list.iter().map(|b| b.to_string()).collect::<Vec<_>>().join("\n")
+            }
+        };
     }
+
+    debug!("[resolve_data_path] unknown path: {path} (fact key: {fact_key})");
+    format!("<unknown:{path}>")
 }

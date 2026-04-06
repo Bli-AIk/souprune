@@ -18,8 +18,10 @@ use std::collections::HashMap;
 mod repeat_preprocess;
 mod text_templates;
 
-// Re-export PlayerDataView so callers can import parsing helpers from one place.
-pub use super::player_data::PlayerDataView;
+// Re-export PlayerDataView and resolver types so callers can import from one place.
+pub use super::player_data::{
+    ConditionResolvers, DataPathResolvers, PlayerDataView,
+};
 
 // Re-export evaluation helpers alongside the parsing utilities.
 #[allow(unused_imports)]

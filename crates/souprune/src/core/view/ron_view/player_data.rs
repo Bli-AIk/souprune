@@ -10,6 +10,104 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactDatabase, FactValue, LayeredFactDatabase};
+use std::collections::HashMap;
+
+/// Resolver function for computed data paths (e.g. "player.total_attack").
+/// Takes the fact database, optional local facts, and mortar string table.
+///
+/// 计算数据路径的解析器函数（如 "player.total_attack"）。
+type DataPathResolverFn = Box<
+    dyn Fn(&LayeredFactDatabase, Option<&FactDatabase>, &crate::extra::mortar::MortarStringTable) -> String
+        + Send
+        + Sync,
+>;
+
+/// Resolver function for view conditions (e.g. "player.hp.is_low").
+/// Takes the fact database and optional local facts.
+///
+/// 视图条件的解析器函数（如 "player.hp.is_low"）。
+type ConditionResolverFn =
+    Box<dyn Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> bool + Send + Sync>;
+
+/// Registry of computed data path resolvers.
+/// Preset modules register game-specific resolvers here.
+///
+/// 计算数据路径解析器注册表。预设模块在此注册游戏特定的解析器。
+#[derive(Resource)]
+pub struct DataPathResolvers {
+    resolvers: HashMap<String, DataPathResolverFn>,
+}
+
+impl Default for DataPathResolvers {
+    fn default() -> Self {
+        Self {
+            resolvers: HashMap::new(),
+        }
+    }
+}
+
+impl DataPathResolvers {
+    pub fn register(
+        &mut self,
+        path: impl Into<String>,
+        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>, &crate::extra::mortar::MortarStringTable) -> String
+            + Send
+            + Sync
+            + 'static,
+    ) {
+        self.resolvers.insert(path.into(), Box::new(resolver));
+    }
+
+    pub fn resolve(
+        &self,
+        path: &str,
+        db: &LayeredFactDatabase,
+        local_facts: Option<&FactDatabase>,
+        mortar_strings: &crate::extra::mortar::MortarStringTable,
+    ) -> Option<String> {
+        self.resolvers
+            .get(path)
+            .map(|f| f(db, local_facts, mortar_strings))
+    }
+}
+
+/// Registry of view condition resolvers.
+/// Preset modules register game-specific conditions here.
+///
+/// 视图条件解析器注册表。预设模块在此注册游戏特定的条件。
+#[derive(Resource)]
+pub struct ConditionResolvers {
+    resolvers: HashMap<String, ConditionResolverFn>,
+}
+
+impl Default for ConditionResolvers {
+    fn default() -> Self {
+        Self {
+            resolvers: HashMap::new(),
+        }
+    }
+}
+
+impl ConditionResolvers {
+    pub fn register(
+        &mut self,
+        condition: impl Into<String>,
+        resolver: impl Fn(&LayeredFactDatabase, Option<&FactDatabase>) -> bool + Send + Sync + 'static,
+    ) {
+        self.resolvers.insert(condition.into(), Box::new(resolver));
+    }
+
+    pub fn resolve(
+        &self,
+        condition: &str,
+        db: &LayeredFactDatabase,
+        local_facts: Option<&FactDatabase>,
+    ) -> Option<bool> {
+        self.resolvers
+            .get(condition)
+            .map(|f| f(db, local_facts))
+    }
+}
 
 /// Helper struct to read facts from LayeredFactDatabase with optional local facts.
 /// This provides a unified view for the expression evaluation system.
@@ -43,6 +141,8 @@ pub struct PlayerDataView<'a> {
     /// Optional local facts from ViewRoot (View-specific facts)
     /// 来自 ViewRoot 的可选局部事实（View 特定的事实）
     local_facts: Option<&'a FactDatabase>,
+    data_path_resolvers: Option<&'a DataPathResolvers>,
+    condition_resolvers: Option<&'a ConditionResolvers>,
 }
 
 impl<'a> PlayerDataView<'a> {
@@ -50,6 +150,8 @@ impl<'a> PlayerDataView<'a> {
         Self {
             db,
             local_facts: None,
+            data_path_resolvers: None,
+            condition_resolvers: None,
         }
     }
 
@@ -60,7 +162,46 @@ impl<'a> PlayerDataView<'a> {
         Self {
             db,
             local_facts: Some(local_facts),
+            data_path_resolvers: None,
+            condition_resolvers: None,
         }
+    }
+
+    /// Set data path resolvers for this view.
+    pub fn set_data_path_resolvers(&mut self, resolvers: &'a DataPathResolvers) {
+        self.data_path_resolvers = Some(resolvers);
+    }
+
+    /// Set condition resolvers for this view.
+    pub fn set_condition_resolvers(&mut self, resolvers: &'a ConditionResolvers) {
+        self.condition_resolvers = Some(resolvers);
+    }
+
+    /// Builder: attach both resolver registries.
+    pub fn with_resolvers(
+        mut self,
+        data_path: Option<&'a DataPathResolvers>,
+        conditions: Option<&'a ConditionResolvers>,
+    ) -> Self {
+        self.data_path_resolvers = data_path;
+        self.condition_resolvers = conditions;
+        self
+    }
+
+    /// Resolve a computed data path using registered resolvers.
+    pub fn resolve_data_path(
+        &self,
+        path: &str,
+        mortar_strings: &crate::extra::mortar::MortarStringTable,
+    ) -> Option<String> {
+        self.data_path_resolvers
+            .and_then(|r| r.resolve(path, self.db, self.local_facts, mortar_strings))
+    }
+
+    /// Resolve a condition using registered resolvers.
+    pub fn resolve_condition(&self, condition: &str) -> Option<bool> {
+        self.condition_resolvers
+            .and_then(|r| r.resolve(condition, self.db, self.local_facts))
     }
 
     /// Get the underlying LayeredFactDatabase reference.

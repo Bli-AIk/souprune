@@ -125,6 +125,7 @@ pub fn view_reconciliation_system(
         Option<&crate::core::view::components::ShaderMaterial>,
     )>,
     children_query: Query<&Children>,
+    data_resolvers: Option<Res<crate::core::view::ron_view::parsing::DataPathResolvers>>,
 ) {
     // Skip if nothing needs reconciliation
     if pending.asset_ids.is_empty() && !pending.force_all {
@@ -149,7 +150,7 @@ pub fn view_reconciliation_system(
 
         // Compute desired state
         let namespace = &view_root.namespace;
-        let desired = compute_desired_state(asset, &layered_db, &view_root.local_facts, namespace);
+        let desired = compute_desired_state(asset, &layered_db, &view_root.local_facts, namespace, data_resolvers.as_deref());
 
         // Build current state from ECS
         let current =

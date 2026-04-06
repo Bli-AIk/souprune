@@ -17,7 +17,9 @@ use super::super::components::ViewRoot;
 use super::super::components::{DynamicViewElement, TimeDependentTransform, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
-use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
+use super::parsing::{
+    DataPathResolvers, PlayerDataView, evaluate_float_expr, resolve_text_content,
+};
 use bevy::prelude::*;
 use bevy_bitmap_text::TextBlock;
 use bevy_fact_rule_event::LayeredFactDatabase;
@@ -189,6 +191,7 @@ pub fn update_dynamic_text_system(
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
     parent_query: Query<&ChildOf>,
+    data_resolvers: Option<Res<DataPathResolvers>>,
 ) {
     use bevy::prelude::DetectChanges;
 
@@ -212,7 +215,8 @@ pub fn update_dynamic_text_system(
             PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
         } else {
             PlayerDataView::new(&layered_db)
-        };
+        }
+        .with_resolvers(data_resolvers.as_deref(), None);
 
         let new_content =
             resolve_text_content(&template.0, &mortar_strings, &player_data);

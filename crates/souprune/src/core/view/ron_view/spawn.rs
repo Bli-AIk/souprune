@@ -13,7 +13,7 @@
 
 use super::super::components::*;
 use super::super::layout::*;
-use super::parsing::PlayerDataView;
+use super::parsing::{DataPathResolvers, PlayerDataView};
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
 use super::spawn_helpers::resolve_simple_localization;
 use crate::core::sprite::params::SpriteParams;
@@ -364,8 +364,10 @@ pub fn spawn_dynamic_view_system(
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
     mut fre_params: FreSystemParams,
+    data_resolvers: Option<Res<DataPathResolvers>>,
 ) {
-    let player_data = PlayerDataView::new(&layered_db);
+    let player_data = PlayerDataView::new(&layered_db)
+        .with_resolvers(data_resolvers.as_deref(), None);
 
     for (view_entity, hot_reload_root, _view_root, pending_view_data) in dynamic_view_query.iter() {
         // Check if asset is loaded

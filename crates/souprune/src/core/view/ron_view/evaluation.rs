@@ -528,42 +528,26 @@ pub fn evaluate_float_expr_with_current(
 // ============================================================================
 
 pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool {
-    // Helper closure to get inventory
-    let get_inventory = || {
-        player_data
-            .get_fact_string_list("player:inventory")
-            .unwrap_or_default()
-    };
+    // Check custom condition resolvers first
+    if let Some(result) = player_data.resolve_condition(condition) {
+        return result;
+    }
 
-    match condition {
-        "player.inventory.is_empty" => get_inventory().is_empty(),
-        "player.inventory.is_not_empty" => !get_inventory().is_empty(),
-        _ if condition.starts_with("player.") => {
-            let parts: Vec<&str> = condition.split('.').collect();
-            evaluate_player_property(&parts, player_data)
+    // Generic: try reading a boolean fact with dot→colon conversion
+    if let Some(dot_pos) = condition.find('.') {
+        let fact_key = format!("{}:{}", &condition[..dot_pos], &condition[dot_pos + 1..]);
+        if let Some(val) = player_data.get_fact(&fact_key) {
+            return match val {
+                bevy_fact_rule_event::FactValue::Bool(b) => *b,
+                bevy_fact_rule_event::FactValue::Int(i) => *i != 0,
+                bevy_fact_rule_event::FactValue::StringList(list) => !list.is_empty(),
+                bevy_fact_rule_event::FactValue::IntList(list) => !list.is_empty(),
+                _ => false,
+            };
         }
-        _ => false,
     }
-}
 
-/// Evaluate a player property condition like "player.hp.is_low".
-fn evaluate_player_property(parts: &[&str], player_data: &PlayerDataView) -> bool {
-    if parts.len() < 3 {
-        return false;
-    }
-    match (parts[1], parts[2]) {
-        ("hp", "is_low") => {
-            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-            let hp_max = player_data.get_fact_int("player:hp_max").unwrap_or(1);
-            hp < hp_max / 4
-        }
-        ("hp", "is_critical") => {
-            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-            hp <= 1
-        }
-        ("gold", "is_zero") => player_data.get_fact_int("player:gold").unwrap_or(0) == 0,
-        _ => false,
-    }
+    false
 }
 
 /// Evaluate transition condition for InteractiveLayer.
