@@ -241,6 +241,15 @@ Let us write a new future, line by line.
 
 </details>
 
+## 🤝 Contributing
+
+SoupRune welcomes contributions of all kinds — whether you're an artist, musician,
+game designer, translator, or developer.
+
+**👉 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guides on how to get involved.**
+
+Not sure where to start? Join our [Discord](https://discord.gg/5YXK5DRjPZ) and say hi!
+
 ## Contributors
 
 The following individuals have contributed to the SoupRune project!

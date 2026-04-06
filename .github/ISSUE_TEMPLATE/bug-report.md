@@ -7,10 +7,12 @@ assignees: ''
 
 ---
 
+> 💡 Not sure if it's a bug? Feel free to ask on [Discord](https://discord.gg/5YXK5DRjPZ) first!
+
 ### 🐛 Problem Description
 Provide a clear description of the issue. Include:
-- souprune version (if applicable)
-- Type of issue: compile-time / runtime / unexpected behavior
+- **SoupRune version**: (e.g., v0.6.0 or commit hash)
+- **Type of issue**: compile-time / runtime / unexpected behavior
 - Short code snippet showing the context (optional, but helpful)
 
 ---

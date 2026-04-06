@@ -215,6 +215,14 @@ SoupRune 能成为你手中的利器。
 
 </details>
 
+## 🤝 参与贡献
+
+SoupRune 欢迎各种形式的贡献——不论你是美术创作者、音乐人、游戏设计师、翻译者还是开发者。
+
+**👉 详细指南请查看 [贡献指南](./CONTRIBUTING_zh-hans.md)。**
+
+不知道从哪开始？来 [Discord](https://discord.gg/5YXK5DRjPZ) 和我们聊聊！
+
 ## 贡献者
 
 以下人员为 SoupRune 项目做出了贡献！
