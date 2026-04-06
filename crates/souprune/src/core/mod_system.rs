@@ -218,10 +218,10 @@ fn load_builtin_wasm(
     ];
 
     // Exe-relative candidates (packaged distribution)
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
-        }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
     }
 
     let wasm_path = candidates.iter().find(|p| p.exists());

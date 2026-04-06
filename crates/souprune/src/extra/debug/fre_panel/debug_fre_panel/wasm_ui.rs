@@ -100,17 +100,17 @@ pub(super) fn render_wasm_tab(ui: &mut egui::Ui, world: &mut World) {
 
         // Warnings.
         let last = tracer.history.back();
-        if let Some(last) = last {
-            if last.total_calls > 1000 {
-                ui.separator();
-                ui.colored_label(
-                    egui::Color32::YELLOW,
-                    format!(
-                        "⚠ Last frame: {} WASM calls — consider BuiltinMotion for common patterns",
-                        last.total_calls
-                    ),
-                );
-            }
+        if let Some(last) = last
+            && last.total_calls > 1000
+        {
+            ui.separator();
+            ui.colored_label(
+                egui::Color32::YELLOW,
+                format!(
+                    "⚠ Last frame: {} WASM calls — consider BuiltinMotion for common patterns",
+                    last.total_calls
+                ),
+            );
         }
     });
 }

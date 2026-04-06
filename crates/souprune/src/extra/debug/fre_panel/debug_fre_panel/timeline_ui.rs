@@ -83,7 +83,7 @@ pub(super) fn render_timeline_tab(ui: &mut egui::Ui, world: &mut World) {
                         let old_str = change
                             .old_value
                             .as_ref()
-                            .map(|v| format_fact_value(v))
+                            .map(format_fact_value)
                             .unwrap_or_else(|| "∅".to_string());
                         let new_str = format_fact_value(&change.new_value);
 
