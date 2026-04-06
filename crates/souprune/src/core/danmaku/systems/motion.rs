@@ -131,7 +131,13 @@ pub fn update_bullet_motion(
                     state.initial_angle,
                     state.initial_radius,
                 );
-                accumulate_output(&out, &mut position, &mut rotation_delta, &mut opacity, &mut scale_delta);
+                accumulate_output(
+                    &out,
+                    &mut position,
+                    &mut rotation_delta,
+                    &mut opacity,
+                    &mut scale_delta,
+                );
             }
         }
 

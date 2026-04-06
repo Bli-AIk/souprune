@@ -621,11 +621,22 @@ fn dispatch_mode_call(
             iface.call_on_mode_exit(&mut loaded.store, mode)
         };
         if let Err(e) = result {
-            let call_name = if is_enter { "on-mode-enter" } else { "on-mode-exit" };
-            error!("WASM mod '{}' {}('{}') failed: {:?}", loaded.name, call_name, mode, e);
+            let call_name = if is_enter {
+                "on-mode-enter"
+            } else {
+                "on-mode-exit"
+            };
+            error!(
+                "WASM mod '{}' {}('{}') failed: {:?}",
+                loaded.name, call_name, mode, e
+            );
         }
         let elapsed = start.elapsed();
-        let method = if is_enter { "on_mode_enter" } else { "on_mode_exit" };
+        let method = if is_enter {
+            "on_mode_enter"
+        } else {
+            "on_mode_exit"
+        };
         wasm_tracer.record(&loaded.name, "mode-lifecycle", method, elapsed);
     }
 }
