@@ -22,6 +22,7 @@ use bevy_ecs_typewriter::Typewriter;
 use bevy_mortar_bond::MortarGameEvent;
 use std::time::Duration;
 
+use super::auto_pause::AutoPauseTimer;
 use super::components::MortarController;
 
 /// Handles Mortar game events that control typewriter behavior.
@@ -61,7 +62,7 @@ pub fn handle_typewriter_mortar_events(
                 handle_set_speed(event, &mut typewriters);
             }
             "pause_typewriter" => {
-                handle_pause(event, &mut typewriters);
+                handle_pause(event, &mut typewriters, &mut commands);
             }
             "resume_typewriter" => {
                 handle_resume(event, &mut typewriters);
@@ -119,17 +120,26 @@ fn handle_set_speed(
 fn handle_pause(
     event: &MortarGameEvent,
     typewriters: &mut Query<&mut Typewriter, With<MortarController>>,
+    commands: &mut Commands,
 ) {
+    let duration = event.args.first().and_then(|s| s.parse::<f64>().ok());
+
     if let Some(entity) = event.source {
         if let Ok(mut tw) = typewriters.get_mut(entity) {
             tw.pause();
-            debug!("Typewriter paused for entity {:?}", entity);
+            if let Some(secs) = duration {
+                commands.entity(entity).insert(AutoPauseTimer::new(secs));
+            }
+            debug!(
+                "Typewriter paused for entity {:?} (duration: {:?})",
+                entity, duration
+            );
         }
     } else {
         for mut tw in typewriters.iter_mut() {
             tw.pause();
         }
-        debug!("All typewriters paused");
+        debug!("All typewriters paused (duration arg ignored for broadcast)");
     }
 }
 

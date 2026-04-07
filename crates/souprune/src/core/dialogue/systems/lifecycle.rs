@@ -19,6 +19,8 @@ use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
 use crate::core::fre_facts;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
+use super::super::auto_pause::AutoPauseState;
+
 #[derive(Component)]
 pub struct DialogueControllerEntity;
 
@@ -94,6 +96,10 @@ pub fn spawn_dialogue_controller_system(
         );
 
         let mut entity_commands = commands.spawn(DialogueControllerEntity);
+
+        // Always insert auto-pause state for character tracking
+        // 始终插入自动停顿状态以追踪字符进度
+        entity_commands.insert(AutoPauseState::default());
 
         if has_mortar {
             entity_commands.insert(super::super::components::MortarController::new());

@@ -23,6 +23,9 @@ pub fn typewriter_voice_system(
 
     for (typewriter, mut voice) in query.iter_mut() {
         if typewriter.state != TypewriterState::Playing {
+            // Keep index in sync so resuming doesn't trigger a stale sound.
+            // 保持索引同步，避免恢复时触发多余音效。
+            voice.last_char_index = typewriter.current_char_index;
             continue;
         }
 

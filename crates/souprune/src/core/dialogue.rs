@@ -20,11 +20,13 @@
 //! - **多焦点支持**：多个对话实体可同时激活
 //! - **数据驱动**：对话状态通过 FRE facts 管理，而非硬编码资源
 
+mod auto_pause;
 mod components;
 mod config;
 mod systems;
 mod typewriter_bridge;
 
+pub use auto_pause::AutoPauseConfig;
 pub use components::MortarController;
 pub use components::TypewriterVoice;
 pub use config::DialogueInputConfig;
@@ -49,10 +51,17 @@ impl Plugin for DialoguePlugin {
         app.add_plugins(bevy_ecs_typewriter::TypewriterPlugin);
 
         app.init_resource::<DialogueInputConfig>()
+            .init_resource::<auto_pause::AutoPauseConfig>()
             .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
-            .add_systems(Startup, init_dialogue_facts)
+            .add_systems(
+                Startup,
+                (
+                    init_dialogue_facts,
+                    auto_pause::load_auto_pause_config_system,
+                ),
+            )
             .add_systems(
                 schedule,
                 (
@@ -77,6 +86,11 @@ impl Plugin for DialoguePlugin {
                     // Handle dialogue:stop event - stops typewriter on FRE event
                     // 处理 dialogue:stop 事件 - 响应 FRE 事件停止打字机
                     systems::handle_dialogue_stop_event_system,
+                    // Auto-pause systems — resume expired pauses, scan new punctuation, clean up stale timers
+                    // 自动停顿系统——恢复到期暂停、扫描新标点、清理残留计时器
+                    auto_pause::auto_pause_resume_system,
+                    auto_pause::auto_pause_scan_system,
+                    auto_pause::auto_pause_cleanup_system,
                     // Voice system - plays sound on char advance
                     systems::typewriter_voice_system,
                     // Input handling systems
@@ -138,6 +152,13 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
         FactValue::String(String::new()),
     );
     facts.set_global(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
+
+    // Auto-pause default state (enabled by default; disabled if no config loaded)
+    // 自动停顿默认状态（默认启用；若无配置加载则不激活）
+    facts.set_global(
+        fre_facts::DIALOGUE_AUTO_PAUSE_ENABLED,
+        FactValue::Bool(true),
+    );
 
     // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
     // Views that use {{dialogue_text}} should define it in their `facts:` section.
