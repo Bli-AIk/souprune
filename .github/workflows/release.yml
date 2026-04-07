@@ -123,4 +123,4 @@ jobs:
             dist/${{ matrix.asset_name }}.zip
             dist/${{ matrix.asset_name }}.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
