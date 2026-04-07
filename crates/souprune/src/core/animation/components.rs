@@ -53,7 +53,7 @@ pub(crate) struct SpriteAnimationClip {
 impl SpriteAnimationClip {
     /// Create a new animation clip from a module-relative path.
     ///
-    /// `relative_path` — e.g. `"characters/frisk/walk/down"` (directory) or single file.
+    /// `relative_path` — e.g. `"characters/hero/walk/down"` (directory) or single file.
     pub fn new(
         sprite_context: &mut SpriteLoadContext,
         module_name: &str,

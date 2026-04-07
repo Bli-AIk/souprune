@@ -61,7 +61,7 @@ use tracing::warn;
 /// // In bullet configs:
 /// visual: "spear"                    // Simple name
 /// visual: "battle/bullets/spear"     // Relative path
-/// visual: "flowey_pellet"            // Directory = frame animation
+/// visual: "character_pellet"            // Directory = frame animation
 /// visual: "boss.character.ron"       // Character animation
 ///
 /// // In view configs:

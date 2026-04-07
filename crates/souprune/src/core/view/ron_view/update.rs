@@ -17,8 +17,9 @@ use super::super::components::ViewRoot;
 use super::super::components::{DynamicViewElement, TimeDependentTransform, ViewTextTemplate};
 use super::super::layout::serde_types::vec2_tuple_to_static;
 use super::super::sdf_view_shape::parse_text_preserving_whitespace;
-use super::parsing::{PlayerDataView, evaluate_float_expr, resolve_text_content};
-use crate::core::fre_facts;
+use super::parsing::{
+    DataPathResolvers, PlayerDataView, evaluate_float_expr, resolve_text_content,
+};
 use bevy::prelude::*;
 use bevy_bitmap_text::TextBlock;
 use bevy_fact_rule_event::LayeredFactDatabase;
@@ -186,11 +187,11 @@ fn update_element_transform(
 pub fn update_dynamic_text_system(
     mut text_query: Query<(Entity, &ViewTextTemplate, &mut TextBlock, &Name)>,
     layered_db: Res<LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     view_root_query: Query<(Entity, &ViewRoot)>,
     changed_view_roots: Query<Entity, Changed<ViewRoot>>,
     parent_query: Query<&ChildOf>,
+    data_resolvers: Option<Res<DataPathResolvers>>,
 ) {
     use bevy::prelude::DetectChanges;
 
@@ -201,18 +202,9 @@ pub fn update_dynamic_text_system(
         return;
     }
 
-    let base_player_data = PlayerDataView::new(&layered_db);
-
     trace!(
-        "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={}) hp={}, hp_max={}",
-        global_changed,
-        any_view_root_changed,
-        base_player_data
-            .get_fact_int(fre_facts::PLAYER_HP)
-            .unwrap_or(0),
-        base_player_data
-            .get_fact_int(fre_facts::PLAYER_HP_MAX)
-            .unwrap_or(0)
+        "[update_dynamic_text_system] Update triggered (global_changed={}, local_changed={})",
+        global_changed, any_view_root_changed,
     );
 
     for (entity, template, mut text_block, _name) in text_query.iter_mut() {
@@ -222,10 +214,10 @@ pub fn update_dynamic_text_system(
             PlayerDataView::with_local_facts(&layered_db, &view_root.local_facts)
         } else {
             PlayerDataView::new(&layered_db)
-        };
+        }
+        .with_resolvers(data_resolvers.as_deref(), None);
 
-        let new_content =
-            resolve_text_content(&template.0, &mortar_strings, &player_data, &item_registry);
+        let new_content = resolve_text_content(&template.0, &mortar_strings, &player_data);
 
         // Skip if content hasn't changed.
         if text_block.full_text() == new_content {

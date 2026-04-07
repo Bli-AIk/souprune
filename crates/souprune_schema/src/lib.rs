@@ -1,11 +1,11 @@
 //! # souprune_schema
 //!
 //! Pure data schema types for SoupRune RON files.
-//! No Bevy dependency — designed for use by both the main game engine
+//! No Bevy dependency — designed for use by both the main framework
 //! and standalone tools (linters, editors, CI validators).
 //!
 //! SoupRune RON 文件的纯数据 Schema 类型。
-//! 无 Bevy 依赖——同时供主游戏引擎和独立工具使用。
+//! 无 Bevy 依赖——同时供主框架和独立工具使用。
 
 pub mod battle;
 pub mod bevy_types;

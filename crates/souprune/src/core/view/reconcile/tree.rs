@@ -187,13 +187,12 @@ pub struct DesiredLagAnimation {
     pub easing: EasingDef,
 }
 
-/// HP source type for HP bars.
-/// HP 条的 HP 来源类型。
+/// HP source type for HP bars — uses FRE fact expressions for hp/hp_max.
+/// HP 条的 HP 来源类型 — 通过 FRE fact 表达式获取 hp/hp_max。
 #[derive(Clone, Debug, PartialEq)]
-pub enum HealthSourceType {
-    Player,
-    Enemy { index: usize },
-    Custom { hp_expr: String, max_expr: String },
+pub struct HealthSourceType {
+    pub hp_expr: String,
+    pub max_expr: String,
 }
 
 /// Desired state for a single view element.

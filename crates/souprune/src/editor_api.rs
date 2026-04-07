@@ -1,7 +1,7 @@
 //! Stable editor-facing API surface.
 //!
 //! The editor should depend on this module or on shared schema crates,
-//! not on deep internal engine paths.
+//! not on deep internal framework paths.
 
 pub mod app {
     pub use crate::app_state::app_setup::ResolutionScale;

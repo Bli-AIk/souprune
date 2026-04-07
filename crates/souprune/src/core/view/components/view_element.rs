@@ -27,6 +27,18 @@ use bevy::reflect::Reflect;
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ActiveView;
 
+/// Tags from a `.view_layout.ron` node definition.
+///
+/// Preset systems can query for entities with specific tags
+/// and add game-specific components accordingly.
+///
+/// 来自 `.view_layout.ron` 节点定义的标签。
+///
+/// Preset 系统可以查询具有特定标签的实体，
+/// 并据此添加游戏特定的组件。
+#[derive(Component, Debug, Clone)]
+pub struct ViewNodeTags(pub Vec<String>);
+
 /// View Element - represents a referenceable element in a view layout.
 ///
 /// Each element spawned from a `.view_layout.ron` file receives this component,
@@ -41,11 +53,11 @@ pub struct ActiveView;
 pub struct ViewElement {
     /// Fully qualified name with namespace.
     /// Format: "namespace::element_name"
-    /// Example: "battle_ui_undertale::BtnFight"
+    /// Example: "battle_ui_main::BtnFight"
     ///
     /// 完全限定名称（含命名空间）。
     /// 格式: "namespace::element_name"
-    /// 示例: "battle_ui_undertale::BtnFight"
+    /// 示例: "battle_ui_main::BtnFight"
     pub full_name: String,
 
     /// Local name without namespace.
@@ -76,10 +88,10 @@ pub struct ViewRoot {
     pub layout_path: String,
 
     /// Namespace (auto-generated from layout path).
-    /// Example: "battle/ui/undertale.view.ron" -> "battle_ui_undertale"
+    /// Example: "battle/ui/main.view.ron" -> "battle_ui_main"
     ///
     /// 命名空间（从布局路径自动生成）。
-    /// 示例: "battle/ui/undertale.view.ron" -> "battle_ui_undertale"
+    /// 示例: "battle/ui/main.view.ron" -> "battle_ui_main"
     pub namespace: String,
 
     /// Local fact storage for this View instance.

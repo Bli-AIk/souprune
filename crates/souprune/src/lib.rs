@@ -1,11 +1,11 @@
 //! This is the public library entry point for SoupRune. It ties together the
-//! high-level application state modules, the reusable engine-side `core`
+//! high-level application state modules, the reusable `core`
 //! infrastructure, the editor-facing facade, and the bootstrap helpers that turn
 //! those pieces into a runnable Bevy app. Downstream code should treat this file
 //! as the stable surface of the main crate rather than reaching into bootstrap
 //! internals directly.
 //!
-//! 这是 SoupRune 的公开库入口。它把高层应用状态模块、可复用的引擎侧 `core`
+//! 这是 SoupRune 的公开库入口。它把高层应用状态模块、可复用的 `core`
 //! 基础设施、面向编辑器的门面 API，以及把这些部件组装成可运行 Bevy 应用的
 //! bootstrap 辅助函数接到一起。下游代码应把这个文件视为主 crate 的稳定表面，
 //! 而不是直接深入 bootstrap 内部路径。
@@ -17,8 +17,8 @@ pub mod config;
 pub mod core;
 pub mod editor_api;
 pub mod extra;
+pub mod preset;
 
-pub use crate::app_state::overworld::player::config::PlayerBehavior;
 pub use crate::bootstrap::{
     get_file_importer_plugins, get_game_plugins, get_third_plugins, insert_font_resources,
     insert_input_resources, reset_game_state, run,
@@ -27,13 +27,14 @@ pub use crate::core::basic_components::Direction;
 pub use crate::core::character_asset::{
     AnimationConfigAsset, CharacterAsset, StateAnimationMapping,
 };
-pub use crate::core::definition::{CombatStats, LocaleInfo};
-pub use crate::core::enemy::{ActionOption, EnemyDef, EnemyRegistry};
 pub use crate::core::input::actions::Action;
-pub use crate::core::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
 pub use crate::core::view::layout::{
     FloatOrExpr, SerializableVec3, ViewBoxLogicDef, ViewLayoutAsset, ViewNodeDef,
 };
+pub use crate::preset::enemy::{ActionOption, EnemyDef, EnemyRegistry};
+pub use crate::preset::item::{Item, ItemEffect, ItemListAsset, ItemRegistry, ItemType};
+pub use crate::preset::overworld::player::config::PlayerBehavior;
+pub use souprune_schema::enemy::{CombatStats, LocaleInfo};
 
 use std::default::Default;
 

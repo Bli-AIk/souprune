@@ -34,32 +34,28 @@ pub mod alight_motion_runtime;
 pub(crate) mod animation;
 pub(crate) mod audio;
 pub(crate) mod basic_components;
-pub mod battle_box;
-pub mod battle_player;
 pub mod battle_runtime;
 pub mod camera;
 pub(crate) mod character_asset;
 pub(crate) mod collision;
 pub mod danmaku;
 pub(crate) mod data;
-pub mod definition;
 pub mod dialogue;
-pub mod enemy;
+pub mod event_phase;
 pub mod fre_bridge;
 pub mod fre_facts;
 pub mod game_action;
 pub mod input;
-pub mod item;
 pub mod map_property_schema;
 pub mod mod_system;
 pub mod mode;
-pub mod player_components;
 pub mod render_layers;
 pub mod resource_resolver;
 pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;
 pub mod state_config;
+pub mod trace;
 pub mod view;
 pub mod visual;
 pub mod wasm_runtime;
@@ -78,7 +74,12 @@ pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<character_asset::CharacterAsset>()
+        app.init_resource::<trace::EventTraceLog>()
+            .init_resource::<trace::WasmCallTracer>()
+            .init_resource::<trace::FactChangeHistory>()
+            .init_resource::<mode::ModeRegistry>()
+            .add_systems(Last, trace::flush_trace_buffers_system)
+            .init_asset::<character_asset::CharacterAsset>()
             .init_asset::<character_asset::AnimationConfigAsset>()
             .register_asset_loader(
                 ron_loader::RonAssetLoader::<character_asset::CharacterAsset>::new(&[
@@ -96,10 +97,9 @@ impl Plugin for CorePlugin {
                 danmaku::CoreDanmakuPlugin,
                 data::DataPlugin,
                 dialogue::DialoguePlugin,
-                enemy::EnemyPlugin,
+                event_phase::EventPhasePlugin,
                 fre_bridge::FREBridgePlugin,
                 input::InputPlugin,
-                item::ItemPlugin,
                 sprite::SpritePlugin,
                 state_config::StateConfigPlugin,
             ));

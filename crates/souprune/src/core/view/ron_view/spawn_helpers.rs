@@ -32,7 +32,6 @@ pub fn build_text_config(
     text_def: &TextDef,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
 ) -> ViewTextConfig {
     let raw_content = text_def.content.as_deref().unwrap_or("");
     info!(
@@ -40,7 +39,7 @@ pub fn build_text_config(
         text_def.id, raw_content
     );
 
-    let mut content = resolve_text_content(raw_content, mortar_strings, player_data, item_registry);
+    let mut content = resolve_text_content(raw_content, mortar_strings, player_data);
 
     info!(
         "[build_text_config] Resolved content for '{}': '{}'",
@@ -130,10 +129,9 @@ pub(crate) fn spawn_container_texts(
     texts: &[TextDef],
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
 ) {
     for text_def in texts {
-        let text_config = build_text_config(text_def, mortar_strings, player_data, item_registry);
+        let text_config = build_text_config(text_def, mortar_strings, player_data);
 
         info!(
             "[UI Container] Spawning text '{}' for container",

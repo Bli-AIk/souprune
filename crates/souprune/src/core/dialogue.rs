@@ -29,6 +29,7 @@ pub use components::MortarController;
 pub use components::TypewriterVoice;
 pub use config::DialogueInputConfig;
 pub use systems::DialogueControllerEntity;
+pub use systems::MortarFactBindings;
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};

@@ -24,5 +24,5 @@ pub(crate) use text::{ViewAnimationState, ViewFont, ViewTextConfig, ViewTextTemp
 pub use hpbar::{DynamicViewElement, TimeDependentTransform};
 pub use view_element::{
     ActiveView, ElementState, PendingViewData, PendingViewRules, ViewElement, ViewElementHistory,
-    ViewRoot, VisibleWhen, find_element_by_full_name, find_elements_by_tag,
+    ViewNodeTags, ViewRoot, VisibleWhen, find_element_by_full_name, find_elements_by_tag,
 };

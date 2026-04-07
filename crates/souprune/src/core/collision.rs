@@ -14,10 +14,12 @@
 
 pub mod battle_collision;
 pub(crate) mod components;
+pub mod events;
 pub mod systems;
 
 pub use battle_collision::*;
 pub use components::*;
+pub use events::{CollisionEventBuffer, CollisionType};
 pub use systems::{SdfCollisionConfig, collect_nearby_colliders, resolve_sdf_collision};
 
 use bevy::app::*;
@@ -30,11 +32,7 @@ use bevy::app::*;
 pub(crate) struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
-    fn build(&self, _app: &mut App) {
-        // Core collision plugin now only provides components and utilities.
-        // Collision systems are registered by overworld and battle plugins.
-        //
-        // Core碰撞插件现在只提供组件和工具函数。
-        // 碰撞系统由 overworld 和 battle 插件注册。
+    fn build(&self, app: &mut App) {
+        app.init_resource::<CollisionEventBuffer>();
     }
 }

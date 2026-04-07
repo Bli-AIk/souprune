@@ -6,9 +6,9 @@
 //!
 //! ## 模块概述
 //!
-//! This module bridges the Mortar scripting language with the game engine. It specifically handles loading localized string constants from `.mortar` files within the `locales/` directory into a `MortarStringTable` resource for text localization.
+//! This module bridges the Mortar scripting language with the SoupRune framework. It specifically handles loading localized string constants from `.mortar` files within the `locales/` directory into a `MortarStringTable` resource for text localization.
 //!
-//! 本模块连接 Mortar 脚本语言与游戏引擎。它专门负责将 `locales/` 目录下 `.mortar` 文件中的本地化字符串常量加载到 `MortarStringTable` 资源中，用于文本本地化。
+//! 本模块连接 Mortar 脚本语言与 SoupRune 框架。它专门负责将 `locales/` 目录下 `.mortar` 文件中的本地化字符串常量加载到 `MortarStringTable` 资源中，用于文本本地化。
 
 use bevy::asset::LoadedFolder;
 use bevy::prelude::*;
