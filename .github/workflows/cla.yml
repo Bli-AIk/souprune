@@ -27,7 +27,7 @@ jobs:
         with:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/Bli-AIk/souprune/blob/main/CLA.md'
-          branch: 'main'
+          branch: 'cla-signatures'
           allowlist: 'bot*,'
           custom-notsigned-prcomment: 'Thank you for your contribution to the SoupRune core! Since you have modified the underlying code protected by LGPL-3.0, please sign our [Contributor License Agreement (CLA)](https://github.com/Bli-AIk/souprune/blob/main/CLA.md) before merging.<br/>If you agree, please reply directly below with the following text:<br/> **I have read the CLA Document and I hereby sign the CLA**'
           custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
