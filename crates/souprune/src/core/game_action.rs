@@ -1,19 +1,23 @@
-//! Game-specific FRE action definitions for SoupRune.
+//! FRE action definitions for SoupRune.
 //!
-//! SoupRune 特定的 FRE 动作定义。
+//! SoupRune 的 FRE 动作定义。
+//!
+//! 只包含框架核心动作。游戏特定动作（如 UseItem、CheckItem、DropItem）
+//! 通过 `Custom` 变体 + [`ViewActionExtensions`] 分发机制处理，
+//! 不再作为枚举变体出现在此处。
+//!
+//! [`ViewActionExtensions`]: crate::core::fre_bridge::extensions::ViewActionExtensions
 
 use bevy_fact_rule_event::{ActionDef, LocalFactValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Game-specific action definitions for SoupRune.
-/// This enum defines all actions that can appear in `.fre.ron` rule files.
+/// Core FRE action definitions.
 ///
-/// SoupRune 的游戏特定动作定义。
-/// 此枚举定义了所有可以出现在 `.fre.ron` 规则文件中的动作。
+/// Game-specific actions use the `Custom` variant with a registered
+/// handler in `ViewActionExtensions`.
 #[derive(Debug, Clone, Serialize, Deserialize, bevy::reflect::TypePath)]
 pub enum GameActionDef {
-    // -- Core actions --
     Log {
         message: String,
     },
@@ -21,9 +25,9 @@ pub enum GameActionDef {
     EmitEvent(String),
     Custom {
         action_type: String,
+        #[serde(default)]
         params: HashMap<String, String>,
     },
-    // -- Game-specific actions --
     PlaySound(String),
     PlaySoundFullPath(String),
     CloseView,
@@ -39,17 +43,6 @@ pub enum GameActionDef {
         focus: bool,
         #[serde(default)]
         voice: Option<String>,
-    },
-    UseItem {
-        index_expr: String,
-        #[serde(default)]
-        start_dialogue: bool,
-    },
-    CheckItem {
-        index_expr: String,
-    },
-    DropItem {
-        index_expr: String,
     },
 }
 
@@ -69,9 +62,6 @@ impl ActionDef for GameActionDef {
             Self::CloseView => "CloseView",
             Self::SwitchState(_) => "SwitchState",
             Self::StartDialogue { .. } => "StartDialogue",
-            Self::UseItem { .. } => "UseItem",
-            Self::CheckItem { .. } => "CheckItem",
-            Self::DropItem { .. } => "DropItem",
         }
     }
 }

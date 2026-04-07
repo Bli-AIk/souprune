@@ -14,7 +14,9 @@ use super::tree::{DesiredElement, DesiredViewTree, ViewElementKey};
 use crate::core::sequencer::chapter_schema::Value;
 use crate::core::view::layout::serde_types::SerializableVec3;
 use crate::core::view::layout::{ViewLayoutAsset, ViewNodeDef};
-use crate::core::view::ron_view::parsing::{PlayerDataView, RepeatContext};
+use crate::core::view::ron_view::parsing::{
+    DataPathResolvers, ExprFunctionResolvers, PlayerDataView, RepeatContext,
+};
 use bevy::prelude::Vec3;
 use bevy_fact_rule_event::{FactDatabase, LayeredFactDatabase};
 
@@ -52,6 +54,20 @@ impl<'a> ResolveContext<'a> {
             namespace: namespace.into(),
         }
     }
+
+    /// Attach data path resolvers.
+    pub fn with_data_resolvers(mut self, resolvers: Option<&'a DataPathResolvers>) -> Self {
+        if let Some(r) = resolvers {
+            self.player_data.set_data_path_resolvers(r);
+        }
+        self
+    }
+
+    /// Attach expression function resolvers.
+    pub fn with_expr_functions(mut self, resolvers: Option<&'a ExprFunctionResolvers>) -> Self {
+        self.player_data = self.player_data.with_expr_functions(resolvers);
+        self
+    }
 }
 
 /// Compute the desired view state from asset and facts.
@@ -75,8 +91,12 @@ pub fn compute_desired_state(
     global_facts: &LayeredFactDatabase,
     local_facts: &FactDatabase,
     namespace: &str,
+    data_resolvers: Option<&DataPathResolvers>,
+    expr_func_resolvers: Option<&ExprFunctionResolvers>,
 ) -> DesiredViewTree {
-    let ctx = ResolveContext::with_local_facts(global_facts, local_facts, namespace);
+    let ctx = ResolveContext::with_local_facts(global_facts, local_facts, namespace)
+        .with_data_resolvers(data_resolvers)
+        .with_expr_functions(expr_func_resolvers);
 
     let roots = asset
         .roots

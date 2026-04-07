@@ -7,25 +7,27 @@
 
 **souprune_builtins** — 为 SoupRune 提供内置生成模式和弹幕行为的预编译 WASM 模块。
 
-| 英语 | 简体中文 |
-|------|----------|
+| 英语                     | 简体中文 |
+|------------------------|------|
 | [English](./readme.md) | 简体中文 |
 
 ## 介绍
 
 `souprune_builtins` 是一个 WASM 客户端模块（编译为 `cdylib`，目标 `wasm32-wasip2`），实现了 SoupRune 弹幕系统使用的所有内置生成模式和子弹行为。
 
-引擎不再硬编码游戏逻辑，所有内置行为都通过与社区 mod 开发者相同的 `souprune_sdk` 接口实现为 WASM 模块。这确保了内置内容和自定义内容之间的一致性。
+框架不再硬编码游戏逻辑，所有内置行为都通过与社区 mod 开发者相同的 `souprune_sdk` 接口实现为 WASM 模块。这确保了内置内容和自定义内容之间的一致性。
 
 ## 功能
 
 **生成模式：**
+
 * `builtin.single` — 在中心生成单个子弹
 * `builtin.ring` — 圆形排列（数量、半径、起始角度）
 * `builtin.line` — 线性排列（数量、间距、方向）
 * `builtin.edge` — 边缘生成子弹（数量、边、间距、边距）
 
 **弹幕行为：**
+
 * `builtin.linear` — 匀速直线运动
 * `builtin.orbital` — 圆周/轨道运动
 * `builtin.sine` — 正弦波运动
@@ -50,15 +52,16 @@ cargo build --target wasm32-wasip2 --release
 ```
 
 编译后的 WASM 二进制文件位于：
+
 ```
 target/wasm32-wasip2/release/souprune_builtins.wasm
 ```
 
 ## 依赖
 
-| Crate                                                  | 版本  | 描述           |
-|--------------------------------------------------------|-------|----------------|
-| [souprune_sdk](../souprune_sdk)                        | 0.2   | WASM 客户端 SDK |
+| Crate                           | 版本  | 描述           |
+|---------------------------------|-----|--------------|
+| [souprune_sdk](../souprune_sdk) | 0.2 | WASM 客户端 SDK |
 
 ## 警告
 
@@ -81,4 +84,5 @@ target/wasm32-wasip2/release/souprune_builtins.wasm
 
 本项目可依据以下许可证进行分发：
 
-* GNU Lesser General Public License v3.0 或更高版本（[LICENSE](../../LICENSE.md) 或 [https://www.gnu.org/licenses/lgpl-3.0.html](https://www.gnu.org/licenses/lgpl-3.0.html)）
+* GNU Lesser General Public License v3.0 或更高版本（[LICENSE](../../LICENSE.md)
+  或 [https://www.gnu.org/licenses/lgpl-3.0.html](https://www.gnu.org/licenses/lgpl-3.0.html)）

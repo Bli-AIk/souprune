@@ -71,7 +71,7 @@ export const SERIOUS_TITLES: Record<string, Record<string, string>> = {
     // Part 4
     '4.1_languages': '编程语言选择',
     '4.2_logic': '编写进阶逻辑',
-    '4.3_modding': '引擎模组开发',
+    '4.3_modding': '框架模组开发',
     // Appendix
     'ron_reference': 'RON 属性速查',
     'mortar_dictionary': 'Mortar 指令字典',

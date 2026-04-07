@@ -6,7 +6,7 @@
 //! project wants standard bullet spawning and motion without shipping a custom
 //! WASM component. The file registers those built-ins through `souprune_sdk`
 //! exports, so it is both the module root of the crate and the concrete list of
-//! built-in behaviors that the engine can load.
+//! built-in behaviors that the framework can load.
 //!
 //! 这个 crate 是面向脚本层的默认内置能力库。当项目不提供自定义 WASM 组件时，
 //! 它负责提供标准的子弹生成与运动行为。这个文件既是 crate 根入口，也是通过

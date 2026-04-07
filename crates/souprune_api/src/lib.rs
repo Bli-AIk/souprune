@@ -1,12 +1,12 @@
 //! WIT interface definitions for the SoupRune mod system.
 //!
 //! This crate hosts the WIT (WebAssembly Interface Types) file that defines the
-//! contract between Host (game engine) and Guest (mod). The WIT source lives in
+//! contract between Host (framework) and Guest (mod). The WIT source lives in
 //! `wit/souprune-mod.wit` and is consumed by both `wasmtime::component::bindgen!`
 //! (host side) and `wit_bindgen::generate!` (guest side).
 //!
 //! Additionally, shared plain-Rust types that mirror WIT records are provided here
-//! so that engine code which does *not* link against wasmtime can still work with
+//! so that framework code which does *not* link against wasmtime can still work with
 //! the same data shapes.
 //!
 //! SoupRune 模组系统的 WIT 接口定义。

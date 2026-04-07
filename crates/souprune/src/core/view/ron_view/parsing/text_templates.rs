@@ -16,7 +16,7 @@
 use super::super::evaluation::preprocess_fact_expressions;
 use super::PlayerDataView;
 use crate::core::view::expr_eval::create_eval_callback;
-use bevy::prelude::{debug, info, trace, warn};
+use bevy::prelude::{debug, warn};
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
@@ -99,7 +99,6 @@ fn resolve_double_brace_template(
     chars: &mut std::iter::Peekable<std::str::Chars>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView,
-    item_registry: &crate::core::item::ItemRegistry,
 ) -> String {
     let mut key = String::new();
     let mut found_closing = false;
@@ -118,7 +117,7 @@ fn resolve_double_brace_template(
     }
 
     if let Some(path) = key.strip_prefix("data:") {
-        return resolve_data_path(path, player_data, item_registry, mortar_strings);
+        return resolve_data_path(path, player_data, mortar_strings);
     }
 
     let processed_key = preprocess_fact_expressions(&key, player_data).replace('"', "");
@@ -135,7 +134,7 @@ fn resolve_double_brace_template(
     };
 
     if resolved.contains("{{") && resolved.contains("}}") {
-        resolve_text_content(&resolved, mortar_strings, player_data, item_registry)
+        resolve_text_content(&resolved, mortar_strings, player_data)
     } else {
         resolved
     }
@@ -145,7 +144,6 @@ fn resolve_lambda_template(
     chars: &mut std::iter::Peekable<std::str::Chars>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView,
-    item_registry: &crate::core::item::ItemRegistry,
 ) -> String {
     let mut expr = String::from("|");
     let mut brace_depth = 1;
@@ -180,7 +178,7 @@ fn resolve_lambda_template(
         return format!("{{{}}})", expr);
     };
 
-    resolve_text_content(&evaluated, mortar_strings, player_data, item_registry)
+    resolve_text_content(&evaluated, mortar_strings, player_data)
 }
 
 fn resolve_regular_fact(key: &str, player_data: &PlayerDataView) -> String {
@@ -280,7 +278,6 @@ pub fn resolve_text_content(
     template: &str,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView,
-    item_registry: &crate::core::item::ItemRegistry,
 ) -> String {
     let mut result = String::new();
     let mut chars = template.chars().peekable();
@@ -301,7 +298,6 @@ pub fn resolve_text_content(
                 &mut chars,
                 mortar_strings,
                 player_data,
-                item_registry,
             ));
         } else if next_ch == '|' {
             chars.next();
@@ -309,7 +305,6 @@ pub fn resolve_text_content(
                 &mut chars,
                 mortar_strings,
                 player_data,
-                item_registry,
             ));
         } else if next_ch == '$' {
             chars.next();
@@ -322,119 +317,57 @@ pub fn resolve_text_content(
     result
 }
 
+/// Resolve `{{data:path}}` template expressions using FRE facts.
+///
+/// Generic resolution: converts `a.b.c` → fact key `a:b.c` (first dot becomes colon)
+/// and reads from the fact database. Custom resolvers registered in
+/// `DataPathResolvers` are checked first for computed values.
+///
+/// 解析 `{{data:path}}` 模板表达式。
+/// 通用解析：将 `a.b.c` 转换为事实键 `a:b.c`，从事实数据库读取。
+/// 注册在 `DataPathResolvers` 中的自定义解析器优先检查。
 pub fn resolve_data_path(
     path: &str,
     player_data: &PlayerDataView,
-    item_registry: &crate::core::item::ItemRegistry,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
 ) -> String {
-    use crate::core::item::ItemType;
-
-    let get_string = |key: &str| player_data.get_fact_string(key).unwrap_or_default();
-    let get_int = |key: &str| player_data.get_fact_int(key).unwrap_or(0);
-
-    match path {
-        "player.name" => get_string("player:name"),
-        "player.lv" => get_int("player:lv").to_string(),
-        "player.hp" => {
-            let result = get_int("player:hp").to_string();
-            info!("[resolve_data_path] player.hp = {}", result);
-            result
-        }
-        "player.hp_max" => {
-            let result = get_int("player:hp_max").to_string();
-            info!("[resolve_data_path] player.hp_max = {}", result);
-            result
-        }
-        "player.gold" => get_int("player:gold").to_string(),
-        "player.exp" => get_int("player:exp").to_string(),
-        "player.next_exp" => get_int("player:next_exp").to_string(),
-        "player.attack" => get_int("player:attack").to_string(),
-        "player.defense" => get_int("player:defense").to_string(),
-        "player.inventory" => {
-            let inventory = player_data
-                .get_fact_string_list("player:inventory")
-                .unwrap_or_default();
-            let capacity = player_data
-                .get_fact_int("player:inventory_capacity")
-                .unwrap_or(8) as usize;
-            inventory
-                .iter()
-                .take(capacity)
-                .map(|item_id| {
-                    if let Some(item) = item_registry.get(item_id) {
-                        let key = format!("{}:{}", item.locale.file, item.locale.name);
-                        mortar_strings.resolve(&key).to_string()
-                    } else {
-                        trace!("Item ID '{}' not found in registry", item_id);
-                        format!("UNDEFINED ({})", item_id)
-                    }
-                })
-                .collect::<Vec<String>>()
-                .join("\n")
-        }
-        "player.weapon" => {
-            let weapon = get_string("player:weapon");
-            if let Some(item) = item_registry.get(&weapon) {
-                let key = format!("{}:{}", item.locale.file, item.locale.name);
-                mortar_strings.resolve(&key).to_string()
-            } else {
-                weapon
-            }
-        }
-        "player.weapon_atk" => {
-            let weapon = get_string("player:weapon");
-            if let Some(item) = item_registry.get(&weapon)
-                && let ItemType::Weapon { damage, .. } = item.item_type
-            {
-                return damage.to_string();
-            }
-            "0".to_string()
-        }
-        "player.total_attack" => {
-            let weapon = get_string("player:weapon");
-            let weapon_atk = if let Some(item) = item_registry.get(&weapon) {
-                if let ItemType::Weapon { damage, .. } = item.item_type {
-                    damage as i64
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-            (get_int("player:attack") + weapon_atk).to_string()
-        }
-        "player.armor" => {
-            let armor = get_string("player:armor");
-            if let Some(item) = item_registry.get(&armor) {
-                let key = format!("{}:{}", item.locale.file, item.locale.name);
-                mortar_strings.resolve(&key).to_string()
-            } else {
-                armor
-            }
-        }
-        "player.armor_def" => {
-            let armor = get_string("player:armor");
-            if let Some(item) = item_registry.get(&armor)
-                && let ItemType::Armor { defense } = item.item_type
-            {
-                return defense.to_string();
-            }
-            "0".to_string()
-        }
-        "player.total_defense" => {
-            let armor = get_string("player:armor");
-            let armor_def = if let Some(item) = item_registry.get(&armor) {
-                if let ItemType::Armor { defense } = item.item_type {
-                    defense as i64
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-            (get_int("player:defense") + armor_def).to_string()
-        }
-        _ => format!("<unknown:{}>", path),
+    // Check custom resolvers first
+    if let Some(result) = player_data.resolve_data_path(path, mortar_strings) {
+        return result;
     }
+
+    // Generic: convert first dot to colon for fact key lookup
+    let fact_key = if let Some(dot_pos) = path.find('.') {
+        format!("{}:{}", &path[..dot_pos], &path[dot_pos + 1..])
+    } else {
+        path.to_string()
+    };
+
+    if let Some(value) = player_data.get_fact(&fact_key) {
+        return match value {
+            bevy_fact_rule_event::FactValue::String(s) => s.clone(),
+            bevy_fact_rule_event::FactValue::Int(i) => i.to_string(),
+            bevy_fact_rule_event::FactValue::Float(f) => f.to_string(),
+            bevy_fact_rule_event::FactValue::Bool(b) => b.to_string(),
+            bevy_fact_rule_event::FactValue::StringList(list) => list.join("\n"),
+            bevy_fact_rule_event::FactValue::IntList(list) => list
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            bevy_fact_rule_event::FactValue::FloatList(list) => list
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            bevy_fact_rule_event::FactValue::BoolList(list) => list
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        };
+    }
+
+    debug!("[resolve_data_path] unknown path: {path} (fact key: {fact_key})");
+    format!("<unknown:{path}>")
 }

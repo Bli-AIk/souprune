@@ -63,6 +63,32 @@ interface host-api {
 
     /// Emit a FRE event by name.
     emit-event: func(event-name: string);
+
+    /// Query the position of a named entity (by tag or marker fact).
+    /// Returns none if the entity is not found.
+    get-entity-position-by-tag: func(tag: string) -> option<vec2>;
+
+    /// Spawn a bullet emitter at the given position.
+    /// Returns an opaque emitter handle (u64).
+    spawn-emitter: func(pattern-id: string, position: vec2) -> u64;
+
+    /// Despawn a previously spawned emitter by handle.
+    despawn-emitter: func(handle: u64);
+
+    /// Open a named view. The view must be defined in a `.view_layout.ron` file.
+    open-view: func(view-id: string);
+
+    /// Close the currently active view (if any).
+    close-view: func();
+
+    /// Play a sound effect by asset key.
+    play-sound: func(sound-key: string);
+
+    /// Get the current mode name. Returns none if no mode is active.
+    get-current-mode: func() -> option<string>;
+
+    /// Get the current sub-state name within the active mode.
+    get-current-sub-state: func() -> string;
 }
 
 /// Behavior interface — exported by mods for player/entity control.
@@ -205,6 +231,70 @@ interface custom-action-handler {
     handle-action: func(action-type: string, params: list<action-param>) -> bool;
 }
 
+/// Mode lifecycle interface — exported by mods to respond to mode transitions.
+/// The engine calls these when SequenceMode or SequenceSubState changes.
+///
+/// 模式生命周期接口 — 模组导出，响应模式切换。
+/// 当 SequenceMode 或 SequenceSubState 变化时，引擎调用这些回调。
+interface mode-lifecycle {
+    /// Called when the engine enters a new mode (e.g., "battle", "overworld").
+    on-mode-enter: func(mode: string);
+
+    /// Called when the engine exits the current mode.
+    on-mode-exit: func(mode: string);
+
+    /// Called when the sub-state changes within the current mode.
+    on-sub-state-change: func(mode: string, old-state: string, new-state: string);
+}
+
+/// Rule provider interface — exported by mods that supply FRE rules programmatically.
+/// Rules returned here are registered into the layered rule registry at mod load time.
+///
+/// 规则提供者接口 — 由提供 FRE 规则的模组导出。
+/// 返回的规则在模组加载时注册到分层规则注册表中。
+interface rule-provider {
+    use host-api.{fact-value};
+
+    /// A fact modification to apply when a rule fires.
+    record rule-modification {
+        /// The fact key to modify.
+        key: string,
+        /// Operation: "set", "increment", "add", "sub", "mul", "div".
+        op: string,
+        /// The value operand (encoded as string; parsed by host).
+        value: string,
+    }
+
+    /// An action to execute when a rule fires.
+    record rule-action {
+        /// Action type (e.g., "Log", "PlaySound", or a Custom action name).
+        action-type: string,
+        /// Key-value parameters for the action.
+        params: list<tuple<string, string>>,
+    }
+
+    /// A complete rule definition provided by a mod.
+    record rule-def {
+        /// Unique rule identifier.
+        id: string,
+        /// Priority for evaluation ordering (higher = earlier).
+        priority: s32,
+        /// Trigger event name that activates this rule.
+        trigger-event: string,
+        /// Condition expressions (FRE expression syntax).
+        conditions: list<string>,
+        /// Actions to execute when triggered and conditions are met.
+        actions: list<rule-action>,
+        /// Fact modifications to apply.
+        modifications: list<rule-modification>,
+        /// Output event names to emit after rule fires.
+        outputs: list<string>,
+    }
+
+    /// Return all FRE rules this mod provides. Called once at mod load time.
+    list-rules: func() -> list<rule-def>;
+}
+
 /// The world that a SoupRune mod component must target.
 world souprune-mod {
     import host-api;
@@ -212,4 +302,6 @@ world souprune-mod {
     export danmaku;
     export spawn-pattern;
     export custom-action-handler;
+    export mode-lifecycle;
+    export rule-provider;
 }

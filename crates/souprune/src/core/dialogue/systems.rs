@@ -18,7 +18,9 @@ pub use lifecycle::{
     handle_pending_dialogue_start_system, has_pending_dialogue_ended, has_pending_dialogue_start,
     should_check_dialogue_despawn, spawn_dialogue_controller_system,
 };
-pub use mortar_sync::{prepare_item_dialogue_mortar_system, sync_mortar_text_to_typewriter_system};
+pub use mortar_sync::{
+    MortarFactBindings, prepare_item_dialogue_mortar_system, sync_mortar_text_to_typewriter_system,
+};
 pub use state_sync::{
     replay_typewriter_on_depth_resume_system, sync_typewriter_state_to_facts_system,
     sync_typewriter_text_to_facts_system,

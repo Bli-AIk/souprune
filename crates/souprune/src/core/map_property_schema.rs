@@ -6,10 +6,10 @@
 //!
 //! ## 模块概述
 //!
-//! This module defines the schema for Tiled map properties used by the engine.
+//! This module defines the schema for Tiled map properties used by the framework.
 //! It provides centralized property key definitions, validation, and documentation.
 //!
-//! 本模块定义了引擎使用的 Tiled 地图属性 Schema。
+//! 本模块定义了框架使用的 Tiled 地图属性 Schema。
 //! 它提供了集中的属性键定义、验证和文档。
 //!
 //! ## Map Property Reference
@@ -36,9 +36,9 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::tiled;
 use std::collections::HashMap;
 
-/// Map property keys used by the engine.
+/// Map property keys used by the framework.
 ///
-/// 引擎使用的地图属性键。
+/// 框架使用的地图属性键。
 pub mod keys {
     /// Path to view layout RON file for UI.
     /// Note: `states.ron` view_layout takes priority over this property.
@@ -58,9 +58,9 @@ pub mod keys {
     pub const RULES_FILE: &str = "rules_file";
 }
 
-/// Object property keys used by the engine.
+/// Object property keys used by the framework.
 ///
-/// 引擎使用的对象属性键。
+/// 框架使用的对象属性键。
 pub mod object_keys {
     /// Collision type for the object.
     ///

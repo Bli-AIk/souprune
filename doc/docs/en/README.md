@@ -105,7 +105,7 @@ Please take my hand, and let me introduce you to today's menu...
 * Here are instructions for **C#**, **Rust**, and **ECS architecture**. But be careful! It's really complicated here! D-Don't blow up the kitchen!
 ```
 
-* **4.1 Choosing Your Precision Instruments** (C# vs Haxe vs Rust Guide)
+* **4.1 Choosing Your Precision Instruments** (C# vs JS vs Rust Guide)
 * **4.2 Inventing New Recipes** (Script lifecycle & logic)
 * **4.3 Taboo Alchemy** (Writing Native plugins & Engine extensions)
 

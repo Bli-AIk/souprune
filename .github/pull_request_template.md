@@ -12,6 +12,10 @@
 - [ ] 🤖 CI/CD (Changes to CI/CD configuration)
 - [ ] 📦 Other changes
 
+### Breaking Change?
+
+- [ ] ⚠️ This PR introduces a breaking change
+
 ### Related Issue
 
 <!--
