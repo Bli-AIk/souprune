@@ -96,3 +96,4 @@ pub fn init_game_state(app: &mut App) {
 fn main() {
     run();
 }
+// Testing CLA signature storage on unprotected branch
