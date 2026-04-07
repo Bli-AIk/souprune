@@ -97,3 +97,30 @@ pub fn action_to_fre_event_system(
         }
     }
 }
+
+/// Emit FRE events when the active SequenceMode changes.
+///
+/// 当 SequenceMode 变化时发出 FRE 事件。
+/// WASM mods 可通过 FRE 规则和 custom-action-handler 响应模式切换。
+pub fn mode_change_to_fre_event_system(
+    mut mode_events: MessageReader<crate::core::mode::ModeChanged>,
+    mut fre_events: MessageWriter<FactEvent>,
+    mut facts: ResMut<LayeredFactDatabase>,
+) {
+    use bevy_fact_rule_event::FactValue;
+    for event in mode_events.read() {
+        if let Some(ref from) = event.from {
+            let exit_event = format!("mode:{}:exit", from);
+            info!("FRE Bridge: mode exit → {}", exit_event);
+            fre_events.write(FactEvent::new(exit_event));
+        }
+        if let Some(ref to) = event.to {
+            let enter_event = format!("mode:{}:enter", to);
+            info!("FRE Bridge: mode enter → {}", enter_event);
+            fre_events.write(FactEvent::new(enter_event));
+            facts.set("state_mode", FactValue::String(to.clone()));
+        } else {
+            facts.set("state_mode", FactValue::String(String::new()));
+        }
+    }
+}

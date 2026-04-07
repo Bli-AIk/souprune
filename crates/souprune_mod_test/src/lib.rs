@@ -1,8 +1,8 @@
 //! A reference implementation of a Mod using the SDK.
-//! Compiled to `wasm32-wasip2` and loaded by the engine at runtime.
+//! Compiled to `wasm32-wasip2` and loaded by the framework at runtime.
 //!
 //! 使用 SDK 的模组参考实现。
-//! 编译为 `wasm32-wasip2`，运行时由引擎加载。
+//! 编译为 `wasm32-wasip2`，运行时由框架加载。
 
 use souprune_sdk::prelude::*;
 

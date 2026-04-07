@@ -1,8 +1,16 @@
 //! Centralized FRE fact key constants.
 //!
 //! 集中管理的 FRE fact key 常量。
-//! 所有在代码中引用的 fact key 字符串都应在此定义，
+//! 所有在 core/ 代码中引用的 fact key 字符串都应在此定义，
 //! 以避免拼写错误和方便全局搜索。
+//!
+//! 本文件只包含框架基础设施所需的 core facts。
+//! 游戏特定的 fact key（如 `player:hp`、`enemy:*`）
+//! 由各 app_state 模块自行定义或直接使用字符串字面量。
+
+// ============================================================================
+// Core Facts — 框架基础设施，不随 preset 变化
+// ============================================================================
 
 // ── Dialogue system facts ──────────────────────────────────────────
 
@@ -49,18 +57,6 @@ pub const DIALOGUE_REPLAY_ON_RESUME: &str = "dialogue:replay_on_resume";
 /// 停止打字机事件前缀（匹配 "dialogue:stop*"）
 pub const DIALOGUE_STOP_PREFIX: &str = "dialogue:stop";
 
-// ── Item dialogue facts (set by fre_bridge, read by mortar sync system) ──
-
-/// 物品本地化键（e.g. "items:MONSTER_CANDY"），用于 mortar 变量 {item_name}
-pub const DIALOGUE_ITEM_NAME: &str = "dialogue:item_name";
-/// 物品描述文本，用于 mortar 变量 {item_description}
-pub const DIALOGUE_ITEM_DESCRIPTION: &str = "dialogue:item_description";
-/// 实际治愈量（heal 后计算的值），用于 mortar 变量 {heal_amount}
-pub const DIALOGUE_ITEM_HEAL_AMOUNT: &str = "dialogue:item_heal_amount";
-/// 物品数值（Food 的 heal 定义值 / Weapon 的 damage / Armor 的 defense），
-/// 用于 mortar 函数 get_item_value()
-pub const DIALOGUE_ITEM_VALUE: &str = "dialogue:item_value";
-
 // ── State facts (synced from Bevy states) ──────────────────────────
 
 /// 当前 SequenceSubState 名称
@@ -74,27 +70,3 @@ pub const STATE_APP_STATE: &str = "state:app_state";
 pub const VIEW_CLOSE_REQUESTED: &str = "view:close_requested";
 /// 请求切换状态的局部标志（值为目标状态名）
 pub const VIEW_SWITCH_STATE: &str = "view:switch_state";
-
-// ── Player facts ───────────────────────────────────────────────────
-
-/// 玩家当前 HP
-pub const PLAYER_HP: &str = "player:hp";
-/// 玩家最大 HP
-pub const PLAYER_HP_MAX: &str = "player:hp_max";
-/// 待处理的玩家伤害
-pub const PENDING_PLAYER_DAMAGE: &str = "player:pending_damage";
-
-// ── Enemy facts ────────────────────────────────────────────────────
-
-/// Generate an enemy fact key by slot index and field name.
-/// e.g. `enemy_fact_key(0, "hp")` → `"enemy:0:hp"`
-///
-/// 根据敌人槽位索引和字段名生成 fact key。
-pub fn enemy_fact_key(index: usize, field: &str) -> String {
-    format!("enemy:{index}:{field}")
-}
-
-/// 敌人 0 的当前 HP
-pub const ENEMY_0_HP: &str = "enemy:0:hp";
-/// 待处理的敌人 0 伤害
-pub const PENDING_ENEMY_0_DAMAGE: &str = "enemy:0:pending_damage";

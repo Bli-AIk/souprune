@@ -15,7 +15,7 @@
 
 mod bgm;
 mod camera;
-mod context;
+pub(crate) mod context;
 mod fact_chapter;
 mod flow;
 mod interaction;
@@ -144,9 +144,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             performance::process_danmaku_performance_system,
             performance::process_am_performance_system,
             flow::process_custom_chapter_system,
-            flow::process_battle_box_chapter_system,
             flow::process_spawn_behavior_chapter_system,
-            player::process_player_spawn_requests,
         )
             .chain()
             .in_set(SequencerUpdate),
@@ -164,8 +162,6 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             fact_chapter::process_modify_fact_chapter_system,
             fact_chapter::process_load_fre_chapter_system,
             fact_chapter::complete_load_fre_chapter_system,
-            fact_chapter::process_load_enemies_chapter_system,
-            fact_chapter::complete_load_enemies_chapter_system,
             run_sequence::process_run_sequence_system,
             run_sequence::complete_run_sequence_system,
             load_map::process_load_map_system,

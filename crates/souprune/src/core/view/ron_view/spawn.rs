@@ -13,7 +13,7 @@
 
 use super::super::components::*;
 use super::super::layout::*;
-use super::parsing::PlayerDataView;
+use super::parsing::{DataPathResolvers, ExprFunctionResolvers, PlayerDataView};
 use super::resources::{HotReloadableViewRoot, RonDrivenView, ViewGenerated};
 use super::spawn_helpers::resolve_simple_localization;
 use crate::core::sprite::params::SpriteParams;
@@ -180,7 +180,6 @@ pub fn spawn_ron_view_for_entity(
     fre_assets: &Assets<GameFreAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
     layout_path: &str,
     bindings: Option<
         &std::collections::HashMap<String, crate::core::sequencer::chapter_schema::DataBinding>,
@@ -304,7 +303,6 @@ pub fn spawn_ron_view_for_entity(
                 animation_assets,
                 mortar_strings,
                 &player_data_with_locals,
-                item_registry,
                 &namespace,
             );
         }
@@ -365,10 +363,13 @@ pub fn spawn_dynamic_view_system(
     mut sprite_params: SpriteParams,
     mortar_strings: Res<crate::extra::mortar::MortarStringTable>,
     layered_db: Res<LayeredFactDatabase>,
-    item_registry: Res<crate::core::item::ItemRegistry>,
     mut fre_params: FreSystemParams,
+    data_resolvers: Option<Res<DataPathResolvers>>,
+    expr_func_resolvers: Option<Res<ExprFunctionResolvers>>,
 ) {
-    let player_data = PlayerDataView::new(&layered_db);
+    let player_data = PlayerDataView::new(&layered_db)
+        .with_resolvers(data_resolvers.as_deref(), None)
+        .with_expr_functions(expr_func_resolvers.as_deref());
 
     for (view_entity, hot_reload_root, _view_root, pending_view_data) in dynamic_view_query.iter() {
         // Check if asset is loaded
@@ -415,7 +416,6 @@ pub fn spawn_dynamic_view_system(
             &fre_assets,
             &mortar_strings,
             &player_data,
-            &item_registry,
             &hot_reload_root.layout_path,
             bindings,
             &layered_db,

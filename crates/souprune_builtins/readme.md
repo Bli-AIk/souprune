@@ -13,19 +13,24 @@
 
 ## Introduction
 
-`souprune_builtins` is a WASM guest module (compiled as `cdylib` for `wasm32-wasip2`) that implements all built-in spawn patterns and bullet behaviors used by the SoupRune danmaku system.
+`souprune_builtins` is a WASM guest module (compiled as `cdylib` for `wasm32-wasip2`) that implements all built-in spawn
+patterns and bullet behaviors used by the SoupRune danmaku system.
 
-Rather than hardcoding game logic in the engine, all built-in behaviors are implemented as WASM modules using the same `souprune_sdk` interface available to community mod developers. This ensures parity between built-in and custom content.
+Rather than hardcoding game logic in the framework, all built-in behaviors are implemented as WASM modules using the
+same `souprune_sdk` interface available to community mod developers. This ensures parity between built-in and custom
+content.
 
 ## Features
 
 **Spawn Patterns:**
+
 * `builtin.single` — Single bullet at center
 * `builtin.ring` — Circular arrangement (count, radius, start_angle)
 * `builtin.line` — Linear arrangement (count, spacing, direction)
 * `builtin.edge` — Edge-spawned bullets (count, side, spacing, margin)
 
 **Danmaku Behaviors:**
+
 * `builtin.linear` — Constant velocity movement
 * `builtin.orbital` — Circular/orbital motion
 * `builtin.sine` — Sinusoidal wave motion
@@ -50,15 +55,16 @@ cargo build --target wasm32-wasip2 --release
 ```
 
 The compiled WASM binary will be at:
+
 ```
 target/wasm32-wasip2/release/souprune_builtins.wasm
 ```
 
 ## Dependencies
 
-| Crate                                                  | Version | Description          |
-|--------------------------------------------------------|---------|----------------------|
-| [souprune_sdk](../souprune_sdk)                        | 0.2     | WASM guest SDK       |
+| Crate                           | Version | Description    |
+|---------------------------------|---------|----------------|
+| [souprune_sdk](../souprune_sdk) | 0.2     | WASM guest SDK |
 
 ## Warning
 
@@ -81,4 +87,5 @@ Whether you want to fix a bug, add a feature, or improve documentation:
 
 This project is licensed under
 
-* GNU Lesser General Public License v3.0 or later ([LICENSE](../../LICENSE.md) or [https://www.gnu.org/licenses/lgpl-3.0.html](https://www.gnu.org/licenses/lgpl-3.0.html))
+* GNU Lesser General Public License v3.0 or later ([LICENSE](../../LICENSE.md)
+  or [https://www.gnu.org/licenses/lgpl-3.0.html](https://www.gnu.org/licenses/lgpl-3.0.html))

@@ -11,15 +11,17 @@
 //! FRE 可读的事实或 FRE 触发的副作用。它本身不是玩法功能，而是一层翻译器：
 //! 让规则系统看见正在运行的游戏，也让规则计算结果能够反过来驱动运行时。
 
+mod collision_bridge;
 mod custom_dispatch;
-mod eval;
-mod item_actions;
+pub(crate) mod eval;
+pub mod extensions;
 mod state_sync;
 mod view_actions;
 
 pub use custom_dispatch::dispatch_custom_actions_system;
 pub use eval::evaluate_single_condition;
 use eval::{evaluate_conditions, evaluate_local_fact_value, register_condition_evaluator_system};
+pub use extensions::ViewActionExtensions;
 pub use view_actions::process_view_actions_system;
 
 use bevy::prelude::*;
@@ -44,6 +46,9 @@ pub struct FREBridgePlugin;
 impl Plugin for FREBridgePlugin {
     fn build(&self, app: &mut App) {
         let schedule = crate::game_schedule(app);
+
+        app.init_resource::<ViewActionExtensions>();
+
         app.add_message::<FreCustomActionEvent>()
             .add_systems(Startup, register_condition_evaluator_system)
             .add_systems(
@@ -52,6 +57,8 @@ impl Plugin for FREBridgePlugin {
                     state_sync::sync_state_to_facts_system
                         .run_if(state_sync::state_facts_need_sync),
                     state_sync::action_to_fre_event_system,
+                    state_sync::mode_change_to_fre_event_system,
+                    collision_bridge::collision_to_fact_bridge_system,
                     view_actions::process_view_actions_system,
                     custom_dispatch::dispatch_custom_actions_system,
                     view_actions::handle_switch_state_system,

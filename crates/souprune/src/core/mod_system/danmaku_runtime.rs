@@ -87,6 +87,11 @@ impl ActiveDanmaku {
         self.initialized
     }
 
+    /// Returns the index of the WASM mod that owns this instance.
+    pub fn mod_index(&self) -> usize {
+        self.mod_index
+    }
+
     /// Call on_enter via WASM.
     pub fn call_on_enter(
         &mut self,

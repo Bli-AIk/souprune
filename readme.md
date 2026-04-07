@@ -25,7 +25,7 @@ designed specifically for creating RPG / STG games similar to
 for creating RPG and Danmaku (STG)
 games in the style of **[Deltarune](https://deltarune.com/) / [Undertale](https://undertale.com/)**.
 
-It strives to be the next-generation community-driven Fangame engine—bringing a unique flavor while embracing high
+It strives to be the next-generation community-driven Fangame framework—bringing a unique flavor while embracing high
 performance and modern development paradigms at its core.
 
 ## 🧭 S.O.U.P Principles
@@ -52,8 +52,8 @@ these steps:
 3. **Enter Directory**: `cd souprune`
 4. **Update Submodules**: `git submodule update --init --recursive`
 5. **Setup Example Mods**:
-    - Linux/macOS: `./setup_mods.sh`
-    - Windows: `.\setup_mods.ps1`
+    - Linux/macOS: `./scripts/setup_mods.sh`
+    - Windows: `.\scripts\setup_mods.ps1`
 6. **Run Example (Debug Mode)**: `cargo run --package souprune --bin souprune --features debug`
 
 <details>
@@ -62,19 +62,19 @@ these steps:
 ```bash
 # Install all example mods
 # The example mod is located in the https://github.com/Bli-AIk/souprune_example_mods repository
-./setup_mods.sh
+./scripts/setup_mods.sh
 
 # Install specific example mod
-./setup_mods.sh example_mod
+./scripts/setup_mods.sh example_mod
 
 # List available mods
-./setup_mods.sh --list
+./scripts/setup_mods.sh --list
 
 # Update mods from remote
-./setup_mods.sh --update
+./scripts/setup_mods.sh --update
 
 # Remove all mod worktrees
-./setup_mods.sh --clean
+./scripts/setup_mods.sh --clean
 ```
 
 Configure active mod in `projects/config.toml`:
@@ -120,11 +120,11 @@ combining **RON configuration files** with **custom scripts**:
    You only need to write scripts when you need unique or complex logic (like a brand-new spiral homing algorithm or a
    special boss mechanic).
    This is where SoupRune shines—you can choose **Rust** (or any language that compiles to WASM) to write this logic!
-    * Your code is compiled into a **WASM component** and loaded into the engine at runtime via a sandboxed runtime.
-    * The engine communicates with your mod through a well-defined **WIT (WebAssembly Interface Types)** contract,
-      giving you **high performance** and **memory safety** while keeping mods isolated from the engine core.
+    * Your code is compiled into a **WASM component** and loaded into the framework at runtime via a sandboxed runtime.
+    * The framework communicates with your mod through a well-defined **WIT (WebAssembly Interface Types)** contract,
+      giving you **high performance** and **memory safety** while keeping mods isolated from the framework core.
 
-**In short: SoupRune prepares the broth (underlying engine); you just follow the recipe (RON configs) and pick your
+**In short: SoupRune prepares the broth (underlying framework); you just follow the recipe (RON configs) and pick your
 favorite spoon (any WASM-compatible language) to add the ingredients and cook your delicious game!**
 
 <details>
@@ -193,7 +193,7 @@ standardized compilation target. Any language with a WASM backend can produce mo
 * And as the WASM ecosystem grows, **more languages will become available naturally**—without requiring any
   changes to SoupRune itself.
 
-The best part? WASM mods run in a **sandbox**. A buggy mod cannot crash the engine, corrupt save data,
+The best part? WASM mods run in a **sandbox**. A buggy mod cannot crash the framework, corrupt save data,
 or access the filesystem without permission. This is safety by design—not an afterthought.
 
 Our original intention is to let every creator in the community **define game content in a simple and easy-to-use way**;
@@ -240,6 +240,15 @@ The prophecy of the RUNE should be written by us together.
 Let us write a new future, line by line.
 
 </details>
+
+## 🤝 Contributing
+
+SoupRune welcomes contributions of all kinds — whether you're an artist, musician,
+game designer, translator, or developer.
+
+**👉 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guides on how to get involved.**
+
+Not sure where to start? Join our [Discord](https://discord.gg/5YXK5DRjPZ) and say hi!
 
 ## Contributors
 

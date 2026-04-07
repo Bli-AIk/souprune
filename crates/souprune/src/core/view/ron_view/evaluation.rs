@@ -286,53 +286,6 @@ pub fn preprocess_fact_expressions_with_repeat(
 // Expression Evaluation Functions
 // ============================================================================
 
-fn evaluate_index_expression(expr: &str, player_data: &PlayerDataView) -> usize {
-    let expr = expr.trim();
-
-    if expr == "inventory.len()" {
-        return player_data
-            .get_fact_string_list("player:inventory")
-            .map(|list| list.len())
-            .unwrap_or(0);
-    }
-
-    if expr == "inventory_capacity" {
-        return player_data
-            .get_fact_int("player:inventory_capacity")
-            .unwrap_or(8) as usize;
-    }
-
-    if expr.starts_with("min(") && expr.ends_with(")") {
-        let inner = &expr[4..expr.len() - 1];
-        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 2 {
-            let a = evaluate_index_expression(parts[0], player_data);
-            let b = evaluate_index_expression(parts[1], player_data);
-            return a.min(b);
-        }
-    }
-
-    if expr.starts_with("max(") && expr.ends_with(")") {
-        let inner = &expr[4..expr.len() - 1];
-        let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 2 {
-            let a = evaluate_index_expression(parts[0], player_data);
-            let b = evaluate_index_expression(parts[1], player_data);
-            return a.max(b);
-        }
-    }
-
-    if let Ok(value) = expr.parse::<usize>() {
-        return value;
-    }
-
-    warn!(
-        "Unable to evaluate index expression: {}, defaulting to 1",
-        expr
-    );
-    1
-}
-
 /// Evaluate a `visible_when` expression to determine visibility.
 /// Returns true if the element should be visible, false otherwise.
 ///
@@ -366,14 +319,8 @@ pub fn evaluate_visible_when(expr: &str, player_data: &PlayerDataView) -> bool {
     // 预处理事实表达式 - 处理 $var 语法
     let processed_expr = preprocess_fact_expressions(expr, player_data);
 
-    // Preprocess special functions
-    // 预处理特殊函数
-    let is_empty = player_data
-        .get_fact_string_list("player:inventory")
-        .map(|list| list.is_empty())
-        .unwrap_or(true);
-    let processed_expr =
-        processed_expr.replace("inventory_is_empty()", if is_empty { "1" } else { "0" });
+    // Preprocess registered expression functions (e.g. inventory_is_empty())
+    let processed_expr = player_data.preprocess_expr_functions(&processed_expr);
 
     // Preprocess boolean literals for fasteval compatibility
     // 预处理布尔字面量以兼容 fasteval
@@ -528,42 +475,26 @@ pub fn evaluate_float_expr_with_current(
 // ============================================================================
 
 pub fn evaluate_condition(condition: &str, player_data: &PlayerDataView) -> bool {
-    // Helper closure to get inventory
-    let get_inventory = || {
-        player_data
-            .get_fact_string_list("player:inventory")
-            .unwrap_or_default()
-    };
+    // Check custom condition resolvers first
+    if let Some(result) = player_data.resolve_condition(condition) {
+        return result;
+    }
 
-    match condition {
-        "player.inventory.is_empty" => get_inventory().is_empty(),
-        "player.inventory.is_not_empty" => !get_inventory().is_empty(),
-        _ if condition.starts_with("player.") => {
-            let parts: Vec<&str> = condition.split('.').collect();
-            evaluate_player_property(&parts, player_data)
+    // Generic: try reading a boolean fact with dot→colon conversion
+    if let Some(dot_pos) = condition.find('.') {
+        let fact_key = format!("{}:{}", &condition[..dot_pos], &condition[dot_pos + 1..]);
+        if let Some(val) = player_data.get_fact(&fact_key) {
+            return match val {
+                bevy_fact_rule_event::FactValue::Bool(b) => *b,
+                bevy_fact_rule_event::FactValue::Int(i) => *i != 0,
+                bevy_fact_rule_event::FactValue::StringList(list) => !list.is_empty(),
+                bevy_fact_rule_event::FactValue::IntList(list) => !list.is_empty(),
+                _ => false,
+            };
         }
-        _ => false,
     }
-}
 
-/// Evaluate a player property condition like "player.hp.is_low".
-fn evaluate_player_property(parts: &[&str], player_data: &PlayerDataView) -> bool {
-    if parts.len() < 3 {
-        return false;
-    }
-    match (parts[1], parts[2]) {
-        ("hp", "is_low") => {
-            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-            let hp_max = player_data.get_fact_int("player:hp_max").unwrap_or(1);
-            hp < hp_max / 4
-        }
-        ("hp", "is_critical") => {
-            let hp = player_data.get_fact_int("player:hp").unwrap_or(0);
-            hp <= 1
-        }
-        ("gold", "is_zero") => player_data.get_fact_int("player:gold").unwrap_or(0) == 0,
-        _ => false,
-    }
+    false
 }
 
 /// Evaluate transition condition for InteractiveLayer.
@@ -586,13 +517,6 @@ pub fn evaluate_transition_condition_unified(
 ) -> bool {
     let condition = condition.trim();
 
-    // Helper to get inventory
-    let get_inventory = || {
-        player_data
-            .get_fact_string_list("player:inventory")
-            .unwrap_or_default()
-    };
-
     // Handle "index == N" pattern with optional additional conditions
     let Some(rest) = condition.strip_prefix("index == ") else {
         // For other conditions, delegate to the existing evaluate_condition
@@ -614,15 +538,21 @@ pub fn evaluate_transition_condition_unified(
         return false;
     }
 
-    // Check additional conditions
+    // Check additional conditions generically via evaluate_condition
     for part in parts.iter().skip(1) {
-        if *part == "!player.inventory.is_empty" && get_inventory().is_empty() {
+        let part = part.trim();
+        let (negated, cond) = if let Some(stripped) = part.strip_prefix('!') {
+            (true, stripped.trim())
+        } else {
+            (false, part)
+        };
+        let result = evaluate_condition(cond, player_data);
+        if negated && result {
             return false;
         }
-        if *part == "player.inventory.is_empty" && !get_inventory().is_empty() {
+        if !negated && !result {
             return false;
         }
-        // Add more conditions as needed
     }
 
     true

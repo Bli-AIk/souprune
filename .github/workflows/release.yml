@@ -25,7 +25,7 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: souprune.exe
-            asset_name: souprune-windows-x86_64.exe
+            asset_name: souprune-windows-x86_64
           - os: macos-latest
             target: x86_64-apple-darwin
             arm_target: aarch64-apple-darwin
@@ -46,6 +46,10 @@ jobs:
       - name: Move mortar to sibling directory
         shell: bash
         run: mv temp-mortar ../mortar
+
+      - name: Setup example mods
+        shell: bash
+        run: bash scripts/setup_mods.sh
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -75,46 +79,48 @@ jobs:
         if: matrix.os != 'macos-latest'
         run: cargo build --release --target ${{ matrix.target }} --package souprune
 
-      - name: Build and Combine (macOS Universal Binary)
+      - name: Build and create universal binary (macOS)
         if: matrix.os == 'macos-latest'
         run: |
           cargo build --release --target ${{ matrix.target }} --package souprune
           cargo build --release --target ${{ matrix.arm_target }} --package souprune
+          mkdir -p target/universal/release
           lipo -create \
                target/${{ matrix.target }}/release/${{ matrix.artifact_name }} \
                target/${{ matrix.arm_target }}/release/${{ matrix.artifact_name }} \
-               -output target/release/${{ matrix.asset_name }}
-          echo "FINAL_ARTIFACT_PATH=target/release/${{ matrix.asset_name }}" >> $GITHUB_ENV
+               -output target/universal/release/${{ matrix.artifact_name }}
 
-      - name: Strip binary (Linux/macOS)
-        if: matrix.os == 'ubuntu-latest' || (matrix.os == 'macos-latest' && env.FINAL_ARTIFACT_PATH == '')
+      - name: Strip binary (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Package with Assets and Mods
+      - name: Strip binary (macOS)
+        if: matrix.os == 'macos-latest'
+        run: strip target/universal/release/${{ matrix.artifact_name }}
+
+      - name: Package with mods (Linux/Windows)
+        if: matrix.os != 'macos-latest'
         shell: bash
         run: |
-          mkdir staging
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} staging/
-          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            cp ${{ env.FINAL_ARTIFACT_PATH }} staging/
-          else
-            cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} staging/
-          fi
-          
-          [ -d "assets" ] && cp -r assets staging/
-          [ -d "mods" ] && cp -r mods staging/
-          
-          cd staging
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            7z a ../${{ matrix.asset_name }}.zip *
-          else
-            zip -r ../${{ matrix.asset_name }}.zip *
-          fi
+          bash scripts/pack.sh "${{ matrix.target }}" \
+            --skip-build \
+            --binary-path "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" \
+            --dist-name "${{ matrix.asset_name }}"
+
+      - name: Package with mods (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          bash scripts/pack.sh "${{ matrix.target }}" \
+            --skip-build \
+            --binary-path "target/universal/release/${{ matrix.artifact_name }}" \
+            --dist-name "${{ matrix.asset_name }}"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset_name }}.zip
+          files: |
+            dist/${{ matrix.asset_name }}.zip
+            dist/${{ matrix.asset_name }}.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}

@@ -8,29 +8,18 @@
 
 use super::chapter_schema::{Chapter, PlayerAction};
 use super::context::*;
-use crate::core::battle_box::BoundToBattleBox;
-use crate::core::battle_player::{BattleInvincibilityConfig, BattlePlayerConfig};
-use crate::core::danmaku::BulletTarget;
-use crate::core::mod_system::{BehaviorParams, BehaviorVelocity};
+use crate::core::mod_system::BehaviorParams;
 use crate::core::mode::ModeScoped;
 use bevy::prelude::*;
 
-/// Component for pending player spawn requests.
+/// System to process generic player actions (Teleport, Despawn, SetMode, SetActive).
 ///
-/// 待处理的玩家生成请求组件。
-#[derive(Component)]
-pub struct PlayerSpawnRequest {
-    pub config_handle: Handle<BattlePlayerConfig>,
-    pub position: Vec2,
-}
-
-/// System to process player actions.
+/// Game-specific Spawn handling is in preset.
 ///
-/// 处理玩家动作的系统。
+/// 处理通用玩家动作的系统。游戏特定的 Spawn 处理在 preset 中。
 pub fn process_player_action_system(
     mut commands: Commands,
     query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
-    asset_server: Res<AssetServer>,
     mut player_query: Query<(Entity, &mut Transform), (With<BehaviorParams>, With<ModeScoped>)>,
 ) {
     for (entity, active_chapter) in query.iter() {
@@ -38,21 +27,7 @@ pub fn process_player_action_system(
             continue;
         };
         match action {
-            PlayerAction::Spawn {
-                config_path,
-                position,
-            } if config_path.ends_with(".battle_player.ron") => {
-                let handle = asset_server.load::<BattlePlayerConfig>(config_path);
-                commands.spawn((
-                    PlayerSpawnRequest {
-                        config_handle: handle,
-                        position: position.unwrap_or(Vec2::ZERO),
-                    },
-                    ModeScoped("battle".to_string()),
-                ));
-                commands.entity(entity).insert(ChapterFinished);
-            }
-            // Non-battle config_path → handled by state-specific systems (e.g., overworld)
+            // Spawn is handled by preset-specific systems
             PlayerAction::Spawn { .. } => {}
             PlayerAction::Teleport(pos) => {
                 for (_, mut transform) in player_query.iter_mut() {
@@ -72,74 +47,6 @@ pub fn process_player_action_system(
                 // TODO: Implement mode switching and active state toggling
                 commands.entity(entity).insert(ChapterFinished);
             }
-        }
-    }
-}
-
-/// System to process player spawn requests when configs are loaded.
-///
-/// 当配置加载完成时处理玩家生成请求的系统。
-pub fn process_player_spawn_requests(
-    mut commands: Commands,
-    query: Query<(Entity, &PlayerSpawnRequest)>,
-    configs: Option<Res<Assets<BattlePlayerConfig>>>,
-    asset_server: Res<AssetServer>,
-    invincibility_config: Option<ResMut<BattleInvincibilityConfig>>,
-) {
-    let (Some(configs), Some(mut invincibility_config)) = (configs, invincibility_config) else {
-        return;
-    };
-    for (entity, req) in query.iter() {
-        if let Some(config) = configs.get(&req.config_handle) {
-            info!("Config loaded. Spawning player...");
-
-            let physics_collider = config.physics_collider();
-            let damage_trigger = config.damage_trigger();
-            let sprite_path = config.sprite_path().to_string();
-            let default_mode_id = config.default_mode_id().to_string();
-            let default_box = config.default_box().to_string();
-
-            // Update invincibility config from player config
-            // 从玩家配置更新无敌配置
-            let inv_cfg = config.invincibility();
-            invincibility_config.duration = inv_cfg.duration;
-            invincibility_config.flash_interval = inv_cfg.flash_interval;
-            invincibility_config.normal_color = inv_cfg.normal_color;
-            invincibility_config.flash_color = inv_cfg.flash_color;
-            invincibility_config.damage_sound = inv_cfg.damage_sound.clone();
-
-            if let Some(ref sound) = inv_cfg.damage_sound {
-                info!("Configured damage sound: {}", sound);
-            }
-
-            commands.spawn((
-                Sprite {
-                    image: asset_server.load(sprite_path),
-                    color: config.sprite_color(),
-                    ..default()
-                },
-                Transform::from_translation(req.position.extend(config.z_position())),
-                physics_collider.clone(),
-                damage_trigger.clone(),
-                BehaviorParams {
-                    behavior_id: default_mode_id,
-                    context: crate::core::mod_system::BehaviorContext::new("battle"),
-                },
-                BehaviorVelocity::default(),
-                BulletTarget::new(),
-                BoundToBattleBox(default_box),
-                ModeScoped("battle".to_string()),
-                Name::new("BattlePlayer"),
-            ));
-
-            info!(
-                "Spawned player with physics collider: {:?}, damage trigger: {:?}, at z: {}",
-                physics_collider,
-                damage_trigger,
-                config.z_position()
-            );
-
-            commands.entity(entity).despawn();
         }
     }
 }

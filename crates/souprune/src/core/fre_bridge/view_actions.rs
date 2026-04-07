@@ -12,7 +12,8 @@
 //! 活跃 View 的规则，在局部与全局事实之上评估它们，然后执行播放音效、
 //! 修改 View 局部事实、切换状态、启动对话、继续排队输出事件等动作。
 
-use super::{evaluate_conditions, evaluate_local_fact_value, item_actions};
+use super::extensions::{ViewActionExecCtx, ViewActionExtensions};
+use super::{evaluate_conditions, evaluate_local_fact_value};
 use bevy::prelude::*;
 use bevy_fact_rule_event::{
     CombinedFactReader, EnumRegistry, FactEvent, FactValue, LayeredFactDatabase, PendingFactEvents,
@@ -22,7 +23,6 @@ use crate::config::SoupruneConfig;
 use crate::core::audio;
 use crate::core::fre_facts;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
-use crate::core::item::ItemRegistry;
 use crate::core::mode::SequenceSubState;
 use crate::core::view::components::{ActiveView, ViewRoot};
 
@@ -79,8 +79,11 @@ fn process_event_view_actions(
     trigger_history: &mut Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
     time: &Time,
     enum_registry: &EnumRegistry,
-    item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
+    event_trace: &mut crate::core::trace::EventTraceLog,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    extensions: &ViewActionExtensions,
 ) {
     let rule_groups = rule_registry.get_matching_rules_grouped(event);
     log_event_rule_matches(event, &rule_groups);
@@ -112,6 +115,21 @@ fn process_event_view_actions(
                 history.record_trigger(&rule.id, time.elapsed_secs_f64());
             }
 
+            // Record the rule match in the event trace as a causal child of the FactEvent.
+            let parent_idx = event_trace.current_frame_events.len().checked_sub(1);
+            event_trace.record(
+                crate::core::trace::EventPhase::Logic,
+                "RuleTriggered",
+                format!(
+                    "rule '{}' → {} actions, {} outputs",
+                    rule.id,
+                    rule.actions.len(),
+                    rule.outputs.len()
+                ),
+                time.elapsed_secs_f64(),
+                parent_idx,
+            );
+
             for action in &rule.actions {
                 execute_action(
                     action,
@@ -120,8 +138,11 @@ fn process_event_view_actions(
                     audio,
                     asset_server,
                     enum_registry,
-                    item_registry,
                     souprune_config,
+                    fact_history,
+                    frame_number,
+                    &rule.id,
+                    extensions,
                 );
             }
 
@@ -147,12 +168,24 @@ pub fn process_view_actions_system(
     mut trigger_history: Option<ResMut<crate::extra::debug::RuleTriggerHistory>>,
     time: Res<Time>,
     enum_registry: Res<EnumRegistry>,
-    item_registry: Res<ItemRegistry>,
     souprune_config: Res<SoupruneConfig>,
+    mut event_trace: ResMut<crate::core::trace::EventTraceLog>,
+    mut fact_history: ResMut<crate::core::trace::FactChangeHistory>,
+    frame_count: Res<bevy::diagnostic::FrameCount>,
+    extensions: Res<ViewActionExtensions>,
 ) {
     let events_to_process: Vec<FactEvent> = events.read().cloned().collect();
 
     for event in &events_to_process {
+        let ts = time.elapsed_secs_f64();
+        event_trace.record(
+            crate::core::trace::EventPhase::Logic,
+            "FactEvent",
+            format!("event '{}'", event.id.0),
+            ts,
+            None,
+        );
+
         process_event_view_actions(
             event,
             &rule_registry,
@@ -164,8 +197,11 @@ pub fn process_view_actions_system(
             &mut trigger_history,
             &time,
             &enum_registry,
-            &item_registry,
             &souprune_config,
+            &mut event_trace,
+            &mut fact_history,
+            frame_count.0 as u64,
+            &extensions,
         );
     }
 }
@@ -177,8 +213,11 @@ fn execute_action(
     audio: &bevy_kira_audio::Audio,
     asset_server: &AssetServer,
     enum_registry: &EnumRegistry,
-    item_registry: &ItemRegistry,
     souprune_config: &SoupruneConfig,
+    fact_history: &mut crate::core::trace::FactChangeHistory,
+    frame_number: u64,
+    rule_id: &str,
+    extensions: &ViewActionExtensions,
 ) {
     match action {
         GameActionDef::PlaySound(sound_name) => {
@@ -192,6 +231,14 @@ fn execute_action(
         GameActionDef::SetLocalFact(key, value) => {
             let combined = CombinedFactReader::new(local_facts, global_facts);
             let fact_value = evaluate_local_fact_value(key, value, &combined, enum_registry);
+            let old = local_facts.get_by_str(key).cloned();
+            fact_history.record(
+                format!("local:{key}"),
+                old,
+                fact_value.clone(),
+                rule_id,
+                frame_number,
+            );
             info!("FRE Bridge: SetLocalFact({}, {:?})", key, fact_value);
             local_facts.set(key.as_str(), fact_value);
         }
@@ -252,52 +299,26 @@ fn execute_action(
             action_type,
             params,
         } => {
-            debug!(
-                "FRE Bridge: Custom action {} with params {:?}",
-                action_type, params
-            );
-        }
-        GameActionDef::Log { message } => {
-            info!("FRE Bridge: Log: {}", message);
-        }
-        GameActionDef::UseItem {
-            index_expr,
-            start_dialogue,
-        } => {
-            item_actions::execute_use_item(
-                index_expr,
+            let mut ctx = ViewActionExecCtx {
                 local_facts,
                 global_facts,
                 audio,
                 asset_server,
                 enum_registry,
-                item_registry,
-                *start_dialogue,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
+                config: souprune_config,
+                fact_history,
+                frame_number,
+                rule_id,
+            };
+            if !extensions.handle(action_type, params, &mut ctx) {
+                debug!(
+                    "FRE Bridge: Unhandled custom action '{}' with params {:?}",
+                    action_type, params
+                );
+            }
         }
-        GameActionDef::CheckItem { index_expr } => {
-            item_actions::execute_check_item(
-                index_expr,
-                local_facts,
-                global_facts,
-                enum_registry,
-                item_registry,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
-        }
-        GameActionDef::DropItem { index_expr } => {
-            item_actions::execute_drop_item(
-                index_expr,
-                local_facts,
-                global_facts,
-                enum_registry,
-                item_registry,
-                &souprune_config.game.dialogue_view_default,
-                &souprune_config.game.dialogue_voice_default,
-            );
+        GameActionDef::Log { message } => {
+            info!("FRE Bridge: Log: {}", message);
         }
     }
 }

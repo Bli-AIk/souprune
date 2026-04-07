@@ -13,12 +13,12 @@
 //! 按 F3 切换碰撞体可视化（玩家为绿色，其他为浅绿色，触发器为青色）。
 
 pub mod debug_collider {
-    use crate::app_state::overworld::character::components::PlayerControlled;
-    use crate::app_state::overworld::tilemap::systems::TilemapCollider;
-    use crate::app_state::overworld::tilemap::*;
-    use crate::app_state::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
     use crate::core::basic_components::Facing;
     use crate::core::collision::{HitboxOffset, PhysicsCollider, Rect2DCollider, TriggerCollider};
+    use crate::preset::overworld::character::components::PlayerControlled;
+    use crate::preset::overworld::tilemap::systems::TilemapCollider;
+    use crate::preset::overworld::tilemap::*;
+    use crate::preset::overworld::trigger::{FocusedInteractable, Interactable, TriggerZone};
     use bevy::color::palettes::css;
     use bevy::math::Isometry2d;
     use bevy::prelude::*;
@@ -167,26 +167,26 @@ pub mod debug_collider {
             &GlobalTransform,
             &TriggerCollider,
             Option<&HitboxOffset>,
-            Option<&crate::app_state::overworld::chase::ChasePlayerHitbox>,
+            Option<&crate::preset::overworld::chase::ChasePlayerHitbox>,
         )>,
         battle_boxes: Query<
             (
                 &GlobalTransform,
                 &crate::core::view::components::ViewBox,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &crate::preset::battle_box::BattleBoxId,
+                &crate::preset::battle_box::BattleBoxState,
             ),
-            With<crate::core::battle_box::BattleBox>,
+            With<crate::preset::battle_box::BattleBox>,
         >,
         am_battle_boxes: Query<
             (
                 &GlobalTransform,
-                &crate::core::battle_box::AlightMotionBattleBoxBounds,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &crate::preset::battle_box::AlightMotionBattleBoxBounds,
+                &crate::preset::battle_box::BattleBoxId,
+                &crate::preset::battle_box::BattleBoxState,
             ),
             (
-                With<crate::core::battle_box::BattleBox>,
+                With<crate::preset::battle_box::BattleBox>,
                 Without<crate::core::view::components::ViewBox>,
             ),
         >,
@@ -291,21 +291,21 @@ pub mod debug_collider {
                 Entity,
                 &GlobalTransform,
                 &crate::core::view::components::ViewBox,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &crate::preset::battle_box::BattleBoxId,
+                &crate::preset::battle_box::BattleBoxState,
             ),
-            With<crate::core::battle_box::BattleBox>,
+            With<crate::preset::battle_box::BattleBox>,
         >,
         am_battle_boxes: Query<
             (
                 Entity,
                 &GlobalTransform,
-                &crate::core::battle_box::AlightMotionBattleBoxBounds,
-                &crate::core::battle_box::BattleBoxId,
-                &crate::core::battle_box::BattleBoxState,
+                &crate::preset::battle_box::AlightMotionBattleBoxBounds,
+                &crate::preset::battle_box::BattleBoxId,
+                &crate::preset::battle_box::BattleBoxState,
             ),
             (
-                With<crate::core::battle_box::BattleBox>,
+                With<crate::preset::battle_box::BattleBox>,
                 Without<crate::core::view::components::ViewBox>,
             ),
         >,

@@ -40,14 +40,14 @@ typos:
 # Tokei 行数检查（主项目 + 所有子模块）
 # ===============================================
 tokei-check:
-    @./tokei_check.sh --workspace
+    @./scripts/tokei_check.sh --workspace
 
 # ===============================================
 # 架构边界检查
 # ===============================================
 arch-check:
-    @bash ./check_core_boundaries.sh
-    @bash ./check_editor_boundaries.sh
+    @bash ./scripts/check_core_boundaries.sh
+    @bash ./scripts/check_editor_boundaries.sh
 
 alias line := tokei-check
 
@@ -76,10 +76,10 @@ build:
     cargo build -p {{project}}
 
 # ===============================================
-# 普通运行（无 debug）
+# 普通运行（动态链接加速）
 # ===============================================
 run:
-    cargo run -p {{project}}
+    cargo run -p {{project}} --features bevy/dynamic_linking
 
 # ===============================================
 # 不安全 GPU 运行（禁用 Vulkan 验证层）
@@ -106,16 +106,22 @@ test_local:
     cargo test -p {{project}}
 
 # ===============================================
-# 开发运行（debug）
+# 开发运行（debug + 动态链接加速）
 # ===============================================
 dev:
-    cargo run -p {{project}} --features debug
+    cargo run -p {{project}} --features "debug,bevy/dynamic_linking"
 
 # ===============================================
 # 清理
 # ===============================================
 clean:
     cargo clean
+
+# ===============================================
+# Release 构建运行（静态链接，最终性能）
+# ===============================================
+release:
+    cargo run -p {{project}} --release
 
 # ===============================================
 # Tracy
@@ -167,3 +173,18 @@ mod-build mod_name:
 mod-install mod_name: (mod-build mod_name)
     cp projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm projects/{{mod_name}}/mod_example.wasm
     @echo "Installed: projects/{{mod_name}}/mod_example.wasm"
+
+# ===============================================
+# 打包发行版
+# 统一脚本：scripts/pack.sh
+# 支持别名：linux, windows, linux-arm，或任意 Rust target triple
+# Packaging commands — delegates to scripts/pack.sh
+# ===============================================
+pack-linux:
+    @bash scripts/pack.sh linux
+
+pack-windows:
+    @bash scripts/pack.sh windows
+
+pack target:
+    @bash scripts/pack.sh {{target}}

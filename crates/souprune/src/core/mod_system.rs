@@ -2,28 +2,27 @@
 //!
 //! 承载 Souprune 的 WASM mod 运行时，以及对外暴露 mod 扩展能力的各类注册表。
 //!
-//! Acts as the integration layer between the engine and user-provided WASM
+//! Acts as the integration layer between the framework and user-provided WASM
 //! components. It loads built-in and project mods, records which mod provides
 //! each behavior/danmaku/pattern ID, and wires the runtime update systems that
 //! let the rest of the game call into those mod-defined capabilities.
 //!
-//! 引擎与用户提供的 WASM 组件之间的集成层。它负责加载内置与项目 mod，
+//! 框架与用户提供的 WASM 组件之间的集成层。它负责加载内置与项目 mod，
 //! 记录每个行为、弹幕算法和生成模式 ID 由哪个 mod 提供，并接入运行时更新系统，
 //! 让游戏其余部分可以调用这些由 mod 定义的能力。
 
 use bevy::prelude::*;
-use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
-use souprune_api::Action;
 use std::collections::HashMap;
 
 use super::wasm_runtime::{self, LoadedMod, WasmRuntime};
-
-use custom_actions::{apply_pending_side_effects, build_fact_snapshot};
 
 mod danmaku_runtime;
 
 mod custom_actions;
 
+mod behaviors;
+
+pub use behaviors::{BehaviorContext, BehaviorParams, BehaviorVelocity};
 pub use danmaku_runtime::{ActiveDanmaku, ActiveDanmakuStack};
 
 // === Plugin ===
@@ -52,7 +51,10 @@ impl Plugin for ModPlugin {
             .add_systems(Startup, load_mods_system)
             .add_systems(
                 schedule,
-                (init_behaviors_system, update_behaviors_system)
+                (
+                    behaviors::init_behaviors_system,
+                    behaviors::update_behaviors_system,
+                )
                     .chain()
                     .in_set(crate::core::battle_runtime::BattleMovementSet),
             )
@@ -60,7 +62,8 @@ impl Plugin for ModPlugin {
                 schedule,
                 custom_actions::dispatch_wasm_custom_actions_system
                     .after(crate::core::fre_bridge::dispatch_custom_actions_system),
-            );
+            )
+            .add_systems(schedule, dispatch_mode_lifecycle_system);
     }
 }
 
@@ -174,7 +177,7 @@ pub struct LoadedMods {
 }
 
 fn register_mod(
-    loaded: &wasm_runtime::LoadedMod,
+    loaded: &LoadedMod,
     mod_index: usize,
     behavior_registry: &mut BehaviorRegistry,
     danmaku_registry: &mut DanmakuRegistry,
@@ -205,13 +208,21 @@ fn load_builtin_wasm(
     pattern_registry: &mut SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
 ) {
-    let candidates = [
+    // CWD-relative candidates (development)
+    let mut candidates = vec![
         std::path::PathBuf::from("builtins/souprune_builtins.wasm"),
         std::path::PathBuf::from("assets/builtins/souprune_builtins.wasm"),
         std::path::PathBuf::from(
             "crates/souprune_builtins/target/wasm32-wasip2/release/souprune_builtins.wasm",
         ),
     ];
+
+    // Exe-relative candidates (packaged distribution)
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        candidates.push(exe_dir.join("builtins/souprune_builtins.wasm"));
+    }
 
     let wasm_path = candidates.iter().find(|p| p.exists());
     let Some(wasm_path) = wasm_path else {
@@ -352,212 +363,61 @@ fn load_mods_system(
     }
 }
 
-// === Runtime Components ===
-
-/// Which game context a WASM behavior is allowed to run in.
-/// An empty string means "any mode". Otherwise, the tag is matched against
-/// the current `SequenceMode` name (e.g. `"battle"`, `"overworld"`).
-///
-/// WASM 行为允许运行的游戏上下文。
-/// 空字符串表示"任何模式"。否则标签与当前 `SequenceMode` 名称匹配。
-#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
-pub struct BehaviorContext(pub String);
-
-impl BehaviorContext {
-    pub fn any() -> Self {
-        Self(String::new())
-    }
-
-    pub fn new(tag: impl Into<String>) -> Self {
-        Self(tag.into())
-    }
-
-    fn matches(&self, mode: &crate::core::mode::SequenceMode) -> bool {
-        self.0.is_empty() || mode.is(&self.0)
-    }
-}
-
-#[derive(Component)]
-pub struct BehaviorParams {
-    pub behavior_id: String,
-    pub context: BehaviorContext,
-}
-
-impl BehaviorParams {
-    pub fn new(behavior_id: impl Into<String>) -> Self {
-        Self {
-            behavior_id: behavior_id.into(),
-            context: BehaviorContext::any(),
-        }
-    }
-
-    pub fn with_context(mut self, context: BehaviorContext) -> Self {
-        self.context = context;
-        self
-    }
-}
-
-#[derive(Component, Default)]
-pub struct BehaviorVelocity(pub Vec2);
-
-/// Active WASM behavior instance, holding a resource handle inside the WASM store.
-#[derive(Component)]
-pub struct ActiveBehavior {
-    mod_index: usize,
-    resource_handle: wasmtime::component::ResourceAny,
-}
-
-unsafe impl Send for ActiveBehavior {}
-unsafe impl Sync for ActiveBehavior {}
-
-fn init_behaviors_system(
-    mut commands: Commands,
-    query: Query<(Entity, &BehaviorParams), Added<BehaviorParams>>,
-    behavior_registry: Res<BehaviorRegistry>,
+/// Dispatches mode lifecycle events (enter/exit) to all loaded WASM mods.
+fn dispatch_mode_lifecycle_system(
+    mut mode_events: MessageReader<crate::core::mode::ModeChanged>,
     mut loaded_mods: NonSendMut<LoadedMods>,
-    fact_db: Res<LayeredFactDatabase>,
+    mut wasm_tracer: ResMut<crate::core::trace::WasmCallTracer>,
 ) {
-    if query.is_empty() {
+    let events: Vec<crate::core::mode::ModeChanged> = mode_events.read().cloned().collect();
+    if events.is_empty() {
         return;
     }
 
-    let fact_snapshot = build_fact_snapshot(&fact_db);
-
-    for (entity, params) in query.iter() {
-        let Some(&mod_index) = behavior_registry.behavior_mods.get(&params.behavior_id) else {
-            error!("Behavior ID not found: {}", params.behavior_id);
-            continue;
-        };
-
-        let Some(loaded) = loaded_mods.mods.get_mut(mod_index) else {
-            error!("Mod index {} not loaded", mod_index);
-            continue;
-        };
-
-        let behavior_iface = loaded.bindings.souprune_plugin_behavior();
-        match behavior_iface
-            .behavior_instance()
-            .call_constructor(&mut loaded.store, &params.behavior_id)
-        {
-            Ok(handle) => {
-                {
-                    let ctx = loaded.store.data_mut();
-                    ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
-                    ctx.call_ctx.pending_fact_mutations.clear();
-                    ctx.call_ctx.pending_events.clear();
-                }
-
-                if let Err(e) = behavior_iface
-                    .behavior_instance()
-                    .call_on_enter(&mut loaded.store, handle)
-                {
-                    error!(
-                        "Behavior on_enter failed for {}: {:?}",
-                        params.behavior_id, e
-                    );
-                }
-
-                commands.entity(entity).insert((
-                    ActiveBehavior {
-                        mod_index,
-                        resource_handle: handle,
-                    },
-                    params.context.clone(),
-                ));
-            }
-            Err(e) => {
-                error!("Failed to create behavior {}: {:?}", params.behavior_id, e);
-            }
+    for event in &events {
+        if let Some(ref from) = event.from {
+            dispatch_mode_call(&mut loaded_mods, &mut wasm_tracer, from, false);
+        }
+        if let Some(ref to) = event.to {
+            dispatch_mode_call(&mut loaded_mods, &mut wasm_tracer, to, true);
         }
     }
 }
 
-fn update_behaviors_system(
-    mut query: Query<(
-        Entity,
-        &BehaviorContext,
-        &ActiveBehavior,
-        Option<&mut BehaviorVelocity>,
-        &mut Transform,
-    )>,
-    action_states: Query<
-        &leafwing_input_manager::action_state::ActionState<crate::core::input::actions::Action>,
-        With<crate::core::battle_runtime::BattleInputManager>,
-    >,
-    registry: Res<crate::core::input::actions::ActionRegistry>,
-    time: Res<Time>,
-    mode: Res<crate::core::mode::SequenceMode>,
-    mut loaded_mods: NonSendMut<LoadedMods>,
-    mut fact_db: ResMut<LayeredFactDatabase>,
-    mut fact_writer: MessageWriter<FactEvent>,
+fn dispatch_mode_call(
+    loaded_mods: &mut LoadedMods,
+    wasm_tracer: &mut crate::core::trace::WasmCallTracer,
+    mode: &str,
+    is_enter: bool,
 ) {
-    let mut pressed = [false; 7];
-    let mut just_pressed = [false; 7];
-    if let Some(state) = action_states.iter().next() {
-        use crate::core::input::actions::ActionStateExt;
-        pressed[Action::Up as usize] = state.action_pressed(&registry, "Up");
-        pressed[Action::Down as usize] = state.action_pressed(&registry, "Down");
-        pressed[Action::Left as usize] = state.action_pressed(&registry, "Left");
-        pressed[Action::Right as usize] = state.action_pressed(&registry, "Right");
-        pressed[Action::Confirm as usize] = state.action_pressed(&registry, "Confirm");
-        pressed[Action::Cancel as usize] = state.action_pressed(&registry, "Cancel");
-        pressed[Action::Menu as usize] = state.action_pressed(&registry, "Menu");
-
-        just_pressed[Action::Up as usize] = state.action_just_pressed(&registry, "Up");
-        just_pressed[Action::Down as usize] = state.action_just_pressed(&registry, "Down");
-        just_pressed[Action::Left as usize] = state.action_just_pressed(&registry, "Left");
-        just_pressed[Action::Right as usize] = state.action_just_pressed(&registry, "Right");
-        just_pressed[Action::Confirm as usize] = state.action_just_pressed(&registry, "Confirm");
-        just_pressed[Action::Cancel as usize] = state.action_just_pressed(&registry, "Cancel");
-        just_pressed[Action::Menu as usize] = state.action_just_pressed(&registry, "Menu");
-    }
-
-    let fact_snapshot = build_fact_snapshot(&fact_db);
-    let dt = time.delta_secs();
-
-    for (_entity, ctx, active, mut velocity, mut transform) in query.iter_mut() {
-        if !ctx.matches(&mode) {
+    for loaded in &mut loaded_mods.mods {
+        if !loaded.has_mode_lifecycle {
             continue;
         }
-
-        let Some(loaded) = loaded_mods.mods.get_mut(active.mod_index) else {
-            continue;
+        let iface = loaded.bindings.souprune_plugin_mode_lifecycle();
+        let start = std::time::Instant::now();
+        let result = if is_enter {
+            iface.call_on_mode_enter(&mut loaded.store, mode)
+        } else {
+            iface.call_on_mode_exit(&mut loaded.store, mode)
         };
-
-        {
-            let ctx = loaded.store.data_mut();
-            ctx.call_ctx.input_pressed = pressed;
-            ctx.call_ctx.input_just_pressed = just_pressed;
-            ctx.call_ctx.velocity = velocity.as_ref().map_or(Vec2::ZERO, |v| v.0);
-            ctx.call_ctx.entity_position = transform.translation.truncate();
-            ctx.call_ctx.delta_time = dt;
-            ctx.call_ctx.fact_snapshot.clone_from(&fact_snapshot);
-            ctx.call_ctx.pending_fact_mutations.clear();
-            ctx.call_ctx.pending_events.clear();
+        if let Err(e) = result {
+            let call_name = if is_enter {
+                "on-mode-enter"
+            } else {
+                "on-mode-exit"
+            };
+            error!(
+                "WASM mod '{}' {}('{}') failed: {:?}",
+                loaded.name, call_name, mode, e
+            );
         }
-
-        let behavior_iface = loaded.bindings.souprune_plugin_behavior();
-        if let Err(e) = behavior_iface.behavior_instance().call_on_update(
-            &mut loaded.store,
-            active.resource_handle,
-            dt,
-        ) {
-            error!("Behavior on_update failed: {:?}", e);
-            continue;
-        }
-
-        // Only apply velocity-based movement when BehaviorVelocity is present.
-        if let Some(ref mut vel) = velocity {
-            let new_velocity = loaded.store.data().call_ctx.velocity;
-            vel.0 = new_velocity;
-            transform.translation += vel.0.extend(0.0) * dt;
-        }
-
-        let mutations =
-            std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_fact_mutations);
-        let events = std::mem::take(&mut loaded.store.data_mut().call_ctx.pending_events);
-        if !mutations.is_empty() || !events.is_empty() {
-            apply_pending_side_effects(mutations, events, &mut fact_db, &mut fact_writer);
-        }
+        let elapsed = start.elapsed();
+        let method = if is_enter {
+            "on_mode_enter"
+        } else {
+            "on_mode_exit"
+        };
+        wasm_tracer.record(&loaded.name, "mode-lifecycle", method, elapsed);
     }
 }

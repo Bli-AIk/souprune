@@ -42,7 +42,6 @@ pub fn spawn_view_node(
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
     namespace: &str,
 ) {
     if let Some(repeat) = &node_def.repeat {
@@ -84,7 +83,6 @@ pub fn spawn_view_node(
                 animation_assets,
                 mortar_strings,
                 player_data,
-                item_registry,
                 namespace,
                 Some(&ctx),
             );
@@ -101,7 +99,6 @@ pub fn spawn_view_node(
         animation_assets,
         mortar_strings,
         player_data,
-        item_registry,
         namespace,
         None,
     );
@@ -116,7 +113,6 @@ fn spawn_view_node_with_repeat_context(
     animation_assets: &Assets<crate::core::character_asset::AnimationConfigAsset>,
     mortar_strings: &crate::extra::mortar::MortarStringTable,
     player_data: &PlayerDataView<'_>,
-    item_registry: &crate::core::item::ItemRegistry,
     namespace: &str,
     repeat_ctx: Option<&super::parsing::RepeatContext>,
 ) {
@@ -247,9 +243,7 @@ fn spawn_view_node_with_repeat_context(
             let texts = node_def
                 .texts
                 .iter()
-                .map(|text_def| {
-                    build_text_config(text_def, mortar_strings, player_data, item_registry)
-                })
+                .map(|text_def| build_text_config(text_def, mortar_strings, player_data))
                 .collect::<Vec<_>>();
 
             let offset = serializable_vec3_to_static(&view_box.offset);
@@ -272,9 +266,6 @@ fn spawn_view_node_with_repeat_context(
                 view_box.structure_file.clone(),
                 fill_color,
             );
-            let battle_box_style =
-                crate::core::battle_box::BattleBoxVisualStyle::from_view_box(&runtime_view_box);
-
             let mut box_entity = parent.spawn((
                 runtime_view_box,
                 Transform::from_translation(offset),
@@ -304,14 +295,10 @@ fn spawn_view_node_with_repeat_context(
                 box_entity.insert(TimeDependentTransform);
             }
 
-            if node_def.tags.contains(&"BattleBox".to_string()) {
-                box_entity.insert((
-                    crate::core::battle_box::BattleBox,
-                    crate::core::battle_box::BattleBoxId("main".to_string()),
-                    crate::core::battle_box::BattleBoxState::default(),
-                    battle_box_style,
+            if !node_def.tags.is_empty() {
+                box_entity.insert(super::super::components::ViewNodeTags(
+                    node_def.tags.clone(),
                 ));
-                info!("[UI Box] Added BattleBox marker to '{}'", node_def.name);
             }
 
             info!(
@@ -368,7 +355,6 @@ fn spawn_view_node_with_repeat_context(
                     &node_def.texts,
                     mortar_strings,
                     player_data,
-                    item_registry,
                 );
             });
 
@@ -405,7 +391,6 @@ fn spawn_view_node_with_repeat_context(
             animation_assets,
             mortar_strings,
             player_data,
-            item_registry,
             namespace,
         );
     }

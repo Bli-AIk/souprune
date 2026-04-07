@@ -1,5 +1,0 @@
-# Third-party crates excluded from workspace lint checks.
-# These are forks with their own upstream CI — not maintained by this project.
-# One crate name per line. Lines starting with # are comments.
-bevy_tween
-iyes_perf_ui
