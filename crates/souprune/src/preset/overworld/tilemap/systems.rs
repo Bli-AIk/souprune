@@ -14,12 +14,12 @@
 //!
 //! ## 源文件概述
 //!
-//! It spawns collision objects and initializes camera bounds based on map dimensions.
+//! It spawns collision objects and updates camera bounds based on CameraBoundsZone entities.
 //!
-//! 生成碰撞对象并根据地图尺寸初始化摄像机边界。
+//! 生成碰撞对象并根据 CameraBoundsZone 实体更新摄像机边界。
 
 use crate::core::animation::components::SpriteAnimationClip;
-use crate::core::camera::components::Followable;
+use crate::core::camera::components::{CameraBoundsZone, Followable};
 use crate::core::collision::Rect2DCollider;
 use crate::core::map_property_schema::{get_string_property, keys, object_keys};
 use crate::core::mode::ModeScoped;
@@ -27,8 +27,8 @@ use crate::preset::overworld::character;
 use bevy::asset::{AssetServer, Assets};
 use bevy::log::info;
 use bevy::prelude::{
-    Added, Camera, ChildOf, Children, Commands, Component, Entity, Name, Query, Res, ResMut,
-    Sprite, Transform, Vec2, Visibility, Window, With, Without,
+    Added, Camera2d, ChildOf, Children, Commands, Component, Entity, Name, Query, Res, ResMut,
+    Sprite, Transform, Vec2, Visibility, With, Without,
 };
 use bevy_ecs_tiled::prelude::{TiledLayer, TiledMap, TiledMapAsset, TiledObject, tiled};
 
@@ -480,92 +480,86 @@ pub fn update_objects_order_with_player_system(
     }
 }
 
-/// Setup camera bounds based on tilemap size after the tilemap loads.
+/// Update camera bounds based on `CameraBoundsZone` entities and the player's position.
+/// Finds all zones containing the player, computes the union AABB,
+/// shrinks it by half the viewport, and applies the result to the Followable camera.
 ///
-/// 在 tilemap 加载后根据地图大小设置摄像机边界。
-pub fn setup_camera_bounds_system(
-    mut followable_cameras: Query<&mut Followable, With<Camera>>,
-    tiled_map_assets: Res<Assets<TiledMapAsset>>,
-    tiled_maps_query: Query<&TiledMap>,
-    windows: Query<&Window>,
-    cameras: Query<&Transform, (With<Camera>, Without<Followable>)>,
+/// 根据 `CameraBoundsZone` 实体和玩家位置更新摄像机边界。
+/// 找到包含玩家的所有区域，计算并集 AABB，
+/// 收缩半个视口大小，然后应用到 Followable 摄像机。
+pub fn update_camera_bounds_system(
+    mut followable_cameras: Query<&mut Followable, With<Camera2d>>,
+    zones: Query<&CameraBoundsZone>,
+    player: Query<
+        &Transform,
+        (
+            With<character::components::PlayerControlled>,
+            Without<Camera2d>,
+        ),
+    >,
     souprune_config: Res<crate::config::SoupruneConfig>,
 ) {
-    // Only proceed if a tilemap asset is loaded.
-    //
-    // 只有在已加载 tilemap 时才继续。
-    let Ok(tiled_map_handle) = tiled_maps_query.single() else {
+    // No zones defined → camera has no bounds (free follow).
+    if zones.is_empty() {
+        for mut followable in followable_cameras.iter_mut() {
+            if followable.bounds_enabled {
+                followable.disable_bounds();
+            }
+        }
+        return;
+    }
+
+    let Ok(player_transform) = player.single() else {
         return;
     };
+    let player_pos = player_transform.translation.truncate();
 
-    let Some(tiled_map_asset) = tiled_map_assets.get(&tiled_map_handle.0) else {
+    // Find all zones containing the player position.
+    let active_rects: Vec<bevy::math::Rect> = zones
+        .iter()
+        .filter(|zone| zone.rect.contains(player_pos))
+        .map(|zone| zone.rect)
+        .collect();
+
+    // Player not inside any zone → keep the current bounds unchanged.
+    if active_rects.is_empty() {
         return;
-    };
+    }
 
-    // Calculate the map bounds.
-    //
-    // 计算地图边界。
-    let tile_width = tiled_map_asset.map.tile_width as f32;
-    let tile_height = tiled_map_asset.map.tile_height as f32;
-    let map_width = tiled_map_asset.map.width as f32 * tile_width;
-    let map_height = tiled_map_asset.map.height as f32 * tile_height;
+    // Compute the union AABB of all active zones.
+    let mut union = active_rects[0];
+    for rect in &active_rects[1..] {
+        union = bevy::math::Rect::from_corners(
+            Vec2::new(union.min.x.min(rect.min.x), union.min.y.min(rect.min.y)),
+            Vec2::new(union.max.x.max(rect.max.x), union.max.y.max(rect.max.y)),
+        );
+    }
 
-    let default_width = souprune_config.render.base_resolution_width as f32;
-    let default_height = souprune_config.render.base_resolution_height as f32;
+    // The camera's visible area in world units equals the base resolution,
+    // regardless of window size or resolution scale.
+    let half_vp_w = souprune_config.render.base_resolution_width as f32 / 2.0;
+    let half_vp_h = souprune_config.render.base_resolution_height as f32 / 2.0;
 
-    // Get the viewport size from the window and camera.
-    //
-    // 从窗口和摄像机获取视口大小。
-    let viewport_width = if let Ok(window) = windows.single() {
-        // Get the actual in-game viewport size considering resolution scaling.
-        //
-        // 获取实际游戏世界视口大小（考虑分辨率缩放）。
-        if let Ok(camera_transform) = cameras.single() {
-            // Camera scale affects the viewport size.
-            //
-            // 摄像机缩放影响视口大小。
-            let scale = camera_transform.scale.x;
-            window.resolution.width() * scale
-        } else {
-            default_width
-        }
-    } else {
-        default_width
-    };
-
-    let viewport_height = if let Ok(window) = windows.single() {
-        if let Ok(camera_transform) = cameras.single() {
-            let scale = camera_transform.scale.y;
-            window.resolution.height() * scale
-        } else {
-            default_height
-        }
-    } else {
-        default_height
-    };
-
-    // Calculate bounds so the camera center stays inside the map minus half the viewport.
-    //
-    // 计算边界，确保摄像机中心始终位于地图范围内减去半个视口的位置。
-    let half_viewport_width = viewport_width / 2.0;
-    let half_viewport_height = viewport_height / 2.0;
-
-    let min_x = (-map_width / 2.0) + half_viewport_width;
-    let max_x = (map_width / 2.0) - half_viewport_width;
-    let min_y = (-map_height / 2.0) + half_viewport_height;
-    let max_y = (map_height / 2.0) - half_viewport_height;
-
-    // Apply bounds to every followable camera that does not already have them enabled.
-    //
-    // 为所有尚未启用边界的可跟随摄像机应用边界。
     for mut followable in followable_cameras.iter_mut() {
-        if !followable.bounds_enabled {
-            followable.enable_bounds(min_x, max_x, min_y, max_y);
-            info!(
-                "Enabled camera bounds: X({:.1}, {:.1}), Y({:.1}, {:.1}) for viewport {}x{} on map {}x{}",
-                min_x, max_x, min_y, max_y, viewport_width, viewport_height, map_width, map_height
-            );
+        // Shrink the union rect by half viewport to get camera center bounds.
+        // If the zone is smaller than the viewport on an axis, lock camera to zone center.
+        let mut min_x = union.min.x + half_vp_w;
+        let mut max_x = union.max.x - half_vp_w;
+        let mut min_y = union.min.y + half_vp_h;
+        let mut max_y = union.max.y - half_vp_h;
+
+        if min_x > max_x {
+            let center = (union.min.x + union.max.x) / 2.0;
+            min_x = center;
+            max_x = center;
         }
+        if min_y > max_y {
+            let center = (union.min.y + union.max.y) / 2.0;
+            min_y = center;
+            max_y = center;
+        }
+
+        followable.enable_bounds(min_x, max_x, min_y, max_y);
     }
 }
 

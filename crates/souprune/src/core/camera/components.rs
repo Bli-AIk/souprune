@@ -10,6 +10,7 @@
 //!
 //! 定义 `Followable` 组件，允许相机在可选的空间边界内跟随目标实体。
 
+use bevy::math::Rect;
 use bevy::prelude::*;
 
 /// Marker for the game's primary camera.
@@ -109,4 +110,25 @@ impl Followable {
     pub fn disable_bounds(&mut self) {
         self.bounds_enabled = false;
     }
+}
+
+/// Marker component for camera bounds zones spawned from Tiled.
+///
+/// 从 Tiled 生成的摄像机边界区域的标记组件。
+#[derive(Component)]
+pub struct TiledCameraBounds;
+
+/// A rectangular zone that constrains camera movement.
+/// Multiple zones can be placed in a Tiled map and will be merged (union)
+/// when the player stands in overlapping areas.
+///
+/// 限制摄像机移动的矩形区域。
+/// 可在 Tiled 地图中放置多个区域，当玩家站在重叠区域时，
+/// 将取所有激活区域的并集作为有效边界。
+#[derive(Component)]
+pub struct CameraBoundsZone {
+    /// The zone rectangle in world space.
+    ///
+    /// 世界空间中的区域矩形。
+    pub rect: Rect,
 }
