@@ -119,8 +119,6 @@ pub enum Chapter {
         generate_collision: bool,
         #[serde(default = "default_true")]
         process_objects: bool,
-        #[serde(default = "default_true")]
-        setup_camera_bounds: bool,
     },
     SetBgm {
         path: Option<String>,

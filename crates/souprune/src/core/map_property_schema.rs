@@ -62,6 +62,11 @@ pub mod keys {
 ///
 /// 框架使用的对象属性键。
 pub mod object_keys {
+    /// Camera bounds zone marker.
+    ///
+    /// 摄像机边界区域标记。
+    pub const CAMERA_BOUNDS: &str = "camera_bounds";
+
     /// Collision type for the object.
     ///
     /// 对象的碰撞类型。
@@ -189,6 +194,12 @@ pub static MAP_PROPERTIES: &[PropertyDef] = &[
 ///
 /// 所有对象级别的属性。
 pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
+    PropertyDef {
+        key: object_keys::CAMERA_BOUNDS,
+        description: "Marks this object as a camera bounds zone",
+        required: false,
+        default: None,
+    },
     PropertyDef {
         key: object_keys::COLLISION,
         description: "Collision type for the object (solid, semi-solid, etc.)",
