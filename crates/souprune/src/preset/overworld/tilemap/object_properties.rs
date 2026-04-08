@@ -8,6 +8,7 @@
 //! 该模块处理Tiled对象的自定义属性检测和处理。
 //! 它为未来添加新的对象属性处理器提供了灵活的系统。
 
+use crate::core::camera::{CameraBoundsZone, TiledCameraBounds};
 use crate::core::collision::Rect2DCollider;
 use crate::core::fre_facts;
 use crate::core::map_property_schema::{
@@ -110,6 +111,18 @@ pub fn process_map_object_properties_system(
                 object_layer.objects().count()
             );
 
+            // A layer named "camera_bounds" treats all objects as camera zones.
+            if layer.name == object_keys::CAMERA_BOUNDS {
+                spawn_camera_bounds_from_layer(
+                    &mut commands,
+                    &object_layer,
+                    center_offset_x,
+                    center_offset_y,
+                    map_height,
+                );
+                continue;
+            }
+
             for object_data in object_layer.objects() {
                 process_tiled_object(
                     &mut commands,
@@ -144,6 +157,18 @@ fn process_tiled_object(
         "Checking object '{}' at ({}, {}) with shape {:?}",
         object_data.name, object_data.x, object_data.y, object_data.shape
     );
+
+    // Camera bounds zones
+    if get_object_bool_property(&object_data.properties, object_keys::CAMERA_BOUNDS) == Some(true) {
+        spawn_camera_bounds_zone(
+            commands,
+            object_data,
+            center_offset_x,
+            center_offset_y,
+            map_height,
+        );
+        return;
+    }
 
     // Collision objects are handled by generate_collision_tiles_system
     if get_object_bool_property(&object_data.properties, object_keys::COLLISION) == Some(true) {
@@ -212,6 +237,78 @@ fn spawn_collision_object(
         Transform::from_xyz(world_x, world_y, 0.0),
         Visibility::Hidden,
         Name::new(format!("ObjectCollision_{}", object_data.name)),
+    ));
+}
+
+/// Spawn camera bounds zones for all objects in a dedicated camera bounds layer.
+///
+/// 从专用摄像机边界图层中为所有对象生成摄像机边界区域。
+fn spawn_camera_bounds_from_layer(
+    commands: &mut Commands,
+    object_layer: &tiled::ObjectLayer,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+) {
+    for object_data in object_layer.objects() {
+        spawn_camera_bounds_zone(
+            commands,
+            &object_data,
+            center_offset_x,
+            center_offset_y,
+            map_height,
+        );
+    }
+}
+
+/// Spawn a camera bounds zone entity from a Tiled object.
+///
+/// 从 Tiled 对象生成摄像机边界区域实体。
+fn spawn_camera_bounds_zone(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+) {
+    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+        warn!(
+            "Camera bounds object '{}' is not a rectangle, skipping",
+            object_data.name
+        );
+        return;
+    };
+
+    // Convert Tiled coordinates (top-left origin) to Bevy world space (center-based)
+    let world_x = center_offset_x + object_data.x + width / 2.0;
+    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
+
+    // Build the zone rect in world space (min/max corners)
+    let half_w = width / 2.0;
+    let half_h = height / 2.0;
+    let rect = bevy::math::Rect::new(
+        world_x - half_w,
+        world_y - half_h,
+        world_x + half_w,
+        world_y + half_h,
+    );
+
+    let zone_name = if !object_data.name.is_empty() {
+        object_data.name.clone()
+    } else {
+        format!("camera_zone_{}", object_data.id())
+    };
+
+    info!(
+        "Creating camera bounds zone '{}' at ({:.1}, {:.1}) size ({}, {})",
+        zone_name, world_x, world_y, width, height
+    );
+
+    commands.spawn((
+        ModeScoped("overworld".to_string()),
+        TiledCameraBounds,
+        CameraBoundsZone { rect },
+        Name::new(format!("CameraBounds_{}", zone_name)),
     ));
 }
 

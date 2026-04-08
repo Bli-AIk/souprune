@@ -188,7 +188,6 @@ pub(super) fn render_chapter_properties(
             path,
             generate_collision,
             process_objects,
-            setup_camera_bounds,
         } => {
             changed |=
                 widgets::path_picker::edit_file_path(ui, &t(world, "prop-map-path"), path, world);
@@ -197,12 +196,6 @@ pub(super) fn render_chapter_properties(
                 .changed();
             changed |= ui
                 .checkbox(process_objects, t(world, "inspector-process-objects"))
-                .changed();
-            changed |= ui
-                .checkbox(
-                    setup_camera_bounds,
-                    t(world, "inspector-setup-camera-bounds"),
-                )
                 .changed();
         }
         Chapter::SetBgm { path, fade_in } => {
