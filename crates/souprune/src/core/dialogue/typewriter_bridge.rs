@@ -8,6 +8,8 @@
 //! - `resume_typewriter()` - Resume typewriter
 //! - `apply_shake(intensity?)` - Add shake effect to the current glyph
 //! - `apply_wave(amplitude?, frequency?)` - Add wave effect to the current glyph
+//! - `set_voice_enabled(enabled: Bool)` - Enable/disable voice playback
+//! - `set_voice_preset(preset: String)` - Switch voice preset
 //!
 //! 处理打字机相关的 `MortarGameEvent`：
 //! - `set_typewriter_speed(speed: Number)` - 更改打字速度
@@ -15,15 +17,19 @@
 //! - `resume_typewriter()` - 恢复打字机
 //! - `apply_shake(intensity?)` - 为当前字形添加抖动效果
 //! - `apply_wave(amplitude?, frequency?)` - 为当前字形添加波浪效果
+//! - `set_voice_enabled(enabled: Bool)` - 启用/禁用语音播放
+//! - `set_voice_preset(preset: String)` - 切换语音预设
 
 use bevy::prelude::*;
 use bevy_bitmap_text::{GlyphEntity, ShakeEffect, WaveEffect};
 use bevy_ecs_typewriter::Typewriter;
+use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
 use bevy_mortar_bond::MortarGameEvent;
 use std::time::Duration;
 
 use super::auto_pause::AutoPauseTimer;
 use super::components::MortarController;
+use crate::core::fre_facts;
 
 /// Handles Mortar game events that control typewriter behavior.
 ///
@@ -51,6 +57,7 @@ pub fn handle_typewriter_mortar_events(
     mut typewriters: Query<&mut Typewriter, With<MortarController>>,
     mut commands: Commands,
     glyph_query: Query<(Entity, &GlyphEntity, &ChildOf)>,
+    mut facts: ResMut<LayeredFactDatabase>,
 ) {
     let Some(mut events) = events else {
         return;
@@ -72,6 +79,12 @@ pub fn handle_typewriter_mortar_events(
             }
             "apply_wave" => {
                 handle_apply_wave(event, &mut commands, &typewriters, &glyph_query);
+            }
+            "set_voice_enabled" => {
+                handle_set_voice_enabled(event, &mut facts);
+            }
+            "set_voice_preset" => {
+                handle_set_voice_preset(event, &mut facts);
             }
             _ => {
                 // Other events handled by other systems
@@ -247,4 +260,32 @@ fn handle_apply_wave(
             amplitude, frequency, char_index
         );
     }
+}
+
+fn handle_set_voice_enabled(event: &MortarGameEvent, facts: &mut ResMut<LayeredFactDatabase>) {
+    let Some(arg) = event.args.first() else {
+        warn!("set_voice_enabled: missing bool argument");
+        return;
+    };
+
+    let Ok(enabled) = arg.parse::<bool>() else {
+        warn!("set_voice_enabled: invalid bool value '{}'", arg);
+        return;
+    };
+
+    facts.set_local(fre_facts::DIALOGUE_VOICE_ENABLED, FactValue::Bool(enabled));
+    debug!("Voice enabled set to {}", enabled);
+}
+
+fn handle_set_voice_preset(event: &MortarGameEvent, facts: &mut ResMut<LayeredFactDatabase>) {
+    let Some(preset) = event.args.first() else {
+        warn!("set_voice_preset: missing preset name argument");
+        return;
+    };
+
+    facts.set_local(
+        fre_facts::DIALOGUE_VOICE_PRESET,
+        FactValue::String(preset.clone()),
+    );
+    debug!("Voice preset set to '{}'", preset);
 }

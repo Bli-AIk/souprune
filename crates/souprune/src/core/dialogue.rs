@@ -25,6 +25,7 @@ mod components;
 mod config;
 mod systems;
 mod typewriter_bridge;
+mod voice_config;
 
 pub use auto_pause::AutoPauseConfig;
 pub use components::MortarController;
@@ -32,6 +33,7 @@ pub use components::TypewriterVoice;
 pub use config::DialogueInputConfig;
 pub use systems::DialogueControllerEntity;
 pub use systems::MortarFactBindings;
+pub use voice_config::VoiceConfig;
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
@@ -52,15 +54,13 @@ impl Plugin for DialoguePlugin {
 
         app.init_resource::<DialogueInputConfig>()
             .init_resource::<auto_pause::AutoPauseConfig>()
+            .init_resource::<voice_config::VoiceConfig>()
             .init_resource::<bevy_mortar_bond::MortarDialogueVariables>()
             .register_type::<MortarController>()
             .register_type::<TypewriterVoice>()
             .add_systems(
                 Startup,
-                (
-                    init_dialogue_facts,
-                    auto_pause::load_auto_pause_config_system,
-                ),
+                (init_dialogue_facts, auto_pause::load_dialogue_config_system),
             )
             .add_systems(
                 schedule,
@@ -159,6 +159,10 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
         fre_facts::DIALOGUE_AUTO_PAUSE_ENABLED,
         FactValue::Bool(true),
     );
+
+    // Voice default state (enabled by default; disabled if no config loaded)
+    // 语音默认状态（默认启用；若无配置加载则不激活）
+    facts.set_global(fre_facts::DIALOGUE_VOICE_ENABLED, FactValue::Bool(true));
 
     // NOTE: dialogue_text is now managed by View's local_facts, not LayeredFactDatabase.
     // Views that use {{dialogue_text}} should define it in their `facts:` section.
