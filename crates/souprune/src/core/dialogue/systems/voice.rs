@@ -30,8 +30,19 @@ pub fn typewriter_voice_system(
         }
 
         if typewriter.current_char_index > voice.last_char_index {
-            let handle: Handle<bevy_kira_audio::AudioSource> = asset_server.load(&voice.sound_path);
-            audio.play(handle);
+            // Skip voice for whitespace/control characters (e.g. newlines).
+            // 跳过空白/控制字符（如换行）的语音播放。
+            let should_play = typewriter
+                .source_text
+                .chars()
+                .nth(typewriter.current_char_index.saturating_sub(1))
+                .is_some_and(|ch| !ch.is_whitespace() && !ch.is_control());
+
+            if should_play {
+                let handle: Handle<bevy_kira_audio::AudioSource> =
+                    asset_server.load(&voice.sound_path);
+                audio.play(handle);
+            }
             voice.last_char_index = typewriter.current_char_index;
         } else if typewriter.current_char_index < voice.last_char_index {
             voice.last_char_index = typewriter.current_char_index;
