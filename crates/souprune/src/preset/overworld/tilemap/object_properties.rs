@@ -10,19 +10,12 @@
 
 use crate::core::camera::{CameraBoundsZone, TiledCameraBounds};
 use crate::core::collision::Rect2DCollider;
-use crate::core::fre_facts;
-use crate::core::map_property_schema::{
-    escape_property_string, get_object_bool_property, get_object_float_property,
-    get_string_property, object_keys,
-};
+use crate::core::map_property_schema::{get_object_bool_property, object_keys};
 use crate::core::mode::ModeScoped;
 use crate::preset::overworld::tilemap::systems::TilemapCollider;
 use crate::preset::overworld::trigger::{Interactable, TriggerZone};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
-use bevy_fact_rule_event::{FactModification, FactValue, Rule, RuleScope};
-
-use crate::core::game_action::GameRuleRegistry;
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
@@ -51,8 +44,6 @@ pub fn process_map_object_properties_system(
     tiled_maps_query: Query<&TiledMap>,
     existing_triggers: Query<&TiledTriggerZone>,
     existing_interactables: Query<&TiledInteractable>,
-    mut rule_registry: ResMut<GameRuleRegistry>,
-    souprune_config: Res<crate::config::SoupruneConfig>,
     loaded_rule_sets: Res<crate::preset::overworld::trigger::LoadedRuleSets>,
 ) {
     // Process once per map load cycle (reset when LoadedRuleSets resets)
@@ -130,8 +121,6 @@ pub fn process_map_object_properties_system(
                     center_offset_x,
                     center_offset_y,
                     map_height,
-                    &mut rule_registry,
-                    &souprune_config.game.dialogue_view_default,
                 );
             }
         }
@@ -150,8 +139,6 @@ fn process_tiled_object(
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
-    rule_registry: &mut GameRuleRegistry,
-    dialogue_view_default: &str,
 ) {
     trace!(
         "Checking object '{}' at ({}, {}) with shape {:?}",
@@ -201,8 +188,6 @@ fn process_tiled_object(
             center_offset_x,
             center_offset_y,
             map_height,
-            rule_registry,
-            dialogue_view_default,
         );
     }
 }
@@ -354,18 +339,16 @@ fn spawn_trigger_zone(
 }
 
 /// Spawn an interactable entity from a Tiled object.
-/// If dialogue properties are set, also registers an FRE rule for handling interaction.
+/// Interaction behavior is defined in FRE rule files (via `rules_file` map property).
 ///
 /// 从 Tiled 对象生成可交互实体。
-/// 如果设置了对话属性，也注册 FRE 规则处理交互。
+/// 交互行为通过 FRE 规则文件定义（通过地图属性 `rules_file`）。
 fn spawn_interactable(
     commands: &mut Commands,
     object_data: &tiled::ObjectData,
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
-    rule_registry: &mut GameRuleRegistry,
-    dialogue_view_default: &str,
 ) {
     let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
         trace!(
@@ -375,7 +358,6 @@ fn spawn_interactable(
         return;
     };
 
-    // Use object name if provided, otherwise use Tiled object ID
     let interactable_id = if !object_data.name.is_empty() {
         object_data.name.clone()
     } else {
@@ -387,143 +369,15 @@ fn spawn_interactable(
     let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
     let size = Vec2::new(width, height);
 
-    // Read dialogue configuration from object properties
-    // 从对象属性读取对话配置
-    let dialogue_path =
-        get_string_property(&object_data.properties, object_keys::DIALOGUE_PATH).map(String::from);
-    let dialogue_node =
-        get_string_property(&object_data.properties, object_keys::DIALOGUE_NODE).map(String::from);
-    let has_typewriter =
-        get_object_bool_property(&object_data.properties, object_keys::HAS_TYPEWRITER)
-            .unwrap_or(true);
-    let has_mortar =
-        get_object_bool_property(&object_data.properties, object_keys::HAS_MORTAR).unwrap_or(true);
-    let simple_text =
-        get_string_property(&object_data.properties, object_keys::SIMPLE_TEXT).map(String::from);
-    let dialogue_view = get_string_property(&object_data.properties, object_keys::DIALOGUE_VIEW)
-        .map(String::from)
-        .unwrap_or_else(|| dialogue_view_default.to_string());
-    let dialogue_voice =
-        get_string_property(&object_data.properties, object_keys::DIALOGUE_VOICE).map(String::from);
-    let dialogue_typewriter_speed = get_object_float_property(
-        &object_data.properties,
-        object_keys::DIALOGUE_TYPEWRITER_SPEED,
-    );
-
-    // Check if dialogue is configured
-    let has_dialogue = dialogue_path.is_some() || simple_text.is_some();
-
     info!(
-        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {}), dialogue: {}",
-        interactable_id, world_x, world_y, width, height, has_dialogue
+        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {})",
+        interactable_id, world_x, world_y, width, height
     );
-
-    // If dialogue is configured, create FRE rule for handling interaction
-    // 如果配置了对话，创建 FRE 规则处理交互
-    if has_dialogue {
-        let trigger_event = format!("interact_{}", interactable_id);
-        let rule_id = format!("dialogue_interact_{}", interactable_id);
-
-        // Build modifications for the rule
-        // 为规则构建 modifications
-        let mut modifications = vec![
-            // Set typewriter flag
-            FactModification::Set(
-                fre_facts::DIALOGUE_HAS_TYPEWRITER.to_string(),
-                FactValue::Bool(has_typewriter),
-            ),
-            // Set view path
-            FactModification::Set(
-                fre_facts::DIALOGUE_PENDING_VIEW.to_string(),
-                FactValue::String(dialogue_view),
-            ),
-            // Set focus flag (default true for interactive dialogues)
-            // 设置焦点标志（交互对话默认为 true）
-            FactModification::Set(
-                fre_facts::DIALOGUE_HAS_FOCUS.to_string(),
-                FactValue::Bool(true),
-            ),
-        ];
-
-        // Add voice sound effect if configured
-        // 添加音效（如果配置了）
-        if let Some(voice) = dialogue_voice {
-            modifications.push(FactModification::Set(
-                fre_facts::DIALOGUE_VOICE.to_string(),
-                FactValue::String(voice),
-            ));
-        }
-
-        // Add typewriter speed if configured
-        // 添加打字机速度（如果配置了）
-        if let Some(speed) = dialogue_typewriter_speed {
-            modifications.push(FactModification::Set(
-                fre_facts::DIALOGUE_TYPEWRITER_SPEED.to_string(),
-                FactValue::Float(speed),
-            ));
-        }
-
-        // Add Mortar path and node if using Mortar
-        if has_mortar {
-            if let Some(path) = dialogue_path {
-                modifications.push(FactModification::Set(
-                    fre_facts::DIALOGUE_PENDING_MORTAR_PATH.to_string(),
-                    FactValue::String(path),
-                ));
-            }
-            if let Some(node) = dialogue_node {
-                modifications.push(FactModification::Set(
-                    fre_facts::DIALOGUE_PENDING_MORTAR_NODE.to_string(),
-                    FactValue::String(node),
-                ));
-            }
-        }
-
-        // Add simple text if not using Mortar
-        if !has_mortar {
-            modifications.push(FactModification::Set(
-                fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE.to_string(),
-                FactValue::Bool(true),
-            ));
-            if let Some(text) = simple_text {
-                let escaped_text = escape_property_string(text);
-                modifications.push(FactModification::Set(
-                    fre_facts::DIALOGUE_SIMPLE_TEXT.to_string(),
-                    FactValue::String(escaped_text),
-                ));
-            }
-        }
-
-        // Add trigger to start dialogue (must be last to ensure all other facts are set first)
-        // 添加触发器启动对话（必须最后设置，以确保其他 facts 已设置）
-        modifications.push(FactModification::Set(
-            fre_facts::DIALOGUE_PENDING_START.to_string(),
-            FactValue::Bool(true),
-        ));
-
-        // Build and register the rule (Local scope - cleared when leaving Overworld)
-        // 构建并注册规则（Local 作用域 - 离开 Overworld 时清除）
-        let mut rule_builder =
-            Rule::builder(&rule_id, trigger_event.clone()).scope(RuleScope::Local);
-        for modification in modifications {
-            rule_builder = rule_builder.modify(modification);
-        }
-        let rule = rule_builder.build();
-
-        rule_registry.register(rule);
-        info!(
-            "FRE: Registered dialogue rule '{}' for trigger '{}'",
-            rule_id, trigger_event
-        );
-    }
-
-    // Spawn interactable entity (without dialogue_config)
-    let interactable = Interactable::new(&interactable_id);
 
     commands.spawn((
         ModeScoped("overworld".to_string()),
         TiledInteractable,
-        interactable,
+        Interactable::new(&interactable_id),
         Rect2DCollider::new(size, Vec2::ZERO),
         Transform::from_xyz(world_x, world_y, 0.0),
         Visibility::Hidden,

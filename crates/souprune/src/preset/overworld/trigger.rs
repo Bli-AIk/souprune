@@ -123,6 +123,11 @@ pub fn trigger_zone_detection_system(
         } else if !overlap && trigger.player_inside {
             trigger.player_inside = false;
             info!("FRE: Player exited trigger zone '{}'", trigger.id);
+            let exit_event = format!("trigger_exit_{}", trigger.id);
+            event_writer.write(
+                FactEvent::with_entity(exit_event, player_entity)
+                    .with_data("trigger_id", &trigger.id),
+            );
         }
     }
 }
