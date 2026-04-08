@@ -33,7 +33,6 @@ pub fn process_load_map_system(
             path,
             generate_collision: _,
             process_objects: _,
-            setup_camera_bounds: _,
         } = &active_chapter.chapter
         {
             info!("[Sequencer] LoadMap: loading map from '{}'", path);
@@ -46,7 +45,7 @@ pub fn process_load_map_system(
             ));
 
             // Map loading is async. The existing tilemap systems
-            // (initialize_tilemap, generate_collision_tiles, setup_camera_bounds, etc.)
+            // (initialize_tilemap, generate_collision_tiles, update_camera_bounds, etc.)
             // react to Added<TiledLayer> and Added<TiledObject> queries,
             // so they will process the map automatically.
             commands.entity(entity).insert(ChapterFinished);

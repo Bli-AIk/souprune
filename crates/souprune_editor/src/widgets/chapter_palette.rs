@@ -79,7 +79,6 @@ fn all_categories() -> Vec<CategoryDef> {
                         path: String::new(),
                         generate_collision: true,
                         process_objects: true,
-                        setup_camera_bounds: true,
                     },
                 },
                 ChapterTemplate {

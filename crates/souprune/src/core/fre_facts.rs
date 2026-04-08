@@ -52,6 +52,14 @@ pub const DIALOGUE_STARTED: &str = "dialogue:started";
 pub const DIALOGUE_VOICE: &str = "dialogue:voice";
 /// 打字机速度
 pub const DIALOGUE_TYPEWRITER_SPEED: &str = "dialogue:typewriter_speed";
+/// 自动停顿是否启用
+pub const DIALOGUE_AUTO_PAUSE_ENABLED: &str = "dialogue:auto_pause_enabled";
+/// 当前生效的自动停顿预设名称（覆盖配置中的 default_preset）
+pub const DIALOGUE_AUTO_PAUSE_PRESET: &str = "dialogue:auto_pause_preset";
+/// 语音播放是否启用
+pub const DIALOGUE_VOICE_ENABLED: &str = "dialogue:voice_enabled";
+/// 当前生效的语音预设名称（覆盖配置中的 default_preset）
+pub const DIALOGUE_VOICE_PRESET: &str = "dialogue:voice_preset";
 /// 恢复时是否重播打字机
 pub const DIALOGUE_REPLAY_ON_RESUME: &str = "dialogue:replay_on_resume";
 /// 停止打字机事件前缀（匹配 "dialogue:stop*"）
