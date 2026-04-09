@@ -28,9 +28,13 @@
 //!
 //! | Property Key | Type | Required | Description |
 //! |--------------|------|----------|-------------|
-//! | `collision` | String | No | Collision type ("solid", "semi-solid", etc.) |
-//! | `trigger` | String | No | Trigger zone type |
-//! | `trigger_id` | String | No | Unique identifier for the trigger |
+//! | `kind` | String | No | Object kind(s): "collision", "confirm", "enter", "exit", or comma-separated |
+//! | `mortar` | String | No | Mortar script file path for dialogue |
+//! | `mortar_node` | String | No | Mortar node entry point (default: object name) |
+//! | `view` | String | No | View layout file path for dialogue |
+//! | `focus` | Bool | No | Focus on dialogue (default: true) |
+//! | `typewriter` | Bool | No | Typewriter mode (default: true) |
+//! | `voice` | String | No | Voice audio path for dialogue |
 
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::tiled;
@@ -67,25 +71,40 @@ pub mod object_keys {
     /// 摄像机边界区域标记。
     pub const CAMERA_BOUNDS: &str = "camera_bounds";
 
-    /// Collision type for the object.
+    /// Object kind(s) — comma-separated: "collision", "confirm", "enter", "exit".
     ///
-    /// 对象的碰撞类型。
-    pub const COLLISION: &str = "collision";
+    /// 对象类型 — 逗号分隔: "collision", "confirm", "enter", "exit"。
+    pub const KIND: &str = "kind";
 
-    /// Trigger zone type.
+    /// Mortar script file path for dialogue.
     ///
-    /// 触发区域类型。
-    pub const TRIGGER: &str = "trigger";
+    /// 对话用的 Mortar 脚本文件路径。
+    pub const MORTAR: &str = "mortar";
 
-    /// Trigger zone ID (for identifying which trigger was activated).
+    /// Mortar node entry point (default: object name).
     ///
-    /// 触发区域 ID（用于识别哪个触发器被激活）。
-    pub const TRIGGER_ID: &str = "trigger_id";
+    /// Mortar 节点入口（默认：对象名称）。
+    pub const MORTAR_NODE: &str = "mortar_node";
 
-    /// Interactable object type.
+    /// View layout file path for dialogue.
     ///
-    /// 可交互物体类型。
-    pub const INTERACTABLE: &str = "interactable";
+    /// 对话视图布局文件路径。
+    pub const VIEW: &str = "view";
+
+    /// Focus on dialogue (default: true).
+    ///
+    /// 是否聚焦对话（默认：true）。
+    pub const FOCUS: &str = "focus";
+
+    /// Typewriter mode (default: true).
+    ///
+    /// 是否启用打字机效果（默认：true）。
+    pub const TYPEWRITER: &str = "typewriter";
+
+    /// Voice audio path for dialogue.
+    ///
+    /// 对话语音音频路径。
+    pub const VOICE: &str = "voice";
 }
 
 /// Property definition for validation purposes.
@@ -138,20 +157,44 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         default: None,
     },
     PropertyDef {
-        key: object_keys::COLLISION,
-        description: "Collision type for the object (solid, semi-solid, etc.)",
+        key: object_keys::KIND,
+        description: "Object kind(s): collision, confirm, enter, exit (comma-separated)",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::TRIGGER,
-        description: "Trigger zone type",
+        key: object_keys::MORTAR,
+        description: "Mortar script file path for dialogue",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::INTERACTABLE,
-        description: "Interactable object type",
+        key: object_keys::MORTAR_NODE,
+        description: "Mortar node entry point (default: object name)",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::VIEW,
+        description: "View layout file path for dialogue",
+        required: false,
+        default: None,
+    },
+    PropertyDef {
+        key: object_keys::FOCUS,
+        description: "Focus on dialogue (default: true)",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::TYPEWRITER,
+        description: "Typewriter mode (default: true)",
+        required: false,
+        default: Some("true"),
+    },
+    PropertyDef {
+        key: object_keys::VOICE,
+        description: "Voice audio path for dialogue",
         required: false,
         default: None,
     },

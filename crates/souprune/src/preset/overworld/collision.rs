@@ -12,7 +12,7 @@ use crate::core::collision::{
     Rect2DCollider, SdfCollisionConfig, collect_nearby_colliders, resolve_sdf_collision,
 };
 use crate::preset::overworld::character::components::PlayerControlled;
-use crate::preset::overworld::tilemap::{ObjectCollider, systems::TilemapCollider};
+use crate::preset::overworld::tilemap::systems::TilemapCollider;
 use bevy::prelude::*;
 
 type PlayerQuery<'w, 's> = Query<
@@ -25,10 +25,7 @@ type TilemapCollidersQuery<'w, 's> = Query<
     'w,
     's,
     (&'static Transform, &'static Rect2DCollider),
-    (
-        Or<(With<TilemapCollider>, With<ObjectCollider>)>,
-        Without<PlayerControlled>,
-    ),
+    (With<TilemapCollider>, Without<PlayerControlled>),
 >;
 
 /// SDF-based collision detection and response system for overworld.

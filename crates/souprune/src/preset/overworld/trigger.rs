@@ -132,7 +132,7 @@ pub fn trigger_zone_detection_system(
     }
 }
 
-/// System to load FRE rules from map's `rules_file` property.
+/// System to load FRE rules from map's `rules_file` property and dependency chain.
 pub fn load_fre_rules_system(
     asset_server: Res<AssetServer>,
     mut loaded_rule_sets: ResMut<LoadedRuleSets>,
@@ -143,6 +143,18 @@ pub fn load_fre_rules_system(
         return;
     }
 
+    // Load overworld rules from dependency chain (preset rules)
+    let config = crate::config::load_config();
+    for rules_path in &config.game.overworld_rules {
+        let handle: Handle<GameFreAsset> = asset_server.load(rules_path);
+        loaded_rule_sets.handles.push(handle);
+        info!(
+            "FRE: Loading overworld rules from dependency chain: {}",
+            rules_path
+        );
+    }
+
+    // Load per-map rules from the map's rules_file property
     for tiled_map in tiled_maps.iter() {
         if let Some(map_asset) = tiled_map_assets.get(&tiled_map.0)
             && let Some(rules_path) =

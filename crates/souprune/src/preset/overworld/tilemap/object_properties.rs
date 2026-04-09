@@ -2,52 +2,52 @@
 //!
 //! ## Module Overview
 //! This module handles custom property detection and processing for Tiled objects.
-//! It provides a flexible system for adding new object property handlers in the future.
+//! It provides a unified trigger system that supports multiple trigger modes
+//! (confirm, enter, exit) and auto-generates FRE rules for dialogue.
 //!
 //! ## 模块概述
-//! 该模块处理Tiled对象的自定义属性检测和处理。
-//! 它为未来添加新的对象属性处理器提供了灵活的系统。
+//! 该模块处理 Tiled 对象的自定义属性检测和处理。
+//! 它提供了统一的触发系统，支持多种触发模式（confirm、enter、exit），
+//! 并为对话自动生成 FRE 规则。
 
 use crate::core::camera::{CameraBoundsZone, TiledCameraBounds};
 use crate::core::collision::Rect2DCollider;
-use crate::core::map_property_schema::{get_object_bool_property, object_keys};
+use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
+use crate::core::map_property_schema::{
+    get_object_bool_property, get_object_string_property, object_keys,
+};
 use crate::core::mode::ModeScoped;
 use crate::preset::overworld::tilemap::systems::TilemapCollider;
 use crate::preset::overworld::trigger::{Interactable, TriggerZone};
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::{TiledMap, TiledMapAsset, tiled};
+use bevy_fact_rule_event::RuleScope;
 
 /// Marker component for objects with collision property
 /// 具有碰撞属性的对象的标记组件
 #[derive(Component)]
 pub struct ObjectCollider;
 
-/// Marker component for trigger zones spawned from Tiled
-/// 从 Tiled 生成的触发区域的标记组件
+/// Marker component for trigger objects spawned from Tiled (unified).
+/// 从 Tiled 生成的触发对象标记组件（统一）。
 #[derive(Component)]
-pub struct TiledTriggerZone;
-
-/// Marker component for interactable objects spawned from Tiled
-/// 从 Tiled 生成的可交互物体的标记组件
-#[derive(Component)]
-pub struct TiledInteractable;
+pub struct TiledTriggerObject;
 
 /// System to process Tiled object layer properties and spawn corresponding entities.
-/// Handles both collision objects and trigger zones.
+/// Handles collision objects, trigger zones, interactables, and auto-generated rules.
 ///
 /// 处理 Tiled 对象层属性并生成相应实体的系统。
-/// 处理碰撞对象和触发区域。
+/// 处理碰撞对象、触发区域、可交互物体和自动生成的规则。
 #[allow(dead_code)]
 pub fn process_map_object_properties_system(
     mut commands: Commands,
     tiled_map_assets: Res<Assets<TiledMapAsset>>,
     tiled_maps_query: Query<&TiledMap>,
-    existing_triggers: Query<&TiledTriggerZone>,
-    existing_interactables: Query<&TiledInteractable>,
+    existing_triggers: Query<&TiledTriggerObject>,
     loaded_rule_sets: Res<crate::preset::overworld::trigger::LoadedRuleSets>,
+    mut registry: ResMut<GameRuleRegistry>,
 ) {
-    // Process once per map load cycle (reset when LoadedRuleSets resets)
-    if !existing_triggers.is_empty() || !existing_interactables.is_empty() {
+    if !existing_triggers.is_empty() {
         return;
     }
     if !loaded_rule_sets.initialized {
@@ -55,13 +55,10 @@ pub fn process_map_object_properties_system(
     }
 
     let map_count = tiled_maps_query.iter().count();
-
-    // Wait for map to be available
     if map_count == 0 {
         return;
     }
 
-    // Try to get map asset - if not loaded yet, wait
     let mut any_map_loaded = false;
     for tiled_map_handle in tiled_maps_query.iter() {
         if tiled_map_assets.get(&tiled_map_handle.0).is_some() {
@@ -81,9 +78,8 @@ pub fn process_map_object_properties_system(
             continue;
         };
 
-        info!("Processing tiled map for triggers and interactables");
+        info!("Processing tiled map for trigger objects");
 
-        // Calculate map center offset (Tiled uses top-left origin, Bevy uses center)
         let tile_width = tiled_map_asset.map.tile_width as f32;
         let tile_height = tiled_map_asset.map.tile_height as f32;
         let map_width = tiled_map_asset.map.width as f32 * tile_width;
@@ -102,7 +98,6 @@ pub fn process_map_object_properties_system(
                 object_layer.objects().count()
             );
 
-            // A layer named "camera_bounds" treats all objects as camera zones.
             if layer.name == object_keys::CAMERA_BOUNDS {
                 spawn_camera_bounds_from_layer(
                     &mut commands,
@@ -121,11 +116,11 @@ pub fn process_map_object_properties_system(
                     center_offset_x,
                     center_offset_y,
                     map_height,
+                    &mut registry,
                 );
             }
         }
 
-        // Process only the first map for now
         break;
     }
 
@@ -139,6 +134,7 @@ fn process_tiled_object(
     center_offset_x: f32,
     center_offset_y: f32,
     map_height: f32,
+    registry: &mut GameRuleRegistry,
 ) {
     trace!(
         "Checking object '{}' at ({}, {}) with shape {:?}",
@@ -157,38 +153,209 @@ fn process_tiled_object(
         return;
     }
 
-    // Collision objects are handled by generate_collision_tiles_system
-    if get_object_bool_property(&object_data.properties, object_keys::COLLISION) == Some(true) {
-        return;
+    // Unified object kinds (collision, trigger, etc.)
+    if let Some(kind_str) = get_object_string_property(&object_data.properties, object_keys::KIND) {
+        let kinds = ObjectKinds::parse(kind_str);
+
+        // Collision is handled by generate_collision_tiles_system
+        if kinds.has_trigger() {
+            spawn_trigger_object(
+                commands,
+                object_data,
+                center_offset_x,
+                center_offset_y,
+                map_height,
+                &kinds,
+                registry,
+            );
+        }
+    }
+}
+
+/// Parsed object kinds from comma-separated `kind` property.
+struct ObjectKinds {
+    collision: bool,
+    confirm: bool,
+    enter: bool,
+    exit: bool,
+}
+
+impl ObjectKinds {
+    fn parse(kind_str: &str) -> Self {
+        let mut kinds = Self {
+            collision: false,
+            confirm: false,
+            enter: false,
+            exit: false,
+        };
+        for part in kind_str.split(',') {
+            match part.trim() {
+                "collision" => kinds.collision = true,
+                "confirm" => kinds.confirm = true,
+                "enter" => kinds.enter = true,
+                "exit" => kinds.exit = true,
+                other => warn!(
+                    "Unknown object kind '{}', expected collision/confirm/enter/exit",
+                    other
+                ),
+            }
+        }
+        kinds
     }
 
-    // Handle trigger zones
-    if get_object_bool_property(&object_data.properties, object_keys::TRIGGER) == Some(true) {
-        spawn_trigger_zone(
-            commands,
-            object_data,
-            center_offset_x,
-            center_offset_y,
-            map_height,
-        );
-        return;
+    fn has_trigger(&self) -> bool {
+        self.confirm || self.enter || self.exit
+    }
+}
+
+/// Dialogue properties extracted from a Tiled object.
+struct DialogueProps {
+    mortar: String,
+    node: String,
+    view: Option<String>,
+    typewriter: bool,
+    focus: bool,
+    voice: Option<String>,
+}
+
+impl DialogueProps {
+    fn from_object(object_data: &tiled::ObjectData) -> Option<Self> {
+        let mortar = get_object_string_property(&object_data.properties, object_keys::MORTAR)?;
+
+        let node = get_object_string_property(&object_data.properties, object_keys::MORTAR_NODE)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| object_data.name.clone());
+
+        let view = get_object_string_property(&object_data.properties, object_keys::VIEW)
+            .map(|s| s.to_string());
+
+        let typewriter = get_object_bool_property(&object_data.properties, object_keys::TYPEWRITER)
+            .unwrap_or(true);
+
+        let focus =
+            get_object_bool_property(&object_data.properties, object_keys::FOCUS).unwrap_or(true);
+
+        let voice = get_object_string_property(&object_data.properties, object_keys::VOICE)
+            .map(|s| s.to_string());
+
+        Some(Self {
+            mortar: mortar.to_string(),
+            node,
+            view,
+            typewriter,
+            focus,
+            voice,
+        })
     }
 
-    // Handle interactable objects
-    let is_interactable =
-        get_object_bool_property(&object_data.properties, object_keys::INTERACTABLE);
+    fn to_action(&self) -> GameActionDef {
+        GameActionDef::StartDialogue {
+            mortar: self.mortar.clone(),
+            node: self.node.clone(),
+            view: self.view.clone(),
+            typewriter: self.typewriter,
+            focus: self.focus,
+            voice: self.voice.clone(),
+        }
+    }
+}
+
+/// Spawn a unified trigger object from Tiled properties.
+///
+/// Parses trigger modes (confirm, enter, exit), attaches the appropriate
+/// components, and auto-generates StartDialogue FRE rules if dialogue
+/// properties are present.
+///
+/// 从 Tiled 属性生成统一触发对象。
+///
+/// 解析触发模式（confirm、enter、exit），挂载相应组件，
+/// 如果存在对话属性则自动生成 StartDialogue FRE 规则。
+fn spawn_trigger_object(
+    commands: &mut Commands,
+    object_data: &tiled::ObjectData,
+    center_offset_x: f32,
+    center_offset_y: f32,
+    map_height: f32,
+    kinds: &ObjectKinds,
+    registry: &mut GameRuleRegistry,
+) {
+    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
+        trace!("Trigger object '{}' is not a rectangle", object_data.name);
+        return;
+    };
+
+    let object_id = if !object_data.name.is_empty() {
+        object_data.name.clone()
+    } else {
+        format!("trigger_{}", object_data.id())
+    };
+
+    let world_x = center_offset_x + object_data.x + width / 2.0;
+    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
+    let size = Vec2::new(width, height);
+
     info!(
-        "Object '{}' interactable property: {:?}",
-        object_data.name, is_interactable
+        "FRE: Creating trigger object '{}' at ({:.1}, {:.1}) size ({}, {})",
+        object_id, world_x, world_y, width, height
     );
-    if is_interactable == Some(true) {
-        spawn_interactable(
-            commands,
-            object_data,
-            center_offset_x,
-            center_offset_y,
-            map_height,
-        );
+
+    let mut entity_cmd = commands.spawn((
+        ModeScoped("overworld".to_string()),
+        TiledTriggerObject,
+        Rect2DCollider::new(size, Vec2::ZERO),
+        Transform::from_xyz(world_x, world_y, 0.0),
+        Visibility::Hidden,
+        Name::new(format!("TriggerObject_{}", object_id)),
+    ));
+
+    if kinds.enter || kinds.exit {
+        entity_cmd.insert(TriggerZone::new(&object_id));
+    }
+
+    if kinds.confirm {
+        entity_cmd.insert(Interactable::new(&object_id));
+    }
+
+    // Auto-generate dialogue rules from Tiled properties
+    let dialogue_props = DialogueProps::from_object(object_data);
+    if let Some(props) = &dialogue_props {
+        let action = props.to_action();
+
+        if kinds.confirm {
+            let rule_id = format!("auto_interact_{}", object_id);
+            let event_id = format!("interact_{}", object_id);
+            let rule = GameRule::builder(rule_id, event_id)
+                .scope(RuleScope::Local)
+                .priority(-100)
+                .action(action.clone())
+                .build();
+            registry.register(rule);
+            info!("FRE: Auto-generated confirm rule for '{}'", object_id);
+        }
+
+        if kinds.enter {
+            let rule_id = format!("auto_trigger_enter_{}", object_id);
+            let event_id = format!("trigger_enter_{}", object_id);
+            let rule = GameRule::builder(rule_id, event_id)
+                .scope(RuleScope::Local)
+                .priority(-100)
+                .action(action.clone())
+                .build();
+            registry.register(rule);
+            info!("FRE: Auto-generated enter rule for '{}'", object_id);
+        }
+
+        if kinds.exit {
+            let rule_id = format!("auto_trigger_exit_{}", object_id);
+            let event_id = format!("trigger_exit_{}", object_id);
+            let rule = GameRule::builder(rule_id, event_id)
+                .scope(RuleScope::Local)
+                .priority(-100)
+                .action(action)
+                .build();
+            registry.register(rule);
+            info!("FRE: Auto-generated exit rule for '{}'", object_id);
+        }
     }
 }
 
@@ -205,7 +372,6 @@ fn spawn_collision_object(
         return;
     };
 
-    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
     let world_x = center_offset_x + object_data.x + width / 2.0;
     let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
     let size = Vec2::new(width, height);
@@ -264,11 +430,9 @@ fn spawn_camera_bounds_zone(
         return;
     };
 
-    // Convert Tiled coordinates (top-left origin) to Bevy world space (center-based)
     let world_x = center_offset_x + object_data.x + width / 2.0;
     let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
 
-    // Build the zone rect in world space (min/max corners)
     let half_w = width / 2.0;
     let half_h = height / 2.0;
     let rect = bevy::math::Rect::new(
@@ -294,93 +458,5 @@ fn spawn_camera_bounds_zone(
         TiledCameraBounds,
         CameraBoundsZone { rect },
         Name::new(format!("CameraBounds_{}", zone_name)),
-    ));
-}
-
-/// Spawn a trigger zone entity from a Tiled object.
-fn spawn_trigger_zone(
-    commands: &mut Commands,
-    object_data: &tiled::ObjectData,
-    center_offset_x: f32,
-    center_offset_y: f32,
-    map_height: f32,
-) {
-    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
-        trace!("Trigger object '{}' is not a rectangle", object_data.name);
-        return;
-    };
-
-    // Use object name if provided, otherwise use Tiled object ID
-    let trigger_id = if !object_data.name.is_empty() {
-        object_data.name.clone()
-    } else {
-        format!("trigger_{}", object_data.id())
-    };
-
-    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
-    let world_x = center_offset_x + object_data.x + width / 2.0;
-    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
-    let size = Vec2::new(width, height);
-
-    info!(
-        "FRE: Creating trigger zone '{}' at ({:.1}, {:.1}) size ({}, {})",
-        trigger_id, world_x, world_y, width, height
-    );
-
-    commands.spawn((
-        ModeScoped("overworld".to_string()),
-        TiledTriggerZone,
-        TriggerZone::new(&trigger_id),
-        Rect2DCollider::new(size, Vec2::ZERO),
-        Transform::from_xyz(world_x, world_y, 0.0),
-        Visibility::Hidden,
-        Name::new(format!("TriggerZone_{}", trigger_id)),
-    ));
-}
-
-/// Spawn an interactable entity from a Tiled object.
-/// Interaction behavior is defined in FRE rule files (via `rules_file` map property).
-///
-/// 从 Tiled 对象生成可交互实体。
-/// 交互行为通过 FRE 规则文件定义（通过地图属性 `rules_file`）。
-fn spawn_interactable(
-    commands: &mut Commands,
-    object_data: &tiled::ObjectData,
-    center_offset_x: f32,
-    center_offset_y: f32,
-    map_height: f32,
-) {
-    let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
-        trace!(
-            "Interactable object '{}' is not a rectangle",
-            object_data.name
-        );
-        return;
-    };
-
-    let interactable_id = if !object_data.name.is_empty() {
-        object_data.name.clone()
-    } else {
-        format!("interactable_{}", object_data.id())
-    };
-
-    // Convert Tiled coordinates (top-left origin) to Bevy (center-based)
-    let world_x = center_offset_x + object_data.x + width / 2.0;
-    let world_y = center_offset_y + (map_height - object_data.y - height / 2.0);
-    let size = Vec2::new(width, height);
-
-    info!(
-        "FRE: Creating interactable '{}' at ({:.1}, {:.1}) size ({}, {})",
-        interactable_id, world_x, world_y, width, height
-    );
-
-    commands.spawn((
-        ModeScoped("overworld".to_string()),
-        TiledInteractable,
-        Interactable::new(&interactable_id),
-        Rect2DCollider::new(size, Vec2::ZERO),
-        Transform::from_xyz(world_x, world_y, 0.0),
-        Visibility::Hidden,
-        Name::new(format!("Interactable_{}", interactable_id)),
     ));
 }

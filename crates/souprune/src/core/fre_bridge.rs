@@ -25,6 +25,7 @@ pub use extensions::ViewActionExtensions;
 pub use view_actions::process_view_actions_system;
 
 use bevy::prelude::*;
+use bevy_fact_rule_event::FRESystemSet;
 use std::collections::HashMap;
 
 /// Event emitted for each FRE Custom action encountered during rule evaluation.
@@ -63,7 +64,9 @@ impl Plugin for FREBridgePlugin {
                     custom_dispatch::dispatch_custom_actions_system,
                     view_actions::handle_switch_state_system,
                 )
-                    .chain(),
+                    .chain()
+                    .after(FRESystemSet::EmitEvents)
+                    .before(FRESystemSet::ProcessRules),
             );
     }
 }
