@@ -28,9 +28,13 @@
 //!
 //! | Property Key | Type | Required | Description |
 //! |--------------|------|----------|-------------|
-//! | `collision` | String | No | Collision type ("solid", "semi-solid", etc.) |
-//! | `trigger` | String | No | Trigger zone type |
-//! | `trigger_id` | String | No | Unique identifier for the trigger |
+//! | `kind` | String | No | Object kind(s): "collision", "confirm", "enter", "exit", or comma-separated |
+//! | `mortar` | String | No | Mortar script file path for dialogue |
+//! | `mortar_node` | String | No | Mortar node entry point (default: object name) |
+//! | `view` | String | No | View layout file path for dialogue |
+//! | `focus` | Bool | No | Focus on dialogue (default: true) |
+//! | `typewriter` | Bool | No | Typewriter mode (default: true) |
+//! | `voice` | String | No | Voice audio path for dialogue |
 
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::tiled;
@@ -67,88 +71,40 @@ pub mod object_keys {
     /// 摄像机边界区域标记。
     pub const CAMERA_BOUNDS: &str = "camera_bounds";
 
-    /// Collision type for the object.
+    /// Object kind(s) — comma-separated: "collision", "confirm", "enter", "exit".
     ///
-    /// 对象的碰撞类型。
-    pub const COLLISION: &str = "collision";
+    /// 对象类型 — 逗号分隔: "collision", "confirm", "enter", "exit"。
+    pub const KIND: &str = "kind";
 
-    /// Trigger zone type.
+    /// Mortar script file path for dialogue.
     ///
-    /// 触发区域类型。
-    pub const TRIGGER: &str = "trigger";
+    /// 对话用的 Mortar 脚本文件路径。
+    pub const MORTAR: &str = "mortar";
 
-    /// Trigger zone ID (for identifying which trigger was activated).
+    /// Mortar node entry point (default: object name).
     ///
-    /// 触发区域 ID（用于识别哪个触发器被激活）。
-    pub const TRIGGER_ID: &str = "trigger_id";
+    /// Mortar 节点入口（默认：对象名称）。
+    pub const MORTAR_NODE: &str = "mortar_node";
 
-    /// Interactable object type.
+    /// View layout file path for dialogue.
     ///
-    /// 可交互物体类型。
-    pub const INTERACTABLE: &str = "interactable";
+    /// 对话视图布局文件路径。
+    pub const VIEW: &str = "view";
 
-    // ========================================
-    // Dialogue Component Properties
-    // 对话组件属性
-    // ========================================
-
-    /// Path to Mortar dialogue file (relative to locales).
-    /// Example: "overworld/dialogue.mortar"
+    /// Focus on dialogue (default: true).
     ///
-    /// Mortar 对话文件路径（相对于 locales）。
-    /// 示例："overworld/dialogue.mortar"
-    pub const DIALOGUE_PATH: &str = "dialogue_path";
+    /// 是否聚焦对话（默认：true）。
+    pub const FOCUS: &str = "focus";
 
-    /// Node name in the Mortar file to start dialogue.
-    /// Required when dialogue_path is set.
+    /// Typewriter mode (default: true).
     ///
-    /// 启动对话的 Mortar 文件中的节点名。
-    /// 当设置了 dialogue_path 时必须。
-    pub const DIALOGUE_NODE: &str = "dialogue_node";
+    /// 是否启用打字机效果（默认：true）。
+    pub const TYPEWRITER: &str = "typewriter";
 
-    /// Whether to use typewriter effect for this dialogue.
-    /// Default: true
+    /// Voice audio path for dialogue.
     ///
-    /// 是否为此对话使用打字机效果。
-    /// 默认：true
-    pub const HAS_TYPEWRITER: &str = "has_typewriter";
-
-    /// Whether to use Mortar controller (for dynamic dialogue).
-    /// Default: true
-    ///
-    /// 是否使用 Mortar 控制器（用于动态对话）。
-    /// 默认：true
-    pub const HAS_MORTAR: &str = "has_mortar";
-
-    /// Simple text content for non-Mortar dialogue.
-    /// Used when has_mortar is false.
-    ///
-    /// 非 Mortar 对话的简单文本内容。
-    /// 当 has_mortar 为 false 时使用。
-    pub const SIMPLE_TEXT: &str = "simple_text";
-
-    /// View layout file for dialogue UI.
-    /// Default: "overworld/view/dialogue.view.ron"
-    ///
-    /// 对话 UI 的 View 布局文件。
-    /// 默认："overworld/view/dialogue.view.ron"
-    pub const DIALOGUE_VIEW: &str = "dialogue_view";
-
-    /// Voice sound effect for typewriter.
-    /// Path to audio file (relative to assets).
-    /// Example: "audio/voice/voice_monster.wav"
-    ///
-    /// 打字机音效。
-    /// 音频文件路径（相对于 assets）。
-    /// 示例："audio/voice/voice_monster.wav"
-    pub const DIALOGUE_VOICE: &str = "dialogue_voice";
-
-    /// Typewriter speed in seconds per character.
-    /// Example: "0.05" for 50ms per character.
-    ///
-    /// 打字机速度（每字符秒数）。
-    /// 示例："0.05" 表示每字符50ms。
-    pub const DIALOGUE_TYPEWRITER_SPEED: &str = "dialogue_typewriter_speed";
+    /// 对话语音音频路径。
+    pub const VOICE: &str = "voice";
 }
 
 /// Property definition for validation purposes.
@@ -201,69 +157,44 @@ pub static OBJECT_PROPERTIES: &[PropertyDef] = &[
         default: None,
     },
     PropertyDef {
-        key: object_keys::COLLISION,
-        description: "Collision type for the object (solid, semi-solid, etc.)",
+        key: object_keys::KIND,
+        description: "Object kind(s): collision, confirm, enter, exit (comma-separated)",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::TRIGGER,
-        description: "Trigger zone type",
+        key: object_keys::MORTAR,
+        description: "Mortar script file path for dialogue",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::INTERACTABLE,
-        description: "Interactable object type",
-        required: false,
-        default: None,
-    },
-    // Dialogue properties
-    PropertyDef {
-        key: object_keys::DIALOGUE_PATH,
-        description: "Path to Mortar dialogue file (relative to locales)",
+        key: object_keys::MORTAR_NODE,
+        description: "Mortar node entry point (default: object name)",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::DIALOGUE_NODE,
-        description: "Node name in the Mortar file to start dialogue",
+        key: object_keys::VIEW,
+        description: "View layout file path for dialogue",
         required: false,
         default: None,
     },
     PropertyDef {
-        key: object_keys::HAS_TYPEWRITER,
-        description: "Whether to use typewriter effect",
+        key: object_keys::FOCUS,
+        description: "Focus on dialogue (default: true)",
         required: false,
         default: Some("true"),
     },
     PropertyDef {
-        key: object_keys::HAS_MORTAR,
-        description: "Whether to use Mortar controller",
+        key: object_keys::TYPEWRITER,
+        description: "Typewriter mode (default: true)",
         required: false,
         default: Some("true"),
     },
     PropertyDef {
-        key: object_keys::SIMPLE_TEXT,
-        description: "Simple text content for non-Mortar dialogue",
-        required: false,
-        default: None,
-    },
-    PropertyDef {
-        key: object_keys::DIALOGUE_VIEW,
-        description: "View layout file for dialogue UI",
-        required: false,
-        default: Some("states/overworld/view/dialogue.view.ron"),
-    },
-    PropertyDef {
-        key: object_keys::DIALOGUE_VOICE,
-        description: "Voice sound effect path for typewriter",
-        required: false,
-        default: None,
-    },
-    PropertyDef {
-        key: object_keys::DIALOGUE_TYPEWRITER_SPEED,
-        description: "Typewriter speed in seconds per character",
+        key: object_keys::VOICE,
+        description: "Voice audio path for dialogue",
         required: false,
         default: None,
     },

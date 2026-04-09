@@ -22,10 +22,6 @@ pub const DIALOGUE_TYPEWRITER_PLAYING: &str = "dialogue:typewriter_playing";
 pub const DIALOGUE_ALL_TYPEWRITERS_FINISHED: &str = "dialogue:all_typewriters_finished";
 /// 是否有任意打字机已完成
 pub const DIALOGUE_ANY_TYPEWRITER_FINISHED: &str = "dialogue:any_typewriter_finished";
-/// 简单文本模式是否激活
-pub const DIALOGUE_SIMPLE_TEXT_ACTIVE: &str = "dialogue:simple_text_active";
-/// 简单文本内容
-pub const DIALOGUE_SIMPLE_TEXT: &str = "dialogue:simple_text";
 /// 是否使用打字机效果
 pub const DIALOGUE_HAS_TYPEWRITER: &str = "dialogue:has_typewriter";
 /// 触发对话启动的待处理标志

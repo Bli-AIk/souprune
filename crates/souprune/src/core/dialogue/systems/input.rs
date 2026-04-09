@@ -13,7 +13,7 @@
 
 use bevy::prelude::*;
 use bevy_ecs_typewriter::{Typewriter, TypewriterState};
-use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
+use bevy_fact_rule_event::{FactEvent, LayeredFactDatabase};
 use bevy_mortar_bond::{MortarEvent, MortarRuntime};
 
 use super::lifecycle::DialogueControllerEntity;
@@ -28,7 +28,7 @@ pub fn dialogue_advance_system(
     mut fre_events: MessageReader<FactEvent>,
     config: Res<DialogueInputConfig>,
     mut mortar_events: MessageWriter<MortarEvent>,
-    mut facts: ResMut<LayeredFactDatabase>,
+    facts: Res<LayeredFactDatabase>,
     query: Query<&Typewriter, With<DialogueControllerEntity>>,
     runtime: Res<MortarRuntime>,
 ) {
@@ -53,11 +53,8 @@ pub fn dialogue_advance_system(
         );
 
         let mortar_active = runtime.has_active_dialogues();
-        let simple_active = facts
-            .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
-            .unwrap_or(false);
 
-        if !mortar_active && !simple_active {
+        if !mortar_active {
             info!("dialogue_advance_system: no active dialogue, skipping");
             continue;
         }
@@ -67,11 +64,6 @@ pub fn dialogue_advance_system(
             if mortar_active {
                 info!("dialogue_advance_system: no typewriters, sending NextText");
                 mortar_events.write(MortarEvent::next_text());
-            } else {
-                info!(
-                    "dialogue_advance_system: simple text (no typewriter), marking dialogue ended"
-                );
-                facts.set(fre_facts::DIALOGUE_PENDING_ENDED, FactValue::Bool(true));
             }
             continue;
         }
@@ -101,9 +93,6 @@ pub fn dialogue_advance_system(
 
         if mortar_active {
             mortar_events.write(MortarEvent::next_text());
-        } else {
-            info!("dialogue_advance_system: simple text finished, marking dialogue ended");
-            facts.set(fre_facts::DIALOGUE_PENDING_ENDED, FactValue::Bool(true));
         }
     }
 }

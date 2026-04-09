@@ -189,6 +189,14 @@ pub struct GameConfig {
     /// 若 `initial_sequence_path` 已设置，模式从序列中推导；否则使用此值。
     #[serde(default = "default_initial_mode")]
     pub initial_mode: String,
+
+    /// FRE rule files loaded for overworld state (accumulated from dependency chain).
+    /// Rules from dependency mods come first, main mod's rules last.
+    ///
+    /// Overworld 状态加载的 FRE 规则文件（从依赖链累积）。
+    /// 依赖 mod 的规则在前，主 mod 的规则在后。
+    #[serde(default)]
+    pub overworld_rules: Vec<String>,
 }
 
 fn default_initial_mode() -> String {
@@ -210,6 +218,7 @@ impl Default for GameConfig {
             required_modules: vec!["overworld".to_string(), "common".to_string()],
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
             initial_mode: default_initial_mode(),
+            overworld_rules: Vec::new(),
         }
     }
 }
@@ -419,6 +428,7 @@ struct ModGameConfig {
     required_modules: Option<Vec<String>>,
     hidden_layer_keywords: Option<Vec<String>>,
     initial_mode: Option<String>,
+    overworld_rules: Option<Vec<String>>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -461,6 +471,10 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         merge!(required_modules);
         merge!(hidden_layer_keywords);
         merge!(initial_mode);
+        // overworld_rules: extend rather than overwrite (dependency chain accumulation)
+        if let Some(val) = g.overworld_rules {
+            config.game.overworld_rules.extend(val);
+        }
         // Option<T> fields: wrap in Some
         if let Some(val) = g.initial_sequence_path {
             config.game.initial_sequence_path = Some(val);

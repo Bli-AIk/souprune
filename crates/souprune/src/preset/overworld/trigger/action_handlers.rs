@@ -16,6 +16,12 @@
 use super::*;
 use crate::core::danmaku::PlayPerformanceEvent;
 use crate::core::game_action::{GameActionDef, GameActionHandlerRegistry};
+use crate::core::sequencer::chapter_schema::Chapter;
+use crate::core::sequencer::context::SequenceContext;
+use crate::preset::overworld::tilemap::object_properties::ObjectCollider;
+use crate::preset::overworld::tilemap::systems::TilemapCollider;
+use bevy_ecs_tiled::prelude::{TiledName, TiledObjectVisualOf};
+use std::collections::HashMap;
 
 /// Resource to store pending danmaku play requests from FRE actions.
 #[derive(Resource, Default)]
@@ -163,6 +169,135 @@ pub fn setup_action_handlers_system(world: &mut World) {
         });
     });
 
+    handler_registry.register("RunSequence", |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(path) = params.get("path").cloned() else {
+            warn!("FRE: RunSequence action missing 'path' param");
+            return;
+        };
+        info!("FRE: RunSequence '{}' via registered handler", path);
+        commands.queue(move |world: &mut World| {
+            let mut context = world.resource_mut::<SequenceContext>();
+            context.chapters.insert(
+                0,
+                Chapter::RunSequence {
+                    path: Some(path),
+                    path_fact: None,
+                    params: HashMap::new(),
+                },
+            );
+        });
+    });
+
+    handler_registry.register("SetSprite", |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(target) = params.get("target").cloned() else {
+            warn!("FRE: SetSprite action missing 'target' param");
+            return;
+        };
+        let Some(image_path) = params.get("image").cloned() else {
+            warn!("FRE: SetSprite action missing 'image' param");
+            return;
+        };
+        info!(
+            "FRE: SetSprite target='{}' image='{}' via registered handler",
+            target, image_path
+        );
+        commands.queue(move |world: &mut World| {
+            // Find TiledObject entity by TiledName
+            let object_entity = {
+                let mut query = world.query::<(Entity, &TiledName)>();
+                query
+                    .iter(world)
+                    .find(|(_, name)| name.0 == target)
+                    .map(|(e, _)| e)
+            };
+            let Some(object_entity) = object_entity else {
+                warn!("FRE: SetSprite could not find TiledName '{}'", target);
+                return;
+            };
+
+            // Find child visual entity via TiledObjectVisualOf
+            let visual_entity = {
+                let mut query = world.query::<(Entity, &TiledObjectVisualOf)>();
+                query
+                    .iter(world)
+                    .find(|(_, vis_of)| vis_of.0 == object_entity)
+                    .map(|(e, _)| e)
+            };
+            let Some(visual_entity) = visual_entity else {
+                warn!(
+                    "FRE: SetSprite could not find TiledObjectVisualOf for '{}'",
+                    target
+                );
+                return;
+            };
+
+            // Load new image and update sprite
+            let new_handle = world.resource::<AssetServer>().load::<Image>(&image_path);
+            if let Some(mut sprite) = world.get_mut::<Sprite>(visual_entity) {
+                sprite.image = new_handle;
+                info!("FRE: SetSprite updated sprite for '{}'", target);
+            } else {
+                warn!(
+                    "FRE: SetSprite visual entity for '{}' has no Sprite component",
+                    target
+                );
+            }
+        });
+    });
+
+    handler_registry.register("SetCollision", |action, _db, commands| {
+        let GameActionDef::Custom { params, .. } = action else {
+            return;
+        };
+        let Some(target) = params.get("target").cloned() else {
+            warn!("FRE: SetCollision action missing 'target' param");
+            return;
+        };
+        let Some(enabled_str) = params.get("isEnabled").cloned() else {
+            warn!("FRE: SetCollision action missing 'isEnabled' param");
+            return;
+        };
+        let is_enabled = enabled_str == "true";
+        info!(
+            "FRE: SetCollision target='{}' isEnabled={} via registered handler",
+            target, is_enabled
+        );
+        commands.queue(move |world: &mut World| {
+            let collision_name = format!("ObjectCollision_{}", target);
+            let collision_entity = {
+                let mut query = world.query::<(Entity, &Name, &ObjectCollider)>();
+                query
+                    .iter(world)
+                    .find(|(_, name, _)| name.as_str() == collision_name)
+                    .map(|(e, _, _)| e)
+            };
+            let Some(collision_entity) = collision_entity else {
+                warn!(
+                    "FRE: SetCollision could not find collision entity '{}'",
+                    collision_name
+                );
+                return;
+            };
+
+            let has_collider = world.get::<TilemapCollider>(collision_entity).is_some();
+            if is_enabled && !has_collider {
+                world.entity_mut(collision_entity).insert(TilemapCollider);
+                info!("FRE: SetCollision enabled collision for '{}'", target);
+            } else if !is_enabled && has_collider {
+                world
+                    .entity_mut(collision_entity)
+                    .remove::<TilemapCollider>();
+                info!("FRE: SetCollision disabled collision for '{}'", target);
+            }
+        });
+    });
+
     handler_registry.register("SetPlayerHP", |action, _db, _commands| {
         if let GameActionDef::Custom { params, .. } = action
             && let Some(value_str) = params.get("value")
@@ -172,7 +307,7 @@ pub fn setup_action_handlers_system(world: &mut World) {
         }
     });
 
-    info!("FRE: Overworld action handlers registered (8 handlers)");
+    info!("FRE: Overworld action handlers registered (11 handlers)");
 }
 
 /// System that handles unregistered Custom FRE actions.
