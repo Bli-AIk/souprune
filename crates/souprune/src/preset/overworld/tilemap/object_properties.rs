@@ -10,6 +10,7 @@
 //! 它提供了统一的触发系统，支持多种触发模式（confirm、enter、exit），
 //! 并为对话自动生成 FRE 规则。
 
+use crate::config::SoupruneConfig;
 use crate::core::camera::{CameraBoundsZone, TiledCameraBounds};
 use crate::core::collision::Rect2DCollider;
 use crate::core::game_action::{GameActionDef, GameRule, GameRuleRegistry};
@@ -46,6 +47,7 @@ pub fn process_map_object_properties_system(
     existing_triggers: Query<&TiledTriggerObject>,
     loaded_rule_sets: Res<crate::preset::overworld::trigger::LoadedRuleSets>,
     mut registry: ResMut<GameRuleRegistry>,
+    config: Res<SoupruneConfig>,
 ) {
     if !existing_triggers.is_empty() {
         return;
@@ -117,6 +119,7 @@ pub fn process_map_object_properties_system(
                     center_offset_y,
                     map_height,
                     &mut registry,
+                    &config,
                 );
             }
         }
@@ -135,6 +138,7 @@ fn process_tiled_object(
     center_offset_y: f32,
     map_height: f32,
     registry: &mut GameRuleRegistry,
+    config: &SoupruneConfig,
 ) {
     trace!(
         "Checking object '{}' at ({}, {}) with shape {:?}",
@@ -167,6 +171,7 @@ fn process_tiled_object(
                 map_height,
                 &kinds,
                 registry,
+                config,
             );
         }
     }
@@ -219,7 +224,7 @@ struct DialogueProps {
 }
 
 impl DialogueProps {
-    fn from_object(object_data: &tiled::ObjectData) -> Option<Self> {
+    fn from_object(object_data: &tiled::ObjectData, default_view: &str) -> Option<Self> {
         let mortar = get_object_string_property(&object_data.properties, object_keys::MORTAR)?;
 
         let node = get_object_string_property(&object_data.properties, object_keys::MORTAR_NODE)
@@ -227,7 +232,14 @@ impl DialogueProps {
             .unwrap_or_else(|| object_data.name.clone());
 
         let view = get_object_string_property(&object_data.properties, object_keys::VIEW)
-            .map(|s| s.to_string());
+            .map(|s| s.to_string())
+            .or_else(|| {
+                if default_view.is_empty() {
+                    None
+                } else {
+                    Some(default_view.to_string())
+                }
+            });
 
         let typewriter = get_object_bool_property(&object_data.properties, object_keys::TYPEWRITER)
             .unwrap_or(true);
@@ -278,6 +290,7 @@ fn spawn_trigger_object(
     map_height: f32,
     kinds: &ObjectKinds,
     registry: &mut GameRuleRegistry,
+    config: &SoupruneConfig,
 ) {
     let tiled::ObjectShape::Rect { width, height } = object_data.shape else {
         trace!("Trigger object '{}' is not a rectangle", object_data.name);
@@ -317,7 +330,8 @@ fn spawn_trigger_object(
     }
 
     // Auto-generate dialogue rules from Tiled properties
-    let dialogue_props = DialogueProps::from_object(object_data);
+    let dialogue_props =
+        DialogueProps::from_object(object_data, &config.game.dialogue_view_default);
     if let Some(props) = &dialogue_props {
         let action = props.to_action();
 
