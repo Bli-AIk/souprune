@@ -112,6 +112,8 @@ pub(super) fn resolve_int(expr: &str, facts: &dyn FactReader) -> Option<i64> {
         if let Some(val) = facts.get_int(var_name) {
             return Some(val);
         }
+        // Bool → i64 coercion: true=1, false=0 (enables arithmetic on bool facts)
+        // Bool → i64 强制转换：true=1, false=0（允许对布尔 fact 进行算术运算）
         if let Some(FactValue::Bool(b)) = facts.get_by_str(var_name) {
             return Some(if *b { 1 } else { 0 });
         }

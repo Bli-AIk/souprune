@@ -131,6 +131,8 @@ pub fn process_map_object_properties_system(
 }
 
 /// Process a single Tiled object, dispatching to the appropriate handler.
+///
+/// 处理单个 Tiled 对象，分发到对应的处理器。
 fn process_tiled_object(
     commands: &mut Commands,
     object_data: &tiled::ObjectData,
@@ -178,6 +180,8 @@ fn process_tiled_object(
 }
 
 /// Parsed object kinds from comma-separated `kind` property.
+///
+/// 从逗号分隔的 `kind` 属性解析出的对象类型集合。
 struct ObjectKinds {
     collision: bool,
     confirm: bool,
@@ -214,6 +218,8 @@ impl ObjectKinds {
 }
 
 /// Dialogue properties extracted from a Tiled object.
+///
+/// 从 Tiled 对象中提取的对话属性。
 struct DialogueProps {
     mortar: String,
     node: String,
@@ -374,6 +380,8 @@ fn spawn_trigger_object(
 }
 
 /// Spawn a collision entity from a Tiled object.
+///
+/// 从 Tiled 对象生成碰撞实体。
 fn spawn_collision_object(
     commands: &mut Commands,
     object_data: &tiled::ObjectData,

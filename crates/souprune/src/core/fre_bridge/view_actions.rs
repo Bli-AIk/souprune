@@ -258,6 +258,7 @@ fn execute_action(
         }
         GameActionDef::StartDialogue { .. } => {
             // Handled by dispatch_custom_actions_system — skip here.
+            // 由 dispatch_custom_actions_system 处理 — 此处跳过。
         }
         GameActionDef::Custom {
             action_type,
