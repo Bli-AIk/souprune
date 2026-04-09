@@ -256,44 +256,9 @@ fn execute_action(
         GameActionDef::EmitEvent(event_id) => {
             debug!("FRE Bridge: EmitEvent({})", event_id);
         }
-        GameActionDef::StartDialogue {
-            mortar,
-            node,
-            view,
-            typewriter,
-            focus,
-            voice,
-        } => {
-            info!(
-                "FRE Bridge: StartDialogue(mortar: {}, node: {})",
-                mortar, node
-            );
-            global_facts.set_local(
-                fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
-                FactValue::String(mortar.clone()),
-            );
-            global_facts.set_local(
-                fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
-                FactValue::String(node.clone()),
-            );
-            if let Some(view_path) = view {
-                global_facts.set_local(
-                    fre_facts::DIALOGUE_PENDING_VIEW,
-                    FactValue::String(view_path.clone()),
-                );
-            }
-            global_facts.set_local(
-                fre_facts::DIALOGUE_HAS_TYPEWRITER,
-                FactValue::Bool(*typewriter),
-            );
-            global_facts.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(*focus));
-            if let Some(voice_path) = voice {
-                global_facts.set_local(
-                    fre_facts::DIALOGUE_VOICE,
-                    FactValue::String(voice_path.clone()),
-                );
-            }
-            global_facts.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
+        GameActionDef::StartDialogue { .. } => {
+            // Handled by dispatch_custom_actions_system — skip here.
+            // 由 dispatch_custom_actions_system 处理 — 此处跳过。
         }
         GameActionDef::Custom {
             action_type,

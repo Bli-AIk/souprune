@@ -143,14 +143,6 @@ fn init_dialogue_facts(mut facts: ResMut<LayeredFactDatabase>) {
 
     // Dialogue configuration facts
     // 对话配置 facts
-    facts.set_global(
-        fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE,
-        FactValue::Bool(false),
-    );
-    facts.set_global(
-        fre_facts::DIALOGUE_SIMPLE_TEXT,
-        FactValue::String(String::new()),
-    );
     facts.set_global(fre_facts::DIALOGUE_HAS_TYPEWRITER, FactValue::Bool(true));
 
     // Auto-pause default state (enabled by default; disabled if no config loaded)

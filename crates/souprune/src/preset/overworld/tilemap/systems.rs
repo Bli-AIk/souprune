@@ -345,12 +345,14 @@ fn generate_object_colliders(
 
             let size = Vec2::new(width, height);
 
-            // Check if this object has collision property set to true (using schema key constant)
-            if crate::core::map_property_schema::get_object_bool_property(
+            // Check if this object has collision kind (using schema key constant)
+            let has_collision = crate::core::map_property_schema::get_object_string_property(
                 &object_data.properties,
-                object_keys::COLLISION,
-            ) == Some(true)
-            {
+                object_keys::KIND,
+            )
+            .is_some_and(|s| s.split(',').any(|p| p.trim() == "collision"));
+
+            if has_collision {
                 info!(
                     "Creating collision object '{}' at world pos ({}, {}) with size ({}, {})",
                     object_data.name, world_x, world_y, width, height
@@ -364,37 +366,6 @@ fn generate_object_colliders(
                     Transform::from_xyz(world_x, world_y, 0.0),
                     Visibility::Hidden,
                     Name::new(format!("ObjectCollision_{}", object_data.name)),
-                ));
-            }
-
-            // Check if this object has trigger property set to true (experimental feature)
-            #[cfg(feature = "experimental")]
-            if crate::core::map_property_schema::get_object_bool_property(
-                &object_data.properties,
-                object_keys::TRIGGER,
-            ) == Some(true)
-            {
-                // Get trigger ID from name or id property (using schema key constant)
-                let trigger_id = crate::core::map_property_schema::get_object_string_property(
-                    &object_data.properties,
-                    object_keys::TRIGGER_ID,
-                )
-                .map(|s| s.to_string())
-                .or_else(|| (!object_data.name.is_empty()).then(|| object_data.name.clone()))
-                .unwrap_or_else(|| format!("trigger_{}", object_data.id()));
-
-                info!(
-                    "Creating trigger zone '{}' at world pos ({}, {}) with size ({}, {})",
-                    trigger_id, world_x, world_y, width, height
-                );
-
-                commands.spawn((
-                    ChildOf(parent_entity),
-                    crate::preset::overworld::trigger::TriggerZone::new(&trigger_id),
-                    Rect2DCollider::new(size, Vec2::ZERO),
-                    Transform::from_xyz(world_x, world_y, 0.0),
-                    Visibility::Hidden,
-                    Name::new(format!("TriggerZone_{}", trigger_id)),
                 ));
             }
         }

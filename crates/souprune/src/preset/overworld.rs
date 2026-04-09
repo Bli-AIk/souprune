@@ -202,6 +202,7 @@ fn on_exit_overworld_system(
     registry.clear_local();
     loaded_rule_sets.handles.clear();
     loaded_rule_sets.initialized = false;
+    loaded_rule_sets.registered = false;
 
     info!("Overworld: Cleaned up on exit (BGM + FRE)");
 }

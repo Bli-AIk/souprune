@@ -37,12 +37,12 @@ impl Default for DialogueInputConfig {
 
 // Note: ActiveDialogueState has been removed.
 // Dialogue state is now managed via FRE facts:
-// - dialogue:simple_text_active (Bool) - whether simple text dialogue is active
-// - dialogue:simple_text (String) - the simple text content
+// - dialogue:active (Bool) - whether dialogue is active
 // - dialogue:has_typewriter (Bool) - whether typewriter is enabled
+// - dialogue:has_mortar (Bool) - whether mortar VM is driving the dialogue
 //
 // 注意：ActiveDialogueState 已被移除。
 // 对话状态现在通过 FRE facts 管理：
-// - dialogue:simple_text_active (Bool) - 简单文本对话是否激活
-// - dialogue:simple_text (String) - 简单文本内容
+// - dialogue:active (Bool) - 对话是否激活
 // - dialogue:has_typewriter (Bool) - 是否启用打字机
+// - dialogue:has_mortar (Bool) - 是否由 Mortar VM 驱动对话

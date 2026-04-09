@@ -17,7 +17,6 @@ use bevy_fact_rule_event::{FactEvent, FactValue, LayeredFactDatabase};
 use bevy_mortar_bond::{MortarDialogueFinished, MortarEvent, MortarRuntime};
 
 use crate::core::fre_facts;
-use crate::core::view::components::{ActiveView, ViewRoot};
 
 use super::super::auto_pause::AutoPauseState;
 
@@ -62,14 +61,9 @@ pub fn spawn_dialogue_controller_system(
     runtime: Res<MortarRuntime>,
     query: Query<Entity, With<DialogueControllerEntity>>,
     facts: Res<LayeredFactDatabase>,
-    mut active_view_query: Query<&mut ViewRoot, With<ActiveView>>,
 ) {
     let has_controller = !query.is_empty();
     let dialogue_active = facts.get_bool(fre_facts::DIALOGUE_ACTIVE).unwrap_or(false);
-    let simple_text_active = facts
-        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
-        .unwrap_or(false);
-    let has_dialogue = dialogue_active || simple_text_active;
     let has_typewriter = facts
         .get_bool(fre_facts::DIALOGUE_HAS_TYPEWRITER)
         .unwrap_or(true);
@@ -78,21 +72,20 @@ pub fn spawn_dialogue_controller_system(
         .unwrap_or(false)
         || runtime.has_active_dialogues();
 
-    if dialogue_active || simple_text_active || has_controller || runtime.has_active_dialogues() {
+    if dialogue_active || has_controller || runtime.has_active_dialogues() {
         debug!(
-            "spawn_dialogue_controller_system: dialogue_active={}, simple_text_active={}, has_controller={}, has_mortar={}, runtime_active={}",
+            "spawn_dialogue_controller_system: dialogue_active={}, has_controller={}, has_mortar={}, runtime_active={}",
             dialogue_active,
-            simple_text_active,
             has_controller,
             has_mortar,
             runtime.has_active_dialogues()
         );
     }
 
-    if has_dialogue && !has_controller {
+    if dialogue_active && !has_controller {
         info!(
-            "spawn_dialogue_controller_system: spawning dialogue controller (mortar={}, simple_text={}, typewriter={})",
-            has_mortar, simple_text_active, has_typewriter
+            "spawn_dialogue_controller_system: spawning dialogue controller (mortar={}, typewriter={})",
+            has_mortar, has_typewriter
         );
 
         let mut entity_commands = commands.spawn(DialogueControllerEntity);
@@ -106,26 +99,11 @@ pub fn spawn_dialogue_controller_system(
         }
 
         if has_typewriter {
-            let simple_text = facts
-                .get_string(fre_facts::DIALOGUE_SIMPLE_TEXT)
-                .map(|s| s.to_string());
-            let initial_text = if !has_mortar {
-                simple_text.unwrap_or_default()
-            } else {
-                String::new()
-            };
             let typewriter_speed = facts
                 .get_float(fre_facts::DIALOGUE_TYPEWRITER_SPEED)
                 .map(|n| n as f32)
                 .unwrap_or(0.03);
-            let mut typewriter = Typewriter::new(&initial_text, typewriter_speed);
-            if !initial_text.is_empty() {
-                typewriter.play();
-                info!(
-                    "spawn_dialogue_controller_system: starting typewriter with simple_text: '{}'",
-                    initial_text
-                );
-            }
+            let typewriter = Typewriter::new("", typewriter_speed);
             entity_commands.insert(typewriter);
 
             if let Some(voice_path) = facts.get_string(fre_facts::DIALOGUE_VOICE)
@@ -136,22 +114,6 @@ pub fn spawn_dialogue_controller_system(
                     voice_path
                 );
                 entity_commands.insert(super::super::components::TypewriterVoice::new(voice_path));
-            }
-        }
-
-        if !has_mortar
-            && !has_typewriter
-            && let Some(text) = facts.get_string(fre_facts::DIALOGUE_SIMPLE_TEXT)
-        {
-            info!(
-                "spawn_dialogue_controller_system: setting simple_text to View local_facts: '{}'",
-                text
-            );
-            let text_owned = text.to_string();
-            for mut view_root in active_view_query.iter_mut() {
-                view_root
-                    .local_facts
-                    .set("dialogue_text", FactValue::String(text_owned.clone()));
             }
         }
     }
@@ -181,18 +143,13 @@ pub fn despawn_dialogue_controller_system(
 
     if !should_cleanup {
         let mortar_active = runtime.has_active_dialogues();
-        let simple_active = facts
-            .bypass_change_detection()
-            .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
-            .unwrap_or(false);
         let dialogue_active_fact = facts
             .bypass_change_detection()
             .get_bool(fre_facts::DIALOGUE_ACTIVE)
             .unwrap_or(false);
         let has_controller = !query.is_empty();
 
-        should_cleanup =
-            has_controller && !mortar_active && !simple_active && !dialogue_active_fact;
+        should_cleanup = has_controller && !mortar_active && !dialogue_active_fact;
     }
 
     if !should_cleanup {
@@ -294,11 +251,7 @@ pub fn handle_pending_dialogue_start_system(
         mortar_events.write(MortarEvent::start_node(localized_path, node));
     }
 
-    let simple_text_active = facts
-        .bypass_change_detection()
-        .get_bool(fre_facts::DIALOGUE_SIMPLE_TEXT_ACTIVE)
-        .unwrap_or(false);
-    let dialogue_active = has_mortar || simple_text_active;
+    let dialogue_active = has_mortar;
     facts.set(fre_facts::DIALOGUE_ACTIVE, FactValue::Bool(dialogue_active));
     facts.set(fre_facts::DIALOGUE_HAS_MORTAR, FactValue::Bool(has_mortar));
     fre_event_writer.write(FactEvent::new(fre_facts::DIALOGUE_STARTED));

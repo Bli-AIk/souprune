@@ -13,8 +13,9 @@
 
 use super::{FreCustomActionEvent, evaluate_conditions};
 use bevy::prelude::*;
-use bevy_fact_rule_event::{EnumRegistry, FactEvent, LayeredFactDatabase};
+use bevy_fact_rule_event::{EnumRegistry, FactEvent, FactValue, LayeredFactDatabase};
 
+use crate::core::fre_facts;
 use crate::core::game_action::{
     GameActionDef, GameActionHandlerRegistry, GameRule, GameRuleRegistry,
 };
@@ -22,41 +23,80 @@ use crate::core::game_action::{
 fn dispatch_single_custom_action(
     action: &GameActionDef,
     rule: &GameRule,
-    fact_db: &LayeredFactDatabase,
+    fact_db: &mut LayeredFactDatabase,
     handler_registry: &GameActionHandlerRegistry,
     commands: &mut Commands,
     custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
 ) {
-    let GameActionDef::Custom {
-        action_type,
-        params,
-    } = action
-    else {
-        return;
-    };
-
-    if handler_registry.has_handler(action_type) {
-        debug!(
-            "FRE: Executing registered handler for '{}' (rule: '{}')",
-            action_type, rule.id
-        );
-        handler_registry.execute(action, fact_db, commands);
-    } else {
-        debug!(
-            "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
-            action_type, rule.id
-        );
-        custom_action_writer.write(FreCustomActionEvent {
-            action_type: action_type.clone(),
-            params: params.clone(),
-        });
+    match action {
+        GameActionDef::StartDialogue {
+            mortar,
+            node,
+            view,
+            typewriter,
+            focus,
+            voice,
+        } => {
+            info!(
+                "FRE: StartDialogue(mortar: {}, node: {}) from rule '{}'",
+                mortar, node, rule.id
+            );
+            fact_db.set_local(
+                fre_facts::DIALOGUE_PENDING_MORTAR_PATH,
+                FactValue::String(mortar.clone()),
+            );
+            fact_db.set_local(
+                fre_facts::DIALOGUE_PENDING_MORTAR_NODE,
+                FactValue::String(node.clone()),
+            );
+            if let Some(view_path) = view {
+                fact_db.set_local(
+                    fre_facts::DIALOGUE_PENDING_VIEW,
+                    FactValue::String(view_path.clone()),
+                );
+            }
+            fact_db.set_local(
+                fre_facts::DIALOGUE_HAS_TYPEWRITER,
+                FactValue::Bool(*typewriter),
+            );
+            fact_db.set_local(fre_facts::DIALOGUE_HAS_FOCUS, FactValue::Bool(*focus));
+            if let Some(voice_path) = voice {
+                fact_db.set_local(
+                    fre_facts::DIALOGUE_VOICE,
+                    FactValue::String(voice_path.clone()),
+                );
+            }
+            fact_db.set_local(fre_facts::DIALOGUE_PENDING_START, FactValue::Bool(true));
+        }
+        GameActionDef::Custom {
+            action_type,
+            params,
+        } => {
+            if handler_registry.has_handler(action_type) {
+                debug!(
+                    "FRE: Executing registered handler for '{}' (rule: '{}')",
+                    action_type, rule.id
+                );
+                handler_registry.execute(action, fact_db, commands);
+            } else {
+                debug!(
+                    "FRE: Dispatching unhandled custom action '{}' (rule: '{}')",
+                    action_type, rule.id
+                );
+                custom_action_writer.write(FreCustomActionEvent {
+                    action_type: action_type.clone(),
+                    params: params.clone(),
+                });
+            }
+        }
+        _ => {}
     }
 }
 
 fn dispatch_event_custom_actions(
     event: &FactEvent,
     rule_registry: &GameRuleRegistry,
-    fact_db: &LayeredFactDatabase,
+    fact_db: &mut LayeredFactDatabase,
     handler_registry: &GameActionHandlerRegistry,
     commands: &mut Commands,
     custom_action_writer: &mut MessageWriter<FreCustomActionEvent>,
@@ -108,7 +148,7 @@ fn dispatch_event_custom_actions(
 pub fn dispatch_custom_actions_system(
     mut events: MessageReader<FactEvent>,
     rule_registry: Res<GameRuleRegistry>,
-    fact_db: Res<LayeredFactDatabase>,
+    mut fact_db: ResMut<LayeredFactDatabase>,
     handler_registry: Res<GameActionHandlerRegistry>,
     mut commands: Commands,
     mut custom_action_writer: MessageWriter<FreCustomActionEvent>,
@@ -120,7 +160,7 @@ pub fn dispatch_custom_actions_system(
         dispatch_event_custom_actions(
             event,
             &rule_registry,
-            &fact_db,
+            &mut fact_db,
             &handler_registry,
             &mut commands,
             &mut custom_action_writer,
