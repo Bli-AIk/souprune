@@ -112,6 +112,9 @@ pub(super) fn resolve_int(expr: &str, facts: &dyn FactReader) -> Option<i64> {
         if let Some(val) = facts.get_int(var_name) {
             return Some(val);
         }
+        if let Some(FactValue::Bool(b)) = facts.get_by_str(var_name) {
+            return Some(if *b { 1 } else { 0 });
+        }
         if let Some(val) = facts.get_by_str(var_name)
             && let FactValue::StringList(list) = val
         {
