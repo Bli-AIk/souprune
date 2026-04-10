@@ -181,8 +181,67 @@ pub enum Chapter {
         #[serde(default)]
         context: Option<String>,
     },
+    /// Repeat a sequence of chapters until a `Break` is encountered.
+    ///
+    /// 重复执行一组章节，直到遇到 `Break`。
+    Loop {
+        body: Vec<Chapter>,
+        /// Safety limit — `None` means unlimited.
+        ///
+        /// 安全上限 — `None` 表示无限循环。
+        #[serde(default)]
+        max_iterations: Option<u32>,
+    },
+    /// Exit the innermost `Loop`.
+    ///
+    /// 退出最内层的 `Loop`。
+    Break,
+    /// Randomly select one or more chapters from a candidate list and execute them.
+    ///
+    /// 从候选列表中随机选择一个或多个章节并执行。
+    RandomPick {
+        candidates: Vec<Chapter>,
+        /// Number of candidates to pick (default: 1).
+        ///
+        /// 要选择的候选数量（默认：1）。
+        #[serde(default = "default_one")]
+        count: usize,
+        /// Allow picking the same candidate more than once (default: false).
+        ///
+        /// 是否允许重复选择同一候选（默认：false）。
+        #[serde(default)]
+        allow_repeat: bool,
+    },
+    /// Internal sentinel — marks end of a loop iteration body.
+    /// **Not for use in `.sequence.ron` files.**
+    ///
+    /// 内部标记 — 标识循环迭代体的结束。
+    /// **不要在 `.sequence.ron` 文件中使用。**
+    #[serde(skip)]
+    LoopIterationEnd,
+    /// Select the next turn for an enemy based on its `turn_strategy` and inject
+    /// the corresponding `RunSequence`. Preset-level chapter.
+    ///
+    /// 根据敌人的 `turn_strategy` 选择下一个回合并注入对应的 `RunSequence`。
+    /// 属于 Preset 层的章节。
+    PickEnemyTurn {
+        /// Literal enemy id.
+        ///
+        /// 字面量敌人 id。
+        #[serde(default)]
+        enemy_id: Option<String>,
+        /// Fact key whose value is the enemy id (for template params).
+        ///
+        /// 值为敌人 id 的 fact 键名（用于模板参数）。
+        #[serde(default)]
+        enemy_id_fact: Option<String>,
+    },
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_one() -> usize {
+    1
 }

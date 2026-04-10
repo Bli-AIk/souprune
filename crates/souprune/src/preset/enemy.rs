@@ -134,6 +134,18 @@ pub fn project_enemy_facts(enemy: &EnemyDef, db: &mut bevy_fact_rule_event::Fact
         format!("{id}.mercy_params"),
         FactValue::StringList(enemy.mercies.iter().map(|m| m.param.clone()).collect()),
     );
+
+    // Turn data
+    db.set(
+        format!("{id}.turn_count"),
+        FactValue::Int(enemy.turns.len() as i64),
+    );
+    db.set(
+        format!("{id}.turns"),
+        FactValue::StringList(enemy.turns.clone()),
+    );
+    // Runtime turn index — initialized to 0, advanced by the turn dispatch system.
+    db.set(format!("{id}.turn_index"), FactValue::Int(0));
 }
 
 // --- Loading ---
@@ -218,6 +230,11 @@ mod tests {
                     sequence: "battle/spare.sequence.ron",
                 ),
             ],
+            turns: [
+                "battle/turns/pattern_a.sequence.ron",
+                "battle/turns/pattern_b.sequence.ron",
+            ],
+            turn_strategy: Random,
         )"#;
 
         let enemy: EnemyDef = ron::from_str(ron).expect("enemy asset");
@@ -226,6 +243,11 @@ mod tests {
         assert_eq!(enemy.locale.name, "enemy.dummy");
         assert_eq!(enemy.stats.hp, 30);
         assert_eq!(enemy.acts[0].sequence, "battle/check.sequence.ron");
+        assert_eq!(enemy.turns.len(), 2);
+        assert!(matches!(
+            enemy.turn_strategy,
+            souprune_schema::enemy::TurnStrategy::Random
+        ));
     }
 
     #[test]
@@ -249,6 +271,8 @@ mod tests {
                 param: "check".to_string(),
             }],
             mercies: vec![],
+            turns: vec!["battle/turns/a.sequence.ron".to_string()],
+            turn_strategy: souprune_schema::enemy::TurnStrategy::Sequential,
         });
         let mut facts = bevy_fact_rule_event::FactDatabase::default();
 
@@ -262,6 +286,14 @@ mod tests {
         assert_eq!(
             facts.get_by_str("dummy.action_labels"),
             Some(&FactValue::StringList(vec!["enemy.act.check".to_string()]))
+        );
+        assert_eq!(
+            facts.get_by_str("dummy.turn_count"),
+            Some(&FactValue::Int(1))
+        );
+        assert_eq!(
+            facts.get_by_str("dummy.turn_index"),
+            Some(&FactValue::Int(0))
         );
     }
 }

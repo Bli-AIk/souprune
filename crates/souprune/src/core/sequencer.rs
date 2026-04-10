@@ -17,7 +17,7 @@ mod bgm;
 mod camera;
 pub(crate) mod context;
 mod fact_chapter;
-mod flow;
+pub(crate) mod flow;
 mod interaction;
 mod load_map;
 mod log_chapter;
