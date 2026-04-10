@@ -10,7 +10,9 @@
 
 use bevy::prelude::*;
 use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
-use rand::prelude::*;
+use bevy_rand::prelude::GlobalRng;
+use bevy_rand::prelude::WyRand;
+use rand::RngExt;
 use std::collections::HashMap;
 
 use crate::core::sequencer::chapter_schema::Chapter;
@@ -27,6 +29,7 @@ pub fn resolve_pick_enemy_turn_system(
     registry: Res<EnemyRegistry>,
     mut layered_db: ResMut<LayeredFactDatabase>,
     view_roots: Query<&ViewRoot, With<ActiveView>>,
+    mut global_rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
     let Some(Chapter::PickEnemyTurn {
         enemy_id,
@@ -66,6 +69,7 @@ pub fn resolve_pick_enemy_turn_system(
         &enemy.turns,
         &enemy.turn_strategy,
         &mut layered_db,
+        &mut *global_rng,
     );
 
     info!(
@@ -111,6 +115,7 @@ fn pick_turn(
     turns: &[String],
     strategy: &TurnStrategy,
     db: &mut LayeredFactDatabase,
+    rng: &mut impl RngExt,
 ) -> String {
     let index_key = format!("{enemy_id}.turn_index");
 
@@ -124,11 +129,13 @@ fn pick_turn(
                 })
                 .unwrap_or(0);
             let path = turns[current % turns.len()].clone();
-            db.set(index_key, FactValue::Int(((current + 1) % turns.len()) as i64));
+            db.set(
+                index_key,
+                FactValue::Int(((current + 1) % turns.len()) as i64),
+            );
             path
         }
         TurnStrategy::Random => {
-            let mut rng = rand::rng();
             let idx = rng.random_range(0..turns.len());
             turns[idx].clone()
         }
@@ -148,7 +155,7 @@ fn pick_turn(
 
             if pool.is_empty() {
                 pool = (0..turns.len()).collect();
-                pool.shuffle(&mut rand::rng());
+                fisher_yates_shuffle(&mut pool, rng);
             }
 
             let idx = pool.remove(0);
@@ -163,20 +170,30 @@ fn pick_turn(
     }
 }
 
+/// Fisher-Yates shuffle using an ECS-compatible RNG.
+fn fisher_yates_shuffle<T>(slice: &mut [T], rng: &mut impl RngExt) {
+    for i in (1..slice.len()).rev() {
+        let j = rng.random_range(0..=i);
+        slice.swap(i, j);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use bevy_fact_rule_event::{FactValue, LayeredFactDatabase};
+    use rand::SeedableRng;
 
     #[test]
     fn sequential_strategy_cycles() {
         let mut db = LayeredFactDatabase::default();
         let turns = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let mut rng = WyRand::seed_from_u64(42);
 
-        let t0 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db);
-        let t1 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db);
-        let t2 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db);
-        let t3 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db);
+        let t0 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
+        let t1 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
+        let t2 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
+        let t3 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
 
         assert_eq!(t0, "a");
         assert_eq!(t1, "b");
@@ -188,9 +205,10 @@ mod tests {
     fn shuffle_strategy_exhausts_pool() {
         let mut db = LayeredFactDatabase::default();
         let turns = vec!["x".to_string(), "y".to_string()];
+        let mut rng = WyRand::seed_from_u64(42);
 
-        let t0 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db);
-        let t1 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db);
+        let t0 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
+        let t1 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
 
         // Both turns should appear exactly once before reshuffle.
         let mut picked = vec![t0, t1];

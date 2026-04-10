@@ -197,6 +197,28 @@ pub struct GameConfig {
     /// 依赖 mod 的规则在前，主 mod 的规则在后。
     #[serde(default)]
     pub overworld_rules: Vec<String>,
+
+    /// Camera zoom level applied immediately when entering battle mode.
+    /// This avoids the visual delay of setting zoom through the sequencer.
+    ///
+    /// 进入战斗模式时立即应用的摄像机缩放级别。
+    /// 避免通过序列器设置缩放产生的视觉延迟。
+    #[serde(default = "default_battle_camera_zoom")]
+    pub battle_camera_zoom: f32,
+
+    /// Optional fixed RNG seed for deterministic behavior.
+    /// When set, all random operations (enemy turns, RandomPick, etc.) produce
+    /// repeatable results — useful for testing and replay.
+    ///
+    /// 可选的固定 RNG 种子，用于确定性行为。
+    /// 设置后，所有随机操作（敌人回合、RandomPick 等）将产生可重现的结果——
+    /// 适用于测试和回放。
+    #[serde(default)]
+    pub rng_seed: Option<u64>,
+}
+
+fn default_battle_camera_zoom() -> f32 {
+    2.0
 }
 
 fn default_initial_mode() -> String {
@@ -219,6 +241,8 @@ impl Default for GameConfig {
             hidden_layer_keywords: vec!["prototype".to_string(), "collision".to_string()],
             initial_mode: default_initial_mode(),
             overworld_rules: Vec::new(),
+            battle_camera_zoom: default_battle_camera_zoom(),
+            rng_seed: None,
         }
     }
 }
@@ -429,6 +453,8 @@ struct ModGameConfig {
     hidden_layer_keywords: Option<Vec<String>>,
     initial_mode: Option<String>,
     overworld_rules: Option<Vec<String>>,
+    battle_camera_zoom: Option<f32>,
+    rng_seed: Option<u64>,
 }
 
 fn read_mod_config<P: AsRef<Path>>(path: P) -> Result<ModConfigFile> {
@@ -471,6 +497,7 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         merge!(required_modules);
         merge!(hidden_layer_keywords);
         merge!(initial_mode);
+        merge!(battle_camera_zoom);
         // overworld_rules: extend rather than overwrite (dependency chain accumulation)
         if let Some(val) = g.overworld_rules {
             config.game.overworld_rules.extend(val);
@@ -481,6 +508,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         }
         if let Some(val) = g.chase_config {
             config.game.chase_config = Some(val);
+        }
+        if let Some(val) = g.rng_seed {
+            config.game.rng_seed = Some(val);
         }
     }
     // Load resource paths from [resources] section (required)

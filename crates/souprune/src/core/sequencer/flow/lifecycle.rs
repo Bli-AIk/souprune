@@ -12,7 +12,9 @@
 //! 而不是某个具体章节语义本身。
 
 use bevy::prelude::*;
-use rand::prelude::*;
+use bevy_rand::prelude::GlobalRng;
+use bevy_rand::prelude::WyRand;
+use rand::RngExt;
 
 use super::super::chapter_schema::Chapter;
 use super::super::context::{
@@ -66,6 +68,7 @@ pub fn advance_battle_flow_system(
     mut commands: Commands,
     mut context: ResMut<SequenceContext>,
     active_chapters: Query<&ActiveChapter, Without<ChapterFinished>>,
+    mut global_rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
     for chapter in active_chapters.iter() {
         if chapter.parent.is_none() {
@@ -107,7 +110,13 @@ pub fn advance_battle_flow_system(
                 count,
                 allow_repeat,
             } => {
-                process_random_pick(&mut context, candidates, count, allow_repeat);
+                process_random_pick(
+                    &mut context,
+                    candidates,
+                    count,
+                    allow_repeat,
+                    &mut *global_rng,
+                );
             }
             Chapter::LoopIterationEnd => {
                 process_loop_iteration_end(&mut context);
@@ -273,13 +282,13 @@ fn process_random_pick(
     candidates: Vec<Chapter>,
     count: usize,
     allow_repeat: bool,
+    rng: &mut impl RngExt,
 ) {
     if candidates.is_empty() {
         warn!("RandomPick with empty candidates — skipping");
         return;
     }
 
-    let mut rng = rand::rng();
     let mut picked: Vec<Chapter> = Vec::with_capacity(count);
 
     if allow_repeat {
@@ -290,7 +299,11 @@ fn process_random_pick(
     } else {
         let pick_count = count.min(candidates.len());
         let mut indices: Vec<usize> = (0..candidates.len()).collect();
-        indices.partial_shuffle(&mut rng, pick_count);
+        // Partial Fisher-Yates: shuffle only the first pick_count elements
+        for i in 0..pick_count {
+            let j = rng.random_range(i..indices.len());
+            indices.swap(i, j);
+        }
         for &idx in &indices[..pick_count] {
             picked.push(candidates[idx].clone());
         }
