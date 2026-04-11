@@ -61,6 +61,12 @@ pub enum Chapter {
         performance: String,
         #[serde(default, alias = "position")]
         translation: Option<(f32, f32)>,
+        /// Whether to block until the performance's `duration` elapses.
+        /// Defaults to `true`.
+        ///
+        /// 是否阻塞直到演出的 `duration` 耗尽。默认为 `true`。
+        #[serde(default = "default_true")]
+        wait_for_completion: bool,
     },
     AlightMotionPerformance {
         amproj_path: String,

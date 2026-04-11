@@ -13,6 +13,8 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Danmaku Performance asset — top-level `.performance.ron` schema.
+///
+/// 弹幕演出资产 — `.performance.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DanmakuPerformance {
     #[serde(default)]
@@ -20,6 +22,189 @@ pub struct DanmakuPerformance {
     #[serde(default)]
     pub behaviors: HashMap<String, BulletBehavior>,
     pub timeline: Vec<TimelineEvent>,
+    /// How long this performance lasts. Supports `@current` (accumulated timeline time).
+    /// - Literal: `duration: 5.0`
+    /// - Expression: `duration: "@current + 2.0"`
+    /// - Omitted / 0 / negative: fire-and-forget (won't block sequencer).
+    ///
+    /// 演出持续时间。支持 `@current`（timeline 累计时间）。
+    /// - 字面量：`duration: 5.0`
+    /// - 表达式：`duration: "@current + 2.0"`
+    /// - 省略 / 0 / 负数：不阻塞序列器。
+    #[serde(default)]
+    pub duration: Option<DurationExpr>,
+}
+
+/// Duration expression — either a literal float or a `@current`-relative expression.
+///
+/// 持续时间表达式 — 字面量浮点数或基于 `@current` 的相对表达式。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DurationExpr {
+    Literal(f32),
+    Expr(String),
+}
+
+impl DanmakuPerformance {
+    /// Resolve `duration` to an `f32`, substituting `@current` with accumulated timeline time.
+    /// Returns `None` if duration is omitted, or `Some(0.0)` / negative → caller treats as
+    /// fire-and-forget.
+    ///
+    /// 将 `duration` 解析为 `f32`，用 timeline 累计时间替换 `@current`。
+    pub fn resolved_duration(&self) -> Option<f32> {
+        match &self.duration {
+            None => None,
+            Some(DurationExpr::Literal(v)) => Some(*v),
+            Some(DurationExpr::Expr(expr)) => {
+                let current = self.accumulated_timeline_time();
+                let replaced = expr.replace("@current", &current.to_string());
+                evaluate_simple_expr(&replaced)
+            }
+        }
+    }
+
+    /// Accumulated absolute time at the end of the timeline.
+    ///
+    /// Timeline 的最终累计绝对时间。
+    fn accumulated_timeline_time(&self) -> f32 {
+        let mut accumulated = 0.0f32;
+        for event in &self.timeline {
+            accumulated = if event.absolute {
+                event.t
+            } else {
+                accumulated + event.t
+            };
+        }
+        accumulated
+    }
+}
+
+/// Evaluate a simple arithmetic expression (supports `+`, `-`, `*`, `/` and parentheses).
+/// Returns `None` on parse failure.
+fn evaluate_simple_expr(expr: &str) -> Option<f32> {
+    let expr = expr.trim();
+    if expr.is_empty() {
+        return None;
+    }
+    // Fast path: try parsing as a plain number first
+    if let Ok(v) = expr.parse::<f32>() {
+        return Some(v);
+    }
+    // Minimal recursive-descent parser for +, -, *, /
+    let mut parser = SimpleExprParser::new(expr);
+    parser.parse_expr()
+}
+
+struct SimpleExprParser<'a> {
+    chars: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> SimpleExprParser<'a> {
+    fn new(input: &'a str) -> Self {
+        Self {
+            chars: input.as_bytes(),
+            pos: 0,
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.pos < self.chars.len() && self.chars[self.pos].is_ascii_whitespace() {
+            self.pos += 1;
+        }
+    }
+
+    fn parse_expr(&mut self) -> Option<f32> {
+        let mut result = self.parse_term()?;
+        loop {
+            self.skip_whitespace();
+            if self.pos >= self.chars.len() {
+                break;
+            }
+            match self.chars[self.pos] {
+                b'+' => {
+                    self.pos += 1;
+                    result += self.parse_term()?;
+                }
+                b'-' => {
+                    self.pos += 1;
+                    result -= self.parse_term()?;
+                }
+                _ => break,
+            }
+        }
+        Some(result)
+    }
+
+    fn parse_term(&mut self) -> Option<f32> {
+        let mut result = self.parse_atom()?;
+        loop {
+            self.skip_whitespace();
+            if self.pos >= self.chars.len() {
+                break;
+            }
+            match self.chars[self.pos] {
+                b'*' => {
+                    self.pos += 1;
+                    result *= self.parse_atom()?;
+                }
+                b'/' => {
+                    self.pos += 1;
+                    result = self.parse_division(result)?;
+                }
+                _ => break,
+            }
+        }
+        Some(result)
+    }
+
+    fn parse_division(&mut self, dividend: f32) -> Option<f32> {
+        let divisor = self.parse_atom()?;
+        if divisor == 0.0 {
+            return None;
+        }
+        Some(dividend / divisor)
+    }
+
+    fn parse_atom(&mut self) -> Option<f32> {
+        self.skip_whitespace();
+        if self.pos >= self.chars.len() {
+            return None;
+        }
+
+        // Parenthesized expression
+        if self.chars[self.pos] == b'(' {
+            self.pos += 1;
+            let result = self.parse_expr()?;
+            self.skip_whitespace();
+            if self.pos < self.chars.len() && self.chars[self.pos] == b')' {
+                self.pos += 1;
+            }
+            return Some(result);
+        }
+
+        // Negative number / unary minus
+        let negative = if self.chars[self.pos] == b'-' {
+            self.pos += 1;
+            true
+        } else {
+            false
+        };
+
+        self.skip_whitespace();
+        let start = self.pos;
+        while self.pos < self.chars.len()
+            && (self.chars[self.pos].is_ascii_digit() || self.chars[self.pos] == b'.')
+        {
+            self.pos += 1;
+        }
+        if self.pos == start {
+            return None;
+        }
+        let num_str = std::str::from_utf8(&self.chars[start..self.pos]).ok()?;
+        let val: f32 = num_str.parse().ok()?;
+        Some(if negative { -val } else { val })
+    }
 }
 
 // ============================================================================
