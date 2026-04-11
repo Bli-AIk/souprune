@@ -90,6 +90,22 @@ pub struct ChapterFinished;
 #[derive(Resource)]
 pub struct CurrentSequenceFlow(pub Handle<SequenceAsset>);
 
+/// Tracks the most recently loaded sequence paths for debug display.
+///
+/// 跟踪最近加载的序列路径，用于调试显示。
+#[derive(Resource, Default)]
+pub struct SequenceDebugInfo {
+    /// Path of the currently executing (most recently loaded) sequence.
+    ///
+    /// 当前正在执行（最近加载）的序列路径。
+    pub current_path: Option<String>,
+
+    /// Path of the previously completed sequence.
+    ///
+    /// 上一个完成的序列路径。
+    pub previous_path: Option<String>,
+}
+
 /// Resource to track the rules handle loaded by the current sequence.
 /// When a sequence specifies a `rules_file`, the handle is stored here
 /// for processing by state-specific FRE plugins.

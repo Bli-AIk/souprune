@@ -33,8 +33,8 @@ pub mod chapter_schema;
 // Re-export public types
 pub use bgm::SequencerBgm;
 pub use context::{
-    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
-    SequenceRulesHandle, WaitTimer,
+    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceDebugInfo,
+    SequenceExecutionState, SequenceRulesHandle, WaitTimer,
 };
 pub use flow::load_default_chapter_system;
 
@@ -107,6 +107,7 @@ pub fn runtime_chapters_from_schema(
 pub fn init_sequencer(app: &mut App) {
     app.init_resource::<context::SequenceContext>()
         .init_resource::<context::SequenceRulesHandle>()
+        .init_resource::<context::SequenceDebugInfo>()
         .init_resource::<bgm::SequencerBgm>()
         .init_asset::<SequenceAsset>()
         .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]));
