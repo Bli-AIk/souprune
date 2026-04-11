@@ -81,7 +81,8 @@ pub fn process_run_sequence_system(
                 handle,
             });
         } else {
-            warn!("RunSequence: Could not resolve path");
+            // path_fact may reference an optional parameter — use debug level
+            debug!("RunSequence: Could not resolve path (path_fact may be unset)");
             commands.entity(entity).insert(ChapterFinished);
         }
     }
