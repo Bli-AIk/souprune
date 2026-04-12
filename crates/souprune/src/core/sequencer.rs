@@ -141,7 +141,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             view_action::process_set_view_fact_system,
             interaction::process_await_fact_system,
             view_element::process_modify_view_element_system,
-            tween::process_tween_view_element_system,
+            tween::process_set_view_element_system,
             performance::process_danmaku_performance_system,
             performance::process_am_performance_system,
             flow::process_custom_chapter_system,

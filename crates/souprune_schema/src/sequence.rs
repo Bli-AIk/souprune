@@ -58,13 +58,14 @@ pub enum Chapter {
         #[serde(default = "default_true")]
         wait_for_completion: bool,
     },
-    TweenViewElement {
+    SetViewElement {
         selector: ElementSelector,
         target: TweenTarget,
-        duration: f32,
+        #[serde(default)]
+        duration: Option<f32>,
         #[serde(default)]
         easing: EaseKindRepr,
-        #[serde(default = "default_true")]
+        #[serde(default)]
         wait_for_completion: bool,
     },
     Wait(f32),
@@ -378,6 +379,9 @@ pub enum TweenTarget {
         from: Option<Val<f32>>,
         to: Val<f32>,
     },
+    /// Set the ViewBox anchor for size-aware positioning.
+    /// `(0, -1)` = bottom fixed, `(0, 1)` = top fixed, `(0, 0)` = centered (default).
+    Anchor(f32, f32),
 }
 
 // ============================================================================

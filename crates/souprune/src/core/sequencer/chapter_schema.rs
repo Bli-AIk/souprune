@@ -75,13 +75,14 @@ pub enum Chapter {
         #[serde(default = "default_true")]
         wait_for_completion: bool,
     },
-    TweenViewElement {
+    SetViewElement {
         selector: ElementSelector,
         target: TweenTarget,
-        duration: f32,
+        #[serde(default)]
+        duration: Option<f32>,
         #[serde(default = "default_easing", with = "ease_kind_serde")]
         easing: EaseKind,
-        #[serde(default = "default_true")]
+        #[serde(default)]
         wait_for_completion: bool,
     },
     Wait(f32),

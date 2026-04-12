@@ -92,20 +92,25 @@ pub(super) fn render_chapter_properties(
                 .checkbox(wait_for_completion, t(world, "inspector-wait-completion"))
                 .changed();
         }
-        Chapter::TweenViewElement {
+        Chapter::SetViewElement {
             selector,
             duration,
             wait_for_completion,
             ..
         } => {
             changed |= edit_element_selector(ui, selector, world);
-            changed |= labeled_drag(
-                ui,
-                &t(world, "prop-duration-sec"),
-                duration,
-                0.0..=f32::MAX,
-                0.1,
-            );
+            let mut animated = duration.is_some();
+            if ui
+                .checkbox(&mut animated, t(world, "inspector-animated"))
+                .changed()
+            {
+                *duration = if animated { Some(0.5) } else { None };
+                changed = true;
+            }
+            if let Some(dur) = duration {
+                changed |=
+                    labeled_drag(ui, &t(world, "prop-duration-sec"), dur, 0.0..=f32::MAX, 0.1);
+            }
             changed |= ui
                 .checkbox(wait_for_completion, t(world, "inspector-wait-completion"))
                 .changed();

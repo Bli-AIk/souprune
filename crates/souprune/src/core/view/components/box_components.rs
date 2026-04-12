@@ -168,7 +168,7 @@ impl ViewBox {
 /// whenever the ViewBox size changes (e.g., during a tween animation).
 ///
 /// 存储 ViewBox 实体的锚点配置，用于尺寸感知定位。
-/// 当 ViewBox 在 RON 布局中定义了 `anchor` 时自动添加。
+/// 由 `SetViewElement` 的 `Anchor` 目标在运行时设置。
 #[derive(Component, Debug, Clone)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct ViewBoxAnchor {

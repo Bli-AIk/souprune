@@ -49,8 +49,9 @@ fn test_vec2_tuple_parse() {
 }
 
 #[test]
-fn test_tween_view_element_chapter() {
-    let ron = r#"TweenViewElement(
+fn test_set_view_element_with_duration() {
+    let ron = r#"#![enable(implicit_some)]
+    SetViewElement(
         selector: LocalName("BattleBox"),
         target: BoxSize(to: ("@current", 130.0)),
         duration: 0.5,
@@ -59,14 +60,58 @@ fn test_tween_view_element_chapter() {
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
     match &result {
-        Ok(v) => println!("TweenViewElement OK: {:?}", v),
-        Err(e) => println!("TweenViewElement ERR: {}", e),
+        Ok(v) => println!("SetViewElement (animated) OK: {:?}", v),
+        Err(e) => println!("SetViewElement (animated) ERR: {}", e),
     }
     assert!(
         result.is_ok(),
-        "Failed to parse TweenViewElement: {:?}",
+        "Failed to parse SetViewElement (animated): {:?}",
         result.err()
     );
+}
+
+#[test]
+fn test_set_view_element_instant() {
+    // No duration/easing → instant set
+    let ron = r#"SetViewElement(
+        selector: LocalName("BattleBox"),
+        target: BoxSize(to: (175, "@current")),
+    )"#;
+    let result: Result<Chapter, _> = ron::from_str(ron);
+    match &result {
+        Ok(v) => println!("SetViewElement (instant) OK: {:?}", v),
+        Err(e) => println!("SetViewElement (instant) ERR: {}", e),
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse SetViewElement (instant): {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_set_view_element_anchor() {
+    let ron = r#"SetViewElement(
+        selector: LocalName("BattleBox"),
+        target: Anchor(0.0, -1.0),
+    )"#;
+    let result: Result<Chapter, _> = ron::from_str(ron);
+    match &result {
+        Ok(v) => println!("SetViewElement (anchor) OK: {:?}", v),
+        Err(e) => println!("SetViewElement (anchor) ERR: {}", e),
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse SetViewElement (anchor): {:?}",
+        result.err()
+    );
+    if let Ok(Chapter::SetViewElement {
+        target, duration, ..
+    }) = result
+    {
+        assert!(matches!(target, TweenTarget::Anchor(x, y) if x == 0.0 && y == -1.0));
+        assert!(duration.is_none());
+    }
 }
 
 #[test]
@@ -143,28 +188,25 @@ fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
 }
 
 #[test]
-fn test_tween_target_box_size_with_anchor() {
-    // anchor is no longer on TweenTarget::BoxSize — it belongs to ViewBoxLogicDef.
-    // This test verifies that BoxSize parses without anchor fields.
-    let ron = r#"BoxSize(to: ("@current", 175.0))"#;
+fn test_tween_target_anchor() {
+    let ron = r#"Anchor(0.0, -1.0)"#;
     let result: Result<TweenTarget, _> = ron::from_str(ron);
     assert!(
         result.is_ok(),
-        "Failed to parse TweenTarget::BoxSize without anchor: {:?}",
+        "Failed to parse TweenTarget::Anchor: {:?}",
         result.err()
     );
     match result.unwrap() {
-        TweenTarget::BoxSize { from, to } => {
-            assert!(from.is_none());
-            // Verify 'to' parsed correctly
-            assert!(matches!(to.1, Value::Static(v) if (v - 175.0).abs() < f32::EPSILON));
+        TweenTarget::Anchor(x, y) => {
+            assert!((x - 0.0).abs() < f32::EPSILON);
+            assert!((y - (-1.0)).abs() < f32::EPSILON);
         }
-        _ => panic!("Expected BoxSize variant"),
+        _ => panic!("Expected Anchor variant"),
     }
 }
 
 #[test]
-fn test_tween_target_box_size_without_anchor_defaults_none() {
+fn test_tween_target_box_size_no_anchor_field() {
     let ron = r#"BoxSize(to: (175.0, 130.0))"#;
     let result: Result<TweenTarget, _> = ron::from_str(ron);
     assert!(result.is_ok());

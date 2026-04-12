@@ -58,7 +58,7 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
 
         Chapter::SpawnView { .. } => ChapterCategory::View,
         Chapter::SetViewFact { .. } => ChapterCategory::View,
-        Chapter::TweenViewElement { .. } => ChapterCategory::View,
+        Chapter::SetViewElement { .. } => ChapterCategory::View,
         Chapter::ModifyViewElement { .. } => ChapterCategory::View,
         Chapter::SetUI(_) => ChapterCategory::View,
 
@@ -94,7 +94,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "[VF]",
         Chapter::DanmakuPerformance { .. } => "[D]",
         Chapter::AlightMotionPerformance { .. } => "[AM]",
-        Chapter::TweenViewElement { .. } => "[~]",
+        Chapter::SetViewElement { .. } => "[~]",
         Chapter::Wait(_) => "[W]",
         Chapter::Sequence(_) => "[S]",
         Chapter::Parallel(_) => "[P]",
@@ -127,7 +127,7 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "chapter-set-view-fact",
         Chapter::DanmakuPerformance { .. } => "chapter-danmaku-performance",
         Chapter::AlightMotionPerformance { .. } => "chapter-am-performance",
-        Chapter::TweenViewElement { .. } => "chapter-tween-view-element",
+        Chapter::SetViewElement { .. } => "chapter-tween-view-element",
         Chapter::Wait(_) => "chapter-wait",
         Chapter::Sequence(_) => "chapter-sequence",
         Chapter::Parallel(_) => "chapter-parallel",
@@ -159,7 +159,9 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         Chapter::SetViewFact { key, .. } => key.clone(),
         Chapter::DanmakuPerformance { performance, .. } => performance.clone(),
         Chapter::AlightMotionPerformance { amproj_path, .. } => amproj_path.clone(),
-        Chapter::TweenViewElement { duration, .. } => format!("{duration}s"),
+        Chapter::SetViewElement { duration, .. } => {
+            duration.map_or("instant".to_string(), |d| format!("{d}s"))
+        }
         Chapter::Wait(secs) => format!("{secs}s"),
         Chapter::Sequence(children) => format!("{} chapters", children.len()),
         Chapter::Parallel(children) => format!("{} chapters", children.len()),
@@ -312,7 +314,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "SetViewFact",
         Chapter::DanmakuPerformance { .. } => "DanmakuPerformance",
         Chapter::AlightMotionPerformance { .. } => "AlightMotionPerformance",
-        Chapter::TweenViewElement { .. } => "TweenViewElement",
+        Chapter::SetViewElement { .. } => "SetViewElement",
         Chapter::Wait(_) => "Wait",
         Chapter::Sequence(_) => "Sequence",
         Chapter::Parallel(_) => "Parallel",
