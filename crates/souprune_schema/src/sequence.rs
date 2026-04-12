@@ -367,6 +367,11 @@ pub enum TweenTarget {
         #[serde(default)]
         from: Option<Vec2Tuple>,
         to: Vec2Tuple,
+        /// Anchor point that stays fixed during resize (normalized, center = (0,0)).
+        ///
+        /// 缩放时保持不动的锚点（归一化坐标，中心 = (0,0)）。
+        #[serde(default)]
+        anchor: Option<(f32, f32)>,
     },
     Rotation {
         #[serde(default)]

@@ -333,7 +333,7 @@ pub fn process_tween_view_element_system(
                 };
                 handle_wait_for_completion(&mut commands, chapter_entity, animator_entity, wait);
             }
-            TweenTarget::BoxSize { from, to } => {
+            TweenTarget::BoxSize { from, to, anchor } => {
                 let Ok(ui_box) = ui_boxes.get(target_entity) else {
                     warn!("[TweenViewElement] Target has no ViewBox component");
                     commands.entity(chapter_entity).insert(ChapterFinished);
@@ -370,6 +370,23 @@ pub fn process_tween_view_element_system(
                         }),
                     ))
                     .id();
+
+                // Spawn a synchronized position tween to compensate for anchor offset
+                if let Some((ax, ay)) = anchor
+                    && let Ok(transform) = transforms.get(target_entity)
+                {
+                    let delta_w = end_w - start_w;
+                    let delta_h = end_h - start_h;
+                    let offset_x = -delta_w * ax / 2.0;
+                    let offset_y = -delta_h * ay / 2.0;
+                    let start_pos = transform.translation;
+                    let end_pos = start_pos + Vec3::new(offset_x, offset_y, 0.0);
+                    commands.spawn_empty().animation().insert(tween(
+                        duration,
+                        ease_kind,
+                        target_component.with(translation(start_pos, end_pos)),
+                    ));
+                }
 
                 handle_wait_for_completion(
                     &mut commands,

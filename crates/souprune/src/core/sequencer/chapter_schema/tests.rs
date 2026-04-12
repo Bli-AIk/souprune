@@ -141,3 +141,33 @@ fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
         result.err()
     );
 }
+
+#[test]
+fn test_tween_target_box_size_with_anchor() {
+    let ron = r#"BoxSize(to: ("@current", 175.0), anchor: Some((0.0, -1.0)))"#;
+    let result: Result<TweenTarget, _> = ron::from_str(ron);
+    assert!(
+        result.is_ok(),
+        "Failed to parse TweenTarget::BoxSize with anchor: {:?}",
+        result.err()
+    );
+    match result.unwrap() {
+        TweenTarget::BoxSize { anchor, .. } => {
+            assert_eq!(anchor, Some((0.0, -1.0)));
+        }
+        _ => panic!("Expected BoxSize variant"),
+    }
+}
+
+#[test]
+fn test_tween_target_box_size_without_anchor_defaults_none() {
+    let ron = r#"BoxSize(to: (175.0, 130.0))"#;
+    let result: Result<TweenTarget, _> = ron::from_str(ron);
+    assert!(result.is_ok());
+    match result.unwrap() {
+        TweenTarget::BoxSize { anchor, .. } => {
+            assert_eq!(anchor, None);
+        }
+        _ => panic!("Expected BoxSize variant"),
+    }
+}
