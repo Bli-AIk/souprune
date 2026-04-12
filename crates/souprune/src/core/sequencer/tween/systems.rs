@@ -18,7 +18,6 @@ use crate::core::sequencer::chapter_schema::{Chapter, TweenTarget, Value};
 use crate::core::sequencer::context::{ActiveChapter, ChapterFinished, WaitTimer};
 use crate::core::view::components::ViewBox;
 use bevy::prelude::*;
-use bevy_fact_rule_event::FactValue;
 use bevy_tween::prelude::*;
 use std::time::Duration;
 
@@ -78,7 +77,7 @@ pub fn process_tween_view_element_system(
     transforms: Query<&Transform>,
     sprites: Query<&Sprite>,
     ui_boxes: Query<&ViewBox>,
-    mut layered_db: ResMut<bevy_fact_rule_event::LayeredFactDatabase>,
+    layered_db: Res<bevy_fact_rule_event::LayeredFactDatabase>,
     time: Res<Time>,
 ) {
     use crate::core::view::ron_view::parsing::PlayerDataView;
@@ -87,10 +86,6 @@ pub fn process_tween_view_element_system(
 
     let player_data = PlayerDataView::new(&layered_db);
     let current_time = time.elapsed_secs_f64();
-
-    // Deferred fact writes — applied after the loop to avoid conflicting
-    // with the immutable borrow held by `player_data`.
-    let mut pending_facts: Vec<(String, FactValue)> = Vec::new();
 
     for (chapter_entity, active_chapter) in active_chapters.iter() {
         let Chapter::TweenViewElement {
@@ -338,12 +333,7 @@ pub fn process_tween_view_element_system(
                 };
                 handle_wait_for_completion(&mut commands, chapter_entity, animator_entity, wait);
             }
-            TweenTarget::BoxSize {
-                from,
-                to,
-                anchor,
-                anchor_fact,
-            } => {
+            TweenTarget::BoxSize { from, to } => {
                 let Ok(ui_box) = ui_boxes.get(target_entity) else {
                     warn!("[TweenViewElement] Target has no ViewBox component");
                     commands.entity(chapter_entity).insert(ChapterFinished);
@@ -381,37 +371,6 @@ pub fn process_tween_view_element_system(
                     ))
                     .id();
 
-                // Spawn a synchronized position tween to compensate for anchor offset.
-                // Attached as a child of the main BoxSize animator so both are
-                // despawned together when the chapter completes.
-                let mut anchor_end_pos = None;
-                if let Some((ax, ay)) = anchor
-                    && let Ok(transform) = transforms.get(target_entity)
-                {
-                    let offset_x = -(end_w - start_w) * ax / 2.0;
-                    let offset_y = -(end_h - start_h) * ay / 2.0;
-                    let start_pos = transform.translation;
-                    let end_pos = start_pos + Vec3::new(offset_x, offset_y, 0.0);
-                    anchor_end_pos = Some(end_pos);
-                    let anchor_animator = commands
-                        .spawn_empty()
-                        .animation()
-                        .insert(tween(
-                            duration,
-                            ease_kind,
-                            target_component.with(translation(start_pos, end_pos)),
-                        ))
-                        .id();
-                    commands.entity(animator_entity).add_child(anchor_animator);
-                }
-
-                // Write the final position into a fact so that the view
-                // reconciliation system computes the correct desired Transform
-                // after the tween completes and the animator is despawned.
-                if let (Some(fact_key), Some(end_pos)) = (anchor_fact, anchor_end_pos) {
-                    pending_facts.push((fact_key.clone(), FactValue::Float(end_pos.y as f64)));
-                }
-
                 handle_wait_for_completion(
                     &mut commands,
                     chapter_entity,
@@ -425,11 +384,6 @@ pub fn process_tween_view_element_system(
             "[TweenViewElement] Started bevy_tween animation for entity {:?}",
             target_entity
         );
-    }
-
-    // Apply deferred fact writes now that `player_data` is no longer needed.
-    for (key, value) in pending_facts {
-        layered_db.set(&key, value);
     }
 }
 

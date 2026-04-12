@@ -161,6 +161,52 @@ impl ViewBox {
     }
 }
 
+/// Stores anchor configuration for ViewBox entities that need size-aware positioning.
+/// Added automatically when a ViewBox has an `anchor` defined in its RON layout.
+///
+/// The PostUpdate correction system uses this data to adjust the Transform
+/// whenever the ViewBox size changes (e.g., during a tween animation).
+///
+/// 存储 ViewBox 实体的锚点配置，用于尺寸感知定位。
+/// 当 ViewBox 在 RON 布局中定义了 `anchor` 时自动添加。
+#[derive(Component, Debug, Clone)]
+#[cfg_attr(feature = "debug", derive(Reflect))]
+pub struct ViewBoxAnchor {
+    /// Normalized anchor point (center = (0,0)).
+    /// `(0, -1)` = bottom, `(0, 1)` = top.
+    pub anchor: (f32, f32),
+    /// The base offset from the RON layout (evaluated at spawn time).
+    pub base_offset: Vec3,
+    /// The original width from the RON layout definition.
+    pub base_width: f32,
+    /// The original height from the RON layout definition.
+    pub base_height: f32,
+}
+
+/// Corrects Transform for ViewBoxes with anchors to keep the anchor edge fixed
+/// when the box size changes (e.g., during tween animation).
+///
+/// Runs in PostUpdate after bevy_tween interpolators.
+///
+/// 修正带锚点的 ViewBox 的 Transform，在尺寸变化时保持锚点边缘不动。
+pub(crate) fn correct_anchored_viewbox_positions(
+    mut query: Query<(&ViewBox, &ViewBoxAnchor, &mut Transform)>,
+) {
+    for (view_box, anchor_data, mut transform) in &mut query {
+        let delta_w = view_box.width - anchor_data.base_width;
+        let delta_h = view_box.height - anchor_data.base_height;
+        let desired_x = anchor_data.base_offset.x - delta_w * anchor_data.anchor.0 / 2.0;
+        let desired_y = anchor_data.base_offset.y - delta_h * anchor_data.anchor.1 / 2.0;
+
+        if (transform.translation.x - desired_x).abs() > f32::EPSILON
+            || (transform.translation.y - desired_y).abs() > f32::EPSILON
+        {
+            transform.translation.x = desired_x;
+            transform.translation.y = desired_y;
+        }
+    }
+}
+
 /// Marker placed on the filler entity that contains UI text and indicator sprites.
 ///
 /// 标记承载 UI 文本与指示器精灵的填充实体。

@@ -423,6 +423,15 @@ pub struct ViewBoxLogicDef {
     pub structure_file: Option<String>,
     #[serde(default)]
     pub fill_color: Option<SerializableColor>,
+    /// Anchor point for size-aware positioning (normalized, center = (0,0)).
+    /// When set, the ViewBox's position is automatically adjusted during resize
+    /// to keep the anchor edge fixed.
+    ///
+    /// 尺寸感知定位的锚点（归一化坐标，中心 = (0,0)）。
+    /// 设置后，ViewBox 在缩放时会自动调整位置以保持锚点边缘不动。
+    /// `(0, -1)` = 底边固定, `(0, 1)` = 顶边固定.
+    #[serde(default)]
+    pub anchor: Option<(f32, f32)>,
 }
 
 // ============================================================================

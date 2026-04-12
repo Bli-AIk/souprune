@@ -13,6 +13,7 @@
 
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
+use bevy_tween::TweenSystemSet;
 
 #[cfg(feature = "debug")]
 use super::components::ViewElement;
@@ -110,6 +111,11 @@ impl Plugin for CoreViewPlugin {
                     state_transition_sound_system,
                 )
                     .run_if(is_mode("overworld")),
+            )
+            .add_systems(
+                PostUpdate,
+                super::components::box_components::correct_anchored_viewbox_positions
+                    .after(TweenSystemSet::ApplyTween),
             )
             .add_systems(
                 schedule,

@@ -144,16 +144,20 @@ fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
 
 #[test]
 fn test_tween_target_box_size_with_anchor() {
-    let ron = r#"BoxSize(to: ("@current", 175.0), anchor: Some((0.0, -1.0)))"#;
+    // anchor is no longer on TweenTarget::BoxSize — it belongs to ViewBoxLogicDef.
+    // This test verifies that BoxSize parses without anchor fields.
+    let ron = r#"BoxSize(to: ("@current", 175.0))"#;
     let result: Result<TweenTarget, _> = ron::from_str(ron);
     assert!(
         result.is_ok(),
-        "Failed to parse TweenTarget::BoxSize with anchor: {:?}",
+        "Failed to parse TweenTarget::BoxSize without anchor: {:?}",
         result.err()
     );
     match result.unwrap() {
-        TweenTarget::BoxSize { anchor, .. } => {
-            assert_eq!(anchor, Some((0.0, -1.0)));
+        TweenTarget::BoxSize { from, to } => {
+            assert!(from.is_none());
+            // Verify 'to' parsed correctly
+            assert!(matches!(to.1, Value::Static(v) if (v - 175.0).abs() < f32::EPSILON));
         }
         _ => panic!("Expected BoxSize variant"),
     }
@@ -165,30 +169,10 @@ fn test_tween_target_box_size_without_anchor_defaults_none() {
     let result: Result<TweenTarget, _> = ron::from_str(ron);
     assert!(result.is_ok());
     match result.unwrap() {
-        TweenTarget::BoxSize { anchor, .. } => {
-            assert_eq!(anchor, None);
-        }
-        _ => panic!("Expected BoxSize variant"),
-    }
-}
-
-#[test]
-fn test_tween_target_box_size_with_anchor_fact() {
-    let ron = r#"BoxSize(to: ("@current", 175.0), anchor: Some((0.0, -1.0)), anchor_fact: Some("_bb_oy"))"#;
-    let result: Result<TweenTarget, _> = ron::from_str(ron);
-    assert!(
-        result.is_ok(),
-        "Failed to parse TweenTarget::BoxSize with anchor_fact: {:?}",
-        result.err()
-    );
-    match result.unwrap() {
-        TweenTarget::BoxSize {
-            anchor,
-            anchor_fact,
-            ..
-        } => {
-            assert_eq!(anchor, Some((0.0, -1.0)));
-            assert_eq!(anchor_fact, Some("_bb_oy".to_string()));
+        TweenTarget::BoxSize { from, to } => {
+            assert!(from.is_none());
+            assert!(matches!(to.0, Value::Static(v) if (v - 175.0).abs() < f32::EPSILON));
+            assert!(matches!(to.1, Value::Static(v) if (v - 130.0).abs() < f32::EPSILON));
         }
         _ => panic!("Expected BoxSize variant"),
     }

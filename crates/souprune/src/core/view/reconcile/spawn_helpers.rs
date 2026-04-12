@@ -390,6 +390,16 @@ pub fn spawn_viewbox_entity(
         RonDrivenView,
     ));
 
+    // Add anchor component for size-aware positioning
+    if let Some((ax, ay)) = view_box.anchor {
+        entity_commands.insert(ViewBoxAnchor {
+            anchor: (ax, ay),
+            base_offset: Vec3::new(offset.x, offset.y, offset.z),
+            base_width: view_box.width,
+            base_height: view_box.height,
+        });
+    }
+
     // Add VisibleWhen if present
     if let Some(ref expr) = spec.visible_when_expr {
         entity_commands.insert(VisibleWhen {
