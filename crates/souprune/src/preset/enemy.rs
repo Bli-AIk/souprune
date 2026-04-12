@@ -270,7 +270,7 @@ mod tests {
     fn projects_enemy_facts_from_runtime_wrapper() {
         use souprune_schema::enemy::TurnGroup;
 
-        let mut turn_groups = HashMap::new();
+        let mut turn_groups = indexmap::IndexMap::new();
         turn_groups.insert(
             "main".to_string(),
             TurnGroup {

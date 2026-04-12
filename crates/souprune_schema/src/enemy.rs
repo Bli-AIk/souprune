@@ -5,8 +5,8 @@
 //!
 //! `.enemy.ron` 文件的敌人定义 Schema 类型。
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Localization information shared across definitions.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -67,7 +67,7 @@ pub struct EnemyDef {
     /// 命名回合组 — 每组有独立的回合列表和选择策略。
     /// 通过 `PickEnemyTurn(group: "group_name")` 从指定组中选择。
     #[serde(default)]
-    pub turn_groups: HashMap<String, TurnGroup>,
+    pub turn_groups: IndexMap<String, TurnGroup>,
 }
 
 /// Strategy for selecting which turn sequence to execute.

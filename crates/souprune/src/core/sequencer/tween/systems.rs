@@ -371,7 +371,9 @@ pub fn process_tween_view_element_system(
                     ))
                     .id();
 
-                // Spawn a synchronized position tween to compensate for anchor offset
+                // Spawn a synchronized position tween to compensate for anchor offset.
+                // Attached as a child of the main BoxSize animator so both are
+                // despawned together when the chapter completes.
                 if let Some((ax, ay)) = anchor
                     && let Ok(transform) = transforms.get(target_entity)
                 {
@@ -381,11 +383,16 @@ pub fn process_tween_view_element_system(
                     let offset_y = -delta_h * ay / 2.0;
                     let start_pos = transform.translation;
                     let end_pos = start_pos + Vec3::new(offset_x, offset_y, 0.0);
-                    commands.spawn_empty().animation().insert(tween(
-                        duration,
-                        ease_kind,
-                        target_component.with(translation(start_pos, end_pos)),
-                    ));
+                    let anchor_animator = commands
+                        .spawn_empty()
+                        .animation()
+                        .insert(tween(
+                            duration,
+                            ease_kind,
+                            target_component.with(translation(start_pos, end_pos)),
+                        ))
+                        .id();
+                    commands.entity(animator_entity).add_child(anchor_animator);
                 }
 
                 handle_wait_for_completion(
