@@ -135,17 +135,28 @@ pub fn project_enemy_facts(enemy: &EnemyDef, db: &mut bevy_fact_rule_event::Fact
         FactValue::StringList(enemy.mercies.iter().map(|m| m.param.clone()).collect()),
     );
 
-    // Turn data
+    // Turn groups data
+    let group_names: Vec<String> = enemy.turn_groups.keys().cloned().collect();
     db.set(
-        format!("{id}.turn_count"),
-        FactValue::Int(enemy.turns.len() as i64),
+        format!("{id}.turn_group_names"),
+        FactValue::StringList(group_names),
     );
-    db.set(
-        format!("{id}.turns"),
-        FactValue::StringList(enemy.turns.clone()),
-    );
-    // Runtime turn index — initialized to 0, advanced by the turn dispatch system.
-    db.set(format!("{id}.turn_index"), FactValue::Int(0));
+    for (group_name, group) in &enemy.turn_groups {
+        let gk = if group_name.is_empty() {
+            id.to_string()
+        } else {
+            format!("{id}.{group_name}")
+        };
+        db.set(
+            format!("{gk}.turn_count"),
+            FactValue::Int(group.turns.len() as i64),
+        );
+        db.set(
+            format!("{gk}.turns"),
+            FactValue::StringList(group.turns.clone()),
+        );
+        db.set(format!("{gk}.turn_index"), FactValue::Int(0));
+    }
 }
 
 // --- Loading ---
@@ -230,11 +241,15 @@ mod tests {
                     sequence: "battle/spare.sequence.ron",
                 ),
             ],
-            turns: [
-                "battle/turns/pattern_a.sequence.ron",
-                "battle/turns/pattern_b.sequence.ron",
-            ],
-            turn_strategy: Random,
+            turn_groups: {
+                "main": (
+                    turns: [
+                        "battle/turns/pattern_a.sequence.ron",
+                        "battle/turns/pattern_b.sequence.ron",
+                    ],
+                    strategy: Random,
+                ),
+            },
         )"#;
 
         let enemy: EnemyDef = ron::from_str(ron).expect("enemy asset");
@@ -243,15 +258,27 @@ mod tests {
         assert_eq!(enemy.locale.name, "enemy.dummy");
         assert_eq!(enemy.stats.hp, 30);
         assert_eq!(enemy.acts[0].sequence, "battle/check.sequence.ron");
-        assert_eq!(enemy.turns.len(), 2);
-        assert!(matches!(
-            enemy.turn_strategy,
+        let main_group = enemy.turn_groups.get("main").expect("main group");
+        assert_eq!(main_group.turns.len(), 2);
+        assert_eq!(
+            main_group.strategy,
             souprune_schema::enemy::TurnStrategy::Random
-        ));
+        );
     }
 
     #[test]
     fn projects_enemy_facts_from_runtime_wrapper() {
+        use souprune_schema::enemy::TurnGroup;
+
+        let mut turn_groups = HashMap::new();
+        turn_groups.insert(
+            "main".to_string(),
+            TurnGroup {
+                turns: vec!["battle/turns/a.sequence.ron".to_string()],
+                strategy: souprune_schema::enemy::TurnStrategy::Sequential,
+            },
+        );
+
         let enemy = EnemyDef(SchemaEnemyDef {
             id: "dummy".to_string(),
             locale: souprune_schema::enemy::LocaleInfo {
@@ -271,8 +298,7 @@ mod tests {
                 param: "check".to_string(),
             }],
             mercies: vec![],
-            turns: vec!["battle/turns/a.sequence.ron".to_string()],
-            turn_strategy: souprune_schema::enemy::TurnStrategy::Sequential,
+            turn_groups,
         });
         let mut facts = bevy_fact_rule_event::FactDatabase::default();
 
@@ -288,11 +314,11 @@ mod tests {
             Some(&FactValue::StringList(vec!["enemy.act.check".to_string()]))
         );
         assert_eq!(
-            facts.get_by_str("dummy.turn_count"),
+            facts.get_by_str("dummy.main.turn_count"),
             Some(&FactValue::Int(1))
         );
         assert_eq!(
-            facts.get_by_str("dummy.turn_index"),
+            facts.get_by_str("dummy.main.turn_index"),
             Some(&FactValue::Int(0))
         );
     }

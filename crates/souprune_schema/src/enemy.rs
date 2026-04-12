@@ -6,6 +6,7 @@
 //! `.enemy.ron` 文件的敌人定义 Schema 类型。
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Localization information shared across definitions.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -34,6 +35,16 @@ pub struct ActionOption {
     pub param: String,
 }
 
+/// A named group of turn sequences with its own selection strategy.
+///
+/// 命名的回合组，每组有独立的选择策略。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnGroup {
+    pub turns: Vec<String>,
+    #[serde(default)]
+    pub strategy: TurnStrategy,
+}
+
 /// Typed enemy definition — top-level `.enemy.ron` schema.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnemyDef {
@@ -50,22 +61,19 @@ pub struct EnemyDef {
     pub acts: Vec<ActionOption>,
     #[serde(default)]
     pub mercies: Vec<ActionOption>,
-    /// Sequence paths for enemy turns (e.g. danmaku patterns).
+    /// Named turn groups — each group has its own turn list and selection strategy.
+    /// Use `PickEnemyTurn(group: "group_name")` to select from a specific group.
     ///
-    /// 敌人回合的序列路径（如弹幕 pattern）。
+    /// 命名回合组 — 每组有独立的回合列表和选择策略。
+    /// 通过 `PickEnemyTurn(group: "group_name")` 从指定组中选择。
     #[serde(default)]
-    pub turns: Vec<String>,
-    /// Strategy for selecting the next turn.
-    ///
-    /// 选择下一个回合的策略。
-    #[serde(default)]
-    pub turn_strategy: TurnStrategy,
+    pub turn_groups: HashMap<String, TurnGroup>,
 }
 
 /// Strategy for selecting which turn sequence to execute.
 ///
 /// 选择执行哪个回合序列的策略。
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum TurnStrategy {
     /// Play turns in order, cycling back to the start.
     ///

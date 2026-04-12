@@ -34,6 +34,8 @@ pub fn resolve_pick_enemy_turn_system(
     let Some(Chapter::PickEnemyTurn {
         enemy_id,
         enemy_id_fact,
+        group,
+        group_fact,
     }) = context.chapters.first()
     else {
         return;
@@ -52,29 +54,62 @@ pub fn resolve_pick_enemy_turn_system(
         return;
     };
 
+    // Resolve turn group name — literal takes precedence over fact lookup.
+    let resolved_group = if let Some(g) = group {
+        g.clone()
+    } else if let Some(fact_key) = group_fact {
+        resolve_fact_string(fact_key, &layered_db, &view_roots)
+    } else {
+        String::new()
+    };
+
     let Some(enemy) = registry.get(&resolved_id) else {
         warn!("PickEnemyTurn: enemy '{resolved_id}' not found in registry — skipping");
         context.chapters.remove(0);
         return;
     };
 
-    if enemy.turns.is_empty() {
-        warn!("PickEnemyTurn: enemy '{resolved_id}' has no turns defined — skipping");
+    // Look up the turn group — empty string means pick the first available group.
+    let turn_group = if resolved_group.is_empty() {
+        enemy.turn_groups.values().next()
+    } else {
+        enemy.turn_groups.get(&resolved_group)
+    };
+
+    let Some(turn_group) = turn_group else {
+        warn!(
+            "PickEnemyTurn: enemy '{resolved_id}' has no turn group '{}' — skipping",
+            if resolved_group.is_empty() {
+                "(default)"
+            } else {
+                &resolved_group
+            }
+        );
         context.chapters.remove(0);
         return;
     };
 
+    if turn_group.turns.is_empty() {
+        warn!(
+            "PickEnemyTurn: enemy '{resolved_id}' turn group '{}' has no turns — skipping",
+            resolved_group
+        );
+        context.chapters.remove(0);
+        return;
+    }
+
     let turn_path = pick_turn(
         &resolved_id,
-        &enemy.turns,
-        &enemy.turn_strategy,
+        &resolved_group,
+        &turn_group.turns,
+        &turn_group.strategy,
         &mut layered_db,
         &mut *global_rng,
     );
 
     info!(
-        "PickEnemyTurn: resolved enemy '{}' → turn '{}'",
-        resolved_id, turn_path
+        "PickEnemyTurn: resolved enemy '{}' group '{}' → turn '{}'",
+        resolved_id, resolved_group, turn_path
     );
 
     // Replace PickEnemyTurn with RunSequence.
@@ -109,15 +144,24 @@ fn resolve_fact_string(
     String::new()
 }
 
-/// Select the next turn sequence path based on the enemy's strategy.
+/// Select the next turn sequence path based on the group's strategy.
+///
+/// Per-group turn state is stored under `{enemy_id}.{group}.turn_index`
+/// (or `{enemy_id}.turn_index` when group is empty).
 fn pick_turn(
     enemy_id: &str,
+    group: &str,
     turns: &[String],
     strategy: &TurnStrategy,
     db: &mut LayeredFactDatabase,
     rng: &mut impl RngExt,
 ) -> String {
-    let index_key = format!("{enemy_id}.turn_index");
+    let prefix = if group.is_empty() {
+        enemy_id.to_string()
+    } else {
+        format!("{enemy_id}.{group}")
+    };
+    let index_key = format!("{prefix}.turn_index");
 
     match strategy {
         TurnStrategy::Sequential => {
@@ -140,7 +184,7 @@ fn pick_turn(
             turns[idx].clone()
         }
         TurnStrategy::Shuffle => {
-            let pool_key = format!("{enemy_id}.turn_pool");
+            let pool_key = format!("{prefix}.turn_pool");
             let mut pool: Vec<usize> = db
                 .get_by_str(&pool_key)
                 .and_then(|v| match v {
@@ -190,10 +234,38 @@ mod tests {
         let turns = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let mut rng = WyRand::seed_from_u64(42);
 
-        let t0 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
-        let t1 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
-        let t2 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
-        let t3 = pick_turn("e", &turns, &TurnStrategy::Sequential, &mut db, &mut rng);
+        let t0 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+        let t1 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+        let t2 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+        let t3 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
 
         assert_eq!(t0, "a");
         assert_eq!(t1, "b");
@@ -202,13 +274,49 @@ mod tests {
     }
 
     #[test]
+    fn separate_groups_have_independent_indices() {
+        let mut db = LayeredFactDatabase::default();
+        let turns = vec!["x".to_string(), "y".to_string()];
+        let mut rng = WyRand::seed_from_u64(42);
+
+        let g1_t0 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+        let g2_t0 = pick_turn(
+            "e",
+            "g2",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+        let g1_t1 = pick_turn(
+            "e",
+            "g1",
+            &turns,
+            &TurnStrategy::Sequential,
+            &mut db,
+            &mut rng,
+        );
+
+        assert_eq!(g1_t0, "x");
+        assert_eq!(g2_t0, "x"); // independent index
+        assert_eq!(g1_t1, "y");
+    }
+
+    #[test]
     fn shuffle_strategy_exhausts_pool() {
         let mut db = LayeredFactDatabase::default();
         let turns = vec!["x".to_string(), "y".to_string()];
         let mut rng = WyRand::seed_from_u64(42);
 
-        let t0 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
-        let t1 = pick_turn("e", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
+        let t0 = pick_turn("e", "g", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
+        let t1 = pick_turn("e", "g", &turns, &TurnStrategy::Shuffle, &mut db, &mut rng);
 
         // Both turns should appear exactly once before reshuffle.
         let mut picked = vec![t0, t1];
@@ -216,7 +324,7 @@ mod tests {
         assert_eq!(picked, vec!["x", "y"]);
 
         // Pool should now be empty → next pick triggers reshuffle.
-        let pool = db.get_by_str("e.turn_pool");
+        let pool = db.get_by_str("e.g.turn_pool");
         assert_eq!(pool, Some(&FactValue::StringList(vec![])));
     }
 }
