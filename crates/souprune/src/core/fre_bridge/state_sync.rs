@@ -54,7 +54,7 @@ pub fn sync_state_to_facts_system(
 ) {
     if let Some(state) = sub_state {
         let state_name = state.get().name().to_string();
-        facts.set(
+        facts.set_if_changed(
             fre_facts::STATE_SEQUENCE_SUB_STATE,
             FactValue::String(state_name),
         );
@@ -62,7 +62,7 @@ pub fn sync_state_to_facts_system(
 
     if let Some(state) = app_state {
         let state_name = format!("{:?}", state.get());
-        facts.set(fre_facts::STATE_APP_STATE, FactValue::String(state_name));
+        facts.set_if_changed(fre_facts::STATE_APP_STATE, FactValue::String(state_name));
     }
 }
 

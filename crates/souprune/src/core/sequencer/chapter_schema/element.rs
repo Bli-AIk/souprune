@@ -193,6 +193,14 @@ pub enum TweenTarget {
         /// `(0, -1)` = bottom, `(0, 1)` = top, `(-1, 0)` = left, `(1, 0)` = right.
         #[serde(default)]
         anchor: Option<(f32, f32)>,
+        /// Fact key to store the final offset position when anchor is used.
+        /// The tween system writes the computed end position so that
+        /// reconciliation can derive the correct desired Transform.
+        ///
+        /// 使用锚点时存储最终偏移位置的 fact 键名。
+        /// Tween 系统写入计算出的终点位置，使协调系统能推导出正确的期望 Transform。
+        #[serde(default)]
+        anchor_fact: Option<String>,
     },
     Rotation {
         #[serde(default)]
