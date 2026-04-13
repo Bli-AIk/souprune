@@ -38,6 +38,10 @@ pub fn advance_performance_timeline(
     spawn_context: Res<DanmakuSpawnContext>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
+    viewbox_query: Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+    )>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
 ) {
@@ -81,6 +85,7 @@ pub fn advance_performance_timeline(
                 &pattern_registry,
                 &mut loaded_mods,
                 &spawn_context,
+                &viewbox_query,
                 &mut sprite_params,
                 &asset_server,
             );
@@ -123,6 +128,10 @@ fn spawn_bullets_from_timeline_event(
     pattern_registry: &SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
     spawn_context: &DanmakuSpawnContext,
+    viewbox_query: &Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+    )>,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
 ) {
@@ -138,9 +147,11 @@ fn spawn_bullets_from_timeline_event(
         .collect();
     behaviors.extend(event.behaviors.clone());
 
+    let resolved_pattern = resolve_pattern_with_viewbox(&event.pattern, viewbox_query);
+
     let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
     let points = collect_spawn_points(
-        &event.pattern,
+        &resolved_pattern,
         effective_center,
         player_pos,
         0.0,
@@ -164,6 +175,40 @@ fn spawn_bullets_from_timeline_event(
             sprite_params,
             asset_server,
         );
+    }
+}
+
+/// Resolves `BoxEdgeGenerator` patterns by looking up the named ViewBox's
+/// current dimensions. Other patterns pass through unchanged.
+///
+/// 通过查找命名 ViewBox 的当前尺寸解析 `BoxEdgeGenerator`。
+/// 其他 pattern 原样返回。
+fn resolve_pattern_with_viewbox(
+    pattern: &SpawnPattern,
+    viewbox_query: &Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+    )>,
+) -> SpawnPattern {
+    if let SpawnPattern::BoxEdgeGenerator { box_name, .. } = pattern {
+        let found = viewbox_query
+            .iter()
+            .find(|(name, _)| name.as_str() == box_name);
+
+        match found {
+            Some((_, view_box)) => {
+                resolve_box_edge_pattern(pattern, view_box.width, view_box.height)
+            }
+            None => {
+                warn!(
+                    "BoxEdgeGenerator: ViewBox '{}' not found, falling back to zero box size",
+                    box_name
+                );
+                resolve_box_edge_pattern(pattern, 0.0, 0.0)
+            }
+        }
+    } else {
+        pattern.clone()
     }
 }
 

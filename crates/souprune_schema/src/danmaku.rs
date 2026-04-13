@@ -476,6 +476,23 @@ pub enum SpawnPattern {
         #[serde(default = "default_edge_margin")]
         margin: f32,
     },
+    /// Spawns bullets relative to a named ViewBox's edge.
+    /// `outside_margin` is the distance *outside* the box edge (not from center).
+    /// At runtime, actual margin = box_half_size + outside_margin.
+    ///
+    /// 相对于命名 ViewBox 边缘生成弹幕。
+    /// `outside_margin` 是距离框**外边缘**的距离（不是距中心的距离）。
+    /// 运行时实际 margin = 框半尺寸 + outside_margin。
+    BoxEdgeGenerator {
+        box_name: String,
+        count: usize,
+        #[serde(default)]
+        side: EdgeSide,
+        #[serde(default = "default_edge_spacing")]
+        spacing: f32,
+        #[serde(default)]
+        outside_margin: f32,
+    },
     CustomGenerator {
         id: String,
         #[serde(default)]
