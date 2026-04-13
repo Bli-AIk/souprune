@@ -102,14 +102,15 @@ pub fn advance_performance_timeline(
 
 /// Calculate absolute trigger times from timeline events.
 fn calculate_absolute_trigger_times(timeline: &[TimelineEvent]) -> Vec<f32> {
+    use souprune_schema::danmaku::TimeMode;
+
     let mut times = Vec::with_capacity(timeline.len());
     let mut accumulated = 0.0;
 
     for event in timeline {
-        accumulated = if event.absolute {
-            event.t
-        } else {
-            accumulated + event.t
+        accumulated = match event.time_mode {
+            TimeMode::Absolute => event.t,
+            TimeMode::Delta => accumulated + event.t,
         };
         times.push(accumulated);
     }

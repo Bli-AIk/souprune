@@ -62,6 +62,8 @@ fn accumulate_output(
     rotation_delta: &mut f32,
     opacity: &mut Option<f32>,
     scale_delta: &mut Vec2,
+    absolute_x: &mut Option<f32>,
+    absolute_y: &mut Option<f32>,
 ) {
     *position += out.offset;
     *rotation_delta += out.rotation;
@@ -73,6 +75,12 @@ fn accumulate_output(
     }
     if out.scale_y != 0.0 {
         scale_delta.y += out.scale_y;
+    }
+    if let Some(x) = out.absolute_x {
+        *absolute_x = Some(x);
+    }
+    if let Some(y) = out.absolute_y {
+        *absolute_y = Some(y);
     }
 }
 
@@ -119,6 +127,8 @@ pub fn update_bullet_motion(
         let mut rotation_delta = 0.0;
         let mut scale_delta = Vec2::ZERO;
         let mut opacity: Option<f32> = None;
+        let mut absolute_x: Option<f32> = None;
+        let mut absolute_y: Option<f32> = None;
 
         // --- Builtin behaviors: pure Rust ---
         if let Some(mut builtin) = builtin_stack {
@@ -137,6 +147,8 @@ pub fn update_bullet_motion(
                     &mut rotation_delta,
                     &mut opacity,
                     &mut scale_delta,
+                    &mut absolute_x,
+                    &mut absolute_y,
                 );
             }
         }
@@ -160,6 +172,14 @@ pub fn update_bullet_motion(
                 rotation_delta += output.rotation;
                 apply_output_extras(&output, &mut opacity, &mut scale_delta);
             }
+        }
+
+        // Apply absolute position overrides (from TweenMode::Absolute)
+        if let Some(x) = absolute_x {
+            position.x = x;
+        }
+        if let Some(y) = absolute_y {
+            position.y = y;
         }
 
         if let Ok(parent_transform) = container_query.get(parent.0) {

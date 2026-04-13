@@ -69,10 +69,9 @@ impl DanmakuPerformance {
     fn accumulated_timeline_time(&self) -> f32 {
         let mut accumulated = 0.0f32;
         for event in &self.timeline {
-            accumulated = if event.absolute {
-                event.t
-            } else {
-                accumulated + event.t
+            accumulated = match event.time_mode {
+                TimeMode::Absolute => event.t,
+                TimeMode::Delta => accumulated + event.t,
             };
         }
         accumulated
@@ -386,6 +385,22 @@ impl Default for AimedConfig {
     }
 }
 
+/// Mode for tween value interpretation.
+///
+/// 补间值的解释模式。
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
+pub enum TweenMode {
+    /// Value is added as an offset to the spawn position (default behavior).
+    ///
+    /// 值作为偏移量叠加到生成位置。
+    #[default]
+    Relative,
+    /// Value directly sets the coordinate / property.
+    ///
+    /// 值直接设置坐标 / 属性。
+    Absolute,
+}
+
 /// Tween animation configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TweenConfig {
@@ -393,9 +408,13 @@ pub struct TweenConfig {
     pub duration: f32,
     #[serde(default)]
     pub ease: Easing,
-    pub range: (f32, f32),
+    #[serde(default)]
+    pub from: f32,
+    pub to: f32,
     #[serde(default)]
     pub delay: f32,
+    #[serde(default)]
+    pub mode: TweenMode,
 }
 
 /// Tween target properties (danmaku-specific).
@@ -431,12 +450,28 @@ pub enum Easing {
 // Timeline Event
 // ============================================================================
 
+/// How the `t` field of a timeline event is interpreted.
+///
+/// 时间线事件的 `t` 字段解释方式。
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
+pub enum TimeMode {
+    /// `t` is a delta from the previous event's trigger time (default).
+    ///
+    /// `t` 是距上一事件触发时间的增量。
+    #[default]
+    Delta,
+    /// `t` is an absolute time since the performance started.
+    ///
+    /// `t` 是从演出开始算起的绝对时间。
+    Absolute,
+}
+
 /// Timeline event — describes what happens at a specific time.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimelineEvent {
     pub t: f32,
     #[serde(default)]
-    pub absolute: bool,
+    pub time_mode: TimeMode,
     pub spawn: String,
     #[serde(default)]
     pub pattern: SpawnPattern,

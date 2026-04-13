@@ -30,8 +30,10 @@ pub enum BuiltinBehaviorState {
         target: DanmakuTweenTarget,
         duration: f32,
         ease: Easing,
-        range: (f32, f32),
+        from: f32,
+        to: f32,
         delay: f32,
+        mode: souprune_schema::danmaku::TweenMode,
         timer: f32,
     },
     Stationary,
@@ -56,6 +58,10 @@ pub struct MotionOutput {
     pub opacity: f32,
     pub scale_x: f32,
     pub scale_y: f32,
+    /// When set, overrides the X position absolutely (not as an offset).
+    pub absolute_x: Option<f32>,
+    /// When set, overrides the Y position absolutely (not as an offset).
+    pub absolute_y: Option<f32>,
 }
 
 impl MotionOutput {
@@ -65,6 +71,8 @@ impl MotionOutput {
         opacity: -1.0,
         scale_x: 0.0,
         scale_y: 0.0,
+        absolute_x: None,
+        absolute_y: None,
     };
 }
 
@@ -111,8 +119,10 @@ pub fn init_builtin_behavior(
             target: cfg.target,
             duration: cfg.duration,
             ease: cfg.ease,
-            range: cfg.range,
+            from: cfg.from,
+            to: cfg.to,
             delay: cfg.delay,
+            mode: cfg.mode,
             timer: 0.0,
         }),
         BulletBehavior::Stationary() => Some(BuiltinBehaviorState::Stationary),
@@ -177,22 +187,24 @@ pub fn compute_builtin_output(
             target,
             duration,
             ease,
-            range,
+            from,
+            to,
             delay,
+            mode,
             timer,
         } => {
             *timer += delta_time;
             let t = *timer - *delay;
             let value = if t < 0.0 {
-                range.0
+                *from
             } else if t >= *duration {
-                range.1
+                *to
             } else {
                 let progress = (t / *duration).clamp(0.0, 1.0);
                 let eased = apply_easing(*ease, progress);
-                range.0 + (range.1 - range.0) * eased
+                *from + (*to - *from) * eased
             };
-            apply_tween(*target, value)
+            apply_tween(*target, value, *mode)
         }
         BuiltinBehaviorState::Stationary => MotionOutput::ZERO,
         BuiltinBehaviorState::Aimed { dir, speed } => MotionOutput {
@@ -229,7 +241,13 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
     }
 }
 
-fn apply_tween(target: DanmakuTweenTarget, value: f32) -> MotionOutput {
+fn apply_tween(
+    target: DanmakuTweenTarget,
+    value: f32,
+    mode: souprune_schema::danmaku::TweenMode,
+) -> MotionOutput {
+    use souprune_schema::danmaku::TweenMode;
+
     match target {
         DanmakuTweenTarget::Opacity => MotionOutput {
             opacity: value,
@@ -248,13 +266,25 @@ fn apply_tween(target: DanmakuTweenTarget, value: f32) -> MotionOutput {
             scale_y: value - 1.0,
             ..MotionOutput::ZERO
         },
-        DanmakuTweenTarget::PositionX => MotionOutput {
-            offset: Vec2::new(value, 0.0),
-            ..MotionOutput::ZERO
+        DanmakuTweenTarget::PositionX => match mode {
+            TweenMode::Relative => MotionOutput {
+                offset: Vec2::new(value, 0.0),
+                ..MotionOutput::ZERO
+            },
+            TweenMode::Absolute => MotionOutput {
+                absolute_x: Some(value),
+                ..MotionOutput::ZERO
+            },
         },
-        DanmakuTweenTarget::PositionY => MotionOutput {
-            offset: Vec2::new(0.0, value),
-            ..MotionOutput::ZERO
+        DanmakuTweenTarget::PositionY => match mode {
+            TweenMode::Relative => MotionOutput {
+                offset: Vec2::new(0.0, value),
+                ..MotionOutput::ZERO
+            },
+            TweenMode::Absolute => MotionOutput {
+                absolute_y: Some(value),
+                ..MotionOutput::ZERO
+            },
         },
         DanmakuTweenTarget::Rotation => MotionOutput {
             rotation: value,
@@ -318,8 +348,10 @@ mod tests {
             target: DanmakuTweenTarget::Opacity,
             duration: 1.0,
             ease: Easing::Linear,
-            range: (0.0, 1.0),
+            from: 0.0,
+            to: 1.0,
             delay: 0.0,
+            mode: souprune_schema::danmaku::TweenMode::Relative,
             timer: 0.0,
         };
         // Simulate 0.5 seconds of updates

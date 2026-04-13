@@ -10,8 +10,8 @@ use std::ops::{Deref, DerefMut};
 
 pub use souprune_schema::danmaku::{
     AimedConfig, BulletBehavior, BulletPrototype, ColliderShape, ColorTint, Easing, EdgeSide,
-    HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimelineEvent,
-    TweenConfig,
+    HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimeMode,
+    TimelineEvent, TweenConfig, TweenMode,
 };
 
 pub type TweenTarget = souprune_schema::danmaku::DanmakuTweenTarget;
@@ -85,8 +85,8 @@ pub fn behavior_to_wasm_call(behavior: &BulletBehavior) -> WasmCall {
                 ("target".into(), config.target as u32 as f32),
                 ("duration".into(), config.duration),
                 ("ease".into(), config.ease as u32 as f32),
-                ("range_start".into(), config.range.0),
-                ("range_end".into(), config.range.1),
+                ("range_start".into(), config.from),
+                ("range_end".into(), config.to),
                 ("delay".into(), config.delay),
             ]),
         ),
