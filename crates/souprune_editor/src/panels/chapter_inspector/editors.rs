@@ -275,6 +275,73 @@ pub(super) fn render_chapter_properties(
             changed |= labeled_text(ui, &t(world, "prop-log-text"), text);
             changed |= edit_log_level(ui, level, world);
         }
+        Chapter::SpawnBehavior {
+            behavior_id,
+            context,
+        } => {
+            changed |= labeled_text(ui, &t(world, "prop-action-type"), behavior_id);
+            changed |= edit_option_string(ui, &t(world, "prop-context"), context);
+        }
+        Chapter::Loop {
+            body,
+            max_iterations,
+        } => {
+            let mut args = FluentArgs::new();
+            args.set("count", body.len() as i64);
+            ui.label(t_args(world, "label-sub-chapters", &args));
+            let mut has_limit = max_iterations.is_some();
+            if ui
+                .checkbox(&mut has_limit, t(world, "prop-max-iterations"))
+                .changed()
+            {
+                *max_iterations = if has_limit { Some(10) } else { None };
+                changed = true;
+            }
+            if let Some(max) = max_iterations {
+                let mut v = *max as f32;
+                if labeled_drag(
+                    ui,
+                    &t(world, "prop-max-iterations"),
+                    &mut v,
+                    1.0..=10000.0,
+                    1.0,
+                ) {
+                    *max = v as u32;
+                    changed = true;
+                }
+            }
+        }
+        Chapter::Break => {
+            ui.label(t(world, "label-break-hint"));
+        }
+        Chapter::RandomPick {
+            candidates,
+            count,
+            allow_repeat,
+        } => {
+            let mut args = FluentArgs::new();
+            args.set("count", candidates.len() as i64);
+            ui.label(t_args(world, "label-sub-chapters", &args));
+            let mut v = *count as f32;
+            if labeled_drag(ui, &t(world, "prop-pick-count"), &mut v, 1.0..=100.0, 1.0) {
+                *count = v as usize;
+                changed = true;
+            }
+            changed |= ui
+                .checkbox(allow_repeat, t(world, "prop-allow-repeat"))
+                .changed();
+        }
+        Chapter::PickEnemyTurn {
+            enemy_id,
+            enemy_id_fact,
+            group,
+            group_fact,
+        } => {
+            changed |= edit_option_string(ui, &t(world, "prop-enemy-id"), enemy_id);
+            changed |= edit_option_string(ui, &t(world, "prop-enemy-id-fact"), enemy_id_fact);
+            changed |= edit_option_string(ui, &t(world, "prop-group"), group);
+            changed |= edit_option_string(ui, &t(world, "prop-group-fact"), group_fact);
+        }
     }
 
     changed
