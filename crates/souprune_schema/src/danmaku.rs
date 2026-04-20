@@ -483,34 +483,110 @@ pub struct TimelineEvent {
     pub behaviors: Vec<BulletBehavior>,
 }
 
-/// Spawn pattern for timeline events.
+/// Spawn pattern for timeline events — controls how bullets are distributed when spawned.
+///
+/// 时间线事件的生成模式 — 控制弹幕生成时的空间分布方式。
+///
+/// Each variant defines a spatial distribution strategy. Generator variants include a
+/// `randomness` parameter (0.0–1.0) that adds positional jitter to the computed spawn
+/// points without changing the overall pattern shape.
+///
+/// 每个变体定义一种空间分布策略。生成器变体包含 `randomness` 参数（0.0–1.0），
+/// 在不改变整体图案形状的前提下，为计算出的生成点添加位置抖动。
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub enum SpawnPattern {
+    /// Spawns a single bullet at the event's position. No pattern generation.
+    ///
+    /// 在事件位置生成单颗弹幕。不进行图案生成。
     #[default]
     Single,
+
+    /// Distributes bullets evenly around a circle (ring pattern).
+    ///
+    /// 将弹幕均匀分布在圆环上（环形图案）。
     RingGenerator {
+        /// Number of bullets to spawn on the ring.
+        ///
+        /// 环上生成的弹幕数量。
         count: usize,
+        /// Radius of the ring in world units. `0.0` collapses all bullets to the center.
+        ///
+        /// 环的半径（世界坐标单位）。`0.0` 时所有弹幕坍缩到中心。
         #[serde(default)]
         radius: f32,
+        /// Starting angle in radians. `0.0` points right (+X), increases counter-clockwise.
+        ///
+        /// 起始角度（弧度）。`0.0` 朝右（+X 方向），逆时针递增。
         #[serde(default)]
         start_angle: f32,
+        /// Positional jitter factor (0.0–1.0). `0.0` = exact positions, `1.0` = maximum scatter.
+        /// Jitter magnitude is proportional to the arc distance between adjacent bullets.
+        ///
+        /// 位置抖动因子（0.0–1.0）。`0.0` = 精确位置，`1.0` = 最大散布。
+        /// 抖动幅度与相邻弹幕之间的弧长成正比。
+        #[serde(default)]
+        randomness: f32,
     },
+
+    /// Distributes bullets along a straight line.
+    ///
+    /// 将弹幕沿直线分布。
     LineGenerator {
+        /// Number of bullets on the line.
+        ///
+        /// 线上的弹幕数量。
         count: usize,
+        /// Distance between adjacent bullets in world units.
+        ///
+        /// 相邻弹幕之间的距离（世界坐标单位）。
         #[serde(default = "default_line_spacing")]
         spacing: f32,
+        /// Direction vector of the line. Does not need to be normalized.
+        ///
+        /// 线的方向向量。无需归一化。
         #[serde(default = "default_linear_direction")]
         direction: (f32, f32),
+        /// Positional jitter factor (0.0–1.0). `0.0` = exact positions, `1.0` = maximum scatter.
+        /// Jitter magnitude is proportional to the spacing between bullets.
+        ///
+        /// 位置抖动因子（0.0–1.0）。`0.0` = 精确位置，`1.0` = 最大散布。
+        /// 抖动幅度与弹幕间距成正比。
+        #[serde(default)]
+        randomness: f32,
     },
+
+    /// Distributes bullets along a screen edge at fixed intervals.
+    ///
+    /// 将弹幕沿屏幕边缘以固定间隔分布。
     EdgeGenerator {
+        /// Number of bullets along the edge.
+        ///
+        /// 沿边缘生成的弹幕数量。
         count: usize,
+        /// Which screen edge to spawn from.
+        ///
+        /// 从哪条屏幕边缘生成。
         #[serde(default)]
         side: EdgeSide,
+        /// Distance between adjacent bullets along the edge.
+        ///
+        /// 沿边缘相邻弹幕之间的距离。
         #[serde(default = "default_edge_spacing")]
         spacing: f32,
+        /// Distance from the center of the screen to the spawn line.
+        ///
+        /// 从屏幕中心到生成线的距离。
         #[serde(default = "default_edge_margin")]
         margin: f32,
+        /// Positional jitter factor (0.0–1.0). `0.0` = exact positions, `1.0` = maximum scatter.
+        /// Jitter magnitude is proportional to the spacing between bullets.
+        ///
+        /// 位置抖动因子（0.0–1.0）。`0.0` = 精确位置，`1.0` = 最大散布。
+        /// 抖动幅度与弹幕间距成正比。
+        #[serde(default)]
+        randomness: f32,
     },
+
     /// Spawns bullets relative to a named ViewBox's edge.
     /// `outside_margin` is the distance *outside* the box edge (not from center).
     /// At runtime, actual margin = box_half_size + outside_margin.
@@ -519,20 +595,90 @@ pub enum SpawnPattern {
     /// `outside_margin` 是距离框**外边缘**的距离（不是距中心的距离）。
     /// 运行时实际 margin = 框半尺寸 + outside_margin。
     BoxEdgeGenerator {
+        /// Name of the ViewBox entity to reference for edge position.
+        ///
+        /// 用于确定边缘位置的 ViewBox 实体名称。
         box_name: String,
+        /// Number of bullets along the edge.
+        ///
+        /// 沿边缘生成的弹幕数量。
         count: usize,
+        /// Which edge of the box to spawn from.
+        ///
+        /// 从框的哪条边缘生成。
         #[serde(default)]
         side: EdgeSide,
+        /// Distance between adjacent bullets along the edge.
+        ///
+        /// 沿边缘相邻弹幕之间的距离。
         #[serde(default = "default_edge_spacing")]
         spacing: f32,
+        /// Distance outside the box edge where bullets spawn.
+        ///
+        /// 弹幕生成位置距离框外边缘的距离。
         #[serde(default)]
         outside_margin: f32,
+        /// Positional jitter factor (0.0–1.0). `0.0` = exact positions, `1.0` = maximum scatter.
+        /// Jitter magnitude is proportional to the spacing between bullets.
+        ///
+        /// 位置抖动因子（0.0–1.0）。`0.0` = 精确位置，`1.0` = 最大散布。
+        /// 抖动幅度与弹幕间距成正比。
+        #[serde(default)]
+        randomness: f32,
     },
+
+    /// User-defined spawn pattern provided by a WASM module.
+    ///
+    /// 由 WASM 模块提供的自定义生成模式。
     CustomGenerator {
+        /// Identifier for the WASM pattern generator (e.g., `"my_mod.spiral"`).
+        ///
+        /// WASM 模式生成器的标识符（如 `"my_mod.spiral"`）。
         id: String,
+        /// Key-value parameters passed to the WASM generator.
+        ///
+        /// 传递给 WASM 生成器的键值参数。
         #[serde(default)]
         params: HashMap<String, f32>,
     },
+}
+
+impl SpawnPattern {
+    /// Returns the randomness factor (0.0–1.0) for this pattern.
+    /// Non-generator variants and `CustomGenerator` return `0.0`.
+    ///
+    /// 返回此模式的随机因子（0.0–1.0）。
+    /// 非生成器变体和 `CustomGenerator` 返回 `0.0`。
+    pub fn randomness(&self) -> f32 {
+        match self {
+            Self::Single | Self::CustomGenerator { .. } => 0.0,
+            Self::RingGenerator { randomness, .. }
+            | Self::LineGenerator { randomness, .. }
+            | Self::EdgeGenerator { randomness, .. }
+            | Self::BoxEdgeGenerator { randomness, .. } => *randomness,
+        }
+    }
+
+    /// Returns a representative spacing distance between adjacent spawn points.
+    /// Used as the reference scale for randomness jitter.
+    ///
+    /// 返回相邻生成点之间的代表性间距。
+    /// 用作随机抖动的参考尺度。
+    pub fn characteristic_spacing(&self) -> f32 {
+        match self {
+            Self::Single | Self::CustomGenerator { .. } => 0.0,
+            Self::RingGenerator { count, radius, .. } => {
+                if *count <= 1 {
+                    *radius
+                } else {
+                    std::f32::consts::TAU * radius / *count as f32
+                }
+            }
+            Self::LineGenerator { spacing, .. }
+            | Self::EdgeGenerator { spacing, .. }
+            | Self::BoxEdgeGenerator { spacing, .. } => *spacing,
+        }
+    }
 }
 
 /// Which screen edge to spawn from.

@@ -109,6 +109,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             count,
             radius,
             start_angle,
+            ..
         } => (
             "builtin.ring".into(),
             HashMap::from([
@@ -121,6 +122,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             count,
             spacing,
             direction,
+            ..
         } => (
             "builtin.line".into(),
             HashMap::from([
@@ -135,6 +137,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             side,
             spacing,
             margin,
+            ..
         } => (
             "builtin.edge".into(),
             HashMap::from([
@@ -188,6 +191,7 @@ pub fn resolve_box_edge_pattern(
             side,
             spacing,
             outside_margin,
+            randomness,
             ..
         } => {
             let half_size = match side {
@@ -199,6 +203,7 @@ pub fn resolve_box_edge_pattern(
                 side: *side,
                 spacing: *spacing,
                 margin: half_size + outside_margin,
+                randomness: *randomness,
             }
         }
         other => other.clone(),

@@ -14,6 +14,9 @@
 //! 图案生成出的发射点，并把每一次时间轴命中转换成真正带有行为和容器关系的子弹实体。
 
 use super::*;
+use bevy_rand::prelude::GlobalRng;
+use bevy_rand::prelude::WyRand;
+use rand::RngExt;
 
 /// A computed spawn point for a bullet within a pattern.
 struct SpawnPoint {
@@ -44,6 +47,7 @@ pub fn advance_performance_timeline(
     )>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
+    mut global_rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
     let dt = time.delta_secs();
 
@@ -88,6 +92,7 @@ pub fn advance_performance_timeline(
                 &viewbox_query,
                 &mut sprite_params,
                 &asset_server,
+                &mut global_rng,
             );
 
             player.next_event_index += 1;
@@ -135,6 +140,7 @@ fn spawn_bullets_from_timeline_event(
     )>,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
+    rng: &mut WyRand,
 ) {
     let Some(prototype) = performance.prototypes.get(&event.spawn) else {
         warn!("Prototype not found: {}", event.spawn);
@@ -151,7 +157,7 @@ fn spawn_bullets_from_timeline_event(
     let resolved_pattern = resolve_pattern_with_viewbox(&event.pattern, viewbox_query);
 
     let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
-    let points = collect_spawn_points(
+    let mut points = collect_spawn_points(
         &resolved_pattern,
         effective_center,
         player_pos,
@@ -159,6 +165,8 @@ fn spawn_bullets_from_timeline_event(
         pattern_registry,
         loaded_mods,
     );
+
+    apply_randomness(&mut points, &resolved_pattern, rng);
 
     for (i, point) in points.iter().enumerate() {
         spawn_single_bullet(
@@ -255,6 +263,27 @@ fn collect_spawn_points(
                 radius: 0.0,
             }]
         }
+    }
+}
+
+/// Applies positional jitter to spawn points based on the pattern's randomness setting.
+/// Each point is displaced by a random offset within a circle whose radius equals
+/// `randomness * characteristic_spacing`.
+///
+/// 根据模式的随机设置为生成点添加位置抖动。
+/// 每个点在半径为 `randomness * characteristic_spacing` 的圆内随机偏移。
+fn apply_randomness(points: &mut [SpawnPoint], pattern: &SpawnPattern, rng: &mut WyRand) {
+    let randomness = pattern.randomness();
+    let spacing = pattern.characteristic_spacing();
+    if randomness <= 0.0 || spacing <= 0.0 {
+        return;
+    }
+    let max_offset = randomness * spacing;
+    for point in points.iter_mut() {
+        let angle: f32 = rng.random_range(0.0..std::f32::consts::TAU);
+        let distance: f32 = rng.random_range(0.0..max_offset);
+        point.position.x += angle.cos() * distance;
+        point.position.y += angle.sin() * distance;
     }
 }
 
