@@ -249,7 +249,7 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "SetViewFact",
         Chapter::DanmakuPerformance { .. } => "DanmakuPerformance",
         Chapter::AlightMotionPerformance { .. } => "AlightMotionPerformance",
-        Chapter::TweenViewElement { .. } => "TweenViewElement",
+        Chapter::SetViewElement { .. } => "SetViewElement",
         Chapter::Wait(_) => "Wait",
         Chapter::Sequence(_) => "Sequence",
         Chapter::Parallel(_) => "Parallel",
@@ -269,6 +269,11 @@ pub fn chapter_type_label(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "LoadEnemies",
         Chapter::SplitBattleBox { .. } => "SplitBattleBox",
         Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
+        Chapter::SpawnBehavior { .. } => "SpawnBehavior",
+        Chapter::Loop { .. } => "Loop",
+        Chapter::Break => "Break",
+        Chapter::RandomPick { .. } => "RandomPick",
+        Chapter::PickEnemyTurn { .. } => "PickEnemyTurn",
         Chapter::Log { .. } => "Log",
     }
 }

@@ -66,7 +66,11 @@ pub(in crate::extra::debug) struct InspectorUiState {
 }
 
 /// Custom entity filter that excludes BRP system entities by default.
+/// When a search query is active, also searches child entities by checking
+/// if the entity itself or any of its ancestors match the query.
+///
 /// 自定义实体过滤器，默认排除 BRP 系统实体。
+/// 搜索时也会搜索子物体——检查实体自身或其任意祖先是否匹配查询。
 struct BrpEntityFilter {
     show_all: bool,
     /// Search query for filtering by entity name.
@@ -104,10 +108,29 @@ impl bevy_inspector::EntityFilter for BrpEntityFilter {
             return true;
         }
 
-        world
-            .get::<Name>(entity)
-            .is_some_and(|name| name.to_lowercase().contains(&self.search_query))
+        // Check this entity and all its descendants for a name match.
+        entity_or_descendant_matches(world, entity, &self.search_query)
     }
+}
+
+/// Recursively checks if `entity` or any of its descendants has a `Name`
+/// component whose lowercase form contains `query`.
+fn entity_or_descendant_matches(world: &World, entity: Entity, query: &str) -> bool {
+    if world
+        .get::<Name>(entity)
+        .is_some_and(|name| name.to_lowercase().contains(query))
+    {
+        return true;
+    }
+
+    let Some(children) = world.get::<Children>(entity) else {
+        return false;
+    };
+    // Collect to avoid borrow conflict with the recursive call.
+    let child_entities: Vec<Entity> = children.iter().collect();
+    child_entities
+        .iter()
+        .any(|&child| entity_or_descendant_matches(world, child, query))
 }
 
 pub(in crate::extra::debug) fn setup_debug_features(app: &mut App) {

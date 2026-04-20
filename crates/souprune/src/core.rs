@@ -62,6 +62,7 @@ pub mod wasm_runtime;
 
 use bevy::app::*;
 use bevy::asset::AssetApp;
+use bevy_rand::prelude::{EntropyPlugin, WyRand};
 
 /// CorePlugin is a global plugin that runs early in the app lifecycle.
 ///
@@ -74,6 +75,14 @@ pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
+        let config = crate::config::load_config();
+        let entropy_plugin = if let Some(seed) = config.game.rng_seed {
+            bevy::log::info!("Using fixed RNG seed: {seed}");
+            EntropyPlugin::<WyRand>::with_seed(seed.to_le_bytes())
+        } else {
+            EntropyPlugin::<WyRand>::default()
+        };
+
         app.init_resource::<trace::EventTraceLog>()
             .init_resource::<trace::WasmCallTracer>()
             .init_resource::<trace::FactChangeHistory>()
@@ -90,6 +99,7 @@ impl Plugin for CorePlugin {
                 character_asset::AnimationConfigAsset,
             >::new(&["character.ron"]))
             .add_plugins((
+                entropy_plugin,
                 animation::AnimationPlugin,
                 audio::AudioPlugin,
                 camera::CameraPlugin,

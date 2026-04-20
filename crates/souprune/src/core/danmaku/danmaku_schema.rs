@@ -10,8 +10,8 @@ use std::ops::{Deref, DerefMut};
 
 pub use souprune_schema::danmaku::{
     AimedConfig, BulletBehavior, BulletPrototype, ColliderShape, ColorTint, Easing, EdgeSide,
-    HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimelineEvent,
-    TweenConfig,
+    HitBehaviorPreset, LinearConfig, OrbitalConfig, SineConfig, SpawnPattern, TimeMode,
+    TimelineEvent, TweenConfig, TweenMode,
 };
 
 pub type TweenTarget = souprune_schema::danmaku::DanmakuTweenTarget;
@@ -85,8 +85,8 @@ pub fn behavior_to_wasm_call(behavior: &BulletBehavior) -> WasmCall {
                 ("target".into(), config.target as u32 as f32),
                 ("duration".into(), config.duration),
                 ("ease".into(), config.ease as u32 as f32),
-                ("range_start".into(), config.range.0),
-                ("range_end".into(), config.range.1),
+                ("range_start".into(), config.from),
+                ("range_end".into(), config.to),
                 ("delay".into(), config.delay),
             ]),
         ),
@@ -109,6 +109,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             count,
             radius,
             start_angle,
+            ..
         } => (
             "builtin.ring".into(),
             HashMap::from([
@@ -121,6 +122,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             count,
             spacing,
             direction,
+            ..
         } => (
             "builtin.line".into(),
             HashMap::from([
@@ -135,6 +137,7 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
             side,
             spacing,
             margin,
+            ..
         } => (
             "builtin.edge".into(),
             HashMap::from([
@@ -144,7 +147,66 @@ pub fn spawn_pattern_to_wasm_call(pattern: &SpawnPattern) -> WasmCall {
                 ("margin".into(), *margin),
             ]),
         ),
+        SpawnPattern::BoxEdgeGenerator {
+            count,
+            side,
+            spacing,
+            outside_margin,
+            ..
+        } => {
+            // BoxEdgeGenerator should be resolved to EdgeGenerator before reaching here.
+            // Fallback: treat outside_margin as if the box has zero size.
+            warn!(
+                "BoxEdgeGenerator reached spawn_pattern_to_wasm_call without resolution; \
+                 using outside_margin as raw margin"
+            );
+            (
+                "builtin.edge".into(),
+                HashMap::from([
+                    ("count".into(), *count as f32),
+                    ("side".into(), *side as u32 as f32),
+                    ("spacing".into(), *spacing),
+                    ("margin".into(), *outside_margin),
+                ]),
+            )
+        }
         SpawnPattern::CustomGenerator { id, params } => (id.clone(), params.clone()),
+    }
+}
+
+/// Resolves a `BoxEdgeGenerator` pattern into an equivalent `EdgeGenerator` by
+/// computing `margin = box_half_size + outside_margin` based on the named ViewBox's
+/// current dimensions.
+///
+/// 将 `BoxEdgeGenerator` 解析为等价的 `EdgeGenerator`，
+/// 通过命名 ViewBox 的当前尺寸计算 `margin = 框半尺寸 + outside_margin`。
+pub fn resolve_box_edge_pattern(
+    pattern: &SpawnPattern,
+    box_width: f32,
+    box_height: f32,
+) -> SpawnPattern {
+    match pattern {
+        SpawnPattern::BoxEdgeGenerator {
+            count,
+            side,
+            spacing,
+            outside_margin,
+            randomness,
+            ..
+        } => {
+            let half_size = match side {
+                EdgeSide::Top | EdgeSide::Bottom => box_height / 2.0,
+                EdgeSide::Left | EdgeSide::Right => box_width / 2.0,
+            };
+            SpawnPattern::EdgeGenerator {
+                count: *count,
+                side: *side,
+                spacing: *spacing,
+                margin: half_size + outside_margin,
+                randomness: *randomness,
+            }
+        }
+        other => other.clone(),
     }
 }
 

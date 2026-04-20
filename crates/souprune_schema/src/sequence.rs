@@ -58,13 +58,14 @@ pub enum Chapter {
         #[serde(default = "default_true")]
         wait_for_completion: bool,
     },
-    TweenViewElement {
+    SetViewElement {
         selector: ElementSelector,
         target: TweenTarget,
-        duration: f32,
+        #[serde(default)]
+        duration: Option<f32>,
         #[serde(default)]
         easing: EaseKindRepr,
-        #[serde(default = "default_true")]
+        #[serde(default)]
         wait_for_completion: bool,
     },
     Wait(f32),
@@ -149,6 +150,39 @@ pub enum Chapter {
         duration: f32,
         #[serde(default)]
         easing: EaseKindRepr,
+    },
+    /// Spawn a headless entity with a WASM behavior attached.
+    SpawnBehavior {
+        behavior_id: String,
+        #[serde(default)]
+        context: Option<String>,
+    },
+    /// Repeat a sequence of chapters until a `Break` is encountered.
+    Loop {
+        body: Vec<Chapter>,
+        #[serde(default)]
+        max_iterations: Option<u32>,
+    },
+    /// Exit the innermost `Loop`.
+    Break,
+    /// Randomly select one or more chapters from a candidate list and execute them.
+    RandomPick {
+        candidates: Vec<Chapter>,
+        #[serde(default = "default_one")]
+        count: usize,
+        #[serde(default)]
+        allow_repeat: bool,
+    },
+    /// Select the next turn for an enemy from a named `turn_group`.
+    PickEnemyTurn {
+        #[serde(default)]
+        enemy_id: Option<String>,
+        #[serde(default)]
+        enemy_id_fact: Option<String>,
+        #[serde(default)]
+        group: Option<String>,
+        #[serde(default)]
+        group_fact: Option<String>,
     },
     Log {
         text: String,
@@ -378,6 +412,9 @@ pub enum TweenTarget {
         from: Option<Val<f32>>,
         to: Val<f32>,
     },
+    /// Set the ViewBox anchor for size-aware positioning.
+    /// `(0, -1)` = bottom fixed, `(0, 1)` = top fixed, `(0, 0)` = centered (default).
+    Anchor(f32, f32),
 }
 
 // ============================================================================
@@ -386,6 +423,10 @@ pub enum TweenTarget {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_one() -> usize {
+    1
 }
 
 #[cfg(test)]

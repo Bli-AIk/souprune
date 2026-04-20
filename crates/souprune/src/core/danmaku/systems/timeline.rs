@@ -14,6 +14,9 @@
 //! 图案生成出的发射点，并把每一次时间轴命中转换成真正带有行为和容器关系的子弹实体。
 
 use super::*;
+use bevy_rand::prelude::GlobalRng;
+use bevy_rand::prelude::WyRand;
+use rand::RngExt;
 
 /// A computed spawn point for a bullet within a pattern.
 struct SpawnPoint {
@@ -38,8 +41,14 @@ pub fn advance_performance_timeline(
     spawn_context: Res<DanmakuSpawnContext>,
     mut query: Query<(Entity, &mut PerformancePlayer, &PerformanceHandle)>,
     player_query: Query<&Transform, (With<BulletTarget>, Without<Bullet>)>,
+    viewbox_query: Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
+    )>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
+    mut global_rng: Single<&mut WyRand, With<GlobalRng>>,
 ) {
     let dt = time.delta_secs();
 
@@ -81,8 +90,10 @@ pub fn advance_performance_timeline(
                 &pattern_registry,
                 &mut loaded_mods,
                 &spawn_context,
+                &viewbox_query,
                 &mut sprite_params,
                 &asset_server,
+                &mut global_rng,
             );
 
             player.next_event_index += 1;
@@ -97,14 +108,15 @@ pub fn advance_performance_timeline(
 
 /// Calculate absolute trigger times from timeline events.
 fn calculate_absolute_trigger_times(timeline: &[TimelineEvent]) -> Vec<f32> {
+    use souprune_schema::danmaku::TimeMode;
+
     let mut times = Vec::with_capacity(timeline.len());
     let mut accumulated = 0.0;
 
     for event in timeline {
-        accumulated = if event.absolute {
-            event.t
-        } else {
-            accumulated + event.t
+        accumulated = match event.time_mode {
+            TimeMode::Absolute => event.t,
+            TimeMode::Delta => accumulated + event.t,
         };
         times.push(accumulated);
     }
@@ -123,8 +135,14 @@ fn spawn_bullets_from_timeline_event(
     pattern_registry: &SpawnPatternRegistry,
     loaded_mods: &mut LoadedMods,
     spawn_context: &DanmakuSpawnContext,
+    viewbox_query: &Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
+    )>,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
+    rng: &mut WyRand,
 ) {
     let Some(prototype) = performance.prototypes.get(&event.spawn) else {
         warn!("Prototype not found: {}", event.spawn);
@@ -138,15 +156,25 @@ fn spawn_bullets_from_timeline_event(
         .collect();
     behaviors.extend(event.behaviors.clone());
 
+    let (resolved_pattern, viewbox_center) =
+        resolve_pattern_with_viewbox(&event.pattern, viewbox_query);
+
     let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
-    let points = collect_spawn_points(
-        &event.pattern,
-        effective_center,
+    // For BoxEdgeGenerator the pattern center must be the ViewBox's world
+    // position so bullets land on the actual box edges.
+    // 对 BoxEdgeGenerator，pattern 中心应使用 ViewBox 的世界坐标，
+    // 这样子弹才会生成在真正的框边缘上。
+    let pattern_center = viewbox_center.unwrap_or(effective_center);
+    let mut points = collect_spawn_points(
+        &resolved_pattern,
+        pattern_center,
         player_pos,
         0.0,
         pattern_registry,
         loaded_mods,
     );
+
+    apply_randomness(&mut points, &resolved_pattern, rng);
 
     for (i, point) in points.iter().enumerate() {
         spawn_single_bullet(
@@ -164,6 +192,46 @@ fn spawn_bullets_from_timeline_event(
             sprite_params,
             asset_server,
         );
+    }
+}
+
+/// Resolves `BoxEdgeGenerator` patterns by looking up the named ViewBox's
+/// current dimensions **and world position**. Returns the resolved pattern
+/// together with the ViewBox's world center (`Some`) so the caller can use it
+/// as the pattern center. Other patterns pass through unchanged with `None`.
+///
+/// 通过查找命名 ViewBox 的当前尺寸**和世界坐标**解析 `BoxEdgeGenerator`。
+/// 返回解析后的 pattern 以及 ViewBox 的世界中心（`Some`），供调用方作为
+/// pattern 中心。其他 pattern 原样返回，附带 `None`。
+fn resolve_pattern_with_viewbox(
+    pattern: &SpawnPattern,
+    viewbox_query: &Query<(
+        &Name,
+        &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
+    )>,
+) -> (SpawnPattern, Option<Vec2>) {
+    if let SpawnPattern::BoxEdgeGenerator { box_name, .. } = pattern {
+        let found = viewbox_query
+            .iter()
+            .find(|(name, _, _)| name.as_str() == box_name);
+
+        match found {
+            Some((_, view_box, global_transform)) => {
+                let center = global_transform.translation().truncate();
+                let resolved = resolve_box_edge_pattern(pattern, view_box.width, view_box.height);
+                (resolved, Some(center))
+            }
+            None => {
+                warn!(
+                    "BoxEdgeGenerator: ViewBox '{}' not found, falling back to zero box size",
+                    box_name
+                );
+                (resolve_box_edge_pattern(pattern, 0.0, 0.0), None)
+            }
+        }
+    } else {
+        (pattern.clone(), None)
     }
 }
 
@@ -209,6 +277,27 @@ fn collect_spawn_points(
                 radius: 0.0,
             }]
         }
+    }
+}
+
+/// Applies positional jitter to spawn points based on the pattern's randomness setting.
+/// Each point is displaced by a random offset within a circle whose radius equals
+/// `randomness * characteristic_spacing`.
+///
+/// 根据模式的随机设置为生成点添加位置抖动。
+/// 每个点在半径为 `randomness * characteristic_spacing` 的圆内随机偏移。
+fn apply_randomness(points: &mut [SpawnPoint], pattern: &SpawnPattern, rng: &mut WyRand) {
+    let randomness = pattern.randomness();
+    let spacing = pattern.characteristic_spacing();
+    if randomness <= 0.0 || spacing <= 0.0 {
+        return;
+    }
+    let max_offset = randomness * spacing;
+    for point in points.iter_mut() {
+        let angle: f32 = rng.random_range(0.0..std::f32::consts::TAU);
+        let distance: f32 = rng.random_range(0.0..max_offset);
+        point.position.x += angle.cos() * distance;
+        point.position.y += angle.sin() * distance;
     }
 }
 

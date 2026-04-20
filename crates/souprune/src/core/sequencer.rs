@@ -17,7 +17,7 @@ mod bgm;
 mod camera;
 pub(crate) mod context;
 mod fact_chapter;
-mod flow;
+pub(crate) mod flow;
 mod interaction;
 mod load_map;
 mod log_chapter;
@@ -33,8 +33,8 @@ pub mod chapter_schema;
 // Re-export public types
 pub use bgm::SequencerBgm;
 pub use context::{
-    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceExecutionState,
-    SequenceRulesHandle, WaitTimer,
+    ActiveChapter, ChapterFinished, CurrentSequenceFlow, SequenceContext, SequenceDebugInfo,
+    SequenceExecutionState, SequenceRulesHandle, WaitTimer,
 };
 pub use flow::load_default_chapter_system;
 
@@ -107,6 +107,7 @@ pub fn runtime_chapters_from_schema(
 pub fn init_sequencer(app: &mut App) {
     app.init_resource::<context::SequenceContext>()
         .init_resource::<context::SequenceRulesHandle>()
+        .init_resource::<context::SequenceDebugInfo>()
         .init_resource::<bgm::SequencerBgm>()
         .init_asset::<SequenceAsset>()
         .register_asset_loader(RonAssetLoader::<SequenceAsset>::new(&["sequence.ron"]));
@@ -140,7 +141,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             view_action::process_set_view_fact_system,
             interaction::process_await_fact_system,
             view_element::process_modify_view_element_system,
-            tween::process_tween_view_element_system,
+            tween::process_set_view_element_system,
             performance::process_danmaku_performance_system,
             performance::process_am_performance_system,
             flow::process_custom_chapter_system,
@@ -155,6 +156,7 @@ pub fn register_sequencer_systems(app: &mut App, schedule: impl ScheduleLabel + 
             flow::process_wait_chapter_system,
             tween::process_tween_wait_chapter_system,
             performance::process_alight_motion_wait_chapter_system,
+            performance::process_danmaku_wait_chapter_system,
             flow::process_parallel_chapter_system,
             fact_chapter::process_conditional_chapter_system,
             fact_chapter::process_fact_switch_chapter_system,

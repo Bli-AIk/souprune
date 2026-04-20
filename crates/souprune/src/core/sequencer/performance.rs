@@ -11,7 +11,20 @@ use super::context::*;
 use crate::core::alight_motion_runtime::{
     AlightMotionPerformanceState, PlayAlightMotionPerformanceEvent,
 };
+use crate::core::danmaku::DanmakuPerformance;
 use bevy::prelude::*;
+
+/// Tracker component for danmaku performance chapter awaiting completion.
+/// Inserted when `wait_for_completion: true`. Holds the asset handle so
+/// the wait system can read `duration` once the asset finishes loading.
+///
+/// 弹幕演出章节等待完成的跟踪组件。
+/// 当 `wait_for_completion: true` 时插入，持有资产句柄以便等待系统
+/// 在资产加载完成后读取 `duration`。
+#[derive(Component)]
+pub struct DanmakuPerformanceTracker {
+    pub handle: Handle<DanmakuPerformance>,
+}
 
 /// Marker component for Alight Motion performance chapter tracking.
 ///
@@ -28,10 +41,18 @@ pub struct AlightMotionPerformanceTracker {
 /// 处理弹幕演出章节的系统。
 pub fn process_danmaku_performance_system(
     mut commands: Commands,
-    query: Query<(Entity, &ActiveChapter), (Without<WaitTimer>, Without<ChapterFinished>)>,
+    query: Query<
+        (Entity, &ActiveChapter),
+        (
+            Without<WaitTimer>,
+            Without<ChapterFinished>,
+            Without<DanmakuPerformanceTracker>,
+        ),
+    >,
     performance_events: Option<
         bevy::ecs::message::MessageWriter<crate::core::danmaku::PlayPerformanceEvent>,
     >,
+    asset_server: Res<AssetServer>,
 ) {
     let Some(mut performance_events) = performance_events else {
         return;
@@ -40,6 +61,7 @@ pub fn process_danmaku_performance_system(
         if let Chapter::DanmakuPerformance {
             performance,
             translation,
+            wait_for_completion,
         } = &active_chapter.chapter
         {
             info!(
@@ -51,7 +73,50 @@ pub fn process_danmaku_performance_system(
                 event = event.at_position(Vec2::new(*x, *y));
             }
             performance_events.write(event);
-            commands.entity(entity).insert(ChapterFinished);
+
+            if *wait_for_completion {
+                let handle = asset_server.load::<DanmakuPerformance>(performance.clone());
+                commands
+                    .entity(entity)
+                    .insert(DanmakuPerformanceTracker { handle });
+            } else {
+                commands.entity(entity).insert(ChapterFinished);
+            }
+        }
+    }
+}
+
+/// System to resolve the danmaku performance duration and set up the wait timer.
+/// Once the asset is loaded, reads `duration` and either inserts a `WaitTimer`
+/// or marks `ChapterFinished` immediately if no duration is specified.
+///
+/// 解析弹幕演出时长并设置等待计时器的系统。
+/// 资产加载完成后，读取 `duration` 字段：有值则插入 `WaitTimer`，
+/// 无值则直接标记 `ChapterFinished`。
+pub fn process_danmaku_wait_chapter_system(
+    mut commands: Commands,
+    query: Query<(Entity, &DanmakuPerformanceTracker), Without<ChapterFinished>>,
+    performances: Res<Assets<DanmakuPerformance>>,
+) {
+    for (entity, tracker) in query.iter() {
+        let Some(perf) = performances.get(&tracker.handle) else {
+            continue; // Asset not loaded yet — retry next frame.
+        };
+        match perf.resolved_duration() {
+            Some(d) if d > 0.0 => {
+                commands
+                    .entity(entity)
+                    .insert(WaitTimer(Timer::from_seconds(d, TimerMode::Once)))
+                    .remove::<DanmakuPerformanceTracker>();
+                info!("[Battle] Danmaku performance blocking for {:.1}s", d);
+            }
+            _ => {
+                commands
+                    .entity(entity)
+                    .insert(ChapterFinished)
+                    .remove::<DanmakuPerformanceTracker>();
+                debug!("[Battle] Danmaku performance has no duration — completing immediately");
+            }
         }
     }
 }

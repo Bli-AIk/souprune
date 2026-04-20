@@ -198,4 +198,7 @@ pub enum TweenTarget {
         from: Option<Value<f32>>,
         to: Value<f32>,
     },
+    /// Set the ViewBox anchor for size-aware positioning.
+    /// `(0, -1)` = bottom fixed, `(0, 1)` = top fixed, `(0, 0)` = centered (default).
+    Anchor(f32, f32),
 }

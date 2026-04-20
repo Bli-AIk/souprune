@@ -27,6 +27,10 @@ use super::super::chapter_schema::FactValueMatch;
 const PARAM_PREFIX: &str = "_param_";
 
 /// Inject sequence parameters into a ViewRoot's local_facts.
+///
+/// For `Expr("$key")` lookups, checks the ViewRoot's own local_facts first
+/// (where parent RunSequence params are stored) before falling back to
+/// the LayeredFactDatabase.
 pub(super) fn inject_sequence_params(
     view_root: &mut ViewRoot,
     params: &HashMap<String, FactValueMatch>,
@@ -34,7 +38,7 @@ pub(super) fn inject_sequence_params(
 ) {
     for (key, value) in params {
         let prefixed_key = format!("{}{}", PARAM_PREFIX, key);
-        let Some(fact_value) = resolve_fact_value(value, layered_db) else {
+        let Some(fact_value) = resolve_fact_value(value, layered_db, &view_root.local_facts) else {
             warn!("RunSequence: Failed to evaluate param '{}'", key);
             continue;
         };
@@ -46,6 +50,7 @@ pub(super) fn inject_sequence_params(
 fn resolve_fact_value(
     value: &FactValueMatch,
     layered_db: &LayeredFactDatabase,
+    local_facts: &bevy_fact_rule_event::FactDatabase,
 ) -> Option<FactValue> {
     match value {
         FactValueMatch::Bool(value) => Some(FactValue::Bool(*value)),
@@ -54,7 +59,12 @@ fn resolve_fact_value(
         FactValueMatch::String(value) => Some(FactValue::String(value.clone())),
         FactValueMatch::Expr(expr) => {
             if let Some(fact_key) = expr.strip_prefix('$') {
-                layered_db.get_by_str(fact_key).cloned()
+                // Check ViewRoot local_facts first (parent RunSequence params),
+                // then fall back to layered DB.
+                local_facts
+                    .get_by_str(fact_key)
+                    .or_else(|| layered_db.get_by_str(fact_key))
+                    .cloned()
             } else {
                 bevy_fact_rule_event::expr::evaluate_expr_to_fact(expr, layered_db)
             }

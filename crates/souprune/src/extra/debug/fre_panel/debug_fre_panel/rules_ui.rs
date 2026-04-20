@@ -97,7 +97,7 @@ fn render_rule_group(
     trigger_history: Option<&RuleTriggerHistory>,
     current_time: f64,
 ) {
-    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    rules.sort_by_key(|b| std::cmp::Reverse(b.priority));
     egui::CollapsingHeader::new(format!("{} ({})", title, rules.len()))
         .default_open(true)
         .show(ui, |ui| {
@@ -136,7 +136,7 @@ fn render_view_entity_rules(
 ) {
     let view_rule_count = view_registry.iter().count();
     let mut view_rules: Vec<_> = view_registry.iter().collect();
-    view_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    view_rules.sort_by_key(|b| std::cmp::Reverse(b.priority));
     egui::CollapsingHeader::new(format!("Entity {:?} ({} rules)", entity, view_rule_count))
         .default_open(true)
         .show(ui, |ui| {
