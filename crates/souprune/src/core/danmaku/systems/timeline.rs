@@ -44,6 +44,7 @@ pub fn advance_performance_timeline(
     viewbox_query: Query<(
         &Name,
         &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
     )>,
     mut sprite_params: SpriteParams,
     asset_server: Res<AssetServer>,
@@ -137,6 +138,7 @@ fn spawn_bullets_from_timeline_event(
     viewbox_query: &Query<(
         &Name,
         &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
     )>,
     sprite_params: &mut SpriteParams,
     asset_server: &AssetServer,
@@ -154,12 +156,18 @@ fn spawn_bullets_from_timeline_event(
         .collect();
     behaviors.extend(event.behaviors.clone());
 
-    let resolved_pattern = resolve_pattern_with_viewbox(&event.pattern, viewbox_query);
+    let (resolved_pattern, viewbox_center) =
+        resolve_pattern_with_viewbox(&event.pattern, viewbox_query);
 
     let effective_center = spawn_center + Vec2::new(event.offset.0, event.offset.1);
+    // For BoxEdgeGenerator the pattern center must be the ViewBox's world
+    // position so bullets land on the actual box edges.
+    // 对 BoxEdgeGenerator，pattern 中心应使用 ViewBox 的世界坐标，
+    // 这样子弹才会生成在真正的框边缘上。
+    let pattern_center = viewbox_center.unwrap_or(effective_center);
     let mut points = collect_spawn_points(
         &resolved_pattern,
-        effective_center,
+        pattern_center,
         player_pos,
         0.0,
         pattern_registry,
@@ -188,36 +196,42 @@ fn spawn_bullets_from_timeline_event(
 }
 
 /// Resolves `BoxEdgeGenerator` patterns by looking up the named ViewBox's
-/// current dimensions. Other patterns pass through unchanged.
+/// current dimensions **and world position**. Returns the resolved pattern
+/// together with the ViewBox's world center (`Some`) so the caller can use it
+/// as the pattern center. Other patterns pass through unchanged with `None`.
 ///
-/// 通过查找命名 ViewBox 的当前尺寸解析 `BoxEdgeGenerator`。
-/// 其他 pattern 原样返回。
+/// 通过查找命名 ViewBox 的当前尺寸**和世界坐标**解析 `BoxEdgeGenerator`。
+/// 返回解析后的 pattern 以及 ViewBox 的世界中心（`Some`），供调用方作为
+/// pattern 中心。其他 pattern 原样返回，附带 `None`。
 fn resolve_pattern_with_viewbox(
     pattern: &SpawnPattern,
     viewbox_query: &Query<(
         &Name,
         &crate::core::view::components::box_components::ViewBox,
+        &GlobalTransform,
     )>,
-) -> SpawnPattern {
+) -> (SpawnPattern, Option<Vec2>) {
     if let SpawnPattern::BoxEdgeGenerator { box_name, .. } = pattern {
         let found = viewbox_query
             .iter()
-            .find(|(name, _)| name.as_str() == box_name);
+            .find(|(name, _, _)| name.as_str() == box_name);
 
         match found {
-            Some((_, view_box)) => {
-                resolve_box_edge_pattern(pattern, view_box.width, view_box.height)
+            Some((_, view_box, global_transform)) => {
+                let center = global_transform.translation().truncate();
+                let resolved = resolve_box_edge_pattern(pattern, view_box.width, view_box.height);
+                (resolved, Some(center))
             }
             None => {
                 warn!(
                     "BoxEdgeGenerator: ViewBox '{}' not found, falling back to zero box size",
                     box_name
                 );
-                resolve_box_edge_pattern(pattern, 0.0, 0.0)
+                (resolve_box_edge_pattern(pattern, 0.0, 0.0), None)
             }
         }
     } else {
-        pattern.clone()
+        (pattern.clone(), None)
     }
 }
 
