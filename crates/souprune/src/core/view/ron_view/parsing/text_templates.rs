@@ -56,7 +56,7 @@ fn evaluate_lambda_expression(expr: &str, player_data: &PlayerDataView) -> Optio
     let (start_idx, end_idx) = if let (Some(start), Some(end)) = (start_expr, end_expr) {
         let start_val = evaluate_lambda_range_expr(start, player_data).unwrap_or(0);
         let end_val = evaluate_lambda_range_expr(end, player_data).unwrap_or(array.len());
-        (start_val.max(0), end_val.min(array.len()))
+        (start_val, end_val.min(array.len()))
     } else {
         (0, array.len())
     };

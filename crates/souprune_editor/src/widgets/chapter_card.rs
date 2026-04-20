@@ -58,7 +58,7 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
 
         Chapter::SpawnView { .. } => ChapterCategory::View,
         Chapter::SetViewFact { .. } => ChapterCategory::View,
-        Chapter::TweenViewElement { .. } => ChapterCategory::View,
+        Chapter::SetViewElement { .. } => ChapterCategory::View,
         Chapter::ModifyViewElement { .. } => ChapterCategory::View,
         Chapter::SetUI(_) => ChapterCategory::View,
 
@@ -76,12 +76,17 @@ fn chapter_category(chapter: &Chapter) -> ChapterCategory {
 
         Chapter::DanmakuPerformance { .. } => ChapterCategory::Combat,
         Chapter::AlightMotionPerformance { .. } => ChapterCategory::Combat,
+        Chapter::SpawnBehavior { .. } => ChapterCategory::Combat,
+        Chapter::PickEnemyTurn { .. } => ChapterCategory::Combat,
 
         Chapter::SetBgm { .. } => ChapterCategory::Audio,
         Chapter::Custom { .. } => ChapterCategory::Flow,
         Chapter::LoadEnemies { .. } => ChapterCategory::Combat,
         Chapter::SplitBattleBox { .. } => ChapterCategory::Combat,
         Chapter::MergeBattleBoxes { .. } => ChapterCategory::Combat,
+        Chapter::Loop { .. } => ChapterCategory::Flow,
+        Chapter::Break => ChapterCategory::Flow,
+        Chapter::RandomPick { .. } => ChapterCategory::Flow,
         Chapter::Log { .. } => ChapterCategory::Flow,
     }
 }
@@ -94,7 +99,7 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "[VF]",
         Chapter::DanmakuPerformance { .. } => "[D]",
         Chapter::AlightMotionPerformance { .. } => "[AM]",
-        Chapter::TweenViewElement { .. } => "[~]",
+        Chapter::SetViewElement { .. } => "[~]",
         Chapter::Wait(_) => "[W]",
         Chapter::Sequence(_) => "[S]",
         Chapter::Parallel(_) => "[P]",
@@ -114,6 +119,11 @@ pub fn chapter_icon(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "[LE]",
         Chapter::SplitBattleBox { .. } => "[SB]",
         Chapter::MergeBattleBoxes { .. } => "[MB]",
+        Chapter::SpawnBehavior { .. } => "[BH]",
+        Chapter::Loop { .. } => "[LP]",
+        Chapter::Break => "[BK]",
+        Chapter::RandomPick { .. } => "[RP]",
+        Chapter::PickEnemyTurn { .. } => "[ET]",
         Chapter::Log { .. } => "[L]",
     }
 }
@@ -127,7 +137,7 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "chapter-set-view-fact",
         Chapter::DanmakuPerformance { .. } => "chapter-danmaku-performance",
         Chapter::AlightMotionPerformance { .. } => "chapter-am-performance",
-        Chapter::TweenViewElement { .. } => "chapter-tween-view-element",
+        Chapter::SetViewElement { .. } => "chapter-tween-view-element",
         Chapter::Wait(_) => "chapter-wait",
         Chapter::Sequence(_) => "chapter-sequence",
         Chapter::Parallel(_) => "chapter-parallel",
@@ -147,6 +157,11 @@ pub(crate) fn chapter_i18n_key(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "chapter-load-enemies",
         Chapter::SplitBattleBox { .. } => "chapter-split-battle-box",
         Chapter::MergeBattleBoxes { .. } => "chapter-merge-battle-boxes",
+        Chapter::SpawnBehavior { .. } => "chapter-spawn-behavior",
+        Chapter::Loop { .. } => "chapter-loop",
+        Chapter::Break => "chapter-break",
+        Chapter::RandomPick { .. } => "chapter-random-pick",
+        Chapter::PickEnemyTurn { .. } => "chapter-pick-enemy-turn",
         Chapter::Log { .. } => "chapter-log",
     }
 }
@@ -159,7 +174,9 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         Chapter::SetViewFact { key, .. } => key.clone(),
         Chapter::DanmakuPerformance { performance, .. } => performance.clone(),
         Chapter::AlightMotionPerformance { amproj_path, .. } => amproj_path.clone(),
-        Chapter::TweenViewElement { duration, .. } => format!("{duration}s"),
+        Chapter::SetViewElement { duration, .. } => {
+            duration.map_or("instant".to_string(), |d| format!("{d}s"))
+        }
         Chapter::Wait(secs) => format!("{secs}s"),
         Chapter::Sequence(children) => format!("{} chapters", children.len()),
         Chapter::Parallel(children) => format!("{} chapters", children.len()),
@@ -199,6 +216,21 @@ pub fn chapter_summary(chapter: &Chapter) -> String {
         } => {
             format!("{} + {} → {result}", sources.0, sources.1)
         }
+        Chapter::SpawnBehavior { behavior_id, .. } => behavior_id.clone(),
+        Chapter::Loop { body, .. } => format!("{} chapters", body.len()),
+        Chapter::Break => "break".to_string(),
+        Chapter::RandomPick {
+            candidates, count, ..
+        } => {
+            format!("pick {} from {}", count, candidates.len())
+        }
+        Chapter::PickEnemyTurn {
+            enemy_id, group, ..
+        } => enemy_id
+            .as_deref()
+            .or(group.as_deref())
+            .unwrap_or("(auto)")
+            .to_string(),
         Chapter::Log { text, .. } => text.clone(),
     }
 }
@@ -312,7 +344,7 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::SetViewFact { .. } => "SetViewFact",
         Chapter::DanmakuPerformance { .. } => "DanmakuPerformance",
         Chapter::AlightMotionPerformance { .. } => "AlightMotionPerformance",
-        Chapter::TweenViewElement { .. } => "TweenViewElement",
+        Chapter::SetViewElement { .. } => "SetViewElement",
         Chapter::Wait(_) => "Wait",
         Chapter::Sequence(_) => "Sequence",
         Chapter::Parallel(_) => "Parallel",
@@ -332,6 +364,11 @@ pub fn chapter_type_name(chapter: &Chapter) -> &'static str {
         Chapter::LoadEnemies { .. } => "LoadEnemies",
         Chapter::SplitBattleBox { .. } => "SplitBattleBox",
         Chapter::MergeBattleBoxes { .. } => "MergeBattleBoxes",
+        Chapter::SpawnBehavior { .. } => "SpawnBehavior",
+        Chapter::Loop { .. } => "Loop",
+        Chapter::Break => "Break",
+        Chapter::RandomPick { .. } => "RandomPick",
+        Chapter::PickEnemyTurn { .. } => "PickEnemyTurn",
         Chapter::Log { .. } => "Log",
     }
 }
@@ -349,6 +386,8 @@ fn truncate(s: &str, max_len: usize) -> &str {
 pub fn has_children(chapter: &Chapter) -> bool {
     match chapter {
         Chapter::Sequence(children) | Chapter::Parallel(children) => !children.is_empty(),
+        Chapter::Loop { body, .. } => !body.is_empty(),
+        Chapter::RandomPick { candidates, .. } => !candidates.is_empty(),
         Chapter::Conditional { .. } => true,
         Chapter::FactSwitch { cases, .. } => !cases.is_empty(),
         _ => false,
@@ -360,6 +399,8 @@ pub fn get_children(chapter: &Chapter) -> Vec<(&str, &[Chapter])> {
     match chapter {
         Chapter::Sequence(children) => vec![("", children.as_slice())],
         Chapter::Parallel(children) => vec![("", children.as_slice())],
+        Chapter::Loop { body, .. } => vec![("body", body.as_slice())],
+        Chapter::RandomPick { candidates, .. } => vec![("candidates", candidates.as_slice())],
         Chapter::Conditional {
             then_branch,
             else_branch,

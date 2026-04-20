@@ -17,6 +17,7 @@ mod battle_player_spawn;
 pub mod battle_runtime;
 mod data_paths;
 pub mod enemy;
+pub(crate) mod enemy_turn;
 pub mod item;
 pub(crate) mod item_actions;
 mod load_enemies_chapter;
@@ -73,6 +74,14 @@ impl Plugin for PresetPlugin {
                 .chain()
                 .in_set(crate::core::sequencer::SequencerUpdate)
                 .after(crate::core::sequencer::load_default_chapter_system),
+        );
+
+        // Resolve PickEnemyTurn before the sequencer advances.
+        app.add_systems(
+            schedule,
+            enemy_turn::resolve_pick_enemy_turn_system
+                .in_set(crate::core::sequencer::SequencerUpdate)
+                .before(crate::core::sequencer::flow::advance_battle_flow_system),
         );
 
         // Register tag-based component injection systems.

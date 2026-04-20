@@ -110,12 +110,15 @@ fn setup_battle_camera(
     >,
     q_render_targets: Query<&bevy::camera::RenderTarget>,
     resolution_scale: Res<crate::core::camera::ResolutionScale>,
+    config: Res<crate::config::SoupruneConfig>,
 ) {
     let scale_value = resolution_scale.get();
+    let zoom = config.game.battle_camera_zoom;
     info!(
-        "[Battle] Setting up battle camera with resolution_scale={}, camera_scale={}",
+        "[Battle] Setting up battle camera with resolution_scale={}, zoom={}, camera_scale={}",
         scale_value,
-        1.0 / scale_value as f32
+        zoom,
+        zoom / scale_value as f32
     );
 
     // Capture render target and camera order before deactivating the main game camera,
@@ -140,7 +143,7 @@ fn setup_battle_camera(
     });
     #[cfg(not(target_os = "android"))]
     let projection = Projection::Orthographic(OrthographicProjection {
-        scale: 1.0 / scale_value as f32,
+        scale: zoom / scale_value as f32,
         ..OrthographicProjection::default_2d()
     });
 

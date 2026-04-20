@@ -122,15 +122,15 @@ fn all_categories() -> Vec<CategoryDef> {
                     },
                 },
                 ChapterTemplate {
-                    name: "TweenViewElement",
+                    name: "SetViewElement",
                     icon: "[~]",
-                    create: || Chapter::TweenViewElement {
+                    create: || Chapter::SetViewElement {
                         selector: ElementSelector::LocalName(String::new()),
                         target: TweenTarget::Alpha {
                             from: None,
                             to: Value::Static(1.0),
                         },
-                        duration: 0.5,
+                        duration: Some(0.5),
                         easing: EaseKindRepr::Linear,
                         wait_for_completion: true,
                     },

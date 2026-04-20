@@ -81,7 +81,8 @@ pub fn process_run_sequence_system(
                 handle,
             });
         } else {
-            warn!("RunSequence: Could not resolve path");
+            // path_fact may reference an optional parameter — use debug level
+            debug!("RunSequence: Could not resolve path (path_fact may be unset)");
             commands.entity(entity).insert(ChapterFinished);
         }
     }
@@ -99,6 +100,7 @@ pub fn complete_run_sequence_system(
     mut context: ResMut<SequenceContext>,
     mut view_root_query: Query<&mut ViewRoot, With<ActiveView>>,
     layered_db: Res<LayeredFactDatabase>,
+    mut debug_info: ResMut<super::super::context::SequenceDebugInfo>,
 ) {
     for (entity, run_seq, _active) in query.iter_mut() {
         let Some(asset) = assets.get(&run_seq.handle) else {
@@ -116,6 +118,9 @@ pub fn complete_run_sequence_system(
         let mut new_chapters = asset.chapters.clone();
         new_chapters.append(&mut context.chapters);
         context.chapters = new_chapters;
+
+        debug_info.previous_path = debug_info.current_path.take();
+        debug_info.current_path = Some(run_seq.path.clone());
 
         info!(
             "RunSequence: Loaded {} chapters from {}",
