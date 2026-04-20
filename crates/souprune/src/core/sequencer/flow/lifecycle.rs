@@ -46,15 +46,13 @@ pub fn spawn_chapter(commands: &mut Commands, chapter: Chapter, parent: Option<E
                 spawn_chapter(commands, child, Some(entity));
             }
         }
-        Chapter::Sequence(children) => {
-            if parent.is_some() {
-                warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
-                commands.entity(entity).insert(ParallelTracker {
-                    pending_count: children.len(),
-                });
-                for child in children {
-                    spawn_chapter(commands, child, Some(entity));
-                }
+        Chapter::Sequence(children) if parent.is_some() => {
+            warn!("Nested Sequence not fully implemented yet, treating as Parallel for now");
+            commands.entity(entity).insert(ParallelTracker {
+                pending_count: children.len(),
+            });
+            for child in children {
+                spawn_chapter(commands, child, Some(entity));
             }
         }
         _ => {}
