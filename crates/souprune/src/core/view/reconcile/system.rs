@@ -123,6 +123,7 @@ pub fn view_reconciliation_system(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&crate::core::view::components::ShaderMaterial>,
+        Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: Query<&Children>,
     data_resolvers: Option<Res<crate::core::view::ron_view::parsing::DataPathResolvers>>,
@@ -201,6 +202,7 @@ fn build_current_tree_from_query(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&crate::core::view::components::ShaderMaterial>,
+        Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: &Query<&Children>,
 ) -> CurrentViewTree {
@@ -243,6 +245,7 @@ fn collect_descendants(
         Option<&Sprite>,
         Option<&crate::core::view::components::VisibleWhen>,
         Option<&crate::core::view::components::ShaderMaterial>,
+        Option<&crate::core::view::components::ViewBoxAnchor>,
     )>,
     children_query: &Query<&Children>,
     result: &mut Vec<CollectedElement>,
@@ -257,6 +260,7 @@ fn collect_descendants(
         sprite_opt,
         visible_when_opt,
         shader_material_opt,
+        anchor_opt,
     )) = view_element_query.get(entity)
     {
         let parent = child_of.map(|c| c.parent());
@@ -271,10 +275,22 @@ fn collect_descendants(
         // Extract visible_when expression if present
         let visible_when_expr = visible_when_opt.map(|vw| vw.expression.clone());
 
+        // For anchored ViewBoxes, use the logical base_offset instead of the
+        // physically corrected translation. This prevents the reconciliation
+        // diff from generating spurious UpdateTransform deltas every frame
+        // when the anchor correction system adjusts the position.
+        let logical_transform = if let Some(anchor_data) = anchor_opt {
+            let mut t = *transform;
+            t.translation = anchor_data.base_offset;
+            t
+        } else {
+            *transform
+        };
+
         result.push(CollectedElement {
             entity: e,
             full_name: view_element.full_name.clone(),
-            transform: *transform,
+            transform: logical_transform,
             visibility: *visibility,
             parent,
             sprite,

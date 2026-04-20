@@ -47,6 +47,8 @@ mod image_overlay;
 mod inspector;
 #[cfg(feature = "debug")]
 mod restart;
+#[cfg(feature = "debug")]
+mod state_overlay;
 
 use bevy::app::{App, Plugin};
 use bevy::prelude::*;
@@ -129,6 +131,8 @@ impl Plugin for DebugPlugin {
             camera_debug::debug_camera::setup_camera_debug(app);
 
             restart::debug_restart::setup_restart_debug(app);
+
+            state_overlay::debug_state_overlay::setup_state_overlay(app);
         }
     }
 }
