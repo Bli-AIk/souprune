@@ -66,6 +66,35 @@ pub fn linear(dir: (f32, f32), speed: f32) -> BulletBehavior {
     BulletBehavior::Linear(LinearConfig { dir, speed })
 }
 
+/// Create a `Stationary` behavior.
+///
+/// 创建静止行为。
+pub fn stationary() -> BulletBehavior {
+    BulletBehavior::Stationary()
+}
+
+/// Create an `Orbital` behavior.
+///
+/// 创建轨道运动行为。
+pub fn orbital(angular_velocity: f32, radial_velocity: f32) -> BulletBehavior {
+    BulletBehavior::Orbital(OrbitalConfig {
+        angular_velocity,
+        radial_velocity,
+    })
+}
+
+/// Create a `Sine` behavior.
+///
+/// 创建正弦波行为。
+pub fn sine(axis: (f32, f32), amplitude: f32, frequency: f32) -> BulletBehavior {
+    BulletBehavior::Sine(SineConfig {
+        axis,
+        amplitude,
+        frequency,
+        phase: 0.0,
+    })
+}
+
 // ── ColliderShape constructors ──────────────────────────────────────────
 
 /// Create a circular collider.
@@ -197,6 +226,82 @@ pub fn ring(count: usize, radius: f32) -> RingBuilder {
         radius,
         start_angle: 0.0,
         randomness: 0.0,
+    }
+}
+
+/// Create a `LineGenerator` pattern.
+///
+/// 创建直线生成模式。
+pub fn line(count: usize) -> LineBuilder {
+    LineBuilder {
+        count,
+        spacing: 20.0,
+        direction: (0.0, -1.0),
+        randomness: 0.0,
+    }
+}
+
+/// Builder for `LineGenerator` spawn patterns.
+pub struct LineBuilder {
+    count: usize,
+    spacing: f32,
+    direction: (f32, f32),
+    randomness: f32,
+}
+
+impl LineBuilder {
+    pub fn spacing(mut self, spacing: f32) -> Self {
+        self.spacing = spacing;
+        self
+    }
+
+    pub fn direction(mut self, direction: (f32, f32)) -> Self {
+        self.direction = direction;
+        self
+    }
+
+    pub fn randomness(mut self, randomness: f32) -> Self {
+        self.randomness = randomness;
+        self
+    }
+
+    pub fn build(self) -> SpawnPattern {
+        SpawnPattern::LineGenerator {
+            count: self.count,
+            spacing: self.spacing,
+            direction: self.direction,
+            randomness: self.randomness,
+        }
+    }
+}
+
+/// Create a `CustomGenerator` pattern.
+///
+/// 创建自定义生成模式。
+pub fn custom_pattern(id: &str) -> CustomPatternBuilder {
+    CustomPatternBuilder {
+        id: id.to_string(),
+        params: Default::default(),
+    }
+}
+
+/// Builder for `CustomGenerator` spawn patterns.
+pub struct CustomPatternBuilder {
+    id: String,
+    params: std::collections::HashMap<String, f32>,
+}
+
+impl CustomPatternBuilder {
+    pub fn param(mut self, key: &str, value: f32) -> Self {
+        self.params.insert(key.to_string(), value);
+        self
+    }
+
+    pub fn build(self) -> SpawnPattern {
+        SpawnPattern::CustomGenerator {
+            id: self.id,
+            params: self.params,
+        }
     }
 }
 

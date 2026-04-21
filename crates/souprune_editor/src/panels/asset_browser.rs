@@ -90,7 +90,7 @@ impl AssetFileType {
             Self::Rule
         } else if name.ends_with(".performance.ron") {
             Self::Performance
-        } else if name == "states.ron"
+        } else if name == "flow.ron"
             || name == "mod.toml"
             || name.ends_with(".toml")
             || name == "config.ron"

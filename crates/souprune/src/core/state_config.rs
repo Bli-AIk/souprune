@@ -149,7 +149,7 @@ impl Plugin for StateConfigPlugin {
         let schedule = crate::game_schedule(app);
         app.init_asset::<StateConfig>()
             .register_asset_loader(crate::core::ron_loader::RonAssetLoader::<StateConfig>::new(
-                &["states.ron"],
+                &["flow.ron"],
             ))
             .init_resource::<LoadedStateConfig>()
             .init_resource::<StateConfigHandle>()
@@ -167,12 +167,12 @@ fn load_state_config_system(
     asset_server: Res<AssetServer>,
     config: Res<crate::config::SoupruneConfig>,
 ) {
-    // Read states_config path from project configuration
-    // 从项目配置中读取 states_config 路径
-    let config_path = if config.game.states_config.is_empty() {
-        "config/states.ron".to_string()
+    // Read flow_config_path from project configuration
+    // 从项目配置中读取 flow_config_path 路径
+    let config_path = if config.game.flow_config_path.is_empty() {
+        "app/flow.ron".to_string()
     } else {
-        config.game.states_config.clone()
+        config.game.flow_config_path.clone()
     };
 
     info!("Loading state configuration from: {}", config_path);

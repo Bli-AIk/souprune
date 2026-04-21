@@ -10,9 +10,9 @@ use souprune_schema::danmaku::DanmakuPerformance;
 ///
 /// 为 [`Registry`] 添加弹幕演出注册方法。
 pub trait PerformanceRegistry {
-    /// Register a `DanmakuPerformance` under `states/battle/danmaku/{name}.performance.ron`.
+    /// Register a `DanmakuPerformance` under `battle/danmaku/{name}.performance.ron`.
     ///
-    /// 注册一个弹幕演出，输出为 `states/battle/danmaku/{name}.performance.ron`。
+    /// 注册一个弹幕演出，输出为 `battle/danmaku/{name}.performance.ron`。
     fn performance(&mut self, name: &str, perf: DanmakuPerformance) -> Result<()>;
 
     /// Register a `DanmakuPerformance` with a custom subdirectory path prefix.
@@ -23,7 +23,7 @@ pub trait PerformanceRegistry {
 
 impl PerformanceRegistry for guest::Registry {
     fn performance(&mut self, name: &str, perf: DanmakuPerformance) -> Result<()> {
-        let path = format!("states/battle/danmaku/{name}.performance.ron");
+        let path = format!("battle/danmaku/{name}.performance.ron");
         self.emit_ron(path, &perf)
     }
 

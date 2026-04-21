@@ -4,17 +4,17 @@
 
 #[path = "support/cotton_first_turn_assertions.rs"]
 mod cotton_first_turn_assertions;
-#[path = "../../../projects/example_mod/code/example_mod_vessel/src/performances.rs"]
-mod example_mod_vessel_performances;
+#[path = "../../../projects/example_mod/content/src/performances.rs"]
+mod example_mod_content_performances;
 
 use cotton_first_turn_assertions::{assert_same_performance, parse_generated_ron};
 use souprune_schema::danmaku::DanmakuPerformance;
 
 #[test]
 fn cotton_first_turn_snapshot() {
-    let generated = example_mod_vessel_performances::cotton_first_turn();
+    let generated = example_mod_content_performances::cotton_first_turn();
     let original_ron = include_str!(
-        "../../../projects/example_mod/states/battle/danmaku/cotton_first_turn.performance.ron"
+        "../../../projects/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
     );
     let original: DanmakuPerformance =
         ron::from_str(original_ron).expect("hand-written cotton_first_turn should parse");

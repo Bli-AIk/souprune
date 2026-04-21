@@ -33,6 +33,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/souprune_vessel/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/crates/vessel/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/vessel/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/souprune_vessel_macros/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_ecs_typewriter/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/bevy_mortar_bond/target" />

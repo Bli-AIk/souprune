@@ -12,6 +12,8 @@ pub mod danmaku;
 pub mod guest;
 pub mod prelude;
 
+pub use souprune_vessel_macros::performance;
+
 /// Export a Rust guest as a Vessel build-time WASM component.
 ///
 /// 将一个 Rust guest 导出为 Vessel 构建期 WASM component。

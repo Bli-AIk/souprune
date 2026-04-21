@@ -30,21 +30,18 @@ fn input_config_assets_parse() {
     let mut parsed_any = false;
     for project_name in project_names {
         let root = test_support::named_project_root(project_name);
-        if !root.join("config/input.ron").exists() {
+        if !root.join("app/input.ron").exists() {
             continue;
         }
         let input: core::input::InputConfig =
-            test_support::parse_project_ron_from(project_name, "config/input.ron");
+            test_support::parse_project_ron_from(project_name, "app/input.ron");
         assert!(
             !input.actions.is_empty(),
             "input config should define actions for {project_name}"
         );
         parsed_any = true;
     }
-    assert!(
-        parsed_any,
-        "at least one project should have config/input.ron"
-    );
+    assert!(parsed_any, "at least one project should have app/input.ron");
 }
 
 #[test]
@@ -65,21 +62,18 @@ fn state_config_assets_parse() {
     let mut parsed_any = false;
     for project_name in project_names {
         let root = test_support::named_project_root(project_name);
-        if !root.join("config/states.ron").exists() {
+        if !root.join("app/flow.ron").exists() {
             continue;
         }
         let state_config: core::state_config::StateConfig =
-            test_support::parse_project_ron_from(project_name, "config/states.ron");
+            test_support::parse_project_ron_from(project_name, "app/flow.ron");
         assert!(
             !state_config.0.states.is_empty(),
-            "states.ron should define at least one state for {project_name}"
+            "flow.ron should define at least one state for {project_name}"
         );
         parsed_any = true;
     }
-    assert!(
-        parsed_any,
-        "at least one project should have config/states.ron"
-    );
+    assert!(parsed_any, "at least one project should have app/flow.ron");
 }
 
 #[test]
@@ -92,8 +86,15 @@ fn sequence_assets_parse_via_schema_and_runtime() {
         return;
     }
 
-    let files =
-        test_support::list_project_files_with_suffix_from("example_mod", "states", ".sequence.ron");
+    let mut files =
+        test_support::list_project_files_with_suffix_from("example_mod", "battle", ".sequence.ron");
+    files.extend(test_support::list_project_files_with_suffix_from(
+        "example_mod",
+        "overworld",
+        ".sequence.ron",
+    ));
+    files.sort();
+    files.dedup();
     assert!(
         !files.is_empty(),
         "example_mod should contain sequence assets"
@@ -119,9 +120,14 @@ fn view_assets_parse_via_schema_and_runtime() {
     let project_name = candidates
         .iter()
         .find(|name| {
-            test_support::available_project_root(name).is_some()
-                && !test_support::list_project_files_with_suffix_from(name, "states", ".view.ron")
-                    .is_empty()
+            let has_project = test_support::available_project_root(name).is_some();
+            let has_battle_views =
+                !test_support::list_project_files_with_suffix_from(name, "battle", ".view.ron")
+                    .is_empty();
+            let has_overworld_views =
+                !test_support::list_project_files_with_suffix_from(name, "overworld", ".view.ron")
+                    .is_empty();
+            has_project && (has_battle_views || has_overworld_views)
         })
         .copied();
 
@@ -133,8 +139,15 @@ fn view_assets_parse_via_schema_and_runtime() {
         return;
     };
 
-    let files =
-        test_support::list_project_files_with_suffix_from(project_name, "states", ".view.ron");
+    let mut files =
+        test_support::list_project_files_with_suffix_from(project_name, "battle", ".view.ron");
+    files.extend(test_support::list_project_files_with_suffix_from(
+        project_name,
+        "overworld",
+        ".view.ron",
+    ));
+    files.sort();
+    files.dedup();
     assert!(
         !files.is_empty(),
         "{project_name} should contain view assets"
@@ -159,13 +172,10 @@ fn danmaku_performance_assets_parse() {
     let mut ran_any = false;
 
     for (project_name, relative) in [
-        (
-            "example_mod",
-            "states/battle/danmaku/demo_attack.performance.ron",
-        ),
+        ("example_mod", "battle/danmaku/demo_attack.performance.ron"),
         (
             "example_am_mod",
-            "states/battle/danmaku/demo_attack.performance.ron",
+            "battle/danmaku/demo_attack.performance.ron",
         ),
     ] {
         if test_support::available_project_root(project_name).is_none() {

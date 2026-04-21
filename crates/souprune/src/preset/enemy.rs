@@ -164,9 +164,16 @@ pub fn project_enemy_facts(enemy: &EnemyDef, db: &mut bevy_fact_rule_event::Fact
 #[derive(Resource)]
 struct EnemyFolderHandle(Handle<LoadedFolder>);
 
-fn load_enemies_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    info!("Starting to load enemies from folder 'data/enemies'...");
-    let handle = asset_server.load_folder("data/enemies");
+fn load_enemies_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    config: Res<crate::config::SoupruneConfig>,
+) {
+    info!(
+        "Starting to load enemies from folder '{}'...",
+        config.game.enemy_directory
+    );
+    let handle = asset_server.load_folder(config.game.enemy_directory.clone());
     commands.insert_resource(EnemyFolderHandle(handle));
 }
 

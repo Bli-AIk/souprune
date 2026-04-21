@@ -107,7 +107,7 @@ mod tests {
         let style = BattleBoxVisualStyle {
             border_width: 5.0,
             fill_shader: None,
-            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            structure_file: Some("view/structures/view_box.sdf.ron".to_string()),
             fill_color: Color::BLACK,
         };
         let requested_visible_gap = 20.0;
@@ -130,7 +130,7 @@ mod tests {
         let style = BattleBoxVisualStyle {
             border_width: 5.0,
             fill_shader: None,
-            structure_file: Some("shared/view_structures/view_box.sdf.ron".to_string()),
+            structure_file: Some("view/structures/view_box.sdf.ron".to_string()),
             fill_color: Color::BLACK,
         };
         let (top, bottom) = split_rect_box(

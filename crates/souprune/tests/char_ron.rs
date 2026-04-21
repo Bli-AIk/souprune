@@ -11,7 +11,7 @@ mod test_support;
 
 use souprune::{AnimationConfigAsset, CharacterAsset};
 
-const CHAR_DIR: &str = "states/overworld/characters";
+const CHAR_DIR: &str = "overworld/characters";
 const CHAR_SUFFIX: &str = ".character.ron";
 
 /// Get character definition files (excluding animation configs).

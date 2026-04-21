@@ -14,7 +14,7 @@ use souprune::{AnimationConfigAsset, CharacterAsset, Direction};
 /// 验证引用的资产（角色与动画配置）都存在并可解析。
 #[test]
 fn player_behavior_asset_references_are_valid() {
-    let path = test_support::project_root().join("states/overworld/players/player_behavior.ron");
+    let path = test_support::project_root().join("overworld/players/player_behavior.ron");
     if !path.exists() {
         // Skip if project assets are not available (e.g., in CI)
         return;
@@ -65,7 +65,7 @@ struct RawVec2 {
 }
 
 fn load_raw_behavior() -> RawPlayerBehavior {
-    let path = test_support::project_root().join("states/overworld/players/player_behavior.ron");
+    let path = test_support::project_root().join("overworld/players/player_behavior.ron");
     let contents = test_support::read_string(&path);
     from_str(&contents).expect("player behavior ron should parse")
 }

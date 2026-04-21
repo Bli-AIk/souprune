@@ -106,27 +106,43 @@ wasm-build:
 wasm-test: wasm-build
     cargo run -p souprune_mock_host -- target/wasm32-wasip2/debug/souprune_mod_test.wasm
 
-# 构建项目 Mod 为 WASM 组件
-mod-build mod_name:
-    cd projects/{{mod_name}}/code/mod_example && cargo build --target wasm32-wasip2 --release
-    @echo "Built: projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm"
+# 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
+runtime-build mod_name:
+    cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2
+    mkdir -p projects/{{mod_name}}/.build
+    cp projects/{{mod_name}}/runtime/target/wasm32-wasip2/debug/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
+    @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
 
-# 构建并安装项目 Mod（复制 .wasm 到项目目录）
-mod-install mod_name: (mod-build mod_name)
-    cp projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm projects/{{mod_name}}/mod_example.wasm
-    @echo "Installed: projects/{{mod_name}}/mod_example.wasm"
+# release 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
+runtime-build-release mod_name:
+    cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --release
+    mkdir -p projects/{{mod_name}}/.build
+    cp projects/{{mod_name}}/runtime/target/wasm32-wasip2/release/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
+    @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
 
-# 构建项目 Vessel guest 并生成 RON 文件到 generated/
-vessel-build mod_name guest_name="example_mod_vessel":
-    cd projects/{{mod_name}}/code/{{guest_name}} && cargo build --target wasm32-wasip2
-    cargo run -p vessel -- build projects/{{mod_name}}/code/{{guest_name}}/target/wasm32-wasip2/debug/{{guest_name}}.wasm --output projects/{{mod_name}}/generated
-    @echo "Generated RON: projects/{{mod_name}}/generated"
+# 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
+content-build mod_name:
+    cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
+    mkdir -p projects/{{mod_name}}/.build
+    cp projects/{{mod_name}}/content/target/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
+    cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
-# release 构建项目 Vessel guest 并生成 RON 文件到 generated/
-vessel-build-release mod_name guest_name="example_mod_vessel":
-    cd projects/{{mod_name}}/code/{{guest_name}} && cargo build --target wasm32-wasip2 --release
-    cargo run -p vessel -- build projects/{{mod_name}}/code/{{guest_name}}/target/wasm32-wasip2/release/{{guest_name}}.wasm --output projects/{{mod_name}}/generated
-    @echo "Generated RON: projects/{{mod_name}}/generated"
+# release 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
+content-build-release mod_name:
+    cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
+    mkdir -p projects/{{mod_name}}/.build
+    cp projects/{{mod_name}}/content/target/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
+    cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
+
+# 构建项目的 runtime 和 content 两条主线
+project-build mod_name: (runtime-build mod_name) (content-build mod_name)
+    @echo "Built project: {{mod_name}}"
+
+# release 构建项目的 runtime 和 content 两条主线
+project-build-release mod_name: (runtime-build-release mod_name) (content-build-release mod_name)
+    @echo "Built project: {{mod_name}}"
 
 # 打包发行版
 # 统一脚本：scripts/pack.sh

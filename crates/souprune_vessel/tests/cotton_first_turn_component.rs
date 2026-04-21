@@ -14,23 +14,23 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn cotton_first_turn_component_build_matches_reference_asset() {
-    let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../projects/example_mod/code/example_mod_vessel");
+    let fixture_dir =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../projects/example_mod/content");
 
     let build_status = Command::new("cargo")
         .current_dir(&fixture_dir)
         .args(["build", "--target", "wasm32-wasip2"])
         .status()
-        .expect("failed to invoke cargo build for example_mod_vessel guest");
+        .expect("failed to invoke cargo build for example_mod content guest");
     assert!(
         build_status.success(),
-        "example_mod_vessel guest should build successfully"
+        "example_mod content guest should build successfully"
     );
 
-    let component_path = fixture_dir.join("target/wasm32-wasip2/debug/example_mod_vessel.wasm");
+    let component_path = fixture_dir.join("target/wasm32-wasip2/debug/content.wasm");
     assert!(
         component_path.exists(),
-        "example_mod_vessel component should exist"
+        "example_mod content component should exist"
     );
 
     let unique = SystemTime::now()
@@ -47,7 +47,7 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
         "expected one generated performance"
     );
 
-    let output_path = output_dir.join("states/battle/danmaku/cotton_first_turn.performance.ron");
+    let output_path = output_dir.join("battle/danmaku/cotton_first_turn.performance.ron");
     assert!(
         output_path.exists(),
         "generated cotton_first_turn output should exist"
@@ -62,7 +62,7 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
 
     let generated = parse_generated_ron(&generated_ron);
     let original_ron = include_str!(
-        "../../../projects/example_mod/states/battle/danmaku/cotton_first_turn.performance.ron"
+        "../../../projects/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
     );
     let original: DanmakuPerformance =
         ron::from_str(original_ron).expect("reference cotton_first_turn should parse");

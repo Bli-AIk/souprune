@@ -3,11 +3,11 @@
 //! 打字机文本的可配置语音播放规则。
 //!
 //! Controls which characters trigger or suppress voice sound effects.
-//! Loaded from the `voice` section of `config/dialogue.ron`.
+//! Loaded from the `voice` section of `narrative/dialogue.ron`.
 //! Named presets allow per-character or per-scene overrides.
 //!
 //! 控制哪些字符触发或抑制语音音效。
-//! 从 `config/dialogue.ron` 的 `voice` 段加载。
+//! 从 `narrative/dialogue.ron` 的 `voice` 段加载。
 //! 命名预设允许按角色或按场景覆盖。
 
 use std::collections::HashMap;
@@ -19,13 +19,13 @@ use serde::Deserialize;
 ///
 /// 语音播放规则的配置资源。
 ///
-/// Loaded from the `voice` section of `config/dialogue.ron` via
+/// Loaded from the `voice` section of `narrative/dialogue.ron` via
 /// [`resolve_path`](crate::config::resolve_path).
 /// Contains named presets that map characters to playback rules.
 /// Characters in a preset with value `false` will suppress voice.
 /// Characters not in the preset will play voice normally.
 ///
-/// 从 `config/dialogue.ron` 的 `voice` 段加载（通过
+/// 从 `narrative/dialogue.ron` 的 `voice` 段加载（通过
 /// [`resolve_path`](crate::config::resolve_path)）。
 /// 包含命名预设，将字符映射到播放规则。
 /// 预设中值为 `false` 的字符将抑制语音。
