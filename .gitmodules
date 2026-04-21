@@ -1,32 +1,32 @@
 [submodule "crates/bevy_mortar_bond"]
 	path = crates/bevy_mortar_bond
-	url = https://github.com/Bli-AIk/bevy_mortar_bond.git
+	url = git@github.com:Bli-AIk/bevy_mortar_bond.git
 [submodule "crates/bevy_fact_rule_event"]
 	path = crates/bevy_fact_rule_event
-	url = https://github.com/Bli-AIk/bevy_fact_rule_event.git
+	url = git@github.com:Bli-AIk/bevy_fact_rule_event.git
 [submodule "crates/bevy_ecs_typewriter"]
 	path = crates/bevy_ecs_typewriter
-	url = https://github.com/Bli-AIk/bevy_ecs_typewriter.git
+	url = git@github.com:Bli-AIk/bevy_ecs_typewriter.git
 [submodule "crates/bevy_alight_motion"]
 	path = crates/bevy_alight_motion
-	url = https://github.com/Bli-AIk/bevy_alight_motion.git
+	url = git@github.com:Bli-AIk/bevy_alight_motion.git
 [submodule "crates/mortar"]
 	path = crates/mortar
-	url = https://github.com/Bli-AIk/mortar.git
+	url = git@github.com:Bli-AIk/mortar.git
 [submodule "crates/iyes_perf_ui"]
 	path = crates/iyes_perf_ui
-	url = https://github.com/Bli-AIk/iyes_perf_ui.git
+	url = git@github.com:Bli-AIk/iyes_perf_ui.git
 [submodule "crates/flambe"]
 	path = crates/flambe
-	url = https://github.com/Bli-AIk/flambe.git
+	url = git@github.com:Bli-AIk/flambe.git
 	branch = feat/init
 [submodule "crates/bevy_workbench"]
 	path = crates/bevy_workbench
-	url = https://github.com/Bli-AIk/bevy_workbench.git
+	url = git@github.com:Bli-AIk/bevy_workbench.git
 	branch = feat/init
 [submodule "crates/bevy_bitmap_text"]
 	path = crates/bevy_bitmap_text
-	url = https://github.com/Bli-AIk/bevy_bitmap_text.git
+	url = git@github.com:Bli-AIk/bevy_bitmap_text.git
 	branch = feat/init
 [submodule "crates/vessel"]
 	path = crates/vessel
