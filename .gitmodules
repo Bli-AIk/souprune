@@ -30,5 +30,5 @@
 	branch = feat/init
 [submodule "crates/vessel"]
 	path = crates/vessel
-	url = https://github.com/Bli-AIk/vessel.git
+	url = git@github.com:Bli-AIk/vessel.git
 	branch = feat/init
