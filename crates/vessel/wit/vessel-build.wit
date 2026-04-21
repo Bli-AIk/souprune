@@ -1,0 +1,23 @@
+package vessel:build@0.1.0;
+
+/// Versioning rules:
+/// - Additive changes inside `types` or `world content-module` require a minor version bump.
+/// - Breaking field removals, renames, or world signature changes require a new major package version.
+/// - Guests and hosts must bind against the same `package vessel:build@MAJOR.MINOR.PATCH`.
+///
+/// 版本规则：
+/// - `types` 或 `world content-module` 的向后兼容新增，提升 minor 版本。
+/// - 字段删除、重命名、world 签名修改等破坏性变更，必须切到新的 major 包版本。
+/// - guest 与 host 必须绑定同一份 `package vessel:build@MAJOR.MINOR.PATCH`。
+
+interface types {
+    record generated-file {
+        path: string,
+        ron-text: string,
+    }
+}
+
+world content-module {
+    use types.{generated-file};
+    export build: func() -> list<generated-file>;
+}

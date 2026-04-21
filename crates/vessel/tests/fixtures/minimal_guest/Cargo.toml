@@ -1,0 +1,14 @@
+[package]
+name = "vessel_test_guest"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+souprune_vessel = { path = "../../../../souprune_vessel" }

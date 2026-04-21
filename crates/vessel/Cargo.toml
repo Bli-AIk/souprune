@@ -1,0 +1,15 @@
+[package]
+name = "vessel"
+version = "0.1.0"
+edition = "2024"
+description = "WASM-driven RON build infrastructure for Bevy projects"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Bli-AIk/vessel"
+readme = "readme.md"
+keywords = ["wasm", "ron", "build", "component-model"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+wasmtime = "43"
+wasmtime-wasi = "43"
