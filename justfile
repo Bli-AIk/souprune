@@ -116,6 +116,18 @@ mod-install mod_name: (mod-build mod_name)
     cp projects/{{mod_name}}/code/mod_example/target/wasm32-wasip2/release/mod_example.wasm projects/{{mod_name}}/mod_example.wasm
     @echo "Installed: projects/{{mod_name}}/mod_example.wasm"
 
+# 构建项目 Vessel guest 并生成 RON 文件到 generated/
+vessel-build mod_name guest_name="example_mod_vessel":
+    cd projects/{{mod_name}}/code/{{guest_name}} && cargo build --target wasm32-wasip2
+    cargo run -p vessel -- build projects/{{mod_name}}/code/{{guest_name}}/target/wasm32-wasip2/debug/{{guest_name}}.wasm --output projects/{{mod_name}}/generated
+    @echo "Generated RON: projects/{{mod_name}}/generated"
+
+# release 构建项目 Vessel guest 并生成 RON 文件到 generated/
+vessel-build-release mod_name guest_name="example_mod_vessel":
+    cd projects/{{mod_name}}/code/{{guest_name}} && cargo build --target wasm32-wasip2 --release
+    cargo run -p vessel -- build projects/{{mod_name}}/code/{{guest_name}}/target/wasm32-wasip2/release/{{guest_name}}.wasm --output projects/{{mod_name}}/generated
+    @echo "Generated RON: projects/{{mod_name}}/generated"
+
 # 打包发行版
 # 统一脚本：scripts/pack.sh
 # 支持别名：linux, windows, linux-arm，或任意 Rust target triple

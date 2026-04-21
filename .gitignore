@@ -1,4 +1,6 @@
 /target
+**/target/
+.codex
 
 # JetBrains Rider
 *.sln.iml
@@ -55,6 +57,10 @@ generated/*
 
 # Ignore .cargo/ in mod examples (local dev config for cross-compilation)
 projects/**/code/**/.cargo/
+
+# Local lockfiles for standalone example / fixture crates
+projects/**/code/**/Cargo.lock
+crates/**/tests/fixtures/**/Cargo.lock
 
 
 # Mod repo worktree manager
