@@ -43,8 +43,8 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
     let summary = vessel::build_component(&component_path, &output_dir)
         .expect("vessel host should build cotton_first_turn from the guest component");
     assert_eq!(
-        summary.written_files, 1,
-        "expected one generated performance"
+        summary.written_files, 6,
+        "expected all example_mod performances to be generated"
     );
 
     let output_path = output_dir.join("battle/danmaku/cotton_first_turn.performance.ron");

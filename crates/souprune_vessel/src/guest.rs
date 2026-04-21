@@ -48,16 +48,6 @@ impl Registry {
         Ok(())
     }
 
-    /// Emit already prepared RON text.
-    ///
-    /// 发射已经准备好的 RON 文本。
-    pub fn emit_text(&mut self, path: impl Into<String>, ron_text: impl Into<String>) {
-        self.files.push(wit::GeneratedFile {
-            path: path.into(),
-            ron_text: ron_text.into(),
-        });
-    }
-
     pub fn into_generated_files(self) -> Vec<wit::GeneratedFile> {
         self.files
     }

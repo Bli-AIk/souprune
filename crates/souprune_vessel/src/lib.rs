@@ -2,10 +2,10 @@
 //!
 //! # souprune_vessel — Vessel 的 SoupRune 扩展
 //!
-//! Provides convenience constructors and a [`PerformanceRegistry`] extension
-//! trait for building `DanmakuPerformance` RON files with code.
+//! Provides convenience constructors for building `DanmakuPerformance`
+//! RON files with code.
 //!
-//! 提供便利构造器和 [`PerformanceRegistry`] 扩展 trait，
+//! 提供便利构造器，
 //! 用于以代码方式构建 `DanmakuPerformance` RON 文件。
 
 pub mod danmaku;

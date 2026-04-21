@@ -11,6 +11,14 @@ use cotton_first_turn_assertions::{assert_same_performance, parse_generated_ron}
 use souprune_schema::danmaku::DanmakuPerformance;
 
 #[test]
+fn example_mod_performance_builders_are_reachable() {
+    let _ = example_mod_content_performances::cotton_top_sweep as fn() -> DanmakuPerformance;
+    let _ = example_mod_content_performances::cotton_surround as fn() -> DanmakuPerformance;
+    let _ = example_mod_content_performances::cotton_side_pincer as fn() -> DanmakuPerformance;
+    let _ = example_mod_content_performances::cotton_bottom_wave as fn() -> DanmakuPerformance;
+}
+
+#[test]
 fn cotton_first_turn_snapshot() {
     let generated = example_mod_content_performances::cotton_first_turn();
     let original_ron = include_str!(

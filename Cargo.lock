@@ -7650,6 +7650,7 @@ dependencies = [
  "anyhow",
  "ron",
  "serde",
+ "serde_json",
  "souprune_schema",
  "souprune_vessel_macros",
  "vessel",
