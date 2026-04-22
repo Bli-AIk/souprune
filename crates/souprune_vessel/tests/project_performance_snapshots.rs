@@ -2,17 +2,17 @@
 //!
 //! 所有项目侧 performance 构造器的快照测试。
 
-#[path = "../../../projects/EVAERDRAD_storyspin_chara_fanmade/content/src/performances.rs"]
+#[path = "../../../projects/EVAERDRAD_storyspin_chara_fanmade/content/src/support/performances.rs"]
 mod chara_mod_performances;
-#[path = "../../../projects/epictale/content/src/performances.rs"]
+#[path = "../../../projects/epictale/content/src/support/performances.rs"]
 mod epictale_performances;
-#[path = "../../../projects/example_am_mod/content/src/performances.rs"]
+#[path = "../../../projects/example_am_mod/content/src/support/performances.rs"]
 mod example_am_mod_performances;
-#[path = "../../../projects/example_battle_mod/content/src/performances.rs"]
+#[path = "../../../projects/example_battle_mod/content/src/support/performances.rs"]
 mod example_battle_mod_performances;
-#[path = "../../../projects/example_mod/content/src/demo_attack.rs"]
+#[path = "../../../projects/example_mod/content/src/support/demo_attack.rs"]
 mod example_mod_demo_attack;
-#[path = "../../../projects/example_mod/content/src/performances.rs"]
+#[path = "../../../projects/example_mod/content/src/support/performances.rs"]
 mod example_mod_performances;
 
 use serde_json::Value;

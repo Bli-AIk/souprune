@@ -8,6 +8,7 @@
 //! 提供便利构造器，
 //! 用于以代码方式构建 `DanmakuPerformance` RON 文件。
 
+pub mod build_support;
 pub mod danmaku;
 pub mod guest;
 pub mod prelude;

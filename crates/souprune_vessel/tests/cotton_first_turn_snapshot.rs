@@ -4,7 +4,7 @@
 
 #[path = "support/cotton_first_turn_assertions.rs"]
 mod cotton_first_turn_assertions;
-#[path = "../../../projects/example_mod/content/src/performances.rs"]
+#[path = "../../../projects/example_mod/content/src/support/performances.rs"]
 mod example_mod_content_performances;
 
 use cotton_first_turn_assertions::{assert_same_performance, parse_generated_ron};

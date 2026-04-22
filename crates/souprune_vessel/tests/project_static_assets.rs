@@ -8,98 +8,99 @@ use serde_json::Value;
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-
-#[path = "../../../projects/EVAERDRAD_storyspin_chara_fanmade/content/src/static_assets.rs"]
-mod chara_mod_static_assets;
-#[path = "../../../projects/epictale/content/src/static_assets.rs"]
-mod epictale_static_assets;
-#[path = "../../../projects/example_am_mod/content/src/static_assets.rs"]
-mod example_am_mod_static_assets;
-#[path = "../../../projects/example_battle_mod/content/src/static_assets.rs"]
-mod example_battle_mod_static_assets;
-#[path = "../../../projects/example_mod/content/src/static_assets.rs"]
-mod example_mod_static_assets;
-#[path = "../../../projects/undertale_preset/content/src/static_assets.rs"]
-mod undertale_preset_static_assets;
+use std::process::Command;
 
 use souprune_schema::RonFileKind;
-use souprune_vessel::guest::Registry;
 
 #[test]
 fn project_static_assets_canonicalize() {
-    for (project_name, content_ron_dir, emit_all) in [
+    for (project_name, content_ron_dir) in [
         (
             "EVAERDRAD_storyspin_chara_fanmade",
             project_content_ron_dir("EVAERDRAD_storyspin_chara_fanmade"),
-            chara_mod_static_assets::emit_all as fn(&mut Registry) -> anyhow::Result<()>,
         ),
-        (
-            "epictale",
-            project_content_ron_dir("epictale"),
-            epictale_static_assets::emit_all,
-        ),
-        (
-            "example_am_mod",
-            project_content_ron_dir("example_am_mod"),
-            example_am_mod_static_assets::emit_all,
-        ),
+        ("epictale", project_content_ron_dir("epictale")),
+        ("example_am_mod", project_content_ron_dir("example_am_mod")),
         (
             "example_battle_mod",
             project_content_ron_dir("example_battle_mod"),
-            example_battle_mod_static_assets::emit_all,
         ),
-        (
-            "example_mod",
-            project_content_ron_dir("example_mod"),
-            example_mod_static_assets::emit_all,
-        ),
+        ("example_mod", project_content_ron_dir("example_mod")),
         (
             "undertale_preset",
             project_content_ron_dir("undertale_preset"),
-            undertale_preset_static_assets::emit_all,
         ),
     ] {
-        let mut registry = Registry::new();
-        emit_all(&mut registry).expect("project static assets should canonicalize");
-        let generated_files = registry.into_generated_files();
+        let component_path = build_content_component(project_name);
+        let generated_files = vessel::load_component_files(&component_path)
+            .expect("project content guest should load through vessel host");
         assert!(
             !generated_files.is_empty(),
-            "static asset registry should emit at least one file"
+            "content guest should emit at least one file"
         );
 
-        let generated_paths = generated_files
-            .iter()
-            .map(|file| file.path.clone())
-            .collect::<BTreeSet<_>>();
         let source_paths = collect_relative_ron_paths(&content_ron_dir);
+        let generated_by_path = generated_files
+            .iter()
+            .filter(|file| source_paths.contains(file.path.to_string_lossy().as_ref()))
+            .map(|file| {
+                (
+                    file.path.to_string_lossy().replace('\\', "/"),
+                    file.ron_text.as_str(),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        let generated_paths = generated_by_path.keys().cloned().collect::<BTreeSet<_>>();
         assert_eq!(
             generated_paths,
             source_paths,
-            "static asset registry should emit every file under {} exactly once",
+            "content guest should emit every file under {} exactly once",
             content_ron_dir.display()
         );
-
-        let generated_by_path = generated_files
-            .iter()
-            .map(|file| (file.path.as_str(), file.ron_text.as_str()))
-            .collect::<HashMap<_, _>>();
 
         assert_project_specific_canonical_fields(project_name, &generated_by_path);
         assert_generated_assets_semantically_match_sources(&content_ron_dir, &generated_by_path);
 
-        for file in &generated_files {
+        for (path, ron_text) in &generated_by_path {
             assert!(
-                !file.ron_text.contains("#![enable("),
-                "canonical output should not contain extension headers: {}",
-                file.path
+                !ron_text.contains("#![enable("),
+                "canonical output should not contain extension headers: {path}"
             );
         }
     }
 }
 
+fn build_content_component(project_name: &str) -> PathBuf {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let target_dir = workspace_root.join("target/content-wasm-tests");
+    let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../projects")
+        .join(project_name)
+        .join("content/Cargo.toml");
+
+    let build_status = Command::new("cargo")
+        .env("CARGO_TARGET_DIR", &target_dir)
+        .args([
+            "build",
+            "--manifest-path",
+            &manifest_path.to_string_lossy(),
+            "--target",
+            "wasm32-wasip2",
+        ])
+        .status()
+        .unwrap_or_else(|err| panic!("failed to invoke cargo build for {project_name}: {err}"));
+    assert!(
+        build_status.success(),
+        "{project_name} content guest should build successfully"
+    );
+
+    target_dir.join("wasm32-wasip2/debug/content.wasm")
+}
+
 fn assert_generated_assets_semantically_match_sources(
     content_ron_dir: &Path,
-    generated_by_path: &HashMap<&str, &str>,
+    generated_by_path: &HashMap<String, &str>,
 ) {
     for (path, generated) in generated_by_path {
         let source_path = content_ron_dir.join(path);
@@ -122,7 +123,7 @@ fn assert_generated_assets_semantically_match_sources(
 
 fn assert_project_specific_canonical_fields(
     project_name: &str,
-    generated_by_path: &HashMap<&str, &str>,
+    generated_by_path: &HashMap<String, &str>,
 ) {
     match project_name {
         "undertale_preset" => {

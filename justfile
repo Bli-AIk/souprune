@@ -122,17 +122,17 @@ runtime-build-release mod_name:
 
 # 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build mod_name:
-    cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
+    CARGO_TARGET_DIR=target/content-wasm cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
     mkdir -p projects/{{mod_name}}/.build
-    cp projects/{{mod_name}}/content/target/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
+    cp target/content-wasm/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
     cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
 # release 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build-release mod_name:
-    cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
+    CARGO_TARGET_DIR=target/content-wasm cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
     mkdir -p projects/{{mod_name}}/.build
-    cp projects/{{mod_name}}/content/target/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
+    cp target/content-wasm/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
     cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 

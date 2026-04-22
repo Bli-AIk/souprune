@@ -16,9 +16,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 fn cotton_first_turn_component_build_matches_reference_asset() {
     let fixture_dir =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../projects/example_mod/content");
+    let target_dir =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/content-wasm-tests");
 
     let build_status = Command::new("cargo")
         .current_dir(&fixture_dir)
+        .env("CARGO_TARGET_DIR", &target_dir)
         .args(["build", "--target", "wasm32-wasip2"])
         .status()
         .expect("failed to invoke cargo build for example_mod content guest");
@@ -27,7 +30,7 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
         "example_mod content guest should build successfully"
     );
 
-    let component_path = fixture_dir.join("target/wasm32-wasip2/debug/content.wasm");
+    let component_path = target_dir.join("wasm32-wasip2/debug/content.wasm");
     assert!(
         component_path.exists(),
         "example_mod content component should exist"
