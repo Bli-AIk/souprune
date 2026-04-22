@@ -97,7 +97,7 @@ impl Plugin for CorePlugin {
             )
             .register_asset_loader(ron_loader::RonAssetLoader::<
                 character_asset::AnimationConfigAsset,
-            >::new(&["character.ron"]))
+            >::new(&["animation_config.ron"]))
             .add_plugins((
                 entropy_plugin,
                 animation::AnimationPlugin,

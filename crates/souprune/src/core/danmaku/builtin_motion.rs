@@ -219,7 +219,7 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
         Easing::Linear => t,
         Easing::QuadIn => t * t,
         Easing::QuadOut => 1.0 - (1.0 - t) * (1.0 - t),
-        Easing::QuadInOut => {
+        Easing::InOutQuad => {
             if t < 0.5 {
                 2.0 * t * t
             } else {
@@ -228,7 +228,7 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
         }
         Easing::CubicIn => t * t * t,
         Easing::CubicOut => 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t),
-        Easing::CubicInOut => {
+        Easing::InOutCubic => {
             if t < 0.5 {
                 4.0 * t * t * t
             } else {
@@ -237,7 +237,7 @@ fn apply_easing(ease: Easing, t: f32) -> f32 {
         }
         Easing::SineIn => 1.0 - (t * std::f32::consts::FRAC_PI_2).cos(),
         Easing::SineOut => (t * std::f32::consts::FRAC_PI_2).sin(),
-        Easing::SineInOut => -(t * std::f32::consts::PI).cos() / 2.0 + 0.5,
+        Easing::InOutSine => -(t * std::f32::consts::PI).cos() / 2.0 + 0.5,
     }
 }
 
@@ -389,9 +389,9 @@ mod tests {
     fn easing_boundaries() {
         assert!((apply_easing(Easing::QuadIn, 0.0)).abs() < 0.001);
         assert!((apply_easing(Easing::QuadIn, 1.0) - 1.0).abs() < 0.001);
-        assert!((apply_easing(Easing::CubicInOut, 0.0)).abs() < 0.001);
-        assert!((apply_easing(Easing::CubicInOut, 1.0) - 1.0).abs() < 0.001);
-        assert!((apply_easing(Easing::SineInOut, 0.5) - 0.5).abs() < 0.001);
+        assert!((apply_easing(Easing::InOutCubic, 0.0)).abs() < 0.001);
+        assert!((apply_easing(Easing::InOutCubic, 1.0) - 1.0).abs() < 0.001);
+        assert!((apply_easing(Easing::InOutSine, 0.5) - 0.5).abs() < 0.001);
     }
 
     #[test]

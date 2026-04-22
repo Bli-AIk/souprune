@@ -12,6 +12,7 @@ pub mod bevy_types;
 pub mod character;
 pub mod config;
 pub mod danmaku;
+pub mod dialogue;
 pub mod enemy;
 pub mod fre;
 pub mod item;
@@ -52,16 +53,20 @@ pub enum RonFileKind {
     BattlePlayer,
     /// `.fre.ron`
     Fre,
+    /// `dialogue.ron` (exact filename)
+    Dialogue,
     /// `input.ron` (exact filename)
     Input,
-    /// `states.ron` (exact filename)
-    States,
+    /// `flow.ron` (exact filename)
+    Flow,
     /// `touch_layout.ron` (exact filename)
     TouchLayout,
     /// `alight_motion_config.ron` (exact filename)
     AlightMotionConfig,
     /// `.character.ron`
     Character,
+    /// `.animation_config.ron`
+    AnimationConfig,
     /// `player_behavior.ron` (exact filename)
     PlayerBehavior,
     /// `chase_config.ron` (exact filename)
@@ -98,6 +103,9 @@ impl RonFileKind {
         if path.ends_with(".fre.ron") {
             return Some(Self::Fre);
         }
+        if path.ends_with(".animation_config.ron") {
+            return Some(Self::AnimationConfig);
+        }
         if path.ends_with(".character.ron") {
             return Some(Self::Character);
         }
@@ -105,8 +113,9 @@ impl RonFileKind {
         // Exact filename matching
         let filename = path.rsplit(['/', '\\']).next().unwrap_or(path);
         match filename {
+            "dialogue.ron" => Some(Self::Dialogue),
             "input.ron" => Some(Self::Input),
-            "states.ron" => Some(Self::States),
+            "flow.ron" => Some(Self::Flow),
             "touch_layout.ron" => Some(Self::TouchLayout),
             "alight_motion_config.ron" => Some(Self::AlightMotionConfig),
             "player_behavior.ron" => Some(Self::PlayerBehavior),
@@ -126,9 +135,11 @@ impl RonFileKind {
             ".items.ron",
             ".battle_player.ron",
             ".fre.ron",
+            ".animation_config.ron",
             ".character.ron",
+            "dialogue.ron",
             "input.ron",
-            "states.ron",
+            "flow.ron",
             "touch_layout.ron",
             "alight_motion_config.ron",
             "player_behavior.ron",

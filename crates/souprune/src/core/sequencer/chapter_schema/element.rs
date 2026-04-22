@@ -46,42 +46,30 @@ pub(crate) mod ease_kind_serde {
     #[serde(rename_all = "PascalCase")]
     enum EaseKindRepr {
         Linear,
-        #[serde(alias = "InQuad")]
         QuadIn,
-        #[serde(alias = "OutQuad")]
         QuadOut,
-        #[serde(alias = "InOutQuad")]
-        QuadInOut,
-        #[serde(alias = "InCubic")]
+        InOutQuad,
         CubicIn,
-        #[serde(alias = "OutCubic")]
         CubicOut,
-        #[serde(alias = "InOutCubic")]
-        CubicInOut,
-        #[serde(alias = "InSine")]
+        InOutCubic,
         SineIn,
-        #[serde(alias = "OutSine")]
         SineOut,
-        #[serde(alias = "InOutSine")]
-        SineInOut,
-        #[serde(alias = "InCirc")]
+        InOutSine,
         CircularIn,
-        #[serde(alias = "OutCirc")]
         CircularOut,
-        #[serde(alias = "InOutCirc")]
-        CircularInOut,
+        InOutCircular,
         ExpoIn,
         ExpoOut,
-        ExpoInOut,
+        InOutExpo,
         ElasticIn,
         ElasticOut,
-        ElasticInOut,
+        InOutElastic,
         BounceIn,
         BounceOut,
-        BounceInOut,
+        InOutBounce,
         BackIn,
         BackOut,
-        BackInOut,
+        InOutBack,
     }
 
     impl From<EaseKindRepr> for EaseKind {
@@ -90,28 +78,28 @@ pub(crate) mod ease_kind_serde {
                 EaseKindRepr::Linear => EaseKind::Linear,
                 EaseKindRepr::QuadIn => EaseKind::QuadraticIn,
                 EaseKindRepr::QuadOut => EaseKind::QuadraticOut,
-                EaseKindRepr::QuadInOut => EaseKind::QuadraticInOut,
+                EaseKindRepr::InOutQuad => EaseKind::QuadraticInOut,
                 EaseKindRepr::CubicIn => EaseKind::CubicIn,
                 EaseKindRepr::CubicOut => EaseKind::CubicOut,
-                EaseKindRepr::CubicInOut => EaseKind::CubicInOut,
+                EaseKindRepr::InOutCubic => EaseKind::CubicInOut,
                 EaseKindRepr::SineIn => EaseKind::SineIn,
                 EaseKindRepr::SineOut => EaseKind::SineOut,
-                EaseKindRepr::SineInOut => EaseKind::SineInOut,
+                EaseKindRepr::InOutSine => EaseKind::SineInOut,
                 EaseKindRepr::CircularIn => EaseKind::CircularIn,
                 EaseKindRepr::CircularOut => EaseKind::CircularOut,
-                EaseKindRepr::CircularInOut => EaseKind::CircularInOut,
+                EaseKindRepr::InOutCircular => EaseKind::CircularInOut,
                 EaseKindRepr::ExpoIn => EaseKind::ExponentialIn,
                 EaseKindRepr::ExpoOut => EaseKind::ExponentialOut,
-                EaseKindRepr::ExpoInOut => EaseKind::ExponentialInOut,
+                EaseKindRepr::InOutExpo => EaseKind::ExponentialInOut,
                 EaseKindRepr::ElasticIn => EaseKind::ElasticIn,
                 EaseKindRepr::ElasticOut => EaseKind::ElasticOut,
-                EaseKindRepr::ElasticInOut => EaseKind::ElasticInOut,
+                EaseKindRepr::InOutElastic => EaseKind::ElasticInOut,
                 EaseKindRepr::BounceIn => EaseKind::BounceIn,
                 EaseKindRepr::BounceOut => EaseKind::BounceOut,
-                EaseKindRepr::BounceInOut => EaseKind::BounceInOut,
+                EaseKindRepr::InOutBounce => EaseKind::BounceInOut,
                 EaseKindRepr::BackIn => EaseKind::BackIn,
                 EaseKindRepr::BackOut => EaseKind::BackOut,
-                EaseKindRepr::BackInOut => EaseKind::BackInOut,
+                EaseKindRepr::InOutBack => EaseKind::BackInOut,
             }
         }
     }
@@ -122,28 +110,28 @@ pub(crate) mod ease_kind_serde {
                 EaseKind::Linear => EaseKindRepr::Linear,
                 EaseKind::QuadraticIn => EaseKindRepr::QuadIn,
                 EaseKind::QuadraticOut => EaseKindRepr::QuadOut,
-                EaseKind::QuadraticInOut => EaseKindRepr::QuadInOut,
+                EaseKind::QuadraticInOut => EaseKindRepr::InOutQuad,
                 EaseKind::CubicIn => EaseKindRepr::CubicIn,
                 EaseKind::CubicOut => EaseKindRepr::CubicOut,
-                EaseKind::CubicInOut => EaseKindRepr::CubicInOut,
+                EaseKind::CubicInOut => EaseKindRepr::InOutCubic,
                 EaseKind::SineIn => EaseKindRepr::SineIn,
                 EaseKind::SineOut => EaseKindRepr::SineOut,
-                EaseKind::SineInOut => EaseKindRepr::SineInOut,
+                EaseKind::SineInOut => EaseKindRepr::InOutSine,
                 EaseKind::CircularIn => EaseKindRepr::CircularIn,
                 EaseKind::CircularOut => EaseKindRepr::CircularOut,
-                EaseKind::CircularInOut => EaseKindRepr::CircularInOut,
+                EaseKind::CircularInOut => EaseKindRepr::InOutCircular,
                 EaseKind::ExponentialIn => EaseKindRepr::ExpoIn,
                 EaseKind::ExponentialOut => EaseKindRepr::ExpoOut,
-                EaseKind::ExponentialInOut => EaseKindRepr::ExpoInOut,
+                EaseKind::ExponentialInOut => EaseKindRepr::InOutExpo,
                 EaseKind::ElasticIn => EaseKindRepr::ElasticIn,
                 EaseKind::ElasticOut => EaseKindRepr::ElasticOut,
-                EaseKind::ElasticInOut => EaseKindRepr::ElasticInOut,
+                EaseKind::ElasticInOut => EaseKindRepr::InOutElastic,
                 EaseKind::BounceIn => EaseKindRepr::BounceIn,
                 EaseKind::BounceOut => EaseKindRepr::BounceOut,
-                EaseKind::BounceInOut => EaseKindRepr::BounceInOut,
+                EaseKind::BounceInOut => EaseKindRepr::InOutBounce,
                 EaseKind::BackIn => EaseKindRepr::BackIn,
                 EaseKind::BackOut => EaseKindRepr::BackOut,
-                EaseKind::BackInOut => EaseKindRepr::BackInOut,
+                EaseKind::BackInOut => EaseKindRepr::InOutBack,
                 _ => EaseKindRepr::Linear,
             }
         }

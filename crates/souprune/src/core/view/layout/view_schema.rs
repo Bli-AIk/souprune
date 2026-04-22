@@ -185,7 +185,6 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "view_box", alias = "ui_box_logic")]
     pub view_box: Option<ViewBoxLogicDef>,
     #[serde(default)]
     #[allow(dead_code)]

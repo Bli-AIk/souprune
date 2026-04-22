@@ -132,15 +132,15 @@ pub fn edit_transform(
         // Rotation
         let mut has_r = transform.rotation.is_some();
         if ui.checkbox(&mut has_r, "Rotation").changed() {
-            transform.rotation = if has_r { Some(0.0) } else { None };
+            transform.rotation = if has_r {
+                Some(Value::Static(0.0))
+            } else {
+                None
+            };
             changed = true;
         }
-        if let Some(r) = &mut transform.rotation
-            && ui
-                .add(egui::DragValue::new(r).speed(1.0).suffix("deg"))
-                .changed()
-        {
-            changed = true;
+        if let Some(r) = &mut transform.rotation {
+            changed |= edit_val_f32(ui, "rotation", r);
         }
     });
     changed

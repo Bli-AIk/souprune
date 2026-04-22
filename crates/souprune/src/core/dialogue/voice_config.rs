@@ -11,9 +11,10 @@
 //! 命名预设允许按角色或按场景覆盖。
 
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
 use bevy::prelude::*;
-use serde::Deserialize;
+use souprune_schema::dialogue::VoiceConfig as SchemaVoiceConfig;
 
 /// Configuration resource for voice playback rules.
 ///
@@ -30,19 +31,21 @@ use serde::Deserialize;
 /// 包含命名预设，将字符映射到播放规则。
 /// 预设中值为 `false` 的字符将抑制语音。
 /// 不在预设中的字符将正常播放语音。
-#[derive(Resource, Debug, Clone, Deserialize)]
-pub struct VoiceConfig {
-    /// Name of the default preset to use when no override is active.
-    ///
-    /// 无覆盖时使用的默认预设名称。
-    pub default_preset: String,
+#[derive(Resource, Debug, Clone, Default)]
+pub struct VoiceConfig(pub SchemaVoiceConfig);
 
-    /// Named rule sets mapping characters to playback rules.
-    /// `false` = suppress voice on this character.
-    ///
-    /// 命名规则集，将字符映射到播放规则。
-    /// `false` = 在此字符上抑制语音。
-    pub presets: HashMap<String, HashMap<String, bool>>,
+impl Deref for VoiceConfig {
+    type Target = SchemaVoiceConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VoiceConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl VoiceConfig {
@@ -68,17 +71,5 @@ impl VoiceConfig {
             return true;
         };
         !matches!(rules.get(ch), Some(false))
-    }
-}
-
-impl Default for VoiceConfig {
-    /// Empty default — project must provide voice config in `dialogue.ron`.
-    ///
-    /// 空默认值——项目必须在 `dialogue.ron` 中提供语音配置。
-    fn default() -> Self {
-        Self {
-            default_preset: String::new(),
-            presets: HashMap::new(),
-        }
     }
 }

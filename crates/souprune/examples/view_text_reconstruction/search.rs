@@ -5,8 +5,8 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use souprune_schema::Val;
 use souprune_schema::view::{
-    SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef, ViewFontDef,
-    ViewLayoutAsset, ViewNodeDef,
+    CoordinateSystem, SerializableTransform, TextAlignDef, TextAnchorDef, TextDef, ViewBoxLogicDef,
+    ViewFontDef, ViewLayoutAsset, ViewNodeDef,
 };
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1398,6 +1398,7 @@ fn build_isolated_view_layout(
         requires: Vec::new(),
         facts: None,
         world_space: false,
+        coordinate_system: CoordinateSystem::Standard,
     }
 }
 
@@ -1759,6 +1760,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1849,6 +1851,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["InfoBox".to_string()],
             text_id: "NameText".to_string(),
@@ -1932,6 +1935,7 @@ mod tests {
                 requires: Vec::new(),
                 facts: None,
                 world_space: false,
+                coordinate_system: CoordinateSystem::Standard,
             },
             node_path: vec!["Root".to_string(), "InfoBox".to_string()],
             text_id: "NameText".to_string(),

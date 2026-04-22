@@ -67,6 +67,10 @@ fn example_mod_performances_match_assets() {
         "projects/example_mod/battle/danmaku/demo_attack.performance.ron",
     );
     assert_matches_asset(
+        example_mod_demo_attack::demo_attack_overworld(),
+        "projects/example_mod/overworld/danmaku/demo_attack_ow.performance.ron",
+    );
+    assert_matches_asset(
         example_mod_performances::cotton_top_sweep(),
         "projects/example_mod/battle/danmaku/cotton_top_sweep.performance.ron",
     );
@@ -97,6 +101,10 @@ fn project_demo_attacks_match_assets() {
     assert_matches_asset(
         epictale_performances::demo_attack(),
         "projects/epictale/battle/danmaku/demo_attack.performance.ron",
+    );
+    assert_matches_asset(
+        epictale_performances::demo_attack_overworld(),
+        "projects/epictale/overworld/danmaku/demo_attack_ow.performance.ron",
     );
     assert_matches_asset(
         example_battle_mod_performances::demo_attack(),

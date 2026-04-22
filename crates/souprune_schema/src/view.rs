@@ -25,7 +25,7 @@ pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
     #[serde(default)]
-    pub rotation: Option<f32>,
+    pub rotation: Option<FloatOrExpr>,
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
 }
@@ -107,6 +107,16 @@ pub enum TextAnchorDef {
 #[serde(transparent)]
 pub struct Visual(pub String);
 
+/// Coordinate system preset for view layouts.
+///
+/// 视图布局的坐标系预设。
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CoordinateSystem {
+    #[default]
+    Standard,
+    YDown,
+}
+
 // ============================================================================
 // ViewLayout (top-level asset, mirrors ViewLayoutAsset)
 // ============================================================================
@@ -126,6 +136,9 @@ pub struct ViewLayout {
 
     #[serde(default)]
     pub world_space: bool,
+
+    #[serde(default)]
+    pub coordinate_system: CoordinateSystem,
 }
 
 pub type ViewLayoutAsset = ViewLayout;
@@ -177,7 +190,6 @@ pub struct ViewNodeDef {
     #[serde(default)]
     pub texts: Vec<TextDef>,
     #[serde(default)]
-    #[serde(alias = "view_box", alias = "ui_box_logic")]
     pub view_box: Option<ViewBoxLogicDef>,
     #[serde(default)]
     pub children: Vec<ViewNodeDef>,
@@ -439,6 +451,14 @@ pub enum SdfColorSource {
     FillColor,
     White,
     Custom(SerializableColor),
+    /// Toggle between two colors based on a boolean FRE fact.
+    ///
+    /// 根据布尔 FRE fact 在两种颜色间切换。
+    FactToggle {
+        key: String,
+        on: SerializableColor,
+        off: SerializableColor,
+    },
 }
 
 // ============================================================================

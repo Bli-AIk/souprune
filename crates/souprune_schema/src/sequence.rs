@@ -341,42 +341,30 @@ pub enum ElementModification {
 pub enum EaseKindRepr {
     #[default]
     Linear,
-    #[serde(alias = "InQuad")]
     QuadIn,
-    #[serde(alias = "OutQuad")]
     QuadOut,
-    #[serde(alias = "InOutQuad")]
-    QuadInOut,
-    #[serde(alias = "InCubic")]
+    InOutQuad,
     CubicIn,
-    #[serde(alias = "OutCubic")]
     CubicOut,
-    #[serde(alias = "InOutCubic")]
-    CubicInOut,
-    #[serde(alias = "InSine")]
+    InOutCubic,
     SineIn,
-    #[serde(alias = "OutSine")]
     SineOut,
-    #[serde(alias = "InOutSine")]
-    SineInOut,
-    #[serde(alias = "InCirc")]
+    InOutSine,
     CircularIn,
-    #[serde(alias = "OutCirc")]
     CircularOut,
-    #[serde(alias = "InOutCirc")]
-    CircularInOut,
+    InOutCircular,
     ExpoIn,
     ExpoOut,
-    ExpoInOut,
+    InOutExpo,
     ElasticIn,
     ElasticOut,
-    ElasticInOut,
+    InOutElastic,
     BounceIn,
     BounceOut,
-    BounceInOut,
+    InOutBounce,
     BackIn,
     BackOut,
-    BackInOut,
+    InOutBack,
 }
 
 /// Tween target property to animate (sequence context).
@@ -434,7 +422,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_split_battle_box_with_legacy_easing_alias() {
+    fn rejects_split_battle_box_with_legacy_easing_alias() {
         let ron = r#"SplitBattleBox(
             source: "main",
             result: ("left", "right"),
@@ -446,13 +434,11 @@ mod tests {
             easing: OutCubic,
         )"#;
 
-        let chapter: Chapter = ron::from_str(ron).expect("legacy easing alias should parse");
-        match chapter {
-            Chapter::SplitBattleBox { easing, .. } => {
-                assert_eq!(easing, EaseKindRepr::CubicOut);
-            }
-            other => panic!("unexpected chapter parsed: {other:?}"),
-        }
+        let error = ron::from_str::<Chapter>(ron).expect_err("legacy easing alias should fail");
+        assert!(
+            error.to_string().contains("OutCubic"),
+            "error should mention rejected legacy alias: {error}",
+        );
     }
 
     #[test]

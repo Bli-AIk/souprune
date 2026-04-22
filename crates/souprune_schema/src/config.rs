@@ -2,7 +2,7 @@
 //!
 //! Configuration schema types for various RON config files:
 //! - `input.ron` — InputConfig
-//! - `states.ron` — StateConfig
+//! - `flow.ron` — StateConfig
 //! - `touch_layout.ron` — TouchLayoutDef
 //! - `alight_motion_config.ron` — AlightMotionBattleConfig
 //!
@@ -73,14 +73,13 @@ pub struct InputConfig {
 }
 
 // ============================================================================
-// State Configuration (states.ron)
+// State Configuration (flow.ron)
 // ============================================================================
 
 /// Definition of a single state's configuration.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateDefinition {
     #[serde(default)]
-    #[serde(alias = "ui_interactive")]
     pub view_interactive: bool,
     #[serde(default)]
     pub player_movable: bool,
@@ -116,7 +115,7 @@ impl Default for StateDefinition {
     }
 }
 
-/// State configuration — top-level `states.ron` schema.
+/// State configuration — top-level `flow.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateConfig {
     pub states: HashMap<String, StateDefinition>,

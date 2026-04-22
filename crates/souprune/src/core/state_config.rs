@@ -227,7 +227,7 @@ mod tests {
         let ron = r#"(
             states: {
                 "Menu": (
-                    ui_interactive: true,
+                    view_interactive: true,
                     player_movable: false,
                     player_can_interact: Some(true),
                     camera_follow_player: false,

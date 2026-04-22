@@ -21,6 +21,7 @@ pub enum FactValueDef {
     String(String),
     StringList(Vec<String>),
     IntList(Vec<i64>),
+    Enum(String),
 }
 
 /// Serializable modification definition.
@@ -115,6 +116,7 @@ pub enum LocalFactValue {
     Bool(bool),
     String(String),
     Expr(String),
+    Enum(String),
 }
 
 // ============================================================================
@@ -126,7 +128,6 @@ pub enum LocalFactValue {
 pub struct RuleDef {
     #[serde(default)]
     pub id: String,
-    #[serde(alias = "trigger")]
     pub event: RuleEventDef,
     #[serde(default)]
     pub conditions: Vec<String>,
@@ -158,6 +159,8 @@ pub enum RuleScopeDef {
 pub struct FreAsset {
     #[serde(default)]
     pub scope: RuleScopeDef,
+    #[serde(default)]
+    pub enums: HashMap<String, Vec<String>>,
     #[serde(default)]
     pub facts: HashMap<String, FactValueDef>,
     #[serde(default)]

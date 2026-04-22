@@ -115,6 +115,13 @@ pub struct ContentLibraryConfig {
     ///
     /// 由内容 guest 拥有的输出路径 glob。
     pub managed_paths: Vec<String>,
+
+    /// Optional file header prepended to generated content files.
+    /// When absent, Vessel uses its default bootstrap warning block.
+    ///
+    /// 生成内容文件时附加的可选文件头。
+    /// 未设置时，Vessel 使用默认的 bootstrap 警告块。
+    pub generated_file_header: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -478,6 +485,7 @@ struct ModLibraryConfigPartial {
 struct ContentLibraryConfigPartial {
     wasm: Option<String>,
     managed_paths: Option<Vec<String>>,
+    generated_file_header: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -600,6 +608,9 @@ fn apply_mod_config(config: &mut SoupruneConfig, mod_cfg: ModConfigFile) {
         }
         if let Some(val) = content_partial.managed_paths {
             config.content_library.managed_paths = val;
+        }
+        if let Some(val) = content_partial.generated_file_header {
+            config.content_library.generated_file_header = Some(val);
         }
     }
 

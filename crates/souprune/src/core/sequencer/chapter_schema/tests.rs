@@ -55,7 +55,7 @@ fn test_set_view_element_with_duration() {
         selector: LocalName("BattleBox"),
         target: BoxSize(to: ("@current", 130.0)),
         duration: 0.5,
-        easing: QuadInOut,
+        easing: InOutQuad,
         wait_for_completion: true,
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
@@ -145,14 +145,14 @@ fn test_tween_target_box_size_with_from() {
 }
 
 #[test]
-fn test_split_battle_box_chapter_with_out_cubic_easing() {
+fn test_split_battle_box_chapter_with_cubic_out_easing() {
     let ron = r#"SplitBattleBox(
         source: "main",
         result: ("left_anim", "right_anim"),
         axis: Vertical,
         gap: 25.0,
         duration: 0.8,
-        easing: OutCubic,
+        easing: CubicOut,
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
     match &result {
@@ -161,19 +161,19 @@ fn test_split_battle_box_chapter_with_out_cubic_easing() {
     }
     assert!(
         result.is_ok(),
-        "Failed to parse SplitBattleBox with OutCubic easing: {:?}",
+        "Failed to parse SplitBattleBox with CubicOut easing: {:?}",
         result.err()
     );
 }
 
 #[test]
-fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
+fn test_merge_battle_boxes_chapter_with_cubic_out_easing() {
     let ron = r#"MergeBattleBoxes(
         sources: ("left_anim", "right_anim"),
         result: "main",
         gap_policy: Expands,
         duration: 0.5,
-        easing: OutCubic,
+        easing: CubicOut,
     )"#;
     let result: Result<Chapter, _> = ron::from_str(ron);
     match &result {
@@ -182,7 +182,7 @@ fn test_merge_battle_boxes_chapter_with_out_cubic_easing() {
     }
     assert!(
         result.is_ok(),
-        "Failed to parse MergeBattleBoxes with OutCubic easing: {:?}",
+        "Failed to parse MergeBattleBoxes with CubicOut easing: {:?}",
         result.err()
     );
 }

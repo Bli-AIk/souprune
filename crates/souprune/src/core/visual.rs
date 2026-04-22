@@ -62,7 +62,7 @@ use tracing::warn;
 /// visual: "spear"                    // Simple name
 /// visual: "battle/bullets/spear"     // Relative path
 /// visual: "character_pellet"            // Directory = frame animation
-/// visual: "boss.character.ron"       // Character animation
+/// visual: "boss.animation_config.ron" // Character animation
 ///
 /// // In view configs:
 /// sprite: (
@@ -137,9 +137,9 @@ pub enum ResolvedVisual {
     /// 帧动画（包含多个图片的目录）。
     FrameAnimation(PathBuf),
 
-    /// Character animation state machine (*.character.ron).
+    /// Character animation state machine (*.animation_config.ron).
     ///
-    /// 角色动画状态机（*.character.ron）。
+    /// 角色动画状态机（*.animation_config.ron）。
     CharacterAnimation(PathBuf),
 }
 
@@ -161,12 +161,12 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp"];
 ///
 /// ## 解析顺序
 ///
-/// 1. If path ends with `.character.ron` → CharacterAnimation
+/// 1. If path ends with `.animation_config.ron` → CharacterAnimation
 /// 2. If path points to a file → Sprite
 /// 3. If path points to a directory with 2+ images → FrameAnimation
 /// 4. If no extension, search for matching file/directory
 ///
-/// 1. 如果路径以 `.character.ron` 结尾 → CharacterAnimation
+/// 1. 如果路径以 `.animation_config.ron` 结尾 → CharacterAnimation
 /// 2. 如果路径指向文件 → Sprite
 /// 3. 如果路径指向包含2+图片的目录 → FrameAnimation
 /// 4. 如果没有扩展名，搜索匹配的文件/目录
@@ -175,7 +175,7 @@ pub fn resolve_visual_path(input: &str, _mod_name: &str) -> Option<ResolvedVisua
     let category_dir = &config.resources.textures;
 
     // Character animation files are identified by extension
-    if input.ends_with(".character.ron") {
+    if input.ends_with(".animation_config.ron") {
         let full_path = resource_resolver::build_resource_path(category_dir, input);
         if full_path.exists() {
             return Some(ResolvedVisual::CharacterAnimation(full_path));

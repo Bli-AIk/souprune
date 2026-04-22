@@ -59,7 +59,7 @@ pub enum Chapter {
     },
     DanmakuPerformance {
         performance: String,
-        #[serde(default, alias = "position")]
+        #[serde(default)]
         translation: Option<(f32, f32)>,
         /// Whether to block until the performance's `duration` elapses.
         /// Defaults to `true`.
@@ -70,7 +70,7 @@ pub enum Chapter {
     },
     AlightMotionPerformance {
         amproj_path: String,
-        #[serde(default, alias = "am_config")]
+        #[serde(default)]
         alight_motion_config: Option<String>,
         #[serde(default = "default_true")]
         wait_for_completion: bool,

@@ -437,13 +437,13 @@ pub enum Easing {
     Linear,
     QuadIn,
     QuadOut,
-    QuadInOut,
+    InOutQuad,
     CubicIn,
     CubicOut,
-    CubicInOut,
+    InOutCubic,
     SineIn,
     SineOut,
-    SineInOut,
+    InOutSine,
 }
 
 // ============================================================================

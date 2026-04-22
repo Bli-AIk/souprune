@@ -1,10 +1,6 @@
 //! Character `.character.ron` asset tests.
 //!
 //! `.character.ron` 角色资产测试。
-//!
-//! Two types of `.character.ron` files exist:
-//! - Character definition files (e.g., `frisk.character.ron`) contain `CharacterAsset`
-//! - Animation config files (e.g., `animations.character.ron`) contain `AnimationConfigAsset`
 
 #[path = "test_support.rs"]
 mod test_support;
@@ -14,22 +10,8 @@ use souprune::{AnimationConfigAsset, CharacterAsset};
 const CHAR_DIR: &str = "overworld/characters";
 const CHAR_SUFFIX: &str = ".character.ron";
 
-/// Get character definition files (excluding animation configs).
-/// 获取角色定义文件（排除动画配置文件）。
 fn character_definition_files() -> Vec<String> {
     test_support::list_project_files_with_suffix(CHAR_DIR, CHAR_SUFFIX)
-        .into_iter()
-        .filter(|f| !f.contains("animations"))
-        .collect()
-}
-
-/// Get animation config files.
-/// 获取动画配置文件。
-fn animation_config_files() -> Vec<String> {
-    test_support::list_project_files_with_suffix(CHAR_DIR, CHAR_SUFFIX)
-        .into_iter()
-        .filter(|f| f.contains("animations"))
-        .collect()
 }
 
 /// Ensure every character definition `.character.ron` file can be deserialized.
@@ -70,31 +52,6 @@ fn character_animation_configs_exist() {
             !config.states.is_empty(),
             "animation config {} used by {} should define states",
             asset.animation_config,
-            relative
-        );
-    }
-}
-
-/// Ensure all animation config files can be deserialized.
-///
-/// 确保所有动画配置文件都能反序列化成功。
-#[test]
-fn animation_configs_deserialize() {
-    let files = animation_config_files();
-    if files.is_empty() {
-        // Skip if no animation configs exist (project assets may not be available in CI)
-        return;
-    }
-    for relative in files {
-        let config: AnimationConfigAsset = test_support::parse_project_ron(&relative);
-        assert!(
-            !config.states.is_empty(),
-            "animation config {} should define states",
-            relative
-        );
-        assert!(
-            !config.sprite_source.is_empty(),
-            "animation config {} should have sprite_source",
             relative
         );
     }
