@@ -47,9 +47,15 @@ impl Registry {
         Ok(())
     }
 
-    /// Parse a source RON file using its canonical schema and emit normalized output.
+    /// Bootstrap a legacy source RON file into canonical output.
     ///
-    /// 使用其 canonical schema 解析源 RON 文件，并发射规范化输出。
+    /// This helper exists for migration, fixture generation, and regression baselines.
+    /// New authoring code should prefer typed Rust construction plus `emit_ron`.
+    ///
+    /// 将旧的源 RON 文件 bootstrap 成 canonical 输出。
+    ///
+    /// 该 helper 仅用于迁移、fixture 生成与回归基线。
+    /// 新的 authoring 代码应优先使用类型化 Rust 构造配合 `emit_ron`。
     pub fn emit_canonical_source(
         &mut self,
         path: impl Into<String>,
