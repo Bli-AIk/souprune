@@ -410,7 +410,7 @@ impl TimelineEventBuilder {
 
 /// Start building a `BulletPrototype` with a visual asset path.
 ///
-/// 以视觉资产路径开始构建弹幕原型。
+/// 以视觉资源路径开始构建弹幕原型。
 pub fn prototype(visual: &str) -> PrototypeBuilder {
     PrototypeBuilder {
         inner: BulletPrototype {

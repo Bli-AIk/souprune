@@ -11,7 +11,7 @@ use souprune::{AnimationConfigAsset, CharacterAsset, Direction};
 
 /// Validate referenced assets (character + animation config) exist and parse.
 ///
-/// 验证引用的资产（角色与动画配置）都存在并可解析。
+/// 验证引用的资源（角色与动画配置）都存在并可解析。
 #[test]
 fn player_behavior_asset_references_are_valid() {
     let path = test_support::project_root().join("overworld/players/player_behavior.ron");

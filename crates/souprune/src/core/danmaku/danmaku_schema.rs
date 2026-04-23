@@ -1,7 +1,7 @@
 //! Runtime helpers around the shared danmaku schema.
 //!
 //! `.performance.ron` 的权威数据结构定义位于 `souprune_schema::danmaku`。
-//! 本模块只保留运行时资产包装、helper 和事件资源。
+//! 本模块只保留运行时资源包装、helper 和事件资源。
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};

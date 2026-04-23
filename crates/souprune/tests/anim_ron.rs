@@ -1,6 +1,6 @@
 //! Character animation `.animation_config.ron` asset tests.
 //!
-//! `.animation_config.ron` 角色动画资产测试。
+//! `.animation_config.ron` 角色动画资源测试。
 
 #[path = "test_support.rs"]
 mod test_support;

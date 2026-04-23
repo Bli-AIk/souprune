@@ -8,7 +8,7 @@
 //! runtime tween implementation.
 //!
 //! 序列 schema 里专门描述单个 UI 元素操作的一部分。它定义章节如何
-//! 选中元素、可以修改或补间哪些属性，以及资产文件里的 easing 名称如何映射到
+//! 选中元素、可以修改或补间哪些属性，以及资源文件里的 easing 名称如何映射到
 //! 运行时实际使用的 tween 实现。
 
 use super::values::{ColorTuple, Value, Vec2Tuple, Vec3Tuple};

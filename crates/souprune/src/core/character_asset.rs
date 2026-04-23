@@ -1,6 +1,6 @@
 //! Character asset definitions for data-driven character configuration.
 //!
-//! 数据驱动角色配置的资产定义。
+//! 数据驱动角色配置的资源定义。
 
 use bevy::asset::Asset;
 use bevy::prelude::*;
@@ -16,7 +16,7 @@ use std::ops::{Deref, DerefMut};
 /// Character asset runtime wrapper.
 ///
 /// `.character.ron` 的权威结构在 `souprune_schema::character`。
-/// 这里仅保留 Bevy 资产包装和运行时辅助方法。
+/// 这里仅保留 Bevy 资源包装和运行时辅助方法。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CharacterAsset(pub SchemaCharacterAsset);

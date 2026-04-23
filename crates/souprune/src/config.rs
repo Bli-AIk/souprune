@@ -108,7 +108,7 @@ pub struct ModLibraryConfig {
 pub struct ContentLibraryConfig {
     /// WASM component filename for the content guest.
     ///
-    /// 内容 guest 的 WASM 组件文件名。
+    /// 内容模块 (Guest) 的 WASM 组件文件名。
     pub wasm: String,
 
     /// Optional file header prepended to generated content files.
@@ -203,17 +203,17 @@ pub struct GameConfig {
 
     /// Folder containing enemy definition assets.
     ///
-    /// 敌人定义资产目录。
+    /// 敌人定义资源目录。
     pub enemy_directory: String,
 
     /// Folder containing item list assets.
     ///
-    /// 物品列表资产目录。
+    /// 物品列表资源目录。
     pub item_directory: String,
 
     /// Folder containing localized Mortar assets.
     ///
-    /// 本地化 Mortar 资产目录。
+    /// 本地化 Mortar 资源目录。
     pub locales_directory: String,
 
     /// Texture modules required before transitioning from AppSetup.
@@ -412,7 +412,7 @@ pub fn get_asset_roots(mod_name: &str) -> Vec<PathBuf> {
 /// Returns all asset roots for the current project and its dependencies.
 /// Search priority: current mod first, then dependencies in order.
 ///
-/// 返回当前项目及其依赖的所有资产根目录。
+/// 返回当前项目及其依赖的所有资源根目录。
 /// 搜索优先级：当前 mod 优先，然后按顺序搜索依赖。
 pub fn get_all_asset_roots() -> Vec<PathBuf> {
     let config = load_config();

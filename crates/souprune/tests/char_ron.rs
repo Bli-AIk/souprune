@@ -1,6 +1,6 @@
 //! Character `.character.ron` asset tests.
 //!
-//! `.character.ron` 角色资产测试。
+//! `.character.ron` 角色资源测试。
 
 #[path = "test_support.rs"]
 mod test_support;

@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 /// Danmaku Performance asset — top-level `.performance.ron` schema.
 ///
-/// 弹幕演出资产 — `.performance.ron` 的顶层 Schema。
+/// 弹幕演出资源 — `.performance.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DanmakuPerformance {
     #[serde(default)]

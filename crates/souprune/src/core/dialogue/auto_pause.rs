@@ -9,7 +9,7 @@
 //! Named presets allow per-character or per-scene overrides.
 //!
 //! 监视打字机字符进度，在显示标点符号时自动暂停，创造自然的对话节奏。
-//! 所有停顿规则从 `narrative/dialogue.ron` 加载——通过项目资产根链解析
+//! 所有停顿规则从 `narrative/dialogue.ron` 加载——通过项目资源根链解析
 //! （当前 mod → preset 依赖）。命名预设允许按角色或按场景覆盖。
 
 use std::collections::HashMap;

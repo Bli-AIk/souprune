@@ -1,6 +1,6 @@
 //! Smoke tests for high-value RON assets that guard refactors.
 //!
-//! 关键 RON 资产的烟测，用于给大重构兜底。
+//! 关键 RON 资源的烟测，用于给大重构兜底。
 
 #[path = "test_support.rs"]
 mod test_support;

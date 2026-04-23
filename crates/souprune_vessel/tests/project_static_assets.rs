@@ -1,6 +1,6 @@
 //! Regression tests for project-owned generated canonical RON assets.
 //!
-//! 项目侧生成的 canonical RON 资产回归测试。
+//! 项目侧生成的 canonical RON 资源回归测试。
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;

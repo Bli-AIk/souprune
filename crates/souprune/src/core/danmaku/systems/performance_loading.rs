@@ -10,14 +10,14 @@
 //! the referenced performance assets, and once those assets are ready it spawns the runtime player
 //! entity together with the bullet container that will own the emitted bullets.
 //!
-//! 负责弹幕演出的加载入口。它会接收播放请求并排队加载对应的演出资产，等资产准备好
+//! 负责弹幕演出的加载入口。它会接收播放请求并排队加载对应的演出资源，等资源准备好
 //! 后，再生成运行时播放器实体以及承载弹幕的容器实体。
 
 use super::*;
 
 /// System to process play performance events and queue asset loads.
 ///
-/// 处理播放演出事件并排队加载资产。
+/// 处理播放演出事件并排队加载资源。
 pub fn process_play_performance_events(
     mut events: MessageReader<PlayPerformanceEvent>,
     mut pending: ResMut<PendingPerformanceLoads>,
@@ -32,7 +32,7 @@ pub fn process_play_performance_events(
 
 /// System to spawn performance players when assets are loaded.
 ///
-/// 当资产加载完成时生成演出播放器。
+/// 当资源加载完成时生成演出播放器。
 pub fn spawn_performance_players(
     mut commands: Commands,
     mut pending: ResMut<PendingPerformanceLoads>,

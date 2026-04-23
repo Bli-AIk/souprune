@@ -1,6 +1,6 @@
 //! Build-time helpers for content guest crates.
 //!
-//! 内容 guest crate 的构建期辅助工具。
+//! 内容模块 (Guest) crate 的构建期辅助工具。
 
 use std::env;
 use std::ffi::OsStr;
@@ -19,11 +19,11 @@ pub struct ContentRegistryConfig {
     pub source_root: PathBuf,
     /// Helper-only directories that should never be treated as emitted assets.
     ///
-    /// 只包含 helper 的目录，不应被视为导出资产。
+    /// 只包含 helper 的目录，不应被视为导出资源。
     pub helper_dirs: Vec<PathBuf>,
     /// Helper-only files that should never be treated as emitted assets.
     ///
-    /// 只包含 helper 的文件，不应被视为导出资产。
+    /// 只包含 helper 的文件，不应被视为导出资源。
     pub helper_files: Vec<PathBuf>,
 }
 
@@ -164,7 +164,7 @@ fn render_registry(modules: &[AssetModule]) -> String {
     output.push_str(
         "\n/// Emit all auto-discovered content assets.\n\
          ///\n\
-         /// 发射全部自动发现的内容资产。\n\
+         /// 生成全部自动发现的内容资源。\n\
          pub fn emit_all(reg: &mut souprune_vessel::prelude::Registry) -> anyhow::Result<()> {\n",
     );
 

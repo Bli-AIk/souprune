@@ -15,7 +15,7 @@ pub const ZH_CN_FTL: &str = "\
 # 面板标题
 panel-sequence-timeline = 序列时间线
 panel-chapter-inspector = 章节属性
-panel-asset-browser = 资产浏览器
+panel-asset-browser = 资源浏览器
 panel-game-preview = 游戏预览
 panel-playback = 回放控制
 panel-fre = FRE 面板
@@ -211,7 +211,7 @@ fre-tabs-rules = 规则
 fre-tabs-events = 事件
 fre-tabs-states = 状态
 
-# 资产浏览器
+# 资源浏览器
 browser-new-sequence = 新建序列
 browser-new-view = 新建视图
 browser-new-rule = 新建规则
@@ -261,7 +261,7 @@ palette-combat = 战斗
 palette-audio = 音频
 palette-extension = 扩展
 
-# 资产浏览器分类
+# 资源浏览器分类
 browser-cat-sequence = 序列
 browser-cat-view = 视图
 browser-cat-rule = 规则

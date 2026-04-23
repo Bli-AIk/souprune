@@ -126,7 +126,7 @@ fn load_global_rules_system(
 /// Now also registers rules with Global scope.
 ///
 /// 将加载的全局规则应用到全局层的系统。
-/// 在资产加载后运行一次。
+/// 在资源加载后运行一次。
 /// 现在同时注册 Global 作用域的规则。
 fn apply_global_rules_system(
     global_rules_handle: Res<GlobalRulesHandle>,

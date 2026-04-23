@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 /// State configuration asset loaded from RON files.
 ///
-/// 从 RON 文件加载的状态配置资产。
+/// 从 RON 文件加载的状态配置资源。
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 #[serde(transparent)]
 pub struct StateConfig(pub SchemaStateConfig);

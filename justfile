@@ -10,6 +10,13 @@ default:
 fmt:
     cargo fmt --all
 
+# 格式化所有 mod 的代码
+fmt-mods:
+    @for toml in $(find projects -name Cargo.toml); do \
+        cargo fmt --manifest-path $toml; \
+    done
+    @echo "Formatted all mods"
+
 # clippy
 clippy:
     cargo clippy --all-targets --all-features

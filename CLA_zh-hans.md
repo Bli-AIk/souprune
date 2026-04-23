@@ -69,7 +69,7 @@
 **本协议不适用于：**
 
 - 在 `projects/` 目录下创建的游戏项目、Mod 或内容
-- 通过 SoupRune 公共 API（WIT 接口、RON 数据文件、Mortar 脚本、WASM 模块）与框架交互的资产、脚本或配置
+- 通过 SoupRune 公共 API（WIT 接口、RON 数据文件、Mortar 脚本、WASM 模块）与框架交互的资源、脚本或配置
 - 由同一团队维护但采用 MIT/Apache-2.0 许可的独立 Bevy crate（如 `bevy_mortar_bond`、`bevy_fact_rule_event`、
   `bevy_ecs_typewriter`、`bevy_alight_motion`、`bevy_bitmap_text`）——这些遵循标准的开源贡献流程，不需要签署 CLA
 

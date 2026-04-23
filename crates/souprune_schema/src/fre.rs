@@ -3,7 +3,7 @@
 //! FreAsset schema types for `.fre.ron` files.
 //! Mirrors `bevy_fact_rule_event::asset` without Bevy dependency.
 //!
-//! `.fre.ron` 文件的 FRE 资产 Schema 类型。
+//! `.fre.ron` 文件的 FRE 资源 Schema 类型。
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

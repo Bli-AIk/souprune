@@ -8,7 +8,7 @@
 //!
 //! This module loads assets, configures the camera, and transitions into the main game states.
 //!
-//! 该模块负责加载资产、配置摄像机并切换到主要游戏状态。
+//! 该模块负责加载资源、配置摄像机并切换到主要游戏状态。
 //!
 //! ## Source File Overview
 //!

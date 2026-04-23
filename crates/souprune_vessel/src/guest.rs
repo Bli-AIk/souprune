@@ -32,7 +32,7 @@ pub struct Registry {
 
 /// Output mapping override for auto-emitted assets.
 ///
-/// 自动发射资产时的输出映射覆盖配置。
+/// 自动生成资源时的输出映射覆盖配置。
 #[derive(Debug, Clone, Default)]
 pub struct EmitPathConfig {
     output_path: Option<String>,
@@ -61,11 +61,11 @@ impl EmitPathConfig {
 
 /// Trait implemented by typed canonical RON assets.
 ///
-/// 由类型化 canonical RON 资产实现的 trait。
+/// 由类型化 canonical RON 资源实现的 trait。
 pub trait CanonicalRonAsset: Serialize {
     /// The canonical RON kind emitted by this typed value.
     ///
-    /// 当前类型化值发射出的 canonical RON kind。
+    /// 当前类型化值生成出的 canonical RON kind。
     fn ron_file_kind() -> RonFileKind;
 }
 
@@ -76,7 +76,7 @@ impl Registry {
 
     /// Emit a serializable value as pretty-printed RON.
     ///
-    /// 将一个可序列化值发射为格式化 RON。
+    /// 将一个可序列化值生成为格式化 RON。
     pub fn emit_ron<T: Serialize>(&mut self, path: impl Into<String>, value: &T) -> Result<()> {
         let ron_str = format_pretty_ron(value)?;
         self.files.push(wit::GeneratedFile {
@@ -88,14 +88,14 @@ impl Registry {
 
     /// Emit an asset to its default canonical output path inferred from the source file.
     ///
-    /// 将资产发射到由源码文件自动推导出的默认 canonical 输出路径。
+    /// 将资源生成到由源码文件自动推导出的默认 canonical 输出路径。
     pub fn emit_auto<T: CanonicalRonAsset>(&mut self, source_file: &str, value: &T) -> Result<()> {
         self.emit_auto_with(source_file, value, EmitPathConfig::default())
     }
 
     /// Emit an asset using convention defaults, with optional explicit path override.
     ///
-    /// 使用约定默认值发射资产，并允许显式路径覆盖。
+    /// 使用约定默认值生成资源，并允许显式路径覆盖。
     pub fn emit_auto_with<T: CanonicalRonAsset>(
         &mut self,
         source_file: &str,
@@ -137,7 +137,7 @@ impl Registry {
 
 /// Infer the canonical output path for a typed asset from its authoring source file.
 ///
-/// 根据 authoring 源文件为类型化资产推导 canonical 输出路径。
+/// 根据 authoring 源文件为类型化资源推导 canonical 输出路径。
 pub fn infer_output_path<T: CanonicalRonAsset>(
     source_file: &str,
     config: &EmitPathConfig,

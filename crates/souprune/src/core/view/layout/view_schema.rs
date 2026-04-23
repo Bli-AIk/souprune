@@ -56,7 +56,7 @@ pub enum CoordinateSystem {
 /// View Layout Asset - represents a complete view layout configuration.
 /// Loaded from `.view.ron` files.
 ///
-/// 视图布局资产 - 表示完整的视图布局配置。
+/// 视图布局资源 - 表示完整的视图布局配置。
 /// 从 `.view.ron` 文件加载。
 #[derive(Asset, TypePath, Debug, Deserialize, Serialize, Clone)]
 pub struct ViewLayoutAsset {

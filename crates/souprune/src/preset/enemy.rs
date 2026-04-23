@@ -35,7 +35,7 @@ impl Plugin for EnemyPlugin {
 
 /// Runtime Bevy asset wrapper for `.enemy.ron`.
 ///
-/// 共享 schema crate 负责实际文件结构；运行时层只保留资产包装和加载逻辑。
+/// 共享 schema crate 负责实际文件结构；运行时层只保留资源包装和加载逻辑。
 #[derive(Asset, TypePath, Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EnemyDef(pub SchemaEnemyDef);

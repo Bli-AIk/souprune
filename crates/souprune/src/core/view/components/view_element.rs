@@ -370,18 +370,18 @@ pub struct VisibleWhen {
 /// handling the timing issue where FRE assets may not be loaded
 /// when the View is first spawned.
 ///
-/// 跟踪待注册的 View 规则的组件，当 FRE 资产加载完成后注册。
+/// 跟踪待注册的 View 规则的组件，当 FRE 资源加载完成后注册。
 ///
 /// 这实现了 View 作用域规则的延迟注册，
-/// 处理 View 首次生成时 FRE 资产可能还未加载的时序问题。
+/// 处理 View 首次生成时 FRE 资源可能还未加载的时序问题。
 #[derive(Component, Debug, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Reflect))]
 pub struct PendingViewRules {
     /// FRE file handles waiting for asset loading.
     /// Storing handles (not paths) keeps the asset loading request alive.
     ///
-    /// 等待资产加载的 FRE 文件句柄。
-    /// 存储句柄（而非路径）可保持资产加载请求不被取消。
+    /// 等待资源加载的 FRE 文件句柄。
+    /// 存储句柄（而非路径）可保持资源加载请求不被取消。
     #[cfg_attr(feature = "debug", reflect(ignore))]
     pub pending_handles: Vec<(
         String,
@@ -393,7 +393,7 @@ pub struct PendingViewRules {
 /// Stores bindings and FRE asset handles that need to be loaded before view spawn.
 ///
 /// 每实体的视图数据绑定组件。
-/// 存储在视图生成前需要加载的绑定和 FRE 资产句柄。
+/// 存储在视图生成前需要加载的绑定和 FRE 资源句柄。
 #[derive(Component, Debug, Clone, Default)]
 pub struct PendingViewData {
     /// Data bindings for this view (interface name → binding).

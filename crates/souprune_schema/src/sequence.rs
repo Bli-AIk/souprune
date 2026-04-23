@@ -3,7 +3,7 @@
 //! SequenceAsset schema types for `.sequence.ron` files.
 //! Mirrors `souprune::core::sequencer::chapter_schema` without Bevy dependency.
 //!
-//! `.sequence.ron` 文件的序列资产 Schema 类型。
+//! `.sequence.ron` 文件的序列资源 Schema 类型。
 
 use crate::val::*;
 use serde::{Deserialize, Serialize};

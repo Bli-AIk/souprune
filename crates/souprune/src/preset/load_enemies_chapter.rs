@@ -7,7 +7,7 @@
 //! writes the derived enemy IDs, names, HP, attack, and defense data into the
 //! layered fact database for the rest of the battle flow to consume.
 //!
-//! 负责那条“通过资产初始化战斗敌人状态”的章节路径。它等待敌人定义加载，
+//! 负责那条“通过资源初始化战斗敌人状态”的章节路径。它等待敌人定义加载，
 //! 填充 enemy registry，并把推导出来的敌人 ID、名称、HP、攻击与防御写入
 //! layered fact 数据库，供后续战斗流程继续使用。
 

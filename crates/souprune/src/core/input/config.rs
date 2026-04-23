@@ -9,7 +9,7 @@
 //! Defines `InputConfig`, a data-driven input configuration asset that allows
 //! all key bindings and action definitions to be configured in RON files.
 //!
-//! 定义 `InputConfig`，一种数据驱动的输入配置资产，允许所有键位绑定和动作定义
+//! 定义 `InputConfig`，一种数据驱动的输入配置资源，允许所有键位绑定和动作定义
 //! 通过 RON 文件配置。
 
 use super::actions::{Action, ActionRegistry};
@@ -115,7 +115,7 @@ impl TouchLayoutDef {
 
 /// Input configuration asset loaded from RON files.
 ///
-/// 从 RON 文件加载的输入配置资产。
+/// 从 RON 文件加载的输入配置资源。
 ///
 /// Example RON format:
 /// ```ron
