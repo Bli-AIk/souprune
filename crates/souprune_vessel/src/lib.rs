@@ -2,17 +2,15 @@
 //!
 //! # souprune_vessel — Vessel 的 SoupRune 扩展
 //!
-//! Provides convenience constructors for building `DanmakuPerformance`
-//! RON files with code.
+//! Provides export support and authoring helpers for generating SoupRune
+//! RON files from Rust code.
 //!
-//! 提供便利构造器，
-//! 用于以代码方式构建 `DanmakuPerformance` RON 文件。
+//! 提供导出支持与编写辅助，
+//! 用于从 Rust 代码生成 SoupRune RON 文件。
 
 pub mod build_support;
-pub mod danmaku;
 pub mod guest;
 pub mod prelude;
-pub mod view_authoring;
 
 pub use souprune_vessel_macros::performance;
 

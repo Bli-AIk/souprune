@@ -2,7 +2,9 @@
 //!
 //! `performance!` 与 Rust 参考构造器的回归测试。
 
-use souprune_schema::danmaku::{BulletBehavior, DurationExpr, SpawnPattern, TimeMode};
+use souprune_schema::danmaku::{
+    BulletBehavior, BulletPrototype, DurationExpr, SpawnPattern, TimeMode, TimelineEvent,
+};
 use souprune_vessel::prelude::*;
 use std::collections::HashMap;
 
@@ -10,38 +12,40 @@ use std::collections::HashMap;
 fn performance_macro_supports_spreads_and_extended_constructors() {
     let extra_prototypes = HashMap::from([(
         "alt".to_string(),
-        prototype("battle/bullets/alt.png").build(),
+        BulletPrototype::new("battle/bullets/alt.png"),
     )]);
     let extra_behaviors = HashMap::from([
-        ("orbit".to_string(), orbital(1.5, 8.0)),
-        ("wiggle".to_string(), sine((1.0, 0.0), 18.0, 2.5)),
+        ("orbit".to_string(), BulletBehavior::orbital(1.5, 8.0)),
+        (
+            "wiggle".to_string(),
+            BulletBehavior::sine((1.0, 0.0), 18.0, 2.5),
+        ),
     ]);
-    let extra_timeline = vec![
-        event_delta(
-            0.5,
-            "orb",
-            custom_pattern("example.spiral")
-                .param("turns", 3.0)
-                .param("radius", 24.0)
-                .build(),
-        )
-        .behaviors(vec![stationary()])
-        .build(),
-    ];
+    let extra_timeline = vec![TimelineEvent::delta_with(
+        0.5,
+        "orb",
+        SpawnPattern::custom("example.spiral", [("turns", 3.0), ("radius", 24.0)]),
+        (0.0, 0.0),
+        Vec::<String>::new(),
+        [BulletBehavior::stationary()],
+    )];
 
     let performance = performance! {
         prototypes {
-            "orb" => prototype("battle/bullets/orb.png").build(),
+            "orb" => BulletPrototype::new("battle/bullets/orb.png"),
             ..extra_prototypes,
         }
         behaviors {
-            "idle" => stationary(),
+            "idle" => BulletBehavior::stationary(),
             ..extra_behaviors,
         }
         timeline [
-            event_at(0.0, "orb", line(4).spacing(16.0).direction((0.0, 1.0)).build())
-                .apply(&["idle"])
-                .build(),
+            TimelineEvent::absolute(
+                0.0,
+                "orb",
+                SpawnPattern::line(4, 16.0, (0.0, 1.0)),
+                ["idle"],
+            ),
             ..extra_timeline,
         ]
         duration: DurationExpr::Literal(3.0),

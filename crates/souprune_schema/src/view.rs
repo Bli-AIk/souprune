@@ -6,9 +6,11 @@
 //! `.view.ron` 和 `.sdf.ron` 文件的 View Layout Schema 类型。
 //! 对应 souprune 的 view_schema.rs 类型，无 Bevy 依赖。
 
-use crate::val::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::val::Val;
+pub use crate::val::{expression, static_float};
 
 // ============================================================================
 // Serializable Helper Types (mirrors serde_types.rs)
@@ -20,7 +22,73 @@ pub type SerializableVec2 = (Val<f32>, Val<f32>);
 pub type SerializableColor = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
 pub type DynamicColor = SerializableColor;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Two-dimensional vector with static floating-point channels.
+///
+/// 使用静态浮点通道的二维向量。
+pub fn vector2(x: f32, y: f32) -> SerializableVec2 {
+    (static_float(x), static_float(y))
+}
+
+/// Two-dimensional vector with explicit value channels.
+///
+/// 使用显式值通道的二维向量。
+pub fn vector2_value(x: Val<f32>, y: Val<f32>) -> SerializableVec2 {
+    (x, y)
+}
+
+/// Three-dimensional vector with static floating-point channels.
+///
+/// 使用静态浮点通道的三维向量。
+pub fn vector3(x: f32, y: f32, z: f32) -> SerializableVec3 {
+    (static_float(x), static_float(y), static_float(z))
+}
+
+/// Three-dimensional vector with explicit value channels.
+///
+/// 使用显式值通道的三维向量。
+pub fn vector3_value(x: Val<f32>, y: Val<f32>, z: Val<f32>) -> SerializableVec3 {
+    (x, y, z)
+}
+
+/// RGBA color with static floating-point channels.
+///
+/// 使用静态浮点通道的 RGBA 颜色。
+pub fn color(red: f32, green: f32, blue: f32, alpha: f32) -> SerializableColor {
+    (
+        static_float(red),
+        static_float(green),
+        static_float(blue),
+        static_float(alpha),
+    )
+}
+
+/// RGBA color with explicit value channels.
+///
+/// 使用显式值通道的 RGBA 颜色。
+pub fn color_value(
+    red: Val<f32>,
+    green: Val<f32>,
+    blue: Val<f32>,
+    alpha: Val<f32>,
+) -> SerializableColor {
+    (red, green, blue, alpha)
+}
+
+/// Opaque white color.
+///
+/// 不透明白色。
+pub fn white() -> SerializableColor {
+    color(1.0, 1.0, 1.0, 1.0)
+}
+
+/// Opaque red color.
+///
+/// 不透明红色。
+pub fn red() -> SerializableColor {
+    color(1.0, 0.0, 0.0, 1.0)
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SerializableTransform {
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
@@ -124,7 +192,7 @@ pub enum CoordinateSystem {
 /// View Layout — the top-level schema for `.view.ron` files.
 ///
 /// 视图布局——`.view.ron` 文件的顶层 Schema。
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewLayout {
     pub roots: Vec<ViewNodeDef>,
 
@@ -168,7 +236,7 @@ pub enum InitialFactValue {
 // ViewNodeDef
 // ============================================================================
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewNodeDef {
     pub name: String,
     #[serde(default)]
@@ -225,14 +293,14 @@ pub struct StyleDef {
     pub align_items: Option<SerializableAlignItems>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ImageDef {
     pub path: String,
     #[serde(default)]
     pub color: Option<SerializableColor>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SpriteDef {
     pub visual: Visual,
     #[serde(default)]
@@ -280,10 +348,39 @@ pub struct TextDef {
     pub visible_when: Option<String>,
 }
 
+impl Default for TextDef {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            content: None,
+            font: String::new(),
+            align: None,
+            anchor: None,
+            world_scale: vector2(1.0, 1.0),
+            color: white(),
+            transform: SerializableTransform::default(),
+            line_height: None,
+            char_spacing: None,
+            word_spacing: None,
+            conditional_style: None,
+            visible_when: None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConditionalStyleDef {
     pub condition: String,
     pub color: SerializableColor,
+}
+
+impl Default for ConditionalStyleDef {
+    fn default() -> Self {
+        Self {
+            condition: String::new(),
+            color: white(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -301,7 +398,21 @@ pub struct ViewBoxLogicDef {
     pub fill_color: Option<SerializableColor>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+impl Default for ViewBoxLogicDef {
+    fn default() -> Self {
+        Self {
+            width: 0.0,
+            height: 0.0,
+            border_width: 0.0,
+            offset: vector3(0.0, 0.0, 0.0),
+            fill_shader: None,
+            structure_file: None,
+            fill_color: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct RepeatDef {
     pub source: String,
     #[serde(default)]
@@ -316,7 +427,7 @@ pub struct RepeatDef {
 // State Sprite Configuration
 // ============================================================================
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StateSpriteConfig {
     pub default: String,
     #[serde(default)]
@@ -344,7 +455,7 @@ pub enum StateTriggerDef {
 // Material Configuration
 // ============================================================================
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MaterialDef {
     pub shader: String,
     #[serde(default)]
@@ -383,6 +494,18 @@ pub struct LagAnimationDef {
     pub duration: f32,
     #[serde(default)]
     pub easing: EasingDef,
+}
+
+impl Default for LagAnimationDef {
+    fn default() -> Self {
+        Self {
+            source: String::new(),
+            target: String::new(),
+            delay: default_lag_delay(),
+            duration: default_lag_duration(),
+            easing: EasingDef::default(),
+        }
+    }
 }
 
 fn default_lag_delay() -> f32 {
@@ -433,6 +556,19 @@ pub struct SdfLayerDef {
     pub is_filler: bool,
     #[serde(default)]
     pub children: Vec<SdfLayerDef>,
+}
+
+impl Default for SdfLayerDef {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            sdf_type: SdfShapeKind::Outer,
+            color_source: SdfColorSource::default(),
+            z_offset: default_z_offset(),
+            is_filler: false,
+            children: Vec::new(),
+        }
+    }
 }
 
 fn default_z_offset() -> f32 {

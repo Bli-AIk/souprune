@@ -239,6 +239,28 @@ pub struct ColorTint {
     pub rgba: Option<(f32, f32, f32, f32)>,
 }
 
+impl ColorTint {
+    /// Create a hex-only tint definition.
+    ///
+    /// 创建仅使用十六进制字符串的色调定义。
+    pub fn hex(hex: impl Into<String>) -> Self {
+        Self {
+            hex: hex.into(),
+            rgba: None,
+        }
+    }
+
+    /// Create an RGBA tint definition.
+    ///
+    /// 创建 RGBA 色调定义。
+    pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+        Self {
+            hex: String::new(),
+            rgba: Some((red, green, blue, alpha)),
+        }
+    }
+}
+
 /// Bullet prototype — appearance and collision definition.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
@@ -280,6 +302,18 @@ impl Default for BulletPrototype {
     }
 }
 
+impl BulletPrototype {
+    /// Create a bullet prototype with the given visual and schema defaults.
+    ///
+    /// 使用指定视觉资源和 Schema 默认值创建弹幕原型。
+    pub fn new(visual: impl Into<String>) -> Self {
+        Self {
+            visual: visual.into(),
+            ..Default::default()
+        }
+    }
+}
+
 /// Collider shape for hit detection.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ColliderShape {
@@ -290,6 +324,22 @@ pub enum ColliderShape {
 impl Default for ColliderShape {
     fn default() -> Self {
         ColliderShape::CircleCollider(4.0)
+    }
+}
+
+impl ColliderShape {
+    /// Create a circular collider.
+    ///
+    /// 创建圆形碰撞体。
+    pub fn circle(radius: f32) -> Self {
+        Self::CircleCollider(radius)
+    }
+
+    /// Create a rectangular collider.
+    ///
+    /// 创建矩形碰撞体。
+    pub fn rectangle(width: f32, height: f32) -> Self {
+        Self::BoxCollider(width, height)
     }
 }
 
@@ -311,6 +361,103 @@ pub enum BulletBehavior {
         #[serde(default)]
         props: HashMap<String, f32>,
     },
+}
+
+impl BulletBehavior {
+    /// Create an aimed behavior.
+    ///
+    /// 创建自机狙行为。
+    pub fn aimed(speed: f32) -> Self {
+        Self::Aimed(AimedConfig {
+            speed,
+            ..Default::default()
+        })
+    }
+
+    /// Create a linear movement behavior.
+    ///
+    /// 创建线性移动行为。
+    pub fn linear(dir: (f32, f32), speed: f32) -> Self {
+        Self::Linear(LinearConfig { dir, speed })
+    }
+
+    /// Create a stationary behavior.
+    ///
+    /// 创建静止行为。
+    pub fn stationary() -> Self {
+        Self::Stationary()
+    }
+
+    /// Create an orbital movement behavior.
+    ///
+    /// 创建轨道移动行为。
+    pub fn orbital(angular_velocity: f32, radial_velocity: f32) -> Self {
+        Self::Orbital(OrbitalConfig {
+            angular_velocity,
+            radial_velocity,
+        })
+    }
+
+    /// Create a sine-wave movement behavior.
+    ///
+    /// 创建正弦波移动行为。
+    pub fn sine(axis: (f32, f32), amplitude: f32, frequency: f32) -> Self {
+        Self::Sine(SineConfig {
+            axis,
+            amplitude,
+            frequency,
+            phase: 0.0,
+        })
+    }
+
+    /// Create a tween behavior.
+    ///
+    /// 创建补间行为。
+    pub fn tween(target: DanmakuTweenTarget, duration: f32, ease: Easing, to: f32) -> Self {
+        Self::Tween(TweenConfig {
+            target,
+            duration,
+            ease,
+            to,
+            ..Default::default()
+        })
+    }
+
+    /// Create a delayed tween behavior.
+    ///
+    /// 创建延迟补间行为。
+    pub fn tween_delayed(
+        target: DanmakuTweenTarget,
+        duration: f32,
+        ease: Easing,
+        to: f32,
+        delay: f32,
+    ) -> Self {
+        Self::Tween(TweenConfig {
+            target,
+            duration,
+            ease,
+            to,
+            delay,
+            ..Default::default()
+        })
+    }
+
+    /// Create a custom behavior with numeric property bindings.
+    ///
+    /// 创建带数值属性绑定的自定义行为。
+    pub fn custom(
+        id: impl Into<String>,
+        props: impl IntoIterator<Item = (impl Into<String>, f32)>,
+    ) -> Self {
+        Self::Custom {
+            id: id.into(),
+            props: props
+                .into_iter()
+                .map(|(key, value)| (key.into(), value))
+                .collect(),
+        }
+    }
 }
 
 /// Linear motion configuration.
@@ -417,6 +564,20 @@ pub struct TweenConfig {
     pub mode: TweenMode,
 }
 
+impl Default for TweenConfig {
+    fn default() -> Self {
+        Self {
+            target: DanmakuTweenTarget::default(),
+            duration: 0.0,
+            ease: Easing::default(),
+            from: 0.0,
+            to: 0.0,
+            delay: 0.0,
+            mode: TweenMode::default(),
+        }
+    }
+}
+
 /// Tween target properties (danmaku-specific).
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
 pub enum DanmakuTweenTarget {
@@ -481,6 +642,90 @@ pub struct TimelineEvent {
     pub apply: Vec<String>,
     #[serde(default)]
     pub behaviors: Vec<BulletBehavior>,
+}
+
+impl Default for TimelineEvent {
+    fn default() -> Self {
+        Self {
+            t: 0.0,
+            time_mode: TimeMode::default(),
+            spawn: String::new(),
+            pattern: SpawnPattern::default(),
+            offset: (0.0, 0.0),
+            apply: Vec::new(),
+            behaviors: Vec::new(),
+        }
+    }
+}
+
+impl TimelineEvent {
+    /// Create a delta-time event with named behavior applications.
+    ///
+    /// 创建带命名行为应用的增量时间事件。
+    pub fn delta(
+        t: f32,
+        spawn: impl Into<String>,
+        pattern: SpawnPattern,
+        apply: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self::delta_with(t, spawn, pattern, (0.0, 0.0), apply, Vec::new())
+    }
+
+    /// Create a fully specified delta-time event.
+    ///
+    /// 创建完整指定的增量时间事件。
+    pub fn delta_with(
+        t: f32,
+        spawn: impl Into<String>,
+        pattern: SpawnPattern,
+        offset: (f32, f32),
+        apply: impl IntoIterator<Item = impl Into<String>>,
+        behaviors: impl IntoIterator<Item = BulletBehavior>,
+    ) -> Self {
+        Self {
+            t,
+            time_mode: TimeMode::Delta,
+            spawn: spawn.into(),
+            pattern,
+            offset,
+            apply: apply.into_iter().map(Into::into).collect(),
+            behaviors: behaviors.into_iter().collect(),
+        }
+    }
+
+    /// Create an absolute-time event with named behavior applications.
+    ///
+    /// 创建带命名行为应用的绝对时间事件。
+    pub fn absolute(
+        t: f32,
+        spawn: impl Into<String>,
+        pattern: SpawnPattern,
+        apply: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self::absolute_with(t, spawn, pattern, (0.0, 0.0), apply, Vec::new())
+    }
+
+    /// Create a fully specified absolute-time event.
+    ///
+    /// 创建完整指定的绝对时间事件。
+    pub fn absolute_with(
+        t: f32,
+        spawn: impl Into<String>,
+        pattern: SpawnPattern,
+        offset: (f32, f32),
+        apply: impl IntoIterator<Item = impl Into<String>>,
+        behaviors: impl IntoIterator<Item = BulletBehavior>,
+    ) -> Self {
+        Self {
+            t,
+            time_mode: TimeMode::Absolute,
+            spawn: spawn.into(),
+            pattern,
+            offset,
+            apply: apply.into_iter().map(Into::into).collect(),
+            behaviors: behaviors.into_iter().collect(),
+        }
+    }
 }
 
 /// Spawn pattern for timeline events — controls how bullets are distributed when spawned.
@@ -644,6 +889,91 @@ pub enum SpawnPattern {
 }
 
 impl SpawnPattern {
+    /// Create a ring generator pattern.
+    ///
+    /// 创建环形生成模式。
+    pub fn ring(count: usize, radius: f32) -> Self {
+        Self::RingGenerator {
+            count,
+            radius,
+            start_angle: 0.0,
+            randomness: 0.0,
+        }
+    }
+
+    /// Create a ring generator pattern with a custom start angle.
+    ///
+    /// 创建带自定义起始角度的环形生成模式。
+    pub fn ring_with_start_angle(count: usize, radius: f32, start_angle: f32) -> Self {
+        Self::RingGenerator {
+            count,
+            radius,
+            start_angle,
+            randomness: 0.0,
+        }
+    }
+
+    /// Create a line generator pattern.
+    ///
+    /// 创建直线生成模式。
+    pub fn line(count: usize, spacing: f32, direction: (f32, f32)) -> Self {
+        Self::LineGenerator {
+            count,
+            spacing,
+            direction,
+            randomness: 0.0,
+        }
+    }
+
+    /// Create a screen-edge generator pattern.
+    ///
+    /// 创建屏幕边缘生成模式。
+    pub fn edge(side: EdgeSide, count: usize, spacing: f32, margin: f32) -> Self {
+        Self::EdgeGenerator {
+            count,
+            side,
+            spacing,
+            margin,
+            randomness: 0.0,
+        }
+    }
+
+    /// Create a ViewBox-edge generator pattern.
+    ///
+    /// 创建 ViewBox 边缘生成模式。
+    pub fn box_edge(
+        box_name: impl Into<String>,
+        side: EdgeSide,
+        count: usize,
+        spacing: f32,
+        outside_margin: f32,
+    ) -> Self {
+        Self::BoxEdgeGenerator {
+            box_name: box_name.into(),
+            count,
+            side,
+            spacing,
+            outside_margin,
+            randomness: 0.0,
+        }
+    }
+
+    /// Create a custom WASM-provided generator pattern.
+    ///
+    /// 创建由 WASM 提供的自定义生成模式。
+    pub fn custom(
+        id: impl Into<String>,
+        params: impl IntoIterator<Item = (impl Into<String>, f32)>,
+    ) -> Self {
+        Self::CustomGenerator {
+            id: id.into(),
+            params: params
+                .into_iter()
+                .map(|(key, value)| (key.into(), value))
+                .collect(),
+        }
+    }
+
     /// Returns the randomness factor (0.0–1.0) for this pattern.
     /// Non-generator variants and `CustomGenerator` return `0.0`.
     ///

@@ -321,6 +321,29 @@ pub enum ElementSelector {
     Tag(String),
 }
 
+impl ElementSelector {
+    /// Select an element by its full hierarchical name.
+    ///
+    /// 按完整层级名称选择元素。
+    pub fn full(name: impl Into<String>) -> Self {
+        Self::FullName(name.into())
+    }
+
+    /// Select an element by its local name.
+    ///
+    /// 按本地名称选择元素。
+    pub fn local(name: impl Into<String>) -> Self {
+        Self::LocalName(name.into())
+    }
+
+    /// Select elements by tag.
+    ///
+    /// 按标签选择元素。
+    pub fn tag(tag: impl Into<String>) -> Self {
+        Self::Tag(tag.into())
+    }
+}
+
 /// Element modification.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ElementModification {
@@ -333,6 +356,56 @@ pub enum ElementModification {
     Undo,
     Redo,
     Reset,
+}
+
+impl ElementModification {
+    /// Set element position.
+    ///
+    /// 设置元素位置。
+    pub fn set_position(
+        x: impl Into<Val<f32>>,
+        y: impl Into<Val<f32>>,
+        z: impl Into<Val<f32>>,
+    ) -> Self {
+        Self::SetPosition(x.into(), y.into(), z.into())
+    }
+
+    /// Set element scale.
+    ///
+    /// 设置元素缩放。
+    pub fn set_scale(
+        x: impl Into<Val<f32>>,
+        y: impl Into<Val<f32>>,
+        z: impl Into<Val<f32>>,
+    ) -> Self {
+        Self::SetScale(x.into(), y.into(), z.into())
+    }
+
+    /// Set element color.
+    ///
+    /// 设置元素颜色。
+    pub fn set_color(
+        red: impl Into<Val<f32>>,
+        green: impl Into<Val<f32>>,
+        blue: impl Into<Val<f32>>,
+        alpha: impl Into<Val<f32>>,
+    ) -> Self {
+        Self::SetColor(red.into(), green.into(), blue.into(), alpha.into())
+    }
+
+    /// Set element visibility.
+    ///
+    /// 设置元素可见性。
+    pub fn set_visibility(value: impl Into<Val<bool>>) -> Self {
+        Self::SetVisibility(value.into())
+    }
+
+    /// Set element ViewBox size.
+    ///
+    /// 设置元素 ViewBox 尺寸。
+    pub fn set_box_size(width: impl Into<Val<f32>>, height: impl Into<Val<f32>>) -> Self {
+        Self::SetBoxSize(width.into(), height.into())
+    }
 }
 
 /// Easing function representation (PascalCase, matches bevy_tween EaseKind).
@@ -403,6 +476,116 @@ pub enum TweenTarget {
     /// Set the ViewBox anchor for size-aware positioning.
     /// `(0, -1)` = bottom fixed, `(0, 1)` = top fixed, `(0, 0)` = centered (default).
     Anchor(f32, f32),
+}
+
+impl TweenTarget {
+    /// Create a position tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的位置补间目标。
+    pub fn position(to: Vec3Tuple) -> Self {
+        Self::Position { from: None, to }
+    }
+
+    /// Create a position tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的位置补间目标。
+    pub fn position_from(from: Vec3Tuple, to: Vec3Tuple) -> Self {
+        Self::Position {
+            from: Some(from),
+            to,
+        }
+    }
+
+    /// Create a scale tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的缩放补间目标。
+    pub fn scale(to: Vec3Tuple) -> Self {
+        Self::Scale { from: None, to }
+    }
+
+    /// Create a scale tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的缩放补间目标。
+    pub fn scale_from(from: Vec3Tuple, to: Vec3Tuple) -> Self {
+        Self::Scale {
+            from: Some(from),
+            to,
+        }
+    }
+
+    /// Create a color tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的颜色补间目标。
+    pub fn color(to: ColorTuple) -> Self {
+        Self::Color { from: None, to }
+    }
+
+    /// Create a color tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的颜色补间目标。
+    pub fn color_from(from: ColorTuple, to: ColorTuple) -> Self {
+        Self::Color {
+            from: Some(from),
+            to,
+        }
+    }
+
+    /// Create a ViewBox size tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的 ViewBox 尺寸补间目标。
+    pub fn box_size(to: Vec2Tuple) -> Self {
+        Self::BoxSize { from: None, to }
+    }
+
+    /// Create a ViewBox size tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的 ViewBox 尺寸补间目标。
+    pub fn box_size_from(from: Vec2Tuple, to: Vec2Tuple) -> Self {
+        Self::BoxSize {
+            from: Some(from),
+            to,
+        }
+    }
+
+    /// Create a rotation tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的旋转补间目标。
+    pub fn rotation(to: impl Into<Val<f32>>) -> Self {
+        Self::Rotation {
+            from: None,
+            to: to.into(),
+        }
+    }
+
+    /// Create a rotation tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的旋转补间目标。
+    pub fn rotation_from(from: impl Into<Val<f32>>, to: impl Into<Val<f32>>) -> Self {
+        Self::Rotation {
+            from: Some(from.into()),
+            to: to.into(),
+        }
+    }
+
+    /// Create an alpha tween target without an explicit source value.
+    ///
+    /// 创建不带显式起始值的透明度补间目标。
+    pub fn alpha(to: impl Into<Val<f32>>) -> Self {
+        Self::Alpha {
+            from: None,
+            to: to.into(),
+        }
+    }
+
+    /// Create an alpha tween target with an explicit source value.
+    ///
+    /// 创建带显式起始值的透明度补间目标。
+    pub fn alpha_from(from: impl Into<Val<f32>>, to: impl Into<Val<f32>>) -> Self {
+        Self::Alpha {
+            from: Some(from.into()),
+            to: to.into(),
+        }
+    }
 }
 
 // ============================================================================
