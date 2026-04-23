@@ -6,3 +6,4 @@ pub use crate::danmaku::constructors::*;
 pub use crate::guest::{EmitPathConfig, Registry};
 pub use crate::performance;
 pub use crate::vessel_guest;
+pub use crate::view_authoring::*;

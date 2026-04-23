@@ -12,6 +12,7 @@ pub mod build_support;
 pub mod danmaku;
 pub mod guest;
 pub mod prelude;
+pub mod view_authoring;
 
 pub use souprune_vessel_macros::performance;
 
