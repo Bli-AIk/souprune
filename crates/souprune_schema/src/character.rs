@@ -116,5 +116,6 @@ pub struct AnimationConfigAsset {
     pub default_frame_duration: f32,
     #[serde(default = "default_looping")]
     pub default_looping: bool,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub states: HashMap<String, StateAnimationMapping>,
 }

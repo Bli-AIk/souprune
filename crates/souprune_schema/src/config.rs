@@ -63,6 +63,7 @@ pub struct TouchOverlayConfig {
 /// Input configuration — top-level `input.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InputConfig {
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub actions: HashMap<String, Vec<InputBinding>>,
     #[serde(default)]
     pub navigation: NavigationConfig,
@@ -118,6 +119,7 @@ impl Default for StateDefinition {
 /// State configuration — top-level `flow.ron` schema.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StateConfig {
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub states: HashMap<String, StateDefinition>,
 }
 
@@ -168,6 +170,7 @@ pub struct TouchControllerDef {
     #[serde(default = "default_controller_size")]
     pub size: f32,
     pub base_texture: String,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub overlays: HashMap<String, String>,
 }
 

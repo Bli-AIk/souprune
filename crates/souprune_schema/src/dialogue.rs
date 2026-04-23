@@ -11,6 +11,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct AutoPauseConfig {
     pub default_preset: String,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_nested_map")]
     pub presets: HashMap<String, HashMap<String, f64>>,
 }
 
@@ -20,6 +21,7 @@ pub struct AutoPauseConfig {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VoiceConfig {
     pub default_preset: String,
+    #[serde(serialize_with = "crate::ordered_map::serialize_ordered_nested_map")]
     pub presets: HashMap<String, HashMap<String, bool>>,
 }
 

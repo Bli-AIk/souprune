@@ -17,6 +17,14 @@ fmt-mods:
     done
     @echo "Formatted all mods"
 
+# 构建所有 mod 的 runtime 和 content 主线
+build-mods:
+    @for mod_dir in $(find projects -mindepth 1 -maxdepth 1 -type d | sort); do \
+        mod_name=$(basename "$mod_dir"); \
+        just project-build "$mod_name" || exit $?; \
+    done
+    @echo "Built all mods"
+
 # clippy
 clippy:
     cargo clippy --all-targets --all-features
@@ -25,6 +33,13 @@ clippy:
 # clippy_local
 clippy_local:
     cargo clippy -p {{project}} --all-targets --all-features
+
+# 对所有 mod crate 运行 clippy
+clippy-mods:
+    @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
+        cargo clippy --manifest-path "$toml" --target wasm32-wasip2 --all-targets --all-features -- -D warnings || exit $?; \
+    done
+    @echo "Clippy passed for all mods"
 
 
 # 拼写检查
@@ -77,6 +92,13 @@ test:
 # 测试
 test_local:
     cargo test -p {{project}}
+
+# 运行所有 mod crate 的测试
+test-mods:
+    @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
+        cargo test --manifest-path "$toml" || exit $?; \
+    done
+    @echo "Tested all mods"
 
 # 开发运行（debug + 动态链接加速）
 dev:
@@ -134,6 +156,14 @@ content-build mod_name:
     cp target/content-wasm/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
     cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
+
+# 构建所有 mod 的 content guest，并直接生成正式内容文件
+content-build-mods:
+    @for mod_dir in $(find projects -mindepth 1 -maxdepth 1 -type d | sort); do \
+        mod_name=$(basename "$mod_dir"); \
+        just content-build "$mod_name" || exit $?; \
+    done
+    @echo "Built content for all mods"
 
 # release 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build-release mod_name:

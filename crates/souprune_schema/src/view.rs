@@ -239,7 +239,10 @@ pub struct ViewLayout {
     /// Initial state of FRE facts.
     ///
     /// FRE facts 的初始状态。
-    #[serde(default)]
+    #[serde(
+        default,
+        serialize_with = "crate::ordered_map::serialize_optional_ordered_map"
+    )]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 
     /// Whether the layout should be rendered in world space.
@@ -593,7 +596,7 @@ pub struct RepeatDef {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StateSpriteConfig {
     pub default: String,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub variants: HashMap<String, String>,
     #[serde(default)]
     pub rules: Vec<StateRuleDef>,
@@ -621,7 +624,7 @@ pub enum StateTriggerDef {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MaterialDef {
     pub shader: String,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub params: HashMap<String, MaterialParamValue>,
     #[serde(default)]
     pub animations: Option<MaterialAnimationsDef>,

@@ -16,6 +16,7 @@ pub mod dialogue;
 pub mod enemy;
 pub mod fre;
 pub mod item;
+pub mod ordered_map;
 pub mod overworld;
 pub mod sequence;
 pub mod val;

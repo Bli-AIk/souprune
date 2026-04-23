@@ -83,6 +83,7 @@ pub enum RuleActionDef {
     EmitEvent(String),
     Custom {
         action_type: String,
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         params: HashMap<String, String>,
     },
     StartDialogue {
@@ -159,9 +160,9 @@ pub enum RuleScopeDef {
 pub struct FreAsset {
     #[serde(default)]
     pub scope: RuleScopeDef,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub enums: HashMap<String, Vec<String>>,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub facts: HashMap<String, FactValueDef>,
     #[serde(default)]
     pub rules: Vec<RuleDef>,

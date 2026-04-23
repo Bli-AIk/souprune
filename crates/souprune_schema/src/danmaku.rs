@@ -17,9 +17,9 @@ use std::collections::HashMap;
 /// 弹幕演出资源 — `.performance.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DanmakuPerformance {
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub prototypes: HashMap<String, BulletPrototype>,
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub behaviors: HashMap<String, BulletBehavior>,
     pub timeline: Vec<TimelineEvent>,
     /// How long this performance lasts.
@@ -264,7 +264,7 @@ pub enum BulletBehavior {
         /// Numeric property bindings passed to the behavior logic.
         ///
         /// 传递给行为逻辑的数值属性绑定。
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         props: HashMap<String, f32>,
     },
 }
@@ -898,7 +898,7 @@ pub enum SpawnPattern {
         /// Key-value parameters passed to the WASM generator.
         ///
         /// 传递给 WASM 生成器的键值参数。
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         params: HashMap<String, f32>,
     },
 }

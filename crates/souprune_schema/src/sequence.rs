@@ -31,7 +31,7 @@ pub struct SequenceAsset {
     /// Exit mappings (e.g., `"success": "next_level"`).
     ///
     /// 退出映射（如 `"success": "next_level"`）。
-    #[serde(default)]
+    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
     pub exits: HashMap<String, String>,
     /// List of chapters making up the sequence.
     ///
@@ -59,7 +59,7 @@ pub enum Chapter {
         /// Initial fact bindings for the view.
         ///
         /// 视图的初始 fact 绑定。
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         bindings: HashMap<String, DataBinding>,
     },
     /// Blocks the sequence until a FRE condition is met.
@@ -234,7 +234,7 @@ pub enum Chapter {
         /// Key-value data attached to the event.
         ///
         /// 附加到事件的键值数据。
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         data: HashMap<String, String>,
     },
     /// Directly modifies one or more facts.
@@ -248,7 +248,7 @@ pub enum Chapter {
     },
     LoadFre {
         files: Vec<String>,
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         aggregate: HashMap<String, AggregateRule>,
     },
     LoadEnemies {
@@ -259,7 +259,7 @@ pub enum Chapter {
         path: Option<String>,
         #[serde(default)]
         path_fact: Option<String>,
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         params: HashMap<String, FactValueMatch>,
     },
     LoadMap {
@@ -339,7 +339,7 @@ pub enum Chapter {
     },
     Custom {
         action_type: String,
-        #[serde(default)]
+        #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
         params: HashMap<String, String>,
     },
 }

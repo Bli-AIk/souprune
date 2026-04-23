@@ -62,6 +62,10 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
         generated_ron.contains("BOOTSTRAPPED BY VESSEL"),
         "generated output should contain the Vessel bootstrap header"
     );
+    assert!(
+        generated_ron.contains("// Generated at: "),
+        "generated output should contain a human-readable generation timestamp"
+    );
 
     let generated = parse_generated_ron(&generated_ron);
     let original_ron = include_str!(
