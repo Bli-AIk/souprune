@@ -7639,18 +7639,8 @@ dependencies = [
  "serde",
  "serde_json",
  "souprune_schema",
- "souprune_vessel_macros",
  "vessel",
  "wit-bindgen 0.55.0",
-]
-
-[[package]]
-name = "souprune_vessel_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

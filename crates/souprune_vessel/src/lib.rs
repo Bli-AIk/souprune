@@ -12,11 +12,19 @@ pub mod build_support;
 pub mod guest;
 pub mod prelude;
 
-pub use souprune_vessel_macros::performance;
-
 /// Export a Rust guest as a Vessel build-time WASM component.
 ///
 /// 将一个 Rust guest 导出为 Vessel 构建期 WASM component。
+///
+/// # Arguments
+/// - `$reg`: Identifier for the registry instance.
+/// - `$reg_ty`: Type of the registry (usually `Registry`).
+/// - `$body`: The build logic that populates the registry.
+///
+/// # 参数
+/// - `$reg`: 注册表实例的标识符。
+/// - `$reg_ty`: 注册表类型（通常为 `Registry`）。
+/// - `$body`: 填充注册表的构建逻辑。
 #[macro_export]
 macro_rules! vessel_guest {
     (fn build($reg:ident : &mut $reg_ty:ty) -> $ret:ty $body:block) => {

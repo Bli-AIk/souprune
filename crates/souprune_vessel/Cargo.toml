@@ -8,7 +8,6 @@ description = "SoupRune extension for Vessel — danmaku performance constructor
 [dependencies]
 anyhow = "1"
 souprune_schema = { path = "../souprune_schema" }
-souprune_vessel_macros = { path = "../souprune_vessel_macros" }
 ron = "0.12"
 serde = { version = "1", features = ["derive"] }
 wit-bindgen = "0.55"

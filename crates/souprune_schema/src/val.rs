@@ -8,9 +8,15 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Generic value: static or computed from an expression at runtime.
+/// Generic non-string value: static or computed from an expression at runtime.
 ///
-/// 泛型值：静态值或运行时从表达式计算。
+/// Do not use `Val<String>` in schema fields. String dynamics must use explicit
+/// domain types such as localization keys, text templates, Mortar, or FRE.
+///
+/// 泛型非字符串值：静态值或运行时从表达式计算。
+///
+/// 不要在 Schema 字段中使用 `Val<String>`。字符串动态能力必须使用显式领域类型，
+/// 例如本地化键、文本模板、Mortar 或 FRE。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Val<T> {
@@ -184,6 +190,50 @@ impl ColorTuple {
             g: green.into(),
             b: blue.into(),
             a: alpha.into(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn schema_sources_do_not_define_val_string_fields() {
+        let schema_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut offenders = Vec::new();
+        collect_val_string_offenders(&schema_root, &mut offenders);
+
+        assert!(
+            offenders.is_empty(),
+            "schema fields must not use Val<String>: {offenders:?}"
+        );
+    }
+
+    fn collect_val_string_offenders(current: &Path, offenders: &mut Vec<String>) {
+        for entry in fs::read_dir(current).expect("schema source directory should be readable") {
+            let entry = entry.expect("schema source entry should be readable");
+            let path = entry.path();
+            if path.is_dir() {
+                collect_val_string_offenders(&path, offenders);
+                continue;
+            }
+            if path.file_name().is_some_and(|name| name == "val.rs") {
+                continue;
+            }
+            if path.extension().is_none_or(|ext| ext != "rs") {
+                continue;
+            }
+
+            let source = fs::read_to_string(&path).expect("schema source should be readable");
+            let compact_source = source
+                .chars()
+                .filter(|character| !character.is_whitespace())
+                .collect::<String>();
+            if compact_source.contains("Val<String>") {
+                offenders.push(path.display().to_string());
+            }
         }
     }
 }

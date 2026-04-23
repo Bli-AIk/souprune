@@ -378,5 +378,5 @@
             behaviors: [],
         ),
     ],
-    duration: Some("@current + 8.0"),
+    duration: Some(12.27),
 )

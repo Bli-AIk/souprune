@@ -257,7 +257,7 @@ pub fn get_string_property<'a>(properties: &'a tiled::Properties, key: &str) -> 
 /// 目前支持：
 /// - `\n` -> 换行符
 pub fn escape_property_string(s: String) -> String {
-    s.replace("\\n", "\n")
+    crate::core::text_escape::decode_text_escapes(&s).into_owned()
 }
 
 /// Get a bool property from the map.

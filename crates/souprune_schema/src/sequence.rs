@@ -14,14 +14,28 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Sequence configuration asset — top-level `.sequence.ron` schema.
+///
+/// 序列配置资源 — `.sequence.ron` 的顶层 Schema。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceAsset {
+    /// Identifier for the execution mode.
+    ///
+    /// 执行模式的标识符。
     #[serde(default)]
     pub mode: Option<String>,
+    /// Path to a `.fre.ron` file containing local rules for this sequence.
+    ///
+    /// 包含此序列本地规则的 `.fre.ron` 文件路径。
     #[serde(default)]
     pub rules_file: Option<String>,
+    /// Exit mappings (e.g., `"success": "next_level"`).
+    ///
+    /// 退出映射（如 `"success": "next_level"`）。
     #[serde(default)]
     pub exits: HashMap<String, String>,
+    /// List of chapters making up the sequence.
+    ///
+    /// 构成序列的章节列表。
     pub chapters: Vec<Chapter>,
 }
 
@@ -30,72 +44,206 @@ pub struct SequenceAsset {
 // ============================================================================
 
 /// Chapter — minimal unit of a linear sequence.
+///
+/// 章节 — 线性序列的最小单元。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Chapter {
+    /// Spawns a UI view layout.
+    ///
+    /// 生成一个 UI 视图布局。
     SpawnView {
+        /// Path to the `.view.ron` file.
+        ///
+        /// `.view.ron` 文件的路径。
         view_layout: String,
+        /// Initial fact bindings for the view.
+        ///
+        /// 视图的初始 fact 绑定。
         #[serde(default)]
         bindings: HashMap<String, DataBinding>,
     },
+    /// Blocks the sequence until a FRE condition is met.
+    ///
+    /// 阻塞序列，直到满足特定的 FRE 条件。
     AwaitFact {
+        /// FRE condition expression.
+        ///
+        /// FRE 条件表达式。
         condition: String,
+        /// Whether to check local facts (default: true).
+        ///
+        /// 是否检查本地 fact（默认：true）。
         #[serde(default = "default_true")]
         local: bool,
     },
+    /// Updates a fact in the active view's local fact database.
+    ///
+    /// 更新当前活动视图本地 fact 数据库中的值。
     SetViewFact {
+        /// Fact key to update.
+        ///
+        /// 要更新的 fact 键。
         key: String,
+        /// New value for the fact.
+        ///
+        /// fact 的新值。
         value: FactValueMatch,
     },
+    /// Triggers a danmaku performance.
+    ///
+    /// 触发一场弹幕演出。
     DanmakuPerformance {
+        /// Path to the `.performance.ron` file.
+        ///
+        /// `.performance.ron` 文件的路径。
         performance: String,
+        /// World-space translation offset for the performance.
+        ///
+        /// 演出的世界空间位移偏移。
         #[serde(default)]
         translation: Option<(f32, f32)>,
     },
+    /// Triggers an Alight Motion animation performance.
+    ///
+    /// 触发一场 Alight Motion 动画演出。
     AlightMotionPerformance {
+        /// Path to the exported Alight Motion project file.
+        ///
+        /// 导出的 Alight Motion 项目文件路径。
         amproj_path: String,
+        /// Optional configuration override path.
+        ///
+        /// 可选的配置覆盖路径。
         #[serde(default)]
         alight_motion_config: Option<String>,
+        /// Whether to block the sequence until the animation finishes.
+        ///
+        /// 是否阻塞序列直至动画完成。
         #[serde(default = "default_true")]
         wait_for_completion: bool,
     },
+    /// Animates properties of a view element using tweens.
+    ///
+    /// 使用补间动画更改视图元素的属性。
     SetViewElement {
+        /// Selector for the target view element.
+        ///
+        /// 目标视图元素的解析器。
         selector: ElementSelector,
+        /// Property to animate.
+        ///
+        /// 要播放动画的属性。
         target: TweenTarget,
+        /// Duration of the tween. If omitted, applies instantly.
+        ///
+        /// 补间时长。如果省略，则立即应用。
         #[serde(default)]
         duration: Option<f32>,
+        /// Easing function to use.
+        ///
+        /// 使用的缓动函数。
         #[serde(default)]
         easing: EaseKindRepr,
+        /// Whether to block the sequence until the tween finishes.
+        ///
+        /// 是否阻塞序列直至补间完成。
         #[serde(default)]
         wait_for_completion: bool,
     },
+    /// Blocks the sequence for a fixed duration.
+    ///
+    /// 将序列阻塞固定时长。
     Wait(f32),
+    /// Nested linear sequence.
+    ///
+    /// 嵌套的线性序列。
     Sequence(Vec<Chapter>),
+    /// Runs multiple chapters in parallel.
+    ///
+    /// 并行运行多个章节。
     Parallel(Vec<Chapter>),
+    /// Controls player state or behavior.
+    ///
+    /// 控制玩家状态或行为。
     SetPlayer(PlayerAction),
+    /// Controls global UI state.
+    ///
+    /// 控制全局 UI 状态。
     SetUI(UIAction),
+    /// Modifies a view element's state or content.
+    ///
+    /// 修改视图元素的状态或内容。
     ModifyViewElement {
+        /// Selector for the target view element.
+        ///
+        /// 目标视图元素的解析器。
         selector: ElementSelector,
+        /// Modification to apply.
+        ///
+        /// 要应用的修改。
         modification: ElementModification,
     },
+    /// Controls camera behavior or position.
+    ///
+    /// 控制相机行为或位置。
     SetCamera(CameraAction),
+    /// Branching logic based on a FRE condition.
+    ///
+    /// 基于 FRE 条件的分支逻辑。
     Conditional {
+        /// FRE condition to evaluate.
+        ///
+        /// 要评估的 FRE 条件。
         condition: FactCondition,
+        /// Chapter to run if the condition is true.
+        ///
+        /// 条件为真时运行的章节。
         then_branch: Box<Chapter>,
+        /// Optional chapter to run if the condition is false.
+        ///
+        /// 条件为假时运行的可选章节。
         #[serde(default)]
         else_branch: Option<Box<Chapter>>,
     },
+    /// Multi-way branch based on a fact's value.
+    ///
+    /// 基于 fact 值的多路分支。
     FactSwitch {
+        /// Fact key to check.
+        ///
+        /// 要检查的 fact 键。
         fact_key: String,
+        /// List of cases matching values to chapters.
+        ///
+        /// 值与章节匹配的 case 列表。
         cases: Vec<(FactValueMatch, Chapter)>,
+        /// Optional default chapter if no cases match.
+        ///
+        /// 无匹配 case 时运行的可选默认章节。
         #[serde(default)]
         default: Option<Box<Chapter>>,
     },
+    /// Emits a FRE event.
+    ///
+    /// 触发一个 FRE 事件。
     EmitFactEvent {
+        /// Event identifier.
+        ///
+        /// 事件标识符。
         event_id: String,
+        /// Key-value data attached to the event.
+        ///
+        /// 附加到事件的键值数据。
         #[serde(default)]
         data: HashMap<String, String>,
     },
+    /// Directly modifies one or more facts.
+    ///
+    /// 直接修改一个或多个 fact。
     ModifyFact {
+        /// List of fact modifications.
+        ///
+        /// fact 修改操作列表。
         modifications: Vec<FactModificationDef>,
     },
     LoadFre {

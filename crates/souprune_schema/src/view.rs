@@ -16,10 +16,29 @@ pub use crate::val::{expression, static_float};
 // Serializable Helper Types (mirrors serde_types.rs)
 // ============================================================================
 
+/// Floating-point value or a dynamic expression string.
+///
+/// 浮点值或动态表达式字符串。
 pub type FloatOrExpr = Val<f32>;
+
+/// Three-dimensional vector with dynamic channel values.
+///
+/// 使用动态通道值的三维向量。
 pub type SerializableVec3 = (Val<f32>, Val<f32>, Val<f32>);
+
+/// Two-dimensional vector with dynamic channel values.
+///
+/// 使用动态通道值的二维向量。
 pub type SerializableVec2 = (Val<f32>, Val<f32>);
+
+/// RGBA color with dynamic channel values (0.0–1.0).
+///
+/// 使用动态通道值的 RGBA 颜色 (0.0–1.0)。
 pub type SerializableColor = (Val<f32>, Val<f32>, Val<f32>, Val<f32>);
+
+/// Alias for `SerializableColor` used for dynamic color properties.
+///
+/// 用于动态颜色属性的 `SerializableColor` 别名。
 pub type DynamicColor = SerializableColor;
 
 /// Two-dimensional vector with static floating-point channels.
@@ -88,12 +107,24 @@ pub fn red() -> SerializableColor {
     color(1.0, 0.0, 0.0, 1.0)
 }
 
+/// Serializable transform components for view entities.
+///
+/// 视图实体的可序列化变换组件。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SerializableTransform {
+    /// Translation offset (X, Y, Z).
+    ///
+    /// 位移偏移 (X, Y, Z)。
     #[serde(default)]
     pub translation: Option<SerializableVec3>,
+    /// Rotation angle in degrees or expression.
+    ///
+    /// 旋转角度（度）或表达式。
     #[serde(default)]
     pub rotation: Option<FloatOrExpr>,
+    /// Scale factor (X, Y, Z).
+    ///
+    /// 缩放因子 (X, Y, Z)。
     #[serde(default)]
     pub scale: Option<SerializableVec3>,
 }
@@ -194,17 +225,32 @@ pub enum CoordinateSystem {
 /// 视图布局——`.view.ron` 文件的顶层 Schema。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewLayout {
+    /// Root nodes of the UI tree.
+    ///
+    /// UI 树的根节点。
     pub roots: Vec<ViewNodeDef>,
 
+    /// External data dependencies (e.g., locale files, interfaces).
+    ///
+    /// 外部数据依赖（如语言文件、接口）。
     #[serde(default)]
     pub requires: Vec<DataRequirement>,
 
+    /// Initial state of FRE facts.
+    ///
+    /// FRE facts 的初始状态。
     #[serde(default)]
     pub facts: Option<HashMap<String, InitialFactValue>>,
 
+    /// Whether the layout should be rendered in world space.
+    ///
+    /// 布局是否应在世界空间中渲染。
     #[serde(default)]
     pub world_space: bool,
 
+    /// Coordinate system used for absolute positioning.
+    ///
+    /// 用于绝对定位的坐标系。
     #[serde(default)]
     pub coordinate_system: CoordinateSystem,
 }
@@ -236,31 +282,73 @@ pub enum InitialFactValue {
 // ViewNodeDef
 // ============================================================================
 
+/// Node definition in the UI tree.
+///
+/// UI 树中的节点定义。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ViewNodeDef {
+    /// Unique name of the node (used for identification and animation).
+    ///
+    /// 节点的唯一名称（用于标识和动画）。
     pub name: String,
+    /// Metadata tags for categorization.
+    ///
+    /// 用于分类的元数据标签。
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Flexbox-based layout and styling.
+    ///
+    /// 基于 Flexbox 的布局与样式。
     #[serde(default)]
     pub style: StyleDef,
+    /// Conditional visibility based on a FRE expression.
+    ///
+    /// 基于 FRE 表达式的条件可见性。
     #[serde(default)]
     pub visible_when: Option<String>,
+    /// Solid background color.
+    ///
+    /// 纯色背景。
     #[serde(default)]
     pub background_color: Option<SerializableColor>,
+    /// Solid border color.
+    ///
+    /// 纯色边框颜色。
     #[serde(default)]
     pub border_color: Option<SerializableColor>,
+    /// Static image content.
+    ///
+    /// 静态图片内容。
     #[serde(default)]
     pub image: Option<ImageDef>,
+    /// Single sprite visual.
+    ///
+    /// 单个 Sprite 视觉资源。
     #[serde(default)]
     pub sprite: Option<SpriteDef>,
+    /// Multi-state sprite configuration.
+    ///
+    /// 多状态 Sprite 配置。
     #[serde(default)]
     pub state_sprite: Option<StateSpriteConfig>,
+    /// Text elements associated with this node.
+    ///
+    /// 与此节点关联的文本元素。
     #[serde(default)]
     pub texts: Vec<TextDef>,
+    /// Game-specific "view box" logic (Undertale/Deltarune style boxes).
+    ///
+    /// 游戏特定的 "view box" 逻辑（Undertale/Deltarune 风格的边框）。
     #[serde(default)]
     pub view_box: Option<ViewBoxLogicDef>,
+    /// Child nodes.
+    ///
+    /// 子节点。
     #[serde(default)]
     pub children: Vec<ViewNodeDef>,
+    /// Dynamic repetition logic (e.g., list rendering).
+    ///
+    /// 动态重复逻辑（如列表渲染）。
     #[serde(default)]
     pub repeat: Option<RepeatDef>,
 }
@@ -269,26 +357,59 @@ pub struct ViewNodeDef {
 // Child types
 // ============================================================================
 
+/// Flexbox-based layout style.
+///
+/// 基于 Flexbox 的布局样式。
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StyleDef {
+    /// Node width.
+    ///
+    /// 节点宽度。
     #[serde(default)]
     pub width: Option<SerializableVal>,
+    /// Node height.
+    ///
+    /// 节点高度。
     #[serde(default)]
     pub height: Option<SerializableVal>,
+    /// Left offset (for absolute or relative positioning).
+    ///
+    /// 左侧偏移（用于绝对或相对定位）。
     #[serde(default)]
     pub left: Option<SerializableVal>,
+    /// Right offset.
+    ///
+    /// 右侧偏移。
     #[serde(default)]
     pub right: Option<SerializableVal>,
+    /// Top offset.
+    ///
+    /// 顶部偏移。
     #[serde(default)]
     pub top: Option<SerializableVal>,
+    /// Bottom offset.
+    ///
+    /// 底部偏移。
     #[serde(default)]
     pub bottom: Option<SerializableVal>,
+    /// Positioning strategy (Relative or Absolute).
+    ///
+    /// 定位策略（相对或绝对）。
     #[serde(default)]
     pub position_type: Option<SerializablePositionType>,
+    /// Layout direction for children.
+    ///
+    /// 子节点的布局方向。
     #[serde(default)]
     pub flex_direction: Option<UiFlexDirection>,
+    /// Alignment along the main axis.
+    ///
+    /// 主轴方向的对齐方式。
     #[serde(default)]
     pub justify_content: Option<SerializableJustifyContent>,
+    /// Alignment along the cross axis.
+    ///
+    /// 交叉轴方向的对齐方式。
     #[serde(default)]
     pub align_items: Option<SerializableAlignItems>,
 }
@@ -323,27 +444,69 @@ pub struct SpriteDef {
     pub material: Option<MaterialDef>,
 }
 
+/// Text element definition.
+///
+/// 文本元素定义。
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextDef {
+    /// Unique identifier for the text element.
+    ///
+    /// 文本元素的唯一标识符。
     pub id: String,
+    /// Initial string content.
+    ///
+    /// 初始字符串内容。
     #[serde(default)]
     pub content: Option<String>,
+    /// Font identifier.
+    ///
+    /// 字体标识符。
     pub font: ViewFontDef,
+    /// Text alignment within its bounding box.
+    ///
+    /// 文本在其包围框内的对齐方式。
     #[serde(default)]
     pub align: Option<TextAlignDef>,
+    /// Anchor point for the text's coordinate system.
+    ///
+    /// 文本坐标系的锚点。
     #[serde(default)]
     pub anchor: Option<TextAnchorDef>,
+    /// Scale factor in world units.
+    ///
+    /// 世界单位下的缩放比例。
     pub world_scale: SerializableVec2,
+    /// Base color.
+    ///
+    /// 基础颜色。
     pub color: SerializableColor,
+    /// Transform components.
+    ///
+    /// 变换组件。
     pub transform: SerializableTransform,
+    /// Line height override.
+    ///
+    /// 行高覆盖。
     #[serde(default)]
     pub line_height: Option<f32>,
+    /// Character spacing offset.
+    ///
+    /// 字符间距偏移。
     #[serde(default)]
     pub char_spacing: Option<f32>,
+    /// Word spacing offset.
+    ///
+    /// 单词间距偏移。
     #[serde(default)]
     pub word_spacing: Option<f32>,
+    /// Alternative style applied when a condition is met.
+    ///
+    /// 当满足条件时应用的备选样式。
     #[serde(default)]
     pub conditional_style: Option<ConditionalStyleDef>,
+    /// Conditional visibility.
+    ///
+    /// 条件可见性。
     #[serde(default)]
     pub visible_when: Option<String>,
 }

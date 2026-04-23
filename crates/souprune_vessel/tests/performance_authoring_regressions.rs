@@ -1,63 +1,58 @@
-//! Regression tests for `performance!` and the Rust reference constructors.
+//! Regression tests for explicit danmaku performance authoring.
 //!
-//! `performance!` 与 Rust 参考构造器的回归测试。
+//! 显式弹幕演出编写方式的回归测试。
 
 use souprune_schema::danmaku::{
-    BulletBehavior, BulletPrototype, DurationExpr, SpawnPattern, TimeMode, TimelineEvent,
+    BulletBehavior, BulletPrototype, DanmakuPerformance, SpawnPattern, TimeMode, TimelineEvent,
 };
-use souprune_vessel::prelude::*;
 use std::collections::HashMap;
 
 #[test]
-fn performance_macro_supports_spreads_and_extended_constructors() {
-    let extra_prototypes = HashMap::from([(
+fn explicit_performance_authoring_supports_composed_parts() {
+    let mut prototypes = HashMap::from([(
+        "orb".to_string(),
+        BulletPrototype::new("battle/bullets/orb.png"),
+    )]);
+    prototypes.extend([(
         "alt".to_string(),
         BulletPrototype::new("battle/bullets/alt.png"),
     )]);
-    let extra_behaviors = HashMap::from([
+
+    let mut behaviors = HashMap::from([("idle".to_string(), BulletBehavior::stationary())]);
+    behaviors.extend([
         ("orbit".to_string(), BulletBehavior::orbital(1.5, 8.0)),
         (
             "wiggle".to_string(),
             BulletBehavior::sine((1.0, 0.0), 18.0, 2.5),
         ),
     ]);
-    let extra_timeline = vec![TimelineEvent::delta_with(
+
+    let mut timeline = vec![TimelineEvent::absolute(
+        0.0,
+        "orb",
+        SpawnPattern::line(4, 16.0, (0.0, 1.0)),
+        ["idle"],
+    )];
+    timeline.extend([TimelineEvent::delta_with(
         0.5,
         "orb",
         SpawnPattern::custom("example.spiral", [("turns", 3.0), ("radius", 24.0)]),
         (0.0, 0.0),
         Vec::<String>::new(),
         [BulletBehavior::stationary()],
-    )];
+    )]);
 
-    let performance = performance! {
-        prototypes {
-            "orb" => BulletPrototype::new("battle/bullets/orb.png"),
-            ..extra_prototypes,
-        }
-        behaviors {
-            "idle" => BulletBehavior::stationary(),
-            ..extra_behaviors,
-        }
-        timeline [
-            TimelineEvent::absolute(
-                0.0,
-                "orb",
-                SpawnPattern::line(4, 16.0, (0.0, 1.0)),
-                ["idle"],
-            ),
-            ..extra_timeline,
-        ]
-        duration: DurationExpr::Literal(3.0),
+    let performance = DanmakuPerformance {
+        prototypes,
+        behaviors,
+        timeline,
+        duration: Some(3.0),
     };
 
     assert_eq!(performance.prototypes.len(), 2);
     assert_eq!(performance.behaviors.len(), 3);
     assert_eq!(performance.timeline.len(), 2);
-    assert!(matches!(
-        performance.duration,
-        Some(DurationExpr::Literal(3.0))
-    ));
+    assert_eq!(performance.duration, Some(3.0));
 
     assert!(matches!(
         performance.behaviors.get("idle"),

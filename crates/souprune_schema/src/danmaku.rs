@@ -22,187 +22,26 @@ pub struct DanmakuPerformance {
     #[serde(default)]
     pub behaviors: HashMap<String, BulletBehavior>,
     pub timeline: Vec<TimelineEvent>,
-    /// How long this performance lasts. Supports `@current` (accumulated timeline time).
+    /// How long this performance lasts.
     /// - Literal: `duration: 5.0`
-    /// - Expression: `duration: "@current + 2.0"`
     /// - Omitted / 0 / negative: fire-and-forget (won't block sequencer).
     ///
-    /// 演出持续时间。支持 `@current`（timeline 累计时间）。
+    /// 演出持续时间。
     /// - 字面量：`duration: 5.0`
-    /// - 表达式：`duration: "@current + 2.0"`
     /// - 省略 / 0 / 负数：不阻塞序列器。
     #[serde(default)]
-    pub duration: Option<DurationExpr>,
-}
-
-/// Duration expression — either a literal float or a `@current`-relative expression.
-///
-/// 持续时间表达式 — 字面量浮点数或基于 `@current` 的相对表达式。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum DurationExpr {
-    Literal(f32),
-    Expr(String),
+    pub duration: Option<f32>,
 }
 
 impl DanmakuPerformance {
-    /// Resolve `duration` to an `f32`, substituting `@current` with accumulated timeline time.
-    /// Returns `None` if duration is omitted, or `Some(0.0)` / negative → caller treats as
+    /// Resolve `duration` to a blocking duration value.
+    /// Returns `None` if duration is omitted. Callers treat zero or negative values as
     /// fire-and-forget.
     ///
-    /// 将 `duration` 解析为 `f32`，用 timeline 累计时间替换 `@current`。
+    /// 将 `duration` 解析为阻塞时长。
+    /// 如果省略则返回 `None`。调用方将零或负数视为不阻塞。
     pub fn resolved_duration(&self) -> Option<f32> {
-        match &self.duration {
-            None => None,
-            Some(DurationExpr::Literal(v)) => Some(*v),
-            Some(DurationExpr::Expr(expr)) => {
-                let current = self.accumulated_timeline_time();
-                let replaced = expr.replace("@current", &current.to_string());
-                evaluate_simple_expr(&replaced)
-            }
-        }
-    }
-
-    /// Accumulated absolute time at the end of the timeline.
-    ///
-    /// Timeline 的最终累计绝对时间。
-    fn accumulated_timeline_time(&self) -> f32 {
-        let mut accumulated = 0.0f32;
-        for event in &self.timeline {
-            accumulated = match event.time_mode {
-                TimeMode::Absolute => event.t,
-                TimeMode::Delta => accumulated + event.t,
-            };
-        }
-        accumulated
-    }
-}
-
-/// Evaluate a simple arithmetic expression (supports `+`, `-`, `*`, `/` and parentheses).
-/// Returns `None` on parse failure.
-fn evaluate_simple_expr(expr: &str) -> Option<f32> {
-    let expr = expr.trim();
-    if expr.is_empty() {
-        return None;
-    }
-    // Fast path: try parsing as a plain number first
-    if let Ok(v) = expr.parse::<f32>() {
-        return Some(v);
-    }
-    // Minimal recursive-descent parser for +, -, *, /
-    let mut parser = SimpleExprParser::new(expr);
-    parser.parse_expr()
-}
-
-struct SimpleExprParser<'a> {
-    chars: &'a [u8],
-    pos: usize,
-}
-
-impl<'a> SimpleExprParser<'a> {
-    fn new(input: &'a str) -> Self {
-        Self {
-            chars: input.as_bytes(),
-            pos: 0,
-        }
-    }
-
-    fn skip_whitespace(&mut self) {
-        while self.pos < self.chars.len() && self.chars[self.pos].is_ascii_whitespace() {
-            self.pos += 1;
-        }
-    }
-
-    fn parse_expr(&mut self) -> Option<f32> {
-        let mut result = self.parse_term()?;
-        loop {
-            self.skip_whitespace();
-            if self.pos >= self.chars.len() {
-                break;
-            }
-            match self.chars[self.pos] {
-                b'+' => {
-                    self.pos += 1;
-                    result += self.parse_term()?;
-                }
-                b'-' => {
-                    self.pos += 1;
-                    result -= self.parse_term()?;
-                }
-                _ => break,
-            }
-        }
-        Some(result)
-    }
-
-    fn parse_term(&mut self) -> Option<f32> {
-        let mut result = self.parse_atom()?;
-        loop {
-            self.skip_whitespace();
-            if self.pos >= self.chars.len() {
-                break;
-            }
-            match self.chars[self.pos] {
-                b'*' => {
-                    self.pos += 1;
-                    result *= self.parse_atom()?;
-                }
-                b'/' => {
-                    self.pos += 1;
-                    result = self.parse_division(result)?;
-                }
-                _ => break,
-            }
-        }
-        Some(result)
-    }
-
-    fn parse_division(&mut self, dividend: f32) -> Option<f32> {
-        let divisor = self.parse_atom()?;
-        if divisor == 0.0 {
-            return None;
-        }
-        Some(dividend / divisor)
-    }
-
-    fn parse_atom(&mut self) -> Option<f32> {
-        self.skip_whitespace();
-        if self.pos >= self.chars.len() {
-            return None;
-        }
-
-        // Parenthesized expression
-        if self.chars[self.pos] == b'(' {
-            self.pos += 1;
-            let result = self.parse_expr()?;
-            self.skip_whitespace();
-            if self.pos < self.chars.len() && self.chars[self.pos] == b')' {
-                self.pos += 1;
-            }
-            return Some(result);
-        }
-
-        // Negative number / unary minus
-        let negative = if self.chars[self.pos] == b'-' {
-            self.pos += 1;
-            true
-        } else {
-            false
-        };
-
-        self.skip_whitespace();
-        let start = self.pos;
-        while self.pos < self.chars.len()
-            && (self.chars[self.pos].is_ascii_digit() || self.chars[self.pos] == b'.')
-        {
-            self.pos += 1;
-        }
-        if self.pos == start {
-            return None;
-        }
-        let num_str = std::str::from_utf8(&self.chars[start..self.pos]).ok()?;
-        let val: f32 = num_str.parse().ok()?;
-        Some(if negative { -val } else { val })
+        self.duration
     }
 }
 
@@ -262,23 +101,61 @@ impl ColorTint {
 }
 
 /// Bullet prototype — appearance and collision definition.
+///
+/// 弹幕原型 — 外观与碰撞定义。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct BulletPrototype {
+    /// Visual resource path (e.g., "bullet/small").
+    ///
+    /// 视觉资源路径（如 "bullet/small"）。
     pub visual: String,
+    /// Collision shape and size.
+    ///
+    /// 碰撞形状与尺寸。
     pub collider: ColliderShape,
+    /// Damage dealt to the player on hit.
+    ///
+    /// 命中时对玩家造成的伤害。
     pub damage: f32,
+    /// Maximum time the bullet exists in world units (seconds).
+    ///
+    /// 弹幕在世界中存在的最大时间（秒）。
     pub lifetime: f32,
+    /// Visual layering priority.
+    ///
+    /// 视觉图层优先级。
     pub z_index: f32,
+    /// Uniform scale factor.
+    ///
+    /// 统一缩放比例。
     pub scale: f32,
+    /// Initial rotation in radians.
+    ///
+    /// 初始旋转角度（弧度）。
     #[serde(default)]
     pub rotation: f32,
+    /// Preset behavior when hitting the player.
+    ///
+    /// 命中玩家时的预设行为。
     pub hit_behavior: HitBehaviorPreset,
+    /// Color tint applied to the visual.
+    ///
+    /// 应用于视觉资源的色调。
     pub color_tint: ColorTint,
+    /// Whether to flip the visual horizontally.
+    ///
+    /// 是否水平翻转视觉资源。
     #[serde(default)]
     pub flip_x: bool,
+    /// Whether to flip the visual vertically.
+    ///
+    /// 是否垂直翻转视觉资源。
     #[serde(default)]
     pub flip_y: bool,
+    /// Duration of each animation frame (if applicable).
+    ///
+    /// 每个动画帧的持续时间（如果适用）。
     #[serde(default)]
     pub frame_duration: Option<f32>,
 }
@@ -348,16 +225,45 @@ impl ColliderShape {
 // ============================================================================
 
 /// Bullet behavior definition.
+///
+/// 弹幕行为定义。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum BulletBehavior {
+    /// Constant velocity movement in a fixed direction.
+    ///
+    /// 固定方向的等速运动。
     Linear(LinearConfig),
+    /// Interpolated property animation (e.g., opacity, scale, position).
+    ///
+    /// 属性插值动画（如不透明度、缩放、位置）。
     Tween(TweenConfig),
+    /// No movement. Useful for static traps or anchors.
+    ///
+    /// 无运动。适用于静态陷阱或锚点。
     Stationary(),
+    /// Circular movement around the spawn point.
+    ///
+    /// 围绕生成点的圆周运动。
     Orbital(OrbitalConfig),
+    /// Sine-wave oscillation along an axis.
+    ///
+    /// 沿轴线的正弦波振荡。
     Sine(SineConfig),
+    /// Movement towards the player's current position at spawn time.
+    ///
+    /// 朝向弹幕生成时玩家所在位置的运动（自机狙）。
     Aimed(AimedConfig),
+    /// User-defined behavior implemented in code.
+    ///
+    /// 在代码中实现的自定义行为。
     Custom {
+        /// Unique identifier for the custom behavior.
+        ///
+        /// 自定义行为的唯一标识符。
         id: String,
+        /// Numeric property bindings passed to the behavior logic.
+        ///
+        /// 传递给行为逻辑的数值属性绑定。
         #[serde(default)]
         props: HashMap<String, f32>,
     },
@@ -461,10 +367,18 @@ impl BulletBehavior {
 }
 
 /// Linear motion configuration.
+///
+/// 线性运动配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LinearConfig {
+    /// Direction vector (X, Y).
+    ///
+    /// 方向向量 (X, Y)。
     pub dir: (f32, f32),
+    /// Speed in world units per second.
+    ///
+    /// 移动速度（世界单位/秒）。
     pub speed: f32,
 }
 
@@ -478,10 +392,18 @@ impl Default for LinearConfig {
 }
 
 /// Orbital motion configuration.
+///
+/// 轨道运动配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct OrbitalConfig {
+    /// Angular velocity in radians per second.
+    ///
+    /// 角速度（弧度/秒）。
     pub angular_velocity: f32,
+    /// Radial velocity (expansion/contraction speed).
+    ///
+    /// 径向速度（扩张/收缩速度）。
     pub radial_velocity: f32,
 }
 
@@ -495,12 +417,26 @@ impl Default for OrbitalConfig {
 }
 
 /// Sine wave configuration.
+///
+/// 正弦波配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SineConfig {
+    /// Reference axis for oscillation.
+    ///
+    /// 振荡的参考轴。
     pub axis: (f32, f32),
+    /// Maximum displacement from the axis.
+    ///
+    /// 偏离轴线的最大位移。
     pub amplitude: f32,
+    /// Oscillations per second.
+    ///
+    /// 每秒振荡次数（频率）。
     pub frequency: f32,
+    /// Initial phase offset in radians.
+    ///
+    /// 初始相位偏移（弧度）。
     pub phase: f32,
 }
 
@@ -516,10 +452,18 @@ impl Default for SineConfig {
 }
 
 /// Aimed bullet configuration (自机狙).
+///
+/// 自机狙配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AimedConfig {
+    /// Speed in world units per second.
+    ///
+    /// 移动速度（世界单位/秒）。
     pub speed: f32,
+    /// Angular offset from the player direction (radians).
+    ///
+    /// 偏离玩家方向的角度偏移（弧度）。
     pub angle_offset: f32,
 }
 
@@ -549,17 +493,40 @@ pub enum TweenMode {
 }
 
 /// Tween animation configuration.
+///
+/// 补间动画配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TweenConfig {
+    /// Target property to animate.
+    ///
+    /// 要播放动画的目标属性。
     pub target: DanmakuTweenTarget,
+    /// Duration of the animation in seconds.
+    ///
+    /// 动画持续时间（秒）。
     pub duration: f32,
+    /// Easing function for interpolation.
+    ///
+    /// 用于插值的缓动函数。
     #[serde(default)]
     pub ease: Easing,
+    /// Initial value.
+    ///
+    /// 初始值。
     #[serde(default)]
     pub from: f32,
+    /// Target value.
+    ///
+    /// 目标值。
     pub to: f32,
+    /// Delay before the animation starts (seconds).
+    ///
+    /// 动画开始前的延迟（秒）。
     #[serde(default)]
     pub delay: f32,
+    /// Interpretation mode for `from` and `to` values.
+    ///
+    /// `from` 和 `to` 值的解释模式。
     #[serde(default)]
     pub mode: TweenMode,
 }
@@ -579,19 +546,44 @@ impl Default for TweenConfig {
 }
 
 /// Tween target properties (danmaku-specific).
+///
+/// 补间目标属性（弹幕专用）。
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
 pub enum DanmakuTweenTarget {
+    /// Visual opacity (alpha channel).
+    ///
+    /// 视觉不透明度（Alpha 通道）。
     #[default]
     Opacity,
+    /// Uniform scale.
+    ///
+    /// 统一缩放。
     Scale,
+    /// X-axis scale.
+    ///
+    /// X 轴缩放。
     ScaleX,
+    /// Y-axis scale.
+    ///
+    /// Y 轴缩放。
     ScaleY,
+    /// Relative or absolute X position.
+    ///
+    /// 相对或绝对 X 坐标。
     PositionX,
+    /// Relative or absolute Y position.
+    ///
+    /// 相对或绝对 Y 坐标。
     PositionY,
+    /// Rotation angle.
+    ///
+    /// 旋转角度。
     Rotation,
 }
 
 /// Easing functions for interpolation.
+///
+/// 用于插值的缓动函数。
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default)]
 pub enum Easing {
     #[default]
@@ -628,18 +620,41 @@ pub enum TimeMode {
 }
 
 /// Timeline event — describes what happens at a specific time.
+///
+/// 时间线事件 — 描述在特定时间发生的情况。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimelineEvent {
+    /// Time coordinate (interpreted based on `time_mode`).
+    ///
+    /// 时间坐标（根据 `time_mode` 解释）。
     pub t: f32,
+    /// Interpretation mode for the `t` field.
+    ///
+    /// `t` 字段的解释模式。
     #[serde(default)]
     pub time_mode: TimeMode,
+    /// Identifier of the bullet prototype to spawn.
+    ///
+    /// 要生成的弹幕原型的标识符。
     pub spawn: String,
+    /// Spatial distribution pattern for spawned bullets.
+    ///
+    /// 生成弹幕的空间分布模式。
     #[serde(default)]
     pub pattern: SpawnPattern,
+    /// Positional offset applied to the pattern center.
+    ///
+    /// 应用于模式中心的坐标偏移。
     #[serde(default)]
     pub offset: (f32, f32),
+    /// List of named behaviors to apply to the spawned bullets.
+    ///
+    /// 要应用到生成的弹幕上的命名行为列表。
     #[serde(default)]
     pub apply: Vec<String>,
+    /// Inline behavior definitions to apply to the spawned bullets.
+    ///
+    /// 要应用到生成的弹幕上的内联行为定义。
     #[serde(default)]
     pub behaviors: Vec<BulletBehavior>,
 }

@@ -55,6 +55,7 @@ pub mod ron_loader;
 pub mod sequencer;
 pub mod sprite;
 pub mod state_config;
+pub mod text_escape;
 pub mod trace;
 pub mod view;
 pub mod visual;

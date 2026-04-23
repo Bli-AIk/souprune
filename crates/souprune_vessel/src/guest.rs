@@ -70,6 +70,9 @@ pub trait CanonicalRonAsset: Serialize {
 }
 
 impl Registry {
+    /// Create a new registry.
+    ///
+    /// 创建一个新的注册表。
     pub fn new() -> Self {
         Self::default()
     }
@@ -77,6 +80,10 @@ impl Registry {
     /// Emit a serializable value as pretty-printed RON.
     ///
     /// 将一个可序列化值生成为格式化 RON。
+    ///
+    /// # Arguments
+    /// - `path`: Destination path within the asset directory.
+    /// - `value`: Serializable data to emit.
     pub fn emit_ron<T: Serialize>(&mut self, path: impl Into<String>, value: &T) -> Result<()> {
         let ron_str = format_pretty_ron(value)?;
         self.files.push(wit::GeneratedFile {
@@ -89,6 +96,10 @@ impl Registry {
     /// Emit an asset to its default canonical output path inferred from the source file.
     ///
     /// 将资源生成到由源码文件自动推导出的默认 canonical 输出路径。
+    ///
+    /// # Arguments
+    /// - `source_file`: The `file!()` path of the caller.
+    /// - `value`: The typed asset to emit.
     pub fn emit_auto<T: CanonicalRonAsset>(&mut self, source_file: &str, value: &T) -> Result<()> {
         self.emit_auto_with(source_file, value, EmitPathConfig::default())
     }
@@ -130,6 +141,9 @@ impl Registry {
         Ok(())
     }
 
+    /// Finalize and return all collected files.
+    ///
+    /// 完成并返回所有收集到的文件。
     pub fn into_generated_files(self) -> Vec<wit::GeneratedFile> {
         self.files
     }
