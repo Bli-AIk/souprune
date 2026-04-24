@@ -30,12 +30,12 @@ alias generate-mods := build-mods
 
 # clippy
 clippy:
-    cargo clippy --all-targets --all-features
+    cargo clippy --all-targets --all-features -- -D warnings
 
 
 # clippy_local
 clippy_local:
-    cargo clippy -p {{project}} --all-targets --all-features
+    cargo clippy -p {{project}} --all-targets --all-features -- -D warnings
 
 # 对所有 mod crate 运行 clippy
 clippy-mods:
