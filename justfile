@@ -1,9 +1,10 @@
 # 可覆盖变量（默认 souprune）
 # 用法：just project=mygame build
 project := env_var_or_default("project", "souprune")
+workspace_root := justfile_directory()
 
 # 默认任务：debug 构建
-default:
+default: builtin-build
     cargo build -p {{project}} --features debug
 
 # 格式化
@@ -18,12 +19,14 @@ fmt-mods:
     @echo "Formatted all mods"
 
 # 构建所有 mod 的 runtime 和 content 主线
-build-mods:
+build-mods: builtin-build
     @for mod_dir in $(find projects -mindepth 1 -maxdepth 1 -type d | sort); do \
         mod_name=$(basename "$mod_dir"); \
         just project-build "$mod_name" || exit $?; \
     done
     @echo "Built all mods"
+
+alias generate-mods := build-mods
 
 # clippy
 clippy:
@@ -37,7 +40,8 @@ clippy_local:
 # 对所有 mod crate 运行 clippy
 clippy-mods:
     @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
-        cargo clippy --manifest-path "$toml" --target wasm32-wasip2 --all-targets --all-features -- -D warnings || exit $?; \
+        crate_id=$(echo "$toml" | sed 's#^projects/##; s#/Cargo.toml$##; s#/#-#g'); \
+        cargo clippy --manifest-path "$toml" --target wasm32-wasip2 --target-dir "{{workspace_root}}/target/mod-clippy/$crate_id" --all-targets --all-features -- -D warnings || exit $?; \
     done
     @echo "Clippy passed for all mods"
 
@@ -70,11 +74,11 @@ fix:
     cargo clippy -p {{project}} --fix --allow-dirty --allow-staged --all-features
 
 # 普通构建（release 前）
-build:
+build: builtin-build
     cargo build -p {{project}}
 
 # 普通运行（动态链接加速）
-run:
+run: builtin-build
     cargo run -p {{project}} --features bevy/dynamic_linking
 
 # 不安全 GPU 运行（禁用 Vulkan 验证层）
@@ -96,20 +100,28 @@ test_local:
 # 运行所有 mod crate 的测试
 test-mods:
     @for toml in $(find projects -mindepth 2 -maxdepth 3 -name Cargo.toml | sort); do \
-        cargo test --manifest-path "$toml" || exit $?; \
+        crate_id=$(echo "$toml" | sed 's#^projects/##; s#/Cargo.toml$##; s#/#-#g'); \
+        cargo nextest run --manifest-path "$toml" --target-dir "{{workspace_root}}/target/mod-tests/$crate_id" || exit $?; \
     done
     @echo "Tested all mods"
 
 # 开发运行（debug + 动态链接加速）
-dev:
+dev: builtin-build
     cargo run -p {{project}} --features "debug,bevy/dynamic_linking"
 
 # 清理
 clean:
     cargo clean
 
+# 彻底清理：根工作区、独立子模块、mod 残留 target 与 .build
+clean-all:
+    cargo clean
+    @find crates projects -type d -name target -prune -exec rm -rf {} +
+    @find projects -depth -path '*/.build/*' ! -name 'vessel-output-manifest.toml' -exec rm -rf {} +
+    @echo "Cleaned workspace, nested crate targets, and mod build artifacts (preserved Vessel manifests)"
+
 # Release 构建运行（静态链接，最终性能）
-release:
+release: builtin-build-release
     cargo run -p {{project}} --release
 
 # Tracy
@@ -135,26 +147,48 @@ wasm-build:
 wasm-test: wasm-build
     cargo run -p souprune_mock_host -- target/wasm32-wasip2/debug/souprune_mod_test.wasm
 
+# 构建内置弹幕 WASM，并安装到 assets/builtins/
+builtin-build:
+    mkdir -p assets/builtins
+    CARGO_TARGET_DIR={{workspace_root}}/target/builtins cargo build --manifest-path crates/souprune_builtins/Cargo.toml --target wasm32-wasip2
+    cp {{workspace_root}}/target/builtins/wasm32-wasip2/debug/souprune_builtins.wasm assets/builtins/souprune_builtins.wasm
+    @echo "Built builtin WASM: assets/builtins/souprune_builtins.wasm"
+
+# release 构建内置弹幕 WASM，并安装到 assets/builtins/
+builtin-build-release:
+    mkdir -p assets/builtins
+    CARGO_TARGET_DIR={{workspace_root}}/target/builtins cargo build --manifest-path crates/souprune_builtins/Cargo.toml --target wasm32-wasip2 --release
+    cp {{workspace_root}}/target/builtins/wasm32-wasip2/release/souprune_builtins.wasm assets/builtins/souprune_builtins.wasm
+    @echo "Built builtin WASM: assets/builtins/souprune_builtins.wasm"
+
 # 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
 runtime-build mod_name:
-    cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2
     mkdir -p projects/{{mod_name}}/.build
-    cp projects/{{mod_name}}/runtime/target/wasm32-wasip2/debug/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
+    cp {{workspace_root}}/target/runtime-wasm/{{mod_name}}/wasm32-wasip2/debug/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
     @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
+
+# 构建所有 mod 的 runtime WASM
+runtime-build-mods:
+    @for mod_dir in $(find projects -mindepth 1 -maxdepth 1 -type d | sort); do \
+        mod_name=$(basename "$mod_dir"); \
+        just runtime-build "$mod_name" || exit $?; \
+    done
+    @echo "Built runtime for all mods"
 
 # release 构建项目 runtime WASM 组件并安装到 .build/runtime.wasm
 runtime-build-release mod_name:
-    cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --release
+    CARGO_TARGET_DIR={{workspace_root}}/target/runtime-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/runtime/Cargo.toml --target wasm32-wasip2 --release
     mkdir -p projects/{{mod_name}}/.build
-    cp projects/{{mod_name}}/runtime/target/wasm32-wasip2/release/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
+    cp {{workspace_root}}/target/runtime-wasm/{{mod_name}}/wasm32-wasip2/release/runtime.wasm projects/{{mod_name}}/.build/runtime.wasm
     @echo "Built runtime: projects/{{mod_name}}/.build/runtime.wasm"
 
 # 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build mod_name:
-    CARGO_TARGET_DIR=target/content-wasm cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
+    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2
     mkdir -p projects/{{mod_name}}/.build
-    cp target/content-wasm/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
-    cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/debug/content.wasm projects/{{mod_name}}/.build/content.wasm
+    CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
 # 构建所有 mod 的 content guest，并直接生成正式内容文件
@@ -167,10 +201,10 @@ content-build-mods:
 
 # release 构建项目 content guest，安装到 .build/content.wasm，并直接生成正式内容文件
 content-build-release mod_name:
-    CARGO_TARGET_DIR=target/content-wasm cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
+    CARGO_TARGET_DIR={{workspace_root}}/target/content-wasm/{{mod_name}} cargo build --manifest-path projects/{{mod_name}}/content/Cargo.toml --target wasm32-wasip2 --release
     mkdir -p projects/{{mod_name}}/.build
-    cp target/content-wasm/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
-    cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
+    cp {{workspace_root}}/target/content-wasm/{{mod_name}}/wasm32-wasip2/release/content.wasm projects/{{mod_name}}/.build/content.wasm
+    CARGO_TARGET_DIR={{workspace_root}}/target/vessel-cli cargo run -p vessel -- build projects/{{mod_name}}/.build/content.wasm --output projects/{{mod_name}}
     @echo "Built content: projects/{{mod_name}}/.build/content.wasm"
 
 # 构建项目的 runtime 和 content 两条主线

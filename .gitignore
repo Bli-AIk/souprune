@@ -45,6 +45,7 @@ yarn-debug.log*
 yarn-error.log*
 
 ignore_music.wav
+assets/builtins/
 
 reports/
 generated/*
