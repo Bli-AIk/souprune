@@ -12,6 +12,12 @@ use std::collections::HashMap;
 use crate::val::Val;
 pub use crate::val::{expression, static_float};
 
+mod material;
+mod sdf;
+
+pub use material::*;
+pub use sdf::*;
+
 // ============================================================================
 // Serializable Helper Types (mirrors serde_types.rs)
 // ============================================================================
@@ -615,152 +621,6 @@ pub struct StateRuleDef {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum StateTriggerDef {
     InteractiveLayerSelected { layer_id: String, index: usize },
-}
-
-// ============================================================================
-// Material Configuration
-// ============================================================================
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MaterialDef {
-    pub shader: String,
-    #[serde(default, serialize_with = "crate::ordered_map::serialize_ordered_map")]
-    pub params: HashMap<String, MaterialParamValue>,
-    #[serde(default)]
-    pub animations: Option<MaterialAnimationsDef>,
-    #[serde(default)]
-    pub texture: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum MaterialParamValue {
-    Static(f32),
-    Expr(String),
-}
-
-impl Default for MaterialParamValue {
-    fn default() -> Self {
-        Self::Static(0.0)
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MaterialAnimationsDef {
-    #[serde(default)]
-    pub lag: Option<LagAnimationDef>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LagAnimationDef {
-    pub source: String,
-    pub target: String,
-    #[serde(default = "default_lag_delay")]
-    pub delay: f32,
-    #[serde(default = "default_lag_duration")]
-    pub duration: f32,
-    #[serde(default)]
-    pub easing: EasingDef,
-}
-
-impl Default for LagAnimationDef {
-    fn default() -> Self {
-        Self {
-            source: String::new(),
-            target: String::new(),
-            delay: default_lag_delay(),
-            duration: default_lag_duration(),
-            easing: EasingDef::default(),
-        }
-    }
-}
-
-fn default_lag_delay() -> f32 {
-    0.2
-}
-
-fn default_lag_duration() -> f32 {
-    0.4
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub enum EasingDef {
-    #[default]
-    Linear,
-    InQuad,
-    OutQuad,
-    InOutQuad,
-    InCubic,
-    OutCubic,
-    InOutCubic,
-    InCirc,
-    OutCirc,
-    InOutCirc,
-}
-
-// ============================================================================
-// SDF Structure Asset
-// ============================================================================
-
-/// SDF structure layout for `.sdf.ron` files.
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SdfStructure {
-    pub layer_count: usize,
-    pub root: SdfLayerDef,
-}
-
-pub type SdfStructureAsset = SdfStructure;
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SdfLayerDef {
-    pub name: String,
-    pub sdf_type: SdfShapeKind,
-    #[serde(default)]
-    pub color_source: SdfColorSource,
-    #[serde(default = "default_z_offset")]
-    pub z_offset: f32,
-    #[serde(default)]
-    pub is_filler: bool,
-    #[serde(default)]
-    pub children: Vec<SdfLayerDef>,
-}
-
-impl Default for SdfLayerDef {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            sdf_type: SdfShapeKind::Outer,
-            color_source: SdfColorSource::default(),
-            z_offset: default_z_offset(),
-            is_filler: false,
-            children: Vec::new(),
-        }
-    }
-}
-
-fn default_z_offset() -> f32 {
-    0.1
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum SdfShapeKind {
-    Outer,
-    Inner,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub enum SdfColorSource {
-    #[default]
-    FillColor,
-    White,
-    Custom(SerializableColor),
-    /// Toggle between two colors based on a boolean FRE fact.
-    ///
-    /// 根据布尔 FRE fact 在两种颜色间切换。
-    FactToggle {
-        key: String,
-        on: SerializableColor,
-        off: SerializableColor,
-    },
 }
 
 // ============================================================================
