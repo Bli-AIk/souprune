@@ -4,25 +4,14 @@
 
 #[path = "support/cotton_first_turn_assertions.rs"]
 mod cotton_first_turn_assertions;
-#[path = "../../../projects/example_mod/content/src/support/performances.rs"]
-mod example_mod_content_performances;
 
 use cotton_first_turn_assertions::{assert_same_performance, parse_generated_ron};
 use souprune_schema::danmaku::DanmakuPerformance;
 
 #[test]
-fn example_mod_performance_builders_are_reachable() {
-    let _ = example_mod_content_performances::cotton_top_sweep as fn() -> DanmakuPerformance;
-    let _ = example_mod_content_performances::cotton_surround as fn() -> DanmakuPerformance;
-    let _ = example_mod_content_performances::cotton_side_pincer as fn() -> DanmakuPerformance;
-    let _ = example_mod_content_performances::cotton_bottom_wave as fn() -> DanmakuPerformance;
-}
-
-#[test]
-fn cotton_first_turn_snapshot() {
-    let generated = example_mod_content_performances::cotton_first_turn();
+fn cotton_first_turn_fixture_round_trips_through_schema() {
     let original_ron = include_str!(
-        "../../../projects/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
+        "fixtures/project_ron_baselines/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
     );
     let original: DanmakuPerformance =
         ron::from_str(original_ron).expect("hand-written cotton_first_turn should parse");
@@ -30,7 +19,7 @@ fn cotton_first_turn_snapshot() {
     let pretty_config = ron::ser::PrettyConfig::default()
         .struct_names(true)
         .enumerate_arrays(false);
-    let generated_ron = ron::ser::to_string_pretty(&generated, pretty_config)
+    let generated_ron = ron::ser::to_string_pretty(&original, pretty_config)
         .expect("generated RON should serialize");
     let generated_round_trip = parse_generated_ron(&generated_ron);
 

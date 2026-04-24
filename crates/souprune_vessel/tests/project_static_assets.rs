@@ -43,8 +43,18 @@ struct RonBaseline {
 fn project_generated_assets_canonicalize_against_selected_baselines() {
     let baselines = collect_project_ron_baselines();
     assert_baselines_cover_each_ron_kind_once(&baselines);
+    assert_baseline_assets_parse(&baselines);
 
+    let mut checked_projects = 0usize;
     for (project_name, project_baselines) in baselines_by_project(&baselines) {
+        if !project_content_manifest_path(project_name).exists() {
+            eprintln!(
+                "skipping generated asset check for {project_name}; project worktree is not checked out"
+            );
+            continue;
+        }
+
+        checked_projects += 1;
         let component_path = build_content_component(project_name);
         let generated_files = vessel::load_component_files(&component_path)
             .expect("project content guest should load through vessel host");
@@ -70,15 +80,16 @@ fn project_generated_assets_canonicalize_against_selected_baselines() {
             &generated_by_path,
         );
     }
+
+    if checked_projects == 0 {
+        eprintln!("skipping generated asset checks; no local project worktrees are checked out");
+    }
 }
 
 fn build_content_component(project_name: &str) -> PathBuf {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let target_dir = workspace_root.join("target/content-wasm-tests");
-    let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../projects")
-        .join(project_name)
-        .join("content/Cargo.toml");
+    let manifest_path = project_content_manifest_path(project_name);
 
     let build_status = Command::new("cargo")
         .env("CARGO_TARGET_DIR", &target_dir)
@@ -97,6 +108,13 @@ fn build_content_component(project_name: &str) -> PathBuf {
     );
 
     target_dir.join("wasm32-wasip2/debug/content.wasm")
+}
+
+fn project_content_manifest_path(project_name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../projects")
+        .join(project_name)
+        .join("content/Cargo.toml")
 }
 
 fn assert_generated_assets_semantically_match_baselines(
@@ -144,6 +162,24 @@ fn assert_generated_assets_parse(project_name: &str, generated_by_path: &HashMap
         let kind = RonFileKind::from_path(path)
             .unwrap_or_else(|| panic!("unsupported generated RON kind: {project_name}:{path}"));
         let _ = normalized_ron_json(kind, ron_text);
+    }
+}
+
+fn assert_baseline_assets_parse(baselines: &[RonBaseline]) {
+    for baseline in baselines {
+        let source = fs::read_to_string(&baseline.source_path).unwrap_or_else(|err| {
+            panic!(
+                "source RON should be readable for {}: {err}",
+                baseline.source_path.display()
+            )
+        });
+        let kind = RonFileKind::from_path(&baseline.relative_path).unwrap_or_else(|| {
+            panic!(
+                "unsupported RON kind for baseline path: {}",
+                baseline.relative_path
+            )
+        });
+        let _ = normalized_ron_json(kind, &source);
     }
 }
 

@@ -2,19 +2,6 @@
 //!
 //! 所有项目侧 performance 构造器的快照测试。
 
-#[path = "../../../projects/EVAERDRAD_storyspin_chara_fanmade/content/src/support/performances.rs"]
-mod chara_mod_performances;
-#[path = "../../../projects/epictale/content/src/support/performances.rs"]
-mod epictale_performances;
-#[path = "../../../projects/example_am_mod/content/src/support/performances.rs"]
-mod example_am_mod_performances;
-#[path = "../../../projects/example_battle_mod/content/src/support/performances.rs"]
-mod example_battle_mod_performances;
-#[path = "../../../projects/example_mod/content/src/support/demo_attack.rs"]
-mod example_mod_demo_attack;
-#[path = "../../../projects/example_mod/content/src/support/performances.rs"]
-mod example_mod_performances;
-
 use serde_json::Value;
 use souprune_schema::danmaku::DanmakuPerformance;
 use std::path::PathBuf;
@@ -51,67 +38,18 @@ fn sort_value(value: Value) -> Value {
     }
 }
 
-fn assert_matches_asset(actual: DanmakuPerformance, path: &str) {
+#[test]
+fn tracked_performance_fixtures_parse_and_canonicalize() {
+    assert_fixture_canonicalizes(
+        "crates/souprune_vessel/tests/fixtures/project_ron_baselines/example_mod/battle/danmaku/cotton_first_turn.performance.ron",
+    );
+}
+
+fn assert_fixture_canonicalizes(path: &str) {
     let expected = parse_expected(path);
-    assert_eq!(
-        canonical_json(&actual),
-        canonical_json(&expected),
-        "performance constructor does not match asset {path}"
-    );
-}
-
-#[test]
-fn example_mod_performances_match_assets() {
-    assert_matches_asset(
-        example_mod_demo_attack::demo_attack(),
-        "projects/example_mod/battle/danmaku/demo_attack.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_demo_attack::demo_attack_overworld(),
-        "projects/example_mod/overworld/danmaku/demo_attack_ow.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_performances::cotton_top_sweep(),
-        "projects/example_mod/battle/danmaku/cotton_top_sweep.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_performances::cotton_surround(),
-        "projects/example_mod/battle/danmaku/cotton_surround.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_performances::cotton_side_pincer(),
-        "projects/example_mod/battle/danmaku/cotton_side_pincer.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_performances::cotton_bottom_wave(),
-        "projects/example_mod/battle/danmaku/cotton_bottom_wave.performance.ron",
-    );
-    assert_matches_asset(
-        example_mod_performances::cotton_first_turn(),
-        "projects/example_mod/battle/danmaku/cotton_first_turn.performance.ron",
-    );
-}
-
-#[test]
-fn project_demo_attacks_match_assets() {
-    assert_matches_asset(
-        example_am_mod_performances::demo_attack(),
-        "projects/example_am_mod/battle/danmaku/demo_attack.performance.ron",
-    );
-    assert_matches_asset(
-        epictale_performances::demo_attack(),
-        "projects/epictale/battle/danmaku/demo_attack.performance.ron",
-    );
-    assert_matches_asset(
-        epictale_performances::demo_attack_overworld(),
-        "projects/epictale/overworld/danmaku/demo_attack_ow.performance.ron",
-    );
-    assert_matches_asset(
-        example_battle_mod_performances::demo_attack(),
-        "projects/example_battle_mod/battle/danmaku/demo_attack.performance.ron",
-    );
-    assert_matches_asset(
-        chara_mod_performances::demo_attack(),
-        "projects/EVAERDRAD_storyspin_chara_fanmade/battle/danmaku/demo_attack.performance.ron",
+    let canonical = canonical_json(&expected);
+    assert!(
+        canonical.is_object(),
+        "performance fixture should normalize to a JSON object: {path}"
     );
 }

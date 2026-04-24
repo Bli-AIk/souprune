@@ -16,6 +16,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 fn cotton_first_turn_component_build_matches_reference_asset() {
     let fixture_dir =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../projects/example_mod/content");
+    if !fixture_dir.join("Cargo.toml").exists() {
+        eprintln!(
+            "skipping local example_mod content component test; project worktree is not checked out"
+        );
+        return;
+    }
+
     let target_dir =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/content-wasm-tests");
 
@@ -69,7 +76,7 @@ fn cotton_first_turn_component_build_matches_reference_asset() {
 
     let generated = parse_generated_ron(&generated_ron);
     let original_ron = include_str!(
-        "../../../projects/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
+        "fixtures/project_ron_baselines/example_mod/battle/danmaku/cotton_first_turn.performance.ron"
     );
     let original: DanmakuPerformance =
         ron::from_str(original_ron).expect("reference cotton_first_turn should parse");
